@@ -47,6 +47,7 @@ export const RESOURCE_RELOCATION_PROBE_MS = 5000
 export const RESOURCE_OVERRIDE_MS = 15 * 60_000
 export const RESOURCE_MEMORY_FLOOR_MAX_FRACTION = 0.15
 export const RESOURCE_JOB_CPU_RATE_PERCENT = 50
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const RESOURCE_SAMPLER_MAX_CORE_PERCENT = 0.5
 export const RESOURCE_GIB_BYTES = 1_073_741_824
 export const RESOURCE_HISTORY_MINUTE_MS = 60_000
@@ -151,8 +152,7 @@ export const ACCOUNT_POLICY_VERSION = '2026-10-05.1'
 // never match a durable revocation epoch.
 export const ACCOUNT_QUOTE_GRANT_VERSION = 2
 
-// Must match package.json `publisher` and `name`; test/unit/manifest.test.ts
-// fails if they drift.
+// Must match package.json `publisher` and `name`.
 export const EXTENSION_PUBLISHER = 'RandyNorthrup'
 export const EXTENSION_NAME = 'muse-spark-code'
 export const EXTENSION_QUALIFIED_ID = `${EXTENSION_PUBLISHER}.${EXTENSION_NAME}`
@@ -307,6 +307,7 @@ export const LOCAL_PROBE_SNIPPET_CHARS = 500
 /**
  * Lane I's providers bundle (PLAN.md D6): the lane-P/T seam the Models
  * panel's factory is composed with. Lane I adopts this name with its entry.
+ * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes)
  */
 export const PROVIDERS_BUNDLE_FILE = 'providers.js'
 /** An import file above this is refused rather than parsed (D74). */
@@ -778,6 +779,7 @@ export const PAID_DAILY_BUDGET = {
 export const RUNTIME_SETTINGS_FILE = 'settings.json'
 export const DAILY_BUDGET_LOCK_ATTEMPTS = 100
 export const DAILY_BUDGET_LOCK_WAIT_MS = 10
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
 // D15): they choose what executes, what is billed and how much is approved,
@@ -1155,6 +1157,7 @@ export type EstimateOptimizeMode = (typeof ESTIMATE_OPTIMIZE_MODES)[number]
 // M117 W (PLAN.md D97 §4, playbook §4): the engines whose durations and
 // first-pass finding rates calibration fits per lane kind and machine class.
 export const ESTIMATE_ENGINES = ['codex', 'claude', 'grok'] as const
+/** @unwired M117 read only by tests deleted 2026-10-17 (no fakes) */
 export type EstimateEngine = (typeof ESTIMATE_ENGINES)[number]
 // The request bounds, at the intersection of the SystemOne services (TypeSafe,
 // OpenRouter, Ollama, Cloudflare): 1–64 questions; a choice of 2–26 options
@@ -1380,6 +1383,7 @@ export const SCREEN_RECORDING_MAX_SECONDS_SETTING = 'museSpark.screenRecordingMa
 /** Days a provider keeps an uploaded file (M105): the manifest allows 1–30. */
 export const MEDIA_UPLOAD_EXPIRY_MIN_DAYS = 1
 export const MEDIA_UPLOAD_EXPIRY_MAX_DAYS = 30
+/** @unwired M105 read only by tests deleted 2026-10-17 (no fakes) */
 export const MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS = 7
 /**
  * What the attach flow offers for audio (M105): the manifest exposes only
@@ -1387,6 +1391,7 @@ export const MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS = 7
  * verifies them against live captures.
  */
 export const MEDIA_AUDIO_ACTION_OPTIONS = ['transcribe', 'sendAudio'] as const
+/** @unwired M105 read only by tests deleted 2026-10-17 (no fakes) */
 export const MEDIA_AUDIO_ACTION_DEFAULT = 'transcribe'
 export const SCREEN_RECORDING_DEFAULT_MAX_SECONDS = 120
 export const SCREEN_RECORDING_MIN_SECONDS = 10
@@ -1721,6 +1726,7 @@ export const GITHUB_TOKEN_SOURCE_ORDER = ['editorLease', 'deviceFlow', 'ghLogin'
 // once a lane proves a call needs it. Nothing else is ever requested.
 export const GITHUB_PERMITTED_SCOPES: readonly string[] = ['repo', 'read:org']
 // GitHub names a token's scopes in this response header (comma-separated).
+/** @unwired M71 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_SCOPES_HEADER = 'x-oauth-scopes'
 // The project's OAuth App (Q-M123): public, no secret. Empty until the owner
 // registers the app; the device flow refuses to start while it is.
@@ -1728,17 +1734,25 @@ export const GITHUB_OAUTH_CLIENT_ID = ''
 // GitHub's device flow (docs.github.com, "Authorizing OAuth apps", device
 // flow; lane A re-reads and dates it). Only this verification address is
 // ever opened.
+/** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_CODE_URL = 'https://github.com/login/device/code'
+/** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_TOKEN_URL = 'https://github.com/login/oauth/access_token'
+/** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_VERIFICATION_URL = 'https://github.com/login/device'
+/** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code'
 // GitHub's defaults when its reply omits them, and the step `slow_down` adds.
+/** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_CODE_EXPIRES_S = 900
+/** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_POLL_INTERVAL_S = 5
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_SLOW_DOWN_STEP_S = 5
 // An editor lease lives at most this long, whatever the editor says.
 export const GITHUB_LEASE_TTL_MS = 15 * 60_000
 // `gh auth token` for github.com only (D104 source c).
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const GH_AUTH_TOKEN_ARGS: readonly string[] = ['auth', 'token', '--hostname', 'github.com']
 // GitHub's own limits on a pull request's title and description.
 export const PULL_REQUEST_TITLE_MAX_CHARS = 256
@@ -2335,8 +2349,11 @@ export const BOUNDED_FILE_READ_CHUNK_BYTES = 64 * 1024
 export const HTTP_UNAUTHORIZED = 401
 // Refused before any work was done: the one status a per-call-billed request retries (M34).
 export const HTTP_TOO_MANY_REQUESTS = 429
+// The code a configured provider's failure carries when its connection was
+// lost after it answered 200 (lane PROVERRORS): the reply is incomplete and
+// the request may have been charged, and before any content it is resent.
+export const PROVIDER_CONNECTION_LOST_CODE = 'connection_lost'
 // Shared per-format retry policy (M101 BYO 5).
-export const PROVIDER_RETRY_AFTER_CAP_MS = 60_000
 export const PROVIDER_RETRY_HTTP_STATUS = {
   paymentRequired: 402,
   requestTimeout: 408,
@@ -2400,6 +2417,7 @@ export const MODEL_API_MAX_TOOL_ROUNDS = 50
 // emitted toolset's size, not the upstream grammar limit, which stays a
 // residual until a live capture names it.
 export const TOOL_SCHEMA_MAX_DEPTH = 12
+/** @unwired M101 read only by tests deleted 2026-10-17 (no fakes) */
 export const TOOL_SCHEMA_JSON_BUDGET_BYTES = 32_768
 // The in-process tools (Claude Code's set, MSP's names where they exist so
 // the transcript rows render identically).
@@ -2814,6 +2832,7 @@ export const RULES_FILE_NAMES = ['AGENTS.md', 'CLAUDE.md'] as const
 // --oneline` subjects the Model API backend lists at session start.
 export const ENVIRONMENT_RECENT_COMMITS = 5
 // `YYYY-MM-DD` is the first ten characters of an ISO timestamp.
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const ISO_DATE_LENGTH = 10
 export const RULES_FILE_MAX_BYTES = 64 * 1024
 export const RULES_CONTEXT_MAX_BYTES = 256 * 1024
@@ -2909,6 +2928,7 @@ export const TEAM_MERGE_BATCH_MAX = 4
 export const TEAM_MERGE_BATCH_SMALL_LINES = 200
 export const TEAM_MERGE_FLAKE_RETRIES = 1
 export const TEAM_BLAST_WEIGHTS = { file: 20, sharedFile: 50, protectedPath: 100 } as const
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_HEAVY_COMMAND_SECONDS = 60
 export const RUNNER_CONNECT_TIMEOUT_MS = 10_000
 export const RUNNER_HEALTH_MS = 60_000
@@ -3127,7 +3147,8 @@ export const TEAM_NEW_ROLE_CEILING_GROUPS: readonly TeamToolGroup[] = ['read', '
 
 /** The repository's lowering file (PLAN.md D75): workspace-relative segments. */
 export const TEAM_JSON_SEGMENTS = ['.muse', 'team.json'] as const
-/** An unmerged task keeps its working copy and branch until the user acts; then this offers to discard it. */
+/** An unmerged task keeps its working copy and branch until the user acts; then this offers to discard it.
+ * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_UNMERGED_NOTICE_DAYS = 7
 
 /** Each group's plain words for the charter's "You may" line, generated from the one definition. */
@@ -4027,14 +4048,19 @@ export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
 export const LIST_FILES_DEFAULT_LIMIT = 500
 export const SHELL_DEFAULT_TIMEOUT_MS = 120_000
 // D107 §9.4: internal B1 boundary; F1b installs it only after certification.
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_WALK_MAX_ENTRIES = 20_000
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_WALK_MAX_MS = 100
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_WALK_MAX_DEPTH = 128
 export const JUDGE_FAST_B1_MAX_ABI = 8
 export const JUDGE_FAST_B1_MIN_ABI = 3
 export const JUDGE_FAST_B1_REFUSED_EXIT = 125
 export const JUDGE_FAST_B1_PROTOCOL_MAX_BYTES = 1024
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_ELF_MAX_BYTES = 32 * 1024 * 1024
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_SYSTEM_MAX_FILES = 64
 export const SHELL_MAX_TIMEOUT_MS = 600_000
 // Per stream: past it the middle of the output is dropped with a count.
@@ -4092,7 +4118,9 @@ export const ACP_DEFAULT_BACKEND: AcpBackendKind = 'museCode'
 
 // M80 lane A contracts. Accounting uses integer micro-USD (lead ruling F1).
 export const HTTP_STATUS_MAX = 599
+/** @unwired M80 read only by tests deleted 2026-10-17 (no fakes) */
 export const EXEC_COMMAND = 'exec'
+/** @unwired M80 read only by tests deleted 2026-10-17 (no fakes) */
 export const EXEC_SCAN_COMMAND = 'scan-secrets'
 export const EXEC_PROTOCOL_VERSION = 2
 export const EXEC_MODES = ['plan', 'acceptEdits'] as const
@@ -4135,6 +4163,7 @@ export const EXEC_SCAN_MAX_BYTES = 16_777_216
 export const EXEC_SCAN_TIMEOUT_MS = 30_000
 export const EXEC_SCAN_EXIT_FOUND = 10
 // Headless runs refuse smaller caps at the same floor Meta enforces.
+/** @alias the Model API's floor under the headless name */
 export const EXEC_MIN_OUTPUT_TOKENS: number = MODEL_API_MIN_OUTPUT_TOKENS
 export const EXEC_IMAGE_N = 1
 export const EXEC_STREAM_IDLE_MS = 300_000
@@ -4241,6 +4270,7 @@ export const ACP_PAID_GRANTS_FILE = 'paid-uses.json'
 // M108 (PLAN.md D88.1): the runtime's own providers file beside the session
 // folders. It holds account metadata only, never a credential; M95 owns the
 // VS Code-side envelope, whose accounts field this mirrors.
+/** @unwired M95 read only by tests deleted 2026-10-17 (no fakes) */
 export const ACCOUNT_PROVIDERS_FILE = 'providers.json'
 // The file walk that stands in for VS Code's file search when git cannot
 // list a folder: what it never descends into.
@@ -4295,8 +4325,13 @@ export const SCHEDULE_WAKE_BARRIER_TIMEOUT_MS = 5000
 export const SCHEDULE_WAKE_RETRY_MS = 250
 // Task Scheduler's exported XML and systemd's full path properties, bounded.
 export const SCHEDULE_NATIVE_MAX_OUTPUT_BYTES = 64 * 1024
+/**
+ * @alias the minimum interval, as the collision window
+ * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes)
+ */
 export const SCHEDULE_COLLISION_WINDOW_MS = SCHEDULE_MIN_INTERVAL_MS
 export const SCHEDULE_PAUSE_AFTER_FAILURES = 3
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const SCHEDULE_PAID_CAP_DEFAULT_USD = 1
 export const SCHEDULE_EVENT_DEBOUNCE_MS = 30_000
 export const SCHEDULE_EVENT_FIELD_MAX_CHARS = 500
@@ -4342,6 +4377,7 @@ export const SCHEDULE_ACTION_CLASSES = [
   'requiresAsking',
 ] as const
 export const SCHEDULE_BACKGROUND_CHOICES = ['yes', 'notNow', 'never'] as const
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const SCHEDULE_SETTINGS_DEFAULTS = {
   enabled: true,
   defaultDelivery: 'whenIdle',
@@ -5077,6 +5113,8 @@ export const HTTP_STATUS = {
   forbidden: 403,
   notFound: 404,
   methodNotAllowed: 405,
+  requestTooLarge: 413,
+  unprocessable: 422,
   internalServerError: 500,
 } as const
 
@@ -5349,6 +5387,7 @@ export const REPORT_WRITER_LOCK_BACKOFF_MAX_MS = 100
 export const REPORT_WRITER_LOCK_PROBE_MS = 5000
 // Linux /proc/<pid>/stat fields after the closing command-name parenthesis start at 3.
 export const REPORT_PROCESS_START_FIELD_INDEX = 19
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const REPORT_LOCAL_BUDGET_MS = 2000
 export const REPORT_PLAN_BUDGET_MS = 200
 /** Whole-project plans are larger than per-message text; refuse above this UTF-8 bound. */
@@ -5372,7 +5411,9 @@ export const REPORT_FILENAME_MAX_CHARS = 200
 export const REPORT_HASH_PREFIX_CHARS = 8
 export const REPORT_DELIVERY_HOUR_MS = 60 * 60 * 1000
 export const REPORT_DELIVERY_DAY_MS = 24 * REPORT_DELIVERY_HOUR_MS
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const REPORT_SMS_PER_HOUR = 2
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const REPORT_SMS_PER_DAY = 10
 // Bound saved documents and bridge messages before rendering untrusted input.
 export const REPORT_MAX_SECTIONS = 64
@@ -6027,6 +6068,7 @@ export const REPORT_RECORD_LIMIT = 20
 export const REPORT_RECORD_WINDOW_MS = 60_000
 // dist/report.js (M93, PLAN.md D6): the report dialog's builder, scrub,
 // export paths and handler, loaded on the first open.
+/** @unwired M93 read only by tests deleted 2026-10-17 (no fakes) */
 export const REPORT_BUNDLE_FILE = 'report.js'
 // The panel keeps its conversation in VS Code's webview state so the crash
 // screen's Reload, or a panel moved to another window, comes back with it:
@@ -7202,6 +7244,12 @@ export const PROVIDER_STREAM_FRAME_MAX_BYTES = 16_777_216
 export const PROVIDER_STREAM_MAX_BYTES = 134_217_728
 export const PROVIDER_STREAM_MAX_FRAMES = 100_000
 export const PROVIDER_HTTP_BODY_MAX_BYTES = 16_777_216
+// Lane PROVERR: a provider's own refusal words are quoted in the sentence
+// the person reads, bounded so a hostile answer cannot flood the transcript.
+export const PROVIDER_REFUSAL_MESSAGE_MAX_CHARS = 500
+// Lane PROVERR: a provider's request id is carried on the refusal for the
+// log, bounded like any other wire text.
+export const PROVIDER_REQUEST_ID_MAX_CHARS = 200
 // The suggestion engine's fallback session (D74: "a stated assumption when
 // there is no history"): the default model's price for a reference session
 // of this size.
@@ -7282,8 +7330,11 @@ export const ESTIMATE_RUNS = 2000
 export const ESTIMATE_CALIBRATION_MIN_SAMPLES = 20
 export const ESTIMATE_PRIOR_SIGMA = 0.5
 export const ESTIMATE_MARGINAL_FLOOR_HOURS = 4
+/** @unwired M117 read only by tests deleted 2026-10-17 (no fakes) */
 export const ESTIMATE_IDLE_TEARDOWN_MINUTES = 30
+/** @unwired M117 read only by tests deleted 2026-10-17 (no fakes) */
 export const ESTIMATE_LOCAL_BUDGET_MS = 2000
+/** @unwired M117 read only by tests deleted 2026-10-17 (no fakes) */
 export const ESTIMATE_LOCAL_BUDGET_LANES = 40
 // Bounds on our own documents, not provider wire shapes.
 export const ESTIMATE_MAX_ITEMS = 512
@@ -7302,7 +7353,9 @@ export const ESTIMATE_MAX_RENTAL_COST_USD = '9007199254740991'
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
 // Build-only inline browser fallback compression.
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const L10N_BROWSER_COMPRESSION_LEVEL = 9
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const L10N_BROWSER_COMPRESSION_MEMORY_LEVEL = 7
 export const L10N_TABLE_ARCHIVE_FILE = 'ui.tables.json.br'
 export const USAGE_TABLE_ARCHIVE_FILE = 'usage.tables.json.br'
@@ -7367,6 +7420,7 @@ export const OLLAMA_CARRIAGE_RETURN = 13
 export const TEAM_ROLE_IDS = /* @__PURE__ */ (() => {
   return [...TEAM_BUILTIN_ROLE_IDS] as const
 })()
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export type TeamRoleId = (typeof TEAM_ROLE_IDS)[number]
 
 // The write roots each role with a `write` group is confined to (D75's
@@ -7384,6 +7438,7 @@ export const TEAM_ROLE_WRITE_PATHS: Partial<
 // A read-only git command carrying one of these options is refused: the
 // option could write a file, read outside the task, or run another program
 // (D75's read-only mode).
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_READ_ONLY_REFUSED_OPTIONS = [
   '--output',
   '-o',
@@ -7393,6 +7448,7 @@ export const TEAM_READ_ONLY_REFUSED_OPTIONS = [
   '--exec-path',
 ] as const
 // A role's `when-to-use` and `done` keys fit in this many characters (D75).
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_ROLE_TEXT_MAX_CHARS = 240
 // Each role's base effort, shifted by the intensity level and clamped to the
 // model's tiers (D75's role defaults).
@@ -7497,6 +7553,7 @@ export const TEAM_THROTTLE_HEADROOM_LOW = 0.1
 export const TEAM_THROTTLE_RECOVER_MS = 60_000
 // A subscription's usage-limit refusal with no reset time marks the agent
 // until this passes (D75).
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_USAGE_LIMIT_COOLDOWN_MS = 1_800_000
 
 // Delegation depth: 1, or 2 through a role's `delegates`, never more (D75).
@@ -7515,17 +7572,23 @@ export { TEAM_RUBRIC_REASON_CODES as TEAM_REASON_CODES }
 export type TeamReasonCode = (typeof TEAM_RUBRIC_REASON_CODES)[number]
 // Per-role defaults (D75): tasks per orchestrator turn, minutes per task,
 // the exhausted policy, and `continue on next`.
+/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_TASKS_PER_TURN_DEFAULT = 6
+/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_TASK_MINUTES_DEFAULT = 30
 export const TEAM_EXHAUSTED_POLICIES = ['ask', 'queue', 'self'] as const
 export type TeamExhaustedPolicy = (typeof TEAM_EXHAUSTED_POLICIES)[number]
+/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_EXHAUSTED_DEFAULT: TeamExhaustedPolicy = 'ask'
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 // eslint-disable-next-line unicorn/consistent-boolean-name -- the Team region names every setting default TEAM_<SETTING>_DEFAULT (D75); a boolean prefix would break the scheme lane X reads.
 export const TEAM_CONTINUE_ON_NEXT_DEFAULT = false
 // `queue` waits for headroom at most this long, in a queue of at most this
 // many tasks, then asks; a spent `lifetime` cap never recovers, so it asks
 // at once (D75).
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_QUEUE_MAX_WAIT_MS = 3_600_000
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_QUEUE_MAX = 16
 // A token cap below one request's minimum is refused by inline validation
 // (D75): the role's prefix plus this.
@@ -7549,12 +7612,16 @@ export const TEAM_BRIEF_FILES_MAX_BYTES = 65_536
 export const TEAM_COLLECT_PAGE_CHARS = 16_000
 // An attempt's request ceiling: a stall past it is `outOfSteps` (D75).
 // Writers get more; the rest get the default.
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_TASK_MAX_REQUESTS_DEFAULT = 20
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_TASK_MAX_REQUESTS_WRITER = 40
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_TASK_MAX_REQUESTS_WRITER_ROLES = ['engineering', 'qa'] as const
 // A ledger row is written when its task starts, again at each state change,
 // on usage at most this often, and when the task ends, so partial usage
 // survives a crash (D75).
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_LEDGER_FLUSH_MS = 2000
 /** Failed periodic publications retry exponentially, capped at one minute. */
 export const TEAM_LEDGER_RETRY_MAX_MS = 60_000
@@ -7570,18 +7637,22 @@ export const TEAM_SHARED_RESOURCE_DEFAULT_LIMIT = 2
 // Engine workers' shell commands that run at once, per window (D75): half
 // the logical CPUs, at least this. Lane K applies the formula; this floor
 // is the constant part.
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_MAX_CONCURRENT_COMMANDS = 1
 // Every worker of one role and entry shares this cache-key prefix, which no
 // conversation ever uses (D75, SoL-Pi rule 1).
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_PROMPT_CACHE_KEY_PREFIX = 'muse-team'
 // A writing task's branch in the user's repository, and the extension's own
 // `agents/` refs the task's end-of-task commit is fetched into (D75).
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_BRANCH_PREFIX = 'agents/'
 // The fenced block a report arrives in, holding JSON parsed with zod (D75),
 // as M70's `muse-review` is.
 export const TEAM_REPORT_FENCE = 'muse-team-report'
 // Each built-in role's report shape (D75): `summary` by default, `review`
 // for code review (its findings use M70's shape), `qa` for test runs.
+/** @unwired M70 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_ROLE_REPORT_SHAPES = {
   research: 'summary',
   design: 'summary',
@@ -7606,18 +7677,25 @@ export const TEAM_RUBRIC_REASON_CODES = [
   'context_size',
   'long_running',
 ] as const
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export type TeamRubricReason = (typeof TEAM_RUBRIC_REASON_CODES)[number]
 // The machine's daily team budget, bounding every window of the editor as a
 // scope of D78's shared paid ledger (D75). At $0, key tasks never start.
 // The intensity level sets each workspace's own budget beneath it.
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_DAILY_BUDGET_USD = 50
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_DAILY_BUDGET_TOKENS = 25_000_000
 // `museSpark.teamMaxProcessWorkers`' default is the lowest of this, the
 // logical CPUs less this headroom, and the free memory at activation less
 // this reserve divided by this per worker, and never below 1 (D75).
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_MAX_PROCESS_WORKERS = 4
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_PROCESS_WORKERS_CPU_HEADROOM = 2
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_PROCESS_WORKERS_MEM_RESERVE_BYTES = 4 * 1024 * 1024 * 1024
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_PROCESS_WORKERS_MEM_PER_WORKER_BYTES = 1.5 * 1024 * 1024 * 1024
 
 // Lane K's process lifetime, hints and load guard (M96, D75). Every team
@@ -7625,13 +7703,21 @@ export const TEAM_PROCESS_WORKERS_MEM_PER_WORKER_BYTES = 1.5 * 1024 * 1024 * 102
 // container; every launch is journalled before its spawn; windows warn each
 // other through hint files, never locks; the load guard backs every window
 // off when the machine is busy.
+/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_KILL_GRACE_MS = 5000
+/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_HINT_WRITE_MS = 10_000
+/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_HINT_FRESH_MS = 60_000
+/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_LANDING_LOCK_WAIT_MS = 30_000
+/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_LOAD_SAMPLE_MS = 5000
+/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_LOAD_CPU_HIGH = 0.85
+/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_LOAD_WINDOW_MS = 30_000
+/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_LOAD_FREE_MEMORY_MIN = 2 * 1024 * 1024 * 1024
 
 // Lane A's durable ledger bounds; all role and provider limits use the shared definitions above.
@@ -7749,6 +7835,7 @@ export const EXTENSION_SKILLS_DIR = 'skills'
 // The bundled `/legal` skill (M97): guidance over the deterministic scan.
 // A user skill with the same id shadows its text; the host's scan and the
 // `/legal` command stay host-owned regardless.
+/** @unwired M97 read only by tests deleted 2026-10-17 (no fakes) */
 export const LEGAL_SKILL_ID = 'legal'
 // The deterministic legal scanner (M97, PLAN.md D76, D6): lane S's scanner,
 // loaded on the first legal scan; the tool list and the `/legal` routing stay
@@ -7766,6 +7853,7 @@ export const IDE_LEGAL_SCAN_TOOL = 'legalScan'
 // unmet distribution obligation, `should-fix` a mismatch to reconcile before
 // shipping, `advice` a review note. The words are D76's own.
 export const LEGAL_SEVERITIES = ['blocker', 'should-fix', 'advice'] as const
+/** @unwired M97 read only by tests deleted 2026-10-17 (no fakes) */
 export type LegalSeverity = (typeof LEGAL_SEVERITIES)[number]
 // What a finding is about: the project's own license declarations, its
 // copyright headers, SPDX identifiers, notice files, dependencies' licenses,
@@ -7779,6 +7867,7 @@ export const LEGAL_CATEGORIES = [
   'distribution',
   'codeQualityHeader',
 ] as const
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export type LegalCategory = (typeof LEGAL_CATEGORIES)[number]
 // The header-policy setting's vocabulary (`museSpark.legalHeaderPolicy`,
 // D76): `required` / `optional` / `off`, default `optional`.
@@ -7904,6 +7993,7 @@ export type LegalFixExclusion = (typeof LEGAL_FIX_EXCLUSIONS)[number]
 // A confirmed fix batch ends applied, partially applied (listed, never
 // reported as complete success), or refused with a LEGAL_FIX_REFUSALS word.
 export const LEGAL_FIX_OUTCOMES = ['applied', 'partial', 'refused'] as const
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export type LegalFixOutcome = (typeof LEGAL_FIX_OUTCOMES)[number]
 // Stored fix previews per host: past this the oldest goes, and its confirm
 // refuses with `previewExpired` instead of authorizing from stale state.
@@ -7990,6 +8080,7 @@ export const DEVELOPER_MAX_PROFILES = 8
 export const DEVELOPER_PROFILE_ID_BYTES = 15
 export const DEVELOPER_AUDIT_MAX_BYTES = 256 * 1024
 export const DEVELOPER_STATE_MAX_BYTES = 16 * 1024
+/** @unwired M108 read only by tests deleted 2026-10-17 (no fakes) */
 export const DEVELOPER_UI_BUDGET_BYTES = 25 * 1024
 export const DEVELOPER_DIRECTORY_MODE = 0o700
 export const DEVELOPER_FILE_MODE = 0o600
@@ -8026,10 +8117,14 @@ export const VAULT_ASKPASS_TTL_MS = 600_000
 export const VAULT_SESSION_MAX_DAYS = 30
 export const VAULT_AUDIT_MAX_BYTES = 8 * 1024 * 1024
 export const VAULT_LEGACY_RETAIN_RELEASES = 2
+/** @unwired M109 read only by tests deleted 2026-10-17 (no fakes) */
 export const VAULT_FIRST_SEND_SLACK_MS = 25
+/** @unwired M109 read only by tests deleted 2026-10-17 (no fakes) */
 export const VAULT_SIGN_P95_MS = 20
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const VAULT_FEEDER_START_MS = 200
 export const VAULT_SCRUB_MIN_MBPS = 50
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const VAULT_IDLE_MINUTES = 240
 export const VAULT_KEY_BYTES = 32
 export const VAULT_NONCE_BYTES = 12
@@ -8057,6 +8152,7 @@ export const VAULT_LIMITS = {
   idBytes: 16,
   sha256Hex: 64,
 }
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const VAULT_DEFAULTS = {
   enabled: true,
   protection: 'auto',

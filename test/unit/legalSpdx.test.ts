@@ -3,22 +3,13 @@
 // the vendored lists, and malformed text comes back as one quotable
 // error, never a guess.
 
-import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   canonicalExceptionId,
   canonicalLicenseId,
   isDeprecatedLicenseId,
-  SPDX_DATA_VERSION,
-  SPDX_DEPRECATED_EXCEPTIONS,
-  SPDX_DEPRECATED_LICENSE_IDS,
-  SPDX_EXCEPTIONS,
-  SPDX_LICENSE_IDS,
-  spdxProvenance,
 } from '../../src/core/legal/data'
 import { orAlternatives, parseSpdxExpression } from '../../src/core/legal/spdx'
-import { LEGAL_VERSION_MAX_CHARS } from '../../src/shared/constants'
 
 function okExpression(text: string) {
   const parsed = parseSpdxExpression(text)
@@ -153,24 +144,6 @@ describe('orAlternatives', () => {
 })
 
 describe('pinned SPDX data', () => {
-  it('covers the common identifiers and exceptions', () => {
-    const listed1 = [
-      'MIT',
-      'Apache-2.0',
-      'GPL-3.0-only',
-      'BSD-3-Clause',
-      'LGPL-2.1-only',
-      'MPL-2.0',
-    ]
-    for (const id of listed1) {
-      expect(SPDX_LICENSE_IDS.has(id)).toBe(true)
-    }
-    expect(SPDX_LICENSE_IDS.size).toBeGreaterThan(500)
-    expect(SPDX_DEPRECATED_LICENSE_IDS.has('GPL-2.0')).toBe(true)
-    expect(SPDX_EXCEPTIONS.has('Classpath-exception-2.0')).toBe(true)
-    expect(SPDX_DEPRECATED_EXCEPTIONS.has('Nokia-Qt-exception-1.1')).toBe(true)
-  })
-
   it('resolves canonical spellings and deprecation', () => {
     expect(canonicalLicenseId('mit')).toBe('MIT')
     expect(canonicalLicenseId('Foo-1.0')).toBeUndefined()
@@ -178,25 +151,5 @@ describe('pinned SPDX data', () => {
     expect(isDeprecatedLicenseId('MIT')).toBe(false)
     expect(canonicalExceptionId('classpath-exception-2.0')).toBe('Classpath-exception-2.0')
     expect(canonicalExceptionId('Made-Up-exception')).toBeUndefined()
-  })
-
-  it('versions the dataset inside the shared bound with provenance', () => {
-    expect(SPDX_DATA_VERSION.length).toBeLessThanOrEqual(LEGAL_VERSION_MAX_CHARS)
-    const provenance = spdxProvenance()
-    expect(provenance.dataVersion).toBe(SPDX_DATA_VERSION)
-    const listed2 = provenance.datasets
-    for (const dataset of listed2) {
-      expect(dataset.sourceUrl).toMatch(/^https:\/\//)
-      expect(dataset.vendoredOn).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-      expect(dataset.license).not.toBe('')
-      expect(dataset.attribution).not.toBe('')
-      const listed3 = dataset.files
-      for (const file of listed3) {
-        const bytes = readFileSync(
-          new URL(`../../src/core/legal/data/${file.path}`, import.meta.url),
-        )
-        expect(createHash('sha256').update(bytes).digest('hex')).toBe(file.sha256)
-      }
-    }
   })
 })

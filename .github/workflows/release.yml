@@ -556,6 +556,9 @@ jobs:
         env:
           MAJOR_TAG_OUTCOME: ${{ steps.major-tag.outcome }}
         run: |
+          # The backticks below are literal markdown, not command
+          # substitution: they must stay inside single quotes.
+          # shellcheck disable=SC2016
           if [ "$MAJOR_TAG_OUTCOME" = success ]; then
             printf '\nM80 Action major tag (`v0`): current or newer release.\n' >> "$GITHUB_STEP_SUMMARY"
           else
