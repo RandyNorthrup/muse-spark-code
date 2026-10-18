@@ -597,3 +597,27 @@ anthropic/claude-haiku-4-5 --max-budget-usd 5 --key-stdin`: "Anthropic
   passes it; the setting's surface is VS Code only.
 - Idle and request timeouts (300 s, 30 s): not this lane (stated in the
   PLAN amendment).
+
+### Review threads on PR #225 (2026-10-17)
+
+The four unresolved Codex threads at `e6b2d3948d`, one line each:
+
+1. `src/core/providers/configured.ts:371` (configured models retry by
+   Meta's limit): fix. `boundClient()` spread `base`, whose `maxRetries`
+   delegates to the Meta client; the bound client now answers from its own
+   `CodecClient` (the preset's documented limit, or the person's setting).
+2. `src/shared/retryPolicy.ts:202` (an uncapped delay overflows the timer):
+   fix. The transport's wait sleeps in abortable pieces no longer than the
+   timer's own maximum (2^31 − 1 ms, Node.js timers documentation), so
+   the logical delay stays whole and never collapses to 1 ms.
+3. `test/unit/providerRetryLimits.test.ts:87` (invented retry inputs): fix.
+   Every hand-written limit, the made-up 5-second provider wait and the
+   synthetic jitter sample go; what stays reads only the presets' real
+   documented tables and the real random source. No recorded real exchange
+   with a `Retry-After` header exists in the repository (`grep -ril
+retry-after test/` finds none in any capture), so the named-wait rule
+   is proved by the packed-product run, not by a test.
+4. `src/extension.ts:2054` (the setting never reaches the conversation
+   client): fix. `ModelApiBackendManager` passes the live
+   `personMaxRetries` into the conversation client it builds, so
+   `museSpark.modelApiMaxRetries: 0` stops ordinary Meta turns too.
