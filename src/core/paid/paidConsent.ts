@@ -357,6 +357,19 @@ export class PaidUseConsent {
   private readonly pendingWindowOnce = new Map<PaidFeature, Promise<boolean>>()
   private readonly searchWindowOnce = new Set<string>()
   private readonly pendingSearchWindowOnce = new Map<string, Promise<PaidUseAnswer>>()
+  /**
+   * A stale-epoch save failure waits here instead of notifying at once
+   * (account scope only: `saveGrantIf` refused a grant approved under a
+   * revoked epoch). The outer account fence settles it — dropped when the
+   * fence refuses, told only after the fence passes — so a revoked use is
+   * never described as applied. A plain store failure still notifies at
+   * once in `remember()` below.
+   */
+  private pendingStaleNotKept: {
+    readonly feature: PaidFeature
+    readonly kind: PaidStoreFailureKind
+    readonly notifySession: string | undefined
+  }[] = []
 
   public readonly authority: PaidAuthority
 
@@ -396,6 +409,14 @@ export class PaidUseConsent {
    * logged and leaves this use allowed once, so the next one asks again
    * instead of this one failing.
    */
+  /**
+   * A stale-epoch save failure waits here instead of notifying at once
+   * (account scope only: `saveGrantIf` refused a grant approved under a
+   * revoked epoch). The outer account fence settles it — dropped when the
+   * fence refuses, told only after the fence passes — so a revoked use is
+   * never described as applied. A plain store failure still notifies at
+   * once below.
+   */
   /** The not-kept notice for a failed write, carrying the asking session (P2-3). */
   private notKeptNotice(
     feature: PaidFeature,
@@ -416,11 +437,27 @@ export class PaidUseConsent {
       else await this.deps.rememberGrant(feature)
       return true
     } catch (error: unknown) {
-      // A store that cannot be written leaves this use allowed once (an
-      // account decision approved under a revoked epoch is still refused by
-      // its fence below). The log names only the failure's kind, never the
-      // store's message, and the person is told at once; every rejection is
-      // classified, including a non-Error one (which reads `unknown`).
+      if (error instanceof StaleEpochError) {
+        // Carried past the outer account fence
+        // (`AccountPaidUseConsent.allows`): a revocation that landed while
+        // the popup was open refuses there, and must not be described as
+        // applied first. The fence settles this through
+        // `settleStaleNotKept`; only a fence that still passes tells the
+        // person. Classified like every other rejection.
+        this.pendingStaleNotKept.push({
+          feature,
+          kind: paidStoreFailureKind(error),
+          notifySession,
+        })
+        this.deps.log.warn(
+          `Paid use of ${feature}: "always" save raced a revocation, so the account fence settles it (${wireWordForLog(error.name)})`,
+        )
+        return false
+      }
+      // A store that cannot be written leaves this use allowed once. The
+      // log names only the failure's kind, never the store's message, and
+      // the person is told at once; every rejection is classified,
+      // including a non-Error one (which reads `unknown`).
       // read-state: cert TBL-07. `false` here is "not kept, allowed once,
       // person told" (onNotKept fired above the return), never "not allowed".
       this.deps.log.warn(
@@ -662,6 +699,20 @@ export class PaidUseConsent {
     }
     this.deps.log.info('Paid use of webSearch: allowed once')
     return isCurrent() && this.authority.isApproved(tag) ? quote : undefined
+  }
+
+  /**
+   * Settles carried stale-epoch failures after the outer account fence: a
+   * refused fence drops them silently, a passed fence tells the person now
+   * that the decision stands. Only the account consent calls this.
+   */
+  public settleStaleNotKept(shouldNotify: boolean): void {
+    const pending = this.pendingStaleNotKept
+    this.pendingStaleNotKept = []
+    if (!shouldNotify) return
+    for (const { feature, kind, notifySession } of pending) {
+      this.deps.onNotKept?.(this.notKeptNotice(feature, kind, notifySession))
+    }
   }
 
   public onDidChange(listener: () => void): () => void {
@@ -1177,14 +1228,24 @@ export class AccountPaidUseConsent {
     if (this.isRevoking || !this.deps.isCurrent(this.binding)) return false
     const generation = this.generation
     const epoch = this.durableEpoch()
-    const decision = await this.consent.allows(request, requiresAsking)
+    const consent = this.consent
+    const decision = await consent.allows(request, requiresAsking)
     // A search decision is its frozen quote; any non-refusal counts as allowed here.
-    if (decision === undefined || decision === false || !this.isCurrent(generation)) return false
+    if (decision === undefined || decision === false || !this.isCurrent(generation)) {
+      consent.settleStaleNotKept(false)
+      return false
+    }
     // Fence the final decision against the captured epoch, not only the
     // local generation: when a revocation landed while the popup was open,
     // the conditional save already refused to store, and a downgraded
-    // Allow-once from a failed persistence must not approve either.
-    if (this.durableEpoch() !== epoch) return false
+    // Allow-once from a failed persistence must not approve either. A
+    // stale-epoch save carried out of `remember()` is settled here: only a
+    // fence that passes tells the person the choice applied.
+    if (this.durableEpoch() !== epoch) {
+      consent.settleStaleNotKept(false)
+      return false
+    }
+    consent.settleStaleNotKept(true)
     return true
   }
 
