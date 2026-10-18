@@ -365,3 +365,23 @@ packed-product real use before merge). No `as` casts, no disables, no new
 UI text, no new limits: nothing for PLAN.md §8 or the changelog. The
 changelog is deliberately untouched: these behaviours are claimed fixed
 only after that real use, per the standing rule.
+
+## PR180W1 triage (2026-10-18, macmini rig): eight review threads + CI
+
+Branch `fix/plan-review` at `ccbfe8e32a`. Threads 1-5 were fixed at
+their cause by `a5f929e30` on this branch (record above); the three
+threads below are new against that tree and reproduce on it. Each gets
+a fix at its cause in this lane; no test is weakened or skipped, no
+budget or limit is raised.
+
+| Thread                               | File:line                                            | One-line result                                                                                                                                                                                       |
+| ------------------------------------ | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 (P1) catalogue listing             | `src/core/providers/subscriptions/registry.ts`       | FIXED on this branch by `a5f929e30` (minimal row parse + per-row facts); answer only.                                                                                                                 |
+| 2 (P2) idle deadline on error bodies | same file, plan stream                               | FIXED on this branch by `a5f929e30` (`withinIdle(planRequestError(...))`); answer only.                                                                                                               |
+| 3 (P2) different-account verifier    | `src/runtime/chatGptProviderCommands.ts`             | FIXED on this branch by `a5f929e30` (baseline identity compare); answer only.                                                                                                                         |
+| 4 (P1) refresh-lock deadline         | `src/runtime/chatGptRefreshLock.ts`                  | FIXED on this branch by `a5f929e30` (`?? CHATGPT_REFRESH_LOCK_TIMEOUT_MS`); answer only.                                                                                                              |
+| 5 (P1) Fast on first attach          | `src/host/conversation/conversationController.ts`    | FIXED on this branch by `a5f929e30` (`isFastChosen`); answer only.                                                                                                                                    |
+| 6 (P1) baseline rejects unobserved   | `src/runtime/chatGptProviderCommands.ts:284`         | NOT FIXED: bare IIFE, no handler; fix here (attach handler at build, `await` still observes).                                                                                                         |
+| 7 (P1) fabricated OAuth grants       | `test/unit/helpers/chatGptGrant.ts:100`              | NOT FIXED: helper added by `a5f929e30`; fix here (product-generated fields from product generators; tokens stay opaque placeholders, never sent; real sign-in stays the lead's packed-product proof). |
+| 8 (P2) gaps in streamed indices      | `src/core/backends/modelapi/codecs/responses.ts:357` | NOT FIXED: sort+compact without contiguity check; fix here (refuse unless sorted indices are exactly `0..length-1`).                                                                                  |
+| CI VSIX budget                       | `npm run package`                                    | NOT FIXED: VSIX 3801216 B vs budget 3788800 B (+2416 B); fix here by cutting shipped bytes, never by raising the budget.                                                                              |
