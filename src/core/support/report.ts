@@ -19,6 +19,7 @@ import type {
   CredentialFileVerdict,
   KeychainItemPresence,
 } from '../backends/musecode/credentialFile'
+import type { LinuxSandboxReadiness } from '../backends/musecode/sandbox'
 
 /**
  * Whether the editor's extension host installed its proxy-aware version of a
@@ -71,6 +72,8 @@ export interface SupportFacts {
   readonly backendSetting: string
   readonly shellSandboxSetting: string
   readonly shellSandboxPosture: string
+  /** F91's Linux capability probe, in words (the `doctor` line of this report). */
+  readonly shellSandboxReadiness: string
   /** The posture's sandbox: where Muse Code's file tools can write without asking. */
   readonly isShellSandboxed: boolean
   /** `museSpark.sandboxNetwork`, and whether the next host gets it (M56). */
@@ -147,6 +150,26 @@ const MUSE_PROXY_SOURCES: Readonly<Record<NetworkFacts['museProxySource'], strin
 
 function yesNo(isTrue: boolean): string {
   return isTrue ? YES : NO
+}
+
+/**
+ * The F91 Linux capability probe in words, for the Diagnostics report (the
+ * health line: posture and this check). `undefined` is where the probe does
+ * not apply (the shell sandbox off, or off Linux).
+ */
+export function sandboxReadinessLine(readiness: LinuxSandboxReadiness | undefined): string {
+  if (readiness === undefined) {
+    return 'not checked (the shell sandbox is off or this is not Linux)'
+  }
+  if (readiness.canStart) {
+    return 'can start here'
+  }
+  // Only the kernel's refusal proves the sandbox cannot start (Muse Code
+  // may fall back to an embedded bwrap); any other probe failure is said
+  // as what it is, a failed system-bwrap check, with the probe's detail.
+  return readiness.reason === 'userNamespacesBlocked'
+    ? 'cannot start here: bubblewrap cannot create a user namespace'
+    : `system bubblewrap check failed here: ${readiness.detail ?? 'the bwrap probe failed'}`
 }
 
 /**
@@ -232,6 +255,7 @@ export function renderSupportReport(facts: SupportFacts): string {
     `workspace: ${facts.hasWorkspace ? 'open' : NONE}, trusted: ${yesNo(facts.isWorkspaceTrusted)}`,
     `backend setting: ${facts.backendSetting}`,
     `shell sandbox: setting ${facts.shellSandboxSetting}, posture ${facts.shellSandboxPosture}`,
+    `shell sandbox readiness: ${facts.shellSandboxReadiness}`,
     `muse code file writes: ${fileWrites}`,
     `sandbox network: setting ${facts.sandboxNetworkSetting}, ${sandboxNetwork}`,
     `muse binary path configured: ${yesNo(facts.isBinaryPathConfigured)}; environment variables: ${String(facts.environmentVariableCount)}`,

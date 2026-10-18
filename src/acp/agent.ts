@@ -57,6 +57,10 @@ import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
 import { wireWordForLog } from '../core/logging'
 import { resolveResumedModel } from '../core/backends/musecode/resumedModel'
+import {
+  isLinuxSandboxBlocked,
+  type LinuxSandboxReadiness,
+} from '../core/backends/musecode/sandbox'
 import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
@@ -79,6 +83,7 @@ import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   type PermissionMode,
   QUESTION_DEFER_DEFAULT_SECONDS,
+  SANDBOX_CANNOT_START_MODEL_NOTE,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
 } from '../shared/constants'
@@ -148,6 +153,11 @@ export interface AcpBackend {
   readonly readiness: (isRecheck: boolean) => Promise<BackendReadiness>
   /** The host for a folder, started on first use. */
   readonly hostFor: (cwd: string) => Promise<AgentHost>
+  /**
+   * What the Linux capability probe measured (F91); absent where it does
+   * not apply, while no host has started, or where the backend predates it.
+   */
+  readonly shellSandboxReadiness?: (cwd: string) => LinuxSandboxReadiness | undefined
 }
 
 export interface AcpAgentOptions {
@@ -348,6 +358,10 @@ class AcpSession {
   private skills: readonly SkillSummary[] = []
   private areCommandsAnnounced = false
   private hasShownResourcePause = false
+  /** F91: the editor heard once that Muse Code's Linux sandbox cannot start here. */
+  private hasSaidSandboxCannotStart = false
+  /** F91: the model heard once that Muse Code's Linux sandbox cannot start here. */
+  private hasToldModelSandboxCannotStart = false
   private releaseSchedules: (() => Promise<void>) | undefined
   private isScheduleHostAvailable = true
   private effort: EffortLevel = DEFAULT_EFFORT
@@ -1124,6 +1138,27 @@ class AcpSession {
     this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
   }
 
+  /** Whether the probe measured at host start that Muse Code's Linux sandbox cannot start here. */
+  private sandboxCannotStart(): boolean {
+    return (
+      this.deps.backend.kind === 'museCode' &&
+      isLinuxSandboxBlocked(this.deps.backend.shellSandboxReadiness?.(this.cwd))
+    )
+  }
+
+  /**
+   * F91: the model hears it once, at the tail, so a failing read-only
+   * command never reads as a dead shell. Earlier request bytes are
+   * untouched: this part is appended, never spliced into what came before.
+   */
+  private sandboxModelNote(): readonly TurnPart[] {
+    if (this.hasToldModelSandboxCannotStart || !this.sandboxCannotStart()) {
+      return []
+    }
+    this.hasToldModelSandboxCannotStart = true
+    return [{ type: 'text', text: SANDBOX_CANNOT_START_MODEL_NOTE }]
+  }
+
   private isCurrentReport(preparing: PreparingPrompt): boolean {
     return this.preparing === preparing && !preparing.isCancelled && !this.isDisposed
   }
@@ -1685,6 +1720,31 @@ class AcpSession {
     }
   }
 
+  /**
+   * F91: the editor hears once per session, in words, that Muse Code's
+   * Linux sandbox cannot start on this machine. The host start already said
+   * it on stderr; the posture stands until the person turns it off.
+   *
+   * This is the harness speaking, never the model (that confusion is F82),
+   * so the chunk carries a `_meta` marker (the accountNotice precedent) a
+   * client can tell apart from model speech. MERGE STEP with
+   * fix/provider-truth (F82, 0d73ac89e): where the client advertises its
+   * session-notices capability, send that branch's separate notice update
+   * instead of this chunk; the marker stays the fallback discriminator
+   * for clients that do not advertise it.
+   */
+  public noteSandboxCannotStart(): void {
+    if (this.hasSaidSandboxCannotStart || !this.sandboxCannotStart()) {
+      return
+    }
+    this.hasSaidSandboxCannotStart = true
+    this.send({
+      sessionUpdate: 'agent_message_chunk',
+      _meta: { sandboxCannotStartNotice: true },
+      content: { type: 'text', text: UI_TEXT.sandboxCannotStartNotice },
+    })
+  }
+
   public async loadQuestions(): Promise<void> {
     await this.questionRegistry?.load()
     this.ensureHeld()
@@ -2044,6 +2104,7 @@ class AcpSession {
               ...parsed.parts,
               ...mediaQueued.map((attachment) => attachment.part),
             ]),
+            ...this.sandboxModelNote(),
           ],
           parsed.displayText,
         )
@@ -2384,6 +2445,9 @@ class AgentState {
       }
     }
     this.sessions.set(sessionId, acp)
+    // F91: a newly adopted session hears once, in words, when Muse Code's
+    // Linux sandbox cannot start on this machine.
+    acp.noteSandboxCannotStart()
     return acp
   }
 

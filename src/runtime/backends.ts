@@ -737,6 +737,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       readiness: (isRecheck) =>
         deps.options.backend === 'modelApi' ? modelApiReadiness() : museCodeReadiness(isRecheck),
       hostFor,
+      // F91: the folder host's Linux capability probe, measured at its
+      // start; the editor hears it as a session update, the model as a tail
+      // note. Undefined where the probe does not apply or no host started.
+      shellSandboxReadiness: (cwd: string) => museCodeHosts.get(cwd)?.shellSandboxReadiness(),
     },
     configureOutputSchema: async (sessionId, model, mode, schema) => {
       if (deps.options.backend !== 'modelApi') throw new Error(UI_TEXT.execRequestShape)
