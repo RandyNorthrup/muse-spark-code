@@ -5,7 +5,7 @@ import {
   targetFromArgs,
   targetOfVsix,
   vsixArtifactName,
-  vsixKeepsFile,
+  isVsixTargetFile,
 } from '../../scripts/lib/vsixTargets.mjs'
 
 // One .vsix per platform (PLAN.md D123): each target's package keeps only
@@ -58,12 +58,12 @@ describe('per-platform VSIX inventory', () => {
     for (const target of VSIX_TARGETS) {
       const [platform] = target.split('-', 1)
       for (const file of WINDOWS_FILES)
-        expect(vsixKeepsFile(target, file)).toBe(platform === 'win32')
+        expect(isVsixTargetFile(target, file)).toBe(platform === 'win32')
       for (const file of DARWIN_FILES)
-        expect(vsixKeepsFile(target, file)).toBe(platform === 'darwin')
+        expect(isVsixTargetFile(target, file)).toBe(platform === 'darwin')
       for (const [owner, files] of Object.entries(LINUX_HELPERS))
-        for (const file of files) expect(vsixKeepsFile(target, file)).toBe(target === owner)
-      for (const file of SHARED_FILES) expect(vsixKeepsFile(target, file)).toBe(true)
+        for (const file of files) expect(isVsixTargetFile(target, file)).toBe(target === owner)
+      for (const file of SHARED_FILES) expect(isVsixTargetFile(target, file)).toBe(true)
     }
   })
 
@@ -88,10 +88,10 @@ describe('per-platform VSIX inventory', () => {
   })
 
   it('compares paths with Windows separators too', () => {
-    expect(vsixKeepsFile('win32-x64', String.raw`native\windows\dictate.ps1`)).toBe(true)
-    expect(vsixKeepsFile('linux-x64', String.raw`native\windows\dictate.ps1`)).toBe(false)
-    expect(vsixKeepsFile('linux-arm64', String.raw`native\linux\arm64\muse-created`)).toBe(true)
-    expect(vsixKeepsFile('linux-x64', String.raw`native\linux\arm64\muse-created`)).toBe(false)
+    expect(isVsixTargetFile('win32-x64', String.raw`native\windows\dictate.ps1`)).toBe(true)
+    expect(isVsixTargetFile('linux-x64', String.raw`native\windows\dictate.ps1`)).toBe(false)
+    expect(isVsixTargetFile('linux-arm64', String.raw`native\linux\arm64\muse-created`)).toBe(true)
+    expect(isVsixTargetFile('linux-x64', String.raw`native\linux\arm64\muse-created`)).toBe(false)
   })
 
   it('names artifacts the way vsce does and reads the target back', () => {
@@ -105,7 +105,7 @@ describe('per-platform VSIX inventory', () => {
 
   it('refuses unknown targets instead of packaging them silently', () => {
     expect(() => vsixArtifactName('muse-spark-code', '0.19.0', 'linux-armhf')).toThrow()
-    expect(() => vsixKeepsFile('web', 'dist/extension.js')).toThrow()
+    expect(() => isVsixTargetFile('web', 'dist/extension.js')).toThrow()
     expect(targetOfVsix('muse-spark-code-linux-armhf-0.19.0.vsix')).toBeUndefined()
   })
 

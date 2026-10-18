@@ -22,7 +22,7 @@ import {
   requiredNativeFiles,
   targetFromArgs,
   vsixArtifactName,
-  vsixKeepsFile,
+  isVsixTargetFile,
 } from './lib/vsixTargets.mjs'
 
 const RECENT_RELEASES = 2
@@ -96,7 +96,8 @@ export async function stageVsix(root, stage, target) {
   assertPackagedBundles(root, listed)
   // One package per platform (PLAN.md D123): a targeted package stages
   // only its own platform's native pieces; the universal stage keeps all.
-  const files = target === undefined ? listed : listed.filter((file) => vsixKeepsFile(target, file))
+  const files =
+    target === undefined ? listed : listed.filter((file) => isVsixTargetFile(target, file))
   for (const page of [
     'webview',
     'modelsWebview',
