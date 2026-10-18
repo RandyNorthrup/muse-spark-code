@@ -8,10 +8,15 @@
 # Extra secret bindings MUST be declared by name in MUSE_CI_KEY_ALIASES
 # (space-separated); never bind undeclared credential copies.
 # Output is created by Node outside the repository under job temp.
-# Secret: MUSE_MODEL_API_KEY as a secret pipeline/variable-group variable,
-# mapped only into the run step. Keep fork secret access OFF. The condition
-# excludes forks and untrusted pull requests. Admission uses measured bootstrap
-# time with a 10-minute worst-case allowance for initialization/checkout/UseNode;
+# Secret: MUSE_MODEL_API_KEY as a secret variable in the muse-spark-secrets
+# variable group, mapped only into the run step. The group carries a
+# branch-control check that allows only protected branches (Pipelines >
+# Library > muse-spark-secrets > Approvals and checks): the check is defined
+# outside the repository, so YAML pushed by a change under test cannot bind
+# the key on another branch. Keep fork secret access OFF. The job condition
+# below excludes forks and untrusted pull requests as a second layer; it is
+# not the enforcement. Admission uses measured bootstrap time with a
+# 10-minute worst-case allowance for initialization/checkout/UseNode;
 # qualify the runner against that setup bound (docs/ci-other-systems.md).
 # Upload needs the launcher's publication marker; early failures upload nothing.
 
@@ -42,6 +47,10 @@ jobs:
     displayName: Muse Spark
     pool:
       vmImage: ubuntu-latest
+    # The key arrives only through this group; its branch-control check
+    # (defined outside the repository) decides which branches may bind it.
+    variables:
+      - group: muse-spark-secrets
     timeoutInMinutes: 45
     condition: and(succeeded(), or(ne(variables['Build.Reason'], 'PullRequest'), and(eq(variables['MUSE_INPUT_TRUST_PULL_REQUESTS'], 'true'), eq(variables['System.PullRequest.IsFork'], 'False'))))
     steps:
