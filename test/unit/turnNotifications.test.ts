@@ -8,24 +8,7 @@ import {
   BackgroundNotifier,
   type AttentionNotice,
 } from '../../src/host/conversation/turnNotifications'
-import { createLogger, type Logger } from '../../src/host/logger'
-
-function captureLogger(into: string[]): Logger {
-  return createLogger({
-    trace: (message: string) => {
-      into.push(`trace ${message}`)
-    },
-    info: (message: string) => {
-      into.push(`info ${message}`)
-    },
-    warn: (message: string) => {
-      into.push(`warn ${message}`)
-    },
-    error: (message: string) => {
-      into.push(`error ${message}`)
-    },
-  })
-}
+import { captureLog } from './helpers/captureLog'
 
 async function waitFor(lines: readonly string[]): Promise<void> {
   for (let attempt = 0; attempt < 100 && lines.length === 0; attempt += 1) {
@@ -35,7 +18,7 @@ async function waitFor(lines: readonly string[]): Promise<void> {
 
 describe('BackgroundNotifier', () => {
   it('records a refused notice by kind, without the failure message', async () => {
-    const lines: string[] = []
+    const { logger, lines } = captureLog()
     // A real refusal: reading a file that is not there fails with a genuine
     // ENOENT whose message names the missing path.
     const missing = path.join('temp', 'turn-notifier-never-written.json')
@@ -47,7 +30,7 @@ describe('BackgroundNotifier', () => {
         await readFile(missing, 'utf8')
         return true
       },
-      log: captureLogger(lines),
+      log: logger,
     })
     const notice: AttentionNotice = { key: 'session:turn:1', message: 'A turn ended.' }
     notifier.notify(notice, () => {
@@ -61,7 +44,7 @@ describe('BackgroundNotifier', () => {
   })
 
   it('raises each key once, even when the notice fails', async () => {
-    const lines: string[] = []
+    const { logger, lines } = captureLog()
     let shows = 0
     const notifier = new BackgroundNotifier({
       isEnabled: () => true,
@@ -70,7 +53,7 @@ describe('BackgroundNotifier', () => {
         shows += 1
         return Promise.reject(new Error('gone'))
       },
-      log: captureLogger(lines),
+      log: logger,
     })
     const notice: AttentionNotice = { key: 'session:turn:2', message: 'A turn ended.' }
     notifier.notify(notice, () => undefined)

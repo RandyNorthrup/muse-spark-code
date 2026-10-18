@@ -7,11 +7,14 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   createReportProblemHandler,
+  type ReportDataSource,
   type ReportProblemHandlerDeps,
+  type ReportProblemMessage,
 } from '../../src/host/conversation/reportProblemHandler'
-import { createLogger } from '../../src/host/logger'
+import type { ReportEditorIo } from '../../src/host/support/reportProblem'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import { captureLog } from './helpers/captureLog'
 
 const MISSING = path.join('temp', 'report-problem-never-written.json')
 
@@ -35,13 +38,36 @@ interface Captured {
   readonly logLines: string[]
 }
 
+/** A source with valid facts, an empty journal and no scrub context. */
+function validSource(overrides?: Partial<ReportDataSource>): ReportDataSource {
+  return {
+    readFacts: () => Promise.resolve(FACTS),
+    readJournal: () => Promise.resolve({ entries: [], recordingUnavailable: false }),
+    readScrub: () => ({ workspaceRoots: [], homeDir: '', extraLiterals: [] }),
+    nowMs: () => Date.now(),
+    canUseVscodeReporter: () => Promise.resolve(true),
+    ...overrides,
+  }
+}
+
+/** Editor operations that all succeed. */
+function workingIo(overrides?: Partial<ReportEditorIo>): ReportEditorIo {
+  return {
+    writeClipboard: () => Promise.resolve(undefined),
+    openExternal: () => Promise.resolve(true),
+    saveText: () => Promise.resolve(true),
+    openIssueReporter: () => Promise.resolve(undefined),
+    ...overrides,
+  }
+}
+
 function makeDeps(overrides?: Partial<ReportProblemHandlerDeps>): {
   deps: ReportProblemHandlerDeps
   captured: Captured
 } {
   const posted: HostToWebviewMessage[] = []
   const notices: string[] = []
-  const logLines: string[] = []
+  const { logger, lines: logLines } = captureLog()
   const deps: ReportProblemHandlerDeps = {
     post: (message) => {
       posted.push(message)
@@ -49,37 +75,38 @@ function makeDeps(overrides?: Partial<ReportProblemHandlerDeps>): {
     noticeError: (text) => {
       notices.push(text)
     },
-    log: createLogger({
-      trace: (message) => {
-        logLines.push(`trace ${message}`)
-      },
-      info: (message) => {
-        logLines.push(`info ${message}`)
-      },
-      warn: (message) => {
-        logLines.push(`warn ${message}`)
-      },
-      error: (message) => {
-        logLines.push(`error ${message}`)
-      },
-    }),
-    source: {
-      readFacts: () => Promise.resolve(FACTS),
-      readJournal: () => Promise.resolve({ entries: [], recordingUnavailable: false }),
-      readScrub: () => ({ workspaceRoots: [], homeDir: '', extraLiterals: [] }),
-      nowMs: () => Date.now(),
-      canUseVscodeReporter: () => Promise.resolve(true),
-    },
-    io: {
-      writeClipboard: () => Promise.resolve(undefined),
-      openExternal: () => Promise.resolve(true),
-      saveText: () => Promise.resolve(true),
-      openIssueReporter: () => Promise.resolve(undefined),
-    },
+    log: logger,
+    source: validSource(),
+    io: workingIo(),
     onReportWebviewError: () => undefined,
     ...overrides,
   }
   return { deps, captured: { posted, notices, logLines } }
+}
+
+/** Opens with overrides, expecting the dialog told and nothing posted. */
+async function refusedOpen(overrides?: Partial<ReportProblemHandlerDeps>): Promise<Captured> {
+  const { deps, captured } = makeDeps(overrides)
+  const { handle } = createReportProblemHandler(deps)
+  await handle({ type: 'openReport' })
+  expect(captured.posted).toEqual([])
+  expect(captured.notices).toEqual([UI_TEXT.actionFailed])
+  return captured
+}
+
+/** Opens with overrides and answers the posted draft's seal for export. */
+async function openForExport(overrides?: Partial<ReportProblemHandlerDeps>): Promise<{
+  handle: (message: ReportProblemMessage) => Promise<void>
+  hash: string
+  captured: Captured
+}> {
+  const { deps, captured } = makeDeps(overrides)
+  const { handle } = createReportProblemHandler(deps)
+  await handle({ type: 'openReport' })
+  const draft = captured.posted[0]
+  expect(draft?.type).toBe('reportDraft')
+  if (draft?.type !== 'reportDraft') throw new Error('the open posted no draft')
+  return { handle, hash: draft.hash, captured }
 }
 
 describe('createReportProblemHandler', () => {
@@ -94,43 +121,27 @@ describe('createReportProblemHandler', () => {
   })
 
   it('tells the dialog and records the kind when the snapshot fails', async () => {
-    const { deps, captured } = makeDeps({
-      source: {
-        readFacts: () => Promise.resolve(FACTS),
+    const captured = await refusedOpen({
+      source: validSource({
         // A real refusal: the journal read fails with a genuine ENOENT.
         readJournal: async () => {
           await readFile(MISSING, 'utf8')
           return { entries: [], recordingUnavailable: false }
         },
-        readScrub: () => ({ workspaceRoots: [], homeDir: '', extraLiterals: [] }),
-        nowMs: () => Date.now(),
-        canUseVscodeReporter: () => Promise.resolve(true),
-      },
+      }),
     })
-    const { handle } = createReportProblemHandler(deps)
-    await handle({ type: 'openReport' })
-    expect(captured.posted).toEqual([])
-    expect(captured.notices).toEqual([UI_TEXT.actionFailed])
     expect(captured.logLines.some((line) => line.includes('problem report snapshot failed'))).toBe(
       true,
     )
   })
 
   it('tells the dialog and records the kind when the builder refuses the facts', async () => {
-    const { deps, captured } = makeDeps({
-      // Off-allowlist facts: the real builder refuses with ReportBuildError.
-      source: {
+    const captured = await refusedOpen({
+      source: validSource({
+        // Off-allowlist facts: the real builder refuses with ReportBuildError.
         readFacts: () => Promise.resolve({}),
-        readJournal: () => Promise.resolve({ entries: [], recordingUnavailable: false }),
-        readScrub: () => ({ workspaceRoots: [], homeDir: '', extraLiterals: [] }),
-        nowMs: () => Date.now(),
-        canUseVscodeReporter: () => Promise.resolve(true),
-      },
+      }),
     })
-    const { handle } = createReportProblemHandler(deps)
-    await handle({ type: 'openReport' })
-    expect(captured.posted).toEqual([])
-    expect(captured.notices).toEqual([UI_TEXT.actionFailed])
     expect(captured.logLines.some((line) => line.includes('problem report rebuild failed'))).toBe(
       true,
     )
@@ -138,23 +149,15 @@ describe('createReportProblemHandler', () => {
   })
 
   it('answers a refused reporter open in fixed words and records it', async () => {
-    const { deps, captured } = makeDeps({
-      io: {
-        writeClipboard: () => Promise.resolve(undefined),
-        openExternal: () => Promise.resolve(true),
-        saveText: () => Promise.resolve(true),
+    const { handle, hash, captured } = await openForExport({
+      io: workingIo({
         // A real refusal: the reporter open fails with a genuine ENOENT.
         openIssueReporter: async () => {
           await readFile(MISSING, 'utf8')
         },
-      },
+      }),
     })
-    const { handle } = createReportProblemHandler(deps)
-    await handle({ type: 'openReport' })
-    const draft = captured.posted[0]
-    expect(draft?.type).toBe('reportDraft')
-    if (draft?.type !== 'reportDraft') return
-    await handle({ type: 'exportReport', via: 'vscodeReporter', hash: draft.hash })
+    await handle({ type: 'exportReport', via: 'vscodeReporter', hash })
     const answer = captured.posted[1]
     expect(answer).toMatchObject({ type: 'reportExported', ok: false, reason: 'reporterFailed' })
     expect(
@@ -167,7 +170,7 @@ describe('createReportProblemHandler', () => {
     // The scrub holds for the open's two calls, then fails for real with a
     // genuine ENOENT, reaching the export's own failure path.
     let scrubs = 0
-    const { deps, captured } = makeDeps({
+    const { handle, hash, captured } = await openForExport({
       vaultScrub: {
         scrub: async (text: string) => {
           scrubs += 1
@@ -178,12 +181,7 @@ describe('createReportProblemHandler', () => {
         },
       },
     })
-    const { handle } = createReportProblemHandler(deps)
-    await handle({ type: 'openReport' })
-    const draft = captured.posted[0]
-    expect(draft?.type).toBe('reportDraft')
-    if (draft?.type !== 'reportDraft') return
-    await handle({ type: 'exportReport', via: 'copy', hash: draft.hash })
+    await handle({ type: 'exportReport', via: 'copy', hash })
     expect(captured.posted).toHaveLength(1)
     expect(captured.notices).toEqual([UI_TEXT.actionFailed])
     expect(captured.logLines.some((line) => line.includes('problem report scrub failed'))).toBe(

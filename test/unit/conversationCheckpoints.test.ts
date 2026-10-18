@@ -11,9 +11,9 @@ import {
   type ConversationCheckpointDeps,
   type NoticeLevel,
 } from '../../src/host/conversation/conversationCheckpoints'
-import { createLogger } from '../../src/host/logger'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import { captureLog } from './helpers/captureLog'
 
 const MISSING = path.join('temp', 'checkpoints-never-written.json')
 
@@ -32,7 +32,7 @@ interface Captured {
 function makeDeps(port: CheckpointPort): { deps: ConversationCheckpointDeps; captured: Captured } {
   const posted: HostToWebviewMessage[] = []
   const notices: { level: NoticeLevel; text: string }[] = []
-  const logLines: string[] = []
+  const { logger, lines: logLines } = captureLog()
   const deps: ConversationCheckpointDeps = {
     backend: () => 'modelApi',
     port,
@@ -44,20 +44,7 @@ function makeDeps(port: CheckpointPort): { deps: ConversationCheckpointDeps; cap
     },
     confirm: () => Promise.resolve(true),
     unsavedPaths: () => [],
-    log: createLogger({
-      trace: (message) => {
-        logLines.push(`trace ${message}`)
-      },
-      info: (message) => {
-        logLines.push(`info ${message}`)
-      },
-      warn: (message) => {
-        logLines.push(`warn ${message}`)
-      },
-      error: (message) => {
-        logLines.push(`error ${message}`)
-      },
-    }),
+    log: logger,
   }
   return { deps, captured: { posted, notices, logLines } }
 }
