@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -56,6 +56,21 @@ describe('createWindowHints journal recovery', () => {
     writeFileSync(hintFile, '{not valid json', 'utf8')
     const fresh = await hints.readFresh()
     expect(fresh).toHaveLength(0)
+    await hints.dispose()
+  })
+
+  it('disables the journal when a hint read fails fatally, not just skips it', async () => {
+    const root = freshRoot()
+    const hints = createWindowHints({ ...base(), directory: root, instanceId: UID })
+    await hints.publish(state())
+    // A directory wearing a hint's name fails the file check: fatal, so the
+    // read surfaces it to the outer handler and the journal disables.
+    const fatal = '223e4567-e89b-12d3-a456-426614174001'
+    mkdirSync(path.join(root, `${fatal}.json`))
+    await expect(hints.readFresh()).resolves.toEqual([])
+    rmSync(path.join(root, `${fatal}.json`), { recursive: true, force: true })
+    // Disabled, not skipped: the valid hint stays unread after cleanup.
+    await expect(hints.readFresh()).resolves.toEqual([])
     await hints.dispose()
   })
 

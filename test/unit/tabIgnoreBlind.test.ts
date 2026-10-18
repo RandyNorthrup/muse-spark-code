@@ -42,11 +42,21 @@ const realRunGit = async (args: readonly string[], cwd: string): Promise<string>
     throw error
   }
 }
-const depsFor = (root: string, runGit: TabIgnoreDeps['runGit'] = realRunGit): TabIgnoreDeps => ({
+const depsFor = (
+  root: string,
+  runGit: TabIgnoreDeps['runGit'] = realRunGit,
+  traces: string[] = [],
+): TabIgnoreDeps => ({
   runGit,
   ignoreFileExists: (absolutePath) => existsSync(absolutePath),
   workspaceRoots: () => [root],
   onIgnoreFilesChanged: () => ({ dispose: () => undefined }),
+  log: {
+    trace: (message) => void traces.push(message),
+    info: () => undefined,
+    warn: () => undefined,
+    error: () => undefined,
+  },
 })
 
 const roots: string[] = []
@@ -114,9 +124,11 @@ describe('TabIgnoreCache with real git', () => {
       await runExecFile('muse-no-such-binary', ['check-ignore'], { cwd: root })
       return ''
     }
-    const cache = new TabIgnoreCache(depsFor(root, noGit))
+    const traces: string[] = []
+    const cache = new TabIgnoreCache(depsFor(root, noGit, traces))
     try {
       await expect(cache.isIgnored(root, 'notes.txt')).resolves.toBe(false)
+      expect(traces.some((line) => line.includes('without git'))).toBe(true)
     } finally {
       cache.dispose()
     }

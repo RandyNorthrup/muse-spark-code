@@ -210,7 +210,6 @@ export function createWindowJudge(
               makeTempRoot: () => mkdtemp(path.join(tmpdir(), JUDGE_TEMP_PREFIX)),
               removeTempRoot: (root) => rm(root, { recursive: true, force: true }),
               onSideSession: (id) => sideSessions.add(id),
-              describeFailure: failureForLog,
               logInfo: (text) => {
                 deps.log.info(text)
               },

@@ -16,6 +16,7 @@ import type {
   TurnPart,
   TurnSubmission,
 } from '../../core/agent/agentBackend'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { JudgeEntryHandle } from '../../core/judge/entries'
 import { type JudgeQuestion } from '../../core/judge/judge'
 import type { AgentEvent } from '../../shared/agentEvents'
@@ -53,8 +54,6 @@ export interface MuseCodeJudgeDeps extends SameJudgeRunnerDeps {
   readonly removeTempRoot: (root: string) => Promise<void>
   /** Told each side session's id as it starts: no History lists it. */
   readonly onSideSession: (sessionId: string) => void
-  /** A failure as the log may name it (never the CLI's own words). */
-  readonly describeFailure: (error: unknown) => string
   readonly logInfo: (message: string) => void
   readonly logWarn: (message: string) => void
 }
@@ -125,6 +124,8 @@ function trackBatchTurns(
       if (!tracked.tripped) {
         tracked.tripped = true
         void session.cancel().catch(() => {
+          // The tripped turn is already discarded, and the session teardown
+          // cancels again: a cancel that fails here changes nothing.
           return
         })
       }
@@ -296,7 +297,7 @@ export class MuseCodeSameJudge {
         await this.deps.removeTempRoot(root)
       } catch (error: unknown) {
         this.deps.logWarn(
-          `The Muse Code judge could not remove its folder: ${this.deps.describeFailure(error)}`,
+          `The Muse Code judge could not remove its folder: ${failureForLog(error)}`,
         )
       }
     }
