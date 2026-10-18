@@ -1,14 +1,12 @@
 import { RESOURCE_NS_PER_MS } from '../../../shared/constants'
+import { finishDiskDelta, type DiskDeltaBaseline } from './diskDelta'
 import { counterReading } from './readings'
 
-interface DiskSnapshot {
-  atMs: number
-  counters: Map<string, number>
-}
-
-/** Both totals present and in counter range, or missing data. */
-function blockBusyNs(readNs: number | undefined, writeNs: number | undefined): number | null {
-  return readNs === undefined || writeNs === undefined ? null : counterReading(readNs + writeNs)
+/** Both totals present and in counter range, as milliseconds of busy time. */
+function blockBusyMs(readNs: number | undefined, writeNs: number | undefined): number | null {
+  if (readNs === undefined || writeNs === undefined) return null
+  const busyNs = counterReading(readNs + writeNs)
+  return busyNs === null ? null : busyNs / RESOURCE_NS_PER_MS
 }
 
 /**
@@ -19,7 +17,7 @@ function blockBusyNs(readNs: number | undefined, writeNs: number | undefined): n
  * those keys is ignored, and a missing key fails closed.
  */
 export class DarwinDiskDelta {
-  private previous: DiskSnapshot | undefined
+  private previous: DiskDeltaBaseline | undefined
 
   reset(): void {
     this.previous = undefined
@@ -29,7 +27,7 @@ export class DarwinDiskDelta {
     const before = this.previous
     this.previous = undefined
     if (text == null || !Number.isFinite(atMs) || atMs < 0) return null
-    const counters = new Map<string, number>()
+    const blocks: { name: string; busyMs: number }[] = []
     let name: string | undefined
     let isDriver = false
     let readNs: number | undefined
@@ -50,9 +48,9 @@ export class DarwinDiskDelta {
         continue
       }
       if (isDriver && name !== undefined) {
-        const busy = blockBusyNs(readNs, writeNs)
-        if (busy === null || counters.has(name)) return null
-        counters.set(name, busy)
+        const busyMs = blockBusyMs(readNs, writeNs)
+        if (busyMs === null) return null
+        blocks.push({ name, busyMs })
       }
       const next = header[1]
       const kind = header[2]
@@ -63,23 +61,17 @@ export class DarwinDiskDelta {
       writeNs = undefined
     }
     if (isDriver && name !== undefined) {
-      const busy = blockBusyNs(readNs, writeNs)
-      if (busy === null || counters.has(name)) return null
-      counters.set(name, busy)
+      const busyMs = blockBusyMs(readNs, writeNs)
+      if (busyMs === null) return null
+      blocks.push({ name, busyMs })
     }
-    if (counters.size === 0) return null
-    this.previous = { atMs, counters }
-    if (before === undefined || atMs <= before.atMs || before.counters.size !== counters.size)
-      return null
-    let busiest = 0
-    for (const [identity, current] of counters) {
-      const old = before.counters.get(identity)
-      if (old === undefined || current < old) return null
-      busiest = Math.max(
-        busiest,
-        ((current - old) / RESOURCE_NS_PER_MS / (atMs - before.atMs)) * 100,
-      )
+    const counters = new Map<string, number>()
+    for (const block of blocks) {
+      if (counters.has(block.name)) return null
+      counters.set(block.name, block.busyMs)
     }
-    return Math.min(100, busiest)
+    const finished = finishDiskDelta(before, atMs, counters)
+    this.previous = finished.store
+    return finished.busy
   }
 }

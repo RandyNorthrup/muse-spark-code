@@ -136,6 +136,40 @@ probe: {"refused":"selfTest"} exit=125 (sandbox_apply denied in this shell)
 live run: {"confined":true,"abi":1,"excluded":0} then sandbox-exec EPERM
 ```
 
-## Gates
+- Review fix (2026-10-17, before any live run): `resolve_operand` refused
+  the grammar's default operand `"."` as non-canonical. Fixed (root itself),
+  verified: `find .` now walks (`excluded:0`) instead of refusing. The
+  committed live drills cover `find . -print` and would have caught this
+  outside.
+- Dedup refactor (0%-clone gate): the busiest-device tail shared as
+  `src/core/resources/sampler/diskDelta.ts` (`finishDiskDelta`, used by both
+  Linux and macOS deltas; direct tests in
+  `test/unit/resourceDiskDelta.test.ts`); the B1 fixture/spelling/runner
+  shared as `test/unit/helpers/inspectCase.ts` (Linux block converted
+  verbatim — behavior identical by diff); the Darwin plugin test rewritten
+  to a `--mac` command tag. Linux delta wiring re-checked live in scratch
+  (baseline null, then 10 %). `npx jscpd`: 0 clones.
+
+## Gates (final tree, this Mac, 2026-10-17)
+
+- prettier: changed files formatted, `format:check` equivalent clean.
+- eslint zero warnings on all lane files (src, scripts, tests, helpers).
+- typecheck: all five projects green (`npm run typecheck` exit 0).
+- `check:plan`: 0 drift. `check:l10n`: 0 problems (no new UI strings).
+- `npm run build`: exit 0, budgets hold.
+- `npm run deadcode` (knip): exit 0. `cycles`: none. `duplication`: 0 clones.
+- Suites (repo default timeout, `--maxWorkers=3`):
+  `resourceProbesDarwin` 7/7, `resourceDiskDelta` 2/2, `resourcesContracts`
+  16/16, `pluginDispatch` 29 passed + 2 skipped (installed-bun drills need
+  Linux + bun), `inspectNative` 10 skipped here (see item 1),
+  `inspectGrammar` 62/62.
 
 ## Drills
+
+- Item 3 and item 2 drills ran live on this Mac (above).
+- Item 1 live Seatbelt drills (5, in `test/unit/inspectNative.test.ts`) did
+  NOT run here: this shell's sandbox denies `sandbox_apply`, and the rig's
+  broken `xcode-select` denies the repo build's compiler shim. They skip
+  visibly and must run green on an unsandboxed Mac / hosted macOS CI before
+  the Seatbelt change merges. Everything provable without the sandbox was
+  measured above.
