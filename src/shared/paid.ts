@@ -1,3 +1,4 @@
+import { UserRefusalError } from './refusal'
 import { tokenRatePrice } from './tokenRatePrice'
 export { autoReviewPrice } from './reviewPriceText'
 import * as z from 'zod/mini'
@@ -370,7 +371,7 @@ export function paidFeaturePrice(feature: PaidFeature, searchPriceUsd?: UsdAmoun
         !nonnegativeUsdSchema.safeParse(price).success ||
         Usd.from(price).compare(Usd.from(0)) < 0
       )
-        throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+        throw new UserRefusalError(UI_TEXT.sessionBudgetSearchUnavailable, 'search_unbounded')
       return fill(UI_TEXT.paidWebSearchPrice, {
         price: formatUsd(multiplyUsd(price, SEARCHES_PER_PRICE_UNIT), 2),
       })

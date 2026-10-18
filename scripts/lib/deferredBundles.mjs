@@ -1057,6 +1057,19 @@ export const deferredCohort = {
   setup(build) {
     // The shared request/framing implementations stay in the existing backend
     // bundle; providers and ACP require its exported API only when used.
+    // The refusal classifier rides the lazy provider bundle: the Model API
+    // bundle reads it across the boundary only on an error, keeping its pin.
+    // Static imports keep bundling it locally everywhere else.
+    build.onResolve({ filter: /\/refusal(?:\.ts)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+      if (
+        args.kind !== 'dynamic-import' ||
+        source !== path.resolve('src/core/refusal.ts') ||
+        path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/modelApi.js')
+      )
+        return
+      return { path: './configuredProviders.js', external: true }
+    })
     // Lane PROVERR's typed refusal rides the same way: one copy in the
     // backend bundle, required from it by providers, configured and report.
     build.onResolve(
@@ -1130,25 +1143,30 @@ export const sharedWire = {
 // Admission's state and the lazy launch shims (launcher.ts) ship once, in
 // dist/resourceAdmission.js (admissionEntry.ts re-exports both).
 const RESOURCE_ADMISSION_SOURCES = new Set(
-  ['src/core/resources/admission.ts', 'src/core/resources/launcher.ts'].map((file) =>
-    path.resolve(file),
-  ),
+  [
+    'src/core/resources/admission.ts',
+    'src/core/resources/launcher.ts',
+    'src/core/locks/processOwner.ts',
+  ].map((file) => path.resolve(file)),
 )
 export const sharedResourceAdmission = {
   name: 'shared-resource-admission',
   setup(build) {
-    build.onResolve({ filter: /(?:^|\/)(?:admission|launcher)(?:\.[jt]s)?$/ }, (args) => {
-      if (
-        args.kind === 'entry-point' ||
-        path.resolve(build.initialOptions.outfile ?? '') ===
-          path.resolve('dist/resourceAdmission.js')
-      )
-        return
-      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
-      return RESOURCE_ADMISSION_SOURCES.has(source)
-        ? { path: './resourceAdmission.js', external: true }
-        : undefined
-    })
+    build.onResolve(
+      { filter: /(?:^|\/)(?:admission|launcher|processOwner)(?:\.[jt]s)?$/ },
+      (args) => {
+        if (
+          args.kind === 'entry-point' ||
+          path.resolve(build.initialOptions.outfile ?? '') ===
+            path.resolve('dist/resourceAdmission.js')
+        )
+          return
+        const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+        return RESOURCE_ADMISSION_SOURCES.has(source)
+          ? { path: './resourceAdmission.js', external: true }
+          : undefined
+      },
+    )
   },
 }
 

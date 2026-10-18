@@ -1,3 +1,4 @@
+import { isUnsentSideCall } from '../../refusal'
 import { Usd, isPositiveUsd } from '../../../shared/usd'
 import type { ResponseObservation, ConfirmedModelRequest, ResponseAttemptGuard } from './client'
 // Paid Auto review execution: loaded only after the paid-use popup allows it.
@@ -18,14 +19,7 @@ import {
   isFunctionCallItem,
 } from './schemas'
 
-import {
-  estimateInput,
-  requestParts,
-  reserveRequest,
-  type OwnedSessionBudgetScope,
-  type SessionBudgetClaim,
-  helperRequestSettlement,
-} from './sessionBudget'
+import { fitRequest, type OwnedSessionBudgetScope, helperRequestCost } from './sessionBudget'
 import {
   effortForPolicy,
   minOutputTokensForPolicy,
@@ -40,13 +34,17 @@ import {
   AUTO_REVIEWER_MODEL_TEXT,
   AUTO_REVIEWER_TIMEOUT_MS,
   MODEL_API_EFFORT_OFF,
-  MODEL_API_MAX_RETRIES,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill, setUiText } from '../../../shared/l10n/text'
 import type { UiText } from '../../../shared/l10n/en'
 import { reviewerAnswerSchema } from '../../../shared/sideCallSchemas'
-import { sideCallBody, structuredSideCall, type SideCallAttempt } from './structuredOutput'
+import {
+  sideCallBody,
+  sideCallEvents,
+  structuredSideCall,
+  type SideCallAttempt,
+} from './structuredOutput'
 
 // M91 hook model turns share the paid helper bundle and its existing lazy boundary.
 export { runHookModelTurn } from './hookModelEntry'
@@ -247,49 +245,43 @@ async function requestReviewer(
   const modelId = confirmed.modelId
   let text = ''
   let hasCompleted = false
+  let hasResponseFrame = false
   let usage: Usage | null | undefined
-  let claim: SessionBudgetClaim | undefined
   let directBudget: DirectResponseBudget | undefined
-  let reservedUsd = Usd.from(0).toAmount()
   let wasRefused = false
   const startedAt = context.deps.now()
   let observation: ResponseObservation = {}
   let outcome: 'completed' | 'incomplete' | 'failed' | 'cancelled' = 'failed'
   let served: string | undefined
   try {
-    if (budgetScope !== undefined) {
-      const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
-      const capUsd = budgetScope.capUsd()
-      const input = estimateInput(requestParts(body), undefined).inputTokens
-      if (isPositiveUsd(capUsd)) {
-        const reservation = reserveRequest({
-          capUsd,
-          spentUsd: total.spentUsd,
-          estimatedInputTokens: input,
-          modelId,
-          maxOutputTokens: body.max_output_tokens,
-          minOutputTokens: minOutputTokensForPolicy(context.resolved.policy),
-          ...(modelId.includes('/') && { price: context.resolved.price }),
-        })
-        body = {
-          ...body,
-          max_output_tokens: Math.min(body.max_output_tokens, reservation.maxOutputTokens),
-        }
+    // Under the conversation's limit the review is fitted into what is left
+    // (D121); its estimate is compared again before the send, never held.
+    const input = Buffer.byteLength(JSON.stringify(body), 'utf8')
+    const capUsd = budgetScope?.capUsd() ?? Usd.from(0).toAmount()
+    if (budgetScope !== undefined && isPositiveUsd(capUsd)) {
+      const fit = fitRequest({
+        capUsd,
+        spentUsd: budgetScope.spentUsd(),
+        estimatedInputTokens: input,
+        modelId,
+        maxOutputTokens: body.max_output_tokens,
+        minOutputTokens: minOutputTokensForPolicy(context.resolved.policy),
+        ...(modelId.includes('/') && { price: context.resolved.price }),
+      })
+      body = {
+        ...body,
+        max_output_tokens: Math.min(body.max_output_tokens, fit.maxOutputTokens),
       }
-      reservedUsd =
-        context.resolved.price.reserve({
-          inputTokens: input,
-          outputTokens: body.max_output_tokens,
-          cachedTokens: 0,
-        }) ?? Usd.from(0).toAmount()
-      claim = await budgetScope.journal.reserve(
-        budgetScope.sessionId,
-        budgetScope.accountId,
-        reservedUsd,
-        { isUnbounded: !isPositiveUsd(capUsd) },
-      )
     }
-    directBudget = { scope: budgetScope, claim, isSent: false }
+    directBudget = {
+      scope: budgetScope,
+      estimateUsd: context.resolved.price.reserve({
+        inputTokens: input,
+        outputTokens: body.max_output_tokens,
+        cachedTokens: 0,
+      }),
+      isSent: false,
+    }
     const required = context.guard(body, directBudget)
     const admission: ResponseAttemptGuard = Object.assign(
       (actualKeyDigest: string | undefined) => {
@@ -329,21 +321,16 @@ async function requestReviewer(
         },
       },
     )
-    const events = context.resolved.client.streamResponse(
+    const events = sideCallEvents(
+      context.resolved.client,
       body,
-      AbortSignal.any([signal, AbortSignal.timeout(AUTO_REVIEWER_TIMEOUT_MS)]),
-      undefined,
-      // No transport retry; structured repair is separately admitted and settled.
-      { retriesUsed: MODEL_API_MAX_RETRIES },
+      signal,
+      AUTO_REVIEWER_TIMEOUT_MS,
       admission,
-      {
-        ...confirmed,
-        onRequestStarted: () => {
-          // The combined admission observer above counts this paid use once.
-        },
-      },
+      confirmed,
     )
     for await (const event of events) {
+      hasResponseFrame = true
       if (event.type === 'response.completed') hasCompleted = true
       if (
         attempt.mode === 'forced_tool' &&
@@ -373,7 +360,13 @@ async function requestReviewer(
     outcome = 'completed'
   } catch (error: unknown) {
     if (signal.aborted) outcome = 'cancelled'
-    wasRefused = context.isRefused(error)
+    wasRefused = isUnsentSideCall(
+      error,
+      hasResponseFrame,
+      directBudget?.isSent === true,
+      usage != null,
+      (candidate) => context.isRefused(candidate),
+    )
     if (signal.aborted) {
       throw context.abortError()
     }
@@ -398,7 +391,6 @@ async function requestReviewer(
           ? undefined
           : Usd.from(usage.provider_cost_usd).toAmount(),
       uncertain: directBudget?.isSent === true && !wasRefused && usage == null,
-      retainedLiabilityUsd: reservedUsd,
     })
     if (usage !== null && usage !== undefined && context.isCountedUsage(usage)) {
       try {
@@ -420,18 +412,18 @@ async function requestReviewer(
         context.deps.log.warn('Auto review usage observer failed; its paid tally remains unknown')
       }
     }
-    if (claim !== undefined) {
-      const settlement = helperRequestSettlement(
+    // After the call, its reported cost (or cost unknown) joins the
+    // conversation's running total (D121).
+    budgetScope?.charge(
+      helperRequestCost(
         modelId,
         usage,
         context.isCountedUsage,
         directBudget?.isSent === true,
         wasRefused,
-        reservedUsd,
         context.resolved.price,
-      )
-      await claim.settle(settlement.costUsd, settlement.isUnknown)
-    }
+      ),
+    )
   }
   return text
 }

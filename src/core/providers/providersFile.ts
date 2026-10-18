@@ -84,6 +84,9 @@ export const providerEntrySchema = z
     routing: z.optional(openRouterRoutingSchema),
     // The context each Ollama model runs with (only on an `ollama` entry).
     numCtx: z.optional(z.record(z.string(), z.number())),
+    // EXECPROV round 6: exact input counts are on by default where the
+    // provider documents a same-body count call; false keeps the byte bound.
+    exactInputCount: z.optional(z.boolean()),
     // Set once the user answers the private-network question for this entry.
     privateNetwork: z.optional(z.boolean()),
   })

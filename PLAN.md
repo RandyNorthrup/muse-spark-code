@@ -3298,12 +3298,27 @@ policy decisions apply. Hosted search, voice, subagents and schedules stay off;
 the subscription pays none of these Model API calls. D48/D62's interactive
 popup policy remains in force for interactive sessions.
 
-Admission reserves the documented context-window liability for each attempt,
-including retries, using integer micro-USD and upward rounding (F1).
-Contributor minimum is $0.108135 ($0.118135 with images); standard minimum is
-$1.409024 ($1.419024 with images). Lost or unverified receipts keep their full
-reservation. The conditional billing theorem and provider assumptions are in
-[docs/ci.md](docs/ci.md); no M82 prerequisite or token-count estimator exists.
+Admission reserves conservative request input and the resolved output cap for
+each attempt, including retries, with integer micro-USD upward rounding (EXECPROV,
+2026-10-11). There is no fixed full-context startup minimum. Each request is
+capped at the model's own output limit (0.18.0 policy cap, kept at the merge
+2026-10-12); the cap feeds the body, request schema, ledger shape check and
+first real reservation. Lost receipts keep their request reservation. Configured
+price cards include their captured cache-write premiums and long-context tier.
+Request admission uses the canonical-body UTF-8 bound where no verified exact
+count is available; Anthropic reserves its estimate plus 25%, capped by that
+size bound. Only the final estimate error can exceed the cap: the full actual
+cost is retained and another request stops (LEDGER, 2026-10-12). Initial HTTP
+refusals before generation settle at zero; cancellation without final usage
+retains unresolved liability separately from confirmed spend. See
+`docs/certification/exec-provider.md`; full aggregate quality and installed/live
+certification remain lead-owned.
+Configured defaults are authoritative in exec and ACP; no missing default selects
+another model. Ephemeral exec omits durable usage history and reports
+usageHistory=omitted_ephemeral. Command --help stays local; help reference opens
+the complete catalogue (EXECPROV, 2026-10-11). The usage panel shares the portable
+journal through runtimeAccounting, installing the caller’s language before use,
+to retain its existing size cap.
 
 Proposals, secret-free tests and reviewer-approved push run in separate jobs.
 Text patches publish only after exact staged-byte scanning. Any binary/image
@@ -14575,7 +14590,51 @@ resolved against the plan's user-visible promise, not against the tag:
   both backends) must pass the role's answer through. MSM58M69 shipped
   no behaviour change for it.
 
+### D121 — No spending check without a limit the person set (spend-simple, owner 2026-10-17)
+
+The owner, verbatim: "why are there spending checks each call this seems
+like not the right way to do it make sure you research properly. whatever
+get the app to pruduction faster with no bugs. i dont care about the
+credits if the app is proven working." With the standing rule of the same
+day (only the providers' limits are hard-coded; every other limit is the
+person's, none by default), this supersedes the LEDGER design (§3, §6, §7):
+the atomic claim journal, its cross-process admission lock, the 100 ms
+admission bound and its benchmark.
+
+- **No limit set, no check.** With no session budget, no editor
+  `museSpark.paidDailyBudgetUsd` and no agent `paidDailyBudgetUsd` (all
+  none by default, no maximum of ours), nothing is reserved, locked or
+  written, and no spend record is read, before a send; only the settings
+  that would hold a limit are read. Each reply's own usage line still shows
+  its cost.
+- **A limit the person set keeps a running total.** The session budget's
+  total lives in the session that owns it, grows after each call from the
+  usage the provider reported, and is saved with the session, so a resume
+  continues from it. A daily budget's total is lock-free: each process adds
+  to its own file in the day's folder, and a read sums the files.
+- **Stop before, in plain words.** A request whose estimate (its input plus
+  the model's floor output, search fees included) would pass the limit is
+  not sent; the stop names the estimate, the limit and what was used, and
+  the daily stop names the setting. One warning comes when what is left no
+  longer fits a request like the last one. A reply may cost more than its
+  estimate; the next request is then the one stopped.
+- **A reservation is never spend.** A response that ended without its usage
+  counts as cost unknown, with what is known, and adds nothing to the total.
+- **A refusal books nothing.** A request the provider refused before
+  generating anything (`NON_BILLABLE_HTTP_REJECTIONS`) is withdrawn from the
+  run ledger with its request count and adds nothing to any total, even when
+  a provider adapter rethrows the error without its status: the transport
+  tells the attempt guard first (`onRefused`).
+- **Kept as they were:** the exec run ledger's own rules otherwise
+  (`--max-budget-usd`, its published v2 schema), the Tab ledger, the team
+  meter and account thresholds. Record, the $120.00 origin and every removal:
+  `docs/certification/spend-simple.md`.
+
 ## 3. Open questions (need the owner)
+
+**LEDGER cancellation billing (2026-10-12). Resolved 2026-10-17 by D121:**
+the owner chose not to count an unresolved reservation at all; a response
+without its usage is cost unknown. The original question follows. The requested received-output cancellation bound is not provable: Anthropic explicitly bills client disconnects, and OpenAI counts non-visible generated tokens. Keep the full unresolved reservation as liability, never display it as spend; settle a provider-reported final usage even on an incomplete/cancelled response. A received-output estimate must not release unknown provider liability. Billing research and real-use steps: `docs/certification/spend-ledger.md`.
 
 **Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13).** GAPANTH-G11's scan row
 notes that an Anthropic reply stopped with `refusal` offers no fallback
@@ -15672,6 +15731,11 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+**LEDGER (2026-10-12, Kubuntu and macmini; M80/M82/M95 repair). Superseded
+2026-10-17 by D121:** the versioned ledger, its atomic admission and its
+journal files are removed; spending is checked only against a limit the
+person set. The original scope follows. Replace directory-per-claim budgeting with one versioned spend ledger and atomic admission for session, editor daily and terminal daily scopes; retain every sent attempt at its full liability, recover only from process identity evidence, and certify real-process races, crashes, migration and packed-product refusals. Design and ruling R9 compatibility limits: `docs/certification/spend-ledger.md`. Shared daily input reserves the byte/context bound even when terminal admission uses a provider estimate. One flushed transaction inode supplies atomic snapshot and audit/history aliases; process owner notes are cached per scope. Portable ledger errors stay in each caller's language state. Runtime settlement uses typed HTTP observations, never retry-message text, and only refunds initial rejections before response frames. Removing inherited stand-in suites also removes their unused production-only exports (unbound account-home factory, account admission wrapper and schedule paid-scope factories); their live interfaces remain. Provider endpoint/path utilities move to a leaf module to break the measured configured-bundle command cycle. Keyless configured runs bind an empty in-memory secret store and skip Meta readiness lookup; a real ECONNREFUSED before connection releases the hold. No provider calls, cap changes, merges or pushes.
 
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
@@ -23225,6 +23289,26 @@ OpenCode plugin hooks").
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M95 — Bring-your-own model providers (D74)
+
+**EXECPROV (2026-10-11, kubuntu; M80/M95 repair).** Follow the corrected
+rig brief: A1 refunds every unsent daily/run claim and recovers demonstrably
+dead owners of new unsent daily claims; sent or legacy unknown liability stays
+reserved. A3 preserves user refusals through the shared provider wrappers. A2
+quotes the actual conservative input plus one resolved output cap, using the
+selected model price card. B keeps configured defaults in exec/ACP; C updates
+only documented catalogue evidence; D uses terminal instructions in every
+language; E repairs usage persistence; F confines help to its command; G updates
+ACP/README/reference. Fake providers only, existing caps/hooks/timeouts intact.
+Round 2 completes the interruption/recovery matrix with real journals, resolves
+slash-containing native IDs against configured models, covers every deep command's
+help, diagnoses persistent usage history, and binds model-specific effort to ACP
+and exec. Sign-in methods exclude maintenance actions; JSON progress uses stderr;
+stopped runs retain validated, redacted partial text and accounting. STREAMCLASS
+owns helper/transport idle marks, Copilot silence and upload progress limits;
+TOOLROUNDS owns the tool-loop ceiling. Run every dependent suite in three-file
+batches and record base failures separately. No live calls or new caps.
+Certification: `docs/certification/exec-provider.md`. Full aggregate quality
+belongs to the lead under this lane's explicit scoped-gate instruction.
 
 **Provider panel, 0.17.1 residual (PROVWIZ9, lead decision 2026-10-09).**
 Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
@@ -33389,6 +33473,48 @@ lane A's first step.
 
 ## 7. Gates
 
+**LEDGER local qualification deferral (2026-10-12). Superseded 2026-10-17 by
+D121:** the 100 ms admission bound, its benchmark and the ledger it measured
+are removed, so R3/R4 below no longer apply. The original record follows. The owner's latest
+no-stand-in/no-screenshot testing rule replaces full `quality` and fake provider
+proofs for this lane. Static gates and real core/packed commands are recorded in
+`docs/certification/spend-ledger.md`. The unchanged 100 ms admission bound failed
+on macOS at 10 closed claims (1,106.692 ms before the single-inode correction);
+two earlier post-correction core tests exceeded the default 5 s (5.184 / 6.842 s); the current core/migration/typed-refusal batch passed all 35 without changing a timeout. Their earlier cause is UNMEASURED.
+The final indexed-history fixture measured admission maxima 782.652 / 440.347 /
+380.090 ms at 10 / 1,000 / 10,000 entries, hold maximum 856.212 ms; the 2 s
+wait has no certified eightfold margin on those results. R3/R4 remain open.
+No cap, timeout, ignore or assertion is weakened. ACP packaging is blocked by missing required Darwin/Linux native artifacts;
+the keyless local product run stopped before connection at model availability,
+so packed transport refund remains uncertified. The redacted full-history
+secret scan found two entries among 4,731 commits; locations/cause are
+UNMEASURED and history is not rewritten. Final static exits are in the
+certification's named receipts. Preliminary duplication returned 10 clones, including inherited fake suites
+that the owner forbids this lane to repair; no ignore or threshold is changed.
+The final receipt lists every remaining clone. The history-size fixture expands
+real-writer transaction data and is distinct from 10,000 actual admissions. Final macOS matrix, Windows
+rename/hard-link takeover, editor interactions and provider billing outcomes
+remain uncertified until their named real-use/platform runs. This is not a
+release certification and the change must not be described as fully green.
+
+**EXECPROV round 4 scoped qualification (2026-10-12, kubuntu).** The
+explicit lane brief reserves aggregate `npm run quality` for the lead.
+This lane merges `snap/hotfix-0181` (0.18.0 + 0.18.1) into
+`fix/exec-provider`, keeps the D1-D6 fixes on the release (paid-stop and
+stale-confirmation pass-throughs; policy output cap; cross-bundle refusal
+classifier and provider assembly behind the lazy provider entry, proved
+by the split gate), runs all five typechecks, the production build with
+its budgets, the round-3 and hotfix owning suites at the repository
+timeout, three byte-restored red drills (D1/D2/D3) and the l10n,
+reference, roadmap and host-api checks. FINDING, not a deferral: the
+Model API exact-byte pin (`deferredBundles`, 532,827 B) reads 533,327 B
+(+500 B); every byte is attributed to pinned hot-path behavior
+(transport paid/rotation branches and classifier read, client refusal
+catch, host default-model hunk) in `docs/certification/exec-provider.md`.
+The pin is not moved; the lead disposes (re-measure with owner decision,
+as the hotfix did at +290 B, or direct further diet). Loopback suites are
+sandbox-blocked here (direct probe: `fetch` to 127.0.0.1 throws), named
+for the lead's unsandboxed run.
 **M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
 job 115017063279: "loads the real lazy menu independently of the secret
 modal focus owner" (`test/unit/m114Panel.test.mjs:241`) exceeded Vitest's
@@ -39051,7 +39177,12 @@ Fixed. PR #233 (`docs/claims-truth`) merged: roadmap, CHANGELOG, README and
 plan claims made to match main (M100 status, M62/M63 and M125 support limits,
 the no-stand-ins rule stated as a rule with the remaining stand-ins named,
 Retry-After honoured as given), its corrections standing on the entries they
-correct, including `[0.19.0]`'s Release infrastructure. The
+correct, including `[0.19.0]`'s Release infrastructure. PR #217
+(`fix/spend-simple`) merged: D121 (no spending check without a limit the
+person set; the atomic claim ledger gone), its CHANGELOG Added and Fixed
+entries and the D121 README settings rows under `[0.19.0]`; the README
+`shellSandbox` row keeps PR #233's wording, the two D121 spend rows keep PR
+#217's wording, and ROADMAP.md and the host-API record were regenerated. The
 `0.19.0 released (…)` line is written by the lead after the tag's release run.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**

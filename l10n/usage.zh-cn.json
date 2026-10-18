@@ -100,11 +100,15 @@
   "certaintyReported": "已上报",
   "certaintyComputed": "已计算",
   "certaintyUncertain": "不确定",
+  "reservedLabel": "已预留",
   "certaintyPlan": "方案",
   "certaintyLocal": "本地",
   "certaintyUnpriced": "未定价",
   "certaintyEstimated": "预估",
   "uncertainNote": "请求已发送，但未返回用量。其费用责任予以保留。",
+  "unknownCalls": {
+    "other": "{count}次成本未知的请求"
+  },
   "unpricedNote": "没有可用的价格卡。未知费用不是零。",
   "estimatedNote": "Token 数量为估计值。",
   "localNote": "本地模型：无 API 费用。",

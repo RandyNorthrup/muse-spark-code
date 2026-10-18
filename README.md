@@ -222,7 +222,7 @@ hash verification and migrate when read.
 - **Accurate details.** Help is generated from the extension's own tables.
   Defaults, availability and paid costs are now described for each backend.
 - **Editors and terminal.** Use `/help` in the chat panel and ACP editors, or
-  `muse-spark-code-acp help --all` in the terminal.
+  `muse-spark-code-acp help reference` in the terminal.
 
 **0.14.1**
 
@@ -452,17 +452,19 @@ so they match the build.
 | Hooks                                                     | On, Model API                           | Inert without configured hooks; trusted workspaces only                        |
 | Reply tokens and cost                                     | On, Model API                           | Display only                                                                   |
 | Images, Auto reviewer, child agents and scheduled prompts | Available, Model API                    | Price and shared daily budget in Allow once / Allow always / Deny popup        |
-| Hosted search and Muse Voice                              | Available, Model API                    | Transport refused under the finite daily cap until billing bounds are verified |
+| Hosted search and Muse Voice                              | Available, Model API                    | Refused under a limit you set until their billing bounds are verified          |
 | Best-of-N                                                 | Available as a separate explicit action | Ordinary turns still use one model; its dialog and consent name extra attempts |
 | Dictation                                                 | Free OS recognizer                      | Paid engine choice is separate (`dictationEngine`)                             |
 | Repo map in the prompt                                    | Off                                     | Q11 awaits its paired M75 arm; the repo-map tool remains available             |
 
-Explicit `false` settings stay off. Interactive paid extras share
-`museSpark.paidDailyBudgetUsd`: $5/day by default, $0.50–$500, machine-scoped,
-across windows, workspaces and keys in this extension profile. The local
-calendar day owns each durable reservation. Known usage settles its estimate;
-unknown sent usage keeps its full reservation. Corrupt or incomplete storage
-counts as budget reached and refuses paid requests. At the limit choose
+Explicit `false` settings stay off. Interactive paid extras can share a daily
+limit you set, `museSpark.paidDailyBudgetUsd` (none by default; machine-scoped,
+across windows, workspaces and keys in this extension profile). With no limit,
+nothing is checked or written for a paid request. With one, each request's
+reported cost joins the local day's total after it ends; nothing is held for a
+request in flight, and a sent request with unknown usage counts as cost
+unknown, never as its estimate. Unreadable storage refuses paid requests while
+a limit is set. When a request's estimate would pass the limit, choose
 **Raise for Today** or **Stop Until Tomorrow**; both choices are shared on disk.
 Stop remains in force even if another window's pending raise finishes later.
 Cancelling admission refunds an unsent request; late budget-dialog answers
@@ -887,8 +889,27 @@ user-level `providers.json`, using its own OS credential store. The terminal
 offers `providers list`, `providers add`, `providers test`, `providers remove`
 and `auth set|status|clear --provider <id>`. Free checks use the shared
 transport; keys are entered through stdin and stored with their origin.
-Headless `exec --provider` validates configuration, credentials and endpoints,
-then refuses before dispatch until its provider-aware accounting runner exists;
+Headless `exec --provider` runs through that same client with model-specific
+request admission, settlement, and refunds for unsent reservations. Each request
+is capped at the model's own output limit; unknown prices refuse.
+For a configured Anthropic key: With no `--model`, exec and ACP use the configured `defaultModel`;
+a missing or unavailable default refuses and lists the configured models.
+Ephemeral exec omits durable usage history and records
+`usageHistory: "omitted_ephemeral"`; ordinary runs retain usage history.
+Command `--help` prints only its own usage; `help reference` prints the catalogue.
+
+```sh
+muse-spark-code-acp exec --backend modelApi --provider anthropic --model anthropic/claude-opus-5-5 --max-budget-usd 0.10 --max-requests 1 --ephemeral --output json "Reply with the single word: ready"
+```
+
+JSON runs show request progress on stderr and return a redacted partial answer
+when stopped, with `finalMessageComplete: false` and the incurred or uncertain
+cost. Structured output still requires validation.
+
+Deep commands have local help, such as `developer status --help`,
+`playbook status --help` and `report usage --help`. The full command,
+setting and feature catalogue is available through `help reference`.
+
 installed-editor and live provider certification are still open. MiniMax
 and Alibaba plan presets await captures, and Hugging Face OAuth awaits
 application registration.
@@ -1851,8 +1872,8 @@ price, unless remembered for this workspace, and appears separately in
 Account & usage. `agent` can use only read, search, list and read-only code
 intelligence. Hidden model turns fire no hooks. Typed answers can refuse,
 narrow or add context; they cannot approve another operation.
-The existing session budget covers every request. Model API handlers also
-reserve against the shared daily budget. Muse Code handler qualifications
+A session limit, when you set one, covers every request. Model API handlers
+also check a daily limit you set. Muse Code handler qualifications
 remain in [handler certification](docs/certification/m91-h.md).
 The fake-only guard drill script, `python3 docs/certification/m91-h-drills.py`,
 runs on the Kubuntu test rig and refuses Windows.
@@ -2561,9 +2582,10 @@ beside the repository, like a worktree of your own. An attempt that would ask
 you anything (an approval or a question) is declined instead and counted, and
 each actual Model API request attempt, including retries, counts before its
 HTTP request is sent. A changed key, account, conversation, trust or paid
-gate stops further requests. Attempt hosts share one captured, account-owned
-originating session budget. A finite cap refuses a run when no owned parent
-scope exists; separate attempt transcripts never create fresh allowances.
+gate stops further requests. Attempt hosts charge the originating
+conversation's running total and check its limit, when one is set; a limit
+refuses a run when no owning conversation exists, so separate attempt
+transcripts never get allowances of their own.
 When successful attempts finish, the
 dialog compares two at a time (**Left** and **Right**): their changed files
 and the diff, clipped past the cap with a note. The comparison captures an
@@ -2670,12 +2692,12 @@ unreadable settings disable it. The tool-item guard reacts to notifications;
 this isolation does not prove that no native tool ran.
 
 On the Model API, Judge asks for paid-use consent with the model's rates and
-`museSpark.paidDailyBudgetUsd` before spending. Each dispatch reserves against
-the same durable daily budget as interactive extras across windows. A known
-non-send refunds; complete usage settles the claim; missing receipts retain
-liability. The subscription never pays for a Model API call. These paths are
-verified with the real local journal and fake transport; no paid/live Judge
-call or production calibration is claimed.
+the daily limit you set in `museSpark.paidDailyBudgetUsd` (none by default)
+before spending. Under a limit, each dispatch's worst-case price must fit what
+is left of the day's total shared with interactive extras across windows; a
+known non-send costs nothing, complete usage adds its cost, and a missing
+receipt counts as cost unknown. The subscription never pays for a Model API
+call. No paid/live Judge call or production calibration is claimed.
 
 `museSpark.judge.engine` is machine-scoped: `auto` (default) uses the same
 model, `same` keeps that selection explicit, and `off` disables Judge. Set
@@ -3606,70 +3628,29 @@ rate instead of a "warm for N minutes" countdown.
   estimate with an unverified price and cannot use a spend cap. Muse Code reports no per-reply totals on its protocol,
   so its replies never carry one.
 - **A session budget** (Model API): `museSpark.modelApiSessionBudgetUsd`
-  caps what each conversation may spend, in dollars at Meta's list prices
-  (`0`, the default, is no cap). Before each request the input is estimated
-  high: the last request's input as Meta counted it, plus everything added
-  since at one token per byte (so an attached image or file counts at its
-  encoded size, far above its real cost). `max_output_tokens` is then
-  lowered so input plus output fits what is left. A request that cannot fit
-  is not sent, and the turn stops and says so; a reply that used all the
-  output the budget left is marked as possibly cut short, and the
-  transcript shows what each turn cost against the cap. Each request is
-  priced at the model it was sent to, and what the conversation spent is
-  saved as it is spent, even while a call waits for your approval, so a
-  reload cannot forget it. A shared spend journal covers hosts opening the
-  same account-owned conversation from the same storage directory. Each
-  request publishes its own durable liability before HTTP; stale session
-  saves cannot erase another host's charge. A capped request needs working
-  session storage. If a stop, model, goal,
-  key, budget, workspace trust or paid permission changes while the reservation
-  is saved, final admission refuses the request and releases its nonsent
-  reservation. A sent request whose usage is unknown keeps its whole
-  reservation, including after a crash or a response timeout. This is
-  reserved possible spending, not a claim that Meta billed that amount.
-  Explicit 400 or 429 refusals before any response began release it.
-  Capped responses do not automatically retry an ambiguous transport or
-  server failure under the same allowance; send a new prompt for a fresh
-  admission. Explicit rate-limit refusals may retry. With the cap off,
-  the normal response retry policy still applies.
-  A request begun with no cap still marks its possible spending before
-  sending when shared session storage is available. Another window with a
-  cap waits for that request's verified usage; a known settlement clears
-  this temporary uncertainty. An earlier ambiguous retry or unknown model
-  price cannot be certified by the final successful reply, so that history
-  needs a new conversation before it can use a cap. Uncapped requests without
-  session storage keep their normal behavior and cannot share persisted
-  spending. A provided spend journal that cannot be read or saved blocks
-  new requests; repair the storage and reopen the conversation.
-  Paid subagent requests have their own consent and request ceiling. Their
-  reported cost counts toward the conversation, but they are not reserved
-  against the parent's cap and can take it past that cap. Each task keeps its
-  own paid confirmation, unless subagents are allowed always in this
-  workspace. Image generation reserves its published flat
-  fee before buying the image and settles it even if saving the image fails.
-  Web search is unavailable while a cap is active: no hard bound on its
-  billed query count has been captured. With the cap off, its normal paid
-  consent applies and reported search fees count in saved spending.
-  Paid Muse Voice is also unavailable on a Model API conversation while a
-  cap is active: the microphone is unavailable until you turn the cap off,
-  or turn Muse Voice off (`museSpark.modelApiVoice`) to use system
-  dictation; voice on the CLI backend is unchanged. An uncapped recording publishes pending uncertainty
-  before authentication or audio. Local sent PCM duration is an estimate,
-  not a Meta billed-duration receipt, so even a successful recording keeps
-  its history's spend unverified. Start a new conversation to use a cap
-  after such history. A change of owner or context stops further sends;
-  cancellation before authentication refunds only the known nonsent row.
-  With no folder or session journal and the cap off, paid voice keeps its
-  per-use confirmation and window usage estimate. Its recording retains
-  the consent's account and context; replacing them or enabling a cap
-  stops further sends. This path has no shared conversation spend ledger
-  and makes no verified audio-billing claim.
-  The cap depends on conservative input estimates and the published prices;
-  actual token billing can differ from the estimate. Unknown historical
-  token spending or paid fees cannot be invented as zero: start a new conversation to use a
-  cap on such history. A model without a published price here cannot be
-  capped, so its requests are refused while a cap is set. The budget is
-  machine-scoped, so a repository cannot set it.
+  is a limit you set on what each conversation may spend, in dollars at the
+  model's list prices (`0`, the default, is no limit). With no limit there
+  is no spending check at all on the request path. With one, the
+  conversation keeps a running total in memory, added to after each call
+  from the usage the provider reported (a child task's, an Auto review's, a
+  hook model's and returned search fees included) and saved with the
+  conversation after the call, so a resume continues from it. Before each
+  request its input is estimated high (one token per byte of what it sends,
+  so an attached image or file counts at its encoded size) and
+  `max_output_tokens` is lowered so input plus output fits what is left. A
+  request whose smallest estimate would pass the limit is not sent, and the
+  turn stops and says so in plain words; a reply that used all the output
+  the limit left is marked as possibly cut short, and the transcript shows
+  what each turn cost against the limit. Once what is left no longer fits a
+  request like the last one, the conversation warns you once. Nothing is
+  held for a request in flight: a request that went out and ended without
+  its usage is recorded as cost unknown, with its model and outcome in
+  Account & usage, and adds nothing; its estimate is never counted as
+  spent. Web search is unavailable while a limit is set, because no hard
+  bound on its billed query count has been captured, and so is paid Muse
+  Voice, whose billed duration has no receipt. A model without a published
+  price here cannot be limited, so its requests are refused while a limit is
+  set. The setting is machine-scoped, so a repository cannot set it.
 - **Cache Savings** (Model API): Account & usage shows what the prompt
   cache saved in dollars, and its share of the uncached price.
 
@@ -4004,7 +3985,18 @@ What stays in English:
 - **Log lines no one sees in the panel**, and the names of commands, files
   and settings.
 
-ACP and headless Model API/BYO requests share a hard local-day budget in the agent data folder. Its `settings.json` accepts `{"paidDailyBudgetUsd":5}` (USD; default $5, range $0.50–$500), corresponding to the extension’s `museSpark.paidDailyBudgetUsd`. Reservations use an exclusive cross-process lock before dispatch and settle from verified usage; an interrupted request or one without verified usage retains its liability. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search is unavailable in this runtime while the hard daily budget is active because its returned fees have no dispatch bound.
+ACP and headless Model API/BYO requests can share a daily spending limit that you set in the agent data folder's `settings.json`: `{"paidDailyBudgetUsd":5}` (USD; none by default), matching the extension's `museSpark.paidDailyBudgetUsd`. With no limit set, nothing is checked, read or written before a request. With one, a request whose estimate would pass what is left of today is not sent and the reason says so; each request's reported cost joins today's total after it ends, in one file per process with no lock, and a request that ended without its usage counts as cost unknown, never as its estimate. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search runs in this runtime only with a verified per-request call bound, because its returned fees have no other dispatch bound.
+
+The spend cap admits a request only when its full reservation fits. Verified exact
+counts reserve the exact input; Anthropic reserves its estimate plus 25%, limited
+by the UTF-8 byte upper bound; unverified count shapes (including Gemini) reserve
+that size bound. Only the last request can exceed the cap when a provider estimate
+is too low: its full actual cost is recorded, and another request is refused.
+Each retry reserves separately; a sent attempt with no outcome keeps its entire
+reservation permanently. Only a provably dead owner’s unsent claim is released.
+The v3 ledger imports old history once without modifying it. Simultaneous spending
+from an old build is outside the new shared-cap guarantee; upgrade both hosts
+before relying on one cap across versions.
 
 ## Limits
 
@@ -4126,13 +4118,13 @@ and refuse redirects; private registry configuration is never contacted.
 **Explain Findings (Paid)** is available by default on interactive Model API
 under the machine setting `museSpark.legalExplanation`; Muse Code requires an
 explicit opt-in, and existing explicit false settings remain off. It requires a stored Model API key,
-asks permission with the price and shared daily budget, and reserves/settles
-against the same D78 ledger used by other paid callers. The machine setting
-`museSpark.paidDailyBudgetUsd` defaults to USD 5 (range USD 0.50–500). Only
+asks permission with the price and the shared daily limit, and is checked
+against that limit like other paid callers when you set one. The machine
+setting `museSpark.paidDailyBudgetUsd` is none by default. Only
 technical finding categories and recognized license IDs are sent; source,
 paths, excerpts and package names are excluded. One request has no tools or
 retries and at most 512 output tokens. A sent request without verified usage
-retains its reserved cost as unknown liability. The subscription pays none of
+counts as cost unknown, never as its estimate. The subscription pays none of
 it; deterministic scanning needs no model call.
 
 ACP editors can send `/legal` on either backend without starting a model turn;
@@ -4170,9 +4162,11 @@ the editor’s theme and display language.
 ACP editors can send `/help` for the current installed-skill list and the
 [generated reference](docs/reference.md). ACP locally handles `/help`, `/compact`, `/legal`, `/usage`, `/questions`, `/answer` and
 installed skills; the linked panel slash commands and settings are extension
-workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
+workflows. In a terminal, `muse-spark-code-acp help reference` prints the full
 reference in the installed language without a model call. `exec --help`,
-`report --help` and `scan-secrets --help` also print it; `--help` prints concise
+`report --help` and `scan-secrets --help` print command-local help (each
+command's own options, e.g. the problem report's `--description`,
+`--no-facts` and `--no-events`); `--help` prints concise
 ACP usage. Terminal help states that VS Code current values are unavailable.
 
 Maintainers run `npm run reference:generate` after changes. The reference reads
@@ -4362,11 +4356,11 @@ Bypass at once.
 | `museCodeAutoReviewer`            | `true`      | Machine-scoped. In Auto on the Muse Code backend, eligible approvals Muse Code raises for the running turn go to [the reviewer](#the-auto-reviewer-on-muse-code) first: one short Muse Code turn per review on your subscription; it allows once or leaves the card to you.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `notifyOnBackgroundTurn`          | `true`      | A VS Code notification when a turn of a minute or more ends, or a turn waits for your approval or answer, while the VS Code window is unfocused; never while it is focused                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `modelApiReplyUsage`              | `true`      | On by default. Shows tokens and estimated cost under each Model API reply; display only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `modelApiSessionBudgetUsd`        | `0`         | Spend cap in dollars for each Model API conversation (`0`: no cap). Shared durable reservations cover the conversation's own token requests and image fees; working storage is required. Paid subagent requests keep their own consent and request ceiling: their reported cost is counted, but it is not reserved against this cap and can take the conversation past it. Unknown sent usage retains its full liability and cannot retry an ambiguous failure under the same allowance. Capped web search is unavailable until its billed query bound is verified, and paid Muse Voice is unavailable while a cap is set. Input estimates and published prices may differ from actual billing. Machine-scoped                                                                                                      |
+| `modelApiSessionBudgetUsd`        | `0`         | A spending limit in dollars you set for each Model API conversation (`0`: none, the default). With none there is no spending check on the request path. With one, a running total from the usage each call reported is saved with the conversation; a request whose estimate would pass the limit is not sent, a request that ended without its usage counts as cost unknown, and web search and paid Muse Voice are unavailable. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                    |
 | `browserCheckExtraHosts`          | `[]`        | [Browser check](#browser-check): hosts beyond this computer a checked page may open and reach, as plain host names or IP addresses (no ports, paths or wildcards; one that is not refuses the list); listing a loopback name also lets a local page use `https` and WebSockets. Empty means plain `http` to this computer only, unless you allow a host on a card or in the dialog for one check. `https` and WebSocket traffic to a listed host is encrypted and not inspected, and a site there may sign in as you with this computer's account (on Windows in particular). Only you widen it, never the model. Machine-scoped                                                                                                                                                                                    |
 | `browserCheckRuntime`             | `'ask'`     | [Browser check](#browser-check): how the check gets its browser, Google's Chrome for Testing headless shell pinned to this extension version (about 100 to 120 MB per version, from `storage.googleapis.com` into the extension's storage): `ask` asks before downloading it, `download` downloads it when a check needs it without asking (for every later pinned version too), `off` offers no browser check and downloads nothing. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                |
 | `showWhatsNewOnUpdate`            | `true`      | Open What's New after the extension updates: the page after a release with Highlights, a quiet notification after a fixes-only patch; off shows nothing on updates ([What's New after an update](#whats-new-after-an-update))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `paidDailyBudgetUsd`              | `5`         | Shared interactive extras budget in USD, $0.50–$500; machine-scoped. Daily reservations persist across windows; Tab uses its own separate ledger.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `paidDailyBudgetUsd`              | `0`         | A daily limit in USD you set for interactive paid extras (`0`: none, the default); machine-scoped. Each request's reported cost joins the shared day's total after it ends; Tab uses its own separate ledger.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `dictationEngine`                 | `"system"`  | Model API dictation engine: `system` (free default) or `museVoice` (paid, currently refused under the finite cap). Muse Code retains its explicit voice opt-in.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 | `mediaMaxUploadMiB` | `200` | Uploaded media cap in MiB, 1–1024; machine-scoped. An attachment over it is refused before it is read |
@@ -4901,9 +4895,9 @@ stays in memory and conflicts with a stdin prompt. CI never runs `auth set` or
 gives the agent a key environment variable.
 
 Budgets are positive ASCII decimals up to $20 with at most six fractional
-digits, parsed straight into integer micro-USD. At 32,768 output tokens the
-minimum reservation is $0.108135 for the contributor model ($0.118135 with
-images) and $1.409024 for standard ($1.419024). The contributor model needs
+digits, parsed straight into integer micro-USD. Each request reserves its conservative input estimate plus the resolved output
+cap (1024 by default), including cache-write premiums. The refusal shows the
+input and output arithmetic. The contributor model needs
 `--allow-contributor-models`; its content may be used for training under
 Meta's contributor terms. `--image-generation` also needs
 `--permission-mode acceptEdits`; images are off by default and tallied per
@@ -5795,3 +5789,12 @@ local-only scans; missing dependency licences remain unknown. Private registry
 configuration is never contacted. CLI lookup still requires `--registry`.
 
 Containment-helper compilation uses heavy bootstrap admission, a bounded deadline and output, and whole-tree cancellation before its result is used. CLI and ACP process launches share runtime resource admission, including login and browser openers.
+
+Initial HTTP validation, sign-in, permission and quota refusals before any output
+settle at zero. Interrupted processing (including HTTP 408/499), server errors
+and stream loss keep unresolved liability separately from money spent. Final
+provider usage settles even when the response is incomplete. Stopping a stream
+without final usage cannot prove a smaller bill: a provider can charge unseen
+generated tokens after disconnect. The retained amount is a possible charge,
+never a confirmed spend. `--max-output-tokens` lowers the actual request cap;
+startup no longer prices the model's full context window before building it.

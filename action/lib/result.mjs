@@ -217,11 +217,19 @@ function isLastResponse(value) {
     isNullableText(value.transportError) &&
     ['valid', 'missing', 'invalid'].includes(value.usage) &&
     (isPriced || value.settlement === 'full-reservation') &&
+    // A billed response need not have completed: with valid usage a
+    // terminal `incomplete` or `failed` response settles as priced (mirror
+    // of execProtocol's last-response invariant).
+    // A billed response need not have completed: with valid usage a
+    // terminal `incomplete` or `failed` response settles as priced (mirror
+    // of execProtocol's last-response invariant).
     (!isPriced ||
-      (value.terminal === 'completed' &&
-        value.usage === 'valid' &&
+      (value.usage === 'valid' &&
         !value.endedWithoutTerminal &&
-        value.transportError === null))
+        value.transportError === null &&
+        value.terminal !== null &&
+        value.terminal !== 'in_progress' &&
+        value.terminal !== 'queued'))
   )
 }
 

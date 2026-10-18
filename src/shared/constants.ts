@@ -698,7 +698,9 @@ export const SETTING_DEFAULTS = {
   // by default (D78). Muse Code reports no per-reply totals on its protocol
   // (PLAN.md D26), so its replies never carry one. Display only.
   modelApiReplyUsage: true,
-  paidDailyBudgetUsd: 5,
+  // D78, D121: the shared daily limit for paid extras (and the agent's daily limit),
+  // set by the person; 0 is none, the default. No limit is hard-coded.
+  paidDailyBudgetUsd: 0,
   usageHistory: true,
   usageHistoryDays: 365,
   dictationEngine: 'system' as 'system' | 'museVoice',
@@ -766,18 +768,16 @@ export const SETTING_DEFAULTS = {
   'estimator.priceLookup': false,
 } as const
 export const PAID_DAILY_BUDGET = {
-  minimumUsd: 0.5,
-  maximumUsd: 500,
+  // One machine-wide folder, independent of the selected key and workspace.
   directory: 'paid-daily',
-  // One machine-wide scope, independent of the selected key and workspace.
-  accountId: '0000000000000000000000000000000000000000000000000000000000000000',
   overrideFile: 'limit.json',
   // Monotonic for this day: a delayed numeric override cannot clear Stop.
   stopDirectory: 'stopped',
 } as const
 export const RUNTIME_SETTINGS_FILE = 'settings.json'
-export const DAILY_BUDGET_LOCK_ATTEMPTS = 100
-export const DAILY_BUDGET_LOCK_WAIT_MS = 10
+// D121: each process's running total for a day lives in this folder of the day's scope.
+export const DAILY_SPEND_FOLDER = 'spent'
+export const SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT = 25
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
@@ -4149,6 +4149,10 @@ export const EXEC_SCAN_EXIT_FOUND = 10
 // Headless runs refuse smaller caps at the same floor Meta enforces.
 /** @alias the Model API's floor under the headless name */
 export const EXEC_MIN_OUTPUT_TOKENS: number = MODEL_API_MIN_OUTPUT_TOKENS
+// EXECPROV round 5 (5b): an open claim with no recorded owner cannot be
+// tested for liveness, so it is judged by age. No request of this product
+// can be in flight longer than the longest a run may live: the run timeout
+// (21,600 s) plus the window a stopped run gets to settle its claim (5 s).
 export const EXEC_IMAGE_N = 1
 export const EXEC_STREAM_IDLE_MS = 300_000
 export const EXEC_USD_UNITS = 1_000_000
@@ -5133,6 +5137,13 @@ export const HTTP_STATUS = {
   unprocessable: 422,
   internalServerError: 500,
 } as const
+
+// Initial HTTP validation/auth/quota refusals precede generation. Timeout and
+// client-closed statuses do not prove zero cost (LEDGER billing research).
+export const NON_BILLABLE_HTTP_REJECTIONS: ReadonlySet<number> = new Set([
+  400, 401, 402, 403, 404, 405, 406, 409, 410, 411, 412, 413, 414, 415, 416, 417, 422, 425, 426,
+  428, 429, 431,
+])
 
 // Link schemes the transcript opens; anything else is refused with a notice.
 export const ALLOWED_LINK_SCHEMES: ReadonlySet<string> = new Set(['http:', 'https:', 'mailto:'])

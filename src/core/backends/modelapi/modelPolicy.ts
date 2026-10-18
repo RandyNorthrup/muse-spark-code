@@ -242,7 +242,22 @@ export type ModelClient = Pick<
   | 'currentKeyDigest'
   | 'retryDelayMs'
   | 'waitBeforeRetry'
->
+> & {
+  /**
+   * EXECPROV round 6: an exact same-body input count where the provider
+   * documents one, with the count call's own billed cost when the provider
+   * bills it (undefined when the count is free). Absent keeps the byte bound
+   * and sends no count request.
+   */
+  readonly countInputTokensDetailed?: (
+    body: CreateResponseBody,
+    signal?: AbortSignal,
+  ) => Promise<{
+    readonly tokens: number
+    readonly costUsd?: UsdAmount | undefined
+    readonly accuracy?: 'exact' | 'estimate'
+  }>
+}
 
 export interface ResolvedModel {
   readonly contextTokens?: number | undefined
@@ -256,6 +271,7 @@ export interface ResolvedModel {
 }
 
 export interface ModelResolver {
+  readonly defaultModel?: () => Promise<string | undefined>
   readonly list?: (() => Promise<readonly ModelSummary[]>) | undefined
   readonly resolve: (ref: string) => Promise<ResolvedModel>
 }

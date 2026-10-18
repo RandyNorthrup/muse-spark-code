@@ -1,11 +1,22 @@
 import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
+import { execEventSchema } from '../../src/runtime/exec/execProtocol'
 import {
+  createExecOutputCap,
   createRunLedger,
   type ResponseTicket,
   type RunLedger,
 } from '../../src/runtime/exec/runLedger'
-import { MODEL_API_PRICES_PER_MILLION } from '../../src/shared/constants'
+// The Action's structural mirror of the exec schemas, which validates the
+// same settled attempt event before a result is staged.
+import { isExecEvent } from '../../action/lib/result.mjs'
+import { modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
+import {
+  MODEL_API_MAX_OUTPUT_TOKENS,
+  MODEL_API_PRICES_PER_MILLION,
+  TOKENS_PER_MILLION,
+  EXEC_USD_DECIMALS,
+} from '../../src/shared/constants'
 
 function tierPrice(isStandard = false) {
   const values = MODEL_API_PRICES_PER_MILLION[isStandard ? 'standard' : 'contributor']
@@ -62,7 +73,7 @@ describe('M80 ledger integer admission and retained liability', () => {
       terminal: 'completed',
       transportError: 'error',
       usage: 'valid',
-      settlement: 'full-reservation',
+      settlement: 'priced',
     })
   })
   it.each([0, 501, 0.5, NaN, Infinity])('rejects invalid request cap %s', (maxRequests) => {
@@ -147,54 +158,121 @@ describe('M80 ledger integer admission and retained liability', () => {
   it.each([
     { input_tokens: 1_015_809, output_tokens: 0 },
     { input_tokens: 0, output_tokens: 32_769 },
-  ])('P9/L1 reports bound breach with full reserve', (bad) => {
+  ])('P9/L1 records priced usage on a reservation breach', (bad) => {
     const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })
     expect(l.settleResponse(response(l), eof(bad)).latch).toBe('breach')
+    expect(Number(l.totals().settledUsd)).toBeGreaterThan(0)
     expect(l.totals()).toMatchObject({
       breach: true,
-      uncertainUsd: Usd.from(0.108135).toAmount(),
-      settledUsd: Usd.from(0).toAmount(),
+      uncertainUsd: Usd.from(0).toAmount(),
     })
   })
-  it.each(['incomplete', 'failed', null])('L4 cut-short terminal %s never refunds', (terminal) => {
-    const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })
-    l.settleResponse(response(l), eof(valid, terminal))
-    expect(l.totals().uncertainUsd).toBe(Usd.from(0.108135).toAmount())
-    expect(l.lastResponse).toMatchObject({ terminal, settlement: 'full-reservation' })
-  })
-  it('F2 keeps terminal, reason and semantically valid usage on aborted transport, exactly once', () => {
-    const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })
-    const t = response(l)
-    expect(
-      l.settleResponse(t, {
-        kind: 'transport',
-        why: 'aborted',
-        terminal: 'incomplete',
-        incompleteReason: 'max_output_tokens',
-        usage: valid,
-      }),
-    ).toEqual({ outcome: 'full-reservation', chargedUsd: Usd.from(0.108135).toAmount() })
-    expect(l.lastResponse).toMatchObject({
-      terminal: 'incomplete',
-      incompleteReason: 'max_output_tokens',
-      usage: 'valid',
-      transportError: 'aborted',
-      settlement: 'full-reservation',
-    })
-    expect(() => l.settleResponse(t, eof())).toThrow()
-  })
-  it.each([400, 401, 403, 429, 500])(
-    'D13/L4 HTTP %s retains liability before next attempt',
-    (status) => {
-      const l = createRunLedger({ capUsd: Usd.from(0.216269).toAmount(), maxRequests: 30 })
-      l.settleResponse(response(l), { kind: 'http', status })
-      expect(l.lastResponse).toMatchObject({ httpStatus: status, terminal: null })
-      expect(l.admitResponse({ model: 'm', maxOutputTokens: 32_768, price })).toEqual({
-        refused: 'budget',
+  it.each([
+    { inputTokens: 2068, latch: undefined },
+    { inputTokens: 32_001, latch: 'breach' },
+  ])(
+    'a model whose context equals its output limit is held to the whole context ($inputTokens input)',
+    ({ inputTokens, latch }) => {
+      const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })
+      const ticket = l.admitResponse({
+        model: 'mistral/voxtral-small-latest',
+        maxOutputTokens: 32_000,
+        contextTokens: 32_000,
+        reserveUsd: Usd.from(0.0096).toAmount(),
+        price,
       })
-      expect(l.totals().requests).toBe(1)
+      if ('refused' in ticket) throw new Error(ticket.refused)
+      const result = l.settleResponse(
+        ticket,
+        eof({ input_tokens: inputTokens, output_tokens: 17, total_tokens: inputTokens + 17 }),
+      )
+      expect(result.latch).toBe(latch)
+      expect(result.outcome).toBe('priced')
+      expect(l.totals().breach).toBe(latch === 'breach')
     },
   )
+  it.each(['incomplete', 'failed'])('settles final usage on terminal %s', (terminal) => {
+    const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })
+    const t = response(l)
+    const result = l.settleResponse(t, eof(valid, terminal))
+    const expected = Usd.from(price.input)
+      .times(valid.input_tokens)
+      .add(Usd.from(price.output).times(valid.output_tokens))
+      .divide(TOKENS_PER_MILLION)
+      .ceiling(EXEC_USD_DECIMALS)
+      .toAmount()
+    expect(result).toEqual({ outcome: 'priced', chargedUsd: expected })
+    expect(l.totals().uncertainUsd).toBe('0')
+    // A billed terminal response validates as a priced settlement, not
+    // only a completed one: the settled attempt event passes both the
+    // published schema and the Action's mirror of it.
+    const event = {
+      type: 'attempt' as const,
+      n: t.n,
+      endpoint: 'responses' as const,
+      phase: 'settled' as const,
+      reservedUsd: t.reserveUsd,
+      outcome: result.outcome,
+      chargedUsd: result.chargedUsd,
+      terminal: l.lastResponse?.terminal ?? null,
+      totals: l.totals(),
+      v: 2 as const,
+      seq: 1,
+      time: new Date().toISOString(),
+    }
+    expect(execEventSchema.safeParse(event).success).toBe(true)
+    expect(isExecEvent(event)).toBe(true)
+  })
+  it('a disconnect without final usage keeps liability separate from spent', () => {
+    const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })
+    const t = response(l)
+    l.settleResponse(t, {
+      kind: 'transport',
+      why: 'aborted',
+      terminal: null,
+      incompleteReason: null,
+      usage: undefined,
+    })
+    expect(l.totals()).toMatchObject({
+      settledUsd: '0',
+      uncertainUsd: t.reserveUsd,
+      reservedUsd: '0',
+    })
+  })
+  it('a final receipt survives an abort after it arrived, exactly once', () => {
+    const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })
+    const t = response(l)
+    const result = l.settleResponse(t, {
+      kind: 'transport',
+      why: 'aborted',
+      terminal: 'incomplete',
+      incompleteReason: 'max_output_tokens',
+      usage: valid,
+    })
+    expect(result.outcome).toBe('priced')
+    expect(l.totals().uncertainUsd).toBe('0')
+    expect(() => l.settleResponse(t, eof())).toThrow()
+  })
+  it.each([400, 401, 402, 403, 404, 413, 422, 429])(
+    'initial HTTP %s releases the reservation',
+    (status) => {
+      const l = createRunLedger({ capUsd: Usd.from('0.216269').toAmount(), maxRequests: 30 })
+      l.settleResponse(response(l), { kind: 'http', status })
+      expect(l.totals()).toMatchObject({ settledUsd: '0', uncertainUsd: '0', reservedUsd: '0' })
+      expect(l.admitResponse({ model: 'm', maxOutputTokens: 32_768, price })).not.toHaveProperty(
+        'refused',
+      )
+    },
+  )
+  it.each([408, 499, 500, 502, 503])('HTTP %s retains unknown processing liability', (status) => {
+    const l = createRunLedger({ capUsd: Usd.from('0.216269').toAmount(), maxRequests: 30 })
+    const t = response(l)
+    l.settleResponse(t, { kind: 'http', status })
+    expect(l.totals()).toMatchObject({ settledUsd: '0', uncertainUsd: t.reserveUsd })
+    expect(l.admitResponse({ model: 'm', maxOutputTokens: 32_768, price })).toEqual({
+      refused: 'budget',
+    })
+  })
   it('D7 request count and closed state refuse before consuming credit', () => {
     const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 1 })
     l.settleResponse(response(l), eof())
@@ -222,22 +300,26 @@ describe('M80 ledger integer admission and retained liability', () => {
     expect(l.totals().paid).toEqual({
       imageAttempts: 4,
       imagesReturned: 1,
-      imagesRefunded: 1,
-      imagesUncertain: 2,
+      imagesRefunded: 2,
+      imagesUncertain: 1,
       settledUsd: Usd.from(0.01).toAmount(),
-      uncertainUsd: Usd.from(0.02).toAmount(),
+      uncertainUsd: Usd.from(0.01).toAmount(),
     })
   })
-  it('P9 returned image count above n marks breach without fabricated credit', () => {
+  it('records the known cost of extra returned images before stopping', () => {
     const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })
     const ticket = l.admitImage('images.edits')
     if ('refused' in ticket) throw new Error(ticket.refused)
     expect(l.settleImage(ticket, { kind: 'returned', count: 2 })).toEqual({
-      outcome: 'full-reservation',
-      chargedUsd: Usd.from(0.01).toAmount(),
+      outcome: 'priced',
+      chargedUsd: Usd.from(0.02).toAmount(),
       latch: 'breach',
     })
-    expect(l.totals().paid.imagesUncertain).toBe(1)
+    expect(l.totals().paid).toMatchObject({
+      imagesReturned: 2,
+      imagesUncertain: 0,
+      settledUsd: '0.02',
+    })
   })
   it.each([undefined, null])(
     'L6 missing usage keeps reservation without invalid latch',
@@ -268,5 +350,28 @@ describe('M80 ledger integer admission and retained liability', () => {
     ).toEqual({ refused: 'unpriced' })
     for (const cap of [0, -1, 20.000001, 0.0000001, 0.1081351, Infinity])
       expect(() => createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 })).toThrow()
+  })
+})
+
+const providerPolicy = () => modelPolicyFor('testprovider/testmodel', { maxOutputTokens: 16_384 })
+
+describe('exec output cap across model resolution', () => {
+  // A headless --provider run reads the cap before the model resolves, when
+  // no provider evidence exists, and the model bind carries the resolved
+  // provider policy after. The resolved policy replaces the cached global:
+  // a model whose provider maximum is lower keeps its own cap in the body
+  // and in the reservation instead of the global one.
+  it('a resolved provider policy replaces the cached pre-resolution cap', () => {
+    const outputCap = createExecOutputCap({ model: () => null, maxOutputTokens: undefined })
+    expect(outputCap()).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(outputCap(providerPolicy())).toBe(16_384)
+    // The ledger's later no-arg reads (admission) keep the provider cap.
+    expect(outputCap()).toBe(16_384)
+  })
+
+  it('an explicit --max-output-tokens still floors at the provider cap', () => {
+    const outputCap = createExecOutputCap({ model: () => null, maxOutputTokens: 4096 })
+    expect(outputCap(providerPolicy())).toBe(4096)
+    expect(outputCap()).toBe(4096)
   })
 })
