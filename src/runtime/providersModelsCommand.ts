@@ -5,9 +5,9 @@
 // provider command; the stored key is read only when the provider's own
 // list is consulted, never for a forced add.
 import type { ProviderEntry, ProvidersFile } from '../core/providers/providersFile'
-import { sanitizeModelLabel } from '../core/providers/modelRef'
-import { presets, providersFile } from '../host/backend/providersEntry'
+import { modelRef, presets, providersFile } from '../host/backend/providersEntry'
 
+const { sanitizeModelLabel } = modelRef
 const { presetById } = presets
 import { ACP_AGENT_NAME, UI_TEXT } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
