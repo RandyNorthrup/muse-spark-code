@@ -277,3 +277,91 @@ the module is reachable without the editor.
 | 3 (P2) | `src/runtime/chatGptProviderCommands.ts:270`           | NOT FIXED upstream: `add-new-account` verify accepts any stored grant even though the command refused with `already-added`; fix here.       |
 | 4 (P1) | `src/runtime/chatGptRefreshLock.ts:33`                 | NOT FIXED upstream: no `timeoutMs` means `withNamedLock` waits forever (only tests pass one); restore the `OAUTH_CODE_TTL_MS` default here. |
 | 5 (P1) | `src/host/conversation/conversationController.ts:3984` | NOT FIXED upstream: first attach unconditionally `updateFast(false)`, clearing a pre-session Fast choice; fix here.                         |
+
+## PR180FIX fixes (macmini rig, same lane)
+
+All five at their cause; no thread answered from an earlier commit, none
+ruled out.
+
+1. Catalogue (`src/core/providers/subscriptions/registry.ts`): the outer
+   schema is now `{ models: z.array(z.unknown()) }` and each row parses
+   the three listing fields (`slug`, `visibility`, `supported_in_api`) on
+   its own; capability facts still parse per row through
+   `chatGptPlanFacts`. A row with an unparseable capability field lists by
+   slug without facts; a row without listing fields is skipped (all
+   skipped reads `catalogue-empty`, as before). The full-entry schema
+   stays the per-row facts schema in `chatgptPlanFacts.ts`.
+2. Error body (same file, plan stream): `if (!response.ok) throw await
+withinIdle(planRequestError(response))`. The read gets the remaining
+   stream-idle deadline and the same `stop` abort path; a stalled body
+   yields the standing stall sentence instead of hanging past
+   cancellation. `planRequestError` keeps its signature (direct unit tests
+   unchanged).
+3. Verifier (`src/runtime/chatGptProviderCommands.ts`): the methods capture
+   the stored grant once at build (agent startup, before the editor runs
+   the terminal command in its own process) and `add-new-account` verify
+   throws `already-added` when the stored grant's identity equals the
+   baseline's. Identity is the verified `accountIdHash` where captured,
+   else the whole record. A baseline the store cannot read fails closed
+   through the same sentence mapping. Ordinary `add`/`remove`/`status`
+   verify paths are unchanged in behaviour. Known edge: a grant without an
+   account hash that rotates its tokens between baseline and verify reads
+   as changed (refresh-proof only where the hash exists).
+4. Refresh lock (`src/runtime/chatGptRefreshLock.ts`): `{ ...options,
+timeoutMs: options.timeoutMs ?? CHATGPT_REFRESH_LOCK_TIMEOUT_MS }`
+   with `CHATGPT_REFRESH_LOCK_TIMEOUT_MS = OAUTH_CODE_TTL_MS`. An explicit
+   caller timeout still wins; VS Code's own default (`chatgptSignIn.ts`)
+   already used the same constant.
+5. Fast (`src/host/conversation/conversationController.ts`): new
+   `isFastChosen`, set only by an explicit `setFast` with no session; the
+   attach consumes it once and otherwise keeps today's unconditional off.
+   Model change still forces off; live-session choices never set the flag,
+   so resume/restart behaviour is unchanged.
+
+Tests (all real modules, no stand-ins; shared builders live in
+`test/unit/helpers/chatGptGrant.ts`, which the duplication gate forced
+out of three files):
+
+- `test/unit/chatgptPlanCatalogue.test.ts`: the captured
+  `gpt-6.1-sol.json` entry plus a clone with its `service_tiers`
+  description removed drive the real `chatGptCatalog` (real `ChatGptSignIn`
+  over an unexpired grant, real `Response` fetcher): both slugs list, only
+  the good one has facts. The stall case drives the real subscription
+  client with a headers-then-nothing 500 and `streamIdleMs: 100`: the
+  first event is the stall sentence with `request-failed`.
+- `test/unit/chatGptAddNewAccount.test.ts`: real methods over the real
+  runtime host and a writable in-memory store. Unchanged grant after
+  baseline verifies as the `already-added` sentence; a different account's
+  grant verifies clean; first sign-in with no baseline grant verifies
+  clean; ordinary `add` still verifies clean and `remove` still fails
+  `still-signed-in`. Baseline settlement is signalled, never slept on.
+- `test/unit/runtimeChatGptLock.test.ts`: new pin that the production
+  default equals `OAUTH_CODE_TTL_MS` (the ten-minute wait itself is not
+  run); the 40 ms `lock-busy` case beside it proves the deadline fires.
+
+Drills (each broken on purpose, seen red, reverted): outer schema back to
+the full-entry array (listing test fails `catalogue-unreadable`); idle
+wrap removed (stall test times out on the repo's own 5 s timeout, the CI
+behaviour); account check replaced with `false` (refused case verifies
+clean); default set to `1` (pin fails).
+
+Gates on the final tree: eslint `--max-warnings=0` on all touched files
+clean (hook findings fixed, none suppressed); typecheck all five projects
+clean; `check:l10n` 0 problems (no new keys); `check:plan` 0 drift;
+`npm run build` exit 0; `jscpd` 0 clones (two of mine removed by sharing
+the builders with the codec and local-failures suites, whose assertions
+are unchanged). Suites: the three changed files 14 passed / 2 skipped
+(Windows-only); neighbours `chatgptPlanFacts` 9, `chatgptPlanErrors` 3,
+`chatgptResponsesCodec` 30 with the catalogue file, `chatGptHostId` /
+`chatgptPlanEffort` with the codec file 45 total, `chatGptLocalFailures`
+20/20 alone. That file timed out once under three-file parallel load on
+this shared rig (`{not json` case, 5007 ms); the untouched base at
+`ef6eaff512` in a clean worktree failed the same file twice the same way,
+so the flake is rig load, not this lane — no timeout was raised anywhere.
+
+Not unit-proven: thread 5 has no maintained test (the controller imports
+the editor API; its proof is typecheck/eslint/build plus the lead's
+packed-product real use before merge). No `as` casts, no disables, no new
+UI text, no new limits: nothing for PLAN.md §8 or the changelog. The
+changelog is deliberately untouched: these behaviours are claimed fixed
+only after that real use, per the standing rule.
