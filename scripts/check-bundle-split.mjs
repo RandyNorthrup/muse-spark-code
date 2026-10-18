@@ -1007,6 +1007,9 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             ) &&
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
             !(
+              input === 'src/core/providers/keyInspection.ts' && output === 'dist/modelsPanel.js'
+            ) &&
+            !(
               output === 'dist/runtimeAccounts.js' &&
               ['accounts.ts', 'accountPolicy.ts', 'accountCredentialRecord.ts'].some(
                 (file) => input === `src/core/providers/${file}`,
