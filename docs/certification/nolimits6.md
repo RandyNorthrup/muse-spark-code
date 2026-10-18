@@ -141,21 +141,3 @@ rounds through the packed product on the Model API backend:
   `text` sizes `SLOT_STDOUT_LIMIT` (`runtime/vault/slots/slotChild.ts:9`).
   The vault commands still refuse closed on main (AGENTS.md layout), so no
   person meets these caps today.
-
-## PR #234 review threads, lane PR234W2 (2026-10-18, rig macmini)
-
-- T1 (P1, CHANGELOG.md:15 unproven claim): no model provider is available
-  to this lane and the brief forbids live model calls, so the required
-  packed-product >50-round run cannot be done here; the `Changed` entry is
-  removed until that run is recorded.
-- T2 (P2, repeat guard missing from stop conditions): the exhaustive
-  four-event sentence is removed with the entry (the guard is real:
-  `repeatGuard.ts:67` `stuck` ends the turn via
-  `ModelApiHost.ts:13090-13091` with `toolRepeatStopped`).
-- T3 (P1, roadmap stale): no applicable entry exists —
-  `docs/roadmap/entries.json` and `ROADMAP.md` never mention the 50-round
-  ceiling (measured `grep`, 2026-10-18), the branch adds no PLAN.md
-  milestone, and the user-facing limit table (README) was updated in the
-  code commit; `npm run check:roadmap` passes unchanged.
-- Hosted CI failures: the brief lists none after the threads; none
-  addressed beyond the gates below.
