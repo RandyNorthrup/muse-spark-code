@@ -18,6 +18,29 @@ import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { parseModelRef } from './modelRef'
 
+/** What the name servers answer when a name does not resolve (c-ares codes). */
+const UNRESOLVED_ADDRESS_CODES: ReadonlySet<string> = new Set([
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'EAI_NONAME',
+  'EAI_FAIL',
+])
+
+/**
+ * The one expected lookup failure: the resolver answered that the name
+ * does not resolve. Anything else (a host resolver's own bug) keeps its
+ * kind for the caller instead of reading as an unresolvable address.
+ */
+function isUnresolvedAddress(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    UNRESOLVED_ADDRESS_CODES.has(error.code)
+  )
+}
+
 export function createModelsPanelSeam(options: {
   readonly configFile: string
   readonly subscriptionModels: (id: string) => Promise<readonly string[]>
@@ -199,7 +222,10 @@ export function createModelsPanelSeam(options: {
               answers = await options.resolve(host)
             }
           }
-        } catch {
+        } catch (error) {
+          // Only an unresolvable name reads as one; anything else keeps
+          // its kind for the caller.
+          if (!isUnresolvedAddress(error)) throw error
           return { kind: 'refused', detail: 'unresolved-address' }
         }
         const verdict = checkEndpointUrl(address, answers)
