@@ -285,6 +285,10 @@ happened, not what was planned; superseded entries are kept.
   of 8; a failure names its bundle, in-flight bundles settle, and the
   process exits with the true error.
 
+<!-- PR236W1: the "Attach Latest Screen Recording" Windows/macOS entry is
+  withheld until packed-product runs on both target OSs are recorded
+  (review thread on CHANGELOG.md:15; repo rule: no release claim before
+  packed real use). It returns with that proof. -->
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

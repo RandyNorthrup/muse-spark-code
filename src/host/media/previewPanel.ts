@@ -13,6 +13,7 @@ import { fill, formatUnit, setUiText } from '../../shared/l10n/text'
 import { screenRecordingOptionsSchema } from '../../shared/media'
 import { createNonce } from '../html'
 import type { RecordingCommandDeps, RecordingPreviewDeps } from './screenRecordBundle'
+import { resolveLatestRecording } from './screenRecordBundle'
 
 const previewMessage = z.strictObject({ type: z.enum(['attach', 'discard']) })
 const htmlEscapes: Readonly<Record<string, string>> = {
@@ -121,10 +122,12 @@ export async function runScreenRecordingCommand(
     return
   }
   if (isLatest) {
-    const preview = await deps.latest?.()
-    if (preview === undefined)
+    // Discovery ran: a conversation that cleared or closed mid-flight gets
+    // no stale preview (its copy is already disposed).
+    const settled = await resolveLatestRecording(deps)
+    if (settled.status === 'ready') openRecordingPreview(settled.preview, deps)
+    else if (settled.status === 'absent')
       await vscode.window.showInformationMessage(UI_TEXT.media.recordingNoRecent)
-    else openRecordingPreview(preview, deps)
     return
   }
   const driver = deps.driver
