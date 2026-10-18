@@ -152,8 +152,9 @@ export interface ModelApiClientDeps {
    * read live so a change applies without a restart; undefined (or absent)
    * leaves Meta's documented 3–5 attempts in force.
    */
-  readonly personMaxRetries?: () => number | undefined
-  readonly sleep: (ms: number) => Promise<void>
+  readonly personMaxRetries?: (() => number | undefined) | undefined
+  /** Absent, the transport waits with `abortableSleep` (see `TransportDeps.sleep`). */
+  readonly sleep?: ((ms: number) => Promise<void>) | undefined
   /** Epoch ms, for a `Retry-After` given as a date. */
   readonly now: () => number
   /** 0 ≤ n < 1, for the retry jitter; injected so tests are deterministic. */

@@ -87,7 +87,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly streamIdleMs?: number
   readonly newId: () => string
   readonly now: () => number
-  readonly sleep: (ms: number) => Promise<void>
+  /** Absent, the transport waits with `abortableSleep` (see `TransportDeps.sleep`). */
+  readonly sleep?: ((ms: number) => Promise<void>) | undefined
   readonly random: () => number
   /** Muse Code's personal skill root (PLAN.md D13). */
   readonly personalSkillsRoot: string | undefined
@@ -344,9 +345,9 @@ export class ModelApiBackendManager {
         ...(this.deps.searchTokenCostUsd !== undefined && {
           searchTokenCostUsd: this.deps.searchTokenCostUsd,
         }),
-        ...(this.deps.personMaxRetries !== undefined && {
-          personMaxRetries: this.deps.personMaxRetries,
-        }),
+        // The reader stays live through the plain forward: every retry read
+        // uses `?.()`, so an explicit undefined behaves exactly as absent.
+        personMaxRetries: this.deps.personMaxRetries,
         fetch: this.deps.fetch,
         ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
         baseUrl: MODEL_API_BASE_URL,

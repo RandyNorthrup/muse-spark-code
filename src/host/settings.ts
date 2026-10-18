@@ -285,7 +285,7 @@ const settingSchemas = {
     .number()
     .check(z.int(), z.gte(1), z.lte(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)),
   // Lane RETRYLIMITS: null (unset) is the default; 0 never retries.
-  modelApiMaxRetries: z.nullable(z.number().check(z.int(), z.gte(0))),
+  modelApiMaxRetries: z.nullable(z.int().check(z.gte(0))),
   turnCheckpoints: z.boolean(),
   // Each entry a plain host name or IP address (no port, path or wildcard):
   // one that is not refuses the whole list, so a typo warns rather than

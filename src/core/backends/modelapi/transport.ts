@@ -100,13 +100,16 @@ export interface TransportDeps {
    * change applies without a restart; undefined (or absent) leaves the
    * provider's documented maximum in force.
    */
-  readonly personMaxRetries?: () => number | undefined
+  readonly personMaxRetries?: (() => number | undefined) | undefined
   /**
    * One timer chunk of a retry wait. A cooperating sleep clears its own
    * timer when `signal` aborts (see `abortableSleep`); one that ignores
-   * the signal is abandoned by `pause`'s race exactly as before.
+   * the signal is abandoned by `pause`'s race exactly as before. Absent,
+   * the transport waits with `abortableSleep` (lane PR225W1: every
+   * production wait dies with Stop, with no per-client wiring to pay for
+   * in the activation bundle); tests keep injecting their own sleep.
    */
-  readonly sleep: (ms: number, signal?: AbortSignal) => Promise<void>
+  readonly sleep?: ((ms: number, signal?: AbortSignal) => Promise<void>) | undefined
   readonly now: () => number
   readonly random: () => number
   readonly log: CoreLogger
@@ -626,7 +629,10 @@ const ownerPacers = new WeakMap<object, RequestPacer>()
 export class RequestTransport {
   private static hasLoggedObservationFailure = false
   private readonly pacing: RequestPacer
+  /** The chunk sleep, defaulting to the production one (see `TransportDeps.sleep`). */
+  private readonly sleep: (ms: number, signal?: AbortSignal) => Promise<void>
   public constructor(private readonly deps: TransportDeps) {
+    this.sleep = deps.sleep ?? abortableSleep
     this.pacing =
       deps.pacing ??
       (deps.pacingOwner === undefined ? undefined : ownerPacers.get(deps.pacingOwner)) ??
@@ -792,7 +798,7 @@ export class RequestTransport {
         // sleep: a cooperating sleep clears it, so no timer outlives the
         // stop. The race stays, so a sleep that ignores the signal is
         // abandoned exactly as before and Stop stays prompt.
-        const slept = this.deps.sleep(piece, signal)
+        const slept = this.sleep(piece, signal)
         await (aborted === undefined ? slept : Promise.race([slept, aborted.promise]))
         remaining -= piece
       } while (remaining > 0)

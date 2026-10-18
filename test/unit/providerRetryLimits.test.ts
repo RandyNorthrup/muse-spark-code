@@ -131,6 +131,27 @@ const postNowhere = (
     },
   )
 
+/**
+ * A refused send's retry notices: posts, waits for `wanted` notices, stops
+ * the waits, and hands back what the turn announced. The stop ends the
+ * backoff; the attempt rejects with the send failure either way.
+ */
+const refusedNotices = async (
+  transport: RequestTransport,
+  wanted: number,
+): Promise<readonly RetryNotice[]> => {
+  const stop = new AbortController()
+  const notices: RetryNotice[] = []
+  const attempt = postNowhere(transport, stop.signal, notices)
+  const start = Date.now()
+  while (notices.length < wanted && Date.now() - start < 4000) {
+    await timer(10, undefined, { ref: false })
+  }
+  stop.abort()
+  await expect(attempt).rejects.toBeInstanceOf(ModelApiError)
+  return notices
+}
+
 describe('each provider retries by its documented maximum', () => {
   it('pins the documented counts (anthropic.md AB13, openai SDK, gemini SDK, azure-openai.md, xai.md, dev.meta.ai)', () => {
     expect(limitsOf('anthropic').maxRetries).toBe(2)
@@ -194,16 +215,7 @@ describe("the person's setting decides", () => {
       () => 10,
     )
     expect(transport.maxRetries()).toBe(2)
-    const stop = new AbortController()
-    const notices: RetryNotice[] = []
-    const attempt = postNowhere(transport, stop.signal, notices)
-    const start = Date.now()
-    while (notices.length < 2 && Date.now() - start < 4000) {
-      await timer(10, undefined, { ref: false })
-    }
-    stop.abort()
-    await expect(attempt).rejects.toBeInstanceOf(ModelApiError)
-    expect(notices).toHaveLength(2)
+    expect(await refusedNotices(transport, 2)).toHaveLength(2)
   })
 })
 
@@ -310,16 +322,7 @@ describe('ambiguous sends need an explicit cap', () => {
     // first wait starts with its notice, and the turn's Stop ends it.
     const transport = transportToNowhere(await closedLoopbackPort(), limitsOf('anthropic'))
     expect(transport.maxRetries()).toBe(2)
-    const stop = new AbortController()
-    const notices: RetryNotice[] = []
-    const attempt = postNowhere(transport, stop.signal, notices)
-    const start = Date.now()
-    while (notices.length === 0 && Date.now() - start < 4000) {
-      await timer(10, undefined, { ref: false })
-    }
-    stop.abort()
-    await expect(attempt).rejects.toBeInstanceOf(ModelApiError)
-    expect(notices).toHaveLength(1)
+    expect(await refusedNotices(transport, 1)).toHaveLength(1)
   })
 })
 
