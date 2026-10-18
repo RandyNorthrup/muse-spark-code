@@ -100,7 +100,6 @@ import type {
   PlanModeRestore,
 } from '../../core/review/planModeHold'
 import type { ReviewMaterial } from '../../core/review/reviewMaterial'
-import { PlaybackWatch } from '../../core/playback/playbackWatch'
 import type { PanelPlaybookPort, PanelPlaybookReview } from '../../core/orchestration/panelPlaybook'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import { isGitReview, type ReviewRequest } from '../../shared/reviewCommand'
@@ -1363,8 +1362,6 @@ export class ConversationController {
         readonly hold: PlanModeHold
         readonly previousMode: PermissionMode
         readonly bypassEpoch: number
-        /** A playback's hold (D203): its end is worded as a playback's, not a review's. */
-        readonly isPlayback: boolean
       }
     | undefined
   /**
@@ -1383,13 +1380,6 @@ export class ConversationController {
    * waits for it as for a review starting.
    */
   private playbackStart: Promise<void> | undefined
-  /**
-   * A Plan-held playback's turn and the session to stop (Muse Code): armed
-   * before the turn is submitted, and from then on a tool item of that turn
-   * stops it at once. The Model API backend refuses the call itself.
-   */
-  private readonly playbackWatch = new PlaybackWatch()
-  private playbackSession: AgentSession | undefined
   /**
    * A `/legal` scan on its way (M97): the deterministic scan, no turn — one
    * at a time. Its signal stops when the session goes (`dropSession`), so a
@@ -1953,10 +1943,8 @@ export class ConversationController {
       // A review starting in the old conversation answers its own card; the
       // next conversation neither waits for it nor is refused because of it.
       this.reviewStart = undefined
-      // A playback starting there answers its own card too, and its turn is
-      // the old conversation's: nothing of it is watched anymore.
+      // A playback starting there answers its own card too.
       this.playbackStart = undefined
-      this.forgetPlayback()
     }
     const { session } = this
     if (isTurnCancelled && session !== undefined && this.activeTurnId !== undefined) {
@@ -2672,7 +2660,6 @@ export class ConversationController {
         break
       }
       case 'turnWithdrawn': {
-        this.forgetPlaybackTurn(event.turnId)
         this.forgetQueuedTurn(event.turnId)
         // It will never run: a late acceptance must not make it the running turn.
         this.finishedTurns.add(event.turnId)
@@ -2686,7 +2673,6 @@ export class ConversationController {
         break
       }
       case 'turnCompleted': {
-        this.forgetPlaybackTurn(event.turnId)
         this.forgetQueuedTurn(event.turnId, true)
         if (!this.isChildTurn(event.turnId)) {
           this.admittedEarly.clear()
@@ -2768,7 +2754,6 @@ export class ConversationController {
         this.noteFileCard(event.item)
         this.noteForegroundShell(event.item)
         this.noteSubagentRow(event.item)
-        this.watchPlaybackItem(event.item)
         break
       }
       case 'itemUpdated':
@@ -2781,7 +2766,6 @@ export class ConversationController {
         if (event.type === 'itemCompleted') {
           this.noteReviewCall(event.item)
         }
-        this.watchPlaybackItem(event.item)
         this.noteForegroundShell(event.item)
         this.noteSubagentRow(event.item)
         this.noteSandboxFailure(event.item.failureReason)
@@ -7000,7 +6984,7 @@ export class ConversationController {
    * with a folder, the backend reachable, and no turn, restricted start or
    * mode hold in the way. A refusal is posted on the card; the workspace
    * root is answered admitted. A review starting while a playback or scan
-   * starts is refused too: either will hold Plan mode.
+   * starts is refused too.
    */
   private workspaceForRestrictedTurn(localId: string, busyReason: string): string | undefined {
     // Says why when it refuses (signed out, no folder), as a message's card does.
@@ -7448,11 +7432,11 @@ export class ConversationController {
   }
 
   /**
-   * A restricted turn held in Plan mode (a review's, a playback's): the
-   * hold, the mode the user had, the panel in Plan until it comes back.
-   * Auto is left for the held turn: what the Auto reviewer holds is the
-   * user's (M90). Plan mode was refused (nothing to put back), or the send
-   * failed and the hold put the mode back already.
+   * A review turn held in Plan mode (M70): the hold, the mode the user
+   * had, the panel in Plan until it comes back. Auto is left for the held
+   * turn: what the Auto reviewer holds is the user's (M90). Plan mode was
+   * refused (nothing to put back), or the send failed and the hold put the
+   * mode back already.
    */
   private async sendHeldTurn(
     session: AgentSession,
@@ -7462,7 +7446,6 @@ export class ConversationController {
     previousMode: PermissionMode,
     bypassEpoch: number,
     isCurrent: () => boolean,
-    isPlayback = false,
   ): Promise<TurnSubmission> {
     const hold = this.takePlanHold(
       (holdDeps) => this.deps.review.createHold(holdDeps),
@@ -7470,7 +7453,6 @@ export class ConversationController {
       generation,
       previousMode,
       bypassEpoch,
-      isPlayback,
     )
     this.reviews?.release()
     try {
@@ -7487,8 +7469,7 @@ export class ConversationController {
   /**
    * A turn or scan holding the session in Plan mode (M70, and M97's scan):
    * the hold, the mode the user had, the panel in Plan until it comes back.
-   * The caller's own notice says what runs under it; a playback's (D203)
-   * end is worded as a playback's.
+   * The caller's own notice says what runs under it.
    */
   private takePlanHold(
     createHold: (holdDeps: PlanModeHoldDeps) => PlanModeHold,
@@ -7496,7 +7477,6 @@ export class ConversationController {
     generation: number,
     previousMode: PermissionMode,
     bypassEpoch: number,
-    isPlayback = false,
   ): PlanModeHold {
     const hold = createHold({
       planMode: approvalModeFor('plan', this.deps.hasApprovalUi),
@@ -7506,7 +7486,7 @@ export class ConversationController {
         this.planModeRestored(hold, outcome, session, generation)
       },
     })
-    this.planHold = { hold, previousMode, bypassEpoch, isPlayback }
+    this.planHold = { hold, previousMode, bypassEpoch }
     this.voiceContextRevision += 1
     this.permissionMode = 'plan'
     this.postComposerState()
@@ -7548,11 +7528,11 @@ export class ConversationController {
 
   /**
    * `/playback` (D203). The card is the webview's own, as a message's is:
-   * accepted, or failed with the reason. On the Model API the turn runs
-   * with no tools, refused in code; on Muse Code it is an ordinary turn
-   * held in Plan mode and stopped at the first tool use. Either way it is
-   * a turn of this conversation, part of the user's own, so nothing asks
-   * for payment.
+   * accepted, or failed with the reason. The turn is the backend's own
+   * no-tools turn, so it runs only where the backend has one (the Model
+   * API's); elsewhere it is refused rather than sent as an ordinary turn
+   * a reactive stop might reach too late. Either way it is a turn of this
+   * conversation, part of the user's own, so nothing asks for payment.
    */
   private async startPlayback(localId: string, text: string): Promise<void> {
     const workspaceRoot = this.workspaceForRestrictedTurn(localId, UI_TEXT.playbackBusy)
@@ -7592,8 +7572,7 @@ export class ConversationController {
         throw new Error(UI_TEXT.turnStoppedByRestart)
       }
       // A playback's turn is marked running before it is sent and takes over
-      // that mark, as a message's does (M72): a Plan-held playback on Muse
-      // Code is not strictly tool-free, and another window must refuse a
+      // that mark, as a message's does (M72), so another window refuses a
       // restore from the moment its turn can act.
       if (!this.isSideChat) {
         checkpoint = await this.checkpoints.beforeTurn(session.sessionId)
@@ -7624,19 +7603,7 @@ export class ConversationController {
           submission.disposition !== STEERED_DISPOSITION,
       )
       this.acceptSubmission(localId, text, submission)
-      // Only a Plan-held playback is watched at all: the backend's own
-      // no-tools turn refuses the call itself (its item is emitted before
-      // the refusal), so stopping there would kill a turn that was handling
-      // it correctly.
-      if (submittedSession.playback === undefined) {
-        this.bindPlaybackTurn(submission)
-      }
     } catch (error: unknown) {
-      // A newer conversation's playback may be armed by now: only this
-      // conversation's own watch goes.
-      if (generation === this.sendInvalidationEpoch) {
-        this.forgetPlayback()
-      }
       this.checkpoints.dropPending(checkpoint)
       const reason = describe(error)
       // The user's card says why; the log keeps the kind, never text a backend chose.
@@ -7646,9 +7613,11 @@ export class ConversationController {
   }
 
   /**
-   * Submit the playback turn: the backend's own no-tools turn where it has
-   * one (the Model API's), else an ordinary turn held in Plan mode, stopped
-   * at the first tool use.
+   * Submit the playback turn: the backend's own no-tools turn. A backend
+   * with none (Muse Code: MSP is select-never-create, and no approval mode
+   * denies reads, let alone the file tools' edits) cannot run one, so the
+   * playback is refused here instead of sent as an ordinary turn a
+   * reactive stop might reach too late.
    */
   private async submitPlayback(
     session: AgentSession,
@@ -7666,88 +7635,10 @@ export class ConversationController {
     }
     this.requireNonConfidentialModel(session.modelId)
     const playback = session.playback
-    if (playback !== undefined) {
-      return await playback.call(session, parts, text)
+    if (playback === undefined) {
+      throw new Error(UI_TEXT.playbackNeedsModelApi)
     }
-    this.notice('info', UI_TEXT.playbackPlanModeNotice)
-    // Armed before the submission: Muse Code's `turn/start` and the turn's
-    // items can arrive before the command's answer names the turn.
-    this.playbackWatch.arm()
-    this.playbackSession = session
-    const previousMode = this.permissionMode
-    return previousMode === 'plan'
-      ? await session.sendTurn(parts, text)
-      : await this.sendHeldTurn(
-          session,
-          parts,
-          text,
-          generation,
-          previousMode,
-          this.bypassRevocationEpoch,
-          isCurrent,
-          true,
-        )
-  }
-
-  /**
-   * A tool item of the running playback turn (D203): the Model API backend
-   * refuses the call itself, so this only ever fires on Muse Code, where
-   * the turn is stopped at once and the person is told why. Never silent.
-   */
-  private watchPlaybackItem(item: ItemSnapshot): void {
-    if (
-      item.kind === TOOL_CALL_KIND &&
-      item.turnId !== undefined &&
-      this.playbackWatch.sawTool(item.turnId)
-    ) {
-      this.stopPlaybackTurn(item.turnId)
-    }
-  }
-
-  /**
-   * The Plan-held playback's acknowledgement named its turn. A steered one
-   * answers from the turn it joins, so nothing of its own is watched; a
-   * queued one runs as its own turn later and is watched from now. One that
-   * reached for a tool before the acknowledgement is stopped now, and one
-   * that already ended (its end beat its ack) is not watched for good.
-   */
-  private bindPlaybackTurn(submission: TurnSubmission): void {
-    if (submission.disposition === STEERED_DISPOSITION) {
-      this.forgetPlayback()
-      return
-    }
-    if (this.playbackWatch.bind(submission.turnId)) {
-      this.stopPlaybackTurn(submission.turnId)
-    }
-    if (this.finishedTurns.has(submission.turnId)) {
-      this.forgetPlayback()
-    }
-  }
-
-  /** The playback reached for a tool: the person is told, and a turn still running is stopped. */
-  private stopPlaybackTurn(turnId: string): void {
-    this.deps.log.info(`Playback turn ${turnId} used a tool; stopping it`)
-    this.notice('warning', UI_TEXT.playbackStoppedTools)
-    const session = this.playbackSession
-    if (session === undefined || this.finishedTurns.has(turnId)) {
-      return
-    }
-    void session.cancel().catch((error: unknown) => {
-      this.deps.log.warn(`Stopping the playback turn failed: ${errorKind(error)}`)
-    })
-  }
-
-  /** A playback turn ended: nothing more to watch. */
-  private forgetPlaybackTurn(turnId: string): void {
-    if (this.playbackWatch.isWatching(turnId)) {
-      this.forgetPlayback()
-    }
-  }
-
-  /** No playback turn is watched: it ended, it was not sent, or its conversation went. */
-  private forgetPlayback(): void {
-    this.playbackWatch.clear()
-    this.playbackSession = undefined
+    return await playback.call(session, parts, text)
   }
 
   /** Called only after the failed mode request's live session/generation fence. */
@@ -7785,18 +7676,14 @@ export class ConversationController {
         this.retireBypassSession()
         return
       }
-      const notRestored = held.isPlayback
-        ? UI_TEXT.playbackModeNotRestored
-        : UI_TEXT.reviewModeNotRestored
-      this.notice('warning', `${notRestored}: ${describe(outcome.error)}`)
+      this.notice('warning', `${UI_TEXT.reviewModeNotRestored}: ${describe(outcome.error)}`)
       return
     }
     const mode = this.restorableMode(held.previousMode, held.bypassEpoch)
     this.permissionMode = mode
     this.postComposerState()
     if (outcome.ok && outcome.isAfterTurn) {
-      const restored = held.isPlayback ? UI_TEXT.playbackModeRestored : UI_TEXT.reviewModeRestored
-      this.say('info', fill(restored, { mode: UI_TEXT.permissionModes[mode] }))
+      this.say('info', fill(UI_TEXT.reviewModeRestored, { mode: UI_TEXT.permissionModes[mode] }))
     }
     if (mode !== held.previousMode) {
       this.notice('warning', UI_TEXT.bypassRevoked)

@@ -14531,21 +14531,22 @@ the agent uderstood the task or whatever properly."
   Model API backend (Meta and every M95 provider through it) the turn is
   offered no tools at all and `decideAndRun` refuses any call, answered to
   the model as refused, in every mode, Bypass included (the M70 Reviewer
-  gate's stricter sibling). MSP is "select, never create": no approval
-  mode denies reads, so on Muse Code the turn runs held in Plan mode
-  (`denyUnmatched`) and the surface stops it at the first tool item with
-  the reason said aloud (the M90 fail-closed precedent); a read may run
-  before the stop lands, which the record says plainly. External agents get
-  the prompt text only, where they accept a prompt.
-- **One turn of the conversation, on every surface.** The panel
+  gate's stricter sibling). On Muse Code there is no backend-enforced
+  zero-tool turn (MSP is "select, never create": no approval mode denies
+  reads, and the file tools edit without asking even in Plan — SECURITY.md
+  "Muse Code's file writes"), so `/playback` is refused there instead of
+  sent as an ordinary turn a reactive stop might reach too late (Codex P2
+  thread on PR #221, 2026-10-17). External agents get the prompt text
+  only, where they accept a prompt.
+- **One turn of the conversation, on the Model API backend, on every surface.** The panel
   (palette row, typed text, host message, controller turn with the send
   barrier, checkpoint and busy refusals shared with reviews), the terminal
   and ACP editors (the ACP agent's command list and prompt interception,
   which `exec` rides in-process), and other editors through the shared
   core. A message sent while a playback starts waits for it; one playback
   at a time. It is part of the user's own turn, so nothing asks for
-  payment. The playback turn's text and the Plan-mode hold load with the
-  review bundle, as a review's do. Listed in the slash-command list, the
+  payment. The playback turn's text loads with the
+  review bundle, as a review's does. Listed in the slash-command list, the
   Help reference and the README, with real translations in all 14
   languages.
 - **How it differs from the comparables.** Claude Code's bundled skills
@@ -14554,7 +14555,8 @@ the agent uderstood the task or whatever properly."
   (`https://code.claude.com/docs/en/slash-commands.md`, fetched
   2026-10-17). `/playback` is the opposite trade: the prompt asks only
   for a memory report, and the harness makes tool use impossible (Model
-  API) or stopped (Muse Code), so the answer can only come from memory.
+  API; refused on Muse Code, which has no zero-tool turn), so the answer
+  can only come from memory.
 - Record: `docs/certification/playback.md`.
 
 ## 3. Open questions (need the owner)

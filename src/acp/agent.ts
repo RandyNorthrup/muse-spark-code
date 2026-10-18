@@ -48,7 +48,6 @@ import {
   type AgentHost,
   type AgentSession,
   isPromptSettledError,
-  isSessionNotLoadedError,
   type ModelSummary,
   type SessionMcpServer,
   type SkillSummary,
@@ -62,10 +61,9 @@ import { resolveResumedModel } from '../core/backends/musecode/resumedModel'
 import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
-import type { AgentEvent, ItemSnapshot } from '../shared/agentEvents'
+import type { AgentEvent } from '../shared/agentEvents'
 import { parsePlaybackPrompt } from '../shared/playbackCommand'
 import { playbackTurnText } from '../core/playback/playbackPrompt'
-import { PlaybackWatch } from '../core/playback/playbackWatch'
 import {
   ACP_AGENT_NAME,
   ACP_AGENT_TITLE,
@@ -365,14 +363,6 @@ class AcpSession {
   private readonly vaultRequests = new Set<AbortController>()
   /** A turn being started (`sendTurn` not yet answered): a release waits for it, then stops it. */
   private starting: Promise<unknown> | undefined
-  /**
-   * A `/playback` turn running on a backend without its own no-tools turn
-   * (D203): held in Plan mode and stopped at the first tool item. The mode
-   * is put back when the turn ends.
-   */
-  private readonly playbackWatch = new PlaybackWatch()
-  private playbackModeRestore = false
-  private playbackRestore: Promise<void> | undefined
   /** The last backend mode command queued: each one runs after the one before it. */
   private modeOrder: Promise<unknown> = Promise.resolve()
   public readonly sessionId: string
@@ -510,40 +500,24 @@ class AcpSession {
   }
 
   /**
-   * A `/playback` turn (D203): the backend's own no-tools turn where it has
-   * one (the Model API's, which refuses every call in code), else an
-   * ordinary turn held in Plan mode, stopped at the first tool item. The
-   * caller watches the submission and puts the mode back at its end.
+   * A `/playback` turn (D203): the backend's own no-tools turn, which
+   * refuses every call in code. A backend with none (Muse Code: MSP is
+   * select-never-create, and no approval mode denies reads, let alone the
+   * file tools' edits) cannot run one, so the playback is refused instead
+   * of sent as an ordinary turn a reactive stop might reach too late.
    */
   private startPlaybackTurn(): Promise<TurnSubmission> {
     // Refused while a turn runs (one a resumed session carries, say), as the
-    // panel refuses it: a Plan hold would land on that turn, and the turn's
-    // permissions would change under it.
+    // panel refuses it.
     if (this.activeTurnId !== undefined) {
       return Promise.reject(RequestError.invalidRequest(undefined, UI_TEXT.playbackBusy))
     }
     const parts: readonly TurnPart[] = [{ type: 'text', text: playbackTurnText() }]
     const display = `/${SLASH_COMMAND_NAMES.playback}`
     const playback = this.session.playback
-    if (playback !== undefined) {
-      return playback.call(this.session, parts, display)
-    }
-    return (async (): Promise<TurnSubmission> => {
-      await this.inModeOrder(async () => {
-        await this.session.setApprovalMode(approvalModeFor('plan', true))
-        this.playbackModeRestore = true
-      })
-      // Armed before the submission: the turn's items can arrive before the
-      // acknowledgement names the turn, and a tool among them still stops it.
-      this.playbackWatch.arm()
-      try {
-        return await this.session.sendTurn(parts, display)
-      } catch (error: unknown) {
-        this.playbackWatch.clear()
-        await this.restorePlaybackMode()
-        throw error
-      }
-    })()
+    return playback === undefined
+      ? Promise.reject(RequestError.invalidRequest(undefined, UI_TEXT.playbackNeedsModelApi))
+      : playback.call(this.session, parts, display)
   }
 
   /**
@@ -564,102 +538,6 @@ class AcpSession {
     })()
     this.modeOrder = next
     return await next
-  }
-
-  /** Put the session's mode back after a Plan-held playback turn. Never rejects. */
-  private async restorePlaybackMode(): Promise<void> {
-    await this.inModeOrder(async () => {
-      if (!this.playbackModeRestore) {
-        return
-      }
-      this.playbackModeRestore = false
-      try {
-        await this.session.setApprovalMode(approvalModeFor(this.mode, true))
-      } catch (error: unknown) {
-        this.playbackModeNotRestored(error)
-      }
-    })
-  }
-
-  /**
-   * The mode could not be put back after a playback: the backend stays in
-   * Plan mode, so the editor is told that Plan is the mode in force, and
-   * why, rather than showing a mode the session no longer runs in. A
-   * session the backend no longer holds takes the client's mode when it is
-   * loaded again, so only a live one is relabelled.
-   */
-  private playbackModeNotRestored(error: unknown): void {
-    this.deps.log.warn(
-      `ACP session ${this.sessionId}: playback mode not restored: ${failureForLog(error)}`,
-    )
-    if (isSessionNotLoadedError(error)) {
-      return
-    }
-    this.mode = 'plan'
-    this.send({ sessionUpdate: 'current_mode_update', currentModeId: this.mode })
-    this.send({
-      sessionUpdate: 'agent_message_chunk',
-      content: {
-        type: 'text',
-        text: `${UI_TEXT.playbackModeNotRestored}: ${error instanceof Error ? error.message : String(error)}`,
-      },
-    })
-  }
-
-  /**
-   * A tool item of a Plan-held playback turn (D203): the turn is stopped at
-   * once and the editor is told why outright. Never silent. The Model API
-   * backend refuses the call itself, so this only ever fires elsewhere.
-   */
-  private watchPlaybackItem(item: ItemSnapshot): void {
-    if (
-      item.kind === 'toolCall' &&
-      item.turnId !== undefined &&
-      this.playbackWatch.sawTool(item.turnId)
-    ) {
-      this.stopPlaybackTurn(item.turnId)
-    }
-  }
-
-  private stopPlaybackTurn(turnId: string): void {
-    this.deps.log.info(
-      `ACP session ${this.sessionId}: playback turn ${turnId} used a tool; stopping it`,
-    )
-    this.send({
-      sessionUpdate: 'agent_message_chunk',
-      content: { type: 'text', text: UI_TEXT.playbackStoppedTools },
-    })
-    // A turn that ended before its acknowledgement has nothing left to stop.
-    if (this.earlyFinishes.has(turnId)) {
-      return
-    }
-    void this.session.cancel().catch((error: unknown) => {
-      this.deps.log.warn(
-        `ACP session ${this.sessionId}: stopping the playback turn failed: ${failureForLog(error)}`,
-      )
-    })
-  }
-
-  /**
-   * A playback turn ended: nothing more to watch, and the mode goes back.
-   * Idempotent: every caller awaits the one restore, so a prompt settles
-   * only after the session's mode is back.
-   */
-  private endPlaybackTurn(turnId: string): Promise<void> {
-    if (this.playbackWatch.isWatching(turnId)) {
-      this.playbackWatch.clear()
-      this.playbackRestore ??= this.runPlaybackRestore()
-    }
-    return this.playbackRestore ?? Promise.resolve()
-  }
-
-  /** The one mode restore a finished playback turn runs, awaited by every caller. */
-  private async runPlaybackRestore(): Promise<void> {
-    try {
-      await this.restorePlaybackMode()
-    } finally {
-      this.playbackRestore = undefined
-    }
   }
 
   /** `/selector arguments` naming one of the session's skills runs that skill, as in the panel. */
@@ -1009,7 +887,6 @@ class AcpSession {
       case 'itemStarted':
       case 'itemUpdated':
       case 'itemCompleted': {
-        this.watchPlaybackItem(event.item)
         for (const update of this.translator.updates(event)) {
           this.send(update)
         }
@@ -1074,7 +951,6 @@ class AcpSession {
   }
 
   private finishTurn(event: TurnCompleted): void {
-    void this.endPlaybackTurn(event.turnId)
     const wasActive = this.activeTurnId === event.turnId
     if (wasActive) this.activeTurnId = undefined
     const pending = this.pending
@@ -1100,7 +976,6 @@ class AcpSession {
 
   /** ACP's answer to the prompt: cancelled whenever the client cancelled it (as the spec requires). */
   private async settle(pending: PendingPrompt, event: TurnCompleted): Promise<void> {
-    await this.endPlaybackTurn(event.turnId)
     this.pending = undefined
     await this.releaseAnswers(pending)
     await pending.answerCommit
@@ -1805,9 +1680,6 @@ class AcpSession {
     await this.inModeOrder(async () => {
       await this.session.setApprovalMode(approvalModeFor(mode, true))
       this.mode = mode
-      // The client's own choice ends a playback's Plan hold, as the
-      // panel's does: nothing is put back over it.
-      this.playbackModeRestore = false
     })
     // The set took: tell the editor, which otherwise keeps showing the old
     // mode (it learns it only from new/load responses and this notice).
@@ -2320,30 +2192,8 @@ class AcpSession {
         ) {
           this.commitAnswers(pending)
         }
-        // A Plan-held playback (a backend with no no-tools turn of its
-        // own) is watched for tool items until its turn ends, which puts
-        // the session's mode back; one that reached for a tool before this
-        // acknowledgement is stopped now. The watch is bound before the
-        // turn id is noted: noting settles a turn that already finished,
-        // and settling is what puts the mode back, so the other order would
-        // leave the session in Plan mode with the editor told another mode.
-        if (
-          isAccepted &&
-          isPlayback &&
-          this.session.playback === undefined &&
-          this.playbackWatch.bind(submission.turnId)
-        ) {
-          this.stopPlaybackTurn(submission.turnId)
-        }
         this.noteTurnId(submission.turnId, submission.disposition)
         if (!isAccepted) {
-          // No playback turn of its own runs (it was steered into another
-          // or refused): nothing will end to put the mode back, so the
-          // Plan hold comes off here instead of leaking into later turns.
-          if (isPlayback && this.session.playback === undefined) {
-            this.playbackWatch.clear()
-            await this.restorePlaybackMode()
-          }
           throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
         }
       }
