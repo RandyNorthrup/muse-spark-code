@@ -295,6 +295,12 @@ function unknownOptionReason(error: unknown): string | undefined {
   return option === undefined ? undefined : fill(UI_TEXT.acpUnknownArgument, { argument: option })
 }
 
+/** D5 plus the auth heuristic: the accounts help when auth was asked, else our sentence. */
+function strictParseReason(argv: readonly string[], error: unknown): string {
+  if (argv.includes('auth')) return UI_TEXT.accounts.credentialHelp
+  return unknownOptionReason(error) ?? (error instanceof Error ? error.message : String(error))
+}
+
 export function parseCommandLine<T>(
   argv: readonly string[],
   localSharing: (argv: readonly string[]) => T,
@@ -439,14 +445,16 @@ export function parseCommandLine<T>(
   try {
     parsed = parseCommandLineStrictly(argv)
   } catch (error: unknown) {
-    if (argv.includes('auth'))
-      return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
     // D5: an unknown option gets our sentence, translated, not the library's.
-    return {
-      command: 'invalid',
-      reason:
-        unknownOptionReason(error) ?? (error instanceof Error ? error.message : String(error)),
+    // Only the option parser fails here (unknown option, invalid value);
+    // anything else is not this parse's answer to give.
+    if (error instanceof Error && 'code' in error) {
+      if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION')
+        return { command: 'invalid', reason: strictParseReason(argv, error) }
+      if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+        return { command: 'invalid', reason: strictParseReason(argv, error) }
     }
+    throw error
   }
   const { values, positionals } = parsed
   if (values.help === true) {
@@ -756,8 +764,16 @@ function parseUsage(argv: readonly string[]): RuntimeCommand {
         ...(values.out !== undefined && { out: values.out }),
       },
     }
-  } catch {
-    return { ...invalid('usage'), exitCode: 2 }
+  } catch (error) {
+    // Only the option parser fails here (unknown option, invalid value);
+    // anything else is not this parse's answer to give.
+    if (error instanceof Error && 'code' in error) {
+      if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION')
+        return { ...invalid('usage'), exitCode: 2 }
+      if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+        return { ...invalid('usage'), exitCode: 2 }
+    }
+    throw error
   }
 }
 
@@ -866,8 +882,16 @@ function parseResources(argv: readonly string[]): RuntimeCommand {
       (action !== 'status' && action !== 'history' && action !== 'resume')
       ? { ...invalid(`resources ${positionals.join(' ')}`), exitCode: 2 }
       : { command: 'resources', action, json: values.json === true }
-  } catch {
-    return { ...invalid('resources'), exitCode: 2 }
+  } catch (error) {
+    // Only the option parser fails here (unknown option, invalid value);
+    // anything else is not this parse's answer to give.
+    if (error instanceof Error && 'code' in error) {
+      if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION')
+        return { ...invalid('resources'), exitCode: 2 }
+      if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+        return { ...invalid('resources'), exitCode: 2 }
+    }
+    throw error
   }
 }
 
@@ -894,8 +918,17 @@ function parseReport(argv: readonly string[], canUseNamed = true): RuntimeComman
         )
       )
         return { command: 'reports', args: argv }
-    } catch {
-      return { command: 'reports', args: argv }
+    } catch (error) {
+      // An M93-option parse failure belongs to the named reports engine,
+      // which parses or refuses with its own words; anything else is not
+      // this parse's answer to give.
+      if (error instanceof Error && 'code' in error) {
+        if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION')
+          return { command: 'reports', args: argv }
+        if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+          return { command: 'reports', args: argv }
+      }
+      throw error
     }
   }
   try {
@@ -918,8 +951,16 @@ function parseReport(argv: readonly string[], canUseNamed = true): RuntimeComman
         includeEvents: values['no-events'] !== true,
       },
     }
-  } catch {
-    return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
+  } catch (error) {
+    // Only the option parser fails here (unknown option, invalid value);
+    // anything else is not this parse's answer to give.
+    if (error instanceof Error && 'code' in error) {
+      if (error.code === 'ERR_PARSE_ARGS_UNKNOWN_OPTION')
+        return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
+      if (error.code === 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE')
+        return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
+    }
+    throw error
   }
 }
 
