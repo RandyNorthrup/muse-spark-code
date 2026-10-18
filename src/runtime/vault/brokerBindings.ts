@@ -20,6 +20,9 @@ import {
   VAULT_AUDIT_MAX_BYTES,
 } from '../../shared/constants'
 import type { KeyringEntryFactory } from '../keyStore'
+import { KeyringVaultAnchor } from './keyringAnchor'
+import { FileVaultAnchor, vaultAnchorFile } from './fileAnchor'
+import type { VaultAnchorPort } from '../../core/vault/broker/repository'
 import type { VaultBrokerBindings, VaultBrokerContext } from './vaultBrokerEntry'
 import { isPosixVaultHost } from './posixHost'
 import { holdVaultStartupLock, vaultPeerExecutable, vaultProcessIdentity } from './posixNative'
@@ -37,6 +40,26 @@ const auditAnchorSchema = z.strictObject({
 
 /** The audit transaction's cross-process mutex; POSIX holds the kernel lock. */
 export type VaultAuditLock = <T>(work: () => Promise<T>) => Promise<T>
+
+/**
+ * The OS binding is not installed (a staged package carries no
+ * `node_modules`): every OS-store use reports the fixed storeUnavailable
+ * repair through the existing per-operation mapping, while the file and
+ * hardware tiers keep working. Never an empty success, never a startup
+ * refusal for a missing binding.
+ */
+function unavailableOperation(): Promise<never> {
+  return Promise.reject(new VaultStoreUnavailableError())
+}
+
+function unavailableKeyring(): KeyringEntryFactory {
+  const entry = {
+    getPassword: unavailableOperation,
+    setPassword: unavailableOperation,
+    deletePassword: unavailableOperation,
+  }
+  return () => entry
+}
 
 /** Authenticated audit history plus its rotation checkpoint in the protected OS store. */
 function auditLog(
@@ -187,7 +210,9 @@ function auditLog(
 /** Installed factory for management and first-party reads; no workspace-loaded module. */
 export async function createVaultBrokerBindings(
   context: VaultBrokerContext,
-  overrides: Pick<VaultBrokerBindings, 'keyring' | 'slots'> & { readonly home?: string } = {},
+  overrides: Pick<VaultBrokerBindings, 'keyring' | 'slots' | 'anchor'> & {
+    readonly home?: string
+  } = {},
   platform?: WindowsBrokerPlatform,
 ): Promise<VaultBrokerBindings> {
   if (process.platform === 'win32')
@@ -195,10 +220,17 @@ export async function createVaultBrokerBindings(
   if (process.platform !== 'linux' && process.platform !== 'darwin')
     throw new Error(UI_TEXT.vault.noAccess)
   let keyring = overrides.keyring
-  if (!keyring) {
-    const { AsyncEntry } = await import('@napi-rs/keyring')
-    keyring = (service, account) =>
-      new AsyncEntry(service, account, { linux: { store: 'secret-service' } })
+  let anchor: VaultAnchorPort | undefined = overrides.anchor
+  if (keyring === undefined) {
+    try {
+      const { AsyncEntry } = await import('@napi-rs/keyring')
+      keyring = (service, account) =>
+        new AsyncEntry(service, account, { linux: { store: 'secret-service' } })
+      anchor ??= new KeyringVaultAnchor(keyring)
+    } catch {
+      keyring = unavailableKeyring()
+      anchor ??= new FileVaultAnchor(vaultAnchorFile(context.dataDir))
+    }
   }
   const helper = vaultPeerExecutable(context.installRoot)
   const isHost = async (pid: number, hostId: string, hostSession?: string) => {
@@ -236,6 +268,7 @@ export async function createVaultBrokerBindings(
   }
   return {
     keyring,
+    ...(anchor && { anchor }),
     ...(overrides.slots && { slots: overrides.slots }),
     home: overrides.home ?? homedir(),
     lockOnScreenLock: false,
@@ -308,15 +341,22 @@ export async function createVaultBrokerBindings(
 /** Installed factory for Windows management and first-party reads. */
 async function createWindowsVaultBrokerBindings(
   context: VaultBrokerContext,
-  overrides: Pick<VaultBrokerBindings, 'keyring' | 'slots'> & { readonly home?: string },
+  overrides: Pick<VaultBrokerBindings, 'keyring' | 'slots' | 'anchor'> & { readonly home?: string },
   platform: WindowsBrokerPlatform | undefined,
 ): Promise<VaultBrokerBindings> {
   if (!platform) throw new Error(UI_TEXT.vault.noAccess)
   let keyring = overrides.keyring
-  if (!keyring) {
-    // Credential Manager, the Windows store D61 uses today.
-    const { AsyncEntry } = await import('@napi-rs/keyring')
-    keyring = (service, account) => new AsyncEntry(service, account)
+  let anchor: VaultAnchorPort | undefined = overrides.anchor
+  if (keyring === undefined) {
+    try {
+      // Credential Manager, the Windows store D61 uses today.
+      const { AsyncEntry } = await import('@napi-rs/keyring')
+      keyring = (service, account) => new AsyncEntry(service, account)
+      anchor ??= new KeyringVaultAnchor(keyring)
+    } catch {
+      keyring = unavailableKeyring()
+      anchor ??= new FileVaultAnchor(vaultAnchorFile(context.dataDir))
+    }
   }
   const isHost = async (pid: number, hostId: string, hostSession?: string) => {
     const identity = await platform.identify(pid)
@@ -357,6 +397,7 @@ async function createWindowsVaultBrokerBindings(
   }
   return {
     keyring,
+    ...(anchor && { anchor }),
     ...(overrides.slots && { slots: overrides.slots }),
     home: overrides.home ?? homedir(),
     lockOnScreenLock: false,
