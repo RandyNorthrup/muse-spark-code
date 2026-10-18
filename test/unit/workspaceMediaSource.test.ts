@@ -4,18 +4,19 @@
 // unavailable.
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
+import { sniffMediaBytes } from '../../src/core/media/limits'
 import { workspaceMediaSource } from '../../src/core/media/productionMedia'
+import { videoFixture } from './helpers/media/fixtures'
 
-const PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAAABJRU5ErkJggg==',
-  'base64',
-)
 const signal = new AbortController().signal
 
 function sourceFor(platform: NodeJS.Platform, workspaceRoot: string) {
   const seen: string[] = []
-  const chunk = Promise.resolve(new Uint8Array(PNG))
-  const digest = createHash('sha256').update(PNG).digest('hex')
+  const bytes = videoFixture({ soundtrack: false })
+  const info = sniffMediaBytes(bytes)
+  if (info === undefined) throw new Error('the video fixture must sniff as media')
+  const chunk = Promise.resolve(new Uint8Array(bytes))
+  const digest = createHash('sha256').update(bytes).digest('hex')
   const source = workspaceMediaSource({
     workspaceRoot,
     platform,
@@ -23,19 +24,14 @@ function sourceFor(platform: NodeJS.Platform, workspaceRoot: string) {
       readMedia: (absolute: string) => {
         seen.push(absolute)
         return Promise.resolve({
-          info: {
-            kind: 'image' as const,
-            mediaType: 'image/png' as const,
-            sizeBytes: PNG.length,
-            width: 1,
-            height: 1,
-          },
+          info,
           sha256: digest,
           source: {
-            name: 'tile.png',
-            mime: 'image/png',
-            bytes: PNG.length,
-            open: async function* () {
+            name: 'clip.mp4',
+            mime: info.mediaType,
+            bytes: bytes.length,
+            open: async function* (active: AbortSignal) {
+              active.throwIfAborted()
               yield await chunk
             },
           },
@@ -43,30 +39,17 @@ function sourceFor(platform: NodeJS.Platform, workspaceRoot: string) {
       },
     },
   })
-  return { source, seen, digest }
+  return { source, seen, digest, info }
 }
 
 describe('workspace media source at the filesystem root', () => {
   it.each([
-    ['posix', '/', '/tile.png'],
-    ['win32', 'C:/', String.raw`C:\tile.png`],
+    ['linux', '/', '/clip.mp4'],
+    ['win32', 'C:/', String.raw`C:\clip.mp4`],
   ] as const)('reopens the adopted file under a %s root', async (platform, root, absolute) => {
-    const { source, seen, digest } = sourceFor(platform, root)
-    const reopened = await source(
-      {
-        name: 'tile.png',
-        info: {
-          kind: 'image',
-          mediaType: 'image/png',
-          sizeBytes: PNG.length,
-          width: 1,
-          height: 1,
-        },
-        sha256: digest,
-      },
-      signal,
-    )
+    const { source, seen, digest, info } = sourceFor(platform, root)
+    const reopened = await source({ name: 'clip.mp4', info, sha256: digest }, signal)
     expect(seen).toEqual([absolute])
-    expect(reopened?.name).toBe('tile.png')
+    expect(reopened?.name).toBe('clip.mp4')
   })
 })
