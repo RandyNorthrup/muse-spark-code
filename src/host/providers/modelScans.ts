@@ -192,12 +192,10 @@ export function createModelScanner(deps: ModelScannerDeps): {
           },
         ])
       })()
+      // The scan above already received this save's failure: the next
+      // save's ordering observes its settlement without rejecting too.
       persistence = (async () => {
-        try {
-          await saved
-        } catch {
-          return
-        }
+        await Promise.allSettled([saved])
       })()
       await saved
       return outcome

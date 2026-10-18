@@ -42,6 +42,23 @@ Designed baselines with reasons (accepted, not forgotten):
 - `src/host/auth/authService.ts` sign-in restart, `src/core/developer`
   multi-account start/enable, `src/runtime/chatGptProviderCommands.ts`
   setup: fixed in PR161FIN (named closers, kind words, cause slots).
+- `src/host/providers/providerRemoval.ts` finish catch: the window end's
+  failure keeps the pending for the next start's completePending (which
+  throws naming the ids); it never rejects into the timer. Evidence:
+  `test/unit/providerRemoval.test.ts` ("keeps a secret the window end
+  cannot delete for the next start").
+- `src/host/providers/providerRemoval.ts` completePending catch: every
+  pending secret is attempted, then the throw names the ids that
+  survived; the per-secret store failures are intentionally not carried
+  (the person acts on ids). Evidence:
+  `test/unit/providerRemoval.test.ts` ("attempts every pending secret
+  and throws naming the survivors").
+- `src/host/providers/wizardSave.ts` partial-save catch: the notice
+  intentionally reports per-step fixed words with the secret-scrubbed
+  reason (no record channel exists without out-of-area ripple); nothing
+  is hidden (notice + failedStep reach the panel). Evidence:
+  `test/unit/wizardSave.test.ts` ("reports a failed credential save step
+  by step").
 - Everything else below: pre-existing, grouped for area-by-area lanes.
 
 | Folder                 | GENERIC | SWALLOW |
