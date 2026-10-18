@@ -42,4 +42,12 @@ describe('unpriced catalogue warning', () => {
       false,
     )
   })
+
+  it('stays silent for plan-key presets: the run is never refused as unpriced', () => {
+    const planCatalog: CatalogPresence = {
+      providers: {},
+      unpriced: { mistral: { 'plan-model': {} } },
+    }
+    expect(isModelUnpriced(planCatalog, 'mistral-plan', entry(), 'plan-model')).toBe(false)
+  })
 })
