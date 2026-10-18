@@ -227,8 +227,10 @@ export class AcpMedia implements AcpMediaPort {
         let given: string
         try {
           given = fileURLToPath(block.uri, { windows: this.deps.platform === 'win32' })
-        } catch {
-          throw new Error(UI_TEXT.textFilePrivate)
+        } catch (error: unknown) {
+          // Only an unmappable URI is private: anything else keeps its kind.
+          if (!(error instanceof TypeError)) throw error
+          throw new Error(UI_TEXT.textFilePrivate, { cause: error })
         }
         const attached = await this.attach(given, signal, block.mimeType ?? undefined)
         return attached.part

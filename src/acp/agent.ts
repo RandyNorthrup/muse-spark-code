@@ -903,8 +903,11 @@ class AcpSession {
       try {
         await this.questionRegistry?.commitQueued(lease.token)
         if (!this.isDisposed) this.getQuestions().sentQueued()
-      } catch {
+      } catch (error: unknown) {
         // The model is still running: retain pending so another prompt is busy.
+        this.deps.log.warn(
+          `ACP session ${this.sessionId}: queued commit failed, retaining pending: ${failureForLog(error)}`,
+        )
         pending.reject(RequestError.internalError(undefined, UI_TEXT.questionQueueCommitFailed))
       }
     })()
@@ -1100,9 +1103,12 @@ class AcpSession {
               kind: 'accepted',
               values: { ...parsed.content },
             })
-          } catch {
+          } catch (error: unknown) {
             // The session refused the content: cancel instead of hanging
             // on a form nobody else will answer.
+            this.deps.log.warn(
+              `ACP session ${this.sessionId}: elicitation ${event.elicitationId} not accepted: ${failureForLog(error)}`,
+            )
             if (this.isCurrentPrompt(pending)) {
               await settle.call(this.session, event.elicitationId, { kind: 'cancelled' })
             }
@@ -1393,7 +1399,10 @@ class AcpSession {
       return action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable
     try {
       await this.session.controlSubagent(id, action === 'continue' ? 'continue' : 'retry')
-    } catch {
+    } catch (error: unknown) {
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: subagent ${action} failed: ${failureForLog(error)}`,
+      )
       return action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable
     }
     const latest = await this.host.readSession(this.sessionId)
@@ -1454,6 +1463,14 @@ class AcpSession {
       status: answer === 'deny' ? 'failed' : 'completed',
     })
     return answer
+  }
+
+  /**
+   * An "always" the session's answer gave but the store could not keep: said
+   * in the session, after the allowed use, so being asked again is expected.
+   */
+  public notePaidNotKept(text: string): void {
+    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
   }
 
   public async startAccounts(): Promise<void> {
@@ -1539,8 +1556,12 @@ class AcpSession {
         ])
         if (isCurrent()) answer = vaultPermissionAnswer(request, permissionResponse(response))
       }
-    } catch {
-      /* A lost editor or malformed permission response is Deny, with no remote text logged. */
+    } catch (error: unknown) {
+      // A lost editor or malformed permission response is Deny: the kind is
+      // recorded redacted, never remote text.
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: vault permission fell back to deny: ${failureForLog(error)}`,
+      )
     } finally {
       clearTimeout(timer)
       controller.abort()
@@ -1881,7 +1902,10 @@ class AcpSession {
         this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
         await this.outbox
         return 'end_turn'
-      } catch {
+      } catch (error: unknown) {
+        this.deps.log.warn(
+          `ACP session ${this.sessionId}: vault command failed: ${failureForLog(error)}`,
+        )
         throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
       } finally {
         if (preparing !== undefined && this.preparing === preparing) this.preparing = undefined
@@ -1970,7 +1994,10 @@ class AcpSession {
           this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
           await this.outbox
           return 'end_turn'
-        } catch {
+        } catch (error: unknown) {
+          this.deps.log.warn(
+            `ACP session ${this.sessionId}: estimate failed: ${failureForLog(error)}`,
+          )
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
           if ('error' in preparing) throw preparing.error
           this.send({
@@ -2813,6 +2840,18 @@ class AgentState {
     return await acp.askPaidUse(request, canRemember)
   }
 
+  /** An "always" the session's answer gave but the store could not keep. */
+  public notePaidNotKept(sessionId: string, text: string): void {
+    const acp = this.sessions.get(sessionId)
+    if (acp === undefined) {
+      this.deps.log.warn(
+        `ACP session ${sessionId} is gone, so its not-kept paid choice stays only in the log`,
+      )
+      return
+    }
+    acp.notePaidNotKept(text)
+  }
+
   public async askVaultUse(
     sessionId: string,
     request: VaultApprovalRequest,
@@ -2831,6 +2870,9 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
   deps.paid.attach((sessionId, request, canRemember) =>
     state.askPaidUse(sessionId, request, canRemember),
   )
+  deps.paid.attachNotify((sessionId, text) => {
+    state.notePaidNotKept(sessionId, text)
+  })
   return acpAgent({ name: ACP_AGENT_NAME })
     .onRequest('initialize', (context) => {
       deps.onClientName?.(context.params.clientInfo?.name ?? 'ACP')

@@ -5,7 +5,8 @@
 // orphans, PLAN.md M27, sat in `toolIo.test.ts`'s folder this way).
 
 import { readdirSync } from 'node:fs'
-import { rm } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 const REMOVE_RETRIES = 5
@@ -18,6 +19,19 @@ export function removeFolder(folder: string): Promise<void> {
     maxRetries: REMOVE_RETRIES,
     retryDelay: REMOVE_RETRY_DELAY_MS,
   })
+}
+
+/** A test's temporary folder for one body: created, handed over, removed. */
+export async function usingTempDir<T>(
+  prefix: string,
+  work: (folder: string) => T | Promise<T>,
+): Promise<T> {
+  const folder = await mkdtemp(path.join(tmpdir(), prefix))
+  try {
+    return await work(folder)
+  } finally {
+    await removeFolder(folder)
+  }
 }
 
 /** Every file under a folder, as absolute paths: what a key scan reads. */

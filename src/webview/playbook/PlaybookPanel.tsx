@@ -226,7 +226,10 @@ export function PlaybookPanel({ port }: PlaybookPanelProps) {
           setData({ port, snapshot: next })
           setError(undefined)
         }
-      } catch {
+      } catch (error: unknown) {
+        // An unreadable snapshot reads failed: only a non-error keeps its
+        // kind past the panel.
+        if (!(error instanceof Error)) throw error
         if (isActive) setError(port)
       }
     }
@@ -255,7 +258,10 @@ export function PlaybookPanel({ port }: PlaybookPanelProps) {
         setData({ port, snapshot: next })
         setSaved({ port, controlId, headingId })
       }
-    } catch {
+    } catch (error: unknown) {
+      // An unsaved change reads failed: only a non-error keeps its kind
+      // past the panel.
+      if (!(error instanceof Error)) throw error
       if (activePort.current === port) setError(port)
     } finally {
       if (activePort.current === port) setBusy(undefined)

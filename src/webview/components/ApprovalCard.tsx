@@ -64,7 +64,9 @@ function spawnObjective(rawArgs: string): string | undefined {
   let parsed: unknown
   try {
     parsed = JSON.parse(rawArgs)
-  } catch {
+  } catch (error: unknown) {
+    // Unparseable arguments show no objective: anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
   if (typeof parsed !== 'object' || parsed === null) {

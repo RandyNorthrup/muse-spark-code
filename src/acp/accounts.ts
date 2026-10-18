@@ -51,10 +51,13 @@ export function companionAccountsPanel(port: AccountsPanelPort): AccountsPanelPo
         const reply = accountsReplySchema.safeParse(await port.dispatch(parsed.data))
         return reply.success ? reply.data : { type: 'accounts/error', code: 'unavailable' }
       } catch (error: unknown) {
-        return {
-          type: 'accounts/error',
-          code: isInvalidProvidersFileError(error) ? 'providersInvalid' : 'unavailable',
-        }
+        // A refused providers file keeps its code and a real failure reads
+        // unavailable without its text: only a non-error keeps its kind past
+        // the panel boundary.
+        if (isInvalidProvidersFileError(error))
+          return { type: 'accounts/error', code: 'providersInvalid' }
+        if (!(error instanceof Error)) throw error
+        return { type: 'accounts/error', code: 'unavailable' }
       }
     },
     subscribe(listener) {
@@ -63,8 +66,8 @@ export function companionAccountsPanel(port: AccountsPanelPort): AccountsPanelPo
           const parsed = accountsReplySchema.safeParse(reply)
           listener(parsed.success ? parsed.data : { type: 'accounts/error', code: 'unavailable' })
         })
-      } catch {
-        throw new Error(UI_TEXT.accounts.unavailable)
+      } catch (error: unknown) {
+        throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
       }
     },
   }
@@ -109,7 +112,7 @@ export class AcpAccounts {
       try {
         await operation
       } catch {
-        /* The caller receives the failure; the owner remains usable. */
+        // The await below delivers the failure to the caller; the queue drops its copy.
       }
     })()
     await operation
@@ -138,7 +141,10 @@ export class AcpAccounts {
     try {
       const url = accountUsageUrl(this.port, event.provider)
       return `${accountStopText(event, this.label(event.account))} ${url}`
-    } catch {
+    } catch (error: unknown) {
+      // The notice without its link is only for a real failure: anything
+      // else keeps its kind.
+      if (!(error instanceof Error)) throw error
       return accountStopText(event, this.label(event.account))
     }
   }
@@ -206,7 +212,10 @@ export class AcpAccounts {
       let text: string
       try {
         text = this.notice(notice)
-      } catch {
+      } catch (error: unknown) {
+        // A notice that failed to render reads unavailable: anything else
+        // keeps its kind.
+        if (!(error instanceof Error)) throw error
         text = UI_TEXT.accounts.unavailable
       }
       this.onNotice(text, notice)

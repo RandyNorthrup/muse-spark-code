@@ -2,8 +2,12 @@ import { historyRecordSchema, type HistoryRecord } from '../../../shared/estimat
 import { UI_TEXT, fill } from '../../../shared/l10n/text'
 
 /** Fixed technical codes only: source errors, paths and content never enter a message. */
-export function calibrationFailure(code: string): Error {
-  return Object.assign(new Error(fill(UI_TEXT.estimateFailed, { detail: code })), { code })
+export function calibrationFailure(code: string, cause?: unknown): Error {
+  return Object.assign(
+    new Error(fill(UI_TEXT.estimateFailed, { detail: code })),
+    { code },
+    cause === undefined ? {} : { cause },
+  )
 }
 
 export function compareIds(left: string, right: string): number {

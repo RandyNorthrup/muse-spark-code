@@ -437,7 +437,9 @@ export function modelLabelFor(state: UiState): string {
 async function loadSchedulePrompt(): Promise<typeof SchedulePromptModule | undefined> {
   try {
     return await import('./schedules/prompt')
-  } catch {
+  } catch (error: unknown) {
+    // An unloadable mapping answers nothing: anything else keeps its kind.
+    if (!(error instanceof Error)) throw error
     return undefined
   }
 }
@@ -731,7 +733,10 @@ export function App({
         .then((channel) => {
           if (isActive) stop = channel.subscribeChanges(listener)
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          // An unloadable surface reads failed: only a non-error keeps its
+          // kind past the panel.
+          if (!(error instanceof Error)) throw error
           if (isActive)
             dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.surfaceLoadFailed })
         })
@@ -1072,6 +1077,12 @@ export function App({
           estimateSubscribers.current.delete(listener)
         }
       },
+      // A foreign estimate failure the panel already said in words keeps its
+      // kind past the panel through the host log (D119), like any other
+      // rejected webview promise.
+      report: (error) => {
+        postMessage(webviewErrorReport('promise', error))
+      },
       startExisting: (_section, setup) =>
         new Promise<void>((resolve, reject) => {
           const requestId = `estimate-start-${String(++estimateSequence.current)}`
@@ -1223,7 +1234,10 @@ export function App({
             },
           })
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          // An unloadable estimator reads unavailable: only a non-error
+          // keeps its kind past the composer.
+          if (!(error instanceof Error)) throw error
           dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.estimateUnavailable })
         })
       return
@@ -1337,10 +1351,13 @@ export function App({
                 dispatch({ type: 'noticeRaised', level: 'warning', text: response.reason })
             })
             .catch((error: unknown) => {
+              // A failed schedule command never shows its cause: only a
+              // non-error keeps its kind past the composer.
+              if (!(error instanceof Error)) throw error
               dispatch({
                 type: 'noticeRaised',
                 level: 'warning',
-                text: error instanceof Error ? error.message : UI_TEXT.scheduleCommandFailed,
+                text: UI_TEXT.scheduleCommandFailed,
               })
             })
           return
@@ -2565,7 +2582,10 @@ export function App({
       .then(([, module]) => {
         if (isActive) setPaletteModule(module)
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        // An unloadable palette reads failed: only a non-error keeps its
+        // kind past the panel.
+        if (!(error instanceof Error)) throw error
         if (isActive) setPaletteFailure(true)
       })
     return () => {

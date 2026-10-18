@@ -1,5 +1,14 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**PRTH161 review closure (2026-10-15, Windows).** Merge main `d842cad5d`,
+retain its real-code-only test overhaul, then address threads T1–T5 in
+`.lane/PR161.threads.md`. Reuse the catch classifier and baseline: prove
+all handler paths, then ratchet individual sites rather than area totals.
+Recheck durable damage markers across windows; defer paid not-kept notices
+until the currentness fence; settle HTTP bridge failures without poisoning
+its queue. Pure-module tests and real temporary files only; consent/editor
+composition goes to the lead's real-life steps, never a stand-in. Receipts:
+`docs/certification/catch-money.md` and `.lane/PRTH161.report.md`.
 **PRTH165 review repair (2026-10-15, Windows).** Merge `d842cad5d`
 with hooks, retaining main's deleted fake-driven tests. Resolve threads T1–T6
 in the existing ACP permission-answer cache, agent lifecycle and translated
@@ -1424,6 +1433,8 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/exec.js`                           | ≤ 950 KiB                           |
 | Webview estimator import closure         | ≤ 25 KiB                            |
 | `dist/reference.js`                      | ≤ 125 KiB                           |
+| `dist/auth.js`                           | ≤ 75 KiB                            |
+| `dist/paid.js`                           | ≤ 75 KiB                            |
 
 **`dist/conversation.js` budget rationale.** (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)
 
@@ -1537,9 +1548,13 @@ properties, and retain all existing caps. No new artifact or dependency.
 
 **FIXM106L1 (2026-10-06):** the complete argument-preview UI entry is independently bounded at 25 KiB: 648 bytes measured, plus 15%, rounded to 25 KiB. Only its new entry moves out of the deferred group; shared/static dependencies retain their existing startup and deferred caps.
 
-**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB on 2026-10-06 by the same rule; separate from the unchanged unclassified deferred group)
+**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB on 2026-10-06 by the same rule; separate from the unchanged unclassified deferred group; D119 re-baseline 2026-10-17: 26,410 bytes measured with the worded refusal in the closure, plus 15%, rounded up to 30 KiB; re-measured 26,418 on 2026-10-18 after the port `report` channel, same 30 KiB row)
 
 **`dist/reference.js` budget rationale.** (M117: the generated help reference; the estimator feature, command and settings rows bring it to 100.7 KiB on 2026-10-07, plus 15%, rounded up to 25 KiB)
+
+**`dist/auth.js` budget rationale.** (CIFIX161B: the sign-in gate, AuthService and the three-valued credential read, loaded on the first credential, money or consent read; measured 64.8 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/paid.js` budget rationale.** (CIFIX161B: the paid gate, consent, usage and quote authority, loaded on the first paid consent, gate or usage read; measured 62.7 KiB plus 15%, rounded up to 25 KiB)
 
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
@@ -14478,6 +14493,16 @@ unread, quota-worded limits retried, spend caps retried, cut-off Anthropic
 replies ending the turn. The scans then showed the same defect from the
 other side: error bodies replaced by one fixed sentence on the configured
 path. Full record: the round-2 certification and the gap certifications.
+
+### D119 — Reads that guard money, consent or credentials are three-valued (2026-10-12; numbered D109 until 2026-10-17, when that number was found shared)
+
+A read that guards money, consent or a credential answers found, absent,
+or could-not-read with a closed kind — never a boolean that collapses the
+third state into absence. Guards fail closed on could-not-read (a billing
+hold is never released, a sign-in never lifts one, "can recover" is never
+true, no key is asked for as if none existed) and tell the person once per
+distinct damage through a notice, not only the log. Full record:
+`docs/certification/catch-money.md` (round 3).
 
 ### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
 
@@ -33515,6 +33540,23 @@ The pin is not moved; the lead disposes (re-measure with owner decision,
 as the hotfix did at +290 B, or direct further diet). Loopback suites are
 sandbox-blocked here (direct probe: `fetch` to 127.0.0.1 throws), named
 for the lead's unsandboxed run.
+
+**Estimator panel bundle budget (closed 2026-10-17, corrected).** The earlier
+version of this item wrongly called the 25 KiB row owner-set; it is M117's
+split rule (measured size plus 15%, rounded), not an owner-set cap, and the
+row is re-baselined by that same rule, not by owner word. `npm run build` on
+`fix/catch-money-final` reported `OVER dist/webview estimator panel: 25.8 KiB
+(budget 25 KiB)`: the lazy closure measures 26,410 bytes, against 25,479 on
+`main-now`. The D119 worded-refusal matcher (`isEstimateRefusal` /
+`estimateRefusalDetail` plus the panel's and composer's catch sites) adds the
+~931 bytes; the matcher must run synchronously in those catch handlers (lead
+decision 2026-10-16: money/consent failures reach the person in words), and
+any module it lives in lands in the same lazy closure (verified minified in
+`dist/webview/chunks/RN4TH3UY.js`), so no behaviour-preserving move recovers
+the 810 bytes. Re-baselined by the documented rule: 26,410 x 1.15 =
+30,371.5 bytes = 29.66 KiB, so 30 KiB (`scripts/lib/webviewBundles.mjs`).
+Disposition: closed; `npm run build` is green on the re-baselined tree.
+
 **M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
 job 115017063279: "loads the real lazy menu independently of the secret
 modal focus owner" (`test/unit/m114Panel.test.mjs:241`) exceeded Vitest's
@@ -35526,6 +35568,44 @@ Pause local browser gates while that extension is enabled. Hosted CI runs
 remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
+
+**FIXM101C2 current check scope (2026-10-05, kubuntu).** The five inherited
+test repairs from `3e04f6f5` are carried unchanged after their failures are
+reproduced here. Their old C2 baseline deferral below is historical, superseded
+by this repair lane's complete-file receipts in `docs/certification/m101-c2.md`.
+The shared rig common rules expressly prohibit `npm run quality` and the full
+test wrapper here; run the required scoped static/build gates and complete
+owning suites, with the integrator responsible for full quality and the
+platform matrix before release. No threshold, ignore or timeout is weakened.
+
+**FIXM101P1 lane verification (2026-10-05).** The rig brief expressly
+forbids the full `npm run quality` wrapper and full unit suite because the
+rig is shared; the lead runs the combined four-machine quality gate.
+This lane runs focused complete test files (at most three per invocation),
+all project typechecks, changed-file lint/format, deadcode, duplication,
+localization, host API and production build directly on Kubuntu. The final
+receipts and twelve red drills are in `docs/certification/m101-p1.md`: 330
+focused tests and all listed lane checks pass, including the unchanged
+production bundle-split gate. This defers only the full-tree/full-platform
+quality receipt; no gate is weakened.
+
+**FIXM101P2 aggregate gate deferral (2026-10-05).** The explicit lane brief
+and its shared `codex/common.md` forbid the full `npm run quality` wrapper
+on this shared rig. Run the required scoped suites (at most three files per
+run), all five TypeScript projects, lint/format over the complete P2 range,
+knip, duplication, localization, host API and production build here; record
+actual receipts in `docs/certification/m101-p2.md`. The lead must run the
+aggregate quality/coverage/platform matrix before integration/release. No
+threshold, ignore or rule is changed.
+
+**CATCHMONEY round 3 qualification (2026-10-12; review 2026-10-14).**
+Scoped runs and receipts: `docs/certification/catch-money.md`; the lead runs
+the aggregate suite before integration. Two deferrals stand. The stricter
+catch classifier reclassifies 94 raw-error logs from REPORTED to GENERIC;
+the baseline was regenerated after that intentional fix and the gate still
+fails on any new rise. `dist/modelsPanel.js` is 128,289 bytes against its
+128,000-byte budget on the merged tree (the required three-valued read);
+no threshold is changed: the lead rebases the budget or directs a trim.
 
 ## 8. Escape hatches register
 
@@ -39182,8 +39262,14 @@ correct, including `[0.19.0]`'s Release infrastructure. PR #217
 person set; the atomic claim ledger gone), its CHANGELOG Added and Fixed
 entries and the D121 README settings rows under `[0.19.0]`; the README
 `shellSandbox` row keeps PR #233's wording, the two D121 spend rows keep PR
-#217's wording, and ROADMAP.md and the host-API record were regenerated. The
-`0.19.0 released (…)` line is written by the lead after the tag's release run.
+#217's wording, and ROADMAP.md and the host-API record were regenerated. PR
+#161 (`fix/catch-money`) merged: D119 worded failures, the catch inventory
+and ratchet tooling, deferred paid/auth bundles and the port-reported panel
+failures, its user-facing entries under `[0.19.0]` Pending (its catch-tooling
+entry stands under `[0.18.0]` Added, where the pull request records it); the
+spend-error sites both sides changed keep PR #217's later shape, and the
+host-API record was regenerated. The `0.19.0 released (…)` line is written by
+the lead after the tag's release run.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
 Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from

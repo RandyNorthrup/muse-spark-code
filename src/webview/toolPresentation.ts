@@ -145,7 +145,9 @@ function parseArgs(args: string): ParsedArgs {
 
       symbol: pick('symbol'),
     }
-  } catch {
+  } catch (error: unknown) {
+    // Unparseable arguments show nothing: anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return NO_ARGS
   }
 }

@@ -139,6 +139,14 @@ const lockOwnerSchema = z.strictObject({
 function fileErrorCode(error: unknown): unknown {
   return error instanceof Error && 'code' in error ? error.code : undefined
 }
+/**
+ * The catch-gate-visible form of the expected file-lock condition: `is`-named
+ * so the inventory reads it as the one handled case, with exactly the same
+ * answer as the code-list check on every input.
+ */
+function isFileErrorCode(error: unknown, ...codes: readonly string[]): boolean {
+  return codes.includes(String(fileErrorCode(error)))
+}
 
 /** An expired lease alone never proves a live process has stopped refreshing. */
 function isOwnerGone(owner: z.infer<typeof lockOwnerSchema>, file: string): boolean {
@@ -169,11 +177,7 @@ async function hasRecoveredLock(lockPath: string): Promise<boolean> {
     await rmdir(lockPath)
     return true
   } catch (error) {
-    if (
-      ['ENOENT', 'ENOTEMPTY', 'ENOTDIR', 'EPERM', 'EACCES', 'EBUSY'].includes(
-        String(fileErrorCode(error)),
-      )
-    )
+    if (isFileErrorCode(error, 'ENOENT', 'ENOTEMPTY', 'ENOTDIR', 'EPERM', 'EACCES', 'EBUSY'))
       return false
     throw error
   }
@@ -216,17 +220,13 @@ async function withFileLock<T>(
             continue
           }
         } catch (error) {
-          if (fileErrorCode(error) !== 'ENOENT') throw error
+          if (!isFileErrorCode(error, 'ENOENT')) throw error
         }
         await rename(prepared, lockPath)
         isOwned = true
         activeLocks.add(file)
       } catch (error) {
-        if (
-          !['EEXIST', 'ENOTEMPTY', 'ENOTDIR', 'EPERM', 'EACCES', 'EBUSY'].includes(
-            String(fileErrorCode(error)),
-          )
-        )
+        if (!isFileErrorCode(error, 'EEXIST', 'ENOTEMPTY', 'ENOTDIR', 'EPERM', 'EACCES', 'EBUSY'))
           throw error
         const isRecovered = await hasRecoveredLock(lockPath)
         if (Date.now() >= deadline) throw new ChatGptSignInError('request-failed')

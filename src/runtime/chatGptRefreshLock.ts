@@ -60,7 +60,8 @@ export async function withChatGptRefreshLock<T>(
     }
   } catch (error) {
     if (error instanceof ChatGptSignInError) throw error
-    if (error instanceof StoreUnavailableError) throw new ChatGptSignInError('store-unavailable')
-    throw new ChatGptSignInError('request-failed')
+    if (error instanceof StoreUnavailableError)
+      throw new ChatGptSignInError('store-unavailable', { cause: error })
+    throw new ChatGptSignInError('request-failed', { cause: error })
   }
 }

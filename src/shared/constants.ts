@@ -3961,6 +3961,12 @@ export const EXTENSION_HOOKS_BUNDLE_FILE = 'extensionHooks.js'
 // The vault's window (M109 lane W, PLAN.md D6): the panel host, the native
 // editor and the broker client, loaded on the first vault command.
 export const VAULT_BUNDLE_FILE = 'vault.js'
+// The sign-in gate (CIFIX161B, PLAN.md D6): AuthService and the three-valued
+// credential read, loaded on the first credential, money or consent read.
+export const AUTH_BUNDLE_FILE = 'auth.js'
+// The paid features (CIFIX161B, PLAN.md D6): the gate, consent, usage and
+// quote authority, loaded on the first paid consent, gate or usage read.
+export const PAID_BUNDLE_FILE = 'paid.js'
 // The empty folder under the extension's global storage the reviewer's side
 // session runs in: outside every workspace, so no History lists it, and
 // with no rules, skills or files of the user's to read.

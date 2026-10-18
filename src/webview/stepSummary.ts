@@ -66,7 +66,10 @@ function searchScopes(args: string): readonly string[] {
   let raw: unknown
   try {
     raw = JSON.parse(args)
-  } catch {
+  } catch (error: unknown) {
+    // Unparseable arguments search the workspace: anything else keeps its
+    // kind.
+    if (!(error instanceof SyntaxError)) throw error
     return [WORKSPACE_SCOPE]
   }
   const parsed = searchArgsSchema.safeParse(raw)

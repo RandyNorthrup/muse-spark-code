@@ -331,6 +331,17 @@ above.
     source fingerprint), a milestone without an entry or an entry for a
     milestone PLAN.md does not have (PLAN.md M122; CONTRIBUTING.md has the
     entry format).
+18. **A catch handles a named condition or reports.** Every `try/catch` and
+    promise `.catch(` is one of NARROW (tests for a named, expected
+    condition and rethrows or reports everything else), REPORTED (every
+    path rethrows, throws a typed failure carrying the cause's kind, or
+    records it), SWALLOW, GENERIC or CLEANUP (best-effort teardown with
+    a reason comment on the catch line or as the handler's leading comment,
+    as `scripts/lib/catch-inventory.mjs` implements it). New code is NARROW or REPORTED;
+    error message text, paths and prompts never reach a log or a
+    sentence. Run `npm run check:catches` (in `npm run quality`): it
+    fails when any SWALLOW or GENERIC count rises, and when one fell
+    without regenerating `scripts/catch-baseline.json`.
 
 ## Layout
 

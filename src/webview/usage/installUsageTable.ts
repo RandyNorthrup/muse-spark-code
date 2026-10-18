@@ -8,7 +8,9 @@ export function installUsageTable({
 }: UsageTable): 'invalidLocale' | 'invalidTable' | undefined {
   try {
     Intl.getCanonicalLocales(locale)
-  } catch {
+  } catch (error: unknown) {
+    // Only a rejected tag is an invalid locale: anything else keeps its kind.
+    if (!(error instanceof RangeError)) throw error
     return 'invalidLocale'
   }
   if (!isUsageText(table, locale)) return 'invalidTable'
