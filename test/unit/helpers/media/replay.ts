@@ -58,15 +58,3 @@ export function uploaded(media: StoredMediaPart, fileId = 'file-clip'): Uploaded
     mime: media.info.mediaType,
   }
 }
-
-export function mediaByteSource(name: string, mime: string, bytes: Uint8Array) {
-  const chunk = Promise.resolve(bytes)
-  return {
-    name,
-    mime,
-    bytes: bytes.length,
-    open: async function* () {
-      yield await chunk
-    },
-  }
-}
