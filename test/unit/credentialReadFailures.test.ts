@@ -53,6 +53,26 @@ describe('credential read failures', () => {
     expect(warns[0]).not.toContain('secret storage is locked for user 1000')
   })
 
+  it('warns once per owner while the store stays unreadable, re-armed by a healthy read', async () => {
+    const failure = new KeyringLockedError('secret storage is locked for user 1000')
+    const warns: string[] = []
+    const own = port(failingWith(failure), warns)
+    expect(await getApiKey(own)).toBe(undefined)
+    expect(await getApiKey(own)).toBe(undefined)
+    expect(warns).toHaveLength(1)
+    const healthy: CredentialReadPort = {
+      ...own,
+      secrets: {
+        get: () => Promise.resolve('key'),
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      },
+    }
+    expect(await getApiKey(healthy)).toBe('key')
+    expect(await getApiKey(own)).toBe(undefined)
+    expect(warns).toHaveLength(2)
+  })
+
   it('reads a denied store as unreadable with its kind', async () => {
     const failure = Object.assign(new StoreDeniedError('permission denied'), { code: 'EACCES' })
     const warns: string[] = []

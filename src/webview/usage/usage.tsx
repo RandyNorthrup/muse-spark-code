@@ -131,7 +131,13 @@ try {
   // An unstartable page reads unavailable: anything else keeps its kind.
   // The failure reaches the host's record with its cause.
   if (!(error instanceof Error)) throw error
-  host?.post(webviewErrorReport('hostMessage', error))
+  const report = webviewErrorReport('hostMessage', error)
+  try {
+    host?.post(report)
+  } catch {
+    // The usage bridges carry usage messages only, so a boot report they
+    // refuse must never stop the fallback render below.
+  }
   const unavailable: { code?: 'invalidMessage' } = isInvalidTable ? { code: 'invalidMessage' } : {}
   root.render(<Unavailable {...unavailable} />)
 }

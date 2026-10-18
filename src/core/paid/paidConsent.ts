@@ -419,13 +419,12 @@ export class PaidUseConsent {
       // A store that cannot be written leaves this use allowed once (an
       // account decision approved under a revoked epoch is still refused by
       // its fence below). The log names only the failure's kind, never the
-      // store's message, and the person is told at once; anything that is
-      // not an error keeps its kind.
+      // store's message, and the person is told at once; every rejection is
+      // classified, including a non-Error one (which reads `unknown`).
       // read-state: cert TBL-07. `false` here is "not kept, allowed once,
       // person told" (onNotKept fired above the return), never "not allowed".
-      if (!(error instanceof Error)) throw error
       this.deps.log.warn(
-        `Paid use of ${feature}: "always" could not be kept, so it is allowed once (${wireWordForLog(error.name)})`,
+        `Paid use of ${feature}: "always" could not be kept, so it is allowed once (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
       )
       this.deps.onNotKept?.(this.notKeptNotice(feature, paidStoreFailureKind(error), notifySession))
       return false
@@ -444,8 +443,10 @@ export class PaidUseConsent {
       // revoked use is refused without claiming the choice applied.
       // read-state: cert TBL-08. Return the failure kind; only the caller's
       // currentness fence can say whether an approved use still proceeds.
-      if (!(error instanceof Error)) throw error
-      this.deps.log.warn(`Paid search quote could not be kept (${wireWordForLog(error.name)})`)
+      // Every rejection is classified, including a non-Error one.
+      this.deps.log.warn(
+        `Paid search quote could not be kept (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
+      )
       return paidStoreFailureKind(error)
     }
   }
@@ -646,10 +647,12 @@ export class PaidUseConsent {
         isOk = true
       } catch (error: unknown) {
         // Keep only the closed kind until currentness has been rechecked;
-        // a revoked use must not be described as allowed once.
-        if (!(error instanceof Error)) throw error
+        // a revoked use must not be described as allowed once. Every
+        // rejection is classified, including a non-Error one.
         saveFailure = paidStoreFailureKind(error)
-        this.deps.log.warn(`Paid search quote could not be kept (${wireWordForLog(error.name)})`)
+        this.deps.log.warn(
+          `Paid search quote could not be kept (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
+        )
       }
       if (!isCurrent()) return undefined
       if (saveFailure !== undefined)
