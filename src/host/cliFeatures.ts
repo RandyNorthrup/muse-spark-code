@@ -23,6 +23,7 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import type { ProcessResult } from './backend/sandboxSetup'
+import { isStoreErrorCode } from './backend/storeErrors'
 import type { AgentImportHostDeps } from './agentImportHost'
 import { runAgentImport } from './agentImportBundle'
 import { type MuseConfigDeps, showHooks, showMcpServers } from './commands/museConfigCommands'
@@ -91,14 +92,12 @@ export interface CliFeatures {
   readonly exports: ConversationExports
 }
 
-const NOT_FOUND = 'ENOENT'
-
 /** The file's text; undefined when there is none; throws on any other failure. */
 export function readTextIfPresent(fsPath: string): string | undefined {
   try {
     return readFileSync(fsPath, 'utf8')
   } catch (error: unknown) {
-    if (error instanceof Error && 'code' in error && error.code === NOT_FOUND) {
+    if (isStoreErrorCode(error, 'ENOENT')) {
       return undefined
     }
     throw error
