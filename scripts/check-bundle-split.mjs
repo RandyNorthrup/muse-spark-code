@@ -1221,6 +1221,14 @@ const TEXT_BLOCKS = [
     sentinels: ['verifyChecksHeading', 'verifyUncheckedCodeLoading'],
     readers: ['dist/modelApiVerify.js'],
   },
+  // The packing store's own words (M73): the placeholder, the recalled
+  // pages and the background-note lead read through the lazy tools chunk.
+  // The session reads the lead too, so both bundles are declared readers.
+  {
+    block: 'PACK_MODEL_TEXT',
+    sentinels: ['packPlaceholder', 'backgroundEndedLead'],
+    readers: [BUNDLES.modelApi.output, 'dist/modelApiTools.js'],
+  },
   {
     block: 'CODE_INTEL_MODEL_TEXT',
     sentinels: ['codeIntelNoSymbolNamed', 'repoMapBudgetTooSmall'],

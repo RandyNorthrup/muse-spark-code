@@ -1,7 +1,7 @@
-import { setImmediate as yieldToHost } from 'node:timers/promises'
 import { fill, plural } from '../../shared/l10n/text'
 import { fingerprint } from '../verify/fingerprint'
 import { compareLegalText } from './files'
+import { createYieldCheck } from './scanYield'
 // The deterministic scan (M97, PLAN.md D76): every reader over one
 // bounded snapshot, findings sorted before stable ids are assigned, and
 // the lane 0 result schema validating the envelope. Changing only the
@@ -19,7 +19,6 @@ import {
   LEGAL_INCOMPLETE_MAX,
   LEGAL_RESULT_VERSION,
   LEGAL_SCAN_PATHS_MAX,
-  LEGAL_SCAN_YIELD_EVERY,
   LEGAL_TEXT_MAX_CHARS,
   LEGAL_EVIDENCE_EXCERPT_MAX_CHARS,
   LEGAL_FINDING_ID_MAX_CHARS,
@@ -413,17 +412,12 @@ export async function scanLegal(
   if (!LEGAL_HEADER_POLICIES.includes(options.headerPolicy)) {
     throw new LegalScanError(UI_TEXT.legalScanner.m108)
   }
-  let sinceYield = 0
-  const checkYield = async (): Promise<void> => {
-    sinceYield += 1
-    if (sinceYield < LEGAL_SCAN_YIELD_EVERY) return
-    sinceYield = 0
-    // Let a Stop/SIGINT abort land mid-scan (PR #214 review): the scan is
-    // CPU-bound over thousands of files on one thread, so without a yield
-    // the abort below could only have arrived before the scan started.
-    await yieldToHost()
+  // Let a Stop/SIGINT abort land mid-scan (PR #214 review): the scan is
+  // CPU-bound over thousands of files on one thread, so without a yield
+  // the abort below could only have arrived before the scan started.
+  const checkYield = createYieldCheck(() => {
     if (options.signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
-  }
+  })
   const listed2 = snapshot.files
   for (const file of listed2) {
     assertWorkspaceRelative(file)
