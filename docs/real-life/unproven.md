@@ -2871,3 +2871,11 @@ PR #161's own stand-in tests went the same way as the sweep above: they drove re
 
 - `mcp oauth denial > maps a dispatch failure onto the denial with its cause`
 - `mcp oauth denial > keeps a foreign dispatch failure past the boundary`
+
+## Withdrawn on lane PR161FIX3 (2026-10-18)
+
+The Codex review of PR #161 found the warn-once case below fed an invented keyring failure through a hand-written port. No real keyring or store exists in unit, so the case is deleted rather than repaired with another fake; its behaviour waits for proof by real use of the packed product (the lead's scenario in `docs/certification/catch-money.md`, PR161FIX3).
+
+### test/unit/credentialReadFailures.test.ts (one test; the rest of the file stays)
+
+- `credential read failures > warns once per owner while the store stays unreadable, re-armed by a healthy read`
