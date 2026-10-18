@@ -27,3 +27,11 @@
   - `providers.json` as a directory → `Accounts are unavailable (EISDIR: illegal operation on a directory, read).`, exit 1.
 - ACP end-to-end inside the suite with the real `AcpAccounts` over the real runtime account services (real providers file, credential store unreachable by a throwing factory): `/accounts current` with no selection → `No Account Selected`; unknown id → invalid-account sentence; use/command before start → not-ready sentence.
 - Remainder (documented, not changed): a store refusal that kept no detail (e.g. unconfigured provider, bare `unavailable` code) stays on the plain connection sentence rather than inventing a cause; the `own()` supersede and notice-format fallbacks are defensive and proven by inspection plus the mapper tests. Deliberately kept on the connection sentence (no service bound there): headless without account services, ACP session with no accounts port, missing account-services bundle.
+
+## PR235W1 status (lane open, one line per thread and per CI failure)
+
+- Thread 1 (`src/acp/accountText.ts:100`, P1): CONFIRMED — the raw-message branch copies unenumerated service text into the ACP `RequestError`; fixing at the cause (enumerated failures map, everything else stays on the fixed unavailable sentence per PLAN.md FIXM108H).
+- Thread 2 (`test/unit/accountErrorTruth.test.ts:62`, P1): CONFIRMED — the EISDIR string is invented input; replacing with a real-I/O-driven assertion.
+- Thread 3 (`src/runtime/providers/runtimeServices.ts:44`, P2): CONFIRMED — the plain `Error` is discarded by `AccountSecrets.remove`'s catch; preserving the branded refusal across that boundary.
+- Thread 4 (`src/runtime/providers/accountsCommand.ts:36`, P2): CONFIRMED — the bare-code fallback prints `Accounts are unavailable (unavailable).`; returning the plain unavailable sentence when no concrete cause was retained.
+- CI static gates (all OSes): REPRODUCED locally — `npx jscpd` finds 1 clone (12 lines, 54 tokens) inside `test/unit/accountErrorTruth.test.ts:120-131` vs `:151-162`, failing the 0 threshold; every other listed CI failure is marked downstream of it. Removing the clone at its cause in the test rework.
