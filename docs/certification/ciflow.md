@@ -774,7 +774,11 @@ the code.
 
 **Local proof (this rig, 2026-10-18).** Both actionlint 1.7.12 (shellcheck
 present, so `run:` scripts were checked) and prettier: exit 0 on all eight
-workflows. `zizmor` 1.31.1 `--offline` on the five touched workflows: three
+workflows; `npm run check:plan` (plan-format-v1, 218 milestones, 0 drift),
+`npm run typecheck` (all five compiler projects) and `npm run build`
+(every bundle within budget): exit 0. No JS/TS file changed, so ESLint has
+no file in scope; the hook's changed-file ESLint ran on every commit.
+`zizmor` 1.31.1 `--offline` on the five touched workflows: three
 low findings, every one on a line this change does not touch (build's
 install of the just-built agent tarball, ci's `./.github/workflows`
 self path, hosts' install of the just-built agent package);
