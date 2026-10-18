@@ -246,8 +246,6 @@ uses the same window for context pressure and compaction in every ACP editor.
 LM Studio's committed capture reports no window; no uncaptured native endpoint
 is queried. Missing windows refuse inference with instructions to enter one.
 
-> > > > > > > cand/MSM95/4
-
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,
 unlocked Secret Service the Model API backend is unavailable; there is no
@@ -406,7 +404,7 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   `/playback` asks the agent to state its own understanding of the goal
   and instructions from working memory only, with no tools for the turn,
   so the person can compare it with what they asked and correct it; a
-  model turn, on both backends.
+  model turn on the Model API backend, refused on Muse Code.
   M115's `/schedule` (list, add, remove, run-now, pause, resume, fire and
   timeline; `run-due` and background maintenance are refused here), offered
   only with `--scheduled-prompts`.
