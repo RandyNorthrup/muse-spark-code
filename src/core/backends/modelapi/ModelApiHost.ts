@@ -130,7 +130,6 @@ import {
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
-  MODEL_API_MAX_TOOL_ROUNDS,
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MODEL_PREFIX,
   MODEL_API_MODEL_TEXT,
@@ -13466,11 +13465,10 @@ export class ModelApiSession implements ScheduledAgentSession {
    * path, its hooks included. Its row shows what ran, and the model reads it
    * all as tool data, within one budget. After CHECK_FIX_MAX_ROUNDS failing
    * rounds in a row the checks stop until the user's next message, and the
-   * model and the user are told. Nothing runs after the turn's last round
-   * (no request would read it) or a Stop (the M68 review). A hook's stop is
-   * returned.
+   * model and the user are told. Nothing runs after a Stop (the M68 review).
+   * A hook's stop is returned.
    */
-  private async verifyRound(turn: ActiveTurn, isLastRound: boolean): Promise<string | undefined> {
+  private async verifyRound(turn: ActiveTurn): Promise<string | undefined> {
     if (this.deps.verify === undefined || isAbortRequested(turn.abort.signal)) {
       this.ledger.takeRoundEdits()
       return undefined
@@ -13533,7 +13531,6 @@ export class ModelApiSession implements ScheduledAgentSession {
         checksSection,
       },
       turn,
-      isLastRound,
     )
   }
 
@@ -13555,7 +13552,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     let isStopHookActive = false
     let stopContinuations = 0
     let outputContinuations = 0
-    for (let round = 0; round < MODEL_API_MAX_TOOL_ROUNDS; round += 1) {
+    // No round count of ours ends a turn (owner 2026-10-17: the only
+    // hard-coded limits are each provider's own, and no provider documents
+    // one): it runs until the model answers without a tool call, the person
+    // stops it, a hook stops it, or a budget the person set is spent.
+    for (let round = 0; ; round += 1) {
       if (isAbortRequested(signal)) {
         throw new AbortedError()
       }
@@ -13628,8 +13629,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (
           streamed.incompleteReason === 'max_output_tokens' &&
           this.outputContinuation &&
-          outputContinuations < MODEL_API_CONTINUATIONS_MAX &&
-          round < MODEL_API_MAX_TOOL_ROUNDS - 1
+          outputContinuations < MODEL_API_CONTINUATIONS_MAX
         ) {
           outputContinuations += 1
           this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.modelApiContinuing })
@@ -13836,7 +13836,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.dropUndeliveredMedia(turn.turnId)
         return
       }
-      const verifyStop = await this.verifyRound(turn, round === MODEL_API_MAX_TOOL_ROUNDS - 1)
+      const verifyStop = await this.verifyRound(turn)
       if (verifyStop !== undefined) {
         // A check's hook stopped the turn after the round, as PostToolBatch can.
         this.dropUndeliveredMedia(turn.turnId)
@@ -13846,15 +13846,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       const compacted = await this.maybeAutoCompact(turn)
       if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return
     }
-    // Input accepted during the last permitted round still needs a request
-    // that sees it. Steered messages belonged to this turn, so run them
-    // before separately queued messages; a goal cue follows them.
-    if (turn.goalWakePending && isGoalActive(this.goal)) {
-      this.queuedTurns.unshift(this.queuedGoalWake())
-    }
-    this.promoteSteered(turn)
-    this.outcomeStopReason = 'budget'
-    throw new Error(`stopped after ${String(MODEL_API_MAX_TOOL_ROUNDS)} tool rounds`)
   }
 
   /** Child turns share checkpoint ownership with their top parent, even after it finishes. */
