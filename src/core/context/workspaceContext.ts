@@ -19,6 +19,7 @@ import type { ContentSource } from '../schedules/provenance'
 import { RULES_PREAMBLE } from '../../shared/constants'
 import type { MemoryScopeSnapshot } from '../memory/memoryStore'
 import type { ContextIo } from './contextFiles'
+import { isCodedError } from '../workspaceRoot'
 import {
   type AgentCatalogue,
   type AgentDefinition,
@@ -84,10 +85,6 @@ export interface ContextSections {
 const ROOT_DIRECTORY = ''
 // Missing source evidence stays explicit and cannot authorize a new fire.
 const UNKNOWN_CONTEXT_SOURCE: ContentSource = { kind: 'tool', callId: 'unproved-context' }
-
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
 
 function catalogueKey(skills: readonly SkillDefinition[]): string {
   return JSON.stringify(skills)
@@ -212,12 +209,15 @@ export class WorkspaceContext {
     return true
   }
 
-  /** A read that fails (permissions, encoding) is a warning, never a failed turn. */
+  /** A store read that fails (permissions, encoding) warns and falls back, never a failed turn. */
   private async guarded<T>(what: string, run: () => Promise<T>, fallback: T): Promise<T> {
     try {
       return await run()
     } catch (error: unknown) {
-      this.deps.warn(`${what} failed: ${describe(error)}`)
+      // Only a shaped store failure keeps the fallback: anything else is
+      // raised, so a bug in our own read never reads as a quiet warning.
+      if (!isCodedError(error)) throw error
+      this.deps.warn(`${what} failed`)
       return fallback
     }
   }

@@ -24,7 +24,7 @@ import {
   LEGAL_SCAN_TIMEOUT_MS,
 } from '../../shared/constants'
 import { sameFile } from '../fs/fileIdentity'
-import { isCodedError } from '../context/contextFiles'
+import { isCodedError } from '../workspaceRoot'
 import {
   assertWorkspaceRelative,
   compareLegalText,

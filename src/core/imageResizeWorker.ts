@@ -83,5 +83,7 @@ function resize(): Uint8Array {
 try {
   parentPort?.postMessage({ ok: true, bytes: resize() })
 } catch {
+  // The worker always answers, even when the image cannot be decoded: the
+  // parent never hangs on a lost message, and `ok: false` refuses the image.
   parentPort?.postMessage({ ok: false })
 }
