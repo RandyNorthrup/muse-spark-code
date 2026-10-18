@@ -119,12 +119,13 @@ function TabRow({ paid }: { readonly paid: PaidState }) {
   // Before Tab state arrives there is no budget to show, so the row says the
   // value is not known yet instead of the old $1.00 fallback. A zero budget
   // is the person having set none.
-  const budgetLine =
-    paid.tab === undefined
-      ? UI_TEXT.usagePaidTabBudgetUnknown
-      : Usd.from(paid.tab.budgetUsd).compare(Usd.from(TAB_NO_BUDGET_USD)) === 0
+  let budgetLine = UI_TEXT.usagePaidTabBudgetUnknown
+  if (paid.tab !== undefined) {
+    budgetLine =
+      Usd.from(paid.tab.budgetUsd).compare(Usd.from(TAB_NO_BUDGET_USD)) === 0
         ? UI_TEXT.usagePaidTabBudgetNone
         : fill(UI_TEXT.usagePaidTabBudget, { budget: formatUsd(paid.tab.budgetUsd) })
+  }
   const windowText = fill(UI_TEXT.usagePaidTabCostWindow, { cost })
   return (
     <>
