@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- A team task waiting for a busy exclusive resource (for example browser
+  control) could wait forever instead of being told the resource is busy:
+  its wait timer could fire a moment before the deadline and was never
+  re-armed. The waiter now re-arms for the remainder and is answered at
+  the deadline.
+
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

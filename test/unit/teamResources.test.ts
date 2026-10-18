@@ -1,6 +1,7 @@
 // M96 lease invariants and named regressions from both lane-B reviews.
 import { describe, expect, it } from 'vitest'
 import {
+  busyText,
   defaultResourceKind,
   ResourceRegistry,
   type LeaseHolder,
@@ -21,6 +22,28 @@ function drivenRegistry(windowId = 'test-window') {
       idleMs: 120_000,
     }),
   }
+}
+
+// Short real durations (the registry's own inputs) on the production
+// systemClock: time-driven cases await several multiples of the duration,
+// never an exact boundary.
+const TIMED_MS = 40
+const SETTLE_MS = 200
+
+function timedChrome() {
+  const registry = new ResourceRegistry({
+    windowId: 'test-window',
+    waitMs: TIMED_MS,
+    idleMs: TIMED_MS,
+  })
+  registry.ensureServer('chrome', { command: 'chrome-control-mcp' })
+  return registry
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
 }
 
 async function held(
@@ -394,6 +417,75 @@ describe('the hint question', () => {
     expect(registry.externalUserOf('chrome', [])).toBeUndefined()
     expect(registry.externalUserOf('gpu', hints)).toBeUndefined()
     expect(registry.externalUserOf('unknown', hints)).toBeUndefined()
+  })
+})
+
+describe('time-driven leases on the real clock', () => {
+  it('answers resource busy past the wait, naming the holder', async () => {
+    const registry = timedChrome()
+    await held(registry)
+    await expect(registry.acquire('chrome', ENGINEER)).resolves.toEqual({
+      status: 'busy',
+      holder: RESEARCHER,
+    })
+    expect(busyText(RESEARCHER)).toBe('resource busy, held by research task task-a')
+    registry.close()
+  })
+
+  it('releases after the idle time from the last terminal answer', async () => {
+    const registry = timedChrome()
+    const token = await call(registry, 'one')
+    registry.settle(token, 'answered')
+    await sleep(SETTLE_MS)
+    expect(registry.snapshot()[0]?.holders).toEqual([])
+    registry.close()
+  })
+
+  it('cannot settle another call by replaying a completion', async () => {
+    const registry = timedChrome()
+    const first = await call(registry, 'first')
+    const second = await call(registry, 'second')
+    registry.settle(first, 'answered')
+    registry.settle(first, 'answered')
+    registry.release(first.lease)
+    await sleep(SETTLE_MS)
+    expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
+    registry.settle(second, 'failed')
+    await sleep(SETTLE_MS)
+    expect(registry.snapshot()[0]?.holders).toEqual([])
+    registry.close()
+  })
+
+  it('holds a command resource until its process exits, never on idleness', async () => {
+    const registry = new ResourceRegistry({
+      windowId: 'test-window',
+      waitMs: TIMED_MS,
+      idleMs: TIMED_MS,
+    })
+    registry.declareCommandNeed('npm run dev', 'port:3000')
+    const token = await call(registry, 'command', RESEARCHER, 'port:3000')
+    registry.settle(token, 'answered')
+    await sleep(SETTLE_MS)
+    expect(registry.checkCall('port:3000', ENGINEER)).toMatchObject({
+      status: 'not-holder',
+      holder: RESEARCHER,
+    })
+    registry.release(token.lease)
+    expect(registry.snapshot()[0]?.holders).toEqual([])
+    registry.close()
+  })
+
+  it('closing stops timers and tells every waiter, while retaining dispatched uncertainty', async () => {
+    const registry = timedChrome()
+    const first = await call(registry, 'open')
+    const waiting = registry.acquire('chrome', ENGINEER)
+    registry.close()
+    await expect(waiting).resolves.toEqual({ status: 'closed' })
+    await expect(registry.acquire('chrome', ENGINEER)).resolves.toEqual({ status: 'closed' })
+    await sleep(SETTLE_MS)
+    expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
+    registry.settle(first, 'answered')
+    expect(registry.snapshot()[0]?.holders).toEqual([])
   })
 })
 
