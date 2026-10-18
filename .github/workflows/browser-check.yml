@@ -100,6 +100,11 @@ jobs:
   captures:
     name: captures (${{ matrix.os }})
     needs: route
+    # `!cancelled()` keeps GitHub from adding its implicit `success()` over
+    # `needs`: when `route` itself is skipped, `part` is empty and every
+    # capture runs here (the matrix below), instead of the job being skipped
+    # with its skipped need. A failed `route` still holds the captures back.
+    if: ${{ !cancelled() && needs.route.result != 'failure' }}
     # Larger runner (CISHARDS2): the Windows capture measured 3.1 min, over
     # the 2.9 min longest shard; the macOS capture (2.4 min) stays standard.
     # The larger label applies only in the capacity run while its
