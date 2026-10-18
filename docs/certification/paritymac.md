@@ -78,7 +78,63 @@ PerformanceStatistics "Device Utilization %"`, disk busy `%` from the
   could be taken here, and a shell wrapper would be an unverified bound —
   worse than stating plainly that macOS applies none.
 
-## Item 1 — fast judge on macOS (TODO)
+## Item 1 — fast judge on macOS (IMPLEMENTED; live drills need an unsandboxed Mac)
+
+- `native/confine/MuseSparkConfineMac.c` (new): same argv protocol as the
+  Linux helper, Seatbelt enforcement. Walk with no-follow opens under the
+  same generated `policy.h`; literal-path profile (`file-read*` on walked
+  files/dirs, root and program only; `deny default` covers writes, network,
+  fork and exec); metadata line `{"confined":true,"abi":1,…}`; then
+  `execve /usr/bin/sandbox-exec`. Probe mode proves the profile (late insert
+  denied, outside read denied, allowed read works, create/fork/connect
+  denied) and prints `{"abi":1,"confined":true}`.
+- `inspectExec.ts`: darwin allowed (Windows stays `platform`-refused: no
+  Landlock/seccomp, no Seatbelt wired); per-platform probe/run schemas keyed
+  on `JUDGE_FAST_B1_DARWIN_ABI = 1` (below the Landlock range, single source
+  of truth via `policy.h`). `scripts/build-confine.mjs` builds the Mac
+  helper on darwin.
+- Proven ON THIS MAC (real binary, `temp/confine/muse-confine`, same flags
+  as the repo build): identity/program/privateOperand/operand refusals all
+  exit 125 with empty stdout (matrix in `temp/spell-check.mjs` output below);
+  3,618 seeded canonical spellings match the Linux policy exactly; the
+  generated profile is the expected three-rule set; the metadata line parses;
+  `probe` fails closed with `{"refused":"selfTest"}` where the sandbox
+  denies `sandbox_apply`.
+- NOT proven here: the confined run itself. This shell's sandbox denies
+  `sandbox_apply` (`Operation not permitted`), and the rig's `xcode-select`
+  points at a missing Xcode.app so the repo build's `/usr/bin/cc` shim fails
+  here (built manually with the direct CLT cc + MacOSX.sdk instead). The
+  committed Darwin tests (`test/unit/inspectNative.test.ts`: 5
+  pre-confinement + 5 live drills) skip visibly here and MUST run green
+  outside the sandbox / on hosted macOS CI before this merges.
+- Assumptions the outside run confirms (all fail closed if wrong): fork
+  denial surfaces as EPERM/EACCES; refused connect as EPERM/EACCES; dyld
+  shared-cache mapping needs no profile rule; libSystem init and the nine
+  BSD tools need nothing beyond the file rules under `deny default`.
+- Documented macOS residual (code comment + here): path-based profiles
+  cannot grant inodes, so an inode swap beneath an allowed path between the
+  walk and the exec is invisible. The window is one synchronous process with
+  no awaits; anything else swapped in only denies. Linux Landlock has no
+  such window; Windows has no confinement at all.
+
+Manual readings (this Mac, 2026-10-17):
+
+```text
+spellings match: true (3618 spellings)
+identity: exit=125 want=workspaceIdentity OK
+program: exit=125 want=program OK
+protected: exit=125 want=privateOperand OK
+symlink: exit=125 want=operand OK
+hardlink: exit=125 want=operand OK
+profile.sb:
+(version 1)
+(deny default)
+(allow file-read* (literal "<workspace>"))
+(allow file-read* (literal "/bin/cat"))
+(allow file-read* (literal "<workspace>/allowed.txt"))
+probe: {"refused":"selfTest"} exit=125 (sandbox_apply denied in this shell)
+live run: {"confined":true,"abi":1,"excluded":0} then sandbox-exec EPERM
+```
 
 ## Gates
 
