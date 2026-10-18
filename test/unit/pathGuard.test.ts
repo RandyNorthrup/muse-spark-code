@@ -18,6 +18,15 @@ const throwingRealpath = (filePath: string): string => {
   throw Object.assign(new Error(`no such file: ${filePath}`), { code: 'ENOENT' })
 }
 
+// Fails when the guard resolves a drive-rewritten entry instead of the
+// original UNC spelling: the rewritten C:\localhost\… names nothing.
+const refuseRewrittenRealpath = (filePath: string): string => {
+  if (filePath.startsWith(String.raw`C:\localhost`)) {
+    throw Object.assign(new Error(`no such file: ${filePath}`), { code: 'ENOENT' })
+  }
+  return filePath
+}
+
 describe('sanitizePathForWorkspace', () => {
   it('drops empty and relative entries but keeps every absolute one outside', () => {
     const joined = ['/opt/tools', '', '.', 'rel/bin', '/usr/bin', '/opt/tools'].join(':')
@@ -87,6 +96,44 @@ describe('sanitizePathForWorkspace', () => {
         realpath: throwingRealpath,
       }),
     ).toBe(String.raw`D:\Tools`)
+  })
+
+  it('drops forward-slash UNC, verbatim and loopback admin-share spellings of the workspace', () => {
+    // Windows accepts forward slashes in a UNC path, so //localhost/C$/…
+    // is an admin share of the workspace drive, and //?/… is a verbatim
+    // path: both must compare as the workspace itself, lexically, with no
+    // resolver to hide behind.
+    const joined = [
+      '//localhost/C$/Users/me/repo/bin',
+      '//?/C:/Users/me/repo/bin',
+      String.raw`\\?\C:\Users\me\repo\bin`,
+      String.raw`\\?\UNC\localhost\C$\Users\me\repo\bin`,
+      '//127.0.0.1/C$/Users/me/repo/bin',
+      String.raw`D:\Tools`,
+      String.raw`\\srv\share\bin`,
+    ].join(';')
+    expect(
+      sanitizePathForWorkspace({
+        platform: 'win32',
+        pathVariable: joined,
+        workspaceRoot: String.raw`C:\Users\me\repo`,
+        realpath: throwingRealpath,
+      }),
+    ).toBe(String.raw`D:\Tools;\\srv\share\bin`)
+  })
+
+  it('compares the original entry, not a drive-rewritten one', () => {
+    // A resolver that rewrites //localhost/C$/… onto the workspace drive
+    // before comparing loses the share spelling and keeps it; the guard
+    // resolves the entry as itself.
+    expect(
+      sanitizePathForWorkspace({
+        platform: 'win32',
+        pathVariable: '//localhost/C$/Users/me/repo/bin;D:/Tools',
+        workspaceRoot: String.raw`C:\Users\me\repo`,
+        realpath: refuseRewrittenRealpath,
+      }),
+    ).toBe('D:/Tools')
   })
 })
 
