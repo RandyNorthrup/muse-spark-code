@@ -51,6 +51,7 @@ import {
   FILE_REFUSAL_MODEL_TEXT,
 } from '../shared/constants'
 import { canonicalPath } from './canonicalPath'
+import { isStoreErrorCode } from './backend/storeErrors'
 import type { ConditionalWrite, StagedFile } from '../core/backends/modelapi/tools'
 
 export interface AtomicWriteOptions {
@@ -132,11 +133,17 @@ export async function isOwnedFile(
       (identity.size === undefined || current.size === identity.size)
     )
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
+    if (isStoreErrorCode(error, 'ENOENT')) {
       return false
     }
     throw error
   }
+}
+
+/** Whether the file system refused while another program holds the target: try again. */
+function isHeldTarget(error: unknown): boolean {
+  const code = errorCode(error)
+  return code !== undefined && RENAME_RETRY_CODES.has(code)
 }
 
 /** Renames `from` over `to`, again while Windows reports the target busy. */
@@ -155,12 +162,7 @@ export async function renameReplacing(
       await renameFile(from, to)
       return
     } catch (error: unknown) {
-      const code = errorCode(error)
-      if (
-        code === undefined ||
-        !RENAME_RETRY_CODES.has(code) ||
-        attempt >= ATOMIC_RENAME_ATTEMPTS
-      ) {
+      if (!isHeldTarget(error) || attempt >= ATOMIC_RENAME_ATTEMPTS) {
         throw error
       }
       await options.sleep(ATOMIC_RENAME_DELAY_MS * 2 ** (attempt - 1))
@@ -193,7 +195,7 @@ async function destinationOf(target: string, options: AtomicWriteOptions): Promi
   try {
     real = await (options.realPath ?? realpath)(target)
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
+    if (isStoreErrorCode(error, 'ENOENT')) {
       return { path: target }
     }
     throw error
@@ -239,7 +241,7 @@ async function assertUnchanged(
   try {
     bytes = await readFile(destination)
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
+    if (isStoreErrorCode(error, 'ENOENT')) {
       throw changedBeforeWrite()
     }
     throw error
@@ -318,7 +320,7 @@ export async function deleteFileIfUnchanged(
   try {
     held = await lstatIdentity(target)
   } catch (error: unknown) {
-    if (errorCode(error) === 'ENOENT') {
+    if (isStoreErrorCode(error, 'ENOENT')) {
       return 'changed'
     }
     throw error
@@ -435,16 +437,29 @@ async function writeAtomically(
       options.assertCanWrite?.()
     })
   } catch (error: unknown) {
-    // A retargeted directory must not make cleanup delete a different file.
-    try {
-      await assertBoundPath(temporary, temporary, options)
-      if (temporaryIdentity !== undefined && (await isOwnedFile(temporary, temporaryIdentity))) {
-        await rm(temporary, { force: true })
-      }
-    } catch {
-      // Preserve the original write failure; a moved temp may be left behind.
-    }
+    await removeTemporary(temporary, temporaryIdentity, options)
     throw error
+  }
+}
+
+/**
+ * Removes a failed write's temporary file, but only while it is still the
+ * file the write staged: a retargeted directory must not make cleanup
+ * delete a different file. A cleanup failure never hides the write's own;
+ * a moved temp may be left behind.
+ */
+async function removeTemporary(
+  temporary: string,
+  temporaryIdentity: FileIdentity | undefined,
+  options: Pick<AtomicWriteOptions, 'expectedCanonicalPath' | 'platform'>,
+): Promise<void> {
+  try {
+    await assertBoundPath(temporary, temporary, options)
+    if (temporaryIdentity !== undefined && (await isOwnedFile(temporary, temporaryIdentity))) {
+      await rm(temporary, { force: true })
+    }
+  } catch {
+    // Preserve the original write failure; a moved temp may be left behind.
   }
 }
 
@@ -478,6 +493,11 @@ export interface NewFileOptions {
 const NAME_TAKEN_ERROR = 'NameTakenError'
 // What the hard link answers when the name is taken.
 const NAME_TAKEN_CODE = 'EEXIST'
+
+/** Whether the hard link refused because the name is taken. */
+function isNameTakenCode(code: string | undefined): boolean {
+  return code === NAME_TAKEN_CODE
+}
 // What mkdir answers when a part of the folder's path is a file.
 const NOT_A_FOLDER_CODES: ReadonlySet<string> = new Set(['EEXIST', 'ENOTDIR'])
 
@@ -525,12 +545,7 @@ async function removeStage(
       await remove(stage)
       return
     } catch (error: unknown) {
-      const code = errorCode(error)
-      if (
-        code === undefined ||
-        !RENAME_RETRY_CODES.has(code) ||
-        attempt >= ATOMIC_RENAME_ATTEMPTS
-      ) {
+      if (!isHeldTarget(error) || attempt >= ATOMIC_RENAME_ATTEMPTS) {
         throw error
       }
       await sleep(ATOMIC_RENAME_DELAY_MS * 2 ** (attempt - 1))
@@ -607,7 +622,7 @@ export async function createFileExclusively(
       options.assertCanWrite?.()
       await (options.publish ?? link)(stage, absolutePath)
     } catch (error: unknown) {
-      throw errorCode(error) === NAME_TAKEN_CODE ? new NameTakenError(absolutePath, error) : error
+      throw isNameTakenCode(errorCode(error)) ? new NameTakenError(absolutePath, error) : error
     }
     isPublished = true
   } finally {
