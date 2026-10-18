@@ -37,6 +37,10 @@ import {
   withSwitches,
 } from '../../src/core/import/importConvert'
 
+// A regular-expression match's deadline a loaded rig cannot lapse: the
+// matcher-translation tests must not depend on wall time (production keeps 25 ms).
+const TEST_MATCHER_TIMEOUT_MS = 60_000
+
 /** Whether a converted `matcher` selects this tool, by Muse Code's engine. */
 function isAdmitted(matcher: unknown, tool: string): boolean {
   const config = JSON.stringify({
@@ -51,7 +55,18 @@ function isAdmitted(matcher: unknown, tool: string): boolean {
   })
   const parsed = parseHookConfig(config, 'project', 'linux')
   expect(parsed.warnings).toEqual([])
-  return matchingHooks(parsed.hooks, 'PreToolUse', toolMatcherNames(tool)).length > 0
+  const warnings: string[] = []
+  const hits = matchingHooks(
+    parsed.hooks,
+    'PreToolUse',
+    toolMatcherNames(tool),
+    (message) => {
+      warnings.push(message)
+    },
+    TEST_MATCHER_TIMEOUT_MS,
+  )
+  expect(warnings).toEqual([])
+  return hits.length > 0
 }
 
 /** Whether a source regex kept as a predicate (`commandPattern`, `pathPattern`) matches a value, by the same engine. */
@@ -65,7 +80,18 @@ function isPredicateMatch(pattern: unknown, value: string): boolean {
     isAsync: false,
     matcher: { kind: 'regex', pattern: String(pattern) },
   }
-  return matchingHooks([scoped], 'PreToolUse', value).length > 0
+  const warnings: string[] = []
+  const hits = matchingHooks(
+    [scoped],
+    'PreToolUse',
+    value,
+    (message) => {
+      warnings.push(message)
+    },
+    TEST_MATCHER_TIMEOUT_MS,
+  )
+  expect(warnings).toEqual([])
+  return hits.length > 0
 }
 
 function groupOf(
