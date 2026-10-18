@@ -248,7 +248,8 @@ describe('mapNotification', () => {
       },
     ],
     [
-      // The session's totals, not the completion's raw counters (D26; live shape).
+      // The session's totals keep D26's meaning; the completion's own
+      // counters ride beside them for the journal (live shape).
       'session/tokenUsage',
       {
         sessionId,
@@ -258,7 +259,52 @@ describe('mapNotification', () => {
         totalTokens: 15,
         cumulative: { promptTokens: 30, outputTokens: 12, totalTokens: 42 },
       },
-      { type: 'tokenUsage', inputTokens: 30, outputTokens: 12, modelId: 'muse-spark-1.3' },
+      {
+        type: 'tokenUsage',
+        inputTokens: 30,
+        outputTokens: 12,
+        modelId: 'muse-spark-1.3',
+        completion: {
+          inputTokens: 10,
+          outputTokens: 5,
+          cachedTokens: 2,
+          reasoningTokens: 1,
+          modelId: 'muse-spark-1.3',
+        },
+      },
+    ],
+    [
+      // The call's own wall time and effective tier travel with the completion.
+      'session/tokenUsage',
+      {
+        sessionId,
+        modelId: 'muse-wonder-full-1.0-contributor',
+        durationMs: 873_800,
+        promptTokens: 66_561,
+        totalTokens: 66_773,
+        turnId: 'turn-1',
+        usage: {
+          inputTokens: 66_561,
+          outputTokens: 212,
+          cachedTokens: 37_745,
+          reasoningTokens: 58,
+        },
+        cumulative: { promptTokens: 66_561, outputTokens: 212 },
+      },
+      {
+        type: 'tokenUsage',
+        inputTokens: 66_561,
+        outputTokens: 212,
+        modelId: 'muse-wonder-full-1.0-contributor',
+        completion: {
+          inputTokens: 66_561,
+          outputTokens: 212,
+          cachedTokens: 37_745,
+          reasoningTokens: 58,
+          durationMs: 873_800,
+          modelId: 'muse-wonder-full-1.0-contributor',
+        },
+      },
     ],
     [
       'session/tokenUsage',

@@ -4579,10 +4579,11 @@ export const SECONDS_PER_MINUTE = 60
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 
 // M102 / D82: machine-local usage history, independent of spend ledgers.
-// Version 2 (M121) stores dollars as exact decimal text. Both versions share
-// the `v1` folder: a 0.17 reader counts version 2 lines as newer, never loses
-// them, and this reader converts version 1 lines exactly.
-export const USAGE_JOURNAL_VERSION = 2
+// Version 2 (M121) stores dollars as exact decimal text; version 3 adds the
+// limit snapshot's `plan` field. All versions share the `v1` folder: an older
+// reader counts newer lines as newer, never loses them, and this reader
+// converts version 1 and 2 lines exactly.
+export const USAGE_JOURNAL_VERSION = 3
 export const USAGE_FOLDER = 'usage'
 export const USAGE_SETTINGS_FILE = 'usage-settings.json'
 export const USAGE_VERSION_FOLDER = 'v1'

@@ -28,6 +28,7 @@ import {
   usageAmountSchema,
   usageCountSchema,
   usageCostSchema,
+  usageUsdSchema,
   usageTokensSchema,
   usageUnitsSchema,
   usageDaySchema,
@@ -93,9 +94,22 @@ const usageLegacyLimitSnapshotSchema = limitSchemaWith(
   USAGE_LEGACY_JOURNAL_VERSION,
   legacyUsdSchema,
 )
-/** A stored line: a version 2 entry, or a version 1 entry read as version 2. */
+// Version 2 predates the limit snapshot's `plan` field but is otherwise
+// version 3's shape; the field stays optional, so one schema reads lines
+// with and without it and the reader keeps them as the current version.
+const USAGE_PREVIOUS_JOURNAL_VERSION = 2
+const usagePreviousRecordSchema = recordSchemaWith(USAGE_PREVIOUS_JOURNAL_VERSION, usageCostSchema)
+const usagePreviousLimitSnapshotSchema = limitSchemaWith(
+  USAGE_PREVIOUS_JOURNAL_VERSION,
+  usageUsdSchema,
+)
+/** A stored line: a current entry, or a version 1 or 2 entry read as current. */
 const usageJournalReadSchema = z.union([
   usageJournalEntrySchema,
+  z.pipe(
+    z.discriminatedUnion('type', [usagePreviousRecordSchema, usagePreviousLimitSnapshotSchema]),
+    z.transform((entry): UsageJournalEntry => ({ ...entry, v: USAGE_JOURNAL_VERSION })),
+  ),
   z.pipe(
     z.discriminatedUnion('type', [
       recordSchemaWith(USAGE_LEGACY_JOURNAL_VERSION, usageLegacyCostSchema),
@@ -153,7 +167,10 @@ export type UsageRollupRow = z.infer<typeof usageRollupRowSchema>
 function rollupSchemaWith<
   V extends number,
   C extends typeof usageCostSchema | typeof usageLegacyCostSchema,
-  L extends typeof usageLimitSnapshotSchema | typeof usageLegacyLimitSnapshotSchema,
+  L extends
+    | typeof usageLimitSnapshotSchema
+    | typeof usagePreviousLimitSnapshotSchema
+    | typeof usageLegacyLimitSnapshotSchema,
 >(version: V, cost: C, limit: L) {
   return z
     .strictObject({
@@ -179,21 +196,38 @@ const rollupSchema = rollupSchemaWith(
   usageLimitSnapshotSchema,
 )
 type Rollup = z.infer<typeof rollupSchema>
-// A version 1 month reads as version 2 with the same exact decimals (M121);
-// the next retention that changes it writes it back as version 2.
+const previousRollupSchema = rollupSchemaWith(
+  USAGE_PREVIOUS_JOURNAL_VERSION,
+  usageCostSchema,
+  usagePreviousLimitSnapshotSchema,
+)
+const legacyRollupSchema = rollupSchemaWith(
+  USAGE_LEGACY_JOURNAL_VERSION,
+  usageLegacyCostSchema,
+  usageLegacyLimitSnapshotSchema,
+)
+/** An older month reads as current with the same exact decimals (M121, T7);
+ * the next retention that changes it writes it back as current. */
+function rollupToCurrent(
+  rollup: z.infer<typeof previousRollupSchema> | z.infer<typeof legacyRollupSchema>,
+): Rollup {
+  return {
+    ...rollup,
+    v: USAGE_JOURNAL_VERSION,
+    limits: rollup.limits.map((limit) => ({ ...limit, v: USAGE_JOURNAL_VERSION })),
+  }
+}
+// A version 1 month reads as current with the same exact decimals (M121);
+// the next retention that changes it writes it back as current.
 const rollupReadSchema = z.union([
   rollupSchema,
   z.pipe(
-    rollupSchemaWith(
-      USAGE_LEGACY_JOURNAL_VERSION,
-      usageLegacyCostSchema,
-      usageLegacyLimitSnapshotSchema,
-    ),
-    z.transform((rollup): Rollup => ({
-      ...rollup,
-      v: USAGE_JOURNAL_VERSION,
-      limits: rollup.limits.map((limit) => ({ ...limit, v: USAGE_JOURNAL_VERSION })),
-    })),
+    previousRollupSchema,
+    z.transform((rollup) => rollupToCurrent(rollup)),
+  ),
+  z.pipe(
+    legacyRollupSchema,
+    z.transform((rollup) => rollupToCurrent(rollup)),
   ),
 ])
 // Refusal counts need only metadata, never validation of the unproved money.

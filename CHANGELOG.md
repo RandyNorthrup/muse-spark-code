@@ -293,6 +293,28 @@ happened, not what was planned; superseded entries are kept.
   reported back and kept when the session is loaded again. The Manual and
   Edit Automatically descriptions now say commands are asked about unless
   a permission rule allows them.
+- Usage and cost say what really happened (lane USAGETRUE): on the Muse
+  Code backend, `usage summary` now shows the cached input, reasoning
+  tokens and cache hit rate from each request's own reported counters
+  instead of Unknown. Total request time and latency percentiles come
+  from each request's own duration. Plan spend carries the equivalent
+  API price at the used tier's published rates (a `-contributor` model
+  prices at contributor rates) and is named by the subscription meter's
+  own plan name instead of a bare "Plan". The models breakdown shows the
+  model and tier each request was really sent as. The daily view no
+  longer prints the same day twice: hourly rows of one day name the hour.
+  The panel, the terminal agent and the editor protocol share the same
+  journal, aggregates and text, so all editors show the same numbers.
+
+- Usage-truth review fixes (lane USAGEFIX): a completion report the CLI
+  delivers twice is journaled once, so tokens, time and the equivalent
+  price are never doubled. Each request's start is its own start, not
+  the turn's, so later requests in one turn no longer overlap the first
+  in the calls export. Hourly rows keep the timezone they were recorded
+  in, so a later timezone change cannot move an hour onto another day.
+  The journal format is version 3 for the stored plan name; older
+  releases count the new lines as a newer version instead of dropping
+  them, and this release still reads versions 1 and 2.
 
 ## [0.18.2] - 2026-10-12
 

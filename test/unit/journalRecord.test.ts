@@ -247,6 +247,25 @@ describe('journal records', () => {
       certainty: 'plan',
       apiEquivalentUsd: expect.any(String),
     })
+    // The tier the request really used prices the plan equivalent, even for
+    // a model outside the paid whitelist (F22): contributor suffix rates.
+    expect(
+      createUsageRecord(usage, {
+        ...context,
+        backend: 'museCode',
+        provider: 'museCode',
+        model: 'muse-wonder-full-1.0-contributor',
+      }).cost,
+    ).toEqual({ certainty: 'plan', apiEquivalentUsd: '0.00001106' })
+    // An unpriced, unsuffixed model stays an honest unknown, never a guess.
+    expect(
+      createUsageRecord(usage, {
+        ...context,
+        backend: 'museCode',
+        provider: 'museCode',
+        model: 'muse-wonder-full-1.0',
+      }).cost,
+    ).toEqual({ certainty: 'plan' })
     expect(
       createUsageRecord(usage, { ...context, pricing: { kind: 'plan' }, apiEquivalentCard: card })
         .cost,
