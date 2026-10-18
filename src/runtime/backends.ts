@@ -62,6 +62,7 @@ import {
   FILE_REFUSAL_MODEL_TEXT,
   MENTION_INDEX_LIMIT,
   MODEL_API_BUNDLE_FILE,
+  MUSE_CODE_BUNDLE_FILE,
   PAGE_WORKER_FILE,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
@@ -192,6 +193,7 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
       : undefined
   return new Manager({
     ...(windowsJobAssembly !== undefined && { shellJobAssembly: windowsJobAssembly }),
+    bundlePath: path.join(deps.distDir, MUSE_CODE_BUNDLE_FILE),
     // This records the actual scope boundary; it does not certify a VS Code fence.
     beforeWorkspaceHostStart: () => independentEditorStartupPolicy(log),
     log,

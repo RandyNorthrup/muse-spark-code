@@ -4105,6 +4105,10 @@ export const EN = {
   // The same in the ACP agent (D62), whose package ships the bundle.
   acpModelApiBundleUnavailable:
     'The Model API backend could not be loaded; reinstall muse-spark-code-acp and restart the agent. The agent’s log has the details.',
+  // The Muse Code backend's own bundle (PR206, PLAN.md D6), loaded when that
+  // backend first starts.
+  museCodeBundleUnavailable:
+    'The Muse Code backend could not be loaded; reinstall the extension and reload the window. The log has the details.',
   // Why the Muse Code CLI was not found, on the sign-in page and in warnings.
   cliNotFound: 'Muse Code is not installed in any known location.',
   cliPathNotAbsolute: 'museSpark.museBinaryPath must be an absolute path.',

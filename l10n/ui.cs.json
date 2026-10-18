@@ -3581,6 +3581,7 @@
   "modelApiNeedsFolder": "Nejdříve otevřete složku; back-end Model API pracuje v rámci pracovního prostoru.",
   "modelApiBundleUnavailable": "Back-end Model API se nepodařilo načíst; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
   "acpModelApiBundleUnavailable": "Back-end Model API se nepodařilo načíst; přeinstalujte muse-spark-code-acp a restartujte agenta. Podrobnosti jsou v protokolu agenta.",
+  "museCodeBundleUnavailable": "Backend Muse Code se nepodařilo načíst; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
   "cliNotFound": "Muse Code není nainstalován v žádném známém umístění.",
   "cliPathNotAbsolute": "museSpark.museBinaryPath musí být absolutní cesta.",
   "cliSearched": "Prohledáno: {paths}",

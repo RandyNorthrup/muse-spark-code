@@ -3362,6 +3362,7 @@
   "modelApiNeedsFolder": "먼저 폴더를 여세요. Model API 백엔드는 작업 영역 안에서 작동합니다.",
   "modelApiBundleUnavailable": "Model API 백엔드를 불러올 수 없습니다. 확장을 다시 설치하고 창을 다시 로드하세요. 자세한 내용은 로그에 있습니다.",
   "acpModelApiBundleUnavailable": "Model API 백엔드를 불러올 수 없습니다. muse-spark-code-acp를 다시 설치하고 에이전트를 다시 시작하세요. 자세한 내용은 에이전트 로그에 있습니다.",
+  "museCodeBundleUnavailable": "Muse Code 백엔드를 불러올 수 없습니다. 확장을 다시 설치하고 창을 다시 로드하세요. 자세한 내용은 로그에 있습니다.",
   "cliNotFound": "Muse Code가 알려진 위치에 설치되어 있지 않습니다.",
   "cliPathNotAbsolute": "museSpark.museBinaryPath는 절대 경로여야 합니다.",
   "cliSearched": "검색한 위치: {paths}",

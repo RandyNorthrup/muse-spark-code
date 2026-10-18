@@ -266,3 +266,27 @@ bundle, size/split/globals gates inside). Real-use steps for the lead:
   bundle and is out of scope.
 - Fix: new `dist/museCode.js` entry (`museCodeEntry.ts`) carrying the five,
   loaded by `MuseCodeBackendManager` on first spawn; no behaviour change.
+
+## PR206 budget fix (2026-10-17, rig linuxlt, lane PR206BUDGET)
+
+- `dist/museCode.js` (from `src/host/backend/museCodeEntry.ts`) carries the
+  host, its notification mapping and the SDK; `MuseCodeBackendManager` and
+  the account host require it on the first backend start. The governor's
+  spawn glue (`museResourceLaunch.ts`) stays at activation and takes its
+  spawn paths from the loaded bundle. `usageRecording` travels in the
+  manager's deps and lands on the bundle's host at the first spawn, before
+  any host is constructed — the only reader is the constructor default.
+- `MODEL_TEXT.attachedTextFile` moved to `TEXT_ATTACHMENT_MODEL_TEXT`,
+  read by `dist/museCode.js`, `dist/modelApi.js`, `dist/conversation.js`
+  and `dist/runtimeEngine.js`; the split gate guards the new block.
+- Measured: activation 572,418 B → 481,143 B (growth −80,209 B, cap
+  +3,072 B); `dist/museCode.js` 97.6 KiB (budget 125 KiB).
+  Activation names the SDK nowhere, not even in a type-only root import:
+  under `verbatimModuleSyntax` esbuild preserves the statement and the
+  SDK's side effects ride along (~15 KiB), so the manager, the account
+  host and the spawn glue take SDK types through the SDK's own modules.
+  No behaviour
+  change: `museCodeLatest` 34/34, `mapNotification`, `attachments`,
+  `attachArgs`, `teamCeilings`, `accounts`, `accountPolicy`,
+  `modelTextCompression`, `mediaBudget`, `questionContracts`,
+  `bundleExports`, `lazyBundleFiles`, `bundleDiet`, `packagedBundles` green.

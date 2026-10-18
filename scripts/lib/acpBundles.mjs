@@ -66,6 +66,7 @@ export const ACP_BUNDLES = [
   'fontsInstall.js',
   'scheduleBackground.js',
   'modelApi.js',
+  'museCode.js',
   'resourceAdmission.js',
   'resourceGovernor.js',
   'resourceProcess.js',

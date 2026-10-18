@@ -16,15 +16,18 @@ import { resourceEnvironment, type ResourceLease } from '../../core/resources/la
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import { type FingerprintWarning } from '@muse-code/sdk'
+// The SDK's fingerprint advisory, type-only through its own module: any
+// import of the package root keeps the SDK's side effects in the activation
+// bundle under verbatimModuleSyntax, so activation never names the root.
+import type { FingerprintWarning } from '@muse-code/sdk/dist/src/fingerprint.js'
 import type { CredentialFileVerdict } from '../../core/backends/musecode/credentialFile'
 import type { MuseCodeAccountHome } from '../../core/backends/musecode/accountHomes'
-import {
-  type CommandTimeouts,
-  type MuseCodeFeaturePorts,
+import type {
+  CommandTimeouts,
+  MuseCodeFeaturePorts,
   MuseCodeHost,
-  type spawnAccountMspConnection,
-  type MspHost,
+  spawnAccountMspConnection,
+  MspHost,
 } from '../../core/backends/musecode/MuseCodeHost'
 import {
   buildChildEnvironment,
@@ -65,13 +68,12 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { readCredentialFile } from '../auth/cliAccount'
+import type { UsageRecording } from '../../core/usage/recording'
 import type { Logger } from '../logger'
+import { museCodeBundleLoader, type MuseCodeBundle } from './museCodeBundle'
 import { systemPath } from './memoryIo'
 import { admitResource } from '../../core/resources/admission'
-import {
-  spawnResourceMuseConnection,
-  spawnResourceAccountConnection,
-} from '../resources/museResourceLaunch'
+import { spawnResourceConnection } from '../resources/museResourceLaunch'
 import { vaultFenceEnvironment, type VaultFenceOptions } from '../../core/vault/exec/fence'
 
 /** VS Code's proxy settings (`http.proxy`, `http.noProxy`), handed to the CLI when its environment has none. */
@@ -97,6 +99,12 @@ export interface UnresponsiveHostDeps {
 
 export interface BackendManagerDeps {
   readonly shellJobAssembly?: (() => Promise<string | undefined>) | undefined
+  /** dist/museCode.js beside the running bundle, required the first time the backend starts. */
+  readonly bundlePath: string
+  /** How the bundle is loaded: Node's `require` unless a test hands in the module. */
+  readonly loadBundle?: ((file: string) => unknown) | undefined
+  /** The window's usage recorder, installed on the bundle's host at the first spawn. */
+  readonly usageRecording?: UsageRecording | undefined
   /** One manager per capture-gated CLI account. Absent preserves today's single account. */
   readonly accountHome?: MuseCodeAccountHome
   /** Awaited before any agent host process can edit this workspace. */
@@ -176,7 +184,15 @@ export class MuseCodeBackendManager {
   private resourceStop = new AbortController()
   private launchCache: { readonly key: string; readonly resolution: LaunchResolution } | undefined
 
-  public constructor(private readonly deps: BackendManagerDeps) {}
+  private readonly loadBackend: () => MuseCodeBundle
+
+  public constructor(private readonly deps: BackendManagerDeps) {
+    this.loadBackend = museCodeBundleLoader({
+      bundlePath: deps.bundlePath,
+      log: deps.log,
+      loadBundle: deps.loadBundle,
+    })
+  }
 
   /**
    * Whether any of `names` is set, non-empty, in what the CLI would see
@@ -234,9 +250,10 @@ export class MuseCodeBackendManager {
     resource: ResourceLease | undefined,
     assertCanRun: () => Promise<void>,
   ): Promise<ReturnType<typeof spawnAccountMspConnection>> {
-    return await spawnResourceAccountConnection(
+    const backend = this.loadBackend()
+    return await spawnResourceConnection(
+      (launch) => backend.spawnAccountMspConnection(launch, accountHome),
       options,
-      accountHome,
       resource,
       () => this.deps.shellJobAssembly?.() ?? Promise.resolve(undefined),
       environmentValue(options.env ?? {}, process.platform, 'SystemRoot'),
@@ -301,9 +318,12 @@ export class MuseCodeBackendManager {
       if (this.generation !== generation) throw new Error(UI_TEXT.questionCancelled)
     }
     const accountHome = this.deps.accountHome
+    const backend = this.loadBackend()
+    backend.MuseCodeHost.usageRecording = this.deps.usageRecording
     const handshake =
       accountHome === undefined
-        ? await spawnResourceMuseConnection(
+        ? await spawnResourceConnection(
+            backend.spawnMspConnection,
             spawnOptions,
             resource,
             () => this.deps.shellJobAssembly?.() ?? Promise.resolve(undefined),
@@ -366,7 +386,7 @@ export class MuseCodeBackendManager {
     let host: MuseCodeHost
     try {
       this.deps.accountHome?.assertCurrent()
-      host = new MuseCodeHost(
+      host = new backend.MuseCodeHost(
         mspHost,
         this.deps.log,
         this.deps.commandTimeouts,
@@ -443,6 +463,14 @@ export class MuseCodeBackendManager {
    * `museSpark.environmentVariables` on top; with any proxy, loopback
    * bypasses it so Muse Code reaches the extension's `ide` server (M56).
    */
+  /**
+   * The Muse Code backend's bundle (dist/museCode.js), required the first
+   * time the backend starts: the host class and the two SDK spawn paths.
+   */
+  public museCodeBundle(): MuseCodeBundle {
+    return this.loadBackend()
+  }
+
   public childEnvironment(): NodeJS.ProcessEnv {
     const env = withLoopbackBypass(
       buildChildEnvironment({

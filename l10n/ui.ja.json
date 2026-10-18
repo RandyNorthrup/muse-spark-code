@@ -3362,6 +3362,7 @@
   "modelApiNeedsFolder": "まずフォルダーを開いてください。Model API バックエンドはワークスペース内で動作します。",
   "modelApiBundleUnavailable": "Model API バックエンドを読み込めませんでした。拡張機能を再インストールし、ウィンドウを再読み込みしてください。詳細はログにあります。",
   "acpModelApiBundleUnavailable": "Model API バックエンドを読み込めませんでした。muse-spark-code-acp を再インストールし、エージェントを再起動してください。詳細はエージェントのログにあります。",
+  "museCodeBundleUnavailable": "Muse Code バックエンドを読み込めませんでした。拡張機能を再インストールし、ウィンドウを再読み込みしてください。詳細はログにあります。",
   "cliNotFound": "Muse Code は既知のどの場所にもインストールされていません。",
   "cliPathNotAbsolute": "museSpark.museBinaryPath は絶対パスである必要があります。",
   "cliSearched": "検索した場所: {paths}",

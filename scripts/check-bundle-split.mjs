@@ -35,6 +35,12 @@
 //   dist/vault.js, which dist/extension.js requires on the first vault
 //   command. Only types and the loader (vaultPanelBundle.ts) stay at
 //   activation.
+// - the Muse Code backend (PR206: the host, its notification mapping and
+//   the SDK) is in dist/extension.js, or missing from dist/museCode.js,
+//   which the backend manager requires the first time that backend starts.
+//   Only types and the loader (museCodeBundle.ts) stay at activation; the
+//   governor's spawn glue (museResourceLaunch.ts) stays too and takes its
+//   spawn paths from the loaded bundle.
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
@@ -1150,6 +1156,18 @@ const TEXT_BLOCKS = [
     block: 'CODE_INTEL_MODEL_TEXT',
     sentinels: ['codeIntelNoSymbolNamed', 'repoMapBudgetTooSmall'],
     readers: ['dist/codeIntel.js', BUNDLES.modelApi.output, 'dist/modelApiCodeIntel.js'],
+  },
+  // A picked text file's template (M54): the backends' bundles and the
+  // conversation carry it; activation reads it no longer (PR206).
+  {
+    block: 'TEXT_ATTACHMENT_MODEL_TEXT',
+    sentinels: ['attachedTextFile'],
+    readers: [
+      BUNDLES.modelApi.output,
+      'dist/museCode.js',
+      'dist/conversation.js',
+      'dist/runtimeEngine.js',
+    ],
   },
   {
     block: 'CHECKPOINT_MODEL_TEXT',

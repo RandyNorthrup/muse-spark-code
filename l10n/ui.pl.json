@@ -3581,6 +3581,7 @@
   "modelApiNeedsFolder": "Najpierw otwórz folder; backend Model API działa wewnątrz obszaru roboczego.",
   "modelApiBundleUnavailable": "Nie udało się załadować backendu Model API; zainstaluj ponownie rozszerzenie i przeładuj okno. Szczegóły są w dzienniku.",
   "acpModelApiBundleUnavailable": "Nie udało się załadować backendu Model API; zainstaluj ponownie muse-spark-code-acp i uruchom agenta ponownie. Szczegóły są w dzienniku agenta.",
+  "museCodeBundleUnavailable": "Nie udało się załadować backendu Muse Code; zainstaluj ponownie rozszerzenie i przeładuj okno. Szczegóły są w dzienniku.",
   "cliNotFound": "Muse Code nie jest zainstalowany w żadnej znanej lokalizacji.",
   "cliPathNotAbsolute": "museSpark.museBinaryPath musi być ścieżką bezwzględną.",
   "cliSearched": "Przeszukano: {paths}",
