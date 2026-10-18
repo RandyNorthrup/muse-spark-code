@@ -14505,9 +14505,11 @@ run every Windows and macOS leg there (part `org`), and `org`
 succeeds only if that run did; the macOS helper artifacts come back through
 `org` for the `packages` job. The seven required names fold in its result, so
 the ruleset is unchanged; every other run keeps every job here (part `all`).
-The Windows and macOS static gates and the Windows browser capture take
-larger runners there while that repository's `LARGE_RUNNERS` variable is
-`on` (owner, 2026-10-18, $40 monthly budget backstop); test shards stay on
+The Windows static gates and the Windows browser capture take the
+larger runner there while that repository's `LARGE_RUNNERS` variable is
+`on` (owner, 2026-10-18, $40 monthly budget backstop); macOS stays standard
+(the GitHub-owned macOS larger labels need a Team or Enterprise plan and
+the capacity organization is free). Test shards stay on
 free standard runners. The capacity repository stays public and holds no
 secret. Owner setup:
 CONTRIBUTING.md, "The capacity repository (D122)"; proofs:

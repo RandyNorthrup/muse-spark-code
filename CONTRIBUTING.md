@@ -366,17 +366,21 @@ ruleset):
          - run: npm ci --ignore-scripts --no-audit --no-fund
    ```
 
-7. Switch the capacity run's unsplittable jobs to larger runners. On the
-   capacity repository (not here) set the repository variable
-   `LARGE_RUNNERS` to `on`:
+7. Switch the capacity run's unsplittable Windows jobs to the larger
+   runner. On the capacity repository (not here), before pushing the pull
+   request, set the repository variable `LARGE_RUNNERS` to `on`:
    `gh variable set LARGE_RUNNERS --body on --repo scnetsolutions/muse-spark-code-ci`.
-   The Windows and macOS static gates and the Windows browser capture then
-   take `msc-windows-8core` / `macos-latest-xlarge` in that repository's
-   push runs; anything else there keeps free standard runners, and every
-   run here is unaffected (a fork's `pull_request` run can never take the
-   larger labels). Costs about $1.40 per pull request run at measured
-   minutes; an enterprise $40 monthly budget stops paid usage at the limit,
-   so switch back to free runners first (`--body off`).
+   The Windows static gates and the Windows browser capture then take
+   `msc-windows-8core` in that repository's push runs; macOS stays
+   standard (the GitHub-owned macOS larger labels need a Team or Enterprise
+   plan and the capacity organization is free). Anything else there keeps
+   free standard runners, and every run here is unaffected (a fork's
+   `pull_request` run can never take the larger label). The variable is read
+   when each job starts, so a run pushed before it is set keeps standard
+   labels on its early jobs. Costs about $0.49 per pull request run at the
+   record's estimated minutes ($0.62 with browser-path files); an enterprise
+   $40 monthly budget stops paid usage at the limit, so switch back to free
+   runners first (`--body off`).
    Proof: `docs/certification/ciflow.md`, CISHARDS2.
 
 ## The public roadmap (M122)
