@@ -14,6 +14,12 @@ it('drops a location the URL parser rejects', () => {
   }
 })
 
+it('drops a location whose escapes do not decode, never its decode failure', () => {
+  const raw = 'file:///100%.txt'
+  expect(() => fileURLToPath(raw)).toThrow(URIError)
+  expect(hostPackagePath(raw, '/root')).toBeUndefined()
+})
+
 it('keeps a packaged file under the installed root', () => {
   expect(REPORT_PACKAGE_FRAME_PATHS.has('dist/extension.js')).toBe(true)
   const root = path.parse(process.cwd()).root

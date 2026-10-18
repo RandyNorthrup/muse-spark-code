@@ -52,6 +52,18 @@ export function voiceLoader(deps: VoiceLoaderDeps): () => VoiceBundle {
 }
 
 /**
+ * What the listener hears when the driver cannot start: the bundle
+ * loader's own remedy when the code did not load (it names the reinstall),
+ * otherwise the fixed failed words with the failure's kind. The log keeps
+ * the kind either way.
+ */
+export function voiceStartRefusal(error: unknown): string {
+  return error instanceof Error && error.message === UI_TEXT.dictationNotLoaded
+    ? `${UI_TEXT.dictationFailed}: ${UI_TEXT.dictationNotLoaded}`
+    : `${UI_TEXT.dictationFailed}: ${failureForLog(error)}`
+}
+
+/**
  * A driver whose implementation is made on the first `start`, so the bundle
  * loads with the first recording rather than with the panel. A load that
  * fails is the listener's `onError` (the status is still idle) with the log
@@ -75,7 +87,7 @@ export function deferredDriver(
           driver = make()
         } catch (error: unknown) {
           log.warn(`Voice driver failed to start: ${failureForLog(error)}`)
-          listener.onError(`${UI_TEXT.dictationFailed}: ${failureForLog(error)}`)
+          listener.onError(voiceStartRefusal(error))
           return
         }
       }
