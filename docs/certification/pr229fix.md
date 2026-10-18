@@ -77,6 +77,19 @@ goldens are fixed in this lane.
   `l10n/untranslated.json`); `check:l10n` 0 problems. `goals.test.ts`
   15/15, `goalCommand.test.ts` green; the new refusal test was seen to fail
   with the comparison inverted.
+- T7 (`heldTree.ts`, runtime `checkout.ts`, `heldCheckout.ts`): `ls-tree`
+  streams NUL records through the new `ListingRecords` splitter straight
+  into `heldTreeFromRecords` on both paths (runtime: new `runGitListing`
+  over the existing spawn port with the module's gate/deadline/Cancel
+  discipline; extension: the lane's already-streaming `gitProcess`), so no
+  fixed `GIT_OUTPUT_MAX_BYTES` buffer stands between git and the validator
+  and a 64 MiB+ tree reads like any other; the old `MAXBUFFER`→unreadable
+  mapping is gone with the buffer. `heldTree()` keeps its whole-string
+  shape over the splitter. `heldTree.test.ts` 64/64 with the file (split
+  mid-`é`, streamed-equals-buffered, undecodable-refuses; the splitter test
+  was seen to fail with the NUL match broken), plus a real-use drill:
+  this repo's 4,932-entry `ls-tree -z` in hostile 1/7/65536/3-byte chunks
+  validates byte-identical to the buffered read.
 - T11 (`attachments.ts`, `ModelApiHost.ts`): the Model API text admission
   compared UTF-8 bytes to the token-window-minus-reserve number, and a fixed
   1 MiB pre-check fired first, so provider-valid plans (>1 MiB, inside the

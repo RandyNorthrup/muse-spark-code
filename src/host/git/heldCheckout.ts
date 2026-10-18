@@ -19,7 +19,12 @@ import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { isCommitSha } from '../../core/git/github'
 import { BlobAnswers, heldDestination } from '../../core/git/heldCheckoutCore'
-import { heldTree, type HeldEntry, unsafePathReason } from '../../core/git/heldTree'
+import {
+  ListingRecords,
+  heldTreeFromRecords,
+  type HeldEntry,
+  unsafePathReason,
+} from '../../core/git/heldTree'
 import { isSamePath } from '../../core/paths'
 import { worktreeAddHeldArgs } from '../../core/worktrees'
 import {
@@ -174,29 +179,22 @@ export function createHeldCheckout(deps: HeldCheckoutDeps): HeldCheckout {
       throw new GitUnavailableError(UI_TEXT.openPullRequestFetchFailed)
     }
     const target: Target = { folder, cwd, check }
-    let listing: string
-    try {
-      listing = await deps.runGit(
-        ['ls-tree', '-r', '-z', '--full-tree', '--long', commit],
-        cwd,
-        GIT_WORKTREE_TIMEOUT_MS,
-        undefined,
-        check,
-      )
-    } catch (error: unknown) {
-      if (
-        error instanceof Error &&
-        'code' in error &&
-        error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'
-      ) {
-        // The listing grew past the git reader's buffer (D121: the removed
-        // entry/size ceilings named invented numbers for this); the tree
-        // could not be taken whole.
-        throw new GitUnavailableError(UI_TEXT.openPullRequestUnreadable)
-      }
-      throw error
-    }
-    const tree = heldTree(listing, deps.platform)
+    // The listing streams record by record, at any size: no buffered reader
+    // (and its fixed ceiling) stands between git and the validator.
+    check()
+    const listing = new ListingRecords()
+    const records: string[] = []
+    await deps.gitProcess(['ls-tree', '-r', '-z', '--full-tree', '--long', commit], {
+      cwd,
+      env: quietGitEnvironment(deps.env),
+      timeoutMs: GIT_WORKTREE_TIMEOUT_MS,
+      onStdout: (chunk) => {
+        records.push(...listing.take(chunk))
+        return Promise.resolve()
+      },
+    })
+    records.push(...listing.finish())
+    const tree = heldTreeFromRecords(records, deps.platform)
     if (!tree.ok) {
       throw new GitUnavailableError(tree.reason)
     }
