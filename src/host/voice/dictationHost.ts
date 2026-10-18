@@ -16,7 +16,7 @@ import {
   locateDictationHelper,
 } from '../../core/voice/helperLocation'
 import { voiceNetworkRefusal } from '../../core/voice/voiceNetwork'
-import { hostRouting } from '../networkPosture'
+import { hostRouting, type VoiceNetworkPosture } from '../networkPosture'
 import { EXTENSION_QUALIFIED_ID, UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { deferredDriver, type VoiceBundle } from './voiceBundle'
@@ -73,8 +73,10 @@ export interface MuseVoiceSetupDeps {
  * Muse Voice (M35, PLAN.md D30): the paid engine's recorder for this
  * platform and the stream to Meta, or why it cannot run here. Whether it is
  * the microphone's engine (the setting, the accepted price, the Model API
- * backend) is the caller's to decide. `isProxySet` is whether VS Code's
- * `http.proxy` names a proxy (validated, never raw; M56, PLAN.md D43).
+ * backend) is the caller's to decide. `network` is the live `http`
+ * posture (M56, PLAN.md D43): whether `http.proxy` names a proxy
+ * (validated, never raw) and the support settings behind the socket, read
+ * fresh on every rebuild so a settings change takes effect at once.
  */
 export function createMuseVoiceSetup(
   probe: Omit<
@@ -82,9 +84,13 @@ export function createMuseVoiceSetup(
     'fileExists' | 'programFiles' | 'remoteName' | 'appName' | 'pathVariable'
   >,
   deps: MuseVoiceSetupDeps,
-  isProxySet: boolean,
+  network: VoiceNetworkPosture,
 ): DictationSetup {
-  const refusal = voiceNetworkRefusal(hostRouting(globalThis, 'webSocket'), isProxySet)
+  const refusal = voiceNetworkRefusal(
+    hostRouting(globalThis, 'webSocket'),
+    network.isProxySet,
+    network.support,
+  )
   const location =
     refusal === undefined
       ? locateCaptureHelper({

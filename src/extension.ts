@@ -12,6 +12,7 @@ import {
   BACKEND_SETTING,
   BYPASS_SETTING,
   CLI_PROCESS_SETTINGS,
+  HTTP_POSTURE_SETTINGS,
   HTTP_PROXY_SETTING,
   HTTP_SETTINGS_SECTION,
   POSIX_TERMINAL_SHELL,
@@ -318,6 +319,7 @@ import {
   managedConfiguration,
   readNetworkFacts,
   readProxySettings,
+  readVoiceNetworkPosture,
 } from './host/networkPosture'
 import { OutputDocumentStore } from './host/outputDocuments'
 import { loggedPopups } from './host/popups'
@@ -1278,7 +1280,7 @@ async function activateWindow(
         log,
         voice,
       },
-      readProxySettings(vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)).proxy !== '',
+      readVoiceNetworkPosture(vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)),
     )
     for (const controller of controllers.values()) {
       controller.refreshDictation()
@@ -4318,9 +4320,18 @@ async function activateWindow(
       { webviewOptions: { retainContextWhenHidden: true } },
     ),
     vscode.workspace.onDidChangeConfiguration((event) => {
-      // Muse Voice's proxy refusal follows `http.proxy` while the window
-      // is open (M56, PLAN.md D43).
-      if (event.affectsConfiguration(`${HTTP_SETTINGS_SECTION}.${HTTP_PROXY_SETTING}`)) {
+      // Muse Voice's proxy refusal follows the live `http` settings while
+      // the window is open (M56, PLAN.md D43): the proxy itself and the
+      // two support flags behind the socket decision.
+      if (
+        event.affectsConfiguration(`${HTTP_SETTINGS_SECTION}.${HTTP_PROXY_SETTING}`) ||
+        event.affectsConfiguration(
+          `${HTTP_SETTINGS_SECTION}.${HTTP_POSTURE_SETTINGS.proxySupport}`,
+        ) ||
+        event.affectsConfiguration(
+          `${HTTP_SETTINGS_SECTION}.${HTTP_POSTURE_SETTINGS.webSocketAdditionalSupport}`,
+        )
+      ) {
         refreshMuseVoiceNetwork()
       }
       if (event.affectsConfiguration(`${SETTINGS_SECTION}.${PROMPT_SYNC_SETTING}`))

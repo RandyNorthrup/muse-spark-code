@@ -1150,13 +1150,14 @@ class AcpSession {
    * F91: the model hears it once, at the tail, so a failing read-only
    * command never reads as a dead shell. Earlier request bytes are
    * untouched: this part is appended, never spliced into what came before.
+   * The told-flag flips only after an accepted submission at the call site:
+   * a send that fails or is cancelled before reaching Muse Code must not
+   * silence every later turn.
    */
   private sandboxModelNote(): readonly TurnPart[] {
-    if (this.hasToldModelSandboxCannotStart || !this.sandboxCannotStart()) {
-      return []
-    }
-    this.hasToldModelSandboxCannotStart = true
-    return [{ type: 'text', text: SANDBOX_CANNOT_START_MODEL_NOTE }]
+    return this.hasToldModelSandboxCannotStart || !this.sandboxCannotStart()
+      ? []
+      : [{ type: 'text', text: SANDBOX_CANNOT_START_MODEL_NOTE }]
   }
 
   private isCurrentReport(preparing: PreparingPrompt): boolean {
@@ -1725,19 +1726,28 @@ class AcpSession {
    * Linux sandbox cannot start on this machine. The host start already said
    * it on stderr; the posture stands until the person turns it off.
    *
-   * This is the harness speaking, never the model (that confusion is F82),
-   * so the chunk carries a `_meta` marker (the accountNotice precedent) a
-   * client can tell apart from model speech. MERGE STEP with
-   * fix/provider-truth (F82, 0d73ac89e): where the client advertises its
-   * session-notices capability, send that branch's separate notice update
-   * instead of this chunk; the marker stays the fallback discriminator
-   * for clients that do not advertise it.
+   * This is the harness speaking, never the model (that confusion is F82).
+   * Where the client advertises its session-notices capability
+   * (`ClientSessionCapabilities::notices`), it goes as that branch's
+   * separate notice update; otherwise it stays an `agent_message_chunk`
+   * carrying a `_meta` marker (the accountNotice precedent) a client can
+   * tell apart from model speech, which the schema prescribes when notices
+   * are not advertised.
    */
   public noteSandboxCannotStart(): void {
     if (this.hasSaidSandboxCannotStart || !this.sandboxCannotStart()) {
       return
     }
     this.hasSaidSandboxCannotStart = true
+    if (this.clientCapabilities.session?.notices != null) {
+      this.send({
+        sessionUpdate: 'notice',
+        severity: 'warning',
+        title: UI_TEXT.sandboxCannotStartNotice,
+        _meta: { sandboxCannotStartNotice: true },
+      })
+      return
+    }
     this.send({
       sessionUpdate: 'agent_message_chunk',
       _meta: { sandboxCannotStartNotice: true },
@@ -2097,6 +2107,7 @@ class AcpSession {
         this.finishCompaction(outcome.status)
       } else {
         const mediaQueued = [...this.attachments]
+        const sandboxNote = this.sandboxModelNote()
         const starting = this.session.sendTurn(
           [
             ...(pending.answerLease?.parts ?? []),
@@ -2104,7 +2115,7 @@ class AcpSession {
               ...parsed.parts,
               ...mediaQueued.map((attachment) => attachment.part),
             ]),
-            ...this.sandboxModelNote(),
+            ...sandboxNote,
           ],
           parsed.displayText,
         )
@@ -2125,6 +2136,11 @@ class AcpSession {
         if (submission.userMessageId !== undefined) pending.userMessageId = submission.userMessageId
         const isAccepted =
           submission.disposition === 'started' || submission.disposition === 'queued'
+        // The turn reached Muse Code, so an appended sandbox note rode with
+        // it: only now is it marked as told to the model.
+        if (isAccepted && sandboxNote.length > 0) {
+          this.hasToldModelSandboxCannotStart = true
+        }
         // Decide before noting the turn: a turn that already finished settles
         // the prompt there, which must not release the answers it delivered.
         if (

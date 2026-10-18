@@ -26,6 +26,7 @@ import {
   PROXY_VARIABLE_SPELLINGS,
   VSCODE_ROUTED_GLOBALS,
 } from '../shared/constants'
+import type { VoiceHttpSupport } from '../core/voice/voiceNetwork'
 import type { ProxySettings } from './backend/museCodeBackendManager'
 import type { ProcessResult } from './backend/sandboxSetup'
 
@@ -86,6 +87,30 @@ export function hostRouting(
     return 'absent'
   }
   return Object.hasOwn(globals, marker) ? 'routed' : 'notRouted'
+}
+
+/**
+ * The live `http` settings behind Muse Voice's socket decision (M56): what
+ * `voiceNetworkRefusal` reads beside the routing marker, so a set proxy
+ * with `proxySupport` off or `webSocketAdditionalSupport` off refuses the
+ * recording up front. VS Code's defaults stand for unreported values.
+ */
+export interface VoiceNetworkPosture {
+  readonly isProxySet: boolean
+  readonly support: VoiceHttpSupport
+}
+
+export function readVoiceNetworkPosture(http: HttpSettingsSource): VoiceNetworkPosture {
+  const proxySupport = z
+    .enum(HTTP_PROXY_SUPPORT_MODES)
+    .safeParse(http.get(HTTP_POSTURE_SETTINGS.proxySupport))
+  return {
+    isProxySet: readProxySettings(http).proxy !== '',
+    support: {
+      proxySupport: proxySupport.success ? proxySupport.data : HTTP_PROXY_SUPPORT_DEFAULT,
+      isWebSocketSupportOn: isFlagOn(http, HTTP_POSTURE_SETTINGS.webSocketAdditionalSupport, true),
+    },
+  }
 }
 
 /**
