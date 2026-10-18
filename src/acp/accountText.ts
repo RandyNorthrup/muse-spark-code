@@ -43,6 +43,14 @@ export function isInvalidProvidersFileError(error: unknown): boolean {
   )
 }
 
+/** A store refusal, recognized the same brand-first way (never imported, so
+ * this leaf stays out of the store's bundle). */
+function asStoreRefusal(error: Error): { code: string; cause: unknown } | undefined {
+  if (error.name !== 'AccountStoreError' || !('code' in error)) return undefined
+  const code: unknown = error.code
+  return typeof code === 'string' ? { code, cause: error.cause } : undefined
+}
+
 /** The one call a usage link needs from the account owner. */
 export interface AccountUsagePort {
   /** The selected provider's fixed public usage page, never a vendor error URL. */
@@ -56,8 +64,45 @@ export function accountErrorText(error: unknown): string {
   // A refused providers file names the refusal: the runtime is already on
   // the account service, and the file was left untouched.
   if (isInvalidProvidersFileError(error)) return UI_TEXT.accounts.providersInvalid
-  return error instanceof Error && error.message === UI_TEXT.accounts.invalidAccount
-    ? UI_TEXT.accounts.invalidAccount
+  let current: unknown = error
+  while (current instanceof Error) {
+    if (current.message === UI_TEXT.accounts.invalidAccount) return UI_TEXT.accounts.invalidAccount
+    // Sentences the account layer threw when it knew what happened pass
+    // through untouched: rewording them here would lose the cause again.
+    if (
+      [
+        UI_TEXT.accounts.none,
+        UI_TEXT.accounts.changed,
+        UI_TEXT.accounts.notReady,
+        UI_TEXT.accounts.invalidReply,
+      ].includes(current.message)
+    )
+      return current.message
+    const refusal = asStoreRefusal(current)
+    const cause = refusal === undefined ? current.cause : refusal.cause
+    if (refusal !== undefined) {
+      // A store refusal names its own record: bad ids and unoffered
+      // products keep their sentences, a refusal that kept its cause (an
+      // unreadable providers file keeps its disk error) reports the cause,
+      // and a refusal without detail stays a plain unavailable rather than
+      // inventing a cause from its code word.
+      if (refusal.code === 'invalidAccount' || refusal.code === 'invalidCredential')
+        return UI_TEXT.accounts.invalidAccount
+      if (refusal.code === 'notOffered') return UI_TEXT.accounts.notOffered
+      if (cause === undefined) return UI_TEXT.accounts.unavailable
+    } else if (cause === undefined) {
+      // A raw store, credential-store or disk failure names itself: the
+      // runtime is connected, so the connection sentence would lie. Wrappers
+      // carry the failure as their cause, so the loop above already walked
+      // past the wrapper's own text (usually the connection sentence).
+      return current.message !== '' && current.message !== UI_TEXT.accounts.unavailable
+        ? fill(UI_TEXT.accounts.unavailableReason, { reason: current.message })
+        : UI_TEXT.accounts.unavailable
+    }
+    current = cause
+  }
+  return typeof current === 'string' && current !== ''
+    ? fill(UI_TEXT.accounts.unavailableReason, { reason: current })
     : UI_TEXT.accounts.unavailable
 }
 

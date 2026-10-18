@@ -18,7 +18,12 @@
 
 ## Proofs
 
-- `npx vitest run test/unit/accountErrorTruth.test.ts test/unit/accountsCommand.test.ts --maxWorkers=3`
-- `node scripts/check-l10n.mjs` — 0 problems (5–6 new keys in `en.ts` + all 14 `l10n/ui.*.json`).
-- `npm run build`, typecheck, eslint zero warnings on changed files, `npm run check:plan`.
-- Real-use drills: packed `providers accounts list` against a broken providers file and a broken data dir; packed CLI account command against a missing account.
+- `npx vitest run test/unit/accountErrorTruth.test.ts test/unit/accountsCommand.test.ts test/unit/accounts.test.ts --maxWorkers=3` — 3 files, 59 tests, all pass on the repo's own timeout (no `--testTimeout`).
+- `node scripts/check-l10n.mjs` — 0 problems (6 new keys in `en.ts` + all 14 `l10n/ui.*.json`).
+- `npm run build` (incl. size budgets), `typecheck:host`, `typecheck:unit`, eslint zero warnings on changed files, `npm run check:plan` (0 drift), prettier clean.
+- Real-use drills through the packed `dist/acp.js` (scratch `$HOME`, exit codes observed):
+  - fresh dir, `providers accounts list --provider meta` → `[{"id":"default",...}]`, exit 0 (happy path intact);
+  - garbage `providers.json` → `The providers file is invalid, so its entries were refused and the file was left unchanged.`, exit 1;
+  - `providers.json` as a directory → `Accounts are unavailable (EISDIR: illegal operation on a directory, read).`, exit 1.
+- ACP end-to-end inside the suite with the real `AcpAccounts` over the real runtime account services (real providers file, credential store unreachable by a throwing factory): `/accounts current` with no selection → `No Account Selected`; unknown id → invalid-account sentence; use/command before start → not-ready sentence.
+- Remainder (documented, not changed): a store refusal that kept no detail (e.g. unconfigured provider, bare `unavailable` code) stays on the plain connection sentence rather than inventing a cause; the `own()` supersede and notice-format fallbacks are defensive and proven by inspection plus the mapper tests. Deliberately kept on the connection sentence (no service bound there): headless without account services, ACP session with no accounts port, missing account-services bundle.

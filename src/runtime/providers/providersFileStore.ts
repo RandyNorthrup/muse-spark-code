@@ -77,10 +77,11 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
     let text: string
     try {
       text = readFileSync(this.file, 'utf8')
-    } catch {
+    } catch (error: unknown) {
       // Vanished or unreadable between the check and the read: report
-      // unavailable rather than a partial read.
-      throw new AccountStoreError('unavailable')
+      // unavailable rather than a partial read, keeping the disk failure as
+      // the cause so the person hears it instead of a generic sentence.
+      throw new AccountStoreError('unavailable', { cause: error })
     }
     let envelope: unknown
     try {

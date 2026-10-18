@@ -41,7 +41,7 @@ import {
  * rather than orphan it. API keys delete normally; revoke is never called
  * for them. */
 export function runtimeRevokeSignIn(): Promise<void> {
-  return Promise.reject(new Error(UI_TEXT.accounts.unavailable))
+  return Promise.reject(new Error(UI_TEXT.accounts.revokeUnsupported))
 }
 
 export interface RuntimeAccountServicesInput {
@@ -141,7 +141,7 @@ class RuntimeAccountSessions implements AccountsSessionPort {
     // stay-put text instead of dispatching under the wrong identity (D88.7).
     // The commit signal has no transaction to guard here: AcpAccounts fences
     // generations and staleness before this port is reached.
-    if (state.currentAccount === null) throw new Error(UI_TEXT.accounts.unavailable)
+    if (state.currentAccount === null) throw new Error(UI_TEXT.accounts.none)
     const current = state.accounts.find((row) => row.id === state.currentAccount)
     throw new AccountSwitchRefusedError(this.provider, current?.label ?? state.currentAccount)
   }
