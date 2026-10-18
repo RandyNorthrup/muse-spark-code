@@ -118,3 +118,14 @@ helpers, and its `TargetPlatform` in the manifest.
 
 No behaviour change for a person on any platform: same bundles, same
 helpers, same panel; only the store serves the matching package.
+
+## 4. Grok review findings on PR #246 (lane PR246FIX, 2026-10-18, macmini rig)
+
+One line per finding; each fixed at its cause in this lane:
+
+1. Alpine (alpine-x64/alpine-arm64) and linux-armhf servers cannot install once the universal package is gone — fix: keep publishing the untargeted universal package as the fallback for every platform without a targeted package, within the same unchanged budget.
+2. Sequential publish-then-poll per artifact can cancel the 40-minute job after only some targets are published — fix: publish every artifact first, then poll all fresh ones under one shared deadline that fits raised job timeouts, re-checking unfinished targets in the same job.
+3. README/CONTRIBUTING/install example still describe one universal package — fix: name the per-target files (`muse-spark-code-<target>-<version>.vsix`) plus the universal fallback, everywhere the release artifact is described.
+4. Certification claimed identical bytes across targets (false: TargetPlatform differs) and left three budgets as "CI" — fix: state measured sizes per target with method, no identical-bytes claim.
+5. `check-vsix-size` failure does not say which target went over — fix: name the artifact in the error.
+6. CHANGELOG bullet sits under `[0.19.0]` though the change is not in that tag — fix: move it to `[Unreleased]`.
