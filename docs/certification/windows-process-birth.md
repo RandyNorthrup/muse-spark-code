@@ -2,14 +2,18 @@
 
 Recorded on the Windows 11 rig (Windows 11 Pro 10.0.26200, i9-12900HK,
 20 threads, Node 24.20.0) in the worktree `mx-winbirth`, branch
-`fix/windows-process-birth`, from `296c63f20c`. No model calls.
+`fix/windows-process-birth`, from `296c63f20c`, rebased onto `81dacaf5a7`.
+No model calls.
 
 ## Finding
 
 PR #154's run `39078271738`, job "build / tests (windows-latest, shard 3)"
 (`117529837694`), failed `test/unit/fileLease.test.ts` "process owners
 (M123 lane P) > reads this process's birth from the system" after
-10,076 ms with "expected undefined to be defined" at line 245.
+10,076 ms with "expected undefined to be defined" at line 245. The same
+test failed the same way on main's code in PR #158's run `39082272956`
+(2026-10-18 00:18Z, shard 3, 10,097 ms) after passing on that pull
+request's run at 00:09Z.
 
 **Measured cause.** On Windows, `processStartTime`
 (`src/core/locks/processOwner.ts:108-131`, `windowsStartTime`) starts
@@ -47,3 +51,80 @@ process; it never approaches the bound here. The same read through a
 
 `wmic` is not installed on this rig (Windows 11 25H2 removed it), and no
 other inbox command prints a process's creation time.
+
+Hosted Windows runs test files one at a time (`vitest.config.ts`,
+`fileParallelism`), so no other test file was loading that runner; in
+shard 3 `fileLease.test.ts` is the first file that starts Windows
+PowerShell, so its first query is that fresh VM's first PowerShell start.
+What a start has to bring in, read from inside each program at the end of
+its read (three runs each, identical):
+
+| Program                       | Images mapped | Their size on disk | Peak working set |
+| ----------------------------- | ------------- | ------------------ | ---------------- |
+| PowerShell `exit 0`           | 89            | 177.4 MB           | 67.0–67.7 MB     |
+| PowerShell `Get-Process` read | 91            | 180.2 MB           | 74.5–74.6 MB     |
+| C# reader                     | 34            | 87.1 MB            | 17.3 MB          |
+
+(The C# figure includes `System.dll`, which only the measuring code
+loads.) A fresh VM pages all of that in for the first time; the reader
+touches about a quarter of PowerShell's memory and needs a sixth of its
+CPU.
+
+## Fix
+
+`processStartTime` on Windows (`src/core/locks/processOwner.ts`) no longer
+starts PowerShell. A 4,608-byte C# 5 program, its source in the module,
+opens the process with `PROCESS_QUERY_LIMITED_INFORMATION`, refuses one
+that has exited (`GetExitCodeProcess`, since an exited process keeps its
+times while a handle is open), and prints `GetProcessTimes`'s creation
+time in epoch milliseconds. Windows' own .NET Framework compiler
+(`%SystemRoot%\Microsoft.NET\Framework\v4.0.30319\csc.exe`, the one the
+job helpers use) builds it once per user into
+`%LOCALAPPDATA%\Muse Spark Code\native\MuseSparkBirth-<digest>.exe`
+(`WINDOWS_BIRTH_READER_FOLDER`): written under a random name and renamed
+into place, so two processes building at once never share a file. Both the
+build and each run get only `SystemRoot` from the environment and keep the
+10 s `PROCESS_START_QUERY_TIMEOUT_MS` bound. A failed build is not kept;
+a reader that cannot start (removed, quarantined, damaged) is deleted and
+built again on the next read. Every other contract stands: `undefined`
+when no running process has the id or it cannot be opened, never a throw.
+
+The values are the ones PowerShell gave, to the millisecond, for this
+process, a live child and the parent; an exited child, id 4 and
+999,999,999 read `undefined` (a scratch script over the real module, not
+kept in the repository):
+
+```text
+self 31528: native 1792283312165 powershell 1792283312165
+live child 2720: native 1792283312253 powershell 1792283312253
+parent 29452: native 1792283311151 powershell 1792283311151
+exited 11672: native undefined
+id 4 (System): native undefined
+id 999999999: native undefined
+```
+
+The real `processStartTime(process.pid)` after the fix, with
+`LOCALAPPDATA` pointed into the worktree's `temp/`:
+
+| Case                                                     | Wall ms                                 |
+| -------------------------------------------------------- | --------------------------------------- |
+| Cold: fresh data folder, so build and read (10 runs)     | 132 119 157 133 174 129 127 131 164 115 |
+| Warm: reader built, a fresh Node process each (10 runs)  | 39 44 37 48 39 41 50 51 38 40           |
+| Warm: 10 reads in one Node process                       | 45 37 49 44 36 37 45 40 42 36           |
+| Before the fix, cold (fresh `PSModuleAnalysisCachePath`) | 401 408 381 391 382 381 393 430 400 355 |
+| Before the fix, warm (populated analysis cache)          | 387 354 349 361 387 342 358 381 393 368 |
+
+The inbox compiler took 75 to 113 ms (31 to 78 ms of CPU) over ten builds.
+"Reads this process's birth from the system", which makes three reads and
+starts one short-lived process, took 754 to 870 ms in five runs on main's
+code and 197 to 339 ms after the fix.
+
+## Red drill
+
+With the reader's `Console.Out.Write` line deleted (it exits 0 and prints
+nothing), `node node_modules/vitest/vitest.mjs run
+test/unit/fileLease.test.ts` exited 1: 4 failed, among them "reads this
+process's birth from the system" ("expected undefined to be defined"),
+"reads a Windows or macOS birth as the epoch time it was recorded at" and
+"names a gone owner only when it is provably gone". Reverted byte for byte
+(`cmp` against the saved copy).

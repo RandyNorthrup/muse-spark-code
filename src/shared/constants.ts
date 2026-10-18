@@ -1821,9 +1821,12 @@ export const WORKTREE_RECORD_LOCK_UNREADABLE_MS = 2000
 // macOS) agree within this; a live process id whose birth is further off
 // belongs to another process. Linux births (ticks since boot) compare exactly.
 export const PROCESS_START_TOLERANCE_MS = 1000
-// Reading another process's birth (Windows PowerShell, macOS `ps`) gives
-// up after this.
+// Reading another process's birth (macOS `ps`; on Windows the native
+// reader's one-time build and each of its runs) gives up after this.
 export const PROCESS_START_QUERY_TIMEOUT_MS = 10_000
+// Windows' process birth reader is compiled once per user into this folder
+// of the user's data folder (`%LOCALAPPDATA%\Muse Spark Code`).
+export const WINDOWS_BIRTH_READER_FOLDER = 'native'
 // A pending checkout whose folder never appeared is someone's crash after
 // this long, even while its process id looks alive (a reused id whose
 // start time cannot be read): every step before the folder exists is

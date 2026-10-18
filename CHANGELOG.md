@@ -14,6 +14,15 @@ happened, not what was planned; superseded entries are kept.
   saved", although nothing was wrong with the ledger. Windows answers a lock
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
+- On Windows, reading when a process started (how a lock or a pending
+  checkout tells its live owner from a later process with the same id) could
+  give up and read nothing: it started Windows PowerShell, whose first start
+  on a fresh machine (a hosted CI runner) took more than the 10-second bound.
+  It now asks Windows directly through a 4.5 KB reader that Windows' own C#
+  compiler builds
+  once into `%LOCALAPPDATA%\Muse Spark Code\native`: about 40 ms a read, and
+  120 to 170 ms the first time, against 340 to 430 ms through PowerShell on
+  the same machine.
 
 ### Release infrastructure
 
