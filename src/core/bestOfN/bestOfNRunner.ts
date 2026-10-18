@@ -969,13 +969,15 @@ export class BestOfNRunner {
     } catch (error: unknown) {
       // Failed setup tears down only what it made and aborts the run; a
       // refusal keeps its kind, anything else refuses worktreeFailed with
-      // the failure as its cause instead of its text.
+      // the failure as its cause. The notice names the failure's own words
+      // through `detail`, as the take path below does.
       await this.cancelSetup(run, created, repositoryRoot)
       run.controller.abort()
       if (isBestOfNError(error)) {
         throw error
       }
-      throw new BestOfNError('worktreeFailed', undefined, { cause: error })
+      const detail = error instanceof Error ? error.message : String(error)
+      throw new BestOfNError('worktreeFailed', detail, { cause: error })
     } finally {
       run.isStarting = false
       this.publish(run)
@@ -1060,9 +1062,11 @@ export class BestOfNRunner {
       if (isBestOfNError(error)) {
         throw error
       }
-      // A foreign take failure refuses in fixed words, carrying the
-      // failure that proved it instead of its text.
-      throw new BestOfNError('worktreeFailed', undefined, { cause: error })
+      // A foreign take failure refuses worktreeFailed, carrying the
+      // failure that proved it; the notice names its own words through
+      // `detail`.
+      const detail = error instanceof Error ? error.message : String(error)
+      throw new BestOfNError('worktreeFailed', detail, { cause: error })
     } finally {
       try {
         completeEdit?.(wasWritten)
