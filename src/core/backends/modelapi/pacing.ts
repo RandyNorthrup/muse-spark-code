@@ -213,6 +213,9 @@ export class ModelApiPacing implements RequestPacer {
       // its request and token headroom, and its Retry-After pauses. No
       // request is reserved for the foreground and no fraction held back.
       // Unobserved buckets have no headroom math yet; a pause still holds.
+      // An estimate larger than the whole observed bucket waits only for a
+      // full bucket, then goes to the provider to judge: headroom past the
+      // bucket never comes, and waiting for it would never end.
       const remainingRequests = bucket.remainingRequests
       const requestWait = bucket.observed
         ? (Math.max(0, 1 - remainingRequests) * bucket.windowMs) / bucket.requests
@@ -220,7 +223,9 @@ export class ModelApiPacing implements RequestPacer {
       const tokenWait =
         !bucket.observed || bucket.tokens === undefined || bucket.remainingTokens === undefined
           ? 0
-          : (Math.max(0, tokens - bucket.remainingTokens) * bucket.windowMs) / bucket.tokens
+          : (Math.max(0, Math.min(tokens, bucket.tokens) - bucket.remainingTokens) *
+              bucket.windowMs) /
+            bucket.tokens
       const delay = Math.ceil(Math.max(pause, requestWait, tokenWait))
       if (delay === 0) {
         this.charge(bucket, tokens)
