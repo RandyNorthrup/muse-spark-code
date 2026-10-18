@@ -1,0 +1,65 @@
+# Per-platform .vsix packages (VSIXPLATFORM lane)
+
+## 1. Per-platform helper inventory (2026-10-18, linuxlt rig)
+
+Method: source sizes measured in this worktree with `du -b` (exact bytes);
+CI-built binary sizes are NOT measurable on this Linux rig and are marked
+CI below. Per-target `.vsix` sizes are measured by CI's package job, which
+alone holds all four compiled helpers.
+
+### Shipped native pieces per target
+
+| Target       | Ships                                                  | Local source bytes                                                                                                                                                                                                                         | CI-built binary                                                                                                                                        |
+| ------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| win32-x64    | native/windows/* (10 files)                            | 170,960                                                                                                                                                                                                                                    | none (compiled/interpreted on the person's machine: .ps1 run directly, .cs compiled at first vault use by `src/host/vault/slots/windowsVaultBuild.ts`) |
+| win32-arm64  | same 10 files as win32-x64                             | 170,960                                                                                                                                                                                                                                    | none (same reason; no arch-specific code, so arm64 is supported today)                                                                                 |
+| darwin-x64   | native/darwin/muse-dictate, muse-dictate-screen.app/** | sources 129,776 (Dictation.swift 38,756, ScreenRecord.swift 26,860, VaultKey.swift 15,989, MuseSparkCreated.c 10,588, Info.plist 1,583, 16 lproj ~14,000); binary is universal x64+arm64, 80,798 bytes deflated per native/darwin/build.sh | dist/native/darwin/muse-vault (universal binary, size CI)                                                                                              |
+| darwin-arm64 | same darwin files as darwin-x64                        | 129,776 sources                                                                                                                                                                                                                            | same CI binaries                                                                                                                                       |
+| linux-x64    | native/linux/x64/muse-created                          | source MuseSparkCreated.c 10,588                                                                                                                                                                                                           | binary CI (built by scripts/build-linux-helper.mjs on ubuntu-24.04)                                                                                    |
+| linux-arm64  | native/linux/arm64/muse-created                        | source 10,588                                                                                                                                                                                                                              | binary CI (ubuntu-24.04-arm)                                                                                                                           |
+
+Windows file split (identical on x64 and arm64): dictate.ps1 6,909,
+capture.ps1 10,902, MuseSparkJob.cs 42,917, MuseSparkMcpJob.cs 29,247,
+MuseSparkMcpLauncher.cs 5,320, MuseSparkScreenRecord.cs 39,424,
+MuseSparkVault.cs 24,897, MuseSparkVaultCng.cs 3,800,
+MuseSparkVaultHello.cs 6,183, MuseSparkVaultLock.cs 1,361.
+
+### Cross-platform pieces (ship in EVERY target)
+
+- native/runner/runner-helper.ps1 (20,782) + runner-helper.sh (6,476):
+  the SSH runner copies the helper to the REMOTE side, so a Windows person
+  reaching a Linux box needs the .sh and vice versa (`src/host/runners/sshRunner.ts`).
+- Everything else in the .vsix (dist bundles, l10n, docs) is platform-neutral.
+
+### NOT shipped (not in .vscodeignore allowlist)
+
+- native/confine/MuseSparkConfine.c (20,289): dev/sandbox use only.
+- native/darwin/*.swift, *.c sources: only their CI-built binaries ship.
+
+### Each platform's share of today's universal package
+
+Today's universal `.vsix` carries ALL of the above: ~171 KB Windows
+sources + ~130 KB darwin sources + universal muse-dictate binary + .app
+resources + muse-vault darwin binary + both muse-created binaries.
+Provisional universal size 3,272,933 bytes on Kubuntu with the real x64
+helper, an empty arm64 helper and no macOS artifacts (scripts/check-vsix-size.mjs);
+budget 3,788,800 bytes (3700 KiB). Per-target packages drop every other
+platform's pieces: a Windows target drops the darwin binaries + both
+muse-created binaries; a Linux target drops the darwin binaries + the
+Windows sources + the other arch's helper; a darwin target drops the
+Windows sources + both muse-created binaries. Exact per-target byte sizes
+and headroom are recorded in §2 below once CI builds them.
+
+Incoming pressure (brief): six open pull requests need about 131 KB more;
+the vault's cross-platform keyring needs about 4.7 MB of binaries. Neither
+fits the universal package; per-platform packages absorb the platform's own
+share only.
+
+### Universal fallback: none
+
+All six desktop targets VS Code runs on are covered
+(win32-x64, win32-arm64, darwin-x64, darwin-arm64, linux-x64, linux-arm64),
+so no universal fallback ships. Uncovered targets (linux-armhf,
+alpine-*, web) never had native helpers and the extension never supported
+them there. Both registries serve the matching target package
+(vsce 4.0.0 `--target`; ovsx documents target-platform downloads).
