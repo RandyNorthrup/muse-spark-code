@@ -15,6 +15,12 @@ export interface AcpReportsPort {
   ): Promise<{ readonly code: number; readonly text: string }>
 }
 
+/**
+ * The tokenizer's own failure: an unterminated quote reserves nothing. Its
+ * message is the fixed sentence, never the text it failed on.
+ */
+class ReportTokensError extends Error {}
+
 /** One quote-aware tokenizer for the local slash boundary and CLI report arguments. */
 function* reportTokens(text: string) {
   let token = ''
@@ -37,7 +43,7 @@ function* reportTokens(text: string) {
       isStarted = true
     }
   }
-  if (quote !== '') throw new Error(UI_TEXT.reportUi.generationFailed)
+  if (quote !== '') throw new ReportTokensError(UI_TEXT.reportUi.generationFailed)
   if (isStarted) yield { value: token, end: text.length }
 }
 
@@ -60,8 +66,8 @@ export function acpReportArguments(blocks: readonly ContentBlock[]): string | un
     return blocks.length === 1 ? text.slice(command.end).trim() : '--invalid-report-attachment'
   } catch (error: unknown) {
     // Only the tokenizer's own failure reserves nothing: anything else keeps
-    // its kind.
-    if (!(error instanceof Error)) throw error
+    // its kind past the slash boundary.
+    if (!(error instanceof ReportTokensError)) throw error
     return undefined
   }
 }

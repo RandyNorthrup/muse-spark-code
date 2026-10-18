@@ -80,8 +80,16 @@ export interface AcpMediaDeps extends AcpMediaContext {
   ) => Promise<(AcpMediaInput & { readonly dispose: () => Promise<void> }) | undefined>
 }
 
-function unknown(type: string): Error {
-  return new Error(fill(UI_TEXT.media.attachmentUnknownType, { type }))
+/**
+ * A refusal the person reads as written: its message is always a UI
+ * sentence (an unknown type, an unreadable file, a model limit). Anything
+ * else never reaches the person in its own words. The attach boundary
+ * answers these as written and unreadable for the rest.
+ */
+export class MediaRefusal extends Error {}
+
+function unknown(type: string): MediaRefusal {
+  return new MediaRefusal(fill(UI_TEXT.media.attachmentUnknownType, { type }))
 }
 
 /** Embedded audio bytes keep the suffix their sniff earned. */
@@ -118,18 +126,18 @@ export class AcpMedia implements AcpMediaPort {
     signal.throwIfAborted()
     const info = mediaInfoSchema.parse(input.info)
     if (input.name === '' || input.name.length > MEDIA_NAME_MAX_CHARS) throw unknown(info.mediaType)
-    if (this.deps.backend !== 'modelApi') throw new Error(UI_TEXT.media.museCodeRefusal)
+    if (this.deps.backend !== 'modelApi') throw new MediaRefusal(UI_TEXT.media.museCodeRefusal)
     const model = this.deps.model()
     if (model.modelId !== this.deps.modelId())
       throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
     const gate = modalityGate(info, model)
-    if (!gate.ok) throw new Error(gate.reason)
+    if (!gate.ok) throw new MediaRefusal(gate.reason)
     if (info.kind === 'video' || info.kind === 'audio') {
       const limits = checkMediaLimits(info, {
         acceptedMediaTypes: model.modalities[info.kind].formats,
         modelName: model.modelName,
       })
-      if (!limits.ok) throw new Error(limits.reason)
+      if (!limits.ok) throw new MediaRefusal(limits.reason)
     }
     const part = await this.deps.prepare(input, signal)
     signal.throwIfAborted()
@@ -145,13 +153,13 @@ export class AcpMedia implements AcpMediaPort {
       this.deps.platform,
       this.deps.io,
     )
-    if (!confined.ok) throw new Error(UI_TEXT.textFilePrivate)
+    if (!confined.ok) throw new MediaRefusal(UI_TEXT.textFilePrivate)
     if (
       [confined.relative, confined.canonical].some(
         (name) => isProtectedPath(name) || isPrivateFileName(name),
       )
     )
-      throw new Error(UI_TEXT.textFilePrivate)
+      throw new MediaRefusal(UI_TEXT.textFilePrivate)
     await this.deps.assertReadable(confined, signal)
     signal.throwIfAborted()
     const name = path.posix.basename(confined.relative.replaceAll('\\', '/'))
@@ -164,7 +172,7 @@ export class AcpMedia implements AcpMediaPort {
         signal,
       )
       signal.throwIfAborted()
-      if (file === undefined) throw new Error(UI_TEXT.attachmentUnreadable)
+      if (file === undefined) throw new MediaRefusal(UI_TEXT.attachmentUnreadable)
       if (!('kind' in file)) {
         if (mime != null && mime !== file.info.mediaType) throw unknown(mime)
         return await this.accepted({ ...file, name, source: { ...file.source, name } }, signal)
@@ -174,7 +182,7 @@ export class AcpMedia implements AcpMediaPort {
       /\.(?:mp4|mov|mp3|wav|webm|mkv|m4a)$/iu.test(name) ||
       /^(?:audio|video)\//u.test(mime ?? '')
     ) {
-      throw new Error(UI_TEXT.media.uploadStorageUnknown)
+      throw new MediaRefusal(UI_TEXT.media.uploadStorageUnknown)
     }
     const bytes = await this.deps.io.readBytes(
       confined.checkedAbsolute,
@@ -182,17 +190,17 @@ export class AcpMedia implements AcpMediaPort {
       confined.checkedAbsolute,
     )
     signal.throwIfAborted()
-    if (bytes === undefined) throw new Error(UI_TEXT.attachmentUnreadable)
+    if (bytes === undefined) throw new MediaRefusal(UI_TEXT.attachmentUnreadable)
     const store = new AttachmentStore(() => 'attachment')
     const added = store.add(name, bytes, this.deps.backend === 'modelApi', true)
     if (!added.ok)
-      throw new Error(
+      throw new MediaRefusal(
         added.reason === UI_TEXT.attachmentUnsupported
           ? fill(UI_TEXT.media.attachmentUnknownType, { type: mime ?? 'file' })
           : added.reason,
       )
     const [part] = store.partsFor([added.attachment.id])
-    if (part === undefined) throw new Error(UI_TEXT.attachmentUnreadable)
+    if (part === undefined) throw new MediaRefusal(UI_TEXT.attachmentUnreadable)
     let info: MediaInfo
     if (part.type === 'image')
       info = mediaInfoSchema.parse({
@@ -242,7 +250,7 @@ export class AcpMedia implements AcpMediaPort {
       const mime = block.type === 'audio' ? block.mimeType : resource?.mimeType
       const maximum = MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB
       const bytes = decodeAcpBlob(data, maximum, mime ?? 'blob', UI_TEXT.execFileTooLarge)
-      if (typeof bytes === 'string') throw new Error(bytes)
+      if (typeof bytes === 'string') throw new MediaRefusal(bytes)
       const info = sniffMediaBytes(bytes)
       if (info === undefined || (mime != null && mime !== info.mediaType))
         throw unknown(mime ?? 'blob')
@@ -256,7 +264,12 @@ export class AcpMedia implements AcpMediaPort {
       return attachment.part
     } catch (error: unknown) {
       if (signal.aborted) throw error
-      return error instanceof Error ? error.message : UI_TEXT.attachmentUnreadable
+      // Our refusals name themselves in UI sentences; a refusal the user
+      // chose names itself too. Anything else is raised unreadable, never
+      // in its own words.
+      if (error instanceof MediaRefusal) return error.message
+      if (error instanceof UserRefusalError) return error.message
+      throw new Error(UI_TEXT.attachmentUnreadable, { cause: error })
     }
   }
 
