@@ -13,7 +13,7 @@
 // own file; uncaptured shapes stay refused, never guessed (AGENTS.md rule
 // 14).
 import { readFileSync } from 'node:fs'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
@@ -40,6 +40,7 @@ import {
   networkContext,
   networkRig,
   readStoresReport,
+  recordingTransport,
 } from './helpers/reportKindNetwork'
 import { REPORT_FIXTURE_AS_OF } from './helpers/reporting/kindFixtures'
 
@@ -64,7 +65,7 @@ function siblingAdapter(channel: 'Marketplace' | 'Open VSX', url: string) {
 }
 
 function capturedNpm() {
-  return vi.fn((_request: { url: string }) => Promise.resolve(Response.json(NPM_CAPTURED_DOC)))
+  return recordingTransport(() => Promise.resolve(Response.json(NPM_CAPTURED_DOC)))
 }
 
 describe('npm store adapter', () => {
@@ -134,11 +135,11 @@ describe('npm store adapter', () => {
 
   it('reports a refused name as an unavailable npm row, never a failed source', async () => {
     // Sibling channels succeed, so the refused npm row stays visible in the data.
-    const transport = vi.fn((request: { url: string }) =>
+    const transport = recordingTransport((request) =>
       Promise.resolve(Response.json({ version: '1.0.0', url: request.url })),
     )
     const result = await readStoresReport({
-      transport,
+      transport: transport.transport,
       project: published,
       releaseVersion: '1.0.0',
       adapters: [
@@ -147,8 +148,8 @@ describe('npm store adapter', () => {
         npmStoreAdapter('My Package'),
       ],
     })
-    expectNpmPackageRequired(result, transport)
-    expect(transport.mock.calls.map((call) => call[0].url)).toEqual([
+    expectNpmPackageRequired(result, transport.calls)
+    expect(transport.calls.map((call) => call.request.url)).toEqual([
       'https://marketplace.visualstudio.com/fixture',
       'https://open-vsx.org/fixture',
     ])
@@ -165,13 +166,13 @@ describe('npm store adapter', () => {
     expect(result.record.status).toBe('unavailable')
     expect(result.data).toBeNull()
     expect(result.record.reason).toContain('npm: npm-package-required')
-    expect(rig.transport).not.toHaveBeenCalled()
+    expect(rig.calls).toHaveLength(0)
   })
 
   it('parses the captured version document and reports a matching release current', async () => {
     const transport = capturedNpm()
     const result = await readStoresReport({
-      transport,
+      transport: transport.transport,
       project: npmOnly,
       releaseVersion: '1.0.0',
       adapters: [npmStoreAdapter('is-even')],
@@ -186,7 +187,7 @@ describe('npm store adapter', () => {
         reason: null,
       },
     ])
-    expect(transport).toHaveBeenCalledOnce()
+    expect(transport.calls).toHaveLength(1)
   })
 
   it('reports lag when the captured channel is older, current when newer', async () => {
@@ -195,9 +196,9 @@ describe('npm store adapter', () => {
       ['1.0.2', '1.0.1', 'current'],
     ] as const) {
       const rig = networkRig({
-        transport: vi.fn(() =>
+        transport: recordingTransport(() =>
           Promise.resolve(Response.json({ ...(NPM_CAPTURED_DOC as object), version: served })),
-        ),
+        ).transport,
       })
       const result = await storesReportSource({
         reader: rig.reader,
@@ -211,7 +212,7 @@ describe('npm store adapter', () => {
 
   it('keeps live npm beside honestly missing Marketplace and Open VSX captures', async () => {
     const transport = capturedNpm()
-    const rig = networkRig({ transport })
+    const rig = networkRig({ transport: transport.transport })
     const result = await storesReportSource({
       reader: rig.reader,
       project: published,
@@ -231,17 +232,17 @@ describe('npm store adapter', () => {
         version: null,
         reason: 'store-capture-required',
       })
-    expect(transport).toHaveBeenCalledOnce()
-    expect(transport.mock.calls[0]?.[0]).toEqual({
+    expect(transport.calls).toHaveLength(1)
+    expect(transport.calls[0]?.request).toEqual({
       url: 'https://registry.npmjs.org/fixture/latest',
     })
   })
 
   it('names a missing package and an invalid document without guessing', async () => {
-    const missingTransport = vi.fn(() =>
+    const missingTransport = recordingTransport(() =>
       Promise.resolve(new Response('"Not Found"', { status: 404 })),
     )
-    const missing = networkRig({ transport: missingTransport })
+    const missing = networkRig({ transport: missingTransport.transport })
     const absent = await storesReportSource({
       reader: missing.reader,
       project: npmOnly,
@@ -250,10 +251,11 @@ describe('npm store adapter', () => {
     }).read(networkContext())
     expect(absent.record.status).toBe('unavailable')
     expect(absent.record.reason).toContain('npm: http-404')
-    expect(missingTransport).toHaveBeenCalledOnce()
+    expect(missingTransport.calls).toHaveLength(1)
 
     const rig = networkRig({
-      transport: vi.fn(() => Promise.resolve(Response.json({ wrong: true }))),
+      transport: recordingTransport(() => Promise.resolve(Response.json({ wrong: true })))
+        .transport,
     })
 
     const invalid = await storesReportSource({
@@ -269,7 +271,10 @@ describe('npm store adapter', () => {
   it('makes no request when the network mode is off', async () => {
     const transport = capturedNpm()
     const base = networkRig()
-    const rig = networkRig({ transport, policy: { ...base.deps.policy, mode: 'off' } })
+    const rig = networkRig({
+      transport: transport.transport,
+      policy: { ...base.deps.policy, mode: 'off' },
+    })
     const result = await storesReportSource({
       reader: rig.reader,
       project: npmOnly,
@@ -280,15 +285,18 @@ describe('npm store adapter', () => {
       status: 'unavailable',
       reason: UI_TEXT.reportUi.networkOff,
     })
-    expect(transport).not.toHaveBeenCalled()
+    expect(transport.calls).toHaveLength(0)
   })
 
   it('reuses the captured fact on 304 with its output schema', async () => {
-    const transport = vi
-      .fn()
-      .mockResolvedValueOnce(Response.json(NPM_CAPTURED_DOC, { headers: { etag: '"npm1"' } }))
-      .mockResolvedValueOnce(new Response(null, { status: 304 }))
-    const rig = networkRig({ transport })
+    const first = Response.json(NPM_CAPTURED_DOC, { headers: { etag: '"npm1"' } })
+    const second = new Response(null, { status: 304 })
+    let served = 0
+    const transport = recordingTransport(() => {
+      served += 1
+      return Promise.resolve(served === 1 ? first : second)
+    })
+    const rig = networkRig({ transport: transport.transport })
     const options = {
       reader: rig.reader,
       project: npmOnly,
@@ -300,15 +308,15 @@ describe('npm store adapter', () => {
     const cached = await storesReportSource(options).read(networkContext())
     expect(cached.record).toMatchObject({ status: 'ok', freshness: { state: 'stale' } })
     expect(cached.data).toEqual(initial.data)
-    expect(transport.mock.calls[1]?.[1]).toBe('"npm1"')
+    expect(transport.calls[1]?.etag).toBe('"npm1"')
   })
 
   it('stops a refused registry dispatch and names the wait', async () => {
-    const transport = vi.fn(() =>
+    const transport = recordingTransport(() =>
       Promise.resolve(new Response(null, { status: 429, headers: { 'retry-after': '60' } })),
     )
     const result = await readStoresReport({
-      transport,
+      transport: transport.transport,
       project: npmOnly,
       releaseVersion: '1.0.0',
       adapters: [npmStoreAdapter('is-even')],
@@ -319,7 +327,7 @@ describe('npm store adapter', () => {
         time: new Date(Date.parse(REPORT_FIXTURE_AS_OF) + 60_000).toISOString(),
       }),
     )
-    expect(transport).toHaveBeenCalledOnce()
+    expect(transport.calls).toHaveLength(1)
   })
 })
 
@@ -327,8 +335,17 @@ describe('workflow and release paths without captures', () => {
   it('never reaches the workflow/release port when the network mode is off', async () => {
     const transport = capturedNpm()
     const base = networkRig()
-    const rig = networkRig({ transport, policy: { ...base.deps.policy, mode: 'off' } })
-    const additional = { read: vi.fn(() => Promise.resolve({ runs: [], releases: [] })) }
+    const rig = networkRig({
+      transport: transport.transport,
+      policy: { ...base.deps.policy, mode: 'off' },
+    })
+    let additionalReads = 0
+    const additional = {
+      read: () => {
+        additionalReads += 1
+        return Promise.resolve({ runs: [], releases: [] })
+      },
+    }
     const result = await githubReportSource({
       remote: 'https://github.com/fixture/fixture.git',
       headSha: 'e9ebe7aad7ee658821d4a43a0bf967bbd87c9aa5',
@@ -340,19 +357,19 @@ describe('workflow and release paths without captures', () => {
       status: 'unavailable',
       reason: UI_TEXT.reportUi.networkOff,
     })
-    expect(additional.read).not.toHaveBeenCalled()
-    expect(transport).not.toHaveBeenCalled()
+    expect(additionalReads).toBe(0)
+    expect(transport.calls).toHaveLength(0)
   })
 
   it('keeps pulls and checks while a failing workflow/release port stays honest', async () => {
-    const transport = vi.fn((request: { url: string }) =>
+    const transport = recordingTransport((request) =>
       Promise.resolve(
         Response.json(
           request.url.includes('/pulls?') ? CAPTURED_PULL_LIST : CAPTURED_CHECKS_FAILED,
         ),
       ),
     )
-    const rig = networkRig({ transport })
+    const rig = networkRig({ transport: transport.transport })
     const result = await githubReportSource({
       remote: 'https://github.com/fixture/fixture.git',
       headSha: 'e9ebe7aad7ee658821d4a43a0bf967bbd87c9aa5',
