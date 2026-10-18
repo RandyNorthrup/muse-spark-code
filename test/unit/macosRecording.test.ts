@@ -9,11 +9,12 @@ import { EventEmitter } from 'node:events'
 import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import {
   macosScreenRecordingDriver,
   type MacosScreenRecordingDeps,
 } from '../../src/core/media/record/macos'
+import type { ScreenRecordingDriver, ScreenRecordingRun } from '../../src/core/media/record/driver'
 import type { HelperChild } from '../../src/core/voice/dictation'
 
 const HELPER_PATH = '/Applications/MuseDictate.app/Contents/MacOS/muse-dictate'
@@ -123,7 +124,45 @@ function depsWith(
   }
 }
 
+/** An isolated temp root, removed when the test finishes. */
+async function macosTempRoot(): Promise<string> {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), 'muse-macos-record-test-'))
+  onTestFinished(() => rm(tempRoot, { recursive: true, force: true }))
+  return tempRoot
+}
+
+/** Answer the availability probe; true when the line was the probe call. */
+function isProbeCall(helper: TestHelper, args: readonly string[]): boolean {
+  if (!args.includes('--probe')) return false
+  helper.emitLine(`${VALID_PROBE}\n`)
+  exitZero(helper)
+  return true
+}
+
 const recordOptions = { maxSeconds: 10, microphone: false, systemAudio: false }
+
+/** Start a run on a temp root. */
+function startDriver(
+  deps: MacosScreenRecordingDeps,
+  tempRoot: string,
+): Promise<ScreenRecordingRun> {
+  const driver = macosScreenRecordingDriver({ ...deps, tempRoot })
+  return driver.start(recordOptions, noopCountdown)
+}
+
+/** A refused outcome after the helper was ended. */
+function expectHelperEnded(outcome: unknown, helpers: TestHelper[]): void {
+  expect(outcome).toEqual({ ok: false, reason: expect.any(String) })
+  expect(helpers.some((helper) => helper.wasKilled)).toBe(true)
+}
+
+/** A run that refuses, leaving its temp root empty. */
+async function refusedAndRemoved(driver: ScreenRecordingDriver, tempRoot: string): Promise<void> {
+  const run = await driver.start(recordOptions, noopCountdown)
+  await expect(run.result).resolves.toEqual({ ok: false, reason: expect.any(String) })
+  const remaining = await readdir(tempRoot)
+  expect(remaining).toEqual([])
+}
 
 describe('macos driver availability', () => {
   it('refuses without a trusted-helper verifier', async () => {
@@ -171,111 +210,82 @@ describe('macos driver availability', () => {
 
 describe('macos driver start', () => {
   it('refuses the run when the recorder will not spawn, and removes the directory', async () => {
-    const tempRoot = await mkdtemp(path.join(tmpdir(), 'muse-macos-record-test-'))
-    try {
-      const { deps } = depsWith((_command, args) =>
-        testHelper(
-          (helper) => {
-            if (args.includes('--probe')) helper.emitLine(`${VALID_PROBE}\n`)
-            exitZero(helper)
-          },
-          () => {
-            // No commands before the run.
-          },
-        ),
-      )
-      const spawning = (command: string, args: readonly string[], env: NodeJS.ProcessEnv) => {
-        if (args.includes('--record-screen') && args.includes('--output')) {
-          throw new Error('recorder refused to start')
-        }
-        return deps.spawn(command, args, env)
+    const tempRoot = await macosTempRoot()
+    const { deps } = depsWith((_command, args) =>
+      testHelper(
+        (helper) => {
+          if (!isProbeCall(helper, args)) exitZero(helper)
+        },
+        () => {
+          // No commands before the run.
+        },
+      ),
+    )
+    const spawning = (command: string, args: readonly string[], env: NodeJS.ProcessEnv) => {
+      if (args.includes('--record-screen') && args.includes('--output')) {
+        throw new Error('recorder refused to start')
       }
-      const refusing = macosScreenRecordingDriver({ ...deps, tempRoot, spawn: spawning })
-      const run = await refusing.start(recordOptions, noopCountdown)
-      await expect(run.result).resolves.toEqual({ ok: false, reason: expect.any(String) })
-      const remaining = await readdir(tempRoot)
-      expect(remaining).toEqual([])
-    } finally {
-      await rm(tempRoot, { recursive: true, force: true })
+      return deps.spawn(command, args, env)
     }
+    const refusing = macosScreenRecordingDriver({ ...deps, tempRoot, spawn: spawning })
+    await refusedAndRemoved(refusing, tempRoot)
   })
 
   it('ends the helper when its command channel is dead', async () => {
-    const tempRoot = await mkdtemp(path.join(tmpdir(), 'muse-macos-record-test-'))
-    try {
-      const { deps, helpers } = depsWith((_command, args) =>
-        testHelper(
-          (helper) => {
-            if (args.includes('--probe')) helper.emitLine(`${VALID_PROBE}\n`)
-            exitZero(helper)
-          },
-          () => {
-            throw new Error('channel closed')
-          },
-        ),
-      )
-      const driver = macosScreenRecordingDriver({ ...deps, tempRoot })
-      const run = await driver.start(recordOptions, noopCountdown)
-      await run.stop()
-      const outcome = await run.result
-      expect(outcome).toEqual({ ok: false, reason: expect.any(String) })
-      expect(helpers.some((helper) => helper.wasKilled)).toBe(true)
-    } finally {
-      await rm(tempRoot, { recursive: true, force: true })
-    }
+    const tempRoot = await macosTempRoot()
+    const { deps, helpers } = depsWith((_command, args) =>
+      testHelper(
+        (helper) => {
+          if (isProbeCall(helper, args)) return
+          if (!args.includes('--record-screen')) exitZero(helper)
+        },
+        () => {
+          throw new Error('channel closed')
+        },
+      ),
+    )
+    const run = await startDriver(deps, tempRoot)
+    await run.stop()
+    const outcome = await run.result
+    expectHelperEnded(outcome, helpers)
   })
 
   it('ends the run on a malformed helper frame', async () => {
-    const tempRoot = await mkdtemp(path.join(tmpdir(), 'muse-macos-record-test-'))
-    try {
-      const { deps, helpers } = depsWith((_command, args) =>
-        testHelper(
-          (helper) => {
-            if (args.includes('--probe')) helper.emitLine(`${VALID_PROBE}\n`)
-            else if (args.includes('--record-screen')) helper.emitLine('not json{{{\n')
-            else exitZero(helper)
-          },
-          () => {
-            // No commands matter once the protocol breaks.
-          },
-        ),
-      )
-      const driver = macosScreenRecordingDriver({ ...deps, tempRoot })
-      const run = await driver.start(recordOptions, noopCountdown)
-      const outcome = await run.result
-      expect(outcome).toEqual({ ok: false, reason: expect.any(String) })
-      expect(helpers.some((helper) => helper.wasKilled)).toBe(true)
-    } finally {
-      await rm(tempRoot, { recursive: true, force: true })
-    }
+    const tempRoot = await macosTempRoot()
+    const { deps, helpers } = depsWith((_command, args) =>
+      testHelper(
+        (helper) => {
+          if (isProbeCall(helper, args)) return
+          if (args.includes('--record-screen')) helper.emitLine('not json{{{\n')
+          else exitZero(helper)
+        },
+        () => {
+          // No commands matter once the protocol breaks.
+        },
+      ),
+    )
+    const run = await startDriver(deps, tempRoot)
+    const outcome = await run.result
+    expectHelperEnded(outcome, helpers)
   })
 
   it('delivers nothing when the helper writes no file', async () => {
-    const tempRoot = await mkdtemp(path.join(tmpdir(), 'muse-macos-record-test-'))
-    try {
-      const { deps } = depsWith((_command, args) =>
-        testHelper(
-          (helper) => {
-            if (args.includes('--probe')) {
-              helper.emitLine(`${VALID_PROBE}\n`)
-              exitZero(helper)
-            } else if (args.includes('--record-screen')) {
-              helper.emitLine('{"type":"recording"}\n{"type":"finished"}\n')
-              exitZero(helper)
-            } else exitZero(helper)
-          },
-          () => {
-            // No commands matter once the helper finishes.
-          },
-        ),
-      )
-      const driver = macosScreenRecordingDriver({ ...deps, tempRoot })
-      const run = await driver.start(recordOptions, noopCountdown)
-      await expect(run.result).resolves.toEqual({ ok: false, reason: expect.any(String) })
-      const remaining = await readdir(tempRoot)
-      expect(remaining).toEqual([])
-    } finally {
-      await rm(tempRoot, { recursive: true, force: true })
-    }
+    const tempRoot = await macosTempRoot()
+    const { deps } = depsWith((_command, args) =>
+      testHelper(
+        (helper) => {
+          if (isProbeCall(helper, args)) return
+          if (args.includes('--record-screen')) {
+            helper.emitLine('{"type":"recording"}\n{"type":"finished"}\n')
+            exitZero(helper)
+          } else exitZero(helper)
+        },
+        () => {
+          // No commands matter once the helper finishes.
+        },
+      ),
+    )
+    const driver = macosScreenRecordingDriver({ ...deps, tempRoot })
+    await refusedAndRemoved(driver, tempRoot)
   })
 })

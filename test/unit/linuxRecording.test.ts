@@ -7,7 +7,7 @@
 import { mkdtemp, readdir, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import {
   latestLinuxRecording,
   linuxRecordingDriver,
@@ -78,6 +78,18 @@ async function listRecordingFiles(
   return entries
 }
 
+/** A fresh recording file with its real size, removed when the test finishes. */
+async function freshMp4(
+  prefix: string,
+): Promise<{ readonly root: string; readonly file: string; readonly sizeBytes: number }> {
+  const root = await mkdtemp(path.join(tmpdir(), prefix))
+  onTestFinished(() => rm(root, { recursive: true, force: true }))
+  const file = path.join(root, 'fresh.mp4')
+  await writeFile(file, Buffer.alloc(1024))
+  const fileStat = await stat(file)
+  return { root, file, sizeBytes: fileStat.size }
+}
+
 describe('latestLinuxRecording', () => {
   it('reports no recent recording when the directory is missing', async () => {
     const outcome = await latestLinuxRecording({
@@ -92,65 +104,45 @@ describe('latestLinuxRecording', () => {
   })
 
   it('ignores a recording older than the recent window', async () => {
-    const root = await mkdtemp(path.join(tmpdir(), 'muse-linux-record-stale-'))
-    try {
-      const file = path.join(root, 'old.mp4')
-      await writeFile(file, Buffer.alloc(1024))
-      const stale = Date.now() - SCREEN_RECORDING_RECENT_MAX_AGE_MS - 60_000
-      await utimes(file, stale / 1000, stale / 1000)
-      const outcome = await latestLinuxRecording({
-        roots: [root],
-        list: listRecordingFiles,
-        copyForPreview: () => Promise.reject(new Error('unreachable without candidates')),
-      })
-      expect(outcome).toEqual({ ok: false, reason: expect.any(String) })
-    } finally {
-      await rm(root, { recursive: true, force: true })
-    }
+    const { root, file } = await freshMp4('muse-linux-record-stale-')
+    const stale = Date.now() - SCREEN_RECORDING_RECENT_MAX_AGE_MS - 60_000
+    await utimes(file, stale / 1000, stale / 1000)
+    const outcome = await latestLinuxRecording({
+      roots: [root],
+      list: listRecordingFiles,
+      copyForPreview: () => Promise.reject(new Error('unreachable without candidates')),
+    })
+    expect(outcome).toEqual({ ok: false, reason: expect.any(String) })
   })
 
   it('reports unavailable when the preview copy fails', async () => {
-    const root = await mkdtemp(path.join(tmpdir(), 'muse-linux-record-copy-'))
-    try {
-      const file = path.join(root, 'fresh.mp4')
-      await writeFile(file, Buffer.alloc(1024))
-      const outcome = await latestLinuxRecording({
-        roots: [root],
-        list: listRecordingFiles,
-        copyForPreview: () => Promise.reject(new Error('copy failed')),
-      })
-      expect(outcome).toEqual({ ok: false, reason: expect.any(String) })
-    } finally {
-      await rm(root, { recursive: true, force: true })
-    }
+    const { root } = await freshMp4('muse-linux-record-copy-')
+    const outcome = await latestLinuxRecording({
+      roots: [root],
+      list: listRecordingFiles,
+      copyForPreview: () => Promise.reject(new Error('copy failed')),
+    })
+    expect(outcome).toEqual({ ok: false, reason: expect.any(String) })
   })
 
   it('previews a recent recording the copy verifies', async () => {
-    const root = await mkdtemp(path.join(tmpdir(), 'muse-linux-record-fresh-'))
-    try {
-      const file = path.join(root, 'fresh.mp4')
-      await writeFile(file, Buffer.alloc(1024))
-      const fileStat = await stat(file)
-      const sizeBytes = fileStat.size
-      const outcome = await latestLinuxRecording({
-        roots: [root],
-        list: listRecordingFiles,
-        copyForPreview: () =>
-          Promise.resolve({
-            path: file,
-            info: {
-              kind: 'video',
-              mediaType: 'video/mp4',
-              sizeBytes,
-              durationSeconds: 5,
-              hasSoundtrack: false,
-            },
-            dispose: () => Promise.resolve(),
-          }),
-      })
-      expect(outcome.ok).toBe(true)
-    } finally {
-      await rm(root, { recursive: true, force: true })
-    }
+    const { root, file, sizeBytes } = await freshMp4('muse-linux-record-fresh-')
+    const outcome = await latestLinuxRecording({
+      roots: [root],
+      list: listRecordingFiles,
+      copyForPreview: () =>
+        Promise.resolve({
+          path: file,
+          info: {
+            kind: 'video',
+            mediaType: 'video/mp4',
+            sizeBytes,
+            durationSeconds: 5,
+            hasSoundtrack: false,
+          },
+          dispose: () => Promise.resolve(),
+        }),
+    })
+    expect(outcome.ok).toBe(true)
   })
 })

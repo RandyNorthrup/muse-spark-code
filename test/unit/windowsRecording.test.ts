@@ -14,6 +14,7 @@ import {
   type WindowsRecorderDeps,
   type WindowsRecorderProcess,
 } from '../../src/core/media/record/windows'
+import type { ScreenRecordingRun } from '../../src/core/media/record/driver'
 import { MEDIA_FILE_ID_MIN_BYTES, MEDIA_MAX_UPLOAD_MIB } from '../../src/shared/constants'
 
 function codedError(message: string, code: string): Error {
@@ -91,6 +92,18 @@ function noShutdownSubscription(): () => void {
 
 const recordOptions = { maxSeconds: 10, microphone: false, systemAudio: false }
 
+/** A run whose helper verification refuses, so setup reaches removal. */
+function startWithUnverifiableHelper(
+  removeDirectory: WindowsRecorderDeps['removeDirectory'],
+): Promise<ScreenRecordingRun> {
+  const { deps } = depsWith({
+    verifyHelper: () => Promise.resolve(false),
+    removeDirectory,
+  })
+  const recorder = windowsScreenRecorder(deps)
+  return recorder.start(recordOptions, noopCountdown)
+}
+
 function noopCountdown(): void {
   // Countdown display is the host's.
 }
@@ -98,15 +111,10 @@ function noopCountdown(): void {
 describe('windows screen recorder removal', () => {
   it('resolves when the directory is already gone instead of burning retries', async () => {
     const removed: string[] = []
-    const { deps } = depsWith({
-      verifyHelper: () => Promise.resolve(false),
-      removeDirectory: (directory) => {
-        removed.push(directory)
-        return Promise.reject(codedError(`ENOENT: ${directory}`, 'ENOENT'))
-      },
+    const run = await startWithUnverifiableHelper((directory) => {
+      removed.push(directory)
+      return Promise.reject(codedError(`ENOENT: ${directory}`, 'ENOENT'))
     })
-    const recorder = windowsScreenRecorder(deps)
-    const run = await recorder.start(recordOptions, noopCountdown)
     await expect(run.result).resolves.toEqual({ ok: false, reason: expect.any(String) })
     // One attempt only: an already-removed directory is done, not retried.
     expect(removed).toHaveLength(1)
@@ -114,17 +122,12 @@ describe('windows screen recorder removal', () => {
 
   it('retries a scanner lock bounded, then removes', async () => {
     const attempts: string[] = []
-    const { deps } = depsWith({
-      verifyHelper: () => Promise.resolve(false),
-      removeDirectory: (directory) => {
-        attempts.push(directory)
-        return attempts.length < 3
-          ? Promise.reject(codedError('EPERM: locked by scanner', 'EPERM'))
-          : rm(directory, { recursive: true, force: true })
-      },
+    const run = await startWithUnverifiableHelper((directory) => {
+      attempts.push(directory)
+      return attempts.length < 3
+        ? Promise.reject(codedError('EPERM: locked by scanner', 'EPERM'))
+        : rm(directory, { recursive: true, force: true })
     })
-    const recorder = windowsScreenRecorder(deps)
-    const run = await recorder.start(recordOptions, noopCountdown)
     await expect(run.result).resolves.toEqual({ ok: false, reason: expect.any(String) })
     expect(attempts).toHaveLength(3)
   })
@@ -132,15 +135,17 @@ describe('windows screen recorder removal', () => {
   it('surfaces a failure no scanner explains at once, with its cause', async () => {
     const attempts: string[] = []
     const failure = codedError('EIO: disk fault', 'EIO')
-    const { deps } = depsWith({
-      verifyHelper: () => Promise.resolve(false),
-      removeDirectory: (directory) => {
+    let surfaced: unknown
+    try {
+      const run = await startWithUnverifiableHelper((directory) => {
         attempts.push(directory)
         return Promise.reject(failure)
-      },
-    })
-    const recorder = windowsScreenRecorder(deps)
-    await expect(recorder.start(recordOptions, noopCountdown)).rejects.toBe(failure)
+      })
+      await run.result
+    } catch (error: unknown) {
+      surfaced = error
+    }
+    expect(surfaced).toBe(failure)
     expect(attempts).toHaveLength(1)
   })
 })
