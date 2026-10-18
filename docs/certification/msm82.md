@@ -134,7 +134,12 @@ main-now` → Already up to date) and added: `NoticeMemory` plus the
 ## Gates on the merged tree (RVPR203FIX review, 2026-10-17)
 
 Merged `main-now` (`e49e65ac7`, 51 commits) with no conflicts;
-the lane's ten files survive unchanged in intent. Exit codes:
+`main-now` then advanced during the review and was merged again
+(`81dacaf5a`, also conflict-free; typecheck, host-api, plan,
+roadmap, ESLint, unit 7/7 and `build` re-run green after it —
+`build` first failed only on the review's own leftover
+`dist/test` dev bundles and passes with them removed). The
+lane's ten files survive unchanged in intent. Exit codes:
 `typecheck` (all projects) 0; ESLint `--max-warnings=0` on the
 five touched code/test files 0 (including main's new
 no-stand-ins lint); Prettier on all ten touched files 0;
