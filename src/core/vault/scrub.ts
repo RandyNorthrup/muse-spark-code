@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+import { wipeBuffers } from './crypto'
 import {
   REDACTED_MARK,
   UI_TEXT,
@@ -117,7 +118,9 @@ function forms(value: Uint8Array): Buffer[] {
     }
     return patterns
   } catch (error: unknown) {
-    for (const pattern of patterns) pattern.fill(0)
+    // The partial build is wiped, then the original failure below still
+    // reaches the caller instead of a generic build error.
+    wipeBuffers(patterns)
     throw error
   } finally {
     raw.fill(0)
