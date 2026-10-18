@@ -200,7 +200,7 @@ the PROVERRORS record hit the same wall. The probe-level equivalents above
 
 - `9346a4b2a` fix(providers): refused probe names its connection codes
   again (+ test + CHANGELOG line). Hooks on; secret scan clean.
-- [record commit to fill in]
+- `47fb8eef0` this record.
 
 ## Model calls
 
