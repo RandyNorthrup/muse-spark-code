@@ -4382,7 +4382,7 @@ stopped and the next message resumes the same session.
   certificates VS Code adds. Behind a proxy or a network that inspects
   HTTPS, use VS Code 1.112 or later for Muse Voice; the Model API's requests
   are routed on every supported version. On 1.99 and 1.100 Muse Voice is
-  unavailable (their Node has no WebSocket). While a proxy is set on a
+  unavailable (their Node has no WebSocket). While `http.proxy` is set on a
   version that does not route the voice connection, the microphone stays
   unavailable and says so instead of recording audio that cannot be sent.
   An editor built on VS Code may route neither; **Muse Spark: Diagnostics**
