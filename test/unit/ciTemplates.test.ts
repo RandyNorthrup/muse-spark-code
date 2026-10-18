@@ -130,11 +130,15 @@ describe.runIf(isPosix)('the shipped bootstrap under the real shells', () => {
       const lines = bootstrapOf(system)
         .split('\n')
         .map((line) => line.trim())
+      // The probe selects the trap's one bounded removal up front; it runs
+      // first so the variable resolves under `set -u`.
+      const probe = lines.find((line) => line.includes("muse_ci_internal_rm='"))
+      if (probe === undefined) throw new Error('missing removal-command probe')
       const start = lines.findIndex((line) => /^muse_(?:ci_internal_)?start_ms="\$\{/.test(line))
       const trap = lines.findLastIndex((line) => line.startsWith("trap '("))
       expect(start).toBeGreaterThan(-1)
       expect(trap).toBeGreaterThan(start)
-      const parent = lines.slice(start, trap + 1).join('\n')
+      const parent = [probe, ...lines.slice(start, trap + 1)].join('\n')
       const setupName = /\$\{([A-Za-z_][A-Za-z0-9_]*)%%:\*\}/.exec(parent)?.[1]
       if (setupName === undefined) throw new Error('missing bootstrap result holder')
       const root = mkdtempSync(path.join(tmpdir(), 'ci-templates-'))
@@ -184,4 +188,82 @@ describe.runIf(isPosix)('the shipped bootstrap under the real shells', () => {
       }
     },
   )
+
+  it.each([...SYSTEMS])(
+    '%s: without timeout on PATH the probe still cleans up with plain rm',
+    (system) => {
+      const lines = bootstrapOf(system)
+        .split('\n')
+        .map((line) => line.trim())
+      const probe = lines.find((line) => line.includes("muse_ci_internal_rm='"))
+      if (probe === undefined) throw new Error('missing removal-command probe')
+      const start = lines.findIndex((line) => /^muse_(?:ci_internal_)?start_ms="\$\{/.test(line))
+      const trap = lines.findLastIndex((line) => line.startsWith("trap '("))
+      expect(start).toBeGreaterThan(-1)
+      expect(trap).toBeGreaterThan(start)
+      const parent = [probe, ...lines.slice(start, trap + 1)].join('\n')
+      const setupName = /\$\{([A-Za-z_][A-Za-z0-9_]*)%%:\*\}/.exec(parent)?.[1]
+      if (setupName === undefined) throw new Error('missing bootstrap result holder')
+      // A bin directory with rm but no timeout: the probe must select plain
+      // rm, so cleanup still runs and the missing binary still keeps 127.
+      const bin = mkdtempSync(path.join(tmpdir(), 'ci-templates-bin-'))
+      const root = mkdtempSync(path.join(tmpdir(), 'ci-templates-'))
+      try {
+        const rm = ['/bin/rm', '/usr/bin/rm'].find((candidate) => existsSync(candidate))
+        if (rm === undefined) throw new Error('no rm to link')
+        spawnSync('ln', ['-s', rm, path.join(bin, 'rm')], { encoding: 'utf8' })
+        for (const shell of shells()) {
+          const absolute = ['/bin', '/usr/bin']
+            .map((directory) => path.join(directory, shell))
+            .find((candidate) => existsSync(candidate))
+          if (absolute === undefined) throw new Error(`no absolute path for ${shell}`)
+          const dir = path.join(root, `no-timeout-${shell}`)
+          mkdirSync(dir, { mode: 0o700 })
+          const result = spawnSync(
+            absolute,
+            [
+              '-e',
+              '-c',
+              [
+                'set -eu',
+                `${setupName}="1700000000000:${dir}"`,
+                parent,
+                'muse-spark-exec-probe-missing-binary',
+              ].join('\n'),
+            ],
+            {
+              encoding: 'utf8',
+              env: { PATH: bin, MUSE_MODEL_API_KEY: CI_KEY },
+            },
+          )
+          expect(result.status, shell).toBe(127)
+          expect(`${result.stdout}${result.stderr}`, shell).not.toMatch(
+            /unbound variable|parameter not set/,
+          )
+          expect(existsSync(dir), `${shell} left ${dir} behind`).toBe(false)
+        }
+      } finally {
+        rmSync(bin, { recursive: true, force: true })
+        rmSync(root, { recursive: true, force: true })
+      }
+    },
+  )
+
+  it.each([...SYSTEMS])('%s: an unreadable CA file refuses before any download', (system) => {
+    for (const shell of shells()) {
+      const result = spawnSync(shell, ['-c', bootstrapOf(system)], {
+        encoding: 'utf8',
+        env: {
+          PATH: process.env['PATH'] ?? '',
+          MUSE_AGENT_VERSION: '0.0.0-test',
+          MUSE_INPUT_AGENT_PACKAGE_SHA256: 'f'.repeat(64),
+          MUSE_INPUT_EXTRA_CA_CERTS: path.join(tmpdir(), 'ci-templates-missing-ca.pem'),
+        },
+      })
+      expect(result.status, shell).toBe(1)
+      expect(`${result.stdout}${result.stderr}`, shell).toContain(
+        'muse-spark: MUSE_INPUT_EXTRA_CA_CERTS is not readable',
+      )
+    }
+  })
 })
