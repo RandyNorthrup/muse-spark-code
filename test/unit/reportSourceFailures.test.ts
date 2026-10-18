@@ -82,7 +82,7 @@ describe('readLedger failure codes', () => {
   })
 })
 
-function agentFiles(root: string, io: LocalFileIo, names: readonly string[]): AgentUsageFile[] {
+function agentFiles(io: LocalFileIo, names: readonly string[]): AgentUsageFile[] {
   return names.map((file) => ({ agent: 'claudeCode' as const, file, io }))
 }
 
@@ -95,7 +95,7 @@ describe('agentUsageSource failure codes', () => {
       writeFileSync(path.join(dir, 's.jsonl'), '{not json\n')
       const source = agentUsageSource(
         ['claudeCode'],
-        agentFiles(root, plainIo(root), ['projects/w/s.jsonl']),
+        agentFiles(plainIo(root), ['projects/w/s.jsonl']),
         identityScrub,
       )
       const result = await source.read(context())
@@ -118,7 +118,7 @@ describe('agentUsageSource failure codes', () => {
       )
       const source = agentUsageSource(
         ['claudeCode'],
-        agentFiles(root, plainIo(root), ['projects/w/s.jsonl']),
+        agentFiles(plainIo(root), ['projects/w/s.jsonl']),
         identityScrub,
       )
       const result = await source.read(context())
@@ -135,7 +135,7 @@ describe('agentUsageSource failure codes', () => {
       mkdirSync(path.join(root, 'projects', 'w'), { recursive: true })
       const source = agentUsageSource(
         ['claudeCode'],
-        agentFiles(root, plainIo(root), ['projects/w/gone.jsonl']),
+        agentFiles(plainIo(root), ['projects/w/gone.jsonl']),
         identityScrub,
       )
       const result = await source.read(context())
@@ -154,7 +154,7 @@ describe('agentUsageSource failure codes', () => {
       mkdirSync(path.join(root, 'projects', 'w', 's.jsonl'), { recursive: true })
       const source = agentUsageSource(
         ['claudeCode'],
-        agentFiles(root, plainIo(root), ['projects/w/s.jsonl']),
+        agentFiles(plainIo(root), ['projects/w/s.jsonl']),
         identityScrub,
       )
       const result = await source.read(context())
@@ -171,7 +171,7 @@ describe('agentUsageSource failure codes', () => {
       mkdirSync(path.join(root, 'projects', 'w'), { recursive: true })
       const source = agentUsageSource(
         ['claudeCode'],
-        agentFiles(root, plainIo(root), ['projects/w/s.jsonl']),
+        agentFiles(plainIo(root), ['projects/w/s.jsonl']),
         identityScrub,
       )
       const result = await source.read(context(AbortSignal.abort()))
