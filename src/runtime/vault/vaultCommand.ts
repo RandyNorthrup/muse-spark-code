@@ -153,6 +153,7 @@ export function parseVaultCommand(args: readonly string[]): VaultCommandOptions 
       }
     }
   } catch {
+    // No usage line echoes arguments or JSON errors: they can carry an accidental value.
     return undefined
   }
 }
@@ -280,6 +281,22 @@ async function watch(port: VaultCommandPort, deps: VaultCommandDeps): Promise<vo
   }
 }
 
+/**
+ * The source is already gone: finish the person's Delete by clearing the
+ * leftover record instead of dropping it (RVCM1091G P3). A record already
+ * cleared (or still stuck) leaves the caller's refusal below as it stands.
+ */
+export async function clearGoneImport(
+  keepImport: (receipt: string) => Promise<void>,
+  receipt: string,
+): Promise<void> {
+  try {
+    await keepImport(receipt)
+  } catch {
+    /* The refusal below still holds: the file is gone. */
+  }
+}
+
 /** All items or none; a per-item report of names only, then Keep or Delete the source. */
 async function importFile(
   port: VaultCommandPort,
@@ -303,16 +320,8 @@ async function importFile(
     try {
       await port.deleteImport(report.receipt)
     } catch (error: unknown) {
-      // The source is already gone: finish the person's Delete by clearing
-      // the leftover record instead of dropping it (RVCM1091G P3). A record
-      // already cleared (or still stuck) leaves the refusal below as is.
-      if (error instanceof Error && error.message === UI_TEXT.vault.sourceGone) {
-        try {
-          await port.keepImport(report.receipt)
-        } catch {
-          /* The refusal below still holds: the file is gone. */
-        }
-      }
+      if (error instanceof Error && error.message === UI_TEXT.vault.sourceGone)
+        await clearGoneImport((receipt) => port.keepImport(receipt), report.receipt)
       throw error
     }
   } else await port.keepImport(report.receipt)
@@ -354,15 +363,8 @@ async function finishReceipts(port: VaultCommandPort, deps: VaultCommandDeps): P
     try {
       await port.deleteImport(entry.receipt)
     } catch (error: unknown) {
-      // The source is already gone: finish the person's Delete by clearing
-      // the leftover record instead of dropping it.
-      if (error instanceof Error && error.message === UI_TEXT.vault.sourceGone) {
-        try {
-          await port.keepImport(entry.receipt)
-        } catch {
-          /* The refusal below still holds: the file is gone. */
-        }
-      }
+      if (error instanceof Error && error.message === UI_TEXT.vault.sourceGone)
+        await clearGoneImport((receipt) => port.keepImport(receipt), entry.receipt)
       deps.printError(vaultCommandFailure(error))
       code = 1
     }
@@ -548,6 +550,7 @@ export async function runVaultCommand(
     try {
       await port?.close()
     } catch {
+      // A close that fails after the command still tells the terminal and fails the run.
       deps.printError(UI_TEXT.vault.noAccess)
       code = 1
     }

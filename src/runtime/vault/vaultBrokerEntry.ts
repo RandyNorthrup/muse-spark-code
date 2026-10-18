@@ -423,6 +423,7 @@ export async function runVaultBrokerEntry(
     const stopping = lifecycle.handle
     if (stopping !== undefined)
       void stopping.close().catch(() => {
+        // A stop racing shutdown still fails the entry; the exit code is the launcher's record.
         process.exitCode = 1
       })
   }
@@ -439,6 +440,7 @@ export async function runVaultBrokerEntry(
       try {
         await handle.close()
       } catch {
+        // A close after a stop request still fails the entry; the exit code is the launcher's record.
         process.exitCode = 1
       }
     } else {
@@ -456,6 +458,15 @@ export async function runVaultBrokerEntry(
 
 function resourceFailure(): void {
   process.stderr.write('vault-resource-refused\n')
+}
+
+/** A serve that failed to start stops best-effort; the startup failure is the one that throws. */
+async function stopFailedServe(serve: { stop(): Promise<void> }): Promise<void> {
+  try {
+    await serve.stop()
+  } catch {
+    /* Startup already failed; the stop is best-effort. */
+  }
 }
 
 /** Internal child entry: only the installed sibling runtime may supply the trusted bindings. */
@@ -532,11 +543,8 @@ async function main(): Promise<void> {
             serve,
           )
         } catch (error: unknown) {
-          try {
-            await serve.stop()
-          } catch {
-            /* Startup already failed; the stop is best-effort. */
-          }
+          // Startup already failed; the stop is best-effort and the startup failure still throws.
+          await stopFailedServe(serve)
           throw error
         }
       }
@@ -552,6 +560,7 @@ if (require.main === module) {
       /* Fixed failure diagnostics cannot depend on a surviving launcher's pipes. */
     })
   void main().catch(() => {
+    // Startup failed before readiness: the fixed word on stderr and a nonzero exit are the record.
     process.stderr.write('vault-broker-refused\n')
     process.exitCode = 1
   })
