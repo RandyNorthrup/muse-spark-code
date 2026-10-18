@@ -193,6 +193,14 @@ describe('wrong options and values', () => {
     expect(refusalFor(['exec', '--max-budget-usd', 'abc', 'hi'])).toContain('six decimal')
   })
 
+  it('takes --effort none past the enum gate for Thinking off (lane REASONSHAPESR2)', () => {
+    const parsed = parseCommandLine(['exec', '--effort', 'none', 'hi'])
+    expect(parsed).toMatchObject({ command: 'exec', options: { effort: 'none' } })
+    expect(refusalFor(['exec', '--effort', 'turbo', 'hi'])).toContain(
+      'minimal|low|medium|high|xhigh|max|ultra|none',
+    )
+  })
+
   it('refuses a secret-looking option without repeating its name', () => {
     const parsed = parseCommandLine(['auth', 'set', '--account-secret-canary'])
     expect(parsed).toMatchObject({ command: 'invalid', exitCode: 2 })

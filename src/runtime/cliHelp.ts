@@ -29,6 +29,7 @@ import {
   REPORT_EXIT_CODES,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
+  THINKING_OFF_EFFORT,
 } from '../shared/constants'
 import type { UiText } from '../shared/l10n/en'
 import { fill } from '../shared/l10n/text'
@@ -114,7 +115,9 @@ function factFor(name: string): CliOptionFact | undefined {
       return { kind: 'enum', values: EXEC_OUTPUTS, default: EXEC_DEFAULT_OUTPUT }
     }
     case 'effort': {
-      return { kind: 'enum', values: EFFORT_LEVELS }
+      // `none` (Thinking off) rides beside the tiers: parseExec takes it and
+      // the record decides what the wire carries (lane REASONSHAPESR2).
+      return { kind: 'enum', values: [...EFFORT_LEVELS, THINKING_OFF_EFFORT] }
     }
     case 'max-requests': {
       return {
@@ -857,7 +860,15 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'image-generation',
     'questions-defer-after',
   ],
-  exec: ['trust-workspace', 'allow-dangerously-skip-permissions', 'web-search', 'record'],
+  exec: [
+    'trust-workspace',
+    'allow-dangerously-skip-permissions',
+    'web-search',
+    'record',
+    // Parsed and reference-documented, but off the one screen: the setting
+    // text carries the guard/spill/removal description (lane TOOLCAP).
+    'max-tool-output-bytes',
+  ],
   providersAdd: [],
   providersModels: [],
   usage: [],

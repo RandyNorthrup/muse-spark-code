@@ -274,6 +274,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- `exec --effort none` passes the terminal's enum gate again, so Thinking off
+  reaches the per-model record that decides what the wire carries
+  (lane REASONSHAPESR2); a tier no model takes is still refused with the
+  accepted list, which now names `none`.
+- `providers accounts` misuse (a missing verb or `--provider`) exits 2 with
+  the accounts usage, like every other terminal misuse, instead of exit 1.
+- `exec --max-tool-output-bytes` is mapped as a parsed, reference-documented
+  option off the one-screen help, so the help/parse guard passes while the
+  screen stays short (lane TOOLCAP).
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
   `htmlToMarkdown` had no callers (both backends convert through
   `convertHtmlJob` on the page worker), so it was removed. No behaviour
