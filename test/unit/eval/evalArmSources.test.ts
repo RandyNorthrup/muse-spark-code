@@ -17,7 +17,7 @@ import {
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { EVAL_ARM_PROCESS_TIMEOUT_MS } from '../../../src/shared/constants'
 import {
   armBundleDigest,
@@ -31,9 +31,37 @@ import { frozenBundleChange } from '../../../src/core/eval/mechanisms'
 
 const trees: string[] = []
 afterEach(() => {
-  vi.unstubAllEnvs()
   for (const tree of trees.splice(0)) rmSync(tree, { recursive: true, force: true })
 })
+
+// The temp-root tests below point the real TMPDIR/TMP/TEMP entries at a
+// directory of their own, so the real os.tmpdir() under test resolves there.
+// Each entry's previous value is restored afterwards, so no run leaks into
+// another.
+interface TempEnv {
+  TMPDIR: string | undefined
+  TMP: string | undefined
+  TEMP: string | undefined
+}
+function pointTempAt(directory: string): TempEnv {
+  const saved: TempEnv = {
+    TMPDIR: process.env['TMPDIR'],
+    TMP: process.env['TMP'],
+    TEMP: process.env['TEMP'],
+  }
+  process.env['TMPDIR'] = directory
+  process.env['TMP'] = directory
+  process.env['TEMP'] = directory
+  return saved
+}
+function restoreTemp(saved: TempEnv): void {
+  if (saved.TMPDIR === undefined) delete process.env['TMPDIR']
+  else process.env['TMPDIR'] = saved.TMPDIR
+  if (saved.TMP === undefined) delete process.env['TMP']
+  else process.env['TMP'] = saved.TMP
+  if (saved.TEMP === undefined) delete process.env['TEMP']
+  else process.env['TEMP'] = saved.TEMP
+}
 
 function tree(files: Record<string, string>): string {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'arm-bundle-')))
@@ -142,14 +170,18 @@ describe('frozen arm bundle execution', () => {
     const temp = tree({})
     const alias = path.join(temp, 'alias')
     symlinkSync(root, alias, 'junction')
-    for (const name of ['TMPDIR', 'TMP', 'TEMP']) vi.stubEnv(name, alias)
-    const nested = tree({ 'arm.ts': 'export const run = () => __filename' })
-    expect(nested).toBe(realpathSync(nested))
-    const file = executeArmBundle(bundle(nested))
-    expect(typeof file).toBe('string')
-    // The child directory has been cleaned; compare its canonical parent.
-    if (typeof file !== 'string') throw new TypeError('the child did not return its filename')
-    expect(path.dirname(path.dirname(file))).toBe(root)
+    const saved = pointTempAt(alias)
+    try {
+      const nested = tree({ 'arm.ts': 'export const run = () => __filename' })
+      expect(nested).toBe(realpathSync(nested))
+      const file = executeArmBundle(bundle(nested))
+      expect(typeof file).toBe('string')
+      // The child directory has been cleaned; compare its canonical parent.
+      if (typeof file !== 'string') throw new TypeError('the child did not return its filename')
+      expect(path.dirname(path.dirname(file))).toBe(root)
+    } finally {
+      restoreTemp(saved)
+    }
   })
 
   it('snapshots declared fixtures by bytes and grants only each exact file', () => {
@@ -395,14 +427,18 @@ describe('frozen arm bundle execution', () => {
         setTimeout(() => resolve(1), ${String(releaseMs)});
       })`,
     })
-    for (const name of ['TMPDIR', 'TMP', 'TEMP']) vi.stubEnv(name, root)
-    const frozen = bundle(root)
-    const before = readdirSync(root)
-    const start = performance.now()
-    expect(() => executeArmBundle(frozen)).toThrow(/ETIMEDOUT/)
-    // Allow one second for parent scheduling; the child's fallback takes longer.
-    expect(performance.now() - start).toBeLessThan(EVAL_ARM_PROCESS_TIMEOUT_MS + 1000)
-    expect(readdirSync(root)).toEqual(before)
+    const saved = pointTempAt(root)
+    try {
+      const frozen = bundle(root)
+      const before = readdirSync(root)
+      const start = performance.now()
+      expect(() => executeArmBundle(frozen)).toThrow(/ETIMEDOUT/)
+      // Allow one second for parent scheduling; the child's fallback takes longer.
+      expect(performance.now() - start).toBeLessThan(EVAL_ARM_PROCESS_TIMEOUT_MS + 1000)
+      expect(readdirSync(root)).toEqual(before)
+    } finally {
+      restoreTemp(saved)
+    }
   })
 
   it('fails honestly on missing entries, unresolved imports and invalid child output', () => {
