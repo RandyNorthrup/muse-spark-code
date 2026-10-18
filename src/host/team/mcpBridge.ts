@@ -677,7 +677,10 @@ export function bridgeRunChecks(deps: BridgeChecksDeps): {
       }
       admit()
       if (checks.length === 0) throw new Error(MODEL_API_MODEL_TEXT.runChecksNone)
-      const names = args.names ?? checks.map((check) => check.name)
+      // One run per distinct check, in requested order: a repeated name
+      // would execute the same command again for every duplicate (PR229FIX
+      // T6). Distinct checks stay unbounded.
+      const names = [...new Set(args.names ?? checks.map((check) => check.name))]
       const paths = await deps.pathsFor(args.paths)
       admit()
       const chosen = names.map((name) => {
