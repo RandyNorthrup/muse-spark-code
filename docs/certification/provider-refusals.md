@@ -700,3 +700,16 @@ Real-life runs (lead, packed product):
 2. Thread 3: a configured provider with no documented maximum (e.g. OpenRouter), `museSpark.modelApiMaxRetries` unset, network cut mid-turn: the send failure at once, no "Retrying" notice. Set the count to 1: exactly one notice, then the failure.
 
 Still open: `RetryableStreamError` resends in the host turn loops stay on the provider's policy (answered error events, not ambiguous sends); per-call-billed paths never retried ambiguous sends and still don't.
+
+## Lane PR225W1 first result (the 7 threads triaged, fixes to follow)
+
+1. Compaction reads the resolved client: already fixed in `413bf5658` (`attemptClient` retained per attempt; the catch reads the limit, the delay and the wait from it). To answer with that commit.
+2. Cancel each timer chunk on abort: already fixed in `413bf5658` + `b4ae1e92b` (the stop reaches each chunk's sleep; `abortableSleep` clears its timer; all production deps share it). To answer with those commits.
+3. Bound ambiguous retries: already fixed in `413bf5658` (an unanswered send replays only within an explicit bound — the person's setting or the provider's documented maximum — else the failure ends the request). To answer with that commit.
+4. Subscription `maxRetries` delegates to Meta: OPEN, measured (`registry.ts:183` still `() => meta.maxRetries()`). To fix: plan routes answer the person's setting when set, else undefined (no documented maximum); non-plan routes keep Meta's.
+5. `effectiveMaxRetries` replaces the provider maximum with `??`: OPEN, measured (`retryPolicy.ts:179`). To fix: the minimum when both exist; the person's value stays for undocumented providers.
+6. Live retry cap not rechecked after the wait: OPEN, measured (`transport.ts:1288` gates before `pause()` only). To fix: revalidate the live callback after the wait, before dispatch.
+7. No orchestrator notice when the person's cap fires: OPEN, measured (`ModelApiHost.ts:6037` rethrows with no cap event). To fix: emit the cap notification when the person's cap, not a provider maximum, blocks the retry.
+8. CI `tests (ubuntu-latest, shard 3)`: OPEN, reproduced locally (`test/unit/modelsActivationBudget.test.ts`: growth 3282 > 3072; base `81dacaf5a` grows 2901, so the branch adds 381 — all in the activation bundle: `extension.ts` +146, `settings.ts` +113, `modelApiBackendManager.ts` +86, `constants.ts` +24, `mapNotification.ts` +12). To fix in code; the budget stays 3072.
+9. CI `quality` (ubuntu/windows/macos), `package (.vsix)`, `dictation helper (macos)`: downstream of the unit-test failure (require every selected-tier job); expected green once item 8 is fixed.
+10. CI `tests (windows/macos)` in the capacity repository (push the merge commit): a CI-infra step with no local equivalent (`never push`); no code cause on this branch. For the lead to re-run.
