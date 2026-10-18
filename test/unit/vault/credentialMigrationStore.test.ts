@@ -19,6 +19,7 @@ import { UI_TEXT, VAULT_LIMITS } from '../../../src/shared/constants'
 import type { VaultItem, VaultItemMetadata } from '../../../src/shared/vault'
 import type { SecretStore } from '../../../src/host/auth/credentialStore'
 import type { Logger } from '../../../src/host/logger'
+import { mapSecrets } from '../helpers/vault/migrationFixtures'
 import {
   CredentialMigrationController,
   type CredentialMigrationPorts,
@@ -34,27 +35,6 @@ const API_KEY_RECORD = {
   secret: 'not-a-real-key-for-tests',
 }
 const vaultId = 'b'.repeat(32)
-
-function mapSecrets(initial: Readonly<Record<string, string>> = {}): {
-  store: SecretStore
-  saved: Map<string, string>
-} {
-  const saved = new Map(Object.entries(initial))
-  return {
-    saved,
-    store: {
-      get: (key) => Promise.resolve(saved.get(key)),
-      store: (key, value) => {
-        saved.set(key, value)
-        return Promise.resolve()
-      },
-      delete: (key) => {
-        saved.delete(key)
-        return Promise.resolve()
-      },
-    },
-  }
-}
 
 const quiet: Logger = {
   trace: () => undefined,
@@ -119,6 +99,16 @@ async function credentialCount(): Promise<number> {
 async function readCredential(id: string): Promise<VaultItem> {
   const store = liveStore()
   return await store.read(id)
+}
+
+/** The migrated vault item's bytes, asserting the apiKey row is present. */
+async function readMigratedApiKey(): Promise<string> {
+  const found = await credentialItems()
+  const [credential] = found
+  if (credential === undefined) throw new Error('missing migrated item')
+  const item: VaultItem = await readCredential(credential.id)
+  if (item.material.kind !== 'apiKey') throw new Error('expected the migrated apiKey row')
+  return Buffer.from(item.material.value).toString('utf8')
 }
 
 beforeEach(async () => {
@@ -246,12 +236,7 @@ describe('key-store migration against a real store', () => {
     saved.set('museSpark.modelApiKey', rotated)
     await controller(store, [], noFail()).ensureMigrated()
     expect(saved.get('museSpark.modelApiKey')).toBe(rotated)
-    const found = await credentialItems()
-    const [credential] = found
-    if (credential === undefined) throw new Error('missing migrated item')
-    const item: VaultItem = await readCredential(credential.id)
-    if (item.material.kind !== 'apiKey') throw new Error('expected the migrated apiKey row')
-    expect(Buffer.from(item.material.value).toString('utf8')).toBe(rotated)
+    expect(await readMigratedApiKey()).toBe(rotated)
   })
 
   it('mirrors writes into the vault copy', async () => {
@@ -261,12 +246,7 @@ describe('key-store migration against a real store', () => {
     const rotated = 'LLM_AAAAAAAAAAAAAAAA'
     saved.set('museSpark.modelApiKey', rotated)
     await active.mirrorWrite('museSpark.modelApiKey', rotated)
-    const found = await credentialItems()
-    const [credential] = found
-    if (credential === undefined) throw new Error('missing migrated item')
-    const item: VaultItem = await readCredential(credential.id)
-    if (item.material.kind !== 'apiKey') throw new Error('expected the migrated apiKey row')
-    expect(Buffer.from(item.material.value).toString('utf8')).toBe(rotated)
+    expect(await readMigratedApiKey()).toBe(rotated)
   })
 
   it('mirrors removals out of both copies', async () => {
@@ -282,11 +262,6 @@ describe('key-store migration against a real store', () => {
   it('reads the migrated vault item material back with its exact bytes', async () => {
     const { store } = mapSecrets({ 'museSpark.modelApiKey': MODEL_API_KEY })
     await controller(store, [], noFail()).ensureMigrated()
-    const found = await credentialItems()
-    const [credential] = found
-    if (credential === undefined) throw new Error('missing migrated item')
-    const item: VaultItem = await readCredential(credential.id)
-    if (item.material.kind !== 'apiKey') throw new Error('expected the migrated apiKey row')
-    expect(Buffer.from(item.material.value).toString('utf8')).toBe(MODEL_API_KEY)
+    expect(await readMigratedApiKey()).toBe(MODEL_API_KEY)
   })
 })
