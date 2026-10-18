@@ -26027,7 +26027,12 @@ run in `docs/certification/msm105.md`. Transcription/vendor-capture/GPU
 holds above are unchanged: they wait on other milestones, devices, or
 owner receipts. SAST and the browser gates are environment-blocked on the
 lane rig (semgrep CA store; no harness browser) for the lead to run
-outside.
+outside. **RVMSM105 review (2026-10-17)** merged current main `81dacaf5a`,
+withdrew the production-composition proof (its suites were stand-in tests
+main's no-fakes gate refuses; deleted titles in
+`docs/real-life/unproven.md`), confirmed the ledger notice on the built
+bundles, and left direct recording unbound as above: the milestone stays
+open on real-life proof and the native recording drivers.
 
 **W final integration status (linuxlt, 2026-10-07).** All twelve lane merges
 are present in brief order and all completed-report P1/P2 corrections remain

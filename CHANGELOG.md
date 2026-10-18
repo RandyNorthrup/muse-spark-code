@@ -7,10 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-- Attached existing video and audio now have production-composition receipts
-  for VS Code, ACP and headless exec. The machine's `mediaAudioAction` choice
-  is honored: transcription asks paid consent first, and unsupported direct
-  audio returns its translated refusal.
+- Attached existing video and audio are wired for VS Code, ACP and headless
+  exec. The machine's `mediaAudioAction` choice is honored: transcription
+  asks paid consent first, and unsupported direct audio returns its
+  translated refusal. (RVMSM105: the composition receipts once claimed here
+  rested on stand-in tests main's no-fakes gate refuses; deleted and listed
+  in `docs/real-life/unproven.md`. End-to-end proof now waits on real use.)
 - Uploaded-file cleanup no longer blocks saving when the provider refuses a
   deletion: the failure is recorded with backoff and retried by a later
   sweep, and repeated failures are reported once in Account & usage as a
