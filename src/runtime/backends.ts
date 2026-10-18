@@ -296,6 +296,8 @@ function modelApiManager(
             log: warn,
           })
         : undefined,
+    // The ACP agent exposes no hook-concurrency setting (D62).
+    hookMaxRunningCommands: () => SETTING_DEFAULTS.hooksMaxRunningCommands,
   })
   // Muse Code's memory (M49, PLAN.md D41), in the data home `muse serve` sees.
   const warnMemory = (message: string) => {

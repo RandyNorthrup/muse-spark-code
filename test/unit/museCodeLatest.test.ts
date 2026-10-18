@@ -24,12 +24,19 @@ import {
   toSkillSummary,
 } from '../../src/core/backends/musecode/MuseCodeHost'
 import { mapNotification, UNKNOWN_METHOD } from '../../src/core/backends/musecode/mapNotification'
-import { dispatchHooks, parseHookConfig } from '../../src/core/backends/modelapi/hooks'
+import {
+  acquireHookProcessSlot,
+  dispatchHooks,
+  parseHookConfig,
+} from '../../src/core/backends/modelapi/hooks'
 import { subagentSpawnDescription } from '../../src/core/backends/modelapi/subagentTools'
 import {
+  HOOK_MAX_RUNNING_COMMANDS,
   HOOK_MAX_STOP_CONTINUATIONS,
+  HOOK_MAX_TASK_REFUSALS,
   SETTING_DEFAULTS,
   SUBAGENT_CAPACITY,
+  TEAMMATE_MAX_IDLE_KEEPS,
   museCodeLoadedSessionCeiling,
 } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -400,6 +407,94 @@ describe('hook running commands setting', () => {
     expect(await peakRunning()).toBe(4)
   })
 
+  it('runs the production process gate under the passed cap', async () => {
+    // The VS Code runner's gate (toolIo runHook): the setting's 0 grants
+    // every slot at once, 1 serializes, and no cap keeps the fallback.
+    const unlimited = await Promise.all(
+      [0, 1, 2, 3, 4].map(() => acquireHookProcessSlot(undefined, 0)),
+    )
+    expect(unlimited).toHaveLength(5)
+    for (const release of unlimited) {
+      release()
+    }
+    const first = await acquireHookProcessSlot(undefined, 1)
+    let isSecondStarted = false
+    const secondPending = (async () => {
+      const release = await acquireHookProcessSlot(undefined, 1)
+      isSecondStarted = true
+      return release
+    })()
+    for (let round = 0; round < 5; round += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    expect(isSecondStarted).toBe(false)
+    first()
+    const releaseSecond = await secondPending
+    releaseSecond()
+    const fallback = await Promise.all([0, 1, 2, 3].map(() => acquireHookProcessSlot(undefined)))
+    expect(fallback).toHaveLength(HOOK_MAX_RUNNING_COMMANDS)
+    let isFifthStarted = false
+    const fifthPending = (async () => {
+      const release = await acquireHookProcessSlot(undefined)
+      isFifthStarted = true
+      return release
+    })()
+    for (let round = 0; round < 5; round += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    expect(isFifthStarted).toBe(false)
+    for (const release of fallback) {
+      release()
+    }
+    const releaseFifth = await fifthPending
+    releaseFifth()
+  })
+
+  it('wakes the waiter behind an aborted capped waiter', async () => {
+    // Four slots held at cap 4, a cap-1 waiter heading the queue with a
+    // cap-4 waiter behind it: one release leaves both queued (the head's
+    // cap is not met), and aborting the head must grant the waiter behind
+    // it while room allows instead of stalling it for a full hook timeout.
+    const held = await Promise.all([0, 1, 2, 3].map(() => acquireHookProcessSlot(undefined, 4)))
+    const abort = new AbortController()
+    let headOutcome = 'pending'
+    const headPending = (async () => {
+      try {
+        await acquireHookProcessSlot(abort.signal, 1)
+        headOutcome = 'granted'
+      } catch {
+        headOutcome = 'cancelled'
+      }
+    })()
+    let isTailGranted = false
+    const tailPending = (async () => {
+      const release = await acquireHookProcessSlot(undefined, 4)
+      isTailGranted = true
+      return release
+    })()
+    const flush = async () => {
+      for (let round = 0; round < 5; round += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      }
+    }
+    await flush()
+    expect(headOutcome).toBe('pending')
+    expect(isTailGranted).toBe(false)
+    held[0]!()
+    await flush()
+    expect(isTailGranted).toBe(false)
+    abort.abort()
+    await flush()
+    await headPending
+    expect(headOutcome).toBe('cancelled')
+    expect(isTailGranted).toBe(true)
+    const releaseTail = await tailPending
+    releaseTail()
+    for (const release of held.slice(1)) {
+      release()
+    }
+  })
+
   it('holds a lowered cap for queued handlers instead of handing them freed slots', async () => {
     // One host-wide gate, two dispatches: the first runs four of five at
     // cap 4, the second queues its one handler at cap 1 (the setting
@@ -584,5 +679,13 @@ describe('hook and subagent setting defaults', () => {
     expect(subagentSpawnDescription()).toContain('Up to 8 work at once')
     expect(subagentSpawnDescription(3)).toContain('Up to 3 work at once')
     expect(subagentSpawnDescription(64)).toContain('Up to 64 work at once')
+  })
+
+  it('keeps the task-refusal and teammate-keep pauses off the Stop setting', () => {
+    // Before the M127 setting all four sites compared against the same
+    // bound of 8; the setting now governs only Stop-hook continuations,
+    // while the independent pauses keep their own measured bounds.
+    expect(HOOK_MAX_TASK_REFUSALS).toBe(8)
+    expect(TEAMMATE_MAX_IDLE_KEEPS).toBe(8)
   })
 })

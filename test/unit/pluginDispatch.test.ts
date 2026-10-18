@@ -359,6 +359,7 @@ async function dispatch(
   payload: Record<string, unknown>,
   adapter: ForeignHookAdapter,
   warnings: string[] = [],
+  maxRunningCommands?: number,
 ) {
   return await dispatchHooks(
     hooks,
@@ -373,6 +374,9 @@ async function dispatch(
     // No typed handlers here (lane H's position), then the adapter.
     undefined,
     adapter,
+    undefined,
+    undefined,
+    maxRunningCommands === undefined ? undefined : { maxRunningCommands },
   )
 }
 
@@ -667,6 +671,37 @@ describe('plugin dispatch without real children', () => {
       adapter,
     )
     expect(peak).toBe(HOOK_MAX_RUNNING_COMMANDS)
+  })
+
+  it('caps plugin hooks at the configured running-commands value', async () => {
+    let running = 0
+    let peak = 0
+    const adapter: ForeignHookAdapter = {
+      prepare: () =>
+        Promise.resolve({
+          outcome: 'plugin',
+          run: async () => {
+            running += 1
+            peak = Math.max(peak, running)
+            await new Promise((resolve) => setTimeout(resolve, 30))
+            running -= 1
+            return { status: 'completed' }
+          },
+        }),
+      answer: () => ({ status: 'failed' }),
+    }
+    const hooks = Array.from({ length: HOOK_MAX_RUNNING_COMMANDS + 3 }, (_, index) =>
+      definitions('PreToolUse', 'amp', 'tool.call', path.join(pluginRoot, `p${String(index)}.mjs`)),
+    ).flat()
+    await dispatch(
+      hooks,
+      'PreToolUse',
+      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+      adapter,
+      [],
+      2,
+    )
+    expect(peak).toBe(2)
   })
 
   it('strips a grant from a plugin answer, as from every imported hook', async () => {
