@@ -25893,6 +25893,18 @@ uncaptured vendors/MSP media and uploaded-file management retain their holds.
 The milestone stays open: next slice is lead gating, Windows/Linux native
 qualification and owner device receipts before recording-driver binding.
 
+**MSM105 finish lane (2026-10-17, macmini).** Merged the codec-refusal line
+(`cand/MSM105/3`), the production-composition line (`cand/MSM105/2`) and the
+current main (`3d30a7321`) onto C-M105-8; overhaul GO deletions stay
+deleted. Finished the merge-exposed gaps (modelApi split surface,
+conversation diet via name-read ledger failure, ACP tarball sessions
+bundle, shared codec/test rigs, zero-duplication gate) and recorded the
+run in `docs/certification/msm105.md`. Transcription/vendor-capture/GPU
+holds above are unchanged: they wait on other milestones, devices, or
+owner receipts. SAST and the browser gates are environment-blocked on the
+lane rig (semgrep CA store; no harness browser) for the lead to run
+outside.
+
 **W final integration status (linuxlt, 2026-10-07).** All twelve lane merges
 are present in brief order and all completed-report P1/P2 corrections remain
 integrated. Executable fixes are committed as `a441b557` and `c2ee30b8`, with

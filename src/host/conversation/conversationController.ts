@@ -832,7 +832,8 @@ export function isUploadDeleteFailed(error: unknown): error is Error & { fileNam
   return (
     error instanceof Error &&
     error.name === 'UploadDeleteFailedError' &&
-    typeof (error as { fileName?: unknown }).fileName === 'string'
+    'fileName' in error &&
+    typeof error.fileName === 'string'
   )
 }
 
