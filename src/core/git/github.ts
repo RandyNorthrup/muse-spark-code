@@ -146,8 +146,9 @@ export class GitHubError extends Error {
     message: string,
     public readonly kind: GitHubFailureKind,
     public readonly status: number | undefined,
+    options?: { cause?: unknown },
   ) {
-    super(message)
+    super(message, options)
     this.name = 'GitHubError'
   }
 }
@@ -343,6 +344,7 @@ export class GitHubClient {
         networkFailureMessage(error).replaceAll(token, '[redacted]'),
         'network',
         undefined,
+        { cause: error },
       )
     }
     let json: unknown

@@ -85,8 +85,11 @@ const terminalFrameSchema = z.object({
 function parseJson(text: string): unknown {
   try {
     return JSON.parse(text)
-  } catch {
-    return undefined
+  } catch (error) {
+    // Only malformed bytes stay unknown: the parser raises SyntaxError
+    // for exactly those, so anything else is raised, never unknown.
+    if (error instanceof SyntaxError) return undefined
+    throw error
   }
 }
 
@@ -252,7 +255,11 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
     try {
       request = new Request(input, init)
     } catch (error: unknown) {
-      return refuse(`the evaluation could not read a request: ${describe(error)}`)
+      // Only an unreadable request is refused: the constructor raises
+      // TypeError for exactly that, so anything else keeps its kind. The
+      // refusal is recorded with the request's order, never its text.
+      if (!(error instanceof TypeError)) throw error
+      return refuse('the evaluation could not read a request')
     }
     const url = new URL(request.url)
     if (url.origin !== base.origin) {

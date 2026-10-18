@@ -49,8 +49,9 @@ export interface DeveloperOptionsDeps {
 export class DeveloperOptionsError extends Error {
   public constructor(
     public readonly code: 'locked' | 'unavailable' | 'invalidRequest' | 'differentMachine',
+    options?: { cause?: unknown },
   ) {
-    super(UI_TEXT.developer[code])
+    super(UI_TEXT.developer[code], options)
     this.name = 'DeveloperOptionsError'
   }
 }
@@ -117,8 +118,10 @@ export class DeveloperOptions {
     if (isMigrated) {
       try {
         await owner.save(owner.state, 'migrate', 'lifecycle')
-      } catch {
-        throw new DeveloperOptionsError('unavailable')
+      } catch (error) {
+        // A migration that cannot persist refuses in fixed words, carrying
+        // the save failure that proved it.
+        throw new DeveloperOptionsError('unavailable', { cause: error })
       }
     }
     await owner.refresh()

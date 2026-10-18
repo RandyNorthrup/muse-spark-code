@@ -15,10 +15,6 @@ import {
 } from '../../shared/constants'
 import { DeveloperOptionsError } from './developerOptions'
 
-function hasCode(error: unknown, code: string): boolean {
-  return error instanceof Error && 'code' in error && error.code === code
-}
-
 /** The machine identity file every host on this machine shares (DEVID017B,
  * PLAN.md D88): `<dataDir>/machine-id`, beside the runtime's other
  * machine-scoped files. The extension host resolves the same folder through
@@ -34,14 +30,25 @@ function isPublishedMachineId(value: string): boolean {
   return /^[0-9a-f]{64}\n?$/.test(value)
 }
 
+/** Best effort: a failed staging must not leave its claim file behind. */
+async function removeStaged(temporary: string): Promise<void> {
+  try {
+    await rm(temporary, { force: true })
+  } catch {
+    // The staging file is already gone; the load still failed honestly.
+  }
+}
+
 /** Read a published id, waiting briefly for a racing creator to finish. */
 async function readPublishedMachineId(file: string): Promise<string> {
   for (let attempt = 1; ; attempt += 1) {
     let text: string
     try {
       text = await readFile(file, 'utf8')
-    } catch {
-      throw new DeveloperOptionsError('unavailable')
+    } catch (error) {
+      // An unreadable identity file refuses in fixed words, carrying the
+      // read failure that proved it.
+      throw new DeveloperOptionsError('unavailable', { cause: error })
     }
     if (isPublishedMachineId(text)) return text.endsWith('\n') ? text.slice(0, -1) : text
     if (attempt >= DEVELOPER_MACHINE_ID_READ_ATTEMPTS)
@@ -65,8 +72,10 @@ export async function loadDeveloperMachineId(dataDir: string): Promise<string> {
   const file = developerMachineIdFile(dataDir)
   try {
     await mkdir(dataDir, { recursive: true, mode: DEVELOPER_DIRECTORY_MODE })
-  } catch {
-    throw new DeveloperOptionsError('unavailable')
+  } catch (error) {
+    // A data directory that cannot open refuses in fixed words, carrying
+    // the failure that proved it.
+    throw new DeveloperOptionsError('unavailable', { cause: error })
   }
   // A published id wins without staging anything: storage that refuses new
   // files (permissions or quota) still loads the existing identity instead
@@ -90,22 +99,20 @@ export async function loadDeveloperMachineId(dataDir: string): Promise<string> {
     } finally {
       await staged.close()
     }
-  } catch {
+  } catch (error) {
     // Every staging failure removes its temp file: a failed write, fsync
     // or close must not leave another claim file behind for the next load.
-    try {
-      await rm(temporary, { force: true })
-    } catch {
-      // The staging file is already gone; the load still failed honestly.
-    }
-    throw new DeveloperOptionsError('unavailable')
+    await removeStaged(temporary)
+    throw new DeveloperOptionsError('unavailable', { cause: error })
   }
   try {
     await link(temporary, file)
   } catch (error: unknown) {
     await rm(temporary, { force: true })
     // Another creator published first: its id is authoritative, never ours.
-    if (!hasCode(error, 'EEXIST')) throw new DeveloperOptionsError('unavailable')
+    // Any other link failure refuses, carrying the failure that proved it.
+    if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST'))
+      throw new DeveloperOptionsError('unavailable', { cause: error })
     return await readPublishedMachineId(file)
   }
   await rm(temporary, { force: true })

@@ -61,8 +61,11 @@ export class EstimateWaveStarter {
       let audit: z.infer<typeof auditSchema>
       try {
         audit = auditSchema.parse(await this.board.audit(laneIds))
-      } catch {
-        throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'prerequisite-audit' }))
+      } catch (error) {
+        // The audit answer cannot be shaped: fixed words carry the failure.
+        throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'prerequisite-audit' }), {
+          cause: error,
+        })
       }
       if (!audit.allowed || audit.missingPrerequisites.length > 0)
         throw new Error(UI_TEXT.estimatePrerequisites)
@@ -71,8 +74,11 @@ export class EstimateWaveStarter {
       for (const id of laneIds) this.submitted.add(id)
       try {
         await this.board.start(laneIds)
-      } catch {
-        throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'dispatch-uncertain' }))
+      } catch (error) {
+        // A lost dispatch stays uncertain in fixed words, carrying the failure.
+        throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'dispatch-uncertain' }), {
+          cause: error,
+        })
       }
       return laneIds
     })

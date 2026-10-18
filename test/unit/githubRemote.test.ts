@@ -98,6 +98,12 @@ describe('maskRemoteUrl (M71)', () => {
     expect(maskRemoteUrl(String.raw`C:\srv\repo.git`)).toBe(String.raw`C:\srv\repo.git`)
   })
 
+  it('keeps a malformed escape in its spelling instead of failing', () => {
+    expect(maskRemoteUrl('https://example.invalid/r%XX.git')).toBe(
+      'https://example.invalid/r%XX.git',
+    )
+  })
+
   it('R11: masks a credential shape that only its percent-decoded spelling shows', () => {
     const token = `ghp_${'0'.repeat(36)}`
     const encoded = `https://github.com/o/${encodeURIComponent(token).replace('g', '%67')}.git`

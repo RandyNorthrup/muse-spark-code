@@ -24,8 +24,9 @@ export class BestOfNError extends Error {
   public constructor(
     public readonly refusal: BestOfNRefusal,
     public readonly detail?: string,
+    options?: { cause?: unknown },
   ) {
-    super(detail === undefined ? refusal : `${refusal}: ${detail}`)
+    super(detail === undefined ? refusal : `${refusal}: ${detail}`, options)
     this.name = 'BestOfNError'
   }
 }

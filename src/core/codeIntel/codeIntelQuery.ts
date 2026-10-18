@@ -31,6 +31,16 @@ import type {
 } from './languageService'
 
 /** The file access the tools need: `ToolIo` satisfies it. */
+/**
+ * A shaped store failure: it carries an errno code, never just words. Only
+ * one reads as an unresolvable path; anything else keeps its kind.
+ */
+function isCodedError(error: unknown): boolean {
+  return (
+    typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+  )
+}
+
 export interface CodeIntelIo extends RealPathIo {
   /** A UTF-8 file's text; undefined when it does not exist; rejects for other content. */
   readFile(absolutePath: string, expectedCanonicalPath?: string): Promise<string | undefined>
@@ -324,8 +334,10 @@ export class CodeIntelQuery {
       const real = await this.io.realPath(path)
       const realRoots = await Promise.all(roots.map(async (root) => await this.io.realPath(root)))
       return realRoots.some((root) => isUnder(root, real))
-    } catch {
-      // A path the file system will not resolve is not taken as a library's.
+    } catch (error) {
+      // A path the file system will not resolve is not taken as a
+      // library's; anything else keeps its kind past the check.
+      if (!isCodedError(error)) throw error
       return false
     }
   }
