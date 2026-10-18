@@ -14,6 +14,7 @@ import { jsonOutput } from '../../src/core/backends/modelapi/hookFormats/core'
 import { functionParameters } from '../../src/core/backends/modelapi/mcp/functions'
 import { placeMemoryCall } from '../../src/core/backends/modelapi/memoryTools'
 import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
+import { parseHookAnswer, parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import { parseQuestions } from '../../src/core/backends/modelapi/tools'
 import {
   isExtensionMatch,
@@ -319,6 +320,32 @@ describe('extension hook configuration and answers', () => {
 describe('ask_user questions that are not JSON', () => {
   it('refuses instead of asking nothing', () => {
     expect(parseQuestions('{oops')).toBe('arguments are not valid JSON')
+  })
+})
+
+describe('Muse Code hook configuration and answers', () => {
+  it('names unparseable config and answers instead of dropping them', () => {
+    expect(parseHookConfig('not json', 'user', 'linux')).toEqual({
+      hooks: [],
+      warnings: ['user hooks: invalid JSON'],
+    })
+    const answer = parseHookAnswer('PreToolUse', 0, '{oops', '')
+    expect(answer.status).toBe('failed')
+    expect(answer.reason).toBe('hook output is not valid JSON')
+  })
+
+  it('refuses an http handler whose url is not a URL', () => {
+    const parsed = parseHookConfig(
+      JSON.stringify({
+        hooks: { PreToolUse: [{ hooks: [{ type: 'http', url: 'not a url' }] }] },
+      }),
+      'user',
+      'linux',
+    )
+    expect(parsed.hooks).toEqual([])
+    expect(parsed.warnings.some((warning) => warning.includes('http handler url is invalid'))).toBe(
+      true,
+    )
   })
 })
 
