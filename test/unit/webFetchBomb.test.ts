@@ -1,8 +1,8 @@
 import { gzipSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
+import type { HtmlConverter } from '../../src/core/web/htmlConversion'
 import {
   fetchWebPage,
-  type HtmlConverter,
   type Nat64Discovery,
   type PinnedResponse,
   type WebFetchDeps,
