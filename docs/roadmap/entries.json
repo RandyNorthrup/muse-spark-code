@@ -447,7 +447,7 @@
     {
       "id": "M62",
       "title": "VS Code-based editors and Open VSX",
-      "summary": "The extension installs and runs in editors built on VS Code 1.99 or later, such as VSCodium, Cursor, Positron, Eclipse Theia and code-server, and is published on Open VSX.",
+      "summary": "The extension installs and runs in editors built on VS Code 1.99 or later, such as VSCodium, Cursor and Positron, and is published on Open VSX; Eclipse Theia and code-server ran it only against a stand-in for Muse Code, so they are not yet tried for real.",
       "area": "editors",
       "release": "0.10.0",
       "labels": ["preview"]
@@ -455,7 +455,7 @@
     {
       "id": "M63",
       "title": "Muse Spark in ACP editors",
-      "summary": "A standalone agent brings chat, tool calls, approvals, modes and sessions to editors that speak the Agent Client Protocol, so far tried in Zed, Neovim, Emacs and JupyterLab.",
+      "summary": "A standalone agent brings chat, tool calls, approvals, modes and sessions to editors that speak the Agent Client Protocol; Zed, Neovim, Emacs and JupyterLab have run it only against a stand-in for Muse Code, so none is yet tried for real.",
       "area": "editors",
       "release": "0.10.0",
       "labels": ["preview"]
@@ -744,7 +744,7 @@
     {
       "id": "M100",
       "title": "Paired devices",
-      "summary": "Link your own devices on the local network so they can take independent agent lanes and checks and hand back reviewable Git branches, without moving credentials.",
+      "summary": "Link your own devices on the local network so they can take independent agent lanes and checks and hand back reviewable Git branches, without moving credentials; so far only the receiving device's admission check is written, and nothing uses it yet.",
       "area": "devices"
     },
     {
@@ -892,7 +892,7 @@
     {
       "id": "M125",
       "title": "A faster, more accurate agent through a fast judge",
-      "summary": "A fast judge checks the agent's work and small decisions, with setup and command confinement, including protected paths and cancellation, being certified internally for Linux and macOS before reviewer skips are enabled; Windows keeps its existing reviewer.",
+      "summary": "A fast judge checks the agent's work and small decisions, with setup and command confinement, including protected paths and cancellation, being certified internally on Linux only before reviewer skips are enabled; macOS and Windows are not yet supported.",
       "area": "agents"
     },
     {
