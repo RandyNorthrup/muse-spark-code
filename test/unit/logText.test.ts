@@ -101,4 +101,14 @@ describe('stderrForLog', () => {
     )
     expect(logged).not.toContain('someone')
   })
+
+  it('never copies a malformed-auth reason outside the captured diagnostics', () => {
+    const line =
+      'compose serve model client: malformed auth file at /home/someone/.config/muse/auth.json: account someone123 needs attention'
+    const logged = stderrForLog(`${line}\n`)
+    expect(logged).toBe(
+      `a line of ${String(line.length)} characters (not logged: it may name a path or an account)`,
+    )
+    expect(logged).not.toContain('someone123')
+  })
 })
