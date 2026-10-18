@@ -157,10 +157,18 @@ describe('M80 args (A1–A10, F1)', () => {
       ok: false,
       reason: fill(UI_TEXT.execOutputCapExceeded, { cap: '32768' }),
     })
-    for (const bad of ['0', '15', '1.5', 'many'])
+    for (const bad of ['0', '1.5', 'many'])
       expect(parseExec({ ...base, 'max-output-tokens': bad }, ['hi'])).toEqual({
         ok: false,
         reason: fill(UI_TEXT.execLimitInvalid, { flag: '--max-output-tokens' }),
+      })
+    // The parse floor stays 1: a provider that permits fewer than Meta's 16
+    // output tokens keeps 1 through 15 as valid caps, and the selected
+    // model's own minimum applies at admission and at the send.
+    for (const small of ['1', '15'])
+      expect(parseExec({ ...base, 'max-output-tokens': small }, ['hi'])).toMatchObject({
+        ok: true,
+        options: { maxOutputTokens: Number(small) },
       })
     expect(parseExec({ backend: 'museCode', 'max-output-tokens': '2000' }, ['hi'])).toEqual({
       ok: false,

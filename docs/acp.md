@@ -232,7 +232,7 @@ and before sending, including older stored values. The same translated message
 names the minimum; Meta requires 16 tokens. Custom provider entries declare a
 minimum with `modelCapabilities.<model>.output.minTokens`; their capability cap
 and custom output limit must meet it. ACP config options and CLI/exec flags
-expose `exec --max-output-tokens <n>` (minimum 16); ACP retains the model policy cap.
+expose `exec --max-output-tokens <n>` (at least 1; the selected provider's own minimum applies); ACP retains the model policy cap.
 
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,
