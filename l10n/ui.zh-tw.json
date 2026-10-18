@@ -2661,6 +2661,7 @@
   "agentRetryNoSubagent": "此代理無法重試：它沒有可重試的子代理程式。",
   "agentRetryNoCheckpoint": "此代理無法重試：它沒有隔離的檢查點。共用工作區的變更會保留。",
   "agentContinueUnavailable": "此代理或其目前狀態無法繼續。",
+  "agentGone": "該代理已不在此對話中。",
   "referenceAgentOutcomes": "代理顯示活動狀態和根據證據的結果。選取已結束的代理可查看有大小限制的記錄及嘗試歷史。確認後繼續會保留工作階段和變更；重試需要隔離的檢查點。缺少的證據顯示為未驗證。ACP：/agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
   "agentMapHint": "按一下代理程式以檢視詳細資料",
   "agentMapEmpty": "此對話中沒有子代理程式。",

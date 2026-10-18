@@ -2717,6 +2717,7 @@
   "agentRetryNoSubagent": "Bu ajan için yeniden deneme kullanılamıyor: yeniden denenecek alt ajanı yok.",
   "agentRetryNoCheckpoint": "Bu ajan için yeniden deneme kullanılamıyor: yalıtılmış kontrol noktası yok. Ortak çalışma alanındaki değişiklikler korunur.",
   "agentContinueUnavailable": "Bu ajan veya mevcut durumu için devam etme kullanılamıyor.",
+  "agentGone": "Bu ajan artık bu konuşmada yok.",
   "referenceAgentOutcomes": "Ajanlar etkinlik ve kanıta dayalı sonuçları gösterir. Sınırlı kayıt ve deneme geçmişi için bitmiş bir ajan seçin. Onaylanan devam işlemi oturumu ve değişiklikleri korur; yeniden deneme yalıtılmış kontrol noktası gerektirir. Eksik kanıt doğrulanmamış olarak gösterilir. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
   "agentMapHint": "ayrıntılar için bir aracıya tıklayın",
   "agentMapEmpty": "Bu konuşmada alt aracı yok.",

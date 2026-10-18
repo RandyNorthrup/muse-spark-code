@@ -241,6 +241,12 @@ happened, not what was planned; superseded entries are kept.
   a missing playbook bundle or surface says it is unavailable in the
   session.
 
+- Retrying or continuing an agent from the Agent map after its row left the
+  conversation no longer blames a missing worktree checkpoint: the panel now
+  says the agent is no longer in the conversation. The checkpoint sentence is
+  said only by a backend that truly has no checkpoint, and every other retry
+  failure carries its own cause.
+
 ### Packaging
 
 - The Get Started walkthrough's four screenshots ship as lossless WebP
