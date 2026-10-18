@@ -5,10 +5,18 @@
 // "sandbox enforcement unavailable". `muse sandbox windows check` prints
 // `key=value` lines and exits 1 while setup is required (verified 2026-09-22
 // on Muse Code 1.3.0). Linux and macOS have no sandbox subcommand and need no
-// setup. This module is pure: the host runs the processes it describes.
+// setup. The posture, invocation and parsing helpers here are pure and the
+// host runs the processes they describe; the one exception is
+// probeLinuxSandboxShell (F91), which runs the fixed bwrap probe itself so
+// every host measures the sandbox the same way.
 
+import { execFile } from 'node:child_process'
 import path from 'node:path'
 import {
+  LINUX_SANDBOX_NAMESPACE_MARKER,
+  LINUX_SANDBOX_PROBE_ARGS,
+  LINUX_SANDBOX_PROBE_COMMAND,
+  LINUX_SANDBOX_PROBE_TIMEOUT_MS,
   MUSE_DISABLE_SANDBOX_ARG,
   MUSE_DISABLE_SHELL_ARG,
   MUSE_SANDBOX_CHECK_ARGS,
@@ -121,6 +129,97 @@ export function sandboxCheckInvocation(launch: MuseLaunch): CliInvocation {
 
 export function sandboxSetupInvocation(launch: MuseLaunch): CliInvocation {
   return museCliInvocation(launch, MUSE_SANDBOX_SETUP_ARGS)
+}
+
+/** Why Muse Code's Linux sandbox cannot start here, as the probe measured. */
+export type LinuxSandboxBlockReason = 'userNamespacesBlocked' | 'bwrapFailed'
+
+export interface LinuxSandboxProbeRun {
+  /** The probe's exit code; undefined when `bwrap` never ran (missing, refused). */
+  readonly exitCode: number | undefined
+  /** The probe's stderr, as captured. */
+  readonly stderr: string
+}
+
+export interface LinuxSandboxReadiness {
+  readonly canStart: boolean
+  /** The measured cause while it cannot start; absent while it can. */
+  readonly reason: LinuxSandboxBlockReason | undefined
+  /**
+   * The probe's own words: bwrap's first stderr line, or how the spawn
+   * itself failed. Fixed words for the log; the notice stays UI_TEXT.
+   */
+  readonly detail: string | undefined
+}
+
+/**
+ * Reads one finished `bwrap` probe run (LINUX_SANDBOX_PROBE_*): exit 0
+ * starts a user namespace, so the sandbox can start; the namespace marker
+ * is the kernel or an outer sandbox refusing it (the one proven
+ * cannot-start: isLinuxSandboxBlocked); anything else is a system-bwrap
+ * measurement that failed, with the probe's own first line as the detail.
+ */
+export function parseLinuxSandboxProbe(run: LinuxSandboxProbeRun): LinuxSandboxReadiness {
+  if (run.exitCode === 0) {
+    return { canStart: true, reason: undefined, detail: undefined }
+  }
+  const firstLine = run.stderr.split(LINE_BREAK).find((line) => line.trim() !== '')
+  return {
+    canStart: false,
+    reason: run.stderr.includes(LINUX_SANDBOX_NAMESPACE_MARKER)
+      ? 'userNamespacesBlocked'
+      : 'bwrapFailed',
+    detail: firstLine,
+  }
+}
+
+/**
+ * Whether the probe PROVED Muse Code's Linux sandbox cannot start here.
+ * Only the kernel (or an outer sandbox) refusing the user namespace proves
+ * that, whichever bwrap Muse Code ends up running: its own message names a
+ * capability-valid system bwrap "and no usable embedded fallback", so a
+ * missing or otherwise failing system bwrap leaves the embedded fallback
+ * unmeasured. Surfaces may say "cannot start" (and name the user-namespace
+ * cause, as UI_TEXT.sandboxCannotStartNotice and the model note do) only
+ * where this holds; a `bwrapFailed` readiness is a failed measurement of
+ * the system bwrap, fit for Diagnostics, not for that claim.
+ */
+export function isLinuxSandboxBlocked(readiness: LinuxSandboxReadiness | undefined): boolean {
+  return readiness?.canStart === false && readiness.reason === 'userNamespacesBlocked'
+}
+
+/**
+ * Runs the Linux capability probe: the same `bwrap` user-namespace
+ * mechanism Muse Code's sandbox uses, minimally. Never throws: a probe that
+ * cannot run (no bwrap on PATH, a refused spawn, a timeout) resolves as
+ * `bwrapFailed` with how the spawn failed as the detail (not proof the
+ * sandbox cannot start: see isLinuxSandboxBlocked). The host runs this once
+ * per start, only while sandboxed on Linux.
+ */
+export function probeLinuxSandboxShell(): Promise<LinuxSandboxReadiness> {
+  return new Promise((resolve) => {
+    execFile(
+      LINUX_SANDBOX_PROBE_COMMAND,
+      [...LINUX_SANDBOX_PROBE_ARGS],
+      { timeout: LINUX_SANDBOX_PROBE_TIMEOUT_MS, windowsHide: true },
+      (error, _stdout, stderr) => {
+        if (error === null) {
+          resolve({ canStart: true, reason: undefined, detail: undefined })
+          return
+        }
+        const code = 'code' in error ? error.code : undefined
+        if (typeof code === 'number') {
+          resolve(parseLinuxSandboxProbe({ exitCode: code, stderr }))
+          return
+        }
+        resolve({
+          canStart: false,
+          reason: 'bwrapFailed',
+          detail: `${LINUX_SANDBOX_PROBE_COMMAND}: ${typeof code === 'string' ? code : error.message}`,
+        })
+      },
+    )
+  })
 }
 
 function isInsideDirectory(directory: string, candidate: string): boolean {

@@ -3201,6 +3201,11 @@ export const EN = {
     'museSpark.shellSandbox is off, so Muse Code runs without its OS sandbox in this window. Its file tools can then write anywhere your account can, outside this workspace too, without asking in any mode, Plan included, and its commands run directly as you, with your network. Approval still covers its commands and writes to .git, .muse and .agents.',
   sandboxPreparingNotice:
     "Muse Code's Windows sandbox is still being prepared, so this command did not run. After its setup, Muse Code gives the sandbox read access to your files once, in the background, and that can take a while on a large user profile. Try again in a few minutes. Setting: museSpark.shellSandbox.",
+  // F91: at host start on Linux, while sandboxed, the bwrap probe measured
+  // that Muse Code's sandbox cannot start here. Said once on every surface;
+  // the sandbox stays on until the person turns it off.
+  sandboxCannotStartNotice:
+    "Muse Code's shell sandbox cannot start on this machine: its bubblewrap sandbox cannot create a user namespace here, so commands it runs without asking (such as git status) will fail. Set museSpark.shellSandbox to off, or allow unprivileged user namespaces on this machine (sysctl kernel.unprivileged_userns_clone=1; where AppArmor restricts them, kernel.apparmor_restrict_unprivileged_userns=0). The sandbox stays on until you choose.",
   rulesFileNoWorkspace: 'Open a folder first; AGENTS.md lives in the workspace root.',
   rulesFileExists: 'AGENTS.md already exists in this workspace; opening it.',
   rulesFileCreated: 'AGENTS.md created. Muse reads it as project rules from the next conversation.',

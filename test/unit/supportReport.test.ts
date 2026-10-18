@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { renderSupportReport, type SupportFacts } from '../../src/core/support/report'
+import {
+  renderSupportReport,
+  sandboxReadinessLine,
+  type SupportFacts,
+} from '../../src/core/support/report'
 import { MUSE_CONFIG_STATUS_MAX_CHARS } from '../../src/shared/constants'
 import { DEFAULT_NETWORK_FACTS } from './helpers/networkFacts'
 
@@ -29,6 +33,7 @@ const base: SupportFacts = {
   backendSetting: 'auto',
   shellSandboxSetting: 'auto',
   shellSandboxPosture: 'sandboxed (default)',
+  shellSandboxReadiness: 'can start here',
   isShellSandboxed: true,
   sandboxNetworkSetting: 'default',
   isSandboxNetworkApplied: false,
@@ -63,6 +68,7 @@ describe('renderSupportReport', () => {
         'workspace: open, trusted: yes',
         'backend setting: auto',
         'shell sandbox: setting auto, posture sandboxed (default)',
+        'shell sandbox readiness: can start here',
         'muse code file writes: workspace only (writes outside it fail); inside it, only .git, .muse and .agents ask',
         'sandbox network: setting default, not passed (Muse Code’s own default, or the shell sandbox is off)',
         'muse binary path configured: no; environment variables: 2',
@@ -240,5 +246,49 @@ describe('renderSupportReport', () => {
         managedConfiguration: { ok: false, reason: 'exit code 2: password=swordfish' },
       }),
     ).toContain('muse config status: could not read status')
+  })
+})
+
+// F91: the Diagnostics health line for the sandbox says the posture and the
+// probe's check, in words a public issue may carry (D24: no paths, no values).
+describe('sandboxReadinessLine', () => {
+  it('says where the probe does not apply', () => {
+    expect(sandboxReadinessLine(undefined)).toBe(
+      'not checked (the shell sandbox is off or this is not Linux)',
+    )
+  })
+
+  it('says a sandbox that can start', () => {
+    expect(sandboxReadinessLine({ canStart: true, reason: undefined, detail: undefined })).toBe(
+      'can start here',
+    )
+  })
+
+  it('says blocked user namespaces without the raw bwrap line', () => {
+    const line = sandboxReadinessLine({
+      canStart: false,
+      reason: 'userNamespacesBlocked',
+      detail: 'bwrap: No permissions to create new namespace, likely because …',
+    })
+    expect(line).toBe('cannot start here: bubblewrap cannot create a user namespace')
+  })
+
+  it('says another bwrap failure as a failed check, with the probe’s own words', () => {
+    // Not "cannot start": a missing system bwrap leaves Muse Code's
+    // embedded fallback unmeasured (RVSANDBOXSAY).
+    expect(
+      sandboxReadinessLine({ canStart: false, reason: 'bwrapFailed', detail: 'bwrap: ENOENT' }),
+    ).toBe('system bubblewrap check failed here: bwrap: ENOENT')
+    expect(
+      sandboxReadinessLine({ canStart: false, reason: 'bwrapFailed', detail: undefined }),
+    ).toBe('system bubblewrap check failed here: the bwrap probe failed')
+  })
+
+  it('renders the blocked probe on the report line', () => {
+    expect(
+      renderSupportReport({ ...base, shellSandboxReadiness: sandboxReadinessLine(undefined) }),
+    ).toContain(
+      'shell sandbox readiness: not checked (the shell sandbox is off or this is not Linux)',
+    )
   })
 })
