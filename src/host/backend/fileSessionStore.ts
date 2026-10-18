@@ -1,5 +1,5 @@
 import { SpendLedgerError } from '../../core/paid/spendLedgerError'
-import { Usd } from '../../shared/usd'
+import { Usd, type UsdAmount } from '../../shared/usd'
 // The Model API session store on disk (PLAN.md D14): one JSON file per
 // session under the workspace storage directory VS Code gives the
 // extension (`context.storageUri`: per user, per workspace, outside the
@@ -176,6 +176,12 @@ const storedSessionOwnershipShape = z.object({
 
 export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore {
   const fileFor = (sessionId: string) => path.join(deps.directory, `${sessionId}${FILE_EXTENSION}`)
+  // Each window's own base for the running spend total (D121): what this
+  // store instance last loaded or saved for the session. A save adds only
+  // what its snapshot spent past that base onto the file's total, so two
+  // windows saving from the same total keep both increments instead of the
+  // larger snapshot dropping the other's.
+  const spendBases = new Map<string, UsdAmount>()
 
   /** A session file's parsed JSON, or undefined with a log line when it does not read. */
   const readRaw = async (name: string): Promise<unknown> => {
@@ -463,7 +469,11 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     },
     async load(sessionId) {
       assertSessionId(sessionId)
-      return await readOne(`${sessionId}${FILE_EXTENSION}`)
+      const session = await readOne(`${sessionId}${FILE_EXTENSION}`)
+      // This snapshot is the window's base for its next save's delta.
+      if (session?.budgetSpentUsd === undefined) spendBases.delete(sessionId)
+      else spendBases.set(sessionId, session.budgetSpentUsd)
+      return session
     },
     async save(session) {
       assertSessionId(session.sessionId)
@@ -487,14 +497,33 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
           if (!isCurrent()) return
           // The running total only grows (D121): a snapshot older than the
           // file, from another window, never lowers what a newer save wrote.
+          // And both increments survive: past this window's own base, what
+          // its snapshot spent is added onto the file's total instead of
+          // the larger of two snapshots from the same total winning.
           const previousSpend = previous?.budgetSpentUsd
           const incomingSpend = session.budgetSpentUsd
-          const projected =
-            previousSpend === undefined ||
-            (incomingSpend !== undefined &&
-              Usd.from(incomingSpend).compare(Usd.from(previousSpend)) >= 0)
-              ? session
-              : { ...session, budgetSpentUsd: previousSpend }
+          const base = spendBases.get(session.sessionId)
+          let projected = session
+          if (previousSpend !== undefined) {
+            if (
+              incomingSpend !== undefined &&
+              base !== undefined &&
+              Usd.from(incomingSpend).compare(Usd.from(base)) >= 0
+            )
+              projected = {
+                ...session,
+                budgetSpentUsd: Usd.from(previousSpend)
+                  .add(Usd.from(incomingSpend).subtract(Usd.from(base)))
+                  .toAmount(),
+              }
+            else if (
+              incomingSpend === undefined ||
+              Usd.from(incomingSpend).compare(Usd.from(previousSpend)) < 0
+            )
+              projected = { ...session, budgetSpentUsd: previousSpend }
+          }
+          if (projected.budgetSpentUsd === undefined) spendBases.delete(session.sessionId)
+          else spendBases.set(session.sessionId, projected.budgetSpentUsd)
           if (uploads !== undefined && projected.accountId !== undefined)
             await writeIntent(session.sessionId, projected.accountId, 'save')
           // Retain both snapshots until the durable rename; a failed save cannot
