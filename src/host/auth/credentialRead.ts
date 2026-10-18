@@ -118,11 +118,11 @@ export type CredentialProviderId =
 
 /**
  * What the three-valued credential read needs of a store. The owner keys the
- * window's once-per-store notice in `hasStoredKey` below; every bundle that
- * loads this file agrees on one store's state because the bundle is loaded
- * once per process. Store-read failures warn every time with their kind:
- * the catch gate records every failure path, so a "warn once" collapse
- * cannot stand here.
+ * window's once-per-store notice in `hasStoredKey` below and the once-only
+ * `getApiKey` warning beside it; every bundle that loads this file agrees on
+ * one store's state because the bundle is loaded once per process. A
+ * store-read failure warns once per owner with its kind (TBL-02), re-armed
+ * by a healthy read, so one persistent failure cannot flood the log.
  */
 export interface CredentialReadPort {
   readonly owner: object
@@ -134,6 +134,9 @@ export interface CredentialReadPort {
 
 /** Stores whose unreadable notice the window already showed, once each. */
 const selectionWarningsShown = new WeakSet<object>()
+
+/** Stores whose unreadable key warning `getApiKey` already logged, once each. */
+const apiKeyWarningsShown = new WeakSet<object>()
 
 /**
  * The stored key for operational use (backend key reads); undefined when
@@ -151,15 +154,30 @@ export async function getApiKey(port: CredentialReadPort): Promise<string | unde
     stored = await port.secrets.get(SECRET_KEYS.modelApiKey)
   } catch (error: unknown) {
     // read-state: cert TBL-02 (see the function note): this collapse is by
-    // design for operational, non-guard use only. Every failure warns with
-    // its kind: the log carries only the kind, never the raw error, whose
-    // message can name a keyring path (P3-5).
+    // design for operational, non-guard use only. The failure reaches its
+    // once-per-owner warning below, with its kind: the log carries only
+    // the kind, never the raw error, whose message can name a keyring
+    // path (P3-5).
+    return unreadableKey(port, error)
+  }
+  apiKeyWarningsShown.delete(port.owner)
+  return stored === undefined || stored === '' ? undefined : stored
+}
+
+/**
+ * The collapsed answer when the store cannot be read (TBL-02): no key. The
+ * first failure per owner warns with its kind; later ones stay silent
+ * until a healthy read re-arms the warning, so one persistent failure
+ * cannot flood the log. Operational use only, never a guard.
+ */
+function unreadableKey(port: CredentialReadPort, error: unknown): string | undefined {
+  if (!apiKeyWarningsShown.has(port.owner)) {
+    apiKeyWarningsShown.add(port.owner)
     port.warn(
       `${port.storeName} could not be read, so no Model API key is available (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
     )
-    return undefined
   }
-  return stored === undefined || stored === '' ? undefined : stored
+  return undefined
 }
 
 /**

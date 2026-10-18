@@ -86,8 +86,12 @@ export async function oauthJson(
     const parsed: unknown = JSON.parse(bytes.toString('utf8'))
     return parsed
   } catch (error: unknown) {
-    // Any failure fetching, bounding or parsing denies: only a non-error
+    // The caller's own stop stays a stop: a fetch that rejects with the
+    // request signal's abort reason is rethrown untouched, so `run` still
+    // sees its own reason instead of an access-denied failure. Any other
+    // failure fetching, bounding or parsing denies: only a non-error
     // keeps its kind past the boundary.
+    if (init.signal?.aborted === true && error === init.signal.reason) throw error
     if (!(error instanceof Error)) throw error
     return oauthDenied({ cause: error })
   } finally {

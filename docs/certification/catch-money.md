@@ -725,3 +725,28 @@ scratch `src/__drill-scratch.ts` with one new `catch { return 'failed' }`
 makes `npm run check:catches` exit 1 (`new GENERIC catch site` + `root:
 GENERIC rose from 9 to 10`); removing it restores exit 0 with the
 baseline byte-identical.
+
+## PR161FIX2: Codex re-review threads (2026-10-18, lane PR161FIX2)
+
+- usage.tsx boot report: the boot `host?.post(webviewErrorReport(...))`
+  threw `TypeError('Invalid usage request')` on the HTTP/JCEF/WebView2/SWT
+  usage bridges (usage messages only), so the report killed the
+  `Unavailable` fallback. The report is now built first and posted
+  best-effort in a guarded send; the fallback render always runs.
+- paidConsent store writes: `remember()`, `searchApprovalOrder()` and the
+  quote-save path rethrew non-`Error` rejections, turning an approved use
+  into a failure. Every rejection is now classified with
+  `paidStoreFailureKind` (non-`Error` reads `unknown`), allowed once with
+  `onNotKept`, per TBL-07/TBL-08.
+- oauthJson aborts: a fetch rejecting with the request signal's abort
+  reason was wrapped as `vault.noAccess`, so `run`'s
+  `error === signal.reason` check missed and cancellations surfaced as
+  access-denied. The abort reason is rethrown untouched before mapping.
+- getApiKey warnings: the helper warned on every failed read; TBL-02 and
+  `credentialStore.getApiKey` require once-only. Failures now funnel
+  through `unreadableKey` (warns once per owner, re-armed by a healthy
+  read); `credentialReadFailures.test.ts` covers warn-once plus re-arm.
+  No fake-store/popup/oAuth tests added or reinstated (T4/T5 record
+  above); paid and OAuth behavior proven with a deleted-after-run
+  scratch probe (non-`Error` grant rejection allowed once with
+  `kind: 'unknown'`; abort reason identity through `oauthJson`).
