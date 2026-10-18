@@ -2453,6 +2453,7 @@
   "historyDeleteConfirmDetail": "Zniknie z historii na zawsze. Tej czynności nie można cofnąć.",
   "historyDeleted": "Usunięto {name}",
   "historyDeleteFailed": "Nie można usunąć rozmowy",
+  "historyDeleteCleanupFailed": "Usunięto {name}, ale dokończenie czyszczenia nie powiodło się: {reason}",
   "historyCurrent": "Bieżąca",
   "historyForkMark": "Rozwidlenie",
   "historyTurns": {

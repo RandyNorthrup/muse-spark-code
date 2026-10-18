@@ -2405,6 +2405,7 @@
   "historyDeleteConfirmDetail": "Verrà rimossa dalla cronologia per sempre. L’operazione non può essere annullata.",
   "historyDeleted": "{name} eliminata",
   "historyDeleteFailed": "Non è stato possibile eliminare la conversazione",
+  "historyDeleteCleanupFailed": "{name} eliminata, ma il completamento della pulizia non è riuscito: {reason}",
   "historyCurrent": "Corrente",
   "historyForkMark": "Copia",
   "historyTurns": {

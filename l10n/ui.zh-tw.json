@@ -2309,6 +2309,7 @@
   "historyDeleteConfirmDetail": "它將從歷程記錄中永久移除，此動作無法復原。",
   "historyDeleted": "已刪除 {name}",
   "historyDeleteFailed": "無法刪除對話",
+  "historyDeleteCleanupFailed": "已刪除 {name}，但未能完成清理：{reason}",
   "historyCurrent": "目前",
   "historyForkMark": "分叉",
   "historyTurns": {

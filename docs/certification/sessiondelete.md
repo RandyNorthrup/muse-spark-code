@@ -79,29 +79,44 @@
   `canDeleteMuseSession` (new in `MuseCodeHost.ts`, version between 1.4.0
   and 1.4.4 with build labels stripped, and the lifecycle reader injected —
   false everywhere tonight since no reader is injected).
-- `ModelApiHost.deleteSession`: drains in-flight saves, removes the session
-  through the product's own `SessionStore` (file, questions, uploads), drops
-  cached headers/snapshots/save state, and records the id so no later save
-  resurrects it (`persist`, the save writer and `listSessions` all honor
-  the record).
+- `ModelApiHost.deleteSession`: marks the id deleted first, drains
+  in-flight saves, removes the session through the product's own
+  `SessionStore` (file, questions, uploads), drops cached
+  headers/snapshots/save state, then stops the live session (`disposeAll`)
+  so its turn cannot keep spending. No later save resurrects it: `persist`,
+  `persistSpend`, `persistBudgetReservation` (a settling refund), and
+  `persistTeamCommands` are no-ops that never reject for a deleted id, and
+  `queueSave` plus the save writer (`runSessionSaves`) refuse to write one —
+  a save queued after the mark resolves without touching the store, and a
+  save still waiting when the mark lands is dropped with its waiters
+  resolved. `revive` refuses a deleted id, so the session can no longer be
+  resumed or forked; `listSessions` hides it. A removal failure unmarks the
+  id and rethrows, so the delete reports its real cause.
 - `MuseCodeHost.deleteSession` now resolves `void` (the terminal still
   reaches lifecycle listeners) and its reader-missing error names the real
   cause (`sessionDeleteUnsupported` with the CLI version) instead of `Delete`.
 - Panel History: `deleteSession` webview message, controller handler with
   capability check, confirmation naming the conversation
-  (`confirmFileAction`), backend delete, archived-id/question-count/
-  checkpoint cleanup, new conversation when the open one was deleted,
-  re-list proving the row is gone, named success notice, real-cause failure
-  notice. The row offers Delete only when the `sessionList` message says so
+  (`confirmFileAction`), backend delete, then — only once the backend
+  confirms the removal — row and question-count drop, archived-id update,
+  checkpoint forget (`cleanupFailed` says a cleanup failure with its real
+  cause instead of the delete's), new conversation when the open one was
+  deleted, one named success notice, and a re-list proving the row is gone.
+  A failure of the backend delete itself names its real cause and keeps the
+  row. An epoch change after a successful removal still drops the row and
+  still says the success notice, without touching the newer generation's
+  session. The row offers Delete only when the `sessionList` message says so
   (`canDeleteSessions: false` hides it — the rename/fork-on-Windows pattern).
 - ACP `session/delete` served on both backends through the same port, with
   per-host refusal naming the real cause; advertised in `sessionCapabilities`
   only on the Model API backend (the only one that can honor it tonight).
   `sessionTap` forwards the port.
 - Strings: `historyDeleteConfirm{,Detail}`, `historyDeleted`,
-  `historyDeleteFailed`, `sessionDeleteUnsupported` in `en.ts` and all 14
-  `l10n/ui.*.json` tables, in key order. `docs/acp.md` and the generated
-  reference updated (`session/delete` appears in the ACP method list).
+  `historyDeleteFailed`, `historyDeleteCleanupFailed` (a cleanup failure
+  after a confirmed delete, naming the conversation and the real cause),
+  `sessionDeleteUnsupported` in `en.ts` and all 14 `l10n/ui.*.json` tables,
+  in key order. `docs/acp.md` and the generated reference updated
+  (`session/delete` appears in the ACP method list).
 - Out of scope, deliberately: the session board (mixes live/window rows, not
   a stored-session list) and a CLI-native `muse sessions delete` (no such
   command exists upstream). The `@muse-code/sdk` 1.4.4 → 1.4.10 pin gap is
@@ -118,6 +133,27 @@
 - Fire proofs: with `remove` sabotaged to skip one id, the store test fails
   (1 failed, 2 passed) and passes again on the revert; a throwaway test
   asserting 1.4.4 allows delete fails and was removed.
+- Red/green for the review fix (2026-10-18, this lane, on this rig): the new
+  `ModelApiHost.deleteSession keeps a deleted conversation deleted` test
+  drives the real host (production `ModelApiHost`, `ModelApiClient`
+  constructed but never called — no turn runs, so any provider use would fail
+  loudly through its missing key; production `fileContextIo`, `createToolIo`,
+  `createFileSessionStore` in a `mkdtemp` folder) with a real in-flight save
+  (a rename queued, the delete landing before it must have finished). On the
+  pre-fix tree it fails — `resumeSession` on the deleted id resolves with a
+  live loaded session instead of rejecting (1 failed, 3 passed) — and after
+  the fix it passes (4 passed) on the repo's own timeout. It pins: the
+  in-flight save drains and the file is removed, `listSessions` hides the id,
+  resume and fork of the deleted id refuse, touching the stopped handle
+  writes nothing back, and deleting again resolves. The post-delete refund /
+  team no-op guards are unreachable without a provider turn, so no committed
+  test drives them: they are covered by code review against the turn-end
+  paths (`endRequest` → `onPersisted('refund')`, `TeamCommandRegistry` →
+  `onPersisted('team')`) and by every gate below. The controller's
+  success-once / own-cleanup-message / stale-epoch row-drop cannot be driven
+  without standing in for the editor confirm dialog, so no committed test
+  drives it either: it is reviewed against the shipped archive/close flows it
+  mirrors, and the panel click-through stays listed below as not run.
 - Gates on the final tree: `tsc` host/webview/unit clean; eslint zero on all
   changed files; prettier clean; `check:l10n` 0 problems; `check:reference`
   current (regenerated); `check:plan` 0 drift; `check:host-api` 0 problems;
@@ -125,7 +161,7 @@
   `npm run build` green with budgets held; `security:audit` exit 0
   (2 advisories, 1 exceptioned); `security:sast` 533 rules on 3265 files,
   0 findings.
-- Suites: sessionDelete (3), sessionStore (21), sessions (12), sessionBoard
+- Suites: sessionDelete (4), sessionStore (21), sessions (12), sessionBoard
   (7), sessionRecords (11), sessionTransfer (25), byoProtocol,
   questionContracts, snapshot (38), questionUiState, paidMoneyStructure,
   mediaContracts (73) — all pass on the repo's own timeout.

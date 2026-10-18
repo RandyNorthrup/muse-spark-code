@@ -2405,6 +2405,7 @@
   "historyDeleteConfirmDetail": "Elle quittera l’historique pour de bon. Cette action est irréversible.",
   "historyDeleted": "{name} supprimée",
   "historyDeleteFailed": "Impossible de supprimer la conversation",
+  "historyDeleteCleanupFailed": "{name} supprimée, mais le nettoyage final a échoué: {reason}",
   "historyCurrent": "Actuelle",
   "historyForkMark": "Copie",
   "historyTurns": {

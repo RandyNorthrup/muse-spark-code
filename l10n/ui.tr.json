@@ -2357,6 +2357,7 @@
   "historyDeleteConfirmDetail": "Geçmişten kalıcı olarak kaldırılır. Bu işlem geri alınamaz.",
   "historyDeleted": "{name} silindi",
   "historyDeleteFailed": "Konuşma silinemedi",
+  "historyDeleteCleanupFailed": "{name} silindi, ancak son temizlik tamamlanamadı: {reason}",
   "historyCurrent": "Geçerli",
   "historyForkMark": "Çatal",
   "historyTurns": {

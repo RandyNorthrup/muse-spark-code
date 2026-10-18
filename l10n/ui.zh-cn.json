@@ -2309,6 +2309,7 @@
   "historyDeleteConfirmDetail": "它将从历史记录中永久移除，此操作无法撤销。",
   "historyDeleted": "已删除 {name}",
   "historyDeleteFailed": "无法删除对话",
+  "historyDeleteCleanupFailed": "已删除 {name}，但未能完成清理：{reason}",
   "historyCurrent": "当前",
   "historyForkMark": "分叉",
   "historyTurns": {

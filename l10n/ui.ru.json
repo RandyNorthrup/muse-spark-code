@@ -2453,6 +2453,7 @@
   "historyDeleteConfirmDetail": "Она навсегда исчезнет из истории. Это действие нельзя отменить.",
   "historyDeleted": "Удалено: {name}",
   "historyDeleteFailed": "Не удалось удалить беседу",
+  "historyDeleteCleanupFailed": "Удалено: {name}, но завершить очистку не удалось: {reason}",
   "historyCurrent": "Текущий",
   "historyForkMark": "Ответвление",
   "historyTurns": {
