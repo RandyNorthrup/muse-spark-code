@@ -494,13 +494,15 @@ and metadata) while withholding contents; the macOS profile did not.
 
 Rule added (`native/confine/MuseSparkConfineMac.c`, in `walk()`, same
 generated `policy.h`, nothing else changed): every skipped
-protected/private entry now gets exactly one narrow literal rule — a
-protected directory gets `(allow file-read* (literal "<abs>"))` so its
-entries enumerate (names only); every other protected entry (file,
-symlink, fifo, …) gets `(allow file-read-metadata (literal "<abs>"))`.
-The type comes from `fstatat(…, AT_SYMLINK_NOFOLLOW)` — no open, no
-follow, no block on fifos; anything unstatable fails closed to
-metadata-only.
+protected/private dir-or-file now gets exactly one narrow literal
+rule — a protected directory gets `(allow file-read* (literal "<abs>"))`
+so its entries enumerate (names only); a protected regular file gets
+`(allow file-read-metadata (literal "<abs>"))`. Any other skipped type
+(symlink, fifo, …) keeps no rule at all: its name already surfaces
+through the parent's listing, and readlink's gating stays denied. The
+type comes from `fstatat(…, AT_SYMLINK_NOFOLLOW)` — no open, no follow,
+no block on fifos; anything unstatable, or not a plain dir-or-file,
+keeps no rule.
 
 Why contents stay denied: Seatbelt checks every open's resolved path,
 and no rule grants `file-read-data` on a protected file — the directory
@@ -521,6 +523,34 @@ grows by exactly one line: the `file-read*` literal for
 `<workspace>/.git` (the walk never descends into a skipped directory,
 so `.git/config` gets no rule of its own — its name surfaces through
 the parent's listing, its contents and metadata stay denied).
+
+Proven in this sandbox 2026-10-18 (live Seatbelt still needs the lead's
+unsandboxed Mac, as before):
+
+- The fixed helper compiles clean under the repo's exact flags
+  (`-std=c11 -O2 -Wall -Wextra -Werror -Wconversion -Wshadow`) via the
+  direct CLT cc against the MacOSX SDK (`policy.h` from
+  `node scripts/build-confine.mjs`; the script's `/usr/bin/cc` shim
+  still fails on the rig's broken `xcode-select`, environmental).
+- Drill-shaped fixture (`allowed.txt` + `.git/config`): the run prints
+  `{"confined":true,"abi":1,"excluded":1}` and the profile gains
+  exactly the one new line —
+  `(allow file-read* (literal "<workspace>/.git"))` — then fails
+  solely at `sandbox_apply` (exit 71, this shell's nested sandbox).
+  `sandbox-exec -f` parses the profile clean (71, not the 65 a parse
+  error gives).
+- File and symlink branches: with `.env` (file) and `.husky` →
+  `/etc/hostname` (symlink) added, `excluded` is 3; `.env` gets
+  `(allow file-read-metadata (literal …))` only and the symlink gets no
+  rule at all — no `file-read-data` on any protected file, readlink
+  stays denied so the target is unrevealed.
+- Refusal matrix on the fresh binary unchanged: `workspaceIdentity`,
+  `program`, `privateOperand`, `operand` — all exit 125 with empty
+  stdout.
+- One cold-start flake noted: the very first exec of the fresh binary
+  refused `walkBudget` (macOS launch verification pushed the walk past
+  100 ms); every later run is ~70 ms all-in. Environmental, not a code
+  cause — and the lead's rerun executes the binary repeatedly.
 
 ## Drills
 
