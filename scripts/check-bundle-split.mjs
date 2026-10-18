@@ -172,6 +172,10 @@ const LAZY_ONLY = [
   'sse.ts',
   'ndjson.ts',
   'ModelApiHost.ts',
+  // Lane PROVERR: the typed provider refusal every error parser funnels
+  // through. The providers, configured-providers and report bundles require
+  // its API from this bundle (deferredCohort) instead of carrying a copy.
+  'providerRefusal.ts',
   // M106: side answers load with the backend, reviewer, judge or Git action.
   'structuredOutput.ts',
   'modelCapabilities.ts',
