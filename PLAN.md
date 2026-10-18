@@ -39609,7 +39609,11 @@ channel over the guarded pipe helper, per-platform slot providers with real
 presence checks, and the file-backed rollback anchor where the OS keyring
 binding is missing) merged third; its parallel per-platform `.vsix` work
 kept the merged PR #246 shape, plus the pipe helper as a required win32
-native file, with its CHANGELOG entries under `[0.19.0]`. The `0.19.0 released (…)` line is written by the lead after the tag's
+native file, with its CHANGELOG entries under `[0.19.0]`. PR #236
+(`fix/attach-recording-parity`: Attach Latest Screen Recording on Windows
+and macOS) merged fourth; its release entry stays withheld until
+packed-product runs on both target OSs are recorded, per the branch's own
+rule. The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**

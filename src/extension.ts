@@ -343,8 +343,6 @@ import {
 } from './host/media/mediaProviders'
 import { mediaBundleLoader } from './host/media/mediaBundle'
 import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRecordBundle'
-import { createLinuxLatestPort } from './host/media/recordingLatest'
-import { latestLinuxRecording } from './core/media/record/linux'
 import type { ScreenRecordingPreview } from './core/media/record/driver'
 import { registerVaultCommands, vaultBundleLoader } from './host/vault/vaultPanelBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
@@ -3366,10 +3364,29 @@ async function activateWindow(
     canonicalRelativePath: (fsPath) => files.canonicalRelativePath(fsPath),
     recordingTempRoot,
   })
-  const linuxLatestPort = createLinuxLatestPort({ tempRoot: recordingTempRoot })
+  // PARITYREC: Attach latest reads the running platform's OS recordings
+  // location (Linux Videos, Windows Screen Recordings, macOS Desktop). The
+  // discovery modules live in dist/screenRecord.js, required on the first
+  // latest command, so activation never carries the scanner (budget). On
+  // Windows the Videos known folder resolves first (redirect-aware) and
+  // each preview copy gets its owner-only directory (icacls, verified).
+  const loadScreenRecord = screenRecordLoader(
+    path.join(context.extensionPath, 'dist', 'screenRecord.js'),
+    log,
+  )
   const latestScreenRecording = async (): Promise<ScreenRecordingPreview | undefined> => {
-    if (process.platform !== 'linux') return undefined
-    const result = await latestLinuxRecording(linuxLatestPort)
+    const bundle = loadScreenRecord()
+    const videosDir =
+      process.platform === 'win32' ? await bundle.resolveWindowsVideosDir() : undefined
+    const latestPort = bundle.createLatestRecordingPort({
+      platform: process.platform,
+      tempRoot: recordingTempRoot,
+      ...(videosDir !== undefined && { videosDir }),
+      ...(process.platform === 'win32' && {
+        createPrivateDirectory: () => bundle.createWindowsPrivateDirectory(recordingTempRoot),
+      }),
+    })
+    const result = await bundle.findLatestRecording(latestPort)
     return result.ok ? result.preview : undefined
   }
   const controllerFor = (surface: ChatSurface): ConversationController => {
@@ -3449,8 +3466,9 @@ async function activateWindow(
           // No native driver binds in this round: macOS needs its signed
           // helper, Windows direct capture is unavailable here, and Linux
           // needs a D-Bus portal transport (lead-owned; see m105.md). The
-          // absent driver refuses explicitly; latest-file discovery works
-          // on Linux. The conversation overrides attach with admission.
+          // absent driver refuses explicitly; latest-file discovery reads
+          // the running platform's OS recordings location. The
+          // conversation overrides attach with admission.
           recordingCommandDeps: () =>
             Promise.resolve({
               l10n: { table: UI_TEXT, locale: uiLocale() },
@@ -4490,11 +4508,7 @@ async function activateWindow(
           if (deps === undefined) {
             return
           }
-          const load = screenRecordLoader(
-            path.join(context.extensionPath, 'dist', 'screenRecord.js'),
-            log,
-          )
-          await load().runScreenRecordingCommand(deps, kind === 'latest')
+          await loadScreenRecord().runScreenRecordingCommand(deps, kind === 'latest')
         }),
       ),
     ),

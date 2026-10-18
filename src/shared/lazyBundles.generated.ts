@@ -277,7 +277,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/host/backend/toolIo.ts', symbol: 'createToolIo', side: ['acp', 'vscode'] },
       {
         importer: 'src/host/media/recordingLatest.ts',
-        symbol: 'createLinuxLatestPort',
+        symbol: 'createLatestPort',
         side: ['vscode'],
       },
     ],

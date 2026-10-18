@@ -1,10 +1,20 @@
 // Activation carries this loader, never recorder/preview code. W builds
 // previewPanel.ts with R1–R3 into dist/screenRecord.js and budgets that chunk.
-import type { ScreenRecordingDriver, ScreenRecordingPreview } from '../../core/media/record/driver'
+import type {
+  ScreenRecordingDriver,
+  ScreenRecordingPreview,
+  ScreenRecordingResult,
+} from '../../core/media/record/driver'
+import type { LatestRecordingPort } from '../../core/media/record/linux'
 import type { UiTable } from '../l10n'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import { UI_TEXT } from '../../shared/constants'
+import type {
+  LatestRecordingPlatformHost,
+  WindowsPrivateDirectoryDeps,
+  WindowsVideosDeps,
+} from './recordingLatest'
 
 export const RECORDING_COMMAND_IDS = {
   attach: 'museSpark.attachScreenRecording',
@@ -38,20 +48,75 @@ export interface RecordingCommandDeps extends RecordingPreviewDeps {
   readonly trackRun?: (cancel: () => Promise<void>) => () => void
 }
 
+export type LatestRecordingResolution =
+  | { readonly status: 'absent' }
+  | { readonly status: 'ready'; readonly preview: ScreenRecordingPreview }
+  | { readonly status: 'stale' }
+
+/**
+ * The latest-file branch's settlement, beside the driver branch's own
+ * checks: discovery ran, so liveness is rechecked now. A stale copy is
+ * disposed here and never previewed (nor, once admission is wired, attached
+ * to the replacement conversation). No `vscode` import, so unit tests drive
+ * it directly.
+ */
+export async function resolveLatestRecording(
+  deps: RecordingCommandDeps,
+): Promise<LatestRecordingResolution> {
+  const preview = await deps.latest?.()
+  if (preview === undefined) return { status: 'absent' }
+  if ((deps.isLive ?? (() => true))()) return { status: 'ready', preview }
+  try {
+    await preview.dispose()
+  } catch {
+    deps.log.warn('Recording preview cleanup failed')
+  }
+  return { status: 'stale' }
+}
+
 interface ScreenRecordBundle {
   readonly runScreenRecordingCommand: (
     deps: RecordingCommandDeps,
     isLatest: boolean,
   ) => Promise<void>
+  /**
+   * Latest-file discovery lives in the bundle so activation never carries
+   * the scanner (activation budget): the port factories and the find call
+   * the latest command resolves on first use. Written out (not `typeof
+   * Entry.*`) so this loader never reaches the entry's vscode side.
+   */
+  readonly createLatestRecordingPort: (host: LatestRecordingPlatformHost) => LatestRecordingPort
+  readonly findLatestRecording: (
+    port: LatestRecordingPort,
+    now?: number,
+  ) => Promise<ScreenRecordingResult>
+  readonly resolveWindowsVideosDir: (
+    deps?: WindowsVideosDeps,
+    platform?: NodeJS.Platform,
+  ) => Promise<string | undefined>
+  readonly createWindowsPrivateDirectory: (
+    tempRoot: string,
+    deps?: WindowsPrivateDirectoryDeps,
+    platform?: NodeJS.Platform,
+  ) => Promise<string>
 }
 
-// Same shipped source/build; only this export's function signature is trusted (PLAN §8).
+// Same shipped source/build; only these exports' function signatures are
+// trusted (PLAN §8).
 function isScreenRecordBundle(value: unknown): value is ScreenRecordBundle {
   return (
     typeof value === 'object' &&
     value !== null &&
     'runScreenRecordingCommand' in value &&
-    typeof value.runScreenRecordingCommand === 'function'
+    typeof value.runScreenRecordingCommand === 'function' &&
+    'createLatestRecordingPort' in value &&
+    typeof value.createLatestRecordingPort === 'function' &&
+    'findLatestRecording' in value &&
+    typeof value.findLatestRecording === 'function' &&
+    'resolveWindowsVideosDir' in value &&
+    typeof value.resolveWindowsVideosDir === 'function' &&
+    'createWindowsPrivateDirectory' in value &&
+    typeof value.createWindowsPrivateDirectory === 'function'
   )
 }
 
