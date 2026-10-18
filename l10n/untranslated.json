@@ -52,6 +52,7 @@
       "noticeRepeatBadge",
       "reportEventItem",
       "reviewItem",
+      "playbackItem",
       "execUsage",
       "execScanUsage",
       "hooksSparkProjectFile",

@@ -52,6 +52,7 @@ import {
   type SessionMcpServer,
   type SkillSummary,
   type TurnPart,
+  type TurnSubmission,
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
@@ -65,6 +66,8 @@ import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
 import type { AgentEvent } from '../shared/agentEvents'
+import { parsePlaybackPrompt } from '../shared/playbackCommand'
+import { playbackTurnText } from '../core/playback/playbackPrompt'
 import {
   ACP_AGENT_NAME,
   ACP_AGENT_TITLE,
@@ -127,6 +130,7 @@ import {
   permissionOptions,
   permissionResponse,
   planEntries,
+  PART_SEPARATOR,
   promptParts,
   UpdateTranslator,
 } from './translate'
@@ -373,6 +377,8 @@ class AcpSession {
   private readonly vaultRequests = new Set<AbortController>()
   /** A turn being started (`sendTurn` not yet answered): a release waits for it, then stops it. */
   private starting: Promise<unknown> | undefined
+  /** The last backend mode command queued: each one runs after the one before it. */
+  private modeOrder: Promise<unknown> = Promise.resolve()
   public readonly sessionId: string
 
   public constructor(
@@ -507,6 +513,64 @@ class AcpSession {
     }
   }
 
+  /**
+   * `/playback` answered as usage (D203): with anything after it, or
+   * anything beside it — a playback takes no arguments, and nothing it
+   * came with may run as an ordinary turn with tools.
+   */
+  private async answerPlaybackUsage(preparing: PreparingPrompt): Promise<'cancelled' | 'end_turn'> {
+    await this.announceCommands()
+    if ('error' in preparing) throw preparing.error
+    if (!preparing.isCancelled)
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: UI_TEXT.playbackUsage },
+      })
+    await this.outbox
+    return preparing.isCancelled ? 'cancelled' : 'end_turn'
+  }
+
+  /**
+   * A `/playback` turn (D203): the backend's own no-tools turn, which
+   * refuses every call in code. A backend with none (Muse Code: MSP is
+   * select-never-create, and no approval mode denies reads, let alone the
+   * file tools' edits) cannot run one, so the playback is refused instead
+   * of sent as an ordinary turn a reactive stop might reach too late.
+   */
+  private startPlaybackTurn(): Promise<TurnSubmission> {
+    // Refused while a turn runs (one a resumed session carries, say), as the
+    // panel refuses it.
+    if (this.activeTurnId !== undefined) {
+      return Promise.reject(RequestError.invalidRequest(undefined, UI_TEXT.playbackBusy))
+    }
+    const parts: readonly TurnPart[] = [{ type: 'text', text: playbackTurnText() }]
+    const display = `/${SLASH_COMMAND_NAMES.playback}`
+    const playback = this.session.playback
+    return playback === undefined
+      ? Promise.reject(RequestError.invalidRequest(undefined, UI_TEXT.playbackNeedsModelApi))
+      : playback.call(this.session, parts, display)
+  }
+
+  /**
+   * One backend mode command, run after the ones queued before it: the
+   * Plan hold, its restore and the client's `session/set_mode` never
+   * overlap, so a restore cannot land after a newer selection, and it reads
+   * the mode to put back when it runs. The latest explicit choice stays.
+   */
+  private async inModeOrder<T>(command: () => Promise<T>): Promise<T> {
+    const previous = this.modeOrder
+    const next = (async () => {
+      try {
+        await previous
+      } catch {
+        // The command before this one answered its own caller with its failure.
+      }
+      return await command()
+    })()
+    this.modeOrder = next
+    return await next
+  }
+
   /** `/selector arguments` naming one of the session's skills runs that skill, as in the panel. */
   private withSkill(parts: TurnPart[]): TurnPart[] {
     const [first, ...rest] = parts
@@ -571,6 +635,11 @@ class AcpSession {
         ? []
         : [{ name: 'accounts', description: UI_TEXT.accounts.slashDescription, input: null }]),
       { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
+      {
+        name: SLASH_COMMAND_NAMES.playback,
+        description: UI_TEXT.playbackDetail,
+        input: null,
+      },
       {
         name: SLASH_COMMAND_NAMES.report,
         description: UI_TEXT.reportSlashDescription,
@@ -640,6 +709,7 @@ class AcpSession {
           (skill) =>
             skill.selector !== SLASH_COMMAND_NAMES.help &&
             skill.selector !== SLASH_COMMAND_NAMES.estimate &&
+            skill.selector !== SLASH_COMMAND_NAMES.playback &&
             skill.selector !== ACP_COMPACT_COMMAND &&
             skill.selector !== 'legal' &&
             ![
@@ -842,6 +912,14 @@ class AcpSession {
           this.effort = event.effort
           this.noteChoice()
           this.send({ sessionUpdate: 'config_option_update', configOptions: this.configOptions() })
+        }
+        return
+      }
+      case 'itemStarted':
+      case 'itemUpdated':
+      case 'itemCompleted': {
+        for (const update of this.translator.updates(event)) {
+          this.send(update)
         }
         return
       }
@@ -1574,7 +1652,7 @@ class AcpSession {
    */
   public async matchAdvertised(): Promise<void> {
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    await this.inModeOrder(() => this.session.setApprovalMode(approvalModeFor(this.mode, true)))
     const reported = await this.host.listModels(this.sessionId)
     const active = reported.find((model) => model.isActive)
     if (active !== undefined && this.models.some((model) => model.modelId === active.modelId)) {
@@ -1614,7 +1692,7 @@ class AcpSession {
    */
   public async restoreChoice(modelId: string, effort: EffortLevel): Promise<void> {
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    await this.inModeOrder(() => this.session.setApprovalMode(approvalModeFor(this.mode, true)))
     this.ensureHeld()
     // Muse resume needs an explicit selection; Model API's loaded model is
     // authoritative and an unchanged selection must not run switch hooks.
@@ -1652,8 +1730,10 @@ class AcpSession {
       throw RequestError.invalidParams(undefined, modeId)
     }
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(mode, true))
-    this.mode = mode
+    await this.inModeOrder(async () => {
+      await this.session.setApprovalMode(approvalModeFor(mode, true))
+      this.mode = mode
+    })
     // The set took: tell the editor, which otherwise keeps showing the old
     // mode (it learns it only from new/load responses and this notice).
     this.send({ sessionUpdate: 'current_mode_update', currentModeId: mode })
@@ -1858,6 +1938,7 @@ class AcpSession {
     this.preparing = preparing
     let parsed: Awaited<ReturnType<typeof promptParts>>
     let isCompact: boolean
+    let isPlayback: boolean
     let isUsage: boolean
     let lease: Awaited<ReturnType<AcpQuestionRegistry['peekQueued']>>
     let local: Awaited<ReturnType<typeof acpPlaybook>>
@@ -1866,6 +1947,23 @@ class AcpSession {
         await this.announceCommands()
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
+      // `/playback` with anything beside it (D203): answered as usage from
+      // the raw text blocks, before `promptParts()` converts any block. The
+      // joined text is exactly what `promptParts()` decides on below, so the
+      // answer matches its refusal — but no attachment is resolved for it:
+      // a memory-only playback must never read a file it arrived with.
+      if (
+        blocks.length !== 1 &&
+        parsePlaybackPrompt(
+          slashCommandText(
+            blocks
+              .flatMap((block) => (block.type === 'text' ? [block.text] : []))
+              .join(PART_SEPARATOR),
+          ),
+        ) !== undefined
+      ) {
+        return await this.answerPlaybackUsage(preparing)
       }
       // Only media links need the port: ordinary links stay mentions even
       // when the factory binds (M105 E2 review).
@@ -1961,6 +2059,20 @@ class AcpSession {
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
       }
+      // `/playback` (D203): a memory-only turn, recognised on the command
+      // text as every local command is. With anything after it, or any
+      // other block or part beside it (an image, a resource, more text),
+      // usage instead: a playback takes no arguments, and nothing it came
+      // with may run as an ordinary turn with tools.
+      const playbackCommand = parsePlaybackPrompt(typed)
+      if (
+        playbackCommand?.kind === 'usage' ||
+        (playbackCommand !== undefined &&
+          (blocks.length !== 1 || parsed.parts.length !== 1 || part?.type !== 'text'))
+      ) {
+        return await this.answerPlaybackUsage(preparing)
+      }
+      isPlayback = playbackCommand?.kind === 'run'
       local = await acpPlaybook(
         blocks,
         () => this.deps.playbookFor?.(this.cwd, this.sessionId),
@@ -2047,7 +2159,7 @@ class AcpSession {
         return 'end_turn'
       }
       isUsage = await this.usageReply(blocks, preparing)
-      if (!isUsage && !isCompact && local === undefined)
+      if (!isUsage && !isCompact && !isPlayback && local === undefined)
         lease = await this.questionRegistry?.peekQueued()
     } catch (error: unknown) {
       // Peeking is the try's last step, so no answer lease is held here.
@@ -2106,19 +2218,25 @@ class AcpSession {
         const outcome = await this.session.compact()
         this.finishCompaction(outcome.status)
       } else {
-        const mediaQueued = [...this.attachments]
+        // No answer lease is peeked for a playback: a queued answer stays
+        // queued. No media rides one either: it answers from memory only.
+        // The sandbox note rides an ordinary turn's tail only (F91), as on
+        // the panel: a playback carries its own text alone.
+        const mediaQueued = isPlayback ? [] : [...this.attachments]
         const sandboxNote = this.sandboxModelNote()
-        const starting = this.session.sendTurn(
-          [
-            ...(pending.answerLease?.parts ?? []),
-            ...this.withSkill([
-              ...parsed.parts,
-              ...mediaQueued.map((attachment) => attachment.part),
-            ]),
-            ...sandboxNote,
-          ],
-          parsed.displayText,
-        )
+        const starting = isPlayback
+          ? this.startPlaybackTurn()
+          : this.session.sendTurn(
+              [
+                ...(pending.answerLease?.parts ?? []),
+                ...this.withSkill([
+                  ...parsed.parts,
+                  ...mediaQueued.map((attachment) => attachment.part),
+                ]),
+                ...sandboxNote,
+              ],
+              parsed.displayText,
+            )
         this.starting = starting
         const submission = await starting
         this.attachments.splice(0, mediaQueued.length)
@@ -2155,7 +2273,9 @@ class AcpSession {
           this.commitAnswers(pending)
         }
         this.noteTurnId(submission.turnId, submission.disposition)
-        if (!isAccepted) throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
+        if (!isAccepted) {
+          throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
+        }
       }
     } catch (error: unknown) {
       await this.releaseAnswers(pending)

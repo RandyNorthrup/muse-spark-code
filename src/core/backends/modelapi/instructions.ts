@@ -258,7 +258,7 @@ function verifyText(facts: InstructionFacts): string | undefined {
 }
 
 /** A custom agent's role, labelled with whose words it is (M76): file content, never a higher authority. */
-function agentRoleText(agent: InstructionFacts['agent']): string | undefined {
+export function agentRoleText(agent: InstructionFacts['agent']): string | undefined {
   if (agent === undefined) {
     return undefined
   }

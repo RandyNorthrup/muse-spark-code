@@ -1153,6 +1153,21 @@
       "editors": ["vscode"]
     },
     {
+      "id": "playback",
+      "name": { "ui": "playbackItem" },
+      "summary": { "ui": "playbackDetail" },
+      "description": { "ui": "playbackDetail" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#playback",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "plans",
       "name": { "ui": "plansItem" },
       "summary": { "tip": "plans" },
@@ -4268,6 +4283,16 @@
         "/goal resume",
         "/goal clear"
       ]
+    },
+    {
+      "name": "playback",
+      "description": "Muse states its own understanding of the goal, from memory only, with no tools",
+      "descriptions": {
+        "museCode": { "ui": "playbackDetail" },
+        "modelApi": { "ui": "playbackDetail" }
+      },
+      "backends": ["museCode", "modelApi"],
+      "syntax": ["/playback"]
     },
     {
       "name": "legal",
