@@ -9,10 +9,12 @@
 // past the `vscode` import runs only under the real Extension Development
 // Host (test/integration). A worker entry must post its own jobless refusal
 // over the thread protocol; a crash or a silent exit fails the test instead
-// of comparing as an identical observation. The throwing fetch is a network
-// guard: it fails any network use instead of answering it.
+// of comparing as an identical observation. No network use is proved from the
+// real code path: Node's own diagnostics channels must report no socket,
+// request or fetch from the loading thread, with nothing replaced.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import diagnosticsChannel from 'node:diagnostics_channel'
 import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
@@ -21,6 +23,16 @@ import { pathToFileURL } from 'node:url'
 import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads'
 
 const compare = (left, right) => left.localeCompare(right, 'en')
+// Node's built-in channels for outbound network use: a TCP or pipe client
+// socket (fetch, http and net all open one), an HTTP request, a fetch through
+// Node's bundled undici, and a UDP socket.
+const NETWORK_CHANNELS = [
+  'net.client.socket',
+  'http.client.request.created',
+  'http.client.request.start',
+  'undici:request:create',
+  'udp.socket',
+]
 
 async function exercise(api, name, table) {
   switch (name) {
@@ -130,6 +142,12 @@ if (isMainThread) {
         observe(path.join(root, 'dist', file)),
         observe(path.join(packageRoot, 'dist', file)),
       ])
+      for (const [side, observation] of [
+        ['baseline', baseline],
+        ['packaged', packaged],
+      ]) {
+        assert.deepEqual(observation.network, [], `${side} ${file} used the network`)
+      }
       assert.deepEqual(packaged, baseline)
       if (packaged.kind === 'library') {
         assert.deepEqual(packaged.importCall, packaged.requireCall)
@@ -270,14 +288,17 @@ if (isMainThread) {
       })
     })
   }
-  Object.defineProperty(globalThis, 'fetch', {
-    value() {
-      throw new Error('Packaging regression must not use the network')
-    },
-  })
-  parentPort.postMessage(
-    workerEntries.has(path.basename(workerData.file))
-      ? await bootWorkerEntry(workerData.file)
-      : await loadLibrary(workerData.file),
-  )
+  // Network use is observed, never intercepted: Node's own diagnostics
+  // channels report each client socket, HTTP request, fetch and UDP socket
+  // this thread starts, while the real fetch, http and net stay in place.
+  const network = []
+  for (const name of NETWORK_CHANNELS) {
+    diagnosticsChannel.subscribe(name, () => {
+      network.push(name)
+    })
+  }
+  const observation = workerEntries.has(path.basename(workerData.file))
+    ? await bootWorkerEntry(workerData.file)
+    : await loadLibrary(workerData.file)
+  parentPort.postMessage({ ...observation, network })
 }
