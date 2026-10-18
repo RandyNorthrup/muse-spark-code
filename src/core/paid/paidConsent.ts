@@ -363,7 +363,12 @@ export class PaidUseConsent {
    * revoked epoch). The outer account fence settles it — dropped when the
    * fence refuses, told only after the fence passes — so a revoked use is
    * never described as applied. A plain store failure still notifies at
-   * once in `remember()` below.
+   * once in `remember()` below. Entries carry their feature and a fence
+   * settles only its own call's entries: one ask per feature is in flight
+   * at a time (the inner consent shares a concurrent same-feature
+   * question), so same-feature entries belong to the same decision while
+   * another feature's overlapping fence can neither announce nor discard
+   * them.
    */
   private pendingStaleNotKept: {
     readonly feature: PaidFeature
@@ -696,15 +701,22 @@ export class PaidUseConsent {
   /**
    * Settles carried stale-epoch failures after the outer account fence: a
    * refused fence drops them silently, a passed fence tells the person now
-   * that the decision stands. Only the account consent calls this.
+   * that the decision stands. Only entries of the fencing call's feature
+   * are settled; another call's entries wait for their own fence. Only
+   * the account consent calls this.
    */
-  public settleStaleNotKept(shouldNotify: boolean): void {
-    const pending = this.pendingStaleNotKept
-    this.pendingStaleNotKept = []
-    if (!shouldNotify) return
-    for (const { feature, kind, notifySession } of pending) {
-      this.deps.onNotKept?.(this.notKeptNotice(feature, kind, notifySession))
+  public settleStaleNotKept(shouldNotify: boolean, feature: PaidFeature): void {
+    const kept: typeof this.pendingStaleNotKept = []
+    for (const entry of this.pendingStaleNotKept) {
+      if (entry.feature !== feature) {
+        kept.push(entry)
+        continue
+      }
+      if (shouldNotify) {
+        this.deps.onNotKept?.(this.notKeptNotice(entry.feature, entry.kind, entry.notifySession))
+      }
     }
+    this.pendingStaleNotKept = kept
   }
 
   public onDidChange(listener: () => void): () => void {
@@ -1224,7 +1236,7 @@ export class AccountPaidUseConsent {
     const decision = await consent.allows(request, requiresAsking)
     // A search decision is its frozen quote; any non-refusal counts as allowed here.
     if (decision === undefined || decision === false || !this.isCurrent(generation)) {
-      consent.settleStaleNotKept(false)
+      consent.settleStaleNotKept(false, request.feature)
       return false
     }
     // Fence the final decision against the captured epoch, not only the
@@ -1234,10 +1246,10 @@ export class AccountPaidUseConsent {
     // stale-epoch save carried out of `remember()` is settled here: only a
     // fence that passes tells the person the choice applied.
     if (this.durableEpoch() !== epoch) {
-      consent.settleStaleNotKept(false)
+      consent.settleStaleNotKept(false, request.feature)
       return false
     }
-    consent.settleStaleNotKept(true)
+    consent.settleStaleNotKept(true, request.feature)
     return true
   }
 

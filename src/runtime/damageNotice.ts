@@ -6,14 +6,25 @@
 // every sample. The once-marker is written atomically and cleared when the
 // file reads valid again, so a recurrence after a repair is reported again.
 
-import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { linkSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+
+/** Whether the failure is the filesystem's name-collision code. */
+function isExistsError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST'
+}
 
 /** Durable once-marker storage; every method is best-effort and never throws. */
 export interface DamageMarkerStore {
   /** The marked damage identity, or undefined when no marker (or no valid one) exists. */
   readMarker(): string | undefined
-  /** Records the damage identity atomically. */
-  writeMarker(identity: string): void
+  /**
+   * Records the damage identity and claims its announcement: true when this
+   * call won it. A concurrent winner of the same identity makes this call
+   * lose (no duplicate announcement); a changed damage still wins and
+   * replaces the marker. A claim that cannot be taken still records, so a
+   * failure repeats an announcement but never hides one.
+   */
+  writeMarker(identity: string): boolean
   /** Clears the marker: the next damage, even an identical one, announces again. */
   clearMarker(): void
 }
@@ -40,8 +51,11 @@ export class DamageNoter {
     if (this.store.readMarker() === identity) {
       return
     }
-    this.store.writeMarker(identity)
-    this.announce(identity)
+    // The claim is atomic across windows: concurrent observers of the same
+    // new damage read no marker alike, but only the winner announces.
+    if (this.store.writeMarker(identity)) {
+      this.announce(identity)
+    }
   }
 
   /** A read that succeeded: a later recurrence of any damage announces again. */
@@ -69,30 +83,57 @@ export class DamageNoter {
 export function fileDamageMarkers(file: string): DamageMarkerStore {
   const markerFile = `${file}.reported`
   const temporaryFile = `${file}.reported.tmp`
+  const readMarker = (): string | undefined => {
+    // read-state: cert TBL-11. A missing or damaged marker reads as no
+    // marker, and no marker announces: the marker only ever suppresses a
+    // DUPLICATE announcement, so its absence can never hide damage.
+    try {
+      const marker: unknown = JSON.parse(readFileSync(markerFile, 'utf8'))
+      return typeof marker === 'object' &&
+        marker !== null &&
+        'identity' in marker &&
+        typeof marker.identity === 'string'
+        ? marker.identity
+        : undefined
+    } catch {
+      // A missing or damaged marker announces, never hides.
+      return
+    }
+  }
   return {
-    readMarker: () => {
-      // read-state: cert TBL-11. A missing or damaged marker reads as no
-      // marker, and no marker announces: the marker only ever suppresses a
-      // DUPLICATE announcement, so its absence can never hide damage.
-      try {
-        const marker: unknown = JSON.parse(readFileSync(markerFile, 'utf8'))
-        return typeof marker === 'object' &&
-          marker !== null &&
-          'identity' in marker &&
-          typeof marker.identity === 'string'
-          ? marker.identity
-          : undefined
-      } catch {
-        // A missing or damaged marker announces, never hides.
-        return
-      }
-    },
+    readMarker,
     writeMarker: (identity) => {
       try {
         writeFileSync(temporaryFile, JSON.stringify({ identity }))
-        renameSync(temporaryFile, markerFile)
+        try {
+          // The exclusive link is the cross-window claim: concurrent
+          // observers of the same new damage race here, and only the
+          // winner's marker stands to announce. The rename below stays
+          // crash-safe; the link only decides who announces.
+          linkSync(temporaryFile, markerFile)
+          unlinkSync(temporaryFile)
+          return true
+        } catch (linkError: unknown) {
+          if (!isExistsError(linkError)) {
+            // No atomic claim on this filesystem: record through the
+            // crash-safe rename as before, announcing (a duplicate under
+            // true concurrency, never a hidden damage).
+            renameSync(temporaryFile, markerFile)
+            return true
+          }
+          // Another window's marker stands. When it names this same
+          // damage, its window announces and this call loses; a changed
+          // damage still replaces the marker and wins.
+          if (readMarker() === identity) {
+            rmSync(temporaryFile, { force: true })
+            return false
+          }
+          renameSync(temporaryFile, markerFile)
+          return true
+        }
       } catch {
         // Best effort: an unwritten marker only repeats the announcement.
+        return false
       }
     },
     clearMarker: () => {

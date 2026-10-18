@@ -80,7 +80,12 @@ export function UsageApp({
         if (message.type === 'usage/query') wanted.current = undefined
         setBusy(false)
         setError(USAGE_TEXT.readFailed)
-        host.post(webviewErrorReport('hostMessage', error))
+        try {
+          host.post(webviewErrorReport('hostMessage', error))
+        } catch {
+          // The usage bridges carry usage messages only, so a refused
+          // action report must never hide the failure already shown above.
+        }
       }
     },
     [host],
