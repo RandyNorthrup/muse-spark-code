@@ -318,7 +318,7 @@ Main Action is `action/`; apply sub-action is `action/apply/`. Frozen contract:
 | max-budget-usd                          | required            | Same CLI budget grammar/range above; includes text and images.                                                     |
 | mode                                    | review              | review→plan, fix→acceptEdits.                                                                                      |
 | image-generation                        | false               | Exact boolean; true only in fix.                                                                                   |
-| max-requests                            | 30                  | Same CLI request-count bounds above.                                                                               |
+| max-requests                            | empty (no limit)    | Empty sets no request limit; a set value follows the CLI request-count bounds above (1–500).                       |
 | timeout-minutes                         | 20                  | Integer; converted into allowed exec seconds.                                                                      |
 | model, effort, allow-contributor-models | empty, empty, false | Selected model validation; contributor explicitly opted in.                                                        |
 | max-diff-bytes                          | 262144              | Integer 1–1,048,576; truncation reported.                                                                          |

@@ -85,7 +85,7 @@ interface ActionInputs {
   mode: 'review' | 'fix'
   maxBudgetUsd: string
   imageGeneration: boolean
-  maxRequests: number
+  maxRequests: number | null
   timeoutMinutes: number
   model: string
   effort: string

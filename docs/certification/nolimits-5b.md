@@ -32,4 +32,18 @@ the cap). That receipt proves the run path, not the default.
 
 ## Change log
 
-- (pending) implementation + focused test + docs + CHANGELOG.
+- `action/lib/tools.mjs`: `DEFAULT_MAX_REQUESTS` removed; an empty/unset
+  `max-requests` input parses to `null` (no limit), a set value stays 1–500.
+- `action/lib/run-exec.mjs`: `execArguments` forwards `--max-requests` only
+  when the person set one (null omits the flag, as `--model`/`--effort` do).
+- `action/lib/result.mjs`: `isBackendAccountingValid` accepts a completed
+  Model API run with a null request cap (budget accounting still required).
+- `action/action.yml`: `max-requests` default `'30'` → `''`, description
+  names the no-limit empty case.
+- `test/unit/helpers/actionModules.d.ts`: `maxRequests: number | null`.
+- `docs/ci.md` Action inputs table, `README.md` M80 section, `CHANGELOG.md`:
+  documented.
+- `test/unit/actionMaxRequests.test.mjs` (new, real code, no stand-ins):
+  6 tests, all pass; the pre-change tree returns 30 and always forwards the
+  flag (probed on a `HEAD` copy in `temp/`, since removed), so the no-limit
+  tests fail there.

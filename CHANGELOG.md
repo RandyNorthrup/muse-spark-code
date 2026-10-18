@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The GitHub Action no longer caps a run at 30 requests unless the person
+  asks: with no `max-requests` input the Action sets no request limit, and a
+  set value still allows 1–500 billable HTTP attempts, retries included.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
