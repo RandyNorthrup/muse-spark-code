@@ -166,3 +166,100 @@ green rerun: 4 files, 58 tests, exit 0.
 | `runtimeAccountingEntry.ts` `settle`: the settled-once guard removed                           | `runtimeDailyBudget.test.ts` | exit 1: "counts a settled call once" `{ spentUsd: '0.6' }`                                             |
 | `sessionBudget.ts` `fitRequest`: what was spent left out of what is left                       | `sessionBudgetFit.test.ts`   | exit 1: "lowers the output allowance" and "refuses a request whose smallest estimate passes the limit" |
 | `paidMoneyStructure.test.ts` before its change (stale minimum/maximum, counter named `…Cost…`) | `paidMoneyStructure.test.ts` | exit 1 in the touched-suite run: two stale entries and one unexpected money name                       |
+
+## A refused request books nothing (found by PROVERRORS)
+
+The PROVERRORS lane's real run: a headless run refused with a real
+Anthropic 401 ended "uncertain $3.39", and the next run in the same data
+folder reported "$3.40 used" with nothing billed.
+
+- **The next run's "$3.40 used"** was the old daily ledger counting the
+  refused request's reservation. Under D121 the daily total holds only
+  reported costs, so it cannot recur.
+- **Inside the run**, `withRuntimeAccounting` settled a refused attempt
+  through the run ledger. When the error reached it untyped (an adapter
+  rethrowing without the status) the attempt was "sent with no usage" and
+  its whole reservation stayed uncertain. When it reached it typed (this
+  branch: `src/core/providers/configured.ts:922` passes a `ModelApiError`
+  through `isUserRefusal`), the run ledger released the money but recorded
+  `lastResponse` as `settlement: 'priced'` with no terminal, which the
+  published v2 schema (`src/runtime/exec/execProtocol.ts:321-330`) and
+  `action/lib/result.mjs:206-220` reject. The first real run on this branch
+  (refusal hook in, withdrawal not yet) ended in exactly that `ZodError`.
+- **The fix** (`12049a0da4`): the transport tells the attempt guard of a
+  refusal before throwing (`onRefused`,
+  `src/core/backends/modelapi/transport.ts:484`, `:1124`); the configured
+  adapter's guard already forwards it. `withRuntimeAccounting` withdraws a
+  refused attempt with its request count, as it does one that never reached
+  the wire (`src/runtime/runtimeAccountingEntry.ts:392-407`, `:473`), so the
+  run ledger counts nothing, `lastResponse` stays valid and the daily total
+  gets nothing. In the editor the open request is marked refused
+  (`ModelApiHost.ts:4985`), so no "cost unknown" notice follows a refusal,
+  and a retry after a 429 is not counted as cost unknown (`:4947`).
+- **No automated test:** a test would need a local server answering 401,
+  which the testing rules forbid. The proof is the real runs below.
+
+## Real-use proofs (built `dist/acp.js` from this worktree)
+
+Isolation: `LOCALAPPDATA` and `XDG_CONFIG_HOME` pointed at folders under
+`temp/spend-simple/`; `providers.json` there names the `anthropic` preset;
+the key `sk-ant-api03-invalid-spend-simple-proof-000000` came from standard
+input (`--key-stdin`, memory only). No credential store, machine setting or
+`AppData\Local\Muse Spark Code` file was written. Expected before the runs:
+up to 2 requests per refused run (Anthropic's free token count and the
+message), $0 cap (an invalid key cannot be billed). Counted from the logs:
+12 requests to `api.anthropic.com` over 7 runs, every one answered 401
+`invalid x-api-key`; the two stop runs sent none.
+
+| Run                                                                                                                                                                       | Result                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Refused, daily limit $10, three runs in one data folder (the last on the final build; the first two on a build differing only in the order of two conditions in one `if`) | each `auth_required`, `requests 0`, settled `0`, uncertain `0`, `lastResponse null`; no `paid-daily` folder written, session files carry no spent field                                                                |
+| Refused, no daily limit                                                                                                                                                   | `auth_required`, `requests 0`, cost `0`; the data folder holds only the session file: no `paid-daily`, no journal, no lock                                                                                             |
+| Daily limit $0.01 (no request sent)                                                                                                                                       | `budget_exceeded`: "Stopped: the next request (about $0.18) would pass the daily budget of $0.01 ($0.00 used today). It was not sent. The budget resets Oct 18, 2026, 12:00 AM; raise paidDailyBudgetUsd to continue." |
+| `--max-budget-usd 0.01`, no daily limit (no request sent)                                                                                                                 | `budget_exceeded`: "Input at most 8,283 tokens ($0.010354) + output cap at most 32,768 tokens ($0.163840) = $0.174194; run cap $0.010000, $0.000000 used. Request not sent. …"                                         |
+
+Not exercised by a real run: the untyped-rethrow path itself (on this
+branch the 401 arrives typed, so the status came from the error as well as
+from `onRefused`), and the editor's chat path.
+
+## Gates (2026-10-17, this worktree)
+
+| Gate                                                                                                          | Exit                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prettier --check` on the 83 changed files                                                                    | 0                                                                                                                                                                                                                                                                                                                                                 |
+| `eslint --max-warnings=0` on the 44 changed TS/MJS files                                                      | 0                                                                                                                                                                                                                                                                                                                                                 |
+| `npm run typecheck` (host, webview, unit, e2e, integration)                                                   | 0                                                                                                                                                                                                                                                                                                                                                 |
+| `npm run check:l10n`, `check:plan`, `check:reference`                                                         | 0, 0, 0                                                                                                                                                                                                                                                                                                                                           |
+| `npm run build` (tokens, production build, bundle size and split, lazy registry check, host globals, notices) | 0                                                                                                                                                                                                                                                                                                                                                 |
+| Touched suites (38 files, `--maxWorkers=2`)                                                                   | 1: 634 passed, 2 failed, 1 suite failed, none from this lane. `vault/sshImport.test.ts` fails on this machine's `ssh-keygen`; `commandHelp.test.ts` (prompt-library `museSpark.*` lines in help) and `providersPresets.test.ts` (`exactCount`) come from `rv/ledger` commits `57ebcfd7e4` and `8b93e40080`; this lane changes none of their files |
+
+Not run, by the lead's rule that hosted CI is the full gate: knip, cycles,
+duplication, the whole unit battery. One whole-battery run made earlier
+found 9 failures; the 4 from this lane (lazy registry, packaged bundles,
+lazy bundle files, money guard) are fixed, the other 5 are the three above
+plus `test/e2e/reports.e2e.test.ts` (Windows symlink permission).
+
+## Left undone, named plainly
+
+- The `120` in `C:\Users\Randy\AppData\Local\Muse Spark Code\settings.json`
+  stays until the owner decides; it is still read as a $120 daily limit.
+- The exec run ledger otherwise keeps its published v2 rules: a response
+  that went out and reported no usage stays "uncertain" at its reservation
+  within that run (never carried to another run or to the daily total), and
+  `exec` still requires `--max-budget-usd`.
+- A refused request whose provider bills its token count keeps the old
+  settlement, so its JSON result would fail the v2 schema; no preset is
+  known to bill its count, and this was not checked provider by provider.
+- The configured adapter's error text ("Internal error: invalid x-api-key")
+  is PROVERRORS's to fix.
+- Untouched: the Tab ledger, the team meter, account thresholds; schedule
+  paid consent still requires a non-zero shared daily budget; sessions saved
+  before D121 keep their old, inflated `budgetSpentUsd`; old ledger files
+  under `paid-daily` and `budget-journal` stay on disk, unread.
+- After the VS Code crash, `dist/runtimeAccounting.js` was found without
+  the fix while the source had it; it was rebuilt and every proof above
+  ran on the rebuilt bundle (checked with a search for `onRefused`).
+- Temporary files: all in `temp/spend-simple/` (gitignored). An earlier
+  background job and its files had been in the session scratchpad; the job
+  was stopped, its files were already gone, and nothing was written there
+  or in `muse-fleet\tmp` afterwards.
