@@ -1,10 +1,11 @@
-// M105 lane W: the VS Code host's recording temp roots and Linux latest-file
-// discovery. Activation-safe: only node builtins and lazy M1 sniffing; the
-// portal capture itself stays unbound (no D-Bus transport in this round).
+// M105 lane W + PARITYREC: the VS Code host's recording temp roots and
+// latest-file discovery on Linux, Windows and macOS. Activation-safe: only
+// node builtins and lazy M1 sniffing; the portal capture itself stays
+// unbound (no D-Bus transport in this round).
 import { chmod, copyFile, lstat, mkdir, mkdtemp, open, readdir, rm, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import type { LinuxLatestRecordingPort } from '../../core/media/record/linux'
+import type { LatestRecordingPort } from '../../core/media/record/linux'
 import type { MediaSource } from '../../core/media/limits'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
 import { UI_TEXT } from '../../shared/constants'
@@ -33,22 +34,24 @@ export function isRecordingTempPath(recordingTempRoot: string, fsPath: string): 
   return normal === root || normal.startsWith(`${root}/`)
 }
 
-export interface LinuxLatestHost {
+export interface LatestRecordingHost {
   readonly homeDir?: string
   /** Owner-only directory for private latest-copy previews. */
   readonly tempRoot: string
 }
 
+export interface LatestRecordingPlatformHost extends LatestRecordingHost {
+  readonly platform: NodeJS.Platform
+}
+
 /**
- * Real fs-backed latest-recording discovery (R3's `latestLinuxRecording`
- * port): GNOME Screencasts and the Videos folder, nonrecursive, symlinks
- * and special files rejected, private owner-only copies under the host's
+ * Real fs-backed latest-recording discovery (the core `findLatestRecording`
+ * port): nonrecursive scans of the OS recordings locations, symlinks and
+ * special files rejected, private owner-only copies under the host's
  * recording temp root, sniffed with M1 before return. Failures carry fixed
  * words only; the caller's reasons name no path.
  */
-export function createLinuxLatestPort(host: LinuxLatestHost): LinuxLatestRecordingPort {
-  const home = host.homeDir ?? homedir()
-  const roots = [path.join(home, 'Videos', 'Screencasts'), path.join(home, 'Videos')]
+function createLatestPort(roots: readonly string[], tempRoot: string): LatestRecordingPort {
   return {
     roots,
     list: async (root) => {
@@ -68,9 +71,9 @@ export function createLinuxLatestPort(host: LinuxLatestHost): LinuxLatestRecordi
       if (!meta.isFile() || meta.isSymbolicLink() || meta.size === 0 || meta.size > maxBytes) {
         throw new Error('Latest recording is not a readable file')
       }
-      await mkdir(host.tempRoot, { recursive: true })
-      await chmod(host.tempRoot, OWNER_DIRECTORY_MODE)
-      const dir = await mkdtemp(path.join(host.tempRoot, 'latest-'))
+      await mkdir(tempRoot, { recursive: true })
+      await chmod(tempRoot, OWNER_DIRECTORY_MODE)
+      const dir = await mkdtemp(path.join(tempRoot, 'latest-'))
       await chmod(dir, OWNER_DIRECTORY_MODE)
       const target = path.join(dir, path.basename(source))
       const dispose = async (): Promise<void> => {
@@ -114,4 +117,39 @@ export function createLinuxLatestPort(host: LinuxLatestHost): LinuxLatestRecordi
       }
     },
   }
+}
+
+/** GNOME Screencasts and the Videos folder. */
+export function createLinuxLatestPort(host: LatestRecordingHost): LatestRecordingPort {
+  const home = host.homeDir ?? homedir()
+  return createLatestPort(
+    [path.join(home, 'Videos', 'Screencasts'), path.join(home, 'Videos')],
+    host.tempRoot,
+  )
+}
+
+/**
+ * The Snipping Tool location: `%USERPROFILE%\Videos\Screen Recordings`
+ * (FOLDERID_Videos, the same folder the native helper's `--latest` reads).
+ */
+export function createWindowsLatestPort(host: LatestRecordingHost): LatestRecordingPort {
+  const home = host.homeDir ?? homedir()
+  return createLatestPort([path.join(home, 'Videos', 'Screen Recordings')], host.tempRoot)
+}
+
+/** The Screenshot app's default save location. */
+export function createMacosLatestPort(host: LatestRecordingHost): LatestRecordingPort {
+  const home = host.homeDir ?? homedir()
+  return createLatestPort([path.join(home, 'Desktop')], host.tempRoot)
+}
+
+/** The running platform's OS recordings locations; anything else keeps Linux's. */
+export function createLatestRecordingPort(host: LatestRecordingPlatformHost): LatestRecordingPort {
+  const factories: Partial<
+    Record<NodeJS.Platform, (host: LatestRecordingHost) => LatestRecordingPort>
+  > = {
+    win32: createWindowsLatestPort,
+    darwin: createMacosLatestPort,
+  }
+  return (factories[host.platform] ?? createLinuxLatestPort)(host)
 }

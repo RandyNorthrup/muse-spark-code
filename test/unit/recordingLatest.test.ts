@@ -1,14 +1,22 @@
-// M105 W: the host recording-temp gate and Linux latest-file discovery run
-// against real temp directories: no fake filesystem stands in for them.
+// M105 W + PARITYREC: the host recording-temp gate and latest-file discovery
+// run against real temp directories on every platform: no fake filesystem
+// stands in for them. Windows proves Videos/Screen Recordings, macOS proves
+// the Desktop Screenshot-app default, Linux its Videos roots.
 import { mkdtemp, mkdir, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { latestLinuxRecording } from '../../src/core/media/record/linux'
+import { findLatestRecording, isWithinRecordingRoot } from '../../src/core/media/record/linux'
 import { UI_TEXT } from '../../src/shared/constants'
 import { ebmlFixture, videoFixture, wavFixture } from './helpers/media/fixtures'
 import { createMediaSourceOpen } from '../../src/host/media/mediaProviders'
-import { createLinuxLatestPort, isRecordingTempPath } from '../../src/host/media/recordingLatest'
+import {
+  createLatestRecordingPort,
+  createLinuxLatestPort,
+  createMacosLatestPort,
+  createWindowsLatestPort,
+  isRecordingTempPath,
+} from '../../src/host/media/recordingLatest'
 
 const owned: string[] = []
 async function temp(): Promise<string> {
@@ -60,6 +68,31 @@ describe('M105 W recording temp gate', () => {
   })
 })
 
+describe('PARITYREC recording-root confinement', () => {
+  it.each([
+    ['/home/u/Videos/Screencasts', '/home/u/Videos/Screencasts/new.mp4', true],
+    ['/home/u/Videos', '/home/u/Videos/Screencasts/new.mp4', false],
+    [
+      String.raw`C:\Users\u\Videos\Screen Recordings`,
+      String.raw`C:\Users\u\Videos\Screen Recordings\clip.mp4`,
+      true,
+    ],
+    [
+      String.raw`C:\Users\u\Videos\Screen Recordings`,
+      String.raw`C:\Users\u\Videos\clip.mp4`,
+      false,
+    ],
+    [
+      String.raw`C:\Users\u\Videos\Screen Recordings`,
+      String.raw`C:\Users\u\Videos\Screen Recordings-evil\clip.mp4`,
+      false,
+    ],
+    ['relative/roots', 'relative/roots/clip.mp4', false],
+  ])('admits %s under %s only inside the root', (root, given, expected) => {
+    expect(isWithinRecordingRoot(root, given)).toBe(expected)
+  })
+})
+
 describe('M105 W Linux latest-file discovery', () => {
   it('lists regular files only while latest picks the recent capture', async () => {
     const { home, tempRoot } = await homeWith({
@@ -83,7 +116,7 @@ describe('M105 W Linux latest-file discovery', () => {
       path.join(home, 'Videos'),
     ])
     const listed = await port.list(path.join(home, 'Videos', 'Screencasts'))
-    // list() admits every regular file; recency is latestLinuxRecording's filter.
+    // list() admits every regular file; recency is findLatestRecording's filter.
     const names = listed
       .map((file) => path.basename(file.path))
       .toSorted((first, second) => {
@@ -91,19 +124,14 @@ describe('M105 W Linux latest-file discovery', () => {
         return first < second ? -1 : 1
       })
     expect(names).toEqual(['new.mp4', 'old.webm'])
-    const latest = await latestLinuxRecording(port)
-    // Linux discovery trusts only POSIX roots (production runs it on Linux
-    // alone), so a Windows-shaped root finds nothing instead of guessing.
-    if (process.platform === 'win32') {
-      expect(latest).toMatchObject({ ok: false, reason: UI_TEXT.media.recordingNoRecent })
-      return
-    }
+    const latest = await findLatestRecording(port)
     if (!latest.ok) throw new Error('expected the recent capture')
     expect(latest.preview.path.startsWith(tempRoot)).toBe(true)
     expect(latest.preview.info).toMatchObject({ kind: 'video', mediaType: 'video/mp4' })
-    // Owner-only copies.
+    // Owner-only copies (Windows has no POSIX modes; readability is the gate).
     const previewStat = await stat(latest.preview.path)
-    expect(previewStat.mode & 0o777).toBe(0o600)
+    const mode = previewStat.mode & (process.platform === 'win32' ? 0o444 : 0o777)
+    expect(mode).toBe(process.platform === 'win32' ? 0o444 : 0o600)
     await latest.preview.dispose()
     await expect(stat(latest.preview.path)).rejects.toThrow()
   })
@@ -115,9 +143,9 @@ describe('M105 W Linux latest-file discovery', () => {
     })
     const port = createLinuxLatestPort({ homeDir: home, tempRoot })
     // The .mp4 holding wav bytes fails the video sniff after its private copy.
-    await expect(latestLinuxRecording(port)).resolves.toMatchObject({ ok: false })
+    await expect(findLatestRecording(port)).resolves.toMatchObject({ ok: false })
     const empty = createLinuxLatestPort({ homeDir: await temp(), tempRoot })
-    expect(await latestLinuxRecording(empty)).toMatchObject({
+    expect(await findLatestRecording(empty)).toMatchObject({
       ok: false,
       reason: UI_TEXT.media.recordingNoRecent,
     })
@@ -134,6 +162,90 @@ describe('M105 W Linux latest-file discovery', () => {
     const wav = path.join(tempRoot, 'sound.mp4')
     await writeFile(wav, wavFixture())
     await expect(port.copyForPreview(wav, 1_000_000)).rejects.toThrow('not a video')
+  })
+})
+
+describe('PARITYREC Windows latest-file discovery', () => {
+  it('attaches the newest Snipping Tool recording from Screen Recordings', async () => {
+    const { home, tempRoot } = await homeWith({
+      'Videos/Screen Recordings/Screen Recording 2026-10-18.mp4': {
+        ageMs: 1000,
+        bytes: videoFixture(),
+      },
+      'Videos/Screen Recordings/older.mp4': {
+        ageMs: 60 * 60 * 1000,
+        bytes: videoFixture(),
+      },
+    })
+    const port = createWindowsLatestPort({ homeDir: home, tempRoot })
+    expect(port.roots).toEqual([path.join(home, 'Videos', 'Screen Recordings')])
+    const latest = await findLatestRecording(port)
+    if (!latest.ok) throw new Error('expected the recent Snipping Tool recording')
+    expect(latest.preview.path.startsWith(tempRoot)).toBe(true)
+    expect(latest.preview.info).toMatchObject({ kind: 'video', mediaType: 'video/mp4' })
+    await latest.preview.dispose()
+    await expect(stat(latest.preview.path)).rejects.toThrow()
+  })
+
+  it('reports no recent recording when the folder holds only stale captures', async () => {
+    const { home, tempRoot } = await homeWith({
+      'Videos/Screen Recordings/old.mp4': { ageMs: 60 * 60 * 1000, bytes: videoFixture() },
+    })
+    const port = createWindowsLatestPort({ homeDir: home, tempRoot })
+    await expect(findLatestRecording(port)).resolves.toMatchObject({
+      ok: false,
+      reason: UI_TEXT.media.recordingNoRecent,
+    })
+  })
+})
+
+describe('PARITYREC macOS latest-file discovery', () => {
+  it('attaches the newest Screenshot-app recording from the Desktop', async () => {
+    const { home, tempRoot } = await homeWith({
+      'Desktop/Screen Recording 2026-10-18 at 21.00.00.mov': {
+        ageMs: 1000,
+        bytes: videoFixture({ brand: 'qt  ' }),
+      },
+      'Desktop/Screen Recording 2026-10-17 at 21.00.00.mov': {
+        ageMs: 60 * 60 * 1000,
+        bytes: videoFixture({ brand: 'qt  ' }),
+      },
+    })
+    const port = createMacosLatestPort({ homeDir: home, tempRoot })
+    expect(port.roots).toEqual([path.join(home, 'Desktop')])
+    const latest = await findLatestRecording(port)
+    if (!latest.ok) throw new Error('expected the recent Screenshot-app recording')
+    expect(latest.preview.path.startsWith(tempRoot)).toBe(true)
+    expect(latest.preview.info).toMatchObject({ kind: 'video', mediaType: 'video/quicktime' })
+    await latest.preview.dispose()
+    await expect(stat(latest.preview.path)).rejects.toThrow()
+  })
+
+  it('reports no recent recording when the Desktop holds no fresh video', async () => {
+    const { home, tempRoot } = await homeWith({
+      'Desktop/notes.txt': { ageMs: 1000, bytes: new Uint8Array([1, 2, 3]) },
+    })
+    const port = createMacosLatestPort({ homeDir: home, tempRoot })
+    await expect(findLatestRecording(port)).resolves.toMatchObject({
+      ok: false,
+      reason: UI_TEXT.media.recordingNoRecent,
+    })
+  })
+})
+
+describe('PARITYREC per-platform latest port', () => {
+  it('points at the OS recordings location for each platform', async () => {
+    const home = await temp()
+    const tempRoot = await temp()
+    expect(createLatestRecordingPort({ platform: 'win32', homeDir: home, tempRoot }).roots).toEqual(
+      [path.join(home, 'Videos', 'Screen Recordings')],
+    )
+    expect(
+      createLatestRecordingPort({ platform: 'darwin', homeDir: home, tempRoot }).roots,
+    ).toEqual([path.join(home, 'Desktop')])
+    expect(createLatestRecordingPort({ platform: 'linux', homeDir: home, tempRoot }).roots).toEqual(
+      [path.join(home, 'Videos', 'Screencasts'), path.join(home, 'Videos')],
+    )
   })
 })
 
