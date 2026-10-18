@@ -13,9 +13,12 @@ import * as vscode from 'vscode'
 import type { TabEngine, TabEngineRequest, TabStream } from '../../../core/tab/tabEngine'
 import type { TabReportedUsage, TabSpendGate } from '../../../core/tab/tabSpend'
 export type { TabReportedUsage, TabReservation, TabSpendGate } from '../../../core/tab/tabSpend'
-import type { TabFilesExclude } from '../../../core/tab/tabEligibility'
-export type { TabFilesExclude } from '../../../core/tab/tabEligibility'
-import type { TabHookContext, TabHookPolicy, TabHooksDeps } from '../../../core/tab/tabHooks'
+import type {
+  TabFilesExclude,
+  TabHookBridge as TabHookReadBridge,
+} from '../../../core/tab/tabEligibility'
+export type { TabAcceptedEdit, TabFilesExclude } from '../../../core/tab/tabEligibility'
+import type { TabHookPolicy, TabHooksDeps } from '../../../core/tab/tabHooks'
 import type { ExtensionHookRunner } from '../../extensionHooksRunner'
 import {
   COMMAND_IDS,
@@ -313,30 +316,7 @@ export type TabCompletionSnapshot = TabEngineRequest
  */
 export type TabCompletionEngine = TabEngine
 
-/** One accept lane K observes (src/core/tab/tabHooks.ts, M94 step 7). */
-export interface TabAcceptedEdit {
-  /** Absolute path of the edited file. */
-  readonly filePath: string
-  /** The Tab request's id. */
-  readonly generationId: string
-  /** The model the suggestion came from. */
-  readonly model: string
-  /** Actual line text around the accepted insertion. */
-  readonly oldLine: string
-  readonly newLine: string
-  readonly workspaceRoots: readonly string[]
-  /** 1-based start/end line and column. */
-  readonly range: {
-    readonly startLineNumber: number
-    readonly startColumn: number
-    readonly endLineNumber: number
-    readonly endColumn: number
-  }
-  readonly oldString: string
-  readonly newString: string
-  /** True when the accept was inferred from typing, not from the command. */
-  readonly inferred: boolean
-}
+/** One accept lane K observes: `TabAcceptedEdit` in core's tabEligibility. */
 
 /**
  * Lane K's hook bridge (M94 step 7, after M91 merges): `beforeRead` answers
@@ -346,9 +326,7 @@ export interface TabAcceptedEdit {
  * every accept is unobserved; a hook file that did not load whole refuses
  * every read (RVM94KR 1).
  */
-export interface TabHookBridge {
-  beforeRead(absolutePath: string, content: string, context: TabHookContext): Promise<boolean>
-  afterEdit(edit: TabAcceptedEdit): void
+export interface TabHookBridge extends TabHookReadBridge {
   /** Settles the hook configuration in force; a request binds to it at its start (RVM94KR 2). */
   bindPolicy(): Promise<TabHookPolicy>
   /** The hook policy's key now: a request whose bound key moved is dropped. */
