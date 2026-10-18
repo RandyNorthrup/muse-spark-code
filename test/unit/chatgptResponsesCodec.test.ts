@@ -9,6 +9,7 @@ import {
 } from '../../src/core/backends/modelapi/codecs/responses'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { CHATGPT_TOOL_NAMESPACE_DESCRIPTION } from '../../src/shared/constants'
+import { testPlanStreamBody } from './helpers/chatGptGrant'
 
 const encoder = new TextEncoder()
 const codec = createResponsesCodec({
@@ -60,39 +61,7 @@ const captureSchema = z.object({
 })
 
 function body(): CreateResponseBody {
-  return {
-    model: 'gpt-6-astra',
-    input: [
-      {
-        type: 'message',
-        role: 'user',
-        content: [{ type: 'input_text', text: 'What time is it?' }],
-      },
-    ],
-    instructions: 'Use the time tool.',
-    tools: [
-      {
-        type: 'function',
-        name: 'get_time',
-        description: 'Get the time in a timezone.',
-        parameters: {
-          type: 'object',
-          properties: { timezone: { type: 'string' } },
-          required: ['timezone'],
-          additionalProperties: false,
-        },
-        strict: false,
-      },
-    ],
-    tool_choice: 'auto',
-    reasoning: { effort: 'low', summary: 'auto' },
-    stream: true,
-    store: false,
-    include: ['reasoning.encrypted_content'],
-    max_output_tokens: 512,
-    prompt_cache_key: 'm95b-capture',
-    prompt_cache_retention: 'in_memory',
-  }
+  return testPlanStreamBody('gpt-6-astra')
 }
 
 function frame(event: unknown): string {

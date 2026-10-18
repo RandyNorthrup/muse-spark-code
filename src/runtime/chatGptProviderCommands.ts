@@ -261,11 +261,30 @@ export function runtimeChatGptCommandDeps(
   }
 }
 
+/**
+ * The stored grant's account identity: the verified account hash where the
+ * sign-in captured one, else the whole record. A refused `add-new-account`
+ * leaves the old grant byte-identical, so an unchanged identity fails.
+ */
+function chatGptGrantIdentity(record: unknown): string | undefined {
+  const parsed = chatGptRecordSchema.safeParse(record)
+  return parsed.success ? (parsed.data.accountIdHash ?? JSON.stringify(parsed.data)) : undefined
+}
+
 /** ACP terminal auth methods run the exact same CLI actions in every editor. */
 export function chatGptAuthenticationMethods(
   createHost: () => Promise<ChatGptHostPort>,
 ): SignInMethod[] {
   const actions: readonly ChatGptProviderAction[] = ['add', 'add-new-account', 'remove', 'status']
+  // The grant as it was before the editor runs the terminal command (these
+  // methods are built when the agent starts, the command runs later in its
+  // own process). `add-new-account` must change it: the refused command
+  // leaves the old grant, so an unchanged grant stays failed instead of
+  // reporting the different-account authentication as succeeded.
+  const baselineRecord = (async (): Promise<unknown> => {
+    const host = await createHost()
+    return await host.withRefreshLock(async () => await host.readRecord())
+  })()
   return actions.map((action) => {
     const isAdd = action === 'add' || action === 'add-new-account'
     const args =
@@ -281,6 +300,9 @@ export function chatGptAuthenticationMethods(
       verify: async () => {
         try {
           const host = await createHost()
+          // Inside the try so a baseline the store cannot read fails closed
+          // through the same sentence mapping, never as a success.
+          const prior = action === 'add-new-account' ? await baselineRecord : undefined
           await host.withRefreshLock(async () => {
             const stored = await host.readRecord()
             if (stored === undefined) {
@@ -292,6 +314,14 @@ export function chatGptAuthenticationMethods(
             // An expired access token refreshes on use (as `status` says), so
             // a stored grant is a completed sign-in.
             if (action === 'remove') throw new ChatGptSignInError('still-signed-in')
+            if (
+              action === 'add-new-account' &&
+              chatGptGrantIdentity(prior) === chatGptGrantIdentity(stored)
+            ) {
+              // The grant never changed: the command refused with
+              // `already-added` and the account is still the old one.
+              throw new ChatGptSignInError('already-added')
+            }
           })
           return
         } catch (error) {
