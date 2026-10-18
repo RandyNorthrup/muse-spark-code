@@ -17,7 +17,7 @@ import { isOriginBound } from './credentialRecords'
 import { readOpenRouterKeyUsage } from './openRouter'
 import { connectOpenRouterAccount } from './openRouter'
 import type { OAuthLoopback } from './oauthLoopback'
-import { inspectProviderKey, providerKeyNoticeText } from '../../core/providers/presets'
+import { inspectProviderKey, providerKeyNoticeText } from '../../core/providers/keyInspection'
 import { promptForProviderKey } from './keyPrompt'
 import { probeLocalServers, type LocalProbeResult } from './localProbe'
 import {
