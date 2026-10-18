@@ -14517,8 +14517,12 @@ for every provider — the value is not empty, has no whitespace or line break
 inside, and is not obviously the wrong thing (a URL, a file path, placeholder
 text) — each asked as a "use it anyway?" question, never a dead end. This
 supersedes M95 lane K's "password box with the preset's live shape check": the
-box accepts any non-blank key, and every preset carries the open `{ kind:
-'any' }` shape with a hint naming where the key comes from. The endpoint
+box accepts any non-blank key, and no preset carries a key-shape field at
+all — the provider judges every key through the free key test, while each
+preset's hint names where the key comes from. Where the person can answer
+(the panel's modal, a terminal prompt), the "use it anyway?" question waits
+for the answer and a "no" asks for the key again; where nothing can answer
+(piped stdin), the run continues to the provider. The endpoint
 policy, log redaction and the product's own Meta-key format are unchanged.
 Full record: [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
