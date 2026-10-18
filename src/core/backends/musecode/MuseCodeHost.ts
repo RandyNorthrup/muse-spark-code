@@ -56,6 +56,7 @@ import {
   QUESTION_DEFER_DEFAULT_SECONDS,
   MSP_UNRESPONSIVE_MISSES,
   MSP_UNRESPONSIVE_SILENCE_MS,
+  STILL_WAITING_NOTICE_MS,
   MSP_USER_SHELL_CAPABILITY,
   MUSE_APPROVAL_LEDGER_FAULT,
   MUSE_APPROVAL_REPLAY_FAULT,
@@ -441,21 +442,27 @@ export function commandTimeoutMs(method: string, timeouts: CommandTimeouts): num
  * Whether `muse serve` still answers at all (the unresponsive-host watchdog,
  * CLI recovery 2026-10-03). Every frame from it (an answer, an event, a
  * server request) is heard here and clears the count. A command that
- * misses its named deadline counts once, as does each still-waiting notice
- * of a wait with none; at `MSP_UNRESPONSIVE_MISSES` in a row with nothing
- * heard for the silence, Muse Code is not answering: that is logged and
- * told once, and new commands fail at once until a frame comes. The waiting
- * commands themselves keep waiting.
+ * misses its named deadline counts once; a wait with none counts once per
+ * notice period it spends silent, however many commands wait in that
+ * period (PR #214 review: two long commands no longer count twice as fast
+ * as one). At `MSP_UNRESPONSIVE_MISSES` in a row with nothing heard for the
+ * silence, Muse Code is not answering: that is logged and told once, and
+ * new commands fail at once until a frame comes. The waiting commands
+ * themselves keep waiting.
  */
-class HostLiveness {
-  private lastHeardAt = Date.now()
+export class HostLiveness {
+  private readonly startedAt = Date.now()
+  private lastHeardAt = this.startedAt
   private misses = 0
   private isSilent = false
+  /** The notice period that last counted a still-waiting notice; -1 for none since a frame. */
+  private lastNoticePeriod = -1
 
   public constructor(
     private readonly silenceMs: number,
     private readonly log: CoreLogger,
     private readonly onUnresponsive: () => void,
+    private readonly noticeEveryMs: number = STILL_WAITING_NOTICE_MS,
   ) {}
 
   public get isUnresponsive(): boolean {
@@ -466,6 +473,7 @@ class HostLiveness {
   public heard(): void {
     this.lastHeardAt = Date.now()
     this.misses = 0
+    this.lastNoticePeriod = -1
     if (!this.isSilent) {
       return
     }
@@ -473,7 +481,18 @@ class HostLiveness {
     this.log.info('Muse Code answers again; commands are sent again')
   }
 
-  /** A command missed its named deadline, or is still waiting past a notice. */
+  /**
+   * A wait with no deadline is still waiting past a notice. Every waiting
+   * command tells once a notice period, so the period counts once.
+   */
+  public stillWaiting(method: string): void {
+    const period = Math.floor((Date.now() - this.startedAt) / this.noticeEveryMs)
+    if (period === this.lastNoticePeriod) return
+    this.lastNoticePeriod = period
+    this.missed(method)
+  }
+
+  /** A command missed its named deadline. */
   public missed(method: string): void {
     this.misses += 1
     const silentMs = Date.now() - this.lastHeardAt
@@ -769,8 +788,8 @@ async function answered(
  * A request with the wait its timeouts name, refused at once while Muse
  * Code is not answering (the watchdog). A wait with no deadline is waited
  * on until Muse Code answers or the wait is stopped, saying so out loud
- * (owner 2026-10-16); each notice counts toward the watchdog like a missed
- * deadline did, so a truly wedged host is still detected.
+ * (owner 2026-10-16); each notice period counts toward the watchdog like a
+ * missed deadline did, so a truly wedged host is still detected.
  */
 async function requestWithin<T>(
   channel: CommandChannel,
@@ -795,7 +814,7 @@ async function requestWithin<T>(
     timeoutMs === undefined
       ? startStillWaiting((elapsedMs) => {
           channel.log.info(stillWaitingText(`Muse Code ${method}`, elapsedMs))
-          channel.liveness.missed(method)
+          channel.liveness.stillWaiting(method)
         })
       : undefined
   try {
