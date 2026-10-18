@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { execFile } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 import {
   mkdir,
   mkdtemp,
@@ -13,6 +14,7 @@ import {
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { noWorkspaceChildEnvironment } from '../../src/core/executables'
 import { screenRecordExecutable } from '../../src/host/backend/jobBuild'
 import { runProgram } from '../../src/host/processTree'
 import {
@@ -32,7 +34,11 @@ const SOURCE = path.resolve('native/windows/MuseSparkScreenRecord.cs')
 const CHECKS = path.resolve('test/unit/helpers/windowsScreenRecorderChecks.cs')
 
 const check = async (...args: string[]) => {
-  const result = await runProgram(paths.executable, args, env)
+  const result = await runProgram(
+    paths.executable,
+    args,
+    noWorkspaceChildEnvironment('win32', env, realpathSync),
+  )
   return result.trim()
 }
 const destination = () => path.join(paths.root, `muse-spark-screen-${crypto.randomUUID()}`)

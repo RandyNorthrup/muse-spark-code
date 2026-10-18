@@ -8,7 +8,11 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildChildEnvironment } from '../../src/core/backends/musecode/launch'
-import { resolveExecutable, sanitizePathForWorkspace } from '../../src/core/executables'
+import {
+  NO_WORKSPACE,
+  resolveExecutable,
+  sanitizePathForWorkspace,
+} from '../../src/core/executables'
 import { processGitRunner } from '../../src/host/git'
 
 const PLATFORM = process.platform
@@ -139,15 +143,16 @@ describe('sanitizePathForWorkspace', () => {
 })
 
 describe('buildChildEnvironment PATH guard', () => {
-  it('leaves PATH untouched without a workspace root', () => {
+  it('excludes nothing without a workspace root but still drops relative entries', () => {
     const env = buildChildEnvironment({
       platform: 'linux',
-      baseEnv: { PATH: '/home/person/work/bin:/usr/bin' },
+      baseEnv: { PATH: '/home/person/work/bin:/usr/bin:.:/home/person/work/bin' },
       extraVariables: [],
       systemRoot: undefined,
       programFiles: undefined,
+      scope: { noWorkspace: NO_WORKSPACE, realpath: throwingRealpath },
     })
-    expect(env['PATH']).toBe('/home/person/work/bin:/usr/bin')
+    expect(env['PATH']).toBe('/home/person/work/bin:/usr/bin:/home/person/work/bin')
   })
 
   it('never adds a PATH key that was not there', () => {
@@ -157,8 +162,7 @@ describe('buildChildEnvironment PATH guard', () => {
       extraVariables: [],
       systemRoot: undefined,
       programFiles: undefined,
-      workspaceRoot: '/home/person/work',
-      realpath: throwingRealpath,
+      scope: { workspaceRoot: '/home/person/work', realpath: throwingRealpath },
     })
     expect('PATH' in env).toBe(false)
   })
@@ -170,8 +174,7 @@ describe('buildChildEnvironment PATH guard', () => {
       extraVariables: [],
       systemRoot: undefined,
       programFiles: undefined,
-      workspaceRoot: '/home/person/work',
-      realpath: throwingRealpath,
+      scope: { workspaceRoot: '/home/person/work', realpath: throwingRealpath },
     })
     expect('PATH' in env).toBe(false)
   })
@@ -183,31 +186,30 @@ describe('buildChildEnvironment PATH guard', () => {
       extraVariables: [{ name: 'PATH', value: '/home/person/work/bin:./bin:/usr/bin' }],
       systemRoot: undefined,
       programFiles: undefined,
-      workspaceRoot: '/home/person/work',
-      realpath: throwingRealpath,
+      scope: { workspaceRoot: '/home/person/work', realpath: throwingRealpath },
     })
     expect(env['PATH']).toBe('/usr/bin')
   })
 
-  it('sets NoDefaultCurrentDirectoryInExePath on a guarded Windows child only', () => {
+  it('sets NoDefaultCurrentDirectoryInExePath on every Windows child', () => {
     const guarded = buildChildEnvironment({
       platform: 'win32',
       baseEnv: { PATH: String.raw`D:\Tools` },
       extraVariables: [],
       systemRoot: undefined,
       programFiles: undefined,
-      workspaceRoot: String.raw`D:\ws`,
-      realpath: throwingRealpath,
+      scope: { workspaceRoot: String.raw`D:\ws`, realpath: throwingRealpath },
     })
     expect(guarded['NoDefaultCurrentDirectoryInExePath']).toBe('1')
-    const unguarded = buildChildEnvironment({
+    const unscoped = buildChildEnvironment({
       platform: 'win32',
       baseEnv: { PATH: String.raw`D:\Tools` },
       extraVariables: [],
       systemRoot: undefined,
       programFiles: undefined,
+      scope: { noWorkspace: NO_WORKSPACE, realpath: throwingRealpath },
     })
-    expect('NoDefaultCurrentDirectoryInExePath' in unguarded).toBe(false)
+    expect(unscoped['NoDefaultCurrentDirectoryInExePath']).toBe('1')
   })
 })
 
@@ -241,14 +243,14 @@ describe('planted workspace program (real filesystem)', () => {
   it('the planted program is not reachable from the child PATH; a real system program still is', () => {
     const nodeDir = path.dirname(process.execPath)
     const pathValue = [binDir, linkDir, 'bin', '', '.', nodeDir, outsideDir].join(SEPARATOR)
+    const workspace = { workspaceRoot: root, realpath: realpathSync }
     const child = buildChildEnvironment({
       platform: PLATFORM,
       baseEnv: { PATH: pathValue },
       extraVariables: [],
       systemRoot: undefined,
       programFiles: undefined,
-      workspaceRoot: root,
-      realpath: realpathSync,
+      scope: workspace,
     })
     // Without the guard the planted program wins: the threat is real.
     expect(
@@ -256,6 +258,7 @@ describe('planted workspace program (real filesystem)', () => {
         platform: PLATFORM,
         pathVariable: pathValue,
         fileExists: existsSync,
+        scope: { noWorkspace: NO_WORKSPACE, realpath: realpathSync },
       }),
     ).toBe(path.join(binDir, PLATFORM === 'win32' ? `${PLANTED}.exe` : PLANTED))
     const childPath = child['PATH'] ?? child['Path']
@@ -268,6 +271,7 @@ describe('planted workspace program (real filesystem)', () => {
         platform: PLATFORM,
         pathVariable: childPath,
         fileExists: existsSync,
+        scope: workspace,
       }),
     ).toBeUndefined()
     const systemName = PLATFORM === 'win32' ? 'node.exe' : 'node'
@@ -276,6 +280,7 @@ describe('planted workspace program (real filesystem)', () => {
         platform: PLATFORM,
         pathVariable: childPath,
         fileExists: existsSync,
+        scope: workspace,
       }),
     ).toBe(path.join(nodeDir, systemName))
   })
@@ -301,8 +306,7 @@ describe('planted workspace program (real filesystem)', () => {
         extraVariables: [],
         systemRoot: undefined,
         programFiles: undefined,
-        workspaceRoot: root,
-        realpath: realpathSync,
+        scope: { workspaceRoot: root, realpath: realpathSync },
       })
       const blocked = spawnSync(PLANTED, [], { cwd: root, env: { ...child }, encoding: 'utf8' })
       expect(blocked.status).toBeNull()
@@ -323,6 +327,7 @@ describe('planted workspace program (real filesystem)', () => {
         platform: PLATFORM,
         pathVariable: process.env['PATH'],
         fileExists: existsSync,
+        scope: { workspaceRoot: root, realpath: realpathSync },
       })
       if (realGit === undefined) {
         throw new Error('the rig has no git on PATH to compare against')
@@ -346,8 +351,7 @@ describe('planted workspace program (real filesystem)', () => {
       extraVariables: [],
       systemRoot: undefined,
       programFiles: undefined,
-      workspaceRoot: root,
-      realpath: realpathSync,
+      scope: { workspaceRoot: root, realpath: realpathSync },
     })
     expect('PATH' in child).toBe(false)
     const blocked = spawnSync(PLANTED, [], { cwd: root, env: { ...child }, encoding: 'utf8' })

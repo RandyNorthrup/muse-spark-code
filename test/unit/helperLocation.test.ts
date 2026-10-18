@@ -177,7 +177,12 @@ function onPath(present: readonly string[]): (file: string) => boolean {
 }
 
 describe('locateCaptureHelper (M35)', () => {
-  const capture = { ...local, pathVariable: undefined }
+  const capture = {
+    ...local,
+    pathVariable: undefined,
+    workspaceRoot: '/home/person/work',
+    realpath: (filePath: string) => filePath,
+  }
 
   it('runs the capture script on Windows and the Swift helper in capture mode on macOS', () => {
     const windows = locateCaptureHelper({
