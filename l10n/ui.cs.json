@@ -1288,7 +1288,6 @@
   "shareShownCount": "Zobrazeno: {shown} z {total}",
   "shareShowMore": "Zobrazit další",
   "importReplayTooLarge": "Obsahuje {size} textu pro model a obnovená konverzace může začít nejvýše s {limit}. Otevřete ji jako sdílený soubor a přečtěte si ji.",
-  "transferTooLarge": "Soubor je větší, než může být export relace.",
   "transferFileMissing": "Vybraný soubor už neexistuje.",
   "transferEmpty": "Soubor neobsahuje žádnou konverzaci.",
   "transferNotAnExport": "Soubor není export relace Muse Spark.",

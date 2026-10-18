@@ -13,7 +13,7 @@ import type { SessionTransferFiles } from './sessionImport'
 const JSON_FILTER = 'JSON'
 const JSON_EXTENSION = 'json'
 
-/** The open dialog, the size cap, and the import confirmation behind the controller. */
+/** The open dialog and the import confirmation behind the controller. */
 export function createSessionTransferFiles(): SessionTransferFiles {
   return {
     async pickTransferFile(title) {
@@ -40,11 +40,10 @@ export function createSessionTransferFiles(): SessionTransferFiles {
         Infinity,
       )
       // Moved or deleted (a sync client) between the dialog and the read.
-      if (isMissing) {
+      // The read is unbounded, so missing bytes mean the same: the file
+      // went away.
+      if (isMissing || bytes === undefined) {
         throw new Error(UI_TEXT.transferFileMissing)
-      }
-      if (bytes === undefined) {
-        return { kind: 'tooLarge' }
       }
       // Invalid UTF-8 is refused rather than read as replacement characters,
       // in the panel's language (the decoder's own message is English); a

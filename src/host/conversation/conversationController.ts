@@ -9377,10 +9377,6 @@ export class ConversationController {
     if (this.isDisposed || picked.kind === 'dismissed') {
       return undefined
     }
-    if (picked.kind === 'tooLarge') {
-      this.notice('error', `${failure}: ${UI_TEXT.transferTooLarge}`)
-      return undefined
-    }
     const parsed = readTransferDocument(picked.content)
     if (!parsed.ok) {
       this.notice('error', `${failure}: ${parsed.reason}`)

@@ -1264,7 +1264,6 @@
   "shareShownCount": "表示中: {shown} / {total}",
   "shareShowMore": "さらに表示",
   "importReplayTooLarge": "モデルに渡すテキストが {size} ありますが、再開する会話で最初に渡せるのは {limit} までです。読むには共有ファイルとして開いてください。",
-  "transferTooLarge": "ファイルがセッションのエクスポートの上限を超えています。",
   "transferFileMissing": "選んだファイルはもう存在しません。",
   "transferEmpty": "ファイルに会話がありません。",
   "transferNotAnExport": "このファイルは Muse Spark のセッションエクスポートではありません。",

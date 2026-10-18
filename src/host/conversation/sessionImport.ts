@@ -6,11 +6,9 @@
 import { UI_TEXT } from '../../shared/constants'
 import { parseSessionExport, type SessionExportParse } from '../../core/export/sessionTransfer'
 
-/** A picked file: dismissed, its text, or `tooLarge` (retained, no longer produced: reads are unbounded). */
+/** A picked file: dismissed, or its text (reads are unbounded). */
 export type PickedTransferFile =
-  | { readonly kind: 'dismissed' }
-  | { readonly kind: 'tooLarge' }
-  | { readonly kind: 'read'; readonly content: string }
+  { readonly kind: 'dismissed' } | { readonly kind: 'read'; readonly content: string }
 
 export interface SessionTransferFiles {
   /** The open dialog under `title`; throws when the file cannot be read or is not UTF-8. */

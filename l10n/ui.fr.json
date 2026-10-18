@@ -1280,7 +1280,6 @@
   "shareShownCount": "Affichés : {shown} sur {total}",
   "shareShowMore": "Afficher plus",
   "importReplayTooLarge": "Elle contient {size} de texte pour le modèle, et une conversation reprise peut commencer avec au plus {limit}. Ouvrez-la comme fichier partagé pour la lire.",
-  "transferTooLarge": "Le fichier est plus volumineux qu’un export de session ne peut l’être.",
   "transferFileMissing": "Le fichier choisi n’existe plus.",
   "transferEmpty": "Le fichier ne contient aucune conversation.",
   "transferNotAnExport": "Le fichier n’est pas un export de session Muse Spark.",
