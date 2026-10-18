@@ -165,3 +165,29 @@ test/unit/vsixCompression.test.mjs --maxWorkers=3`: 10/10 pass.
   no editor on this rig — for the lead.
 - Production `npm run build` ran green on this tree's sources before the
   (sourceless) packaging changes; `dist/` is unchanged since.
+
+## PR #230 review dispositions (PR230FIX lane, 2026-10-17, linuxlt)
+
+One line per thread; each is fixed at its cause or answered with a commit
+below. Status `DONE` means fixed and measured on this lane; `OPEN` means
+the fix is being worked here.
+
+- **vsix-room.md:165 (packed WebP walkthrough proof)** — OPEN: the
+  `NOT RUN` stands; fix is a real open of the packed VSIX walkthrough in
+  VS Code stable under `xvfb` on this rig (pack, install, open
+  `museSpark.gettingStarted`, screenshot, record) — §Drills updated with
+  the result when it lands.
+- **chat.md:1 (README still names PNGs)** — OPEN, applies: `README.md`
+  documents the walkthrough scenes as `*.png`; fix updates the names to
+  the shipped `*.webp` and aligns the stated refresh workflow with the
+  script that actually produces them.
+- **vsix-room.md:98 (no Unreleased entry)** — OPEN, applies: fix adds the
+  packaging change to `CHANGELOG.md` under `[Unreleased]`.
+- **vsix-room.md:1 (no PLAN.md scope)** — OPEN, applies: fix registers
+  the VSIXROOM decision (WebP walkthrough, privacy-doc removal from the
+  package, headroom target) in `PLAN.md` §2.
+- **vsix-room.md:111 (78 KB short of the 150 KiB target)** — OPEN:
+  genuine further savings are measured first; whatever cannot be taken
+  becomes an explicit target revision with measured cause here and in
+  `PLAN.md` for the lead to approve at merge, so the record no longer
+  declares an unmet success.
