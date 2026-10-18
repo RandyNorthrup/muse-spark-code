@@ -34,6 +34,12 @@ export interface ResourceDiskPort {
   read(path: string): Promise<{ bsize: bigint; blocks: bigint; bavail: bigint }>
 }
 
+/** The machine's own clock and `statfs`, read in exact BigInt block counts. */
+const NODE_DISK_PORT: ResourceDiskPort = {
+  now: () => Date.now(),
+  read: (file) => statfs(file, { bigint: true }),
+}
+
 export function resourceDiskFloorBytes(settings: ResourceSettings, totalBytes: number): number {
   return settings.diskMinFreeGiB === null
     ? Math.max(
@@ -78,8 +84,8 @@ export function diskPressure(volumes: readonly ResourceDiskVolume[], settings: R
 }
 
 /** Peer data is validated by deviceResourceSchema before this admission check.
- * @unwired M107 device disk headroom check
- */
+@unwired M107 device disk headroom check
+*/
 export function hasDeviceDiskHeadroom(device: DeviceResource): boolean {
   const disk = device.diskFree
   return (
@@ -103,10 +109,7 @@ export class ResourceDiskSampler {
   constructor(
     private readonly targets: readonly ResourceDiskTarget[],
     private readonly settings: () => ResourceSettings,
-    private readonly port: ResourceDiskPort = {
-      now: () => Date.now(),
-      read: (file) => statfs(file, { bigint: true }),
-    },
+    private readonly port: ResourceDiskPort = NODE_DISK_PORT,
   ) {
     const roles = new Set<ResourceDiskRole>()
     for (const target of targets) {

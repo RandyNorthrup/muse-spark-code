@@ -77,7 +77,7 @@ export class Usd {
   }
 
   public times(count: number): Usd {
-    if (!Number.isSafeInteger(count)) throw new Error('USD multiplier must be a safe integer')
+    if (!Number.isSafeInteger(count)) throw new TypeError('USD multiplier must be a safe integer')
     return new Usd(this.#coefficient * BigInt(count), this.#places)
   }
 
@@ -202,8 +202,8 @@ const NANO_USD_DECIMALS = 9
 const NANOS_PER_USD = DECIMAL_RADIX ** BigInt(NANO_USD_DECIMALS)
 
 /** Exact nano-USD fraction. Retain sub-nano charges until display, never
- * round each rental or duration before comparing complete candidate costs.
- */
+round each rental or duration before comparing complete candidate costs.
+*/
 export interface UsdNanos {
   numerator: bigint
   denominator: bigint
@@ -249,8 +249,8 @@ export function compareUsdNanos(a: UsdNanos, b: UsdNanos): number {
 }
 
 /** Only the JSON/display projection rounds upward to the next nano-USD.
- * This number must never be used for cost arithmetic or selection.
- */
+This number must never be used for cost arithmetic or selection.
+*/
 export function displayUsdNanos(value: UsdNanos): number {
   const ceiling = (value.numerator + value.denominator - ONE) / value.denominator
   const whole = ceiling / NANOS_PER_USD

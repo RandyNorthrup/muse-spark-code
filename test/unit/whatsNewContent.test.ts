@@ -839,7 +839,7 @@ describe('selectWhatsNewReleases (the budget-aware writer)', () => {
           { version: previous.version, full: form === 0, ...(form === 2 && { omitted: true }) },
         ]
         if (releases.some((release) => release.highlights.length > 0))
-          return [{ releases, plan, shortened: form !== 0 }]
+          return { releases, plan, shortened: form !== 0 }
         return [
           {
             releases: [...releases, short(fallback)],

@@ -27,9 +27,9 @@ export type NetworkFailureKind =
   'certificate' | 'proxyCredentials' | 'proxyRefused' | 'unreachable' | 'other'
 
 /**
- * Whose settings the advice names: VS Code's `http.*` settings in the
- * extension, the agent's environment variables in the ACP agent.
- */
+Whose settings the advice names: VS Code's `http.*` settings in the
+extension, the agent's environment variables in the ACP agent.
+*/
 export type NetworkAdvice = 'vscode' | 'agent'
 
 export interface NetworkFailure {
@@ -92,7 +92,7 @@ function kindOf(links: readonly Link[], proxyStatus: number | undefined): Networ
   if (proxyStatus !== undefined) {
     return proxyStatus === HTTP_PROXY_AUTHENTICATION_REQUIRED ? 'proxyCredentials' : 'proxyRefused'
   }
-  const codes = links.flatMap((link) => (link.code === undefined ? [] : [link.code]))
+  const codes = links.flatMap((link) => link.code ?? [])
   if (codes.some((code) => TLS_TRUST_ERROR_CODES.has(code))) {
     return 'certificate'
   }
@@ -110,11 +110,11 @@ export function describeNetworkFailure(error: unknown): NetworkFailure {
 }
 
 /**
- * The error and its causes by their codes (`ERR_TLS_CERT_ALTNAME_INVALID`),
- * a cause's message only where it has no code (M69). A code is Node's own
- * word; a message can carry what a server sent, such as the names on its
- * certificate.
- */
+The error and its causes by their codes (`ERR_TLS_CERT_ALTNAME_INVALID`),
+a cause's message only where it has no code (M69). A code is Node's own
+word; a message can carry what a server sent, such as the names on its
+certificate.
+*/
 export function networkFailureCodes(error: unknown): string {
   return redactSecrets(
     chainOf(error)
@@ -147,10 +147,10 @@ function adviceFor(failure: NetworkFailure, advice: NetworkAdvice): string | und
 }
 
 /**
- * The advice, with the technical detail in parentheses; the detail alone
- * when there is none. A proxy's refusal names no setting, so both hosts
- * share it.
- */
+The advice, with the technical detail in parentheses; the detail alone
+when there is none. A proxy's refusal names no setting, so both hosts
+share it.
+*/
 export function networkFailureMessage(error: unknown, advice: NetworkAdvice = 'vscode'): string {
   const failure = describeNetworkFailure(error)
   const text = adviceFor(failure, advice)

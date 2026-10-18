@@ -55,9 +55,9 @@ interface PathContext {
 }
 
 /**
- * Bytes and presence decide; the mode never does (spec 3.7). A file whose
- * bytes are not known matches nothing.
- */
+Bytes and presence decide; the mode never does (spec 3.7). A file whose
+bytes are not known matches nothing.
+*/
 function isSameContent(left: ContentState, right: ContentState): boolean {
   return left.present
     ? right.present && left.oid !== undefined && left.oid === right.oid
@@ -89,10 +89,10 @@ function isFromUnit(unit: AnyUnit, from: RangeInput['from']): boolean {
 }
 
 /**
- * Spec 3.1 and 7: the range is every unit of the conversation numbered from
- * the start on, its own restore and Redo batches included. An M72 unit in it
- * refuses the whole range: its writes were never recorded one by one.
- */
+Spec 3.1 and 7: the range is every unit of the conversation numbered from
+the start on, its own restore and Redo batches included. An M72 unit in it
+refuses the whole range: its writes were never recorded one by one.
+*/
 function selectRange(input: RangeInput): Range {
   const start = input.units.find((unit) => isFromUnit(unit, input.from))
   if (start === undefined) {
@@ -105,11 +105,11 @@ function selectRange(input: RangeInput): Range {
 }
 
 /**
- * Spec 3.2: every turn the transcript lists from the start on, the turns of
- * the child sessions they started included, has a record in the range, and
- * every unit in the range is complete. Otherwise a turn may have written
- * files nobody recorded, and restoring the rest would undo only part of it.
- */
+Spec 3.2: every turn the transcript lists from the start on, the turns of
+the child sessions they started included, has a record in the range, and
+every unit in the range is complete. Otherwise a turn may have written
+files nobody recorded, and restoring the rest would undo only part of it.
+*/
 function isComplete(units: readonly UnitRecord[], transcriptTurnIds: readonly string[]): boolean {
   const recordedTurns = new Set(
     units.filter((unit) => unit.owner.unitKind === 'turn').map((unit) => unit.owner.unitId),
@@ -121,14 +121,14 @@ function isComplete(units: readonly UnitRecord[], transcriptTurnIds: readonly st
 }
 
 /**
- * Spec 4, across windows: merges the windows' lists taking list heads only.
- * It starts from the one head whose before no other write left behind, then
- * always takes the one head that starts from the bytes the last one left.
- * Two candidates refuse (`orderUnknown`) even where only one would complete:
- * any two merges the bytes allow share the first before and the last after,
- * so the refusal never hides a different answer. No candidate after the
- * start means something else changed the file between them.
- */
+Spec 4, across windows: merges the windows' lists taking list heads only.
+It starts from the one head whose before no other write left behind, then
+always takes the one head that starts from the bytes the last one left.
+Two candidates refuse (`orderUnknown`) even where only one would complete:
+any two merges the bytes allow share the first before and the last after,
+so the refusal never hides a different answer. No candidate after the
+start means something else changed the file between them.
+*/
 function mergeHeads(lists: readonly (readonly FoldedWrite[])[]): Ordered {
   const all = lists.flat()
   const merged: FoldedWrite[] = []
@@ -141,7 +141,7 @@ function mergeHeads(lists: readonly (readonly FoldedWrite[])[]): Ordered {
         : isSameContent(head.before, last.after)
     const candidates = rest.flatMap((list) => {
       const [head, ...tail] = list
-      return head !== undefined && isNext(head) ? [{ list, head, tail }] : []
+      return head !== undefined && isNext(head) ? { list, head, tail } : []
     })
     const [next, ...others] = candidates
     if (next === undefined || others.length > 0) {
@@ -155,10 +155,10 @@ function mergeHeads(lists: readonly (readonly FoldedWrite[])[]): Ordered {
 }
 
 /**
- * Spec 4: one window's writes go by its own counter, across every owner (a
- * parent turn, its child turns, batches), as one lock per path made the
- * counter's order the order of publication.
- */
+Spec 4: one window's writes go by its own counter, across every owner (a
+parent turn, its child turns, batches), as one lock per path made the
+counter's order the order of publication.
+*/
 function inSeqOrder(writes: readonly FoldedWrite[]): readonly FoldedWrite[] {
   return writes.toSorted((left, right) => left.seq - right.seq)
 }
@@ -172,21 +172,21 @@ function orderWrites(writes: readonly FoldedWrite[]): Ordered {
 }
 
 /**
- * Spec 6.4: an unsettled write (its outcome never reached the journal) is
- * judged by the file's bytes only as its path's known last write in the
- * range. Anywhere else, or where the order cannot be told, it is unknown
- * whether the chain passes through it.
- */
+Spec 6.4: an unsettled write (its outcome never reached the journal) is
+judged by the file's bytes only as its path's known last write in the
+range. Anywhere else, or where the order cannot be told, it is unknown
+whether the chain passes through it.
+*/
 function hasUnsettledElsewhere({ writes, order }: PathWrites): boolean {
   const last = order.kind === 'ordered' ? order.writes.at(-1) : undefined
   return writes.some((write) => write.outcome === 'unsettled' && write !== last)
 }
 
 /**
- * Spec 6.4: an unsettled last write happened when the file holds its after,
- * and did not when it holds its before (it then drops out); anything else
- * changed the file after it.
- */
+Spec 6.4: an unsettled last write happened when the file holds its after,
+and did not when it holds its before (it then drops out); anything else
+changed the file after it.
+*/
 function settleLast(
   order: readonly FoldedWrite[],
   current: ContentState,
@@ -199,11 +199,11 @@ function settleLast(
 }
 
 /**
- * Spec 3.3: a foreign write breaks the chain when its place is known, that
- * is, its window wrote the path in the chain both before and after it,
- * whatever bytes it wrote. Another window's writes have no known place:
- * bytes judge them (the ABA limit, spec 12).
- */
+Spec 3.3: a foreign write breaks the chain when its place is known, that
+is, its window wrote the path in the chain both before and after it,
+whatever bytes it wrote. Another window's writes have no known place:
+bytes judge them (the ABA limit, spec 12).
+*/
 function isBetween(foreign: WriteRecord, chain: readonly FoldedWrite[]): boolean {
   const sameWindow = chain.filter((write) => write.instance === foreign.instance)
   return (
@@ -221,9 +221,9 @@ function isUnbroken(chain: readonly FoldedWrite[]): boolean {
 }
 
 /**
- * Spec 9: every folder the chain's writes created, innermost first. They are
- * all folders above one path, so a longer name is a deeper folder.
- */
+Spec 9: every folder the chain's writes created, innermost first. They are
+all folders above one path, so a longer name is a deeper folder.
+*/
 function createdFolders(chain: readonly FoldedWrite[]): readonly string[] {
   return [...new Set(chain.flatMap((write) => write.createdFolders))].toSorted(
     (left, right) => right.length - left.length,
@@ -235,10 +235,10 @@ function refused(context: PathContext, reason: PathRefusal): PathDecision {
 }
 
 /**
- * Spec 3.4 first, then 9: a file that already holds the first write's before
- * is unchanged, whatever happened since; otherwise one write whose copy was
- * not kept leaves the whole path unrestorable. `undefined`: neither applies.
- */
+Spec 3.4 first, then 9: a file that already holds the first write's before
+is unchanged, whatever happened since; otherwise one write whose copy was
+not kept leaves the whole path unrestorable. `undefined`: neither applies.
+*/
 function decideBeforeChain(
   context: PathContext,
   first: FoldedWrite | undefined,
@@ -251,11 +251,11 @@ function decideBeforeChain(
 }
 
 /**
- * Spec 3.3, 3.5, 3.6 and 3.7 on the writes that happened, in order: an
- * unbroken chain whose last after the file still holds goes back to the
- * first before. An existing file keeps its current mode; a recreated one
- * gets the first before's.
- */
+Spec 3.3, 3.5, 3.6 and 3.7 on the writes that happened, in order: an
+unbroken chain whose last after the file still holds goes back to the
+first before. An existing file keeps its current mode; a recreated one
+gets the first before's.
+*/
 function decideChain(context: PathContext, chain: readonly FoldedWrite[]): PathDecision {
   const [first] = chain
   const last = chain.at(-1)
@@ -297,10 +297,10 @@ function decideRestore(context: PathContext, { writes, order }: PathWrites): Pat
 }
 
 /**
- * Spec 8: a Redo of batch B undoes B's own writes to the path by the same
- * rule, and a write any later unit made to the path breaks it, wherever it
- * falls. A path already at B's befores (the Redo's targets) is unchanged.
- */
+Spec 8: a Redo of batch B undoes B's own writes to the path by the same
+rule, and a write any later unit made to the path breaks it, wherever it
+falls. A path already at B's befores (the Redo's targets) is unchanged.
+*/
 function decideRedo(
   context: PathContext,
   { writes, order }: PathWrites,

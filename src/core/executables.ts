@@ -23,22 +23,22 @@ const WINDOWS_EXECUTABLE_EXTENSIONS = ['.exe', '.com'] as const
 /** The absolute, non-empty entries of a PATH value, in order. */
 export function absolutePathEntries(
   platform: NodeJS.Platform,
-  pathVariable: string | undefined,
+  pathVariable: string | undefined = '',
 ): readonly string[] {
   const p = platform === 'win32' ? path.win32 : path.posix
   const separator = platform === 'win32' ? ';' : ':'
-  return (pathVariable ?? '')
+  return pathVariable
     .split(separator)
     .map((entry) => entry.trim())
     .filter((entry) => entry !== '' && p.isAbsolute(entry))
 }
 
 /**
- * The absolute path of `name` on PATH, or undefined when it is not there. On
- * Windows a name that already ends in `.exe` or `.com` (the OS adapters'
- * `rundll32.exe`, `explorer.exe`, `powershell.exe`) is looked up as named;
- * any other name gets those extensions, so a batch file never resolves.
- */
+The absolute path of `name` on PATH, or undefined when it is not there. On
+Windows a name that already ends in `.exe` or `.com` (the OS adapters'
+`rundll32.exe`, `explorer.exe`, `powershell.exe`) is looked up as named;
+any other name gets those extensions, so a batch file never resolves.
+*/
 export function resolveExecutable(name: string, probe: ExecutableProbe): string | undefined {
   const p = probe.platform === 'win32' ? path.win32 : path.posix
   const isNamedExecutable = WINDOWS_EXECUTABLE_EXTENSIONS.some((extension) =>

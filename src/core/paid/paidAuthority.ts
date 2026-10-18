@@ -176,12 +176,11 @@ export function step(
     const claim = state.claims.get(effect.claimId)
     if (claim === undefined) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
     const previous = claim.pending
-    const isSame = (other: MoneyEffect) =>
-      other.amount === effect.amount &&
-      other.isFinal === effect.isFinal &&
-      other.hasUnknownCost === effect.hasUnknownCost
-    if (event.type !== 'moneySettle' && (previous === undefined || !isSame(previous)))
-      return { state, effects: [] }
+    const isSameAsPrevious =
+      previous?.amount === effect.amount &&
+      previous.isFinal === effect.isFinal &&
+      previous.hasUnknownCost === effect.hasUnknownCost
+    if (!isSameAsPrevious && event.type !== 'moneySettle') return { state, effects: [] }
     if (event.type === 'moneySettle') {
       if (claim.actualUsd !== undefined && claim.actualUsd !== effect.amount)
         throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
@@ -190,7 +189,7 @@ export function step(
         Usd.from(effect.amount).compare(Usd.from(claim.retainedUsd ?? claim.reservedUsd)) < 0
       )
         throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-      if (previous !== undefined && !isSame(previous))
+      if (previous !== undefined && !isSameAsPrevious)
         throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
       if (previous !== undefined) return { state, effects: [] }
     }
@@ -452,14 +451,14 @@ export function latestPaidGrant(grants: readonly PaidGrant[]): PaidGrant | undef
 }
 
 /** One persisted profile counter. Exclusive slots serialize concurrent processes;
- * a crash may leave a gap but can never reuse or move an approval backwards. */
+a crash may leave a gap but can never reuse or move an approval backwards. */
 export function nextPaidApprovalOrder(directory: string): number {
   mkdirSync(directory, { recursive: true })
   let order = 0
   for (const name of readdirSync(directory)) {
     if (!/^[1-9][0-9]*\.order$/u.test(name)) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
     const value = Number(name.slice(0, -'.order'.length))
-    if (!Number.isSafeInteger(value)) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    if (!Number.isSafeInteger(value)) throw new TypeError(UI_TEXT.sessionBudgetStoreUnavailable)
     order = Math.max(order, value)
   }
   while (Number.isSafeInteger(order + 1)) {

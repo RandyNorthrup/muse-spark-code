@@ -44,7 +44,8 @@ function NumberInput({
 }: {
   readonly id: string
   readonly label: string
-  readonly value: number | undefined
+  /** Empty while the facet is unset. */
+  readonly value: number | ''
   readonly onChange: (value: number | undefined) => void
 }) {
   return (
@@ -54,7 +55,7 @@ function NumberInput({
         id={id}
         type="number"
         min={0}
-        value={value ?? ''}
+        value={value}
         onChange={(event) => {
           const next = event.target.valueAsNumber
           onChange(Number.isNaN(next) ? undefined : next)
@@ -128,7 +129,7 @@ export function FilterBar({
         <NumberInput
           id="models-filter-context-min"
           label={labels.contextMin}
-          value={filter.contextMin}
+          value={filter.contextMin ?? ''}
           onChange={(contextMin) => {
             onChange({ ...filter, contextMin })
           }}
@@ -136,7 +137,7 @@ export function FilterBar({
         <NumberInput
           id="models-filter-context-max"
           label={labels.contextMax}
-          value={filter.contextMax}
+          value={filter.contextMax ?? ''}
           onChange={(contextMax) => {
             onChange({ ...filter, contextMax })
           }}
@@ -144,7 +145,7 @@ export function FilterBar({
         <NumberInput
           id="models-filter-max-input"
           label={labels.maxInput}
-          value={filter.maxInputPerMillion}
+          value={filter.maxInputPerMillion ?? ''}
           onChange={(maxInputPerMillion) => {
             onChange({ ...filter, maxInputPerMillion })
           }}
@@ -152,7 +153,7 @@ export function FilterBar({
         <NumberInput
           id="models-filter-max-output"
           label={labels.maxOutput}
-          value={filter.maxOutputPerMillion}
+          value={filter.maxOutputPerMillion ?? ''}
           onChange={(maxOutputPerMillion) => {
             onChange({ ...filter, maxOutputPerMillion })
           }}
@@ -160,7 +161,7 @@ export function FilterBar({
         <NumberInput
           id="models-filter-max-cached"
           label={labels.maxCached}
-          value={filter.maxCachedPerMillion}
+          value={filter.maxCachedPerMillion ?? ''}
           onChange={(maxCachedPerMillion) => {
             onChange({ ...filter, maxCachedPerMillion })
           }}

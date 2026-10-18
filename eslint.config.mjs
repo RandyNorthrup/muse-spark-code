@@ -77,7 +77,7 @@ const recordingBoundary = {
   },
 }
 
-export default tseslint.config(
+const config = tseslint.config(
   js.configs.recommended,
 
   // strictTypeChecked > strict > recommended. Includes the no-unsafe-* rules
@@ -431,3 +431,5 @@ export default tseslint.config(
     },
   },
 )
+
+export default config

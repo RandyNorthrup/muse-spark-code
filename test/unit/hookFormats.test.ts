@@ -31,10 +31,9 @@ const cursorIn: typeof buildCursorStdin = (e, p, o) =>
   buildCursorStdin(e, p, { platform: 'linux', ...o })
 const copilotIn: typeof buildCopilotStdin = (e, p, o) =>
   buildCopilotStdin(e, p, { platform: 'linux', ...o })
-const windsurfIn: typeof buildWindsurfStdin = (e, p, o) =>
-  buildWindsurfStdin(e, p, { platform: 'linux', ...o })
-const geminiIn: typeof buildGeminiStdin = (e, p, o) =>
-  buildGeminiStdin(e, p, { platform: 'linux', ...o })
+const windsurfIn: typeof buildWindsurfStdin = (e, p) =>
+  buildWindsurfStdin(e, p, { platform: 'linux' })
+const geminiIn: typeof buildGeminiStdin = (e, p) => buildGeminiStdin(e, p, { platform: 'linux' })
 const kiroIn: typeof buildKiroStdin = (e, p, o) => buildKiroStdin(e, p, { platform: 'linux', ...o })
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -50,9 +49,9 @@ function stdinOf(result: ForeignStdinResult): Record<string, unknown> {
 function isProductionCall(args: unknown): boolean {
   return isObject(args) && args['database'] === 'production'
 }
-function objectAt(value: Record<string, unknown>, key: string): Record<string, unknown> {
-  const found = value[key]
-  if (!isObject(found)) throw new Error(`${key} is not an object`)
+function toolInfo(value: Record<string, unknown>): Record<string, unknown> {
+  const found = value['tool_info']
+  if (!isObject(found)) throw new Error('tool_info is not an object')
   return found
 }
 
@@ -89,7 +88,7 @@ describe('RVM91P2 findings', () => {
     const windsurf = stdinOf(windsurfIn('PreToolUse', mcpCall))
     expect(windsurf['tool_info']).toMatchObject({ mcp_tool_arguments: mcpCall.tool_input })
     expect(isProductionCall(params)).toBe(true)
-    expect(isProductionCall(objectAt(windsurf, 'tool_info')['mcp_tool_arguments'])).toBe(true)
+    expect(isProductionCall(toolInfo(windsurf)['mcp_tool_arguments'])).toBe(true)
     expect(stdinOf(cursorIn('PreToolUse', mcpCall))['tool_input']).toEqual(mcpCall.tool_input)
   })
 
@@ -297,7 +296,7 @@ describe('RVM91P findings stay fixed', () => {
       tool_info: { command_line: 'rm -rf x', cwd: ROOT },
     })
     // The doc's Python example: exit 2 when pre_run_command carries rm -rf.
-    const info = objectAt(stdin, 'tool_info')
+    const info = toolInfo(stdin)
     const exit =
       stdin['agent_action_name'] === 'pre_run_command' &&
       String(info['command_line']).includes('rm -rf')

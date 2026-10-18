@@ -59,7 +59,7 @@ import type { AccountsSessionPort } from '../../acp/accounts'
 import { accountStopText, accountUsageUrl } from '../../acp/accountText'
 import { execFetch, type ExecTransport } from './execFetch'
 import { statusForStop, type Lifecycle, type StopCause } from './execLimits'
-import { createExecLogger, type ExecSink } from './execOutput'
+import { createExecLogger } from './execOutput'
 import { createResourceExecSink } from '../resources/execSink'
 import type { RuntimeResources } from '../resources/port'
 import type { ResourceSettings } from '../../shared/resources'
@@ -269,7 +269,7 @@ function relativePaths(cwd: string, paths: readonly string[]): string[] {
           !relative.startsWith('../') &&
           !path.isAbsolute(relative) &&
           !relative.includes(':')
-          ? [relative]
+          ? relative
           : []
       }),
     ),
@@ -394,14 +394,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     sink.resource(event)
     log.warn(text.replaceAll('\n', ' · '))
   })
-  const drain = (target: ExecSink) => {
+  const drain = () => {
     const messages = tap?.releasedMessages() ?? []
     for (const item of messages) {
       if (emitted.has(item.itemId)) {
         continue
       }
 
-      target.message(item)
+      sink.message(item)
       emitted.add(item.itemId)
     }
   }
@@ -453,14 +453,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         durationMs: event.item.durationMs ?? 0,
       })
     }
-    drain(sink)
+    drain()
   }
   /**
-   * A BYO provider run (M95, PLAN.md D74): everything is resolved and
-   * checked up front — the provider from the runner's own user file, a
-   * model naming it, a bound credential, a re-checked endpoint and the
-   * pinned fetch — then the ordinary ACP engine runs the turn.
-   */
+  A BYO provider run (M95, PLAN.md D74): everything is resolved and
+  checked up front — the provider from the runner's own user file, a
+  model naming it, a bound credential, a re-checked endpoint and the
+  pinned fetch — then the ordinary ACP engine runs the turn.
+  */
   async function runWithProvider(): Promise<number | undefined> {
     const [{ assembleProviderRun }, { providersFilePath, resolveEndpointHost }] = await Promise.all(
       [import('./providerExec'), import('../providersCommands')],
@@ -693,7 +693,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           },
           onResponseSettled: (outcome) => {
             tap?.settleResponse(outcome)
-            if (!isFinishing) drain(sink)
+            if (!isFinishing) drain()
           },
         })
       const engine = await import('../runtimeEngineEntry')
@@ -730,7 +730,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 },
                 settled: (outcome) => {
                   tap?.settleResponse(outcome)
-                  if (!isFinishing) drain(sink)
+                  if (!isFinishing) drain()
                 },
               },
             }),
@@ -1119,7 +1119,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     const signal = lifecycle.cause?.kind === 'signal' ? lifecycle.cause.signal : null
     const cause = lifecycle.cause
     const tokens = totals?.tokens ?? latestTokens
-    drain(sink)
+    drain()
     const hasCompleteResponse =
       options.backend === 'museCode'
         ? terminal === 'completed'

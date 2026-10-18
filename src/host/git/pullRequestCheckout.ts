@@ -57,10 +57,10 @@ export interface PullRequestCheckoutDeps {
     beforeRun?: () => void,
   ) => Promise<string>
   /**
-   * Someone else's pull request: added with nothing checked out and its
-   * files written by the extension (heldCheckout.ts), so no checkout filter,
-   * conversion or hook of git's runs on them.
-   */
+  Someone else's pull request: added with nothing checked out and its
+  files written by the extension (heldCheckout.ts), so no checkout filter,
+  conversion or hook of git's runs on them.
+  */
   readonly checkOutHeld: HeldCheckout
   /** Fetch helpers and checkout filters may write: use the window's checkpoint process admission. */
   readonly admit: <T>(start: () => Promise<T>) => Promise<T>
@@ -105,7 +105,7 @@ function githubRemotes(repository: GitRepository): readonly GitHubRemote[] {
   return repository.state.remotes.flatMap((remote) => {
     const url = remote.fetchUrl ?? remote.pushUrl
     const github = url === undefined ? undefined : githubRepositoryOf(url)
-    return github === undefined ? [] : [{ name: remote.name, repository: github }]
+    return github === undefined ? [] : { name: remote.name, repository: github }
   })
 }
 

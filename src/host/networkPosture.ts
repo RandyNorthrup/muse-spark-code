@@ -30,10 +30,10 @@ import type { ProxySettings } from './backend/museCodeBackendManager'
 import type { ProcessResult } from './backend/sandboxSetup'
 
 /**
- * The global `fetch` at each call, not at activation: whatever VS Code has
- * installed then (its proxy-aware fetch, or Electron's with
- * `http.electronFetch`) carries the request.
- */
+The global `fetch` at each call, not at activation: whatever VS Code has
+installed then (its proxy-aware fetch, or Electron's with
+`http.electronFetch`) carries the request.
+*/
 export const liveFetch: typeof fetch = (input, init) => globalThis.fetch(input, init)
 
 /** The one method of `vscode.WorkspaceConfiguration` (the `http` section) this reads. */
@@ -61,9 +61,9 @@ export function readProxySettings(source: HttpSettingsSource): ProxySettings {
   }
 }
 
-function isFlagOn(source: HttpSettingsSource, key: string, isOnByDefault: boolean): boolean {
+function isFlagOn(source: HttpSettingsSource, key: string): boolean {
   const parsed = flagSchema.safeParse(source.get(key))
-  return parsed.success ? parsed.data : isOnByDefault
+  return !parsed.success || parsed.data
 }
 
 function isTextSet(source: HttpSettingsSource, key: string): boolean {
@@ -72,10 +72,10 @@ function isTextSet(source: HttpSettingsSource, key: string): boolean {
 }
 
 /**
- * Whether the extension host put its proxy-aware `fetch` or `WebSocket` in
- * place (M62), told by the global VS Code's `proxyResolver.ts` sets beside
- * it. A host without the marker is not claimed to route the global.
- */
+Whether the extension host put its proxy-aware `fetch` or `WebSocket` in
+place (M62), told by the global VS Code's `proxyResolver.ts` sets beside
+it. A host without the marker is not claimed to route the global.
+*/
 export function hostRouting(
   globals: object,
   global: keyof typeof VSCODE_ROUTED_GLOBALS,
@@ -89,9 +89,9 @@ export function hostRouting(
 }
 
 /**
- * VS Code's defaults stand for a value it does not report or that is
- * malformed; `globals` is the extension host's `globalThis`.
- */
+VS Code's defaults stand for a value it does not report or that is
+malformed; `globals` is the extension host's `globalThis`.
+*/
 export function readNetworkFacts(
   http: HttpSettingsSource,
   env: NodeJS.ProcessEnv,
@@ -107,12 +107,12 @@ export function readNetworkFacts(
   return {
     isProxySet: proxy.proxy !== '',
     proxySupport: proxySupport.success ? proxySupport.data : HTTP_PROXY_SUPPORT_DEFAULT,
-    isProxyStrictSsl: isFlagOn(http, HTTP_POSTURE_SETTINGS.proxyStrictSsl, true),
+    isProxyStrictSsl: isFlagOn(http, HTTP_POSTURE_SETTINGS.proxyStrictSsl),
     isProxyAuthorizationSet: isTextSet(http, HTTP_POSTURE_SETTINGS.proxyAuthorization),
     noProxyCount: proxy.noProxy.length,
-    isSystemCertificatesOn: isFlagOn(http, HTTP_POSTURE_SETTINGS.systemCertificates, true),
-    isFetchSupportOn: isFlagOn(http, HTTP_POSTURE_SETTINGS.fetchAdditionalSupport, true),
-    isWebSocketSupportOn: isFlagOn(http, HTTP_POSTURE_SETTINGS.webSocketAdditionalSupport, true),
+    isSystemCertificatesOn: isFlagOn(http, HTTP_POSTURE_SETTINGS.systemCertificates),
+    isFetchSupportOn: isFlagOn(http, HTTP_POSTURE_SETTINGS.fetchAdditionalSupport),
+    isWebSocketSupportOn: isFlagOn(http, HTTP_POSTURE_SETTINGS.webSocketAdditionalSupport),
     fetchRouting: hostRouting(globals, 'fetch'),
     webSocketRouting: hostRouting(globals, 'webSocket'),
     hasEnvironmentProxy: PROXY_VARIABLE_SPELLINGS.some((name) => isVariableSet(name)),
@@ -125,9 +125,9 @@ export function readNetworkFacts(
 const CLI_NOT_FOUND = 'not run: the Muse Code CLI was not found'
 
 /**
- * `muse config status` for the report: its output, or why there is none.
- * `run` is undefined when the CLI is not installed.
- */
+`muse config status` for the report: its output, or why there is none.
+`run` is undefined when the CLI is not installed.
+*/
 export async function managedConfiguration(
   run: (() => Promise<ProcessResult>) | undefined,
 ): Promise<SupportFacts['managedConfiguration']> {

@@ -293,10 +293,10 @@ export class PageCheck {
   }
 
   /**
-   * A target attached as it started, held before its first line runs: set
-   * up by its type, the targets it starts attached in turn, then let run.
-   * One that cannot be watched ends the check; it is never let run.
-   */
+  A target attached as it started, held before its first line runs: set
+  up by its type, the targets it starts attached in turn, then let run.
+  One that cannot be watched ends the check; it is never let run.
+  */
   async #watch(params: unknown): Promise<void> {
     const attached = attachedSchema.safeParse(params)
     if (!attached.success) {
@@ -538,13 +538,12 @@ export class PageCheck {
       await this.call(`${domain}.enable`, nothing, {}, sessionId)
     }
     const loaded = this.#waitForLoad(this.#options.timings.loadMs)
-    const navigated = await this.call(
+    const { errorText } = await this.call(
       'Page.navigate',
       navigatedSchema,
       { url: this.#options.request.url },
       sessionId,
     )
-    const { errorText } = navigated
     if (errorText !== undefined) {
       return {
         ok: false,
@@ -650,10 +649,10 @@ export class PageCheck {
   }
 
   /**
-   * A new blank target (in the private context when one is given), once its
-   * watch is up: its target id and session. A probe target's traffic is
-   * never reported or judged as the page's.
-   */
+  A new blank target (in the private context when one is given), once its
+  watch is up: its target id and session. A probe target's traffic is
+  never reported or judged as the page's.
+  */
   public async openTarget(
     browserContextId: string | undefined,
     isProbe: boolean,
@@ -685,10 +684,10 @@ export class PageCheck {
   }
 
   /**
-   * Navigates a probe target to its probe page and runs its script; the
-   * script's JSON, or undefined when the probe page did not load (its route
-   * is not the one constructed: the phase reads it as no report).
-   */
+  Navigates a probe target to its probe page and runs its script; the
+  script's JSON, or undefined when the probe page did not load (its route
+  is not the one constructed: the phase reads it as no report).
+  */
   public async probe(sessionId: string, url: string, script: string): Promise<unknown> {
     // Its script runs in the probe page once that page has loaded.
     await this.call('Page.enable', nothing, {}, sessionId)

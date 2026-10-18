@@ -92,12 +92,12 @@ function snapshotOf(state: UiState): UiSnapshot {
 }
 
 /**
- * What goes into the webview state. The session id stays until a session is
- * live here or the user clears (a restored panel whose resume failed keeps
- * it for the next reload); the snapshot rides along unless it is over the
- * size cap, or `isTranscriptKept` is false because the state crashed the
- * app's first render and bringing it back would crash it again.
- */
+What goes into the webview state. The session id stays until a session is
+live here or the user clears (a restored panel whose resume failed keeps
+it for the next reload); the snapshot rides along unless it is over the
+size cap, or `isTranscriptKept` is false because the state crashed the
+app's first render and bringing it back would crash it again.
+*/
 export function webviewStateOf(
   state: UiState,
   isTranscriptKept: boolean,
@@ -129,22 +129,22 @@ function childOwnersOf(snapshot: UiSnapshot): Record<string, string> {
 }
 
 /**
- * The state a webview document starts from: empty, or the saved
- * conversation waiting for the host's `surfaceState` to keep or drop it.
- * Anything that does not parse starts empty, keeping the session id when
- * that part is sound.
- */
+The state a webview document starts from: empty, or the saved
+conversation waiting for the host's `surfaceState` to keep or drop it.
+Anything that does not parse starts empty, keeping the session id when
+that part is sound.
+*/
 export function restoredUiState(raw: unknown): UiState {
   const persisted = webviewStateSchema.safeParse(raw)
   if (!persisted.success) {
     return initialUiState
   }
-  const { sessionId, snapshot, omittedSessionId, sideChat, attachmentEpoch } = persisted.data
+  const { sessionId, snapshot, omittedSessionId, sideChat, attachmentEpoch = 0 } = persisted.data
   const base: UiState = {
     ...initialUiState,
     restoredSessionId: sessionId,
     isSideChat: sideChat === true,
-    attachmentEpoch: attachmentEpoch ?? 0,
+    attachmentEpoch,
   }
   const parsed = snapshotSchema.safeParse(snapshot)
   // A valid snapshot for another session must not supply history details here.

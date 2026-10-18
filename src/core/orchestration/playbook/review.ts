@@ -90,7 +90,7 @@ export function resolutionOutcome(
 }
 
 /** A redesign never drops an old id merely because the new review omits it.
- * Caught/remains references remain live alongside any newly found issue. */
+Caught/remains references remain live alongside any newly found issue. */
 export function reviewRounds(
   module: PlaybookModule,
   state: ModuleState,
@@ -140,9 +140,7 @@ export function reviewRounds(
     ...(redesign && { resolution: review.resolution }),
     at,
   })
-  const classes = [
-    ...new Set(findings.flatMap((finding) => (finding.class ? [finding.class] : []))),
-  ]
+  const classes = [...new Set(findings.flatMap((finding) => finding.class ?? []))]
   return [
     aggregate,
     ...classes.map((className) => ({

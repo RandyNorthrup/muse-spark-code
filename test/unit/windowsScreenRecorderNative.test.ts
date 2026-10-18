@@ -36,14 +36,8 @@ const check = async (...args: string[]) => {
   return result.trim()
 }
 const destination = () => path.join(paths.root, `muse-spark-screen-${crypto.randomUUID()}`)
-const latest = async (source: string, target: string, maxBytes = 100) =>
-  await check(
-    'latest',
-    source,
-    target,
-    String(maxBytes),
-    String(SCREEN_RECORDING_RECENT_MAX_AGE_MS),
-  )
+const latest = async (source: string, target: string) =>
+  await check('latest', source, target, '100', String(SCREEN_RECORDING_RECENT_MAX_AGE_MS))
 const folder = async () => await mkdtemp(path.join(paths.root, 'snipping-'))
 const clip = async (source: string, name: string, age = 0, size = 1) => {
   const file = path.join(source, name)

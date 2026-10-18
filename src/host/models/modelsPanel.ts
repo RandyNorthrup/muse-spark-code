@@ -55,10 +55,10 @@ export interface ModelsPanelDeps {
   readonly log: Logger
   readonly providers: ProvidersHost
   /**
-   * The conversation spending limit setting: read for the suggestions
-   * step's prefill and written when the wizard's number changed. Backed by
-   * VS Code's configuration in production, by memory in tests.
-   */
+  The conversation spending limit setting: read for the suggestions
+  step's prefill and written when the wizard's number changed. Backed by
+  VS Code's configuration in production, by memory in tests.
+  */
   readonly sessionBudget: SessionBudgetConfig
   readonly isRemote?: boolean
   readonly writeExportFile: (text: string) => Promise<void>
@@ -386,8 +386,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       ? UI_TEXT.signInNotOffered
       : undefined
   }
-  const draftSecret = (entry: ProviderEntry, id?: string): string | undefined => {
-    const record = credentials.get(id ?? 'wizard')
+  const draftSecret = (entry: ProviderEntry, id = 'wizard'): string | undefined => {
+    const record = credentials.get(id)
     if (record !== undefined && record.origin !== new URL(entry.address).origin) {
       throw new Error(UI_TEXT.importNeedsKey)
     }
@@ -490,24 +490,22 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         return parsed.success ? [parsed.data] : []
       }
       const isBound = origin === undefined || origin === new URL(entry.address).origin
-      return [
-        {
-          id: entry.id,
-          presetId: entry.preset,
-          label: preset.label,
-          address: entry.address,
-          format: entry.format ?? preset.format,
-          auth: entry.auth,
-          key: {
-            state: hasKey ? (isBound ? 'stored' : 'needs-again') : 'missing',
-            origin,
-            actualOrigin: isBound ? undefined : new URL(entry.address).origin,
-          },
-          test: { status: 'untested' },
-          models: [...entry.models],
-          pinned: [...(entry.pinned ?? [])],
+      return {
+        id: entry.id,
+        presetId: entry.preset,
+        label: preset.label,
+        address: entry.address,
+        format: entry.format ?? preset.format,
+        auth: entry.auth,
+        key: {
+          state: hasKey ? (isBound ? 'stored' : 'needs-again') : 'missing',
+          origin,
+          actualOrigin: isBound ? undefined : new URL(entry.address).origin,
         },
-      ]
+        test: { status: 'untested' },
+        models: [...entry.models],
+        pinned: [...(entry.pinned ?? [])],
+      }
     })
     const all: ModelRow[] = []
     const families = new Map<string, string>()

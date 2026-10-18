@@ -222,7 +222,7 @@ for (const schema of Object.values(comparisonSectionSchemas)) {
     // Read the pinned parser's typed max-length checks without loading its JSON-schema processors.
     const maxima = (schema._zod.def.checks ?? []).flatMap(({ _zod: { def } }) =>
       def.check === 'max_length' && 'maximum' in def && typeof def.maximum === 'number'
-        ? [def.maximum]
+        ? def.maximum
         : [],
     )
     if (maxima.length === 0 || maxima.some((value) => !Number.isSafeInteger(value) || value < 1))

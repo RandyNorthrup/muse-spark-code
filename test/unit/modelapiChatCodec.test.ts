@@ -236,11 +236,11 @@ function canonicalTool(native: unknown): ToolDefinition {
 }
 
 /**
- * Rebuilds the canonical body a capture's request came from: system text
- * to instructions, messages to input items (assistant reasoning to a
- * reasoning item carrying this codec's opaque payload), tools to tools.
- * The codec must then reproduce the captured bytes exactly.
- */
+Rebuilds the canonical body a capture's request came from: system text
+to instructions, messages to input items (assistant reasoning to a
+reasoning item carrying this codec's opaque payload), tools to tools.
+The codec must then reproduce the captured bytes exactly.
+*/
 function bodyFromCapture(
   requestBody: Record<string, unknown>,
   quirks: ChatPresetQuirks,
@@ -959,7 +959,7 @@ function reasoningTextOf(response: ResponseObject): string {
 
 function deltasOf(events: readonly StreamEvent[], type: StreamEvent['type']): string[] {
   return events.flatMap((event) => {
-    return event.type === type && 'delta' in event ? [event.delta] : []
+    return event.type === type && 'delta' in event ? event.delta : []
   })
 }
 
@@ -1595,10 +1595,10 @@ describe('chat codec guards', () => {
       ['deepseek', '05-error-invalid-model.json'],
       ['huggingface', '05-error-invalid-model.json'],
       ['zai', '04-error-invalid-model.json'],
-    ]) {
+    ] as const) {
       const frame = z
         .object({ response: z.object({ body: z.unknown() }) })
-        .parse(captureFile(provider ?? '', file ?? ''))
+        .parse(captureFile(provider, file))
       const decoder = new ChatStreamDecoder('m', OPENROUTER, CHAT_LIMITS)
       expect(decoder.feed(frame.response.body)).toMatchObject([{ type: 'error' }])
       const failed = decoder.finish().response

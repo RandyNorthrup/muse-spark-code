@@ -141,16 +141,12 @@ describe('provider context overflow (M101 item 6)', () => {
     for (const [inputTokens, outputTokens] of [
       [9899, 0],
       [9900, 1],
-    ]) {
+    ] as const) {
       expect(
         classifyContextOverflow({
           format: 'ollama',
           contextTokens: 10_000,
-          response: {
-            completed: true,
-            inputTokens: inputTokens ?? 0,
-            outputTokens: outputTokens ?? 0,
-          },
+          response: { completed: true, inputTokens, outputTokens },
         }),
       ).toBeUndefined()
     }

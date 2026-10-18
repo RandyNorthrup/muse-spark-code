@@ -77,10 +77,10 @@ export interface ConfiguredProviderOptions {
     signal: AbortSignal,
   ) => Promise<PinnedResponse>
   /**
-   * How long an inference stream may send nothing, headers or frames,
-   * before it is ended (MODEL_API_STREAM_IDLE_MS when absent). It is the
-   * only time limit on an inference stream: there is no limit on its total.
-   */
+  How long an inference stream may send nothing, headers or frames,
+  before it is ended (MODEL_API_STREAM_IDLE_MS when absent). It is the
+  only time limit on an inference stream: there is no limit on its total.
+  */
   readonly streamIdleMs?: number
 }
 const secretSchema = z.object({
@@ -912,7 +912,7 @@ export function createConfiguredProviderServices(
                 card.longContextTier?.input,
                 card.longContextTier?.output,
                 card.longContextTier?.cachedInput,
-              ].every((rate) => (rate ?? 0) === 0)))
+              ].every((rate = 0) => rate === 0)))
         let priceFingerprint = 'unpriced'
         if (isPlan) priceFingerprint = 'plan'
         else if (isLocal) priceFingerprint = 'local'

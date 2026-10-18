@@ -163,7 +163,7 @@ export function readMcpServerEntries(text: string | undefined): McpSettingsEntri
   const entries = [camel, legacy].flatMap((block) =>
     isObject(block)
       ? Object.entries(block).flatMap(([name, entry]) =>
-          isObject(entry) ? [{ view: serverView(name, entry), entry }] : [],
+          isObject(entry) ? { view: serverView(name, entry), entry } : [],
         )
       : [],
   )

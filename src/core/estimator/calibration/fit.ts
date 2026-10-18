@@ -132,14 +132,12 @@ export function fitCalibration(
     )
     return exposed.length === 0
       ? []
-      : [
-          {
-            exposures: exposed.length,
-            redesigns: exposed.filter((module) =>
-              review.redesigns.some((event) => event.moduleFamilyId === module.familyId),
-            ).length,
-          },
-        ]
+      : {
+          exposures: exposed.length,
+          redesigns: exposed.filter((module) =>
+            review.redesigns.some((event) => event.moduleFamilyId === module.familyId),
+          ).length,
+        }
   })
   const isRiskFitted = risks.length >= ESTIMATE_CALIBRATION_MIN_SAMPLES
   const redesignRisk = isRiskFitted
@@ -147,7 +145,7 @@ export function fitCalibration(
       risks.reduce((total, risk) => total + risk.exposures, 0)
     : prior.redesignRisk
   const findingSamples = metadata.filter((record) => record.review.status === 'known').length
-  const ci = metadata.flatMap((record) => (record.ciHours === undefined ? [] : [record.ciHours]))
+  const ci = metadata.flatMap((record) => record.ciHours ?? [])
   return {
     calibration: {
       kind,
@@ -208,15 +206,15 @@ export function fitCalibration(
 }
 
 /** Read at render time so changing the installed language changes the label.
- * @unwired M117 calibration fit label
- */
+@unwired M117 calibration fit label
+*/
 export function calibrationLabel(fit: CalibrationFit): string {
   return fit.calibration.basis === 'fitted' ? UI_TEXT.estimateFitted : UI_TEXT.estimatePrior
 }
 
 /** Risk applies only to currently unresolved families with two strikes; unknown is not zero.
- * @unwired M117 lane redesign risk quantity
- */
+@unwired M117 lane redesign risk quantity
+*/
 export function laneRedesignRisk(fit: CalibrationFit, value: EstimateLane['review']): Quantity {
   const parsed = historyRecordSchema.shape.review.safeParse(value)
   if (!parsed.success) throw calibrationFailure('invalidReviewState')

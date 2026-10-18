@@ -76,7 +76,7 @@ function checksLabel(view: PullRequestView): string | undefined {
         [checks.skipped, UI_TEXT.gitChecksSkipped],
         [checks.cancelled, UI_TEXT.gitChecksCancelled],
       ] as const
-    ).flatMap(([count, label]) => (count > 0 ? [plural(label, count)] : [])),
+    ).flatMap(([count, label]) => (count > 0 ? plural(label, count) : [])),
     ...checks.other,
     ...(checks.notRead > 0 ? [plural(UI_TEXT.gitChecksNotRead, checks.notRead)] : []),
   ]
@@ -84,10 +84,10 @@ function checksLabel(view: PullRequestView): string | undefined {
 }
 
 /**
- * The status dot, as a tool row's: failed, running, or done; always beside
- * words. A check in a state not counted, or one not read, is not known to
- * have passed: the dot stays neutral.
- */
+The status dot, as a tool row's: failed, running, or done; always beside
+words. A check in a state not counted, or one not read, is not known to
+have passed: the dot stays neutral.
+*/
 function dotClass(view: PullRequestView): string {
   const { checks } = view
   if (checks === undefined) {

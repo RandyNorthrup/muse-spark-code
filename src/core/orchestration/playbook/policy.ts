@@ -98,14 +98,14 @@ export interface PlaybookPolicyOptions {
 }
 
 /** I binds this to M107/the runner's actual resource admission. Policy selects
- * a target; a missing governor is never replaced by an allow implementation. */
+a target; a missing governor is never replaced by an allow implementation. */
 export interface PlaybookCheckAdmission {
   admit(check: PlaybookCheck, target: PlaybookCheckDecision['target']): boolean
 }
 
 /** No effect is admitted until its evidence and why-note are published.
- * Every entrypoint reloads the shared journal; concurrent/stale writers fail
- * comparison instead of overwriting another team's strikes or refusals. */
+Every entrypoint reloads the shared journal; concurrent/stale writers fail
+comparison instead of overwriting another team's strikes or refusals. */
 export class OrchestratorPlaybook implements PlaybookPolicy {
   private readonly holder = randomUUID()
   private records: PlaybookRecord[] = []
@@ -172,11 +172,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     return {
       module: state.module.key,
       round: state.counts.get(undefined),
-      classes: [
-        ...new Set(
-          state.current?.findings.flatMap((finding) => (finding.class ? [finding.class] : [])),
-        ),
-      ],
+      classes: [...new Set(state.current?.findings.flatMap((finding) => finding.class ?? []))],
     }
   }
 
@@ -193,8 +189,8 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
   }
 
   /** Synchronous reducer state is shared by every lane through journal CAS.
-   * Family exclusion is lane-specific; expiry is checked only for the review's
-   * own member/generation, never for an unrelated expired ancestor. */
+  Family exclusion is lane-specific; expiry is checked only for the review's
+  own member/generation, never for an unrelated expired ancestor. */
   private reservations(state: ModuleState) {
     return [state, ...[...state.linked].map((id) => this.states.get(id))]
       .flatMap((member) => [...(member?.leases.values() ?? [])])
@@ -415,7 +411,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
   }
 
   /** G17: shared configuration drift is a durable owner item, never silent.
-   * The digest mismatch still refuses below; this names what changed. */
+  The digest mismatch still refuses below; this names what changed. */
   private reportConfigDrift(
     work: Extract<PlaybookRecord, { kind: 'work' }>['value'],
     outcomes: PlaybookOutcomes,
@@ -705,11 +701,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     return this.decide(code ? 'refuse' : 'allow', 'threeStrikes', code, {
       module: module.key,
       round: next?.counts.get(undefined),
-      classes: [
-        ...new Set(
-          rounds[0]?.findings.flatMap((finding) => (finding.class ? [finding.class] : [])),
-        ),
-      ],
+      classes: [...new Set(rounds[0]?.findings.flatMap((finding) => finding.class ?? []))],
       needsUser: code === 'redesignEscalated' || next?.design?.outcome === 'caught',
     })
   }
@@ -798,7 +790,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
   }
 
   /** G24: accept a named open residual with a real user decision. Unknown
-   * names fail closed: acceptance must name something the register holds. */
+  names fail closed: acceptance must name something the register holds. */
   acceptResidual(
     milestoneId: string,
     name: string,
@@ -845,7 +837,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
   }
 
   /** G24: the per-milestone residual register must be empty or accepted
-   * before release. Open entries refuse with their names, first for the user. */
+  before release. Open entries refuse with their names, first for the user. */
   releaseReady(milestoneId: string, lanes: readonly PlaybookLane[]): PlaybookDecision {
     this.refresh()
     const register = collectResidualRegister(this.records, lanes, milestoneId)
@@ -918,8 +910,8 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
   }
 
   /** G3: render the dispatch brief structurally and record its hash before
-   * any effect. A malformed brief or an unfilled template fails closed here,
-   * never on the worker. An unchanged brief reuses its recorded note. */
+  any effect. A malformed brief or an unfilled template fails closed here,
+  never on the worker. An unchanged brief reuses its recorded note. */
   recordBrief(module: PlaybookModule, brief: PlaybookBrief): PlaybookDecision {
     this.refresh()
     const state = this.state(module)
@@ -968,7 +960,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
   }
 
   /** All newly reachable commits are checked, irrespective of command text.
-   * Raw output is returned to the person, second-scrubbed, never journalled. */
+  Raw output is returned to the person, second-scrubbed, never journalled. */
   verifyWork(
     workId: string,
     range?: PlaybookPushRange,
@@ -1066,10 +1058,10 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
   }
 
   /** G20: the user's pre-named fallback reviewer for a classifier-blocked
-   * action. Applies only with a recorded block for that exact action, a
-   * recorded fallback, and no reviewer conflict with the implementer. The
-   * blocked action is never retried or rerouted; rule 9 stands. Otherwise the
-   * suggested agents return unchanged and the user decides each time. */
+  action. Applies only with a recorded block for that exact action, a
+  recorded fallback, and no reviewer conflict with the implementer. The
+  blocked action is never retried or rerouted; rule 9 stands. Otherwise the
+  suggested agents return unchanged and the user decides each time. */
   applyFallbackReviewer(
     module: PlaybookModule,
     agents: PlaybookReviewAgents,

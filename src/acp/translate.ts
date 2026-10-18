@@ -258,11 +258,11 @@ export function planEntries(items: readonly TodoItem[]): PlanEntry[] {
 }
 
 /**
- * Turns one session's AgentEvents into ACP session updates. It remembers,
- * per item, how much text went out (an item can arrive whole after its
- * deltas, or whole on its own in a replayed history) and a tool call's
- * output so far, which ACP sends whole with the finished call.
- */
+Turns one session's AgentEvents into ACP session updates. It remembers,
+per item, how much text went out (an item can arrive whole after its
+deltas, or whole on its own in a replayed history) and a tool call's
+output so far, which ACP sends whole with the finished call.
+*/
 export class UpdateTranslator {
   private readonly sentText = new Map<string, number>()
   private readonly summaryParts = new Map<string, number>()
@@ -546,11 +546,11 @@ export function permissionOptions(choices: readonly ApprovalChoice[]): Permissio
 }
 
 /**
- * The choice to decide with (D62): the one the client picked when it was
- * offered, and otherwise (cancelled, unknown, no answer) the backend's own
- * deny choice, preferring "this once". Undefined only when the backend
- * offered no way to deny, and then the caller stops the turn instead.
- */
+The choice to decide with (D62): the one the client picked when it was
+offered, and otherwise (cancelled, unknown, no answer) the backend's own
+deny choice, preferring "this once". Undefined only when the backend
+offered no way to deny, and then the caller stops the turn instead.
+*/
 export function decidedChoice(
   response: RequestPermissionResponse | undefined,
   choices: readonly ApprovalChoice[],
@@ -766,10 +766,10 @@ export function resourceName(uri: string): string {
 }
 
 /**
- * Whether a prompt link names media (M105 E2 review): only these route to
- * the media port. Ordinary context links and URLs stay mentions/text even
- * when the port is bound; binding the port must not file-open them.
- */
+Whether a prompt link names media (M105 E2 review): only these route to
+the media port. Ordinary context links and URLs stay mentions/text even
+when the port is bound; binding the port must not file-open them.
+*/
 export function isMediaLink(block: Extract<ContentBlock, { type: 'resource_link' }>): boolean {
   return (
     /^(?:image|audio|video)\//u.test(block.mimeType ?? '') ||
@@ -779,10 +779,10 @@ export function isMediaLink(block: Extract<ContentBlock, { type: 'resource_link'
 }
 
 /**
- * A prompt's blocks as the turn's parts; the first block the backend cannot
- * take refuses the whole prompt, so nothing is sent half. `displayText` is
- * what the user typed, for the stored transcript.
- */
+A prompt's blocks as the turn's parts; the first block the backend cannot
+take refuses the whole prompt, so nothing is sent half. `displayText` is
+what the user typed, for the stored transcript.
+*/
 export async function promptParts(
   blocks: readonly ContentBlock[],
   cwd: string,
@@ -801,7 +801,7 @@ export async function promptParts(
     parts.push(part)
   }
   const displayText = blocks
-    .flatMap((block) => (block.type === 'text' ? [block.text] : []))
+    .flatMap((block) => (block.type === 'text' ? block.text : []))
     .join(PART_SEPARATOR)
   return { ok: true, parts, displayText }
 }
@@ -817,10 +817,10 @@ function pairs(entries: readonly { readonly name: string; readonly value: string
 }
 
 /**
- * An ACP client's MCP servers as the engine's (M63c): stdio and HTTP, keyed
- * by name. SSE and the unstable ACP transport are left out, as is a second
- * server under a name already taken.
- */
+An ACP client's MCP servers as the engine's (M63c): stdio and HTTP, keyed
+by name. SSE and the unstable ACP transport are left out, as is a second
+server under a name already taken.
+*/
 export function mcpServersFrom(requested: readonly McpServer[]): ForwardedMcpServers {
   const servers = new Map<string, SessionMcpServer>()
   const skipped: string[] = []

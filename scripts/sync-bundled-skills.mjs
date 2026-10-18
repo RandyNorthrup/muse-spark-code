@@ -65,7 +65,7 @@ function octal(header, start, end) {
   const text = field(header, start, end).trim()
   if (!/^[0-7]+$/.test(text)) throw new Error('Invalid tar numeric field')
   const value = Number.parseInt(text, 8)
-  if (!Number.isSafeInteger(value)) throw new Error('Tar numeric field is too large')
+  if (!Number.isSafeInteger(value)) throw new TypeError('Tar numeric field is too large')
   return value
 }
 

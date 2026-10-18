@@ -28,7 +28,7 @@ export function lintReferenceFacts(value, identity = 'facts') {
   if (typeof value !== 'object' || value === null) return []
   return Object.entries(value).flatMap(([key, entry]) => {
     return typeof entry === 'string' && /\s/.test(entry) && typeof value[`${key}Key`] !== 'string'
-      ? [`Unlocalized reference fact: ${identity}.${key}`]
+      ? `Unlocalized reference fact: ${identity}.${key}`
       : lintReferenceFacts(entry, `${identity}.${key}`)
   })
 }

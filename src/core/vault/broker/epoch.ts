@@ -34,7 +34,7 @@ export class VaultLockEpoch implements VaultEpochPort {
     const release = await this.files.claim(this.writer, Buffer.alloc(0))
     try {
       const epoch = (await this.current()) + 1
-      if (!Number.isSafeInteger(epoch)) throw new Error(UI_TEXT.vault.noAccess)
+      if (!Number.isSafeInteger(epoch)) throw new TypeError(UI_TEXT.vault.noAccess)
       await this.files.replace(this.path, Buffer.from(JSON.stringify({ v: 1, epoch })), authorize)
       return epoch
     } finally {

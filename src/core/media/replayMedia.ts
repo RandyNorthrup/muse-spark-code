@@ -202,7 +202,7 @@ export class ReplayMedia {
       const names = new Set(
         content.flatMap((part) => {
           const media = this.parts.get(part)
-          return media === undefined ? [] : [media.name]
+          return media === undefined ? [] : media.name
         }),
       )
       throw new Error(
@@ -220,18 +220,18 @@ export class ReplayMedia {
   }
 
   /**
-   * Admit an already-uploaded file (read_file's mediaFile) as managed replay
-   * media: the same metadata text and budget note content() registers, minus
-   * the token resolution. prepare() authorizes, rechecks the source and
-   * reuses the file id through the shared ledger before project() encodes
-   * the file reference. Throws the gate reason when the model cannot take it.
-   */
+  Admit an already-uploaded file (read_file's mediaFile) as managed replay
+  media: the same metadata text and budget note content() registers, minus
+  the token resolution. prepare() authorizes, rechecks the source and
+  reuses the file id through the shared ledger before project() encodes
+  the file reference. Throws the gate reason when the model cannot take it.
+  */
   /**
-   * Reserve a tool-read file on the session upload ledger (M105 E2 review):
-   * the gate and the C/A authorization run before any upload, and the
-   * ledger dedups by digest. The returned reference is what adopt() later
-   * replays as a file-id without re-uploading.
-   */
+  Reserve a tool-read file on the session upload ledger (M105 E2 review):
+  the gate and the C/A authorization run before any upload, and the
+  ledger dedups by digest. The returned reference is what adopt() later
+  replays as a file-id without re-uploading.
+  */
   public async upload(
     file: {
       readonly name: string
@@ -496,7 +496,7 @@ export class ReplayMedia {
   public transcriptMetadata(parts: readonly TurnPart[]): readonly string[] {
     return parts.flatMap((part) => {
       const media = this.deps.attachment(part)
-      return media === undefined ? [] : [metadataPart(storedMediaPartSchema.parse(media)).text]
+      return media === undefined ? [] : metadataPart(storedMediaPartSchema.parse(media)).text
     })
   }
 
@@ -505,7 +505,7 @@ export class ReplayMedia {
       if (entry.item.type !== 'message') return entry
       const media = entry.item.content.flatMap((part, index) => {
         const stored = this.parts.get(part)
-        return stored === undefined ? [] : [{ index, media: { ...stored } }]
+        return stored === undefined ? [] : { index, media: { ...stored } }
       })
       if (media.length === 0) return entry
       return {
@@ -572,7 +572,7 @@ export class ReplayMedia {
     const before = this.managed(input).flatMap((part) => {
       const media = this.parts.get(part)
       const file = media === undefined ? undefined : this.fileFor(media, this.model(modelId))
-      return file === undefined ? [] : [file.fileId]
+      return file === undefined ? [] : file.fileId
     })
     if (before.length === 0 || !this.deps.codec.isMissingFile(error, before)) return false
     await this.prepare(input, modelId, signal)

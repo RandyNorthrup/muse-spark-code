@@ -299,10 +299,10 @@ import type { ReportEditorIo } from '../support/reportProblem'
 import type * as ReportBundle from '../support/reportEntry'
 
 /**
- * Report a problem (M93, PLAN.md D72) as a surface sees it: the dialog's
- * facts and journal, and the recorder's two ways in. Recording writes facts
- * (a fixed kind, a known code, package frames), never the text a row shows.
- */
+Report a problem (M93, PLAN.md D72) as a surface sees it: the dialog's
+facts and journal, and the recorder's two ways in. Recording writes facts
+(a fixed kind, a known code, package frames), never the text a row shows.
+*/
 export interface ConversationReports {
   readonly source: ReportDataSource
   /** The editor's clipboard, browser, save picker and issue reporter for the exports. */
@@ -310,18 +310,18 @@ export interface ConversationReports {
   /** Journals the webview's scrubbed failure (the recorder bounds how many). */
   readonly recordWebviewError: (error: ReportWebviewError) => void
   /**
-   * Journals one failure as facts (a fixed kind and a code the recorder
-   * checks against its vocabulary); the sanitized reference a row then
-   * carries, or undefined when nothing was recorded.
-   */
+  Journals one failure as facts (a fixed kind and a code the recorder
+  checks against its vocabulary); the sanitized reference a row then
+  carries, or undefined when nothing was recorded.
+  */
   readonly record: (kind: ReportEventKind, code: string) => ReportEventRef | undefined
 }
 
 /**
- * One subscription on the current host (list stream, usage stream),
- * replaced when the controller moves to another host, dropped when the host
- * dies (its listeners died with it).
- */
+One subscription on the current host (list stream, usage stream),
+replaced when the controller moves to another host, dropped when the host
+dies (its listeners died with it).
+*/
 class HostWatch {
   private current: { readonly host: AgentHost; readonly unsubscribe: () => void } | undefined
 
@@ -388,24 +388,24 @@ export interface PlanChoice {
 }
 
 /**
- * Plans as files (M79, PLAN.md D49): the workspace's `.agents/plans/` and
- * the Plans… pick. Undefined without a workspace folder.
- */
+Plans as files (M79, PLAN.md D49): the workspace's `.agents/plans/` and
+the Plans… pick. Undefined without a workspace folder.
+*/
 export interface PlanFiles extends Pick<PlanStore, 'find' | 'save' | 'has' | 'read' | 'list'> {
   /** Captured while the verified plan session is still attached, before lookup/confirmation. */
   readonly captureOwner?: (session: AgentSession) => WorkspaceEditRecorder | undefined
   /**
-   * The yes a save needs: `.agents/` is a protected path (PLAN.md D24), so
-   * writing a plan there asks first, as a protected write does.
-   */
+  The yes a save needs: `.agents/` is a protected path (PLAN.md D24), so
+  writing a plan there asks first, as a protected write does.
+  */
   confirmSave(): Promise<boolean>
   /** A plan and what to do with it; undefined when the pick was dismissed. */
   choose(plans: readonly PlanSummary[]): Promise<PlanChoice | undefined>
   /**
-   * The plan reader (dist/planMarkdown.js, loaded on first use): a plan's
-   * title, steps and hidden text. Throws, with the reason, when it cannot
-   * load; a plan action then refuses rather than skip the hidden-text check.
-   */
+  The plan reader (dist/planMarkdown.js, loaded on first use): a plan's
+  title, steps and hidden text. Throws, with the reason, when it cannot
+  load; a plan action then refuses rather than skip the hidden-text check.
+  */
   markdown(): PlanMarkdown
 }
 
@@ -452,9 +452,9 @@ export interface ConversationDeps {
   /** The `allowDangerouslySkipPermissions` setting: whether Bypass is offered. */
   readonly isBypassAllowed: () => boolean
   /**
-   * A remote window (`vscode.env.remoteName`): a dev container's settings can
-   * switch Bypass on there, so it needs one explicit yes (PLAN.md D24).
-   */
+  A remote window (`vscode.env.remoteName`): a dev container's settings can
+  switch Bypass on there, so it needs one explicit yes (PLAN.md D24).
+  */
   readonly isRemoteWindow: boolean
   readonly confirmRemoteBypass: () => Promise<boolean>
   /** `museSpark.confidentialWorkspace`: contributor-tier models are blocked. */
@@ -472,9 +472,9 @@ export interface ConversationDeps {
   /** The shell sandbox posture the host runs with (D12). */
   readonly shellSandbox: () => ShellSandboxPosture
   /**
-   * True the first time in this window that the sandbox-off warning may be
-   * shown (musecode-write-asks); without it, every session shows it.
-   */
+  True the first time in this window that the sandbox-off warning may be
+  shown (musecode-write-asks); without it, every session shows it.
+  */
   readonly shouldWarnSandboxOff?: () => boolean
   /** The active editor for the file chip (M5); undefined when none. */
   readonly editorContext: () => EditorContext | undefined
@@ -489,21 +489,21 @@ export interface ConversationDeps {
   /** `/review` (M70, PLAN.md D49): its parts, from the review's own bundle. */
   readonly review: ReviewTurnFeatures
   /**
-   * The deterministic legal scanner (M97, PLAN.md D76): lane S's scan
-   * through lane 0's contract; undefined until lane R wires the bundle.
-   */
+  The deterministic legal scanner (M97, PLAN.md D76): lane S's scan
+  through lane 0's contract; undefined until lane R wires the bundle.
+  */
   readonly legalExplanation?:
     ((result: LegalScanResult, signal: AbortSignal) => Promise<string>) | undefined
   readonly legalMarkdown?: ((result: LegalScanResult) => string) | undefined
   readonly legalFixApplier?: LegalFixApplier | undefined
   readonly legalScan?: LegalScanRunner | undefined
   /**
-   * The Plan-mode hold a live Muse Code conversation takes for a `/legal`
-   * scan (M70's hold, D76); from the scanner's bundle with the scan.
-   */
+  The Plan-mode hold a live Muse Code conversation takes for a `/legal`
+  scan (M70's hold, D76); from the scanner's bundle with the scan.
+  */
   readonly createLegalHold?: ((holdDeps: PlanModeHoldDeps) => PlanModeHold) | undefined
   /** M116 I/W binding: lazy shared-core policy plus the trusted host registry.
-   * Absent until the host installs the integration; a configured factory fails closed. */
+  Absent until the host installs the integration; a configured factory fails closed. */
   readonly playbook?: (() => PanelPlaybookPort) | undefined
   /** `/estimate` (M117, PLAN.md D97): the run, from the estimator's own bundle. */
   readonly estimator?: EstimatorRun
@@ -516,10 +516,10 @@ export interface ConversationDeps {
   /** The IDE tool server for `session/start`, when it is listening. */
   readonly ideMcpEndpoint: () => Promise<SessionMcpHttpServer | undefined>
   /**
-   * M96 lane T: the `team` server for `session/start`, on team conversations
-   * only (lanes B/T own the server; extension.ts wires it). Absent: every
-   * Muse Code session starts exactly as today.
-   */
+  M96 lane T: the `team` server for `session/start`, on team conversations
+  only (lanes B/T own the server; extension.ts wires it). Absent: every
+  Muse Code session starts exactly as today.
+  */
   readonly teamMcp?:
     | {
         /** Whether a new conversation here runs the team; read at session start. */
@@ -533,11 +533,11 @@ export interface ConversationDeps {
       }
     | undefined
   /**
-   * M96 lane T: the orchestrator slot. A new conversation starts on the
-   * workspace override, or the picker's model; the pill then shows the
-   * resolved model (lanes R/U1 own the Roles section; M95's lane U owns the
-   * picker's listModels/setModel regions).
-   */
+  M96 lane T: the orchestrator slot. A new conversation starts on the
+  workspace override, or the picker's model; the pill then shows the
+  resolved model (lanes R/U1 own the Roles section; M95's lane U owns the
+  picker's listModels/setModel regions).
+  */
   readonly orchestratorSlot?:
     | {
         readonly modelForNewConversation: (pickerModelId: string) => string
@@ -558,10 +558,10 @@ export interface ConversationDeps {
   /** Voice dictation (M9): the platform's helper, or why there is none. */
   readonly dictation: DictationSetup
   /**
-   * Muse Voice (M35, PLAN.md D30) when it is the microphone's engine (its
-   * setting on, its price accepted, the Model API backend); undefined while
-   * the free engine is.
-   */
+  Muse Voice (M35, PLAN.md D30) when it is the microphone's engine (its
+  setting on, its price accepted, the Model API backend); undefined while
+  the free engine is.
+  */
   readonly museVoice: () => DictationSetup | undefined
   readonly modelApiSessionBudgetUsd: () => UsdAmount
   /** Digest only; available before a conversation or workspace exists. */
@@ -574,32 +574,32 @@ export interface ConversationDeps {
   /** Session import and share files (M84, PLAN.md D49): pick a JSON file, confirm the import. */
   readonly transferFiles: SessionTransferFiles
   /**
-   * Report a problem (M93, PLAN.md D72): the flight recorder's side for this
-   * surface. Undefined where no recorder could start; the dialog then says
-   * plainly that it did not work, and failures go unrecorded.
-   */
+  Report a problem (M93, PLAN.md D72): the flight recorder's side for this
+  surface. Undefined where no recorder could start; the dialog then says
+  plainly that it did not work, and failures go unrecorded.
+  */
   readonly reports?: ConversationReports | undefined
   /** Saved plans (M79); undefined without a workspace folder. */
   readonly plans: PlanFiles | undefined
   /** The palette's paid-feature toggles (M33, PLAN.md D30): on asks for the price first. */
   readonly setPaidFeature: (feature: PaidFeature, isOn: boolean) => Promise<void>
   /**
-   * VS Code workspace trust (PLAN.md D13): Restricted Mode runs no `!`
-   * command (M46). VS Code's alone; git also needs the hold let go (M71).
-   */
+  VS Code workspace trust (PLAN.md D13): Restricted Mode runs no `!`
+  command (M46). VS Code's alone; git also needs the hold let go (M71).
+  */
   readonly isWorkspaceTrusted: () => boolean
   /**
-   * The window is held on someone else's pull request (M71): the
-   * conversation stays in Plan mode and runs no `!` command until the user
-   * trusts the worktree in the extension's card.
-   */
+  The window is held on someone else's pull request (M71): the
+  conversation stays in Plan mode and runs no `!` command until the user
+  trusts the worktree in the extension's card.
+  */
   readonly isWorktreeHeld: () => boolean
   /** Git and pull requests for this conversation (M71), given the controller's side. */
   readonly createGit: (surface: GitSurface) => ConversationGitPort
   /**
-   * A command that Ctrl+B can move to the background started or stopped
-   * running here (M46): the keybinding's context key follows.
-   */
+  A command that Ctrl+B can move to the background started or stopped
+  running here (M46): the keybinding's context key follows.
+  */
   readonly onForegroundTasksChanged: () => void
   /** W binds the v2 scheduler: consent is collected at creation, never per fire. */
   readonly runScheduledOccurrence?: (id: string, occurrenceMs: number) => Promise<void>
@@ -662,30 +662,30 @@ export interface ConversationDeps {
   /** The file system's canonical read, for the worktree confinement (M77). */
   readonly realPath: (absolutePath: string) => Promise<string>
   /**
-   * The verify loop's note to Muse Code (M68, PLAN.md D49), read for each
-   * message: check the diagnostics of what it edits (only when the session
-   * has the `ide` server), run the user's checks. Undefined when there is
-   * nothing to say.
-   */
+  The verify loop's note to Muse Code (M68, PLAN.md D49), read for each
+  message: check the diagnostics of what it edits (only when the session
+  has the `ide` server), run the user's checks. Undefined when there is
+  nothing to say.
+  */
   readonly verifyGuidance?: (hasIdeServer: boolean) => string | undefined
   /**
-   * This surface's tasks tab (M87, PLAN.md D66): "Open in a Tab" opens it,
-   * and it follows the conversation's list. Undefined in a host without
-   * editor tabs, where the action says it failed.
-   */
+  This surface's tasks tab (M87, PLAN.md D66): "Open in a Tab" opens it,
+  and it follows the conversation's list. Undefined in a host without
+  editor tabs, where the action says it failed.
+  */
   readonly tasksTab?: TasksTabPort
   /**
-   * The bundled skills' offer (M89, PLAN.md D68), asked when a Muse Code
-   * conversation starts: a notice with Install (or Update) and Not now, at
-   * most once per window; undefined when there is nothing to offer.
-   */
+  The bundled skills' offer (M89, PLAN.md D68), asked when a Muse Code
+  conversation starts: a notice with Install (or Update) and Not now, at
+  most once per window; undefined when there is nothing to offer.
+  */
   readonly bundledSkillsOffer?: () => Promise<
     { readonly text: string; readonly actions: readonly NoticeAction[] } | undefined
   >
   /**
-   * A turn of this surface's session needs the user (M82): the controller
-   * names what, the window's `BackgroundNotifier` decides whether it shows.
-   */
+  A turn of this surface's session needs the user (M82): the controller
+  names what, the window's `BackgroundNotifier` decides whether it shows.
+  */
   readonly notifyAttention: (notice: AttentionNotice) => void
   /** M112 holding-process binding. Integration supplies global storage and the machine-only reader. */
   readonly questions?: {
@@ -695,10 +695,10 @@ export interface ConversationDeps {
     readonly formatAnswer: QuestionAnswerText
   }
   /**
-   * The Auto reviewer on Muse Code (M90, PLAN.md D69), one per window: in
-   * Auto, an approval Muse Code raised goes to it before the user. Absent
-   * where there is none.
-   */
+  The Auto reviewer on Muse Code (M90, PLAN.md D69), one per window: in
+  Auto, an approval Muse Code raised goes to it before the user. Absent
+  where there is none.
+  */
   readonly judge?: JudgeAdvisory | undefined
   readonly museCodeReviewer?: MuseCodeReviewerPort
   readonly now: () => number
@@ -901,9 +901,9 @@ interface ExportNotice {
 }
 
 /**
- * What an export that wrote nothing tells the user (M30, M84); `exported`
- * and a closed preview (`dismissed`) say nothing.
- */
+What an export that wrote nothing tells the user (M30, M84); `exported`
+and a closed preview (`dismissed`) say nothing.
+*/
 function exportNotice(outcome: ExportOutcome): ExportNotice | undefined {
   const notices: Readonly<Partial<Record<ExportOutcome, ExportNotice>>> = {
     logUnavailable: { level: 'warning', text: UI_TEXT.exportLogUnavailable },
@@ -955,11 +955,11 @@ function isContributorModel(modelId: string): boolean {
 }
 
 /**
- * A new conversation that starts from a brief (M79's "Implement in a fresh
- * conversation"; M74's `/handoff` is to reuse it). The old conversation is
- * left as it is (History keeps it) and nothing of it is carried over: the
- * first message is the brief alone, in the starting permission mode.
- */
+A new conversation that starts from a brief (M79's "Implement in a fresh
+conversation"; M74's `/handoff` is to reuse it). The old conversation is
+left as it is (History keeps it) and nothing of it is carried over: the
+first message is the brief alone, in the starting permission mode.
+*/
 export interface ConversationBrief {
   /** What the brief is, for the log: never its content, nor a name drawn from it (M39). */
   readonly label: string
@@ -970,25 +970,25 @@ export interface ConversationBrief {
   /** The brief as a named UTF-8 text file (M54's path on both backends), if it is one. */
   readonly attachment: { readonly name: string; readonly bytes: Uint8Array } | undefined
   /**
-   * What the model reads after it (MODEL_TEXT, English), told whether the
-   * todo list below was set, which only some backends allow.
-   */
+  What the model reads after it (MODEL_TEXT, English), told whether the
+  todo list below was set, which only some backends allow.
+  */
   readonly modelNote: (hasSetTodos: boolean) => string
   /** The todo list the conversation starts with, where the backend lets the extension set one. */
   readonly todos: readonly TodoItem[]
   /**
-   * Whether the user approved this content here: a Plan-mode reply of this
-   * panel's conversation. Anything else (a file from the workspace, or a
-   * reply in a conversation that holds imported history, M84) is untrusted
-   * content (PLAN.md D49): the conversation starts in a mode that asks,
-   * whatever `museSpark.initialPermissionMode` says.
-   */
+  Whether the user approved this content here: a Plan-mode reply of this
+  panel's conversation. Anything else (a file from the workspace, or a
+  reply in a conversation that holds imported history, M84) is untrusted
+  content (PLAN.md D49): the conversation starts in a mode that asks,
+  whatever `museSpark.initialPermissionMode` says.
+  */
   readonly isApproved: boolean
   /**
-   * Whether the new conversation stays in Plan mode, whatever the above
-   * says: a handoff from a Plan-mode conversation (M74) never leaves Plan
-   * for a mode that acts.
-   */
+  Whether the new conversation stays in Plan mode, whatever the above
+  says: a handoff from a Plan-mode conversation (M74) never leaves Plan
+  for a mode that acts.
+  */
   readonly shouldKeepPlanMode: boolean
 }
 
@@ -1020,14 +1020,14 @@ const STEERED_DISPOSITION = 'steered'
 const PLAN_MODE: PermissionMode = 'plan'
 
 /**
- * A plan as a conversation's brief (M79): the plan file attached, what to do
- * with it for the model, and its steps as the todo list. Where the backend
- * lets the extension set that list, the note says what it was set to (the
- * model does not see the list otherwise); where it does not (MSP has no todo
- * command), the note asks the model to take the steps as its list. A plan
- * the user approved here is said to be approved; a file from the workspace
- * is untrusted content, and the note says so.
- */
+A plan as a conversation's brief (M79): the plan file attached, what to do
+with it for the model, and its steps as the todo list. Where the backend
+lets the extension set that list, the note says what it was set to (the
+model does not see the list otherwise); where it does not (MSP has no todo
+command), the note asks the model to take the steps as its list. A plan
+the user approved here is said to be approved; a file from the workspace
+is untrusted content, and the note says so.
+*/
 function planBrief(
   relativePath: string,
   bytes: Uint8Array,
@@ -1064,16 +1064,16 @@ function planBrief(
 }
 
 /**
- * A distilled brief as a conversation's brief (M74): the reviewed text
- * itself is the first message — no file travels — with the goal and the
- * open items as the model's note. The model wrote it, so it counts as
- * approved, and starts in the starting mode, only when the dialog showed
- * the user all of it before Start: the brief and the open items it lists,
- * neither holding a character the dialog does not show. Otherwise it is
- * untrusted content and starts in a mode that asks, as a plan file does; a
- * handoff from Plan mode stays in Plan. The [untrusted] labels it carries
- * keep their meaning through the note (PLAN.md D49).
- */
+A distilled brief as a conversation's brief (M74): the reviewed text
+itself is the first message — no file travels — with the goal and the
+open items as the model's note. The model wrote it, so it counts as
+approved, and starts in the starting mode, only when the dialog showed
+the user all of it before Start: the brief and the open items it lists,
+neither holding a character the dialog does not show. Otherwise it is
+untrusted content and starts in a mode that asks, as a plan file does; a
+handoff from Plan mode stays in Plan. The [untrusted] labels it carries
+keep their meaning through the note (PLAN.md D49).
+*/
 function handoffBrief(
   briefText: string,
   goal: string | undefined,
@@ -1121,9 +1121,9 @@ interface PendingHandoff {
   isReadingBrief: boolean
   isStarting: boolean
   /**
-   * The send epoch owning the slot; a resumable restart adopts a waiting
-   * brief into the new one, so the sign-in retry still owns it.
-   */
+  The send epoch owning the slot; a resumable restart adopts a waiting
+  brief into the new one, so the sign-in retry still owns it.
+  */
   generation: number
 }
 
@@ -1134,10 +1134,10 @@ interface ComposerEffort {
 }
 
 /**
- * One session's reasoning-effort changes (CLI recovery, 2026-10-03: eight
- * slider steps sent eight `session/setReasoningEffort` at once to a Muse
- * Code that answered none, each failing with its own warning).
- */
+One session's reasoning-effort changes (CLI recovery, 2026-10-03: eight
+slider steps sent eight `session/setReasoningEffort` at once to a Muse
+Code that answered none, each failing with its own warning).
+*/
 interface EffortSync {
   /** The wire value wanted now, and the composer state it stands for. */
   wanted: string
@@ -1169,10 +1169,10 @@ export class ConversationController {
   private unsubscribe: (() => void) | undefined
   private models: readonly ModelOption[] | undefined
   /**
-   * Models the host flagged as training on the content, from the unfiltered
-   * listing (M95): the picker never sees them where confidential, and neither
-   * does a stale `setModel`. Refreshed with every listing, forgotten with it.
-   */
+  Models the host flagged as training on the content, from the unfiltered
+  listing (M95): the picker never sees them where confidential, and neither
+  does a stale `setModel`. Refreshed with every listing, forgotten with it.
+  */
   private readonly trainingModelIds = new Set<string>()
   private modelListing: Promise<void> | undefined
   /** The backend the model catalogue was listed from; a new backend or sign-in starts a new one. */
@@ -1210,19 +1210,19 @@ export class ConversationController {
   /** Muse Code does not persist a side marker: this panel may resume only its own fork. */
   private readonly sideSessionIds = new Set<string>()
   /**
-   * Sessions this panel opened that hold imported history (M84, PLAN.md
-   * D49), forks included: a plan written in one is untrusted content. Every
-   * such session passes through `adopt`; a resume after a restart only
-   * reopens a session this panel already had.
-   */
+  Sessions this panel opened that hold imported history (M84, PLAN.md
+  D49), forks included: a plan written in one is untrusted content. Every
+  such session passes through `adopt`; a resume after a restart only
+  reopens a session this panel already had.
+  */
   private readonly importedSessionIds = new Set<string>()
   private effort: EffortLevel = DEFAULT_EFFORT
   private isThinkingEnabled = true
   private activeTurnId: string | undefined
   /**
-   * Child sessions this surface has rows for. Their turns reach the parent
-   * stream (M48) but never take the parent turn's steering, Stop or Ctrl+B.
-   */
+  Child sessions this surface has rows for. Their turns reach the parent
+  stream (M48) but never take the parent turn's steering, Stop or Ctrl+B.
+  */
   private messageDisplayQueue: Promise<void> = Promise.resolve()
   private readonly childSessionIds = new Set<string>()
   private hasWarnedSandbox = false
@@ -1245,15 +1245,15 @@ export class ConversationController {
   /** The engine the driver above records with (M35). */
   private dictationEngine: DictationEngine = 'system'
   /**
-   * A driver whose engine stopped being the microphone's while it recorded
-   * (the review of PR #27): its recording was ended, and it is kept until
-   * the transcript of what it already sent arrives or the panel closes.
-   */
+  A driver whose engine stopped being the microphone's while it recorded
+  (the review of PR #27): its recording was ended, and it is kept until
+  the transcript of what it already sent arrives or the panel closes.
+  */
   private retiredDictation: DictationHandle | undefined
   /**
-   * Counts every microphone press (M58): a Muse Voice start waits for the
-   * paid-use popup, and a stop pressed meanwhile cancels it.
-   */
+  Counts every microphone press (M58): a Muse Voice start waits for the
+  paid-use popup, and a stop pressed meanwhile cancels it.
+  */
   private dictationPresses = 0
   /** Read synchronously by the paid driver's start; each stream keeps that immutable scope. */
   private startingVoiceBudgetScope: OwnedSessionBudgetScope | undefined
@@ -1263,9 +1263,9 @@ export class ConversationController {
   /** Approvals "Edit Automatically" answered itself (D24): their resolution is labelled so. */
   private readonly autoApproved = new Set<string>()
   /**
-   * The Auto reviewer on Muse Code (M90, PLAN.md D69): this conversation's
-   * approvals in its hands (and its breaker), made on the first review.
-   */
+  The Auto reviewer on Muse Code (M90, PLAN.md D69): this conversation's
+  approvals in its hands (and its breaker), made on the first review.
+  */
   private reviews: ReviewedApprovals | undefined
   private readonly judgeCards = new Map<string, JudgeFence>()
   /** What the reviewer is shown (M78's input): the user's latest message, the turn's calls so far. */
@@ -1276,29 +1276,29 @@ export class ConversationController {
   /** Said once the surface is ready: why the conversation did not start as configured. */
   private startupNotice: string | undefined
   /**
-   * Failures already shown in the panel. Everything waiting on one host
-   * start gets the same failure when it fails: it is shown once, and the
-   * other waiters only log it (0.10.0 showed one slow start six times).
-   */
+  Failures already shown in the panel. Everything waiting on one host
+  start gets the same failure when it fails: it is shown once, and the
+  other waiters only log it (0.10.0 showed one slow start six times).
+  */
   private readonly shownFailures = new WeakSet<object>()
   /**
-   * Muse Code faults said in this panel, by session and fault (D26): each is
-   * said once, with its way on; a repeat only logs.
-   */
+  Muse Code faults said in this panel, by session and fault (D26): each is
+  said once, with its way on; a repeat only logs.
+  */
   private readonly shownFaults = new Set<string>()
   /**
-   * Stored-output reads in flight, by item, output and offset: a row that
-   * asks again (re-rendered, collapsed and expanded) joins the read already
-   * sent instead of queueing another behind it on a busy host.
-   */
+  Stored-output reads in flight, by item, output and offset: a row that
+  asks again (re-rendered, collapsed and expanded) joins the read already
+  sent instead of queueing another behind it on a busy host.
+  */
   private readonly outputReads = new Map<string, Promise<void>>()
   private readonly shareDiffs = new Map<string, { readonly ref: string; readonly text: string }>()
   private readonly shareDecisions = new Map<string, string>()
   /**
-   * Stored-output reads sent at once, the rest waiting in order (CLI
-   * recovery): a read still waiting when its session is no longer this
-   * panel's is never sent.
-   */
+  Stored-output reads sent at once, the rest waiting in order (CLI
+  recovery): a read still waiting when its session is no longer this
+  panel's is never sent.
+  */
   private readonly outputReadSlots = new FifoLimiter(MSP_READ_OUTPUT_CONCURRENCY)
   /** A failed output read was said in this conversation; later ones only log until one succeeds. */
   private hasSaidOutputFailure = false
@@ -1323,9 +1323,9 @@ export class ConversationController {
   /** The surface closed: nothing started after this is kept. */
   private isDisposed = false
   /**
-   * Turns this session has seen complete (D26): a submission's ack that
-   * lands after its own turn finished must not mark that turn running again.
-   */
+  Turns this session has seen complete (D26): a submission's ack that
+  lands after its own turn finished must not mark that turn running again.
+  */
   private readonly finishedTurns = new Set<string>()
   /** Whether the attached session's host renames and forks (D26: not Muse Code 1.3.0 on Windows). */
   private canEditSessions = true
@@ -1344,9 +1344,9 @@ export class ConversationController {
   private pendingDelta: Extract<AgentEvent, { type: 'textDelta' }> | undefined
   private deltaTimer: ReturnType<typeof setTimeout> | undefined
   /**
-   * The running turn's shell calls still in the foreground, by item (M46):
-   * what Ctrl+B moves to the background.
-   */
+  The running turn's shell calls still in the foreground, by item (M46):
+  what Ctrl+B moves to the background.
+  */
   private readonly foregroundShells = new Set<string>()
   /** A shell's row can start before its approval is granted (Model API). */
   private readonly pendingShellApprovals = new Set<string>()
@@ -1354,9 +1354,9 @@ export class ConversationController {
   /** Commit, push, pull requests and their generated drafts (M71). */
   private readonly git: ConversationGitPort
   /**
-   * A Muse Code review turn holding the session in Plan mode (M70), and the
-   * mode the user had, which comes back when that turn ends.
-   */
+  A Muse Code review turn holding the session in Plan mode (M70), and the
+  mode the user had, which comes back when that turn ends.
+  */
   private planHold:
     | {
         readonly hold: PlanModeHold
@@ -1365,19 +1365,19 @@ export class ConversationController {
       }
     | undefined
   /**
-   * A `/review` on its way (git, the pickers, the session): one at a time.
-   * A message sent meanwhile waits for it (`sessionForAction`), so it cannot
-   * start a turn the review's own turn would then queue or steer behind.
-   * It belongs to the conversation that started it: a dropped conversation
-   * lets it go (`dropSession`), so its outstanding command never holds up
-   * or refuses the next conversation.
-   */
+  A `/review` on its way (git, the pickers, the session): one at a time.
+  A message sent meanwhile waits for it (`sessionForAction`), so it cannot
+  start a turn the review's own turn would then queue or steer behind.
+  It belongs to the conversation that started it: a dropped conversation
+  lets it go (`dropSession`), so its outstanding command never holds up
+  or refuses the next conversation.
+  */
   private reviewStart: Promise<void> | undefined
   /**
-   * A `/legal` scan on its way (M97): the deterministic scan, no turn — one
-   * at a time. Its signal stops when the session goes (`dropSession`), so a
-   * scan never answers for a conversation that moved on.
-   */
+  A `/legal` scan on its way (M97): the deterministic scan, no turn — one
+  at a time. Its signal stops when the session goes (`dropSession`), so a
+  scan never answers for a conversation that moved on.
+  */
   private legalScanStart: Promise<void> | undefined
   private legalScanStop: AbortController | undefined
   private legalScanSequence = 0
@@ -1390,53 +1390,53 @@ export class ConversationController {
   /** Turning Bypass off invalidates prior popups and restores, even after off/on. */
   private bypassRevocationEpoch = 0
   /**
-   * The review pane's hunks reverted in this session (M70): each is taken out
-   * once. The value is the press that holds it, so a press that went stale
-   * releases only its own hold.
-   */
+  The review pane's hunks reverted in this session (M70): each is taken out
+  once. The value is the press that holds it, so a press that went stale
+  releases only its own hold.
+  */
   private readonly revertedHunks = new Map<string, symbol>()
   /**
-   * The legal report's stored fix previews (M97 lane W): each confirm
-   * rechecks the preview's evidence and file hashes, so a changed file,
-   * a lost trust, or a dropped session refuses instead of writing.
-   */
+  The legal report's stored fix previews (M97 lane W): each confirm
+  rechecks the preview's evidence and file hashes, so a changed file,
+  a lost trust, or a dropped session refuses instead of writing.
+  */
   private readonly legalFixPreviews = new LegalFixPreviews()
   /**
-   * The turns this panel started in Plan mode that finished with the panel
-   * in Plan mode throughout (M79): only their replies are plans. A restart
-   * keeps them (the resumed session has the same turns); a new conversation
-   * forgets them.
-   */
+  The turns this panel started in Plan mode that finished with the panel
+  in Plan mode throughout (M79): only their replies are plans. A restart
+  keeps them (the resumed session has the same turns); a new conversation
+  forgets them.
+  */
   private readonly planTurnIds = new Set<string>()
   /**
-   * Plan-mode turns sent but not finished yet, running or queued: leaving
-   * Plan mode drops them all, since any of them may then act.
-   */
+  Plan-mode turns sent but not finished yet, running or queued: leaving
+  Plan mode drops them all, since any of them may then act.
+  */
   private readonly pendingPlanTurnIds = new Set<string>()
   /** Plan actions and handoff Start share the conversation-replacing operation lock. */
   private isPlanActionRunning = false
   /** This conversation's turn checkpoints (M72). */
   private readonly checkpoints: ConversationCheckpoints
   /**
-   * A `/handoff` (M74) in flight: its distillation turn, then its brief
-   * waiting in the dialog. One at a time; a new conversation drops it.
-   */
+  A `/handoff` (M74) in flight: its distillation turn, then its brief
+  waiting in the dialog. One at a time; a new conversation drops it.
+  */
   private pendingHandoff: PendingHandoff | undefined
   /** Report a problem (M93): the dialog's handler, one per surface, loaded with dist/report.js. */
   private reportHandler:
     Promise<{ handle: (message: ReportProblemMessage) => Promise<void> }> | undefined
   /**
-   * Messages of this session accepted as queued or steered that may still be
-   * taken back (M87, PLAN.md D66), by their card's local id: the only ids an
-   * Edit may name. The backend has the last word (`tooLate`).
-   */
+  Messages of this session accepted as queued or steered that may still be
+  taken back (M87, PLAN.md D66), by their card's local id: the only ids an
+  Edit may name. The backend has the last word (`tooLate`).
+  */
   private readonly queuedMessages = new Map<string, QueuedMessageRef>()
   /**
-   * User items a request read before their submission's ack came back (M87):
-   * the late ack must not offer them for an Edit. Cleared with the session,
-   * and when a turn ends (a steer acknowledged after its turn ended is not
-   * kept anyway).
-   */
+  User items a request read before their submission's ack came back (M87):
+  the late ack must not offer them for an Edit. Cleared with the session,
+  and when a turn ends (a steer acknowledged after its turn ended is not
+  kept anyway).
+  */
   private readonly admittedEarly = new Set<string>()
   /** Cards whose withdrawal is in flight: a second Edit leaves the answer to the first. */
   private readonly withdrawals = new Set<string>()
@@ -1445,10 +1445,10 @@ export class ConversationController {
   /** The last todo list a session's events or history gave (M87: the tasks tab's list). */
   private todoList: { readonly sessionId: string; readonly items: readonly TodoItem[] } | undefined
   /**
-   * The conversation a tasks tab was opened for (M87), by its session; a
-   * conversation that had none yet takes its first. Undefined: no tab is
-   * open for this surface's conversation.
-   */
+  The conversation a tasks tab was opened for (M87), by its session; a
+  conversation that had none yet takes its first. Undefined: no tab is
+  open for this surface's conversation.
+  */
   private tasksTabFor: { readonly sessionId: string | undefined } | undefined
   /** One v2 channel request from the panel over the workspace control. */
   private schedulesRevision = 0
@@ -1463,10 +1463,10 @@ export class ConversationController {
   >()
 
   /**
-   * M96 lane T: whether this conversation's sessions carry the `team`
-   * server. Decided at session start, kept unchanged at every resume in this
-   * window and workspace metadata; older sessions keep today's single-model set.
-   */
+  M96 lane T: whether this conversation's sessions carry the `team`
+  server. Decided at session start, kept unchanged at every resume in this
+  window and workspace metadata; older sessions keep today's single-model set.
+  */
   private teamServerAttached: boolean | undefined
   private teamServerSessionId: string | undefined
 
@@ -1567,9 +1567,9 @@ export class ConversationController {
   }
 
   /**
-   * Streamed text is posted at most once a frame (M39): consecutive deltas of
-   * one item's field join, and any other message posts them first.
-   */
+  Streamed text is posted at most once a frame (M39): consecutive deltas of
+  one item's field join, and any other message posts them first.
+  */
   private queueDelta(event: Extract<AgentEvent, { type: 'textDelta' }>): void {
     const pending = this.pendingDelta
     if (pending?.itemId === event.itemId && pending.field === event.field) {
@@ -1598,9 +1598,9 @@ export class ConversationController {
   }
 
   /**
-   * Says `text` in the panel. A warning or an error goes to the log as well
-   * (M39): "Open log" and a support report hold every failure the user saw.
-   */
+  Says `text` in the panel. A warning or an error goes to the log as well
+  (M39): "Open log" and a support report hold every failure the user saw.
+  */
   private notice(level: NoticeLevel, text: string, redoRestoreId?: string, error?: unknown): void {
     const logged = isMspFailure(error) ? failureForLog(error) : redactSecrets(text)
     if (level === 'error') {
@@ -1612,11 +1612,11 @@ export class ConversationController {
   }
 
   /**
-   * Says `text` in the panel only: for a failure already logged in more
-   * detail. A file restore's notice carries its Redo (M72). An error is
-   * journalled as a fact (M93, D72), never its text, and its row offers
-   * "Report This" with the sanitized reference.
-   */
+  Says `text` in the panel only: for a failure already logged in more
+  detail. A file restore's notice carries its Redo (M72). An error is
+  journalled as a fact (M93, D72), never its text, and its row offers
+  "Report This" with the sanitized reference.
+  */
   private say(level: NoticeLevel, text: string, redoRestoreId?: string): void {
     const reportRef =
       level === 'error'
@@ -1632,11 +1632,11 @@ export class ConversationController {
   }
 
   /**
-   * A Muse Code fault (D26), said once per session in plain words with the
-   * way on: the replay fault refuses every message, so it offers a restart
-   * (after which the session runs again) and a new conversation; the ledger
-   * fault only spoils each decision's reply, so it offers a new conversation.
-   */
+  A Muse Code fault (D26), said once per session in plain words with the
+  way on: the replay fault refuses every message, so it offers a restart
+  (after which the session runs again) and a new conversation; the ledger
+  fault only spoils each decision's reply, so it offers a new conversation.
+  */
   private noteMuseCodeFault(error: MuseCodeFaultError): void {
     const key = this.faultKey(error.fault)
     if (this.shownFaults.has(key)) {
@@ -1671,12 +1671,12 @@ export class ConversationController {
   }
 
   /**
-   * Muse Code said this session's event log failed (CLI recovery): Muse Code
-   * 1.4.2 then failed every message of it (the owner's session of
-   * 2026-10-02/03). It is kept as damaged in this workspace, the newest
-   * `DAMAGED_SESSIONS_KEPT`: never resumed by itself again, and a message to
-   * it is refused before Muse Code hears of it. It stays in History.
-   */
+  Muse Code said this session's event log failed (CLI recovery): Muse Code
+  1.4.2 then failed every message of it (the owner's session of
+  2026-10-02/03). It is kept as damaged in this workspace, the newest
+  `DAMAGED_SESSIONS_KEPT`: never resumed by itself again, and a message to
+  it is refused before Muse Code hears of it. It stays in History.
+  */
   private markDamaged(sessionId: string, how: string): void {
     const damaged = this.deps.sessions.damagedIds()
     if (damaged.includes(sessionId)) {
@@ -1699,10 +1699,10 @@ export class ConversationController {
   }
 
   /**
-   * A message or action for a damaged session (CLI recovery): a message's
-   * card says why and the composer keeps the draft; the notice beside it
-   * offers a new conversation (D26's way on), each time.
-   */
+  A message or action for a damaged session (CLI recovery): a message's
+  card says why and the composer keeps the draft; the notice beside it
+  offers a new conversation (D26's way on), each time.
+  */
   private refuseDamaged(
     sessionId: string,
     localId: string | undefined,
@@ -1728,9 +1728,9 @@ export class ConversationController {
   }
 
   /**
-   * Whether this panel is yet to show `error`, which it now counts as shown:
-   * the first of the actions sharing a failed start shows it, the rest log it.
-   */
+  Whether this panel is yet to show `error`, which it now counts as shown:
+  the first of the actions sharing a failed start shows it, the rest log it.
+  */
   private isFirstShowing(error: unknown): boolean {
     if (typeof error === 'object' && error !== null && this.shownFailures.has(error)) {
       return false
@@ -1817,9 +1817,9 @@ export class ConversationController {
   }
 
   /**
-   * "Open in a Tab" on the task list (M87, PLAN.md D66): the tab opens for
-   * this conversation, the session it runs on now or resumes on next.
-   */
+  "Open in a Tab" on the task list (M87, PLAN.md D66): the tab opens for
+  this conversation, the session it runs on now or resumes on next.
+  */
   private openTasksTab(): void {
     const failed = fill(UI_TEXT.hostActionFailed, { action: 'openTasksTab' })
     const port = this.deps.tasksTab
@@ -1838,11 +1838,11 @@ export class ConversationController {
   }
 
   /**
-   * The tasks tab follows its conversation (M87): its list and name while
-   * that conversation's session is the attached one, and the end once
-   * another session takes the surface. Between sessions (one opening, a
-   * restart) nothing is said: the same conversation may come back.
-   */
+  The tasks tab follows its conversation (M87): its list and name while
+  that conversation's session is the attached one, and the end once
+  another session takes the surface. Between sessions (one opening, a
+  restart) nothing is said: the same conversation may come back.
+  */
   private refreshTasksTab(): void {
     const bound = this.tasksTabFor
     const sessionId = this.session?.sessionId
@@ -1899,10 +1899,10 @@ export class ConversationController {
   }
 
   /**
-   * Lets go of the session. A turn still running is cancelled first unless
-   * the caller says the host is already gone or has been told (PLAN.md D25):
-   * a dropped turn would otherwise run on, unwatched and billed.
-   */
+  Lets go of the session. A turn still running is cancelled first unless
+  the caller says the host is already gone or has been told (PLAN.md D25):
+  a dropped turn would otherwise run on, unwatched and billed.
+  */
   private dropSession(isTurnCancelled = true, isOwnedRecovery = false): void {
     this.shareDiffs.clear()
     this.shareDecisions.clear()
@@ -1995,10 +1995,10 @@ export class ConversationController {
   }
 
   /**
-   * Ends the running turn in the webview when the host cannot say so any
-   * more (it stopped, restarted or closed the session, D25): the reply stops
-   * streaming and its cards go, as for a turn the host completed.
-   */
+  Ends the running turn in the webview when the host cannot say so any
+  more (it stopped, restarted or closed the session, D25): the reply stops
+  streaming and its cards go, as for a turn the host completed.
+  */
   private endTurnLocally(terminal: 'cancelled' | 'failed', reason: string): void {
     const turnId = this.activeTurnId
     if (turnId === undefined) {
@@ -2044,10 +2044,10 @@ export class ConversationController {
   }
 
   /**
-   * "Edit Automatically" (PLAN.md D24): the allow-once choice for a plain
-   * file write, which the controller answers itself; undefined for anything
-   * the user must see (commands, protected writes, escalations, other modes).
-   */
+  "Edit Automatically" (PLAN.md D24): the allow-once choice for a plain
+  file write, which the controller answers itself; undefined for anything
+  the user must see (commands, protected writes, escalations, other modes).
+  */
   private autoApprovalChoice(
     event: Extract<AgentEvent, { type: 'approvalRequested' }>,
   ): ApprovalChoice | undefined {
@@ -2083,11 +2083,11 @@ export class ConversationController {
   }
 
   /**
-   * Whether the Auto reviewer judges an approval before the user (M90,
-   * PLAN.md D69): Auto on Muse Code with its setting on, one panel holding
-   * the session (as for Edit automatically), and an approval that
-   * `isReviewableApproval` admits.
-   */
+  Whether the Auto reviewer judges an approval before the user (M90,
+  PLAN.md D69): Auto on Muse Code with its setting on, one panel holding
+  the session (as for Edit automatically), and an approval that
+  `isReviewableApproval` admits.
+  */
   private isReviewerApproval(event: Extract<AgentEvent, { type: 'approvalRequested' }>): boolean {
     const port = this.deps.museCodeReviewer
     return (
@@ -2102,9 +2102,9 @@ export class ConversationController {
   }
 
   /**
-   * One approval to the Auto reviewer (M90): held from the panel, its card
-   * shown only if the review leaves it to the user (reviewedApprovals.ts).
-   */
+  One approval to the Auto reviewer (M90): held from the panel, its card
+  shown only if the review leaves it to the user (reviewedApprovals.ts).
+  */
   private holdForReview(event: Extract<AgentEvent, { type: 'approvalRequested' }>): void {
     const { session } = this
     const port = this.deps.museCodeReviewer
@@ -2225,11 +2225,11 @@ export class ConversationController {
 
   /** An event as the webview sees it, plus the unread mark. */
   /**
-   * The failures a session's events show, journalled as facts (M93, D72): a
-   * failed turn (its error row then offers "Report This" with the returned
-   * reference) and a failed tool call. Nothing else of the event is kept;
-   * the event itself goes to the panel unchanged.
-   */
+  The failures a session's events show, journalled as facts (M93, D72): a
+  failed turn (its error row then offers "Report This" with the returned
+  reference) and a failed tool call. Nothing else of the event is kept;
+  the event itself goes to the panel unchanged.
+  */
   private observeFailure(event: AgentEvent): ReportEventRef | undefined {
     const reports = this.deps.reports
     if (reports === undefined) {
@@ -2271,9 +2271,9 @@ export class ConversationController {
   }
 
   /**
-   * Live delivery dropped events (MSP `view/gap`, D26): the transcript is
-   * re-read whole, once more if another gap arrived during the read.
-   */
+  Live delivery dropped events (MSP `view/gap`, D26): the transcript is
+  re-read whole, once more if another gap arrived during the read.
+  */
   private async reloadAfterGaps(generation: number): Promise<void> {
     let handled = -1
     while (generation === this.sendInvalidationEpoch && handled !== this.gapCount) {
@@ -2337,12 +2337,12 @@ export class ConversationController {
   }
 
   /**
-   * An assistant message about to show (M91 lane E): MessageDisplay fires
-   * on both backends, since display passes through here. The message is
-   * held until its hooks answer; a display-only rewrite travels on the
-   * forwarded item's `displayText` while `text` stays the original, so
-   * history, copy and export keep what the model wrote. True when held.
-   */
+  An assistant message about to show (M91 lane E): MessageDisplay fires
+  on both backends, since display passes through here. The message is
+  held until its hooks answer; a display-only rewrite travels on the
+  forwarded item's `displayText` while `text` stays the original, so
+  history, copy and export keep what the model wrote. True when held.
+  */
   private holdForMessageDisplay(event: Extract<AgentEvent, { type: 'itemCompleted' }>): boolean {
     const session = this.session
     const fire = session?.fireExtensionHook
@@ -2551,12 +2551,12 @@ export class ConversationController {
   }
 
   /**
-   * Messages no longer to be taken back once `turnId` started, was withdrawn
-   * or ended (M87). A start or a withdrawal settles the turn's own queued
-   * message; a steered one joined a turn already running, so it stays until
-   * admitted. An end settles both: a steer the turn did not take has by
-   * then moved to a turn of its own (`userMessageTurnChanged`).
-   */
+  Messages no longer to be taken back once `turnId` started, was withdrawn
+  or ended (M87). A start or a withdrawal settles the turn's own queued
+  message; a steered one joined a turn already running, so it stays until
+  admitted. An end settles both: a steer the turn did not take has by
+  then moved to a turn of its own (`userMessageTurnChanged`).
+  */
   private forgetQueuedTurn(turnId: string, hasEnded = false): void {
     for (const [localId, message] of this.queuedMessages) {
       if (message.turnId === turnId && (hasEnded || message.disposition === QUEUED_DISPOSITION)) {
@@ -2567,9 +2567,9 @@ export class ConversationController {
 
   /** The controller's own bookkeeping for an event the webview was sent. */
   /**
-   * A turn of a known child session (M48): its row names the session id, and
-   * a Model API child's turn ids prefix it, as the panel already reads them.
-   */
+  A turn of a known child session (M48): its row names the session id, and
+  a Model API child's turn ids prefix it, as the panel already reads them.
+  */
   private isChildTurn(turnId: string): boolean {
     return isChildTurn(turnId, this.childSessionIds)
   }
@@ -2773,9 +2773,9 @@ export class ConversationController {
   }
 
   /**
-   * Keeps the set Ctrl+B acts on (M46): the running turn's shell calls, while
-   * they run and are not yet in the background.
-   */
+  Keeps the set Ctrl+B acts on (M46): the running turn's shell calls, while
+  they run and are not yet in the background.
+  */
   private noteForegroundShell(item: ItemSnapshot): void {
     const isForeground = this.isForegroundShell(item, this.activeTurnId)
     const wasForeground = this.foregroundShells.has(item.itemId)
@@ -2857,12 +2857,12 @@ export class ConversationController {
   }
 
   /**
-   * The shell sandbox's notice when a Muse Code session starts (PLAN.md D12).
-   * Without the sandbox, Muse Code's file tools write anywhere without asking
-   * (musecode-write-asks), which is said once per window, whether the setting
-   * or `auto` turned it off. The sandbox forced on where this CLI cannot run
-   * commands (#26) is warned once per session.
-   */
+  The shell sandbox's notice when a Muse Code session starts (PLAN.md D12).
+  Without the sandbox, Muse Code's file tools write anywhere without asking
+  (musecode-write-asks), which is said once per window, whether the setting
+  or `auto` turned it off. The sandbox forced on where this CLI cannot run
+  commands (#26) is warned once per session.
+  */
   private noteShellSandbox(): void {
     const posture = this.deps.shellSandbox()
     if (!posture.isSandboxed) {
@@ -2882,11 +2882,11 @@ export class ConversationController {
   }
 
   /**
-   * The shell tool's "sandbox not set up" failure gets one actionable notice;
-   * a `!` row's too (M46). While Muse Code's sandbox is still preparing
-   * (its read-access worker holds the lock), it is set up already, so the
-   * notice says to wait instead and no setup is offered.
-   */
+  The shell tool's "sandbox not set up" failure gets one actionable notice;
+  a `!` row's too (M46). While Muse Code's sandbox is still preparing
+  (its read-access worker holds the lock), it is set up already, so the
+  notice says to wait instead and no setup is offered.
+  */
   private noteSandboxFailure(text: string | undefined): void {
     if (text === undefined || this.hasWarnedSandbox) {
       return
@@ -2961,10 +2961,10 @@ export class ConversationController {
   }
 
   /**
-   * A decision or answer that arrived after its prompt had moved (D26): the
-   * user is told it was not needed, and a prompt the host no longer holds
-   * loses its card (an answered or advanced one follows the host's events).
-   */
+  A decision or answer that arrived after its prompt had moved (D26): the
+  user is told it was not needed, and a prompt the host no longer holds
+  loses its card (an answered or advanced one follows the host's events).
+  */
   private promptSettled(
     error: PromptSettledError,
     prompt: { readonly approvalId: string } | { readonly userInputId: string },
@@ -3184,10 +3184,10 @@ export class ConversationController {
   }
 
   /**
-   * One task command (M46): moving a running command to the background, or
-   * stopping a task. Refused, the user is told why and the row's button is
-   * free again.
-   */
+  One task command (M46): moving a running command to the background, or
+  stopping a task. Refused, the user is told why and the row's button is
+  free again.
+  */
   private async taskCommand(
     itemId: string,
     run: (session: AgentSession) => Promise<void>,
@@ -3233,11 +3233,11 @@ export class ConversationController {
   }
 
   /**
-   * A `!` prompt (M46, PLAN.md D39): the user's own command, run by the
-   * backend outside any turn, never in Restricted Mode (D13). The user typed
-   * it, so no approval card asks again, whatever the permission mode. One
-   * that does not run comes back to the prompt with the reason.
-   */
+  A `!` prompt (M46, PLAN.md D39): the user's own command, run by the
+  backend outside any turn, never in Restricted Mode (D13). The user typed
+  it, so no approval card asks again, whatever the permission mode. One
+  that does not run comes back to the prompt with the reason.
+  */
   private async runUserShell(command: string): Promise<void> {
     const trimmed = command.trim()
     if (trimmed === '') {
@@ -3294,13 +3294,13 @@ export class ConversationController {
   }
 
   /**
-   * One page of a row's stored output (an edit's patch). A read already in
-   * flight for the same page is joined, not sent again, and its page serves
-   * every row that asked. A failed read is said once in a conversation, with
-   * how to retry (collapse and expand the row); later failures only log
-   * until a read succeeds again, so a busy Muse Code (one answering reads
-   * one after another, more than 60 s behind) stacks no notices (D26).
-   */
+  One page of a row's stored output (an edit's patch). A read already in
+  flight for the same page is joined, not sent again, and its page serves
+  every row that asked. A failed read is said once in a conversation, with
+  how to retry (collapse and expand the row); later failures only log
+  until a read succeeds again, so a busy Muse Code (one answering reads
+  one after another, more than 60 s behind) stacks no notices (D26).
+  */
   private async readOutput(
     message: Extract<ConversationMessage, { type: 'readOutput' }>,
   ): Promise<void> {
@@ -3369,11 +3369,11 @@ export class ConversationController {
   }
 
   /**
-   * One stored-output page through the read slots (CLI recovery): at most
-   * `MSP_READ_OUTPUT_CONCURRENCY` in flight, the rest in order. One whose
-   * session is no longer this panel's when its turn comes is never sent: it
-   * fails as a stale read, which its caller does not show.
-   */
+  One stored-output page through the read slots (CLI recovery): at most
+  `MSP_READ_OUTPUT_CONCURRENCY` in flight, the rest in order. One whose
+  session is no longer this panel's when its turn comes is never sent: it
+  fails as a stale read, which its caller does not show.
+  */
   private readOutputSlot(
     session: AgentSession,
     generation: number,
@@ -3507,12 +3507,12 @@ export class ConversationController {
   }
 
   /**
-   * "Rewind Code to Here": the edits after a message, reverted newest first
-   * (M13), after the same confirmation as a file restore (M72). With `fork`
-   * ("Fork and Rewind") the fork follows the rewind in
-   * this one action, so neither can overtake the other; declining the
-   * confirmation does neither.
-   */
+  "Rewind Code to Here": the edits after a message, reverted newest first
+  (M13), after the same confirmation as a file restore (M72). With `fork`
+  ("Fork and Rewind") the fork follows the rewind in
+  this one action, so neither can overtake the other; declining the
+  confirmation does neither.
+  */
   private async rewindCode(
     message: Extract<ConversationMessage, { type: 'rewindCode' }>,
   ): Promise<void> {
@@ -3563,10 +3563,10 @@ export class ConversationController {
   }
 
   /**
-   * An edit row's Revert (M87, D66 item 17): the one edit undone after the
-   * same kind of confirmation as "Rewind Code to Here", whose single step
-   * it is. `reviewEdit` says what was reverted, or why a file was not.
-   */
+  An edit row's Revert (M87, D66 item 17): the one edit undone after the
+  same kind of confirmation as "Rewind Code to Here", whose single step
+  it is. `reviewEdit` says what was reverted, or why a file was not.
+  */
   private async revertEdit(itemId: string, outputRef: string): Promise<void> {
     const session = this.session
     const generation = this.sendInvalidationEpoch
@@ -3600,10 +3600,10 @@ export class ConversationController {
   }
 
   /**
-   * Whether a Revert must not touch the files now (M87): a turn runs or is
-   * being submitted, one started since `turnStartEpoch`, or a `/review` is
-   * starting (M70), whose turn would read them mid-change.
-   */
+  Whether a Revert must not touch the files now (M87): a turn runs or is
+  being submitted, one started since `turnStartEpoch`, or a `/review` is
+  starting (M70), whose turn would read them mid-change.
+  */
   private isRevertRefused(turnStartEpoch: number): boolean {
     return (
       this.isTurnRunning() ||
@@ -3675,10 +3675,10 @@ export class ConversationController {
   }
 
   /**
-   * The catalogue belongs to the backend, not to a conversation: a new, resumed or
-   * forked conversation keeps it (it once emptied the picker until the next send).
-   * Only a backend that stops or exits, or a sign-in change, forgets it.
-   */
+  The catalogue belongs to the backend, not to a conversation: a new, resumed or
+  forked conversation keeps it (it once emptied the picker until the next send).
+  Only a backend that stops or exits, or a sign-in change, forgets it.
+  */
   private forgetModels(): void {
     const didHaveModels = this.models !== undefined
     this.modelGeneration += 1
@@ -3747,14 +3747,14 @@ export class ConversationController {
   }
 
   /**
-   * The composer's effort for the session; a refusal is said, and the turn
-   * still goes. One `session/setReasoningEffort` per session is in flight
-   * (CLI recovery): a change meanwhile replaces the one waiting, which is
-   * sent when the first settles if it differs from what that sent, and a
-   * burst's failure is said once. `kept` is what the session holds before
-   * this burst. Resolves to undefined when the newest value applied, else to
-   * the composer state the session still holds.
-   */
+  The composer's effort for the session; a refusal is said, and the turn
+  still goes. One `session/setReasoningEffort` per session is in flight
+  (CLI recovery): a change meanwhile replaces the one waiting, which is
+  sent when the first settles if it differs from what that sent, and a
+  burst's failure is said once. `kept` is what the session holds before
+  this burst. Resolves to undefined when the newest value applied, else to
+  the composer state the session still holds.
+  */
   private applyEffort(
     session: AgentSession,
     kept: ComposerEffort,
@@ -3973,10 +3973,10 @@ export class ConversationController {
   }
 
   /**
-   * The session for the next message. Concurrent callers (two quick sends, a
-   * send racing a restore) share one start, so no second session is created
-   * and left listening (D25).
-   */
+  The session for the next message. Concurrent callers (two quick sends, a
+  send racing a restore) share one start, so no second session is created
+  and left listening (D25).
+  */
   private ensureSession(workspaceRoot: string): Promise<AgentSession> {
     if (this.session !== undefined) {
       return Promise.resolve(this.session)
@@ -4091,14 +4091,14 @@ export class ConversationController {
   }
 
   /**
-   * A resumed Muse Code session runs on the person's choice (restart
-   * recovery): `session/resume` takes no model and a turn carries none, so
-   * the choice is applied with `session/setModel` and read back with
-   * `model/list` before the next turn is sent. The panel and the log then
-   * show the model the CLI reports. When it differs, nothing is sent: the
-   * conversation stays resumable, so choosing the reported model and
-   * resending continues it. Returns the CLI's listing for the session.
-   */
+  A resumed Muse Code session runs on the person's choice (restart
+  recovery): `session/resume` takes no model and a turn carries none, so
+  the choice is applied with `session/setModel` and read back with
+  `model/list` before the next turn is sent. The panel and the log then
+  show the model the CLI reports. When it differs, nothing is sent: the
+  conversation stays resumable, so choosing the reported model and
+  resending continues it. Returns the CLI's listing for the session.
+  */
   private async enforceResumedModel(
     host: AgentHost,
     loaded: LoadedSession,
@@ -4137,13 +4137,13 @@ export class ConversationController {
   }
 
   /**
-   * After a restart, a crash or the host closing the session, the next
-   * message continues the same conversation (D25) rather than starting one
-   * with no context. The webview kept its transcript, so nothing is
-   * replayed. If the session cannot be resumed the user is told and a new
-   * one starts. If the CLI reports another model than the chosen one, the
-   * message is refused instead and the conversation stays resumable.
-   */
+  After a restart, a crash or the host closing the session, the next
+  message continues the same conversation (D25) rather than starting one
+  with no context. The webview kept its transcript, so nothing is
+  replayed. If the session cannot be resumed the user is told and a new
+  one starts. If the CLI reports another model than the chosen one, the
+  message is refused instead and the conversation stays resumable.
+  */
   private async resumeAfterRestart(
     host: AgentHost,
     generation: number,
@@ -4254,11 +4254,11 @@ export class ConversationController {
   }
 
   /**
-   * Whether the panel still shows `sessionId`'s conversation: attached, or
-   * the one the next message resumes after a restart, a crash or the host
-   * closing it (D25). A new or other conversation, or an account stop, which
-   * clears every panel, is not.
-   */
+  Whether the panel still shows `sessionId`'s conversation: attached, or
+  the one the next message resumes after a restart, a crash or the host
+  closing it (D25). A new or other conversation, or an account stop, which
+  clears every panel, is not.
+  */
   private holdsConversation(sessionId: string): boolean {
     return (
       !this.isDisposed &&
@@ -4273,10 +4273,10 @@ export class ConversationController {
   }
 
   /**
-   * Why an action cannot run now, posted as asked. A refused message's
-   * images were never used, so the composer gets them back, unless the
-   * message was the host's own (a brief, M79), whose chip goes with it.
-   */
+  Why an action cannot run now, posted as asked. A refused message's
+  images were never used, so the composer gets them back, unless the
+  message was the host's own (a brief, M79), whose chip goes with it.
+  */
   private refuseAction(localId?: string, isComposerMessage = true): string | undefined {
     const isSignedIn = this.isAuthAdmitted()
     const reason = isSignedIn ? undefined : UI_TEXT.notSignedInReason
@@ -4710,7 +4710,7 @@ export class ConversationController {
         item.kind === USER_MESSAGE_KIND &&
         item.turnId !== undefined &&
         (this.planTurnIds.has(item.turnId) || this.pendingPlanTurnIds.has(item.turnId))
-          ? [item.turnId]
+          ? item.turnId
           : [],
       ),
     )
@@ -4746,13 +4746,13 @@ export class ConversationController {
   }
 
   /**
-   * Make a resumed or forked session this surface's: the transcript is
-   * rebuilt from its history, the model comes from the catalogue's active
-   * row (never the record's `modelId`, PLAN.md M6), and this surface's
-   * composer settings are applied to it. A resumed conversation then has
-   * that standing model applied and read back, and a mismatch refuses
-   * instead of sending on the wrong model.
-   */
+  Make a resumed or forked session this surface's: the transcript is
+  rebuilt from its history, the model comes from the catalogue's active
+  row (never the record's `modelId`, PLAN.md M6), and this surface's
+  composer settings are applied to it. A resumed conversation then has
+  that standing model applied and read back, and a mismatch refuses
+  instead of sending on the wrong model.
+  */
   private async adopt(
     host: AgentHost,
     loaded: LoadedSession,
@@ -4992,11 +4992,11 @@ export class ConversationController {
   }
 
   /**
-   * Every check a conversation rewind makes before it changes anything
-   * (M53): the source still shown, no file card, the served card and its
-   * cut, its images at hand. Undefined, with the reason said, when it cannot
-   * go on; a restore that comes with it (M72) runs only after this passed.
-   */
+  Every check a conversation rewind makes before it changes anything
+  (M53): the source still shown, no file card, the served card and its
+  cut, its images at hand. Undefined, with the reason said, when it cannot
+  go on; a restore that comes with it (M72) runs only after this passed.
+  */
   private async prepareRewind(
     message: RewindConversationMessage,
   ): Promise<PreparedRewind | undefined> {
@@ -5122,9 +5122,9 @@ export class ConversationController {
   }
 
   /**
-   * A message's images back in the composer (M53's rewind, M87's Edit on a
-   * queued message); true when every one came back.
-   */
+  A message's images back in the composer (M53's rewind, M87's Edit on a
+  queued message); true when every one came back.
+  */
   private returnImages(images: readonly SentImage[]): boolean {
     let isEveryImageBack = true
     for (const image of images) {
@@ -5188,11 +5188,11 @@ export class ConversationController {
   // --- Plans as files (M79, PLAN.md D49) ---
 
   /**
-   * The session a plan action names: the attached one, or, after a restart,
-   * a crash or the host closing it (D25), the one the next message would
-   * resume, resumed now. Undefined, with the reason said, when the panel
-   * no longer holds that conversation.
-   */
+  The session a plan action names: the attached one, or, after a restart,
+  a crash or the host closing it (D25), the one the next message would
+  resume, resumed now. Undefined, with the reason said, when the panel
+  no longer holds that conversation.
+  */
   private async planSession(
     sourceSessionId: string,
     generation: number,
@@ -5214,16 +5214,16 @@ export class ConversationController {
   }
 
   /**
-   * The reply to save as a plan: read back from the host, never taken from
-   * the webview, and only while it is this conversation's latest reply, from
-   * a turn this panel started in Plan mode and that stayed in it, with no
-   * turn running and the panel still in Plan mode. Neither backend marks a
-   * plan or its approval on the wire: Muse Code 1.4.0 in Plan mode sends its
-   * plan as an ordinary `agentMessage` and takes the user's next message
-   * ("go") as the go-ahead (captured live, D13), and the Model API harness
-   * has no plan tool. The panel's Save plan or Implement is the approval.
-   * Undefined, with the reason said, otherwise.
-   */
+  The reply to save as a plan: read back from the host, never taken from
+  the webview, and only while it is this conversation's latest reply, from
+  a turn this panel started in Plan mode and that stayed in it, with no
+  turn running and the panel still in Plan mode. Neither backend marks a
+  plan or its approval on the wire: Muse Code 1.4.0 in Plan mode sends its
+  plan as an ordinary `agentMessage` and takes the user's next message
+  ("go") as the go-ahead (captured live, D13), and the Model API harness
+  has no plan tool. The panel's Save plan or Implement is the approval.
+  Undefined, with the reason said, otherwise.
+  */
   private async planReply(
     sourceSessionId: string,
     itemId: string,
@@ -5237,9 +5237,9 @@ export class ConversationController {
         /** Captured from the validated live host/session, never the webview's argument alone. */
         readonly ownerRecorder: WorkspaceEditRecorder | undefined
         /**
-         * Written over imported history (M84), read while the session is
-         * still the panel's: its mark goes when the session is dropped.
-         */
+        Written over imported history (M84), read while the session is
+        still the panel's: its mark goes when the session is dropped.
+        */
         readonly isImported: boolean
       }
     | undefined
@@ -5310,11 +5310,11 @@ export class ConversationController {
   }
 
   /**
-   * Saves the latest Plan-mode reply under `.agents/plans/`, checked afresh
-   * on every press: the file (new, or the same plan found saved already) and
-   * the plan's text, or undefined with the reason said. A workspace write,
-   * so Restricted Mode refuses it, and `.agents` is protected, so it asks.
-   */
+  Saves the latest Plan-mode reply under `.agents/plans/`, checked afresh
+  on every press: the file (new, or the same plan found saved already) and
+  the plan's text, or undefined with the reason said. A workspace write,
+  so Restricted Mode refuses it, and `.agents` is protected, so it asks.
+  */
   private async savePlanReply(
     sourceSessionId: string,
     itemId: string,
@@ -5392,10 +5392,10 @@ export class ConversationController {
   }
 
   /**
-   * One plan action or handoff Start at a time: a second press while Save
-   * plan, Implement, Plans… or Start still runs is dropped, and said, so
-   * only one operation can leave and seed a conversation.
-   */
+  One plan action or handoff Start at a time: a second press while Save
+  plan, Implement, Plans… or Start still runs is dropped, and said, so
+  only one operation can leave and seed a conversation.
+  */
   private async onePlanAction(run: () => Promise<void>): Promise<void> {
     if (this.isPlanActionRunning) {
       this.say('info', UI_TEXT.planActionBusy)
@@ -5439,12 +5439,12 @@ export class ConversationController {
   }
 
   /**
-   * Whether git and the project's own configuration may run here: VS Code
-   * trusts the folder and the window is not held on someone else's pull
-   * request, or the card let the hold go (M71). Best-of-N, the session
-   * board's worktree reads and a review of git's changes ask this, never
-   * VS Code's trust alone: a held worktree runs no git of the extension's.
-   */
+  Whether git and the project's own configuration may run here: VS Code
+  trusts the folder and the window is not held on someone else's pull
+  request, or the card let the hold go (M71). Best-of-N, the session
+  board's worktree reads and a review of git's changes ask this, never
+  VS Code's trust alone: a held worktree runs no git of the extension's.
+  */
   private isProjectTrusted(): boolean {
     return this.deps.isWorkspaceTrusted() && !this.deps.isWorktreeHeld()
   }
@@ -5458,10 +5458,10 @@ export class ConversationController {
   }
 
   /**
-   * The mode an approved brief starts in: the configured starting mode,
-   * Plan only while a PR worktree is held, and Bypass only where a conversation could start in it and
-   * never in a remote window (D24); otherwise Manual.
-   */
+  The mode an approved brief starts in: the configured starting mode,
+  Plan only while a PR worktree is held, and Bypass only where a conversation could start in it and
+  never in a remote window (D24); otherwise Manual.
+  */
   private briefMode(): PermissionMode {
     if (this.deps.isWorktreeHeld()) {
       return PLAN_MODE
@@ -5473,9 +5473,9 @@ export class ConversationController {
   }
 
   /**
-   * The mode a brief built on untrusted content starts in (D49): one that
-   * asks, Manual, or Plan when that is the starting mode.
-   */
+  The mode a brief built on untrusted content starts in (D49): one that
+  asks, Manual, or Plan when that is the starting mode.
+  */
   private untrustedBriefMode(): PermissionMode {
     return this.deps.isWorktreeHeld() || this.deps.initialPermissionMode === PLAN_MODE
       ? PLAN_MODE
@@ -5491,13 +5491,13 @@ export class ConversationController {
   }
 
   /**
-   * Starts a new conversation on this backend from a brief (M79; M74's
-   * `/handoff` reuses it). The attachment is checked before anything is
-   * left, so a brief the backend would not take changes nothing. Then this
-   * conversation is left (History keeps it), Plan mode gives way to the
-   * brief's mode, and the brief is sent as the first message, with its card,
-   * its note for the model and, where the backend takes one, its todo list.
-   */
+  Starts a new conversation on this backend from a brief (M79; M74's
+  `/handoff` reuses it). The attachment is checked before anything is
+  left, so a brief the backend would not take changes nothing. Then this
+  conversation is left (History keeps it), Plan mode gives way to the
+  brief's mode, and the brief is sent as the first message, with its card,
+  its note for the model and, where the backend takes one, its todo list.
+  */
   private async startFromBrief(
     brief: ConversationBrief,
     generation: number,
@@ -5622,14 +5622,14 @@ export class ConversationController {
   }
 
   /**
-   * The brief a plan becomes: a reply saved first, or a saved file, which is
-   * untrusted content. Either way the model gets the plan as the panel shows
-   * a plan reply (`briefText`: a link's destination beside its text, a
-   * picture's source, a definition, all as rendered text), never markup it
-   * would not show. Implementing either reads workspace text into the
-   * model, so Restricted Mode refuses it. Undefined, with the reason said,
-   * when there is none.
-   */
+  The brief a plan becomes: a reply saved first, or a saved file, which is
+  untrusted content. Either way the model gets the plan as the panel shows
+  a plan reply (`briefText`: a link's destination beside its text, a
+  picture's source, a definition, all as rendered text), never markup it
+  would not show. Implementing either reads workspace text into the
+  model, so Restricted Mode refuses it. Undefined, with the reason said,
+  when there is none.
+  */
   private async planBriefFor(
     source: PlanSource,
     generation: number,
@@ -5742,12 +5742,12 @@ export class ConversationController {
   }
 
   /**
-   * The one check after every await of a handoff's request, brief read and
-   * Start (M74): the operation still owns the slot in the same
-   * conversation (`isCurrentHandoff`), and the backend still admits it.
-   * Where only admission fails (a key activation), the operation is
-   * refused but kept, its brief and dialog intact, to be retried.
-   */
+  The one check after every await of a handoff's request, brief read and
+  Start (M74): the operation still owns the slot in the same
+  conversation (`isCurrentHandoff`), and the backend still admits it.
+  Where only admission fails (a key activation), the operation is
+  refused but kept, its brief and dialog intact, to be retried.
+  */
   private isStillCurrent(pending: PendingHandoff): boolean {
     return this.isCurrentHandoff(pending) && this.isAuthAdmitted()
   }
@@ -5774,11 +5774,11 @@ export class ConversationController {
   }
 
   /**
-   * `/handoff …` (M74): the host says whether it took the command
-   * (`handoffCommandResult`, correlated by `requestId`), and the composer
-   * keeps the typed command until it did, so a refused handoff keeps its
-   * goal, as `/goal` does.
-   */
+  `/handoff …` (M74): the host says whether it took the command
+  (`handoffCommandResult`, correlated by `requestId`), and the composer
+  keeps the typed command until it did, so a refused handoff keeps its
+  goal, as `/goal` does.
+  */
   private async requestHandoff(requestId: string, goal: string | undefined): Promise<void> {
     let isAccepted = false
     try {
@@ -5789,11 +5789,11 @@ export class ConversationController {
   }
 
   /**
-   * Asks the model, as the user's own turn in this conversation, for a
-   * distilled brief: true once that turn was accepted. Model API only:
-   * Muse Code compacts itself. The brief lands in the dialog through
-   * `finishHandoff`; nothing starts before the user confirms it.
-   */
+  Asks the model, as the user's own turn in this conversation, for a
+  distilled brief: true once that turn was accepted. Model API only:
+  Muse Code compacts itself. The brief lands in the dialog through
+  `finishHandoff`; nothing starts before the user confirms it.
+  */
   private async distilHandoff(requestId: string, goal: string | undefined): Promise<boolean> {
     if (this.isSideChat) {
       this.notice('info', UI_TEXT.handoffSideChat)
@@ -5908,10 +5908,10 @@ export class ConversationController {
   }
 
   /**
-   * The distillation turn completed: read its reply back as the brief and
-   * show it in the dialog, with the open todo items. The turn's own card
-   * stays in the transcript; the new conversation starts only on confirm.
-   */
+  The distillation turn completed: read its reply back as the brief and
+  show it in the dialog, with the open todo items. The turn's own card
+  stays in the transcript; the new conversation starts only on confirm.
+  */
   private async finishHandoff(turnId: string): Promise<void> {
     const pending = this.pendingHandoff
     if (pending?.turnId !== turnId || pending.brief !== undefined || pending.isReadingBrief) {
@@ -5978,10 +5978,10 @@ export class ConversationController {
   }
 
   /**
-   * A distillation turn that completed while admission was closed (M74):
-   * its brief is read now, when the backend admits it again. True when a
-   * read started, so the dialog is on its way.
-   */
+  A distillation turn that completed while admission was closed (M74):
+  its brief is read now, when the backend admits it again. True when a
+  read started, so the dialog is on its way.
+  */
   private readWaitingBrief(): boolean {
     const pending = this.pendingHandoff
     if (
@@ -6001,14 +6001,14 @@ export class ConversationController {
   }
 
   /**
-   * The waiting brief's dialog: posted when the distillation turn completed,
-   * and again to a rebuilt panel, whose dialog went with its webview while
-   * the brief waits here, so a later `/handoff` is never refused as busy
-   * with nothing to answer; never one whose conversation is gone (a restart
-   * left it stale), which the next request drops. The open items show in it
-   * too, so before Start the user sees all the model wrote that the new
-   * conversation reads (D49).
-   */
+  The waiting brief's dialog: posted when the distillation turn completed,
+  and again to a rebuilt panel, whose dialog went with its webview while
+  the brief waits here, so a later `/handoff` is never refused as busy
+  with nothing to answer; never one whose conversation is gone (a restart
+  left it stale), which the next request drops. The open items show in it
+  too, so before Start the user sees all the model wrote that the new
+  conversation reads (D49).
+  */
   private postHandoffReady(): void {
     const pending = this.pendingHandoff
     if (pending?.brief === undefined || !this.isCurrentHandoff(pending)) {
@@ -6024,13 +6024,13 @@ export class ConversationController {
   }
 
   /**
-   * The handoff dialog's Start: the reviewed brief seeds a new
-   * conversation through the same path as a plan's (M79's
-   * `startFromBrief`): the old conversation is left as it is, and the
-   * brief alone is the first message, with the open items as its list. Its
-   * mode is `handoffBrief`'s: the starting mode only for a brief the dialog
-   * showed whole, and Plan kept from a Plan-mode conversation.
-   */
+  The handoff dialog's Start: the reviewed brief seeds a new
+  conversation through the same path as a plan's (M79's
+  `startFromBrief`): the old conversation is left as it is, and the
+  brief alone is the first message, with the open items as its list. Its
+  mode is `handoffBrief`'s: the starting mode only for a brief the dialog
+  showed whole, and Plan kept from a Plan-mode conversation.
+  */
   private async confirmHandoff(requestId: string, brief: string): Promise<void> {
     const pending = this.pendingHandoff
     if (pending?.requestId !== requestId || pending.brief === undefined || pending.isStarting) {
@@ -6144,11 +6144,11 @@ export class ConversationController {
   }
 
   /**
-   * The transcript's turn ids of the conversation from `turnId` on, with
-   * every turn of the child sessions those turns started, theirs included
-   * (M86, spec 3.2): a restore goes ahead only when each has a record.
-   * Undefined when the transcript cannot be read or does not hold the turn.
-   */
+  The transcript's turn ids of the conversation from `turnId` on, with
+  every turn of the child sessions those turns started, theirs included
+  (M86, spec 3.2): a restore goes ahead only when each has a record.
+  Undefined when the transcript cannot be read or does not hold the turn.
+  */
   private async transcriptTurnIds(
     host: AgentHost,
     sessionId: string,
@@ -6188,10 +6188,10 @@ export class ConversationController {
   }
 
   /**
-   * "Restore Files to Here" (M72, M86), and with `rewind` the conversation
-   * too ("Rewind Conversation and Restore Files"), once the files are
-   * restored.
-   */
+  "Restore Files to Here" (M72, M86), and with `rewind` the conversation
+  too ("Rewind Conversation and Restore Files"), once the files are
+  restored.
+  */
   private async restoreFiles(
     message: Extract<ConversationMessage, { type: 'restoreFiles' }>,
   ): Promise<void> {
@@ -6267,19 +6267,19 @@ export class ConversationController {
   }
 
   /**
-   * Whether a turn runs in this conversation now: read afresh after an
-   * await (a turn may start while a confirmation is open), which a
-   * narrowed `activeTurnId` would not be.
-   */
+  Whether a turn runs in this conversation now: read afresh after an
+  await (a turn may start while a confirmation is open), which a
+  narrowed `activeTurnId` would not be.
+  */
   private isTurnRunning(): boolean {
     return this.activeTurnId !== undefined || this.turnSubmissionsInFlight > 0
   }
 
   /**
-   * A restore's Redo (M72, M86): never while a turn runs here, and only for
-   * the conversation shown, which the request names (the store also checks
-   * that the restore was that conversation's).
-   */
+  A restore's Redo (M72, M86): never while a turn runs here, and only for
+  the conversation shown, which the request names (the store also checks
+  that the restore was that conversation's).
+  */
   private async redoRestore(
     message: Extract<ConversationMessage, { type: 'redoRestore' }>,
   ): Promise<void> {
@@ -6431,10 +6431,10 @@ export class ConversationController {
   }
 
   /**
-   * The editor-context part for this message (Claude Code's IDE reminder).
-   * A file the mention index does not list (gitignored / excluded) shares
-   * its path but not its text.
-   */
+  The editor-context part for this message (Claude Code's IDE reminder).
+  A file the mention index does not list (gitignored / excluded) shares
+  its path but not its text.
+  */
   private async contextPart(context: EditorContext | undefined): Promise<TurnPart | undefined> {
     if (context === undefined) {
       return undefined
@@ -6463,9 +6463,9 @@ export class ConversationController {
   }
 
   /**
-   * Muse reads and edits the files on disk, not the editors' unsaved text
-   * (D27): the user is told which files differ, once for each set of them.
-   */
+  Muse reads and edits the files on disk, not the editors' unsaved text
+  (D27): the user is told which files differ, once for each set of them.
+  */
   private noteUnsaved(): void {
     const unsaved = this.deps.unsavedFiles()
     const key = unsaved.toSorted((left, right) => left.localeCompare(right)).join('\n')
@@ -6485,12 +6485,12 @@ export class ConversationController {
   }
 
   /**
-   * Sends one message. A brief (M79) is the host's own message: its card
-   * shows `brief.displayText` while the model reads `text` (English), its
-   * note and, where the backend takes one, its todo list; if it fails, its
-   * chip goes with the card rather than back to the composer, and the todo
-   * list it set is taken back.
-   */
+  Sends one message. A brief (M79) is the host's own message: its card
+  shows `brief.displayText` while the model reads `text` (English), its
+  note and, where the backend takes one, its todo list; if it fails, its
+  chip goes with the card rather than back to the composer, and the todo
+  list it set is taken back.
+  */
   private async send(
     localId: string,
     text: string,
@@ -6661,7 +6661,7 @@ export class ConversationController {
       const shownText = brief?.displayText ?? cardText ?? text
       // MSP stores no text-file attachment metadata: keep each name in the
       // durable card while the full content travels only to the model (M54).
-      const textFileNames = typed.flatMap((part) => (part.type === 'textFile' ? [part.name] : []))
+      const textFileNames = typed.flatMap((part) => (part.type === 'textFile' ? part.name : []))
       let displayText =
         brief === undefined && cardText === undefined && parts.length === typed.length
           ? undefined
@@ -6801,10 +6801,10 @@ export class ConversationController {
   }
 
   /**
-   * A message the backend queued or steered, where its session can take one
-   * back (M87, PLAN.md D66): kept under its card's id for an Edit. Not one
-   * whose queued turn already started or ended before this ack (D26).
-   */
+  A message the backend queued or steered, where its session can take one
+  back (M87, PLAN.md D66): kept under its card's id for an Edit. Not one
+  whose queued turn already started or ended before this ack (D26).
+  */
   private noteQueuedMessage(
     session: AgentSession,
     localId: string,
@@ -6830,13 +6830,13 @@ export class ConversationController {
   }
 
   /**
-   * Edit on a queued message (M87, PLAN.md D66): the session takes it back
-   * if the model does not have it yet. Only a message this conversation
-   * accepted as queued or steered, under the ids the card names, is asked
-   * for; anything else is refused before the backend hears of it. Taken
-   * back, its images return to the composer and the card is told; too late,
-   * the card stays and says why.
-   */
+  Edit on a queued message (M87, PLAN.md D66): the session takes it back
+  if the model does not have it yet. Only a message this conversation
+  accepted as queued or steered, under the ids the card names, is asked
+  for; anything else is refused before the backend hears of it. Taken
+  back, its images return to the composer and the card is told; too late,
+  the card stays and says why.
+  */
   private async withdrawQueued(
     message: Extract<ConversationMessage, { type: 'withdrawQueued' }>,
   ): Promise<void> {
@@ -6968,14 +6968,14 @@ export class ConversationController {
   }
 
   /**
-   * `/review` (M70, PLAN.md D49). Git's changes need a trusted workspace
-   * (Restricted Mode runs no git); custom instructions do not. The material
-   * goes between markers that call it untrusted. On the Model API the turn
-   * runs as the Reviewer; on Muse Code it is an ordinary turn held in Plan
-   * mode. Either way it is a turn of this conversation, part of the user's
-   * own, so nothing asks for payment. Its card is the webview's own, as a
-   * message's is: accepted, or failed with the reason.
-   */
+  `/review` (M70, PLAN.md D49). Git's changes need a trusted workspace
+  (Restricted Mode runs no git); custom instructions do not. The material
+  goes between markers that call it untrusted. On the Model API the turn
+  runs as the Reviewer; on Muse Code it is an ordinary turn held in Plan
+  mode. Either way it is a turn of this conversation, part of the user's
+  own, so nothing asks for payment. Its card is the webview's own, as a
+  message's is: accepted, or failed with the reason.
+  */
   private async startReview(localId: string, text: string, request: ReviewRequest): Promise<void> {
     // Says why when it refuses (signed out, no folder), as a message's card does.
     const refusal = this.refuseAction(localId)
@@ -7146,14 +7146,14 @@ export class ConversationController {
   }
 
   /**
-   * `/legal` (M97, PLAN.md D76): the deterministic scan and its report (lane
-   * W renders it). No model, no writes, no backend started: the scan runs
-   * the injected runner under lane 0's contract. Refusals are panel notices
-   * (the request carries no card); a cancelled or stale scan says nothing.
-   * On the Model API backend, or with no live session, the scan runs as is;
-   * on a live Muse Code conversation it holds Plan mode for the scan (M70's
-   * hold, D76), restored only while the scan still owns it.
-   */
+  `/legal` (M97, PLAN.md D76): the deterministic scan and its report (lane
+  W renders it). No model, no writes, no backend started: the scan runs
+  the injected runner under lane 0's contract. Refusals are panel notices
+  (the request carries no card); a cancelled or stale scan says nothing.
+  On the Model API backend, or with no live session, the scan runs as is;
+  on a live Muse Code conversation it holds Plan mode for the scan (M70's
+  hold, D76), restored only while the scan still owns it.
+  */
   private async startLegalScan(input: LegalScanInput | undefined): Promise<void> {
     if (this.deps.workspaceRoot === undefined) {
       this.notice('warning', UI_TEXT.noWorkspaceReason)
@@ -7250,12 +7250,12 @@ export class ConversationController {
   }
 
   /**
-   * The scan under the Plan-mode hold on a live Muse Code conversation
-   * (M70's hold, D76): nothing is written, so no turn runs under it. The
-   * hold is taken only while the session is still this conversation's; a
-   * release meanwhile (the user's own mode choice) leaves their choice
-   * alone, and a failed hold is dropped like a failed review's.
-   */
+  The scan under the Plan-mode hold on a live Muse Code conversation
+  (M70's hold, D76): nothing is written, so no turn runs under it. The
+  hold is taken only while the session is still this conversation's; a
+  release meanwhile (the user's own mode choice) leaves their choice
+  alone, and a failed hold is dropped like a failed review's.
+  */
   private async runHeldLegalScan(
     input: LegalScanInput,
     runner: LegalScanRunner,
@@ -7413,10 +7413,10 @@ export class ConversationController {
   }
 
   /**
-   * A turn or scan holding the session in Plan mode (M70, and M97's scan):
-   * the hold, the mode the user had, the panel in Plan until it comes back.
-   * The caller's own notice says what runs under it.
-   */
+  A turn or scan holding the session in Plan mode (M70, and M97's scan):
+  the hold, the mode the user had, the panel in Plan until it comes back.
+  The caller's own notice says what runs under it.
+  */
   private takePlanHold(
     createHold: (holdDeps: PlanModeHoldDeps) => PlanModeHold,
     session: AgentSession,
@@ -7440,10 +7440,10 @@ export class ConversationController {
   }
 
   /**
-   * A held turn or scan failed before its end put the mode back (M70): Plan
-   * mode was refused (nothing to put back), or the held work failed and the
-   * hold put the mode back already.
-   */
+  A held turn or scan failed before its end put the mode back (M70): Plan
+  mode was refused (nothing to put back), or the held work failed and the
+  hold put the mode back already.
+  */
   private dropFailedHold(hold: PlanModeHold, session: AgentSession, generation: number): void {
     const held = this.planHold
     if (held?.hold !== hold) {
@@ -7479,11 +7479,11 @@ export class ConversationController {
   }
 
   /**
-   * The hold set the session's mode back, or could not (M70): after the
-   * review turn, or after a send that failed. A session the host no longer
-   * holds takes the user's mode when it is resumed; a live one left in Plan
-   * mode keeps the panel in Plan mode too, and says so.
-   */
+  The hold set the session's mode back, or could not (M70): after the
+  review turn, or after a send that failed. A session the host no longer
+  holds takes the user's mode when it is resumed; a live one left in Plan
+  mode keeps the panel in Plan mode too, and says so.
+  */
   private planModeRestored(
     hold: PlanModeHold,
     outcome: PlanModeRestore,
@@ -7520,10 +7520,10 @@ export class ConversationController {
   }
 
   /**
-   * Ends a review's hold on Plan mode (M70). With `isModeRestored` the panel
-   * goes back to the mode the user had (the session went, or Plan mode was
-   * never set); without it the user has just chosen a mode themselves.
-   */
+  Ends a review's hold on Plan mode (M70). With `isModeRestored` the panel
+  goes back to the mode the user had (the session went, or Plan mode was
+  never set); without it the user has just chosen a mode themselves.
+  */
   private releasePlanHold(isModeRestored: boolean): void {
     const held = this.planHold
     if (held === undefined) {
@@ -7541,10 +7541,10 @@ export class ConversationController {
   }
 
   /**
-   * The review pane (M70): the conversation's edits, each patch read and its
-   * files placed in the workspace, within the pane's limits. An edit whose
-   * patch cannot be read is counted as left out, never guessed at.
-   */
+  The review pane (M70): the conversation's edits, each patch read and its
+  files placed in the workspace, within the pane's limits. An edit whose
+  patch cannot be read is counted as left out, never guessed at.
+  */
   private async readReviewChanges(requestId: string, edits: readonly EditRef[]): Promise<void> {
     const session = this.session
     const generation = this.sendInvalidationEpoch
@@ -7621,11 +7621,11 @@ export class ConversationController {
   }
 
   /**
-   * The review pane's Revert on one hunk (M70): taken out once. Each press is
-   * answered while the panel still shows its conversation, a restarted one
-   * included, and gives the hunk back when it wrote nothing; a new or other
-   * conversation hears nothing of it.
-   */
+  The review pane's Revert on one hunk (M70): taken out once. Each press is
+  answered while the panel still shows its conversation, a restarted one
+  included, and gives the hunk back when it wrote nothing; a new or other
+  conversation hears nothing of it.
+  */
   private async revertReviewHunk(
     message: Extract<ConversationMessage, { type: 'revertReviewHunk' }>,
   ): Promise<void> {
@@ -7700,13 +7700,13 @@ export class ConversationController {
   }
 
   /**
-   * The legal report's selected-fix handoff (M97 lane W): preview fixes for
-   * exactly the selected findings, then confirm exactly the shown preview.
-   * Needs no session or backend (deterministic, like the scan); the guards
-   * recheck the live mode, trust, workspace and hashes before any write.
-   * The injected applier publishes through checkpoint and conditional writes.
-   * A host without that capability refuses explicitly.
-   */
+  The legal report's selected-fix handoff (M97 lane W): preview fixes for
+  exactly the selected findings, then confirm exactly the shown preview.
+  Needs no session or backend (deterministic, like the scan); the guards
+  recheck the live mode, trust, workspace and hashes before any write.
+  The injected applier publishes through checkpoint and conditional writes.
+  A host without that capability refuses explicitly.
+  */
   private async explainLegalReport(): Promise<void> {
     const report = this.legalFixPreviews.report
     const explain = this.deps.legalExplanation
@@ -7804,10 +7804,10 @@ export class ConversationController {
   }
 
   /**
-   * A command on the session (a submission, a goal verb), once more on the
-   * resumed session when the host says it no longer holds this one (MSP
-   * `sessionNotLoaded`: evicted or closed, D25).
-   */
+  A command on the session (a submission, a goal verb), once more on the
+  resumed session when the host says it no longer holds this one (MSP
+  `sessionNotLoaded`: evicted or closed, D25).
+  */
   private async runResuming<T>(
     host: AgentHost,
     session: AgentSession,
@@ -7834,11 +7834,11 @@ export class ConversationController {
   }
 
   /**
-   * The session goal's verbs (M45, PLAN.md D38): `/goal …` in the prompt and
-   * the goal strip's controls. A set on a panel with no conversation starts
-   * one. What the goal became arrives as `goalChanged`; the transcript says
-   * what was done, and a refusal says why in words.
-   */
+  The session goal's verbs (M45, PLAN.md D38): `/goal …` in the prompt and
+  the goal strip's controls. A set on a panel with no conversation starts
+  one. What the goal became arrives as `goalChanged`; the transcript says
+  what was done, and a refusal says why in words.
+  */
   private async controlGoal(
     requestId: string,
     verb: GoalCommandVerb,
@@ -7933,15 +7933,15 @@ export class ConversationController {
   }
 
   /**
-   * A goal command the host had when a key activation closed admission or
-   * the backend restarted (M45): whether it took is not known. While the
-   * panel still shows that conversation (attached, or waiting to resume
-   * after the restart) the command is answered refused, so it stays in
-   * the prompt, the panel says the outcome is unknown, and the goal is
-   * read back from the backend before the conversation's next action. A
-   * conversation the panel no longer shows (another one, or the account's
-   * end) was reset there: nothing is said.
-   */
+  A goal command the host had when a key activation closed admission or
+  the backend restarted (M45): whether it took is not known. While the
+  panel still shows that conversation (attached, or waiting to resume
+  after the restart) the command is answered refused, so it stays in
+  the prompt, the panel says the outcome is unknown, and the goal is
+  read back from the backend before the conversation's next action. A
+  conversation the panel no longer shows (another one, or the account's
+  end) was reset there: nothing is said.
+  */
   private goalOutcomeUnknown(
     sessionId: string,
     generation: number,
@@ -7962,11 +7962,11 @@ export class ConversationController {
   }
 
   /**
-   * The goal as the backend has it, back in the strip after an unknown
-   * outcome (`goalOutcomeUnknown`). A goal event that arrives during the
-   * read is newer and wins; a failed read is logged, the notice having
-   * said to check the goal.
-   */
+  The goal as the backend has it, back in the strip after an unknown
+  outcome (`goalOutcomeUnknown`). A goal event that arrives during the
+  read is newer and wins; a failed read is logged, the notice having
+  said to check the goal.
+  */
   private async refreshGoal(session: AgentSession, generation: number): Promise<void> {
     const goalEventsAtStart = this.goalEventCount
     try {
@@ -8209,12 +8209,12 @@ export class ConversationController {
   }
 
   /**
-   * Whether the model may be used here: a contributor-tier model is blocked
-   * or confirmed once, and a BYO model the listing flagged as training on
-   * the content is refused in a confidential workspace (M95, PLAN.md D74).
-   * Confidential BYO selection resolves current host privacy facts, even
-   * before the wizard's first save or after a saved route changes.
-   */
+  Whether the model may be used here: a contributor-tier model is blocked
+  or confirmed once, and a BYO model the listing flagged as training on
+  the content is refused in a confidential workspace (M95, PLAN.md D74).
+  Confidential BYO selection resolves current host privacy facts, even
+  before the wizard's first save or after a saved route changes.
+  */
   private async allowsModel(modelId: string): Promise<boolean> {
     if (this.deps.isConfidentialWorkspace() && isContributorModel(modelId)) {
       this.notice('warning', UI_TEXT.contributorBlocked)
@@ -8463,11 +8463,11 @@ export class ConversationController {
   }
 
   /**
-   * The backend refused to leave Plan mode, so the turns it kept running
-   * in it are Plan-mode turns still (M79): one that finished meanwhile is
-   * one now, the rest again when they finish. (Had the conversation
-   * changed during the request, its turn ids match nothing any more.)
-   */
+  The backend refused to leave Plan mode, so the turns it kept running
+  in it are Plan-mode turns still (M79): one that finished meanwhile is
+  one now, the rest again when they finish. (Had the conversation
+  changed during the request, its turn ids match nothing any more.)
+  */
   private restorePlanTurns(turnIds: readonly string[]): void {
     for (const turnId of turnIds) {
       if (this.finishedTurns.has(turnId)) {
@@ -8479,8 +8479,8 @@ export class ConversationController {
   }
 
   /** A pending browser encode belongs to the session before this replacement request. */
-  private beginBrowserSessionChange(attachmentEpoch?: number): void {
-    this.webviewAttachmentEpoch = Math.max(this.webviewAttachmentEpoch + 1, attachmentEpoch ?? 0)
+  private beginBrowserSessionChange(attachmentEpoch = 0): void {
+    this.webviewAttachmentEpoch = Math.max(this.webviewAttachmentEpoch + 1, attachmentEpoch)
   }
 
   private clear(): void {
@@ -8549,10 +8549,10 @@ export class ConversationController {
   }
 
   /**
-   * The skills for the palette and the slash menu, asked for each time one
-   * opens: a read in the background, so a session that does not start is
-   * logged here, never shown (a send or the panel's warm-up says it once).
-   */
+  The skills for the palette and the slash menu, asked for each time one
+  opens: a read in the background, so a session that does not start is
+  logged here, never shown (a send or the panel's warm-up says it once).
+  */
   private async listSkills(): Promise<void> {
     if (this.skills !== undefined) {
       this.postSkills()
@@ -8842,10 +8842,10 @@ export class ConversationController {
   }
 
   /**
-   * The drop path's confinement for a picked media file: outside the
-   * workspace, unresolvable, protected or private is a refusal
-   * (`textFilePrivate`), never an unreadable file (M105 E1 review).
-   */
+  The drop path's confinement for a picked media file: outside the
+  workspace, unresolvable, protected or private is a refusal
+  (`textFilePrivate`), never an unreadable file (M105 E1 review).
+  */
   private async confinePickedMedia(file: PickedFile, generation: number): Promise<boolean> {
     const refused = () => {
       if (this.isCurrentAttachmentGeneration(generation)) {
@@ -8971,12 +8971,12 @@ export class ConversationController {
   }
 
   /**
-   * The preview's Attach admission (E1 recording binding): the trusted
-   * driver's owner-only temp file skips the picker's workspace confinement
-   * (open() still rechecks identity at prepare). True only when the chip
-   * was installed; the temp file's cleanup transfers to the upload
-   * lifecycle then, and is disposed with the attachment otherwise.
-   */
+  The preview's Attach admission (E1 recording binding): the trusted
+  driver's owner-only temp file skips the picker's workspace confinement
+  (open() still rechecks identity at prepare). True only when the chip
+  was installed; the temp file's cleanup transfers to the upload
+  lifecycle then, and is disposed with the attachment otherwise.
+  */
   private async admitRecording(preview: ScreenRecordingPreview): Promise<boolean> {
     const file: PickedFile = {
       name: path.posix.basename(preview.path.replaceAll('\\', '/')),
@@ -9012,10 +9012,10 @@ export class ConversationController {
   }
 
   /**
-   * Drop every recording of an ended conversation. Entries carry the
-   * generation that admitted them, so one the new conversation admits
-   * mid-drain survives; a disposed controller drops everything.
-   */
+  Drop every recording of an ended conversation. Entries carry the
+  generation that admitted them, so one the new conversation admits
+  mid-drain survives; a disposed controller drops everything.
+  */
   private async disposeRecordings(): Promise<void> {
     const current = this.attachmentGeneration
     for (const [id, entry] of this.recordingDisposals) {
@@ -9156,9 +9156,9 @@ export class ConversationController {
   // --- Account & usage (M8) ---
 
   /**
-   * Answer the dialog with the backend and the subscription window the host
-   * last observed, and keep answering while `usage/changed` arrives.
-   */
+  Answer the dialog with the backend and the subscription window the host
+  last observed, and keep answering while `usage/changed` arrives.
+  */
   private async readUsage(): Promise<void> {
     try {
       const host = await this.deps.ensureHost()
@@ -9380,9 +9380,9 @@ export class ConversationController {
   }
 
   /**
-   * A picked session-export file, parsed (M84, PLAN.md D49); undefined, with
-   * the reason posted, when it was dismissed or cannot be used.
-   */
+  A picked session-export file, parsed (M84, PLAN.md D49); undefined, with
+  the reason posted, when it was dismissed or cannot be used.
+  */
   private async pickTransferDocument(
     title: string,
     failure: string,
@@ -9414,16 +9414,16 @@ export class ConversationController {
   }
 
   /**
-   * Report a problem (M93, PLAN.md D72): the preview dialog's messages. They
-   * need no sign-in and start no session: the dialog builds from the journal
-   * and local facts alone. A webview failure is journalled here directly;
-   * the dialog's handler loads with dist/report.js on first use.
-   */
+  Report a problem (M93, PLAN.md D72): the preview dialog's messages. They
+  need no sign-in and start no session: the dialog builds from the journal
+  and local facts alone. A webview failure is journalled here directly;
+  the dialog's handler loads with dist/report.js on first use.
+  */
   /**
-   * `/estimate` (M117, PLAN.md D97): run the estimate in the estimator's own
-   * bundle and forward the section, or start the audited first wave. Every
-   * refusal names its missing binding; nothing runs without the bundle.
-   */
+  `/estimate` (M117, PLAN.md D97): run the estimate in the estimator's own
+  bundle and forward the section, or start the audited first wave. Every
+  refusal names its missing binding; nothing runs without the bundle.
+  */
   private invalidateEstimate(): void {
     this.estimatePending?.abort()
     this.estimatePending = undefined
@@ -9541,10 +9541,10 @@ export class ConversationController {
   }
 
   /**
-   * "Import Session…" (M84, PLAN.md D49): a picked export file resumed as a
-   * new conversation on the Model API backend, on the user's own model, in a
-   * mode that asks (`adopt` applies it, as on every later opening).
-   */
+  "Import Session…" (M84, PLAN.md D49): a picked export file resumed as a
+  new conversation on the Model API backend, on the user's own model, in a
+  mode that asks (`adopt` applies it, as on every later opening).
+  */
   private async importSession(): Promise<void> {
     if (this.deps.surface.isSideChat === true) {
       this.notice('warning', UI_TEXT.sideChatSessionOnly)
@@ -9614,9 +9614,9 @@ export class ConversationController {
   }
 
   /**
-   * "Open Share File…" (M84): a picked export file shown read-only in the
-   * panel. Nothing reaches a session or a model; the panel only renders it.
-   */
+  "Open Share File…" (M84): a picked export file shown read-only in the
+  panel. Nothing reaches a session or a model; the panel only renders it.
+  */
   private async openShareFile(): Promise<void> {
     const doc = await this.pickTransferDocument(UI_TEXT.openShareTitle, UI_TEXT.shareFailed)
     if (doc === undefined || this.isDisposed) {
@@ -9756,11 +9756,11 @@ export class ConversationController {
   }
 
   /**
-   * The driver of an engine that is no longer the microphone's (M35, the
-   * review of PR #27): an idle one goes; a recording one stops at once, so
-   * nothing more is sent (Muse Voice turned off is off), and is kept until
-   * the panel closes, so the transcript of what it already sent arrives.
-   */
+  The driver of an engine that is no longer the microphone's (M35, the
+  review of PR #27): an idle one goes; a recording one stops at once, so
+  nothing more is sent (Muse Voice turned off is off), and is kept until
+  the panel closes, so the transcript of what it already sent arrives.
+  */
   private retireDictation(): void {
     const old = this.dictation
     if (old === undefined) {
@@ -9890,11 +9890,11 @@ export class ConversationController {
   }
 
   /**
-   * List the models as soon as the panel is open (M15). Until then only a
-   * send, a resume or the pill's skill listing started the host and listed
-   * the models, so the pill read "Starting Muse Code…" until the first
-   * click. Starting the host and listing its models makes no model call.
-   */
+  List the models as soon as the panel is open (M15). Until then only a
+  send, a resume or the pill's skill listing started the host and listed
+  the models, so the pill read "Starting Muse Code…" until the first
+  click. Starting the host and listing its models makes no model call.
+  */
   private async warmModels(): Promise<void> {
     if (this.deps.auth.current.status !== 'signedIn') {
       return
@@ -10693,11 +10693,11 @@ export class ConversationController {
   }
 
   /**
-   * Runs one message from the webview. The caller does not wait (a `void`
-   * call), so a failure no step in `dispatch` caught would reach only VS Code's
-   * Extension Host log: it is logged here, with its stack, and said (M39),
-   * unless the panel showed this very failure already (a shared start).
-   */
+  Runs one message from the webview. The caller does not wait (a `void`
+  call), so a failure no step in `dispatch` caught would reach only VS Code's
+  Extension Host log: it is logged here, with its stack, and said (M39),
+  unless the panel showed this very failure already (a shared start).
+  */
   public async handle(message: ConversationMessage): Promise<void> {
     try {
       await this.dispatch(message)
@@ -10712,10 +10712,10 @@ export class ConversationController {
   }
 
   /**
-   * The Claude Code sidebar rule: a surface that reopens within ten minutes
-   * of its last session's activity picks that session up again; otherwise
-   * it starts empty and the History dialog has it.
-   */
+  The Claude Code sidebar rule: a surface that reopens within ten minutes
+  of its last session's activity picks that session up again; otherwise
+  it starts empty and the History dialog has it.
+  */
   public async restoreRecentSession(): Promise<void> {
     const last = this.deps.sessions.lastSession()
     if (
@@ -10743,9 +10743,9 @@ export class ConversationController {
   }
 
   /**
-   * A panel VS Code rebuilt after a window reload held this session (D15):
-   * resume it once the surface is signed in, unless a session is live.
-   */
+  A panel VS Code rebuilt after a window reload held this session (D15):
+  resume it once the surface is signed in, unless a session is live.
+  */
   public async restoreSession(sessionId: string): Promise<void> {
     if (
       this.session !== undefined ||
@@ -10764,10 +10764,10 @@ export class ConversationController {
   }
 
   /**
-   * The Bypass setting was turned off (D24): a conversation in Bypass drops
-   * to Manual. If the host refuses the change, the session goes too, so no
-   * turn runs without approvals under a setting that says otherwise.
-   */
+  The Bypass setting was turned off (D24): a conversation in Bypass drops
+  to Manual. If the host refuses the change, the session goes too, so no
+  turn runs without approvals under a setting that says otherwise.
+  */
   public async revokeBypass(): Promise<void> {
     this.bypassRevocationEpoch += 1
     this.hasConfirmedRemoteBypass = false
@@ -10814,9 +10814,9 @@ export class ConversationController {
   }
 
   /**
-   * The engine may have changed (M35: the paid feature or the backend): an
-   * idle driver of the other engine goes, and the microphone is told.
-   */
+  The engine may have changed (M35: the paid feature or the backend): an
+  idle driver of the other engine goes, and the microphone is told.
+  */
   public refreshDictation(): void {
     const { engine, setup } = this.dictationChoice()
     if (this.dictationEngine !== engine || !setup.isAvailable) {
@@ -10918,10 +10918,10 @@ export class ConversationController {
   }
 
   /**
-   * Muse Code stopped answering (the watchdog, CLI recovery), said in a
-   * panel on it: restarted already when no turn ran, or, in a panel whose
-   * turn runs, the offer to restart it (D26's Restart, which stops the turn).
-   */
+  Muse Code stopped answering (the watchdog, CLI recovery), said in a
+  panel on it: restarted already when no turn ran, or, in a panel whose
+  turn runs, the offer to restart it (D26's Restart, which stops the turn).
+  */
   /** A final Meta 5xx has a fixed, translated status action; no service prose. */
   public modelApiServiceFailed(): void {
     if ((this.sessionKind ?? this.resumeTarget?.kind ?? this.deps.auth.backend) !== 'modelApi')
@@ -10955,18 +10955,18 @@ export class ConversationController {
   }
 
   /**
-   * "Restart Muse Code" (CLI recovery) stopped the backend: the fresh one
-   * starts now and lists its models, as when the panel opens; the
-   * conversation resumes with its next message.
-   */
+  "Restart Muse Code" (CLI recovery) stopped the backend: the fresh one
+  starts now and lists its models, as when the panel opens; the
+  conversation resumes with its next message.
+  */
   public warmUp(): void {
     void this.warmModels()
   }
 
   /**
-   * Ctrl+B (M46, the TUI's key): every shell command the running turn still
-   * waits on goes on in the background, and the turn goes on without them.
-   */
+  Ctrl+B (M46, the TUI's key): every shell command the running turn still
+  waits on goes on in the background, and the turn goes on without them.
+  */
   public async moveRunningToBackground(): Promise<void> {
     const running = [...this.foregroundShells]
     if (running.length === 0) {
@@ -10984,13 +10984,13 @@ export class ConversationController {
   }
 
   /**
-   * The extension is about to stop the hosts (a restart for a setting, trust
-   * granted, a sign-in or sign-out; PLAN.md D25). A fault recovery names
-   * only its backend kind, leaving the other backend's conversations live.
-   * A running turn is
-   * cancelled and ended in the webview; unless the conversations end (sign
-   * out, shutdown), the session is resumed by the next message.
-   */
+  The extension is about to stop the hosts (a restart for a setting, trust
+  granted, a sign-in or sign-out; PLAN.md D25). A fault recovery names
+  only its backend kind, leaving the other backend's conversations live.
+  A running turn is
+  cancelled and ended in the webview; unless the conversations end (sign
+  out, shutdown), the session is resumed by the next message.
+  */
   public async backendStopping(
     isConversationEnding: boolean,
     onlyKind?: BackendKind,
@@ -11084,9 +11084,9 @@ export class ConversationController {
   }
 
   /**
-   * `Muse Spark: Report a Problem` (M93): the same dialog the panel's entry
-   * points open, built from the journal; nothing about the conversation.
-   */
+  `Muse Spark: Report a Problem` (M93): the same dialog the panel's entry
+  points open, built from the journal; nothing about the conversation.
+  */
   public async openReport(): Promise<void> {
     await this.handleReportMessage({ type: 'openReport' })
   }
@@ -11152,10 +11152,10 @@ export class ConversationController {
   }
 
   /**
-   * The host process ended. The extension's own close is not news; a crash
-   * ends the running turn and is resumed by the next message, unless the
-   * process refuses to run as configured, which the sign-in gate reports.
-   */
+  The host process ended. The extension's own close is not news; a crash
+  ends the running turn and is resumed by the next message, unless the
+  process refuses to run as configured, which the sign-in gate reports.
+  */
   public hostExited(exit: HostExit): void {
     if (exit.isExpected) {
       return
@@ -11212,9 +11212,9 @@ export class ConversationController {
   }
 
   /**
-   * The user trusted the held worktree in the card (M71): the card goes, and
-   * the conversation, still in Plan, may leave it now.
-   */
+  The user trusted the held worktree in the card (M71): the card goes, and
+  the conversation, still in Plan, may leave it now.
+  */
   public worktreeHoldReleased(): void {
     this.git.postState()
     this.postComposerState()

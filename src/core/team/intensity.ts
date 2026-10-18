@@ -30,10 +30,10 @@ export const TEAM_INTENSITY_LEVELS: readonly TeamIntensityLevel[] = TEAM_INTENSI
 export const DEFAULT_INTENSITY_LEVEL: TeamIntensityLevel = TEAM_INTENSITY_DEFAULT
 
 /**
- * What one level sets (D75's table): the running cap per role, the effort
- * shift from each role's base, the tokens per task, and the team's own
- * daily budget beneath `museSpark.teamDailyBudgetUsd`.
- */
+What one level sets (D75's table): the running cap per role, the effort
+shift from each role's base, the tokens per task, and the team's own
+daily budget beneath `museSpark.teamDailyBudgetUsd`.
+*/
 export interface TeamIntensitySpec {
   readonly runningPerRole: number | 'ceiling'
   /** Effort steps from the role's base; negative lowers, positive raises. */
@@ -62,10 +62,10 @@ export const TEAM_INTENSITY_SPECS: Readonly<Record<TeamIntensityLevel, TeamInten
 }
 
 /**
- * The three ceilings a running count never passes (D75; computed by lane
- * A's `teamCeilings.ts`): the provider's limit, our hard ceiling and the
- * machine's.
- */
+The three ceilings a running count never passes (D75; computed by lane
+A's `teamCeilings.ts`): the provider's limit, our hard ceiling and the
+machine's.
+*/
 export interface TeamRunningCeilings {
   readonly provider: number
   readonly hard: number
@@ -86,9 +86,9 @@ export function intensityName(level: TeamIntensityLevel): string {
 }
 
 /**
- * A role's applied intensity: either the team's level or a manual
- * override the level leaves alone.
- */
+A role's applied intensity: either the team's level or a manual
+override the level leaves alone.
+*/
 export interface TeamRoleIntensity {
   readonly role: string
   readonly level: TeamIntensityLevel
@@ -98,9 +98,9 @@ export interface TeamRoleIntensity {
 }
 
 /**
- * Applies a level to every non-custom role; custom roles keep their
- * values. Returns the per-role settings the panel stores.
- */
+Applies a level to every non-custom role; custom roles keep their
+values. Returns the per-role settings the panel stores.
+*/
 export function applyIntensityLevel(
   roles: readonly TeamRoleIntensity[],
   level: TeamIntensityLevel,
@@ -142,11 +142,11 @@ export function markRoleCustom(role: TeamRoleIntensity): TeamRoleIntensity {
 }
 
 /**
- * The live adaptation (D75): a 429, or a low remaining header, halves the
- * entry's running cap, down to 1. Each `throttleRecoverMs` without another
- * 429 adds one back, up to the configured cap. Lane A owns the durable
- * marks; these are the pure transitions it stores.
- */
+The live adaptation (D75): a 429, or a low remaining header, halves the
+entry's running cap, down to 1. Each `throttleRecoverMs` without another
+429 adds one back, up to the configured cap. Lane A owns the durable
+marks; these are the pure transitions it stores.
+*/
 export interface TeamThrottleState {
   readonly configuredCap: number
   readonly runningCap: number
@@ -190,12 +190,12 @@ export function recoverThrottleStep(
 }
 
 /**
- * The cost of a level, shown first (D75): the estimated cost per hour of
- * team work and its tokens per hour, from the level's counts, the price
- * cards of the entries it would use, and the worker throughput estimate.
- * Subscription and local entries show tokens only. Supply one selected
- * entry's price per role, including non-billable roles.
- */
+The cost of a level, shown first (D75): the estimated cost per hour of
+team work and its tokens per hour, from the level's counts, the price
+cards of the entries it would use, and the worker throughput estimate.
+Subscription and local entries show tokens only. Supply one selected
+entry's price per role, including non-billable roles.
+*/
 export interface TeamLevelPrice {
   /** US dollars per million tokens, input and output averaged. */
   readonly usdPerMTok: number | undefined
@@ -235,7 +235,7 @@ export function levelCostPerHour(
   const priced = billable.flatMap((price) =>
     price.usdPerMTok === undefined
       ? []
-      : [{ high: price.usdPerMTok, low: price.cachedUsdPerMTok ?? price.usdPerMTok }],
+      : { high: price.usdPerMTok, low: price.cachedUsdPerMTok ?? price.usdPerMTok },
   )
   const hasUnknownPrice = prices.length !== roleCount || priced.length !== billable.length
   if (hasUnknownPrice) {

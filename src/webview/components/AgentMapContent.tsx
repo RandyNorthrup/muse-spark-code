@@ -93,9 +93,9 @@ export interface AgentMapProps {
   /** Muse Code's `run.workflow_trigger_mode`; undefined on the Model API backend. */
   readonly workflowTriggerMode: string | undefined
   /**
-   * The team's live tree (M96 lane U2); undefined where the team cannot run
-   * (off, Solo, single-model mode, no runnable role): the map is today's.
-   */
+  The team's live tree (M96 lane U2); undefined where the team cannot run
+  (off, Solo, single-model mode, no runnable role): the map is today's.
+  */
   readonly team?: TeamTreeData | undefined
   /** The tree's actions; absent where the host takes none (history). */
   readonly teamActions?: TeamTreeActions | undefined
@@ -430,22 +430,20 @@ function AgentReceiptView({
 }) {
   const items = (transcript?.entries ?? []).flatMap<ItemSnapshot>((entry) => {
     if (entry.kind === 'tool')
-      return [
-        {
-          itemId: entry.id,
-          kind: 'toolCall',
-          status: entry.status,
-          tool: entry.tool,
-          args: entry.args,
-          changedFiles: entry.changedFiles,
-          exitCode: entry.exitCode,
-          durationMs: entry.durationMs,
-          verifySummary: entry.verifySummary,
-          thenRun: entry.thenRun,
-        },
-      ]
+      return {
+        itemId: entry.id,
+        kind: 'toolCall',
+        status: entry.status,
+        tool: entry.tool,
+        args: entry.args,
+        changedFiles: entry.changedFiles,
+        exitCode: entry.exitCode,
+        durationMs: entry.durationMs,
+        verifySummary: entry.verifySummary,
+        thenRun: entry.thenRun,
+      }
     return entry.kind === 'assistant'
-      ? [{ itemId: entry.id, kind: 'agentMessage', status: 'completed', text: entry.text }]
+      ? { itemId: entry.id, kind: 'agentMessage', status: 'completed', text: entry.text }
       : []
   })
   const history = agent.agentEvidence?.attempts ?? []
@@ -465,10 +463,10 @@ function AgentReceiptView({
 }
 
 /**
- * The conversation's background tasks (M14), each with its Stop while it
- * runs and one Stop all (M46): the row says what the task is, as its
- * transcript row does, and how it stands.
- */
+The conversation's background tasks (M14), each with its Stop while it
+runs and one Stop all (M46): the row says what the task is, as its
+transcript row does, and how it stands.
+*/
 function taskSignals(task: ToolEntry) {
   const evidence = toolAgentEvidence(task.status, task.exitCode)
   if (task.approval !== undefined) evidence.waiting = 'approval'

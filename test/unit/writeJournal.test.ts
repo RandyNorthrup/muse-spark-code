@@ -40,8 +40,8 @@ async function readAll(storageDir: string) {
   return await WriteJournal.readAll(storageDir)
 }
 
-function ownerOf(instance: string, unitId = 't1'): Owner {
-  return { instance, sessionId: 's1', unitKind: 'turn', unitId }
+function ownerOf(instance: string): Owner {
+  return { instance, sessionId: 's1', unitKind: 'turn', unitId: 't1' }
 }
 
 function writeOf(instance: string, id: string, seq: number): WriteRecord {

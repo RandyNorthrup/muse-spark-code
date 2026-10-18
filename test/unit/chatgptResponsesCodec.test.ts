@@ -108,10 +108,10 @@ function stream(...frames: readonly string[]): ReadableStream<Uint8Array> {
   })
 }
 
-function failed(error: unknown = limitError) {
+function failed() {
   return {
     type: 'response.failed',
-    response: { id: 'resp_scrubbed', status: 'failed', output: [], error, usage: null },
+    response: { id: 'resp_scrubbed', status: 'failed', output: [], error: limitError, usage: null },
   }
 }
 

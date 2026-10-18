@@ -48,8 +48,8 @@ function host(message: HostToWebviewMessage, at = NOW): UiAction {
   return { type: 'hostMessage', message, at }
 }
 
-function reduceAll(actions: readonly UiAction[], start: UiState = initialUiState): UiState {
-  let state = start
+function reduceAll(actions: readonly UiAction[]): UiState {
+  let state = initialUiState
   for (const action of actions) {
     state = uiReducer(state, action)
   }

@@ -266,13 +266,13 @@ export function renderEstimate(
   const critical =
     section.limitingResource.kind === 'criticalPath' ? UI_TEXT.estimateCriticalBound : ''
   if (format === 'html')
-    return `<!doctype html><html lang="${escapeHtml(uiLocale())}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(UI_TEXT.estimateTitle)}</title><body><main><h1>${escapeHtml(UI_TEXT.estimateTitle)}</h1><p>${escapeHtml(critical)}</p><dl>${paragraphs.map(([label, value]) => `<dt>${escapeHtml(label ?? '')}</dt><dd>${escapeHtml(value ?? '')}</dd>`).join('')}</dl><h2>${escapeHtml(UI_TEXT.estimateInputs)}</h2><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(evidence)}</pre></main></body></html>\n`
+    return `<!doctype html><html lang="${escapeHtml(uiLocale())}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(UI_TEXT.estimateTitle)}</title><body><main><h1>${escapeHtml(UI_TEXT.estimateTitle)}</h1><p>${escapeHtml(critical)}</p><dl>${paragraphs.map(([label = '', value = '']) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('')}</dl><h2>${escapeHtml(UI_TEXT.estimateInputs)}</h2><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(evidence)}</pre></main></body></html>\n`
   if (format === 'md')
-    return `# ${escapeMarkdown(UI_TEXT.estimateTitle)}\n\n${escapeMarkdown(critical)}\n\n${paragraphs.map(([label, value]) => `- **${escapeMarkdown(label ?? '')}:** ${escapeMarkdown(value ?? '')}`).join('\n')}\n\n## ${escapeMarkdown(UI_TEXT.estimateInputs)}\n\n${evidence
+    return `# ${escapeMarkdown(UI_TEXT.estimateTitle)}\n\n${escapeMarkdown(critical)}\n\n${paragraphs.map(([label = '', value = '']) => `- **${escapeMarkdown(label)}:** ${escapeMarkdown(value)}`).join('\n')}\n\n## ${escapeMarkdown(UI_TEXT.estimateInputs)}\n\n${evidence
       .split('\n')
       .map((line) => `    ${line}`)
       .join('\n')}\n`
-  return `${UI_TEXT.estimateTitle}\n${critical}\n${paragraphs.map(([label, value]) => `${label ?? ''}: ${value ?? ''}`).join('\n')}\n${UI_TEXT.estimateInputs}\n${evidence}\n`
+  return `${UI_TEXT.estimateTitle}\n${critical}\n${paragraphs.map(([label = '', value = '']) => `${label}: ${value}`).join('\n')}\n${UI_TEXT.estimateInputs}\n${evidence}\n`
 }
 
 export async function runEstimateCommand(

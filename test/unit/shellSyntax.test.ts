@@ -254,14 +254,14 @@ describe.runIf(powershell !== undefined)(
           return witness?.plain === true &&
             JSON.stringify(witness.commands) === JSON.stringify(row.commands)
             ? []
-            : [{ line: row.line, witness }]
+            : { line: row.line, witness }
         }
         // An empty line parses to nothing, which the reader calls empty.
         if (row.line.trim() === '') {
           return []
         }
         const isPlainExpected = row.isStricter === true
-        return witness?.plain === isPlainExpected ? [] : [{ line: row.line, witness }]
+        return witness?.plain === isPlainExpected ? [] : { line: row.line, witness }
       })
       expect(disagreements).toEqual([])
     }, 60_000)

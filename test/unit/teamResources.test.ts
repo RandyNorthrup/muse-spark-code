@@ -28,12 +28,8 @@ function drivenRegistry(windowId = 'test-window') {
   }
 }
 
-async function held(
-  registry: ResourceRegistry,
-  name = 'chrome',
-  holder: LeaseHolder = RESEARCHER,
-): Promise<LeaseToken> {
-  const outcome = await registry.acquire(name, holder)
+async function held(registry: ResourceRegistry): Promise<LeaseToken> {
+  const outcome = await registry.acquire('chrome', RESEARCHER)
   if (outcome.status !== 'held') throw new Error(outcome.status)
   return outcome.lease
 }

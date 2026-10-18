@@ -63,7 +63,7 @@ function minutesOnDate(trigger: WallTrigger, date: Date, cron?: ParsedCron): rea
             month: date.getUTCMonth() + 1,
             weekday,
           })
-            ? [hour * MINUTES_PER_HOUR + minute]
+            ? hour * MINUTES_PER_HOUR + minute
             : [],
         ),
       )
@@ -145,8 +145,8 @@ export function nextTimeFire(
 }
 
 /** E supplies the matched event's validated observation instant, never fields.
- * One event composes to one fire. An interval is a delay from that event;
- * other kinds select their first occurrence strictly after the event. */
+One event composes to one fire. An interval is a delay from that event;
+other kinds select their first occurrence strictly after the event. */
 export function nextScheduleTime(
   plan: ScheduleTimePlan,
   afterMs: number,
@@ -198,8 +198,8 @@ export function previewScheduleTimes(
 }
 
 /** Latest wall occurrences first in (afterMs, throughMs]. Recovery can stop
- * counting without losing the latest occurrence or scanning an outage. The
- * caller validates the plan/end/run count through nextScheduleTime. */
+counting without losing the latest occurrence or scanning an outage. The
+caller validates the plan/end/run count through nextScheduleTime. */
 export function* previousTimeOccurrences(
   trigger: WallTrigger,
   zone: string,

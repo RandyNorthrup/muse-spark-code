@@ -52,7 +52,7 @@ export class AccountPlacementError extends Error {
 export interface AccountPlacementStore {
   read(): Promise<unknown>
   /** The metadata owner calls check synchronously at its atomic publication.
-   * Compose with account removal and device unpairing under the same owner. */
+  Compose with account removal and device unpairing under the same owner. */
   write(rows: readonly AccountPlacement[], check: () => void): Promise<void>
 }
 
@@ -161,7 +161,7 @@ const routeRequestSchema = z.strictObject({
 export type AccountRouteRequest = z.infer<typeof routeRequestSchema>
 
 /** Reservations keep the original parent/daily scopes. Uncertain sends retain
- * their lease/liability; finish is not permission to re-dispatch (G6). */
+their lease/liability; finish is not permission to re-dispatch (G6). */
 export interface DeviceAccountClaim {
   check(): void
   finish(outcome: 'notSent' | 'returned' | 'uncertain'): Promise<void>
@@ -173,8 +173,8 @@ export interface RemoteAccountPoolDeps {
   readonly policy: (provider: string) => AccountPolicy | undefined
   readonly now: () => number
   /** One durable sender-local record per owner key; write resolves only after
-   * persistence. A single profile owner serializes access, as for placements.
-   * Account removal must retain this metadata until expiry. Never transport it. */
+  persistence. A single profile owner serializes access, as for placements.
+  Account removal must retain this metadata until expiry. Never transport it. */
   readonly limitStore: {
     read(owner: string): Promise<unknown>
     write(owner: string, block: AccountLimitBlock): Promise<void>
@@ -331,9 +331,7 @@ export class RemoteAccountPool {
         const rank = headroomRank(
           offers.find((offer) => offer.device === placement.device)?.headroom[request.provider],
         )
-        return rank > 0 && this.deps.canRoute(placement.device, request)
-          ? [{ placement, rank }]
-          : []
+        return rank > 0 && this.deps.canRoute(placement.device, request) ? { placement, rank } : []
       })
       .toSorted((a, b) => {
         // A conversation/held worker keeps its account while its device has room.
