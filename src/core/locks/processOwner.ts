@@ -159,6 +159,9 @@ export async function processStartTime(
       }
     }
   } catch {
+    // A birth that cannot be read proves nothing (no such process, no
+    // permission, an unsupported system): never throws, and the owner is
+    // never provably gone on it.
     return undefined
   }
 }
@@ -175,6 +178,8 @@ export async function systemBootId(
     const bootId = text.trim()
     return bootId === '' ? undefined : bootId
   } catch {
+    // A boot that cannot be read binds no birth: Linux comparisons fall back
+    // to the incomparable estimate, never to a false same-boot verdict.
     return undefined
   }
 }

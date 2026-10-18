@@ -902,11 +902,12 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
     // is refused): the moved file stays aside, never removed, and the
     // taker does not acquire.
     const lockPath = await expiredLock()
+    const refused = Object.assign(new Error('EPERM: link refused'), { code: 'EPERM' })
     const windowB = pausingPort({
       ...asideUnreadable(nodeLeasePort),
       link: async (existing, target) => {
         if (target === lockPath && isAside(path.basename(existing))) {
-          throw Object.assign(new Error('EPERM: link refused'), { code: 'EPERM' })
+          throw refused
         }
         await nodeLeasePort.link(existing, target)
       },
@@ -922,6 +923,7 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
     beforeMove.resume()
     const outcome = await bOutcome
     expect(outcome).toBeInstanceOf(LeaseBusyError)
+    expect((outcome as LeaseBusyError).cause).toBe(refused)
     // A's instance survives aside, whole: never unlinked unproven.
     const aside = await asideNames(path.dirname(lockPath))
     expect(aside).toHaveLength(1)
