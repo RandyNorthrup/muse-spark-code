@@ -11,7 +11,7 @@ const textDeps: MergeRoutineDeps = {
   text: () => Promise.resolve({ bytes: Buffer.from('merged'), conflicts: false }),
 }
 
-function version(bytes: Buffer) {
+function version(bytes: Buffer): { mode: '100644'; bytes: Buffer } {
   return { mode: '100644', bytes }
 }
 

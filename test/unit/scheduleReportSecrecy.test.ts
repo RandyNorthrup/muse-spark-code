@@ -81,7 +81,15 @@ describe('report failure secrecy', () => {
   it('settles a throwing provider as failed without its text', async () => {
     const job = schedule()
     const runner = new ScheduleReportActionRunner({
-      store: { list: () => Promise.resolve([job]) },
+      store: {
+        create: () => Promise.resolve(undefined),
+        list: () => Promise.resolve([job]),
+        update: () => Promise.resolve(true),
+        remove: () => Promise.resolve(true),
+        claim: () => Promise.resolve(true),
+        record: () => Promise.resolve(undefined),
+        fires: () => Promise.resolve([]),
+      },
       reports: {
         run: () => Promise.reject(new Error(`provider exploded: ${SECRET}`)),
       },
