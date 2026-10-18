@@ -18,11 +18,9 @@ function textCell(entry: ReportRow, key: string): string | undefined {
   const cell = entry.cells[key]
   return cell?.type === 'text' ? cell.value : undefined
 }
-import { readFileSync } from 'node:fs'
 import { ESTIMATOR_AS_OF, sectionVector } from './helpers/estimator/sectionVectors'
-import { installGerman, restoreEnglish } from './helpers/kindGermanTable'
+import { installGerman, loadGermanTable, restoreEnglish } from './helpers/kindGermanTable'
 import germanTable from '../../l10n/ui.de.json'
-import { loadUiTable } from '../../src/host/l10n'
 import { EN, type UiText } from '../../src/shared/l10n/en'
 import { fill, setUiText } from '../../src/shared/l10n/text'
 import { buildPlanSnapshot } from '../../src/core/estimator/planSnapshot'
@@ -480,13 +478,8 @@ describe('estimate report source', () => {
     expect(await estimateReason(new Error('Estimate failed: ../../etc/passwd'))).toBe(
       UI_TEXT.reportSourceReasons.failed,
     )
-    expect(await installGerman(agentLog())).toBe('de')
-    const { table } = await loadUiTable({
-      language: 'de',
-      readExtensionFile: () =>
-        Promise.resolve(readFileSync(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8')),
-      log: agentLog(),
-    })
+    const { table, locale } = await loadGermanTable(agentLog())
+    expect(locale).toBe('de')
     const germanContext = () => estimateContext({ reportText: table, locale: 'de' })
     try {
       expect(
@@ -559,13 +552,8 @@ describe('estimate report source', () => {
         Object.assign(new Error('Estimate failed: garbage'), { estimateDiagnostic: 'garbage' }),
       ],
     ]
-    expect(await installGerman(agentLog())).toBe('de')
-    const { table } = await loadUiTable({
-      language: 'de',
-      readExtensionFile: () =>
-        Promise.resolve(readFileSync(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8')),
-      log: agentLog(),
-    })
+    const { table, locale } = await loadGermanTable(agentLog())
+    expect(locale).toBe('de')
     try {
       for (const [name, error] of refusals) {
         // The generic German sentence, never a named German refusal.
@@ -590,12 +578,7 @@ describe('estimate report source', () => {
     // English services install their language while it waits; the English
     // estimator call resolves first. Each reason still renders in its own
     // report's language, from the text captured when its request started.
-    const loaded = await loadUiTable({
-      language: 'de',
-      readExtensionFile: () =>
-        Promise.resolve(readFileSync(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8')),
-      log: agentLog(),
-    })
+    const loaded = await loadGermanTable(agentLog())
     if (loaded.locale !== 'de') throw new Error('German table failed to load')
     const germanTableText: UiText = loaded.table
     const refusal = (): Error =>

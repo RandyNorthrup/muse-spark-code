@@ -17,37 +17,14 @@ import {
 } from '../../../../src/shared/estimate'
 import { ESTIMATE_RUNS } from '../../../../src/shared/constants'
 import dags from '../../../fixtures/estimator/dags.json'
+import { fleetMachine } from '../estimatorKindScheduleFixtures'
 
 export const ESTIMATOR_AS_OF = '2026-10-06T12:00:00.000Z'
 
 function vectorFleet(): FleetSnapshot {
   return fleetSnapshotSchema.parse({
     asOf: ESTIMATOR_AS_OF,
-    machines: [
-      {
-        id: 'vector-linux',
-        classId: 'linux-x64-vector',
-        source: 'node',
-        os: 'linux',
-        architecture: 'x64',
-        cores: 4,
-        ramGiB: 8,
-        disks: [
-          {
-            status: 'known',
-            volumeId: 'primary',
-            roles: ['workspace', 'temp', 'state'],
-            totalBytes: 53_687_091_200,
-            freeBytes: 10_737_418_240,
-            floorBytes: 5_368_709_120,
-            headroomBytes: 5_368_709_120,
-          },
-        ],
-        governorSlots: 1,
-        capacityByKind: [{ kind: 'core', slots: 1 }],
-        caps: { slots: 1, cpuPercent: 50, memoryPercent: 50 },
-      },
-    ],
+    machines: [fleetMachine('vector-linux', 'linux-x64-vector', 1)],
     roles: [],
     accounts: [],
     slots: [],

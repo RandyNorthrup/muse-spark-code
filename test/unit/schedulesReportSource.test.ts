@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { loadUiTable } from '../../src/host/l10n'
+import { loadGermanTable } from './helpers/kindGermanTable'
 import { LocalSourceError, codeUnitCompare } from '../../src/core/reporting/sources/local'
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { describe, expect, it } from 'vitest'
@@ -65,6 +66,15 @@ const reader = (
   read: () => Promise.resolve({ schedules, fires, observedAt: REPORT_FIXTURE_AS_OF }),
 })
 
+/** A German schedules read that must be ok; the row assertions follow per case. */
+async function okSchedulesRead(storedRows: readonly unknown[], table: UiText) {
+  const result = await schedulesSource(reader(storedRows, []), scrub).read(
+    context('schedules', table),
+  )
+  expect(result.record.status).toBe('ok')
+  return result
+}
+
 describe('schedules source', () => {
   it('builds the five sections from store rows and fires', async () => {
     const result = await schedulesSource(reader([stored(schedule)], [stored(fire)]), scrub).read(
@@ -92,16 +102,9 @@ describe('schedules source', () => {
   })
 
   it('pre-renders trigger and grant prose in the request language', async () => {
-    const { table } = await loadUiTable({
-      language: 'de',
-      readExtensionFile: () => readFile(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8'),
-      log: agentLog(),
-    })
+    const { table } = await loadGermanTable(agentLog())
     try {
-      const result = await schedulesSource(reader([stored(schedule)], []), scrub).read(
-        context('schedules', table),
-      )
-      expect(result.record.status).toBe('ok')
+      const result = await okSchedulesRead([stored(schedule)], table)
       expect(sectionById(result.data, 'schedules/schedules').rows[0]!.cells).toMatchObject({
         trigger: { type: 'text', value: 'alle 3600000 ms' },
         grant: { type: 'text', value: '0 Regeln, 0 Ziele, Limit 0' },
@@ -114,11 +117,7 @@ describe('schedules source', () => {
   })
 
   it('renders event triggers, targets, delivery and agent creators in German', async () => {
-    const { table } = await loadUiTable({
-      language: 'de',
-      readExtensionFile: () => readFile(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8'),
-      log: agentLog(),
-    })
+    const { table } = await loadGermanTable(agentLog())
     try {
       const job = scheduleV2Schema.parse(
         scheduleFixture(FIXTURE_WORKSPACE_KEY, {
@@ -136,10 +135,7 @@ describe('schedules source', () => {
           nextFireAtMs: 2000,
         }),
       )
-      const result = await schedulesSource(reader([structuredClone(job)], []), scrub).read(
-        context('schedules', table),
-      )
-      expect(result.record.status).toBe('ok')
+      const result = await okSchedulesRead([structuredClone(job)], table)
       // No English composed in code: every word comes from the request
       // table and only the technical ids stay as they came.
       expect(sectionById(result.data, 'schedules/schedules').rows[0]!.cells).toMatchObject({
@@ -204,11 +200,7 @@ describe('schedules source', () => {
       expect.arrayContaining(deliveries),
     )
     const fires = SCHEDULE_FIRE_OUTCOMES.map((outcome) => fireFixture({ runId: outcome, outcome }))
-    const { table } = await loadUiTable({
-      language: 'de',
-      readExtensionFile: () => readFile(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8'),
-      log: agentLog(),
-    })
+    const { table } = await loadGermanTable(agentLog())
     try {
       const german = await schedulesSource(reader(schedules, fires), scrub).read(
         context('schedules', table),
@@ -233,11 +225,7 @@ describe('schedules source', () => {
   })
 
   it('keeps a delayed source failure in the request language', async () => {
-    const { table } = await loadUiTable({
-      language: 'de',
-      readExtensionFile: () => readFile(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8'),
-      log: agentLog(),
-    })
+    const { table } = await loadGermanTable(agentLog())
     try {
       const suspended = Promise.withResolvers<never>()
       const pending = schedulesSource({ read: () => suspended.promise }, scrub).read(

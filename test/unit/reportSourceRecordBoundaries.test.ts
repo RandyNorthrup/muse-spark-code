@@ -27,7 +27,6 @@ import type {
   AccountsFacts,
   CheckRunRecord,
   ReportQuestion,
-  SourceReadContext,
   UsageFacts,
 } from '../../src/core/reporting/sources/types'
 import type { ReportSection } from '../../src/shared/reportSchema'
@@ -37,7 +36,7 @@ import {
   REPORT_FIXTURE_AS_OF,
   reportOptions,
 } from './helpers/reporting/kindFixtures'
-import { facet, fixtureCollector } from './helpers/reporting/kindFixtures'
+import { contextFor, facet, fixtureCollector } from './helpers/reporting/kindFixtures'
 import { canaryVaultSnapshot } from './helpers/reporting/canaryVault'
 import { malformed } from './helpers/reporting/reasonCases'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -49,17 +48,6 @@ const scrub = (text: string) => text
 // is written with plain fs: only storage writes take the bucket lock (and
 // its OS birth probe), so seeding bypasses nothing the journal read
 // exercises.
-
-function contextFor(kind: Parameters<typeof reportOptions>[0]): SourceReadContext {
-  return {
-    reportText: EN,
-    locale: 'en',
-    asOf: REPORT_FIXTURE_AS_OF,
-    workspaceKey: 'workspace',
-    options: reportOptions(kind),
-    signal: new AbortController().signal,
-  }
-}
 
 const goodBreakdown = (key: string): UsageFacts['breakdown'][number] => ({
   key,

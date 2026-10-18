@@ -4,32 +4,18 @@
 // below drives the real keybindings source into the real collector; the
 // playbook case proves the shared path with a synthetic oversized section.
 import { describe, expect, it } from 'vitest'
-import { EN } from '../../src/shared/l10n/en'
 import { REPORT_MAX_ROWS, REPORT_SECTION_ROWS } from '../../src/shared/constants'
 import { ACP_COMMAND_FACTS } from '../../src/core/reporting/sources/keybindings'
 import { keybindingsSource } from '../../src/core/reporting/sources/keybindings'
 import { referenceKeyboardActions } from '../../src/shared/keybindings'
 import { admitForwardedSection } from '../../src/core/reporting/collect/common'
-import type { SourceReadContext } from '../../src/core/reporting/sources/types'
 import type { ReportRow } from '../../src/shared/reportSchema'
 import {
   availableSource,
   buildSourceSnapshot,
-  REPORT_FIXTURE_AS_OF,
   reportOptions,
 } from './helpers/reporting/kindFixtures'
-import { facet, fixtureCollector, getSection } from './helpers/reporting/kindFixtures'
-
-function contextFor(kind: Parameters<typeof reportOptions>[0]): SourceReadContext {
-  return {
-    reportText: EN,
-    locale: 'en',
-    asOf: REPORT_FIXTURE_AS_OF,
-    workspaceKey: 'workspace',
-    options: reportOptions(kind),
-    signal: new AbortController().signal,
-  }
-}
+import { contextFor, facet, fixtureCollector, getSection } from './helpers/reporting/kindFixtures'
 
 describe('forwarded sections admit before parsing', () => {
   it('admits unknown sections to the row limit with the omitted counted', () => {

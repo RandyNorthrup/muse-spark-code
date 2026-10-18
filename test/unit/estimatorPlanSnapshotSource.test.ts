@@ -7,7 +7,7 @@ import {
 import { parseEstimateGoal } from '../../src/shared/estimate'
 import { resolveEstimateGoal } from '../../src/core/estimator/goal'
 import { ESTIMATOR_AS_OF } from './helpers/estimator/sectionVectors'
-import { planWorkspace } from './helpers/estimator/planWorkspace'
+import { m112Repo, planWorkspace, type PlanWorkspace } from './helpers/estimator/planWorkspace'
 
 const PLAN = `## 6. Milestones
 
@@ -35,17 +35,19 @@ const NETWORK = {
     }),
 }
 
-/** A real repository shaped like the M112 workspace: lane 0 merged into the
- * origin default, lane Q still open. All state is real git objects; the
- * origin refs are crafted locally (no network), as forged store files are
- * crafted elsewhere. */
-async function m112Repo(git: (args: readonly string[]) => Promise<string>): Promise<void> {
-  await git(['branch', '-M', 'main'])
-  await git(['branch', 'm112/0', 'main'])
-  await git(['checkout', '-b', 'm112/q'])
-  await git(['commit', '--allow-empty', '-m', 'q work'])
-  await git(['update-ref', 'refs/remotes/origin/main', 'main'])
-  await git(['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main'])
+/** The workspace io with plan reads counted, for the refuses-without-reading cases. */
+function countingIo(ws: PlanWorkspace): { io: PlanSnapshotSourceIo; reads(): number } {
+  let calls = 0
+  return {
+    io: {
+      ...ws.io,
+      readPlanFile: (file, signal) => {
+        calls += 1
+        return ws.io.readPlanFile(file, signal)
+      },
+    },
+    reads: () => calls,
+  }
 }
 
 async function resolveThrough(
@@ -95,18 +97,11 @@ describe('M117 plan snapshot source', () => {
   it('refuses without reading when the root is empty', async () => {
     const ws = await planWorkspace(PLAN)
     try {
-      let calls = 0
-      const io: PlanSnapshotSourceIo = {
-        ...ws.io,
-        readPlanFile: (file, signal) => {
-          calls += 1
-          return ws.io.readPlanFile(file, signal)
-        },
-      }
+      const { io, reads } = countingIo(ws)
       await expect(resolveThrough(io, 'M112', '', { networkAllowed: true })).rejects.toThrow(
         /missing-plan/,
       )
-      expect(calls).toBe(0)
+      expect(reads()).toBe(0)
     } finally {
       await ws.cleanup()
     }
@@ -309,21 +304,14 @@ describe('M117 plan snapshot source', () => {
   it('refuses the check without reading when the plan is missing', async () => {
     const ws = await planWorkspace(PLAN)
     try {
-      let calls = 0
-      const io: PlanSnapshotSourceIo = {
-        ...ws.io,
-        readPlanFile: (file, signal) => {
-          calls += 1
-          return ws.io.readPlanFile(file, signal)
-        },
-      }
+      const { io, reads } = countingIo(ws)
       // A root that really has no PLAN.md fails the read for real.
       await expect(createPlanCheckSource({ root: `${ws.root}/no-such-dir`, io })()).rejects.toThrow(
         /missing-plan: PLAN.md/,
       )
-      expect(calls).toBe(1)
+      expect(reads()).toBe(1)
       await expect(createPlanCheckSource({ root: '', io })()).rejects.toThrow(/missing-plan/)
-      expect(calls).toBe(1)
+      expect(reads()).toBe(1)
     } finally {
       await ws.cleanup()
     }

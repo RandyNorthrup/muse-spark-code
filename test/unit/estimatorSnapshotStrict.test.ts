@@ -13,7 +13,7 @@ import {
 } from '../../src/host/estimator/planSnapshotSource'
 import { planSnapshotLoader } from '../../src/host/estimator/planSnapshotBundle'
 import { createAcpEstimate } from '../../src/acp/estimate'
-import { planWorkspace } from './helpers/estimator/planWorkspace'
+import { m112Repo, planWorkspace } from './helpers/estimator/planWorkspace'
 import { EstimateViewSession } from '../../src/runtime/estimator/session'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { registerSecretValue } from '../../src/core/redact'
@@ -51,21 +51,6 @@ async function resolve(plan = PLAN, evidence: PlanSnapshotEvidence = {}, text = 
     snapshot: () => Promise.resolve(buildPlanSnapshot(plan, goal(text), AS_OF, evidence)),
   })
 }
-/**
- * A real repository shaped like the M112 workspace: lane 0 merged into the
- * origin default, lane Q still open. All state is real git objects; the
- * origin refs are crafted locally (no network), as forged store files are
- * crafted elsewhere.
- */
-async function m112Repo(git: (args: readonly string[]) => Promise<string>): Promise<void> {
-  await git(['branch', '-M', 'main'])
-  await git(['branch', 'm112/0', 'main'])
-  await git(['checkout', '-b', 'm112/q'])
-  await git(['commit', '--allow-empty', '-m', 'q work'])
-  await git(['update-ref', 'refs/remotes/origin/main', 'main'])
-  await git(['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main'])
-}
-
 // The agent's own logger (src/runtime/stderrLog.ts), its lines kept here.
 const snapshotContext = () => ({ asOf: AS_OF, optimize: 'cost' as const })
 const unsubscribe = () => undefined

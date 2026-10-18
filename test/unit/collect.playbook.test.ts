@@ -12,60 +12,9 @@ import {
   availableSource,
   reportOptions,
 } from './helpers/reporting/kindFixtures'
+import { playbookProbeView } from './helpers/reporting/reportKindFixtures'
 
-const view: PlaybookView = {
-  modules: [
-    {
-      id: 'm1',
-      key: 'src/alpha',
-      strikes: 1,
-      rounds: [
-        { class: null, round: 2 },
-        { class: 'validation', round: 1 },
-      ],
-    },
-  ],
-  designs: [
-    {
-      id: 'd1',
-      moduleKey: 'src/alpha',
-      redesignLane: 'C-M113-4',
-      failureClass: 'Checks raced',
-      outcome: 'remains',
-      at: 4000,
-      dateIso: '1970-01-01T00:00:04.000Z',
-    },
-  ],
-  drills: [
-    {
-      commit: 'abc123',
-      moduleId: 'm1',
-      scope: 'commit',
-      result: 'pass',
-      at: 5000,
-      dateIso: '1970-01-01T00:00:05.000Z',
-    },
-  ],
-  disabledRules: [
-    {
-      rule: 'loudFailures',
-      actor: 'lead',
-      reason: 'Too noisy',
-      at: 6000,
-      dateIso: '1970-01-01T00:00:06.000Z',
-    },
-  ],
-  refusals: [
-    {
-      code: 'lineageRequired',
-      module: 'src/alpha',
-      actor: 'rev',
-      reason: 'Around the gate',
-      at: 8000,
-      dateIso: '1970-01-01T00:00:08.000Z',
-    },
-  ],
-}
+const view: PlaybookView = playbookProbeView()
 
 describe('playbook sections', () => {
   it('builds the five D93.4 sections with stable columns', () => {
