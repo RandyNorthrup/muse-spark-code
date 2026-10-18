@@ -313,7 +313,10 @@ static void probe_child(const char *dir, const char *allowed, const char *denied
   int late_fd = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
   // Seatbelt denials surface as EPERM, not EACCES; either proves the profile held.
   if (late_fd >= 0 || (errno != EACCES && errno != EPERM)) refuse("postWalkRead");
-  n = snprintf(path, sizeof(path), "%s/%s", dir, denied);
+  // The denied file exists at the profile root but was never granted, so the
+  // confined open must be refused. It arrives absolute: joining it under dir
+  // would open a path that was never created and fail with ENOENT instead.
+  n = snprintf(path, sizeof(path), "%s", denied);
   if (n < 0 || (size_t)n >= sizeof(path)) refuse("request");
   errno = 0;
   int denied_fd = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
@@ -387,9 +390,12 @@ static void spawn_confined(char *const args[], int read_fd, int write_fd) {
 // see must be denied, and the allowed read must still work.
 static void probe(void) {
   if (mkdir("probe-tree", 0700)) refuse("selfTest");
-  int allowed = open("probe-tree/allowed", O_CREAT | O_EXCL | O_RDONLY, 0600);
+  int allowed = open("probe-tree/allowed", O_CREAT | O_EXCL | O_RDWR, 0600);
   int denied = open("probe-denied", O_CREAT | O_EXCL | O_RDONLY, 0600);
   if (allowed < 0 || denied < 0) refuse("selfTest");
+  // The confined child reads one byte back: an empty file reads EOF.
+  char seed = 'A';
+  if (write(allowed, &seed, 1) != 1) refuse("selfTest");
   close(allowed);
   close(denied);
   char sandbox[PATH_MAX], self[PATH_MAX], cwd[PATH_MAX];
@@ -411,15 +417,17 @@ static void probe(void) {
   close(profile_fd);
   profile_fd = -1;
   if (link("probe-denied", "probe-tree/late")) refuse("selfTest");
-  char profile[PATH_MAX], dir[PATH_MAX];
+  char profile[PATH_MAX], dir[PATH_MAX], ungranted[PATH_MAX];
   int n = snprintf(profile, sizeof(profile), "%s/profile.sb", root_absolute);
   if (n < 0 || (size_t)n >= sizeof(profile)) refuse("selfTest");
   n = snprintf(dir, sizeof(dir), "%s/probe-tree", root_absolute);
   if (n < 0 || (size_t)n >= sizeof(dir)) refuse("selfTest");
+  n = snprintf(ungranted, sizeof(ungranted), "%s/probe-denied", root_absolute);
+  if (n < 0 || (size_t)n >= sizeof(ungranted)) refuse("selfTest");
   int out[2];
   if (pipe(out)) refuse("exec");
   char *args[] = {sandbox, "-f", profile, self, "probe-child", dir, "allowed",
-                  "probe-denied", "late", NULL};
+                  ungranted, "late", NULL};
   spawn_confined(args, out[0], out[1]);
 }
 int main(int argc, char **argv) {

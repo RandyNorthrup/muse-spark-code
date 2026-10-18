@@ -365,6 +365,68 @@ needs the lead's unsandboxed Mac, as before):
   `sandbox_apply` both unavailable inside this sandbox, by the suite's
   designed skip).
 
+## Item 1d — PARITYMAC4: the probe fails on its own file state (7/10 → 10/10)
+
+Causes (from the code, not from loosening: both fail closed as refusals).
+The dyld rules held — cat/ls/grep/find run, no crashes — but `probe`
+exits 125, and that one failure latches the session runner off
+(`InspectRunner.selfTest` keeps `offReason`), so the find drill and the
+session drill refuse with `selfTest` too. Three failures, one root cause
+chain, two file-state bugs in `probe()` /
+`probe_child()` (`native/confine/MuseSparkConfineMac.c`):
+
+- Denied path never existed: the child opened `<dir>/probe-denied`
+  (`probe-tree/probe-denied`), but `probe()` creates `probe-denied` at the
+  profile root. The open fails with ENOENT, not a policy denial, so the
+  child refuses `postWalkRead`, the parent sees a nonzero exit and refuses
+  `selfTest`, and the ABI drill exits 125. Fix: the child takes the denied
+  file absolute (`<root>/probe-denied`, built next to the profile/dir
+  paths) — an existing file the profile never grants, so the confined
+  open is refused EPERM/EACCES as intended.
+- Allowed file empty: `probe-tree/allowed` is created but never written,
+  so the child's one-byte read gets EOF and refuses `selfTest`. Fix:
+  `probe()` seeds one byte (`O_RDWR` + `write`, one line each).
+
+Nothing that must stay refused widens: the profile is byte-identical in
+shape (same allow lines; the denied file is granted nowhere), the walk,
+the protected-path exclusions and every denial check are untouched.
+
+Diagnostics committed with the tests: every assertion on a helper result
+in the three drills now carries the helper's stderr (raw `native` runs)
+or the refused reason (`JSON.stringify` of runner results), as the
+verified-tools drill already did — the next unsandboxed rerun names each
+refusal's reason.
+
+Proven in this sandbox 2026-10-18 (live Seatbelt still needs the lead's
+unsandboxed Mac, as before):
+
+- The fixed helper compiles clean under the repo's exact flags
+  (`-std=c11 -O2 -Wall -Wextra -Werror -Wconversion -Wshadow`) via the
+  direct CLT cc against the MacOSX SDK.
+- Refusal matrix on the fixed binary (fresh home per run): identity
+  `workspaceIdentity`, unknown program `program`, `.env` /
+  `x/../allowed.txt` each `privateOperand`, symlink and hardlink each
+  `operand` — all exit 125 with empty stdout.
+- `probe` setup now completes: `probe-tree/allowed` is 1 byte,
+  `probe-denied` exists at the root, `probe-tree/late` is its hardlink,
+  and the profile grants `probe-tree` + `probe-tree/allowed` only. The
+  run then fails solely at `sandbox-exec: sandbox_apply: Operation not
+permitted` (this shell's nested sandbox), refusing `selfTest` at the
+  spawn mismatch. The old path is provably gone: `probe-tree/probe-denied`
+  does not exist, so the old join could only ever have raised ENOENT.
+- No widening in the probe profile: no `file-write*`, no `network*`, no
+  `process-fork`; workspace grants stay literal-only.
+
+What the lead's unsandboxed rerun must show (`npm ci --ignore-scripts`,
+`npm run build:confine`, `npx vitest run
+test/unit/inspectNative.test.ts`): 10/10 green — probe exits 0 with
+exactly `{"abi":1,"confined":true}`; the verified-tools drill unchanged;
+find lists `.git/config` without its contents and grep reports
+`excluded > 0`; the swapped leaf still fails nonzero with empty stdout;
+the first session run outputs `ALLOWED_CANARY` and the rewritten secret
+run refuses with `secret`. Any remaining refusal now names its reason in
+the assertion message.
+
 ## Drills
 
 - Item 3 and item 2 drills ran live on this Mac (above).
