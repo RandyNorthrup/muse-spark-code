@@ -151,6 +151,14 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 25,
   },
   {
+    // M116: the orchestrator playbook's English, out of the shared surface
+    // closure with the playbook's deferred surfaces: 3,367 bytes measured,
+    // +15%, rounded up to 25 KiB (D6).
+    name: 'playbook English',
+    entries: ['browser-playbook-english:browser-playbook-english'],
+    budgetKiB: 25,
+  },
+  {
     name: 'help reference',
     entries: [
       'src/webview/components/ReferencePage.tsx',
