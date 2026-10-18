@@ -290,8 +290,7 @@
           "properties": {
             "capUsd": {
               "type": "number",
-              "exclusiveMinimum": 0,
-              "maximum": 20
+              "exclusiveMinimum": 0
             },
             "breach": {
               "type": "boolean"
@@ -387,8 +386,7 @@
           "anyOf": [
             {
               "type": "number",
-              "exclusiveMinimum": 0,
-              "maximum": 20
+              "exclusiveMinimum": 0
             },
             {
               "type": "null"

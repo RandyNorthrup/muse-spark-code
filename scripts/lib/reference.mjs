@@ -861,7 +861,6 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     },
     'max-budget-usd': {
       exclusiveMinimum: 0,
-      maximum: source.EXEC_MAX_BUDGET_USD,
       decimals: source.EXEC_USD_DECIMALS,
       required: 'modelApi',
       unit: 'USD',

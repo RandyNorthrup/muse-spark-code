@@ -2,7 +2,6 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
 import type { ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import {
-  EXEC_MAX_BUDGET_USD,
   EXEC_MAX_REQUESTS,
   EXEC_MIN_OUTPUT_TOKENS,
   EXEC_USD_DECIMALS,
@@ -98,7 +97,7 @@ export function previewResponseReservation(
   price: TierPrice,
 ): ResponseTicket {
   const preview = createRunLedger({
-    capUsd: Usd.from(EXEC_MAX_BUDGET_USD).toAmount(),
+    capUsd: ledger.totals().capUsd,
     maxRequests: 1,
     outputCap: () => ledger.outputCap,
   }).admitResponse({ model, maxOutputTokens: ledger.outputCap, price })
@@ -149,7 +148,6 @@ export function createRunLedger(input: {
   const cap = units(input.capUsd)
   if (
     cap <= ZERO ||
-    cap > units(Usd.from(EXEC_MAX_BUDGET_USD).toAmount()) ||
     !Number.isSafeInteger(input.maxRequests) ||
     input.maxRequests < 1 ||
     input.maxRequests > EXEC_MAX_REQUESTS
