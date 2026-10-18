@@ -781,7 +781,7 @@ describe('worktree records generations (M123 lane P)', () => {
             ? holdingFirstPublish(jitteringFs(seed, 4, seen, 40), firstHeld.resolve)
             : jitteringFs(seed, 4, seen, 40),
         honoredLeaseMs,
-        // A 1 ms poll, not every event-loop turn: fifteen turn-spinning
+        // A 2 ms poll, not every event-loop turn: turn-spinning
         // waiters each retry with real file calls, and that traffic alone
         // passed the 5 s budget on a loaded machine. The publish linger
         // (up to 40 ms) and the held first publish (up to 2 s) leave the
@@ -789,7 +789,7 @@ describe('worktree records generations (M123 lane P)', () => {
         sleep: async () => {
           await delay(2)
         },
-        // The lock wait each reserve allows itself. Fifteen reserves race
+        // The lock wait each reserve allows itself. Nine reserves race
         // one lock, so most waits end here rather than in a publish; at
         // 4000 the case's wall time passed the 5 s test budget on a loaded
         // machine (18 s measured at load ~8, 2.2 s unloaded) even though
@@ -801,10 +801,11 @@ describe('worktree records generations (M123 lane P)', () => {
     const EAGER = 2
     const outcomes = await Promise.all(
       windows.flatMap((window, index) =>
-        // Five reserves a window (fifteen racers) still race one lock
+        // Three reserves a window (nine racers) still race one lock
         // through forced takeovers; ten a window serialised enough real
-        // file work to pass the 5 s budget on a loaded machine.
-        [1, 2, 3, 4, 5].map(async (number) => {
+        // file work to pass the 5 s budget on a loaded machine, and five
+        // still passed it beside other files in a shard.
+        [1, 2, 3].map(async (number) => {
           const folder = path.join(heldRoot, `${String(index)}-${String(number)}`)
           if (index === EAGER) {
             await firstHeld.promise
