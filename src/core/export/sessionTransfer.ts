@@ -27,6 +27,7 @@ import * as z from 'zod/mini'
 import { type ItemSnapshot, itemSnapshotFields } from '../../shared/agentEvents'
 import {
   DEFAULT_EFFORT,
+  MODEL_API_CONTEXT_BYTES_PER_TOKEN,
   MODEL_API_CONTEXT_WINDOW,
   CONVERSATION_MODEL_TEXT,
   REDACTED_MARK,
@@ -665,10 +666,16 @@ function replayBytes(replay: readonly StoredReplayItem[]): number {
  * The refusal for a replay of `bytes`, naming both sizes; undefined when it
  * fits. NOLIMITS1FIX: the limit is the provider's own documented window
  * (`MODEL_API_CONTEXT_WINDOW`, dev.meta.ai/docs/models) — our
- * window-minus-reserve formula was invented.
+ * window-minus-reserve formula was invented. The bytes are measured in
+ * tokens with the established `MODEL_API_CONTEXT_BYTES_PER_TOKEN`
+ * estimator, the same lower estimate the send-time preflight
+ * (`assertContextFits`) applies to the complete first request, so a
+ * repetitive multi-megabyte transcript that tokenizes below the window is
+ * accepted here and still refused at send time when the assembled request
+ * with instructions and the new message does not fit.
  */
 function oversizeReason(bytes: number): string | undefined {
-  return bytes > MODEL_API_CONTEXT_WINDOW
+  return Math.floor(bytes / MODEL_API_CONTEXT_BYTES_PER_TOKEN) > MODEL_API_CONTEXT_WINDOW
     ? fill(UI_TEXT.importReplayTooLarge, {
         size: formatBytes(bytes),
         limit: formatBytes(MODEL_API_CONTEXT_WINDOW),
@@ -678,10 +685,11 @@ function oversizeReason(bytes: number): string | undefined {
 
 /**
  * Why `doc` cannot be resumed on the Model API, or undefined (RV84 #10): the
- * text it hands the model, counted high as one token per UTF-8 byte, must
- * fit the provider's documented window (`MODEL_API_CONTEXT_WINDOW`).
- * Accepted, a larger one would fail every later message past the model's
- * window; it can still be read as a share file.
+ * text it hands the model, estimated in tokens with
+ * `MODEL_API_CONTEXT_BYTES_PER_TOKEN`, must fit the provider's documented
+ * window (`MODEL_API_CONTEXT_WINDOW`). Accepted, a larger one would fail
+ * every later message past the model's window; it can still be read as a
+ * share file.
  */
 export function importRefusal(doc: SessionExport): string | undefined {
   return oversizeReason(

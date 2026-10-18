@@ -3387,6 +3387,7 @@
   "goalCannotResume": "Wznowić można tylko wstrzymany cel.",
   "goalCannotEdit": "Zmienić można tylko aktywny lub wstrzymany cel; nowy ustaw poleceniem /goal <cel>.",
   "goalObjectiveMissing": "Wpisz cel po /goal.",
+  "goalObjectiveTooLarge": "That objective is too long for the selected model’s context window. Shorten it or pick a model with a larger window.",
   "goalCommandFailed": "Polecenie celu nie powiodło się",
   "goalOutcomeUnknown": "Podczas wykonywania polecenia celu zmieniło się logowanie lub backend został uruchomiony ponownie: polecenie mogło zostać zastosowane lub nie. Sprawdź cel sesji.",
   "announceGoalStatus": "Cel: {status}",

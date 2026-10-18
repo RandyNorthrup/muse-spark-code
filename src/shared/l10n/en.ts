@@ -3876,6 +3876,8 @@ export const EN = {
   goalCannotEdit:
     'Only an active or paused goal can be changed; set a new one with /goal <objective>.',
   goalObjectiveMissing: 'Type the objective after /goal.',
+  goalObjectiveTooLarge:
+    'That objective is too long for the selected model’s context window. Shorten it or pick a model with a larger window.',
   goalCommandFailed: 'The goal command failed',
   // A goal command the backend already had when a key activation or a
   // backend restart came: whether it took is not known.

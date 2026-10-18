@@ -11,6 +11,7 @@
 // the goal wakes a turn only when the user sets, edits or resumes it while
 // nothing runs, as Muse Code does; nothing else ever starts a model call.
 
+import { Buffer } from 'node:buffer'
 import * as z from 'zod/mini'
 import type { SessionGoal } from '../../../shared/agentEvents'
 import {
@@ -18,6 +19,7 @@ import {
   GOAL_PERCENT_MAX,
   GOAL_PROGRESS_REMINDER_STEPS,
   GOAL_STATUS,
+  MODEL_API_CONTEXT_BYTES_PER_TOKEN,
   MODEL_API_MODEL_TEXT,
   MODEL_API_TOOLS,
 } from '../../../shared/constants'
@@ -31,6 +33,12 @@ export interface GoalContext {
   /** Epoch milliseconds. */
   readonly now: number
   readonly newId: () => string
+  /**
+   * The selected model's recorded context window in tokens. A goal whose
+   * pinned section alone cannot fit it is refused before activation;
+   * undefined (unknown) means no check.
+   */
+  readonly contextTokens?: number | undefined
 }
 
 /** A tool call's outcome and the goal after it (undefined when there is none). */
@@ -127,12 +135,30 @@ function parsedArgs<T>(schema: z.ZodMiniType<T>, args: string): T | undefined {
 /**
  * A validation code shared by user verbs and model tools, with separate
  * text. D121: an objective of any length stands — the removed 4000-character
- * ceiling was invented (Muse Code states no limit) — so only blank refuses.
+ * ceiling was invented (Muse Code states no limit) — so only blank refuses,
+ * and an objective whose pinned section alone exceeds the selected model's
+ * recorded window (the provider's own limit, measured with the established
+ * bytes-per-token estimator).
  */
-type ObjectiveProblem = 'empty'
+type ObjectiveProblem = 'empty' | 'tooLarge'
 
-function objectiveProblem(objective: string): ObjectiveProblem | undefined {
-  return objective.trim() === '' ? 'empty' : undefined
+function isSectionOverWindow(objective: string, contextTokens: number | undefined): boolean {
+  return (
+    contextTokens !== undefined &&
+    Number.isSafeInteger(contextTokens) &&
+    contextTokens > 0 &&
+    Math.floor(Buffer.byteLength(goalSection(objective)) / MODEL_API_CONTEXT_BYTES_PER_TOKEN) >
+      contextTokens
+  )
+}
+
+function objectiveProblem(
+  objective: string,
+  contextTokens: number | undefined,
+): ObjectiveProblem | undefined {
+  const trimmed = objective.trim()
+  if (trimmed === '') return 'empty'
+  return isSectionOverWindow(trimmed, contextTokens) ? 'tooLarge' : undefined
 }
 
 function freshGoal(
@@ -178,9 +204,16 @@ function createGoal(
   if (goal?.status === GOAL_STATUS.paused) {
     return { outcome: failure(MODEL_API_MODEL_TEXT.goalPausedExists), goal }
   }
-  const problem = objectiveProblem(parsed.objective)
+  const problem = objectiveProblem(parsed.objective, context.contextTokens)
   if (problem !== undefined) {
-    return { outcome: failure(MODEL_API_MODEL_TEXT.goalEmptyObjective), goal }
+    return {
+      outcome: failure(
+        problem === 'empty'
+          ? MODEL_API_MODEL_TEXT.goalEmptyObjective
+          : MODEL_API_MODEL_TEXT.goalObjectiveTooLarge,
+      ),
+      goal,
+    }
   }
   const budget = parsed.token_budget ?? null
   return budget === null || isBudget(budget)
@@ -302,9 +335,12 @@ export function applyGoalCommand(
 }
 
 /** Why a set or edit's objective is refused before anything changes, or undefined. */
-export function goalObjectiveProblem(command: GoalCommand): ObjectiveProblem | undefined {
+export function goalObjectiveProblem(
+  command: GoalCommand,
+  contextTokens?: number,
+): ObjectiveProblem | undefined {
   return command.verb === 'set' || command.verb === 'edit'
-    ? objectiveProblem(command.objective)
+    ? objectiveProblem(command.objective, contextTokens)
     : undefined
 }
 
@@ -336,20 +372,27 @@ export function toSessionGoal(goal: GoalRecord): SessionGoal {
 }
 
 /**
+ * The pinned section for an objective: the objective plus the other content
+ * the feature pins with it on every request (the heading and the rules).
+ * The per-request remainder (base instructions, tools, input) stays the
+ * send-time preflight's guard (`assertContextFits`).
+ */
+function goalSection(objective: string): string {
+  return [
+    '# Session goal',
+    'The user set a goal for this session. Keep working toward it across turns until it is achieved.',
+    `- Objective: ${objective}`,
+    `Report progress with ${MODEL_API_TOOLS.reportProgress} as you finish steps. Treat the goal as achieved only when current evidence proves every requirement is satisfied (files, command output, test results) and no required work remains; if the evidence is incomplete or indirect, keep working. Then call ${MODEL_API_TOOLS.updateGoal} with status "complete" (or ${MODEL_API_TOOLS.reportProgress} with percent_complete 100). If you cannot proceed, call ${MODEL_API_TOOLS.updateGoal} with status "blocked" and say what blocks you; never fake, bypass or disable a test to satisfy the goal.`,
+  ].join('\n\n')
+}
+
+/**
  * The section pinned into the instructions while the goal is active (D38):
  * only the objective and rules. Mutable progress travels in a request-only
  * trailing message, outside the cached prefix (M101, D81).
  */
 export function goalInstructions(goal: GoalRecord | undefined): string | undefined {
-  if (!isGoalActive(goal)) {
-    return undefined
-  }
-  return [
-    '# Session goal',
-    'The user set a goal for this session. Keep working toward it across turns until it is achieved.',
-    `- Objective: ${goal.objective}`,
-    `Report progress with ${MODEL_API_TOOLS.reportProgress} as you finish steps. Treat the goal as achieved only when current evidence proves every requirement is satisfied (files, command output, test results) and no required work remains; if the evidence is incomplete or indirect, keep working. Then call ${MODEL_API_TOOLS.updateGoal} with status "complete" (or ${MODEL_API_TOOLS.reportProgress} with percent_complete 100). If you cannot proceed, call ${MODEL_API_TOOLS.updateGoal} with status "blocked" and say what blocks you; never fake, bypass or disable a test to satisfy the goal.`,
-  ].join('\n\n')
+  return isGoalActive(goal) ? goalSection(goal.objective) : undefined
 }
 
 /** Mutable goal facts, rebuilt at the end of each request and never saved in replay. */

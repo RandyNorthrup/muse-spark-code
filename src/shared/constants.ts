@@ -6667,6 +6667,8 @@ export const MODEL_API_MODEL_TEXT = {
   goalBadPercent: 'percent_complete must be between 0 and 100',
   goalEmptyWork: 'current_work and next_work must not be empty',
   goalEmptyObjective: 'objective must not be empty',
+  goalObjectiveTooLarge:
+    'objective is too long for the selected model’s context window; shorten it or use a model with a larger window',
   goalBadBudget: 'token_budget must be a positive whole number',
   // M50: an MCP tool's schema and results on the Model API backend.
   mcpSchemaReplaced:

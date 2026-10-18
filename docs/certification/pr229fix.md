@@ -57,6 +57,26 @@ goldens are fixed in this lane.
   removal `f345149261`); (c) the three `prompt_cache_key` digests that cover
   those tool lists. `invariants.test.ts` 42/42 green on the repo default
   timeout, no `--testTimeout`.
+- T9 (`sessionTransfer.ts`): `oversizeReason` measures the replay in tokens
+  with the established `MODEL_API_CONTEXT_BYTES_PER_TOKEN` estimator — the
+  same lower estimate the send-time `assertContextFits` preflight applies to
+  the complete first request (instructions, tools, replay, new message) —
+  instead of comparing UTF-8 bytes to the token window. A repetitive ~2 MB
+  transcript (≈500K tokens) is now accepted (the old code refused it); past
+  the window in estimated tokens still refuses with the same message.
+  `sessionTransfer.test.ts` 25/25.
+- T10 (`goals.ts`): `create_goal` and the `set`/`edit` verbs refuse an
+  objective whose whole pinned section (objective plus the mandatory rules
+  prose, measured with the same estimator) alone exceeds the selected
+  model's recorded `contextTokens` — the provider's own limit — before the
+  goal activates; unknown window means no check, and the per-request
+  remainder stays the send-time preflight's guard. `GoalContext` carries the
+  window from `contextModelFor(this.deps, this.modelId)` at both host call
+  sites. New `MODEL_API_MODEL_TEXT.goalObjectiveTooLarge` plus
+  `UI_TEXT.goalObjectiveTooLarge` (English in all 14 tables, listed in
+  `l10n/untranslated.json`); `check:l10n` 0 problems. `goals.test.ts`
+  15/15, `goalCommand.test.ts` green; the new refusal test was seen to fail
+  with the comparison inverted.
 
 ## Triage (committed first)
 

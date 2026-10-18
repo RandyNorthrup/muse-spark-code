@@ -3257,6 +3257,7 @@
   "goalCannotResume": "Yalnızca duraklatılmış bir hedef sürdürülebilir.",
   "goalCannotEdit": "Yalnızca etkin veya duraklatılmış bir hedef değiştirilebilir; /goal <hedef> ile yeni bir hedef belirleyin.",
   "goalObjectiveMissing": "/goal komutundan sonra hedefi yazın.",
+  "goalObjectiveTooLarge": "That objective is too long for the selected model’s context window. Shorten it or pick a model with a larger window.",
   "goalCommandFailed": "Hedef komutu başarısız oldu",
   "goalOutcomeUnknown": "Hedef komutu çalışırken oturum açma değişti veya arka uç yeniden başlatıldı: komut uygulanmış da olabilir, uygulanmamış da. Oturum hedefini kontrol edin.",
   "announceGoalStatus": "Hedef: {status}",

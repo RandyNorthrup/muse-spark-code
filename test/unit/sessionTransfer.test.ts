@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 import type { ItemSnapshot } from '../../src/shared/agentEvents'
 import {
   DEFAULT_EFFORT,
+  MODEL_API_CONTEXT_BYTES_PER_TOKEN,
   MODEL_API_CONTEXT_WINDOW,
   CONVERSATION_MODEL_TEXT,
   SESSION_EXPORT_SCRUB_SLICE_CHARS,
@@ -646,13 +647,24 @@ describe('sanitizeImportedSession', () => {
 
   it('refuses turns past the provider window, naming both sizes (RV84 #10)', async () => {
     // NOLIMITS1FIX: our window-minus-reserve formula is gone — the limit is
-    // the provider's own documented window.
+    // the provider's own documented window, measured in tokens with the
+    // established bytes-per-token estimator.
     const fits = await exported([userItem('u1', 'x'.repeat(MODEL_API_CONTEXT_WINDOW / 2))])
     expect(importRefusal(fits)).toBeUndefined()
     expect(sanitize(fits).replay).toHaveLength(1)
-    // Counted in UTF-8 bytes, as the model is handed them: a third as many
-    // characters as the window, three bytes each, do not fit.
-    const wide = '語'.repeat(Math.ceil(MODEL_API_CONTEXT_WINDOW / 3))
+    // A repetitive multi-megabyte transcript tokenizes below the window, so
+    // the byte comparison it replaced would wrongly refuse it.
+    const repetitive = await exported([
+      userItem(
+        'u1',
+        'x'.repeat((MODEL_API_CONTEXT_BYTES_PER_TOKEN * MODEL_API_CONTEXT_WINDOW) / 2),
+      ),
+    ])
+    expect(importRefusal(repetitive)).toBeUndefined()
+    expect(sanitize(repetitive).replay).toHaveLength(1)
+    // Past the window in estimated tokens: four bytes per token, plus room
+    // for the replay envelope, refuses.
+    const wide = 'x'.repeat(MODEL_API_CONTEXT_BYTES_PER_TOKEN * MODEL_API_CONTEXT_WINDOW + 4096)
     const tooLarge = await exported([userItem('u1', 'Hi'), agentItem('a1', wide)])
     const reason = importRefusal(tooLarge) ?? ''
     const [before = '', after = ''] = fill(UI_TEXT.importReplayTooLarge, {

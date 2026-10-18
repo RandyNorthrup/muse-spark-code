@@ -3257,6 +3257,7 @@
   "goalCannotResume": "Csak szüneteltetett cél folytatható.",
   "goalCannotEdit": "Csak aktív vagy szüneteltetett cél módosítható; újat a /goal <cél> paranccsal tűzhet ki.",
   "goalObjectiveMissing": "Írja be a célt a /goal után.",
+  "goalObjectiveTooLarge": "That objective is too long for the selected model’s context window. Shorten it or pick a model with a larger window.",
   "goalCommandFailed": "A célparancs sikertelen volt",
   "goalOutcomeUnknown": "A célparancs futása közben megváltozott a bejelentkezés, vagy újraindult a háttérrendszer: lehet, hogy érvényesült, lehet, hogy nem. Ellenőrizze a munkamenet célját.",
   "announceGoalStatus": "Cél: {status}",
