@@ -5,6 +5,7 @@ import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'no
 import path from 'node:path'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
 import { compactVsix } from './lib/compactVsix.mjs'
+import { removePackageStage } from './lib/packageStage.mjs'
 import {
   contributedIds,
   fullNotesHref,
@@ -168,32 +169,38 @@ export async function stageVsix(root, stage) {
 async function main() {
   const root = process.cwd()
   const stage = path.join(root, 'dist', 'vsix-package')
-  await stageVsix(root, stage)
-  // The same strict localization gate reads the exact staged bytes too.
-  execFileSync(process.execPath, ['scripts/check-l10n.mjs', '--packaged', stage], {
-    cwd: root,
-    stdio: 'inherit',
-  })
-  execFileSync(process.execPath, ['scripts/check-badges.mjs', '--packaged-vsix', stage], {
-    cwd: root,
-    stdio: 'inherit',
-  })
-  execFileSync(process.execPath, ['test/packaging/moduleExports.test.mjs', 'vsix', stage], {
-    cwd: root,
-    stdio: 'inherit',
-  })
-  const manifest = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
-  const archive = path.join(root, `${manifest.name}-${manifest.version}.vsix`)
-  const result = await pack({ cwd: stage, dependencies: false, packagePath: archive })
-  await compactVsix(archive, result.files)
-  execFileSync(process.execPath, ['scripts/compress-vsix.mjs', archive], {
-    cwd: root,
-    stdio: 'inherit',
-  })
-  execFileSync(process.execPath, ['scripts/check-vsix-size.mjs', archive], {
-    cwd: root,
-    stdio: 'inherit',
-  })
+  try {
+    await stageVsix(root, stage)
+    // The same strict localization gate reads the exact staged bytes too.
+    execFileSync(process.execPath, ['scripts/check-l10n.mjs', '--packaged', stage], {
+      cwd: root,
+      stdio: 'inherit',
+    })
+    execFileSync(process.execPath, ['scripts/check-badges.mjs', '--packaged-vsix', stage], {
+      cwd: root,
+      stdio: 'inherit',
+    })
+    execFileSync(process.execPath, ['test/packaging/moduleExports.test.mjs', 'vsix', stage], {
+      cwd: root,
+      stdio: 'inherit',
+    })
+    const manifest = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
+    const archive = path.join(root, `${manifest.name}-${manifest.version}.vsix`)
+    const result = await pack({ cwd: stage, dependencies: false, packagePath: archive })
+    await compactVsix(archive, result.files)
+    execFileSync(process.execPath, ['scripts/compress-vsix.mjs', archive], {
+      cwd: root,
+      stdio: 'inherit',
+    })
+    execFileSync(process.execPath, ['scripts/check-vsix-size.mjs', archive], {
+      cwd: root,
+      stdio: 'inherit',
+    })
+  } finally {
+    // The stage is build output, never an artifact: a stale stage poisons
+    // later gates' scans of dist/, so it goes on success and on failure.
+    removePackageStage(stage)
+  }
 }
 
 if (

@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Packaging removes its `dist/*-package` stage when it finishes, on success
+  and on failure, so a stale stage can no longer poison later gates' scans of
+  `dist/`. The ACP packager leaves `dist/acp-stage-files.json` naming every
+  staged file for the release SBOM, which now reads that receipt instead of
+  the stage directory.
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights
