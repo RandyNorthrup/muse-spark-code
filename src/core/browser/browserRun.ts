@@ -41,6 +41,8 @@ import {
   BROWSER_CHECK_LOAD_TIMEOUT_MS,
   BROWSER_CHECK_TEARDOWN_MS,
   BROWSER_CHECK_TIMEOUT_MS,
+  BROWSER_NETWORK_SERVICE_POLL_MS,
+  BROWSER_NETWORK_SERVICE_START_MS,
   BROWSER_NETWORK_SERVICE_TYPE,
   BROWSER_PRODUCT_PREFIX,
   BROWSER_PROXY_BYPASS,
@@ -448,6 +450,23 @@ async function networkServiceId(page: PageCheck): Promise<number | undefined> {
   return processInfo.find((entry) => entry.type === BROWSER_NETWORK_SERVICE_TYPE)?.id
 }
 
+/**
+ * The network service's process id once the browser has started it, read
+ * before any request: the browser launches the service after its own
+ * process already answers on the pipe, so it is asked again until the
+ * service appears; undefined when it has not within the bound.
+ */
+async function startedNetworkServiceId(page: PageCheck): Promise<number | undefined> {
+  const giveUpAt = performance.now() + BROWSER_NETWORK_SERVICE_START_MS
+  let serviceId = await networkServiceId(page)
+  while (serviceId === undefined && performance.now() < giveUpAt) {
+    // Only the browser's end wakes this wait early; the next call then fails.
+    await page.waitUntil(() => false, BROWSER_NETWORK_SERVICE_POLL_MS)
+    serviceId = await networkServiceId(page)
+  }
+  return serviceId
+}
+
 interface CheckContext {
   readonly page: PageCheck
   readonly fixture: ProbeFixture
@@ -586,7 +605,7 @@ async function holdToContract(
   )
   const { targetInfos } = await page.call('Target.getTargets', targetsSchema)
   const [first] = targetInfos
-  const serviceId = await networkServiceId(page)
+  const serviceId = await startedNetworkServiceId(page)
   if (
     serviceId === undefined ||
     targetInfos.length !== 1 ||

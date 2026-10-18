@@ -14,6 +14,11 @@ happened, not what was planned; superseded entries are kept.
   saved", although nothing was wrong with the ledger. Windows answers a lock
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
+- On Windows, a browser check could end at once with "unrecognized" although
+  nothing was wrong with the browser: the check read the browser's process
+  list before the browser had started its network service. It now waits for
+  that service, up to five seconds, before it reads it; what it requires of
+  the browser is unchanged.
 
 ### Release infrastructure
 
