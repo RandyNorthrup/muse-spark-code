@@ -1129,10 +1129,13 @@ export const EN = {
     'This conversation was too long to keep in the panel across the reload; open it from History to see all of it.',
   linkOutsideWorkspace: 'Links to files outside the workspace are not opened from the transcript.',
   emptyStateHint: 'Type /model to pick the right tool for the job.',
-  // macOS binds Cmd+Esc; Windows binds Ctrl+Alt+Esc (Ctrl+Esc opens Start
-  // there; M26, D29).
-  composerPlaceholder:
-    'ctrl esc (cmd esc on macOS, ctrl alt esc on Windows) to focus or unfocus Muse',
+  // The empty composer's invitation (F67): a message first, then only this
+  // machine's shortcut, in one line. The host fills `shortcut` for its own
+  // platform (webviewSetup); the all-platform tip stays in Getting Started
+  // (M26, D29).
+  composerPlaceholder: 'Ask Muse…',
+  // {shortcut}: this machine's focus key (Ctrl+Esc, Cmd+Esc or Ctrl+Alt+Esc).
+  composerPlaceholderWithShortcut: 'Ask Muse… ({shortcut} to focus)',
   // Shown while a turn runs: Enter then steers the running turn.
   composerQueuePlaceholder: 'Queue another message…',
   queuedLabel: 'Queued',
