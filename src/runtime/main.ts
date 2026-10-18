@@ -195,8 +195,8 @@ function writeLine(stream: NodeJS.WriteStream, line: string): void {
   stream.write(`${line}\n`)
 }
 
-// Lane PR225FIX2: a Stop clears the wait's own timer, and a wait left
-// pending never holds the agent process open.
+// Lane PR225FIX2: a Stop clears the wait's own timer, so an abandoned
+// wait leaves none behind.
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return abortableSleep(ms, signal)
 }

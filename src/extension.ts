@@ -2053,8 +2053,8 @@ async function activateWindow(
       apiKey: () => credentials.getApiKey(),
       // Lane RETRYLIMITS: the person's retry limit, read live; null stays unset.
       personMaxRetries: () => currentSettings().modelApiMaxRetries ?? undefined,
-      // Lane PR225FIX2: a Stop clears the wait's own timer, and a wait
-      // left pending never holds the process open.
+      // Lane PR225FIX2: a Stop clears the wait's own timer, so an
+      // abandoned wait leaves none behind.
       sleep: abortableSleep,
       now: () => Date.now(),
       random: () => Math.random(),
@@ -2629,8 +2629,8 @@ async function activateWindow(
     personMaxRetries: () => currentSettings().modelApiMaxRetries ?? undefined,
     newId: () => crypto.randomUUID(),
     now: () => Date.now(),
-    // Lane PR225FIX2: a Stop clears the wait's own timer, and a wait left
-    // pending never holds the process open.
+    // Lane PR225FIX2: a Stop clears the wait's own timer, so an
+    // abandoned wait leaves none behind.
     sleep: abortableSleep,
     random: () => Math.random(),
     personalSkillsRoot: skillsHome,

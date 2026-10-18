@@ -595,11 +595,13 @@ function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; d
 }
 
 /**
- * Production `TransportDeps.sleep` (lane PR225FIX2): a real timer that never
- * holds the process open and is cleared the moment `signal` aborts, so a
- * retry wait a Stop abandons leaves no timer behind. Resolves early on
- * abort; the caller observes the abort itself (`pause`'s race rejects with
- * the turn's cancellation, registered before this listener).
+ * Production `TransportDeps.sleep` (lane PR225FIX2): a real timer cleared
+ * the moment `signal` aborts, so a retry wait a Stop abandons leaves no
+ * timer behind (deliberately still referenced while it runs: an unaborted
+ * wait holds the process exactly as before, only an abandoned one is
+ * gone). Resolves early on abort; the caller observes the abort itself
+ * (`pause`'s race rejects with the turn's cancellation, registered before
+ * this listener).
  */
 export function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise<void>((done) => {
@@ -611,8 +613,6 @@ export function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> 
       signal?.removeEventListener('abort', onAbort)
       done()
     }, ms)
-    // A wait left pending by a Stop must never hold the process open.
-    timer.unref()
     const onAbort = () => {
       clearTimeout(timer)
       done()
