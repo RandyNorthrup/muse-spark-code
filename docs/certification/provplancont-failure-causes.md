@@ -262,3 +262,18 @@ Highlights, so the CHANGELOG lines do not count. The fixes above add about
 VSIX holds every bundle), and the cap is not raised here (PLAN.md D6):
 the owner decides between authorizing a new budget and cutting shipped
 content.
+
+## PR180FIX (2026-10-18, macmini rig): five review threads, triage
+
+Branch `fix/plan-review` at `ef6eaff512`. None of the five threads is
+fixed by an earlier commit on this branch (checked against the files'
+histories); each gets a fix at its cause below, with a unit test where
+the module is reachable without the editor.
+
+| Thread | File:line                                              | One-line result                                                                                                                             |
+| ------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 (P1) | `src/core/providers/subscriptions/registry.ts:43`      | NOT FIXED upstream: the outer array still parses with the full facts schema, so one bad capability field fails the whole listing; fix here. |
+| 2 (P2) | `src/core/providers/subscriptions/registry.ts:601`     | NOT FIXED upstream: `planRequestError(response)` reads the error body with no deadline after `withinIdle` already resolved; fix here.       |
+| 3 (P2) | `src/runtime/chatGptProviderCommands.ts:270`           | NOT FIXED upstream: `add-new-account` verify accepts any stored grant even though the command refused with `already-added`; fix here.       |
+| 4 (P1) | `src/runtime/chatGptRefreshLock.ts:33`                 | NOT FIXED upstream: no `timeoutMs` means `withNamedLock` waits forever (only tests pass one); restore the `OAUTH_CODE_TTL_MS` default here. |
+| 5 (P1) | `src/host/conversation/conversationController.ts:3984` | NOT FIXED upstream: first attach unconditionally `updateFast(false)`, clearing a pre-session Fast choice; fix here.                         |
