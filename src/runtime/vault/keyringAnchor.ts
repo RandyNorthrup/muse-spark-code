@@ -54,15 +54,7 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
   constructor(private readonly openEntry: KeyringEntryFactory) {}
 
   private async read(): Promise<AnchorRecord | null> {
-    let raw: string | null | undefined
-    try {
-      raw = await storeOperation(() =>
-        this.openEntry(KEYRING_SERVICE, VAULT_ANCHOR_ACCOUNT).getPassword(),
-      )
-    } catch {
-      // No native text: the fixed, localized repair reaches the person (RVCM1091B 4).
-      throw new VaultStoreUnavailableError()
-    }
+    const raw = await this.readRaw()
     if (raw === null || raw === undefined) return null
     if (raw.length > VAULT_LIMITS.text) throw new VaultError('rollback')
     try {
@@ -82,16 +74,10 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
     authorize()
     if (record?.vaultId !== vaultId || !isSame(stateOf(record), expected))
       throw new VaultError('rollback')
-    // No await between authority and dispatch to the OS store. storeOperation
+    // No await between authority and dispatch to the store. storeOperation
     // scrubs native failures, so cancellation must be checked outside it.
     authorize()
-    try {
-      await storeOperation(() =>
-        this.openEntry(KEYRING_SERVICE, VAULT_ANCHOR_ACCOUNT).deletePassword(),
-      )
-    } catch {
-      throw new VaultStoreUnavailableError()
-    }
+    await this.deleteRaw()
   }
   private async advanceState(
     vaultId: string,
@@ -110,14 +96,7 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
       throw new VaultError('rollback')
     const next = recordSchema.parse({ v: 1, vaultId, ...state })
     assertHeld?.()
-    try {
-      await storeOperation(() =>
-        this.openEntry(KEYRING_SERVICE, VAULT_ANCHOR_ACCOUNT).setPassword(JSON.stringify(next)),
-      )
-    } catch {
-      // No native text: the fixed, localized repair reaches the person (RVCM1091B 4).
-      throw new VaultStoreUnavailableError()
-    }
+    await this.writeRaw(JSON.stringify(next))
   }
   /** The vault this user owns, or null before setup. */
   async vaultId(): Promise<string | null> {
@@ -150,5 +129,42 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
   ): Promise<void> {
     const work = () => this.advanceState(vaultId, state, prior, assertHeld)
     return assertHeld?.mutate?.(work) ?? work()
+  }
+
+  /**
+   * The one protected record, as text. Overridden by the file anchor, which
+   * keeps the same record and the same rollback rules without the OS store.
+   */
+  protected async readRaw(): Promise<string | null | undefined> {
+    try {
+      return await storeOperation(() =>
+        this.openEntry(KEYRING_SERVICE, VAULT_ANCHOR_ACCOUNT).getPassword(),
+      )
+    } catch {
+      // No native text: the fixed, localized repair reaches the person (RVCM1091B 4).
+      throw new VaultStoreUnavailableError()
+    }
+  }
+
+  /** The one protected record, replaced whole. See readRaw. */
+  protected async writeRaw(raw: string): Promise<void> {
+    try {
+      await storeOperation(() =>
+        this.openEntry(KEYRING_SERVICE, VAULT_ANCHOR_ACCOUNT).setPassword(raw),
+      )
+    } catch {
+      throw new VaultStoreUnavailableError()
+    }
+  }
+
+  /** The one protected record, removed. See readRaw. */
+  protected async deleteRaw(): Promise<void> {
+    try {
+      await storeOperation(() =>
+        this.openEntry(KEYRING_SERVICE, VAULT_ANCHOR_ACCOUNT).deletePassword(),
+      )
+    } catch {
+      throw new VaultStoreUnavailableError()
+    }
   }
 }

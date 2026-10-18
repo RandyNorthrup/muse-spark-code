@@ -39604,7 +39604,12 @@ CI. PR #246 (`build/vsix-per-platform`, D123: six platform packages from
 filtered stages, each with its own helpers and TargetPlatform) and PR #216
 (`ms/msm109`: the credential vault end to end on Linux and macOS) merged
 next, in that order, each with its CHANGELOG entries under `[0.19.0]` and
-the roadmap regenerated. The `0.19.0 released (…)` line is written by the lead after the tag's
+the roadmap regenerated. PR #247 (`ms/msm109-parity`: the Windows broker
+channel over the guarded pipe helper, per-platform slot providers with real
+presence checks, and the file-backed rollback anchor where the OS keyring
+binding is missing) merged third; its parallel per-platform `.vsix` work
+kept the merged PR #246 shape, plus the pipe helper as a required win32
+native file, with its CHANGELOG entries under `[0.19.0]`. The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**

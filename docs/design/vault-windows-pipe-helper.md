@@ -76,19 +76,21 @@ payload length `uint32` BE) followed by the payload. A payload is at most
 at 1 and are never reused within one helper's life. Connection 0 is the
 helper itself.
 
-| Type | Direction               | Payload                                                               |
-| ---- | ----------------------- | --------------------------------------------------------------------- |
-| 0x01 | `ready`, to Node        | JSON `windowsVaultPipeReadySchema` (connection 0)                     |
-| 0x02 | `open`, to Node         | JSON `windowsVaultPipeClientSchema`                                   |
-| 0x03 | `data`, to Node         | client bytes                                                          |
-| 0x04 | `end`, to Node          | empty: client closed or broke the pipe                                |
-| 0x05 | `fault`, to Node        | one `windowsVaultPipeFaultSchema` word (connection 0), then exit      |
-| 0x06 | `fileResult`, to Node   | JSON `windowsVaultPipeFileResultSchema` (connection 0)                |
-| 0x07 | `serverResult`, to Node | JSON `windowsVaultPipeServerResultSchema` (connection 0)              |
-| 0x13 | `send`, to helper       | bytes for the client                                                  |
-| 0x14 | `close`, to helper      | empty: disconnect this client                                         |
-| 0x21 | `file`, to helper       | JSON `windowsVaultPipeFileCommandSchema` (connection 0)               |
-| 0x22 | `server`, to helper     | JSON `windowsVaultPipeServerQuerySchema` (connection 0), `files` mode |
+| Type | Direction                | Payload                                                                |
+| ---- | ------------------------ | ---------------------------------------------------------------------- |
+| 0x01 | `ready`, to Node         | JSON `windowsVaultPipeReadySchema` (connection 0)                      |
+| 0x02 | `open`, to Node          | JSON `windowsVaultPipeClientSchema`                                    |
+| 0x03 | `data`, to Node          | client bytes                                                           |
+| 0x04 | `end`, to Node           | empty: client closed or broke the pipe                                 |
+| 0x05 | `fault`, to Node         | one `windowsVaultPipeFaultSchema` word (connection 0), then exit       |
+| 0x06 | `fileResult`, to Node    | JSON `windowsVaultPipeFileResultSchema` (connection 0)                 |
+| 0x07 | `serverResult`, to Node  | JSON `windowsVaultPipeServerResultSchema` (connection 0)               |
+| 0x13 | `send`, to helper        | bytes for the client                                                   |
+| 0x14 | `close`, to helper       | empty: disconnect this client                                          |
+| 0x21 | `file`, to helper        | JSON `windowsVaultPipeFileCommandSchema` (connection 0)                |
+| 0x22 | `server`, to helper      | JSON `windowsVaultPipeServerQuerySchema` (connection 0), `files` mode  |
+| 0x23 | `process`, to helper     | JSON `windowsVaultPipeProcessQuerySchema` (connection 0), `files` mode |
+| 0x08 | `processResult`, to Node | JSON `windowsVaultPipeProcessResultSchema` (connection 0)              |
 
 The helper faults `protocol` and exits on any of these: an unknown type, an
 oversized length, a frame for an unknown connection, or malformed JSON. When
@@ -152,6 +154,16 @@ random name read from the owner-only lock is not sufficient on its own:
    so once step 2 has passed, no other user's process can serve that name.
 
 Code running as the same user remains out of scope, as PLAN D89.15 records.
+
+## VAULTPARITY amendment (2026-10-18): the `process` query
+
+Broker discovery on Windows needs the same native liveness read the POSIX
+peer binary gives (`identity(pid)`: process id, token-user SID, start time,
+image path). The `files` helper answers `process` (0x23) with `processResult`
+(0x08): `{v:1, id, result: ok|refused|missing, ownerSid, process}` where
+`process` carries `{processId, userId, startedAt, executable}` read from the
+OS, null unless `ok`. `missing` names a vanished process
+(`ERROR_INVALID_PARAMETER` from `OpenProcess`); anything else is `refused`.
 
 ## What the lane must deliver
 

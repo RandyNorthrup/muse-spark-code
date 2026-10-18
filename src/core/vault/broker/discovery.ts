@@ -24,6 +24,13 @@ export class VaultBrokerDiscovery {
     this.lockPath = path.join(this.directory, 'broker.lock')
     this.tokenPath = path.join(this.directory, 'boot-token')
   }
+  /** The published claim files, for a starter retiring a provably dead holder. */
+  get lockFile(): string {
+    return this.lockPath
+  }
+  get tokenFile(): string {
+    return this.tokenPath
+  }
   async discover(
     identity: (pid: number) => Promise<VaultProcessIdentity>,
   ): Promise<VaultBrokerLocation | null> {

@@ -23,15 +23,17 @@ const WINDOWS_FILES = [
   'native/windows/MuseSparkVaultCng.cs',
   'native/windows/MuseSparkVaultHello.cs',
   'native/windows/MuseSparkVaultLock.cs',
+  'native/windows/MuseSparkVaultPipe.cs',
 ]
 const DARWIN_FILES = [
   'native/darwin/muse-dictate',
   'native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate',
+  'native/darwin/muse-vault-peer',
   'dist/native/darwin/muse-vault',
 ]
 const LINUX_HELPERS = {
-  'linux-x64': 'native/linux/x64/muse-created',
-  'linux-arm64': 'native/linux/arm64/muse-created',
+  'linux-x64': ['native/linux/x64/muse-created', 'native/linux/x64/muse-vault-peer'],
+  'linux-arm64': ['native/linux/arm64/muse-created', 'native/linux/arm64/muse-vault-peer'],
 }
 const SHARED_FILES = [
   'dist/extension.js',
@@ -59,8 +61,8 @@ describe('per-platform VSIX inventory', () => {
         expect(vsixKeepsFile(target, file)).toBe(platform === 'win32')
       for (const file of DARWIN_FILES)
         expect(vsixKeepsFile(target, file)).toBe(platform === 'darwin')
-      for (const [owner, file] of Object.entries(LINUX_HELPERS))
-        expect(vsixKeepsFile(target, file)).toBe(target === owner)
+      for (const [owner, files] of Object.entries(LINUX_HELPERS))
+        for (const file of files) expect(vsixKeepsFile(target, file)).toBe(target === owner)
       for (const file of SHARED_FILES) expect(vsixKeepsFile(target, file)).toBe(true)
     }
   })
@@ -72,8 +74,14 @@ describe('per-platform VSIX inventory', () => {
     ])
     expect(requiredNativeFiles('linux-x64')).toEqual(['native/linux/x64/muse-created'])
     expect(requiredNativeFiles('linux-arm64')).toEqual(['native/linux/arm64/muse-created'])
-    expect(requiredNativeFiles('win32-x64')).toEqual(['native/windows/dictate.ps1'])
-    expect(requiredNativeFiles('win32-arm64')).toEqual(['native/windows/dictate.ps1'])
+    expect(requiredNativeFiles('win32-x64')).toEqual([
+      'native/windows/dictate.ps1',
+      'native/windows/MuseSparkVaultPipe.cs',
+    ])
+    expect(requiredNativeFiles('win32-arm64')).toEqual([
+      'native/windows/dictate.ps1',
+      'native/windows/MuseSparkVaultPipe.cs',
+    ])
     // The darwin helpers are git-ignored CI builds, held by the CI content check.
     expect(requiredNativeFiles('darwin-x64')).toEqual([])
     expect(requiredNativeFiles('darwin-arm64')).toEqual([])

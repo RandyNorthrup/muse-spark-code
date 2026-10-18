@@ -75,7 +75,10 @@ const UNIVERSAL_REQUIRED_FILES = [
   'native/linux/x64/muse-created',
   'native/linux/arm64/muse-created',
 ]
-const WINDOWS_REQUIRED_FILES = ['native/windows/dictate.ps1']
+const WINDOWS_REQUIRED_FILES = [
+  'native/windows/dictate.ps1',
+  'native/windows/MuseSparkVaultPipe.cs',
+]
 
 export function requiredNativeFiles(target) {
   if (target === undefined) return UNIVERSAL_REQUIRED_FILES

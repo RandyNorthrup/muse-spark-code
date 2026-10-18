@@ -1,4 +1,5 @@
 import * as z from 'zod/mini'
+import type { VaultSlotRecord } from '../../../shared/vault'
 
 // The slot's authenticated identity, shared by every platform slot (C
 // supplies it; P binds the wrap/unwrap to it). One schema, so macOS and
@@ -12,3 +13,6 @@ export const slotIdentitySchema = z.strictObject({
   tier: z.enum(['osStore', 'hardware', 'presence']),
 })
 export type SlotIdentity = z.infer<typeof slotIdentitySchema>
+
+/** This vault's stored slot records, for a provider's fresh presence proof. */
+export type PresenceRecords = () => Promise<readonly VaultSlotRecord[]>
