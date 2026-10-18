@@ -27,6 +27,7 @@ import {
   IDE_MCP_TOKEN_BYTES,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { isSameLoopbackSecret, listenLoopback, readLoopbackBody } from '../mcpLoopback'
 
 /** What `session/start` is told: where the server is and how to authenticate. */
@@ -98,9 +99,9 @@ export class IdeMcpServer {
       let vault: readonly McpTool[]
       try {
         vault = (await this.vaultTools?.(request, controller.signal)) ?? []
-      } catch {
+      } catch (error: unknown) {
         // Requester bindings can fail privately; their exception text is never logged.
-        throw new Error(UI_TEXT.vault.noAccess)
+        throw new Error(UI_TEXT.vault.noAccess, { cause: error })
       }
       controller.signal.throwIfAborted()
       return await handleMcpMessage(
@@ -170,7 +171,7 @@ export class IdeMcpServer {
     try {
       await this.handle(request, response)
     } catch (error: unknown) {
-      this.log.error(`IDE tool server request failed: ${String(error)}`)
+      this.log.error(`IDE tool server request failed: ${failureForLog(error)}`)
       if (response.headersSent) {
         response.end()
       } else {
