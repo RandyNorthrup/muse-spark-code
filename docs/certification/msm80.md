@@ -175,3 +175,42 @@ launcher/rehearsal path; the W live/hosted receipts stay lead-owned.
    `semgrep --version` fails). No proxy/cert env vars are set. Per
    sandbox-limits rules no workaround was built; the lead runs SAST outside
    the sandbox.
+
+## 6. PR #231 review threads (lane PR231W2, first result 2026-10-18, rig linuxlt)
+
+One line per thread and per hosted-CI failure; each is fixed in this lane
+unless it names an earlier commit or a measured reason. Worktree
+`/home/randy/lanes/PR231W2`, branch `rv/msm80-w2` from `12b583a6d6`.
+
+- `ci-adapters.mjs:133` Azure batch diff: FIX — Azure exposes no pre-batch
+  revision in its predefined variables, so `BatchedCI` branch builds are
+  refused as `unsupported` instead of reviewing only `HEAD^1`'s diff.
+- `ciRun.test.ts:25` fabricated CI inputs: branch commit `7130debb1e`
+  already removed the fake-agent/vendor-host suites; remaining cases drive
+  pure functions with scalar inputs through the real modules. Disposition
+  to be confirmed against main's test eslint rule during the fix.
+- `ciReference.test.mjs:32` text-existence reference test: FIX — replace
+  the two `toContain` lines with runtime proof through the real modules.
+- `README.md:4947` unproven CI behavior: FIX — remove the `Other CI
+systems` section from the README until a hosted receipt exists; the
+  template guide `docs/ci-other-systems.md` stays as setup documentation.
+- `azure-pipelines.yml:46` Azure secret on trusted YAML: FIX — take the key
+  from a variable group guarded by a branch-control check (defined outside
+  the repo), so attacker-modified YAML cannot bind it; document the setup.
+- `acpNativeSources.mjs:33` CI launcher closure: FIX — list the exact
+  launcher files and CI prompt directory instead of copying `action/lib`
+  and `action/prompts` wholesale.
+- `bootstrap.sh:26` unbounded cleanup retry: FIX — probe `timeout` once
+  with `command -v` and run one bounded removal, never `|| rm -rf` after
+  a timed-out `rm`.
+- `ci-run.mjs:684` GitLab/Bitbucket results: FIX — give both templates a
+  real result transport (copy the five published files into the clone and
+  declare them as artifacts, mirroring the Jenkinsfile) and name the
+  output directory in the run summary.
+- `bootstrap.sh:27` proxy for bootstrap download: FIX — map
+  `MUSE_INPUT_HTTPS_PROXY`/`NO_PROXY`/`EXTRA_CA_CERTS` into the `curl`
+  download in `bootstrap.sh` (regenerated into all four templates).
+- Hosted CI `quality`/`package`/`dictation`/`tests` failures: all six
+  entries are downstream-of-another-failure markers, not root causes; the
+  root failure is reproduced locally with the same gate commands and
+  fixed at its cause in this lane.
