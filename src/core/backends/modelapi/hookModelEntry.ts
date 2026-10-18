@@ -31,11 +31,15 @@ import {
   HOOK_MODEL_TIMEOUT_MS,
   MODEL_API_EFFORT_OFF,
   MODEL_API_MAX_RETRIES,
+  TOOL_OUTPUT_MAX_CHARS,
+  TOOL_RESULT_MAX_LINE_CHARS,
+  TOOL_RESULT_MAX_TOKENS,
 } from '../../../shared/constants'
 import { hookDecisionSchema } from '../../../shared/sideCallSchemas'
 import { setUiText } from '../../../shared/l10n/text'
 import { minOutputTokensForPolicy, modelPolicyFor } from './modelPolicy'
 import { sideCallBody, structuredSideCall, type SideCallAttempt } from './structuredOutput'
+import { boundToolResultText, callOutputItem } from './toolResultBound'
 
 const IN_PROGRESS = 'inProgress'
 const CANCELLED = 'cancelled'
@@ -242,7 +246,21 @@ async function callHookModel(
             throw new Error('the hook model requested an unavailable tool')
           }
           const output = await context.executeReadOnlyTool(call.name, call.arguments, signal)
-          history.push(call, { type: 'function_call_output', call_id: call.call_id, output })
+          // TOOLCAP: a read-only tool's text enters the hook model's request
+          // through the bound like every tool result. The hook model has no
+          // spill writer, so text over the bound fails loudly instead of
+          // riding unbounded into a paid side call; the hook's read-only
+          // tools cap their outputs upstream, so this is the dense-text edge.
+          const bounded = boundToolResultText(output, {
+            maxTokens: TOOL_RESULT_MAX_TOKENS,
+            maxLineChars: TOOL_RESULT_MAX_LINE_CHARS,
+            maxBytes: TOOL_OUTPUT_MAX_CHARS,
+            windowTokens: undefined,
+          })
+          if (bounded.cut !== undefined) {
+            throw new Error('the hook tool output exceeded the tool-result bound')
+          }
+          history.push(call, callOutputItem(call.call_id, bounded.text))
         }
       }
       return text

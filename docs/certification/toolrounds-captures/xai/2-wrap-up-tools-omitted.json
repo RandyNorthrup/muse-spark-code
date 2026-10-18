@@ -1,0 +1,132 @@
+{
+  "vendor": "xai",
+  "model": "grok-4.3",
+  "variant": "2-wrap-up-tools-omitted",
+  "url": "https://api.x.ai/v1/responses",
+  "requestBody": {
+    "model": "grok-4.3",
+    "max_output_tokens": 400,
+    "store": false,
+    "input": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "id": "rs_2f691c59-c72d-9709-8c42-6dd0cd11eda9",
+        "summary": [
+          {
+            "text": "Reading a.txt to report its contents.",
+            "type": "summary_text"
+          }
+        ],
+        "type": "reasoning",
+        "status": "completed"
+      },
+      {
+        "arguments": "{\"path\":\"a.txt\"}",
+        "call_id": "call-eedf2a0b-9912-4610-a918-104a70aaa7c5-0",
+        "name": "read_file",
+        "type": "function_call",
+        "id": "fc_2f691c59-c72d-9709-8c42-6dd0cd11eda9_0",
+        "status": "completed"
+      },
+      {
+        "type": "function_call_output",
+        "call_id": "call-eedf2a0b-9912-4610-a918-104a70aaa7c5-0",
+        "output": "hello from a.txt"
+      },
+      {
+        "role": "developer",
+        "content": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "created_at": 1791834966,
+    "completed_at": 1791834968,
+    "id": "1565ac7f-aa2b-9fca-99e7-b72a087bdba3",
+    "max_output_tokens": 400,
+    "model": "grok-4.3",
+    "object": "response",
+    "output": [
+      {
+        "id": "rs_1565ac7f-aa2b-9fca-99e7-b72a087bdba3",
+        "summary": [
+          {
+            "text": "I will read a.txt and report its contents.",
+            "type": "summary_text"
+          }
+        ],
+        "type": "reasoning",
+        "status": "completed"
+      },
+      {
+        "content": [
+          {
+            "type": "output_text",
+            "text": "I read a.txt via tool (contents: \"hello from a.txt\") and nothing remains due to the call limit.",
+            "logprobs": [],
+            "annotations": []
+          }
+        ],
+        "id": "msg_1565ac7f-aa2b-9fca-99e7-b72a087bdba3",
+        "role": "assistant",
+        "type": "message",
+        "status": "completed"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "reasoning": {
+      "effort": "low",
+      "summary": "detailed"
+    },
+    "temperature": 0.7,
+    "text": {
+      "format": {
+        "type": "text"
+      }
+    },
+    "tool_choice": "auto",
+    "tools": [],
+    "top_p": 0.95,
+    "usage": {
+      "input_tokens": 259,
+      "input_tokens_details": {
+        "cached_tokens": 128
+      },
+      "output_tokens": 210,
+      "output_tokens_details": {
+        "reasoning_tokens": 186
+      },
+      "total_tokens": 469,
+      "num_sources_used": 0,
+      "num_server_side_tools_used": 0,
+      "cost_in_usd_ticks": 7143500,
+      "context_details": {
+        "input_tokens": 259,
+        "output_tokens": 218
+      }
+    },
+    "user": null,
+    "incomplete_details": null,
+    "status": "completed",
+    "store": false,
+    "metadata": {
+      "system_fingerprint": "fp_eb3c003fc66c14ed"
+    },
+    "background": false,
+    "service_tier": "default",
+    "truncation": "disabled",
+    "top_logprobs": 0,
+    "presence_penalty": 0,
+    "frequency_penalty": 0,
+    "prompt_cache_key": null,
+    "max_tool_calls": null,
+    "safety_identifier": null,
+    "error": null,
+    "instructions": null
+  }
+}

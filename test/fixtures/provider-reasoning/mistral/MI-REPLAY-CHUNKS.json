@@ -1,0 +1,92 @@
+{
+  "id": "MI-REPLAY-CHUNKS",
+  "provider": "mistral",
+  "sentAt": "2026-10-13T01:38:42.881Z",
+  "method": "POST",
+  "url": "https://api.mistral.ai/v1/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "model": "mistral-small-latest",
+    "stream": false,
+    "max_tokens": 100,
+    "reasoning_effort": "high",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 12*13?"
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": [
+              {
+                "type": "text",
+                "text": "12*13 = 156."
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "156"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": "Say that number in words."
+      }
+    ]
+  },
+  "lookFor": "a prior thinking turn replayed as the chunk list the API itself streamed",
+  "status": 200,
+  "responseHeaders": {
+    "x-ratelimit-limit-req-minute": "100",
+    "x-ratelimit-limit-tokens-minute": "100000",
+    "x-ratelimit-remaining-req-minute": "97",
+    "x-ratelimit-remaining-tokens-minute": "95625",
+    "x-ratelimit-tokens-query-cost": "71"
+  },
+  "response": {
+    "id": "fb2918d512c949afb95448711c0218fd",
+    "created": 1791855523,
+    "model": "mistral-small-latest",
+    "usage": {
+      "prompt_tokens": 49,
+      "total_tokens": 71,
+      "completion_tokens": 22,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "service_tier": "standard"
+    },
+    "object": "chat.completion",
+    "choices": [
+      {
+        "index": 0,
+        "finish_reason": "stop",
+        "message": {
+          "role": "assistant",
+          "tool_calls": null,
+          "content": [
+            {
+              "type": "thinking",
+              "thinking": [
+                {
+                  "type": "text",
+                  "text": "The number 156 in words is \"one hundred fifty-six\"."
+                }
+              ],
+              "closed": true
+            },
+            {
+              "type": "text",
+              "text": "One hundred fifty-six"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

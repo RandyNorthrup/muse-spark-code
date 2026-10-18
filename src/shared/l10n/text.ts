@@ -19,6 +19,8 @@ interface LocaleState {
   relativeTimes: Intl.RelativeTimeFormat
   dates: Intl.DateTimeFormat
   dateTimes: Intl.DateTimeFormat
+  /** The same calendar moment as a UTC wall clock, for recorded-local labels. */
+  dateTimesUtc: Intl.DateTimeFormat
   // M87 (PLAN.md D66): a message's time on its card, and a step summary's list.
   times: Intl.DateTimeFormat
   fullDateTimes: Intl.DateTimeFormat
@@ -33,6 +35,11 @@ function stateFor(locale: string, formatters: Map<string, Intl.NumberFormat>): L
     relativeTimes: new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style: 'short' }),
     dates: new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }),
     dateTimes: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }),
+    dateTimesUtc: new Intl.DateTimeFormat(locale, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'UTC',
+    }),
     times: new Intl.DateTimeFormat(locale, { timeStyle: 'short' }),
     fullDateTimes: new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeStyle: 'short' }),
     // A conjunction list, not a `unit` one (D66 named `unit`, short): Turkish,
@@ -137,6 +144,15 @@ export function formatDate(epochMs: number): string {
 /** A local calendar date and time in the installed language. */
 export function formatDateTime(epochMs: number): string {
   return current.dateTimes.format(epochMs)
+}
+
+/**
+ * A calendar date and time rendered as a UTC wall clock: the caller shifts
+ * a recorded instant by its recorded offset first, so the label keeps the
+ * timezone the record was written in across later timezone changes.
+ */
+export function formatDateTimeUtc(epochMs: number): string {
+  return current.dateTimesUtc.format(epochMs)
 }
 
 /** The local time of day alone, as the language writes it: 14:05 / 2:05 PM (M87). */

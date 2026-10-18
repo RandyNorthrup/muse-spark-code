@@ -5,6 +5,8 @@
 // nothing from the run's environment (the Model API key above all) reaches
 // the code the model wrote.
 
+import { randomUUID } from 'node:crypto'
+import * as z from 'zod/mini'
 import { execFile } from 'node:child_process'
 import { mkdir, mkdtemp, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -107,6 +109,8 @@ function detailOf(output: string, root: string): string {
   return lines.join('\n').slice(-EVAL_VERIFY_DETAIL_MAX_CHARS)
 }
 
+const completionSchema = z.strictObject({ token: z.string(), assertions: z.number() })
+
 /** Runs the task's verifier over the workspace as it is now. */
 export async function runEvalVerifier(
   task: EvalTask,
@@ -117,18 +121,34 @@ export async function runEvalVerifier(
   // workspace cannot be in it or stand in its way.
   const folder = await mkdtemp(path.join(folders.root, EVAL_VERIFY_PREFIX))
   const script = path.join(folder, EVAL_VERIFY_FILE)
-  await writeFile(script, `${EVAL_VERIFY_PRELUDE}${task.verify}\n`)
+  const token = randomUUID()
+  await writeFile(script, `${EVAL_VERIFY_PRELUDE}${task.verify}\ncomplete()\n`)
   return await new Promise<EvalVerdict>((resolve) => {
-    execFile(
+    const child = execFile(
       process.execPath,
       [script, folders.workspace],
       // An empty environment. On Windows, libuv adds back only what a
       // process needs to start (PATH, SYSTEMROOT, TEMP, the profile's
       // folders), never a variable of the run's own.
-      { cwd: folder, env: {}, timeout: timeoutMs, windowsHide: true },
+      { cwd: folder, env: {}, timeout: timeoutMs, killSignal: 'SIGKILL', windowsHide: true },
       (error, stdout, stderr) => {
         if (error === null) {
-          resolve({ passed: true, detail: '' })
+          const hasFinished = stdout.split(/\r?\n/u).some((line) => {
+            let value: unknown
+            try {
+              value = JSON.parse(line)
+            } catch {
+              return false
+            }
+            const report = completionSchema.safeParse(value).data
+            return report?.token === token && report.assertions === task.assertions
+          })
+          resolve({
+            passed: hasFinished,
+            detail: hasFinished
+              ? ''
+              : 'the verifier exited without completing its declared assertions',
+          })
           return
         }
         if (error.killed === true) {
@@ -144,5 +164,7 @@ export async function runEvalVerifier(
         resolve({ passed: false, detail: failure || printed || silent })
       },
     )
+    // execFile provides a private stdin pipe, closed before solution imports.
+    child.stdin?.end(token)
   })
 }

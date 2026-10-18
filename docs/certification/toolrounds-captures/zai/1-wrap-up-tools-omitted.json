@@ -1,0 +1,71 @@
+{
+  "vendor": "zai",
+  "model": "glm-5.3-flash",
+  "variant": "1-wrap-up-tools-omitted",
+  "url": "https://api.z.ai/api/paas/v4/chat/completions",
+  "requestBody": {
+    "model": "glm-5.3-flash",
+    "max_tokens": 300,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{\"path\":\"a.txt\"}",
+              "name": "read_file"
+            },
+            "id": "call_-7184280993900000492",
+            "index": 0,
+            "type": "function"
+          }
+        ],
+        "reasoning_content": "The user wants me to read the file a.txt. I'll call the read_file tool with path \"a.txt\"."
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_-7184280993900000492",
+        "content": "hello from a.txt"
+      },
+      {
+        "role": "user",
+        "content": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "content": "I read the file a.txt using the read_file tool, which returned the content \"hello from a.txt,\" so the task is complete and nothing remains to be done.",
+          "reasoning_content": "The user wants me to summarize what happened in one sentence without calling any tools. I read a.txt and it contained \"hello from a.txt\". Nothing remains to be done — the task was completed.",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1791834947,
+    "id": "202610130355469cf66746e33a4ff5",
+    "model": "glm-5.3-flash",
+    "object": "chat.completion",
+    "request_id": "202610130355469cf66746e33a4ff5",
+    "usage": {
+      "completion_tokens": 76,
+      "completion_tokens_details": {
+        "reasoning_tokens": 40
+      },
+      "prompt_tokens": 78,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "total_tokens": 154
+    }
+  }
+}

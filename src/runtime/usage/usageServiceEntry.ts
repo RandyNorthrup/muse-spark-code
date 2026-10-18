@@ -50,6 +50,8 @@ export { runUsageCommand } from './usageCli'
 
 export { createInsightsReader } from './traceLogs'
 
+export { MuseUsageDeltas, museCodeLimitInput } from '../../core/backends/musecode/usageDeltas'
+
 const readSettings = readUsageHistorySettings
 function unsupported(): never {
   throw new Error('unsupportedUsageAction')

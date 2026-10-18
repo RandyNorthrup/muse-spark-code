@@ -75,13 +75,18 @@
           "conditions": [
             { "when": "outputMinimum=known", "text": { "ui": "referenceOutputCapMinimum" } }
           ]
-        }
+        },
+        { "ui": "customLimitsMissing" },
+        { "cli": "add" },
+        { "cli": "remove" },
+        { "cli": "force" }
       ],
       "facts": {
         "management": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
         "modelRequests": "modelApi"
       },
-      "editors": ["vscode", "acp"]
+      "editors": ["vscode", "acp"],
+      "cliRoutes": ["providersModels"]
     },
     {
       "id": "reports",
@@ -144,8 +149,8 @@
     {
       "id": "legal",
       "name": { "ui": "legalScanTitle" },
-      "summary": { "ui": "legalScanItemDetail" },
-      "description": { "ui": "legalScanItemDetail" },
+      "summary": { "ui": "legalScanReceiptHelp" },
+      "description": { "ui": "legalScanReceiptHelp" },
       "commands": ["museSpark.legalScan"],
       "settings": ["museSpark.legalHeaderPolicy", "museSpark.legalRegistryLookups"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#legal-scan-m97",
@@ -214,6 +219,29 @@
       "surfaces": ["vscode:modelApi", "acp:modelApi"],
       "details": [],
       "facts": { "automatic": "evaluationPending", "manual": "/compact" },
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "tool-result-bound",
+      "name": { "setting": "modelApiMaxToolOutputBytes" },
+      "summary": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiMaxToolOutputBytes" } }
+        ]
+      },
+      "description": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiMaxToolOutputBytes" } }
+        ]
+      },
+      "commands": [],
+      "settings": ["museSpark.modelApiMaxToolOutputBytes"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#limits",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
       "editors": ["vscode", "acp"]
     },
     {
@@ -455,6 +483,73 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "auto-compaction",
+      "name": { "ui": "autoCompactionName" },
+      "summary": {
+        "conditions": [
+          {
+            "when": "conversationStart&modelPricing",
+            "text": { "setting": "modelApiAutoCompaction" }
+          }
+        ]
+      },
+      "description": {
+        "conditions": [
+          {
+            "when": "conversationStart&modelPricing",
+            "text": { "setting": "modelApiAutoCompaction" }
+          }
+        ]
+      },
+      "commands": [],
+      "settings": ["museSpark.modelApiAutoCompaction"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": true,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [
+        {
+          "conditions": [
+            {
+              "when": "conversationStart&modelPricing",
+              "text": { "setting": "modelApiAutoCompaction" }
+            }
+          ]
+        }
+      ],
+      "facts": {
+        "paidFeature": "autoCompaction",
+        "paidSettings": ["museSpark.modelApiAutoCompaction"],
+        "configuredDefaults": { "museSpark.modelApiAutoCompaction": true },
+        "defaultState": { "type": "boolean", "value": true },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
+        "tokenRatesPerMillion": {
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+        },
+        "billing": "storedModelApiKey",
+        "effectiveAvailability": {
+          "vscode:modelApi": {
+            "defaultState": { "type": "boolean", "value": true },
+            "key": "SecretStorage",
+            "consent": "window",
+            "ledger": "paidDailyBudgetUsd"
+          },
+          "acp:modelApi": {
+            "configuredDefault": false,
+            "flag": "auto-compaction",
+            "consent": "editorPermission",
+            "ledger": "runtime:paidDailyBudgetUsd"
+          }
+        }
+      },
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "argument-preview",
       "name": { "ui": "toolArgumentPreviewLabel" },
       "summary": { "ui": "toolArgumentPreviewDescription" },
@@ -559,7 +654,7 @@
       "facts": {
         "default": "high",
         "tiers": {
-          "muse-spark-1.3": ["minimal", "low", "medium", "high", "xhigh", "max"],
+          "muse-spark-1.3": ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"],
           "muse-spark-1.2": ["minimal", "low", "medium", "high", "xhigh"]
         },
         "thinkingOff": { "museCode": "none", "modelApi": "minimal" }
@@ -602,6 +697,7 @@
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
       "details": [
+        { "ui": "referenceTurnLimit" },
         { "ui": "referenceWindowsSessions" },
         { "ui": "restoreFilesToHere" },
         { "ui": "rewindAndRestore" },
@@ -687,7 +783,7 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["acp:museCode", "acp:modelApi"],
-      "details": [],
+      "details": [{ "ui": "referenceBriefHelp" }],
       "facts": {
         "operations": [
           "initialize",
@@ -717,7 +813,8 @@
         },
         "editorMcp": { "museCode": ["stdio", "http"], "modelApi": [], "sse": false }
       },
-      "editors": ["acp"]
+      "editors": ["acp"],
+      "cliRoutes": ["helpTopic"]
     },
     {
       "id": "web-fetch",
@@ -959,6 +1056,21 @@
       "editors": ["vscode"]
     },
     {
+      "id": "windows-paths",
+      "name": { "ui": "referenceWindowsPaths" },
+      "summary": { "ui": "referenceWindowsPathsDetail" },
+      "description": { "ui": "referenceWindowsPathsDetail" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#safer-windows-paths",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "context",
       "name": { "ui": "mentionFile" },
       "summary": { "tip": "mentionFile" },
@@ -1089,7 +1201,7 @@
         "museSpark.removeWorktree",
         "museSpark.openPullRequestInConversation"
       ],
-      "settings": [],
+      "settings": ["museSpark.github.useGhLogin"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests",
       "backends": ["museCode", "modelApi"],
       "paid": false,
@@ -1790,6 +1902,21 @@
       "editors": ["acp"]
     },
     {
+      "id": "mcp-connector",
+      "name": { "ui": "mcpConnectorTitle" },
+      "summary": { "ui": "referenceMcpCommand" },
+      "description": { "ui": "referenceMcpCommand" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#mcp-connector-for-other-agents-m124",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["acp"]
+    },
+    {
       "id": "support",
       "name": { "ui": "groupSupport" },
       "summary": { "tip": "issue" },
@@ -1806,10 +1933,10 @@
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#help-and-reference",
       "backends": ["museCode", "modelApi"],
       "paid": false,
-      "surfaces": ["vscode:museCode", "vscode:modelApi"],
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
       "details": [{ "ui": "referenceAcp" }],
       "facts": {},
-      "editors": ["vscode"]
+      "editors": ["vscode", "acp"]
     }
   ],
   "commands": [
@@ -3129,6 +3256,22 @@
       "schema": { "type": "boolean", "default": true }
     },
     {
+      "text": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiMaxToolOutputBytes" } }
+        ]
+      },
+      "id": "museSpark.modelApiMaxToolOutputBytes",
+      "name": "museSpark.modelApiMaxToolOutputBytes",
+      "description": "The per-tool-result byte guard, 64000 by default. A result past it is cut to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes. Spill files are plain workspace files (whoever can read the workspace can read them), removed when the session is deleted; files older than 30 days are pruned.",
+      "descriptionKey": "config.modelApiMaxToolOutputBytes.description",
+      "type": "integer",
+      "default": 64000,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "default": 64000 }
+    },
+    {
       "id": "museSpark.turnCheckpoints",
       "name": "museSpark.turnCheckpoints",
       "description": "On by default: keeps the model’s own file, image, workspace memory and symbol-rename tool writes for Restore files and Redo in a connected Model API session, while files still hold exactly what the model left. Never undoes changes by commands, hooks, MCP tools, you or other windows; copies stay in extension storage, outside the workspace’s .git. Needs git on PATH and a trusted workspace.",
@@ -3813,7 +3956,7 @@
       },
       "id": "museSpark.modelApiAutoCompaction",
       "name": "museSpark.modelApiAutoCompaction",
-      "description": "Shows the first-turn notice that automatic compaction is awaiting evaluation. Automatic compaction remains inactive; turning this off hides the notice.",
+      "description": "On by default. Compacts long Model API conversations at a settled tool boundary; each summary is a paid model call. The paid-use consent notice names the price and daily budget before the first charge. The ACP agent asks once through the editor permission request and stays off where the client cannot ask; headless exec runs it only with --auto-compaction under --max-budget-usd.",
       "descriptionKey": "config.modelApiAutoCompaction.description",
       "type": "boolean",
       "default": true,
@@ -4024,13 +4167,13 @@
     {
       "id": "museSpark.mediaMaxUploadMiB",
       "name": "museSpark.mediaMaxUploadMiB",
-      "description": "Largest media file the extension opens for attach or recording, in MiB. 200 by default; maximum 1,024. Larger files are refused before any read. Only this machine’s setting is used.",
+      "description": "Largest media file the extension opens for attach or recording, in MiB. 200 by default; no maximum. Larger files are refused before any read. Only this machine’s setting is used.",
       "descriptionKey": "config.mediaMaxUploadMiB.description",
       "type": "integer",
       "default": 200,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "integer", "default": 200, "minimum": 1, "maximum": 1024 }
+      "schema": { "type": "integer", "default": 200, "minimum": 1 }
     },
     {
       "id": "museSpark.mediaUploadExpiryDays",
@@ -4065,6 +4208,17 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["transcribe", "sendAudio"], "default": "transcribe" }
+    },
+    {
+      "id": "museSpark.github.useGhLogin",
+      "name": "museSpark.github.useGhLogin",
+      "description": "Lets pull requests use your existing GitHub CLI sign-in (`gh auth token`), tried last, after the editor's own GitHub sign-in and Muse Spark's. The token is read for one request at a time and never stored. Off by default; user settings only, so a repository cannot turn it on.",
+      "descriptionKey": "config.github.useGhLogin.description",
+      "type": "boolean",
+      "default": false,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": false }
     },
     {
       "text": {
@@ -4144,6 +4298,26 @@
       },
       "backends": ["museCode", "modelApi"],
       "syntax": ["/checkout-pr"]
+    },
+    {
+      "name": "github-login",
+      "description": "Sign in to GitHub with a code you enter on github.com/login/device; the token stays in this computer’s credential store",
+      "descriptions": {
+        "museCode": { "ui": "gitHubSignInWithCodeDetail" },
+        "modelApi": { "ui": "gitHubSignInWithCodeDetail" }
+      },
+      "backends": ["museCode", "modelApi"],
+      "syntax": ["/github-login"]
+    },
+    {
+      "name": "github-logout",
+      "description": "Delete Muse Spark’s GitHub sign-in from this computer and open GitHub’s page where you revoke it",
+      "descriptions": {
+        "museCode": { "ui": "gitHubSignOutItemDetail" },
+        "modelApi": { "ui": "gitHubSignOutItemDetail" }
+      },
+      "backends": ["museCode", "modelApi"],
+      "syntax": ["/github-logout"]
     },
     {
       "name": "model",
@@ -4433,6 +4607,18 @@
       "text": { "ui": "referenceProviders" }
     },
     {
+      "route": "providersModels",
+      "name": "providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]",
+      "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
+      "text": { "ui": "referenceProviders" }
+    },
+    {
+      "route": "helpTopic",
+      "name": "help <command>",
+      "description": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "ui": "referenceBriefHelp" }
+    },
+    {
       "route": "chatGptProvider",
       "name": "providers add|remove|status chatgpt",
       "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
@@ -4469,6 +4655,12 @@
       "text": { "ui": "referenceAuthClear" }
     },
     {
+      "route": "authGitHub",
+      "name": "auth github login|logout|status",
+      "description": "Sign in to GitHub for pull requests with GitHub’s device flow: enter the printed code at github.com/login/device; the token stays in this computer’s credential store. logout deletes it, status says whether one is stored.",
+      "text": { "ui": "referenceAuthGitHub" }
+    },
+    {
       "route": "setup",
       "name": "setup",
       "description": "Run Setup hooks for init from spark-hooks.json in a trusted workspace.",
@@ -4477,7 +4669,7 @@
     {
       "route": "exec",
       "name": "exec",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.",
       "text": { "ui": "referenceExecContract" }
     },
     {
@@ -4531,7 +4723,7 @@
     {
       "route": "help",
       "name": "help / --help / -h",
-      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "description": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "ui": "referenceBriefHelp" }
     },
     {
@@ -4581,6 +4773,12 @@
       "name": "/share chat [--mode full|conversation] [--format md|html|json]",
       "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
       "text": { "ui": "shareReviewPrivacy" }
+    },
+    {
+      "route": "acp",
+      "name": "/whatsnew",
+      "description": "Open this version’s release highlights and full notes.",
+      "text": { "ui": "whatsNewOpen" }
     },
     {
       "route": "resources",
@@ -4663,6 +4861,34 @@
       "name": "providersAdd: --key-stdin",
       "description": "auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.",
       "text": { "cli": "key-stdin" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "providersModels",
+      "name": "providersModels: --add <value>",
+      "description": "--add <model>: Offer this model on the entry; repeat the option for more models.",
+      "text": { "cli": "add" },
+      "contract": { "type": "string", "repeatable": true }
+    },
+    {
+      "route": "providersModels",
+      "name": "providersModels: --remove <value>",
+      "description": "--remove <model>: Stop offering this model on the entry; repeat the option for more models.",
+      "text": { "cli": "remove" },
+      "contract": { "type": "string", "repeatable": true }
+    },
+    {
+      "route": "providersModels",
+      "name": "providersModels: --force <value>",
+      "description": "--force <reason>: Add a model the provider does not list; the reason is stored on the entry.",
+      "text": { "cli": "force" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "providersModels",
+      "name": "providersModels: --help / -h",
+      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "cli": "help" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }
     },
     {
@@ -4921,7 +5147,7 @@
     {
       "route": "serve",
       "name": "serve: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -5149,7 +5375,7 @@
     {
       "route": "login",
       "name": "login: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -5376,7 +5602,7 @@
     {
       "route": "setup",
       "name": "setup: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -5618,7 +5844,7 @@
     {
       "route": "authSet",
       "name": "authSet: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -5858,7 +6084,7 @@
     {
       "route": "authStatus",
       "name": "authStatus: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -6098,7 +6324,7 @@
     {
       "route": "authClear",
       "name": "authClear: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.",
       "text": {
         "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
       },
@@ -6293,7 +6519,7 @@
       "contract": {
         "type": "string",
         "repeatable": false,
-        "enum": ["minimal", "low", "medium", "high", "xhigh", "max"],
+        "enum": ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"],
         "purpose": "effort"
       }
     },
@@ -6329,7 +6555,7 @@
     {
       "route": "exec",
       "name": "exec: --max-requests <value>",
-      "description": "Set the maximum number of model requests.",
+      "description": "Set the maximum request allowance. The last model call produces a final summary without tools.",
       "text": { "cli": "max-requests" },
       "contract": {
         "type": "string",
@@ -6339,6 +6565,13 @@
         "maximum": 500,
         "purpose": "maxRequests"
       }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --max-tool-output-bytes <value>",
+      "description": "Raise the per-tool-result byte guard for this run.",
+      "text": { "cli": "max-tool-output-bytes" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "max-tool-output-bytes" }
     },
     {
       "route": "exec",
@@ -6401,6 +6634,20 @@
     },
     {
       "route": "exec",
+      "name": "exec: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "auto-compaction"
+      }
+    },
+    {
+      "route": "exec",
       "name": "exec: --fail-on-denial",
       "description": "permission=denied: Stop the run when a permission request is denied.",
       "text": {
@@ -6447,7 +6694,7 @@
     {
       "route": "exec",
       "name": "exec: --trust-workspace",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.",
       "text": { "ui": "referenceExecContract" },
       "contract": {
         "type": "boolean",
@@ -6460,7 +6707,7 @@
     {
       "route": "exec",
       "name": "exec: --allow-dangerously-skip-permissions",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.",
       "text": { "ui": "referenceExecContract" },
       "contract": {
         "type": "boolean",
@@ -6473,7 +6720,7 @@
     {
       "route": "exec",
       "name": "exec: --web-search",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.",
       "text": { "ui": "referenceExecContract" },
       "contract": {
         "type": "boolean",
@@ -6589,9 +6836,170 @@
       "contract": { "type": "boolean", "repeatable": false, "default": false }
     },
     {
+      "route": "share",
+      "name": "share: --cwd <value>",
+      "description": "Use this directory as the workspace.",
+      "text": { "cli": "cwd" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "share",
+      "name": "share: --json",
+      "description": "--json: Print the machine-readable result instead of the human preview.",
+      "text": { "cli": "sharing-json" },
+      "contract": { "type": "boolean", "repeatable": false, "output": "json", "default": false }
+    },
+    {
+      "route": "share",
+      "name": "share: --mode <value>",
+      "description": "--mode full|conversation: Share the full session or the conversation only.",
+      "text": { "cli": "mode" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "share",
+      "name": "share: --format <value>",
+      "description": "--format <format>: Export",
+      "text": { "cli": "format" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "share",
+      "name": "share: --destination <value>",
+      "description": "--destination copy|file|browser: Copy to the clipboard, write a file, or open a browser.",
+      "text": { "cli": "destination" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "share",
+      "name": "share: --out <value>",
+      "description": "--out <file>: Write the shared text to a file instead of stdout.",
+      "text": { "cli": "share-out" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "share",
+      "name": "share: --from <value>",
+      "description": "--from <message>: First message to include.",
+      "text": { "cli": "share-from" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "share",
+      "name": "share: --to <value>",
+      "description": "--to <message>: Last message to include.",
+      "text": { "cli": "share-to" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "share",
+      "name": "share: --no-code-blocks",
+      "description": "--no-code-blocks: Omit code blocks from the shared text.",
+      "text": { "cli": "no-code-blocks" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "share",
+      "name": "share: --no-attachment-names",
+      "description": "--no-attachment-names: Omit attachment names from the shared text.",
+      "text": { "cli": "no-attachment-names" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "share",
+      "name": "share: --diffs",
+      "description": "--diffs: Include the session diff in the shared text.",
+      "text": { "cli": "diffs" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "share",
+      "name": "share: --attachment-content <value>",
+      "description": "--attachment-content <kind>: Include attachment contents; repeat for more.",
+      "text": { "cli": "attachment-content" },
+      "contract": { "type": "string", "repeatable": true }
+    },
+    {
+      "route": "share",
+      "name": "share: --exported-at <value>",
+      "description": "--exported-at <time>: Timestamp of the confirmed export.",
+      "text": { "cli": "exported-at" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "share",
+      "name": "share: --confirm <value>",
+      "description": "--confirm: Confirm without asking.",
+      "text": { "cli": "confirm" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "prompts",
+      "name": "prompts: --cwd <value>",
+      "description": "Use this directory as the workspace.",
+      "text": { "cli": "cwd" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "prompts",
+      "name": "prompts: --json",
+      "description": "--json: Print the machine-readable result instead of the human preview.",
+      "text": { "cli": "sharing-json" },
+      "contract": { "type": "boolean", "repeatable": false, "output": "json", "default": false }
+    },
+    {
+      "route": "prompts",
+      "name": "prompts: --scope <value>",
+      "description": "--scope user|workspace: Save the prompt for this user or this workspace.",
+      "text": { "cli": "scope" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "prompts",
+      "name": "prompts: --search <value>",
+      "description": "--search <text>: List only prompts matching this text.",
+      "text": { "cli": "search" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "prompts",
+      "name": "prompts: --tag <value>",
+      "description": "--tag <tag>: Filter by tag, or tag the saved prompt.",
+      "text": { "cli": "tag" },
+      "contract": { "type": "string", "repeatable": true }
+    },
+    {
+      "route": "prompts",
+      "name": "prompts: --title <value>",
+      "description": "--title <title>: Title for the saved prompt.",
+      "text": { "cli": "title" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "prompts",
+      "name": "prompts: --chat <value>",
+      "description": "--chat active|new: Use the prompt in the active chat or a new one.",
+      "text": { "cli": "chat" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "prompts",
+      "name": "prompts: --var <value>",
+      "description": "--var <name=value>: Set a prompt variable; repeat for more.",
+      "text": { "cli": "var" },
+      "contract": { "type": "string", "repeatable": true }
+    },
+    {
+      "route": "prompts",
+      "name": "prompts: --confirm",
+      "description": "--confirm: Confirm without asking.",
+      "text": { "cli": "confirm" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
       "route": "exec",
       "name": "exec <prompt> | exec - | exec --prompt-file <file>",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.",
       "text": { "ui": "referenceExecContract" }
     },
     {
@@ -6605,6 +7013,12 @@
       "name": "playbook <status|record|settings ...>",
       "description": "Show or change the orchestrator playbook journal for this workspace (starts no backend).",
       "text": { "ui": "referencePlaybookCommand" }
+    },
+    {
+      "route": "mcp",
+      "name": "mcp [--connection ID] | mcp <grant|revoke|kill|resume|status ...>",
+      "description": "Serve Muse Spark Code’s tools to other agents (Codex, Claude Code, Gemini CLI) over MCP; every write waits for your approval.",
+      "text": { "ui": "referenceMcpCommand" }
     }
   ],
   "executable": "muse-spark-code-acp",

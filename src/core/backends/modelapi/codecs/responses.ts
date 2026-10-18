@@ -28,9 +28,11 @@ import {
   usageSchema,
   webSearchCallItemSchema,
   withStrictTools,
+  hasDeclaredTools,
   type WebSearchToolDefinition,
 } from '../schemas'
 import { parseSse } from '../sse'
+import { fixedHarnessText } from '../toolResultBound'
 import { cleanWireText, isBlankWireText } from './shared'
 
 export type ResponsesCodecQuirks =
@@ -123,11 +125,17 @@ export interface ResponsesDecodeSink {
 
 // Meta's canonical tools declare strict:false. This wire seam also accepts
 // strict:true declarations (the M95b capture) without changing those schemas.
-type ResponsesRequestBody = Omit<CreateResponseBody, 'tools'> & {
+type ResponsesRequestBody = Omit<CreateResponseBody, 'tools' | 'reasoning'> & {
   readonly tools: readonly (
     | WebSearchToolDefinition
     | (Omit<FunctionToolDefinition, 'strict'> & { readonly strict: boolean })
   )[]
+  /**
+   * Absent where the record has no effort levels (lane REASONSHAPESR2):
+   * the wire carries no `reasoning` field and the provider default
+   * applies, instead of a value the model does not take.
+   */
+  readonly reasoning?: CreateResponseBody['reasoning'] | undefined
 }
 
 export interface ResponsesWireCodec {
@@ -237,7 +245,7 @@ function replayInput(
         if (typeof item.output === 'string') {
           mapped.push(
             isBlankWireText(item.output)
-              ? { ...item, output: CODEC_EMPTY_TOOL_OUTPUT }
+              ? { ...item, output: fixedHarnessText(CODEC_EMPTY_TOOL_OUTPUT) }
               : { ...item, output: cleanWireText(item.output) },
           )
           continue
@@ -258,7 +266,9 @@ function replayInput(
           }
         }
         mapped.push(
-          output.length === 0 ? { ...item, output: CODEC_EMPTY_TOOL_OUTPUT } : { ...item, output },
+          output.length === 0
+            ? { ...item, output: fixedHarnessText(CODEC_EMPTY_TOOL_OUTPUT) }
+            : { ...item, output },
         )
         continue
       }
@@ -421,28 +431,43 @@ export function createResponsesCodec(
       if (mapped.length === 0) {
         throw new Error('responses codec: the request keeps no replayable input')
       }
+      // A request without tools omits tools and tool choice alike (see
+      // `hasDeclaredTools`): the side calls (wrap-up, compaction without
+      // reused tools, git drafts, reviewer and hook-model calls with no
+      // tools) all arrive here with no tools declared.
+      const hasTools = hasDeclaredTools(body.tools)
+      // A choice the model's record does not list never reaches the wire;
+      // unknown means auto only. Measured 2026-10-12
+      // (`docs/certification/toolrounds-captures/`): Sonnet 5.5 refuses a
+      // forced choice, DeepSeek thinking refuses `required`, Meta takes
+      // `auto` only.
+      const toolChoice =
+        capabilities?.toolChoiceModes?.includes(body.tool_choice) === true
+          ? body.tool_choice
+          : 'auto'
       return {
         model: body.model,
         input: isChatgpt ? body.input : mapped,
         instructions: isChatgpt ? body.instructions : cleanWireText(body.instructions),
-        tools: isChatgpt
-          ? [
-              {
-                type: 'namespace',
-                name: quirks.toolNamespace,
-                ...(quirks.toolNamespaceDescription !== undefined && {
-                  description: quirks.toolNamespaceDescription,
-                }),
-                tools: body.tools,
-              },
-            ]
-          : withStrictTools(
-              body.tools,
-              options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
-            ),
-
-        tool_choice: body.tool_choice,
-        reasoning: body.reasoning,
+        ...(hasTools && {
+          tools: isChatgpt
+            ? [
+                {
+                  type: 'namespace',
+                  name: quirks.toolNamespace,
+                  ...(quirks.toolNamespaceDescription !== undefined && {
+                    description: quirks.toolNamespaceDescription,
+                  }),
+                  tools: body.tools,
+                },
+              ]
+            : withStrictTools(
+                body.tools,
+                options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
+              ),
+          tool_choice: toolChoice,
+        }),
+        ...(body.reasoning !== undefined && { reasoning: body.reasoning }),
         stream: body.stream,
         store: body.store,
         include: body.include,

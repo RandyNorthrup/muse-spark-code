@@ -29,7 +29,6 @@ import {
   runtimeArguments,
 } from '../../src/core/backends/modelapi/pluginFormats'
 import {
-  HOOK_MAX_RUNNING_COMMANDS,
   MODEL_API_TOOLS,
   PLUGIN_CHILD_MAX_HEAP_MB,
   PLUGIN_CHILD_MAX_MEMORY_BYTES,
@@ -640,7 +639,7 @@ describe.runIf(IS_REAL && process.platform === 'linux' && BUN !== undefined)(
 
 describe('plugin dispatch without real children', () => {
   const pluginRoot = process.platform === 'win32' ? 'C:/plugins' : '/plugins'
-  it('runs plugin hooks under the host-wide cap', async () => {
+  it('starts every plugin hook at once, past the old host-wide cap of four', async () => {
     let running = 0
     let peak = 0
     const adapter: ForeignHookAdapter = {
@@ -657,7 +656,7 @@ describe('plugin dispatch without real children', () => {
         }),
       answer: () => ({ status: 'failed' }),
     }
-    const hooks = Array.from({ length: HOOK_MAX_RUNNING_COMMANDS + 3 }, (_, index) =>
+    const hooks = Array.from({ length: 7 }, (_, index) =>
       definitions('PreToolUse', 'amp', 'tool.call', path.join(pluginRoot, `p${String(index)}.mjs`)),
     ).flat()
     await dispatch(
@@ -666,7 +665,7 @@ describe('plugin dispatch without real children', () => {
       toolPayload('PreToolUse', 'bash', { command: 'ls' }),
       adapter,
     )
-    expect(peak).toBe(HOOK_MAX_RUNNING_COMMANDS)
+    expect(peak).toBe(7)
   })
 
   it('strips a grant from a plugin answer, as from every imported hook', async () => {

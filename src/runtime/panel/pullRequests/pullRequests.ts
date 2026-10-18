@@ -17,6 +17,7 @@ import { UI_TEXT } from '../../../shared/constants'
 import type { PullRequestView } from '../../../shared/git'
 import { fill } from '../../../shared/l10n/text'
 import {
+  didDropRejectedCredential,
   GitHubClient,
   GitHubError,
   repositoryFromFullName,
@@ -32,11 +33,7 @@ import { hasCredentialShapes } from '../../../core/git/gitText'
 import { pullRequestFormProblem } from '../../../core/git/pullRequestRef'
 import { isPlainRefName } from '../../../core/git/pushPlan'
 import { redactSecrets } from '../../../core/redact'
-import {
-  didDropRejectedCredential,
-  resolveGitHubCredential,
-  type GitHubCredential,
-} from '../../../core/git/tokenSource'
+import type { GitHubCredential } from '../../../core/git/tokenSource'
 import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 
 /** A refusal in words for the user; the log gets the kind, never a secret. */
@@ -50,11 +47,6 @@ export class PullRequestServiceError extends Error {
 export interface RuntimePullRequestDeps extends RuntimeGitDeps {
   readonly platform: NodeJS.Platform
   readonly now: () => number
-  /**
-   * An explicit confirmation; true only for an explicit yes. Creating a
-   * pull request always asks, showing what goes out; nothing posts without it.
-   */
-  readonly confirm: (message: string, detail: string, action: string) => Promise<boolean>
   /** The REST client's base URL; api.github.com unless a test points it elsewhere. */
   readonly baseUrl?: string
 }
@@ -84,6 +76,12 @@ export interface PreparePullRequestInput {
   readonly remoteUrl: string
   readonly base?: string
   readonly sessionId?: string
+  /**
+   * The running operation's own stop: Cancel, a session change and disposal
+   * abort the discovery and skip the link, instead of persisting a link for
+   * a stale session (Codex on PR #227).
+   */
+  readonly signal?: AbortSignal
 }
 
 /** A refusal; a 401 also asks the user to sign in again. */
@@ -133,7 +131,7 @@ function refused(reason: string): PullRequestServiceError {
   return new PullRequestServiceError(reason)
 }
 
-/** @unwired M123 runtime pull requests */
+/** The runtime's pull requests: M123's native route (dist/nativeGit.js) runs them. */
 export class RuntimePullRequests {
   public constructor(private readonly deps: RuntimePullRequestDeps) {}
 
@@ -153,14 +151,15 @@ export class RuntimePullRequests {
     })
   }
 
-  private async credential(mode: 'ask' | 'silent'): Promise<GitHubCredential | undefined> {
+  private async credential(
+    mode: 'ask' | 'silent',
+    signal: AbortSignal = this.deps.signal,
+  ): Promise<GitHubCredential | undefined> {
     this.checkTrust()
-    const found = await resolveGitHubCredential(this.deps.tokenSources, {
-      mode,
-      signal: this.deps.signal,
-      now: this.deps.now,
-    })
+    signal.throwIfAborted()
+    const found = await this.deps.github.credential(mode, signal)
     this.checkTrust()
+    signal.throwIfAborted()
     return found
   }
 
@@ -171,7 +170,7 @@ export class RuntimePullRequests {
 
   /** GitHub's refusal; a 401 drops the stored credential, so the user signs in again. */
   private async failure(credential: GitHubCredential, error: unknown): Promise<PullRequestFailure> {
-    const isSignIn = await didDropRejectedCredential(this.deps.tokenSources, credential, error)
+    const isSignIn = await didDropRejectedCredential(this.deps.github, credential, error)
     return { ok: false, reason: this.failureText(error), ...(isSignIn && { needsSignIn: true }) }
   }
 
@@ -184,8 +183,9 @@ export class RuntimePullRequests {
     client: GitHubClient,
     bearer: string,
     target: Pick<PullRequestDestination, 'targetRepository' | 'remote' | 'remoteUrl' | 'head'>,
+    signal?: AbortSignal,
   ): Promise<Omit<PullRequestDestination, 'targetRepository' | 'remote' | 'remoteUrl' | 'head'>> {
-    const facts = await client.repositoryFacts(bearer, target.targetRepository)
+    const facts = await client.repositoryFacts(bearer, target.targetRepository, signal)
     this.checkTrust()
     const { parent } = facts
     return parent === undefined
@@ -243,8 +243,15 @@ export class RuntimePullRequests {
    * second one). Reads only; posts nothing.
    */
   public async prepare(input: PreparePullRequestInput): Promise<PreparePullRequestResult> {
+    // The window's lifetime joins the operation's own stop: either aborts
+    // the discovery below, and a stop also skips the link (Codex on PR #227).
+    const signal =
+      input.signal === undefined
+        ? this.deps.signal
+        : AbortSignal.any([this.deps.signal, input.signal])
     try {
       this.checkTrust()
+      signal.throwIfAborted()
     } catch (error: unknown) {
       return { ok: false, reason: error instanceof Error ? error.message : String(error) }
     }
@@ -261,7 +268,7 @@ export class RuntimePullRequests {
             : UI_TEXT.gitPushUnsafeName,
       }
     }
-    const credential = await this.credential('silent')
+    const credential = await this.credential('silent', signal)
     if (credential === undefined) {
       return { ok: false, reason: UI_TEXT.gitHubSignInDeclined, needsSignIn: true }
     }
@@ -275,15 +282,20 @@ export class RuntimePullRequests {
       }
       const destination = {
         ...target,
-        ...(await this.destinationOf(client, credential.bearer, target)),
+        ...(await this.destinationOf(client, credential.bearer, target, signal)),
       }
       const existing = await client.openPullRequestFor(
         credential.bearer,
         destination.repository,
         input.repository.owner,
         input.head,
+        signal,
       )
       this.checkTrust()
+      // A stop that landed during the discovery leaves no link for the old
+      // session: the adapter's epoch check would refuse it next, after the
+      // write already landed.
+      signal.throwIfAborted()
       if (existing !== undefined) {
         await this.link(input.sessionId, repositoryLabel(destination.repository), existing)
         return { ok: true, destination, existing }

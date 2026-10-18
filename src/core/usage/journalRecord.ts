@@ -2,6 +2,7 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 // Canonical Usage is already normalised by the captured provider codecs.
 // Never add cached input or reasoning output a second time here.
 import {
+  CONTRIBUTOR_MODEL_SUFFIX,
   MODEL_API_PRICED_MODELS,
   MODEL_API_PRICES_VERIFIED_ON,
   PAID_PRICES_USD,
@@ -27,7 +28,7 @@ import {
   type PriceCard,
   type PricedUsage,
 } from '../providers/priceCard'
-import { estimateCostUsd } from './insights'
+import { costForTier, estimateCostUsd } from './insights'
 import { usageLocalDay } from './localDay'
 export { usageLocalDay } from './localDay'
 
@@ -115,6 +116,39 @@ function hasMetaPrice(context: UsageRecordContext): boolean {
   return models.includes(context.model)
 }
 
+/**
+ * The tier a plan request really used: the priced whitelist first, else the
+ * contributor suffix the backend's own model id carries. Only an equivalent
+ * display price may use the suffix tier; actual (computed/reported) costs
+ * stay on the verified whitelist, never a guessed tariff.
+ */
+function planPriceTier(context: UsageRecordContext): 'standard' | 'contributor' | undefined {
+  if (context.provider !== 'meta' && context.backend !== 'museCode') {
+    return undefined
+  }
+  const standard: readonly string[] = MODEL_API_PRICED_MODELS.standard
+  if (standard.includes(context.model)) {
+    return 'standard'
+  }
+  const contributor: readonly string[] = MODEL_API_PRICED_MODELS.contributor
+  if (contributor.includes(context.model)) {
+    return 'contributor'
+  }
+  return context.model.endsWith(CONTRIBUTOR_MODEL_SUFFIX) ? 'contributor' : undefined
+}
+
+/** An equivalent API price for plan spend, at the used tier's published rates. */
+function planEquivalentUsd(
+  context: UsageRecordContext,
+  tokens: UsageTokens,
+): UsdAmount | undefined {
+  const tier = planPriceTier(context)
+  const billable = tier === undefined ? undefined : pricedUsage(tokens, true)
+  return billable === undefined || tier === undefined
+    ? undefined
+    : costForTier({ ...billable, cachedTokens: billable.cachedTokens ?? 0 }, tier)
+}
+
 function metaCost(context: UsageRecordContext, tokens: UsageTokens): UsdAmount | undefined {
   const billable = pricedUsage(tokens, true)
   return billable !== undefined && hasMetaPrice(context)
@@ -156,7 +190,8 @@ function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost
   const isPlan = context.backend === 'museCode' || pricing?.kind === 'plan'
   if (isPlan) {
     const card = context.apiEquivalentCard
-    const usd = card?.source === 'list' ? cardCost(card, tokens) : metaCost(context, tokens)
+    const usd =
+      card?.source === 'list' ? cardCost(card, tokens) : planEquivalentUsd(context, tokens)
     return { certainty: 'plan', ...(usd !== undefined && { apiEquivalentUsd: usd }) }
   }
   if (context.uncertain === true || context.kind === 'voice') {

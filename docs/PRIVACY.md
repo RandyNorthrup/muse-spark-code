@@ -175,9 +175,10 @@ so it does not claim deletion or forget ownership without its resource owner.
   whether it is a draft. It reads back the pull request's number, address,
   state, author and head commit, and that commit's checks (names and
   results), to show them above the composer and to open a pull request in a
-  conversation. It uses the token of VS Code's GitHub sign-in (scope
-  `repo`), read for each call and never stored, logged or passed to a
-  process. **Write with Muse** in the commit or pull request form sends your
+  conversation. It uses the token of the window's GitHub sign-in (scope
+  `repo`; see Credentials below for its three sources), read for each call
+  and never logged or passed to a process. The account's login is read once
+  per sign-in (`GET /user`) to name it in the panel. **Write with Muse** in the commit or pull request form sends your
   own message to the model, with the staged diff (or every change, when
   nothing is staged) and the changed files' names, or the branch's commit
   subjects and changed files, as any message you send does.
@@ -562,11 +563,38 @@ one its consent question named, at the price it named.
   VS Code's per-workspace extension state (its number, address and title,
   by session id), and the worktrees the extension made in its global state
   (folder, repository, branch or pull request, and whether you trusted it).
-- GitHub app (arriving with M123): editors without their own GitHub sign-in
-  sign in through the project's OAuth app "Muse Spark Code (Unofficial)" by
-  GitHub's device flow, asking for the `repo` scope; the token is kept in
-  the operating system's keychain or the vault, and you can revoke it in
-  GitHub's settings (Applications, Authorized OAuth Apps).
+- GitHub, Muse Spark's own sign-in (M123, PLAN.md D104): where the editor
+  has no GitHub sign-in of its own, or when you choose **Sign In to GitHub
+  With a Code** (`/github-login`) or run `muse-spark-code-acp auth github
+login`, Muse Spark signs in through the project's OAuth App "Muse Spark
+  Code (Unofficial)" (public client id `Ov23liXlNSPBbFyJ0A1z`, no client
+  secret) with GitHub's device flow. It asks for the `repo` scope only:
+  GitHub lets a token with that scope read and write your repositories,
+  public and private, including their code, pull requests, issues and
+  settings such as webhooks. Muse Spark uses it only for the pull request
+  calls above (to `api.github.com`), but the scope is GitHub's, not ours.
+  Sign-in sends GitHub the app's public client id; the code is shown only
+  in Muse Spark's own panel card or terminal, and only
+  `https://github.com/login/device` is ever shown or opened. The token (and
+  its refresh token, when GitHub issues expiring tokens) is kept only in
+  the editor's secret storage (VS Code's, the operating system's keychain
+  behind it) or, from the terminal, in this computer's credential store,
+  under the account `museSpark.github.deviceFlow`; never in a file, a
+  setting, a log, a child process's arguments or environment, or anything
+  sent to a model. Beside it, `museSpark.github.deviceFlow.generation` (a
+  random id, no secret) is written by Sign out only, in one write, and a
+  token is used only under the generation it was stored in: once the
+  sign-out has finished, no later call uses a token issued before it (a
+  call in another window already overlapping the sign-out may still return
+  its earlier token). `museSpark.github.deviceFlow.refused` keeps the random
+  id (no secret) of the last stored token GitHub refused. Sign out deletes
+  the token and opens the app's page on GitHub
+  (`https://github.com/settings/connections/applications/Ov23liXlNSPBbFyJ0A1z`),
+  where you revoke the grant itself.
+- GitHub, your `gh` login: read (`gh auth token --hostname github.com`)
+  only when you turn on `museSpark.github.useGhLogin` in user or machine
+  settings, held for one call, and never stored or changed. `gh` keeps its
+  own login.
 - The Muse Code CLI keeps its own sign-in. On Windows and Linux it is in
   the CLI's credential file (`~/.config/muse/auth.json`). On macOS the token
   is in your login Keychain (item `ai.meta.dev.credentials`, account
@@ -1110,3 +1138,28 @@ system sound require separate opt-ins, and Attach follows a private preview.
 Discard deletes local temporary bytes. Unknown storage billing refuses upload;
 batch transcription requires price/budget consent before any paid request.
 See [M105 certification](certification/m105.md) for the missing bindings.
+
+## MCP connector for other agents (M124, local phase in progress)
+
+`muse-spark-code-acp mcp` answers another agent on your machine (Codex,
+Claude Code, Gemini CLI) over MCP on stdio. It reads only what a
+connection grant you made in your own terminal allows: named workspaces and
+tool families. By default that is metadata (prompt titles and tags,
+schedule names and times, operation states, deterministic reports); prompt
+bodies and share previews need the grant's content flag for that
+workspace, and a confidential workspace shares nothing. What it returns
+goes into the other agent's conversation and may be kept by that agent and
+its provider; your registered credentials, recognised key patterns, your
+home folder and other absolute paths are scrubbed first, and a result whose
+final scrub still finds something is withheld. Known-pattern redaction
+cannot recognise every private fact, so grant content only where you would
+paste it yourself.
+
+No model is called, no key is read and nothing is sent anywhere by the
+connector itself. Writes happen only after you approve them on the local
+approval page. Each call leaves a line in `connector/audit/` in the agent's
+data folder with times, tool, workspace id, outcome and a keyed digest of
+the request, never its text; the file rotates at 10 MiB and the older
+segment is removed after 30 days. Grants, the kill switch and the audit key
+are owner-only files there too. `muse-spark-code-acp mcp revoke` and
+`mcp kill` stop a connection at once. See [mcp.md](mcp.md).

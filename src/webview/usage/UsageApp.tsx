@@ -22,6 +22,7 @@ import { EmptyStates } from './EmptyStates'
 import { StackedColumns } from './charts/StackedColumns'
 import { MirroredColumns } from './charts/MirroredColumns'
 import { ShareBar } from './charts/ShareBar'
+import { planDisplayName } from '../../shared/usage'
 import { dayLabel } from './display'
 import { installUsageTable } from './installUsageTable'
 
@@ -183,6 +184,7 @@ export function UsageApp({
             totals={state.totals}
             previous={state.previousTotals}
             metric={state.query.metric}
+            plan={planDisplayName(state.limits)}
           />
           {state.buckets.length === 0 ? null : (
             <>

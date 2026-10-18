@@ -32,6 +32,8 @@
     "src/core/backends/modelapi/modelApiMcpEntry.ts",
     // The deferred per-call helpers, built as dist/modelApiTools.js (MODELAPIDIET).
     "src/core/backends/modelapi/modelApiToolsEntry.ts",
+    // The verify loop's session side, built as dist/modelApiVerify.js (M68).
+    "src/core/backends/modelapi/modelApiVerifyEntry.ts",
     "src/runtime/usage/usageServiceEntry.ts",
     "src/runtime/usage/usageCompanionEntry.ts",
     "src/host/usage/usagePanelEntry.ts",
@@ -93,6 +95,9 @@
     // The import from other agents' own bundle (M83), required by path on the first import.
     "src/host/agentImportEntry.ts",
     "src/host/git/conversationGitEntry.ts",
+    // M123's native Git route (D104), required by path by the conversation Git
+    // bundle where `vscode.git` is missing.
+    "src/runtime/panel/git/nativeGitEntry.ts",
     // The Model API's session store (D14), required by path when its host is first built.
     "src/host/backend/fileSessionStoreEntry.ts",
     // The Create AGENTS.md command (D15), required by path when that command runs.

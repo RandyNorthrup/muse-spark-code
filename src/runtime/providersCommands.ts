@@ -8,13 +8,15 @@
 // compensate the secret change; crash/rollback limits are recorded in PLAN §9.
 
 import { lookup } from 'node:dns/promises'
-import { mkdir, rmdir } from 'node:fs/promises'
+import { mkdir, readFile, rmdir } from 'node:fs/promises'
 import { isIP } from 'node:net'
 import * as z from 'zod/mini'
 import path from 'node:path'
 import {
+  capabilities,
   credentialRecord,
   endpointPolicy,
+  modelMetadata,
   presets,
   wizardFlow,
   providersFile,
@@ -30,6 +32,7 @@ import type {
   ProvidersFile,
   ProvidersFileRead,
 } from '../core/providers/providersFile'
+import type { TransportDeps } from '../core/backends/modelapi/transport'
 const { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } = providersFile
 import {
   CREDENTIAL_RECORD_VERSION,
@@ -143,13 +146,13 @@ function fileOrError(
   return read.reason === 'missing' ? { file: emptyProvidersFile() } : { reason: read.detail }
 }
 
-function failed(deps: ProvidersDeps, line: string): number {
+export function failed(deps: ProvidersDeps, line: string): number {
   deps.printError(line)
   return EXIT_FAILED
 }
 
 /** Read once and report a malformed user file consistently across commands. */
-async function commandFile(deps: ProvidersDeps): Promise<ProvidersFile | undefined> {
+export async function commandFile(deps: ProvidersDeps): Promise<ProvidersFile | undefined> {
   const loaded = fileOrError(await deps.readUserFile())
   if ('reason' in loaded) {
     failed(deps, fill(UI_TEXT.providerTestFailed, { reason: loaded.reason }))
@@ -161,7 +164,7 @@ async function commandFile(deps: ProvidersDeps): Promise<ProvidersFile | undefin
 const providerUpdates = new WeakMap<ProvidersDeps['readUserFile'], Promise<void>>()
 
 /** Serialize the commit, re-read after probing, and compensate a failed file write. */
-async function commitProviderChange(
+export async function commitProviderChange(
   deps: ProvidersDeps,
   id: string,
   change: (file: ProvidersFile) => ProvidersFile | undefined,
@@ -269,6 +272,19 @@ export async function providersList(deps: ProvidersDeps): Promise<number> {
     const where = entry.address ?? fixedOriginOf(preset) ?? entry.preset
     const models = entry.models.length === 0 ? '—' : entry.models.join(', ')
     deps.print(`${entry.id} — ${preset?.label ?? entry.preset} — ${where} — ${models}`)
+    // A listed model states its tool-calling limit here too (F83): the
+    // same sentence the panel picker shows and the turn refusal repeats.
+    if (preset === undefined || entry.auth === 'subscription') continue
+    const unconfirmed = await unconfirmedToolModels(
+      preset,
+      entry.id,
+      entry.format,
+      entry.models,
+      entry.modelCapabilities,
+    )
+    for (const nativeModel of unconfirmed) {
+      deps.print(fill(UI_TEXT.providerModelNoToolCalling, { model: `${entry.id}/${nativeModel}` }))
+    }
   }
   return EXIT_OK
 }
@@ -313,6 +329,64 @@ function listModelIds(body: unknown, preset: ProviderPreset): readonly string[] 
       )
 }
 
+const catalogProviders = z.object({
+  providers: z.record(z.string(), z.object({ models: z.record(z.string(), z.unknown()) })),
+})
+
+/**
+ * Which added models the catalogue does not confirm for tool calling
+ * (F83): the same catalogue evidence the registry resolves, so the
+ * warning matches what the list states and the turn refusal repeats.
+ * A missing catalogue stays silent; the list and the refusal still say it.
+ */
+async function unconfirmedToolModels(
+  preset: ProviderPreset,
+  providerId: string,
+  format: ProviderEntry['format'],
+  nativeModels: readonly string[],
+  overrides?: ProviderEntry['modelCapabilities'],
+): Promise<readonly string[]> {
+  let catalogue: z.infer<typeof catalogProviders>
+  try {
+    catalogue = catalogProviders.parse(
+      JSON.parse(await readFile(path.resolve(__dirname, 'providerCatalog.json'), 'utf8')),
+    )
+  } catch {
+    return []
+  }
+  const catalogId = preset.id.replace('-plan', '')
+  const listed = catalogue.providers[catalogId]?.models
+  return nativeModels.filter((nativeModel) => {
+    try {
+      const known = listed?.[nativeModel]
+      const evidence =
+        known === undefined
+          ? []
+          : [
+              modelMetadata.nativeCapabilityEvidence(preset.id, known, {
+                kind: 'catalogue',
+                ref: catalogId,
+              }),
+            ]
+      // The registry resolves the person's own capability overrides over
+      // the catalogue; the warning reads the same evidence (F83).
+      const entered = overrides?.[nativeModel]
+      if (entered !== undefined)
+        evidence.push({
+          source: { kind: 'user', ref: `${providerId}/${nativeModel}` },
+          fields: entered,
+        })
+      const record = capabilities.resolveModelCapabilities(
+        { provider: providerId, nativeModel, format: format ?? preset.format },
+        evidence,
+      )
+      return !capabilities.capabilitiesOf({ capabilityRecord: record }).toolCalling
+    } catch {
+      return true
+    }
+  })
+}
+
 function probeReason(reason: string): string {
   switch (reason) {
     case 'unreachable': {
@@ -338,6 +412,157 @@ function ignoreProbeLog(): void {
 }
 
 /**
+ * One pinned, authenticated provider GET as JSON: the shared read behind
+ * `getProviderJson` (D119) and `probeProvider` (D74). It answers the status
+ * with its parsed body, or the raw transport error with its signal for the
+ * caller to map; transport detail never reaches the terminal.
+ */
+async function readProviderJson(
+  fetchImpl: typeof fetch,
+  provider: ResolvedProvider,
+  key: string | undefined,
+  url: string,
+  headers: Readonly<Record<string, string>>,
+  failures: Pick<TransportDeps, 'parseError' | 'sendFailure'>,
+): Promise<
+  | { readonly status: number; readonly body: unknown }
+  | { readonly error: unknown; readonly signal: AbortSignal }
+> {
+  const shared = await import('../host/backend/modelApiEntry')
+  const auth = await import('../host/backend/configuredProvidersEntry')
+  shared.setUiText(UI_TEXT, uiLocale())
+  auth.setUiText(UI_TEXT, uiLocale())
+  const origin = new URL(url).origin
+  const source =
+    key === undefined
+      ? new auth.NoAuthSource(origin)
+      : new auth.ApiKeyAuthSource(
+          () =>
+            Promise.resolve({
+              record: { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin },
+              key,
+            }),
+          provider.preset.id === 'custom' && provider.entry.format === 'anthropic'
+            ? 'x-api-key'
+            : (provider.preset.authHeader ?? 'bearer'),
+        )
+  const client = new shared.RequestTransport({
+    baseUrl: origin,
+    auth: source,
+    // pinProviderFetch rechecks DNS and the saved path/network at every dispatch.
+    verifyEndpoint: async (requestUrl) => {
+      await source.headers(requestUrl)
+    },
+    fetch: fetchImpl,
+    // Optional with exactOptionalPropertyTypes: an explicit undefined does
+    // not typecheck, so each reader stays out unless it is defined — the
+    // list read sends none, the key test sends the provider's own.
+    ...(failures.parseError !== undefined && { parseError: failures.parseError }),
+    ...(failures.sendFailure !== undefined && { sendFailure: failures.sendFailure }),
+    now: Date.now,
+    random: Math.random,
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    // Commands report fixed probe outcomes; transport detail is never logged.
+    log: {
+      info: ignoreProbeLog,
+      warn: ignoreProbeLog,
+      error: ignoreProbeLog,
+      trace: ignoreProbeLog,
+    },
+  })
+  const signal = AbortSignal.timeout(PROVIDER_PROBE_TIMEOUT_MS)
+  let result: Awaited<ReturnType<typeof client.request>>
+  try {
+    result = await client.request(
+      url.slice(origin.length),
+      {
+        method: 'GET',
+        headers,
+        accept: 'application/json',
+        retries: 'rateLimitOnly',
+      },
+      signal,
+    )
+  } catch (error: unknown) {
+    return { error, signal }
+  }
+  try {
+    return {
+      status: result.response.status,
+      body: await shared.parseJsonResponse(result, (value) => value),
+    }
+  } catch {
+    return { status: result.response.status, body: undefined }
+  }
+}
+
+/** One pinned, authenticated provider read (D119): the status with its parsed body, an HTTP status alone, or the transport failure. */
+async function getProviderJson(
+  fetch: typeof globalThis.fetch,
+  provider: ResolvedProvider,
+  key: string | undefined,
+  resolveHost: ProvidersDeps['resolveHost'],
+  headers: Readonly<Record<string, string>>,
+  url: string,
+  transport?: typeof fetch,
+): Promise<
+  | { readonly status: number; readonly body: unknown }
+  | { readonly transport: 'rebinding' | 'unreachable' }
+> {
+  const shared = await import('../host/backend/modelApiEntry')
+  const via =
+    transport ?? pinProviderFetch(fetch, provider, allowedProviderPaths(provider), resolveHost)
+  const read = await readProviderJson(via, provider, key, url, headers, {})
+  if ('error' in read) {
+    const error = read.error
+    if (error instanceof shared.ModelApiError && error.status !== 0) {
+      return { status: error.status, body: undefined }
+    }
+    return {
+      transport:
+        error instanceof Error && error.message === 'rebinding' ? 'rebinding' : 'unreachable',
+    }
+  }
+  return read
+}
+
+/** The request headers behind a provider's list read. */
+function providerListHeaders(provider: ResolvedProvider): Record<string, string> {
+  const headers: Record<string, string> = { ...attributionHeaders(provider.preset) }
+  if ((provider.entry.format ?? provider.preset.format) === 'anthropic') {
+    // Both captured Anthropic list requests carry this exact version.
+    headers['anthropic-version'] = '2023-06-01'
+  }
+  return headers
+}
+
+/**
+ * The provider's own model list (D119): the ids as the provider lists them,
+ * or undefined where the list cannot be read with the stored key (no key,
+ * no free check, unreachable, unparseable). Nothing is billed.
+ */
+export async function listProviderModels(
+  fetch: typeof globalThis.fetch,
+  provider: ResolvedProvider,
+  key: string | undefined,
+  resolveHost: ProvidersDeps['resolveHost'],
+): Promise<readonly string[] | undefined> {
+  if (provider.preset.keyTest.kind === 'paid-token') return undefined
+  if (key === undefined && provider.preset.auth === 'apiKey') return undefined
+  const listed = await getProviderJson(
+    fetch,
+    provider,
+    key,
+    resolveHost,
+    providerListHeaders(provider),
+    `${provider.origin}${providerModelsPath(provider)}`,
+  )
+  return !('status' in listed) || listed.status !== HTTP_STATUS.ok
+    ? undefined
+    : listModelIds(listed.body, provider.preset)
+}
+
+/**
  * The free check that proves a key works (D74): the preset's models list,
  * or its provider-key path where the list is public. Nothing is billed.
  * Azure's `paid-token` test has no free check and stays in the panel, where
@@ -353,11 +578,7 @@ export async function probeProvider(
   if (test.kind === 'paid-token') {
     return { ok: false, paid: true, reason: 'paid' }
   }
-  const headers: Record<string, string> = { ...attributionHeaders(provider.preset) }
-  if ((provider.entry.format ?? provider.preset.format) === 'anthropic') {
-    // Both captured Anthropic list requests carry this exact version.
-    headers['anthropic-version'] = '2023-06-01'
-  }
+  const headers = providerListHeaders(provider)
   if (key === undefined && provider.preset.auth === 'apiKey') {
     return { ok: false, paid: false, reason: 'no-key' }
   }
@@ -377,73 +598,23 @@ export async function probeProvider(
   ): Promise<
     { readonly status: number; readonly body: unknown; readonly refusal?: string } | undefined
   > => {
-    const origin = new URL(url).origin
-    const source =
-      key === undefined
-        ? new auth.NoAuthSource(origin)
-        : new auth.ApiKeyAuthSource(
-            () =>
-              Promise.resolve({
-                record: { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin },
-                key,
-              }),
-            provider.preset.id === 'custom' && provider.entry.format === 'anthropic'
-              ? 'x-api-key'
-              : (provider.preset.authHeader ?? 'bearer'),
-          )
-    const client = new shared.RequestTransport({
-      baseUrl: origin,
-      auth: source,
-      // pinProviderFetch rechecks DNS and the saved path/network at every dispatch.
-      verifyEndpoint: async (requestUrl) => {
-        await source.headers(requestUrl)
-      },
-      fetch: transport,
+    const read = await readProviderJson(transport, provider, key, url, headers, {
       parseError: reader.parseError,
       sendFailure: reader.sendFailure,
-      now: Date.now,
-      random: Math.random,
-      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      // Commands report fixed probe outcomes; transport detail is never logged.
-      log: {
-        info: ignoreProbeLog,
-        warn: ignoreProbeLog,
-        error: ignoreProbeLog,
-        trace: ignoreProbeLog,
-      },
     })
-    let result: Awaited<ReturnType<typeof client.request>>
-    const signal = AbortSignal.timeout(PROVIDER_PROBE_TIMEOUT_MS)
-    try {
-      result = await client.request(
-        url.slice(origin.length),
-        {
-          method: 'GET',
-          headers,
-          accept: 'application/json',
-          retries: 'rateLimitOnly',
-        },
-        signal,
-      )
-    } catch (error: unknown) {
+    if ('error' in read) {
+      const error = read.error
       if (shared.isModelApiError(error) && error.status !== 0) {
         return { status: error.status, body: undefined, refusal: reader.refusal(error) }
       }
       if (error instanceof Error && error.message === 'rebinding') failureReason = 'rebinding'
       // A send with no answer says what failed; the probe's own time running
       // out, or a pin refusal before sending, keeps the fixed sentence.
-      else if (shared.isModelApiError(error) && !signal.aborted) failureReason = error.message
+      else if (shared.isModelApiError(error) && !read.signal.aborted) failureReason = error.message
       else failureReason = 'unreachable'
       return undefined
     }
-    try {
-      return {
-        status: result.response.status,
-        body: await shared.parseJsonResponse(result, (value) => value),
-      }
-    } catch {
-      return { status: result.response.status, body: undefined }
-    }
+    return { status: read.status, body: read.body }
   }
   return await presets.runProviderKeyTest(
     test,
@@ -480,7 +651,7 @@ export async function probeProvider(
       const ids = listModelIds(listed.body, provider.preset)
       return ids === undefined
         ? { ok: false, paid: false, reason: 'unparseable' }
-        : { ok: true, modelCount: ids.length }
+        : { ok: true, modelCount: ids.length, modelIds: ids }
     },
   )
 }
@@ -683,6 +854,19 @@ export async function providersAdd(
   const models = options.models
     .map((model) => model.trim())
     .filter((model) => model !== '' && !/\s/.test(model))
+  if (models.length === 0) {
+    // The panel keeps its own "tick" wording; the terminal names the flag
+    // and lists what the key test just read (F85). A key test that read no
+    // list (an identity check on another origin, an empty list) still gets
+    // the terminal's own sentence, never the wizard's tick wording.
+    const listed = probe.modelIds ?? []
+    if (listed.length === 0) {
+      return failed(deps, UI_TEXT.providerAddNeedsModel)
+    }
+    deps.printError(UI_TEXT.providerAddPickModel)
+    for (const id of listed) deps.printError(id)
+    return EXIT_FAILED
+  }
   state = applyWizardEvent(state, { type: 'set-models', models })
   if (state.error !== undefined) {
     return failed(deps, state.error)
@@ -752,6 +936,12 @@ export async function providersAdd(
   for (const line of summary.lines) {
     deps.print(line)
   }
+  // Added with its limit stated: the list shows it and an agent turn on
+  // it is refused with the same sentence (F83).
+  const unconfirmed = await unconfirmedToolModels(preset, id, options.format, models)
+  for (const nativeModel of unconfirmed) {
+    deps.print(fill(UI_TEXT.providerModelNoToolCalling, { model: `${id}/${nativeModel}` }))
+  }
   deps.print(fill(UI_TEXT.providerAdded, { provider: id, origin: address.origin }))
   return EXIT_OK
 }
@@ -782,6 +972,48 @@ async function resolvedForAdd(
   return await resolveProvider(file, id, presetById, deps.resolveHost)
 }
 
+/**
+ * The stored key behind a provider read: the key, or the line that says why
+ * not. Silent reads (the models list) report nothing; the caller notes the
+ * unreadable list instead.
+ */
+export async function storedProviderKey(
+  deps: ProvidersDeps,
+  provider: ResolvedProvider,
+  isQuiet = false,
+): Promise<{ readonly ok: true; readonly key: string | undefined } | { readonly ok: false }> {
+  if (provider.preset.auth !== 'apiKey') return { ok: true, key: undefined }
+  const refuse = (line: string): { readonly ok: false } => {
+    if (!isQuiet) deps.printError(line)
+    return { ok: false }
+  }
+  const account = providerSecretAccount(provider.entry.id)
+  const stored = account === undefined ? undefined : await deps.secrets.get(account)
+  if (stored === undefined || stored === '') {
+    return refuse(fill(UI_TEXT.providerKeyAbsent, { provider: provider.entry.id }))
+  }
+  let value: unknown
+  try {
+    value = JSON.parse(stored)
+  } catch {
+    return refuse(fill(UI_TEXT.providerSecretUnreadable, { provider: provider.entry.id }))
+  }
+  const parsed = parseStoredProviderSecret(value)
+  if (parsed === undefined) {
+    return refuse(fill(UI_TEXT.providerSecretUnreadable, { provider: provider.entry.id }))
+  }
+  if (!isCredentialBound(parsed.record, provider.origin)) {
+    return refuse(
+      fill(UI_TEXT.providerOriginMismatch, {
+        provider: provider.entry.id,
+        stored: parsed.record.origin,
+        current: provider.origin,
+      }),
+    )
+  }
+  return { ok: true, key: parsed.key }
+}
+
 /** `providers test`: the stored credential, the binding, the endpoint and the free check. */
 export async function providersTest(deps: ProvidersDeps, providerId: string): Promise<number> {
   const file = await commandFile(deps)
@@ -799,35 +1031,9 @@ export async function providersTest(deps: ProvidersDeps, providerId: string): Pr
     )
   }
   const { provider } = resolved
-  let key: string | undefined
-  if (provider.preset.auth === 'apiKey') {
-    const account = providerSecretAccount(provider.entry.id)
-    const stored = account === undefined ? undefined : await deps.secrets.get(account)
-    if (stored === undefined || stored === '') {
-      return failed(deps, fill(UI_TEXT.providerKeyAbsent, { provider: providerId }))
-    }
-    let value: unknown
-    try {
-      value = JSON.parse(stored)
-    } catch {
-      return failed(deps, fill(UI_TEXT.providerSecretUnreadable, { provider: providerId }))
-    }
-    const parsed = parseStoredProviderSecret(value)
-    if (parsed === undefined) {
-      return failed(deps, fill(UI_TEXT.providerSecretUnreadable, { provider: providerId }))
-    }
-    if (!isCredentialBound(parsed.record, provider.origin)) {
-      return failed(
-        deps,
-        fill(UI_TEXT.providerOriginMismatch, {
-          provider: providerId,
-          stored: parsed.record.origin,
-          current: provider.origin,
-        }),
-      )
-    }
-    key = parsed.key
-  }
+  const stored = await storedProviderKey(deps, provider)
+  if (!stored.ok) return EXIT_FAILED
+  const key = stored.key
   const answers = await deps.resolveHost(new URL(provider.origin).hostname)
   if (!isEndpointBindingCurrent(provider, answers)) {
     return failed(

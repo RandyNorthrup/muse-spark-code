@@ -12,7 +12,6 @@ import path from 'node:path'
 import {
   MCP_REQUEST_TIMEOUT_MS,
   MCP_START_CONCURRENCY,
-  MCP_TOOLS_MAX_PER_SERVER,
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
   MCP_POOL_MODEL_TEXT,
@@ -44,12 +43,28 @@ import {
 } from './servers'
 import { type McpChildProcess, McpStdioTransport } from './stdio'
 
+/**
+ * The listed tools the server's entry keeps: its enabled/disabled filter
+ * only. Every kept tool is offered to the model; the provider's own request
+ * limits decide what fits. Pure.
+ */
+export function offeredTools(
+  listed: readonly McpToolInfo[],
+  spec: Pick<McpServerSpec, 'enabledTools' | 'disabledTools'>,
+): readonly McpToolInfo[] {
+  return listed.filter(
+    (tool) =>
+      (spec.enabledTools === undefined || spec.enabledTools.has(tool.name)) &&
+      !spec.disabledTools.has(tool.name),
+  )
+}
+
 export type McpServerState =
   | { readonly status: 'starting' }
   | {
       readonly status: 'connected'
       readonly toolCount: number
-      /** Listed by the server but not offered (the entry's filters, the cap). */
+      /** Listed by the server but not offered (the entry's filters only). */
       readonly unofferedCount: number
     }
   | { readonly status: 'failed'; readonly reason: string }
@@ -407,21 +422,11 @@ export class McpServerPool implements McpToolSource {
     server.tools = []
   }
 
-  /** The server's tools, filtered by its entry and capped, under their function names. */
+  /** The server's tools, filtered by its entry, under their function names. */
   private offer(server: LiveServer, listed: readonly McpToolInfo[]): void {
     this.withdraw(server)
     const { spec } = server
-    const allowed = listed.filter(
-      (tool) =>
-        (spec.enabledTools === undefined || spec.enabledTools.has(tool.name)) &&
-        !spec.disabledTools.has(tool.name),
-    )
-    const kept = allowed.slice(0, MCP_TOOLS_MAX_PER_SERVER)
-    if (allowed.length > kept.length) {
-      this.deps.log.warn(
-        `MCP server ${spec.name} offers ${String(allowed.length)} tools; the first ${String(MCP_TOOLS_MAX_PER_SERVER)} are offered to the model`,
-      )
-    }
+    const kept = offeredTools(listed, spec)
     const taken = new Set(this.byFunction.keys())
     server.tools = kept.map((tool) => {
       const functionName = mcpFunctionName(spec.name, tool.name, taken)

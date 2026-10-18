@@ -1,0 +1,44 @@
+{
+  "vendor": "deepseek",
+  "model": "deepseek-flash",
+  "variant": "0-first-call-with-tools",
+  "url": "https://api.deepseek.com/chat/completions",
+  "requestBody": {
+    "model": "deepseek-flash",
+    "max_tokens": 300,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read_file",
+          "description": "Read a file.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": ["path"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "required",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      }
+    ]
+  },
+  "status": 400,
+  "response": {
+    "error": {
+      "message": "Thinking mode does not support this tool_choice (request_id: 925a07ab-6dee-4ebb-8cb7-26aae0fad823)",
+      "type": "invalid_request_error",
+      "param": null,
+      "code": "invalid_request_error"
+    }
+  }
+}

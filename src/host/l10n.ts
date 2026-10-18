@@ -38,6 +38,12 @@ export interface UiTableDeps {
   readonly log: Logger
   /** The table a display language reads; the shipped list decides unless a test gives its own. */
   readonly tableLocaleFor?: (language: string) => string | undefined
+  /**
+   * What the log names when it reports the installed language. The VS Code
+   * panel keeps the panel wording; a headless run has no panel, so it names
+   * the terminal's messages instead.
+   */
+  readonly surface?: 'panel' | 'terminal'
 }
 
 // A damaged table can differ in hundreds of keys; the log names the first few.
@@ -65,9 +71,14 @@ function problemSummary(problems: readonly string[]): string {
  */
 export async function loadUiTable(deps: UiTableDeps): Promise<UiTable> {
   const english: UiTable = { locale: BASE_LOCALE, table: EN }
+  // The terminal names its messages; only the VS Code panel names the panel.
+  const isTerminal = deps.surface === 'terminal'
+  const subject = isTerminal ? 'messages' : 'the panel'
+  const is = isTerminal ? 'are' : 'is'
+  const stays = isTerminal ? 'stay' : 'stays'
   const locale = (deps.tableLocaleFor ?? tableLocaleFor)(deps.language)
   if (locale === undefined) {
-    deps.log.info(`Display language ${deps.language}: the panel is in English`)
+    deps.log.info(`Display language ${deps.language}: ${subject} ${is} in English`)
     return english
   }
   const fileName = tableFileName(locale)
@@ -76,18 +87,20 @@ export async function loadUiTable(deps: UiTableDeps): Promise<UiTable> {
   try {
     parsed = unpackUiTable(JSON.parse(await deps.readExtensionFile([TABLE_DIRECTORY, fileName])))
   } catch (error: unknown) {
-    deps.log.warn(`${file} could not be read, so the panel stays in English: ${describe(error)}`)
+    deps.log.warn(
+      `${file} could not be read, so ${subject} ${stays} in English: ${describe(error)}`,
+    )
     return english
   }
   const problems: string[] = []
   if (!isTableShape(parsed, locale, problems)) {
     deps.log.warn(
-      `${file} does not match the English table, so the panel stays in English: ${problemSummary(problems)}`,
+      `${file} does not match the English table, so ${subject} ${stays} in English: ${problemSummary(problems)}`,
     )
     return english
   }
   setUiText(parsed, locale)
-  deps.log.info(`Display language ${deps.language}: the panel is in ${locale} (${file})`)
+  deps.log.info(`Display language ${deps.language}: ${subject} ${is} in ${locale} (${file})`)
   return { locale, table: parsed }
 }
 

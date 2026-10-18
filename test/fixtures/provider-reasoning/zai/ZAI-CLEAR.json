@@ -1,0 +1,57 @@
+{
+  "id": "ZAI-CLEAR",
+  "provider": "zai",
+  "sentAt": "2026-10-13T01:37:48.409Z",
+  "method": "POST",
+  "url": "https://api.z.ai/api/paas/v4/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "messages": [
+      {
+        "content": "Say hi in five words.",
+        "role": "user"
+      }
+    ],
+    "model": "glm-5.2",
+    "stream": false,
+    "thinking": {
+      "clear_thinking": false,
+      "type": "enabled"
+    },
+    "max_tokens": 200
+  },
+  "lookFor": "Status; whether clear_thinking is accepted on the standard endpoint and whether a follow-up turn keeps prior thinking coherent.",
+  "status": 200,
+  "responseHeaders": {
+    "x-request-id": "14119771-2510-4e19-9bfc-11f914baf03c"
+  },
+  "response": {
+    "choices": [
+      {
+        "finish_reason": "length",
+        "index": 0,
+        "message": {
+          "content": "Hi,",
+          "reasoning_content": "1.  **Analyze the Request:**\n    *   Goal: Say hi.\n    *   Constraint: Exactly five words.\n\n2.  **Brainstorming 5-word greetings:**\n    *   Hello, how are you today? (5 words) - *Wait, hello(1) how(2) are(3) you(4) today(5)* - Yes, exactly 5 words.\n    *   Hi there, it is nice. (5 words) - *Hi(1) there(2) it(3) is(4) nice(5)* - A bit awkward.\n    *   Hello, I hope you're well. (5 words) - *Wait, you're is usually counted as one word. Hello(1) I(2) hope(3) you're(4) well(5).*\n    *   Hi, how is your day? (5 words) - *Hi(1)",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1791855472,
+    "id": "202610130937498dc0ca3ba10b4dc9",
+    "model": "glm-5.2",
+    "object": "chat.completion",
+    "request_id": "202610130937498dc0ca3ba10b4dc9",
+    "usage": {
+      "completion_tokens": 200,
+      "completion_tokens_details": {
+        "reasoning_tokens": 198
+      },
+      "prompt_tokens": 18,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "total_tokens": 218
+    }
+  }
+}

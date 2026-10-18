@@ -65,7 +65,6 @@ import {
   CHECKPOINT_BLOB_BATCH_MAX_BYTES,
   CHECKPOINT_BLOBS_DIR,
   CHECKPOINT_FENCED_WINDOW,
-  CHECKPOINT_FILE_MAX_BYTES,
   CHECKPOINT_FOLD_ATTEMPTS,
   CHECKPOINT_FORGOTTEN_KEEP_MS,
   CHECKPOINT_HEARTBEAT_MS,
@@ -298,10 +297,9 @@ interface Setup extends Opened {
   readonly live: ReadonlyMap<string, readonly string[]>
 }
 
-/** A path's state now, as the restore read it. */
+/** A path's content now, as the restore read it. */
 interface PathState {
   readonly content: ContentState
-  readonly isTooLarge: boolean
 }
 
 const SHADOW_HEAD = path.join('shadow.git', 'HEAD')
@@ -475,7 +473,6 @@ function refusalFor(result: Exclude<StepResult, 'done'>): PathRefusal {
     linked: 'linked',
     failed: 'failed',
     unsaved: 'unsaved',
-    tooLarge: 'tooLarge',
   }
   return reasons[result]
 }
@@ -1367,20 +1364,16 @@ export class CheckpointStore {
     // the file of that name is concerned, nothing is there (the writer still
     // refuses when it is not empty by then).
     if (stats === undefined || (stats.isDirectory() && rangeFolders.has(relative))) {
-      return { content: { present: false }, isTooLarge: false }
+      return { content: { present: false } }
     }
     if (!stats.isFile()) {
       // A folder, a link or a device: present, and no bytes any write left.
-      return { content: { present: true }, isTooLarge: false }
+      return { content: { present: true } }
     }
     const isExecutable = this.deps.platform !== 'win32' && (stats.mode & EXECUTABLE_BITS) !== 0
     const mode = isExecutable ? GIT_MODE_EXECUTABLE : GIT_MODE_FILE
-    if (stats.size > CHECKPOINT_FILE_MAX_BYTES) {
-      return { content: { present: true, mode }, isTooLarge: true }
-    }
     return {
       content: { present: true, oid: gitBlobOid(await readFile(absolute)), mode },
-      isTooLarge: false,
     }
   }
 
@@ -1531,7 +1524,7 @@ export class CheckpointStore {
       states.set(
         relative,
         linked.has(relative)
-          ? { content: { present: true }, isTooLarge: false }
+          ? { content: { present: true } }
           : await this.stateOf(relative, rangeFolders),
       )
     }
@@ -1552,8 +1545,6 @@ export class CheckpointStore {
     for (const decided of decision.paths) {
       if (linked.has(decided.path)) {
         refused.push({ path: decided.path, reason: 'linked' })
-      } else if (states.get(decided.path)?.isTooLarge === true) {
-        refused.push({ path: decided.path, reason: 'tooLarge' })
       } else if (decided.kind === 'unchanged') {
         unchanged.push(decided.path)
       } else if (decided.kind === 'refused') {

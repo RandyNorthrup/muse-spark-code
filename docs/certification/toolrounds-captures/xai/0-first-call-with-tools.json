@@ -1,0 +1,131 @@
+{
+  "vendor": "xai",
+  "model": "grok-4.3",
+  "variant": "0-first-call-with-tools",
+  "url": "https://api.x.ai/v1/responses",
+  "requestBody": {
+    "model": "grok-4.3",
+    "max_output_tokens": 400,
+    "store": false,
+    "tools": [
+      {
+        "type": "function",
+        "name": "read_file",
+        "description": "Read a file.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": ["path"]
+        }
+      }
+    ],
+    "tool_choice": "required",
+    "input": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "created_at": 1791834962,
+    "completed_at": 1791834965,
+    "id": "2f691c59-c72d-9709-8c42-6dd0cd11eda9",
+    "max_output_tokens": 400,
+    "model": "grok-4.3",
+    "object": "response",
+    "output": [
+      {
+        "id": "rs_2f691c59-c72d-9709-8c42-6dd0cd11eda9",
+        "summary": [
+          {
+            "text": "Reading a.txt to report its contents.",
+            "type": "summary_text"
+          }
+        ],
+        "type": "reasoning",
+        "status": "completed"
+      },
+      {
+        "arguments": "{\"path\":\"a.txt\"}",
+        "call_id": "call-eedf2a0b-9912-4610-a918-104a70aaa7c5-0",
+        "name": "read_file",
+        "type": "function_call",
+        "id": "fc_2f691c59-c72d-9709-8c42-6dd0cd11eda9_0",
+        "status": "completed"
+      }
+    ],
+    "parallel_tool_calls": true,
+    "previous_response_id": null,
+    "reasoning": {
+      "effort": "low",
+      "summary": "detailed"
+    },
+    "temperature": 0.7,
+    "text": {
+      "format": {
+        "type": "text"
+      }
+    },
+    "tool_choice": "required",
+    "tools": [
+      {
+        "type": "function",
+        "description": "Read a file.",
+        "name": "read_file",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": ["path"]
+        },
+        "strict": false
+      }
+    ],
+    "top_p": 0.95,
+    "usage": {
+      "input_tokens": 292,
+      "input_tokens_details": {
+        "cached_tokens": 128
+      },
+      "output_tokens": 146,
+      "output_tokens_details": {
+        "reasoning_tokens": 135
+      },
+      "total_tokens": 438,
+      "num_sources_used": 0,
+      "num_server_side_tools_used": 0,
+      "cost_in_usd_ticks": 5956000,
+      "context_details": {
+        "input_tokens": 292,
+        "output_tokens": 150
+      }
+    },
+    "user": null,
+    "incomplete_details": null,
+    "status": "completed",
+    "store": false,
+    "metadata": {
+      "system_fingerprint": "fp_eb3c003fc66c14ed"
+    },
+    "background": false,
+    "service_tier": "default",
+    "truncation": "disabled",
+    "top_logprobs": 0,
+    "presence_penalty": 0,
+    "frequency_penalty": 0,
+    "prompt_cache_key": null,
+    "max_tool_calls": null,
+    "safety_identifier": null,
+    "error": null,
+    "instructions": null
+  }
+}

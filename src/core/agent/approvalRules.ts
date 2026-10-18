@@ -152,3 +152,46 @@ export function editAutomaticallyChoice(
     (subject.kind === FILE_ACCESS_SUBJECT && subject.access === WRITE_ACCESS)
   return isFileWrite && subject.stages === undefined ? allowOnceChoice(event) : undefined
 }
+
+// The reject decision Muse Code offers on an approval card (`abort`, the
+// same vocabulary `MuseCodeHost` refuses a waiting stage with and the
+// captured `approval/requested` frames carry). Only this exact decision is
+// a refusal; anything else is passed through, never guessed.
+const REJECT_DECISION = 'abort'
+// MSP's approving decisions: `approved`, `approvedPolicyAmendment`, … (the
+// same prefix `mapNotification` filters protected-write choices by).
+const APPROVING_DECISION_PREFIX = 'approved'
+
+/** Whether a card choice would approve the action (a side chat refuses those). */
+export function isApprovingChoice(choice: Pick<ApprovalChoice, 'decision'>): boolean {
+  return choice.decision.startsWith(APPROVING_DECISION_PREFIX)
+}
+
+/**
+ * Whether a click on a shown side-chat card is refused (M53, C-M53-3):
+ * only a choice the retained card itself names, and that does not approve,
+ * passes. The host sends the choice id on without validating it against
+ * the card, so an unknown choice — or no retained card — fails closed
+ * instead of being guessed at.
+ */
+export function isSideChatClickRefused(
+  choices: readonly ApprovalChoice[] | undefined,
+  choiceId: string,
+): boolean {
+  const choice = choices?.find((held) => held.choiceId === choiceId)
+  return choice === undefined || isApprovingChoice(choice)
+}
+
+/**
+ * The choice a Muse Code side chat answers every approval with (M53,
+ * C-M53-3): Plan mode already selects MSP `denyUnmatched`, but the CLI
+ * still applies its own project and session allow rules, so a side fork is
+ * not strictly read only until the extension refuses what it asks. The
+ * refusal is the card's own reject choice; when the host offers none, the
+ * caller shows the card and refuses approving clicks instead.
+ */
+export function sideChatRefusalChoice(
+  event: Pick<Extract<AgentEvent, { type: 'approvalRequested' }>, 'availableChoices'>,
+): ApprovalChoice | undefined {
+  return event.availableChoices.find((choice) => choice.decision === REJECT_DECISION)
+}

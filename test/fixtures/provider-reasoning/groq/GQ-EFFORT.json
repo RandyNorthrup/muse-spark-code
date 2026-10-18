@@ -1,0 +1,68 @@
+{
+  "id": "GQ-EFFORT",
+  "provider": "groq",
+  "sentAt": "2026-10-13T01:37:29.720Z",
+  "method": "POST",
+  "url": "https://api.groq.com/openai/v1/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "max_tokens": 100,
+    "messages": [
+      {
+        "content": "Say hi in five words.",
+        "role": "user"
+      }
+    ],
+    "model": "openai/gpt-oss-120b",
+    "reasoning_effort": "medium",
+    "stream": false
+  },
+  "lookFor": "Status; whether the reply carries a message.reasoning field.",
+  "status": 200,
+  "responseHeaders": {
+    "x-ratelimit-limit-requests": "1000",
+    "x-ratelimit-limit-tokens": "8000",
+    "x-ratelimit-remaining-requests": "999",
+    "x-ratelimit-remaining-tokens": "7823",
+    "x-ratelimit-reset-requests": "1m26.4s",
+    "x-ratelimit-reset-tokens": "1.327s",
+    "x-request-id": "req_01m4segpcpesv931cwbftkwzrw"
+  },
+  "response": {
+    "id": "chatcmpl-9c8a9450-71a2-466f-9738-5fa8c889cbd3",
+    "object": "chat.completion",
+    "created": 1791855450,
+    "model": "openai/gpt-oss-120b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "reasoning": "User asks: \"Say hi in five words.\" They want a greeting composed of five words. So output something like \"Hello there, nice to meet\". That's 5 words? Count: Hello(1) there,(2) nice(3) to(4) meet(5). Yes. Or \"Hey there, great to see\". Count: Hey(1) there,(2) great(3) to(4) see(5). Provide."
+        },
+        "logprobs": null,
+        "finish_reason": "length"
+      }
+    ],
+    "usage": {
+      "queue_time": 0.173413743,
+      "prompt_tokens": 77,
+      "prompt_time": 0.003222644,
+      "completion_tokens": 100,
+      "completion_time": 0.208293896,
+      "total_tokens": 177,
+      "total_time": 0.21151654,
+      "completion_tokens_details": {
+        "reasoning_tokens": 94
+      }
+    },
+    "usage_breakdown": null,
+    "system_fingerprint": "fp_c800245357",
+    "x_groq": {
+      "id": "req_01m4segpcpesv931cwbftkwzrw",
+      "seed": 992808154
+    },
+    "service_tier": "on_demand"
+  }
+}
