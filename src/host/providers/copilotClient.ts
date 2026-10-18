@@ -300,11 +300,21 @@ class CopilotClient implements ProviderClient {
   public async waitBeforeRetry(ms: number, signal: AbortSignal): Promise<void> {
     await pause(ms, undefined, { signal })
   }
-  public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
+  public async countInputTokens(
+    body: Omit<CreateResponseBody, 'stream'>,
+    signal?: AbortSignal,
+  ): Promise<number> {
     const cancellation = this.api.cancellation()
+    // Stop ends a stalled tokenizer wait the same way it ends a stream:
+    // the turn signal cancels this locally created source (PR #214 review).
+    const abort = (): void => {
+      cancellation.cancel()
+    }
+    signal?.addEventListener('abort', abort, { once: true })
     try {
       return await this.countInput(body, cancellation)
     } finally {
+      signal?.removeEventListener('abort', abort)
       cancellation.cancel()
       cancellation.dispose()
     }

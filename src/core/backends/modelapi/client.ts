@@ -355,14 +355,14 @@ export class ModelApiClient implements TransportProviderClient {
   }
 
   /** The chat model ids the key can use, as the catalogue lists them. */
-  public async listModels(): Promise<readonly string[]> {
+  public async listModels(signal?: AbortSignal): Promise<readonly string[]> {
     // No deadline of our own (owner 2026-10-16): the catalogue read ends at
-    // the provider's answer or a network failure. No turn stops it; a hung
-    // provider is waited on until the network itself gives up.
+    // the provider's answer, a network failure, or the caller's signal
+    // (Stop owns the wait; PR #214 review).
     const result = await this.transport.request(
       '/models',
       { method: 'GET', accept: JSON_MEDIA_TYPE },
-      undefined,
+      signal,
     )
     const parsed = await parseJsonResponse(result, (json) => modelListSchema.parse(json))
     return parsed.data.map((model) => result.redact(model.id))

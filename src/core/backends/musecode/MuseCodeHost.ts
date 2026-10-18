@@ -2706,18 +2706,39 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /** The visible model catalogue; with a session id the active row is flagged. */
-  public async listModels(sessionId?: string): Promise<readonly MuseCodeModelSummary[]> {
-    const result = await this.command('model/list', {
-      ...(sessionId !== undefined && { sessionId }),
+  public async listModels(
+    sessionId?: string,
+    signal?: AbortSignal,
+  ): Promise<readonly MuseCodeModelSummary[]> {
+    const answer = (async (): Promise<readonly MuseCodeModelSummary[]> => {
+      const result = await this.command('model/list', {
+        ...(sessionId !== undefined && { sessionId }),
+      })
+      return modelListResultSchema.parse(result).models.map((model) => ({
+        modelId: model.modelId,
+        displayLabel: model.displayLabel,
+        contextLimit: model.contextLimit ?? undefined,
+        isDefault: model.isDefault,
+        isActive: model.isActive ?? false,
+        ...this.features.modelEfforts?.parseModel(model),
+      }))
+    })()
+    if (signal === undefined) return await answer
+    // The local socket has no per-call cancel: Stop unblocks the caller
+    // while the read-only listing still settles (PR #214 review).
+    signal.throwIfAborted()
+    let onAbort: (() => void) | undefined
+    const stopped = new Promise<never>((_resolve, reject) => {
+      onAbort = () => {
+        reject(new Error(UI_TEXT.questionCancelled))
+      }
+      signal.addEventListener('abort', onAbort, { once: true })
     })
-    return modelListResultSchema.parse(result).models.map((model) => ({
-      modelId: model.modelId,
-      displayLabel: model.displayLabel,
-      contextLimit: model.contextLimit ?? undefined,
-      isDefault: model.isDefault,
-      isActive: model.isActive ?? false,
-      ...this.features.modelEfforts?.parseModel(model),
-    }))
+    try {
+      return await Promise.race([answer, stopped])
+    } finally {
+      if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)
+    }
   }
 
   /** Registered literal secrets remain in the host; only the scrubbed note is previewed. */

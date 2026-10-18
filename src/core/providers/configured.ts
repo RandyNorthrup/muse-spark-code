@@ -397,10 +397,10 @@ export function createConfiguredProviderServices(
   const base: ProviderClient = {
     hasPaidDailyBudget: meta?.hasPaidDailyBudget ?? false,
     currentKeyDigest: () => delegate().currentKeyDigest(),
-    listModels: () => delegate().listModels(),
+    listModels: (signal) => delegate().listModels(signal),
     retryDelayMs: (attempt) => delegate().retryDelayMs(attempt),
     waitBeforeRetry: (delay, signal) => delegate().waitBeforeRetry(delay, signal),
-    countInputTokens: (body) => delegate().countInputTokens(body),
+    countInputTokens: (body, signal) => delegate().countInputTokens(body, signal),
     streamResponse: (body, ...args) => delegate().streamResponse(body, ...args),
     createImage: (...args) => delegate().createImage(...args),
     editImage: (...args) => delegate().editImage(...args),
@@ -1158,12 +1158,12 @@ export function createConfiguredProviderServices(
   })
   const client: ProviderClient = {
     ...base,
-    listModels: async () =>
+    listModels: async (signal) =>
       options.hasMetaKey !== undefined &&
       !(await options.hasMetaKey()) &&
       meta?.isPlanModel === undefined
         ? []
-        : await delegate().listModels(),
+        : await delegate().listModels(signal),
     models: {
       list: registry.list,
       resolve: async (ref) =>

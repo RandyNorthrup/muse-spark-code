@@ -615,7 +615,7 @@ export interface AgentSession {
 export interface AgentHost {
   readonly info: HostInfo
   onExit(listener: (exit: HostExit) => void): () => void
-  listModels(sessionId?: string): Promise<readonly ModelSummary[]>
+  listModels(sessionId?: string, signal?: AbortSignal): Promise<readonly ModelSummary[]>
   startSession(options: StartSessionOptions): Promise<AgentSession>
   listSessions(options: ListSessionsOptions): Promise<SessionPage>
   /** A session's transcript without loading it (a subagent's child session, M14). */
