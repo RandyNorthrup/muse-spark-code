@@ -371,8 +371,10 @@ export class AuthService {
     )
     try {
       await this.restartHosts(true)
-    } catch {
-      this.deps.log.warn('The running backend could not stop before switching backends')
+    } catch (error: unknown) {
+      this.deps.log.warn(
+        `The running backend could not stop before switching backends: ${failureForLog(error)}`,
+      )
       // The failure is published under the same guards as the success: a
       // newer state, or a sign-out, published meanwhile stands (Codex on
       // 86d63652).
@@ -598,9 +600,7 @@ export class AuthService {
       this.deps.backend.forgetCliAnswers()
       return await this.confirmCliSignIn(flow)
     } catch (error: unknown) {
-      this.deps.log.warn(
-        `In-panel sign-in failed: ${error instanceof Error ? error.name : 'unknown error'}`,
-      )
+      this.deps.log.warn(`In-panel sign-in failed: ${failureForLog(error)}`)
       return await this.finishFailedCliSignIn(flow, 'error', UI_TEXT.signInFailed, 'warning')
     } finally {
       this.deviceAbort = undefined
@@ -790,9 +790,7 @@ export class AuthService {
       }
       return await this.installFailed(UI_TEXT.installTimedOut, epoch)
     } catch (error: unknown) {
-      this.deps.log.warn(
-        `Muse Code installer terminal failed: ${error instanceof Error ? error.name : 'unknown error'}`,
-      )
+      this.deps.log.warn(`Muse Code installer terminal failed: ${failureForLog(error)}`)
       return await this.installFailed(UI_TEXT.installStartFailed, epoch)
     }
   }
