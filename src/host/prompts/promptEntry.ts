@@ -3,7 +3,7 @@ import { pageConverter } from '../web/pageConverter'
 import type { Logger } from '../logger'
 import { uiLocale } from '../../shared/l10n/text'
 import { PromptInsertion } from './promptInsertion'
-import { safePromptFailure } from './promptFailure'
+import { isPromptStoreDamaged, safePromptFailure } from './promptFailure'
 import { createChatSharing } from './chatSharing'
 import { createChatSharePrivacy } from '../../core/sharing/privacy'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
@@ -178,7 +178,7 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
   try {
     await library.synchronise()
   } catch (error: unknown) {
-    if (!(error instanceof Error && error.message === UI_TEXT.promptStoreDamaged)) throw error
+    if (!isPromptStoreDamaged(error)) throw error
     await ui.report(fill(UI_TEXT.promptScopeDamaged, { scope: UI_TEXT.promptScopeUser }))
   }
   const insertion = new PromptInsertion(deps.chat)

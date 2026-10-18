@@ -11,6 +11,7 @@ import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import { TabIgnoreCache } from './tabIgnore'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { compileGlob } from '../../core/backends/modelapi/globLimits'
 import { redactSecrets } from '../../core/redact'
 import { isProtectedPath } from '../../core/protectedPaths'
@@ -378,6 +379,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     ignoreFileExists: deps.ignoreFileExists,
     workspaceRoots: deps.workspaceRoots,
     onIgnoreFilesChanged: deps.onIgnoreFilesChanged,
+    log: deps.log,
   })
   let generation = 0
   let request = 0
@@ -653,6 +655,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       ])
       targetRelative = relativeInside(realRoot, realFile)
     } catch {
+      // A path that cannot be resolved has no verified location: ineligible.
       targetRelative = undefined
     }
     if (!policy.isCurrent()) return quiet('policy-changed')
@@ -808,13 +811,14 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
           deps.log.warn('Tab request reported no usage; its reservation stands')
         })
       completion = answer.completion
-    } catch {
+    } catch (error: unknown) {
       // No usage was reported, so the reservation stands (M82); the log gets
-      // the class, never the cause (it may name a path).
+      // the class and the closed-vocabulary cause, never a path.
       if (!isDisposed()) {
         deps.onOutcome({ kind: 'failed', failure: 'request' })
       }
       deps.log.warn('Tab request failed (request)')
+      deps.log.trace(`Tab request failure: ${failureForLog(error)}`)
       return []
     }
     // An answer reached under a policy that has since moved is not shown.

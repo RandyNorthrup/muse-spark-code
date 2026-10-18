@@ -7,6 +7,15 @@
 import { UI_TEXT } from '../../shared/constants'
 
 /**
+ * Whether the failure is the prompt store's own damage report: only that
+ * named condition is repaired in place, and every other failure keeps its
+ * cause for the caller.
+ */
+export function isPromptStoreDamaged(error: unknown): boolean {
+  return error instanceof Error && error.message === UI_TEXT.promptStoreDamaged
+}
+
+/**
  * The failure the person may read: a message from the known fixed list, or
  * the fixed invalid words. The boundary discards the original cause by
  * design (see below), so only this function's answer ever crosses it.
