@@ -7,9 +7,9 @@
       "CLEANUP": 5
     },
     "core": {
-      "SWALLOW": 171,
-      "GENERIC": 418,
-      "CLEANUP": 121
+      "SWALLOW": 163,
+      "GENERIC": 395,
+      "CLEANUP": 122
     },
     "host": {
       "SWALLOW": 66,
@@ -1104,26 +1104,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/core/browser/browserPolicy.ts",
-      "identity": "86551e6fbae827791fb268b8c80d087b6febc98b9d4b1b6d3cfbb58a0f1c4178",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/browser/browserPolicy.ts",
-      "identity": "45607621adf0e5434ba09e1447ede19db6cdcea35eb75cad299928ebe2cffeef",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/browser/browserPolicy.ts",
-      "identity": "9e4cd6772fc73f1a27bafdab40260fa25b6a8ddd99f0f854b018e01ea57ea65b",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/browser/browserPolicy.ts",
-      "identity": "73cc4cf11ba709eb17f83034a905416aeb7bc5bd65b83c11efedc40f766aa6cf",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/core/browser/browserRun.ts",
       "identity": "26438c44e79e7fa7e226aeb2d1a47d4fb28b3620b27dd505ba4fc022ebd51dbf",
       "class": "GENERIC"
@@ -1162,21 +1142,6 @@
       "file": "src/core/browser/cdpPipe.ts",
       "identity": "b610be47572c0660d3bcdb2d007174eef5ca88c2e5ccfbc2f6dad2a813f4cb70",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/browser/cdpPipe.ts",
-      "identity": "66e109f2c46c68d9fc04e7364ec80c645c046b0cca7841b2a866d0d35886eb0d",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/browser/checkProxy.ts",
-      "identity": "d6931fcd314e7462cc632c4fbb999a2bbfbd23d19e96c3bf8ae0d5be9721708e",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/browser/checkProxy.ts",
-      "identity": "efab5e2c3a1f36e6a0285126ce8bb4c24f7da294fff07d69a8aaf2d8fb074ce5",
-      "class": "SWALLOW"
     },
     {
       "file": "src/core/browser/checkProxy.ts",
@@ -1979,21 +1944,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/core/orchestration/playbook/guard.ts",
-      "identity": "4c18ce3873f87ffbfea91800eb0b11f9e514e39da979e98ee3d68400e3173442",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/orchestration/playbook/journal.ts",
-      "identity": "fc25be286413a9641d6da08b82711bc6896bdf5af0076dbc71ae29d9265c3bf2",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/orchestration/playbook/journal.ts",
-      "identity": "39692278131fb334231c7c7e6d1af03a1bd2e747fa8ed10e8a36b8847df38975",
-      "class": "SWALLOW"
-    },
-    {
       "file": "src/core/orchestration/playbook/outcomes.ts",
       "identity": "f8903e234caddf1fb79c6395d4de91d21af986f822235a00699d3237d3347e76",
       "class": "GENERIC"
@@ -2095,22 +2045,12 @@
     },
     {
       "file": "src/core/providers/configured.ts",
-      "identity": "f5f63da41c9dbfb73332112dd368425550bff171a33577125dafdf4f67b83a5d",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/providers/configured.ts",
       "identity": "4df3a5eff00461cea7083bd8d61b962c5dad6d98599c007ccb2b5b7b75049967",
       "class": "GENERIC"
     },
     {
       "file": "src/core/providers/configured.ts",
       "identity": "e2abfacbdd1c65a40309eb1a13d6514ab56661f01f2af06ee6011bd8007547d8",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/providers/configured.ts",
-      "identity": "5021f5cb8bf72afa83546f43702627b7cc81bac19589869dea9c71a5aa8ec82f",
       "class": "GENERIC"
     },
     {
@@ -2135,11 +2075,6 @@
     },
     {
       "file": "src/core/providers/subscriptions/chatgpt.ts",
-      "identity": "28c239d71170abfa4a9d647137812413fbd04cb24f0f90f875bd86348eaf15f6",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/providers/subscriptions/chatgpt.ts",
       "identity": "8dc2b91469c546face0d6e2ffd81d65b813c1f0e910773a8f537a8da50c57dac",
       "class": "GENERIC"
     },
@@ -2150,23 +2085,13 @@
     },
     {
       "file": "src/core/providers/subscriptions/chatgpt.ts",
-      "identity": "878e594e2a7a2933f616aef916912cef61f1623f11719c9488b048123d08f634",
+      "identity": "3caf2ceee86701aeade4df474269650377a60007f6f3be1bb88dc3a636095772",
       "class": "GENERIC"
     },
     {
       "file": "src/core/providers/subscriptions/chatgpt.ts",
-      "identity": "ad79080675fd6efe6cd757f7c92e435a7656e7ac616a5c332da49d5f6ca13451",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/providers/subscriptions/chatgpt.ts",
-      "identity": "93b4c5a2f1eb1dea71d43aa94a96c5dd30424f265f8ee0c014e1434a8b2729e1",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/providers/subscriptions/chatgpt.ts",
-      "identity": "8ec7fe4b8c6bc78826cc9c8b998566952575d8136edd4d943193de12df7a12d0",
-      "class": "SWALLOW"
+      "identity": "738c6ae11080b8b2d2254816381f2c01455468641b8b8017a6906e20544ab28b",
+      "class": "CLEANUP"
     },
     {
       "file": "src/core/providers/subscriptions/chatgpt.ts",
@@ -2175,33 +2100,13 @@
     },
     {
       "file": "src/core/providers/subscriptions/registry.ts",
-      "identity": "92c024a3fb8aceb4421209bb8050a69b8253dc61f09248988501e3e3334b73ad",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/providers/subscriptions/registry.ts",
       "identity": "b72d44108cbbe904a0a242ef520c3f94a5e16b5f06bf1fef6a4211acbd1efe2b",
       "class": "GENERIC"
     },
     {
       "file": "src/core/providers/subscriptions/registry.ts",
-      "identity": "fc03cdaa00f965db0c270429cef2508e0805dac9352ae558db8f871e91d127de",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/providers/subscriptions/registry.ts",
-      "identity": "399255ac79ea35560071b9538b5a84c0255c92830017a67af7e4bfe4a02eaad9",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/providers/subscriptions/registry.ts",
       "identity": "300d104eeb3d8734ad1bd1a9ec591b985578ce512f0b023db09dd2622fe1a0ee",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/providers/subscriptions/registry.ts",
-      "identity": "f3c3993b4d30b355bb000d5068ce01c6d546bd374af433254db8abb7ec9ba2db",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/providers/subscriptions/registry.ts",
@@ -3005,26 +2910,6 @@
     },
     {
       "file": "src/core/team/teamMerge.ts",
-      "identity": "b7280e4ecd02da7d9bf1e3eed5268827d06b30eb2eaa7d2e351c21cb59b73399",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/teamMerge.ts",
-      "identity": "e74bc1533feae3e08461bef38e4c6eeca454bcbbc96821c772e28a455944a5c1",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/teamMerge.ts",
-      "identity": "e9441a38cf4f0cef4b1a5b27846ba5e4f246012bfac1cc585174985cc22ac419",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/teamMerge.ts",
-      "identity": "dcb3b774062c025763773ff54af5dcb49ce04448c55177d8ff607eee04d649ee",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/teamMerge.ts",
       "identity": "8860638ec5e676719fa61994e7bb282a4ddc3d34c8cd3dd6e4821d167c7c1026",
       "class": "CLEANUP"
     },
@@ -3039,33 +2924,13 @@
       "class": "CLEANUP"
     },
     {
-      "file": "src/core/team/teamWorkspaces.ts",
-      "identity": "32688ba1157a8ba59f58be00ddf0a789244d41afd0a364157786479e81993386",
-      "class": "SWALLOW"
-    },
-    {
       "file": "src/core/team/workers/acpWorker.ts",
-      "identity": "3f872416ae93f6e5e42f22e78a2b85f55fa64ee505ff9c85a2221c6d75dc3f6f",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/workers/acpWorker.ts",
-      "identity": "f87919d3fbcb8425752bd148bfb8ab145382243d254f9eb23045e4ae2be25f18",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/workers/acpWorker.ts",
-      "identity": "be165ab269c376ad4a6a51b16389c7351af7c1505e9263f85b22e31a616fe3b3",
+      "identity": "7fa081c851634df89b4c9258a358e07741bd82736811be499a87bf3634202def",
       "class": "CLEANUP"
     },
     {
       "file": "src/core/team/workers/acpWorker.ts",
-      "identity": "c41ac931f419b71fd37bc77ee3072369a1e0e322e724630e311a51adad3c5ed4",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/workers/acpWorker.ts",
-      "identity": "70e9a07945b8f71ac3f0f4328d9645b367f3188f01ea47dc163b815ea2cea71c",
+      "identity": "be165ab269c376ad4a6a51b16389c7351af7c1505e9263f85b22e31a616fe3b3",
       "class": "CLEANUP"
     },
     {
@@ -3096,21 +2961,6 @@
     {
       "file": "src/core/team/workers/workerFence.ts",
       "identity": "4f747dca0fe7551ff5c1c6ab91ffee563f5fe4775831ca8968e5831a13d3e0d3",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/workers/workerFence.ts",
-      "identity": "10e2ba054a120527b9ef3856fae8b8155cf6a12660b65d62e6da756c6ccbc30d",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/workers/workerFence.ts",
-      "identity": "436fc7953a8c7a1e04485a5f3bb839d1cd243f06d0fdedb613b378fb7e6c39a6",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/team/workers/workerFence.ts",
-      "identity": "e898c9c8a6922b47e4930952e06850984922ac1501d5cced046d3a72409c9a16",
       "class": "GENERIC"
     },
     {

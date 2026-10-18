@@ -64,6 +64,119 @@ Designed baselines with reasons (accepted, not forgotten):
   transaction; a failed entry waits for the next maintain instead of
   failing the pass, and the entry is kept (never deleted around).
 - Everything else below: pre-existing, grouped for area-by-area lanes.
+- CATCHTEAM2 (2026-10-18, macmini rig) burned down browser, orchestration,
+  providers and team as far as honest narrowings reach: 23 GENERIC and 8
+  SWALLOW fixed at their cause (each proven by a real-code test that fails
+  when the narrowing names the wrong failure; pure rephrasings excluded).
+  The 24 GENERIC and 6 SWALLOW below stay because the handler is already
+  the true outcome — a fail-closed deny, a fixed-vocabulary settlement, a
+  delivery channel the classifier cannot see, or a best-effort degradation
+  the results name. Each names its evidence.
+- `src/core/browser/browserPolicy.ts` (4 fixed): malformed addresses narrow
+  to the parser `TypeError`; anything else reaches the caller.
+  Proven by `test/unit/browserPolicy.test.ts` (7 tests; wrong-kind drill
+  fails 3).
+- `src/core/browser/checkProxy.ts` (2 fixed): malformed destinations narrow
+  to the parser `TypeError`. Proven by `test/unit/browserProxyRefusals.test.ts`
+  over real loopback wire bytes (wrong-kind drill fails).
+- `src/core/browser/cdpPipe.ts` (1 fixed): a broken write rejects with the
+  failure itself (no `String(error)` wrap). Proven by
+  `test/unit/cdpPipeSend.test.ts` on a real closed descriptor (wrap drill fails).
+- `src/core/browser/browserRun.ts` orFail/prepare/spawn/checked (4 kept):
+  step failures settle the check under the step's fixed failure kind and the
+  lifetime's own end passes through; the caller reads the closed kind
+  taxonomy (`browserRun.ts:128-196`). No other slot exists for a cause.
+- `src/core/browser/canaries.ts` bind catches (2 kept): a failed bind
+  degrades the fixture (`own` stays undefined); the plan carries nulls and
+  the verdict reads `unverifiable`, never a false pass (`canaries.ts:380,479`).
+- `src/core/browser/checkProxy.ts` dial loop (1 kept): every address is
+  tried and the last failure is rethrown (`throw last`); the caller gets the
+  real dial error. Loopback dial-refused paths are unproven in this lane's
+  runs (no listener test was added); the rethrow is by inspection.
+- `src/core/browser/checkProxy.ts` forward/tunnel catches (2 kept): an
+  upstream dial failure answers 502/DENIED with an observation; upstream
+  detail never reaches the page.
+- `src/core/browser/pageCheck.ts` watch catch (1 kept): a failed watch
+  setup ends the target `unwatchable` — the delivered verdict, not a hidden
+  failure; no ready entry is kept.
+- `src/core/orchestration/playbook/guard.ts` (1 fixed): the dead catch is
+  gone — pure string matching cannot throw, and `false` would hide the
+  warning it reports.
+- `src/core/orchestration/playbook/journal.ts` (2 fixed): read failures
+  carry their cause on `PlaybookHistoryLostError`; malformed lines narrow to
+  `SyntaxError`. Proven by the journal block in
+  `test/unit/playbookSurface.test.ts` (3 tests; wrong-kind drill fails).
+- `src/core/orchestration/playbook/outcomes.ts` verify + cleanup catches
+  (4 kept): every attempt settles as fail with secret-scrubbed output
+  (scrubbed at the throw, at the catch and at the return boundary); a
+  cleanup failure settles as fail, never pass.
+- `src/core/orchestration/playbook/policy.ts` drift catch (1 kept): drift is
+  proven by the digest mismatch before the `try`; the itemized detail is
+  best-effort and the `configDrift` refusal stands with or without it.
+- `src/core/orchestration/playbook/policy.ts` admission + verifyWork catches
+  (2 kept): verification failure refuses as `unverifiedCommit`
+  (fail-closed); raw hook output reaches the person second-scrubbed via
+  `redactSecrets`, never journalled.
+- `src/core/orchestration/panelPlaybook.ts` interval catch (1 kept): a failed
+  renewal tears the review down (`close` + `stopReview`) and funnels the
+  failure to the harness `failure` event; an interval callback cannot throw.
+- `src/core/orchestration/playbookIntegration.ts` renewal catch (1 kept): the
+  renewal failure aborts the work and is rethrown to the caller after the
+  effect settles; a non-Error is normalized because an interval callback
+  cannot throw.
+- `src/core/team/teamMerge.ts` (4 fixed): merge failures carry their cause
+  on `TeamMergeError`; missing paths read absent through the inline ENOENT
+  shape (the unblessed local reader is gone).
+- `src/core/team/teamWorkspaces.ts` ref read (1 fixed): the probe uses
+  `--quiet` so absence exits 1 and breakage 128; only exit 1 reads absent.
+  Proven by `test/unit/teamWorkspaceRefs.test.ts` over real git (measured:
+  bare `rev-parse --verify` exits 128 for a missing ref too; wrong-code
+  drill fails both tests).
+- `src/core/team/workers/acpWorker.ts` fs catches (2 fixed): only the fence's
+  confinement refusal reads "outside the working copy"; real I/O failures
+  reach the caller. Proven by `test/unit/teamWorkerFs.test.ts` over the
+  native fence I/O (wrong-shape drill fails; an escape to a nonexistent
+  path truthfully throws ENOENT).
+- `src/core/team/workers/acpWorker.ts` runner catch (1 fixed): the cancel
+  extracted to a named cleanup so the outer handler reports (typed throw
+  with the failure); the extracted cancel names its mootness.
+- `src/core/team/workers/workerFence.ts` glob + admission checks (3 fixed):
+  over-limit globs narrow to `RangeError`; the two call-site admission
+  checks narrow to the fence's brand (the only thing `assertWorkerRoot`
+  throws).
+- `src/core/team/workers/workerFence.ts` admission boundaries (2 kept):
+  `assertWorkerRoot` and `confineWorkerPath` fail closed — any unproven root
+  or unresolvable target refuses as unadmitted; the fixed words are true.
+- `src/core/team/teamPool.ts` sweep catch (1 kept): a background sweep
+  failure is funneled to the harness `failure` sink and the sweep
+  reschedules; a tick must not kill the scheduler.
+- `src/core/providers/configured.ts` secret + stream catches (2 fixed):
+  malformed stored secrets narrow to `SyntaxError`; stream non-Errors keep
+  their kind (the old `actionFailed` wrap contradicted the pass-unchanged
+  comment above it).
+- `src/core/providers/configured.ts` send/stream/probe catches (4 kept):
+  ambiguous dispatch liability settles into typed errors (the
+  `UserRefusalError` carries its cause; the ambiguous-retry error is a fixed
+  sentence with no echoed diagnostics, by comment); the stream's
+  `controller.error` is the consumer's delivery, mapping only connection
+  loss onto the coded sentence with closed-vocabulary detail; probe failures
+  read as the documented RVPROVERR sentences.
+- `src/core/providers/subscriptions/chatgpt.ts` + `registry.ts` body catches
+  (7 fixed: 3 + 4): malformed tokens, answers, catalogues, plan bodies and
+  stored grants narrow to `SyntaxError`. Proven by the malformed-bodies
+  block in `test/unit/chatgptPlanCatalogue.test.ts` (5 tests over real
+  `Response` objects and real malformed bytes; wrong-kind drill fails all
+  5 — note the claims test needs a schema-valid header to reach the JSON
+  parse).
+- `src/core/providers/subscriptions/chatgpt.ts` crypto + guard catches and
+  `registry.ts` fetch catch (4 kept): a failed crypto verification reads
+  `invalid-id-token` (only the public JWK and the presented token are
+  involved); typed sign-in errors pass through and untyped failures are
+  named by the closed-vocabulary `failureCodeNames` (codes/names only, never
+  messages) into `chatGptFailureText`'s per-code sentence.
+- `src/core/providers/subscriptions/chatgpt.ts` callback guard (1 fixed):
+  the interim-rejection handler names its mootness (the wait below reaps the
+  outcome).
 
 | Folder                 | GENERIC | SWALLOW |
 | ---------------------- | ------- | ------- |
@@ -72,7 +185,7 @@ Designed baselines with reasons (accepted, not forgotten):
 | src/core               | 11      | 1       |
 | src/core/backends      | 135     | 27      |
 | src/core/bestOfN       | 5       | 0       |
-| src/core/browser       | 9       | 8       |
+| src/core/browser       | 5       | 5       |
 | src/core/codeIntel     | 3       | 0       |
 | src/core/context       | 4       | 0       |
 | src/core/developer     | 6       | 0       |
@@ -87,10 +200,10 @@ Designed baselines with reasons (accepted, not forgotten):
 | src/core/locks         | 8       | 7       |
 | src/core/media         | 11      | 17      |
 | src/core/memory        | 5       | 0       |
-| src/core/orchestration | 10      | 2       |
+| src/core/orchestration | 8       | 1       |
 | src/core/plans         | 2       | 0       |
 | src/core/prompts       | 2       | 1       |
-| src/core/providers     | 15      | 3       |
+| src/core/providers     | 8       | 0       |
 | src/core/questions     | 1       | 0       |
 | src/core/reporting     | 31      | 6       |
 | src/core/resources     | 41      | 25      |
@@ -98,7 +211,7 @@ Designed baselines with reasons (accepted, not forgotten):
 | src/core/schedules     | 4       | 0       |
 | src/core/support       | 0       | 2       |
 | src/core/tab           | 5       | 0       |
-| src/core/team          | 13      | 1       |
+| src/core/team          | 3       | 0       |
 | src/core/usage         | 4       | 8       |
 | src/core/vault         | 37      | 36      |
 | src/core/voice         | 3       | 3       |
