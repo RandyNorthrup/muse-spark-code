@@ -314,7 +314,6 @@ import {
 } from './host/support/reportFacts'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
 import {
-  hostRouting,
   liveFetch,
   managedConfiguration,
   readNetworkFacts,
@@ -1259,19 +1258,18 @@ async function activateWindow(
   // M56 (PLAN.md D43): before VS Code 1.112 the socket bypasses a
   // configured proxy, so the microphone says so instead of failing after
   // the press. `http.proxy` can change while the window is open, so the
-  // setup is rebuilt when its set-ness flips (see the configuration
-  // listener below); a snapshot from activation would keep offering a
-  // microphone that cannot send, or keep refusing after the proxy is gone.
-  const isVoiceProxyCurrentlySet = (): boolean =>
-    readProxySettings(vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)).proxy !== ''
-  let isVoiceProxySet = isVoiceProxyCurrentlySet()
-  const buildMuseVoiceSetup = (): ReturnType<typeof createMuseVoiceSetup> =>
-    createMuseVoiceSetup(
-      {
-        platform: process.platform,
-        systemRoot: process.env['SystemRoot'],
-        helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
-      },
+  // setup is rebuilt when it changes (see the configuration listener
+  // below); a snapshot from activation would keep offering a microphone
+  // that cannot send, or keep refusing after the proxy is gone.
+  const helperProbe = {
+    platform: process.platform,
+    systemRoot: process.env['SystemRoot'],
+    helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
+  }
+  let museVoiceSetup: ReturnType<typeof createMuseVoiceSetup>
+  const refreshMuseVoiceNetwork = (): void => {
+    museVoiceSetup = createMuseVoiceSetup(
+      helperProbe,
       {
         apiKey: () => credentials.getApiKey(),
         onSeconds: (seconds) => {
@@ -1280,23 +1278,13 @@ async function activateWindow(
         log,
         voice,
       },
-      {
-        webSocketRouting: hostRouting(globalThis, 'webSocket'),
-        isProxySet: isVoiceProxySet,
-      },
+      readProxySettings(vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)).proxy !== '',
     )
-  let museVoiceSetup = buildMuseVoiceSetup()
-  const refreshMuseVoiceNetwork = (): void => {
-    const isProxySet = isVoiceProxyCurrentlySet()
-    if (isProxySet === isVoiceProxySet) {
-      return
-    }
-    isVoiceProxySet = isProxySet
-    museVoiceSetup = buildMuseVoiceSetup()
     for (const controller of controllers.values()) {
       controller.refreshDictation()
     }
   }
+  refreshMuseVoiceNetwork()
   const broadcastPaidState = () => {
     registry.broadcast({ type: 'paidState', state: paid.state() })
     for (const controller of controllers.values()) {
@@ -1545,15 +1533,7 @@ async function activateWindow(
     context.subscriptions.push(disposable)
   }
   // Voice dictation (M9): the OS recogniser behind the composer's microphone.
-  const dictation = createDictationSetup(
-    {
-      platform: process.platform,
-      systemRoot: process.env['SystemRoot'],
-      helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
-    },
-    log,
-    voice,
-  )
+  const dictation = createDictationSetup(helperProbe, log, voice)
   const backend = new MuseCodeBackendManager({
     shellJobAssembly: () => windowsJobAssembly?.() ?? Promise.resolve(undefined),
     beforeWorkspaceHostStart: async () => {
@@ -4348,8 +4328,6 @@ async function activateWindow(
         void withHookRunner((runner) => runner.noteSettingsChange(), false).catch(
           logRejection(log, 'ConfigChange hook'),
         )
-      }
-      if (event.affectsConfiguration(SETTINGS_SECTION)) {
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })
         for (const controller of controllers.values()) {
           controller.refreshDictation()
