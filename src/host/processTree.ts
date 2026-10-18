@@ -34,6 +34,7 @@ import {
   windowsPowerShellModulePath,
 } from '../core/backends/musecode/launch'
 import { powerShellQuoted } from '../core/shellQuote'
+import { describeStoreError } from './backend/storeErrors'
 import {
   GIT_OUTPUT_MAX_BYTES,
   ORPHAN_SWEEP_ROUNDS,
@@ -229,7 +230,7 @@ async function sweepOrphans(
       )
     } catch (error: unknown) {
       deps.log(
-        `the process table could not be read or acted on after killing ${String(shellPid)} (${String(error)}); a child started during the kill may still run`,
+        `the process table could not be read or acted on after killing ${String(shellPid)} (${describeStoreError(error)}); a child started during the kill may still run`,
       )
       return
     }
@@ -287,7 +288,7 @@ export async function sweepExitedTree(
         return
       }
       deps.log(
-        `the process group of exited ${String(pid)} could not be signalled: ${String(error)}`,
+        `the process group of exited ${String(pid)} could not be signalled: ${describeStoreError(error)}`,
       )
     }
     return
@@ -331,10 +332,19 @@ async function didTerminateJob(
     deps.log(`the job of ${String(pid)} was not there (${answer}); ending its tree with taskkill`)
   } catch (error: unknown) {
     deps.log(
-      `the job of ${String(pid)} could not be terminated (${String(error)}); ending its tree with taskkill`,
+      `the job of ${String(pid)} could not be terminated (${describeStoreError(error)}); ending its tree with taskkill`,
     )
   }
   return false
+}
+
+/** One last signal after a failed exit probe; the group may already be gone. */
+function signalGroup(pid: number): void {
+  try {
+    process.kill(-pid, SIGKILL)
+  } catch {
+    // The group can disappear between the failed probe and this last signal.
+  }
 }
 
 /** Wait for group exit, allowing Linux's unreaped zombies to count as exited. */
@@ -376,12 +386,10 @@ async function waitForPosixGroup(pid: number, deps: ProcessTreeDeps): Promise<vo
     if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ESRCH') {
       return
     }
-    deps.log(`process group ${String(pid)} exit could not be confirmed: ${String(error)}`)
-    try {
-      process.kill(-pid, SIGKILL)
-    } catch {
-      // The group can disappear between the failed probe and this last signal.
-    }
+    deps.log(
+      `process group ${String(pid)} exit could not be confirmed: ${describeStoreError(error)}`,
+    )
+    signalGroup(pid)
   }
 }
 
@@ -410,7 +418,7 @@ export async function killTree(
       process.kill(-pid, SIGKILL)
     } catch (error: unknown) {
       // The group may be gone already; the leader itself still gets the signal.
-      deps.log(`process group ${String(pid)} could not be signalled: ${String(error)}`)
+      deps.log(`process group ${String(pid)} could not be signalled: ${describeStoreError(error)}`)
       root.kill(SIGKILL)
     }
     await waitForPosixGroup(pid, deps)
@@ -435,8 +443,8 @@ export async function killTree(
       process.env,
     )
   } catch (error: unknown) {
+    deps.log(`taskkill of ${String(pid)} failed (${describeStoreError(error)})`)
     if (!hasExited(root)) {
-      deps.log(`taskkill of ${String(pid)} failed (${String(error)}); killing the shell only`)
       root.kill(SIGKILL)
     }
   }
