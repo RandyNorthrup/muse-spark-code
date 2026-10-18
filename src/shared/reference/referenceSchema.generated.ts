@@ -387,6 +387,7 @@ const plainTextSchema = z.union([
       textKeys[312],
       textKeys[313],
       textKeys[314],
+      textKeys[315],
     ]),
   }),
   z.object({
