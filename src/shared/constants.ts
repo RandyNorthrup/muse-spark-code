@@ -304,6 +304,16 @@ export const PROVIDER_UNDO_WINDOW_MS = 10 * 1000
 export const LOCAL_PROBE_TIMEOUT_MS = 3 * 1000
 /** How much of a probe answer the panel shows (D74). */
 export const LOCAL_PROBE_SNIPPET_CHARS = 500
+/** A loopback probe answer past this is refused rather than read (M95 step 1). */
+export const LOOPBACK_FETCH_MAX_BODY_BYTES = 64 * 1024
+/** The probe dials `http:` loopback; an empty port means this one. */
+export const LOOPBACK_FETCH_DEFAULT_PORT = 80
+/**
+ * A loopback answer with one of these statuses never carries a body
+ * (M95 C-M95-4 R2: the `Response` constructor throws on a body with
+ * 204/205/304, which used to leave the probe promise unsettled).
+ */
+export const LOOPBACK_FETCH_NULL_BODY_STATUSES: readonly number[] = [204, 205, 304]
 /**
  * Lane I's providers bundle (PLAN.md D6): the lane-P/T seam the Models
  * panel's factory is composed with. Lane I adopts this name with its entry.
@@ -633,6 +643,13 @@ export const SETTING_DEFAULTS = {
   // D78: inert without a hooks file; Restricted Mode loads and runs none.
   modelApiTeamWorkers: true,
   modelApiHooks: true,
+  // M127: Muse Code's own hook and subagent defaults as settings. Stop
+  // continuations 8 (min 1, no max); running hook commands 0 (unlimited,
+  // as Muse Code starts all matching handlers at once; min 0);
+  // concurrent subagents 8 (Muse Code's execution-capacity range 1–64).
+  hooksMaxStopContinuations: 8,
+  hooksMaxRunningCommands: 0,
+  subagentMaxConcurrent: 8,
   // The Model API shell keeps its directory between calls (M91 lane S, PLAN.md
   // D70). On by default, the owner's ruling of 2026-10-04 that enhancements
   // ship on; a machine setting turns it off.
@@ -701,6 +718,7 @@ export const SETTING_DEFAULTS = {
   paidDailyBudgetUsd: 5,
   usageHistory: true,
   usageHistoryDays: 365,
+  linuxDictationModel: true,
   dictationEngine: 'system' as 'system' | 'museVoice',
   // A session budget cap in US dollars for each Model API conversation
   // (M82): 0 is no cap. Kept by reservation (sessionBudget.ts); machine
@@ -713,6 +731,7 @@ export const SETTING_DEFAULTS = {
   mediaUploadExpiryDays: 7,
   screenRecordingMaxSeconds: 120,
   mediaAudioAction: 'transcribe',
+  mediaConverterPath: '',
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): in Auto on the Muse
   // Code backend, an approval Muse Code raises goes to one short turn of a
   // hidden side session before the user. On until turned off; machine scoped,
@@ -807,6 +826,11 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiShellKeepsDirectory',
   'modelApiHookModels',
   'hookHttpAllowedHosts',
+  // M127: what runs hooks and subagents, and how much of each at once, is
+  // the user's choice, never a repository's.
+  'hooksMaxStopContinuations',
+  'hooksMaxRunningCommands',
+  'subagentMaxConcurrent',
   'modelApiCommandRules',
   'modelApiPermissionProfiles',
   'modelApiPermissionProfile',
@@ -829,6 +853,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'paidDailyBudgetUsd',
   'usageHistory',
   'usageHistoryDays',
+  'linuxDictationModel',
   'dictationEngine',
   'museCodeAutoReviewer',
   'showWhatsNewOnUpdate',
@@ -865,6 +890,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'mediaUploadExpiryDays',
   'screenRecordingMaxSeconds',
   'mediaAudioAction',
+  // M105 lane V: the converter the product launches is the machine's choice.
+  'mediaConverterPath',
   // M109 (PLAN.md D89): the vault's protection, fence and locks, all
   // machine-scoped, so no workspace can change them.
   'vault.enabled',
@@ -897,7 +924,16 @@ export const HOOK_TOOL_OUTPUT_PREVIEW_CHARS = 1024
 export const HOOK_TOOL_NESTING_MAX = 4
 export const HOOK_TOOL_ENTRIES_MAX = 16
 export const MODEL_API_HOOK_PROVIDER = 'meta'
+// The default stop-hook continuation depth (Muse Code's own default 8,
+// M127): `museSpark.hooksMaxStopContinuations` overrides this.
 export const HOOK_MAX_STOP_CONTINUATIONS = 8
+// Independent safety pauses that never follow that setting (PR206FIX T5):
+// refused task writes pause the turn, and an idle teammate stops being
+// kept working, each after this many in a row. Both shared the bound
+// above before the M127 setting; the setting governs only Stop-hook
+// continuations, as its description says.
+export const HOOK_MAX_TASK_REFUSALS = 8
+export const TEAMMATE_MAX_IDLE_KEEPS = 8
 export const HOOK_CONTROL_CODE_LIMIT = 32
 export const HOOK_NEWLINE_CODE = 10
 export const HOOK_DELETE_CODE = 127
@@ -907,7 +943,18 @@ export const HOOK_MATCHER_TIMEOUT_MS = 25
 export const HOOK_MATCHER_COMPILE_TIMEOUT_MS = 250
 export const HOOK_SOURCE_MAX_HANDLERS = 64
 export const HOOK_TOTAL_MAX_HANDLERS = 64
+// The fallback cap when a dispatch passes no limit (M127): the setting
+// `museSpark.hooksMaxRunningCommands` defaults to 0 (unlimited, as Muse
+// Code starts all matching handlers at once).
 export const HOOK_MAX_RUNNING_COMMANDS = 4
+// The settings that replace the fixed numbers above with Muse Code's own
+// defaults (M127): stop continuations default 8, running commands default
+// 0 (unlimited: Muse Code starts all matching handlers at once),
+// subagents default 8 within Muse Code's 1–64 execution-capacity range.
+export const HOOK_STOP_CONTINUATIONS_MIN = 1
+export const HOOK_RUNNING_COMMANDS_MIN = 0
+export const SUBAGENT_CONCURRENT_MIN = 1
+export const SUBAGENT_CONCURRENT_MAX = 64
 export const HOOK_ON_FAILURE_MAX_DEPTH = 3
 export const HOOK_MANAGED_ENV_MAX_NAMES = 64
 export const HOOK_MANAGED_ENV_NAME_MAX_CHARS = 128
@@ -1336,11 +1383,69 @@ export const MAX_ATTACHMENTS_PER_MESSAGE = 20
 
 // M105 / D85: portable media contracts. These are our bounds and defaults,
 // not evidence that a model supports a modality or that storage is free.
+//
+// The calibration envelope (D85.6, `docs/certification/m105-captures.md`):
+// every production seed bills a 3000x2000 image at most, video at fps 2 at
+// most, and 600 seconds at most. Larger images stay refused under a cap:
+// size changes image usage (a 64x64 swatch bills ~11 tokens against 4,086
+// for 3000x2000) and no larger image was captured, so no bound is claimed
+// for them. Higher fps values were not tried either; the estimator matches
+// only seeded fps variants, so they refuse the same way without a constant.
+export const MEDIA_CALIBRATION_IMAGE_MAX_WIDTH = 3000
+export const MEDIA_CALIBRATION_IMAGE_MAX_HEIGHT = 2000
+export const MEDIA_CALIBRATION_VIDEO_MAX_SECONDS = 600
+// The estimator's upper bound multiplies the largest calibrated rate by
+// this (D85.6 reservation). Set by the money lane from the U17b spread:
+// the 1.2 120-second default bill (19,771) is 1.86x its fps:1 bill
+// (10,651), so 2x keeps a reservation above every captured bill with
+// headroom for unobserved variance. Re-tune only from new captures.
+export const MEDIA_ESTIMATE_SAFETY_FACTOR = 2
 export const MEDIA_FILE_ID_MIN_BYTES = 1024 * 1024
+// The upload ledger and calibration store share the repository's
+// cross-process mutex (core/fileLock, the session-budget design): never
+// stolen, so a holder that pauses mid-acquire keeps its critical section.
+// Uploads ride inside the lock, so the wait covers a slow provider round.
+export const MEDIA_UPLOAD_LOCK_ATTEMPTS = 200
+export const MEDIA_UPLOAD_LOCK_WAIT_MS = 25
+// A delete that keeps failing (a foreign file the provider refuses) backs
+// off per entry, so one stuck file never breaks a listing (round 4, P2-6).
+export const MEDIA_PENDING_DELETE_RETRY_BASE_MS = 30_000
+export const MEDIA_PENDING_DELETE_RETRY_MAX_MS = 600_000
+export const MEDIA_PENDING_DELETE_RETRY_MAX_SHIFT = 5
+// A cancelled upload's deletion intent is retried this often while the lock
+// is held (a transient local failure, such as a scanner lock on rename);
+// the wait doubles from the delay, and only the waits honour cancellation.
+export const MEDIA_CANCEL_INTENT_WRITE_ATTEMPTS = 3
+export const MEDIA_CANCEL_INTENT_WRITE_DELAY_MS = 25
+// A failed provider file deletion never rejects a save: the attempt is
+// recorded on the ledger entry and retried by a later sweep under the
+// MEDIA_PENDING_DELETE_RETRY_* backoff above. After this many failures
+// the account surface is told once which provider still holds files (a
+// count only, never a name or an id).
+export const MEDIA_UPLOAD_DELETE_NOTICE_ATTEMPTS = 3
+// The batch transcript endpoint's captured contract (round-3 capture):
+// the 'audio' part must be a mono 16-bit PCM WAV at 16 or 24 kHz.
+export const TRANSCRIBE_WAV_FORMAT_PCM = 1
+export const TRANSCRIBE_WAV_CHANNELS = 1
+export const TRANSCRIBE_WAV_BITS_PER_SAMPLE = 16
+export const TRANSCRIBE_WAV_SAMPLE_RATES = [16_000, 24_000] as const
+/** Meta's per-team Files pool (D85.2): usage is shown against this, never billed (U6c). */
+export const MEDIA_PROVIDER_POOL_BYTES = 100 * 1024 * 1024 * 1024
 export const MEDIA_SNIFF_MAX_BYTES = 1024 * 1024
 export const MEDIA_CONVERTER_PROBE_TIMEOUT_MS = 2000
+/** One Windows ACL query per path component (PowerShell start included). */
+export const MEDIA_CONVERTER_TRUST_TIMEOUT_MS = 15_000
 export const MEDIA_CONVERTER_PROBE_MAX_BYTES = 16 * 1024
+/** The machine's configured converter path (`museSpark.mediaConverterPath`), at most this long. */
+export const MEDIA_CONVERTER_PATH_MAX_CHARS = 4096
+/** An attached file's digest and upload reread, one bounded chunk at a time. */
+export const MEDIA_ATTACHED_READ_CHUNK_BYTES = 1024 * 1024
+/** Attached video and audio registrations a process holds at once (RVMEDIAV 7):
+ * a few messages' worth; the oldest unused one makes room for the next. */
+export const MEDIA_ATTACHED_MAX_ENTRIES = 64
 export const MEDIA_CONVERSION_MAX_RSS_BYTES = 512 * 1024 * 1024
+/** The `code` a kernel-limited encoder launch rejects with when its memory cap hit. */
+export const MEDIA_CONVERSION_MEMORY_CAP_CODE = 'EMEDIA_MEMORY_CAP'
 export const MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS = 25
 export const MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS = 100
 export const MEDIA_PROC_RSS_UNIT_BYTES = 1024
@@ -1350,11 +1455,26 @@ export const MEDIA_PROC_EXITED_PATTERN = /^State:\s+[ZX]\b/mu
 export const MEDIA_FFMPEG_VERSION_PATTERN =
   /^ffmpeg version (\d+\.\d+(?:\.\d+)?(?:-[\w.+-]+)?) Copyright \(c\) \d{4}(?:-\d{4})? the FFmpeg developers$/u
 export const MEDIA_AVCONVERT_VERSION_PATTERN = /^avconvert version (\d+\.\d+(?:\.\d+)?)$/u
+// Documented install locations (M105 lane V, lead decision A): distribution
+// and Homebrew/MacPorts paths on POSIX; on Windows the Program Files install
+// and winget's link, each resolved from the environment (never a drive
+// letter) and verified at its canonical target. A configured path
+// (`museSpark.mediaConverterPath`, `--media-converter`) replaces them.
 export const MEDIA_CONVERTER_INSTALL_PATHS = {
   linux: ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
-  darwin: ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
-  win32: ['C:/Program Files/ffmpeg/bin/ffmpeg.exe'],
+  darwin: ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/opt/local/bin/ffmpeg'],
 } as const
+export const MEDIA_CONVERTER_WINDOWS_INSTALLS = [
+  { variable: 'PROGRAMFILES', segments: ['ffmpeg', 'bin', 'ffmpeg.exe'] },
+  { variable: 'LOCALAPPDATA', segments: ['Microsoft', 'WinGet', 'Links', 'ffmpeg.exe'] },
+] as const
+// Launcher shims run a second binary the verifier never saw: Chocolatey's
+// and Scoop's shims and snap's /snap tree are refused at their canonical path.
+export const MEDIA_CONVERTER_SHIM_PATTERNS = [
+  /[\\/]chocolatey[\\/]bin[\\/]/iu,
+  /[\\/]scoop[\\/]shims[\\/]/iu,
+  /^\/snap\//u,
+] as const
 export const MEDIA_FILE_EXPIRY_MIN_S = 3600
 export const MEDIA_FILE_EXPIRY_MAX_S = 2_592_000
 export const MEDIA_FILE_EXPIRY_DEFAULT_S = 604_800
@@ -1365,6 +1485,41 @@ export const MEDIA_NAME_MAX_CHARS = 256
 export const MEDIA_ID_MAX_CHARS = 256
 export const MEDIA_PATH_TOKEN_MAX_CHARS = 4096
 export const MEDIA_SHA256_PATTERN = /^[a-f0-9]{64}$/u
+// M105 lane VB: the converter's private-folder, macOS RSS and Windows job
+// bindings. The folder is fresh per conversion, named from random bytes.
+// Every Windows job ending but the memory cap's rejects with this code.
+export const MEDIA_CONVERSION_JOB_FAILED_CODE = 'EMEDIA_JOB_FAILED'
+export const MEDIA_PRIVATE_DIRECTORY_PREFIX = 'muse-media-'
+export const MEDIA_PRIVATE_DIRECTORY_NAME_BYTES = 16
+// RVMEDIAV3 3: each process's lease in the root, `muse-media-<owner>.lease`,
+// held for its life. Windows: libuv's UV_FS_O_EXLOCK (uv/win.h), an open
+// with no sharing that the kernel closes at exit. macOS: O_EXLOCK (an flock
+// the kernel drops at exit, <sys/fcntl.h> 0x20) with O_NONBLOCK (0x4), so a
+// probe never waits. Node exports neither; libuv passes both to the open.
+export const MEDIA_PRIVATE_LEASE_SUFFIX = '.lease'
+export const MEDIA_PRIVATE_LEASE_LOCK = { win32: 0x10_00_00_00, darwin: 0x20 | 0x4 } as const
+// Linux leases name their owner instead: /proc/<pid>/stat's field 22, the
+// start tick, is the 20th after the command's closing parenthesis.
+export const MEDIA_PROC_START_FIELD = 19
+// The private root those folders live in (RVMEDIAVB 1). Besides the current
+// user, only SYSTEM and BUILTIN\Administrators may hold a grant on it, and
+// nobody else may hold a write-class grant on its parent: FILE_WRITE_DATA,
+// FILE_APPEND_DATA, FILE_WRITE_EA, FILE_DELETE_CHILD, FILE_WRITE_ATTRIBUTES,
+// DELETE, WRITE_DAC, WRITE_OWNER, GENERIC_ALL and GENERIC_WRITE.
+export const MEDIA_PRIVATE_ROOT_TRUSTED_SIDS = ['S-1-5-18', 'S-1-5-32-544'] as const
+export const WINDOWS_WRITE_CLASS_RIGHTS = 0x50_0d_01_56
+// POSIX: no group/other bits on the root; an ancestor writable by group or
+// other is accepted only with the sticky bit (as /tmp).
+export const POSIX_GROUP_OTHER_BITS = 0o077
+export const POSIX_GROUP_OTHER_WRITE_BITS = 0o022
+export const POSIX_STICKY_BIT = 0o1000
+// One /bin/ps run per interval at most; a reading older than the maximum age
+// is never returned (the caller waits for a fresh one or refuses), and one
+// run is bounded in time and output.
+export const MEDIA_RSS_SAMPLE_INTERVAL_MS = 250
+export const MEDIA_RSS_SAMPLE_MAX_AGE_MS = 500
+export const MEDIA_RSS_SAMPLE_RUN_TIMEOUT_MS = 1000
+export const MEDIA_RSS_SAMPLE_MAX_BYTES = 4096
 export const MEDIA_KINDS = ['image', 'document', 'text', 'video', 'audio'] as const
 export const MEDIA_AUDIO_ACTIONS = [
   'transcribe',
@@ -1752,6 +1907,13 @@ export const GITHUB_LEASE_TTL_MS = 15 * 60_000
 // `gh auth token` for github.com only (D104 source c).
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const GH_AUTH_TOKEN_ARGS: readonly string[] = ['auth', 'token', '--hostname', 'github.com']
+// Report adapter page sizes from the C-M113-6 captures: a tag record is tiny
+// (100 per page); a release record is 15 to 55 KB, so 30 per page stays
+// under the reader's 2 MiB bound where 100 would exceed it; a workflow run
+// is about 14 KB, so 100 per page fits the same bound.
+export const GITHUB_TAGS_PAGE_SIZE = 100
+export const GITHUB_RELEASES_PAGE_SIZE = 30
+export const GITHUB_WORKFLOW_RUNS_PAGE_SIZE = 100
 // GitHub's own limits on a pull request's title and description.
 export const PULL_REQUEST_TITLE_MAX_CHARS = 256
 export const PULL_REQUEST_BODY_MAX_CHARS = 65_536
@@ -2510,7 +2672,7 @@ export const TAB_CACHE_ENTRIES = 64
 export const TAB_AUTOMATIC_LATENCY_CEILING_MS = 1500
 // Open requests at once (Zed's cap, L22).
 export const TAB_MAX_IN_FLIGHT = 2
-// Starts per window, under the contributor tier's 100 RPM team limit (A8).
+// Starts per window, under the contributor tier's 150 RPM team limit (A8).
 export const TAB_MAX_REQUESTS_PER_MINUTE = 20
 // Tab's own cache-key prefix, never a conversation's (SoL-Pi, A7).
 export const TAB_PROMPT_CACHE_KEY_PREFIX = 'muse-spark-tab-'
@@ -2754,6 +2916,13 @@ export const NAT64_DISCOVERY_TRIES = 2
 // (dist/browserRuntime.js) do not carry the rest of this file; every other
 // module reads them from here.
 export * from './browserCheckConstants'
+// --- Linux offline dictation (M9, PLAN.md D140) ---
+//
+// Its tunables live in linuxDictationConstants.ts, a module with no imports,
+// so the dictation bundle (dist/dictation.js) and Linux's driver bundle
+// (dist/voiceLinux.js) read them without the rest of this file; every other
+// module reads them from here.
+export * from './linuxDictationConstants'
 // The image tools the extension's `ide` session server offers Muse Code
 // while paid image generation is on and a Model API key is stored (M44):
 // billed to the key, never to the subscription (D1, D30).
@@ -3925,6 +4094,10 @@ export const SEARCH_WORKER_FILE = 'searchWorker.js'
 // loaded when that backend first starts, not at activation.
 export const CONVERSATION_BUNDLE_FILE = 'conversation.js'
 export const MODEL_API_BUNDLE_FILE = 'modelApi.js'
+// The Muse Code backend's bundle (PR206, PLAN.md D6), beside dist/extension.js:
+// the host, its notification mapping and the SDK, loaded when that backend
+// first starts, not at activation.
+export const MUSE_CODE_BUNDLE_FILE = 'museCode.js'
 // Its session store (D14), required when that backend's host is first built.
 export const MODEL_API_SESSIONS_BUNDLE_FILE = 'modelApiSessions.js'
 // The Create AGENTS.md command (D15), required when that command runs, not at
@@ -3939,14 +4112,24 @@ export const REVIEW_BUNDLE_FILE = 'review.js'
 // The capacity estimator's engine (M117, PLAN.md D6, D97), loaded the first
 // time an estimate runs.
 export const ESTIMATOR_BUNDLE_FILE = 'estimator.js'
+// The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97), loaded the
+// first time an estimate needs a plan snapshot.
+export const PLAN_SNAPSHOT_BUNDLE_FILE = 'planSnapshot.js'
 // Checkpoint implementation, synchronously loaded at activation's store construction (M72, D6).
 export const CHECKPOINT_STORE_BUNDLE_FILE = 'checkpointStore.js'
 // Code intelligence's answers for Muse Code's `ide` server (M67, D6), loaded
 // on the first call; the tool list stays in dist/extension.js.
 export const CODE_INTEL_BUNDLE_FILE = 'codeIntel.js'
+// Voice dictation's setups (M9, M35, D6): the window's dictation and Muse
+// Voice setups with the helper probes, required at their existing
+// construction points so the microphone's availability keeps its timing.
+export const DICTATION_BUNDLE_FILE = 'dictation.js'
 // Voice's drivers (M9, M35, D6): the dictation driver, Muse Voice's stream,
 // the helper process and the socket, loaded on the first recording.
 export const VOICE_BUNDLE_FILE = 'voice.js'
+// Linux's offline voice driver (M9, D6, D140): the offline driver's glue and
+// its helper/model acquisition, loaded on the first Linux recording.
+export const VOICE_LINUX_BUNDLE_FILE = 'voiceLinux.js'
 // The window's web fetch (M69, D6 2026-10-04): resolving, checking and
 // pinning each hop, the pinned transport and the failures' words, loaded on
 // the first fetch or the first URL Muse Code's `webFetch` checks.
@@ -3961,6 +4144,8 @@ export const EXTENSION_HOOKS_BUNDLE_FILE = 'extensionHooks.js'
 // The vault's window (M109 lane W, PLAN.md D6): the panel host, the native
 // editor and the broker client, loaded on the first vault command.
 export const VAULT_BUNDLE_FILE = 'vault.js'
+// C-M109-1: the CLI, ACP and headless vault (no `vscode`), lead decision 5.
+export const VAULT_RUNTIME_BUNDLE_FILE = 'vaultRuntime.js'
 // The empty folder under the extension's global storage the reviewer's side
 // session runs in: outside every workspace, so no History lists it, and
 // with no rules, skills or files of the user's to read.
@@ -4153,7 +4338,9 @@ export const EXEC_IMAGE_N = 1
 export const EXEC_STREAM_IDLE_MS = 300_000
 export const EXEC_USD_UNITS = 1_000_000
 export const EXEC_USD_DECIMALS = 6
+export const EXEC_FILES_BODY_HEADROOM_BYTES = 4 * 1024
 export const EXEC_ENDPOINTS = {
+  files: '/v1/files',
   models: '/v1/models',
   responses: '/v1/responses',
   imageGenerations: '/v1/images/generations',
@@ -4195,17 +4382,21 @@ export const ACP_AUTH_METHODS = {
 export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort', account: 'account' } as const
 // The paid Model API features the agent can use (M63c, PLAN.md D30): each
 // only with its flag, and each use asked in the editor (M58, D48). Muse
-// Voice needs the panel's microphone, so the agent has none.
+// Voice is its batch transcription of attached sound (M105 lane V); live
+// dictation needs the panel's microphone, so the agent has none.
 export const ACP_PAID_FEATURES = [
   'autoCompaction',
   'webSearch',
   'imageGeneration',
+  // M105 lane V: batch transcription of attached sound needs no microphone.
+  'voice',
 ] as const satisfies readonly PaidFeature[]
 export type AcpPaidFeature = (typeof ACP_PAID_FEATURES)[number]
 export const ACP_PAID_FLAGS = {
   autoCompaction: 'auto-compaction',
   webSearch: 'web-search',
   imageGeneration: 'image-generation',
+  voice: 'muse-voice',
 } as const satisfies Readonly<Record<AcpPaidFeature, string>>
 // The question before each paid use (M58, PLAN.md D48): its tool call row (a
 // count appended) and its answers.
@@ -4270,6 +4461,8 @@ export const ATOMIC_TEMPORARY_SUFFIX = '.tmp'
 export const ATOMIC_RENAME_ATTEMPTS = 5
 export const ATOMIC_RENAME_DELAY_MS = 25
 export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
+// M105 lane F: `museSpark.mediaUploadExpiryDays` as Files `expires_after` seconds.
+export const SECONDS_PER_DAY = 24 * 60 * 60
 // M96 lane A (PLAN.md D75): a task past its minutes per task is stopped.
 export const MILLISECONDS_PER_MINUTE = 60 * 1000
 export const MILLISECONDS_PER_HOUR = 60 * 60 * 1000
@@ -4299,6 +4492,8 @@ export const SCHEDULE_FS_RETRY_ATTEMPTS = 5
 export const SCHEDULE_FS_RETRY_BACKOFF_MS = 20
 export const SCHEDULE_LEASE_HEARTBEAT_MS = 2000
 export const SCHEDULE_LEASE_EXPIRES_MS = 10_000
+// Lease release owns a separate short window, independent of caller cancellation.
+export const SCHEDULE_LEASE_RELEASE_TIMEOUT_MS = 1000
 export const SCHEDULE_LEASE_POLL_MS = 40
 export const SCHEDULE_QUEUE_COALESCE_MS = 100
 export const SCHEDULE_PROTOCOL_VERSION = 1
@@ -4378,6 +4573,10 @@ export const SCHEDULE_DEFAULT_POLICY = {
   pinned: false,
 } as const
 export const MODEL_API_SCHEDULES_DIR = 'modelapi-schedules'
+/** Account upload ledger and local calibration observations (MONEY017D, D85.2/D85.6). */
+export const MODEL_API_UPLOADS_DIR = 'modelapi-uploads'
+// M105 lanes V and VB: the private root each conversion's owner-only folder sits in.
+export const MEDIA_PRIVATE_ROOT_DIR = 'media'
 export const CRON_FIELD_COUNT = 5
 export const CRON_FIELD_SEGMENT_LIMIT = 3
 export const CRON_MAX_MINUTE = 59
@@ -4489,7 +4688,13 @@ export const MODEL_API_SUBAGENT_TOOLS = {
   readResult: 'subagent_read_result',
   cancel: 'subagent_cancel',
 } as const
+// The default concurrent subagents (Muse Code's own default 8, M127):
+// `museSpark.subagentMaxConcurrent` overrides this within 1–64.
 export const SUBAGENT_CAPACITY = 8
+// A `recap/request` settles exactly once on `recap/completed` with a
+// host-enforced 45 s timeout (ADR 45447): waiting past it keeps the late
+// settlement a notice instead of a hang.
+export const RECAP_SETTLE_TIMEOUT_MS = 60_000
 export const SUBAGENT_MAX_PER_CONVERSATION = 64
 export const SUBAGENT_DEPTH = 1
 export const SUBAGENT_ID_PREFIX = 'subagent-'
@@ -4727,7 +4932,14 @@ export const OUTPUT_DOCUMENTS_KEPT = 20
 // `session/listChanged` stream behind the History dialog (M6), and the
 // TUI's `!` escape, `session/userShell` (M46, PLAN.md D39). The first stays
 // first: the IDE server's warning names it.
-export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp', 'sessionListStream', 'userShell'] as const
+// `sessionRename` (1.4.8) lets the host say rename is unavailable (Windows)
+// up front; older hosts ignore unknown entries, so this stays safe there.
+export const MSP_REQUESTED_CAPABILITIES = [
+  'sessionMcp',
+  'sessionListStream',
+  'userShell',
+  'sessionRename',
+] as const
 export const MSP_USER_SHELL_CAPABILITY = 'userShell'
 // How long the extension waits on `muse serve` (PLAN.md D25; the SDK has no
 // timeouts of its own, INV-006): the handshake, an ordinary command, and the
@@ -4813,7 +5025,8 @@ export const MUSE_EVENT_LOG_FAULT = 'event log failed'
 export const MSP_READ_OUTPUT_CONCURRENCY = 4
 // The frame cap `muse serve` holds in both directions (the SDK's
 // DEFAULT_FRAME_LIMIT_BYTES): a command larger than this is refused here with
-// a message, where the host would drop the frame and never answer (D26).
+// a message, before the host answers `-32002 inputTooLarge` (or `-32700` with
+// a null id) and keeps the connection open (D26).
 export const MSP_FRAME_LIMIT_BYTES = 10 * 1024 * 1024
 // Leave room for the user's prompt, selected context, and command envelope.
 export const MSP_ATTACHMENT_FRAME_HEADROOM_BYTES = 2 * 1024 * 1024
@@ -4822,12 +5035,15 @@ export const MSP_ATTACHMENT_FRAME_BUDGET_BYTES =
 // `session/list` refuses a larger page (msp.d.ts SessionListParams.limit).
 export const MSP_SESSION_LIST_MAX_LIMIT = 200
 // The captured 1.4.4 build matches the SDK's own pin (SDK144, served
-// 2026-10-09 by 1.4.4-R5419.1). Keep its identity here; older fingerprints
-// (1.4.2-R4684.1 included) are no longer additive successors of this SDK
-// and must retain the mismatch warning. Future successors need a served
-// capture before they enter this map.
+// 2026-10-09 by 1.4.4-R5419.1). The 1.4.9 capture below (served 2026-10-17
+// by 1.4.9-R6297.1, `muse schema generate-json-schema`) equals the SDK
+// 1.4.10 pin (`EXPECTED_SCHEMA_FINGERPRINT`), so 1.4.10 serves it too.
+// Older fingerprints (1.4.2-R4684.1 included) are no longer additive
+// successors of this SDK and must retain the mismatch warning. Future
+// successors need a served capture before they enter this map.
 export const MSP_KNOWN_SCHEMA_FINGERPRINTS: Readonly<Record<string, string>> = {
   'sha256:7c94f153c41659cb3f1bd3c3e04438be254644cb2a97d65d48edc7449b74858a': '1.4.4-R5419.1',
+  'sha256:5d3b43e5ccdb7dc4f5a32c380f5f2cde0f10e3059b93610afb2e73f73b1d914c': '1.4.9-R6297.1',
 }
 // Muse Code's documented exit codes (SDK `classifyExit`) after which a
 // restart cannot help; what each code means is `UI_TEXT.museExitMeanings`.
@@ -5002,6 +5218,39 @@ export const WINDOWS_ARGUMENT_SYNTAX = /["&|<>^%!]/
 export const CHECK_FIX_MAX_ROUNDS = 3
 // Native directory identity checks use bigint, including on Node 20 hosts.
 export const WORKSPACE_IDENTITY_ZERO = 0n
+/** M104L: limits shared by stdio LSP and its private workspace broker.
+ * Adopted verbatim from m104/lsp 12fc73167 with `runtime/trustedPath.ts`
+ * (M105 lane V); M104 merges onto the same block. */
+export const LSP_LIMITS = {
+  groupFields: 4,
+  passwdFields: 7,
+  stickyMode: 0o1000,
+  headerBytes: 8192,
+  headerDelimiterBytes: 4,
+  frameBytes: 4_194_304,
+  queuedBytes: 8_388_608,
+  documentBytes: 1_048_576,
+  documentCount: 128,
+  pendingRequests: 32,
+  uriChars: 4096,
+  messageChars: 65_536,
+  diagnosticCount: 256,
+  diagnosticSeverities: 4,
+  watchdogScanMs: 1000,
+  watchdogPollMs: 250,
+  recordLinkCount: 1n,
+  watchdogProcesses: 512,
+  requestMs: 30_000,
+  startupMs: 10_000,
+  idleMs: 60_000,
+  pollMs: 50,
+  clients: 8,
+  fileMode: 0o600,
+  directoryMode: 0o700,
+  recordBytes: 4096,
+  tokenBytes: 32,
+  socketNameBytes: 8,
+} as const
 // How long the language servers are given to report on an edited file once
 // it is shown: a first report is awaited this long (a file no server reads
 // never gets one, and is then "not checked", never clean), then the wait
@@ -5262,8 +5511,6 @@ export const DICTATION_HOLD_MS = 300
 export const DICTATION_KEY = 'd'
 /** After "stop", the helper has this long to deliver the phrase in flight. */
 export const DICTATION_STOP_GRACE_MS = 4000
-/** How long an unused helper stays warm before it is told to quit. */
-export const DICTATION_IDLE_EXIT_MS = 5 * 60 * 1000
 /** After "quit", the helper has this long to exit before it is killed. */
 export const DICTATION_QUIT_GRACE_MS = 2000
 export const DICTATION_STDERR_TAIL_CHARS = 400
@@ -5288,6 +5535,17 @@ export const MUSE_VOICE_MODE = 'PUSH_TO_TALK'
 export const MUSE_VOICE_PARTIAL_MODE = 'CUMULATIVE'
 export const MUSE_VOICE_SAMPLE_RATE = 16_000
 export const MUSE_VOICE_BYTES_PER_SECOND = MUSE_VOICE_SAMPLE_RATE * 2
+// CM352 capture: 80 ms messages and at most one short tail, on every recorder.
+export const MUSE_VOICE_FRAME_MS = 80
+export const MUSE_VOICE_FRAME_BYTES =
+  (MUSE_VOICE_BYTES_PER_SECOND * MUSE_VOICE_FRAME_MS) / MILLISECONDS_PER_SECOND
+export const MUSE_VOICE_MAX_SECONDS = 180
+export const MUSE_VOICE_MAX_BYTES = MUSE_VOICE_MAX_SECONDS * MUSE_VOICE_BYTES_PER_SECOND
+export const MUSE_VOICE_RESERVED_MS =
+  MUSE_VOICE_MAX_SECONDS * MILLISECONDS_PER_SECOND + MUSE_VOICE_FRAME_MS
+export const MUSE_VOICE_IDLE_ERROR = 'Ingress audio slower than real-time'
+export const MUSE_VOICE_IDLE_CLOSE = 'Ingress below real-time'
+
 // Meta closes a stream whose handshake is not sent within 10 s; the answer
 // is waited for as long. After `endStream`, the final text has this long.
 export const MUSE_VOICE_HANDSHAKE_TIMEOUT_MS = 10_000
@@ -5367,6 +5625,8 @@ export const SLASH_COMMAND_NAMES = {
   securityReview: 'security-review',
   changes: 'changes',
   report: 'report',
+  // D203: the agent plays back its understanding from working memory only.
+  playback: 'playback',
 } as const
 
 // M113 / D93: deterministic reports, independent of M93's problem reports.
@@ -5377,9 +5637,17 @@ export const REPORT_NEXT_STEP_LIMIT = 3
 export const REPORT_EMPTY_HASH = '0000000000000000000000000000000000000000000000000000000000000000'
 export const REPORT_GIT_MAX_COMMITS = 5000
 export const REPORT_NETWORK_MAX_BYTES = 2 * 1024 * 1024
-export const REPORT_NETWORK_MAX_PAGES = 3
+// One github source read shares this budget across pulls (1), check scopes
+// (3: head, default branch, release tag), tags (1), releases (up to 3) and
+// release-workflow runs (1): 10 covers the typical full read, and anything
+// past it refuses as `page-bound` instead of truncating silently (C-M113-6).
+export const REPORT_NETWORK_MAX_PAGES = 10
 export const REPORT_NETWORK_CACHE_ENTRIES = 100
 export const REPORT_SOURCE_TIMEOUT_MS = 5000
+// A handed deadline aborts the read's signal and then waits for the
+// reader's own settlement instead of abandoning it mid-flight; a reader
+// that ignores the signal cannot outlive this grace (RVREPORTJOIN P2-3).
+export const REPORT_SOURCE_SETTLE_MS = 1000
 export const REPORT_GITHUB_RATE_FLOOR = 10
 export const REPORT_CHECK_RUNS_MAX = 500
 export const REPORT_HISTORY_MAX_PER_KIND = 50
@@ -5460,6 +5728,14 @@ export const REPORT_WORKING_KINDS = [
   'release',
   'changes',
   'quality',
+  'usage',
+  'session',
+  'keybindings',
+  'accounts',
+  'security',
+  'estimate',
+  'playbook',
+  'schedules',
 ] as const
 export const REPORT_FORMATS = ['md', 'html', 'json', 'text'] as const
 export const REPORT_FAIL_ON = [
@@ -5543,6 +5819,8 @@ export const REPORT_LABEL_KEYS = [
   'fires',
   'keybindings',
   'conflicts',
+  'shortcut',
+  'command',
   'diff',
   'sources',
   'planFormat',
@@ -5582,6 +5860,7 @@ export const REPORT_LABEL_KEYS = [
   'merged',
   'released',
   'complete',
+  'ended',
   'superseded',
   'waiting',
   'blocked',
@@ -5599,6 +5878,13 @@ export const REPORT_LABEL_KEYS = [
   'removed',
   'changed',
   'unchanged',
+  'paused',
+  'active',
+  'all',
+  'total',
+  'once',
+  'user',
+  'hookVerification',
 ] as const
 export const REFERENCE_DOCS_URL =
   'https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/reference.md'
@@ -6010,6 +6296,8 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/checkpointStore.js',
   'dist/codeIntel.js',
   'dist/voice.js',
+  'dist/voiceLinux.js',
+  'dist/dictation.js',
   'dist/webFetch.js',
   'dist/museCodeReviewer.js',
   'dist/searchWorker.js',
@@ -6033,6 +6321,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/estimateContracts.js',
   'dist/recorder.js',
   'dist/media.js',
+  'dist/mediaHost.js',
   'dist/screenRecord.js',
   'dist/uiTextMedia.js',
   'dist/browserCheck.js',
@@ -6064,6 +6353,9 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/providerCatalog.js',
   'dist/modelApiHooks.js',
   'dist/modelApiMcp.js',
+  'dist/productionMedia.js',
+  'dist/productionAudio.js',
+  'dist/runtimeMedia.js',
   'dist/modelApiTools.js',
 ])
 // One window journals at most this many failures in REPORT_RECORD_WINDOW_MS
@@ -6153,7 +6445,8 @@ export const MODEL_TEXT = {
     'A high-effort consult on a hard question: gives its judgement as advice, not action.',
   secondOpinionAgentPrompt:
     'You are a second opinion on a hard question: think carefully, check the relevant code with your tools, then give your judgement plainly: what you would do, why, and what you are unsure of. The parent agent decides; your reply is advice, not action.',
-  attachedTextFile: 'Attached text file {name}:\n\n{text}',
+  // A picked UTF-8 file's template moved to TEXT_ATTACHMENT_MODEL_TEXT (PR206):
+  // no source file of the activation bundle reads it anymore.
   // M49 (PLAN.md D41): the memory tools' results and refusals in Muse Code's
   // own words (its 1.3.0 binary's strings, and the live capture of 2026-09-25).
   memoryNoteWritten: 'memory note written',
@@ -6494,6 +6787,13 @@ export const JUDGE_MODEL_TEXT = {
 // server's answers for Muse Code (dist/codeIntel.js) and the Model API's
 // native tools (dist/modelApi.js); the bundle-split gate fails when
 // dist/extension.js or dist/acp.js carries them (PLAN.md D6).
+// A picked UTF-8 file carried as named text on both backends (M54, PLAN.md
+// D47): read by the backends' bundles and the conversation, never at
+// activation (PR206).
+export const TEXT_ATTACHMENT_MODEL_TEXT = {
+  attachedTextFile: 'Attached text file {name}:\n\n{text}',
+} as const
+
 export const CODE_INTEL_MODEL_TEXT = {
   renameChanged:
     '{path} changed after the rename was planned; nothing was changed, so call rename_symbol again',
@@ -7107,6 +7407,28 @@ export const REVIEW_MODEL_TEXT = {
   reviewListCut: '… and {count} more',
 } as const
 
+// The playback turn's text (D203): the agent states its current
+// understanding of the goal and instructions from its working memory only,
+// with no tools for the turn. The same on every surface; only the Model API
+// backend runs one (no tools offered, every call refused in code), while any
+// other backend is refused the turn instead. Model text: English whatever
+// the display language.
+export const PLAYBACK_MODEL_TEXT = {
+  playbackRole:
+    'You are playing back your current understanding of this task, from your working memory only.',
+  playbackWorkspace: 'The workspace root is {root} on {platform}.',
+  playbackEnvironment: "# Environment\n\n- Today's date: {today}",
+  playbackNoTools:
+    'No tools are available for this turn: do not call any tool. Answer only from what you already hold in this conversation\u{2019}s context. Do not scan, read files, or look anything up.',
+  playbackMarker: 'My playback \u{2014} my own understanding, from memory only:',
+  playbackSections:
+    'Report under each heading: the goal, and the instructions and constraints you are following; what you have done and what you are doing now; what you will do next; what you are unsure of or assumed; anything else that shapes how you will act.',
+  playbackAnswer:
+    'Begin your answer with exactly the marker line above, so the person reading knows this is your own understanding to compare against what they asked, and can correct it in their next message.',
+  playbackToolRefused:
+    'is not available on this playback turn, which answers from working memory only',
+} as const
+
 // M116 K: only dist/bundledSkills.js reads this charter, on an orchestrated
 // playbook review. Ordinary M70 reviews and conversation prefixes stay unchanged.
 export const PLAYBOOK_MODEL_TEXT = {
@@ -7343,6 +7665,23 @@ export const ESTIMATE_LOCAL_BUDGET_MS = 2000
 export const ESTIMATE_LOCAL_BUDGET_LANES = 40
 // Bounds on our own documents, not provider wire shapes.
 export const ESTIMATE_MAX_ITEMS = 512
+// M117 C-M117-1: the plan snapshot's assumed per-lane demands. The plan
+// carries hours, deps, rigs and files, never metered demand, yet the
+// schedule refuses unknown demand (schedule.ts): these assumptions let a
+// forecast run, marked assumption with zero samples so the estimate
+// discloses them and calibration (C-M117-2) replaces them per kind. The
+// scale follows the engine fixtures' own assumed lane
+// (test/fixtures/estimator/dags.json): one slot, one request and ten tokens
+// an hour, no CI, a 4 GiB peak over a 2 GiB steady workspace.
+export const ESTIMATE_ASSUMED_TOKENS_PER_HOUR = 10
+export const ESTIMATE_ASSUMED_PEAK_BYTES = 4 * 1024 ** 3
+export const ESTIMATE_ASSUMED_STEADY_BYTES = 2 * 1024 ** 3
+// M117 C-M117-1: the snapshot binding's git and `gh` evidence reads share
+// this bound, like M113's report sources share theirs.
+export const ESTIMATE_SOURCE_TIMEOUT_MS = 5000
+// M117 C-M117-1: how many unestimated lanes a refused snapshot names before
+// counting the rest, so the detail stays a short technical label.
+export const ESTIMATE_MISSING_DETAIL_LIMIT = 10
 export const ESTIMATE_ID_MAX_CHARS = 128
 export const ESTIMATE_LABEL_MAX_CHARS = 256
 // M117 W (PLAN.md D100, gotcha G4): a lane whose base is this many days old
@@ -7538,17 +7877,38 @@ export const TEAM_ROLE_TYPICAL_TASK_TOKENS = {
 export const TEAM_WORKER_RPM_ESTIMATE = 6
 export const TEAM_WORKER_TPM_ESTIMATE = 250_000
 export const TEAM_ORCHESTRATOR_HEADROOM = 0.8
-// The Model API's per-team limits (research 2026-10-04, D75).
+// The Model API's per-team limits (research 2026-10-04, D75; contributor
+// RPM corrected 2026-10-17 from Meta's pricing page: 150, not 100).
 export const TEAM_META_STANDARD_RPM = 3000
 export const TEAM_META_STANDARD_TPM = 4_000_000
-export const TEAM_META_CONTRIBUTOR_RPM = 100
+export const TEAM_META_CONTRIBUTOR_RPM = 150
 export const TEAM_META_CONTRIBUTOR_TPM = 3_000_000
+// Loaded sessions per `muse serve`, as Muse Code documents (M-CL 1.4.5, read
+// 2026-10-17): 32 through 1.4.4, 256 from 1.4.5. Past the limit the load is
+// refused naming the limit; the ceiling below reads it from the served
+// version instead of fixing one number.
+export const MUSE_CODE_LOADED_SESSIONS_THROUGH_1_4_4 = 32
+export const MUSE_CODE_LOADED_SESSIONS_FROM_1_4_5 = 256
+/** The loaded-session ceiling for a `muse serve` at this version; an unreadable version reads as the older documented bound. */
+export function museCodeLoadedSessionCeiling(serverVersion: string | undefined): number {
+  const match = /^(\d{1,9})\.(\d{1,9})\.(\d{1,9})/u.exec(serverVersion ?? '')
+  if (match === null) {
+    return MUSE_CODE_LOADED_SESSIONS_THROUGH_1_4_4
+  }
+  const [, major = '0', minor = '0', patch = '0'] = match
+  const isAtLeast145 =
+    Number(major) > 1 ||
+    (Number(major) === 1 && (Number(minor) > 4 || (Number(minor) === 4 && Number(patch) >= 5)))
+  return isAtLeast145
+    ? MUSE_CODE_LOADED_SESSIONS_FROM_1_4_5
+    : MUSE_CODE_LOADED_SESSIONS_THROUGH_1_4_4
+}
 // Our hard ceilings (D75): 20 on the Model API and M95's engines (the
-// owner's figure), 4 sessions per `muse serve`, 4 per external agent.
-// Unknown external agents start at 2, until refusals show their limits.
-// The engine ceiling is also the top of `museSpark.teamMaxWorkers`' default.
+// owner's figure), 4 per external agent. Unknown external agents start at
+// 2, until refusals show their limits. The engine ceiling is also the top
+// of `museSpark.teamMaxWorkers`' default. Muse Code's own ceiling is the
+// function above, read from the served version.
 export const TEAM_ENGINE_HARD_CEILING = 20
-export const TEAM_MUSE_CODE_HOST_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_DEFAULT = 2
 // A 429, or a remaining-requests or remaining-tokens header under this
@@ -8113,10 +8473,18 @@ export const DEVELOPER_MACHINE_ID_TMP_SUFFIX_BYTES = 8
 export const DEVELOPER_MACHINE_ID_DOMAIN = 'muse-spark-developer-machine/v1'
 // M109 lane 0: vault format, limits and budgets (D89).
 export const VAULT_FORMAT_VERSION = 1
-export const VAULT_PROTOCOL_VERSION = 1
+// Lead decisions 2026-10-10 (C-M109-1): protocol v2 adds the management kinds,
+// private write frames and pushed events; the store document v2 carries grants
+// in its encrypted index. No v1 vault or broker exists in the field.
+export const VAULT_PROTOCOL_VERSION = 2
+export const VAULT_STORE_FORMAT_VERSION = 2
 export const VAULT_APPROVAL_TTL_MS = 120_000
 // Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
 export const VAULT_LOCK_DRAIN_MS = 1000
+// C-M109-1: pace of re-opening a `watch` stream the broker closed.
+export const VAULT_WATCH_RETRY_MS = 1000
+// RVCM1091A F7: the panel's watch backoff doubles up to this while the broker is down.
+export const VAULT_WATCH_RETRY_MAX_MS = 30_000
 export const VAULT_ASKPASS_USES = 3
 export const VAULT_ASKPASS_TTL_MS = 600_000
 export const VAULT_SESSION_MAX_DAYS = 30
@@ -8135,6 +8503,12 @@ export const VAULT_KEY_BYTES = 32
 export const VAULT_NONCE_BYTES = 12
 export const VAULT_TAG_BYTES = 16
 export const VAULT_RECOVERY_BYTES = 20
+/** Reset Vault's fixed confirmation word, typed exactly (lead decision 2026-10-10).
+ * @unwired M109 Reset Vault confirmation word; its reader lands with the vault lane */
+export const VAULT_RESET_WORD = 'RESET'
+/** Random bytes in an imported item's name, so a second import never collides.
+ * @unwired M109 vault import name bytes; its reader lands with the vault lane */
+export const VAULT_IMPORT_NAME_BYTES = 3
 export const VAULT_KDF = {
   argon2: { memoryKiB: 65_536, iterations: 3, parallelism: 4 },
   scrypt: { N: 131_072, r: 8, p: 1 },

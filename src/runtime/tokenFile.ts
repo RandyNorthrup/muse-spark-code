@@ -66,52 +66,89 @@ $rules = @($verified.GetAccessRules($true, $true, [System.Security.Principal.Sec
 @{ ownerSid = $verified.GetOwner([System.Security.Principal.SecurityIdentifier]).Value; currentSid = $sid.Value; protected = $verified.AreAccessRulesProtected; rules = $rules } | ConvertTo-Json -Compress -Depth 4
 `
 
-const windowsAcl: TokenWindowsAcl = {
-  async secure(file, isDirectory) {
-    // Windows sets both to its real directory, on whatever drive; never guess `C:`.
-    const root = process.env['SystemRoot'] ?? process.env['windir']
-    if (root === undefined || !/^[a-z]:\\/iu.test(root)) {
-      throw new Error(UI_TEXT.windowsSystemRootMissing)
-    }
-    const executable = windowsPowerShell(
-      root,
-      withoutKeyringRoutes(withoutCredentials(process.env)),
-    )
-    const payload = Buffer.from(
-      JSON.stringify({ path: file, directory: isDirectory }),
-      'utf8',
-    ).toString('base64')
-    const script = `$inputPath = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${payload}')) | ConvertFrom-Json
-${WINDOWS_ACL_SCRIPT}`
-    const stdout = await runProgram(
-      executable.file,
-      [
-        '-NoLogo',
-        '-NoProfile',
-        '-NonInteractive',
-        '-EncodedCommand',
-        Buffer.from(script, 'utf16le').toString('base64'),
-      ],
-      executable.env,
-    )
-    const receipt: unknown = JSON.parse(stdout)
-    return receipt
-  },
-}
-
-async function secure(
+/**
+ * One fixed ACL script over one path, in the Windows root's own PowerShell
+ * (`SystemRoot`, then `windir`; never PATH and never an assumed drive). Only
+ * the path and its kind are encoded into the script as `$inputPath`; the
+ * credential-free environment carries no bearer or key. Returns the parsed
+ * JSON receipt for the caller's schema.
+ */
+export async function runWindowsAclScript(
+  body: string,
   file: string,
   isDirectory: boolean,
+): Promise<unknown> {
+  const systemRoot = process.env['SystemRoot'] ?? process.env['windir']
+  if (systemRoot === undefined || !/^[a-z]:\\/iu.test(systemRoot))
+    throw new Error(UI_TEXT.windowsSystemRootMissing)
+  const executable = windowsPowerShell(
+    systemRoot,
+    withoutKeyringRoutes(withoutCredentials(process.env)),
+  )
+  const payload = Buffer.from(
+    JSON.stringify({ path: file, directory: isDirectory }),
+    'utf8',
+  ).toString('base64')
+  const script = `$inputPath = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${payload}')) | ConvertFrom-Json
+${body}`
+  const stdout = await runProgram(
+    executable.file,
+    [
+      '-NoLogo',
+      '-NoProfile',
+      '-NonInteractive',
+      '-EncodedCommand',
+      Buffer.from(script, 'utf16le').toString('base64'),
+    ],
+    executable.env,
+  )
+  const receipt: unknown = JSON.parse(stdout)
+  return receipt
+}
+
+const windowsAcl: TokenWindowsAcl = {
+  secure: (file, isDirectory) => runWindowsAclScript(WINDOWS_ACL_SCRIPT, file, isDirectory),
+}
+
+/**
+ * macOS's mode string for one path when it carries no extended ACL (`ls
+ * -led` prints exactly one line, with no `+` and no ACL entries), else
+ * undefined. chmod does not remove macOS allow ACEs, so the mode alone
+ * proves nothing there.
+ */
+export async function darwinModeWithoutAcl(file: string): Promise<string | undefined> {
+  const output = await runProgram('/bin/ls', ['-ledn', file], {
+    ...withoutKeyringRoutes(withoutCredentials(process.env)),
+    LC_ALL: 'C',
+  })
+  const lines = output.trimEnd().split('\n')
+  const modeReceipt = /^([d-][rwx-]{9})@?[ \t]/.exec(lines[0] ?? '')
+  return lines.length === 1 ? modeReceipt?.[1] : undefined
+}
+
+/**
+ * Owner-only access for one file or directory, read back before it is used:
+ * the bearer token's folder and file (M104) and conversion's private folder
+ * (M105, `privateDirectory.ts`). On Windows the DACL is protected and holds
+ * only the current user's full-control grant (container and object inherit
+ * on a directory), through the `%SystemRoot%` PowerShell, never PATH; on
+ * POSIX the mode is 0700/0600, owned by this user, and macOS shows no ACL.
+ * Any failure throws `EOWNER_ONLY`; callers keep their own refusal.
+ */
+export async function secureOwnerOnly(
+  file: string,
+  kind: 'file' | 'directory',
   acl?: TokenWindowsAcl,
 ): Promise<TokenAclReceipt> {
+  const isDirectory = kind === 'directory'
   const own = await lstat(file)
   if ((!isDirectory && own.nlink !== 1) || (isDirectory ? !own.isDirectory() : !own.isFile()))
-    throw new Error('ETOKEN_ACL')
+    throw new Error('EOWNER_ONLY')
   if (acl !== undefined || process.platform === 'win32') {
     const parsed = windowsReceiptSchema.safeParse(
       await (acl ?? windowsAcl).secure(file, isDirectory),
     )
-    if (!parsed.success) throw new Error('ETOKEN_ACL')
+    if (!parsed.success) throw new Error('EOWNER_ONLY')
     const receipt = parsed.data
     if (
       !receipt.protected ||
@@ -121,7 +158,7 @@ async function secure(
           rule.sid !== receipt.currentSid || rule.inherited || !rule.allow || !rule.fullControl,
       )
     )
-      throw new Error('ETOKEN_ACL')
+      throw new Error('EOWNER_ONLY')
     return { platform: 'win32', ownerOnly: true, windows: receipt }
   }
   const mode = isDirectory ? DIRECTORY_MODE : FILE_MODE
@@ -129,19 +166,13 @@ async function secure(
   const verified = await lstat(file)
   const uid = process.getuid === undefined ? undefined : process.getuid()
   if (uid === undefined || verified.uid !== uid || (verified.mode & MODE_MASK) !== mode)
-    throw new Error('ETOKEN_ACL')
+    throw new Error('EOWNER_ONLY')
   if (process.platform === 'darwin') {
-    // chmod does not remove macOS allow ACEs. Accept only a single mode
-    // receipt with no '+' marker or ACL entries; even owner/deny ACLs refuse.
-    // The fixed system binary receives a path and a credential-free env only.
-    const output = await runProgram('/bin/ls', ['-ledn', file], {
-      ...withoutKeyringRoutes(withoutCredentials(process.env)),
-      LC_ALL: 'C',
-    })
-    const lines = output.trimEnd().split('\n')
+    // Accept only a single mode receipt with no '+' marker or ACL entries;
+    // even owner/deny ACLs refuse. The fixed system binary receives a path
+    // and a credential-free env only.
     const expected = isDirectory ? 'drwx------' : '-rw-------'
-    const modeReceipt = /^([d-][rwx-]{9})@?[ \t]/.exec(lines[0] ?? '')
-    if (lines.length !== 1 || modeReceipt?.[1] !== expected) throw new Error('ETOKEN_ACL')
+    if ((await darwinModeWithoutAcl(file)) !== expected) throw new Error('EOWNER_ONLY')
     return { platform: 'darwin', ownerOnly: true, mode, extendedAcl: false }
   }
   return { platform: process.platform, ownerOnly: true, mode }
@@ -183,16 +214,16 @@ export async function createTokenFile(parent: string, acl?: TokenWindowsAcl) {
   // The bearer must never exist before fatal/ordinary exit cleanup is armed.
   process.once('exit', removeSync)
   try {
-    await secure(directory, true, acl)
+    await secureOwnerOnly(directory, 'directory', acl)
     const handle = await open(file, 'wx', FILE_MODE)
     try {
-      let aclReceipt = await secure(file, false, acl)
+      let aclReceipt = await secureOwnerOnly(file, 'file', acl)
       const token = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
       await handle.writeFile(token, 'utf8')
       await handle.sync()
       if (acl === undefined && process.platform === 'darwin') {
-        await secure(directory, true)
-        aclReceipt = await secure(file, false)
+        await secureOwnerOnly(directory, 'directory')
+        aclReceipt = await secureOwnerOnly(file, 'file')
       }
       return {
         token,

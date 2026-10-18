@@ -11,6 +11,10 @@ export const vaultClientMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('vaultReady') }),
   z.strictObject({ type: z.literal('vaultLock') }),
   z.strictObject({ type: z.literal('vaultUnlock') }),
+  // Set Up Vault: the host generates and shows the one-time recovery code natively.
+  z.strictObject({ type: z.literal('vaultSetup') }),
+  // Reset Vault: offered only for a lost vault; the host asks twice natively.
+  z.strictObject({ type: z.literal('vaultReset') }),
   z.strictObject({ type: z.literal('vaultAnswer'), answer: vaultApprovalAnswerSchema }),
   z.strictObject({ type: z.literal('vaultGrant'), grant: vaultGrantSchema }),
   z.strictObject({

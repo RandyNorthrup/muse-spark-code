@@ -1,3 +1,8 @@
+import {
+  parseEstimate,
+  EstimateDiagnosticError,
+  estimateFailureText,
+} from '../../core/estimator/diagnostic'
 import { escapeHtml } from '../../core/htmlText'
 import { ESTIMATE_OPTIONS } from './options'
 import {
@@ -15,6 +20,8 @@ import {
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
 import { fill, formatNumber, formatUnit, UI_TEXT, uiLocale } from '../../shared/l10n/text'
+
+export { estimateFailureText } from '../../core/estimator/diagnostic'
 
 export interface EstimateCommandOptions {
   readonly goal: EstimateRequest['goal']
@@ -39,15 +46,18 @@ export interface EstimateFormatPort {
 
 type ParsedOptions =
   | { readonly kind: 'estimate'; readonly options: EstimateCommandOptions }
+  | { readonly kind: 'check-plan' }
   | { readonly kind: 'help' }
   | { readonly kind: 'invalid'; readonly reason: string }
 
-/** Reject locale-dependent/rollover dates; a date-only deadline means midnight UTC. */
-export function estimateDeadline(text: string): string | undefined {
-  const instant = /^\d{4}-\d{2}-\d{2}$/.test(text) ? `${text}T00:00:00.000Z` : text
-  const parsed = estimateRequestSchema.shape.asOf.safeParse(instant)
-  return parsed.success ? new Date(instant).toISOString() : undefined
-}
+import { estimateDeadline } from '../../shared/estimate'
+
+/** Valueless estimate flags (`--check-plan`); every other flag takes a value. */
+const BOOLEAN_ESTIMATE_FLAGS = new Set(
+  Object.entries(ESTIMATE_OPTIONS)
+    .filter(([, option]) => option.type === 'boolean')
+    .map(([flag]) => `--${flag}`),
+)
 
 /** Shared CLI/ACP grammar. No shell evaluation; labels can contain spaces. */
 export function parseEstimateOptions(argv: readonly string[]): ParsedOptions {
@@ -66,9 +76,19 @@ export function parseEstimateOptions(argv: readonly string[]): ParsedOptions {
     const flag = equals === -1 ? token : token.slice(0, equals)
     if (flag === '--help' || !Object.hasOwn(ESTIMATE_OPTIONS, flag.slice(2)) || values.has(flag))
       return invalid()
+    if (BOOLEAN_ESTIMATE_FLAGS.has(flag)) {
+      if (equals !== -1) return invalid()
+      values.set(flag, '')
+      continue
+    }
     const value = equals === -1 ? argv[++index] : token.slice(equals + 1)
     if (value === undefined || value === '' || value.startsWith('--')) return invalid()
     values.set(flag, value)
+  }
+  // `--check-plan` lists every plan problem instead of estimating: it takes
+  // no goal and no other flag.
+  if (values.has('--check-plan')) {
+    return goalParts.length === 0 && values.size === 1 ? { kind: 'check-plan' } : invalid()
   }
   const goal = parseEstimateGoal(goalParts.join(' '))
   const deadlineText = values.get('--by')
@@ -120,6 +140,27 @@ export function estimateSlashArguments(text: string): readonly string[] | undefi
   return tokens
 }
 
+/** The host parses composer input; the browser carries only the command text. */
+export function parseEstimateComposer(text: string, context: EstimateContext): EstimateRequest {
+  const args = estimateSlashArguments(text)
+  const parsed = args === undefined ? undefined : parseEstimateOptions(args)
+  if (parsed?.kind !== 'estimate') {
+    throw new EstimateDiagnosticError(
+      parsed?.kind === 'help' ? 'help' : 'usage',
+      parsed?.kind === 'help'
+        ? `${UI_TEXT.estimateUsage}\n${UI_TEXT.estimateCliHelp}`
+        : UI_TEXT.estimateUsage,
+    )
+  }
+  return parseEstimate(estimateRequestSchema, {
+    ...context,
+    goal: parsed.options.goal,
+    fleet: parsed.options.fleet,
+    ...(parsed.options.deadline && { deadline: parsed.options.deadline }),
+    ...(parsed.options.seed && { seed: parsed.options.seed }),
+  })
+}
+
 /** M113's collector consumes this section; its report-v1 envelope stays with M113. */
 export async function collectEstimate(
   options: EstimateCommandOptions,
@@ -127,7 +168,7 @@ export async function collectEstimate(
   port: EstimateRunPort,
   signal: AbortSignal,
 ): Promise<EstimateSection> {
-  const request = estimateRequestSchema.parse({
+  const request = parseEstimate(estimateRequestSchema, {
     goal: options.goal,
     asOf: context.asOf,
     fleet: options.fleet,
@@ -137,17 +178,17 @@ export async function collectEstimate(
   })
   const expectedRequest = JSON.stringify(request)
   signal.throwIfAborted()
-  const section = estimateSectionSchema.parse(await port.estimate(request, signal))
+  const section = parseEstimate(estimateSectionSchema, await port.estimate(request, signal))
   signal.throwIfAborted()
   if (JSON.stringify(section.inputs.request) !== expectedRequest)
-    throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'request-mismatch' }))
+    throw new EstimateDiagnosticError('request-mismatch')
   return section
 }
 
 const HOUR_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE * MINUTES_PER_HOUR
 
 export function estimateDrift(next: EstimateSection, previous: EstimateSection): EstimateSection {
-  return estimateSectionSchema.parse({
+  return parseEstimate(estimateSectionSchema, {
     ...next,
     drift: {
       previousAsOf: previous.asOf,
@@ -226,7 +267,7 @@ export function renderEstimate(
   format: EstimateCommandOptions['format'],
   money: EstimateFormatPort,
 ): string {
-  const section = estimateSectionSchema.parse(input)
+  const section = parseEstimate(estimateSectionSchema, input)
   if (format === 'json') return `${JSON.stringify(section, null, 2)}\n`
   const paragraphs = [
     [UI_TEXT.estimateP50, date(section.p50)],
@@ -284,6 +325,8 @@ export async function runEstimateCommand(
     write(text: string): void
     error(text: string): void
     readonly signal: AbortSignal
+    /** Every plan problem for `--check-plan`; absent refuses the check. */
+    readonly checkPlan?: ((signal: AbortSignal) => Promise<readonly string[]>) | undefined
   },
 ): Promise<number> {
   const parsed = parseEstimateOptions(argv)
@@ -296,12 +339,31 @@ export async function runEstimateCommand(
     deps.write(`${usage}\n${UI_TEXT.estimateCliHelp}\n`)
     return 0
   }
+  // `--check-plan` lists every plan problem, one per line, and prints
+  // nothing when the plan is clean: the exit code carries that verdict.
+  if (parsed.kind === 'check-plan') {
+    if (deps.checkPlan === undefined) {
+      deps.error(estimateFailureText(new EstimateDiagnosticError('estimate-unavailable')))
+      return 1
+    }
+    try {
+      const problems = await deps.checkPlan(deps.signal)
+      if (problems.length > 0) {
+        deps.write(`${problems.join('\n')}\n`)
+        return 1
+      }
+      return 0
+    } catch (error: unknown) {
+      deps.error(estimateFailureText(error))
+      return 1
+    }
+  }
   try {
     const section = await collectEstimate(parsed.options, deps.context(), deps.runner, deps.signal)
     deps.write(renderEstimate(section, parsed.options.format, deps.money))
     return 0
-  } catch {
-    deps.error(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
+  } catch (error: unknown) {
+    deps.error(estimateFailureText(error))
     return 1
   }
 }

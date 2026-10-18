@@ -68,6 +68,7 @@ import {
   mediaAttachmentRequestSchema,
   mediaChipSchema,
   mediaContributorChoiceSchema,
+  uploadedFilesReportSchema,
 } from './media'
 import { paidStateSchema } from './paidBoundary'
 import { patchHunkSchema } from './patchDocument'
@@ -741,6 +742,14 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     text: stringSchema,
     request: reviewRequestSchema,
   }),
+  // `/playback` or the palette playback row (D203): the card the webview
+  // already shows is `localId`, reading `text`; answered by turnAccepted or
+  // sendFailed. The turn answers from working memory only, with no tools.
+  z.object({
+    type: z.literal('startPlayback'),
+    localId: stringSchema,
+    text: stringSchema,
+  }),
   // The review pane opened (M70): the conversation's edits, oldest first.
   z.object({
     type: z.literal('readReviewChanges'),
@@ -853,6 +862,10 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('renameSession'), name: stringSchema }),
   // Account & usage (M8): ask for the subscription window; answered by usageReport.
   z.object({ type: z.literal('readUsage') }),
+  // The usage dialog's uploaded-files section (M105 lane F): delete one
+  // file or all of ours; answered by a fresh uploadedFilesReport.
+  z.object({ type: z.literal('deleteUploadedFile'), fileId: z.string() }),
+  z.object({ type: z.literal('deleteAllUploadedFiles') }),
   // Voice dictation (M9): the microphone button / Ctrl+D. Recognised text
   // comes back as `insertText`; the button state as `dictationState`.
   z.object({ type: z.literal('dictation'), action: z.enum(DICTATION_ACTIONS) }),
@@ -1403,6 +1416,16 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // The extension's `museSpark.estimate` command: focus the composer with
   // `/estimate ` ready for the goal.
   z.object({ type: z.literal('openEstimator') }),
+  // The uploaded-files port's report (M105 lane F): the Account & usage
+  // dialog lists it; its delete buttons arrive with the dialog's actions.
+  // The list belongs to the account it was read under and a read
+  // generation: a report from a previous account or generation is dropped.
+  z.object({
+    type: z.literal('uploadedFilesReport'),
+    report: uploadedFilesReportSchema,
+    accountId: z.optional(stringSchema),
+    generation: z.optional(numberSchema),
+  }),
 ])
 
 export type HostToWebviewMessage =
@@ -1463,7 +1486,8 @@ export function isEstimatorWebviewMessage(input: unknown): boolean {
     typeof input === 'object' &&
     input !== null &&
     'type' in input &&
-    (input.type === 'estimateRun' || input.type === 'estimateSpinUp')
+    typeof input.type === 'string' &&
+    ['estimateRun', 'estimateSpinUp', 'estimateCommand'].includes(input.type)
   )
 }
 

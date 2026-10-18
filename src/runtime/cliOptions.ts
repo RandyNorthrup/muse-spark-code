@@ -13,6 +13,7 @@ export function formatAcpUsage(table: UiText, command: string): string {
   return [
     fill(table.acpUsage, { command }),
     fill(table.acpChatGpt.usage, { command }),
+    table.referenceCliOptions['context-window'],
     sharingHelp(table),
     // CM108ACC: account metadata and per-account keys are served. The exec
     // line (`accounts.execHelp`) offers pooling, which is still refused, and
@@ -42,6 +43,7 @@ interface CliParserOption {
 }
 type CliParserOptions = Readonly<Record<string, CliParserOption>>
 import { ACP_PAID_FLAGS } from '../shared/constants'
+import { COMPANION_VOICE_RELEASE } from '../shared/companionVoice'
 
 const PROVIDER_OPTIONS = {
   preset: { type: 'string' },
@@ -49,12 +51,14 @@ const PROVIDER_OPTIONS = {
   address: { type: 'string' },
   format: { type: 'string' },
   model: { type: 'string', multiple: true },
+  'context-window': { type: 'string' },
   privacy: { type: 'string' },
   'private-ok': { type: 'boolean' },
   'key-stdin': { type: 'boolean' },
 } as const satisfies CliParserOptions
 
 const COMMON_OPTIONS = {
+  ...(COMPANION_VOICE_RELEASE.isReady && { 'muse-voice': { type: 'boolean' as const } }),
   ...PROVIDER_OPTIONS,
   'usage-history': { type: 'string' },
 
@@ -71,6 +75,7 @@ const COMMON_OPTIONS = {
   [ACP_PAID_FLAGS.autoCompaction]: { type: 'boolean' },
   [ACP_PAID_FLAGS.webSearch]: { type: 'boolean' },
   [ACP_PAID_FLAGS.imageGeneration]: { type: 'boolean' },
+  [ACP_PAID_FLAGS.voice]: { type: 'boolean' },
   verbose: { type: 'boolean' },
   'questions-defer-after': { type: 'string' },
   help: { type: 'boolean', short: 'h' },
@@ -182,6 +187,7 @@ export const CLI_OPTION_REGISTRY = {
 // The description map is exhaustive over the parser's option names. It never
 // chooses an English usage line or a failure message by matching its contents.
 export const CLI_OPTION_TEXT = {
+  'context-window': 'context-window',
   'usage-history': 'usage-history',
   preset: 'preset',
   as: 'as',
@@ -208,6 +214,7 @@ export const CLI_OPTION_TEXT = {
   'allow-contributor-models': 'allow-contributor-models',
   'web-search': 'web-search',
   'image-generation': 'image-generation',
+  'muse-voice': 'muse-voice',
   'scheduled-prompts': 'scheduled-prompts',
   verbose: 'verbose',
   'questions-defer-after': 'questions-defer-after',
@@ -244,6 +251,7 @@ export const CLI_OPTION_TEXT = {
   'no-events': 'no-events',
   fleet: 'fleet',
   seed: 'seed',
+  'check-plan': 'estimate-check-plan',
 } as const satisfies Readonly<
   Record<
     | keyof typeof COMMON_OPTIONS

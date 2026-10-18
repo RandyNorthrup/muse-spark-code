@@ -371,6 +371,7 @@ export const compactBrowserUiText = {
       // STARTUP017: the schedule surfaces' English loads beside them; chat
       // startup paints restored settlement rows from scheduleSettlement alone.
       const scheduleKeys = deferredKeys.filter((key) => key === 'scheduleV2')
+      const playbookKeys = deferredKeys.filter((key) => key.startsWith('playbook'))
       // Each panel module that reads it installs it before its body runs, however
       // chat loads that module (a deferred surface, a row body or a direct import).
       const scheduleReaders = new Set(
@@ -390,6 +391,7 @@ export const compactBrowserUiText = {
           !helpKeys.includes(key) &&
           !accountKeys.includes(key) &&
           !scheduleKeys.includes(key) &&
+          !playbookKeys.includes(key) &&
           key !== 'vault' &&
           nonResourceKeys.has(key),
       )
@@ -416,6 +418,7 @@ export const compactBrowserUiText = {
         helpKeys,
         accountKeys,
         scheduleKeys,
+        playbookKeys,
         scheduleReaders,
         resourceKeys,
         contract,
@@ -445,6 +448,7 @@ export const compactBrowserUiText = {
     for (const namespace of [
       'browser-table-contract',
       'browser-surface-english',
+      'browser-playbook-english',
       'browser-resource-english',
       'browser-reference-english',
       'browser-account-english',
@@ -462,7 +466,7 @@ export const compactBrowserUiText = {
     }))
     build.onLoad({ filter: /[/\\]l10n[/\\]deferredEnglish\.ts$/ }, () => ({
       contents:
-        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english')]) }",
+        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english'), import('browser-playbook-english')]) }",
       loader: 'js',
     }))
     build.onLoad({ filter: /[/\\]installTable\.ts$/ }, (args) => ({
@@ -477,6 +481,16 @@ export const compactBrowserUiText = {
     build.onResolve({ filter: /^browser-surface-english$/ }, () => ({
       path: 'browser-surface-english',
       namespace: 'browser-surface-english',
+    }))
+    build.onResolve({ filter: /^browser-playbook-english$/ }, () => ({
+      path: 'browser-playbook-english',
+      namespace: 'browser-playbook-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-playbook-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(Object.fromEntries(data.playbookKeys.map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
     }))
     build.onResolve({ filter: /^browser-account-english$/ }, () => ({
       path: 'browser-account-english',

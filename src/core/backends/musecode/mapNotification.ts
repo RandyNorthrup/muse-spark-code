@@ -112,9 +112,74 @@ const schemas = {
     ...sessionScoped,
     turnId: z.string(),
     attempt: z.number(),
+    // Required by the CLI's own schema export (1.4.10) but optional here so
+    // a 1.4.5/1.4.6 host that omits it still parses.
+    nextAttempt: z.optional(z.number()),
     maxAttempts: z.number(),
     retryDelayMs: z.number(),
     reason: z.string(),
+    // The failing model attempt's facets (1.4.6); absent on older hosts.
+    errorKind: z.optional(z.string()),
+    httpStatus: z.optional(z.number()),
+    system: z.optional(z.string()),
+  }),
+  // A provider backoff behind one model attempt, observable mid-turn and
+  // non-terminal (served 2026-10-17 by 1.4.9-R6297.1). Unlike its
+  // turn-level sibling it carries no recorded reason: the reason reads
+  // from the failing attempt's own words.
+  'turn/modelRetryScheduled': z.object({
+    ...sessionScoped,
+    turnId: z.string(),
+    attempt: z.number(),
+    nextAttempt: z.number(),
+    maxAttempts: z.number(),
+    retryDelayMs: z.number(),
+    errorKind: z.optional(z.string()),
+    httpStatus: z.optional(z.number()),
+    system: z.optional(z.string()),
+  }),
+  // The built-in Auto-review reviewer holds an approval (1.4.9): a UI may
+  // show the request is under review. Same shape as the request it holds.
+  'approval/reviewing': z.object({
+    ...sessionScoped,
+    approvalId: z.string(),
+  }),
+  // An install landed, or a marketplace was added, updated or removed
+  // (1.4.6): clients re-issue `plugin/list` (plus `hook/list` and
+  // `skill/list`). The skill set is the one this UI re-lists.
+  'plugin/changed': z.object(sessionScoped),
+  'plugin/marketplaceChanged': z.object(sessionScoped),
+  // A settlement nobody asked for (requested ones resolve the waiter in
+  // dispatchHostEvent and never reach here): show the text as it came, a
+  // title first when the host gave one. Outcome and reason are open
+  // vocabularies; the outcome always reads.
+  'recap/completed': z.object({
+    ...sessionScoped,
+    commandId: z.string(),
+    outcome: z.string(),
+    title: z.optional(z.string()),
+    text: z.optional(z.string()),
+    reason: z.optional(z.string()),
+  }),
+  // The session's VCS branch moved (1.4.6); `null` on a detached-HEAD
+  // observation — a fact, not "unchanged".
+  'session/branchChanged': z.object({
+    ...sessionScoped,
+    branch: z.nullable(z.string()),
+  }),
+  // The host's view-health state moved (v1 emits only `unavailable`;
+  // the vocabulary is open, so the word reads as served).
+  'session/viewHealthChanged': z.object({
+    ...sessionScoped,
+    health: z.string(),
+    noneReason: z.optional(z.string()),
+  }),
+  // The turn's foreground work is done while background checks still hold
+  // it open; the turn indicator keeps spinning, this says why.
+  'turn/foregroundCompleted': z.object({
+    ...sessionScoped,
+    turnId: z.string(),
+    blockingAgents: z.array(z.string()),
   }),
   // The session's running totals (D26): `cumulative` counts prompt tokens once
   // under the provider's cache convention; the raw per-completion counters
@@ -193,7 +258,13 @@ const schemas = {
   // A queued submission reclaimed: its turn never runs (tdd SS3.6).
   'turn/unqueued': z.object({ ...sessionScoped, turnId: z.string() }),
   // Another client withdrew a submission; the item itself is re-sent as updated.
-  'turn/retracted': z.object({ ...sessionScoped, turnId: z.string() }),
+  // Since 1.4.10 the settlement carries its outcome: absent reads as
+  // `accepted` (older hosts settle accepted retracts only).
+  'turn/retracted': z.object({
+    ...sessionScoped,
+    turnId: z.string(),
+    outcome: z.optional(z.string()),
+  }),
   // Live delivery dropped events between two cursors (spec 208 SS4.8).
   'view/gap': z.object({ ...sessionScoped, after: z.string(), next: z.string() }),
   // The account's provider cannot serve the session's standing model (#25603).
@@ -276,12 +347,121 @@ function rawNotification(notification: WireNotification): MapOutcome {
       }
     }
     case 'turn/retryScheduled': {
-      const { sessionId, turnId, attempt, maxAttempts, retryDelayMs, reason } = params as z.infer<
-        (typeof schemas)['turn/retryScheduled']
+      const { sessionId, turnId, attempt, maxAttempts, retryDelayMs, reason, ...facets } =
+        params as z.infer<(typeof schemas)['turn/retryScheduled']>
+      return {
+        sessionId,
+        event: {
+          type: 'turnRetry',
+          turnId,
+          attempt,
+          maxAttempts,
+          retryDelayMs,
+          reason,
+          ...(facets.nextAttempt !== undefined && { nextAttempt: facets.nextAttempt }),
+          ...(facets.errorKind !== undefined && { errorKind: facets.errorKind }),
+          ...(facets.httpStatus !== undefined && { httpStatus: facets.httpStatus }),
+          ...(facets.system !== undefined && { system: facets.system }),
+        },
+      }
+    }
+    case 'turn/modelRetryScheduled': {
+      const {
+        sessionId,
+        turnId,
+        attempt,
+        nextAttempt,
+        maxAttempts,
+        retryDelayMs,
+        errorKind,
+        httpStatus,
+        system,
+      } = params as z.infer<(typeof schemas)['turn/modelRetryScheduled']>
+      // No recorded reason on this layer: the failing attempt's own words,
+      // else the provider system, else a plain unknown.
+      const httpWord = httpStatus === undefined ? undefined : `HTTP ${String(httpStatus)}`
+      const reason = errorKind ?? httpWord ?? system ?? UI_TEXT.resourceUnknown
+      return {
+        sessionId,
+        event: {
+          type: 'turnRetry',
+          turnId,
+          attempt,
+          maxAttempts,
+          retryDelayMs,
+          reason,
+          nextAttempt,
+          ...(errorKind !== undefined && { errorKind }),
+          ...(httpStatus !== undefined && { httpStatus }),
+          ...(system !== undefined && { system }),
+        },
+      }
+    }
+    case 'approval/reviewing': {
+      const { sessionId, approvalId } = params as z.infer<(typeof schemas)['approval/reviewing']>
+      return {
+        sessionId,
+        event: {
+          type: 'backendNotice',
+          level: 'info',
+          text: `${UI_TEXT.approvalReviewing} (${approvalId})`,
+        },
+      }
+    }
+    case 'plugin/changed':
+    case 'plugin/marketplaceChanged': {
+      return { sessionId: params.sessionId, event: { type: 'skillsChanged' } }
+    }
+    case 'recap/completed': {
+      const { sessionId, title, text, reason, outcome } = params as z.infer<
+        (typeof schemas)['recap/completed']
+      >
+      const body = text ?? reason ?? outcome
+      return {
+        sessionId,
+        event: {
+          type: 'backendNotice',
+          level: 'info',
+          text: title === undefined ? body : `${title}: ${body}`,
+        },
+      }
+    }
+    case 'session/branchChanged': {
+      const { sessionId, branch } = params as z.infer<(typeof schemas)['session/branchChanged']>
+      return {
+        sessionId,
+        event: {
+          type: 'backendNotice',
+          level: 'info',
+          text:
+            branch === null
+              ? UI_TEXT.sessionBranchChanged
+              : `${UI_TEXT.sessionBranchChanged} (${branch})`,
+        },
+      }
+    }
+    case 'session/viewHealthChanged': {
+      const { sessionId, health, noneReason } = params as z.infer<
+        (typeof schemas)['session/viewHealthChanged']
       >
       return {
         sessionId,
-        event: { type: 'turnRetry', turnId, attempt, maxAttempts, retryDelayMs, reason },
+        event: {
+          type: 'backendNotice',
+          level: 'info',
+          // The reason is the actionable half: it says why the view cannot
+          // be used (SDK `SessionViewHealthChangedParams.noneReason`).
+          text:
+            noneReason === undefined
+              ? `${UI_TEXT.sessionViewHealthChanged} (${health})`
+              : `${UI_TEXT.sessionViewHealthChanged} (${health}: ${noneReason})`,
+        },
+      }
+    }
+    case 'turn/foregroundCompleted': {
+      return {
+        sessionId: params.sessionId,
+        event: { type: 'backendNotice', level: 'info', text: UI_TEXT.turnForegroundCompleted },
       }
     }
     case 'session/tokenUsage': {
@@ -420,6 +600,13 @@ function rawNotification(notification: WireNotification): MapOutcome {
       }
     }
     case 'turn/retracted': {
+      // A declined retract withdrew nothing: the turn runs on.
+      if ((params as z.infer<(typeof schemas)['turn/retracted']>).outcome === 'declined') {
+        return {
+          sessionId: params.sessionId,
+          event: { type: 'backendNotice', level: 'info', text: UI_TEXT.turnRetractDeclined },
+        }
+      }
       return {
         sessionId: params.sessionId,
         event: { type: 'backendNotice', level: 'info', text: UI_TEXT.turnRetracted },

@@ -1,3 +1,4 @@
+import type { UiText } from '../../../shared/l10n/en'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -30,6 +31,7 @@ export async function openReportInBrowser(
   scheduleId: string,
   payload: ReportDeliveryPayload,
   storage: 'local' | 'node',
+  reportUi: UiText['reportUi'] = UI_TEXT.reportUi,
 ): Promise<'opened' | 'waiting'> {
   // Do not publish or open anything until the user returns. The occurrence's
   // frozen payload is retained by the scheduler for Open when I'm back.
@@ -48,9 +50,9 @@ export async function openReportInBrowser(
       parsed.password !== '' ||
       !(await port.isAuthenticatedReportUrl(resource.url))
     )
-      throw new Error(UI_TEXT.reportUi.generationFailed)
+      throw new Error(reportUi.generationFailed)
     url = resource.url
-  } else throw new Error(UI_TEXT.reportUi.generationFailed)
+  } else throw new Error(reportUi.generationFailed)
   if (!(await port.hasActiveSession())) return 'waiting'
   await port.open(url)
   return 'opened'

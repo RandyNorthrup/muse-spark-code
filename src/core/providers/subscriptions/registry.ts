@@ -16,6 +16,10 @@ import {
   type Usage,
 } from '../../backends/modelapi/schemas'
 import { responses, modelRef, recordPlanUsage } from '../../../host/backend/providersEntry'
+// RVCM1054D P2: the typed refusal comes from the leaf module, never the
+// codec bundle — the subscriptions bundle must not carry
+// src/core/backends/modelapi/codecs/* (they load only in dist/providers.js).
+import { isChatCodecError } from '../../media/codecRefusal'
 const { ChatgptPlanLimitError, createResponsesCodec, ResponsesOutputCapError } = responses
 const { parseModelRef } = modelRef
 import {
@@ -160,8 +164,14 @@ export function createSubscriptionClient(
       throw new Error(UI_TEXT.acpChatGpt.failure)
     return ref
   }
+  // Production media (D85.2): the Files transport rides to Meta untouched;
+  // a subscription client without it keeps the established refusal.
+  const filesTransport = meta.requestFile?.bind(meta)
+  const transcription = meta.requestTranscription?.bind(meta)
   const client: ProviderClient = {
     hasPaidDailyBudget: meta.hasPaidDailyBudget,
+    ...(filesTransport !== undefined && { requestFile: filesTransport }),
+    ...(transcription !== undefined && { requestTranscription: transcription }),
     isPlanModel,
     modelContextLimit: (model) => {
       const ref = parseModelRef(model)
@@ -370,11 +380,15 @@ export function createSubscriptionClient(
         }
       } catch (error) {
         if (signal.aborted) throw error
+        // M105 lane V R3 (RVCM1054B P2): a typed codec refusal (a held
+        // video with no vendor capture) reaches the user as its own
+        // sentence on both plan legs, never the generic retry text. One
+        // shared helper decides; this client keeps no list of its own.
         // A lapsed confirmation names the run (hook, schedule, review) with
         // its own guidance instead of the generic plan retry sentence, on
         // both plan branches: the gate throws above, and an admission guard
         // may throw a stale-model refusal with the same strings.
-        if (error instanceof Error && isStaleConfirmedError(error)) {
+        if (isChatCodecError(error) || (error instanceof Error && isStaleConfirmedError(error))) {
           yield { type: 'error', message: error.message }
           return
         }

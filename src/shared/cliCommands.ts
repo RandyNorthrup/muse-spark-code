@@ -1,8 +1,25 @@
 // Public runtime command table. The localized usage table owns descriptions.
 import { ACP_AGENT_NAME, REFERENCE_DOCS_URL, UI_TEXT, SLASH_COMMAND_NAMES } from './constants'
+import { COMPANION_VOICE_RELEASE } from './companionVoice'
 
-export function cliCommands() {
+export function cliCommands(shouldIncludeHeld = false) {
   return [
+    ...(shouldIncludeHeld || COMPANION_VOICE_RELEASE.isReady
+      ? [
+          {
+            route: 'dictate',
+            name: 'dictate [--muse-voice] [--trust-workspace]',
+            description: UI_TEXT.companionVoiceReference,
+            text: { ui: 'companionVoiceReference' },
+          },
+          {
+            route: 'acp',
+            name: '/dictate',
+            description: UI_TEXT.companionVoiceReference,
+            text: { ui: 'companionVoiceReference' },
+          },
+        ]
+      : []),
     {
       route: 'usage',
       name: 'usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json',
@@ -20,6 +37,18 @@ export function cliCommands() {
       name: 'providers list',
       description: UI_TEXT.referenceProviders,
       text: { ui: 'referenceProviders' },
+    },
+    {
+      route: 'openRouterConnect',
+      name: 'providers connect openrouter',
+      description: UI_TEXT.providerOpenRouterServices,
+      text: { ui: 'providerOpenRouterServices' },
+    },
+    {
+      route: 'providerKeyUsage',
+      name: 'providers usage <id>',
+      description: UI_TEXT.usageKeyUsage,
+      text: { ui: 'usageKeyUsage' },
     },
     {
       route: 'providersAdd',
@@ -115,6 +144,12 @@ export function cliCommands() {
       name: 'estimate <goal> [--by <date>] [--fleet current|minimum|optimum] [--format md|html|json|text] [--seed <seed>]',
       description: UI_TEXT.estimateCliHelp,
       text: { ui: 'estimateCliHelp' },
+    },
+    {
+      route: 'estimate',
+      name: 'estimate --check-plan',
+      description: UI_TEXT.referenceCliOptions['estimate-check-plan'],
+      text: { cli: 'estimate-check-plan' },
     },
     {
       route: 'report',

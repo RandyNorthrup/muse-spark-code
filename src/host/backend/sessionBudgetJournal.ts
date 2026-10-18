@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { mkdir, rmdir, stat } from 'node:fs/promises'
+import { mkdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import type {
@@ -15,6 +15,7 @@ import type {
   SessionBudgetTotal,
 } from '../../core/backends/modelapi/sessionBudget'
 import type { StoredSession } from '../../core/backends/modelapi/sessionStore'
+import { withMkdirLock } from '../../core/fileLock'
 import { formatUsd } from '../../core/usage/insights'
 import {
   DAILY_BUDGET_LOCK_ATTEMPTS,
@@ -567,32 +568,21 @@ export function createSessionBudgetJournal(
     }
   }
 
-  const withReservationLock = async <T>(scope: Scope, operation: () => Promise<T>): Promise<T> => {
-    const lock = `${scope.intent}.lock`
-    await mkdir(path.dirname(lock), { recursive: true })
-    let hasLock = false
-    let lastRefusal: unknown
-    for (let attempt = 0; attempt < DAILY_BUDGET_LOCK_ATTEMPTS; attempt += 1) {
-      try {
-        await mkdir(lock)
-        hasLock = true
-        break
-      } catch (error: unknown) {
-        if (!isReservationLockHeld(storeErrorCode(error), process.platform)) {
-          throw unavailable(error)
-        }
-        lastRefusal = error
-        await deps.sleep(DAILY_BUDGET_LOCK_WAIT_MS)
-      }
-    }
-    // The wait is over and the lock is still refused: the last answer says why.
-    if (!hasLock) throw unavailable(lastRefusal)
-    try {
-      return await operation()
-    } finally {
-      await rmdir(lock)
-    }
-  }
+  // The reservation mutex is the repository's shared cross-process lock
+  // (core/fileLock): never stolen, so a crashed holder fails its scope
+  // closed rather than admitting a rival mid-hold.
+  const withReservationLock = async <T>(scope: Scope, operation: () => Promise<T>): Promise<T> =>
+    await withMkdirLock(
+      `${scope.intent}.lock`,
+      {
+        sleep: deps.sleep,
+        attempts: DAILY_BUDGET_LOCK_ATTEMPTS,
+        waitMs: DAILY_BUDGET_LOCK_WAIT_MS,
+        locked: () => unavailable(),
+        wrapError: (error) => unavailable(error),
+      },
+      operation,
+    )
 
   return {
     async reserveAdmitted(sessionId, accountId, costUsd, capUsd) {

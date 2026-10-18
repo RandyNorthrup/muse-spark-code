@@ -1,3 +1,4 @@
+import { estimateFailureText } from '../shared/estimateDiagnostic'
 import type { UsdAmount } from '../shared/usdSchema'
 import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // The Muse Spark agent over the Agent Client Protocol (PLAN.md D62): one
@@ -14,6 +15,7 @@ import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 
 import { randomUUID } from 'node:crypto'
 import type { UsageAdapter } from '../runtime/usage/usageAdapter'
+import type { VoiceCompanion, VoiceCompanionContext } from '../runtime/companion/voiceEntry'
 import { agentListingText, listedAgents, listedAgentId } from '../core/agent/agentListing'
 import { buildAgentReceipt } from '../shared/agentReceipt'
 import { recoveryStamp } from '../shared/agentRecovery'
@@ -52,6 +54,7 @@ import {
   type SessionMcpServer,
   type SkillSummary,
   type TurnPart,
+  type TurnSubmission,
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
@@ -65,6 +68,8 @@ import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
 import type { AgentEvent } from '../shared/agentEvents'
+import { parsePlaybackPrompt } from '../shared/playbackCommand'
+import { playbackTurnText } from '../core/playback/playbackPrompt'
 import {
   ACP_AGENT_NAME,
   ACP_AGENT_TITLE,
@@ -113,6 +118,7 @@ import {
   isAccountSwitchRefusedError,
   type AccountsSessionPort,
 } from './accounts'
+import { runUploadsCommand, type AcpUploadsPort } from './uploads'
 import {
   acpQuestionClock,
   questionDeferralLoader,
@@ -127,6 +133,7 @@ import {
   permissionOptions,
   permissionResponse,
   planEntries,
+  PART_SEPARATOR,
   promptParts,
   UpdateTranslator,
 } from './translate'
@@ -201,6 +208,9 @@ export interface AcpAgentDeps {
   readonly onClientName?: (name: string) => void
   /** Shared journal/service, required lazily on the local /usage command. */
   readonly usage?: Pick<UsageAdapter, 'access' | 'openPage'>
+  readonly dictation?: (context: VoiceCompanionContext) => Promise<VoiceCompanion>
+  /** The account upload ledger, required lazily on the local /uploads command. */
+  readonly uploads?: AcpUploadsPort
   /** I binds P's durable, authorized workspace/team adapter. */
   readonly playbookFor?: (cwd: string, sessionId: string) => PlaybookSurfacePort
   readonly schedules?: AcpSchedulePort
@@ -371,8 +381,12 @@ class AcpSession {
   private isDisposed = false
   private vaultGeneration = 0
   private readonly vaultRequests = new Set<AbortController>()
+  private readonly dictationStop = new AbortController()
+  private readonly dictationPages = new Set<VoiceCompanion>()
   /** A turn being started (`sendTurn` not yet answered): a release waits for it, then stops it. */
   private starting: Promise<unknown> | undefined
+  /** The last backend mode command queued: each one runs after the one before it. */
+  private modeOrder: Promise<unknown> = Promise.resolve()
   public readonly sessionId: string
 
   public constructor(
@@ -507,6 +521,64 @@ class AcpSession {
     }
   }
 
+  /**
+   * `/playback` answered as usage (D203): with anything after it, or
+   * anything beside it — a playback takes no arguments, and nothing it
+   * came with may run as an ordinary turn with tools.
+   */
+  private async answerPlaybackUsage(preparing: PreparingPrompt): Promise<'cancelled' | 'end_turn'> {
+    await this.announceCommands()
+    if ('error' in preparing) throw preparing.error
+    if (!preparing.isCancelled)
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: UI_TEXT.playbackUsage },
+      })
+    await this.outbox
+    return preparing.isCancelled ? 'cancelled' : 'end_turn'
+  }
+
+  /**
+   * A `/playback` turn (D203): the backend's own no-tools turn, which
+   * refuses every call in code. A backend with none (Muse Code: MSP is
+   * select-never-create, and no approval mode denies reads, let alone the
+   * file tools' edits) cannot run one, so the playback is refused instead
+   * of sent as an ordinary turn a reactive stop might reach too late.
+   */
+  private startPlaybackTurn(): Promise<TurnSubmission> {
+    // Refused while a turn runs (one a resumed session carries, say), as the
+    // panel refuses it.
+    if (this.activeTurnId !== undefined) {
+      return Promise.reject(RequestError.invalidRequest(undefined, UI_TEXT.playbackBusy))
+    }
+    const parts: readonly TurnPart[] = [{ type: 'text', text: playbackTurnText() }]
+    const display = `/${SLASH_COMMAND_NAMES.playback}`
+    const playback = this.session.playback
+    return playback === undefined
+      ? Promise.reject(RequestError.invalidRequest(undefined, UI_TEXT.playbackNeedsModelApi))
+      : playback.call(this.session, parts, display)
+  }
+
+  /**
+   * One backend mode command, run after the ones queued before it: the
+   * Plan hold, its restore and the client's `session/set_mode` never
+   * overlap, so a restore cannot land after a newer selection, and it reads
+   * the mode to put back when it runs. The latest explicit choice stays.
+   */
+  private async inModeOrder<T>(command: () => Promise<T>): Promise<T> {
+    const previous = this.modeOrder
+    const next = (async () => {
+      try {
+        await previous
+      } catch {
+        // The command before this one answered its own caller with its failure.
+      }
+      return await command()
+    })()
+    this.modeOrder = next
+    return await next
+  }
+
   /** `/selector arguments` naming one of the session's skills runs that skill, as in the panel. */
   private withSkill(parts: TurnPart[]): TurnPart[] {
     const [first, ...rest] = parts
@@ -572,6 +644,11 @@ class AcpSession {
         : [{ name: 'accounts', description: UI_TEXT.accounts.slashDescription, input: null }]),
       { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
       {
+        name: SLASH_COMMAND_NAMES.playback,
+        description: UI_TEXT.playbackDetail,
+        input: null,
+      },
+      {
         name: SLASH_COMMAND_NAMES.report,
         description: UI_TEXT.reportSlashDescription,
         input: { hint: '<kind> [args] | history' },
@@ -586,6 +663,18 @@ class AcpSession {
               name: 'usage',
               description: UI_TEXT.acpUsageDescription,
               input: null,
+            },
+          ]),
+      ...(this.deps.dictation === undefined
+        ? []
+        : [{ name: 'dictate', description: UI_TEXT.companionVoiceOpen, input: null }]),
+      ...(this.deps.uploads === undefined
+        ? []
+        : [
+            {
+              name: 'uploads',
+              description: UI_TEXT.media.uploadsDescription,
+              input: { hint: UI_TEXT.media.uploadsUsage },
             },
           ]),
       ...(this.deps.resources === undefined
@@ -640,6 +729,7 @@ class AcpSession {
           (skill) =>
             skill.selector !== SLASH_COMMAND_NAMES.help &&
             skill.selector !== SLASH_COMMAND_NAMES.estimate &&
+            skill.selector !== SLASH_COMMAND_NAMES.playback &&
             skill.selector !== ACP_COMPACT_COMMAND &&
             skill.selector !== 'legal' &&
             ![
@@ -654,6 +744,7 @@ class AcpSession {
               'record',
               'accounts',
               'vault',
+              'uploads',
             ].includes(skill.selector) &&
             ((this.deps.usage === undefined && this.deps.resources === undefined) ||
               skill.selector !== 'usage') &&
@@ -686,6 +777,61 @@ class AcpSession {
       interactive: this.deps.options.isHeadless !== true,
     })
     return this.media
+  }
+
+  /** The local /uploads command over the account ledger; other text falls through. */
+  private async uploadsCommand(
+    blocks: readonly ContentBlock[],
+    signal: AbortSignal,
+  ): Promise<boolean> {
+    const [first] = blocks
+    if (blocks.length !== 1 || first?.type !== 'text') return false
+    signal.throwIfAborted()
+    const outcome = await runUploadsCommand(first.text, {
+      files: this.deps.uploads,
+      send: (text) => {
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+      },
+      signal,
+      confirmForeign: (name) => this.confirmUploadForeignDeletion(name, signal),
+    })
+    return outcome === 'handled'
+  }
+
+  /**
+   * A foreign file's confirmation (PLAN D85.2): the ACP permission request
+   * exactly where VS Code asks with its modal dialog. Refused, failed or
+   * cancelled keeps the file.
+   */
+  private async confirmUploadForeignDeletion(name: string, signal: AbortSignal): Promise<boolean> {
+    try {
+      const response = permissionResponse(
+        await unlessAborted(
+          this.client.request('session/request_permission', {
+            sessionId: this.sessionId,
+            toolCall: {
+              toolCallId: `uploads-foreign-${randomUUID()}`,
+              title: fill(UI_TEXT.media.otherAppFileConfirmation, { name }),
+              kind: 'other',
+              status: 'pending',
+              content: [],
+              locations: [],
+            },
+            options: [
+              { optionId: 'uploads-foreign-allow', name: UI_TEXT.allowOnce, kind: 'allow_once' },
+              { optionId: 'uploads-foreign-deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+            ],
+          }),
+          signal,
+        ),
+      )
+      return (
+        response.outcome.outcome === 'selected' &&
+        response.outcome.optionId === 'uploads-foreign-allow'
+      )
+    } catch {
+      return false
+    }
   }
 
   private async mediaCommand(
@@ -842,6 +988,14 @@ class AcpSession {
           this.effort = event.effort
           this.noteChoice()
           this.send({ sessionUpdate: 'config_option_update', configOptions: this.configOptions() })
+        }
+        return
+      }
+      case 'itemStarted':
+      case 'itemUpdated':
+      case 'itemCompleted': {
+        for (const update of this.translator.updates(event)) {
+          this.send(update)
         }
         return
       }
@@ -1210,21 +1364,25 @@ class AcpSession {
       const text = await scan(this.cwd, stop.signal, isRegistryOn, async (hosts) => {
         const response = permissionResponse(
           await unlessAborted(
-            this.client.request('session/request_permission', {
-              sessionId: this.sessionId,
-              toolCall: {
-                toolCallId: 'legal-registry-notice',
-                title: fill(UI_TEXT.legalRegistryNotice, { hosts: hosts.join(', ') }),
-                kind: 'other',
-                status: 'pending',
-                content: [],
-                locations: [],
+            this.client.request(
+              'session/request_permission',
+              {
+                sessionId: this.sessionId,
+                toolCall: {
+                  toolCallId: 'legal-registry-notice',
+                  title: fill(UI_TEXT.legalRegistryNotice, { hosts: hosts.join(', ') }),
+                  kind: 'other',
+                  status: 'pending',
+                  content: [],
+                  locations: [],
+                },
+                options: [
+                  { optionId: 'legal-registry-allow', name: UI_TEXT.allowOnce, kind: 'allow_once' },
+                  { optionId: 'legal-registry-deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+                ],
               },
-              options: [
-                { optionId: 'legal-registry-allow', name: UI_TEXT.allowOnce, kind: 'allow_once' },
-                { optionId: 'legal-registry-deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
-              ],
-            }),
+              { cancellationSignal: stop.signal },
+            ),
             stop.signal,
           ),
         )
@@ -1251,6 +1409,73 @@ class AcpSession {
     preparing: PreparingPrompt,
   ): Promise<boolean> {
     const [block] = blocks
+    if (
+      this.deps.dictation !== undefined &&
+      blocks.length === 1 &&
+      block?.type === 'text' &&
+      block.text.trim() === '/dictate'
+    ) {
+      const page = await this.deps.dictation({
+        cwd: this.cwd,
+        signal: this.dictationStop.signal,
+        isCurrent: () => !this.isDisposed,
+        askPaid: async (title, detail, canRemember, signal) =>
+          await this.askPaidQuestion(title, detail, canRemember, () => !this.isDisposed, signal),
+        send: async (text, signal) => {
+          signal.throwIfAborted()
+          if (
+            this.isDisposed ||
+            this.preparing !== undefined ||
+            this.pending !== undefined ||
+            this.activeTurnId !== undefined
+          )
+            throw new Error('EVOICE_BUSY')
+          let accept!: () => void
+          // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Host type project targets Node 20; the resolver is assigned synchronously (PLAN.md §8).
+          const accepted = new Promise<void>((resolve) => {
+            accept = resolve
+          })
+          const abort = () => {
+            this.cancelPreparing()
+            void this.cancelTurn()
+          }
+          signal.addEventListener('abort', abort, { once: true })
+          const running = this.prompt([{ type: 'text', text }], accept)
+          // A sent ACP turn outlives the companion's HTTP admission request.
+          void running.catch(() => {
+            this.deps.log.warn('Companion ACP prompt failed')
+          })
+          try {
+            const admitted = (async (): Promise<StopReason | 'admitted'> => {
+              await accepted
+              return 'admitted'
+            })()
+            const outcome = await Promise.race([admitted, running])
+            signal.throwIfAborted()
+            // A preparation cancelled before admission starts no backend
+            // turn: report nothing sent, so the browser keeps the reviewed
+            // text for retry. A local outcome counts as sent.
+            if (outcome === 'cancelled') throw new Error('EVOICE_NOT_SENT')
+            this.send({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text } })
+          } finally {
+            signal.removeEventListener('abort', abort)
+          }
+        },
+      })
+      if (!this.canReplyUsage(preparing)) {
+        await page.close()
+        return true
+      }
+      this.dictationPages.add(page)
+      void page.closed.then(() => {
+        this.dictationPages.delete(page)
+      })
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: `[${UI_TEXT.companionVoiceOpen}](${page.launchUrl()})` },
+      })
+      return true
+    }
     const usage = this.deps.usage
     if (
       usage === undefined ||
@@ -1330,24 +1555,35 @@ class AcpSession {
       return `${UI_TEXT.agentReceipt}\n${agentStateText({ status: agent.status, controlStatus: agent.controlStatus, evidence: agent.agentEvidence }, Date.now())}\n${JSON.stringify({ ...receipt, attempts: agent.agentEvidence?.attempts ?? [] }, undefined, 2)}`
     }
     const title = action === 'continue' ? UI_TEXT.agentContinue : UI_TEXT.agentRetry
-    const response = permissionResponse(
-      await this.client.request('session/request_permission', {
-        sessionId: this.sessionId,
-        toolCall: {
-          toolCallId: randomUUID(),
-          title: fill(UI_TEXT.agentRecoveryConfirm, {
-            action: title,
-            objective: agent.objective ?? id,
-          }),
-          kind: 'other',
-          status: 'pending',
-        },
-        options: [
-          { optionId: 'recover', name: title, kind: 'allow_once' },
-          { optionId: 'deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
-        ],
-      }),
-    )
+    let response: RequestPermissionResponse
+    try {
+      response = permissionResponse(
+        await this.client.request(
+          'session/request_permission',
+          {
+            sessionId: this.sessionId,
+            toolCall: {
+              toolCallId: randomUUID(),
+              title: fill(UI_TEXT.agentRecoveryConfirm, {
+                action: title,
+                objective: agent.objective ?? id,
+              }),
+              kind: 'other',
+              status: 'pending',
+            },
+            options: [
+              { optionId: 'recover', name: title, kind: 'allow_once' },
+              { optionId: 'deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+            ],
+          },
+          { cancellationSignal: preparing.abort.signal },
+        ),
+      )
+    } catch (error: unknown) {
+      // A cancelled preparation's withdrawn prompt is a denial, not a failure.
+      if (!isCancelled()) throw error
+      response = permissionResponse({ outcome: { outcome: 'cancelled' } })
+    }
     this.ensureHeld()
     if (
       isCancelled() ||
@@ -1384,13 +1620,17 @@ class AcpSession {
     return true
   }
 
-  public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
-    const pending = this.pending
-    const preparing = this.preparing
+  private async askPaidQuestion(
+    title: string,
+    detail: string,
+    canRemember: boolean,
+    isOwnerCurrent: () => boolean,
+    signal?: AbortSignal,
+  ): Promise<PaidUseAnswer> {
+    const isCurrent = () => !this.isDisposed && signal?.aborted !== true && isOwnerCurrent()
+    if (!isCurrent()) return 'deny'
     // Unique for the client's lifetime: a session loaded again starts afresh.
     const toolCallId = `${ACP_PAID_TOOL_CALL_PREFIX}${randomUUID()}`
-    const { title, detail } = await paidUseQuestion(request)
-    if (!this.isCurrentPaidPrompt(pending, preparing)) return 'deny'
     const content = [{ type: 'content' as const, content: { type: 'text' as const, text: detail } }]
     this.send({
       sessionUpdate: 'tool_call',
@@ -1403,7 +1643,7 @@ class AcpSession {
     let answer: PaidUseAnswer = 'deny'
     try {
       await this.outbox
-      if (!this.isCurrentPaidPrompt(pending, preparing)) {
+      if (!isCurrent()) {
         return 'deny'
       }
       const params: RequestPermissionRequest = {
@@ -1411,11 +1651,19 @@ class AcpSession {
         toolCall: { toolCallId, title, status: 'pending', content },
         options: paidUseOptions(canRemember),
       }
-      const response = await this.client.request('session/request_permission', params)
+      // The companion's cancellation also cancels the editor's prompt: a
+      // locally abandoned wait must not leave the editor's question open.
+      const request = this.client.request(
+        'session/request_permission',
+        params,
+        signal === undefined ? undefined : { cancellationSignal: signal },
+      )
+      const response = signal === undefined ? await request : await unlessAborted(request, signal)
       // A session let go while the editor was asked is billed for nothing.
-      answer = this.isCurrentPaidPrompt(pending, preparing)
-        ? paidUseAnswer(permissionResponse(response), canRemember)
-        : 'deny'
+      answer =
+        response !== undefined && isCurrent()
+          ? paidUseAnswer(permissionResponse(response), canRemember)
+          : 'deny'
     } catch (error: unknown) {
       this.deps.log.warn(
         `ACP session ${this.sessionId}: the paid-use question failed, denying: ${failureForLog(error)}`,
@@ -1427,6 +1675,15 @@ class AcpSession {
       status: answer === 'deny' ? 'failed' : 'completed',
     })
     return answer
+  }
+
+  public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
+    const pending = this.pending
+    const preparing = this.preparing
+    const { title, detail } = await paidUseQuestion(request)
+    return await this.askPaidQuestion(title, detail, canRemember, () =>
+      this.isCurrentPaidPrompt(pending, preparing),
+    )
   }
 
   public async startAccounts(): Promise<void> {
@@ -1574,7 +1831,7 @@ class AcpSession {
    */
   public async matchAdvertised(): Promise<void> {
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    await this.inModeOrder(() => this.session.setApprovalMode(approvalModeFor(this.mode, true)))
     const reported = await this.host.listModels(this.sessionId)
     const active = reported.find((model) => model.isActive)
     if (active !== undefined && this.models.some((model) => model.modelId === active.modelId)) {
@@ -1614,7 +1871,7 @@ class AcpSession {
    */
   public async restoreChoice(modelId: string, effort: EffortLevel): Promise<void> {
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    await this.inModeOrder(() => this.session.setApprovalMode(approvalModeFor(this.mode, true)))
     this.ensureHeld()
     // Muse resume needs an explicit selection; Model API's loaded model is
     // authoritative and an unchanged selection must not run switch hooks.
@@ -1652,8 +1909,10 @@ class AcpSession {
       throw RequestError.invalidParams(undefined, modeId)
     }
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(mode, true))
-    this.mode = mode
+    await this.inModeOrder(async () => {
+      await this.session.setApprovalMode(approvalModeFor(mode, true))
+      this.mode = mode
+    })
     // The set took: tell the editor, which otherwise keeps showing the old
     // mode (it learns it only from new/load responses and this notice).
     this.send({ sessionUpdate: 'current_mode_update', currentModeId: mode })
@@ -1763,7 +2022,10 @@ class AcpSession {
     })
   }
 
-  public async prompt(blocks: readonly ContentBlock[]): Promise<StopReason> {
+  public async prompt(
+    blocks: readonly ContentBlock[],
+    onAccepted?: () => void,
+  ): Promise<StopReason> {
     this.ensureHeld()
     if (this.deps.resources !== undefined) {
       const update = await acpResourceCommand(blocks, this.deps.resources)
@@ -1858,11 +2120,34 @@ class AcpSession {
     this.preparing = preparing
     let parsed: Awaited<ReturnType<typeof promptParts>>
     let isCompact: boolean
+    let isPlayback: boolean
     let isUsage: boolean
     let lease: Awaited<ReturnType<AcpQuestionRegistry['peekQueued']>>
     let local: Awaited<ReturnType<typeof acpPlaybook>>
     try {
       if (await this.mediaCommand(blocks, preparing.abort.signal)) {
+        await this.announceCommands()
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
+      // `/playback` with anything beside it (D203): answered as usage from
+      // the raw text blocks, before `promptParts()` converts any block. The
+      // joined text is exactly what `promptParts()` decides on below, so the
+      // answer matches its refusal — but no attachment is resolved for it:
+      // a memory-only playback must never read a file it arrived with.
+      if (
+        blocks.length !== 1 &&
+        parsePlaybackPrompt(
+          slashCommandText(
+            blocks
+              .flatMap((block) => (block.type === 'text' ? [block.text] : []))
+              .join(PART_SEPARATOR),
+          ),
+        ) !== undefined
+      ) {
+        return await this.answerPlaybackUsage(preparing)
+      }
+      if (await this.uploadsCommand(blocks, preparing.abort.signal)) {
         await this.announceCommands()
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
@@ -1915,14 +2200,14 @@ class AcpSession {
           this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
           await this.outbox
           return 'end_turn'
-        } catch {
+        } catch (error: unknown) {
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
           if ('error' in preparing) throw preparing.error
           this.send({
             sessionUpdate: 'agent_message_chunk',
             content: {
               type: 'text',
-              text: fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }),
+              text: estimateFailureText(error),
             },
           })
           await this.outbox
@@ -1961,6 +2246,20 @@ class AcpSession {
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
       }
+      // `/playback` (D203): a memory-only turn, recognised on the command
+      // text as every local command is. With anything after it, or any
+      // other block or part beside it (an image, a resource, more text),
+      // usage instead: a playback takes no arguments, and nothing it came
+      // with may run as an ordinary turn with tools.
+      const playbackCommand = parsePlaybackPrompt(typed)
+      if (
+        playbackCommand?.kind === 'usage' ||
+        (playbackCommand !== undefined &&
+          (blocks.length !== 1 || parsed.parts.length !== 1 || part?.type !== 'text'))
+      ) {
+        return await this.answerPlaybackUsage(preparing)
+      }
+      isPlayback = playbackCommand?.kind === 'run'
       local = await acpPlaybook(
         blocks,
         () => this.deps.playbookFor?.(this.cwd, this.sessionId),
@@ -2047,7 +2346,7 @@ class AcpSession {
         return 'end_turn'
       }
       isUsage = await this.usageReply(blocks, preparing)
-      if (!isUsage && !isCompact && local === undefined)
+      if (!isUsage && !isCompact && !isPlayback && local === undefined)
         lease = await this.questionRegistry?.peekQueued()
     } catch (error: unknown) {
       // Peeking is the try's last step, so no answer lease is held here.
@@ -2106,19 +2405,25 @@ class AcpSession {
         const outcome = await this.session.compact()
         this.finishCompaction(outcome.status)
       } else {
-        const mediaQueued = [...this.attachments]
+        // No answer lease is peeked for a playback: a queued answer stays
+        // queued. No media rides one either: it answers from memory only.
+        // The sandbox note rides an ordinary turn's tail only (F91), as on
+        // the panel: a playback carries its own text alone.
+        const mediaQueued = isPlayback ? [] : [...this.attachments]
         const sandboxNote = this.sandboxModelNote()
-        const starting = this.session.sendTurn(
-          [
-            ...(pending.answerLease?.parts ?? []),
-            ...this.withSkill([
-              ...parsed.parts,
-              ...mediaQueued.map((attachment) => attachment.part),
-            ]),
-            ...sandboxNote,
-          ],
-          parsed.displayText,
-        )
+        const starting = isPlayback
+          ? this.startPlaybackTurn()
+          : this.session.sendTurn(
+              [
+                ...(pending.answerLease?.parts ?? []),
+                ...this.withSkill([
+                  ...parsed.parts,
+                  ...mediaQueued.map((attachment) => attachment.part),
+                ]),
+                ...sandboxNote,
+              ],
+              parsed.displayText,
+            )
         this.starting = starting
         const submission = await starting
         this.attachments.splice(0, mediaQueued.length)
@@ -2130,8 +2435,8 @@ class AcpSession {
               ),
             )
           })
-          .catch((error: unknown) => {
-            this.deps.log.warn(`ACP media cleanup: ${failureForLog(error)}`)
+          .catch(() => {
+            this.deps.log.warn('ACP media cleanup: cleanup_failed')
           })
         if (submission.userMessageId !== undefined) pending.userMessageId = submission.userMessageId
         const isAccepted =
@@ -2141,6 +2446,7 @@ class AcpSession {
         if (isAccepted && sandboxNote.length > 0) {
           this.hasToldModelSandboxCannotStart = true
         }
+        if (isAccepted) onAccepted?.()
         // Decide before noting the turn: a turn that already finished settles
         // the prompt there, which must not release the answers it delivered.
         if (
@@ -2155,7 +2461,9 @@ class AcpSession {
           this.commitAnswers(pending)
         }
         this.noteTurnId(submission.turnId, submission.disposition)
-        if (!isAccepted) throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
+        if (!isAccepted) {
+          throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
+        }
       }
     } catch (error: unknown) {
       await this.releaseAnswers(pending)
@@ -2168,6 +2476,12 @@ class AcpSession {
         }
         return outcome.reason
       }
+      // M105 lane V R4 (RVCM1054C P3): no codec branch here. The real
+      // Model API session never rejects sendTurn with a codec refusal:
+      // submitTurn starts the turn detached and resolves, and the refusal
+      // fails the turn as turnCompleted with the sentence as reason
+      // (ModelApiHost.ts: reason = describe(error)), settled above at
+      // settle. A raw error here keeps the SDK's shape unchanged.
       throw error
     } finally {
       this.starting = undefined
@@ -2259,6 +2573,9 @@ class AcpSession {
       return
     }
     this.isDisposed = true
+    this.dictationStop.abort()
+    await Promise.all([...this.dictationPages].map((page) => page.close()))
+    this.dictationPages.clear()
     this.legalStop?.abort()
     const releasingAnswers = this.releaseAnswers()
     this.questions?.dispose()
@@ -2314,6 +2631,16 @@ class AcpSession {
         .splice(0)
         .flatMap((attachment) => (attachment.dispose === undefined ? [] : [attachment.dispose()])),
     )
+    // The registry lets go of what this session attached (RVMEDIAV 7).
+    if (this.media === undefined) return
+    let port: AcpMediaPort
+    try {
+      port = await this.media
+    } catch {
+      // A port that never loaded registered nothing.
+      return
+    }
+    port.release()
   }
 }
 

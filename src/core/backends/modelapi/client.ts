@@ -36,6 +36,7 @@ export {
   type ResponseObservation,
 } from './transport'
 import type { ProviderClient as TransportProviderClient } from './providerClient'
+import type { ContextModel } from '../../context/overflow'
 import type { PlanUsageRow } from '../../../shared/usage'
 import type { ModelResolver } from './modelPolicy'
 import {
@@ -97,6 +98,7 @@ export type ProviderClient = Pick<
     | 'readServiceStatus'
     | 'withScheduleAuthority'
     | 'requestFile'
+    | 'requestTranscription'
   >
 > & {
   readonly providerId?: ModelApiClient['providerId']
@@ -106,8 +108,19 @@ export type ProviderClient = Pick<
   readonly readServiceStatus?: ModelApiClient['readServiceStatus']
   readonly withScheduleAuthority?: (run: () => UnattendedRun | undefined) => ProviderClient
   readonly provider?: TransportProviderClient['provider']
+  /** The Files transport rides along only when the wrapped client carries it. */
+  readonly requestFile?: ModelApiClient['requestFile']
+  /** So does the batch transcription POST (U18): only Meta's own client carries it. */
+  readonly requestTranscription?: ModelApiClient['requestTranscription']
   readonly models?: ModelResolver
   readonly modelContextLimit?: (model: string) => number | undefined
+  /**
+   * C-M95-4 R3: the registry's live window for a configured model, read
+   * synchronously from its last listing for compaction sizing. Undefined
+   * when the registry never listed the model (the previous fallback
+   * stands) or its window is unknown (the request refuses instead).
+   */
+  readonly peekContextModel?: (model: string) => ContextModel | undefined
   readonly isPlanModel?: (model: string) => boolean
   readonly readPlanUsage?: () => readonly PlanUsageRow[]
 }
@@ -335,6 +348,13 @@ export class ModelApiClient implements TransportProviderClient {
     ...args: Parameters<RequestTransport['requestFile']>
   ): Promise<Response> {
     return await this.transport.requestFile(...args)
+  }
+
+  /** U18's batch transcription POST on this client's endpoint and key (D85.5). */
+  public async requestTranscription(
+    ...args: Parameters<RequestTransport['requestTranscription']>
+  ): Promise<Response> {
+    return await this.transport.requestTranscription(...args)
   }
 
   /** The wait before retry number `attempt` (0-based): the same backoff and jitter as a request's. */

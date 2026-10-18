@@ -1,5 +1,5 @@
 // Schedule paid consent until M115 Lane U wires it (MSM58M69, PLAN.md
-// D140). Only the production refusal a person can reach today is tested:
+// D204). Only the production refusal a person can reach today is tested:
 // `ScheduleSurface` refuses a paid V2 create/update unless the trusted
 // caller carries `scheduledPrompts` and a budget at least the draft's cap
 // (the panel's caller carries neither, `src/runtime/schedules/runtime.ts`).
@@ -79,7 +79,7 @@ async function createOnSurface(
   )
 }
 
-describe('the production surface refuses a paid V2 draft without caller budget (M58/D140)', () => {
+describe('the production surface refuses a paid V2 draft without caller budget (M58/D204)', () => {
   // The panel's caller, word for word (`ScheduleRuntime.message`).
   const panelCaller: ScheduleCallerContext = {
     source: 'interactive',

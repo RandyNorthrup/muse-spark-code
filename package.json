@@ -924,6 +924,29 @@
           "description": "%config.modelApiHooks.description%",
           "scope": "machine"
         },
+        "museSpark.hooksMaxStopContinuations": {
+          "type": "number",
+          "default": 8,
+          "scope": "machine",
+          "description": "%config.hooksMaxStopContinuations.description%",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "museSpark.hooksMaxRunningCommands": {
+          "type": "number",
+          "default": 0,
+          "scope": "machine",
+          "description": "%config.hooksMaxRunningCommands.description%",
+          "minimum": 0
+        },
+        "museSpark.subagentMaxConcurrent": {
+          "type": "number",
+          "default": 8,
+          "scope": "machine",
+          "description": "%config.subagentMaxConcurrent.description%",
+          "minimum": 1,
+          "maximum": 64
+        },
         "museSpark.modelApiShellKeepsDirectory": {
           "type": "boolean",
           "default": true,
@@ -1631,6 +1654,13 @@
           "description": "%config.mediaAudioAction.description%",
           "scope": "machine"
         },
+        "museSpark.mediaConverterPath": {
+          "type": "string",
+          "default": "",
+          "maxLength": 4096,
+          "description": "%config.mediaConverterPath.description%",
+          "scope": "machine"
+        },
         "museSpark.accountSwap": {
           "type": "boolean",
           "default": true,
@@ -1720,6 +1750,12 @@
           "description": "%config.estimator.priceLookup.description%",
           "scope": "machine",
           "deprecationMessage": "%config.estimator.priceLookup.description%"
+        },
+        "museSpark.linuxDictationModel": {
+          "type": "boolean",
+          "default": true,
+          "scope": "machine",
+          "description": "%config.linuxDictationModel.description%"
         }
       }
     },
@@ -1865,7 +1901,7 @@
   "devDependencies": {
     "@agentclientprotocol/sdk": "1.7.0",
     "@eslint/js": "10.0.1",
-    "@muse-code/sdk": "1.4.4",
+    "@muse-code/sdk": "1.4.10",
     "@napi-rs/keyring": "2.1.0",
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "7.0.1",
@@ -1904,6 +1940,7 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.1",
     "vitest": "5.0.3",
+    "yaml": "2.9.1",
     "zod": "4.6.5"
   },
   "overrides": {

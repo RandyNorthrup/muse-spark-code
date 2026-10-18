@@ -2,6 +2,7 @@ import { PAID_USE_REGISTRY } from './paid'
 // HELPREF: reviewed feature relationships. The generator validates every id
 // against the manifest and reuses its translated text and the palette's tips.
 import { COMMAND_IDS, type SETTING_DEFAULTS, PROMPT_COMMAND_IDS, UI_TEXT } from './constants'
+import { COMPANION_VOICE_RELEASE } from './companionVoice'
 import type { UiText } from './l10n/en'
 
 type PlainReferenceText =
@@ -23,16 +24,19 @@ export type ReferenceText =
     }
 
 // Conditional descriptions must opt into a typed field, never a content heuristic.
+// The other-CI paragraph explains the launcher's per-system states (M80 R5):
+// the condition names the system dimension the launcher branches on.
 const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
+  referenceCiOther: 'system',
   referenceScreenRecording: 'nativeRecorder=absent',
   referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
   resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold&memoryHeadroom=available',
   resourceMemoryMinFreeGiBDescription: 'memoryHeadroom=available',
-  providerOpenRouterServices: 'openRouterServices=absent',
+  providerOpenRouterServices: 'provider=openrouter',
   privacyNoRetentionDetail: 'provider=openrouter&privacy=zdr',
   referenceOutputCapMinimum: 'outputMinimum=known',
   referenceSandbox: 'platform=win32&shellSandbox',
@@ -93,6 +97,9 @@ const SETTING_CONDITIONS: Readonly<
   modelApiStrictTools: 'conversationStart&tools.strict',
   modelApiParallelReads: 'conversationStart',
   webSearchMaxPerRequest: 'conversationStart&hosted.webSearch',
+  hooksMaxStopContinuations: 'hooks',
+  hooksMaxRunningCommands: 'hooks',
+  subagentMaxConcurrent: 'sessionBoard&subagents',
   showWhatsNewOnUpdate: 'releaseHighlights',
   modelApiPermissionProfile: 'permissionProfile',
   tabLanguages: 'language',
@@ -333,6 +340,13 @@ export function featureCatalog(): readonly Feature[] {
         'connectChatGpt',
         'connectCopilot',
       ],
+      // OpenRouter Connect is composed with the pinned exchange transport;
+      // local callbacks need no paste and remote/ACP terminal flows paste an
+      // authorization code. Cancellation reaches both exchange and usage transport;
+      // both usage surfaces discard missing/changed/failed key observations.
+      // Panel usage reads only on open, Save and Refresh, sharing pending reads.
+      // Terminal replacement asks first and preserves the previous credential on
+      // cancellation; exact usage decimals and discarded-key removal notices are shared.
       // Saved custom limits persist directly from Edit without a new test
       // while the connection is unchanged; pre-write failures retain the draft.
       // Edit and Change key share a full saved snapshot; unchanged routing,
@@ -360,7 +374,13 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'reportShowCommand' },
       { ui: 'reportSlashDescription' },
       ['showReport'],
-      ['reports.network', 'reports.keepHistory', 'reports.agentSources'],
+      [
+        'reports.network',
+        'reports.keepHistory',
+        'reports.agentSources',
+        'usageHistory',
+        'usageHistoryDays',
+      ],
       'report',
       ['museCode', 'modelApi'],
       false,
@@ -387,6 +407,17 @@ export function featureCatalog(): readonly Feature[] {
       ['usageHistory', 'usageHistoryDays'],
       'usage-and-cost',
       ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'uploads',
+      { ui: 'uploadsName' },
+      { ui: 'referenceUploadedFiles' },
+      ['deleteUploadedFiles'],
+      ['mediaUploadExpiryDays'],
+      'the-panel',
+      ['modelApi'],
       false,
       ['vscode', 'acp'],
     ),
@@ -480,19 +511,23 @@ export function featureCatalog(): readonly Feature[] {
       'paid-features',
       ['museCode'],
     ),
-    feature(
-      'attachments',
-      { ui: 'attachmentsLabel' },
-      { ui: 'referenceAttachments' },
-      ['attachScreenRecording', 'attachLatestScreenRecording', 'deleteUploadedFiles'],
-      [
-        'mediaMaxUploadMiB',
-        'mediaUploadExpiryDays',
-        'screenRecordingMaxSeconds',
-        'mediaAudioAction',
-      ],
-      'the-panel',
-    ),
+    {
+      ...feature(
+        'attachments',
+        { ui: 'attachmentsLabel' },
+        { ui: 'referenceAttachments' },
+        ['attachScreenRecording', 'attachLatestScreenRecording', 'deleteUploadedFiles'],
+        [
+          'mediaMaxUploadMiB',
+          'mediaUploadExpiryDays',
+          'screenRecordingMaxSeconds',
+          'mediaAudioAction',
+          'mediaConverterPath',
+        ],
+        'the-panel',
+      ),
+      details: [{ setting: 'mediaAudioAction' }],
+    },
     feature(
       'strict-tools',
       { setting: 'modelApiStrictTools' },
@@ -644,6 +679,19 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['acp'],
     ),
+    // The linked guide owns the per-system contract: Azure's measured bootstrap,
+    // 10-minute setup reserve/45-minute job and the reserved alias namespaces.
+    feature(
+      'ci-other-systems',
+      { ui: 'referenceCiOtherTitle' },
+      { ui: 'referenceCiOther' },
+      [],
+      [],
+      'other-ci-systems',
+      ['modelApi'],
+      false,
+      ['acp'],
+    ),
     feature(
       'web-fetch',
       { ui: 'referenceWebFetchTitle' },
@@ -691,12 +739,27 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'dictationLabel' },
       { ui: 'referenceDictation' },
       [],
-      [],
+      ['linuxDictationModel'],
       'voice-dictation',
       undefined,
       false,
       ['vscode'],
     ),
+    ...(COMPANION_VOICE_RELEASE.isReady
+      ? [
+          feature(
+            'companion-dictation',
+            { ui: 'companionVoiceTitle' },
+            { ui: 'companionVoiceReference' },
+            [],
+            [],
+            'voice-dictation',
+            undefined,
+            false,
+            ['acp'],
+          ),
+        ]
+      : []),
     feature(
       'chat',
       { ui: 'transcriptLabel' },
@@ -813,7 +876,13 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'hooksItem' },
       { ui: 'hooksItemDetail' },
       ['hooks', 'runSetupHooks', 'runHook', 'retryPluginHooks'],
-      ['modelApiHooks', 'hookHttpAllowedHosts', 'modelApiShellKeepsDirectory'],
+      [
+        'modelApiHooks',
+        'hookHttpAllowedHosts',
+        'modelApiShellKeepsDirectory',
+        'hooksMaxStopContinuations',
+        'hooksMaxRunningCommands',
+      ],
       'hooks',
     ),
     // M123P9: runtime checkout uses the same installed display language;
@@ -843,6 +912,17 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
     ),
     feature('review', { ui: 'groupReview' }, { tip: 'review' }, [], [], 'review'),
+    feature(
+      'playback',
+      { ui: 'playbackItem' },
+      { ui: 'playbackDetail' },
+      [],
+      [],
+      'playback',
+      undefined,
+      false,
+      ['vscode', 'acp'],
+    ),
     feature('plans', { ui: 'plansItem' }, { tip: 'plans' }, [], [], 'plans-as-files'),
     feature('goals', { ui: 'goalItem' }, { tip: 'goal' }, [], [], 'session-goals'),
     feature(
@@ -910,9 +990,9 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'paidVoiceName' },
       { ui: 'referenceVoice' },
       [],
-      ['dictationEngine', 'modelApiVoice'],
+      ['dictationEngine', 'modelApiVoice', 'modelApiSessionBudgetUsd', 'paidDailyBudgetUsd'],
       'voice-dictation',
-      ['museCode'],
+      ['museCode', 'modelApi'],
       true,
       ['vscode'],
     ),
@@ -960,7 +1040,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'agentsCommand' },
       { tip: 'paid:subagents' },
       [],
-      ['modelApiSubagents'],
+      ['modelApiSubagents', 'subagentMaxConcurrent'],
       'session-board-and-best-of-n',
       ['modelApi'],
       true,
@@ -1070,7 +1150,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'estimateTitle' },
       { ui: 'referenceEstimate' },
       ['estimate'],
-      ['estimator.optimize', 'estimator.priceLookup'],
+      ['estimator.optimize', 'estimator.priceLookup', 'reports.network'],
       'estimates',
       ['museCode', 'modelApi'],
       false,
@@ -1155,8 +1235,10 @@ const REFERENCE_DETAILS: Readonly<
     'pricePerMillion',
     'privacyNoRetentionDetail',
     'referenceOutputCapMinimum',
+    'localContextWindowHint',
   ],
-  estimator: ['estimateCliHelp'],
+  // The estimator also exposes the exclusive whole-plan check in ESTIMATE_OPTIONS.
+  estimator: ['estimateDiagnosticHelp', 'estimateCliHelp'],
   // Includes Muse Code's permission-rule exceptions, shared with localized settings.
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],

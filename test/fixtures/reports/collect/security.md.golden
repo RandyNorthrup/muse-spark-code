@@ -1,0 +1,97 @@
+# Security
+
+Scope: fixture-workspace
+
+Generated as of 2026-10-06T12:00:00+00:00
+
+Version: 0.14.2
+
+SHA-256: e656eb2e6f4323c7d2f80093d261b86e40cbc2131de273dc1642cdc8914bf801
+
+## Needs You
+
+| Name | Reason | Status | Sources |
+| --- | --- | --- | --- |
+| Q-M12 | Choose the target | Open | plan |
+| npm | Waiting for publication | Lagging | stores |
+| Quality | https://example.invalid/actions/runs/2 | Failed | github |
+
+## Vault
+
+| Name | Kind | Status | Reason | Sources |
+| --- | --- | --- | --- | --- |
+| state | unlocked | Available |  | security |
+| items | 2 | Available |  | security |
+| tier | osStore | Available |  | security |
+
+## Breakdown
+
+| Kind | Count | Status | Reason | Sources |
+| --- | --- | --- | --- | --- |
+| password | 1 | Available |  | security |
+| apiKey | 1 | Available |  | security |
+
+## Grants
+
+| Kind | Count | Status | Reason | Sources |
+| --- | --- | --- | --- | --- |
+| named/named | 1 | Available |  | security |
+
+## Usage
+
+| Kind | Outcome | Count | Status | Reason | Sources |
+| --- | --- | --- | --- | --- | --- |
+| ssh | locked | 1 | Available |  | security |
+| environment | succeeded | 1 | Available |  | security |
+
+## Denials
+
+| Kind | Outcome | Count | Status | Reason | Sources |
+| --- | --- | --- | --- | --- | --- |
+| environment | denied | 1 | Available |  | security |
+
+## Locks
+
+| Kind | Outcome | Count | Status | Reason | Sources |
+| --- | --- | --- | --- | --- | --- |
+| ssh | locked | 1 | Available |  | security |
+
+## Developer Audit
+
+| Name | Kind | Count | Status | Reason | Sources |
+| --- | --- | --- | --- | --- | --- |
+| enable | page | 1 | Available |  | security |
+| unlock | palette | 1 | Available |  | security |
+
+## Plan Format
+
+| Name | Count | Reason | Status | Sources |
+| --- | --- | --- | --- | --- |
+| plan-format-v1 | Unknown |  | Available | plan |
+
+## Sources
+
+| Name | Status | Reason | Observed At | Freshness |
+| --- | --- | --- | --- | --- |
+| accounts | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| agentUsage | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| certification | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| changelog | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| checkRuns | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| estimate | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| fleet | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| git | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| github | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| issues | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| keybindings | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| package | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| plan | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| playbook | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| questions | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| schedules | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| security | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| session | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| stores | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+| usage | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
+
+Renderer 1; ICU 77.1; locale en

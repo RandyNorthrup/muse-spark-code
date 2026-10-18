@@ -1,5 +1,6 @@
-import { constants, unlinkSync } from 'node:fs'
+import { constants, unlinkSync, openSync, closeSync, realpathSync } from 'node:fs'
 import { open } from 'node:fs/promises'
+import nodePath from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
@@ -8,6 +9,7 @@ import {
   handleIdentity,
   sameFile,
   identityOf,
+  handleIdentitySync,
   type FileIdentity,
 } from '../../fs/fileIdentity'
 import { vaultItemSchema, type VaultItem, type VaultItemMetadata } from '../../../shared/vault'
@@ -48,10 +50,81 @@ export interface VaultFileImportPort {
 export class VaultFileImporter {
   private isDisposed = false
   private readonly cancelledReceipts = new Set<string>()
+  private readonly canonicalHome: string
+  private readonly homeIdentity: FileIdentity
   constructor(
     private readonly vault: VaultFileImportPort,
     private readonly owner: MigrationOwnerPort,
-  ) {}
+    private readonly home: string,
+  ) {
+    this.canonicalHome = realpathSync(home)
+    this.homeIdentity = identityOf(lstatIdentitySync(home))
+  }
+
+  /**
+   * Bind every opened component to its canonical path, including on Windows
+   * where Node exposes no O_NOFOLLOW. The canonical name must remain inside
+   * the home and name the held native identity before any bytes are read.
+   * Retain the handles across awaits, and recheck them before source deletion.
+   */
+  private holdParents(path: string): {
+    assertPath: (leaf?: FileIdentity) => void
+    close: () => void
+  } {
+    if (!sameFile(this.homeIdentity, lstatIdentitySync(this.home)))
+      throw new VaultMigrationFault('conflict')
+    const relative = nodePath.relative(this.home, path)
+    if (relative.startsWith('..') || nodePath.isAbsolute(relative))
+      throw new VaultMigrationFault('invalid')
+    const home = this.canonicalHome
+    const parts = relative.split(nodePath.sep).slice(0, -1)
+    const held: { path: string; descriptor: number; identity: FileIdentity }[] = []
+    const key = (path: string) => {
+      const normalized = nodePath.resolve(path).replaceAll('\\', '/')
+      return process.platform === 'win32' ? normalized.toLowerCase() : normalized
+    }
+    const assertPath = (leaf?: FileIdentity) => {
+      for (const entry of held) {
+        const named = lstatIdentitySync(entry.path)
+        const final = realpathSync(entry.path)
+        const finalKey = key(final)
+        const homeKey = key(home)
+        if (
+          named.isSymbolicLink() ||
+          !named.isDirectory() ||
+          !sameFile(entry.identity, named) ||
+          !sameFile(entry.identity, lstatIdentitySync(final)) ||
+          (finalKey !== homeKey && !finalKey.startsWith(`${homeKey}/`))
+        )
+          throw new VaultMigrationFault('conflict')
+      }
+      if (leaf === undefined) return
+      const final = realpathSync(path)
+      if (!key(final).startsWith(`${key(home)}/`) || !sameFile(leaf, lstatIdentitySync(final)))
+        throw new VaultMigrationFault('conflict')
+    }
+    const close = () => {
+      for (const entry of held.splice(0)) closeSync(entry.descriptor)
+    }
+    try {
+      let component = this.home
+      for (const part of ['', ...parts]) {
+        component = nodePath.join(component, part)
+        const named = lstatIdentitySync(component)
+        if (named.isSymbolicLink() || !named.isDirectory()) throw new VaultMigrationFault('invalid')
+        const descriptor = openSync(component, constants.O_RDONLY | constants.O_NOFOLLOW)
+        // Cleanup owns the descriptor even if sampling its identity fails.
+        held.push({ path: component, descriptor, identity: named })
+        const identity = handleIdentitySync(descriptor)
+        if (!sameFile(named, identity)) throw new VaultMigrationFault('conflict')
+        assertPath()
+      }
+      return { assertPath, close }
+    } catch (error: unknown) {
+      close()
+      throw error
+    }
+  }
 
   private assertActive(lease: MigrationLease): void {
     if (this.isDisposed) throw new VaultMigrationFault('invalid')
@@ -60,6 +133,7 @@ export class VaultFileImporter {
 
   private async read(
     path: string,
+    assertPath: (leaf?: FileIdentity) => void,
   ): Promise<{ bytes: Buffer; identity: FileIdentity; size: bigint; mtimeNs: bigint }> {
     const before = await lstatIdentity(path)
     if (
@@ -74,6 +148,7 @@ export class VaultFileImporter {
     const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW)
     try {
       const held = await handleIdentity(file)
+      assertPath(held)
       if (
         !sameFile(before, held) ||
         !held.isFile() ||
@@ -90,6 +165,7 @@ export class VaultFileImporter {
       }
       const after = await handleIdentity(file)
       const named = await lstatIdentity(path)
+      assertPath(held)
       if (
         !sameFile(held, named) ||
         after.size !== held.size ||
@@ -117,11 +193,13 @@ export class VaultFileImporter {
     const selection = { ...file }
     return await this.owner.run(async (lease) => {
       let source: Buffer | undefined
+      let parents: ReturnType<VaultFileImporter['holdParents']> | undefined
       let items: readonly VaultItem[] = []
       try {
         this.assertActive(lease)
         assertUserAction()
-        const read = await this.read(selection.path)
+        parents = this.holdParents(selection.path)
+        const read = await this.read(selection.path, parents.assertPath)
         source = read.bytes
         this.assertActive(lease)
         const sourceDigest = createHash('sha256').update(source).digest('hex')
@@ -175,6 +253,7 @@ export class VaultFileImporter {
       } finally {
         for (const item of items) eraseItem(item)
         source?.fill(0)
+        parents?.close()
       }
     })
   }
@@ -201,10 +280,12 @@ export class VaultFileImporter {
         if (this.cancelledReceipts.has(receipt)) throw new VaultMigrationFault('invalid')
       }
       let source: Buffer | undefined
+      let parents: ReturnType<VaultFileImporter['holdParents']> | undefined
       try {
         assertReceipt()
         assertUserAction()
-        const read = await this.read(saved.path)
+        parents = this.holdParents(saved.path)
+        const read = await this.read(saved.path, parents.assertPath)
         source = read.bytes
         assertReceipt()
         if (
@@ -234,6 +315,7 @@ export class VaultFileImporter {
         )
           throw new VaultMigrationFault('conflict')
         assertReceipt()
+        parents.assertPath(read.identity)
         unlinkSync(saved.path)
         assertReceipt()
         await this.vault.forgetReceipt(receipt, () => {
@@ -244,6 +326,7 @@ export class VaultFileImporter {
         throw new VaultMigrationFault('storage')
       } finally {
         source?.fill(0)
+        parents?.close()
       }
     })
   }

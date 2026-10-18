@@ -1,0 +1,326 @@
+[
+  {
+    "drill": "transport-positive",
+    "exit": 1,
+    "seconds": 15.1,
+    "files": ["test/unit/openRouterComposition.test.ts"],
+    "failures": [
+      "× reads the captured key endpoint with bound auth, pinned DNS and all attribution headers 21ms",
+      "× keeps an unlimited key distinct from a zero-dollar limit 5ms",
+      "× refuses malformed, negative, missing and undocumented usage without echoing service text 12ms",
+      "× supplies Connect and key-usage ports through the production lazy factory 41ms",
+      "× reports usage through the stored key and refuses an unbound ACP sign-in 8ms",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > reads the captured key endpoint with bound auth, pinned DNS and all attribution headers",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > keeps an unlimited key distinct from a zero-dollar limit",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > refuses malformed, negative, missing and undocumented usage without echoing service text",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > supplies Connect and key-usage ports through the production lazy factory",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > reports usage through the stored key and refuses an unbound ACP sign-in"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/core/providers/configured.ts",
+        "sha256": "5835d36fbea8200fcbddf4b6cf23cd94740d36ab3b705d24767e967842b5e5bb"
+      }
+    ]
+  },
+  {
+    "drill": "usage-shape",
+    "exit": 1,
+    "seconds": 18.6,
+    "files": ["test/unit/openRouterComposition.test.ts"],
+    "failures": [
+      "× keeps an unlimited key distinct from a zero-dollar limit 14ms",
+      "× refuses malformed, negative, missing and undocumented usage without echoing service text 10ms",
+      "× supplies Connect and key-usage ports through the production lazy factory 56ms",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > keeps an unlimited key distinct from a zero-dollar limit",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > refuses malformed, negative, missing and undocumented usage without echoing service text",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > supplies Connect and key-usage ports through the production lazy factory"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/core/providers/configured.ts",
+        "sha256": "5835d36fbea8200fcbddf4b6cf23cd94740d36ab3b705d24767e967842b5e5bb"
+      }
+    ]
+  },
+  {
+    "drill": "public-dns",
+    "exit": 1,
+    "seconds": 16.1,
+    "files": ["test/unit/openRouterComposition.test.ts"],
+    "failures": [
+      "× refuses edited origins, private DNS and credentials for another origin before sending 17ms",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > refuses edited origins, private DNS and credentials for another origin before sending"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/core/providers/configured.ts",
+        "sha256": "5835d36fbea8200fcbddf4b6cf23cd94740d36ab3b705d24767e967842b5e5bb"
+      }
+    ]
+  },
+  {
+    "drill": "pkce-input",
+    "exit": 1,
+    "seconds": 16.5,
+    "files": ["test/unit/openRouterComposition.test.ts"],
+    "failures": [
+      "× refuses empty codes and invalid verifiers before exchange dispatch 13ms",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > refuses empty codes and invalid verifiers before exchange dispatch"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/core/providers/configured.ts",
+        "sha256": "5835d36fbea8200fcbddf4b6cf23cd94740d36ab3b705d24767e967842b5e5bb"
+      }
+    ]
+  },
+  {
+    "drill": "exchange-positive",
+    "exit": 1,
+    "seconds": 19.8,
+    "files": ["test/unit/openRouterComposition.test.ts"],
+    "failures": [
+      "× exchanges the documented PKCE body once, without credentials or a guessed redirect field 143ms",
+      "× refuses empty codes and invalid verifiers before exchange dispatch 152ms",
+      "× refuses exchange failure, redirects and unknown key shapes without retries or disclosure 65ms",
+      "× stores a remote connection in the provider-key path and publishes only a URL and fixed status 6ms",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > exchanges the documented PKCE body once, without credentials or a guessed redirect field",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > refuses empty codes and invalid verifiers before exchange dispatch",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > refuses exchange failure, redirects and unknown key shapes without retries or disclosure",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > stores a remote connection in the provider-key path and publishes only a URL and fixed status"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/core/providers/configured.ts",
+        "sha256": "5835d36fbea8200fcbddf4b6cf23cd94740d36ab3b705d24767e967842b5e5bb"
+      }
+    ]
+  },
+  {
+    "drill": "exchange-shape",
+    "exit": 1,
+    "seconds": 20.6,
+    "files": ["test/unit/openRouterComposition.test.ts"],
+    "failures": [
+      "× refuses exchange failure, redirects and unknown key shapes without retries or disclosure 9ms",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > refuses exchange failure, redirects and unknown key shapes without retries or disclosure"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/core/providers/configured.ts",
+        "sha256": "5835d36fbea8200fcbddf4b6cf23cd94740d36ab3b705d24767e967842b5e5bb"
+      }
+    ]
+  },
+  {
+    "drill": "panel-read-and-cancel",
+    "exit": 1,
+    "seconds": 19.6,
+    "files": ["test/unit/openRouterComposition.test.ts"],
+    "failures": [
+      "× publishes key usage on Models panel open and refresh, with no credential in state 1018ms",
+      "× deduplicates Connect and cancels its listener immediately when the wizard is cancelled 1163ms",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > publishes key usage on Models panel open and refresh, with no credential in state",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > deduplicates Connect and cancels its listener immediately when the wizard is cancelled"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/host/models/modelsPanel.ts",
+        "sha256": "31c81f0abab888c722e6105084483ff2a47dd653cc71ff588ebd07b58c439edf"
+      }
+    ]
+  },
+  {
+    "drill": "terminal-storage-and-rotation",
+    "exit": 1,
+    "seconds": 15.4,
+    "files": ["test/unit/openRouterComposition.test.ts"],
+    "failures": [
+      "× parses only the documented terminal commands and refuses extra flags 9ms",
+      "× stores a remote connection in the provider-key path and publishes only a URL and fixed status 6ms",
+      "× reports usage through the stored key and refuses an unbound ACP sign-in 7ms",
+      "× does not overwrite a key rotated while browser authorization is pending 4ms",
+      "× adds an OpenRouter model using a connected key without asking for the key again and keeps ZDR 4ms",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > parses only the documented terminal commands and refuses extra flags",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > stores a remote connection in the provider-key path and publishes only a URL and fixed status",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > reports usage through the stored key and refuses an unbound ACP sign-in",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > does not overwrite a key rotated while browser authorization is pending",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > adds an OpenRouter model using a connected key without asking for the key again and keeps ZDR"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/runtime/openRouterCommands.ts",
+        "sha256": "c4db5aa0329528c0d68dcd665141934a57e6a09a022e31d53029e54b729017ad"
+      },
+      {
+        "file": "src/runtime/cliArgs.ts",
+        "sha256": "1a409a4e1b2ead1b774f7a2b52edce53ccf31a4808c19a0ad285971b9f0ce2cf"
+      },
+      {
+        "file": "src/runtime/providersCommands.ts",
+        "sha256": "1c9c622f3b49c1aba8359ab90c8f97cd773a7bdf8a55b77e754fdc6dd589b408"
+      }
+    ]
+  },
+  {
+    "drill": "loopback-retention-once-duplicates-refusal",
+    "exit": 1,
+    "seconds": 12.3,
+    "files": ["test/unit/providerOAuthLoopback.test.ts"],
+    "failures": [
+      "× retains a callback arriving before its waiter is claimed 48ms",
+      "× refuses a second waiter without replacing the first 1010ms",
+      "× refuses duplicate callback parameters 10ms",
+      "× does not echo a provider refusal or account detail 6ms",
+      "× rejects a provider refusal 10ms",
+      "FAIL  test/unit/providerOAuthLoopback.test.ts > the OAuth loopback server > retains a callback arriving before its waiter is claimed",
+      "FAIL  test/unit/providerOAuthLoopback.test.ts > the OAuth loopback server > refuses a second waiter without replacing the first",
+      "FAIL  test/unit/providerOAuthLoopback.test.ts > the OAuth loopback server > refuses duplicate callback parameters",
+      "FAIL  test/unit/providerOAuthLoopback.test.ts > the OAuth loopback server > does not echo a provider refusal or account detail",
+      "FAIL  test/unit/providerOAuthLoopback.test.ts > the OAuth loopback server > rejects a provider refusal"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/host/providers/oauthLoopback.ts",
+        "sha256": "3b536c5a7bf252329500974f8cbed27a8f25cfe5e7b873aed64e776b8c61a893"
+      }
+    ]
+  },
+  {
+    "drill": "usage-ui-and-connect-busy",
+    "exit": 1,
+    "seconds": 16.8,
+    "files": ["test/unit/UsageDialog.test.tsx", "test/unit/modelsPanelSections.test.tsx"],
+    "failures": [
+      "× enters the key outside the webview and connects OAuth 34ms",
+      "× shows OpenRouter total and weekly usage, an explicit unlimited limit and read failures 248ms",
+      "FAIL  test/unit/UsageDialog.test.tsx > UsageDialog > shows OpenRouter total and weekly usage, an explicit unlimited limit and read failures",
+      "FAIL  test/unit/modelsPanelSections.test.tsx > ProvidersSection > enters the key outside the webview and connects OAuth"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/webview/components/ProviderUsageSection.tsx",
+        "sha256": "6d87c4afb1666b9b6fcd4ba62955fb562dc4356096dd5c4ab29de76cc42a8a5e"
+      },
+      {
+        "file": "src/webview/models/Wizard.tsx",
+        "sha256": "025d6bce9a23148c4c7bac2c00e318be5f2ee72e8c7ddc1b38eaf70be72ef8d1"
+      }
+    ]
+  },
+  {
+    "drill": "browser-key-close-cancel",
+    "exit": 1,
+    "seconds": 23.6,
+    "files": ["test/unit/openRouterChrome.test.mjs"],
+    "failures": [
+      "× returns the authorized key once without pasting and shuts down the callback listener 712ms",
+      "× closes the listener when opening the browser fails 29ms",
+      "× closes a pending listener on panel cancellation without exchanging the code 5004ms",
+      "FAIL  test/unit/openRouterChrome.test.mjs > OpenRouter PKCE in real Chrome, with a fake authorization page > returns the authorized key once without pasting and shuts down the callback listener",
+      "FAIL  test/unit/openRouterChrome.test.mjs > OpenRouter PKCE in real Chrome, with a fake authorization page > closes the listener when opening the browser fails",
+      "FAIL  test/unit/openRouterChrome.test.mjs > OpenRouter PKCE in real Chrome, with a fake authorization page > closes a pending listener on panel cancellation without exchanging the code"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/host/providers/openRouter.ts",
+        "sha256": "9bf53af456e02995c5fcad2310fac61c608a9817f8a49a60058afc1d4eeae68c"
+      }
+    ]
+  },
+  {
+    "drill": "controller-merge",
+    "exit": 1,
+    "seconds": 40.4,
+    "files": ["test/unit/conversationController.test.ts"],
+    "failures": [
+      "× aggregates today by provider while withholding an unknown dollar total 9ms",
+      "FAIL  test/unit/conversationController.test.ts > ConversationController: account & usage (M8) > aggregates today by provider while withholding an unknown dollar total"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/host/conversation/conversationController.ts",
+        "sha256": "81af8ac0e8d5be0b23826cf89c16dc5ea5fbeb6ebb77bf00ecbd2c2323c542c2"
+      }
+    ]
+  },
+  {
+    "drill": "cancel-notice",
+    "exit": 1,
+    "files": ["test/unit/openRouterComposition.test.ts"],
+    "failures": [
+      "× deduplicates Connect and cancels its listener immediately when the wizard is cancelled 1167ms",
+      "× closes pending authorization on Back without discarding the draft or reporting failure 1162ms",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > deduplicates Connect and cancels its listener immediately when the wizard is cancelled",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > closes pending authorization on Back without discarding the draft or reporting failure"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/host/providers/providersHost.ts",
+        "sha256": "da9a4665ad09cd3b00f27d507c3ddcf8f815c5d74b9a6c35c2ecc14b2956f214"
+      }
+    ]
+  },
+  {
+    "drill": "back-cancels",
+    "exit": 1,
+    "files": ["test/unit/openRouterComposition.test.ts"],
+    "failures": [
+      "× closes pending authorization on Back without discarding the draft or reporting failure 1168ms",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > closes pending authorization on Back without discarding the draft or reporting failure"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/host/models/modelsPanel.ts",
+        "sha256": "6edf9a1432c0974c32df8d1548f7b7ac0b7ee80bd4212b6d14f6344ebb42dc2b"
+      }
+    ]
+  },
+  {
+    "drill": "factory-exchange-terminal-rotation",
+    "exit": 1,
+    "files": ["test/unit/openRouterComposition.test.ts"],
+    "failures": [
+      "× exchanges the documented PKCE body once, without credentials or a guessed redirect field 8ms",
+      "× refuses empty codes and invalid verifiers before exchange dispatch 8ms",
+      "× refuses exchange failure, redirects and unknown key shapes without retries or disclosure 4ms",
+      "× supplies Connect and key-usage ports through the production lazy factory 38ms",
+      "× stores a remote connection in the provider-key path and publishes only a URL and fixed status 6ms",
+      "× refuses terminal usage from a key rotated during the read without printing stale amounts 3ms",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > exchanges the documented PKCE body once, without credentials or a guessed redirect field",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > refuses empty codes and invalid verifiers before exchange dispatch",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > refuses exchange failure, redirects and unknown key shapes without retries or disclosure",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 production OpenRouter composition > supplies Connect and key-usage ports through the production lazy factory",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > stores a remote connection in the provider-key path and publishes only a URL and fixed status",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > refuses terminal usage from a key rotated during the read without printing stale amounts"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/core/providers/configured.ts",
+        "sha256": "5835d36fbea8200fcbddf4b6cf23cd94740d36ab3b705d24767e967842b5e5bb"
+      },
+      {
+        "file": "src/runtime/openRouterCommands.ts",
+        "sha256": "2c9592f7b00b7d0b3af9092dc2298996cc033019036e370b601deded3d029443"
+      }
+    ]
+  },
+  {
+    "drill": "first-run-key-target",
+    "exit": 1,
+    "seconds": 16.31,
+    "timing": "Vitest reported duration",
+    "files": ["test/unit/openRouterComposition.test.ts"],
+    "failures": [
+      "× connects on first run without a providers file and refuses a malformed file 28ms",
+      "FAIL  test/unit/openRouterComposition.test.ts > CM952 terminal and ACP routes > connects on first run without a providers file and refuses a malformed file"
+    ],
+    "restoredSha256": [
+      {
+        "file": "src/runtime/providersCommands.ts",
+        "sha256": "3aedd5f52f9e9ecbf72499613146be2f86acad181a410fd82833480a35e35700"
+      }
+    ]
+  }
+]

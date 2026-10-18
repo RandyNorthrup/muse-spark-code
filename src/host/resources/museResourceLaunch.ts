@@ -2,9 +2,9 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
-import { spawnMspConnection } from '@muse-code/sdk'
-import { spawnAccountMspConnection } from '../../core/backends/musecode/MuseCodeHost'
-import type { MuseCodeAccountHome } from '../../core/backends/musecode/accountHomes'
+// Type-only through the SDK's own module (see museCodeBackendManager.ts):
+// activation never value-imports the package root.
+import type { spawnMspConnection } from '@muse-code/sdk/dist/src/connection/spawn.js'
 import { posixQuoted } from '../../core/shellQuote'
 import { resourceWindowsJob } from '../../core/resources/admission'
 import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
@@ -264,38 +264,27 @@ async function spawnGovernedMuseConnection<T extends ResourceHandshake>(
   }
 }
 
-/** Ordinary and account-owned transports use the same containment boundary. */
-export function spawnResourceMuseConnection(
+/**
+ * Ordinary and account-owned transports use the same containment boundary.
+ * The SDK spawn paths come from the Muse Code backend's bundle
+ * (dist/museCode.js), so this module — and the activation bundle holding
+ * it — never carries the SDK or the host: the caller hands in the spawner
+ * its loaded bundle exports.
+ */
+export function spawnResourceConnection<T extends ResourceHandshake>(
+  spawnConnection: (launch: Parameters<typeof spawnMspConnection>[0]) => T,
   options: Parameters<typeof spawnMspConnection>[0],
   resource: ResourceLease | undefined,
   assembly: () => Promise<string | undefined>,
   systemRoot: string | undefined,
   assertCanRun: () => Promise<void>,
-): Promise<ReturnType<typeof spawnMspConnection>> {
+): Promise<T> {
   return spawnGovernedMuseConnection(
     options,
     resource,
     assembly,
     systemRoot,
     assertCanRun,
-    spawnMspConnection,
-  )
-}
-
-export function spawnResourceAccountConnection(
-  options: Parameters<typeof spawnMspConnection>[0],
-  accountHome: MuseCodeAccountHome,
-  resource: ResourceLease | undefined,
-  assembly: () => Promise<string | undefined>,
-  systemRoot: string | undefined,
-  assertCanRun: () => Promise<void>,
-): Promise<ReturnType<typeof spawnAccountMspConnection>> {
-  return spawnGovernedMuseConnection(
-    options,
-    resource,
-    assembly,
-    systemRoot,
-    assertCanRun,
-    (launch) => spawnAccountMspConnection(launch, accountHome),
+    spawnConnection,
   )
 }

@@ -270,6 +270,15 @@ let requiresOnDeviceRecognition = CommandLine.arguments.contains("--on-device")
 /// arguments, so the copy captures too.
 let isCaptureMode = CommandLine.arguments.contains("--capture")
 
+/// Companion audio is a private, bounded WAV. It never opens a host microphone.
+let inputWav: String? = {
+    let arguments = CommandLine.arguments
+    guard let flag = arguments.firstIndex(of: "--input-wav"), flag + 1 < arguments.count else {
+        return nil
+    }
+    return arguments[flag + 1]
+}()
+
 /// Capture mode's audio: signed 16-bit PCM, mono, 16,000 Hz. Intel and Apple
 /// silicon are both little-endian, so the samples as they lie in memory are
 /// already the little-endian bytes the host expects.
@@ -688,6 +697,52 @@ final class Capture: Listener {
     }
 }
 
+/// File-mode recognition shares Apple's engine and the helper's line protocol.
+final class FileRecognition: Listener {
+    private let recognizer: SFSpeechRecognizer
+    private let file: String
+    private let onFinished: () -> Void
+    private var task: SFSpeechRecognitionTask?
+    private var isFinished = false
+
+    init(recognizer: SFSpeechRecognizer, file: String, onFinished: @escaping () -> Void) {
+        self.recognizer = recognizer
+        self.file = file
+        self.onFinished = onFinished
+    }
+
+    func start() throws {
+        let request = SFSpeechURLRecognitionRequest(url: URL(fileURLWithPath: file))
+        request.shouldReportPartialResults = false
+        request.taskHint = .dictation
+        request.requiresOnDeviceRecognition = requiresOnDeviceRecognition
+        task = recognizer.recognitionTask(with: request) { [weak self] result, error in
+            DispatchQueue.main.async {
+                guard let owner = self, !owner.isFinished else { return }
+                if let result = result, result.isFinal {
+                    let text = result.bestTranscription.formattedString
+                    if !text.isEmpty { Output.send(["type": "text", "text": text]) }
+                    owner.finish()
+                } else if error != nil {
+                    // No provider text or private WAV path enters the host's log.
+                    Output.send(["type": "error", "reason": "File speech recognition failed."])
+                    owner.finish()
+                }
+            }
+        }
+        Output.send(["type": "listening"])
+    }
+
+    func stop() { task?.finish() }
+    func cancel() { isFinished = true; task?.cancel() }
+    private func finish() {
+        guard !isFinished else { return }
+        isFinished = true
+        Output.send(["type": "stopped"])
+        onFinished()
+    }
+}
+
 final class Session {
     /// Makes what a "start" begins, given what it calls once it has stopped.
     private let makeRecording: (@escaping () -> Void) -> Listener
@@ -787,6 +842,7 @@ func authorizationFailure() -> String? {
         // switch to turn on in that case, and the text says so.
         return "macOS did not allow speech recognition for \(appName), the app that started the dictation helper. If \(appName) is listed in System Settings > Privacy & Security > Speech Recognition, turn it on and try again. If it is not listed, macOS refused without asking, which it does for Visual Studio Code because Visual Studio Code does not declare speech recognition (microsoft/vscode#307364); dictation cannot work there until it does."
     }
+    if inputWav != nil { return nil }
     var isMicrophoneAllowed = false
     Output.trace("asking macOS for the microphone for \(appName)")
     AVCaptureDevice.requestAccess(for: .audio) { granted in
@@ -862,6 +918,14 @@ func startDictation() -> Session {
     }
     guard recognizer.isAvailable else {
         Output.fail("The speech recogniser is not available right now.")
+    }
+    if let file = inputWav {
+        let session = Session { onFinished in
+            FileRecognition(recognizer: recognizer, file: file, onFinished: onFinished)
+        }
+        Output.send(["type": "ready", "language": recognizer.locale.identifier,
+                     "recognizer": "Apple Speech (file)"])
+        return session
     }
     let chosenInput = chosenInputDevice()
     let session = Session { onFinished in

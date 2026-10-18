@@ -1,0 +1,54 @@
+{
+  "capturedAtUtc": "2026-10-11T17:17:39.934Z",
+  "id": "marketplace",
+  "lane": "CM1136",
+  "source": "marketplace-extensionquery",
+  "method": "POST",
+  "url": "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery?api-version=3.0-preview.1",
+  "httpStatus": 200,
+  "httpStatusText": "OK",
+  "contentType": "application/json; charset=utf-8; api-version=3.0-preview.1",
+  "contentEncodingOnWire": "identity (none requested)",
+  "elapsedMs": 225,
+  "body": {
+    "file": "response.body.json",
+    "bytes": 1023,
+    "sha256": "683bbd8cc19f9ccbf517d353084d20334e79154aedd9bfec33e46b8ca3d73126",
+    "bytesBeforeScrub": 1023,
+    "parsesAsJson": true,
+    "exceedsProduct2MiBBound": false
+  },
+  "tool": "node:https, Node v24.20.0 on win32 (capture.mjs sha256 397e8730135edc2bf22965af19d1aa14cb74b5157accfa757808d9991a2e40bb)",
+  "authenticationNeeded": false,
+  "credentialsSent": "none",
+  "scrubbed": {
+    "responseHeaders": "allowlist; values of kept headers scrubbed like the body",
+    "droppedHeaderNames": [
+      "access-control-expose-headers",
+      "activityid",
+      "connection",
+      "p3p",
+      "pragma",
+      "request-context",
+      "set-cookie",
+      "strict-transport-security",
+      "x-cache",
+      "x-content-type-options",
+      "x-msedge-ref",
+      "x-tfs-processid",
+      "x-tfs-session",
+      "x-vss-e2eid",
+      "x-vss-senderdeploymentid"
+    ],
+    "keptHeaderValueReplacements": 0,
+    "bodyEmailReplacements": 0,
+    "bodyTokenReplacements": 0,
+    "bodyTokenKinds": [],
+    "bodyJsonPathsChanged": [],
+    "markers": {
+      "email": "<email-redacted>",
+      "token": "<token-redacted>"
+    },
+    "otherwise": "byte-exact"
+  }
+}

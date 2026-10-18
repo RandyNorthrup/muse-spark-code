@@ -35,6 +35,12 @@
 //   dist/vault.js, which dist/extension.js requires on the first vault
 //   command. Only types and the loader (vaultPanelBundle.ts) stay at
 //   activation.
+// - the Muse Code backend (PR206: the host, its notification mapping and
+//   the SDK) is in dist/extension.js, or missing from dist/museCode.js,
+//   which the backend manager requires the first time that backend starts.
+//   Only types and the loader (museCodeBundle.ts) stay at activation; the
+//   governor's spawn glue (museResourceLaunch.ts) stays too and takes its
+//   spawn paths from the loaded bundle.
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
@@ -206,6 +212,8 @@ const LAZY_ONLY = [
   'promptCache.ts',
   // The built-in Reviewer's prompt and tool list (M70).
   'reviewer.ts',
+  // A playback's instructions and refusal (D203): the Model API backend's no-tools turn.
+  'playback.ts',
   'sessionBudget.ts',
   'subagentTools.ts',
   'toolHookPayload.ts',
@@ -715,6 +723,22 @@ for (const file of VAULT_ONLY) {
     problems.push(`${VAULT.output} no longer carries ${file}`)
   }
 }
+// RVMEDIAV 8 (M105): the window's attached-media registry, the attach port's
+// open hook and D85.7's contributor consent load with dist/mediaHost.js on
+// the first attach. Activation keeps only the registry's delegating holder
+// and the loader: never the entry, the registry's class (its duplicate-token
+// refusal is the marker) or the consent's question (its one reader).
+const MEDIA_HOST = { output: 'dist/mediaHost.js', metafile: 'dist/meta/mediaHost.json' }
+const mediaHost = inputsOf(MEDIA_HOST)
+if (activation.has('src/host/media/mediaHostEntry.ts'))
+  problems.push(`${BUNDLES.activation.output} carries src/host/media/mediaHostEntry.ts`)
+for (const file of ['src/core/media/attachedMedia.ts', 'src/core/media/contributorConsent.ts'])
+  if (!mediaHost.has(file)) problems.push(`${MEDIA_HOST.output} no longer carries ${file}`)
+const activationText = readFileSync(BUNDLES.activation.output, 'utf8')
+if (activationText.includes('Duplicate media path token'))
+  problems.push(`${BUNDLES.activation.output} carries the attached-media registry`)
+if (/\.contributorQuestion\b/u.test(activationText))
+  problems.push(`${BUNDLES.activation.output} carries the contributor consent`)
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',
@@ -799,6 +823,10 @@ for (const file of GIT_ONLY) {
 const MODEL_API_SESSIONS_ONLY = [
   'src/host/backend/fileSessionStore.ts',
   'src/host/backend/fileSessionStoreEntry.ts',
+  // PR226W1: the uploaded-files binding ships beside the store (ACTBUD017);
+  // activation builds the conversation port through the sessions loader.
+  'src/host/backend/uploadedFilesBinding.ts',
+  'src/core/media/uploadedFiles.ts',
 ]
 const modelApiSessions = inputsOf(MODEL_API_SESSIONS)
 for (const file of MODEL_API_SESSIONS_ONLY) {
@@ -1006,6 +1034,10 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
               input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
             ) &&
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
+            // C-M113-2: the session and usage inputs read M102's journal
+            // through its store, whose static record import carries the card.
+            // Reporting never prices; the bytes ride the journal machinery.
+            !(input === 'src/core/providers/priceCard.ts' && output === 'dist/reportInputs.js') &&
             !(
               output === 'dist/runtimeAccounts.js' &&
               ['accounts.ts', 'accountPolicy.ts', 'accountCredentialRecord.ts'].some(
@@ -1148,12 +1180,29 @@ const TEXT_BLOCKS = [
   {
     block: 'MODEL_API_MODEL_TEXT',
     sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
-    readers: [BUNDLES.modelApi.output, 'dist/mcpPool.js', 'dist/modelApiMcp.js'],
+    readers: [
+      BUNDLES.modelApi.output,
+      'dist/mcpPool.js',
+      'dist/modelApiMcp.js',
+      'dist/productionMedia.js',
+    ],
   },
   {
     block: 'CODE_INTEL_MODEL_TEXT',
     sentinels: ['codeIntelNoSymbolNamed', 'repoMapBudgetTooSmall'],
     readers: ['dist/codeIntel.js', BUNDLES.modelApi.output, 'dist/modelApiCodeIntel.js'],
+  },
+  // A picked text file's template (M54): the backends' bundles and the
+  // conversation carry it; activation reads it no longer (PR206).
+  {
+    block: 'TEXT_ATTACHMENT_MODEL_TEXT',
+    sentinels: ['attachedTextFile'],
+    readers: [
+      BUNDLES.modelApi.output,
+      'dist/museCode.js',
+      'dist/conversation.js',
+      'dist/runtimeEngine.js',
+    ],
   },
   {
     block: 'CHECKPOINT_MODEL_TEXT',
@@ -1176,6 +1225,14 @@ const TEXT_BLOCKS = [
     block: 'REVIEW_MODEL_TEXT',
     sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
     readers: [REVIEW.output, BUNDLES.modelApi.output],
+  },
+  // The playback turn's text (D203): the review bundle builds it for the
+  // panel, the Model API's built-in no-tools turn reads it, and the runtime
+  // engine's ACP agent (editors and headless runs) sends it.
+  {
+    block: 'PLAYBACK_MODEL_TEXT',
+    sentinels: ['playbackRole', 'playbackNoTools'],
+    readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/runtimeEngine.js'],
   },
   // M116 K's charter is read through the existing lazy skills bundle only.
   {
@@ -1415,6 +1472,8 @@ const deferredWebviewSources = [
   'src/webview/components/TeamCards.tsx',
   'src/core/prompts/promptSearch.ts',
   'src/shared/slashCommands.ts',
+  // Refusal validation loads with the boundary; it stays in the unchanged deferred aggregate.
+  'src/shared/estimateDiagnostic.ts',
 ]
 for (const source of deferredWebviewSources) {
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
@@ -1514,6 +1573,7 @@ const nodeMetafiles = readdirSync('dist/meta')
         'referencePage.json',
         'modelsWebview.json',
         'usageWebview.json',
+        'voiceCompanionWebview.json',
         'resourceSurface.json',
         'resourceHistory.json',
         'reportingPageWebview.json',

@@ -1,5 +1,6 @@
 import { spawnResourceProcess } from '../../resources/launcher'
-import { type Socket } from 'node:net'
+import { Socket } from 'node:net'
+import { type Duplex } from 'node:stream'
 import * as z from 'zod/mini'
 import { VAULT_APPROVAL_TTL_MS, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
 
@@ -24,7 +25,7 @@ export interface VaultProcessIdentity {
 }
 export interface VaultPeerVerifier {
   /** OS credentials and pinned process start/image identity; never a claimed token or pid. */
-  verify(socket: Socket): Promise<VaultProcessIdentity>
+  verify(socket: Duplex): Promise<VaultProcessIdentity>
 }
 /** Compile peer.c as a trusted shipped helper in W. fd 3 is the accepted OS socket. */
 export interface VaultSocketDescriptorPort {
@@ -38,7 +39,10 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
     private readonly processIdentity: (pid: number) => Promise<VaultProcessIdentity>,
     private readonly descriptors: VaultSocketDescriptorPort,
   ) {}
-  async verify(socket: Socket): Promise<VaultProcessIdentity> {
+  async verify(stream: Duplex): Promise<VaultProcessIdentity> {
+    // Only a kernel socket has peer credentials; a relayed stream never passes here.
+    if (!(stream instanceof Socket)) throw new Error(UI_TEXT.vault.noAccess)
+    const socket = stream
     const { child, stop } = await spawnResourceProcess(
       'contained',
       this.executable,
@@ -99,10 +103,14 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
     return identity
   }
 }
-/** P/W bind GetNamedPipeClientProcessId + the client's SID, start time and image. */
+/**
+ * The Windows pipe helper's relay (docs/design/vault-windows-pipe-helper.md)
+ * reports GetNamedPipeClientProcessId + the client's SID, start time and image
+ * with each accepted connection; inspect returns exactly that record.
+ */
 export interface WindowsVaultPipePort {
   inspect(
-    socket: Socket,
+    socket: Duplex,
   ): Promise<VaultProcessIdentity & { remote: boolean; ownerOnlyDacl: boolean }>
 }
 /** @unwired M109 Windows vault peer verifier */
@@ -111,7 +119,7 @@ export class WindowsVaultPeerVerifier implements VaultPeerVerifier {
     private readonly port: WindowsVaultPipePort,
     private readonly ownerSid: string,
   ) {}
-  async verify(socket: Socket): Promise<VaultProcessIdentity> {
+  async verify(socket: Duplex): Promise<VaultProcessIdentity> {
     const identity = pipeSchema.parse(await this.port.inspect(socket))
     if (identity.remote || !identity.ownerOnlyDacl || identity.userId !== this.ownerSid)
       throw new Error(UI_TEXT.vault.noAccess)

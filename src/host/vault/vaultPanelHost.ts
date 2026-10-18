@@ -12,11 +12,13 @@ import {
   vaultItemMetadataSchema,
 } from '../../shared/vault'
 import { UI_TEXT } from '../../shared/constants'
+import type { VaultImportReport } from '../../core/vault/broker/ports'
 
 /** C/B/P/M bind these operations to the real broker and single writer. No values cross the panel. */
 export interface VaultPanelService {
   snapshot(): Promise<unknown>
-  subscribe(changed: (event: unknown) => void): () => void
+  /** `failed` reports a watch that cannot be (re)opened, once per outage. */
+  subscribe(changed: (event: unknown) => void, failed: () => void): () => void
   unlock(authorize: () => void): Promise<void>
   lock(): Promise<void>
   /** Invoke authorize after all awaits, immediately before the physical commit. */
@@ -26,9 +28,18 @@ export interface VaultPanelService {
   grant(grant: VaultGrant, authorize: () => void): Promise<void>
   revoke(grantId: string): Promise<void>
   /** B consumes the answer and delivers any ticket privately to the waiting use route. */
-  answer(answer: VaultApprovalAnswer): Promise<void>
+  answer(answer: VaultApprovalAnswer, authorize: () => void): Promise<void>
   /** M imports only the selected path; never another application's private store. */
-  importFile(path: string, authorize: () => void): Promise<void>
+  importFile(path: string, authorize: () => void, signal: AbortSignal): Promise<VaultImportReport>
+  keepImport(receipt: string): Promise<void>
+  deleteImport(receipt: string, authorize: () => void, signal: AbortSignal): Promise<void>
+  /** Reset Vault: only for a lost vault (lead decision). */
+  resetBegin(): Promise<{ resetId: string; word: string }>
+  resetConfirm(resetId: string, word: string, authorize: () => void): Promise<void>
+  /** Set Up Vault: the one-time code as owned bytes; nothing is written before confirmSetup. */
+  setup(): Promise<{ setupId: string; code: Buffer }>
+  confirmSetup(setupId: string, authorize: () => void): Promise<void>
+  cancelSetup(setupId: string): Promise<void>
 }
 export interface VaultPanelHostDeps {
   readonly service: VaultPanelService
@@ -43,6 +54,15 @@ export interface VaultPanelHostDeps {
   readonly publish: (message: ReturnType<typeof vaultHostMessageSchema.parse>) => void
   readonly status: (isUnlocked: boolean) => void
   readonly showError: (message: string) => void
+  /** The per-item report (names only) and the person's Keep or Delete of the source. */
+  readonly importDone: (names: readonly string[]) => Promise<'keep' | 'delete'>
+  /**
+   * The host's own two steps: the warning with Continue, then the typed word.
+   * Resolves the typed text, or null when the person stops.
+   */
+  readonly confirmReset: (word: string, signal: AbortSignal) => Promise<string | null>
+  /** The host's own modal with Copy and I Saved It; true only for I Saved It. */
+  readonly showRecoveryCode: (code: string, signal: AbortSignal) => Promise<boolean>
 }
 
 function wipe(item: VaultItem): void {
@@ -58,74 +78,97 @@ export class VaultPanelHost {
   private lockRequested = false
   private readonly answered = new Set<string>()
   private cancellation = new AbortController()
+  // A receipt is bound to imported items, so ordinary metadata notifications
+  // cannot withdraw Keep/Delete. Lock, revocation and disposal still do.
+  private importAbort = new AbortController()
+  private importsInFlight = 0
   private state: VaultPanelState | undefined
   private queue = Promise.resolve()
   private readonly unsubscribe: () => void
 
   constructor(private readonly deps: VaultPanelHostDeps) {
-    this.unsubscribe = deps.service.subscribe((raw) => {
-      const parsed = vaultPanelChangeSchema.safeParse(raw)
-      if (!parsed.success || this.disposed) return
-      const event = parsed.data
-      // Approval cards never wait behind native editors: a held password
-      // box must not starve another requester's expiring card.
-      if (event.kind === 'approval') {
-        this.refreshNow()
-        return
-      }
-      // Metadata changes retire older native editors too: a draft finished
-      // after another window's change must not restore the older policy.
-      if (['locked', 'revoked', 'changed'].includes(event.kind)) {
-        if (
-          event.kind === 'locked' &&
-          this.state !== undefined &&
-          event.lockEpoch < this.state.status.lockEpoch
-        )
+    this.unsubscribe = deps.service.subscribe(
+      (raw) => {
+        const parsed = vaultPanelChangeSchema.safeParse(raw)
+        if (!parsed.success || this.disposed) return
+        const event = parsed.data
+        // Approval cards never wait behind native editors: a held password
+        // box must not starve another requester's expiring card.
+        if (event.kind === 'approval') {
+          this.refreshNow()
           return
-        this.generation += 1
-        this.cancellation.abort()
-        this.cancellation = new AbortController()
-        this.queue = Promise.resolve()
-        if (event.kind === 'locked') {
-          this.lockRequested = true
-          this.answered.clear()
-          if (this.state !== undefined) {
-            this.state = {
-              ...this.state,
-              status: {
-                ...this.state.status,
-                state: 'locked',
-                reason: 'locked',
-                lockEpoch: event.lockEpoch,
-              },
-              pending: [],
-            }
-            this.deps.publish(
-              vaultHostMessageSchema.parse({ type: 'vaultState', state: this.state }),
-            )
-          }
-          this.deps.status(false)
         }
-      }
-      void this.refresh()
-    })
+        // Metadata changes retire older native editors too: a draft finished
+        // after another window's change must not restore the older policy.
+        if (['locked', 'revoked', 'changed'].includes(event.kind)) {
+          if (
+            event.kind === 'locked' &&
+            this.state !== undefined &&
+            event.lockEpoch < this.state.status.lockEpoch
+          )
+            return
+          this.retire(event.kind !== 'changed')
+          if (event.kind === 'locked') this.showLocked(event.lockEpoch)
+        }
+        // The importing owner reloads after Keep/Delete. Starting another
+        // snapshot now would compete with its writer transaction.
+        if (event.kind === 'changed' && this.importsInFlight > 0) return
+        void this.refresh()
+      },
+      () => {
+        // The broker's event stream is down: say so once, never stay silent (F7).
+        this.reportError(this.generation)
+      },
+    )
   }
 
   /** Late completions after disposal report nothing: there is no window left. */
-  private shouldReport(generation: number): boolean {
-    return !this.disposed && generation === this.generation
+  private reportError(generation: number): void {
+    if (!this.disposed && generation === this.generation)
+      this.deps.showError(UI_TEXT.vault.operationFailed)
+  }
+
+  private showLocked(lockEpoch?: number): void {
+    this.lockRequested = true
+    this.answered.clear()
+    if (this.state !== undefined) {
+      this.state = {
+        ...this.state,
+        status: {
+          ...this.state.status,
+          state: 'locked',
+          reason: 'locked',
+          lockEpoch: lockEpoch ?? this.state.status.lockEpoch,
+        },
+        pending: [],
+      }
+      this.deps.publish(vaultHostMessageSchema.parse({ type: 'vaultState', state: this.state }))
+    }
+    this.deps.status(false)
   }
 
   /** Prompt publish outside the queue; the queued editor keeps its own generation. */
   private refreshNow(): void {
     const generation = this.generation
     void this.load(generation).catch(() => {
-      if (this.shouldReport(generation)) this.deps.showError(UI_TEXT.vault.operationFailed)
+      this.reportError(generation)
     })
   }
 
   private authorize(generation: number): void {
     if (this.disposed || generation !== this.generation) throw new Error(UI_TEXT.vault.useChanged)
+  }
+
+  /** One retirement path keeps Lock, revocation and disposal equivalent. */
+  private retire(isBarrier: boolean): void {
+    this.generation += 1
+    this.cancellation.abort()
+    this.cancellation = new AbortController()
+    if (isBarrier) {
+      this.importAbort.abort()
+      this.importAbort = new AbortController()
+    }
+    if (isBarrier || this.importsInFlight === 0) this.queue = Promise.resolve()
   }
 
   private enqueue(task: (generation: number) => Promise<void>): Promise<void> {
@@ -137,7 +180,7 @@ export class VaultPanelHost {
         this.authorize(generation)
         await task(generation)
       } catch {
-        if (this.shouldReport(generation)) this.deps.showError(UI_TEXT.vault.operationFailed)
+        this.reportError(generation)
       }
     })()
     return this.queue
@@ -174,27 +217,14 @@ export class VaultPanelHost {
   /** Break glass bypasses the queue; no password box or stalled snapshot may delay it. */
   async lock(): Promise<void> {
     if (this.disposed) return
-    this.generation += 1
-    this.cancellation.abort()
-    this.cancellation = new AbortController()
-    this.lockRequested = true
-    this.answered.clear()
+    this.retire(true)
     const generation = this.generation
-    this.queue = Promise.resolve()
-    if (this.state !== undefined) {
-      this.state = {
-        ...this.state,
-        status: { ...this.state.status, state: 'locked', reason: 'locked' },
-        pending: [],
-      }
-      this.deps.publish(vaultHostMessageSchema.parse({ type: 'vaultState', state: this.state }))
-    }
-    this.deps.status(false)
+    this.showLocked()
     try {
       await this.deps.service.lock()
       await this.refresh()
     } catch {
-      if (this.shouldReport(generation)) this.deps.showError(UI_TEXT.vault.operationFailed)
+      this.reportError(generation)
     }
   }
 
@@ -205,10 +235,7 @@ export class VaultPanelHost {
     if (message.type === 'vaultLock') return this.lock()
     // Revocation is also a barrier; pending edits cannot commit with older authority.
     if (message.type === 'vaultRevoke') {
-      this.generation += 1
-      this.cancellation.abort()
-      this.cancellation = new AbortController()
-      this.queue = Promise.resolve()
+      this.retire(true)
       return this.enqueue(async (generation) => {
         await this.deps.service.revoke(message.grantId)
         await this.load(generation)
@@ -216,6 +243,52 @@ export class VaultPanelHost {
     }
     return this.enqueue(async (generation) => {
       if (message.type === 'vaultReady') {
+        await this.load(generation)
+        return
+      }
+      if (message.type === 'vaultReset') {
+        const current = await this.load(generation)
+        if (current.status.reason !== 'vaultLost') throw new Error(UI_TEXT.vault.useChanged)
+        const challenge = await this.deps.service.resetBegin()
+        const typed = await this.deps.confirmReset(challenge.word, this.cancellation.signal)
+        if (typed !== null)
+          await this.deps.service.resetConfirm(challenge.resetId, typed, () => {
+            this.authorize(generation)
+          })
+        await this.load(this.generation)
+        return
+      }
+      if (message.type === 'vaultSetup') {
+        const current = await this.load(generation)
+        if (current.status.state !== 'uncreated') throw new Error(UI_TEXT.vault.setupExists)
+        const shown = await this.deps.service.setup()
+        try {
+          const isSaved = await this.deps.showRecoveryCode(
+            shown.code.toString('ascii'),
+            this.cancellation.signal,
+          )
+          if (isSaved) {
+            try {
+              this.authorize(generation)
+              await this.deps.service.confirmSetup(shown.setupId, () => {
+                this.authorize(generation)
+              })
+            } catch (error: unknown) {
+              // A refused confirmation never leaves this setup waiting out its
+              // window: it is withdrawn, so Set Up Vault can start again.
+              try {
+                await this.deps.service.cancelSetup(shown.setupId)
+              } catch {
+                /* Already created, expired or withdrawn: nothing is left to cancel. */
+              }
+              throw error
+            }
+          } else {
+            await this.deps.service.cancelSetup(shown.setupId)
+          }
+        } finally {
+          shown.code.fill(0)
+        }
         await this.load(generation)
         return
       }
@@ -304,7 +377,7 @@ export class VaultPanelHost {
             throw new Error(UI_TEXT.vault.useChanged)
           authorize()
           this.answered.add(message.answer.requestId)
-          await this.deps.service.answer(message.answer)
+          await this.deps.service.answer(message.answer, authorize)
           break
         }
         case 'vaultPublicKey': {
@@ -322,8 +395,31 @@ export class VaultPanelHost {
           ) {
             throw new Error(UI_TEXT.vault.useChanged)
           }
-          await this.deps.service.importFile(message.path, authorize)
-          break
+          const signal = this.importAbort.signal
+          const authorizeImport = () => {
+            if (this.disposed || signal.aborted || this.lockRequested)
+              throw new Error(UI_TEXT.vault.useChanged)
+          }
+          this.importsInFlight += 1
+          try {
+            const report = await this.deps.service.importFile(message.path, authorizeImport, signal)
+            authorizeImport()
+            const choice = await this.deps.importDone(
+              report.items.map((item) => `${item.name} (${item.kind})`),
+            )
+            authorizeImport()
+            if (choice === 'delete')
+              await this.deps.service.deleteImport(report.receipt, authorizeImport, signal)
+            else await this.deps.service.keepImport(report.receipt)
+            authorizeImport()
+            await this.load(this.generation)
+          } catch (error: unknown) {
+            if (generation !== this.generation && !signal.aborted) this.reportError(this.generation)
+            throw error
+          } finally {
+            this.importsInFlight -= 1
+          }
+          return
         }
       }
       await this.load(generation)
@@ -333,8 +429,7 @@ export class VaultPanelHost {
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
-    this.generation += 1
-    this.cancellation.abort()
+    this.retire(true)
     this.state = undefined
     this.answered.clear()
     this.unsubscribe()
