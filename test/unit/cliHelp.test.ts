@@ -100,7 +100,9 @@ describe('per-command help', () => {
     expect(text).toContain('--permission-mode plan|acceptEdits')
     expect(text).toContain('default plan')
     expect(text).toContain('--max-budget-usd <amount>')
-    expect(text).toContain('at most 20 USD')
+    // D121: the person's budget has no ceiling of ours, so the row names
+    // no invented maximum.
+    expect(text).not.toContain('at most 20 USD')
     expect(text).toContain('--timeout <seconds>')
     expect(text).toContain('default 1800')
     expect(text).toContain('--model <model>')

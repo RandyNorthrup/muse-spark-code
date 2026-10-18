@@ -7,11 +7,9 @@ import {
   EFFORT_LEVELS,
   type EffortLevel,
   THINKING_OFF_EFFORT,
-  EXEC_DEFAULT_MAX_REQUESTS,
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
   EXEC_DEFAULT_TIMEOUT_SECONDS,
-  EXEC_MAX_BUDGET_USD,
   EXEC_MAX_REQUESTS,
   EXEC_MAX_TIMEOUT_SECONDS,
   EXEC_MIN_TIMEOUT_SECONDS,
@@ -146,9 +144,8 @@ function budgetUnits(value: unknown): UsdAmount | undefined {
   const units =
     BigInt(whole) * BigInt(EXEC_USD_UNITS) + BigInt(fraction.padEnd(EXEC_USD_DECIMALS, '0'))
   const ZERO_UNITS = 0n
-  return units > ZERO_UNITS && units <= BigInt(EXEC_MAX_BUDGET_USD * EXEC_USD_UNITS)
-    ? Usd.fromUnits(units, EXEC_USD_DECIMALS).toAmount()
-    : undefined
+  // D121: the person's budget has no ceiling of ours; only zero refuses.
+  return units > ZERO_UNITS ? Usd.fromUnits(units, EXEC_USD_DECIMALS).toAmount() : undefined
 }
 
 function invalid(reason: string): { readonly ok: false; readonly reason: string } {
@@ -250,13 +247,13 @@ export function parseExec(
   // The six-decimal sentence is true only of the budget; a wrong timeout
   // or request count names its own option instead.
   if (timeout === undefined) return invalid(fill(UI_TEXT.execValueInvalid, { option: '--timeout' }))
-  const maxRequests = integer(
-    values['max-requests'],
-    EXEC_DEFAULT_MAX_REQUESTS,
-    1,
-    EXEC_MAX_REQUESTS,
-  )
-  if (maxRequests === undefined)
+  // No default: without `--max-requests` the run has no request limit. A set
+  // value stays within 1–EXEC_MAX_REQUESTS, like the budget grammar below.
+  const maxRequests =
+    values['max-requests'] === undefined
+      ? undefined
+      : integer(values['max-requests'], 0, 1, EXEC_MAX_REQUESTS)
+  if (maxRequests === undefined && values['max-requests'] !== undefined)
     return invalid(fill(UI_TEXT.execValueInvalid, { option: '--max-requests' }))
   // TOOLCAP: absent keeps the setting default; the floor is the readable one
   // (no 0-disables: one tool result can never end a conversation); the window

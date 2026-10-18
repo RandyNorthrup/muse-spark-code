@@ -4,7 +4,6 @@ import { randomUUID } from 'node:crypto'
 import { setTimeout as pause } from 'node:timers/promises'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
-import { MODEL_API_REQUEST_TIMEOUT_MS } from '../../shared/constants'
 import type {
   ConfirmedModelRequest,
   ModelApiClient,
@@ -250,10 +249,12 @@ class CopilotClient implements ProviderClient {
   private async tokens(
     input: string | vscode.LanguageModelChatMessage,
     cancellation: vscode.CancellationTokenSource,
-    deadline: number,
+    // No deadline of our own (owner 2026-10-16): the editor's cancellation
+    // ends it, else the tokenizer's answer. A named deadline still kills.
+    deadline?: number,
   ): Promise<number> {
     if (cancellation.token.isCancellationRequested) throw this.fail('cancelled')
-    if (Date.now() >= deadline) {
+    if (deadline !== undefined && Date.now() >= deadline) {
       cancellation.cancel()
       throw this.fail('request-failed')
     }
@@ -266,19 +267,22 @@ class CopilotClient implements ProviderClient {
     const listener = cancellation.token.onCancellationRequested(() => {
       completion.reject?.(this.fail('cancelled'))
     })
-    const timer = setTimeout(
-      () => {
-        completion.reject?.(this.fail('request-failed'))
-        cancellation.cancel()
-      },
-      Math.max(0, deadline - Date.now()),
-    )
+    const timer =
+      deadline === undefined
+        ? undefined
+        : setTimeout(
+            () => {
+              completion.reject?.(this.fail('request-failed'))
+              cancellation.cancel()
+            },
+            Math.max(0, deadline - Date.now()),
+          )
     try {
       return tokenCountSchema.parse(
         await Promise.race([this.model.countTokens(input, cancellation.token), stopped]),
       )
     } finally {
-      clearTimeout(timer)
+      if (timer !== undefined) clearTimeout(timer)
       listener.dispose()
     }
   }
@@ -287,12 +291,12 @@ class CopilotClient implements ProviderClient {
     cancellation: vscode.CancellationTokenSource,
   ): Promise<number> {
     this.check()
-    const deadline = Date.now() + MODEL_API_REQUEST_TIMEOUT_MS
     try {
       let count = 0
-      for (const message of this.messages(body))
-        count += await this.tokens(message, cancellation, deadline)
-      count += await this.tokens(JSON.stringify(body.tools), cancellation, deadline)
+      // No deadline of our own (owner 2026-10-16): the editor's
+      // cancellation ends the count, else the tokenizer's answer.
+      for (const message of this.messages(body)) count += await this.tokens(message, cancellation)
+      count += await this.tokens(JSON.stringify(body.tools), cancellation)
       return tokenCountSchema.parse(count)
     } catch (error) {
       if (error instanceof CopilotFailureError) throw error
@@ -312,11 +316,21 @@ class CopilotClient implements ProviderClient {
   public async waitBeforeRetry(ms: number, signal: AbortSignal): Promise<void> {
     await pause(ms, undefined, { signal })
   }
-  public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
+  public async countInputTokens(
+    body: Omit<CreateResponseBody, 'stream'>,
+    signal?: AbortSignal,
+  ): Promise<number> {
     const cancellation = this.api.cancellation()
+    // Stop ends a stalled tokenizer wait the same way it ends a stream:
+    // the turn signal cancels this locally created source (PR #214 review).
+    const abort = (): void => {
+      cancellation.cancel()
+    }
+    signal?.addEventListener('abort', abort, { once: true })
     try {
       return await this.countInput(body, cancellation)
     } finally {
+      signal?.removeEventListener('abort', abort)
       cancellation.cancel()
       cancellation.dispose()
     }
@@ -408,7 +422,8 @@ class CopilotClient implements ProviderClient {
         outputTokens = await this.tokens(
           assistant,
           cancellation,
-          Date.now() + MODEL_API_REQUEST_TIMEOUT_MS,
+          // No deadline of our own (owner 2026-10-16).
+          undefined,
         )
         yield event
         if (outputTokens > body.max_output_tokens) {

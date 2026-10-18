@@ -39,7 +39,7 @@ try {
     cpSync(file, path.join(workspace, file))
   }
   const scanner = createRequire(import.meta.url)(path.resolve('dist/legalScan.js'))
-  const problems = scanner.verifyLegalBuildRecords(workspace)
+  const problems = await scanner.verifyLegalBuildRecords(workspace)
   console.log(
     `legal build records: ${String(metafiles.length)} bundles, ${String(listed.size)} files, ${String(problems.length)} problems`,
   )

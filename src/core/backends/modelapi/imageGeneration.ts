@@ -18,13 +18,13 @@ import { Buffer } from 'node:buffer'
 import * as z from 'zod/mini'
 import {
   IMAGE_ASPECT_SIZES,
-  IMAGE_EDIT_MAX_SOURCES,
+  IMAGE_EDIT_SOURCE_MAX,
+  IMAGE_EDIT_SOURCE_MIN,
   IMAGE_EDIT_SOURCE_TYPES,
   IMAGE_EXTENSIONS,
   IMAGE_FILE_EXTENSION,
   IMAGE_OUTPUT_FORMAT,
   type ImageAspect,
-  IMAGE_PROMPT_MAX_CHARS,
   MAX_IMAGE_BYTES,
   MODEL_API_IMAGE_MODEL,
   MODEL_TEXT,
@@ -41,7 +41,15 @@ import type { FileReservation, ToolIo, ToolOutcome } from './tools'
 const DEFAULT_ASPECT: ImageAspect = 'square'
 const BYTES_PER_KIB = 1024
 
-const promptSchema = z.string().check(z.minLength(1), z.maxLength(IMAGE_PROMPT_MAX_CHARS))
+// D121: a prompt of any length parses — the removed 4000-character ceiling
+// was invented (Meta documents no prompt length at
+// dev.meta.ai/docs/image-generation: an over-long prompt is rejected with
+// 400, no length stated). The edit-item range is Meta's own
+// (dev.meta.ai/docs/api-reference/images/edit-image, read 2026-09-25: an
+// edit needs 1–10 items), so the schema enforces it here, before any source
+// is read or the paid-use question is asked. Only a blank prompt refuses
+// besides, as Meta rejects that too.
+const promptSchema = z.string().check(z.minLength(1))
 
 export const generateImageArgs = z.object({
   prompt: promptSchema,
@@ -51,7 +59,9 @@ export const generateImageArgs = z.object({
 
 export const editImageArgs = z.object({
   prompt: promptSchema,
-  images: z.array(z.string()).check(z.minLength(1), z.maxLength(IMAGE_EDIT_MAX_SOURCES)),
+  images: z
+    .array(z.string())
+    .check(z.minLength(IMAGE_EDIT_SOURCE_MIN), z.maxLength(IMAGE_EDIT_SOURCE_MAX)),
   path: z.string(),
   aspect: z.optional(z.enum(IMAGE_ASPECTS)),
 })

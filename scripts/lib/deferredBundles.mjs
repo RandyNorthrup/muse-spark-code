@@ -75,7 +75,7 @@ export const SCHEDULES_CORE = [
   'events/registry.ts',
   'events/signals.ts',
 ]
-export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
+export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts', 'repairAttempt.ts']
 
 export const FOREIGN_HOOKS_ONLY = [
   'foreignHooksEntry.ts',
@@ -707,12 +707,30 @@ export const ON_FIRST_USE = [
       'src/host/providers/copilotClient.ts',
     ],
   },
+  // ACTIVATIONROOM: the CLI-backed and workspace command flows (the MCP
+  // servers and hooks pickers, the skills flows, the worktree flows, the
+  // memory flow and the Plans picker), required on the first of those
+  // commands; activation keeps no command implementation.
+  {
+    output: 'dist/commands.js',
+    metafile: 'dist/meta/commands.json',
+    use: 'the first CLI-backed or workspace command',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/host/commands/commandsEntry.ts',
+      'src/host/commands/museConfigCommands.ts',
+      'src/host/commands/skillsCommands.ts',
+      'src/host/commands/worktreeCommands.ts',
+      'src/host/commands/memoryCommands.ts',
+      'src/host/commands/planCommands.ts',
+    ],
+  },
   // The report dialog (M93, PLAN.md D72), split out from the start, and the
   // Diagnostics command's report text (D14), loaded on that command's first run.
   {
     output: 'dist/report.js',
     metafile: 'dist/meta/report.json',
-    use: 'the first report dialog',
+    use: 'the first report dialog or Diagnostics command',
     files: [
       'src/host/support/reportEntry.ts',
       'src/host/conversation/reportProblemHandler.ts',
@@ -903,6 +921,10 @@ export function checkDeferredBundles(inputsOf) {
           source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageService.js'
         ) &&
         !(
+          source === 'src/core/providers/keyInspection.ts' &&
+          (bundle.output === 'dist/modelsPanel.js' || bundle.output === 'dist/runtimeAccounts.js')
+        ) &&
+        !(
           bundle.output === 'dist/runtimeAccounts.js' &&
           ['accounts.ts', 'accountPolicy.ts', 'accountCredentialRecord.ts'].some(
             (file) => source === `src/core/providers/${file}`,
@@ -1067,6 +1089,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/backends/modelapi/pluginHooksEntry.ts'), 'dist/pluginHooks.js'],
   [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
   [path.resolve('src/core/backends/modelapi/modelApiVerifyEntry.ts'), 'dist/modelApiVerify.js'],
+  [path.resolve('src/host/commands/commandsEntry.ts'), 'dist/commands.js'],
 ])
 /** @type {import('esbuild').Plugin} */
 export const deferredCohort = {
@@ -1095,7 +1118,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|webFetchEntry|commandsEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

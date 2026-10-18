@@ -1585,10 +1585,10 @@ class AcpSession {
       digest: request.digest,
       decision: 'deny',
     }
+    // No expiry of our own (owner 2026-10-16): the editor's answer or its
+    // loss ends the wait, never an invented kill.
     const isCurrent = () =>
-      this.isCurrentPaidPrompt(pending, preparing) &&
-      generation === this.vaultGeneration &&
-      Date.now() < request.expiresAt
+      this.isCurrentPaidPrompt(pending, preparing) && generation === this.vaultGeneration
     if (!isCurrent()) return deny
     const toolCallId = `vault:${request.id}`
     const content = [
@@ -1607,7 +1607,6 @@ class AcpSession {
     })
     const controller = new AbortController()
     this.vaultRequests.add(controller)
-    let timer: ReturnType<typeof setTimeout> | undefined
     let answer = deny
     try {
       await this.outbox
@@ -1619,12 +1618,6 @@ class AcpSession {
               resolve({ outcome: { outcome: 'cancelled' } })
             },
             { once: true },
-          )
-          timer = setTimeout(
-            () => {
-              controller.abort()
-            },
-            Math.max(1, request.expiresAt - Date.now()),
           )
         })
         const response = await Promise.race([
@@ -1644,7 +1637,6 @@ class AcpSession {
     } catch {
       /* A lost editor or malformed permission response is Deny, with no remote text logged. */
     } finally {
-      clearTimeout(timer)
       controller.abort()
       this.vaultRequests.delete(controller)
       this.send({

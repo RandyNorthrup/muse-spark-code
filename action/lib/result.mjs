@@ -93,7 +93,6 @@ export const PROHIBITED_UPDATE = /^(?:agent_(?:message|thought)_chunk|tool)/
 export const RAW_TOOL_FIELDS = Object.freeze(['rawInput', 'rawOutput', 'toolCallId'])
 const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/
 const USD_DECIMALS = 6
-const MAX_BUDGET_USD = '20'
 const MAX_REQUESTS = 500
 const MIN_TIMEOUT_SECONDS = 10
 const MAX_TIMEOUT_SECONDS = 21_600
@@ -122,14 +121,12 @@ const isCounter = (value) => Number.isSafeInteger(value) && value >= 0
 const isNullableCounter = (value) => value === null || isCounter(value)
 const isNullableText = (value) => value === null || typeof value === 'string'
 
-/** Canonical decimal USD; fixed micro-units are bigint throughout validation. */
+/** Canonical decimal USD; a person's amount is honored as given: exact bigint micro-units with no upper bound. */
 export function microUsd(value) {
   if (typeof value !== 'string' || !/^(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/.test(value)) return
   const [whole, fraction = ''] = value.split('.', 2)
   if (fraction.length > USD_DECIMALS) return
-  const units =
-    BigInt(whole) * 10n ** BigInt(USD_DECIMALS) + BigInt(fraction.padEnd(USD_DECIMALS, '0'))
-  return units <= BigInt(Number.MAX_SAFE_INTEGER) ? units : undefined
+  return BigInt(whole) * 10n ** BigInt(USD_DECIMALS) + BigInt(fraction.padEnd(USD_DECIMALS, '0'))
 }
 const isAmount = (value) => microUsd(value) !== undefined
 function isSumEqual(total, values) {
@@ -225,8 +222,7 @@ function isLastResponse(value) {
   )
 }
 
-const isCap = (value) =>
-  isAmount(value) && microUsd(value) > 0n && microUsd(value) <= microUsd(MAX_BUDGET_USD)
+const isCap = (value) => isAmount(value) && microUsd(value) > 0n
 
 function isLedger(value) {
   return (
@@ -331,12 +327,13 @@ function isBackendAccountingValid(value) {
       Object.entries(usage.paid).every(([key, total]) => total === (key.endsWith('Usd') ? '0' : 0))
     )
   }
+  // The request cap is the person's to set: without `max-requests` there is
+  // no limit, so a completed run may carry a null one.
   if (
     ledger === null ||
     usage.costUsd === null ||
     usage.requests === null ||
-    limits.budgetUsd === null ||
-    limits.maxRequests === null
+    limits.budgetUsd === null
   ) {
     return value.status !== 'completed'
   }

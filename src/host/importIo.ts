@@ -38,7 +38,6 @@ import {
   ATOMIC_TEMPORARY_SUFFIX,
   GIT_METADATA_OPTIONS,
   AGENT_IMPORT_GIT_NOT_REPOSITORY_EXIT,
-  GIT_TIMEOUT_MS,
   RULES_FILE_MAX_BYTES,
 } from '../shared/constants'
 import { canonicalPath, isMissingPath } from './canonicalPath'
@@ -48,8 +47,17 @@ import { withoutCredentials } from '../runtime/credentialVariables'
 
 const importGit = processGitProcess()
 
-/** Ignore metadata only: no workspace executable, inherited git override or configured monitor. */
-async function isImportIgnored(absolutePath: string, workspaceRoot: string): Promise<boolean> {
+/**
+ * Ignore metadata only: no workspace executable, inherited git override or
+ * configured monitor. `signal` ends a stalled probe's child (PR #214
+ * review): the probes name no deadline of their own, and the window
+ * closing must still reach the child.
+ */
+async function isImportIgnored(
+  absolutePath: string,
+  workspaceRoot: string,
+  signal?: AbortSignal,
+): Promise<boolean> {
   // Git uses the file's nearest repository, including a nested repository.
   // Missing target directories are walked up to their first existing parent.
   let cwd = path.dirname(absolutePath)
@@ -74,7 +82,7 @@ async function isImportIgnored(absolutePath: string, workspaceRoot: string): Pro
   const options = {
     cwd,
     env: { ...env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' },
-    timeoutMs: GIT_TIMEOUT_MS,
+    ...(signal !== undefined && { signal }),
   }
   try {
     await importGit([...GIT_METADATA_OPTIONS, 'rev-parse', '--is-inside-work-tree'], options)

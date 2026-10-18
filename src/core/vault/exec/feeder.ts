@@ -13,7 +13,8 @@ export interface VaultExecLease {
   readonly username: Uint8Array | null
   /** B closes the live channel on lock/revoke/connection loss. */
   readonly revoked: AbortSignal
-  readonly expiresAt: number
+  /** Null when no lifetime bounds the lease: single-use and ephemeral, never clocked. */
+  readonly expiresAt: number | null
   close(hasSucceeded: boolean): Promise<void>
 }
 /** T implements one independent stream per stdout/stderr, holding split matches until safe. */

@@ -105,7 +105,6 @@ import {
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
   FILE_REFUSAL_MODEL_TEXT,
-  GOAL_OBJECTIVE_MAX_CHARS,
   GOAL_STATUS,
   type GoalCommandVerb,
   HOOK_MAX_STOP_CONTINUATIONS,
@@ -117,19 +116,17 @@ import {
   HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
   MCP_ELICITATION_TIMEOUT_MS,
-  MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MEMORY_INDEX_FILE,
   type MemoryScope,
   MODEL_API_CLOSE_SETTLE_MS,
   MODEL_API_CONTEXT_BYTES_PER_TOKEN,
   MODEL_API_CONTINUATIONS_MAX,
   MODEL_API_CONTEXT_WINDOW,
-  HOOK_AGENT_MAX_STEPS,
+  MODEL_API_MAX_TOOL_ROUNDS,
+  MODEL_API_TEXT_BUDGET_TOKENS,
   MODEL_API_HOOK_PROVIDER,
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
-  MODEL_API_MAX_RETRIES,
-  MODEL_API_MAX_TOOL_ROUNDS,
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MODEL_PREFIX,
   MODEL_API_MODEL_TEXT,
@@ -162,7 +159,6 @@ import {
   SUBAGENT_CAPACITY,
   SUBAGENT_DEPTH,
   SUBAGENT_ID_PREFIX,
-  SUBAGENT_MAX_PER_CONVERSATION,
   SUBAGENT_RESULT_READY,
   SUBAGENT_RESULT_TEXT_MAX_CHARS,
   SUBAGENT_SUMMARY_MAX_CHARS,
@@ -177,7 +173,6 @@ import {
   TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
   USER_SHELL_ITEM_KIND,
-  USER_SHELL_TIMEOUT_MS,
   VERIFY_COMMAND_RULE_KEY,
   VERIFY_NOTE_MAX_CHARS,
   VERIFY_TOOLS,
@@ -322,7 +317,10 @@ import {
   type RetryNotice,
   type ResponseAttemptGuard,
 } from './client'
+import { canRetryWithinBudget } from './transport'
 import { isDefiniteRefusal, scrubRefusalLeak } from './providerRefusal'
+import { isPersonRetryCap } from '../../../shared/retryPolicy'
+import { UNBOUNDED_RETRIES, noRetryBudget } from './transport'
 import {
   applyGoalCommand,
   type GoalContext,
@@ -2308,9 +2306,13 @@ function textAttachmentBytes(parts: readonly TurnPart[]): number {
   return bytes
 }
 
-/** Reject an aggregate named-text payload before it can enter replay or an HTTP request. */
+/**
+ * Reject an aggregate named-text payload before it can enter replay or an
+ * HTTP request. Counted in tokens, estimated high like admission: what the
+ * provider's window is counted in.
+ */
 function textAttachmentBudgetError(bytes: number): Error | undefined {
-  return bytes > MAX_MODEL_API_TEXT_ATTACHMENT_BYTES
+  return Math.ceil(bytes / MODEL_API_CONTEXT_BYTES_PER_TOKEN) > MODEL_API_TEXT_BUDGET_TOKENS
     ? new Error(UI_TEXT.textFilesOverModelApiBudget)
     : undefined
 }
@@ -5816,7 +5818,12 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /** What a goal operation needs from the session (M45). */
   private goalContext(): GoalContext {
-    return { sessionId: this.sessionId, now: this.deps.now(), newId: this.deps.newId }
+    return {
+      sessionId: this.sessionId,
+      now: this.deps.now(),
+      newId: this.deps.newId,
+      contextTokens: contextModelFor(this.deps, this.modelId)?.contextTokens,
+    }
   }
 
   /**
@@ -6577,6 +6584,32 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
+   * Lane PR225W1: when the person's own cap — not a provider maximum —
+   * stops a whole-stream retry, the turn says so on the orchestrator's
+   * feed, so an orchestrated run can tell a cap stop from a provider
+   * refusal and assess whether to pause or move work.
+   */
+  private notifyRetryCap(
+    error: unknown,
+    signal: AbortSignal,
+    person: number | undefined,
+    allowed: number | undefined,
+  ): void {
+    if (
+      person !== undefined &&
+      error instanceof RetryableStreamError &&
+      !signal.aborted &&
+      isPersonRetryCap(person, allowed)
+    ) {
+      this.emit({
+        type: 'backendNotice',
+        level: 'warning',
+        text: fill(UI_TEXT.modelApiRetryCapReached, { count: person }),
+      })
+    }
+  }
+
+  /**
    * One model call: streams the reply into the transcript, returns the calls
    * to run. The HTTP retries inside each attempt and the whole-stream
    * retries share one budget (the review of PR #28), so a call never sends
@@ -6614,11 +6647,28 @@ export class ModelApiSession implements ScheduledAgentSession {
           await this.refreshSearchConsent(signal)
           continue
         }
+        // Lane RETRYLIMITS: the selected model's own retry limit (the
+        // provider's documented maximum, or the person's setting when set;
+        // unbounded when neither sets one, so the provider governs). A
+        // failure to resolve the model here (it can be the very failure
+        // being handled, before any send) must never mask the original
+        // error, so it rethrows that error instead (review RVRETRYLIMITS).
+        let client: ResolvedModel['client']
+        let allowed: number | undefined
+        try {
+          client = this.selectedModel().client
+          // Lane PR225W1: an aggregate client answers for the model that
+          // handled the request (a subscription route, not Meta).
+          allowed = client.maxRetries(this.modelId)
+        } catch {
+          throw error
+        }
         if (
           !hasRecoveredMedia &&
           !signal.aborted &&
           this.media !== undefined &&
-          budget.retriesUsed < MODEL_API_MAX_RETRIES &&
+          canRetryWithinBudget(budget, budget.retriesUsed) &&
+          budget.retriesUsed < (allowed ?? UNBOUNDED_RETRIES) &&
           (await this.media.recover(
             error,
             this.replay.map((entry) => entry.item),
@@ -6633,19 +6683,20 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (
           !(error instanceof RetryableStreamError) ||
           signal.aborted ||
-          budget.retriesUsed >= MODEL_API_MAX_RETRIES
+          !canRetryWithinBudget(budget, budget.retriesUsed) ||
+          budget.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
         ) {
+          this.notifyRetryCap(error, signal, client.personCap(), allowed)
           throw error
         }
         const attempt = budget.retriesUsed
         budget.retriesUsed += 1
-        const { client } = this.selectedModel()
         const delayMs = client.retryDelayMs(attempt)
         this.emit({
           type: 'turnRetry',
           turnId,
           attempt: attempt + 1,
-          maxAttempts: MODEL_API_MAX_RETRIES + 1,
+          maxAttempts: allowed === undefined ? undefined : allowed + 1,
           retryDelayMs: delayMs,
           reason: `${error.code}: ${error.message}`,
         })
@@ -6653,6 +6704,12 @@ export class ModelApiSession implements ScheduledAgentSession {
           `Model API stream ended with ${error.code}; sending the request again in ${String(delayMs)} ms`,
         )
         await client.waitBeforeRetry(delayMs, signal)
+        // Lane PR225W1: the person's limit is live — a change mid-wait (to
+        // 0 during a long wait) refuses the dispatch the check above had
+        // accepted, instead of sending one request past the new ceiling.
+        if (budget.retriesUsed > (client.maxRetries(this.modelId) ?? UNBOUNDED_RETRIES)) {
+          throw error
+        }
       }
     }
   }
@@ -6786,7 +6843,6 @@ export class ModelApiSession implements ScheduledAgentSession {
         type: 'turnRetry',
         turnId,
         attempt: notice.attempt,
-        maxAttempts: notice.maxAttempts,
         retryDelayMs: notice.delayMs,
         reason: notice.reason,
       })
@@ -9587,10 +9643,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     // parser would read as no objection. Reached only by a caller that
     // bypassed the gate; `runModelHandler` turns the throw into `failed`,
     // so the hook's own on-failure rule still decides. The take-or-refuse
-    // also holds across a racing second hook-model call. An agent hook
-    // reserves its maximum steps up front, so the caller's last call can
-    // only be spent by the wrap-up builder.
-    const slot = this.takeSideSlot(kind === 'agent' ? HOOK_AGENT_MAX_STEPS : 1)
+    // also holds across a racing second hook-model call. The reservation
+    // is one call like any side work (D121: an agent hook's read-only loop
+    // runs until the model stops calling tools), so the caller's last call
+    // can only be spent by the wrap-up builder.
+    const slot = this.takeSideSlot(1)
     if (slot === undefined) {
       throw new Error('the hook model call would take the reserved final request')
     }
@@ -10031,14 +10088,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       return {
         refusal: {
           outcome: subagentFailure('worktree isolation is unavailable on this backend'),
-          isRejected: false,
-        },
-      }
-    }
-    if (this.children.size >= SUBAGENT_MAX_PER_CONVERSATION) {
-      return {
-        refusal: {
-          outcome: subagentFailure('subagent limit reached for this conversation'),
           isRejected: false,
         },
       }
@@ -14052,10 +14101,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     const startedAt = this.deps.now()
     let result: ShellResult
     try {
+      // No deadline of its own: the user's command runs until it ends or
+      // the row's Stop ends it (owner 2026-10-16), saying so out loud.
       result = await this.deps.io.runShell(
         command,
         this.deps.workspaceRoot,
-        USER_SHELL_TIMEOUT_MS,
+        undefined,
         stop.signal,
         undefined,
         this.userShellAdmission(stop),
@@ -14076,7 +14127,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.userShells.delete(started.itemId)
     }
     // TOOLCAP: whole; the note enters through the bound with spill and notice.
-    const outcome = shellOutcome(result, USER_SHELL_TIMEOUT_MS, TOOL_OUTPUT_MAX_CHARS, true)
+    // No invented deadline names the stop (D121): the runner's own timeout
+    // ends it, and the outcome names that limit without a millisecond claim.
+    const outcome = shellOutcome(result, undefined, TOOL_OUTPUT_MAX_CHARS, true)
     // A refused entry ran nothing: its row says so, and the model is told
     // nothing about a command that never started.
     const isRefused = result.isEntryRefused === true && !stop.signal.aborted
@@ -14305,11 +14358,10 @@ export class ModelApiSession implements ScheduledAgentSession {
    * path, its hooks included. Its row shows what ran, and the model reads it
    * all as tool data, within one budget. After CHECK_FIX_MAX_ROUNDS failing
    * rounds in a row the checks stop until the user's next message, and the
-   * model and the user are told. Nothing runs after the turn's last round
-   * (no request would read it) or a Stop (the M68 review). A hook's stop is
-   * returned.
+   * model and the user are told. Nothing runs after a Stop (the M68 review).
+   * A hook's stop is returned.
    */
-  private async verifyRound(turn: ActiveTurn, isLastRound: boolean): Promise<string | undefined> {
+  private async verifyRound(turn: ActiveTurn): Promise<string | undefined> {
     // The round's checks, ledger and history live in the lazy verify chunk (D6).
     const verify = await this.verifyFunctions()
     if (this.deps.verify === undefined || isAbortRequested(turn.abort.signal)) {
@@ -14372,7 +14424,6 @@ export class ModelApiSession implements ScheduledAgentSession {
         checksSection: verify.checksSection,
       },
       turn,
-      isLastRound,
     )
   }
 
@@ -14603,9 +14654,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     let isStopHookActive = false
     let stopContinuations = 0
     let outputContinuations = 0
-    const callLimit = turn.modelCallLimit
-    for (let round = 0; round < callLimit; round += 1) {
-      if (this.modelCallsLeft(turn) <= 0) break
+    // No round count of ours ends a turn (owner 2026-10-17: the only
+    // hard-coded limits are each provider's own, and no provider documents
+    // one): it runs until the model answers without a tool call, the person
+    // stops it, a hook stops it, or a budget the person set is spent.
+    for (let round = 0; ; round += 1) {
       if (isAbortRequested(signal)) {
         throw new AbortedError()
       }
@@ -14738,8 +14791,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (
           streamed.incompleteReason === 'max_output_tokens' &&
           this.outputContinuation &&
-          outputContinuations < MODEL_API_CONTINUATIONS_MAX &&
-          this.modelCallsLeft(turn) > 0
+          outputContinuations < MODEL_API_CONTINUATIONS_MAX
         ) {
           outputContinuations += 1
           this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.modelApiContinuing })
@@ -14947,7 +14999,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.dropUndeliveredMedia(turn.turnId)
         return
       }
-      const verifyStop = await this.verifyRound(turn, this.modelCallsLeft(turn) <= 0)
+      const verifyStop = await this.verifyRound(turn)
       if (verifyStop !== undefined) {
         // A check's hook stopped the turn after the round, as PostToolBatch can.
         this.dropUndeliveredMedia(turn.turnId)
@@ -14959,18 +15011,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       const compacted = await this.maybeAutoCompact(turn)
       if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return
     }
-    // A loop that ends in the wrap-up phase leaves through the one exit,
-    // so the phase keeps its single typed outcome whatever spent the slot.
-    if (turn.wrapUpLimit !== undefined) {
-      await this.finishWrapUp(turn, signal, isStopHookActive)
-    }
-    // Input accepted during the last permitted round still needs a request
-    // that sees it, through the one re-queue every exit uses: it clears the
-    // held-wake flag, so turn finalization cannot queue the same wake again.
-    this.requeueHeldInput(turn)
-    // A call limit is not a money stop: it carries its own stop reason.
-    this.outcomeStopReason = 'limit'
-    throw new ModelCallLimitError(turn.modelCalls)
   }
 
   /** Child turns share checkpoint ownership with their top parent, even after it finishes. */
@@ -15569,6 +15609,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     for (;;) {
       const requestId = this.deps.newId()
       const attempt = budget.retriesUsed + 1
+      // The client the attempt actually goes through: the catch below reads
+      // the retry limit and the wait from it, never the aggregate client
+      // (lane PR225FIX2: with the setting unset, an Anthropic compaction
+      // retried four times on Meta's limit instead of its own two).
+      let attemptClient: ResolvedModel['client'] | undefined
+      let attemptModel: string | undefined
       try {
         await unlessStopped(this.refreshBudgetSpend(), signal)
         // One record owns the hook projection and final request. A stale
@@ -15583,6 +15629,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (resolved.ref !== this.modelId)
           resolved = await unlessStopped(this.resolveModel(), signal)
         if (!resolved.isCurrent()) throw this.staleRecordError(turnId === COMPACTION_TURN_ID)
+        attemptClient = resolved.client
+        attemptModel = resolved.ref
         const body = makeBody(resolved)
         const revision = this.modelRevision
         const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
@@ -15655,7 +15703,6 @@ export class ModelApiSession implements ScheduledAgentSession {
               type: 'turnRetry',
               turnId,
               attempt: notice.attempt,
-              maxAttempts: notice.maxAttempts,
               retryDelayMs: notice.delayMs,
               reason: notice.reason,
             })
@@ -15744,26 +15791,41 @@ export class ModelApiSession implements ScheduledAgentSession {
           contexts: post.contexts,
         }
       } catch (error: unknown) {
+        // Lane PR225FIX2: the attempt's own client sets the retry limit
+        // (the provider's documented maximum, or the person's setting when
+        // set). Before any attempt resolved, no client of ours answers, so
+        // the original error passes through untouched.
+        const retryClient = attemptClient ?? this.deps.client
+        // Lane PR225W1: an aggregate client answers for the model the
+        // attempt went through (a subscription route, not Meta).
+        const allowed = retryClient.maxRetries(attemptModel)
         if (
           !(error instanceof RetryableStreamError) ||
           signal.aborted ||
           (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) ||
-          budget.retriesUsed >= MODEL_API_MAX_RETRIES
+          !canRetryWithinBudget(budget, budget.retriesUsed) ||
+          budget.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
         ) {
+          this.notifyRetryCap(error, signal, retryClient.personCap(), allowed)
           throw error
         }
         const retry = budget.retriesUsed
         budget.retriesUsed += 1
-        const delayMs = this.deps.client.retryDelayMs(retry)
+        const delayMs = retryClient.retryDelayMs(retry)
         this.emit({
           type: 'turnRetry',
           turnId,
           attempt: retry + 1,
-          maxAttempts: MODEL_API_MAX_RETRIES + 1,
+          maxAttempts: allowed === undefined ? undefined : allowed + 1,
           retryDelayMs: delayMs,
           reason: `${error.code}: ${error.message}`,
         })
-        await unlessStopped(this.deps.client.waitBeforeRetry(delayMs, signal), signal)
+        await unlessStopped(retryClient.waitBeforeRetry(delayMs, signal), signal)
+        // Lane PR225W1: the person's limit is live — a change mid-wait
+        // refuses the dispatch the check above had accepted.
+        if (budget.retriesUsed > (retryClient.maxRetries(attemptModel) ?? UNBOUNDED_RETRIES)) {
+          throw error
+        }
       }
     }
   }
@@ -17624,13 +17686,16 @@ export class ModelApiSession implements ScheduledAgentSession {
    * turn when nothing runs, as `goal/*` does; nothing else starts one.
    */
   public controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
-    const problem = goalObjectiveProblem(command)
+    const problem = goalObjectiveProblem(
+      command,
+      contextModelFor(this.deps, this.modelId)?.contextTokens,
+    )
     if (problem !== undefined) {
-      const detail =
-        problem === 'empty'
-          ? UI_TEXT.goalObjectiveMissing
-          : fill(UI_TEXT.goalObjectiveTooLong, { limit: GOAL_OBJECTIVE_MAX_CHARS })
-      return Promise.reject(new Error(`goal/${command.verb}: ${detail}`))
+      return Promise.reject(
+        new Error(
+          `goal/${command.verb}: ${problem === 'empty' ? UI_TEXT.goalObjectiveMissing : UI_TEXT.goalObjectiveTooLarge}`,
+        ),
+      )
     }
     const applied = applyGoalCommand(this.goal, command, this.goalContext())
     if (typeof applied === 'string') {
@@ -18304,13 +18369,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         send: async (body, signal, guard) => {
           if (guard === undefined) throw new Error('Judge dispatch requires admission')
           let final: ResponseObject | undefined
-          const stream = this.client.streamResponse(
-            body,
-            signal,
-            undefined,
-            { retriesUsed: MODEL_API_MAX_RETRIES },
-            guard,
-          )
+          // The judge names no retries: one send, then its verdict stands.
+          const stream = this.client.streamResponse(body, signal, undefined, noRetryBudget(), guard)
           for await (const event of stream) {
             if (event.type === 'response.completed') final = event.response
           }
@@ -19081,8 +19141,12 @@ export class ModelApiHost implements AgentHost {
     return this.deps.client.readPlanUsage?.() ?? []
   }
 
-  public async listModels(sessionId?: string): Promise<readonly ModelSummary[]> {
-    const ids = this.deps.hasMetaCredential?.() === false ? [] : await this.deps.client.listModels()
+  public async listModels(
+    sessionId?: string,
+    signal?: AbortSignal,
+  ): Promise<readonly ModelSummary[]> {
+    const ids =
+      this.deps.hasMetaCredential?.() === false ? [] : await this.deps.client.listModels(signal)
     const providers = (await this.deps.models?.list?.()) ?? []
     const active = sessionId === undefined ? undefined : this.sessions.get(sessionId)?.modelId
     return [

@@ -858,11 +858,7 @@ export class BestOfNRunner {
     if (this.run !== undefined) {
       this.deps.coordinator.forget(this.run.ticket)
     }
-    for (let index = 0; index < start.attempts; index += 1) {
-      run.running.push(freshAttempt(runId, index, repositoryRoot, this.deps.platform))
-    }
     this.run = run
-    this.publish(run)
     const created: RunningAttempt[] = []
     try {
       this.requireCurrent(run)
@@ -911,8 +907,15 @@ export class BestOfNRunner {
       run.gitDir = canonicalGitDir
       run.baseRef = this.objectId(await this.git(run, HEAD_ARGS, repositoryRoot))
       this.requireCurrent(run)
-      for (const entry of run.running) {
+      // One entry at a time, after consent: nothing is allocated before the
+      // run is allowed, and every item creation is a cancellation point, so
+      // an uncapped request never blocks the host building entries it may
+      // never start. Each launch below still passes through background
+      // resource admission, governed by the person's machine resources.
+      for (let index = 0; index < start.attempts; index += 1) {
         this.requireCurrent(run)
+        const entry = freshAttempt(runId, index, repositoryRoot, this.deps.platform)
+        run.running.push(entry)
         await this.git(
           run,
           worktreeAddArgs(entry.attempt.worktreePath, entry.attempt.branch, run.baseRef),
@@ -955,6 +958,7 @@ export class BestOfNRunner {
           throw new BestOfNError('worktreeFailed')
         }
       }
+      this.publish(run)
       for (const entry of run.running) {
         this.requireCurrent(run)
         await this.launch(run, entry, start)

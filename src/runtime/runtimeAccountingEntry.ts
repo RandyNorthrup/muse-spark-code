@@ -157,6 +157,8 @@ export function withRuntimeAccounting(
       listModels: original.listModels.bind(original),
       retryDelayMs: original.retryDelayMs.bind(original),
       waitBeforeRetry: original.waitBeforeRetry.bind(original),
+      maxRetries: original.maxRetries.bind(original),
+      personCap: original.personCap.bind(original),
       async *streamResponse(body, signal, onRetry, retryBudget, guard, confirmed) {
         const contextTokens = model.contextTokens
         if (
@@ -322,6 +324,8 @@ export function withRuntimeAccounting(
     listModels: client.listModels.bind(client),
     retryDelayMs: client.retryDelayMs.bind(client),
     waitBeforeRetry: client.waitBeforeRetry.bind(client),
+    maxRetries: client.maxRetries.bind(client),
+    personCap: client.personCap.bind(client),
     createImage: client.createImage.bind(client),
     editImage: client.editImage.bind(client),
     hasPaidDailyBudget: client.hasPaidDailyBudget,

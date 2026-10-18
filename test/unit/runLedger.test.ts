@@ -2,6 +2,7 @@ import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   createRunLedger,
+  previewResponseReservation,
   type ResponseTicket,
   type RunLedger,
 } from '../../src/runtime/exec/runLedger'
@@ -65,8 +66,19 @@ describe('M80 ledger integer admission and retained liability', () => {
       settlement: 'full-reservation',
     })
   })
-  it.each([0, 501, 0.5, NaN, Infinity])('rejects invalid request cap %s', (maxRequests) => {
+  it.each([0, 0.5, NaN, Infinity])('rejects invalid request cap %s', (maxRequests) => {
     expect(() => createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests })).toThrow()
+  })
+  it('admits past any count when the person set no request cap', () => {
+    // NOLIMITS5: without `--max-requests` there is no request limit. Forty
+    // sequential admissions (past the old default of 30) settle tiny usage
+    // against a $20 cap and none is refused for requests.
+    const l = createRunLedger({ capUsd: Usd.from(20).toAmount(), maxRequests: undefined })
+    for (let n = 0; n < 40; n += 1) {
+      const ticket = response(l)
+      l.settleResponse(ticket, eof())
+    }
+    expect(l.totals().requests).toBe(40)
   })
   it('F1/L9 rounds contributor reservation upward and preserves isStandard minimum', () => {
     expect(
@@ -92,6 +104,15 @@ describe('M80 ledger integer admission and retained liability', () => {
     }
     const l = createRunLedger({ capUsd: Usd.from(0.108135).toAmount(), maxRequests: 1 })
     expect(response(l).reserveUsd).toBe(Usd.from(0.108135).toAmount())
+    // The quote ignores the run cap: a valid low budget stays quotable so the
+    // caller reports its own minimum instead of an unpriced model.
+    const small = createRunLedger({ capUsd: Usd.from(0.01).toAmount(), maxRequests: 30 })
+    expect(previewResponseReservation(small, 'muse-spark-1.3-contributor', price)).toMatchObject({
+      kind: 'responses',
+      n: 1,
+      reserveUsd: Usd.from(0.108135).toAmount(),
+    })
+    expect(small.totals().requests).toBe(0)
   })
   it('L2 prices cached/uncached/output exactly before upward micro rounding', () => {
     const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })
@@ -266,7 +287,18 @@ describe('M80 ledger integer admission and retained liability', () => {
         price: { ...price, cachedInput: Usd.from(1).toAmount() },
       }),
     ).toEqual({ refused: 'unpriced' })
-    for (const cap of [0, -1, 20.000001, 0.0000001, 0.1081351, Infinity])
+    for (const cap of [0, -1, 0.0000001, 0.1081351, Infinity])
       expect(() => createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 })).toThrow()
+    // Above-$20 caps from the recorded real CLI exchange in
+    // docs/certification/pr228fix.md (2026-10-18, rig macmini).
+    for (const cap of [20.01, 250.5])
+      expect(() =>
+        createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 }),
+      ).not.toThrow()
+    // A person's exact BigInt budget is honored as given: one micro-USD past
+    // Number.MAX_SAFE_INTEGER still opens a run and round-trips through totals.
+    const hugeCap = Usd.from('9007199254.740992').toAmount()
+    const huge = createRunLedger({ capUsd: hugeCap, maxRequests: 1 })
+    expect(huge.totals().capUsd).toBe(hugeCap)
   })
 })

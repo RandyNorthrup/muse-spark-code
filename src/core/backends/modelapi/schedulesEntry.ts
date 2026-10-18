@@ -497,7 +497,6 @@ const NOTHING_TO_COMMIT = () => {
 export async function verifyRound(
   context: VerificationContext,
   turn: ActiveTurn,
-  isLastRound: boolean,
 ): Promise<string | undefined> {
   const admission = context.verificationAdmission(turn.abort.signal)
   const edited = context.ledger.takeRoundEdits()
@@ -525,7 +524,7 @@ export async function verifyRound(
     appendVerificationNote(context, turn.turnId, recorded.value, recorded.scope)
     return undefined
   }
-  if (isLastRound || edited.length === 0) {
+  if (edited.length === 0) {
     // The round's runs are judged, edits or not (the Codex review of PR #54).
     if (context.ledger.judgeRound()) {
       noteFixLoopStopped(context, turn.turnId, [])

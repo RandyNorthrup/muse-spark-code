@@ -134,7 +134,7 @@ export type WizardEvent =
       readonly answers: readonly string[]
     }
   | { readonly type: 'confirm-private'; readonly confirmed: boolean }
-  | { readonly type: 'submit-key'; readonly shapeOk: boolean }
+  | { readonly type: 'submit-key' }
   | { readonly type: 'connect-oauth' }
   | { readonly type: 'accept-test-cost' }
   | { readonly type: 'test-complete'; readonly result: WizardTestResult }
@@ -239,9 +239,9 @@ export function wizardBlockers(state: WizardState): readonly string[] {
   if (draft.auth !== 'none' && !draft.keyPresent && !draft.connected) {
     blockers.push(UI_TEXT.providerText.wizard.credential)
   }
-  if (draft.auth !== 'none' && draft.keyPresent && !draft.keyShapeOk && !draft.connected) {
-    blockers.push(UI_TEXT.providerText.wizard.keyShape)
-  }
+  // No key-shape blocker: the provider judges the key through the free
+  // key test, never its looks. `keyShapeOk` stays true with every present
+  // key (see `submit-key`) and remains on the draft for saved-draft reads.
   if (!draft.test?.ok) {
     blockers.push(UI_TEXT.providerText.wizard.test)
   }
@@ -340,9 +340,8 @@ export function applyWizardEvent(state: WizardState, event: WizardEvent): Wizard
       if (state.step !== 'credential') {
         return failed(state, UI_TEXT.providerText.wizard.keyStep)
       }
-      if (!event.shapeOk) {
-        return failed(state, UI_TEXT.providerText.wizard.badKey)
-      }
+      // Any entered key is accepted for the free key test: the provider
+      // judges it, never its shape.
       return {
         ...state,
         error: undefined,

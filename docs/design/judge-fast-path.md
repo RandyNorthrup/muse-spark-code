@@ -449,9 +449,10 @@ behaviour, byte for byte.
 ### 6.3 Is the agent looping or stalled
 
 - **Today.** The Model API stops after `TOOL_REPEAT_LIMIT` = 3 identical
-  calls and `MODEL_API_MAX_TOOL_ROUNDS` = 50. Muse Code has nothing
+  calls; it has no round count of its own (the 50-round cap was removed on
+  2026-10-17, NOLIMITS6: no provider documents one). Muse Code has nothing
   comparable. An oscillating agent (edit A→B, test fails, edit B→A) burns
-  full 8–14 s rounds until a cap or the user stops it.
+  full 8–14 s rounds until a cap the person set or the user stops it.
 - **Question.** `choice`: progressing, repeating, oscillating, stalled.
 - **Class.** I for the deterministic part (hashes of tool, canonical
   arguments and result digest over a sliding window: exact repeats, A↔B

@@ -39,6 +39,7 @@
       "paidVoiceName",
       "usageCacheSavingsValue",
       "mcpToolLabel",
+      "stillWaitingSubject.museCodeCommand",
       "goalItem",
       "composerShellMode",
       "onboardingShortcuts.shell",
@@ -99,7 +100,8 @@
       "referenceCliOptions.share-out",
       "referenceCliOptions.sharing-json",
       "paletteTips.paid:autoCompaction",
-      "whatsNewAttachmentsRefused"
+      "whatsNewAttachmentsRefused",
+      "goalObjectiveTooLarge"
     ],
     "cs": [
       "groupModel",

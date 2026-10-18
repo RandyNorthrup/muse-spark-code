@@ -339,11 +339,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   const outputCap = (policy?: ModelPolicy): number =>
     (resolvedOutputCap ??= resolveExecOutputCap(policy ?? modelPolicyFor(model ?? '')))
   // A provider id is user-configurable, not proof of subscription billing.
-  // Keep every Model API/BYO run inside its request and exact-USD limits.
+  // The budget is always kept by reservation; the request cap only when the
+  // person set one (without `--max-requests` there is no request limit).
   const ledger =
-    options.backend === 'modelApi' &&
-    options.budgetUsd !== undefined &&
-    options.maxRequests !== undefined
+    options.backend === 'modelApi' && options.budgetUsd !== undefined
       ? createRunLedger({
           capUsd: options.budgetUsd,
           maxRequests: options.maxRequests,
@@ -513,7 +512,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         },
         secrets: deps.storeSecrets,
         resolveHost: resolveEndpointHost,
-        readKey: (shape) => readProviderKeyLine(deps.stdin, lifecycle.signal, shape),
+        readKey: () => readProviderKeyLine(deps.stdin, lifecycle.signal),
         providerId,
         model: options.model,
         keyFromStdin: options.keyFromStdin,
@@ -529,6 +528,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       error = assembled.failure.reason
       return await finish()
     }
+    // A piped key that looks like the wrong thing is named, as on the
+    // terminal surfaces; stdin cannot answer, so the run continues.
+    if (assembled.notice !== undefined) log.warn(assembled.notice)
     memory = assembled.run.memory
     for (const literal of assembled.run.literals) {
       literals.push(literal)
@@ -1253,7 +1255,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               lastResponse: totals.lastResponse,
             },
       limits,
-      durationMs: Math.max(0, deps.now() - (lifecycle.deadlineMs - options.timeoutMs)),
+      durationMs: Math.max(0, deps.now() - lifecycle.startMs),
       error: status === 'completed' ? null : { kind: status, message: error },
     }
     return result

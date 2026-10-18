@@ -301,7 +301,12 @@ export function createTabLedger(
       deps.log.warn(`Tab ledger ${total.detail} is unreadable, treating the budget as reached`)
       return { admitted: false, reason: 'ledgerUnreadable', detail: total.detail }
     }
-    if (Usd.from(total.totalUsd).compare(Usd.from(budgetUsd)) > 0) {
+    // 0 is no budget: the reservation above still accounts the spend, but no
+    // cap is checked, so nothing the person did not set stops the request.
+    if (
+      Usd.from(budgetUsd).compare(Usd.from(0)) !== 0 &&
+      Usd.from(total.totalUsd).compare(Usd.from(budgetUsd)) > 0
+    ) {
       await rollback(date, worstCaseUsd)
       deps.log.info(`Tab daily budget reached: ${total.totalUsd} of ${budgetUsd} spent`)
       return {

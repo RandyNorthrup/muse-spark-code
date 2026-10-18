@@ -955,7 +955,6 @@
         "museSpark.checkCommands": {
           "type": "array",
           "default": [],
-          "maxItems": 8,
           "items": {
             "type": "object",
             "required": [
@@ -983,7 +982,6 @@
               "timeoutSeconds": {
                 "type": "integer",
                 "minimum": 1,
-                "maximum": 600,
                 "default": 300,
                 "description": "%config.checkCommands.timeoutSeconds.description%"
               }
@@ -1309,9 +1307,8 @@
         },
         "museSpark.tabDailyBudgetUsd": {
           "type": "number",
-          "minimum": 0.05,
-          "maximum": 50,
-          "default": 1,
+          "minimum": 0,
+          "default": 0,
           "description": "%config.tabDailyBudgetUsd.description%",
           "scope": "machine"
         },
@@ -1512,6 +1509,16 @@
           "description": "%config.webSearchMaxPerRequest.description%",
           "minimum": 1,
           "maximum": 20
+        },
+        "museSpark.modelApiMaxRetries": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "default": null,
+          "scope": "machine",
+          "description": "%config.modelApiMaxRetries.description%",
+          "minimum": 0
         },
         "museSpark.modelApiTeamWorkers": {
           "type": "boolean",

@@ -1,6 +1,6 @@
 // The provider presets (M95, PLAN.md D74): each provider the panel lists
 // is a preset here — its format, fixed origin (or the fields the user
-// gives), auth header, key page and key shape, the free key test, the
+// gives), auth header, key page and key hint, the free key test, the
 // models-list parser, and the format's quirks as data (the output-cap
 // parameter, `parallel_tool_calls`, `tool_choice`, the reasoning field and
 // replay rule, usage in the stream, the cached-token field, the empty-tools
@@ -10,9 +10,14 @@
 // capture is recorded (`wireCapture`, AGENTS.md rule 13); the captures are
 // in `docs/certification/m95-captures.md`. Pure data plus pure helpers.
 
-import { PROVIDER_RETRY_HTTP_STATUS, ZAI_KEY_PATTERN } from '../../shared/constants'
+import { PROVIDER_RETRY_HTTP_STATUS } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
-import { RETRY_TABLES, type RetryTables } from '../../shared/retryPolicy'
+import {
+  PROVIDER_RETRY_LIMITS,
+  RETRY_TABLES,
+  type RetryLimits,
+  type RetryTables,
+} from '../../shared/retryPolicy'
 import type { CapabilityOverrides } from './capabilityRecord'
 import type { CustomCompat, ProviderFormat } from './providersFile'
 
@@ -29,34 +34,15 @@ export type PresetOrigin =
 /** The authorization header a preset sends (captured 2026-10-04). */
 export type AuthHeader = 'bearer' | 'x-api-key' | 'x-goog-api-key' | 'api-key'
 
-/** What a pasted key looks like, checked as it is typed. */
-export type KeyShape =
-  | { readonly kind: 'prefix'; readonly prefix: string; readonly minLength: number }
-  | { readonly kind: 'zai' }
-  | { readonly kind: 'any'; readonly minLength: number }
-
-/**
- * Whether a pasted key is shaped like the preset's. A shape check never
- * proves a key works: the free key test does. Unknown shapes (`any`) accept
- * any non-blank key of the minimum length.
- */
-export function isKeyShape(shape: KeyShape, key: string): boolean {
-  const trimmed = key.trim()
-  if (trimmed === '') {
-    return false
-  }
-  switch (shape.kind) {
-    case 'prefix': {
-      return trimmed.startsWith(shape.prefix) && trimmed.length >= shape.minLength
-    }
-    case 'any': {
-      return trimmed.length >= shape.minLength
-    }
-    case 'zai': {
-      return ZAI_KEY_PATTERN.test(trimmed)
-    }
-  }
-}
+// What a pasted key looks like is nothing per provider (PLAN.md D123: a
+// working key is never refused for its shape). The provider judges a key
+// through the free key test; anything finer (`inspectProviderKey`) is a
+// question for the person, never a refusal. The three universal checks
+// live beside the presets' data in
+// `./keyInspection` (small, so the panel bundle reads it with the
+// password box); re-exported here for the runtime and the tests.
+export type { ProviderKeyInspection, ProviderKeyNotice } from './keyInspection'
+export { inspectProviderKey, providerKeyNoticeText } from './keyInspection'
 
 /** The free check that proves a key works (nothing billed). */
 export type KeyTest =
@@ -143,6 +129,13 @@ export interface FormatQuirks {
    */
   readonly retry: RetryTables
   /**
+   * The format's documented retry bounds (lane RETRYLIMITS): absent fields
+   * are values the provider does not document, so the person's
+   * `museSpark.modelApiMaxRetries` setting decides and, with none set, the
+   * provider's own Retry-After (or stop answer) governs.
+   */
+  readonly retryLimits: RetryLimits
+  /**
    * The server takes `strict: true` tool schemas (M101 item 24): OpenAI
    * and Azure's constrained decoding. The selected model record overrides
    * this preset default, including explicit false. Meta's host binds its
@@ -199,6 +192,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.responses,
+    retryLimits: PROVIDER_RETRY_LIMITS.responses,
     supportsStrictTools: false,
   },
   chat: {
@@ -213,6 +207,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.chat,
+    retryLimits: PROVIDER_RETRY_LIMITS.chat,
     supportsStrictTools: false,
   },
   anthropic: {
@@ -227,6 +222,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.anthropic,
+    retryLimits: PROVIDER_RETRY_LIMITS.anthropic,
     supportsStrictTools: false,
   },
   gemini: {
@@ -241,6 +237,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.gemini,
+    retryLimits: PROVIDER_RETRY_LIMITS.gemini,
     supportsStrictTools: false,
   },
   ollama: {
@@ -255,6 +252,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.ollama,
+    retryLimits: PROVIDER_RETRY_LIMITS.ollama,
     supportsStrictTools: false,
   },
 }
@@ -275,8 +273,7 @@ export interface ProviderPreset {
   /** The provider's key page (**Get a key**); absent where none is known. */
   readonly keyPage?: string | undefined
   readonly docsUrl?: string | undefined
-  readonly keyShape: KeyShape
-  /** The shape as a hint beside the key field (never a key's characters). */
+  /** Where the key comes from, beside the key field (never a key's characters). */
   readonly keyHint: string
   readonly keyTest: KeyTest
   readonly modelsList: ModelsListSpec
@@ -306,9 +303,20 @@ export interface PresetReasoningFacts {
   readonly fields: CapabilityOverrides
 }
 
-/** A preset's effective quirks: its format's defaults plus its overrides. */
+/**
+ * A preset's effective quirks: its format's defaults plus its overrides.
+ * `retryLimits` merges field by field (review RVRETRYLIMITS): a preset
+ * that documents only its own count must keep its format's documented
+ * backoff bounds, the way the OpenAI preset already spreads the format's
+ * retry table before adding its own `errorKinds`.
+ */
 export function quirksOf(preset: ProviderPreset): FormatQuirks {
-  return { ...FORMAT_QUIRKS[preset.format], ...preset.quirks }
+  const format = FORMAT_QUIRKS[preset.format]
+  return {
+    ...format,
+    ...preset.quirks,
+    retryLimits: { ...format.retryLimits, ...preset.quirks.retryLimits },
+  }
 }
 
 /**
@@ -362,9 +370,8 @@ const OPENAI_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://platform.openai.com/api-keys',
   docsUrl: 'https://platform.openai.com/docs',
-  keyShape: { kind: 'prefix', prefix: 'sk-', minLength: 20 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'sk-', site: 'platform.openai.com' })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'platform.openai.com' })
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', priceSource: 'catalogue' },
@@ -373,6 +380,12 @@ const OPENAI_PRESET: ProviderPreset = {
     retry: { ...RETRY_TABLES.responses, errorKinds: ['server_error'] },
     // OpenAI's constrained decoding takes strict tool schemas.
     supportsStrictTools: true,
+    // Lane RETRYLIMITS review: OpenAI's API docs name no count ("limit
+    // retries"), but its official SDK documents the same default the
+    // Anthropic row already uses: "automatically retried 2 times by
+    // default, with a short exponential backoff" (openai-python README,
+    // read 2026-10-17). No documented backoff bounds, so only the count.
+    retryLimits: { maxRetries: 2 },
   },
   wireCapture: true,
 }
@@ -388,7 +401,6 @@ const AZURE_PRESET: ProviderPreset = {
   origin: { kind: 'azure-resource' },
   auth: 'apiKey',
   authHeader: 'api-key',
-  keyShape: { kind: 'any', minLength: 16 },
   get keyHint() {
     return UI_TEXT.providerText.hints.azure
   },
@@ -397,6 +409,12 @@ const AZURE_PRESET: ProviderPreset = {
   quirks: {
     // Azure OpenAI's constrained decoding takes strict tool schemas.
     supportsStrictTools: true,
+    // Lane RETRYLIMITS: Azure documents "maximum number of retries (for
+    // example, 5–10)" (azure-openai.md §4, QUOTAHOW); 10 is the largest
+    // maximum Azure names, so anything above it exceeds its guidance. Its
+    // backoff (retry-after-ms, else exponential with jitter) has no
+    // documented bounds, so the person's setting decides.
+    retryLimits: { maxRetries: 10 },
   },
   wireCapture: false,
 }
@@ -413,9 +431,8 @@ const XAI_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://console.x.ai',
-  keyShape: { kind: 'prefix', prefix: 'xai-', minLength: 20 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'xai-', site: 'console.x.ai' })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'console.x.ai' })
   },
   keyTest: { kind: 'models-list' },
   // Integer prices in 1e-10 USD per token, with the long-context threshold.
@@ -423,6 +440,10 @@ const XAI_PRESET: ProviderPreset = {
   quirks: {
     reasoningField: 'encrypted',
     cachedUsageFields: ['input_tokens_details.cached_tokens'],
+    // Lane RETRYLIMITS: xAI documents "up to 5 attempts" with 2^attempt s
+    // backoff in its rate-limit examples (xai.md §4, RL), so 4 retries from
+    // a 1 s base doubling per try, with no documented maximum wait.
+    retryLimits: { maxRetries: 4, baseMs: 1000 },
   },
   // grok-4.5 takes `xhigh` (requests with it are treated as `high`) though
   // the pinned catalogue lists only low/medium/high (lane REASONSHAPESR2,
@@ -461,12 +482,8 @@ const ANTHROPIC_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://console.anthropic.com/settings/keys',
   docsUrl: 'https://docs.anthropic.com',
-  keyShape: { kind: 'prefix', prefix: 'sk-ant-', minLength: 20 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, {
-      prefix: 'sk-ant-',
-      site: 'console.anthropic.com',
-    })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'console.anthropic.com' })
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', windowField: 'max_input_tokens', priceSource: 'catalogue' },
@@ -587,9 +604,8 @@ const GEMINI_PRESET: ProviderPreset = {
   authHeader: 'x-goog-api-key',
   keyPage: 'https://aistudio.google.com/apikey',
   docsUrl: 'https://ai.google.dev/gemini-api/docs',
-  keyShape: { kind: 'prefix', prefix: 'AIza', minLength: 30 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'AIza', site: 'AI Studio' })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'AI Studio' })
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1beta/models', windowField: 'inputTokenLimit', priceSource: 'catalogue' },
@@ -610,9 +626,8 @@ const OPENROUTER_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://openrouter.ai/keys',
   docsUrl: 'https://openrouter.ai/docs',
-  keyShape: { kind: 'prefix', prefix: 'sk-or-', minLength: 20 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.router, { prefix: 'sk-or-', site: 'openrouter.ai' })
+    return fill(UI_TEXT.providerText.hints.router, { site: 'openrouter.ai' })
   },
   // `/models` is public, so `/key` is the test: free and spends no credits.
   keyTest: { kind: 'provider-key', path: '/api/v1/key' },
@@ -652,9 +667,8 @@ const GROQ_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://console.groq.com/keys',
-  keyShape: { kind: 'prefix', prefix: 'gsk_', minLength: 20 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'gsk_', site: 'console.groq.com' })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'console.groq.com' })
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/openai/v1/models', windowField: 'context_window', priceSource: 'list' },
@@ -681,9 +695,8 @@ const DEEPSEEK_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://platform.deepseek.com/api_keys',
-  keyShape: { kind: 'prefix', prefix: 'sk-', minLength: 20 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'sk-', site: 'platform.deepseek.com' })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'platform.deepseek.com' })
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/models', windowField: 'context_window', priceSource: 'catalogue' },
@@ -748,7 +761,6 @@ const MISTRAL_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://console.mistral.ai/api-keys',
-  keyShape: { kind: 'any', minLength: 16 },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'console.mistral.ai' })
   },
@@ -785,7 +797,6 @@ export const PLAN_KEY_PRESETS: readonly PlanKeyPreset[] = [
     auth: MISTRAL_PRESET.auth,
     authHeader: MISTRAL_PRESET.authHeader,
     keyPage: MISTRAL_PRESET.keyPage,
-    keyShape: MISTRAL_PRESET.keyShape,
     get keyHint() {
       return MISTRAL_PRESET.keyHint
     },
@@ -815,7 +826,6 @@ const TOGETHER_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://api.together.ai/settings/api-keys',
-  keyShape: { kind: 'any', minLength: 16 },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'api.together.ai' })
   },
@@ -867,9 +877,8 @@ const FIREWORKS_PRESET: ProviderPreset = {
   origin: { kind: 'fixed', origin: 'https://api.fireworks.ai' },
   auth: 'apiKey',
   authHeader: 'bearer',
-  keyShape: { kind: 'prefix', prefix: 'fw_', minLength: 20 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'fw_', site: 'fireworks.ai' })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'fireworks.ai' })
   },
   keyTest: { kind: 'models-list' },
   modelsList: {
@@ -897,9 +906,8 @@ const HUGGINGFACE_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://huggingface.co/settings/tokens',
-  keyShape: { kind: 'prefix', prefix: 'hf_', minLength: 10 },
   get keyHint() {
-    return fill(UI_TEXT.providerText.hints.prefix, { prefix: 'hf_', site: 'huggingface.co' })
+    return fill(UI_TEXT.providerText.hints.site, { site: 'huggingface.co' })
   },
   // `whoami-v2` on huggingface.co proves the token; the router has no key test.
   keyTest: { kind: 'provider-key', path: '/api/whoami-v2', origin: 'https://huggingface.co' },
@@ -922,8 +930,6 @@ const ZAI_PRESET: ProviderPreset = {
   origin: { kind: 'fixed', origin: 'https://api.z.ai' },
   auth: 'apiKey',
   authHeader: 'bearer',
-  // Captured shape: `<32 hex>.<16>`.
-  keyShape: { kind: 'zai' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'Z.ai' })
   },
@@ -971,7 +977,6 @@ const OLLAMA_PRESET: ProviderPreset = {
   format: 'ollama',
   origin: { kind: 'loopback', defaultPort: 11_434 },
   auth: 'none',
-  keyShape: { kind: 'any', minLength: 1 },
   keyHint: '',
   // `/api/tags` is free; `/api/show` gives capabilities per model.
   keyTest: { kind: 'models-list' },
@@ -991,7 +996,6 @@ const LMSTUDIO_PRESET: ProviderPreset = {
   origin: { kind: 'loopback', defaultPort: 1234 },
   auth: 'none',
   optionalKey: true,
-  keyShape: { kind: 'any', minLength: 1 },
   keyHint: '',
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', windowField: 'max_context_length', priceSource: 'none-local' },
@@ -1015,7 +1019,6 @@ const VLLM_PRESET: ProviderPreset = {
   origin: { kind: 'loopback', defaultPort: 8000 },
   auth: 'none',
   optionalKey: true,
-  keyShape: { kind: 'any', minLength: 1 },
   keyHint: '',
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', windowField: 'max_model_len', priceSource: 'none-local' },
@@ -1038,7 +1041,6 @@ const LLAMACPP_PRESET: ProviderPreset = {
   format: 'chat',
   origin: { kind: 'loopback', defaultPort: 8080 },
   auth: 'none',
-  keyShape: { kind: 'any', minLength: 1 },
   keyHint: '',
   keyTest: { kind: 'models-list' },
   // `/props` gives `n_ctx`; `/v1/models` gives `meta.n_ctx_train`.
@@ -1069,7 +1071,6 @@ const CUSTOM_PRESET: ProviderPreset = {
   origin: { kind: 'custom' },
   auth: 'apiKey',
   authHeader: 'bearer',
-  keyShape: { kind: 'any', minLength: 1 },
   get keyHint() {
     return UI_TEXT.providerText.hints.custom
   },

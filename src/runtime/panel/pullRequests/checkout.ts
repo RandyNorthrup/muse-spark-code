@@ -19,10 +19,10 @@
 // port carries the documented untrusted-lane arguments until integration
 // converges them (see `untrustedCheckoutArgs`).
 //
-// Every git this module starts goes through `runGit` or `startGitBatch`,
-// which call the caller's gate and then start the process in the same
-// synchronous turn: nothing can change between the check and the spawn
-// (PLAN.md M123's lock protocol). A checkout's gate asks that the project
+// Every git this module starts goes through `runGit`, `runGitListing` or
+// `startGitBatch`, which call the caller's gate and then start the process
+// in the same synchronous turn: nothing can change between the check and
+// the spawn (PLAN.md M123's lock protocol). A checkout's gate asks that the project
 // is still trusted, that Cancel was not pressed, and that the record is
 // still exactly this checkout's reservation (its fence).
 
@@ -41,8 +41,6 @@ import {
   GIT_BATCH_KILL_GRACE_MS,
   GIT_OUTPUT_MAX_BYTES,
   GIT_WORKTREE_TIMEOUT_MS,
-  HELD_CHECKOUT_MAX_BYTES,
-  HELD_CHECKOUT_MAX_ENTRIES,
   HELD_CLEANUP_REMOVE_RETRIES,
   HELD_CLEANUP_TIMEOUT_MS,
   HELD_EXECUTABLE_MODE,
@@ -53,7 +51,7 @@ import {
   UNTRUSTED_CHECKOUT_MIN_GIT_MINOR,
   WORKTREE_RECORD_SAVE_ATTEMPTS,
 } from '../../../shared/constants'
-import { fill, formatBytes } from '../../../shared/l10n/text'
+import { fill } from '../../../shared/l10n/text'
 import {
   didDropRejectedCredential,
   GitHubClient,
@@ -67,7 +65,12 @@ import {
   namedHookOverrides,
   pullRequestCheckoutConfirmation,
 } from '../../../core/git/heldCheckoutCore'
-import { heldTree, type HeldEntry, unsafePathReason } from '../../../core/git/heldTree'
+import {
+  ListingRecords,
+  heldTreeFromRecords,
+  type HeldEntry,
+  unsafePathReason,
+} from '../../../core/git/heldTree'
 import {
   pullRequestRefFrom,
   remoteForPullRequest,
@@ -365,6 +368,96 @@ function runGit(
   })
 }
 
+/**
+ * The commit's tree listing, record by record, at any size: `ls-tree -z`
+ * streams through the spawned child straight into the record splitter, so
+ * no buffered reader (and its fixed output ceiling) stands between git and
+ * the validator. Like `runGit`, the gate runs first, in the same
+ * synchronous turn as the spawn; a deadline and Cancel end the listing
+ * however quiet git is.
+ */
+function runGitListing(
+  git: NodeGitRunner,
+  gate: GitGate,
+  args: readonly string[],
+  cwd: string,
+): Promise<string[]> {
+  gate()
+  const child = git.processes.start(git.gitPath, args, {
+    cwd,
+    env: git.quietEnv,
+    signal: git.signal,
+    timeout: GIT_WORKTREE_TIMEOUT_MS,
+    detached: git.platform !== 'win32',
+  })
+  return new Promise<string[]>((resolve, reject) => {
+    const listing = new ListingRecords()
+    const records: string[] = []
+    let hasSettled = false
+    const closed = new Promise<number | null>((done) => {
+      child.once('close', (code: number | null) => {
+        done(code)
+      })
+    })
+    const fail = (error: Error) => {
+      if (hasSettled) {
+        return
+      }
+      hasSettled = true
+      clearTimeout(timer)
+      git.signal.removeEventListener('abort', onAbort)
+      killBatchTree(child, git.platform)
+      child.stdout.destroy()
+      child.stderr.destroy()
+      reject(error)
+    }
+    const onAbort = () => {
+      const reason: unknown = git.signal.reason
+      fail(reason instanceof Error ? reason : new Error('The operation was aborted'))
+    }
+    // The listing's own deadline, independent of the spawn timeout: a root
+    // that ignores its signal still ends the checkout.
+    const timer = setTimeout(() => {
+      fail(unreadable())
+    }, GIT_WORKTREE_TIMEOUT_MS)
+    git.signal.addEventListener('abort', onAbort, { once: true })
+    if (git.signal.aborted) {
+      onAbort()
+      return
+    }
+    child.on('error', fail)
+    // Nothing reads the error stream: discard it, so a chatty git can
+    // never fill the pipe and stall the listing past its deadline.
+    child.stderr.resume()
+    child.stdin.end()
+    void (async () => {
+      try {
+        const stdout: NodeJS.ReadableStream = child.stdout
+        for await (const chunk of stdout) {
+          if (!Buffer.isBuffer(chunk)) {
+            throw unreadable()
+          }
+          records.push(...listing.take(chunk))
+        }
+      } catch (error: unknown) {
+        fail(error instanceof Error ? error : unreadable())
+        return
+      }
+      const code = await closed
+      if (code !== 0) {
+        fail(unreadable())
+        return
+      }
+      records.push(...listing.finish())
+      // Past a failure this resolve is a no-op: the rejection stands, and
+      // the timer and the abort listener are already gone with it.
+      clearTimeout(timer)
+      git.signal.removeEventListener('abort', onAbort)
+      resolve(records)
+    })()
+  })
+}
+
 /** Starts the batch child once `gate` allows it, in the same synchronous turn. */
 function startGitBatch(
   git: NodeGitRunner,
@@ -531,15 +624,6 @@ async function heldDestinationOf(platform: NodeJS.Platform, folder: string, entr
     throw new PullRequestServiceError(unsafePathReason(entryPath))
   }
   return resolution
-}
-
-function tooLarge(): Error {
-  return new PullRequestServiceError(
-    fill(UI_TEXT.openPullRequestTooLarge, {
-      files: HELD_CHECKOUT_MAX_ENTRIES,
-      size: formatBytes(HELD_CHECKOUT_MAX_BYTES),
-    }),
-  )
 }
 
 function unreadable(): Error {
@@ -816,26 +900,16 @@ export function createNodePullRequestCheckoutGit(
       if (!isCommitSha(sha)) {
         throw new PullRequestServiceError(UI_TEXT.openPullRequestFetchFailed)
       }
-      let listing: string
-      try {
-        const overrides = await hookOverrides(git, cwd, gates.run)
-        listing = await runGit(
-          git,
-          gates.run,
-          [...overrides, 'ls-tree', '-r', '-z', '--full-tree', '--long', sha],
-          cwd,
-        )
-      } catch (error: unknown) {
-        if (
-          error instanceof Error &&
-          'code' in error &&
-          error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'
-        ) {
-          throw tooLarge()
-        }
-        throw error
-      }
-      const tree = heldTree(listing, options.platform)
+      // The listing streams record by record, at any size: a tree past the
+      // old buffered reader's ceiling reads like any other.
+      const listOverrides = await hookOverrides(git, cwd, gates.run)
+      const listing = await runGitListing(
+        git,
+        gates.run,
+        [...listOverrides, 'ls-tree', '-r', '-z', '--full-tree', '--long', sha],
+        cwd,
+      )
+      const tree = heldTreeFromRecords(listing, options.platform)
       if (!tree.ok) {
         throw new PullRequestServiceError(tree.reason)
       }

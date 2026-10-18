@@ -12,7 +12,6 @@ import {
   EXEC_PROTOCOL_VERSION,
   EXEC_RAW_TOOL_FIELDS,
   EXEC_USD_DECIMALS,
-  EXEC_MAX_BUDGET_USD,
   EXEC_MAX_REQUESTS,
   EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MAX_TIMEOUT_SECONDS,
@@ -226,11 +225,8 @@ const RAW_TOOL_FIELDS = new Set<string>(EXEC_RAW_TOOL_FIELDS)
 const counter = z.number().check(z.gte(0), z.int(), z.lte(Number.MAX_SAFE_INTEGER))
 const amount = nonnegativeUsdSchema.check(z.refine((value) => microUsd(value) !== undefined))
 const capAmount = amount.check(
-  z.refine(
-    (value) =>
-      Usd.from(value).compare(Usd.from(0)) > 0 &&
-      Usd.from(value).compare(Usd.from(EXEC_MAX_BUDGET_USD)) <= 0,
-  ),
+  // D121: the person's budget has no ceiling of ours; only zero refuses.
+  z.refine((value) => Usd.from(value).compare(Usd.from(0)) > 0),
 )
 const nullableText = z.nullable(z.string())
 const relativePath = z.string().check(
@@ -341,8 +337,10 @@ const totalsSchema = z
 /** Fixed-unit boundaries refuse a decimal that cannot be represented exactly. */
 function microUsd(value: UsdAmount): bigint | undefined {
   try {
+    // No upper bound: a person's amount is honored as given and carried as an
+    // exact BigInt. Negative input stays unrepresentable here.
     const units = Usd.from(value).units(EXEC_USD_DECIMALS)
-    return units >= USD_DECIMAL_ZERO && units <= BigInt(Number.MAX_SAFE_INTEGER) ? units : undefined
+    return units >= USD_DECIMAL_ZERO ? units : undefined
   } catch {
     return undefined
   }
@@ -396,12 +394,13 @@ function isBackendAccountingValid(value: ExecResult): boolean {
     )
   }
   // An early failed setup may have no accounting yet; completion always does.
+  // The request cap is the person's to set: without `--max-requests` there is
+  // no limit, so a completed run may carry a null one.
   if (
     ledger === null ||
     cost === null ||
     value.usage.requests === null ||
-    value.limits.budgetUsd === null ||
-    value.limits.maxRequests === null
+    value.limits.budgetUsd === null
   )
     return value.status !== 'completed'
   const cap = microUsd(ledger.capUsd)

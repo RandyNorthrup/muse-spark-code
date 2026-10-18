@@ -490,9 +490,14 @@ Releases and npm.
   refused before any lookup. The connection is pinned to the checked
   addresses, raced as RFC 8305 says (TLS verifies the name); through a proxy
   the tunnel is asked for that address, and only an answer that arrived over
-  TLS is read. Same-host redirects are checked and pinned again (at most
-  five); another host's is handed back to the model, which asks again.
-  5 MiB after decompression, 30 seconds, text types only. HTML is parsed
+  TLS is read. Same-host redirects are checked and pinned again on every
+  hop until the fetch's deadline (30 seconds); another host's is handed
+  back to the model, which asks again. At most 5 MiB of decompressed body
+  is ever buffered per page (a caller-named smaller ingress cap still
+  refuses past itself); past the window the stream stops and the page
+  converts truncated-with-notice, never refused, so a gzip/Brotli bomb or
+  a fast text stream costs no more than the window of host memory. Text
+  types only. HTML is parsed
   by parse5 on a worker thread per page (at most two at once) stopped at
   10 seconds or 512 MiB, its output bounded; only what is never page text
   by structure (scripts, styles, template content, `<noscript>`, embedded

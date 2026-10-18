@@ -660,6 +660,7 @@ async function planFor(
       homeDir: deps.homeDir,
       workspaceRoot: root,
       ...(deps.workspaceRoots !== undefined && { workspaceRoots: deps.workspaceRoots }),
+      ...(deps.signal !== undefined && { signal: deps.signal }),
       workspaceIdentity: project?.identity,
       personalRoot: p.dirname(deps.museSettingsFile),
       museSettingsFile: deps.museSettingsFile,
@@ -711,6 +712,7 @@ async function applyPlan(
       ...(deps.beginProjectEdit !== undefined && { beginProjectEdit: deps.beginProjectEdit }),
       beforeProjectWrite: deps.beforeProjectWrite,
       isRootCurrent: async (root) => await isRootCurrent(deps, root),
+      ...(deps.signal !== undefined && { signal: deps.signal }),
     })
   // The lease's release can fail after the writes are done: keep what they did.
   const outcomes: ImportApplyResult[] = []
@@ -839,6 +841,7 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
     ...(deps.workspaceRoots !== undefined && { workspaceRoots: deps.workspaceRoots }),
     isWorkspaceTrusted: deps.isWorkspaceTrusted,
     isActive: deps.isActive,
+    ...(deps.signal !== undefined && { signal: deps.signal }),
     sources: choice === 'all' ? AGENT_IMPORT_SOURCES : [choice],
   })
   if (!deps.isActive()) {

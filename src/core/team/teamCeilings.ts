@@ -1,13 +1,13 @@
 // Computed ceilings per entry (M96 lane A, PLAN.md D75): the lowest of the
-// provider's limit (documented, or from headers), our hard ceiling and the
-// machine's. No level and no edit ever passes it. A 429, or a low remaining
+// provider's limit (documented, or from headers), our hard ceiling (kinds
+// other than engines, D121) and the machine's. No level and no edit ever
+// passes it. A 429, or a low remaining
 // header, halves the entry's running cap down to 1; each
 // TEAM_THROTTLE_RECOVER_MS without another 429 adds one back, up to the
 // entry's configured cap. No `vscode` here.
 
 import {
   TEAM_EXTERNAL_AGENT_DEFAULT,
-  TEAM_ENGINE_HARD_CEILING,
   TEAM_EXTERNAL_AGENT_CEILING,
   TEAM_MUSE_CODE_HOST_CEILING,
   TEAM_META_CONTRIBUTOR_RPM,
@@ -46,9 +46,9 @@ export interface TeamCeilingSource {
 
 /**
  * The ceiling for one agent: the lowest of the provider's limit, our hard
- * ceiling and the machine's, including zero. Where the provider documents
- * none (Gemini), 429s decide: the provider side drops out until throttling
- * halves the entry below it.
+ * ceiling (none for engines, D121) and the machine's, including zero. Where
+ * the provider documents none (Gemini), 429s decide: the provider side
+ * drops out until throttling halves the entry below it.
  */
 export function computeTeamCeiling(source: TeamCeilingSource): number {
   return Math.max(
@@ -85,11 +85,15 @@ function providerCeilingSide(source: TeamCeilingSource): number {
   }
 }
 
-/** Our hard ceiling for the kind: no level and no edit passes it. */
+/**
+ * Our hard ceiling for the kind: no level and no edit passes it. Engines
+ * carry none of ours (D121): the provider's documented limits and live
+ * throttling bound them, then the machine's.
+ */
 function hardCeilingSide(kind: TeamAgentKind): number {
   switch (kind) {
     case 'engine': {
-      return TEAM_ENGINE_HARD_CEILING
+      return Infinity
     }
     case 'museCode': {
       return TEAM_MUSE_CODE_HOST_CEILING

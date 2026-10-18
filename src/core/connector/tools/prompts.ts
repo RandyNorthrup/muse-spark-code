@@ -3,7 +3,7 @@
 // untrusted. A save is a new prompt, marked untrusted, written only after
 // our approval page approves the exact text (registry.ts owns that path).
 import { randomUUID } from 'node:crypto'
-import { PROMPT_LIMITS, PROMPT_SCHEMA_VERSION } from '../../../shared/constants'
+import { PROMPT_SCHEMA_VERSION } from '../../../shared/constants'
 import { promptVariableNames, type SavedPrompt } from '../../../shared/prompts'
 
 export interface PromptsPort {
@@ -99,13 +99,13 @@ export interface PromptDraftInput {
   readonly tags: readonly string[]
 }
 
-/** Whether a draft fits M118's own limits, before anything is shown or saved. */
+/**
+ * Whether a draft fits M118's own limits, before anything is shown or saved
+ * (D121: a scope holds prompts of any title/body length; only a blank title
+ * refuses).
+ */
 export function isDraftWithinLimits(draft: PromptDraftInput): boolean {
-  return (
-    draft.title.trim() !== '' &&
-    draft.title.length <= PROMPT_LIMITS.title &&
-    draft.body.length <= PROMPT_LIMITS.body
-  )
+  return draft.title.trim() !== ''
 }
 
 /** A new prompt from another agent: a fresh id, always untrusted. */

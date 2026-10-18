@@ -442,7 +442,7 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `bridge run_checks and engine test-command region > rechecks trust, cancellation and refusal after the destination-command guard`
 - `bridge run_checks and engine test-command region > dispatches the command after a hook rewrite and refuses an empty hook command`
 - `bridge run_checks and engine test-command region > refuses guarded tests and then_run before any runner probe, snapshot or install`
-- `bridge run_checks and engine test-command region > rejects unknown fields, missing checks, unknown names, unsafe paths and oversized calls`
+- `bridge run_checks and engine test-command region > rejects unknown fields, missing checks, unknown names, unsafe paths and oversized calls` (NOLIMITS1FIN 2026-10-18: the "oversized calls" half is withdrawn — over-limit calls now stand, proven by `checkCommands.test.ts` "takes any number of checks (D121)"; the rest stays unproven)
 - `bridge run_checks and engine test-command region > binds access to the current authenticated attempt and rechecks it after waits`
 
 ### test/unit/browserRestartReadiness.test.mjs
@@ -1282,8 +1282,8 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `prompt import > previews all text/variables, imports untrusted, and never resolves or runs anything`
 - `prompt import > rejects stale/cancelled previews and isolates returned preview mutations`
 - `prompt import > fences overlapping and cancelled reads before a stale preview can be accepted`
-- `prompt import > enforces the byte cap even on otherwise valid portable files`
-- `prompt import > refuses malformed/oversized inputs and remote import in a confidential workspace`
+- `prompt import > enforces the byte cap even on otherwise valid portable files` (NOLIMITS1FIN 2026-10-18: withdrawn — the 128 KiB cap is removed; past-cap preview is proven by `promptBoundsRemoved.test.ts`)
+- `prompt import > refuses malformed/oversized inputs and remote import in a confidential workspace` (NOLIMITS1FIN 2026-10-18: only the "oversized" half is withdrawn; malformed and confidential-remote refusals stay unproven)
 - `prompt sharing > invalidates an in-flight release on %s`
 - `prompt sharing > scrubs preview and exports valid portable Markdown only on the final click`
 - `prompt sharing > keeps ordinary export bytes deterministic and round trips without losing metadata`
@@ -1306,13 +1306,13 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `portable prompt store and library > validates editable fields and strips caller-owned trust and identities`
 - `portable prompt store and library > round trips exact Markdown and shows both scopes in any workspace`
 - `portable prompt store and library > retains damaged files and refuses every mutation`
-- `portable prompt store and library > rejects conflicting ids, wrong scopes, symlinks and overlarge files`
-- `portable prompt store and library > enforces title/body/count limits and preserves untrusted status on edit`
+- `portable prompt store and library > rejects conflicting ids, wrong scopes, symlinks and overlarge files` (NOLIMITS1FIN 2026-10-18: only "overlarge files" is withdrawn — they now read whole, proven by `promptBoundsRemoved.test.ts`; the rest stays unproven)
+- `portable prompt store and library > enforces title/body/count limits and preserves untrusted status on edit` (NOLIMITS1FIN 2026-10-18: the limits half is withdrawn — any title/body/count stands, proven by `promptBoundsRemoved.test.ts`; untrusted-on-edit stays unproven)
 - `portable prompt store and library > refuses a concurrent writer and preserves the lock`
 - `portable prompt store and library > syncs only user scope, newest wins, and validates before any writes`
 - `portable prompt store and library > merges unrelated remote edits while keeping an explicitly removed prompt deleted`
 - `insert-only variable review > reviews all sources and expanded text before inserting, without recursive substitution`
-- `insert-only variable review > cancelled variables/review and oversized expansion never insert`
+- `insert-only variable review > cancelled variables/review and oversized expansion never insert` (NOLIMITS1FIN 2026-10-18: the "oversized never insert" half is withdrawn — the 10000-character cap is removed and any length inserts; that removal is unproven real-use backlog, cancelled-never-inserts stays unproven)
 
 ### test/unit/promptWorkspaceIntegration.test.ts
 

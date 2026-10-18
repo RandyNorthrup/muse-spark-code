@@ -1,5 +1,6 @@
 import { legalScanLoader } from '../host/ide/legalScanBundle'
 import { failureForLog } from '../core/backends/musecode/logText'
+import { abortableSleep } from '../core/backends/modelapi/transport'
 // `muse-spark-code-acp` (PLAN.md D62): the Muse Spark agent for editors that
 // speak the Agent Client Protocol, and the sign-in commands their terminal
 // sign-ins run (D61). stdout carries the protocol; everything the user or
@@ -16,7 +17,7 @@ import { homedir, hostname, tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { Writable } from 'node:stream'
-import { setTimeout as abortableSleep } from 'node:timers/promises'
+import { setTimeout as nodeSleep } from 'node:timers/promises'
 import type { SignInMethod } from '../acp/agent'
 import { runtimeQuestionsLoader } from './questions/questionRegistryBundle'
 import { processGitRunner } from '../host/git'
@@ -40,7 +41,6 @@ import {
   EXEC_STOP_GRACE_MS,
   USAGE_ERROR_LOCALE_MS,
   LEGAL_EXIT,
-  LEGAL_SCAN_TIMEOUT_MS,
   LEGAL_SCAN_BUNDLE_FILE,
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
@@ -48,7 +48,7 @@ import {
   USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
   REFERENCE_BUNDLE_FILE,
-  SESSION_EXPORT_MAX_BYTES,
+  BOUNDED_FILE_READ_CHUNK_BYTES,
   REPORT_SOURCE_TIMEOUT_MS,
   CONNECTOR_BUNDLE_FILE,
 } from '../shared/constants'
@@ -151,10 +151,13 @@ import { chooseVaultDecision, readVaultMaterial } from './vault/vaultInput'
 const EXIT_FAILED = 1
 // Keep only presence for reports, before credential variables leave the process.
 const META_API_KEY_VARIABLE = 'META_API_KEY'
-/** The headless deadlines beside exec's own (M97 lane R: the workspace scan). */
+/**
+ * The headless deadlines beside exec's own (`scan-secrets` only): the
+ * `legal` scan runs until it is done or a signal stops it (owner
+ * 2026-10-16: no arbitrary limits).
+ */
 const HEADLESS_FIXED_TIMEOUT_MS = {
   'scan-secrets': EXEC_SCAN_TIMEOUT_MS,
-  legal: LEGAL_SCAN_TIMEOUT_MS,
 } as const
 /** What a headless command answers when its own wiring fails (D76: 2 for the scan). */
 const HEADLESS_WIRING_EXIT = {
@@ -201,10 +204,10 @@ function writeLine(stream: NodeJS.WriteStream, line: string): void {
   stream.write(`${line}\n`)
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
+// Lane PR225FIX2: a Stop clears the wait's own timer, so an abandoned
+// wait leaves none behind.
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return abortableSleep(ms, signal)
 }
 
 function packageVersion(): string {
@@ -289,7 +292,12 @@ const secrets: SecretStore = {
   },
 }
 
-/** A held regular-file descriptor bounds both stat size and growth while reading. */
+/**
+ * A held regular-file descriptor bounds both stat size and growth while
+ * reading. NOLIMITS1FIX: an infinite `maxBytes` reads to end-of-file —
+ * the removed 16 MiB report-source bound was invented. Finite callers
+ * (exec's own file bounds) behave exactly as before.
+ */
 async function readBoundedFile(
   file: string,
   maxBytes: number,
@@ -301,6 +309,17 @@ async function readBoundedFile(
     const info = await handle.stat()
     if (!info.isFile()) throw new Error(UI_TEXT.execFileUnreadable)
     if (info.size > maxBytes) throw new Error(UI_TEXT.execFileTooLarge)
+    if (!Number.isFinite(maxBytes)) {
+      const parts: Buffer[] = []
+      for (;;) {
+        signal.throwIfAborted()
+        const chunk = Buffer.alloc(BOUNDED_FILE_READ_CHUNK_BYTES)
+        const { bytesRead } = await handle.read(chunk, 0, chunk.length, null)
+        if (bytesRead === 0) break
+        parts.push(chunk.subarray(0, bytesRead))
+      }
+      return Buffer.concat(parts)
+    }
     const bytes = new Uint8Array(maxBytes + 1)
     let offset = 0
     for (;;) {
@@ -529,9 +548,11 @@ function runtimeReports(
         return await realpath(target)
       },
       readSaved: async (cwd, file) => {
+        // NOLIMITS1FIX: a saved report reads whole at any size — the
+        // removed 16 MiB bound was invented.
         const bytes = await readBoundedFile(
           path.resolve(cwd, file),
-          SESSION_EXPORT_MAX_BYTES,
+          Infinity,
           AbortSignal.timeout(REPORT_SOURCE_TIMEOUT_MS),
         )
         const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
@@ -1016,10 +1037,14 @@ async function main(): Promise<number> {
     const stdout = createFdWriter(process.stdout.fd, closed)
     const stderr = createFdWriter(process.stderr.fd, closed)
     const now = () => performance.timeOrigin + performance.now()
-    const headlessTimeoutMs =
-      command.command === 'exec'
-        ? command.options.timeoutMs
-        : HEADLESS_FIXED_TIMEOUT_MS[command.command]
+    // Only `exec` (its own option) and `scan-secrets` name a deadline; the
+    // `legal` scan runs until it is done or a signal stops it.
+    let headlessTimeoutMs: number | undefined
+    if (command.command === 'exec') {
+      headlessTimeoutMs = command.options.timeoutMs
+    } else if (command.command === 'scan-secrets') {
+      headlessTimeoutMs = HEADLESS_FIXED_TIMEOUT_MS['scan-secrets']
+    }
     const lifecycle = createLifecycle({
       processStartMs: performance.timeOrigin,
       timeoutMs: headlessTimeoutMs,
@@ -1370,7 +1395,6 @@ async function main(): Promise<number> {
           printError: (text) => {
             writeLine(process.stderr, text)
           },
-          now: Date.now,
           signal: controller.signal,
         })
       } finally {
@@ -1405,6 +1429,12 @@ async function main(): Promise<number> {
     }
     case 'authSet': {
       const { target } = command
+      // `auth set --provider <id>` without `--account` carries `provider`,
+      // not `target`: route it to the provider path, never the Meta one.
+      if (target === undefined && command.provider !== undefined) {
+        const providersFile = await userProvidersFile()
+        return await authSetProvider(authDeps(), command.provider, providersFile.readUserFile)
+      }
       if (target === undefined) return await authSet(authDeps())
       if (target.provider !== 'meta' && target.account === ACCOUNT_DEFAULT_ID) {
         const providersFile = await userProvidersFile()
@@ -1469,7 +1499,7 @@ async function main(): Promise<number> {
             flow: {
               fetch: network,
               now: Date.now,
-              sleep: (ms, signal) => abortableSleep(ms, undefined, { signal }),
+              sleep: (ms, signal) => nodeSleep(ms, undefined, { signal }),
             },
             present: (prompt) => {
               writeLine(

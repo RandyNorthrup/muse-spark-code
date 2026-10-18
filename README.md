@@ -403,11 +403,10 @@ reason and record the owner. The reviewer charter ships as the
 ## Screenshots
 
 M106 development: the Model API client paces tagged background requests from
-captured Meta request and token limits. Concurrent responses retain local
-charges, and background work reserves half the observed token budget for the
-foreground. A queued request reports that it is waiting for rate-limit
-headroom, with a separate ten-minute admission deadline; provider idle timing
-starts at dispatch. Gateway-timeout retries remain bounded. Public status
+the provider's observed rate-limit headers and 429 answers, with no invented
+pace of its own. A queued request reports that it is waiting for rate-limit
+headroom and keeps waiting until Stop; retries follow the provider's
+Retry-After and its documented guidance. Public status
 failures expose fixed text and safe status fields. Its service-status read and usage/report
 presentation ports await the integration bindings listed in
 [the lane R certification](docs/certification/m106-r.md).
@@ -485,7 +484,7 @@ request settles at its original quote. Accounting
 keeps exact decimal amounts, and paid displays round upward so a positive
 charge is never shown as free. Hosted-search product wiring remains subject
 to the verified billing-bound availability described above.
-Tab's $1/day cap is separate and is never charged into this extras ledger.
+Tab's own daily budget, when the person sets one, is separate and is never charged into this extras ledger.
 The optional per-conversation cap still applies independently. ACP and
 headless execution retain explicit flags and their hard budget policy.
 Muse Code's subscription and its existing explicit key-paid opt-ins are unchanged.
@@ -595,10 +594,12 @@ consent; a changed model or price asks again for its own key. A request whose
 model, consent or hook configuration changes before it goes out sends
 nothing; the last check runs immediately before the request is sent.
 
-The hard daily budget defaults to **$1.00 across every window on this
-machine**, reserved before each request. The status shows today's spend;
-Account & usage shows requests, tokens, cached tokens, today's cross-window
-total, this window's reported cost and your configured budget. Requests
+There is **no daily budget unless you set one**: nothing is reserved or
+locked. When you set `museSpark.tabDailyBudgetUsd`, that budget applies
+across every window on this machine and is reserved before each request.
+The status shows today's spend; Account & usage shows requests, tokens,
+cached tokens, today's cross-window total, this window's reported cost and
+your configured budget (or that no budget is set). Requests
 without reported usage retain their worst-case reservation. The next local
 day, or a larger budget, permits requests again. At the probe's token counts,
 Standard's projected average was $0.00242 per fast request and $0.00706 per
@@ -617,7 +618,7 @@ All Tab settings are machine-scoped:
 | ----------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `museSpark.modelApiTab`       | `true`                                       | Offer Tab, with consent required before the first charge.                                                                                                          |
 | `museSpark.tabModel`          | `muse-spark-1.3`                             | Standard: Meta does not train on your code. The cheaper `muse-spark-1.3-contributor` tier trains on the code sent.                                                 |
-| `museSpark.tabDailyBudgetUsd` | `1`                                          | Hard local-day USD limit, from $0.05 to $50.                                                                                                                       |
+| `museSpark.tabDailyBudgetUsd` | `0` (no budget)                              | Optional local-day USD cap: `0` is no budget, a set budget starts at $0.05 with no maximum.                                                                        |
 | `museSpark.tabLanguages`      | All except plaintext, Markdown and SCM input | Per-language switches over a `"*"` default, like Copilot's enable setting.                                                                                         |
 | `museSpark.tabMultiline`      | `auto`                                       | Automatic requests add context on a blank line or block opener; `onInvoke` and `never` keep automatic requests in fast mode. Explicit Invoke uses multi-line mode. |
 | `museSpark.tabTrigger`        | `onInvoke`                                   | Alt+\ or **Inline Suggest: Trigger**; `automatic` enables typing triggers.                                                                                         |
@@ -930,6 +931,9 @@ offers `providers list`, `providers add`, `providers test`, `providers remove`,
 `providers models <entry> [--add <model>] [--remove <model>]`
 and `auth set|status|clear --provider <id>`. Free checks use the shared
 transport; keys are entered through stdin and stored with their origin.
+A provider key is never refused for how it looks: any non-blank key is
+sent to the provider's own free key test, and a refusal shows the
+provider's reason.
 Headless `exec --provider` validates configuration, credentials and endpoints,
 then refuses before dispatch until its provider-aware accounting runner exists;
 installed-editor and live provider certification are still open. MiniMax
@@ -1239,7 +1243,7 @@ says why when it cannot.
   - Pressing again the same day finds the file already saved with the same
     content and writes nothing.
   - `.agents` is a protected folder, so the save asks first.
-  - A plan may be up to 256 KB.
+  - A plan saves at any size.
   - The file is published by a hard link; on a file system without hard
     links the save is refused rather than risk replacing a file.
   - The reply you approve is shown as the model will get it: a link's
@@ -1295,8 +1299,8 @@ you need to, then **Start New Conversation**, or **Cancel** and nothing
 starts. Starting leaves the old conversation in History and seeds the new
 one with the brief alone — the goal and the open items travel in its note,
 and on the Model API backend the open items become the todo list before
-the first request. The generated or edited brief may be up to 256 KB in
-UTF-8. Cancel closes a handoff before the new conversation commits. A
+the first request. The generated or edited brief reads at any size.
+Cancel closes a handoff before the new conversation commits. A
 brief that is ready while Account & usage, the Agent map or a share file is open waits
 until you close that dialog, then opens.
 
@@ -1673,10 +1677,11 @@ service. The extension helps you build gadgets; it never becomes one:
   mode, including Bypass. Every approval Muse Code emits has its card redacted
   and offers only one-time approval; Muse Code Bypass can execute without
   emitting an approval, so the extension cannot warn before those commands.
-- **Device commands stay bounded.** A monitor never exits by itself, so the
-  shell tool's `timeout_ms` ends it and returns what it captured: flash, then
-  capture N seconds of serial output, in one call, with no process left
-  behind.
+- **Device commands stay bounded.** A monitor never exits by itself, so name
+  the shell tool's `timeout_ms` to end it and return what it captured:
+  flash, then capture N seconds of serial output, in one call, with no
+  process left behind. A command without one runs until it ends or is
+  stopped, with a still-waiting notice each minute.
 - **The skill knows the drill.** `/muse_gadgets` (a bundled skill, off while
   `museSpark.bundledSkills` is off) covers the SDK layout, the Windows and
   POSIX setup, the bounded-monitor pattern and the token rules. In a clone of
@@ -1835,7 +1840,10 @@ hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuratio
     `framing` (`auto`, `line_delimited_json`, `content_length`) for a
     local server; `url` and `headers` for a remote one (streamable HTTP);
     `enabled`, `mode`, `startup_timeout_sec`, `tool_timeout_sec`,
-    `enabled_tools` and `disabled_tools` for either. `${VAR}` reads an
+    `enabled_tools` and `disabled_tools` for either. A timeout the entry
+    names is honoured whole, however long; one it does not name is no
+    deadline at all — the server is waited on until it answers or is
+    stopped, with a still-waiting notice each minute. `${VAR}` reads an
     environment variable of VS Code's; an unset one keeps the server from
     starting. A local server sees only a short list of VS Code's environment
     variables (`PATH`, `HOME`, `TEMP` and the like) plus its own `env`.
@@ -2144,7 +2152,7 @@ also unavailable while a pull request worktree is held.
     path would leave the worktree, name `.git` (in any case, or as `.git.`,
     `.git ` or `GIT~1`), use a name Windows cannot hold (on Windows), or
     collide with another path where letter case does not count (Windows and
-    macOS); or when it has more than 20,000 files and folders or 250 MB.
+    macOS).
     Each file is created without replacing anything, in a folder whose
     canonical path must be the worktree's: a link or junction on the way
     refuses the checkout, and the half-written worktree is removed.
@@ -2603,8 +2611,9 @@ files, and before the next request to Meta:
   after `--`, each quoted as one argument; a file name that starts with `-`
   or `@`, or on Windows one holding `"`, `&`, `|`, `<`, `>`, `^`, `%` or `!`
   (which Windows PowerShell 5.1 and `cmd.exe` would read as syntax), keeps
-  the check from running. `timeoutSeconds` (300 unless set, 600 at most)
-  caps each run. A check you reject is not asked again until your next
+  the check from running. `timeoutSeconds` names how long a run may take
+  (300 seconds unless you name more); a check that runs longer is stopped
+  and reported. A check you reject is not asked again until your next
   message, and a check the model already ran since its last edit is not run
   again after the round. Nothing runs after the turn's last round.
 - **One budget.** What the model reads after a round, diagnostics and every
@@ -2664,9 +2673,9 @@ press Enter (or click) to resume a conversation. Ephemeral Best-of-N rows
 open their owned worktree instead: they have no saved conversation to resume.
 **Best of N…** opens the best-of-N dialog.
 
-Best-of-N runs the same prompt in 2 to 5 worktrees at once on the Model API
-backend, then you take one. It needs a trusted workspace with a folder open
-(worktrees run git, which Restricted Mode forbids).
+Best-of-N runs the same prompt in as many worktrees at once as you ask for on
+the Model API backend, then you take one. It needs a trusted workspace with a
+folder open (worktrees run git, which Restricted Mode forbids).
 Best-of-N (Model API, paid, available by default) is controlled by
 `museSpark.modelApiBestOfN` ([Paid](#paid-features)); set it to false to hide
 it. Each run asks once in the
@@ -2842,8 +2851,8 @@ Meta's paid web search.
   page nested to be slow to parse), and then refused with the reason. Plain text, Markdown, JSON,
   XML, CSV, YAML, TOML, CSS and JavaScript come back as they are; XHTML
   (`application/xhtml+xml`) is refused, since read as HTML its XML syntax
-  would be misread; anything else is refused with the reason. At most 5 MiB (after decompression) within 30
-  seconds; the model reads the first 50,000 characters, and is told when
+  would be misread; anything else is refused with the reason. The whole page is read (after decompression) within 30
+  seconds, however large; the model reads the first 50,000 characters, and is told when
   there was more. A page built to expand stops converting at 100,000.
 - **Where it may go.** Public internet addresses only. A URL that names a
   local or reserved name (`localhost`, `*.local`, `*.internal`, single-label
@@ -2858,7 +2867,8 @@ Meta's paid web search.
   request then goes to an address that was checked, never to a second
   lookup, and TLS still verifies the page's name; when one address does not
   connect within a quarter of a second, the next is tried too. A redirect on
-  the same host is checked and pinned the same way, at most five times; a
+  the same host is checked and pinned the same way, as many times as it takes
+  within the 30 seconds (a loop of redirects ends at the deadline); a
   redirect to another host is handed back to the model, which asks again.
 - **Asking.** Each host is approved on its own: the Model API backend's card
   names the URL, and "Always allow in this session" covers that host only.
@@ -2902,9 +2912,9 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   20 of each; on the Model API backend also a screenshot, which the model
   sees as it sees an image `read_file` read. Muse Code gets text only until
   a capture shows that an `ide` tool's image reaches its model. Before the
-  page is read, the model may run up to eight click or type steps, each
-  naming a CSS selector. A check ends after 60 seconds; a page still loading
-  after 15 is read as it stands.
+  page is read, the model may run any number of click or type steps, each
+  naming a CSS selector. A check runs until it finishes or is stopped; a
+  page still loading after 15 seconds is read as it stands.
 - **The browser.** Google's Chrome for Testing headless shell, one exact
   version pinned by each extension release (now 154.0.8037.92), on Windows
   x64, Linux x64 and macOS (Intel and Apple silicon; the Apple silicon build
@@ -2916,8 +2926,8 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   pins, and `off` turns the check off and downloads nothing. The download,
   and each file of it, is checked against the pinned length and SHA-256
   before anything runs, and the browser's own file again before each check.
-  Getting it ready has its own 15 minutes; the check's 60 seconds start
-  after. A pinned version serves for 45 days after Google published it;
+  Getting it ready has its own 15 minutes; the check itself names no
+  deadline and starts after. A pinned version serves for 45 days after Google published it;
   after that the check refuses until an extension update pins a newer one.
   Each version stays in that storage until you remove it. The browser runs
   headless, talks to the extension over its debugging pipe and never opens
@@ -3535,10 +3545,9 @@ is untrusted as a plan file is: **Implement in a Fresh Conversation** starts
 it in Manual (or Plan) too. It drops session rules, goals,
 schedules, todos and patches, and the model reads each imported turn as
 untrusted data in a message of yours, never as its own replies or tool calls.
-A file whose turns are more text than a conversation can start with (counted
-high, one token per UTF-8 byte: 786.4 kB, the allowance named text
-attachments have) is refused before the import is confirmed, with both sizes
-named; it can still be opened as a share file.
+A file whose turns hold more text than the model's documented context window
+(counted high, one token per UTF-8 byte) is refused before the import is
+confirmed, with both sizes named; it can still be opened as a share file.
 The panel offers Copy only on such a conversation's code blocks, never
 Insert or Apply, as in a share file.
 The ACP agent also applies this safe start to stored sessions marked imported
@@ -3547,16 +3556,16 @@ before advertising their mode or replaying history.
 links and Copy work, code blocks have no Insert or Apply, and nothing in it
 reaches a session. It shows 200 items at a time, with **Show More** for the
 next, and an item that cannot be rendered says so in its place while the
-rest of the file still shows. A file is refused whole if it is over 16 MiB, is another
+rest of the file still shows. A file is refused whole if it is another
 format or a newer version, or holds any field this version does not know.
 At 320 px too, Tab reaches Close, Copy, scrollable code and Show more,
 with the theme's focus border; Escape closes the view and focuses the composer.
 For a local visual check, `npm run ui:look -- share` renders the scene
 from the built webview into `temp/ui-look/`.
 The picker reads a local `file:` URI on the extension host through one
-checked descriptor, stopping at the size cap even if the file grows.
-Other file providers are explicitly refused because this reader cannot
-bound their allocations; a PDF header never raises the JSON cap.
+checked descriptor, whole at any size and at any transcript item count.
+Other file providers are explicitly refused because this
+reader cannot bound their allocations.
 Validation notices use localized refusals: JSON parser snippets are never
 shown, and reported field names are scrubbed before their bounded display.
 Nothing is ever uploaded: sharing is a file on your disk.
@@ -3626,14 +3635,14 @@ tokens, the background tasks, and each agent's own transcript.
   read controls wait for a live capture of their accepted MSP commands;
   its captured Interrupt, Stop, Resume and Close controls remain available.
 - On the Model API backend, the agent can spawn up to eight child sessions at
-  once; more wait in order, up to 64 per conversation. A child has its own
+  once; more wait in order, with no count of ours. A child has its own
   conversation and the same workspace tools and approvals, but cannot spawn
   again or ask you a question. Children share the workspace and use your
   Model API key; their tokens count in the conversation's usage. Paid
   subagents are available by default. Each new child task asks with the published
   rates and shared daily budget before it starts, including in
   Bypass mode, unless you allowed subagents always in this workspace (a child on another model still asks). Plan refuses the task. A spawn that would start no child asks
-  nothing: one past the 64, one asking for worktree isolation, or one reusing
+  nothing: one asking for worktree isolation, or one reusing
   an earlier spawn's command id for a different task is refused first, and a
   retry of the same spawn under its command id answers with that child.
   One approval allows at most four actual
@@ -3910,7 +3919,7 @@ the subscription):
 | Image generation  | $0.01 per image                                                               | The model may create a PNG file in the workspace with `muse-image-1.0`, or edit workspace images into a new one, asking you each time                    |
 | Muse Voice        | $0.18 per hour of audio                                                       | The microphone uses Meta's Muse Voice Transcribe instead of your computer's own recogniser                                                               |
 | Subagents         | Selected model's published input, cached input and output token rates         | Child tasks on the Model API backend; every new task asks (unless allowed always) and admits at most four response requests                              |
-| Best-of-N         | Selected model's published input, cached input and output token rates         | The same prompt runs in 2 to 5 worktrees at once on the Model API backend; you take one                                                                  |
+| Best-of-N         | Selected model's published input, cached input and output token rates         | The same prompt runs in as many worktrees at once as you ask for on the Model API backend; you take one                                                  |
 | Scheduled prompts | Selected model's published input, cached input and output token rates         | A due `/loop` prompt runs only after you choose **Run Now** and allow that run's model and rates                                                         |
 | Auto reviewer     | The conversation model's published input, cached input and output token rates | In Auto on the Model API backend, a separate model call judges a plain command or MCP call that would ask and that no rule or permission profile settles |
 
@@ -4005,7 +4014,7 @@ sent, as Meta bills them.
 <table>
   <tr>
     <td align="center" width="50%"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/paid.png" alt="A paid Web search row with its query, the reply with its Sources list, and the composer's badge: Paid: Web search, Images"><br><sub>A search marked paid, the reply's sources, and the badge</sub></td>
-    <td align="center" width="50%"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/paid-always.png" alt="Account and usage on the Model API: paid feature tallies, Web search allowed always in this workspace, Images, Tab completions with a $1 daily budget, Model hooks and Judge"><br><sub>Paid feature tallies, workspace consent and the Tab daily budget</sub></td>
+    <td align="center" width="50%"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/paid-always.png" alt="Account and usage on the Model API: paid feature tallies, Web search allowed always in this workspace, Images, Tab completions with their optional daily budget, Model hooks and Judge"><br><sub>Paid feature tallies, workspace consent and the Tab daily budget</sub></td>
   </tr>
 </table>
 
@@ -4239,10 +4248,9 @@ source cannot elevate their priority. See [M95 N's record contract](docs/certifi
 | Model API replayed media         | No aggregate character budget; the provider's per-request image budget decides, newest first, with older media named when left out. The platform refuses what it cannot take.                                                                                   |
 | Picked UTF-8 text attachments    | 1 MiB per-file read cap from trusted and indexed workspace paths; Model API also caps combined text and file-name wrappers at 768 KiB to leave context room.                                                                                                    |
 | A message to Muse Code           | 10 MiB. Attachment admission reserves 2 MiB for the prompt, context and frame; serialized text and base64 images count toward the rest. The exact outbound frame is checked at send.                                                                            |
-| Model API: tool rounds           | 50 per turn                                                                                                                                                                                                                                                     |
 | Model API: shell commands        | 2 minutes by default, 10 at most                                                                                                                                                                                                                                |
-| Model API: retries               | Up to 5 attempts on 429, 500, 502 and 503, and when a reply stream ends because the server shut down or was overloaded, honouring `Retry-After`, shown in the transcript; Stop cuts the wait short                                                              |
-| Model API: a silent reply stream | Ended after 5 minutes with nothing from the server; send again to retry                                                                                                                                                                                         |
+| Model API: retries               | Retryable failures (429, 500, 502 and 503, and a reply stream the server shut down or overloaded) retry honouring `Retry-After` at any length, shown in the transcript; attempts end at Stop, never at a count, and quota never retries                         |
+| Model API: a silent reply stream | Waits until Stop, saying so while it lasts; a provider-named idle still ends silence at it                                                                                                                                                                      |
 | Model API: file tools            | Text and images up to 10 MiB, PDFs up to 32 MB; the search tool skips files over 1 MiB                                                                                                                                                                          |
 | Opened tool outputs              | 16 MiB each; every document is kept and stays readable                                                                                                                                                                                                          |
 
@@ -4562,6 +4570,7 @@ Bypass at once.
 | `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file `write_file` or `edit_file` writes on the Model API backend, in a trusted workspace; never on a file the editor runs as code. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `modelApiBestOfN`                 | `true`      | Offers best-of-N as a separate explicit action. Ordinary turns use one model unless you choose more attempts. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `modelApiMaxRetries`              | `null`      | Retry limit for failed Model API requests, per try after the first (`0` never retries). Unset by default: each provider's documented maximum governs (Anthropic 2, OpenAI 2, Gemini 4, Azure 10, xAI 4, Meta 4), and a provider that documents none retries until its own wait or stop answer ends it. [Agent loop guarantees](#agent-loop-guarantees). Machine-scoped                                                                                                                                                                                                                                                                                                                                         |
 | `modelApiCommandRules`            | `[]`        | Machine-scoped standing allow/ask/forbid prefix rules, each with matching examples and optional nonmatching ones.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `modelApiPermissionProfiles`      | `{}`        | Machine-scoped named file-denial globs and explicit additional read roots.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `modelApiPermissionProfile`       | `""`        | Machine-scoped selected profile; unknown or malformed selections deny file access.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -5002,28 +5011,29 @@ below it must be a plain file or folder.
   stops Muse Code, and your next message starts it again and continues the
   conversation. **New Conversation** starts afresh. The panel now rejects
   the waiting step before a Stop, which keeps the conversation usable.
-- **"Could not load the output: Muse Code did not answer item/readOutput
-  within 180 s"** — a busy Muse Code answers stored-output reads one after
-  another. The panel says it once per conversation; the row keeps the diff it
+- **A stored-output read that takes a while** — a busy Muse Code answers
+  stored-output reads one after another, and the panel waits for each one
+  instead of giving up, saying so while it waits. The row keeps the diff it
   already has, and collapsing and expanding the row asks again. An open row
   without a page also retries once when the turn ends. Automatic edit-row
-  reads wait until then. At most four reads per panel go to Muse Code at a time, using
-  the longer 180 s deadline so late replies can still supply the patch.
+  reads wait until then. At most four reads per panel go to Muse Code at a time,
+  so late replies can still supply the patch.
 - **Muse Code is stuck, or slow and you want a fresh one** — run **Muse
   Spark: Restart Muse Code**. It stops `muse serve` and starts it again
   without reloading the window; a running turn is stopped, and each
   conversation continues with your next message.
 - **"Muse Code is not answering. Restart it with "Muse Spark: Restart Muse
-  Code"."** — three commands in a row went unanswered and nothing at all
-  came from Muse Code for 90 s, so the panel stopped waiting 60 s for each
-  one. When no turn was running, Muse Code was restarted already ("Muse Code
-  stopped answering and was restarted."); while a turn runs, its notice
-  offers **Restart Now**, which stops the turn. If Muse Code answers again
-  on its own, commands go through again.
+  Code"."** — three waits in a row went unanswered and nothing at all
+  came from Muse Code for 90 s. The waiting commands keep waiting, with a
+  still-waiting notice each minute, but new commands fail at once until
+  Muse Code answers or restarts. When no turn was running, Muse Code was
+  restarted already ("Muse Code stopped answering and was restarted.");
+  while a turn runs, its notice offers **Restart Now**, which stops the
+  turn. If Muse Code answers again on its own, commands go through again.
 - **"Muse Code did not confirm your message reached the running turn"** —
-  the message was for the running turn, and Muse Code did not answer in
-  time. It may still reach the turn, so it is not sent again; the composer
-  keeps it. Look at the conversation before you send it again.
+  the message was for the running turn, and Muse Code stayed silent while
+  the panel waited. It may still reach the turn, so it is not sent again;
+  the composer keeps it. Look at the conversation before you send it again.
 - **"This conversation's Muse Code log is damaged"** — Muse Code 1.4.2
   failed the session's event log ("event log failed: …"), after which it
   fails every message of that session. The panel refuses new messages to it
@@ -5098,7 +5108,9 @@ lists what they covered); the first live receipt with a real key (LA, on a candi
 2026-10-05, but L, and LR after a release, are still pending, so this is
 **not certified yet**. The Action installs the agent from npm and checks its
 provenance (0.12.0 is the first npm release with `exec`), or a candidate
-tarball you pin (`agent-package` with `agent-package-sha256`).
+tarball you pin (`agent-package` with `agent-package-sha256`). With no
+`max-requests` input the Action sets no request limit; a set value allows 1–500
+billable HTTP attempts, retries included.
 [The CI guide](docs/ci.md) lists every option, exit code, bound and recipe.
 
 ```text
@@ -5128,8 +5140,9 @@ or `jsonl`; `--timeout` is the process deadline. Model API requires
 stays in memory and conflicts with a stdin prompt. CI never runs `auth set` or
 gives the agent a key environment variable.
 
-Budgets are positive ASCII decimals up to $20 with at most six fractional
-digits, parsed straight into integer micro-USD. At 32,768 output tokens the
+Budgets are positive ASCII decimals with at most six fractional
+digits, parsed straight into integer micro-USD; the person sets the amount
+with no ceiling of ours. At 32,768 output tokens the
 minimum reservation is $0.108135 for the contributor model ($0.118135 with
 images) and $1.409024 for standard ($1.419024). The contributor model needs
 `--allow-contributor-models`; its content may be used for training under
@@ -5400,7 +5413,8 @@ appear as error notices in the conversation.
 Copy exports scrubbed text or Markdown. File export uses `.muse-prompt.md`
 with versioned JSON front matter. Closing the prompt sharing UI cancels a pending
 export, including one waiting on the Save dialog. Import from a file or a pasted public HTTPS
-raw-file link (including a raw gist link) is capped at 128 KiB, shows the
+raw-file link (including a raw gist link) reads the whole prompt at any size
+(a link reads under web fetch's own 5 MiB body bound), shows the
 whole prompt, declared variables and destination scope, and marks the result
 untrusted. A gist web page is HTML, so use its raw-file URL. Publishing secret
 gists is phase 2; node links, team libraries and email are phase 3.
@@ -6026,8 +6040,11 @@ schema format, allow one repair and retain the text fallback. Git commit and
 pull-request drafts apply this contract to the user's own turn, with repairs
 under the session's hooks and budget. Judge uses the selected model's captured
 format. Compaction applies its own summary contract even when a headless final
-answer schema is active. Retry waits,
-idle deadlines and fan-out pacing are bounded and Stop aborts the wait.
+answer schema is active. Retry waits follow each provider's documented bounds
+(Anthropic 2, OpenAI 2, Gemini 4, Azure 10, xAI 4, Meta 4), or `museSpark.modelApiMaxRetries`
+when you set it; a provider that documents no maximum retries until its own
+wait or stop answer ends the exchange. Idle deadlines and fan-out pacing are
+bounded and Stop aborts the wait.
 
 The SDK is pinned to 1.4.2. Its effort, manual feedback and permanent deletion
 ports are present, but this integration does not yet have the recorded MSP

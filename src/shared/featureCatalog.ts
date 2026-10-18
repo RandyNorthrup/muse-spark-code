@@ -529,6 +529,17 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    feature(
+      'retry-limits',
+      { setting: 'modelApiMaxRetries' },
+      { setting: 'modelApiMaxRetries' },
+      [],
+      ['modelApiMaxRetries'],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode'],
+    ),
     {
       ...feature(
         'auto-compaction',

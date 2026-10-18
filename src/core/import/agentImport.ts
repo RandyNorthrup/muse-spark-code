@@ -129,8 +129,13 @@ export interface ImportDirEntry {
 export interface ImportIo extends RealPathIo {
   /** The file, unread when it is over `maxBytes`; throws on a failure other than "not there". */
   readFile(absolutePath: string, maxBytes: number, projectRoot?: string): Promise<ImportRead>
-  /** Safe git metadata query; false outside a repository, throws if classification fails. */
-  isIgnored(absolutePath: string, workspaceRoot: string): Promise<boolean>
+  /**
+   * Safe git metadata query; false outside a repository, throws if
+   * classification fails. `signal` ends a stalled probe (PR #214 review):
+   * the probes name no deadline of their own, and the window closing
+   * must still reach the child.
+   */
+  isIgnored(absolutePath: string, workspaceRoot: string, signal?: AbortSignal): Promise<boolean>
   /** The directory's entries; undefined when it is missing; throws on any other failure. */
   listDirectory(absolutePath: string): Promise<readonly ImportDirEntry[] | undefined>
   /**
@@ -157,6 +162,11 @@ export interface ImportScanInput {
   readonly workspaceRoots?: () => readonly string[]
   readonly isWorkspaceTrusted: () => boolean
   readonly isActive: () => boolean
+  /**
+   * Ends the scan's git probes when it aborts (PR #214 review): the window
+   * closing. Absent, the probes wait for git's answer.
+   */
+  readonly signal?: AbortSignal
   readonly sources: readonly AgentImportSource[]
 }
 
@@ -381,6 +391,8 @@ interface ExposureContext {
   readonly workspaceRoot: string | undefined
   readonly workspaceRoots?: () => readonly string[]
   readonly io: Pick<ImportIo, 'realPath' | 'isIgnored'>
+  /** Ends the git probes when it aborts; absent, they wait for git's answer. */
+  readonly signal?: AbortSignal
 }
 
 /** Canonical containment decides scope; git decides ignored versus tracked. */
@@ -395,7 +407,7 @@ export async function importExposure(
   for (const workspace of workspaces) {
     const root = await io.realPath(workspace)
     if (resolveWorkspacePath(root, file, platform).ok) {
-      return (await io.isIgnored(file, root)) ? 'project-local' : 'project-tracked'
+      return (await io.isIgnored(file, root, context.signal)) ? 'project-local' : 'project-tracked'
     }
   }
   const home = await io.realPath(context.homeDir)
@@ -1889,6 +1901,8 @@ export interface ImportDestinations {
   readonly homeDir: string
   readonly workspaceRoot: string | undefined
   readonly workspaceRoots?: () => readonly string[]
+  /** Ends the plan's git probes when it aborts; absent, they wait for git's answer. */
+  readonly signal?: AbortSignal
   /** Undefined when the folder could not be identified: no project file is planned then. */
   readonly workspaceIdentity: ImportRootIdentity | undefined
   /** `<config>/muse`: the personal skills and agents go beneath it. */
@@ -2493,7 +2507,8 @@ export async function planImportApply(
 // --- Apply ---
 
 export interface ImportWriter extends RealPathIo {
-  isIgnored(absolutePath: string, workspaceRoot: string): Promise<boolean>
+  /** As `ImportIo.isIgnored`, with the same stalled-probe signal. */
+  isIgnored(absolutePath: string, workspaceRoot: string, signal?: AbortSignal): Promise<boolean>
   /** The folder's identity now: its canonical path and its file number. */
   identifyRoot(absolutePath: string): Promise<ImportRootIdentity>
   /**
@@ -2544,6 +2559,8 @@ export interface ImportApplyOptions {
   readonly beforeProjectWrite?: (absolutePath: string) => void | Promise<void>
   /** Whether the window still shows the folder the plan was made for. */
   readonly isRootCurrent?: (root: ImportProjectRoot) => Promise<boolean>
+  /** Ends the apply's git probes when it aborts; absent, they wait for git's answer. */
+  readonly signal?: AbortSignal
 }
 
 interface ApplyState {
@@ -2603,6 +2620,7 @@ async function wasPublished(
       ...write,
       platform: state.platform,
       io: state.writer,
+      ...(state.options.signal !== undefined && { signal: state.options.signal }),
     })
     const reason =
       exposureRefusal(write.sourceExposure, targetExposure) ??
