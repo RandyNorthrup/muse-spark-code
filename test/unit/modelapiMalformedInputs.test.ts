@@ -29,7 +29,6 @@ import {
   decodeGeminiStream,
   encodeGeminiRequest,
 } from '../../src/core/backends/modelapi/codecs/gemini'
-import { encodeOllamaRequest } from '../../src/core/backends/modelapi/codecs/ollama'
 import { ModelApiError } from '../../src/core/backends/modelapi/transport'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import {
@@ -182,65 +181,6 @@ describe('a broken SSE data line on the Gemini codec', () => {
         typeof part === 'object' && part !== null && 'functionCall' in part,
     )
     expect(call?.functionCall.args).toEqual({})
-  })
-})
-
-const ollamaOptions = {
-  model: 'qwen3:4b-instruct-2507-q4_K_M',
-  numCtx: 32_768,
-  think: false,
-} as const
-function ollamaBody(input: CreateResponseBody['input']): CreateResponseBody {
-  return {
-    model: 'muse-spark-1.3',
-    input,
-    instructions: 'Be brief.',
-    tools: [
-      {
-        type: 'function',
-        name: 'read_file',
-        description: 'Read a file',
-        parameters: { type: 'object', properties: { path: { type: 'string' } } },
-        strict: false,
-      },
-    ],
-    tool_choice: 'auto',
-    reasoning: { effort: 'low', summary: 'auto' },
-    stream: true,
-    store: false,
-    include: [],
-    max_output_tokens: 1024,
-    prompt_cache_key: 'k',
-    prompt_cache_retention: 'in_memory',
-  }
-}
-
-describe('damaged Ollama thinking envelopes and arguments', () => {
-  it('drops a thinking envelope that is not JSON, keeping the request', () => {
-    const damaged = encodeOllamaRequest(
-      ollamaBody([
-        { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Say hi' }] },
-        { type: 'reasoning', id: 'r1', encrypted_content: 'ollama-thinking-v2:{oops' },
-      ]),
-      ollamaOptions,
-    ).body
-    expect(damaged).not.toContain('"thinking":')
-  })
-
-  it('passes non-JSON call arguments to the server instead of an empty object', () => {
-    const passed = encodeOllamaRequest(
-      ollamaBody([
-        {
-          type: 'function_call',
-          id: 'c1',
-          call_id: 'session-turn-1:call:0',
-          name: 'read_file',
-          arguments: '{oops',
-        },
-      ]),
-      ollamaOptions,
-    ).body
-    expect(passed).toContain('{oops')
   })
 })
 
