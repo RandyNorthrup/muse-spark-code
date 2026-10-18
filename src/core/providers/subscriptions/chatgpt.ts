@@ -296,7 +296,10 @@ function jwtPart(value: string): unknown {
   try {
     const decoded: unknown = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'))
     return decoded
-  } catch {
+  } catch (error) {
+    // Only malformed JSON reads as an invalid token; anything else is not
+    // the token and reaches the caller.
+    if (!(error instanceof SyntaxError)) throw error
     throw new ChatGptSignInError('invalid-id-token')
   }
 }
@@ -442,7 +445,10 @@ export class ChatGptSignIn {
           let failure: unknown
           try {
             failure = await response.json()
-          } catch {
+          } catch (error) {
+            // Only a body that is not JSON is named by its status; anything
+            // else is not the body and reaches the caller.
+            if (!(error instanceof SyntaxError)) throw error
             throw new ChatGptSignInError('request-failed', `HTTP ${String(response.status)}`)
           }
           const unusable = unusableGrantSchema.safeParse(failure)
@@ -472,7 +478,10 @@ export class ChatGptSignIn {
     try {
       const value: unknown = await response.json()
       return value
-    } catch {
+    } catch (error) {
+      // Only a body that is not JSON reads as this code; anything else is
+      // not the body and reaches the caller.
+      if (!(error instanceof SyntaxError)) throw error
       throw new ChatGptSignInError(code)
     }
   }
@@ -525,7 +534,10 @@ export class ChatGptSignIn {
         try {
           const waiting = callback.waitForCallback()
           // Attach a handler before opening the browser; a callback may reject immediately.
-          void waiting.catch(() => null)
+          void waiting.catch(() => {
+            // The wait below still reaps the callback outcome; this quiets
+            // only the interim rejection.
+          })
           await this.host.openBrowser(
             buildChatGptAuthorizeUrl({
               redirectUri: callback.redirectUri,

@@ -66,7 +66,10 @@ async function refusalOf(response: Response): Promise<string> {
   let body: unknown
   try {
     body = await response.json()
-  } catch {
+  } catch (error) {
+    // Only a body that is not JSON is unnamed; anything else is not the
+    // body and reaches the caller.
+    if (!(error instanceof SyntaxError)) throw error
     body = undefined
   }
   const envelope = errorBodySchema.safeParse(body)
@@ -99,7 +102,10 @@ export async function chatGptCatalog(
   let value: unknown
   try {
     value = await response.json()
-  } catch {
+  } catch (error) {
+    // Only a body that is not JSON reads unreadable; anything else is not
+    // the body and reaches the caller.
+    if (!(error instanceof SyntaxError)) throw error
     throw new ChatGptSignInError('catalogue-unreadable')
   }
   const parsed = catalogueSchema.safeParse(value)
@@ -278,7 +284,10 @@ export async function planRequestError(response: Response): Promise<ChatgptPlanR
   let body: unknown
   try {
     body = await response.json()
-  } catch {
+  } catch (error) {
+    // Only a body that is not JSON stays unnamed; anything else is not the
+    // body and reaches the caller.
+    if (!(error instanceof SyntaxError)) throw error
     body = undefined
   }
   const envelope = errorBodySchema.safeParse(body)
@@ -343,7 +352,10 @@ function subscriptionRecord(record: unknown) {
   let value: unknown = record
   try {
     if (typeof record === 'string') value = JSON.parse(record)
-  } catch {
+  } catch (error) {
+    // Only malformed stored text reads unreadable; anything else is not
+    // the grant and reaches the caller.
+    if (!(error instanceof SyntaxError)) throw error
     throw new ChatGptSignInError('grant-unreadable')
   }
   const parsed = chatGptRecordSchema.safeParse(value)
