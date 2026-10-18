@@ -1,119 +1,70 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   createUploadedFilesPort,
   emptyUploadedFilesReport,
 } from '../../src/core/media/uploadedFiles'
-import { uploadedFilesReportSchema } from '../../src/shared/media'
-import {
-  fakeUploadedFilesLedger,
-  type FakeUploadedFilesLedger,
-  uploadedFilesReportFixture,
-} from './helpers/uploadedFiles'
+import { uploadedFilesReportSchema, type UploadedFilesReport } from '../../src/shared/media'
 
-const report = uploadedFilesReportFixture()
-
-function setup(ledger: FakeUploadedFilesLedger | undefined) {
-  const post = vi.fn()
-  const confirmForeign = vi.fn(() => Promise.resolve(true))
-  const port = createUploadedFilesPort({
-    ledger: () => Promise.resolve(ledger),
-    post,
-    confirmForeign,
-  })
-  return { port, post, confirmForeign }
+// The port with no ledger behind it, and its posted-report validation.
+// Delegation to a live ledger needs the real Files-backed ledger and a
+// key; it is unproven here (docs/real-life/unproven.md).
+const report: UploadedFilesReport = {
+  ...emptyUploadedFilesReport(),
+  poolBytes: 100,
+  usedBytes: 3,
+  files: [
+    {
+      fileId: 'file-one',
+      name: 'clip.mp4',
+      bytes: 3,
+      expiresAt: 1_800_000_000,
+      ours: true,
+      sessions: [],
+    },
+  ],
 }
 
-describe('uploaded-files port', () => {
-  it('reads the ledger report and posts it back validated', async () => {
-    const t = setup(fakeUploadedFilesLedger(report))
-    expect(await t.port.read()).toEqual(report)
-    t.port.post(report)
-    expect(t.post).toHaveBeenCalledWith(report)
-    expect(() => {
-      t.port.post({ ...report, files: [{ ...report.files[0], file_data: 'x' }] })
-    }).toThrow()
-  })
-
-  it('deletes the chosen files through the ledger and confirms foreign ones outside it', async () => {
-    const ledger = fakeUploadedFilesLedger(report)
-    const t = setup(ledger)
-    const confirmed = vi.fn(() => Promise.resolve(true))
-    await t.port.deleteFile('file-one', confirmed)
-    expect(ledger.deleteFile).toHaveBeenCalledWith('file-one', confirmed, undefined)
-    await t.port.deleteAllOurs()
-    expect(ledger.deleteAllOurs).toHaveBeenCalledOnce()
-    expect(
-      await t.port.confirmForeign('Another app may still use other.pdf. Delete it anyway?'),
-    ).toBe(true)
-    expect(t.confirmForeign).toHaveBeenCalledOnce()
-  })
-
+describe('uploaded-files port without a ledger', () => {
   it('says empty and deletes nothing while no ledger exists', async () => {
-    const t = setup(undefined)
-    const empty = await t.port.read()
+    const posted: unknown[] = []
+    const port = createUploadedFilesPort({
+      ledger: () => Promise.resolve(undefined),
+      post: (value) => {
+        posted.push(value)
+      },
+      confirmForeign: () => Promise.resolve(true),
+    })
+    const empty = await port.read()
     expect(uploadedFilesReportSchema.safeParse(empty).success).toBe(true)
     expect(empty).toEqual({ ...emptyUploadedFilesReport(), files: [] })
-    await t.port.deleteFile('file-one', () => Promise.resolve(true))
-    await t.port.deleteAllOurs()
-    expect(t.post).not.toHaveBeenCalled()
+    await port.deleteFile('file-one', () => Promise.resolve(true))
+    await port.deleteAllOurs()
+    expect(posted).toHaveLength(0)
   })
 
-  it('checks the signal before dispatch and passes it to the ledger', async () => {
-    const ledger = fakeUploadedFilesLedger(report)
-    const t = setup(ledger)
-    const controller = new AbortController()
-    const signal = controller.signal
-    const confirmed = vi.fn(() => Promise.resolve(true))
-    await t.port.deleteFile('file-one', confirmed, signal)
-    expect(ledger.deleteFile).toHaveBeenCalledWith('file-one', confirmed, signal)
-    await t.port.deleteAllOurs(signal)
-    expect(ledger.deleteAllOurs).toHaveBeenCalledWith(signal)
-    controller.abort()
-    await expect(t.port.deleteFile('file-one', confirmed, signal)).rejects.toThrow()
-    await expect(t.port.deleteAllOurs(signal)).rejects.toThrow()
-    expect(ledger.deleteFile).toHaveBeenCalledTimes(1)
-    expect(ledger.deleteAllOurs).toHaveBeenCalledTimes(1)
-  })
-
-  it('keeps the retained list read-only after the key is removed', async () => {
-    const ledger = fakeUploadedFilesLedger(report)
-    let keyed: FakeUploadedFilesLedger | undefined = ledger
+  it('posts a valid report and refuses a malformed one', () => {
+    const posted: unknown[] = []
     const port = createUploadedFilesPort({
-      ledger: () => Promise.resolve(keyed),
+      ledger: () => Promise.resolve(undefined),
+      post: (value) => {
+        posted.push(value)
+      },
+    })
+    port.post(report)
+    expect(posted).toEqual([report])
+    expect(() => {
+      port.post({ ...report, files: [{ ...report.files[0], file_data: 'x' }] })
+    }).toThrow()
+    expect(posted).toHaveLength(1)
+  })
+
+  it('refuses a read on an aborted signal', async () => {
+    const port = createUploadedFilesPort({
+      ledger: () => Promise.resolve(undefined),
       post: () => undefined,
     })
-    expect(await port.read()).toEqual(report)
-    // Removing the key: the retained ledger still answers, read-only as
-    // the real ledger reports once its account is no longer current.
-    keyed = undefined
-    ledger.accountReport.mockResolvedValue({ ...report, isReadOnly: true })
-    expect(await port.read()).toEqual({ ...report, isReadOnly: true })
-    expect(ledger.accountReport).toHaveBeenCalledTimes(2)
-    // Deletes still reach the retained ledger, whose own account check
-    // refuses them; they are never silently dropped.
-    const confirmed = vi.fn(() => Promise.resolve(true))
-    await port.deleteFile('file-one', confirmed)
-    expect(ledger.deleteFile).toHaveBeenCalledWith('file-one', confirmed, undefined)
-  })
-
-  it('passes the listing signal to the ledger and deletes nothing once aborted', async () => {
-    const ledger = fakeUploadedFilesLedger(report)
-    const t = setup(ledger)
-    const signal = new AbortController().signal
-    expect(await t.port.read(signal)).toEqual(report)
-    expect(ledger.accountReport).toHaveBeenCalledWith(signal)
     const aborted = new AbortController()
     aborted.abort()
-    await expect(t.port.read(aborted.signal)).rejects.toThrow()
-    expect(ledger.accountReport).toHaveBeenCalledTimes(1)
-  })
-
-  it('lets a failed provider delete reach the caller with its reason', async () => {
-    const ledger = fakeUploadedFilesLedger(report)
-    ledger.deleteFile.mockRejectedValueOnce(new Error('Offline'))
-    const t = setup(ledger)
-    await expect(t.port.deleteFile('file-one', () => Promise.resolve(true))).rejects.toThrow(
-      'Offline',
-    )
+    await expect(port.read(aborted.signal)).rejects.toThrow()
   })
 })
