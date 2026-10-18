@@ -333,3 +333,7 @@ describe('code intelligence rows (M67)', () => {
     })
   })
 })
+
+it('retains the tool label when arguments are not JSON', () => {
+  expect(describeTool('read_file', 'not json')).toMatchObject({ label: 'Read' })
+})

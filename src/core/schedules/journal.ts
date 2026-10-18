@@ -23,6 +23,18 @@ export interface ScheduleLeaseGuard {
   (): Promise<void>
   readonly fencingToken?: number
 }
+/** A held OS handle refuses the pointer-hint replace with a lock-coded
+ * failure while read-only fencing still holds authority through the epoch
+ * CAS. Only this shape is a tolerable hint miss; every other failure keeps
+ * its kind and fails the takeover. */
+export function isHintBlockedError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    ['EPERM', 'EACCES', 'EBUSY'].includes(error.code)
+  )
+}
 export function newestScheduleSlots(names: readonly string[], pattern: RegExp): string[] {
   return names
     .filter((name) => pattern.test(name))
@@ -328,8 +340,10 @@ export function createScheduleJournal<T extends Collections>(
       } catch (error: unknown) {
         // Read-only fencing preserves exactly the committed value. Its epoch
         // CAS can advance authority while a Windows handle blocks the hint;
-        // an actual state mutation still requires successful activation.
-        if (!isReadOnly) throw error
+        // an actual state mutation still requires successful activation. Any
+        // other failure in any mode keeps its kind: only a blocked hint in
+        // read-only mode re-checks fencing instead of failing the takeover.
+        if (!isReadOnly || !isHintBlockedError(error)) throw error
         await guard()
       }
       if (

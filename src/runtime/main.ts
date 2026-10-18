@@ -465,6 +465,12 @@ function resourcesFor(
     onError: () => {
       log.warn(UI_TEXT.resourceUnavailable)
     },
+    // A damaged usage-history choice on stderr once, with what is damaged,
+    // what the product does, and what to do (the noter announces once per
+    // distinct damage).
+    onDamagedChoice: (text) => {
+      log.error(text)
+    },
     ...(overrides !== undefined && { overrides }),
     ...(isRecordingHistory !== undefined && { isRecordingHistory }),
   })

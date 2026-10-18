@@ -35,7 +35,10 @@ import { formatDailyBudget, formatUsd } from '../../shared/l10n/exactUsd'
 import {
   paidFeaturePrice,
   freezePaidQuote,
+  paidStoreFailureKind,
   type PaidQuote,
+  type PaidQuoteNotice,
+  type PaidStoreFailureKind,
   type PaidUseDecision,
   paidFeatureName,
   type PaidUseRequest,
@@ -47,7 +50,7 @@ import type { SpendClaim } from './spendClaim'
 // zod/mini, which the Node bundles read from dist/validation.js: classic zod
 // carried 444 KiB and its `navigator` sniff into dist/extension.js (INT0170).
 import * as z from 'zod/mini'
-import type { CoreLogger } from '../logging'
+import { type CoreLogger, wireWordForLog } from '../logging'
 import { PaidAuthority, paidAuthorityKey, type PaidGrant } from './paidAuthority'
 import {
   schedulePaidConsentSchema,
@@ -63,6 +66,22 @@ async function paidTeamRuntime() {
 
 /** The popup's three answers. */
 export type PaidUseAnswer = 'once' | 'always' | 'deny'
+
+/**
+ * An "always" that was applied this time but could not be kept: the host
+ * tells the person when it happens, so being asked again never surprises.
+ */
+export interface PaidNotKeptNotice {
+  readonly feature: PaidFeature
+  /** The store failure's closed kind, never its message or an errno. */
+  readonly kind: PaidStoreFailureKind
+  /**
+   * The session that asked, bound when the question was asked: the pending
+   * write carries it, so a later question in another session cannot steal
+   * the notice (P2-3). Hosts without sessions leave it unset.
+   */
+  readonly sessionId?: string
+}
 
 /**
  * What an allowing answer granted: `always` kept in this workspace, `window`
@@ -290,10 +309,17 @@ export interface PaidUseConsentDeps {
   readonly rememberGrant?: (feature: PaidFeature) => Promise<void>
   /** The popup; "always" is offered only when `canRemember` is true. */
   readonly ask: (request: PaidUseRequest, canRemember: boolean) => Promise<PaidUseAnswer>
+  /**
+   * Tells the person that "always" applied once but could not be kept.
+   * Every host provides it (editor, ACP, terminal); without it only the log knows.
+   */
+  readonly onNotKept?: (notice: PaidNotKeptNotice) => void
   readonly authority?: PaidAuthority
   readonly nextQuoteOrder?: () => number | Promise<number>
   readonly prepareQuoteGeneration?: () => Promise<string>
   readonly quoteGeneration?: () => string
+  /** Saved Always quotes the store could not list: shown with the question it then asks. */
+  readonly readQuoteNotice?: () => PaidQuoteNotice | undefined
   readonly readQuoteGrant?: (quote: PaidQuote) => PaidGrant | undefined
   readonly writeQuoteGrant?: (grant: PaidGrant) => Promise<void>
   readonly revokeQuoteGrants?: () => Promise<void>
@@ -317,6 +343,24 @@ export class PaidUseConsent {
   private readonly pendingWindowOnce = new Map<PaidFeature, Promise<boolean>>()
   private readonly searchWindowOnce = new Set<string>()
   private readonly pendingSearchWindowOnce = new Map<string, Promise<PaidUseAnswer>>()
+  /**
+   * A stale-epoch save failure waits here instead of notifying at once
+   * (account scope only: `saveGrantIf` refused a grant approved under a
+   * revoked epoch). The outer account fence settles it — dropped when the
+   * fence refuses, told only after the fence passes — so a revoked use is
+   * never described as applied. A plain store failure still notifies at
+   * once in `remember()` below. Entries carry their feature and a fence
+   * settles only its own call's entries: one ask per feature is in flight
+   * at a time (the inner consent shares a concurrent same-feature
+   * question), so same-feature entries belong to the same decision while
+   * another feature's overlapping fence can neither announce nor discard
+   * them.
+   */
+  private pendingStaleNotKept: {
+    readonly feature: PaidFeature
+    readonly kind: PaidStoreFailureKind
+    readonly notifySession: string | undefined
+  }[] = []
 
   public readonly authority: PaidAuthority
 
@@ -356,42 +400,74 @@ export class PaidUseConsent {
    * logged and leaves this use allowed once, so the next one asks again
    * instead of this one failing.
    */
-  private async remember(feature: PaidFeature): Promise<boolean> {
+  /** The not-kept notice for a failed write, carrying the asking session (P2-3). */
+  private notKeptNotice(
+    feature: PaidFeature,
+    kind: PaidStoreFailureKind,
+    notifySession: string | undefined,
+  ): PaidNotKeptNotice {
+    return {
+      feature,
+      kind,
+      ...(notifySession !== undefined && { sessionId: notifySession }),
+    }
+  }
+
+  private async remember(feature: PaidFeature, notifySession?: string): Promise<boolean> {
     try {
       if (this.deps.rememberGrant === undefined)
         await this.deps.writeGrants(new Set([...this.deps.readGrants(), feature]))
       else await this.deps.rememberGrant(feature)
       return true
     } catch (error: unknown) {
+      if (error instanceof StaleEpochError) {
+        // Carried past the outer account fence
+        // (`AccountPaidUseConsent.allows`): a revocation that landed while
+        // the popup was open refuses there, and must not be described as
+        // applied first. The fence settles this through
+        // `settleStaleNotKept`; only a fence that still passes tells the
+        // person. Classified like every other rejection.
+        this.pendingStaleNotKept.push({
+          feature,
+          kind: paidStoreFailureKind(error),
+          notifySession,
+        })
+        this.deps.log.warn(
+          `Paid use of ${feature}: "always" save raced a revocation, so the account fence settles it (${wireWordForLog(error.name)})`,
+        )
+        return false
+      }
+      // A store that cannot be written leaves this use allowed once. The
+      // log names only the failure's kind, never the store's message, and
+      // the person is told at once; every rejection is classified,
+      // including a non-Error one (which reads `unknown`).
+      // read-state: cert TBL-07. `false` here is "not kept, allowed once,
+      // person told" (onNotKept fired above the return), never "not allowed".
       this.deps.log.warn(
-        `Paid use of ${feature}: "always" could not be kept, so it is allowed once: ${error instanceof Error ? error.message : String(error)}`,
+        `Paid use of ${feature}: "always" could not be kept, so it is allowed once (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
       )
+      this.deps.onNotKept?.(this.notKeptNotice(feature, paidStoreFailureKind(error), notifySession))
       return false
     }
   }
 
-  /** A search "always" that cannot be kept: logged, and this use goes ahead once. */
-  private warnQuoteNotKept(error: unknown): void {
-    this.deps.log.warn(
-      `Paid search quote could not be kept: ${error instanceof Error ? error.message : String(error)}`,
-    )
-  }
-
-  /**
-   * The approval order a search "always" is kept under. A store that cannot
-   * hand one out (read-only or corrupt) is treated like one that cannot save
-   * the grant: none is returned, so the approved use goes ahead once and the
-   * next one asks again.
-   */
+  /** Failure kinds travel back to the caller; only a current use gets the notice. */
   private async searchApprovalOrder(
     quote: PaidQuote,
     prior: PaidGrant | undefined,
-  ): Promise<number | undefined> {
+  ): Promise<number | PaidStoreFailureKind> {
     try {
       return await (this.deps.nextQuoteOrder?.() ?? this.authority.nextOrder(quote, prior))
     } catch (error: unknown) {
-      this.warnQuoteNotKept(error)
-      return undefined
+      // An order failure may downgrade a still-current use to once. A
+      // revoked use is refused without claiming the choice applied.
+      // read-state: cert TBL-08. Return the failure kind; only the caller's
+      // currentness fence can say whether an approved use still proceeds.
+      // Every rejection is classified, including a non-Error one.
+      this.deps.log.warn(
+        `Paid search quote could not be kept (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
+      )
+      return paidStoreFailureKind(error)
     }
   }
 
@@ -402,14 +478,19 @@ export class PaidUseConsent {
   }
 
   /** Asks in the popup now and keeps what the answer grants. */
-  private async decide(request: PaidUseRequest, ask: PaidUseConsentDeps['ask']): Promise<boolean> {
-    return (await this.decideScope(request, ask)) !== undefined
+  private async decide(
+    request: PaidUseRequest,
+    ask: PaidUseConsentDeps['ask'],
+    notifySession?: string,
+  ): Promise<boolean> {
+    return (await this.decideScope(request, ask, notifySession)) !== undefined
   }
 
   /** Asks in the popup now, keeps what the answer grants and names it; undefined refuses. */
   private async decideScope(
     request: PaidUseRequest,
     ask: PaidUseConsentDeps['ask'],
+    notifySession?: string,
   ): Promise<PaidUseScope | undefined> {
     const { feature } = request
     const canRemember = this.deps.canRemember()
@@ -432,7 +513,7 @@ export class PaidUseConsent {
       answer === 'always' &&
       canRemember &&
       this.deps.canRemember() &&
-      (await this.remember(feature))
+      (await this.remember(feature, notifySession))
     ) {
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       this.notify()
@@ -451,6 +532,7 @@ export class PaidUseConsent {
     request: Extract<PaidUseRequest, { feature: 'webSearch' }>,
     requiresAsking: boolean,
     ask: PaidUseConsentDeps['ask'],
+    notifySession?: string,
   ): Promise<PaidQuote | undefined> {
     if (!this.isEnabled('webSearch')) return undefined
     const localGeneration = this.revocation
@@ -532,7 +614,18 @@ export class PaidUseConsent {
     if (isWindowUse && this.searchWindowOnce.has(windowKey)) answer = 'once'
     else {
       const pending = isWindowUse ? this.pendingSearchWindowOnce.get(windowKey) : undefined
-      const question = pending ?? ask({ ...request, quote }, this.deps.canRemember())
+      // No stored grant and an unreadable quote store: the question says why it asks again.
+      const quoteNotice = stored === undefined ? this.deps.readQuoteNotice?.() : undefined
+      const question =
+        pending ??
+        ask(
+          {
+            ...request,
+            quote,
+            ...(quoteNotice !== undefined && { quoteNotice }),
+          },
+          this.deps.canRemember(),
+        )
       if (isWindowUse) this.pendingSearchWindowOnce.set(windowKey, question)
       try {
         answer = await question
@@ -543,11 +636,14 @@ export class PaidUseConsent {
     }
     if (!isCurrent()) return undefined
     if (answer === 'once' && isWindowUse) this.searchWindowOnce.add(windowKey)
-    const approvalOrder =
+    const approval =
       answer === 'always' && this.deps.canRemember()
         ? await this.searchApprovalOrder(quote, prior)
         : undefined
     if (!isCurrent()) return undefined
+    if (typeof approval === 'string')
+      this.deps.onNotKept?.(this.notKeptNotice('webSearch', approval, notifySession))
+    const approvalOrder = typeof approval === 'number' ? approval : undefined
     const isKept = approvalOrder !== undefined && this.deps.canRemember()
     const saving = this.authority.dispatch({
       type: 'answer',
@@ -559,21 +655,54 @@ export class PaidUseConsent {
       if (effect.type !== 'save') continue
       tag = effect.grant
       let isOk = false
+      let saveFailure: PaidStoreFailureKind | undefined
       try {
-        if (this.deps.writeQuoteGrant === undefined) isOk = await this.remember('webSearch')
-        else {
+        if (this.deps.writeQuoteGrant !== undefined)
           await this.deps.writeQuoteGrant({ ...effect.grant, generation: storedGeneration })
-          isOk = true
+        else if (this.deps.rememberGrant === undefined) {
+          await this.deps.writeGrants(new Set([...this.deps.readGrants(), 'webSearch']))
+        } else {
+          await this.deps.rememberGrant('webSearch')
         }
+        isOk = true
       } catch (error: unknown) {
-        this.warnQuoteNotKept(error)
+        // Keep only the closed kind until currentness has been rechecked;
+        // a revoked use must not be described as allowed once. Every
+        // rejection is classified, including a non-Error one.
+        saveFailure = paidStoreFailureKind(error)
+        this.deps.log.warn(
+          `Paid search quote could not be kept (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
+        )
       }
       if (!isCurrent()) return undefined
+      if (saveFailure !== undefined)
+        this.deps.onNotKept?.(this.notKeptNotice('webSearch', saveFailure, notifySession))
       this.authority.dispatch({ type: 'saved', grant: effect.grant, ok: isOk })
       if (isOk) this.notify()
     }
     this.deps.log.info('Paid use of webSearch: allowed once')
     return isCurrent() && this.authority.isApproved(tag) ? quote : undefined
+  }
+
+  /**
+   * Settles carried stale-epoch failures after the outer account fence: a
+   * refused fence drops them silently, a passed fence tells the person now
+   * that the decision stands. Only entries of the fencing call's feature
+   * are settled; another call's entries wait for their own fence. Only
+   * the account consent calls this.
+   */
+  public settleStaleNotKept(shouldNotify: boolean, feature: PaidFeature): void {
+    const kept: typeof this.pendingStaleNotKept = []
+    for (const entry of this.pendingStaleNotKept) {
+      if (entry.feature !== feature) {
+        kept.push(entry)
+        continue
+      }
+      if (shouldNotify) {
+        this.deps.onNotKept?.(this.notKeptNotice(entry.feature, entry.kind, entry.notifySession))
+      }
+    }
+    this.pendingStaleNotKept = kept
   }
 
   public onDidChange(listener: () => void): () => void {
@@ -630,27 +759,34 @@ export class PaidUseConsent {
     requiresAsking?: boolean,
     ask?: PaidUseConsentDeps['ask'],
     signal?: AbortSignal,
+    notifySession?: string,
   ): Promise<boolean>
   public allows(
     request: PaidUseRequest,
     requiresAsking?: boolean,
     ask?: PaidUseConsentDeps['ask'],
     signal?: AbortSignal,
+    notifySession?: string,
   ): Promise<PaidUseDecision>
   public async allows(
     request: PaidUseRequest,
     requiresAsking = false,
     ask = this.deps.ask,
     signal?: AbortSignal,
+    notifySession?: string,
   ): Promise<PaidUseDecision> {
     if (signal !== undefined) {
       // Stop ends this caller's wait; the shared popup still owns its answer.
       signal.throwIfAborted()
-      const decision = await unlessAborted(this.allows(request, requiresAsking, ask), signal)
+      const decision = await unlessAborted(
+        this.allows(request, requiresAsking, ask, undefined, notifySession),
+        signal,
+      )
       signal.throwIfAborted()
       return decision
     }
-    if (request.feature === 'webSearch') return await this.allowSearch(request, requiresAsking, ask)
+    if (request.feature === 'webSearch')
+      return await this.allowSearch(request, requiresAsking, ask, notifySession)
     const { feature } = request
     if (!this.isEnabled(feature)) {
       return false
@@ -671,14 +807,14 @@ export class PaidUseConsent {
       return true
     }
     if (requiresAsking || !this.isWindowOnceFeature(feature)) {
-      return await this.decide(request, ask)
+      return await this.decide(request, ask, notifySession)
     }
     const pending = this.pendingWindowOnce.get(feature)
     if (pending !== undefined) {
       this.deps.log.info(`Paid use of ${feature}: waits for the question open in this window`)
       return await pending
     }
-    const decision = this.decide(request, ask)
+    const decision = this.decide(request, ask, notifySession)
     this.pendingWindowOnce.set(feature, decision)
     try {
       return await decision
@@ -876,7 +1012,11 @@ function quoteGrantEpoch(generation: string): number | undefined {
     const parsed: unknown = JSON.parse(generation)
     const result = durableQuoteGenerationSchema.safeParse(parsed)
     return result.success ? result.data.epoch : undefined
-  } catch {
+  } catch (error: unknown) {
+    // Only malformed text fails here; a parsed but unversioned generation
+    // answers undefined above. A corrupt generation is invalid, never an
+    // epoch: its callers refuse it. Anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }
@@ -1078,14 +1218,24 @@ export class AccountPaidUseConsent {
     if (this.isRevoking || !this.deps.isCurrent(this.binding)) return false
     const generation = this.generation
     const epoch = this.durableEpoch()
-    const decision = await this.consent.allows(request, requiresAsking)
+    const consent = this.consent
+    const decision = await consent.allows(request, requiresAsking)
     // A search decision is its frozen quote; any non-refusal counts as allowed here.
-    if (decision === undefined || decision === false || !this.isCurrent(generation)) return false
+    if (decision === undefined || decision === false || !this.isCurrent(generation)) {
+      consent.settleStaleNotKept(false, request.feature)
+      return false
+    }
     // Fence the final decision against the captured epoch, not only the
     // local generation: when a revocation landed while the popup was open,
     // the conditional save already refused to store, and a downgraded
-    // Allow-once from a failed persistence must not approve either.
-    if (this.durableEpoch() !== epoch) return false
+    // Allow-once from a failed persistence must not approve either. A
+    // stale-epoch save carried out of `remember()` is settled here: only a
+    // fence that passes tells the person the choice applied.
+    if (this.durableEpoch() !== epoch) {
+      consent.settleStaleNotKept(false, request.feature)
+      return false
+    }
+    consent.settleStaleNotKept(true, request.feature)
     return true
   }
 

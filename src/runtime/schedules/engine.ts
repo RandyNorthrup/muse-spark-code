@@ -18,8 +18,11 @@ import type { ScheduleQueuePort } from '../../core/schedules/store'
 import {
   SCHEDULE_ENGINE_ERROR_MAX,
   SCHEDULE_POLL_INTERVAL_MS,
+  SCHEDULE_RULE_MAX_CHARS,
   UI_TEXT,
 } from '../../shared/constants'
+import { failureForLog } from '../../core/backends/musecode/logText'
+import { fill } from '../../shared/l10n/text'
 import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
 import {
   scheduleFireRecordSchema,
@@ -54,6 +57,36 @@ export interface ScheduleEngineOptions {
   readonly backgroundEntry?: ScheduleBackgroundPort
 }
 
+/** The conservative failed accounting for a delivery round that produced no
+ * settlement: a failed outcome with unknown cost and retained liability,
+ * naming the delivery failure kind so the history shows why the fire
+ * failed instead of a reason-less failure. */
+export function scheduleFailedSettlement(
+  intent: ScheduleRunIntent,
+  error: unknown,
+  observedAtMs: number,
+): ScheduleDeliveryResult {
+  return scheduleFireRecordSchema.parse({
+    runId: intent.runId,
+    scheduleId: intent.schedule.id,
+    workspaceKey: intent.schedule.workspaceKey,
+    occurrenceMs: intent.occurrenceMs,
+    observedAtMs,
+    target: intent.schedule.target,
+    delivery: intent.schedule.delivery,
+    outcome: 'failed',
+    reason: fill(UI_TEXT.scheduleV2.messages.deliveryFailed, {
+      reason: failureForLog(error),
+    }).slice(0, SCHEDULE_RULE_MAX_CHARS),
+    refusedActions: [],
+    cost: {
+      usd: Usd.from(0).toAmount(),
+      certainty: 'unknown',
+      retainedLiabilityUsd: Usd.from(0).toAmount(),
+    },
+    ...(intent.event !== undefined && { event: intent.event }),
+  })
+}
 const deferredEventSchema = z.strictObject({
   workspaceKey: z.string(),
   scheduleId: z.string(),
@@ -103,7 +136,9 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
   })
   late.delivery = delivery
   const errors: unknown[] = []
-  const onError =
+  // Every poll failure lands here: the bounded host record when the embedder
+  // keeps its own, the embedder's handler otherwise.
+  const report =
     options.onError ??
     ((error: unknown) => {
       if (errors.length < SCHEDULE_ENGINE_ERROR_MAX) errors.push(error)
@@ -114,26 +149,8 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     queue: options.queue,
     host,
     time: { plan: (schedule, clock) => scheduleTimePlan(schedule, clock) },
-    failureSettlement: (intent: ScheduleRunIntent) =>
-      Promise.resolve(
-        scheduleFireRecordSchema.parse({
-          runId: intent.runId,
-          scheduleId: intent.schedule.id,
-          workspaceKey: intent.schedule.workspaceKey,
-          occurrenceMs: intent.occurrenceMs,
-          observedAtMs: now(),
-          target: intent.schedule.target,
-          delivery: intent.schedule.delivery,
-          outcome: 'failed',
-          refusedActions: [],
-          cost: {
-            usd: Usd.from(0).toAmount(),
-            certainty: 'unknown',
-            retainedLiabilityUsd: Usd.from(0).toAmount(),
-          },
-          ...(intent.event !== undefined && { event: intent.event }),
-        }),
-      ),
+    failureSettlement: (intent: ScheduleRunIntent, error: unknown) =>
+      Promise.resolve(scheduleFailedSettlement(intent, error, now())),
     deferEvent: async (schedule: ScheduleV2, event: ScheduleEvent) => {
       const dueMs = nextScheduleTime(
         {
@@ -213,7 +230,7 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     try {
       pending = await readDeferred()
     } catch (error: unknown) {
-      onError(error)
+      report(error)
       return
     }
     const remaining: z.infer<typeof deferredFileSchema> = []
@@ -290,17 +307,17 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
           void scheduler
             .recover(workspace)
             .catch((error: unknown) => {
-              onError(error)
+              report(error)
             })
             .then(async () => {
               await scheduler.poll(workspace)
             })
             .catch((error: unknown) => {
-              onError(error)
+              report(error)
             })
         }
         void scanDeferred().catch((error: unknown) => {
-          onError(error)
+          report(error)
         })
       }
       engineTimer = setInterval(tick, SCHEDULE_POLL_INTERVAL_MS)

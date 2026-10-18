@@ -59,6 +59,14 @@ export const EN = {
   resourcePeakMemory: 'Peak Memory',
   resourceHistoryEmpty: 'No resource history recorded yet.',
   resourceHistoryInvalid: 'Resource history could not be read.',
+  // A damaged usage-history choice (CATCHMONEY R3): one sentence per damaged
+  // thing, saying what is damaged, what the product does because of it, and
+  // what to do. Shown as a notice in the editor, on stderr once in the
+  // terminal, and as a session notification on the editor protocol.
+  resourceHistoryChoiceUnreadable:
+    'Usage-history recording is off: usage-settings.json could not be read. Check its permissions, or delete it and set your choice again.',
+  resourceHistoryChoiceInvalid:
+    'Usage-history recording is off: usage-settings.json is not valid. Delete it and set your choice again.',
   resourceHistoryObserved:
     'Minute averages and observed harness work. Missing readings stay unknown; unobserved work is not estimated.',
   resourceHistoryThreshold: 'Limit',
@@ -919,6 +927,7 @@ export const EN = {
     messages: {
       targetUnavailable: 'This schedule’s target is unavailable in this host.',
       targetClosed: 'The target closed or this held fire was skipped.',
+      deliveryFailed: 'Delivery failed: {reason}',
       catchUpSkipped: 'Missed fire skipped by this schedule’s catch-up policy.',
       backgroundNotice: 'Schedule {name} opened a conversation in the background.',
       conversationTitle: 'Schedule {name} · {date}',
@@ -1188,6 +1197,18 @@ export const EN = {
     'Could not clear the stored Model API key. The extension host stopped; check VS Code secret storage and sign out again.',
   signOutStopFailed:
     'Backend shutdown failed. This window is gated; close VS Code and check credentials before reopening.',
+  // A credential store that cannot be read (CATCHMONEY R3): the sentence says
+  // what happened, what the product does because of it, and the next step.
+  // `{reason}` is one of the credentialStoreReason* kind words below, never
+  // an errno or an internal name.
+  credentialStoreUnreadable:
+    'Saved credentials could not be read: {reason}. The safe state is kept: nothing was signed out or released. Check keychain access and try again.',
+  credentialStoreReasonCrypto: 'a stored entry cannot be decoded',
+  credentialStoreReasonLocked: 'the keychain is locked',
+  credentialStoreReasonNoService: 'no keychain answered',
+  credentialStoreReasonDenied: 'access to the keychain was refused',
+  credentialStoreReasonTimeout: 'reading the keychain timed out',
+  credentialStoreReasonOther: 'the cause is unknown',
   retryAction: 'Check Again',
   apiKeyPrompt: 'Meta Model API Key',
   apiKeyPlaceholder: 'LLM_…',
@@ -3927,6 +3948,14 @@ export const EN = {
   scheduleNextRun: 'Next run {date}',
   scheduleFired: forms({ one: 'Ran {count} time', other: 'Ran {count} times' }),
   scheduleNone: 'No scheduled prompts',
+  // A schedule consent file that cannot be read (CATCHMONEY R3, P3-4): the
+  // errno reaches the person through a closed kind word, never raw. `{reason}`
+  // is one of the scheduleStoreReason* words below.
+  scheduleConsentUnreadable:
+    'Scheduled prompts are off: their saved consent {reason}. Fix its permissions or delete it, then set up schedules again.',
+  scheduleStoreReasonDenied: 'could not be read; permission was refused',
+  scheduleStoreReasonDiskFull: 'could not be read; the disk is full or read-only',
+  scheduleStoreReasonUnknown: 'could not be read',
   // M52: extension-owned schedules on the Model API backend. Muse Code's cron
   // jobs stay model-mediated until its MSP exposes scheduler verbs.
   loopItem: '/loop',
@@ -4619,6 +4648,15 @@ export const EN = {
   paidDeny: 'Deny',
   paidUseWebSearchTitle: 'Let Muse search the web for this prompt?',
   paidSearchQuote: 'Provider: {provider} · Model: {model}.',
+  paidQuoteChoicesUnreadable:
+    'Saved "always" choices could not be read ({kind}), so this use asks again.',
+  paidAlwaysNotKept:
+    '"Always" for {feature} applied this time, but it could not be saved ({kind}): you will be asked again.',
+  // `{kind}` above and in `paidQuoteChoicesUnreadable` is one of these
+  // closed words, never an errno or an error name.
+  paidStoreReasonDenied: 'permission was refused',
+  paidStoreReasonDiskFull: 'the disk is full or read-only',
+  paidStoreReasonUnknown: 'the cause is unknown',
   paidUseWebSearchDetail:
     'Muse may search the web while it answers. Each search is billed to your Model API key at {price}, on top of the tokens its results add. Deny sends the prompt without web search.',
   paidUseVoiceTitle: 'Record with Muse Voice?',

@@ -35,6 +35,7 @@ import { fill } from '../../../shared/l10n/text'
 import { DeadlineError, withDeadline } from '../../timeouts'
 import type { ProvidersFile } from '../providersFile'
 import { type ChatGptSignIn, ChatGptSignInError, chatGptRecordSchema } from './chatgpt'
+import { CopilotFailureError } from './copilotFailure'
 import type { PlanUsageRow } from './planUsage'
 
 // Owner captures acdc0f60 / 577bc807 (0 + 1 model attempts), 2026-10-05.
@@ -52,7 +53,7 @@ const MODELS_URL = 'https://api.openai.com/v1/models'
 const RESPONSES_URL = 'https://api.openai.com/v1/responses'
 
 export async function chatGptModels(
-  signIn: ChatGptSignIn,
+  signIn: Pick<ChatGptSignIn, 'accessToken'>,
   fetcher: typeof fetch,
 ): Promise<string[]> {
   const token = await signIn.accessToken(MODELS_URL, MODEL_API_REQUEST_TIMEOUT_MS)
@@ -127,7 +128,7 @@ export interface SubscriptionRegistryDeps {
   readonly fetch: typeof fetch
   readonly hasMetaKey?: () => Promise<boolean>
   readonly providers: () => Promise<ProvidersFile>
-  readonly chatgpt: () => Promise<ChatGptSignIn>
+  readonly chatgpt: () => Promise<Pick<ChatGptSignIn, 'accessToken'>>
   readonly accountId: () => Promise<string | undefined>
   readonly copilot?: () => ReadonlyMap<
     string,
@@ -374,15 +375,18 @@ export function createSubscriptionClient(
         }
       } catch (error) {
         if (isUserRefusal(error) || signal.aborted) throw error
+        // Anything that is not an error keeps its kind past this boundary:
+        // the fixed retry sentence below must never stand in for it.
+        if (!(error instanceof Error)) throw error
         // A lapsed confirmation names the run (hook, schedule, review) with
         // its own guidance instead of the generic plan retry sentence, on
         // both plan branches: the gate throws above, and an admission guard
         // may throw a stale-model refusal with the same strings.
-        if (error instanceof Error && isStaleConfirmedError(error)) {
+        if (isStaleConfirmedError(error)) {
           yield { type: 'error', message: error.message }
           return
         }
-        if (ref.providerId === 'copilot' && error instanceof Error) {
+        if (ref.providerId === 'copilot' && error instanceof CopilotFailureError) {
           yield { type: 'error', message: error.message }
           return
         }
@@ -391,15 +395,22 @@ export function createSubscriptionClient(
           yield { type: 'error', code: 'request-failed', message: error.message }
           return
         }
-        const code = error instanceof ChatGptSignInError ? error.code : 'request-failed'
-        let message = UI_TEXT.acpChatGpt.failure
-        if (code === 'expired') message = UI_TEXT.planUi.expired
-        else if (code === 'request-failed') message = UI_TEXT.planUi.retry
-        yield {
-          type: 'error',
-          code: code === 'sign-in-required' ? 'invalid_api_key' : code,
-          message,
+        if (error instanceof ChatGptSignInError) {
+          const code = error.code
+          let message = UI_TEXT.acpChatGpt.failure
+          if (code === 'expired') message = UI_TEXT.planUi.expired
+          else if (code === 'request-failed') message = UI_TEXT.planUi.retry
+          yield {
+            type: 'error',
+            code: code === 'sign-in-required' ? 'invalid_api_key' : code,
+            message,
+          }
+          return
         }
+        // Anything else keeps its kind past this boundary, like the sibling
+        // clients' streams: the fixed retry sentence must never stand in
+        // for a failure it does not describe (PLAN.md D119).
+        throw error
       } finally {
         if (isDispatched && (ref.providerId !== 'copilot' || deps.copilotUsage === undefined)) {
           tallies = recordPlanUsage(tallies, {

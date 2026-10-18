@@ -16,6 +16,11 @@ export const BUNDLES = {
 export const SUBSCRIPTION_ONLY = [
   'src/core/providers/subscriptions/chatgpt.ts',
   'src/core/providers/subscriptions/registry.ts',
+  // D119 (2026-10-17): the Copilot adapter's failure rides with the
+  // subscription dispatch, like ChatGptSignInError rides in chatgpt.ts. The
+  // host adapter reads it through subscriptionsEntry so both bundles share
+  // the subscriptions bundle's copy (one `instanceof` across the boundary).
+  'src/core/providers/subscriptions/copilotFailure.ts',
 ]
 export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
 export const SHARED_TRANSPORT_ONLY = ['transport.ts', 'sse.ts', 'ndjson.ts']
@@ -755,6 +760,35 @@ export const ON_FIRST_USE = [
       'src/shared/whatsNewMessages.ts',
     ],
   },
+  // The sign-in gate (CIFIX161B, PLAN.md D6): activation keeps only the
+  // bundle loader; AuthService and the three-valued credential
+  // read load the first time a credential, money or consent path needs
+  // them.
+  {
+    output: 'dist/auth.js',
+    metafile: 'dist/meta/auth.json',
+    use: 'the first credential, money or consent read',
+    files: [
+      'src/host/auth/authEntry.ts',
+      'src/host/auth/authService.ts',
+      'src/host/auth/credentialRead.ts',
+    ],
+  },
+  // The paid features (CIFIX161B, PLAN.md D6): activation keeps only the
+  // bundle loader; the gate, consent, usage and quote authority
+  // load the first time a paid path needs them.
+  {
+    output: 'dist/paid.js',
+    metafile: 'dist/meta/paid.json',
+    use: 'the first paid consent, gate or usage read',
+    files: [
+      'src/host/paid/paidEntry.ts',
+      'src/host/paid/paidHost.ts',
+      'src/core/paid/paidConsent.ts',
+      'src/core/paid/paidFeatures.ts',
+      'src/core/paid/paidAuthority.ts',
+    ],
+  },
 ]
 /** The same parent exclusions and destination requirements used by the CLI. */
 export function checkDeferredBundles(inputsOf) {
@@ -1050,6 +1084,8 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/web/webFetchEntry.ts'), 'dist/webFetch.js'],
   [path.resolve('src/core/backends/modelapi/pluginHooksEntry.ts'), 'dist/pluginHooks.js'],
   [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
+  [path.resolve('src/host/auth/authEntry.ts'), 'dist/auth.js'],
+  [path.resolve('src/host/paid/paidEntry.ts'), 'dist/paid.js'],
 ])
 /** @type {import('esbuild').Plugin} */
 export const deferredCohort = {
@@ -1091,7 +1127,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

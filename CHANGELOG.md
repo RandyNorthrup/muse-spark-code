@@ -248,6 +248,60 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- The HTTP usage bridge settles every failed request with a read-failed
+  reply, including non-Error rejections, so later refreshes and exports are
+  not blocked behind a rejected queue.
+
+- A revoked paid-search request no longer says that an unsaved Always
+  choice applied this time. Order and grant-save failures notify only
+  after the request's currentness check.
+
+- A window reports recurring file damage again after another window has
+  observed a repair; a stale in-memory cache no longer hides the warning.
+
+- The catch baseline now identifies individual handlers and their work,
+  so repairing one failure cannot conceal a new one in the same area.
+
+- The catch audit now checks every handler branch before calling a failure
+  handled. A bare `Error` fallback, a conditional report and a partial
+  rethrow no longer pass as a named-condition handler.
+
+- Startup stays lean: the sign-in gate (AuthService and the three-valued
+  credential read) and the paid gate, consent, usage and quote authority now
+  load from `dist/auth.js` and `dist/paid.js` the first time a credential,
+  money, consent or paid path needs them, instead of at activation. Every
+  sentence, notice and scan result is unchanged.
+- A failure is never turned into a different fact. When saved credentials
+  cannot be read, sign-out keeps its safety hold, no sign-in lifts it, and
+  the person is told what could not be read and what to do (once per kind
+  of failure, and again if it comes back after the store reads again). A damaged
+  history choice, quote folder or schedule consent is announced once per
+  damage (again if it changes or comes back after a repair), with what is
+  damaged, what the product does, and the next step. A refused upload shows
+  the refusal reason, a stop clears, and a refused recording permission
+  names itself. A panel failure with no known cause says only that it did
+  not work.
+
+- Money, consent and credential failures say what happened, once, where the
+  person sees it. An "always" a store cannot keep still allows the current
+  use once, and the person is told at once (an editor warning, a session
+  message, the terminal console) instead of only the log. An unreadable
+  quote folder still asks again, but the question says the saved choices
+  could not be read and names the kind. One unreadable provider entry no
+  longer hides a working provider later in the list; each is recorded with
+  its kind. A stopped OAuth flow stays a stop only for the caller's own
+  stop; any other failure racing it denies. A corrupt history choice is
+  announced once per damaged file across windows and restarts. A schedule
+  consent file that cannot be read says what kind of problem stopped it
+  instead of reading as corrupt, and a failure with no known kind keeps
+  its kind. A failed panel
+  message reaches its draft with the fixed sentence and the queue keeps
+  going; a foreign sampler failure is recorded and dropped. Vault decoding
+  wipes copied fields on every exit, including an unexpected mid-decode
+  failure. A credential snapshot the store cannot produce says the store
+  failed instead of asking for a key that would not help, and a broken
+  account host or secret store reads as "could not say" instead of "no
+  account" or assumed presence.
 - Provider refusals read as the provider's refusal (lane PROVERR): when a
   configured provider answers with an error — out of credit, a rejected key,
   rate-limited, overloaded, an invalid request and the rest — the turn ends
@@ -281,7 +335,6 @@ happened, not what was planned; superseded entries are kept.
   the provider's request id, and a rejected key, missing permission or
   unknown model says nothing reached a model, no longer that nothing was
   sent. Record: `docs/certification/provider-refusals.md`.
-
 - All fourteen translated settings tables now say Muse Code asks before a
   command unless a permission rule allows it, matching the English modes.
 
@@ -583,6 +636,16 @@ happened, not what was planned; superseded entries are kept.
   of the Marketplace icon replaces the Meta logo silhouette.
 
 ### Added
+
+- **Catch inventory and ratchet (tooling).** `scripts/catch-inventory.mjs`
+  walks every `try/catch` and promise `.catch(` under `src` and classifies
+  each as NARROW, REPORTED, SWALLOW, GENERIC or CLEANUP; `npm run
+  check:catches` (wired into `npm run quality`) fails when any SWALLOW or
+  GENERIC count rises against `scripts/catch-baseline.json`. Every
+  SWALLOW and GENERIC in `src/acp` and `src/webview` is now NARROW or
+  REPORTED with per-handler tests, and `docs/certification/
+  catch-inventory.md` ranks the 40 worst remaining handlers in core, host
+  and runtime for the per-area fix lanes.
 
 - **Several accounts per provider, in the terminal and in ACP** (M108,
   CM108ACC). `providers accounts` lists, adds, removes and orders a

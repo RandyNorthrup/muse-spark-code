@@ -308,8 +308,10 @@ function filesWithoutUris(files: readonly File[], uris: readonly string[]): read
     uris.map((uri) => {
       try {
         return decodeURIComponent(new URL(uri).pathname).split(/[/\\]/u).at(-1)
-      } catch {
-        // Malformed host URIs do not suppress unrelated clipboard files.
+      } catch (error: unknown) {
+        // Malformed host URIs do not suppress unrelated clipboard files:
+        // anything else keeps its kind.
+        if (!(error instanceof URIError) && !(error instanceof TypeError)) throw error
         return
       }
     }),
@@ -1020,7 +1022,11 @@ export function Composer(props: ComposerProps) {
             admit(file, name, file.type)
           }
         })
-        .catch(() => {
+        .catch((error: unknown) => {
+          // An unreadable header refuses the file (a read failure throws
+          // past Error as a DOMException): only a non-error keeps its kind
+          // past the composer.
+          if (!(error instanceof Error) && !(error instanceof DOMException)) throw error
           if (currentAttachmentEpoch.current === admittedEpoch) {
             onRefuseFile(name, UI_TEXT.attachmentUnreadable)
           }

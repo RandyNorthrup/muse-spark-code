@@ -162,7 +162,7 @@ export function createModelScanner(deps: ModelScannerDeps): {
       } catch (error: unknown) {
         // A cancelled scan leaves the last scan standing, whatever the
         // fetch answered with.
-        if (isScanCancelled(controller.signal)) {
+        if (controller.signal.aborted) {
           return { rows: previousRows, diff: undefined, fromCache: true }
         }
         throw error

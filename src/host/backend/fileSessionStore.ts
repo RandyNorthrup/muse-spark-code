@@ -39,7 +39,7 @@ import {
 import type { QuestionStore } from '../../shared/questions'
 import { writeFileAtomically } from '../fsAtomic'
 import type { Logger } from '../logger'
-import { describeStoreError, storeErrorCode } from './storeErrors'
+import { describeStoreError, isStoreErrorCode, storeErrorCode } from './storeErrors'
 import type { SessionUploadLifecycle, SessionUploadOwnership } from '../../core/media/uploadLedger'
 import type { UploadedMediaRef } from '../../shared/media'
 import { FifoLimiter } from '../../core/fifoLimiter'
@@ -167,7 +167,7 @@ async function hasSessionFile(file: string): Promise<boolean> {
     await stat(file)
     return true
   } catch (error: unknown) {
-    if (storeErrorCode(error) === ENOENT) {
+    if (isStoreErrorCode(error, ENOENT)) {
       return false
     }
     throw new SpendLedgerError(
@@ -207,7 +207,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     try {
       return JSON.parse(await readFile(file, 'utf8'))
     } catch (error: unknown) {
-      if (storeErrorCode(error) !== ENOENT) {
+      if (!isStoreErrorCode(error, ENOENT)) {
         deps.log.warn(`Session file ${name} skipped: ${describeStoreError(error)}`)
       }
       return undefined
@@ -517,7 +517,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       try {
         names = await readdir(deps.directory)
       } catch (error: unknown) {
-        if (storeErrorCode(error) === ENOENT) {
+        if (isStoreErrorCode(error, ENOENT)) {
           return []
         }
         throw error

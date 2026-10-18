@@ -16,6 +16,7 @@ import {
   PROVIDERS_FILE_VERSION,
 } from '../../shared/constants'
 import { UI_TEXT } from '../../shared/l10n/text'
+import { isStoreErrorCode } from '../../host/backend/storeErrors'
 import {
   customCompatSchema,
   modelLimitsSchema,
@@ -257,7 +258,37 @@ export async function readProvidersFile(
 
 export type ProvidersFileWrite =
   | { readonly ok: true }
-  | { readonly ok: false; readonly reason: 'invalid' | 'io-error'; readonly detail: string }
+  | { readonly ok: false; readonly reason: 'invalid'; readonly detail: string }
+  | {
+      readonly ok: false
+      readonly reason: 'io-error'
+      readonly detail: string
+      readonly cause: unknown
+    }
+
+/**
+ * A rename the platform briefly denies (Windows readers hold the
+ * destination): worth another attempt after a pause. Anything else keeps
+ * its kind at once. One named test so the retry condition reads as the
+ * single expected case it is.
+ */
+function isRenameRetryCode(error: unknown): boolean {
+  return (
+    isStoreErrorCode(error, 'EPERM') ||
+    isStoreErrorCode(error, 'EACCES') ||
+    isStoreErrorCode(error, 'EBUSY')
+  )
+}
+
+/** Best-effort removal of the temporary beside the destination. */
+async function dropTemporaryFile(temporary: string): Promise<void> {
+  try {
+    await rm(temporary, { force: true })
+  } catch {
+    // An inaccessible directory may also prevent cleanup; the caller keeps
+    // and reports the original write or rename failure.
+  }
+}
 
 /**
  * Validate and write the file atomically: encoded once, written to a
@@ -290,23 +321,19 @@ export async function writeProvidersFileAtomic(
         await renameFile(temporary, filePath)
         break
       } catch (error) {
-        if (
-          !['EPERM', 'EACCES', 'EBUSY'].includes(errorCode(error) ?? '') ||
-          attempt >= ATOMIC_RENAME_ATTEMPTS
-        )
-          throw error
+        // Windows readers briefly deny replacement; retry the same complete
+        // file a bounded number of times, then keep the failure's kind.
+        if (attempt >= ATOMIC_RENAME_ATTEMPTS) throw error
+        if (!isRenameRetryCode(error)) throw error
         await pause(ATOMIC_RENAME_DELAY_MS * 2 ** (attempt - 1))
       }
     }
     return { ok: true }
   } catch (error) {
-    // Cleanup is best-effort; preserve the write/rename failure for the caller.
-    try {
-      await rm(temporary, { force: true })
-    } catch {
-      // An inaccessible directory may also prevent cleanup; report the original IO failure.
-    }
-    return { ok: false, reason: 'io-error', detail: String(error) }
+    // Cleanup is best-effort; the caller keeps the write or rename failure
+    // with its cause.
+    await dropTemporaryFile(temporary)
+    return { ok: false, reason: 'io-error', detail: String(error), cause: error }
   }
 }
 

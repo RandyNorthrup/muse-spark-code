@@ -72,8 +72,10 @@ export function accountUsageUrl(port: AccountUsagePort, provider: string): strin
       url.hash === ''
     )
       return url.href
-  } catch {
-    /* An invalid URL never leaves the fixed-error boundary. */
+  } catch (error: unknown) {
+    // Only a malformed URL stays inside the fixed-error boundary: anything
+    // else (the port itself failing) reaches the caller with its kind.
+    if (!(error instanceof TypeError)) throw error
   }
   throw new Error(UI_TEXT.accounts.unavailable)
 }

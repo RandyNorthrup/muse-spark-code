@@ -39,8 +39,8 @@ export interface McpOAuthNetworkPort {
   allowEndpoint(url: string): Promise<boolean>
 }
 
-export function oauthDenied(): never {
-  throw new Error(UI_TEXT.vault.noAccess)
+export function oauthDenied(options?: { cause?: unknown }): never {
+  throw new Error(UI_TEXT.vault.noAccess, options)
 }
 
 /** Body bounded before JSON/Zod; failures never expose endpoint bodies or exception text. */
@@ -85,8 +85,15 @@ export async function oauthJson(
     }
     const parsed: unknown = JSON.parse(bytes.toString('utf8'))
     return parsed
-  } catch {
-    return oauthDenied()
+  } catch (error: unknown) {
+    // The caller's own stop stays a stop: a fetch that rejects with the
+    // request signal's abort reason is rethrown untouched, so `run` still
+    // sees its own reason instead of an access-denied failure. Any other
+    // failure fetching, bounding or parsing denies: only a non-error
+    // keeps its kind past the boundary.
+    if (init.signal?.aborted === true && error === init.signal.reason) throw error
+    if (!(error instanceof Error)) throw error
+    return oauthDenied({ cause: error })
   } finally {
     try {
       try {
@@ -126,8 +133,10 @@ export async function discoverMcpOAuth(
   let metadata: z.infer<typeof protectedResource>
   try {
     metadata = protectedResource.parse(resourceRaw)
-  } catch {
-    oauthDenied()
+  } catch (error: unknown) {
+    // Only a malformed document denies here, with its cause: anything else keeps its kind.
+    if (!(error instanceof Error)) throw error
+    return oauthDenied({ cause: error })
   }
   if (metadata.resource !== resource || !metadata.authorization_servers.includes(issuer))
     oauthDenied()
@@ -147,8 +156,10 @@ export async function discoverMcpOAuth(
   let result: McpOAuthDiscovery
   try {
     result = authorizationServer.parse(raw)
-  } catch {
-    oauthDenied()
+  } catch (error: unknown) {
+    // Only a malformed document denies here, with its cause: anything else keeps its kind.
+    if (!(error instanceof Error)) throw error
+    return oauthDenied({ cause: error })
   }
   if (
     result.issuer !== issuer ||

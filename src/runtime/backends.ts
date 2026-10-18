@@ -579,6 +579,12 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       sleep: deps.sleep,
     }),
     log: deps.log,
+    // The terminal operator's console is the runtime log: an "always" that
+    // could not be kept is said there at once. A served session's person
+    // hears it in the session instead (the agent attaches its notifier).
+    notify: (text) => {
+      deps.log.warn(text)
+    },
     ...(deps.exec !== undefined && { headless: deps.exec.headlessPaid }),
   })
   const museEnvironment = museCode.childEnvironment()

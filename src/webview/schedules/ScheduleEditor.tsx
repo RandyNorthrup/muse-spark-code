@@ -153,7 +153,10 @@ export function ScheduleEditor({
             : { text: response.reason }),
         })
       }
-    } catch {
+    } catch (error: unknown) {
+      // An unloadable preview reads failed: only a non-error keeps its kind
+      // past the editor.
+      if (!(error instanceof Error)) throw error
       setPreview({ draft, conditions: conditionText, text: UI_TEXT.scheduleV2.editor.loadFailed })
     }
   }

@@ -2920,3 +2920,44 @@ The stand-ins PR #223 left. Per-item record: `docs/certification/no-standins.md`
 ### test/unit/pluginDispatch.test.ts (one case over a scripted containment answer)
 
 - without containment, a plugin hook fails by its rule and says why in the user's language
+
+## Withdrawn on lane PR161FIX (2026-10-18)
+
+PR #161's own stand-in tests went the same way as the sweep above: they drove real code through hand-written ports (`connection()`, dispatch `{allowEndpoint, fetch}` literals, the `meta` catalogue double) that the owner's rule refuses. Each behaviour below waits for proof by real use of the packed product. (The merge with current main had already withdrawn `fileSessionStore`, `moneyDisplay`, `sessionBudget` and `companionMediaTransport`; their entries stand above.)
+
+### test/unit/accountReadFailures.test.ts
+
+- `account read failures > reads a host failure as unsigned-in, with the kind in words`
+- `account read failures > stays silent when the answer comes in another shape`
+- `account read failures > keeps a foreign failure past the boundary`
+
+### test/unit/subscriptionStreamFailures.test.ts
+
+- `subscription stream failures > keeps an unknown failure’s kind past the boundary`
+- `subscription stream failures > keeps a foreign failure past the boundary`
+- `subscription stream failures > still yields a lapsed sign-in as its words`
+- `subscription stream failures > still yields a Copilot failure as its message`
+
+### test/unit/mcpOAuthDenied.test.ts (two tests; the port-free denial test stays)
+
+- `mcp oauth denial > maps a dispatch failure onto the denial with its cause`
+- `mcp oauth denial > keeps a foreign dispatch failure past the boundary`
+
+## Withdrawn on lane PR161FIX3 (2026-10-18)
+
+The Codex review of PR #161 found the warn-once case below fed an invented keyring failure through a hand-written port. No real keyring or store exists in unit, so the case is deleted rather than repaired with another fake; its behaviour waits for proof by real use of the packed product (the lead's scenario in `docs/certification/catch-money.md`, PR161FIX3).
+
+### test/unit/credentialReadFailures.test.ts (one test; the rest of the file stays)
+
+- `credential read failures > warns once per owner while the store stays unreadable, re-armed by a healthy read`
+
+## Withdrawn on lane PR161W1 (2026-10-18)
+
+The Codex re-review of PR #161 found the remaining cases in the file below still fed invented keyring failures through a hand-written port. No real keyring or store exists in unit, so the whole file is deleted rather than repaired with another fake; the guarded-scan warn-once-per-kind behaviour waits for proof by real use of the packed product (the lead's scenario in `docs/certification/catch-money.md`, PR161W1: on Linux without a usable keyring, trigger repeated operational key reads and guarded scans and observe one warning per kind in the runtime log; restore the keyring for one healthy scan and observe the warnings re-arm).
+
+### test/unit/credentialReadFailures.test.ts (whole file)
+
+- `credential read failures > reads a store failure as no key, with the kind in words`
+- `credential read failures > reads a denied store as unreadable with its kind`
+- `credential read failures > stays silent when the store answers`
+- `credential read failures > scans past an unreadable provider entry instead of calling it absent`
