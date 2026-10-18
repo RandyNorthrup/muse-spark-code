@@ -306,3 +306,23 @@ this process's birth from the system" took 287 287 273 281 235 318 272 311
 review head `b869ce02aa` reported every Windows check green, the
 organization's Windows and macOS test job included (`gh pr checks 220`; that
 job's log is not readable from this rig).
+
+## Codex re-review on PR #220 (plan, 2026-10-18)
+
+- fileLease.test.ts:126 (P2, hold the handle independently): measured, the
+  Node-held handle still keeps the ended child's object on this rig's
+  Node 22.19.0 (libuv 1.51.0) and 24.20.0 (libuv 1.52.1): the earlier
+  exit-code reader printed a birth for the 259 child three times under each.
+  libuv's current v1.x source closes the handle before the exit callback,
+  so a later Node would quietly stop creating the state. Planned: the test
+  holds the handle itself through a small C# holder built by the inbox
+  compiler (it starts itself again to end with 259, waits, keeps the
+  `Process` object open), not through Node's exit listener; the old check
+  is its red drill again.
+- fileLease.test.ts:343 (P2, a reused process id): the cause is in the
+  product's sweep, which keeps a reader named with this process's own id
+  because that id looks alive. Planned: the sweep also removes readers
+  named with this process's id (it builds after the sweep, so none is its
+  own: each is an earlier process's whose id Windows reused, or one this
+  process refused); the test plants such a reader before a rebuild and
+  expects only the new reader to remain, with the old sweep as its drill.
