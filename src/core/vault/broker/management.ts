@@ -19,6 +19,7 @@ import {
   type VaultClockPort,
   type VaultItem,
   type VaultItemMetadata,
+  type VaultSlotPort,
   type VaultSlotRecord,
 } from '../../../shared/vault'
 import {
@@ -58,7 +59,7 @@ export interface VaultManagementDeps {
   readonly anchor: VaultAnchorPort
   readonly repository: VaultStoreRepository
   readonly unlock: VaultSlotUnlock
-  readonly slots: Pick<VaultSlotProvider, 'osStore'>
+  readonly slots: Pick<VaultSlotProvider, 'osStore' | 'hardwareIfAvailable'>
   readonly broker: VaultManagementBroker
   readonly clock: VaultClockPort
   /** The user's home: only files discovered there (M's ambient list) are imported. */
@@ -161,6 +162,12 @@ interface PendingSetup {
    * credential; it is cleared whenever its credential is removed.
    */
   wrappedOsStore?: { slotId: string; record: VaultSlotRecord } | undefined
+  /**
+   * The hardware wrap a failed confirmation left behind, beside the OS one
+   * (D89 protection:auto wraps both). A retry reuses it instead of sealing
+   * again; it is cleared whenever its slot is removed.
+   */
+  wrappedHardware?: { slotId: string; record: VaultSlotRecord } | undefined
 }
 const newId = (): string => randomBytes(VAULT_LIMITS.idBytes).toString('hex')
 /** An OS-store failure keeps its fixed repair reason; anything else is `io`. */
@@ -726,20 +733,69 @@ export class VaultManagement implements VaultManagementPort {
         // for the whole commit: a Lock between wrap and creation must delete
         // the native credential the wrap just created.
         const wrapped = pending.wrappedOsStore
+        const wrappedHardware = pending.wrappedHardware
         const slotId = wrapped?.slotId ?? newId()
+        const hardwareSlotId = wrappedHardware?.slotId ?? newId()
         const slot = this.deps.slots.osStore(pending.vaultId, slotId)
-        let osStore: VaultSlotRecord
-        let isFreshWrap = false
+        let osStoreRecord: VaultSlotRecord | undefined
+        let hardwareRecord: VaultSlotRecord | undefined
+        let osStoreError: unknown
+        let isFreshOsWrap = false
+        let isFreshHardwareWrap = false
+        let hardwareSlot: VaultSlotPort | undefined
+        const removeFreshWraps = async (): Promise<void> => {
+          if (isFreshOsWrap) {
+            try {
+              await slot.remove?.()
+            } catch {
+              // The cancellation owns the outcome; cleanup is best effort.
+            }
+          }
+          if (isFreshHardwareWrap) {
+            try {
+              await hardwareSlot?.remove?.()
+            } catch {
+              // The cancellation owns the outcome; cleanup is best effort.
+            }
+          }
+        }
         if (wrapped !== undefined && (await this.hasSetupIntent())) {
-          osStore = wrapped.record
+          // The committed intent's pending document already carries this
+          // setup's hardware record beside the OS one: completing it reuses
+          // both wraps, never wraps again.
+          osStoreRecord = wrapped.record
+          hardwareRecord = wrappedHardware?.record
         } else {
           pending.wrappedOsStore = undefined
+          pending.wrappedHardware = undefined
           try {
-            osStore = await slot.wrap(pending.key)
+            osStoreRecord = await slot.wrap(pending.key)
+            isFreshOsWrap = true
           } catch (error: unknown) {
-            throw storeRefusal(error)
+            // The OS store is unusable (its binding missing or its keyring
+            // locked): a machine that seals still sets up below, on its
+            // hardware slot, which refuses with this error where it cannot.
+            osStoreError = error
           }
-          isFreshWrap = true
+          // D89 protection:auto is the hardware slot where it works, plus
+          // the OS-store slot: probe once per setup, wrap best-effort
+          // beside a working OS store, required where the OS store refused.
+          const hardware = await this.deps.slots.hardwareIfAvailable?.(
+            pending.vaultId,
+            hardwareSlotId,
+          )
+          if (hardware) {
+            hardwareSlot = hardware
+            try {
+              hardwareRecord = await hardware.wrap(pending.key)
+              isFreshHardwareWrap = true
+            } catch {
+              hardwareSlot = undefined
+              // Best effort beside a working OS store: the vault still sets
+              // up. Required without one: refuse with the OS-store error.
+              if (osStoreError !== undefined) throw storeRefusal(osStoreError)
+            }
+          } else if (osStoreError !== undefined) throw storeRefusal(osStoreError)
         }
         try {
           // Locked while wrapping: nothing is created and the key is erased below.
@@ -748,38 +804,40 @@ export class VaultManagement implements VaultManagementPort {
           // A fresh wrap is referenced by nothing yet, so remove it instead
           // of leaking a randomly named key in the OS store; a reused wrap
           // stays (its committed intent still names it).
-          if (isFreshWrap) {
+          if (isFreshOsWrap || isFreshHardwareWrap) {
             pending.wrappedOsStore = undefined
-            try {
-              await slot.remove?.()
-            } catch {
-              // The cancellation owns the outcome; cleanup is best effort.
-            }
+            pending.wrappedHardware = undefined
+            await removeFreshWraps()
           }
           throw error
         }
+        const setupRecords = [
+          ...(osStoreRecord === undefined ? [] : [osStoreRecord]),
+          ...(hardwareRecord === undefined ? [] : [hardwareRecord]),
+          pending.recovery,
+        ]
         let store: VaultStore
         try {
           store = await VaultStore.create(
             { files: this.deps.files, anchor: this.deps.anchor, key: pending.key },
             pending.vaultId,
-            [osStore, pending.recovery],
+            setupRecords,
             () => {
               this.assertSameLock(generation)
             },
           )
         } catch (error: unknown) {
-          // A committed intent references this wrap: the retry completes it.
-          // Without one nothing ever will: remove the native credential now.
+          // A committed intent references these wraps: the retry completes
+          // it. Without one nothing ever will: remove the fresh wraps now.
           if (await this.hasSetupIntent()) {
-            pending.wrappedOsStore = { slotId, record: osStore }
+            if (isFreshOsWrap && osStoreRecord !== undefined)
+              pending.wrappedOsStore = { slotId, record: osStoreRecord }
+            if (isFreshHardwareWrap && hardwareRecord !== undefined)
+              pending.wrappedHardware = { slotId: hardwareSlotId, record: hardwareRecord }
           } else {
             pending.wrappedOsStore = undefined
-            try {
-              await slot.remove?.()
-            } catch {
-              // The failure owns the outcome; cleanup is best effort.
-            }
+            pending.wrappedHardware = undefined
+            await removeFreshWraps()
           }
           throw error instanceof VaultStoreUnavailableError ? storeRefusal(error) : error
         }

@@ -4,7 +4,7 @@ import type { VaultSlotProvider } from '../../../core/vault/broker/repository'
 import type { VaultSlotRecord, VaultUse } from '../../../shared/vault'
 import { type vaultPrivateReadSchema } from '../../../shared/vaultProtocol'
 import { OsStoreVaultSlot } from './osStoreVaultSlot'
-import { MacVaultSlot } from './macVaultSlot'
+import { MacVaultSlot, macVaultProtectionFacts } from './macVaultSlot'
 import type { MacVaultTransport } from './macVaultProtocol'
 import type { PresenceRecords } from './slotIdentity'
 
@@ -76,6 +76,28 @@ export class MacVaultSlots implements VaultSlotProvider {
       this.platform,
       this.deps.open,
     )
+  }
+  /** The Secure Enclave slot where the helper reports it, else null. */
+  async hardwareIfAvailable(vaultId: string, slotId: string): Promise<MacVaultSlot | null> {
+    if (this.platform !== 'darwin') return null
+    try {
+      const facts = await macVaultProtectionFacts(this.transport)
+      if (!facts.hardwareAvailable) return null
+      return new MacVaultSlot(
+        'hardware',
+        {
+          id: slotId,
+          vaultId,
+          lastGeneration: 0,
+          auditGeneration: 0,
+          auditHead: '0'.repeat(VAULT_LIMITS.sha256Hex),
+          createdAt: Date.now(),
+        },
+        this.transport,
+      )
+    } catch {
+      return null
+    }
   }
   /**
    * A fresh Secure Enclave presence unwrap: the helper prompts (Touch ID or
