@@ -1,3 +1,4 @@
+import * as z from 'zod/mini'
 import { UI_TEXT } from '../../../shared/constants'
 import {
   scheduleEventSchema,
@@ -18,6 +19,19 @@ export function sourceEvent(
   if (event.source !== source.id || !source.kinds.includes(event.kind))
     throw new Error(`${UI_TEXT.scheduleV2.labels.unavailable}: sourceMismatch`)
   return event
+}
+
+/**
+ * The one expected delivery failure: the host handed over a malformed
+ * event or one meant for another source. The subscriber drops it and
+ * counts the rejection. Anything else is a bug in the subscriber and
+ * keeps its kind for the caller instead of reading as a rejected event.
+ */
+export function isRejectedDelivery(error: unknown): boolean {
+  return (
+    error instanceof z.core.$ZodError ||
+    (error instanceof Error && error.message.endsWith(': sourceMismatch'))
+  )
 }
 
 export class ScheduleEventRegistry {

@@ -95,14 +95,13 @@ const tokenCountSchema = z.object({
  * the byte bound it already holds and falls back with the fixed reason.
  */
 export function parseExactCountResponse(kind: ExactCountKind, json: unknown): number | undefined {
-  try {
-    switch (kind) {
-      case 'responses-input-tokens':
-      case 'anthropic-count-tokens': {
-        return tokenCountSchema.parse(json).input_tokens
-      }
+  switch (kind) {
+    case 'responses-input-tokens':
+    case 'anthropic-count-tokens': {
+      // A body that is not a count reads as no count; the caller keeps the
+      // byte bound. safeParse keeps the throw out, so no catch can hide one.
+      const parsed = tokenCountSchema.safeParse(json)
+      return parsed.success ? parsed.data.input_tokens : undefined
     }
-  } catch {
-    return undefined
   }
 }
