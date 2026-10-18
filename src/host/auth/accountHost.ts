@@ -217,11 +217,14 @@ export async function connectAccountSession(
   if (isAborted()) {
     throw new Error('The Muse Code account host was cancelled')
   }
+  // Loaded before the lease is taken: a bundle that will not load must
+  // refuse without holding resource admission.
+  const bundle = backend.museCodeBundle()
   const resource = await admitResource('museServe', signal)
   const env = backend.childEnvironment()
   let isStderrReported = false
   const handshake = await spawnResourceConnection(
-    backend.museCodeBundle().spawnMspConnection,
+    bundle.spawnMspConnection,
     {
       command: resolution.launch.command,
       args: resolution.launch.args,

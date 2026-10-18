@@ -258,12 +258,12 @@ export class MuseCodeBackendManager {
 
   /** A capture-gated account's host: the same admission, with its tree registered on the lease. */
   private async spawnAccountHost(
+    backend: MuseCodeBundle,
     options: Parameters<typeof spawnAccountMspConnection>[0],
     accountHome: MuseCodeAccountHome,
     resource: ResourceLease | undefined,
     assertCanRun: () => Promise<void>,
   ): Promise<ReturnType<typeof spawnAccountMspConnection>> {
-    const backend = this.loadBackend()
     return await spawnResourceConnection(
       (launch) => backend.spawnAccountMspConnection(launch, accountHome),
       options,
@@ -284,6 +284,9 @@ export class MuseCodeBackendManager {
     }
     const launch: MuseLaunch = resolution.launch
     await this.admitWorkspaceHost()
+    // Loaded before the lease is taken: a bundle that will not load must
+    // refuse without holding resource admission.
+    const backend = this.loadBackend()
     const resource = await admitResource('museServe', this.resourceStop.signal)
     if (this.generation !== generation) {
       resource?.complete(true)
@@ -331,7 +334,6 @@ export class MuseCodeBackendManager {
       if (this.generation !== generation) throw new Error(UI_TEXT.questionCancelled)
     }
     const accountHome = this.deps.accountHome
-    const backend = this.loadBackend()
     const handshake =
       accountHome === undefined
         ? await spawnResourceConnection(
@@ -342,7 +344,7 @@ export class MuseCodeBackendManager {
             environmentValue(env, process.platform, 'SystemRoot'),
             assertCanRun,
           )
-        : await this.spawnAccountHost(spawnOptions, accountHome, resource, assertCanRun)
+        : await this.spawnAccountHost(backend, spawnOptions, accountHome, resource, assertCanRun)
     const firstMs = this.deps.handshakeTimeoutMs ?? MSP_HANDSHAKE_TIMEOUT_MS
     const totalMs = this.deps.slowHandshakeTimeoutMs ?? MSP_SLOW_HANDSHAKE_TIMEOUT_MS
     const seconds = (ms: number) => String(Math.round(ms / MILLISECONDS_PER_SECOND))
