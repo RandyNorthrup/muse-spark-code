@@ -44,10 +44,12 @@ jobs:
               native/darwin/muse-dictate-screen.tgz
           - platform: linux-x64
             os: ubuntu-24.04
+            arch: x64
             artifact: muse-created-linux-x64
             path: native/linux/x64/muse-created
           - platform: linux-arm64
             os: ubuntu-24.04-arm
+            arch: arm64
             artifact: muse-created-linux-arm64
             path: native/linux/arm64/muse-created
     steps:
@@ -65,11 +67,18 @@ jobs:
       - if: matrix.platform != 'darwin'
         run: |
           sudo apt-get update && sudo apt-get install -y libssl-dev
-          node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; buildLinuxHelper()"
+          node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; import { buildVaultPeer } from './scripts/build-vault-peer.mjs'; buildLinuxHelper(); buildVaultPeer()"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.path }}
+          if-no-files-found: error
+      # The vault peer the packagers require beside muse-created, as in build.yml.
+      - if: matrix.platform != 'darwin'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: muse-vault-peer-linux-${{ matrix.arch }}
+          path: native/linux/${{ matrix.arch }}/muse-vault-peer
           if-no-files-found: error
       # M109: the vault helper the packagers require beside the dictation helper.
       - if: matrix.platform == 'darwin'
@@ -107,9 +116,18 @@ jobs:
           path: native/linux/arm64
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
+          name: muse-vault-peer-linux-x64
+          path: native/linux/x64
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-vault-peer-linux-arm64
+          path: native/linux/arm64
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
           name: muse-vault-darwin
           path: dist/native/darwin
       - run: chmod +x native/darwin/muse-dictate native/linux/x64/muse-created native/linux/arm64/muse-created dist/native/darwin/muse-vault
+      - run: chmod +x native/linux/x64/muse-vault-peer native/linux/arm64/muse-vault-peer
       - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
       - run: npm run package
         env:

@@ -1,0 +1,242 @@
+[
+  {
+    "name": "session-handoff",
+    "file": "src/runtime/vault/posixClientPlatform.ts",
+    "suite": "test/unit/vault/brokerSession.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "7676d8d8edd306ea0ab542eb72e2c1c63d150b6ef1b79a62a5a7f0201fe9ecd0"
+  },
+  {
+    "name": "kernel-wait",
+    "file": "native/posix/vaultPeer.c",
+    "suite": "test/unit/vault/brokerSession.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "58a57cc2e71aad09bafb3eb54e4986a8e8ab2d7bfa5e37073b2f8958ce13df65"
+  },
+  {
+    "name": "stdout-error",
+    "file": "src/runtime/vault/vaultBrokerEntry.ts",
+    "suite": "test/unit/vault/brokerSession.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "fdf393311a1f4334049ec445856607fad0ba11f7bccd584939a06b5fab2366d7"
+  },
+  {
+    "name": "stderr-error",
+    "file": "src/runtime/vault/vaultBrokerEntry.ts",
+    "suite": "test/unit/vault/brokerSession.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "fdf393311a1f4334049ec445856607fad0ba11f7bccd584939a06b5fab2366d7"
+  },
+  {
+    "name": "idle-exit",
+    "file": "src/runtime/vault/brokerProcess.ts",
+    "suite": "test/unit/vault/brokerSession.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "1d7800d96dc3d728e73383cf45f0e5a848866806f82b04c357f1e3d747b07ef8"
+  },
+  {
+    "name": "lock-before-close",
+    "file": "src/runtime/vault/brokerProcess.ts",
+    "suite": "test/unit/vault/brokerProcess.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "1d7800d96dc3d728e73383cf45f0e5a848866806f82b04c357f1e3d747b07ef8"
+  },
+  {
+    "name": "signal-shutdown",
+    "file": "src/runtime/vault/vaultBrokerEntry.ts",
+    "suite": "test/unit/vault/vaultBrokerEntry.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "fdf393311a1f4334049ec445856607fad0ba11f7bccd584939a06b5fab2366d7"
+  },
+  {
+    "name": "executable-match",
+    "file": "src/runtime/vault/posixHost.ts",
+    "suite": "test/unit/vault/posixBindings.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "4a25d85f928169d2096b57aff6009689b4e467ce9ccf6a0d123b207a47572b3c"
+  },
+  {
+    "name": "record-user-match",
+    "file": "src/runtime/vault/posixHost.ts",
+    "suite": "test/unit/vault/posixBindings.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "4a25d85f928169d2096b57aff6009689b4e467ce9ccf6a0d123b207a47572b3c"
+  },
+  {
+    "name": "binding-own-user",
+    "file": "src/runtime/vault/brokerBindings.ts",
+    "suite": "test/unit/vault/posixBindings.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "d8742f0d733621f63cfc7d66db34750d0460c2844b40415f6ee3f681e521764a"
+  },
+  {
+    "name": "registration-own-user",
+    "file": "src/runtime/vault/posixHost.ts",
+    "suite": "test/unit/vault/posixBindings.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "4a25d85f928169d2096b57aff6009689b4e467ce9ccf6a0d123b207a47572b3c"
+  },
+  {
+    "name": "dead-only-launch",
+    "file": "src/runtime/vault/posixClientPlatform.ts",
+    "suite": "test/unit/vault/posixBindings.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "7676d8d8edd306ea0ab542eb72e2c1c63d150b6ef1b79a62a5a7f0201fe9ecd0"
+  },
+  {
+    "name": "spare-live-recovery",
+    "file": "src/runtime/vault/brokerProcess.ts",
+    "suite": "test/unit/vault/brokerProcess.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "1d7800d96dc3d728e73383cf45f0e5a848866806f82b04c357f1e3d747b07ef8"
+  },
+  {
+    "name": "registration-exit",
+    "file": "src/runtime/vault/posixHost.ts",
+    "suite": "test/unit/vault/brokerSession.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "4a25d85f928169d2096b57aff6009689b4e467ce9ccf6a0d123b207a47572b3c"
+  },
+  {
+    "name": "registration-prune",
+    "file": "src/runtime/vault/posixHost.ts",
+    "suite": "test/unit/vault/brokerSession.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "4a25d85f928169d2096b57aff6009689b4e467ce9ccf6a0d123b207a47572b3c"
+  },
+  {
+    "name": "disabled-runtime-reason",
+    "file": "src/runtime/vault/vaultRuntime.ts",
+    "suite": "test/unit/vault/vaultRuntimeEntry.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "ec84fc6a84092a2b30adf26a96915d20b409572ebafc5e55647d6568b53ce925"
+  },
+  {
+    "name": "disabled-panel-reason",
+    "file": "src/host/vault/vaultPanelBundle.ts",
+    "suite": "test/unit/vault/vaultPanelBundle.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "0b696239a2481e73325ae733e3233d0842b19a2a11fc66e4694ba0e3b8028411"
+  },
+  {
+    "name": "disabled-translation",
+    "file": "l10n/ui.de.json",
+    "suite": "node scripts/check-l10n.mjs",
+    "exit": 1,
+    "fired": true,
+    "sha256": "2d362a3f863111ec02c5e3c968f83bd0d884e13796420a6356ab1de16539c0ad"
+  },
+  {
+    "name": "package-closure",
+    "file": "scripts/check-packaged-bundles.mjs",
+    "suite": "test/unit/packagedBundles.test.mjs",
+    "exit": 1,
+    "fired": true,
+    "sha256": "bce6e70478e203f1b441d287d095313c39ca7dd6ef9e973c7833dafccc8f55cf"
+  },
+  {
+    "name": "package-allowlist-vaultStore",
+    "file": ".vscodeignore",
+    "suite": "test/unit/packagedBundles.test.mjs",
+    "exit": 1,
+    "fired": true,
+    "sha256": "9bfd6bed8ef30764ff876016f280eff5c42977c3e1714c1cba9da8dee960c772"
+  },
+  {
+    "name": "package-allowlist-vaultPosix",
+    "file": ".vscodeignore",
+    "suite": "test/unit/packagedBundles.test.mjs",
+    "exit": 1,
+    "fired": true,
+    "sha256": "9bfd6bed8ef30764ff876016f280eff5c42977c3e1714c1cba9da8dee960c772"
+  },
+  {
+    "name": "package-allowlist-vaultRuntime",
+    "file": ".vscodeignore",
+    "suite": "test/unit/packagedBundles.test.mjs",
+    "exit": 1,
+    "fired": true,
+    "sha256": "9bfd6bed8ef30764ff876016f280eff5c42977c3e1714c1cba9da8dee960c772"
+  },
+  {
+    "name": "package-allowlist-vaultBrokerBindings",
+    "file": ".vscodeignore",
+    "suite": "test/unit/packagedBundles.test.mjs",
+    "exit": 1,
+    "fired": true,
+    "sha256": "9bfd6bed8ef30764ff876016f280eff5c42977c3e1714c1cba9da8dee960c772"
+  },
+  {
+    "name": "protected-prepare",
+    "file": "src/runtime/vault/brokerBindings.ts",
+    "suite": "test/unit/vault/posixBindings.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "2cfc60d5759ba021250e094bd786e4cfad6bfec71a00a2f739127079cb8a3aeb"
+  },
+  {
+    "name": "protected-recovery",
+    "file": "src/runtime/vault/brokerBindings.ts",
+    "suite": "test/unit/vault/posixBindings.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "2cfc60d5759ba021250e094bd786e4cfad6bfec71a00a2f739127079cb8a3aeb"
+  },
+  {
+    "name": "authorization-after-prepare",
+    "file": "src/core/vault/broker/audit.ts",
+    "suite": "test/unit/vault/audit.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "9712ca231f06dde088ec3c9d4a164f210c66bc1c07f91482f8d336073b786294"
+  },
+  {
+    "name": "package-windows-paths",
+    "file": "scripts/check-packaged-bundles.mjs",
+    "suite": "test/unit/packagedBundles.test.mjs",
+    "exit": 1,
+    "fired": true,
+    "sha256": "9c57953473bb017c99517c16d7e075a565de57511249a564afbd2924707bbdf2"
+  },
+  {
+    "name": "help-disabled-honesty",
+    "file": "src/shared/l10n/en.ts",
+    "suite": "test/unit/spawnBoundaries.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "4004eb48ba639a1acd2d342f9b8ca38766f8c87340fc960d50b9d56d01d0f3e2"
+  },
+  {
+    "name": "package-framepaths",
+    "file": "src/shared/constants.ts",
+    "suite": "test/unit/flightRecorder.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "a10631d94ae3013fe6af6a1908a6f5387eff8d592332357808a2c6dcd93148f4"
+  },
+  {
+    "name": "handoff-no-stop",
+    "file": "src/host/vault/brokerProcess.ts",
+    "suite": "test/unit/vault/channel.test.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "cc4387b850c4a6d842aa0f1dabb9854f5eb7b7a178b5d6d9c7a9f9ad58e4b723"
+  }
+]

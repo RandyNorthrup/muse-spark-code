@@ -1,6 +1,7 @@
 import * as z from 'zod/mini'
 import { parseArgs } from 'node:util'
 import { UI_TEXT, VAULT_LIMITS } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import {
   vaultApprovalAnswerSchema,
   vaultAuditRecordSchema,
@@ -16,8 +17,13 @@ import {
   vaultApprovalResultSchema,
   vaultBrokerEventSchema,
   vaultStatusSchema,
+  type VaultPendingReceipt,
+  type VaultResetChallenge,
 } from '../../shared/vaultProtocol'
+import { vaultRefusalSentences } from '../../shared/vaultRefusals'
 import { vaultApprovalText, vaultDecisionChoices } from './vaultApproval'
+import type { VaultImportReport, VaultManagementPort } from '../../core/vault/broker/ports'
+import { vaultWriterRecoveryMessage } from '../../core/vault/broker/manageClient'
 
 const auditFilterSchema = z.strictObject({
   item: z.optional(vaultAuditRecordSchema.shape.handle),
@@ -29,16 +35,23 @@ type AuditFilter = z.infer<typeof auditFilterSchema>
 
 export type VaultReadCommand = 'status' | 'list' | 'lock' | 'audit'
 export type VaultCommandOptions =
-  | { command: VaultReadCommand | 'watch'; filters?: AuditFilter }
+  | {
+      command: VaultReadCommand | 'watch' | 'setup' | 'recover' | 'reset'
+      filters?: AuditFilter
+    }
   | { command: 'unlock'; slotId: string | null }
   | { command: 'add'; metadata: VaultItemMetadata }
   | { command: 'grant'; grant: VaultGrant }
   | { command: 'remove' | 'public-key'; itemId: string }
   | { command: 'revoke'; grantId: string }
   | { command: 'import'; path: string }
+  | { command: 'receipts' }
 
 /** Trusted local management channel only. Private material never uses the panel/MHP port. */
-export interface VaultCommandPort {
+export interface VaultCommandPort extends Pick<
+  VaultManagementPort,
+  'setup' | 'confirmSetup' | 'cancelSetup' | 'recover'
+> {
   status(): Promise<unknown>
   list(): Promise<unknown>
   lock(): Promise<void>
@@ -48,7 +61,14 @@ export interface VaultCommandPort {
   remove(itemId: string): Promise<void>
   grant(grant: VaultGrant): Promise<void>
   revoke(grantId: string): Promise<void>
-  importFile(path: string): Promise<void>
+  importFile(path: string): Promise<VaultImportReport>
+  keepImport(receipt: string): Promise<void>
+  deleteImport(receipt: string): Promise<void>
+  /** Kept or orphaned receipts that can still be finished (RVAPP-CM1091D5 P2-2). */
+  pendingReceipts(): Promise<readonly VaultPendingReceipt[]>
+  /** Reset Vault (lead decision): only for a lost vault; two steps. */
+  resetBegin(): Promise<VaultResetChallenge>
+  resetConfirm(resetId: string, word: string): Promise<void>
   publicKey(itemId: string): Promise<unknown>
   watch(signal: AbortSignal): AsyncIterable<unknown>
   answer(answer: VaultApprovalAnswer): Promise<unknown>
@@ -61,12 +81,16 @@ export interface VaultCommandDeps {
   choose(title: string, options: readonly string[], signal: AbortSignal): Promise<string>
   print(text: string): void
   printError(text: string): void
+  /** A terminal is attached: setup and recovery never run without one. */
+  readonly isInteractive: boolean
+  /** One hidden terminal line (echo off), as owned bytes. */
+  readLine(prompt: string, signal: AbortSignal): Promise<Buffer>
   now(): number
   signal: AbortSignal
 }
 
 export function vaultUsage(): string {
-  return `${UI_TEXT.vault.title}: status | unlock [slot-id] | lock | list | add <metadata-json> | remove <item-id> | grant <grant-json> | revoke <grant-id> | audit [--item <handle>] [--requester <id>] [--kind <kind>] [--outcome <outcome>] | import <path> | public-key <item-id> | watch`
+  return `${UI_TEXT.vault.title}: setup | recover | reset | status | unlock [slot-id] | lock | list | add <metadata-json> | remove <item-id> | grant <grant-json> | revoke <grant-id> | audit [--item <handle>] [--requester <id>] [--kind <kind>] [--outcome <outcome>] | import <path> | receipts | public-key <item-id> | watch`
 }
 
 /** Parse without echoing supplied arguments or JSON errors (they can contain an accidental value). */
@@ -88,10 +112,12 @@ export function parseVaultCommand(args: readonly string[]): VaultCommandOptions 
       return { command, filters: auditFilterSchema.parse(parsed.values) }
     }
     if (rest.length > 0) return undefined
-    const read = (['status', 'list', 'lock', 'watch'] as const).find(
+    const read = (['status', 'list', 'lock', 'watch', 'setup', 'recover', 'reset'] as const).find(
       (candidate) => candidate === command,
     )
     if (argument === undefined && read !== undefined) return { command: read }
+    // Finish kept or orphaned imports from the terminal (RVAPP-CM1091D5 P2-2).
+    if (command === 'receipts' && argument === undefined) return { command: 'receipts' }
     if (command === 'unlock')
       return {
         command,
@@ -254,6 +280,164 @@ async function watch(port: VaultCommandPort, deps: VaultCommandDeps): Promise<vo
   }
 }
 
+/** All items or none; a per-item report of names only, then Keep or Delete the source. */
+async function importFile(
+  port: VaultCommandPort,
+  deps: VaultCommandDeps,
+  path: string,
+): Promise<number> {
+  const report = await port.importFile(path)
+  deps.print(
+    fill(UI_TEXT.vault.importedSummary, {
+      names: report.items.map((item) => `${item.name} (${item.kind})`).join(', '),
+    }),
+  )
+  if (!deps.isInteractive) return 0
+  let answer = 'keep'
+  try {
+    answer = await deps.choose(UI_TEXT.vault.importKeepOrDelete, ['keep', 'delete'], deps.signal)
+  } catch {
+    /* EOF, timeout and cancellation keep the file. */
+  }
+  if (answer === 'delete') {
+    try {
+      await port.deleteImport(report.receipt)
+    } catch (error: unknown) {
+      // The source is already gone: finish the person's Delete by clearing
+      // the leftover record instead of dropping it (RVCM1091G P3). A record
+      // already cleared (or still stuck) leaves the refusal below as is.
+      if (error instanceof Error && error.message === UI_TEXT.vault.sourceGone) {
+        try {
+          await port.keepImport(report.receipt)
+        } catch {
+          /* The refusal below still holds: the file is gone. */
+        }
+      }
+      throw error
+    }
+  } else await port.keepImport(report.receipt)
+  return 0
+}
+/**
+ * Finish kept or orphaned imports from the terminal: the same two real
+ * actions the panel offers (RVAPP-CM1091D5 P2-2). Every "try again" refusal
+ * names an action that exists here too: the receipt stays listed until it
+ * is kept or its delete succeeds.
+ */
+async function finishReceipts(port: VaultCommandPort, deps: VaultCommandDeps): Promise<number> {
+  const pending = await port.pendingReceipts()
+  if (pending.length === 0) {
+    deps.print(UI_TEXT.vault.noPendingImports)
+    return 0
+  }
+  let code = 0
+  for (const entry of pending) {
+    deps.print(
+      `${entry.path}: ${entry.items.map((item) => `${item.name} (${item.kind})`).join(', ')}`,
+    )
+    if (!deps.isInteractive) continue
+    let answer = 'keep'
+    try {
+      answer = await deps.choose(UI_TEXT.vault.importKeepOrDelete, ['keep', 'delete'], deps.signal)
+    } catch {
+      /* EOF, timeout and cancellation keep the file. */
+    }
+    if (answer !== 'delete') {
+      try {
+        await port.keepImport(entry.receipt)
+      } catch (error: unknown) {
+        deps.printError(vaultCommandFailure(error))
+        code = 1
+      }
+      continue
+    }
+    try {
+      await port.deleteImport(entry.receipt)
+    } catch (error: unknown) {
+      // The source is already gone: finish the person's Delete by clearing
+      // the leftover record instead of dropping it.
+      if (error instanceof Error && error.message === UI_TEXT.vault.sourceGone) {
+        try {
+          await port.keepImport(entry.receipt)
+        } catch {
+          /* The refusal below still holds: the file is gone. */
+        }
+      }
+      deps.printError(vaultCommandFailure(error))
+      code = 1
+    }
+  }
+  return code
+}
+/** Reset Vault: a lost vault only; the warning, Continue, then the typed word. */
+async function resetVault(port: VaultCommandPort, deps: VaultCommandDeps): Promise<number> {
+  if (!deps.isInteractive) {
+    deps.printError(UI_TEXT.vault.resetHeadless)
+    return 1
+  }
+  const challenge = await port.resetBegin()
+  deps.printError(UI_TEXT.vault.resetWarning)
+  if (challenge.writer) deps.printError(vaultWriterRecoveryMessage(challenge.writer))
+  let answer = 'cancel'
+  try {
+    answer = await deps.choose(UI_TEXT.vault.resetVault, ['continue', 'cancel'], deps.signal)
+  } catch {
+    /* EOF, timeout and cancellation cancel the reset. */
+  }
+  if (answer !== 'continue') return 1
+  const typed = await deps.readLine(
+    `${fill(UI_TEXT.vault.resetTypeWord, { word: challenge.word })} `,
+    deps.signal,
+  )
+  try {
+    await port.resetConfirm(challenge.resetId, typed.toString('utf8'))
+  } finally {
+    typed.fill(0)
+  }
+  deps.printError(UI_TEXT.vault.resetDone)
+  return 0
+}
+/** Shown once; the vault exists only after "I Saved It" (lead decision 8). */
+async function setUpVault(port: VaultCommandPort, deps: VaultCommandDeps): Promise<number> {
+  if (!deps.isInteractive) {
+    deps.printError(UI_TEXT.vault.setupHeadless)
+    return 1
+  }
+  const shown = await port.setup()
+  try {
+    deps.printError(UI_TEXT.vault.recoveryWarning)
+    deps.print(fill(UI_TEXT.vault.recoveryShownOnce, { code: shown.code.toString('ascii') }))
+    let answer = 'cancel'
+    try {
+      answer = await deps.choose(UI_TEXT.vault.savedItPrompt, ['savedIt', 'cancel'], deps.signal)
+    } catch {
+      /* EOF, timeout and cancellation cancel the setup. */
+    }
+    if (answer === 'savedIt') {
+      await port.confirmSetup(shown.setupId)
+      return 0
+    }
+    await port.cancelSetup(shown.setupId)
+    deps.printError(UI_TEXT.vault.setupCancelled)
+    return 1
+  } finally {
+    shown.code.fill(0)
+  }
+}
+
+/**
+ * A refused Delete (or any other refused management call) tells the true
+ * reason on the terminal too: every named refusal keeps its own sentence,
+ * and only an unnamed failure stays "No access" (RVAPP-CM1091D5 P2-3).
+ * Exact match only: no foreign text can quote a full sentence.
+ */
+export function vaultCommandFailure(error: unknown): string {
+  // Every named sentence, shared with the panel (RVAPP-CM1091D5 P2-3).
+  return error instanceof Error && vaultRefusalSentences().includes(error.message)
+    ? error.message
+    : UI_TEXT.vault.noAccess
+}
+
 export async function runVaultCommand(
   options: VaultCommandOptions,
   deps: VaultCommandDeps,
@@ -311,7 +495,15 @@ export async function runVaultCommand(
         break
       }
       case 'import': {
-        await port.importFile(options.path)
+        code = await importFile(port, deps, options.path)
+        break
+      }
+      case 'receipts': {
+        code = await finishReceipts(port, deps)
+        break
+      }
+      case 'reset': {
+        code = await resetVault(port, deps)
         break
       }
       case 'public-key': {
@@ -325,12 +517,31 @@ export async function runVaultCommand(
         await watch(port, deps)
         break
       }
+      case 'setup': {
+        code = await setUpVault(port, deps)
+        break
+      }
+      case 'recover': {
+        if (!deps.isInteractive) {
+          deps.printError(UI_TEXT.vault.setupHeadless)
+          code = 1
+          break
+        }
+        const recovery = await deps.readLine(`${UI_TEXT.vault.recoveryCode}: `, deps.signal)
+        try {
+          deps.signal.throwIfAborted()
+          await port.recover(recovery)
+        } finally {
+          recovery.fill(0)
+        }
+        break
+      }
     }
-  } catch {
+  } catch (error: unknown) {
     deps.printError(
       port === undefined && !deps.signal.aborted
         ? UI_TEXT.vault.brokerBlocked
-        : UI_TEXT.vault.noAccess,
+        : vaultCommandFailure(error),
     )
     code = 1
   } finally {

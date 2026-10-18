@@ -135,3 +135,16 @@ rm -f "${VAULT_OUTPUT}-arm64" "${VAULT_OUTPUT}-x86_64"
 codesign --force --sign - --identifier com.musespark.vault "$VAULT_OUTPUT"
 codesign --verify --strict "$VAULT_OUTPUT"
 lipo -info "$VAULT_OUTPUT"
+
+# C-M109-1b: OS peer credentials, pinned process identity and the broker startup lock.
+PEER_OUTPUT=muse-vault-peer
+for arch in "${ARCHES[@]}"; do
+  cc -Os -Wall -Wextra -Werror -arch "$arch" -mmacosx-version-min="$MIN_MACOS" \
+    ../../native/posix/vaultPeer.c -o "${PEER_OUTPUT}-${arch}"
+  strip -x "${PEER_OUTPUT}-${arch}"
+done
+lipo -create -output "$PEER_OUTPUT" "${PEER_OUTPUT}-arm64" "${PEER_OUTPUT}-x86_64"
+rm -f "${PEER_OUTPUT}-arm64" "${PEER_OUTPUT}-x86_64"
+codesign --force --sign - --identifier com.musespark.vault-peer "$PEER_OUTPUT"
+codesign --verify --strict "$PEER_OUTPUT"
+lipo -info "$PEER_OUTPUT"

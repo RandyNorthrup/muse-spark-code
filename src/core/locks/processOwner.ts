@@ -1,37 +1,21 @@
-// Which process holds a file lease (fileLease.ts) or runs a pending
-// checkout (M123, PLAN.md M123's lock protocol): its host, its id, and its
-// birth as the operating system records it. A process id alone proves nothing once
-// the system has given it to another process (Windows reuses ids quickly),
-// so a live id is the same owner only while its birth matches the one
-// recorded.
-//
-// Births come from the system, read the same way for every process this
-// one looks at, its own included, and never converted through the
-// adjustable wall clock afterwards:
-// - Linux: the kernel's start time in clock ticks since boot
-//   (`/proc/<pid>/stat`, field 22) with the boot id
-//   (`/proc/sys/kernel/random/boot_id`). Exact, and no clock step changes
-//   either; an owner from another boot is gone.
-// - Windows: the creation time the kernel stored when the process started
-//   (Windows PowerShell's `Get-Process`, read in milliseconds). A later
-//   clock step does not change it; it is only as right as the clock was at
-//   creation.
-// - macOS: the start time the kernel stored (`ps -o lstart=`, printed in UTC
-//   so no timezone change moves it), to the second.
-// On Windows and macOS two processes that had one id and started within
-// the tolerance cannot be told apart; a birth that cannot be read proves
-// nothing. Queries use absolute paths, no shell, and a timeout.
-
+// Timed callers retain their legacy host/birth comparison. Vaults require
+// installation, boot and PID-namespace evidence before comparing a PID.
+// Hostnames are display labels, never vault death evidence.
 import { execFile } from 'node:child_process'
-import { readFile } from 'node:fs/promises'
-import { hostname } from 'node:os'
+import { readFile, readlink } from 'node:fs/promises'
+import { homedir, hostname } from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import {
   MILLISECONDS_PER_SECOND,
   PROCESS_START_QUERY_TIMEOUT_MS,
   PROCESS_START_TOLERANCE_MS,
+  PROCESS_OWNER_FAILURE_CACHE_MS,
+  WINDOWS_FILETIME_TICKS_PER_MS,
+  WINDOWS_FILETIME_EPOCH_MS,
 } from '../../shared/constants'
+import { loadDeveloperMachineId } from '../developer/machineId'
+import { agentDataFolder } from '../../runtime/dataFolder'
 
 const NO_SUCH_PROCESS = 'ESRCH'
 // `/proc/<pid>/stat` after the command's closing parenthesis: field 3 is
@@ -40,6 +24,7 @@ const NO_SUCH_PROCESS = 'ESRCH'
 const LINUX_START_FIELD = 19
 const LINUX_BOOT_ID = '/proc/sys/kernel/random/boot_id'
 const DECIMAL = /^\d+$/u
+const BOOT_UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu
 
 export const processOwnerSchema = z.object({
   host: z.string(),
@@ -51,6 +36,12 @@ export const processOwnerSchema = z.object({
   processStart: z.number(),
   /** Linux: the boot the process ran in. */
   bootId: z.optional(z.string()),
+  /** Exact OS birth token. Absent in legacy notes; numeric estimates never prove reuse for a vault. */
+  exactBirth: z.optional(z.string()),
+  /** Installation identity; hostname is only a display label. */
+  machineId: z.optional(z.string()),
+  /** Linux PID namespace inode; native on systems without PID namespaces. */
+  pidNamespace: z.optional(z.string()),
 })
 
 /** A process, as a lock note or a pending checkout names its owner. */
@@ -220,8 +211,139 @@ function isProcessAlive(pid: number): boolean {
 export interface ProcessOwnerProbe {
   /** This process, whose boot and birth reading the comparison uses. */
   readonly self: ProcessOwner
-  readonly isAlive: (pid: number) => boolean
+  readonly isAlive: (pid: number) => boolean | undefined
   readonly startTimeOf: (pid: number) => Promise<number | undefined>
+  readonly exactBirthOf: (pid: number) => Promise<string | undefined>
+  readonly exactOnly: boolean
+}
+
+interface ExactEvidence {
+  readonly birth: string
+  readonly started: number
+  readonly boot: string
+  readonly namespace: string
+}
+const exactReadings = new Map<number, { evidence: ExactEvidence | undefined; retryAt: number }>()
+const pendingReadings = new Map<number, Promise<ExactEvidence | undefined>>()
+const darwinBoot: { value?: string } = {}
+async function readExactEvidence(pid: number): Promise<ExactEvidence | undefined> {
+  try {
+    switch (process.platform) {
+      case 'linux': {
+        const [boot, ticks, namespace] = await Promise.all([
+          systemBootId(),
+          linuxStartTicks(pid),
+          readlink('/proc/self/ns/pid'),
+        ])
+        if (boot && ticks !== undefined && /^pid:\[\d+\]$/u.test(namespace))
+          return { birth: String(ticks), started: ticks, boot, namespace }
+        break
+      }
+      case 'darwin': {
+        // Both tools ship in base macOS: no Xcode shim or developer tool.
+        const output =
+          darwinBoot.value ?? (await run('/usr/sbin/sysctl', ['-n', 'kern.bootsessionuuid']))
+        const boot = output.trim()
+        if (boot) darwinBoot.value = boot
+        const started = await darwinStartTime(pid)
+        if (boot && started !== undefined)
+          return { birth: String(started), started, boot, namespace: 'native' }
+
+        break
+      }
+      case 'win32': {
+        const root = process.env['SystemRoot'] ?? process.env['windir']
+        if (!root) return undefined
+        // One bounded launch reads both exact FILETIME and the current boot.
+        const output = await run(
+          path.win32.join(root, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+          [
+            '-NoLogo',
+            '-NoProfile',
+            '-NonInteractive',
+            '-Command',
+            '$ErrorActionPreference = "Stop"; $birth = (Get-Process -Id ' +
+              String(pid) +
+              ').StartTime.ToFileTimeUtc(); Add-Type -TypeDefinition \'using System; using System.Runtime.InteropServices; public static class MuseLeaseBoot { [StructLayout(LayoutKind.Sequential)] public struct Info { public Guid Id; public uint Firmware; public ulong Flags; } [DllImport("ntdll.dll")] static extern int NtQuerySystemInformation(int kind, out Info value, int size, out int returned); public static string Read() { Info value; int returned; if (NtQuerySystemInformation(90, out value, Marshal.SizeOf(typeof(Info)), out returned) != 0 || value.Id == Guid.Empty) throw new InvalidOperationException(); return value.Id.ToString(); } }\'; Write-Output ($birth.ToString()+":"+[MuseLeaseBoot]::Read())',
+          ],
+        )
+        const [birth, boot] = output.trim().split(':', 2)
+        if (birth && boot && DECIMAL.test(birth) && /^[a-f0-9-]{36}$/iu.test(boot))
+          return {
+            birth,
+            started: Number(
+              BigInt(birth) / WINDOWS_FILETIME_TICKS_PER_MS - WINDOWS_FILETIME_EPOCH_MS,
+            ),
+            boot,
+            namespace: 'native',
+          }
+        break
+      }
+      default: {
+        break
+      }
+    }
+  } catch {
+    // Failed or unreadable evidence is unknown, never death.
+  }
+  return undefined
+}
+async function exactEvidence(pid: number): Promise<ExactEvidence | undefined> {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return undefined
+  const cached = exactReadings.get(pid)
+  if (cached && performance.now() < cached.retryAt) return cached.evidence
+  const pending = pendingReadings.get(pid)
+  if (pending) return await pending
+  const reading = readExactEvidence(pid)
+  pendingReadings.set(pid, reading)
+  let evidence
+  try {
+    evidence = await reading
+  } finally {
+    pendingReadings.delete(pid)
+  }
+  // Only this process's successful birth is immutable. Never cache another
+  // PID's successful reading: it may have been reused on the next attempt.
+  if (!evidence || pid === process.pid)
+    exactReadings.set(pid, {
+      evidence,
+      retryAt: evidence ? Infinity : performance.now() + PROCESS_OWNER_FAILURE_CACHE_MS,
+    })
+  return evidence
+}
+/** Native birth token; macOS second resolution is paired with its boot UUID. */
+export async function exactProcessBirth(pid: number): Promise<string | undefined> {
+  const evidence = await exactEvidence(pid)
+  return evidence?.birth
+}
+const exactSelf = new Map<string, { owner: ProcessOwner | undefined; retryAt: number }>()
+/** Read this process once, with the installation identity shared by all hosts. */
+export async function exactCurrentProcessOwner(
+  dataDir = agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+): Promise<ProcessOwner | undefined> {
+  const cached = exactSelf.get(dataDir)
+  if (cached && performance.now() < cached.retryAt) return cached.owner
+  let owner: ProcessOwner | undefined
+  try {
+    const evidence = await exactEvidence(process.pid)
+    if (evidence)
+      owner = {
+        host: hostname(),
+        pid: process.pid,
+        processStart: evidence.started,
+        machineId: await loadDeveloperMachineId(dataDir),
+        bootId: evidence.boot.toLowerCase(),
+        pidNamespace: evidence.namespace,
+        exactBirth: evidence.birth,
+      }
+  } catch {
+    // Identity storage failure also refuses without an estimated owner.
+  }
+  exactSelf.set(dataDir, {
+    owner,
+    retryAt: owner ? Infinity : performance.now() + PROCESS_OWNER_FAILURE_CACHE_MS,
+  })
+  return owner
 }
 
 /**
@@ -236,6 +358,42 @@ export async function isProcessOwnerGone(
   probe?: Partial<ProcessOwnerProbe>,
 ): Promise<boolean> {
   const me = probe?.self ?? (await currentProcessOwner())
+  if (probe?.exactOnly === true) {
+    if (
+      !owner.machineId ||
+      !me.machineId ||
+      owner.machineId !== me.machineId ||
+      !owner.bootId ||
+      !me.bootId
+    )
+      return false
+    // A former Windows boot timestamp is not a kernel boot identity.
+    // Incomparable legacy evidence cannot prove a reboot or a PID's absence.
+    if (BOOT_UUID.test(me.bootId) && !BOOT_UUID.test(owner.bootId)) return false
+    // Another boot under the same installation file may be another host
+    // sharing that file: only this host's own reboot proves death.
+    if (owner.bootId.toLowerCase() !== me.bootId.toLowerCase()) return owner.host === me.host
+    if (
+      !owner.pidNamespace ||
+      !me.pidNamespace ||
+      owner.pidNamespace !== me.pidNamespace ||
+      !Number.isSafeInteger(owner.pid) ||
+      owner.pid <= 0
+    )
+      return false
+    try {
+      const alive = (probe.isAlive ?? isProcessAlive)(owner.pid)
+      if (alive === false) return true
+      if (alive === undefined || !owner.exactBirth) return false
+      const birth =
+        owner.pid === me.pid && probe.exactBirthOf === undefined
+          ? me.exactBirth
+          : await (probe.exactBirthOf ?? exactProcessBirth)(owner.pid)
+      return birth !== undefined && birth !== owner.exactBirth
+    } catch {
+      return false
+    }
+  }
   if (owner.host !== me.host) {
     return false
   }

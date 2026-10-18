@@ -1824,6 +1824,13 @@ export const PROCESS_START_TOLERANCE_MS = 1000
 // Reading another process's birth (Windows PowerShell, macOS `ps`) gives
 // up after this.
 export const PROCESS_START_QUERY_TIMEOUT_MS = 10_000
+/** Failed owner evidence is retried after a short bound, never on every operation. */
+export const PROCESS_OWNER_FAILURE_CACHE_MS = 2000
+export const WINDOWS_FILETIME_TICKS_PER_MS = 10_000n
+export const WINDOWS_FILETIME_EPOCH_MS = 11_644_473_600_000n
+export const FILE_LEASE_RELEASE_ATTEMPTS = 3
+/** A lease release pauses this long between attempts: a scanner holding the file defeats back-to-back retries alike (RVAPP-LEASE2 P3-4). */
+export const FILE_LEASE_RELEASE_RETRY_MS = 100
 // A pending checkout whose folder never appeared is someone's crash after
 // this long, even while its process id looks alive (a reused id whose
 // start time cannot be read): every step before the folder exists is
@@ -1833,6 +1840,10 @@ export const PENDING_CHECKOUT_RECOVERY_MS = 60 * 60 * 1000
 // fileLease.ts); older ones are removed by the next acquisition. Only the
 // highest is ever compared.
 export const FILE_LEASE_FENCES_KEPT = 8
+// M109: writer transactions renew their owner-bound lease until settlement.
+export const VAULT_WRITER_LEASE_MS = 30_000
+export const VAULT_WRITER_RENEW_MS = 10_000
+export const VAULT_WRITER_UNREADABLE_MS = 2000
 // The newest record generations kept; older ones, and stage or retired-lock
 // files older than the sweep age (a crash's leftovers), are removed.
 export const WORKTREE_RECORD_GENERATIONS_KEPT = 8
@@ -3961,6 +3972,12 @@ export const EXTENSION_HOOKS_BUNDLE_FILE = 'extensionHooks.js'
 // The vault's window (M109 lane W, PLAN.md D6): the panel host, the native
 // editor and the broker client, loaded on the first vault command.
 export const VAULT_BUNDLE_FILE = 'vault.js'
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action code (the native Add/Edit
+// editor, write-only crypto, the Reset/Setup/Import dialogs), loaded on the
+// first action that needs it.
+export const VAULT_ACTIONS_BUNDLE_FILE = 'vaultActions.js'
+// C-M109-1: the CLI, ACP and headless vault (no `vscode`), lead decision 5.
+export const VAULT_RUNTIME_BUNDLE_FILE = 'vaultRuntime.js'
 // The empty folder under the extension's global storage the reviewer's side
 // session runs in: outside every workspace, so no History lists it, and
 // with no rules, skills or files of the user's to read.
@@ -6028,6 +6045,12 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/webview/reportingPage.js',
   'dist/webview/reportingDestinations.js',
   'dist/vault.js',
+  'dist/vaultBroker.js',
+  'dist/vaultStore.js',
+  'dist/vaultPosix.js',
+  'dist/vaultRuntime.js',
+  'dist/vaultBrokerBindings.js',
+  'dist/vaultActions.js',
   'dist/vaultBoundaries.js',
   'dist/estimator.js',
   'dist/estimateContracts.js',
@@ -8113,10 +8136,39 @@ export const DEVELOPER_MACHINE_ID_TMP_SUFFIX_BYTES = 8
 export const DEVELOPER_MACHINE_ID_DOMAIN = 'muse-spark-developer-machine/v1'
 // M109 lane 0: vault format, limits and budgets (D89).
 export const VAULT_FORMAT_VERSION = 1
-export const VAULT_PROTOCOL_VERSION = 1
+// Lead decisions 2026-10-10 (C-M109-1): protocol v2 adds the management kinds,
+// private write frames and pushed events; the store document v2 carries grants
+// in its encrypted index. No v1 vault or broker exists in the field.
+// MSM109: enabled after the joined broker/panel reviews (RVCM109JB/JC) with
+// the session-owned POSIX broker proven in brokerSession.test.ts and the
+// crash-recovery suite green. Public editor hosts now bind the platform;
+// every broker use still refuses while the broker itself is unavailable.
+export const VAULT_AVAILABILITY = { isBrokerAvailable: true }
+export const VAULT_PROTOCOL_VERSION = 2
+export const VAULT_STORE_FORMAT_VERSION = 2
 export const VAULT_APPROVAL_TTL_MS = 120_000
+export const VAULT_BROKER_NATIVE_TIMEOUT_MS = 5000
+export const VAULT_BROKER_EMPTY_IDLE_MS = 30_000
+export const VAULT_BROKER_MAX_CONNECTIONS = 64
+export const VAULT_FILE_SINGLE_LINK = 1n
+// RVCM109JE P2-3: the broker socket lives in a bounded owner-only directory,
+// never under the data folder. Usable sun_path bytes before the terminator:
+// Darwin declares sun_path[104], Linux sun_path[108].
+export const VAULT_SOCKET_PATH_LIMIT_BYTES = { darwin: 103, other: 107 } as const
+export const VAULT_SOCKET_DIR_PREFIX = 'muse-spark-vault-'
+export const VAULT_SOCKET_DIR_HASH_CHARS = 12
+export const VAULT_SOCKET_FILE = 'broker.sock'
 // Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
 export const VAULT_LOCK_DRAIN_MS = 1000
+// C-M109-1: pace of re-opening a `watch` stream the broker closed.
+export const VAULT_WATCH_RETRY_MS = 1000
+// RVCM1091A F7: the panel's watch backoff doubles up to this while the broker is down.
+export const VAULT_WATCH_RETRY_MAX_MS = 30_000
+// RVCM1091F REDESIGN: a transient snapshot failure (busy, rollback, timeout,
+// watch lost) keeps the last good view and retries this many times before the
+// section goes unavailable and offers the person's own Retry.
+export const VAULT_VIEW_RETRY_BUDGET = 2
+export const VAULT_VIEW_RETRY_MS = 250
 export const VAULT_ASKPASS_USES = 3
 export const VAULT_ASKPASS_TTL_MS = 600_000
 export const VAULT_SESSION_MAX_DAYS = 30
@@ -8131,10 +8183,15 @@ export const VAULT_FEEDER_START_MS = 200
 export const VAULT_SCRUB_MIN_MBPS = 50
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const VAULT_IDLE_MINUTES = 240
+export const VAULT_BYTE_MAX = 255
 export const VAULT_KEY_BYTES = 32
 export const VAULT_NONCE_BYTES = 12
 export const VAULT_TAG_BYTES = 16
 export const VAULT_RECOVERY_BYTES = 20
+// Reset Vault's fixed confirmation word, typed exactly (lead decision 2026-10-10).
+export const VAULT_RESET_WORD = 'RESET'
+// Random bytes in an imported item's name, so a second import never collides.
+export const VAULT_IMPORT_NAME_BYTES = 3
 export const VAULT_KDF = {
   argon2: { memoryKiB: 65_536, iterations: 3, parallelism: 4 },
   scrypt: { N: 131_072, r: 8, p: 1 },
@@ -8179,6 +8236,9 @@ export const MCP_OAUTH_LIMITS = {
 // U's independent lazy surfaces; W registers these new caps without changing existing caps.
 export const VAULT_PANEL_BUDGET_KIB = 75
 export const VAULT_HOST_BUDGET_KIB = 50
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action bundle, loaded on the
+// first action that needs it; a new cap, no existing cap moves.
+export const VAULT_ACTIONS_BUDGET_KIB = 25
 export const VAULT_UI_TICK_MS = 1000
 export const VAULT_ID_BYTES = 16
 export const VAULT_TOTP_PERIOD_SECONDS = 30

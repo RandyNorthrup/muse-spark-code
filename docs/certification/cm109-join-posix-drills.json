@@ -1,0 +1,74 @@
+[
+  {
+    "guard": "session",
+    "path": "src/runtime/vault/posixHost.ts",
+    "exit": 1,
+    "sha256": "77e1a3aa7662082e0af3d12426c9e0220483282e617777f8490d039bea9dc37b",
+    "restoredSha256": "77e1a3aa7662082e0af3d12426c9e0220483282e617777f8490d039bea9dc37b",
+    "log": "temp/drill-session.log"
+  },
+  {
+    "guard": "birth",
+    "path": "src/runtime/vault/posixHost.ts",
+    "exit": 1,
+    "sha256": "77e1a3aa7662082e0af3d12426c9e0220483282e617777f8490d039bea9dc37b",
+    "restoredSha256": "77e1a3aa7662082e0af3d12426c9e0220483282e617777f8490d039bea9dc37b",
+    "log": "temp/drill-birth.log"
+  },
+  {
+    "guard": "availability",
+    "path": "src/runtime/vault/clientPlatform.ts",
+    "exit": 1,
+    "sha256": "b204620405b5de52a584a0ea45e9d54521ac1a6e29a2867d6ad2175c952d9f08",
+    "restoredSha256": "b204620405b5de52a584a0ea45e9d54521ac1a6e29a2867d6ad2175c952d9f08",
+    "log": "temp/drill-availability.log"
+  },
+  {
+    "guard": "audit-anchor",
+    "path": "src/runtime/vault/brokerBindings.ts",
+    "exit": 1,
+    "sha256": "d8742f0d733621f63cfc7d66db34750d0460c2844b40415f6ee3f681e521764a",
+    "restoredSha256": "d8742f0d733621f63cfc7d66db34750d0460c2844b40415f6ee3f681e521764a",
+    "log": "temp/drill-audit-anchor.log"
+  },
+  {
+    "guard": "split-bindings",
+    "path": "dist/meta/vaultBrokerBindings.json",
+    "exit": 1,
+    "sha256": "2eb241b92949fceda2ba8622e71136f73e3b58a53007b81c4a391c4920e49a85",
+    "restoredSha256": "2eb241b92949fceda2ba8622e71136f73e3b58a53007b81c4a391c4920e49a85",
+    "log": "temp/drill-split-bindings.log"
+  },
+  {
+    "guard": "split-store",
+    "path": "dist/meta/vaultStore.json",
+    "exit": 1,
+    "sha256": "adf82810a30dd409d1b03aa04a37ae95f7afafe3dbe4751661fe37e7343d68f7",
+    "restoredSha256": "adf82810a30dd409d1b03aa04a37ae95f7afafe3dbe4751661fe37e7343d68f7",
+    "log": "temp/drill-split-store.log"
+  },
+  {
+    "guard": "split-posix",
+    "path": "dist/meta/vaultPosix.json",
+    "exit": 1,
+    "sha256": "378a682810430f31f9fa4c4ccc007f6af3660e3bd6eed9cd446461114433a50f",
+    "restoredSha256": "378a682810430f31f9fa4c4ccc007f6af3660e3bd6eed9cd446461114433a50f",
+    "log": "temp/drill-split-posix.log"
+  },
+  {
+    "guard": "audit-per-vault-cache",
+    "path": "src/runtime/vault/brokerBindings.ts",
+    "exit": 1,
+    "sha256": "d8742f0d733621f63cfc7d66db34750d0460c2844b40415f6ee3f681e521764a",
+    "restoredSha256": "d8742f0d733621f63cfc7d66db34750d0460c2844b40415f6ee3f681e521764a",
+    "log": "temp/drill-audit-reset.log"
+  },
+  {
+    "guard": "pending-cross-process-writer-lease",
+    "path": "test/unit/vault/writerCrashPosix.test.ts",
+    "exit": 1,
+    "sha256": "553f2713b11f8584cf7c19e47d5bf15a0ab33cc68ff0de6357790834b802b12d",
+    "restoredSha256": "553f2713b11f8584cf7c19e47d5bf15a0ab33cc68ff0de6357790834b802b12d",
+    "log": "temp/writer-kill-drill.log"
+  }
+]

@@ -384,11 +384,12 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       the first attach or recording action; M105) and screen
                       recording (dist/screenRecord.js: the recorder command,
                       loaded on the first recording; M105),
-                      the vault's window (vault/: the panel host and the
-                      native editor in dist/vault.js, loaded on the first
-                      vault command; only the command shim stays at
-                      activation, and both commands refuse closed until the
-                      broker-backed service lands),
+                      the vault's window (vault/: the panel host, the
+                      native editor and the broker-backed panel service in
+                      dist/vault.js, loaded on the first vault command; only
+                      the command shim stays at activation, and both
+                      commands refuse closed until the broker is installed
+                      and the Models & Agents panel mounts the vault section),
                       the estimator's engine and history honesty
                       (dist/estimator.js, loaded on the first estimate; M117),
                       commands, auth, settings, mentions,
@@ -460,7 +461,9 @@ src/runtime/**        the agent's process: arguments, backends outside VS Code,
                       `report` (M93), `providers accounts` and the runtime
                       account services (dist/runtimeAccounts.js, loaded on the
                       first accounts, developer or keyed headless command; M108),
-                      the journal-backed `playbook` command
+                      the vault's CLI, ACP and headless binding
+                      (dist/vaultRuntime.js, loaded on the first vault need;
+                      C-M109-1), the journal-backed `playbook` command
                       with its ACP `/playbook` surface (M116); the schedule command and settle path
                       (schedules/), and the native background scheduler entry
                       (dist/scheduleBackground.js, run by the OS launcher)

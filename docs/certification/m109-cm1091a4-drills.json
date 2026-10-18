@@ -1,0 +1,166 @@
+[
+  {
+    "finding": "F1",
+    "exit": 1,
+    "failed": [
+      "RVCM1091A3 Lock and Reset F1: recovery and setup queued before Lock cannot inherit its generation"
+    ],
+    "files": [
+      {
+        "file": "src/core/vault/broker/management.ts",
+        "sha256": "fb0378cfd847cb162b280500c317191803a8eaae16881adfe3e1e8e7fd8ccebd"
+      }
+    ]
+  },
+  {
+    "finding": "F2",
+    "exit": 1,
+    "failed": [
+      "RVCM1091A3 import boundaries F2: a junction or symlink swapped after discovery imports nothing outside home",
+      "RVCM1091A3 import boundaries F2: Delete refuses a redirected parent, including after source verification"
+    ],
+    "files": [
+      {
+        "file": "src/core/vault/migrate/importFile.ts",
+        "sha256": "8b01e56231123f405a2e4521b27f2c7c5cad333ae4a509079677fbd8f0f91399"
+      }
+    ]
+  },
+  {
+    "finding": "F3",
+    "exit": 1,
+    "failed": [
+      "RVCM1091A3 Lock and Reset F3: damage to vault.v1 offers Reset consistently with the writer recheck",
+      "RVCM1091A3 Lock and Reset F3: damage to pending.v1 offers Reset consistently with the writer recheck",
+      "RVCM1091A3 Lock and Reset F3: a missing document with intact slots offers Reset"
+    ],
+    "files": [
+      {
+        "file": "src/core/vault/store.ts",
+        "sha256": "5c876167aca0db8cc55955a55ba2822622edd7ec3dfae085ab0e0cef078566d9"
+      }
+    ]
+  },
+  {
+    "finding": "F4",
+    "exit": 1,
+    "failed": [
+      "RVCM1091A3 Lock and Reset F4: Reset refuses an unlocked repository even when files are lost"
+    ],
+    "files": [
+      {
+        "file": "src/core/vault/broker/management.ts",
+        "sha256": "fb0378cfd847cb162b280500c317191803a8eaae16881adfe3e1e8e7fd8ccebd"
+      }
+    ]
+  },
+  {
+    "finding": "F5",
+    "exit": 1,
+    "failed": [
+      "RVCM1091A3 Lock and Reset F5: Lock during the quarantine await stops further destruction and anchor retirement",
+      "RVCM1091A3 Lock and Reset F5: Lock during the remove await stops further destruction and anchor retirement",
+      "RVCM1091A3 Lock and Reset F5: Lock during the anchor await stops further destruction and anchor retirement"
+    ],
+    "files": [
+      {
+        "file": "src/core/vault/store.ts",
+        "sha256": "5c876167aca0db8cc55955a55ba2822622edd7ec3dfae085ab0e0cef078566d9"
+      },
+      {
+        "file": "src/core/vault/broker/management.ts",
+        "sha256": "fb0378cfd847cb162b280500c317191803a8eaae16881adfe3e1e8e7fd8ccebd"
+      }
+    ]
+  },
+  {
+    "finding": "F6",
+    "exit": 1,
+    "failed": [
+      "RVCM1091A3 Lock and Reset F6: anchor retirement holds the writer so a restore cannot race it",
+      "C-M109-1 keyring rollback anchor F6: reset compares the complete expected state before retiring the anchor"
+    ],
+    "files": [
+      {
+        "file": "src/core/vault/store.ts",
+        "sha256": "5c876167aca0db8cc55955a55ba2822622edd7ec3dfae085ab0e0cef078566d9"
+      },
+      {
+        "file": "src/runtime/vault/keyringAnchor.ts",
+        "sha256": "4507b4fe3e04226f56b3a55225731eab49148a10c00313e63b2af69aba8eafc9"
+      }
+    ]
+  },
+  {
+    "finding": "F7",
+    "exit": 1,
+    "failed": [
+      "RVCM1091A3 panel import lifecycle F7: disposal closes a sent import before commit and opens no late dialog"
+    ],
+    "files": [
+      {
+        "file": "src/core/vault/broker/manageClient.ts",
+        "sha256": "8c29ec2933bd2e17a603cd214d1f072da013c2bdac1624f09fdc87e0555eb117"
+      }
+    ]
+  },
+  {
+    "finding": "F8",
+    "exit": 1,
+    "failed": [
+      "RVCM1091A3 panel import lifecycle F8: real import change notifications preserve the user Delete choice",
+      "RVCM1091A3 panel import lifecycle F8: Lock during Keep/Delete withdraws receipt authority"
+    ],
+    "files": [
+      {
+        "file": "src/host/vault/vaultPanelHost.ts",
+        "sha256": "4d792093ac3f6fc845e9e2f5b97ea7a2d159bf531eaf051b99446094f354a28c"
+      }
+    ]
+  },
+  {
+    "finding": "F9",
+    "exit": 1,
+    "failed": [
+      "RVCM1091A3 import boundaries F9: AWS profile and field identity survive encrypted import and source Delete privately",
+      "RVCM1091A3 import boundaries F9: git retains every private parser target without publishing it",
+      "RVCM1091A3 import boundaries F9: netrc retains every private parser target without publishing it",
+      "RVCM1091A3 import boundaries F9: npm retains every private parser target without publishing it",
+      "RVCM1091A3 import boundaries F9: docker retains every private parser target without publishing it"
+    ],
+    "files": [
+      {
+        "file": "src/core/vault/migrate/prepareImport.ts",
+        "sha256": "e341c381157dd1ffdcad447052d779a681f4cb261881f234a6a326ab7ee26339"
+      }
+    ]
+  },
+  {
+    "finding": "F2",
+    "variant": "admitted home identity",
+    "exit": 1,
+    "failed": [
+      "RVCM1091A3 import boundaries F2: replacing an ancestor cannot redefine the already admitted home"
+    ],
+    "files": [
+      {
+        "file": "src/core/vault/migrate/importFile.ts",
+        "sha256": "9f0ea223648ef680d7b18aa349502d59e1c96b2bfca7cf450e9e72b048493e9a"
+      }
+    ]
+  },
+  {
+    "finding": "F6",
+    "variant": "writer admission anchor comparison",
+    "exit": 1,
+    "failed": [
+      "RVCM1091A3 Lock and Reset F6: an anchor advanced before writer admission preserves every file"
+    ],
+    "files": [
+      {
+        "file": "src/core/vault/store.ts",
+        "sha256": "5059f483cd96994f3d1b54cc0f0784d145d0355563b5d5236c87fab32994dd3d"
+      }
+    ]
+  }
+]
