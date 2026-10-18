@@ -2,14 +2,16 @@
 // latest-file discovery on Linux, Windows and macOS. Activation-safe: only
 // node builtins and lazy M1 sniffing; the portal capture itself stays
 // unbound (no D-Bus transport in this round).
+import { execFile } from 'node:child_process'
 import { chmod, copyFile, lstat, mkdir, mkdtemp, open, readdir, rm, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import type { LatestRecordingPort } from '../../core/media/record/linux'
 import type { MediaSource } from '../../core/media/limits'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
-import { UI_TEXT } from '../../shared/constants'
+import { PROCESS_START_QUERY_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
+import { powerShellQuoted } from '../../core/shellQuote'
 
 const OWNER_DIRECTORY_MODE = 0o700
 const OWNER_FILE_MODE = 0o600
@@ -38,6 +40,18 @@ export interface LatestRecordingHost {
   readonly homeDir?: string
   /** Owner-only directory for private latest-copy previews. */
   readonly tempRoot: string
+  /**
+   * Redirect-aware Videos folder (Windows known folder). Absent means
+   * `homeDir/Videos`; the caller resolves it on win32 with
+   * `resolveWindowsVideosDir`.
+   */
+  readonly videosDir?: string
+  /**
+   * Fresh owner-only directory for one preview copy. Required on Windows:
+   * `chmod` cannot set its ACL (mirrors `convert.ts`). Absent means
+   * `mkdtemp` under `tempRoot` plus `chmod`, which is owner-only on POSIX.
+   */
+  readonly createPrivateDirectory?: () => Promise<string>
 }
 
 export interface LatestRecordingPlatformHost extends LatestRecordingHost {
@@ -51,9 +65,15 @@ export interface LatestRecordingPlatformHost extends LatestRecordingHost {
  * recording temp root, sniffed with M1 before return. Failures carry fixed
  * words only; the caller's reasons name no path.
  */
-function createLatestPort(roots: readonly string[], tempRoot: string): LatestRecordingPort {
+function createLatestPort(
+  roots: readonly string[],
+  host: Pick<LatestRecordingHost, 'tempRoot' | 'createPrivateDirectory'>,
+  isRecordingFileName?: (fileName: string) => boolean,
+): LatestRecordingPort {
+  const tempRoot = host.tempRoot
   return {
     roots,
+    ...(isRecordingFileName !== undefined && { isRecordingFileName }),
     list: async (root) => {
       const entries = await readdir(root, { withFileTypes: true })
       const files: { readonly path: string; readonly modifiedAt: number }[] = []
@@ -71,10 +91,16 @@ function createLatestPort(roots: readonly string[], tempRoot: string): LatestRec
       if (!meta.isFile() || meta.isSymbolicLink() || meta.size === 0 || meta.size > maxBytes) {
         throw new Error('Latest recording is not a readable file')
       }
-      await mkdir(tempRoot, { recursive: true })
-      await chmod(tempRoot, OWNER_DIRECTORY_MODE)
-      const dir = await mkdtemp(path.join(tempRoot, 'latest-'))
-      await chmod(dir, OWNER_DIRECTORY_MODE)
+      const dir =
+        host.createPrivateDirectory === undefined
+          ? await (async () => {
+              await mkdir(tempRoot, { recursive: true })
+              await chmod(tempRoot, OWNER_DIRECTORY_MODE)
+              const fresh = await mkdtemp(path.join(tempRoot, 'latest-'))
+              await chmod(fresh, OWNER_DIRECTORY_MODE)
+              return fresh
+            })()
+          : await host.createPrivateDirectory()
       const target = path.join(dir, path.basename(source))
       const dispose = async (): Promise<void> => {
         await rm(dir, { force: true, recursive: true })
@@ -124,23 +150,162 @@ export function createLinuxLatestPort(host: LatestRecordingHost): LatestRecordin
   const home = host.homeDir ?? homedir()
   return createLatestPort(
     [path.join(home, 'Videos', 'Screencasts'), path.join(home, 'Videos')],
-    host.tempRoot,
+    host,
   )
 }
 
 /**
- * The Snipping Tool location: `%USERPROFILE%\Videos\Screen Recordings`
- * (FOLDERID_Videos, the same folder the native helper's `--latest` reads).
+ * The Snipping Tool location: `Screen Recordings` under the Videos known
+ * folder. `host.videosDir` carries the redirected folder (OneDrive, Group
+ * Policy, the Location setting) resolved with `resolveWindowsVideosDir`;
+ * absent means the profile's Videos folder.
  */
 export function createWindowsLatestPort(host: LatestRecordingHost): LatestRecordingPort {
-  const home = host.homeDir ?? homedir()
-  return createLatestPort([path.join(home, 'Videos', 'Screen Recordings')], host.tempRoot)
+  const videos = host.videosDir ?? path.join(host.homeDir ?? homedir(), 'Videos')
+  return createLatestPort([path.join(videos, 'Screen Recordings')], host)
 }
 
-/** The Screenshot app's default save location. */
+/**
+ * Whether a Desktop file name is a Screenshot recording: the app saves
+ * `Screen Recording <date> at <time>.mov` (a bare `Screen Recording.mov`
+ * also qualifies); exports and downloads never match.
+ */
+export function isScreenshotRecordingName(fileName: string): boolean {
+  return /^Screen Recording(?: \d{4}-\d{2}-\d{2} at .+)?\.mov$/u.test(fileName)
+}
+
+/** The Screenshot app's default save location, gated to its own names. */
 export function createMacosLatestPort(host: LatestRecordingHost): LatestRecordingPort {
   const home = host.homeDir ?? homedir()
-  return createLatestPort([path.join(home, 'Desktop')], host.tempRoot)
+  return createLatestPort([path.join(home, 'Desktop')], host, isScreenshotRecordingName)
+}
+
+/**
+ * The Videos known folder (FOLDERID_Videos, the same folder the native
+ * helper's `--latest` reads) through the operating system, so OneDrive,
+ * Group Policy and Location-setting redirects resolve: .NET's
+ * `GetFolderPath('MyVideos')` calls `SHGetKnownFolderPath` underneath.
+ * Absolute system PowerShell, no shell, bounded; anything the system will
+ * not say (other platforms included) is undefined and the caller keeps its
+ * homedir fallback. Never throws.
+ */
+export interface WindowsVideosDeps {
+  readonly systemRoot?: string
+  readonly run?: (executable: string, args: readonly string[]) => Promise<string>
+}
+
+export function parseWindowsVideosDir(output: string): string | undefined {
+  const dir = output.trim()
+  return dir !== '' && path.win32.isAbsolute(dir) ? dir : undefined
+}
+
+export async function resolveWindowsVideosDir(
+  deps: WindowsVideosDeps = {},
+  platform: NodeJS.Platform = process.platform,
+): Promise<string | undefined> {
+  if (platform !== 'win32') return undefined
+  try {
+    const systemRoot = deps.systemRoot ?? process.env['SystemRoot'] ?? process.env['windir']
+    if (systemRoot === undefined) return undefined
+    const powershell = path.win32.join(
+      systemRoot,
+      'System32',
+      'WindowsPowerShell',
+      'v1.0',
+      'powershell.exe',
+    )
+    const run =
+      deps.run ??
+      ((executable: string, args: readonly string[]) =>
+        new Promise<string>((resolve, reject) => {
+          execFile(
+            executable,
+            [...args],
+            { timeout: PROCESS_START_QUERY_TIMEOUT_MS, windowsHide: true },
+            (error, stdout) => {
+              if (error === null) resolve(stdout)
+              else reject(error instanceof Error ? error : new Error('The command failed'))
+            },
+          )
+        }))
+    return parseWindowsVideosDir(
+      await run(powershell, [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `[Environment]::GetFolderPath('MyVideos')`,
+      ]),
+    )
+  } catch {
+    return undefined
+  }
+}
+
+export interface WindowsPrivateDirectoryDeps {
+  readonly systemRoot?: string
+  readonly run?: (executable: string, args: readonly string[]) => Promise<string>
+}
+
+/**
+ * A fresh owner-only directory for one preview copy on Windows: `mkdtemp`
+ * under `tempRoot`, then the inherited ACL is replaced with a single grant
+ * to the object's owner (OWNER RIGHTS, `*S-1-3-4`), verified through the
+ * operating system before the copy starts. Absolute system tools, no shell,
+ * bounded; anything the system will not confirm throws and the caller keeps
+ * its fixed-word refusal. Never returns an unprotected directory.
+ */
+export async function createWindowsPrivateDirectory(
+  tempRoot: string,
+  deps: WindowsPrivateDirectoryDeps = {},
+  platform: NodeJS.Platform = process.platform,
+): Promise<string> {
+  if (platform !== 'win32') throw new Error('Windows private directories need Windows')
+  const systemRoot = deps.systemRoot ?? process.env['SystemRoot'] ?? process.env['windir']
+  if (systemRoot === undefined) throw new Error('Windows private directories need a system root')
+  const run =
+    deps.run ??
+    ((executable: string, args: readonly string[]) =>
+      new Promise<string>((resolve, reject) => {
+        execFile(
+          executable,
+          [...args],
+          { timeout: PROCESS_START_QUERY_TIMEOUT_MS, windowsHide: true },
+          (error, stdout) => {
+            if (error === null) resolve(stdout)
+            else reject(error instanceof Error ? error : new Error('The command failed'))
+          },
+        )
+      }))
+  await mkdir(tempRoot, { recursive: true })
+  const dir = await mkdtemp(path.join(tempRoot, 'latest-'))
+  try {
+    const icacls = path.win32.join(systemRoot, 'System32', 'icacls.exe')
+    await run(icacls, [dir, '/inheritance:r', '/grant:r', '*S-1-3-4:(OI)(CI)F'])
+    const powershell = path.win32.join(
+      systemRoot,
+      'System32',
+      'WindowsPowerShell',
+      'v1.0',
+      'powershell.exe',
+    )
+    const verdict = await run(powershell, [
+      '-NoLogo',
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      `$acl = Get-Acl -LiteralPath ${powerShellQuoted(dir)}; $acl.AreAccessRulesProtected -and ($acl.Access.Count -eq 1)`,
+    ])
+    if (verdict.trim() !== 'True') throw new Error('Unprotected preview directory')
+    return dir
+  } catch (error: unknown) {
+    try {
+      await rm(dir, { force: true, recursive: true })
+    } catch {
+      // The failed lockdown's error below is the news.
+    }
+    throw error
+  }
 }
 
 /** The running platform's OS recordings locations; anything else keeps Linux's. */

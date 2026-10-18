@@ -5,6 +5,7 @@ import type { UiTable } from '../l10n'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import { UI_TEXT } from '../../shared/constants'
+import type * as Entry from './screenRecordEntry'
 
 export const RECORDING_COMMAND_IDS = {
   attach: 'museSpark.attachScreenRecording',
@@ -38,20 +39,61 @@ export interface RecordingCommandDeps extends RecordingPreviewDeps {
   readonly trackRun?: (cancel: () => Promise<void>) => () => void
 }
 
-interface ScreenRecordBundle {
-  readonly runScreenRecordingCommand: (
-    deps: RecordingCommandDeps,
-    isLatest: boolean,
-  ) => Promise<void>
+export type LatestRecordingResolution =
+  | { readonly status: 'absent' }
+  | { readonly status: 'ready'; readonly preview: ScreenRecordingPreview }
+  | { readonly status: 'stale' }
+
+/**
+ * The latest-file branch's settlement, beside the driver branch's own
+ * checks: discovery ran, so liveness is rechecked now. A stale copy is
+ * disposed here and never previewed (nor, once admission is wired, attached
+ * to the replacement conversation). No `vscode` import, so unit tests drive
+ * it directly.
+ */
+export async function resolveLatestRecording(
+  deps: RecordingCommandDeps,
+): Promise<LatestRecordingResolution> {
+  const preview = await deps.latest?.()
+  if (preview === undefined) return { status: 'absent' }
+  if ((deps.isLive ?? (() => true))()) return { status: 'ready', preview }
+  try {
+    await preview.dispose()
+  } catch {
+    deps.log.warn('Recording preview cleanup failed')
+  }
+  return { status: 'stale' }
 }
 
-// Same shipped source/build; only this export's function signature is trusted (PLAN §8).
+interface ScreenRecordBundle {
+  readonly runScreenRecordingCommand: typeof Entry.runScreenRecordingCommand
+  /**
+   * Latest-file discovery lives in the bundle so activation never carries
+   * the scanner (activation budget): the port factories and the find call
+   * the latest command resolves on first use.
+   */
+  readonly createLatestRecordingPort: typeof Entry.createLatestRecordingPort
+  readonly findLatestRecording: typeof Entry.findLatestRecording
+  readonly resolveWindowsVideosDir: typeof Entry.resolveWindowsVideosDir
+  readonly createWindowsPrivateDirectory: typeof Entry.createWindowsPrivateDirectory
+}
+
+// Same shipped source/build; only these exports' function signatures are
+// trusted (PLAN §8).
 function isScreenRecordBundle(value: unknown): value is ScreenRecordBundle {
   return (
     typeof value === 'object' &&
     value !== null &&
     'runScreenRecordingCommand' in value &&
-    typeof value.runScreenRecordingCommand === 'function'
+    typeof value.runScreenRecordingCommand === 'function' &&
+    'createLatestRecordingPort' in value &&
+    typeof value.createLatestRecordingPort === 'function' &&
+    'findLatestRecording' in value &&
+    typeof value.findLatestRecording === 'function' &&
+    'resolveWindowsVideosDir' in value &&
+    typeof value.resolveWindowsVideosDir === 'function' &&
+    'createWindowsPrivateDirectory' in value &&
+    typeof value.createWindowsPrivateDirectory === 'function'
   )
 }
 
