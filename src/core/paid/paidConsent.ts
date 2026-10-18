@@ -409,14 +409,6 @@ export class PaidUseConsent {
    * logged and leaves this use allowed once, so the next one asks again
    * instead of this one failing.
    */
-  /**
-   * A stale-epoch save failure waits here instead of notifying at once
-   * (account scope only: `saveGrantIf` refused a grant approved under a
-   * revoked epoch). The outer account fence settles it — dropped when the
-   * fence refuses, told only after the fence passes — so a revoked use is
-   * never described as applied. A plain store failure still notifies at
-   * once below.
-   */
   /** The not-kept notice for a failed write, carrying the asking session (P2-3). */
   private notKeptNotice(
     feature: PaidFeature,
