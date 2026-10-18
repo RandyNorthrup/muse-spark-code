@@ -27,7 +27,7 @@ with `node scripts/sync-ci-bootstrap.mjs`; tests reject drift.
    Declare additional bindings as space-separated variable **names**, never
    values. Names beginning `muse_ci_internal_`, `MUSE_CI_`, `MUSE_INPUT_`
    or `MUSE_AGENT_` are reserved for parent ownership and bootstrap configuration,
-   including the temp/start/package transport bindings assigned at exec.
+   including the temp/start/package transport bindings assigned for the Node invocation.
    Declaring one refuses before download, and Node refuses it too. Ordinary
    aliases, including old bootstrap
    holder names, retain their original values until Node reads them.

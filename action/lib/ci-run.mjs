@@ -9,8 +9,8 @@
 // the event and trust facts differ; ci-adapters.mjs reads them.
 //
 // The bootstrap never reads the key. Its download subshell removes the
-// generated key-name list and declared aliases; the parent execs Node with
-// the original environment. Node takes the vendor value/file first, strips
+// generated key-name list and declared aliases; the parent runs Node with
+// the original environment (plain invocation, not exec). Node takes the vendor value/file first, strips
 // names and value copies, and sends the key only over trusted private stdin.
 
 import { Buffer } from 'node:buffer'

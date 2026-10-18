@@ -166,6 +166,11 @@ describe('key intake, inputs and the job deadline', () => {
     }
     expect(takeCiKey(unmapped)).toBe(CI_KEY)
     expect(unmapped).toEqual({})
+    const oversize: Record<string, string | undefined> = {
+      MUSE_MODEL_API_KEY: `LLM_${'a'.repeat(5000)}`,
+    }
+    expect(takeCiKey(oversize)).toBeUndefined()
+    expect(oversize).toEqual({})
   })
 
   it('R4-P1-2: a declared alias is a key source; conflicting names refuse and all values are scrubbed', () => {
