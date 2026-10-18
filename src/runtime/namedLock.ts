@@ -15,6 +15,7 @@
 // per-account owner (keyStore.ts) are two names on this mechanism.
 import { createHash, randomBytes, randomInt } from 'node:crypto'
 import { lstat, mkdir, readdir, unlink } from 'node:fs/promises'
+import { isStoreErrorCode } from '../host/backend/storeErrors'
 import { createConnection, createServer, type Server } from 'node:net'
 import { userInfo } from 'node:os'
 import path from 'node:path'
@@ -35,12 +36,14 @@ import {
  * nothing of any one caller; each caller says it in its own words.
  */
 export class NamedLockError extends Error {
+  public readonly reason: string | undefined
   public constructor(
     public readonly kind: 'unavailable' | 'busy' | 'cancelled',
-    public readonly reason?: string,
+    options?: { readonly reason?: string; readonly cause?: unknown },
   ) {
-    super(`namedLock.${kind}`)
+    super(`namedLock.${kind}`, options === undefined ? undefined : { cause: options.cause })
     this.name = 'NamedLockError'
+    this.reason = options?.reason
   }
 }
 
@@ -115,8 +118,9 @@ async function tryListen(target: string): Promise<Server | 'in-use'> {
     return server
   } catch (error) {
     server.close()
-    if (errorCode(error) === 'EADDRINUSE') return 'in-use'
-    throw new NamedLockError('unavailable', osReason(error))
+    // Another contender drew the same random name and bound it first.
+    if (isStoreErrorCode(error, 'EADDRINUSE')) return 'in-use'
+    throw new NamedLockError('unavailable', { reason: osReason(error), cause: error })
   }
 }
 
@@ -150,7 +154,7 @@ async function isLive(file: string): Promise<boolean> {
   })
   if (code === undefined || LIVE_LISTENER_CODES.has(code)) return true
   if (DEAD_ENTRY_CODES.has(code)) return false
-  throw new NamedLockError('unavailable', code)
+  throw new NamedLockError('unavailable', { reason: code })
 }
 
 /** A stopped owner can resume; only ESRCH proves its entry cannot become live. */
@@ -168,7 +172,9 @@ async function removeIfGarbage(file: string, suffix: string): Promise<void> {
   try {
     await unlink(file)
   } catch (error) {
-    if (errorCode(error) !== 'ENOENT') throw new NamedLockError('unavailable', osReason(error))
+    // Moot when the entry is already gone; any other removal failure is reported.
+    if (!isStoreErrorCode(error, 'ENOENT'))
+      throw new NamedLockError('unavailable', { reason: osReason(error), cause: error })
   }
 }
 
@@ -183,7 +189,7 @@ async function hasLiveContender(
   try {
     names = await readdir(directory)
   } catch (error) {
-    throw new NamedLockError('unavailable', osReason(error))
+    throw new NamedLockError('unavailable', { reason: osReason(error), cause: error })
   }
   for (const name of names) {
     const other = path.join(directory, name)
@@ -236,11 +242,11 @@ async function openAttempt(names: NamedLockNames, options: NamedLockOptions): Pr
       found.uid !== process.getuid?.() ||
       (found.mode & NAMED_LOCK_FOREIGN_MODE_MASK) !== 0
     ) {
-      throw new NamedLockError('unavailable', 'unsafe-directory')
+      throw new NamedLockError('unavailable', { reason: 'unsafe-directory' })
     }
   } catch (error) {
     if (error instanceof NamedLockError) throw error
-    throw new NamedLockError('unavailable', osReason(error))
+    throw new NamedLockError('unavailable', { reason: osReason(error), cause: error })
   }
   return (signal) => acquireSocket(folder, names.file, signal)
 }
