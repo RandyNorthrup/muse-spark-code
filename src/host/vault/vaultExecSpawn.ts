@@ -18,6 +18,8 @@ import {
 } from '../../core/vault/exec/schema'
 import { vaultFenceEnvironment } from '../../core/vault/exec/fence'
 import { type VaultExecFeederPort } from '../../core/vault/exec/feeder'
+import { realpathSync } from 'node:fs'
+import { workspaceChildEnvironment } from '../../core/executables'
 import { runCommand } from '../backend/toolIo'
 import { vaultPrivateDirectory } from '../../core/vault/broker/files'
 import { posixQuoted } from '../../core/shellQuote'
@@ -218,7 +220,13 @@ export function vaultExecProcessRunner(
       file: invocation.file,
       args: invocation.args,
       cwd: invocation.cwd,
-      env: invocation.env,
+      // The approved vault command runs with the guarded child PATH for its
+      // working directory (guarded last, so approved secret additions land
+      // inside the guarded environment, never around it).
+      env: workspaceChildEnvironment(tree.platform, invocation.env, {
+        workspaceRoot: invocation.cwd,
+        realpath: realpathSync,
+      }),
       timeoutMs: invocation.cleanup ? Math.min(timeoutMs, PROCESS_TABLE_TIMEOUT_MS) : timeoutMs,
       signal,
       tree,

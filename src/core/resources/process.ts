@@ -1,6 +1,9 @@
-import { execFile, spawn, type ChildProcess } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
+import { realpathSync } from 'node:fs'
 import path from 'node:path'
+import { noWorkspaceChildEnvironment } from '../executables'
+import { execFileGuarded, spawnGuarded } from '../guardedChildProcess'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { admitBootstrap, admitResource, resourceWindowsJob, stopResourceTree } from './admission'
@@ -130,11 +133,12 @@ async function stopBootstrap(root: ChildProcess): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     // OS termination infrastructure must remain usable while admission is paused.
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Fixed SystemRoot taskkill, numeric owned root PID, bounded output/deadline, credential-free environment; emergency termination cannot queue behind pause (PLAN SPAWN017B/SPAWN017C, section 8).
-    execFile(
+    execFileGuarded(
       path.win32.join(systemRoot, WINDOWS_TASKKILL_RELATIVE_PATH),
       ['/PID', String(pid), '/T', '/F'],
       {
-        env: { SystemRoot: systemRoot },
+        // Fixed `taskkill` under SystemRoot: absolute entries only, links followed.
+        env: noWorkspaceChildEnvironment('win32', { SystemRoot: systemRoot }, realpathSync),
         windowsHide: true,
         timeout: PROCESS_TABLE_TIMEOUT_MS,
         maxBuffer: CLI_OUTPUT_MAX_BYTES,
@@ -216,7 +220,7 @@ function spawnInteractive(
 ): ResourceInteractiveProcess {
   // Inherited stdio, no new session or group: the terminal's Ctrl+C and TTY reach it.
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted foreground terminal program (`muse login`): argument array, no shell, inherited session, owned root shutdown (PLAN SPAWN017C, section 8).
-  const child = spawn(file, [...args], {
+  const child = spawnGuarded(file, [...args], {
     ...options,
     signal: undefined,
     detached: false,
@@ -251,7 +255,7 @@ function spawnHandoff(
   // The caller's own environment, never the lease's temporary root: a browser the
   // OS starts outlives this lease and must not keep TMPDIR under governed cleanup.
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted fixed OS hand-off adapter: argument array, no shell, output to the null device, named deadline, root-only stop on cancel (PLAN SPAWN017C, section 8).
-  const child = spawn(file, [...args], {
+  const child = spawnGuarded(file, [...args], {
     ...options,
     signal: undefined,
     detached: isLaunchedAtSpawn,
@@ -342,7 +346,7 @@ async function spawnPiped(
       file,
       args,
       cwd: options.cwd?.toString() ?? process.cwd(),
-      env: options.env ?? {},
+      env: options.env,
       isVerbatim: false,
       resource,
       jobMemoryLimit: jobMemoryBytes,
@@ -406,13 +410,13 @@ async function spawnPiped(
   } else {
     const isGroup = process.platform !== 'win32'
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted payload or bootstrap compiler: argument array, no shell, pipes, its own POSIX group, owned whole-tree stop (PLAN SPAWN017C, section 8).
-    const root = spawn(file, [...args], {
+    const root = spawnGuarded(file, [...args], {
       ...options,
       signal: undefined,
       env:
         profile === 'bootstrap'
-          ? withoutCredentials(options.env ?? {})
-          : resourceEnvironment(options.env ?? {}, resource),
+          ? withoutCredentials(options.env)
+          : resourceEnvironment(options.env, resource),
       detached: isGroup,
       stdio: ['pipe', 'pipe', 'pipe', ...extraDescriptors],
       windowsHide: true,

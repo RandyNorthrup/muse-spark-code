@@ -21,6 +21,8 @@ import {
 } from '../../../shared/media'
 import type { HelperChild } from '../../voice/dictation'
 import type { ScreenRecordingDriver, ScreenRecordingResult } from './driver'
+import { realpathSync } from 'node:fs'
+import { noWorkspaceChildEnvironment, type GuardedChildEnv } from '../../executables'
 
 const PRIVATE_DIRECTORY_MODE = 0o700
 const PRIVATE_FILE_MODE = 0o600
@@ -58,8 +60,12 @@ export interface MacosScreenRecordingDeps {
   >
   /** Host power-suspend subscription. Unsubscribe when the run settles. */
   readonly onSuspend?: (listener: () => void) => () => void
-  /** Spawn directly with this exact argument array and environment; no shell. */
-  readonly spawn: (command: string, args: readonly string[], env: NodeJS.ProcessEnv) => HelperChild
+  /**
+   * Spawn directly with this exact argument array and environment; no shell.
+   * The driver hands it only the guarded recorder environment below, so a
+   * raw environment does not type-check here.
+   */
+  readonly spawn: (command: string, args: readonly string[], env: GuardedChildEnv) => HelperChild
   /** M1's bounded sniffer, injected until its lane is integrated. */
   readonly inspect: (file: string) => Promise<MediaInfo>
   /** Lane W binds these to SCREEN_RECORDING_* tunables in shared/constants. */
@@ -112,9 +118,14 @@ function unavailable(reason: string): ScreenRecordingResult & { readonly ok: fal
   return { ok: false, reason: fill(UI_TEXT.media.recordingUnavailable, { reason }) }
 }
 
-/** No model credential or inherited disclaim marker reaches the helper/converters. */
-function childEnvironment(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return Object.fromEntries(
+/**
+ * No model credential or inherited disclaim marker reaches the
+ * helper/converters — and the recorder helpers run fixed absolute commands
+ * with the host working directory, never a workspace: absolute PATH entries
+ * only, links followed.
+ */
+function childEnvironment(base: NodeJS.ProcessEnv): GuardedChildEnv {
+  const filtered = Object.fromEntries(
     Object.entries(base).filter(([name]) => {
       const upper = name.toUpperCase()
       return (
@@ -124,6 +135,7 @@ function childEnvironment(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
       )
     }),
   )
+  return noWorkspaceChildEnvironment(process.platform, filtered, realpathSync)
 }
 
 export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): ScreenRecordingDriver {

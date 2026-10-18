@@ -27,7 +27,12 @@ import {
 } from '../../../shared/resources'
 import { PosixResourceTreeReader, type PosixTreeSnapshot, type PosixTreeSource } from './posix'
 import { parseLinuxStat, type ProcessSample } from './posixTable'
-import { coalescedTreeRead, runTreeProgram, type ResourceTreeRun } from './run'
+import {
+  coalescedTreeRead,
+  probeChildEnvironment,
+  runTreeProgram,
+  type ResourceTreeRun,
+} from './run'
 import {
   signalVerifiedPosix,
   type ResourceActionResult,
@@ -173,8 +178,9 @@ class LinuxTreeSource implements PosixTreeSource {
   }
 
   private async loadUnits(): Promise<{ hz: number; page: number }> {
-    const ticks = await this.run('/usr/bin/getconf', ['CLK_TCK'])
-    const pages = await this.run('/usr/bin/getconf', ['PAGESIZE'])
+    const probe = probeChildEnvironment({ LC_ALL: 'C' })
+    const ticks = await this.run('/usr/bin/getconf', ['CLK_TCK'], probe)
+    const pages = await this.run('/usr/bin/getconf', ['PAGESIZE'], probe)
     const hz = Number(ticks.trim())
     const page = Number(pages.trim())
     if ([hz, page].some((value) => !(Number.isSafeInteger(value) && value > 0)))

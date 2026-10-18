@@ -45,8 +45,8 @@
 // - Nothing secret is logged, thrown in clear, or shown: failures carry
 //   git's words to the caller, which redacts them before any cut.
 
-import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { spawnGuarded } from '../../../core/guardedChildProcess'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import {
@@ -533,7 +533,7 @@ export class NativeGitService {
         env: process.env,
         fileExists: existsSync,
         realpath: realpathSync,
-        spawn,
+        spawn: spawnGuarded,
         // The git the host resolved, never another one on PATH; refused
         // when it names the bound repository itself.
         locate: fixedGitLocator(process.platform, deps.gitPath, {

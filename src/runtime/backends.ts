@@ -26,7 +26,7 @@ import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
-import { NO_WORKSPACE } from '../core/executables'
+import { NO_WORKSPACE, type GuardedChildEnv } from '../core/executables'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
 import {
   buildChildEnvironment,
@@ -162,7 +162,7 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
   // VS Code inherits its host environment (D1); the standalone runtime has
   // a stricter boundary, shared by serve, account hosts and login.
   const Manager = class extends MuseCodeBackendManager {
-    public override childEnvironment(): NodeJS.ProcessEnv {
+    public override childEnvironment(): GuardedChildEnv {
       const env = museCodeEnvironment(deps.env)
       return withLoopbackBypass(
         buildChildEnvironment({

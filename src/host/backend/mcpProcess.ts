@@ -16,7 +16,8 @@
 // - **Stopping.** A POSIX process group or a Windows kill-on-close job owns
 //   the entire process tree; the Windows helper exits on Stop or owner death.
 
-import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawnGuarded } from '../../core/guardedChildProcess'
 import { realpathSync, statSync } from 'node:fs'
 import { stopResourceTree } from '../../core/resources/admission'
 import path from 'node:path'
@@ -438,7 +439,7 @@ export function mcpServerSpawner(
       return observeMcpProcess(nodeProcessHandle(child), deps, startedAt, true, resource)
     }
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the server the user configured in Muse Code's settings, started only in a trusted workspace, with an absolute resolved command and a fixed argument array (PLAN.md §8).
-    const child = spawn(line.file, [...line.args], {
+    const child = spawnGuarded(line.file, [...line.args], {
       cwd,
       env,
       stdio: ['pipe', 'pipe', 'pipe'],

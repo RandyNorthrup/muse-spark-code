@@ -1,4 +1,5 @@
 import { spawnResourceProcess } from '../../resources/launcher'
+import { probeChildEnvironment } from '../../resources/trees/run'
 import { type Socket } from 'node:net'
 import * as z from 'zod/mini'
 import { VAULT_APPROVAL_TTL_MS, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
@@ -39,11 +40,13 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
     private readonly descriptors: VaultSocketDescriptorPort,
   ) {}
   async verify(socket: Socket): Promise<VaultProcessIdentity> {
+    // The peer verifier binary with an empty environment: absolute entries
+    // only, links followed.
     const { child, stop } = await spawnResourceProcess(
       'contained',
       this.executable,
       [],
-      { env: {} },
+      { env: probeChildEnvironment({}) },
       [z.number().check(z.int(), z.positive()).parse(this.descriptors.descriptor(socket))],
     )
     child.stdin.end()

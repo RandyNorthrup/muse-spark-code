@@ -1,7 +1,12 @@
 import type { ExecFileOptionsWithStringEncoding } from 'node:child_process'
 import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
-import { isWorkspacePath, resolveExecutable, workspaceChildEnvironment } from '../executables'
+import {
+  isWorkspacePath,
+  resolveExecutable,
+  workspaceChildEnvironment,
+  type GuardedChildEnv,
+} from '../executables'
 import { environmentValue } from '../backends/musecode/launch'
 import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
 import { spawnResourceProcess } from './process'
@@ -46,7 +51,7 @@ function resolveCommand(
 }
 
 /** The child's environment: the guarded child PATH for its workspace. */
-function childEnvironment(env: NodeJS.ProcessEnv, workspace: GovernedWorkspace): NodeJS.ProcessEnv {
+function childEnvironment(env: NodeJS.ProcessEnv, workspace: GovernedWorkspace): GuardedChildEnv {
   return workspaceChildEnvironment(process.platform, env, {
     workspaceRoot: workspace.workspaceRoot,
     realpath: realpathSync,

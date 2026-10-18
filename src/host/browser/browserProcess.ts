@@ -12,8 +12,11 @@
 // behind. A folder a dead window left is swept by a later check once its
 // owner is known to be gone.
 
-import { type ChildProcess, execFile, spawn } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 import { withoutCredentials } from '../../core/credentialEnvironment'
+import { noWorkspaceChildEnvironment } from '../../core/executables'
+import { execFileGuarded, spawnGuarded } from '../../core/guardedChildProcess'
 import { randomBytes } from 'node:crypto'
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { networkInterfaces } from 'node:os'
@@ -91,10 +94,18 @@ async function killBrowser(child: ChildProcess, deps: HostBrowserDeps): Promise<
   }
   await new Promise<void>((resolve) => {
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Windows' own taskkill by its absolute path under SystemRoot, with the browser's own process id: the tree kill of the check's browser (M81 A1, PLAN.md §8).
-    execFile(
+    execFileGuarded(
       path.win32.join(systemRoot, WINDOWS_TASKKILL_RELATIVE_PATH),
       ['/PID', String(pid), '/T', '/F'],
-      { windowsHide: true, env: withoutCredentials(deps.env) },
+      // Fixed `taskkill` under SystemRoot: absolute entries only, links followed.
+      {
+        windowsHide: true,
+        env: noWorkspaceChildEnvironment(
+          deps.platform,
+          { ...withoutCredentials(deps.env) },
+          realpathSync,
+        ),
+      },
       (error) => {
         if (error !== null && child.exitCode === null) {
           deps.warn("Browser check: the browser's process tree needed a forced end")
@@ -114,11 +125,18 @@ function spawnBrowser(
   deps: HostBrowserDeps,
 ): BrowserProcess {
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the pinned headless shell at the absolute path the runtime bundle verified against browserRuntime.json in the extension's own storage (never PATH, a system browser or a workspace file), with the fixed flags of BROWSER_LAUNCH_FLAGS, the check's own proxy endpoint and profile, and a projected environment; the model's URL goes over the pipe, never on the command line (M81 A1, PLAN.md D49).
+  // The pinned browser runs with the check folder as its working directory,
+  // never a workspace: absolute entries only, links followed.
+  const childEnv = noWorkspaceChildEnvironment(
+    deps.platform,
+    { ...withoutCredentials(env) },
+    realpathSync,
+  )
   const child =
     deps.windowsJob === undefined
-      ? spawn(executable, [...args], {
+      ? spawnGuarded(executable, [...args], {
           stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'],
-          env: resourceEnvironment(withoutCredentials(env), deps.resource),
+          env: resourceEnvironment(childEnv, deps.resource),
           windowsHide: true,
           // Its own process group on POSIX, so the kill ends everything it started.
           detached: deps.platform !== 'win32',
@@ -129,7 +147,7 @@ function spawnBrowser(
           file: executable,
           args,
           cwd: path.dirname(executable),
-          env: resourceEnvironment(withoutCredentials(env), deps.resource),
+          env: resourceEnvironment(childEnv, deps.resource),
           isVerbatim: false,
           debugPipes: true,
           resource: deps.resource,

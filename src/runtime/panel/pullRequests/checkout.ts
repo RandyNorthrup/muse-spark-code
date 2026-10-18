@@ -26,12 +26,10 @@
 // is still trusted, that Cancel was not pressed, and that the record is
 // still exactly this checkout's reservation (its fence).
 
-import {
-  execFile,
-  spawn,
-  type ChildProcess,
-  type ChildProcessWithoutNullStreams,
-} from 'node:child_process'
+import type { ChildProcess, ChildProcessWithoutNullStreams } from 'node:child_process'
+import { realpathSync } from 'node:fs'
+import { execFileGuarded, spawnGuarded } from '../../../core/guardedChildProcess'
+import { workspaceChildEnvironment, type GuardedChildEnv } from '../../../core/executables'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import type { BigIntStats } from 'node:fs'
@@ -237,7 +235,11 @@ export interface PullRequestCheckoutGit {
 /** How git runs to completion: options for one process. */
 export interface GitRunOptions {
   readonly cwd: string
-  readonly env: NodeJS.ProcessEnv
+  /**
+   * The guarded child environment for `cwd`: the port takes nothing else,
+   * so a raw environment does not type-check here.
+   */
+  readonly env: GuardedChildEnv
   readonly signal: AbortSignal
   readonly timeout: number
   readonly maxBuffer: number
@@ -246,7 +248,8 @@ export interface GitRunOptions {
 /** How the batch child starts. */
 export interface GitStartOptions {
   readonly cwd: string
-  readonly env: NodeJS.ProcessEnv
+  /** The guarded child environment for `cwd`, as above. */
+  readonly env: GuardedChildEnv
   readonly signal: AbortSignal
   readonly timeout: number
   /** Its own process group on POSIX. */
@@ -272,7 +275,7 @@ export interface GitProcessPort {
 export const nodeGitProcesses: GitProcessPort = {
   run: (file, args, options) =>
     new Promise<string>((resolve, reject) => {
-      execFile(file, [...args], { ...options, windowsHide: true }, (error, stdout) => {
+      execFileGuarded(file, [...args], { ...options, windowsHide: true }, (error, stdout) => {
         if (error === null) {
           resolve(stdout)
           return
@@ -280,7 +283,7 @@ export const nodeGitProcesses: GitProcessPort = {
         reject(error instanceof Error ? error : new PullRequestServiceError(failureText(error)))
       })
     }),
-  start: (file, args, options) => spawn(file, [...args], { ...options, windowsHide: true }),
+  start: (file, args, options) => spawnGuarded(file, [...args], { ...options, windowsHide: true }),
 }
 
 export interface NodePullRequestCheckoutGitOptions {
@@ -347,6 +350,19 @@ interface RunHow {
  * in one synchronous turn. With `startGitBatch`, the only way this module
  * starts git.
  */
+/**
+ * The child's environment for a git run in `cwd`: the guarded child PATH
+ * for that directory, so a helper git starts by bare name never runs from
+ * a planting in the checkout.
+ */
+function checkoutChildEnvironment(
+  platform: NodeJS.Platform,
+  env: NodeJS.ProcessEnv,
+  cwd: string,
+): GuardedChildEnv {
+  return workspaceChildEnvironment(platform, env, { workspaceRoot: cwd, realpath: realpathSync })
+}
+
 function runGit(
   git: NodeGitRunner,
   gate: GitGate,
@@ -357,7 +373,7 @@ function runGit(
   gate()
   return git.processes.run(git.gitPath, args, {
     cwd,
-    env: how.env ?? git.quietEnv,
+    env: checkoutChildEnvironment(git.platform, how.env ?? git.quietEnv, cwd),
     signal: how.signal ?? git.signal,
     timeout: GIT_WORKTREE_TIMEOUT_MS,
     maxBuffer: GIT_OUTPUT_MAX_BYTES,
@@ -374,7 +390,7 @@ function startGitBatch(
   gate()
   return git.processes.start(git.gitPath, args, {
     cwd,
-    env: git.quietEnv,
+    env: checkoutChildEnvironment(git.platform, git.quietEnv, cwd),
     signal: git.signal,
     timeout: GIT_WORKTREE_TIMEOUT_MS,
     // Its own group on POSIX, so the deadline stops the helpers it

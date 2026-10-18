@@ -4,8 +4,8 @@ import { resourceEnvironment } from '../../core/resources/launch'
 // WebSocket to Meta. Part of dist/voice.js (PLAN.md D6), loaded on the first
 // recording; no `vscode` here.
 
-import { spawn } from 'node:child_process'
 import { realpathSync } from 'node:fs'
+import { spawnGuarded } from '../../core/guardedChildProcess'
 import { PassThrough, type Readable, type Writable } from 'node:stream'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { admitResource, resourceWindowsJob, stopResourceTree } from '../../core/resources/admission'
@@ -80,7 +80,7 @@ function admittedVoiceProcess(
       // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the fixed bundled dictation helper or absolute recorder command from helperLocation with fixed flags; nothing from the model or workspace reaches this command (PLAN.md §8).
       child =
         job === undefined
-          ? spawn(command, [...args], {
+          ? spawnGuarded(command, [...args], {
               cwd,
               env: resourceEnvironment(withoutCredentials(env), resource),
               stdio: ['pipe', 'pipe', 'pipe'],

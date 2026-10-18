@@ -4,7 +4,9 @@
 // it. It holds an actual handle to
 // this extension process; when either it or the server exits, the job closes.
 
-import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawnGuarded } from '../../core/guardedChildProcess'
+import type { GuardedChildEnv } from '../../core/executables'
 import { Buffer } from 'node:buffer'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { once } from 'node:events'
@@ -170,8 +172,12 @@ export interface McpJobLaunch {
   readonly args: readonly string[]
   readonly isVerbatim: boolean
   readonly cwd: string
-  /** Only the allowlisted and explicitly configured variables reach the server. */
-  readonly env: NodeJS.ProcessEnv
+  /**
+   * Only the allowlisted and explicitly configured variables reach the
+   * server — and the native helper serializes this environment into the
+   * payload's own, so only a guarded child environment type-checks here.
+   */
+  readonly env: GuardedChildEnv
   readonly log: (message: string) => void
   /** The whole job's memory in bytes (M91b, plugin children); absent sets no limit. */
   readonly jobMemoryLimit?: number | undefined
@@ -303,7 +309,7 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
 export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStreams {
   const prepared = prepareMcpJobLaunch(launch)
   try {
-    const child = spawn(
+    const child = spawnGuarded(
       // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- this executable is compiled from the packaged native/windows/MuseSparkMcpLauncher.cs and MuseSparkMcpJob.cs into a digest-named file in extension storage; configured MCP input stays in a private environment value (PLAN.md §8).
       launch.executablePath,
       [],
@@ -358,7 +364,7 @@ export function spawnAttestedJob(
   const attested = prepared.attested
   if (attested === undefined) throw new Error('Attested job channel unavailable')
   try {
-    const child = spawn(
+    const child = spawnGuarded(
       // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the same digest-named launcher compiled from the packaged native/windows sources; launch input stays in a private environment value (PLAN.md §8, SPAWN017C).
       launch.executablePath,
       [],

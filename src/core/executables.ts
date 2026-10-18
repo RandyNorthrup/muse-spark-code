@@ -345,44 +345,50 @@ function brandGuarded(env: NodeJS.ProcessEnv): GuardedChildEnv {
 }
 
 /**
- * One child environment for every spawn the product makes with the workspace
- * as its working directory or on its PATH: PATH sanitised by
- * `sanitizePathForWorkspace` (empty, relative, drive-relative and workspace
- * entries dropped; a PATH with nothing left deleted, never stored empty),
- * and `NoDefaultCurrentDirectoryInExePath=1` on Windows so CreateProcess
- * does not try the working directory before PATH. Nothing else changes.
+ * Whether `name` is a PATH spelling the guard handles: on Windows every
+ * casing (the child reads the first spelling in block order, so a second
+ * raw spelling would survive the first sanitizing empty — every spelling
+ * is guarded); elsewhere only `PATH`.
  */
-/**
- * The `KEY=value` environment block for a native helper that starts the
- * payload itself (`CreateProcessW` from its own environment array): only a
- * guarded child environment serializes, so a raw `request.env` cannot reach
- * a helper payload. Entries with `undefined` values are dropped, as the
- * helper's block parser rejects them.
- */
-export function guardedEnvironmentBlock(env: GuardedChildEnv): string[] {
-  return Object.entries(env).flatMap(([key, value]) =>
-    value === undefined ? [] : [`${key}=${value}`],
-  )
+function isPathSpelling(platform: NodeJS.Platform, name: string): boolean {
+  return platform === 'win32' ? name.toLowerCase() === 'path' : name === 'PATH'
 }
 
+/** Whether `name` is the Windows current-directory-exclusion variable. */
+function isNoDefaultCwdGuard(name: string): boolean {
+  return name.toLowerCase() === 'nodefaultcurrentdirectoryinexepath'
+}
+
+/**
+ * One child environment for every spawn the product makes with the workspace
+ * as its working directory or on its PATH: every PATH spelling sanitised by
+ * `sanitizePathForWorkspace` (empty, relative, drive-relative and workspace
+ * entries dropped; a spelling with nothing left deleted, never stored
+ * empty), and `NoDefaultCurrentDirectoryInExePath=1` on Windows (any preset
+ * spelling removed first, so a preset `0` cannot shadow it) so CreateProcess
+ * does not try the working directory before PATH. Nothing else changes.
+ */
 export function workspaceChildEnvironment(
   platform: NodeJS.Platform,
   env: NodeJS.ProcessEnv,
   workspace: WorkspaceChild,
 ): GuardedChildEnv {
-  const pathName =
-    platform === 'win32'
-      ? (Object.keys(env).find((name) => name.toLowerCase() === 'path') ?? 'PATH')
-      : 'PATH'
-  const sanitized = sanitizePathForWorkspace({
-    platform,
-    pathVariable: env[pathName],
-    workspaceRoot: workspace.workspaceRoot,
-    realpath: workspace.realpath,
-  })
-  const { [pathName]: _removed, ...kept } = env
-  const child: NodeJS.ProcessEnv =
-    sanitized === '' ? { ...kept } : { ...kept, [pathName]: sanitized }
+  const kept: NodeJS.ProcessEnv = {}
+  const paths: [string, string][] = []
+  for (const [name, value] of Object.entries(env)) {
+    if (isPathSpelling(platform, name)) {
+      const sanitized = sanitizePathForWorkspace({
+        platform,
+        pathVariable: value,
+        workspaceRoot: workspace.workspaceRoot,
+        realpath: workspace.realpath,
+      })
+      if (sanitized !== '') paths.push([name, sanitized])
+    } else if (platform !== 'win32' || !isNoDefaultCwdGuard(name)) {
+      kept[name] = value
+    }
+  }
+  const child: NodeJS.ProcessEnv = { ...kept, ...Object.fromEntries(paths) }
   if (platform === 'win32') {
     child['NoDefaultCurrentDirectoryInExePath'] = '1'
   }
@@ -401,37 +407,56 @@ export function noWorkspaceChildEnvironment(
   env: NodeJS.ProcessEnv,
   realpath: (filePath: string) => string,
 ): GuardedChildEnv {
-  const pathName =
-    platform === 'win32'
-      ? (Object.keys(env).find((name) => name.toLowerCase() === 'path') ?? 'PATH')
-      : 'PATH'
   const p = platform === 'win32' ? path.win32 : path.posix
   const separator = platform === 'win32' ? ';' : ':'
-  const keptEntries = (env[pathName] ?? '')
-    .split(separator)
-    .filter((entry) => {
-      const trimmed = entry.trim()
-      return (
-        trimmed !== '' &&
-        p.isAbsolute(trimmed) &&
-        (platform !== 'win32' || isFullyQualifiedWindowsPath(trimmed))
-      )
-    })
-    .map((entry) => {
-      try {
-        void realpath(entry)
-      } catch {
-        /* An entry that cannot be resolved stays as written. */
-      }
-      return entry
-    })
-  const { [pathName]: _removed, ...kept } = env
-  const child: NodeJS.ProcessEnv =
-    keptEntries.length === 0 ? { ...kept } : { ...kept, [pathName]: keptEntries.join(separator) }
+  const sanitize = (pathVariable: string | undefined): string =>
+    (pathVariable ?? '')
+      .split(separator)
+      .filter((entry) => {
+        const trimmed = entry.trim()
+        return (
+          trimmed !== '' &&
+          p.isAbsolute(trimmed) &&
+          (platform !== 'win32' || isFullyQualifiedWindowsPath(trimmed))
+        )
+      })
+      .map((entry) => {
+        try {
+          void realpath(entry)
+        } catch {
+          /* An entry that cannot be resolved stays as written. */
+        }
+        return entry
+      })
+      .join(separator)
+  const kept: NodeJS.ProcessEnv = {}
+  const paths: [string, string][] = []
+  for (const [name, value] of Object.entries(env)) {
+    if (isPathSpelling(platform, name)) {
+      const sanitized = sanitize(value)
+      if (sanitized !== '') paths.push([name, sanitized])
+    } else if (platform !== 'win32' || !isNoDefaultCwdGuard(name)) {
+      kept[name] = value
+    }
+  }
+  const child: NodeJS.ProcessEnv = { ...kept, ...Object.fromEntries(paths) }
   if (platform === 'win32') {
     child['NoDefaultCurrentDirectoryInExePath'] = '1'
   }
   return brandGuarded(child)
+}
+
+/**
+ * The `KEY=value` environment block for a native helper that starts the
+ * payload itself (`CreateProcessW` from its own environment array): only a
+ * guarded child environment serializes, so a raw `request.env` cannot reach
+ * a helper payload. Entries with `undefined` values are dropped, as the
+ * helper's block parser rejects them.
+ */
+export function guardedEnvironmentBlock(env: GuardedChildEnv): string[] {
+  return Object.entries(env).flatMap(([key, value]) =>
+    value === undefined ? [] : [`${key}=${value}`],
+  )
 }
 
 /**
