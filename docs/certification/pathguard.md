@@ -133,10 +133,46 @@ Already safe (no change needed):
   with `NoDefaultCurrentDirectoryInExePath` in its environment.
   `cwd` stays the workspace (PLAN.md D24).
 
+## Fix (round 3, lane PR249FIX2, Grok re-review of PR #249)
+
+- UNC with either slash (`src/core/executables.ts`): separators are
+  normalised before classifying, so `//server/share` and `//?/C:/…` count
+  as the UNC and verbatim paths they are instead of being rewritten onto
+  the workspace's drive; verbatim `\\?\` (`//?/`, `\\?\UNC\`) prefixes are
+  stripped and loopback admin shares (`//localhost/C$/…`,
+  `//127.0.0.1/C$/…`) map to their drive path before comparing, so every
+  local spelling of the workspace compares as the workspace, lexically,
+  with no resolver to hide behind. A remote UNC name that cannot be proven
+  local stays as it is.
+- The original entry is resolved (`sanitizePathForWorkspace`): realpath
+  runs on the entry as written, and the drive-applied spelling of a
+  drive-relative entry is only a second comparison, never a rewrite.
+- The lookups exclude the workspace (`LaunchProbe`/`ExecutableProbe` gain
+  `workspaceRoot` + `realpath`; one shared `isWorkspacePath`): directories
+  inside it are never probed. Wired where the workspace is known —
+  `MuseCodeBackendManager.resolveLaunch` (serve, login, account host,
+  skills list, init/config-status) and both git runners (each run's own
+  working directory, cache keyed per PATH value and directory).
+- Login and the runtime account host (`src/runtime/backends.ts`,
+  `src/runtime/main.ts:1347`, `src/runtime/authCommands.ts`): the shared
+  runtime manager is scoped to the launch directory, the account host
+  spawns with that directory as its working directory, and `muse login`
+  names it on its spawn outright.
+- Windows sandbox check/setup (`src/extension.ts:1781`): runs with
+  `workspaceRoot` and `backend.childEnvironment()` instead of no cwd and
+  the raw environment.
+- Still unguarded by design (recorded in
+  `docs/certification/pathguard-spawns.md`): plugin host, MCP servers,
+  browser, voice/media and the governed runners resolve their command by
+  absolute path but pass the inherited PATH value through; MCP/plugin
+  commands are person-configured rather than workspace-resolved.
+  `processGitPath` (the M123 native route's one-shot lookup) takes no
+  working directory and stays lexical.
+
 ## Proof
 
-`test/unit/pathGuard.test.ts` (14 tests) and `test/unit/executables.test.ts`
-(5 tests), all passing on the rig:
+`test/unit/pathGuard.test.ts` (17 tests) and `test/unit/executables.test.ts`
+(8 tests), all passing on the rig (round 3 adds 6):
 
 - Pure cases: empty/relative dropped, workspace and its children dropped,
   same-prefix sibling kept, Windows case-insensitive spellings; rooted
@@ -160,6 +196,12 @@ Already safe (no change needed):
   working-directory fallback. Windows CreateProcess behaviour is proven by
   the recorded probe (`docs/certification/m21.md`) plus the
   `NoDefaultCurrentDirectoryInExePath` assertion.
+- Round 3: forward-slash UNC, verbatim and loopback admin-share spellings
+  of the workspace drop lexically with a throwing resolver; the old code
+  kept `//localhost/C$/…` (reproduced from the committed pre-fix file
+  before landing). A real planted `git` in the workspace answers through
+  the real `processGitRunner` from another directory but never with the
+  workspace as the working directory, where the real git answers instead.
 
 Gates on the lane branch (final tree, repository's own timeout throughout,
 never `--testTimeout`):

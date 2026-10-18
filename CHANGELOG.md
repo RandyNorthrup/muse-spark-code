@@ -18,9 +18,18 @@ happened, not what was planned; superseded entries are kept.
   `museSpark.environmentVariables` is sanitized the same way, Windows
   drive-relative entries are resolved on the workspace drive, and guarded
   Windows children set `NoDefaultCurrentDirectoryInExePath` so the working
-  directory is not tried before PATH. Real use showed Muse Code 1.4.9
-  running a planted `<workspace>/bin/bwrap` twice at serve start, before any
-  prompt or approval (`docs/certification/pathguard.md`).
+  directory is not tried before PATH. Forward-slash UNC (`//server/share`),
+  verbatim (`\\?\`, `//?/`) and loopback admin-share (`//localhost/C$/…`)
+  spellings of the workspace compare as the workspace itself, and the entry
+  is always resolved as itself, never as a drive-rewritten path. The guard
+  also covers `muse login` and the runtime account host (scoped to the
+  directory the child runs in, which is also set as its working directory),
+  the Windows sandbox check and setup, and the `muse` and `git` lookups
+  themselves: directories inside the workspace are never probed, so a
+  planted program on an absolute workspace PATH entry never resolves.
+  Real use showed Muse Code 1.4.9 running a planted `<workspace>/bin/bwrap`
+  twice at serve start, before any prompt or approval
+  (`docs/certification/pathguard.md`).
 
 ### Fixed
 
