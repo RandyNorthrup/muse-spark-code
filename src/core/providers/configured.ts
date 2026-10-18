@@ -53,6 +53,7 @@ import {
   refusalSentence,
 } from '../backends/modelapi/providerRefusal'
 import { isConnectionFailure, networkFailureCodes } from '../networkFailure'
+import type { CoreLogger } from '../logging'
 import { withDeadline } from '../timeouts'
 import { Usd } from '../../shared/usd'
 import { fill } from '../../shared/l10n/text'
@@ -89,6 +90,13 @@ export interface ConfiguredProviderOptions {
    * inference stream: there is no limit on its total.
    */
   readonly streamIdleMs?: number
+  /**
+   * Where the transport's notices go (PR #214 review): without one its
+   * still-waiting notices during an indefinite stream wait reach the
+   * no-op logger below and the request looks hung until Stop. Per-request
+   * timing still never reaches a log, named or not.
+   */
+  readonly log?: CoreLogger
 }
 const secretSchema = z.object({
   v: z.literal(1),
@@ -300,6 +308,33 @@ export function providerFailureReader(
 function ignoreTransportLog(): void {
   // This adapter reports fixed failures through its caller, without retaining
   // per-request diagnostics or forwarding arbitrary provider text to a log.
+  // Still-waiting notices and scrubbed retry sentences are the host's own
+  // words, so they go to the host's log when it named one (PR #214 review);
+  // per-request timing (trace) never does, named or not.
+}
+
+/** The transport's log: notices and scrubbed sentences to the host's log when named. */
+export function configuredTransportLog(log: CoreLogger | undefined): CoreLogger {
+  if (log === undefined) {
+    return {
+      trace: ignoreTransportLog,
+      info: ignoreTransportLog,
+      warn: ignoreTransportLog,
+      error: ignoreTransportLog,
+    }
+  }
+  return {
+    trace: ignoreTransportLog,
+    info: (message: string) => {
+      log.info(message)
+    },
+    warn: (message: string) => {
+      log.warn(message)
+    },
+    error: (message: string) => {
+      log.error(message)
+    },
+  }
 }
 
 function ignoreProviderCache(): void {
@@ -475,12 +510,7 @@ export function createConfiguredProviderServices(
         now: Date.now,
         random: Math.random,
         ...(idleMs !== undefined && { streamIdleMs: idleMs }),
-        log: {
-          trace: ignoreTransportLog,
-          info: ignoreTransportLog,
-          warn: ignoreTransportLog,
-          error: ignoreTransportLog,
-        },
+        log: configuredTransportLog(options.log),
         // A send that produced no answer: the provider, Node's own failure
         // codes (never what a server wrote) and that whether the request
         // arrived is unknown (lane PROVERRORS).
