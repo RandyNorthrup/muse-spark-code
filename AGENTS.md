@@ -5,11 +5,13 @@ repository. They are project-local; do not copy them into global settings.
 
 ## What this project is
 
-A VS Code extension giving a Claude-Code-style chat panel for Meta's Muse Spark
-model. Two backends sit behind the `AgentHost` and `AgentSession` interfaces
-(`src/core/agent/agentBackend.ts`): the Muse Code CLI over the Muse Session
-Protocol (`@muse-code/sdk`, primary) and the Meta Model API over HTTPS
-(bring-your-own key, secondary). Read `PLAN.md`
+One coding agent for many editors: a VS Code extension, an editor-protocol
+(ACP) agent for Zed, JetBrains IDEs, Neovim, Emacs and other editors, and a
+terminal command (`muse-spark-code-acp`). Its backends sit behind the
+`AgentHost` and `AgentSession` interfaces (`src/core/agent/agentBackend.ts`):
+the Muse Code CLI over the Muse Session Protocol (`@muse-code/sdk`) and the
+Model API route, which serves Meta's models and other providers (your own
+keys, a ChatGPT plan sign-in, Copilot). Read `PLAN.md`
 before changing anything: it holds the decisions, the research that justifies
 them, the milestone plan, and the certification checklist. Closed history
 lives in `docs/plan-archive/`, byte for byte: §2 keeps each decision's rule in
@@ -20,6 +22,104 @@ archive when a summary is not enough, and never edit inside its blocks.
 day it lands: a change that adds a design record moves it there in the same
 change, with `npm run plan:archive` (CONTRIBUTING.md, "Archiving closed
 history from PLAN.md").
+
+## The owner's standing rules
+
+Two kinds, kept apart on purpose. A line elsewhere in this file or in PLAN.md
+that disagrees with either loses.
+
+### How we work on this repository (never build these into the product)
+
+These bind every agent working here. They describe how we build, test, merge
+and run our own jobs. They are not features of Muse Spark Code: never turn
+them into app behaviour, settings, skills, prompts or limits. (2026-10-17: the
+orchestrator "playbook" baked this project's own method into the app, and it
+had to come out.)
+
+- **Only real, finished work.** No stubs, fakes, TODO or FIXME, temporary
+  code, fallbacks to legacy code, workarounds or dead code, in the product, the
+  tests or the tooling. Everything works as designed and is fully implemented.
+- **Nothing is claimed until it works in real use.** A feature goes into the
+  README, CHANGELOG, Help or release notes only after it was used for real
+  through the packed product. A claim that turns out false is fixed in the
+  code first, never by rewording the claim.
+- **Nothing merges unproven.** Before a pull request merges, what it changes
+  has been used for real through the packed product, and the record is on the
+  pull request; hosted CI green on its first run and every review thread
+  answered are also required.
+- **No fakes in tests (2026-10-12, 2026-10-17: "there can be no more fakes at
+  all everything needs to be tested meaningfully or in actual use cases").**
+  Never invent data a test feeds the code: outside-world input is only a
+  recorded real exchange, kept with its capture date and the command that
+  captured it. A test that only checks that some text, key or file exists is
+  not a test. When only a real run proves something (hosted CI, the packed
+  product, a real provider call at release), the real run is the proof.
+- **Our own job caps stay ours.** Caps used to run this project's own work
+  never go into the repository, and no time box, turn cap or tool cap of ours
+  stops a job mid-run.
+- **Every job through our own app.** Coding and review jobs run through Muse
+  Spark Code itself, so its gaps show; a gap found that way is fixed in the
+  product.
+- **Muse requests go out only on a known contributor tier.** A request whose
+  billed tier is not known to be contributor is never sent.
+- **Credentials are never seen.** A key or token is stored without anyone
+  reading its value (the operating system's store, or an encrypted file), and
+  never printed, logged or put on a command line.
+- **Never `--no-verify`**, never weaken a gate to get green, never re-run a red
+  check into green: read it and fix the cause.
+- **Research first, choose the most robust (2026-10-17).** Before suggesting,
+  keeping or building anything, research it and verify that it is the most
+  robust, feature-rich and reliable way to do it, "not some broken or half
+  cocked hairbrained plan". This covers everything in the project, what exists
+  as much as what is new: "this includes **ALL** of the current code, plans,
+  milestones, etc."
+- **Bleeding edge, always (2026-10-17).** The owner: "we need to be on the
+  bleeding edge for each of these models, providers, and cli … as soon as an
+  sdk drops or there has been a bugfix or a feature update etc we need that
+  immidietly accounted for and incorporated into our app and tested
+  accuratly". Every model, provider, SDK, CLI, protocol and editor the product
+  uses is followed at its latest release. A new release, fix or feature is
+  incorporated at once and tested accurately, never left as a gap.
+- **"etc" means everything else (2026-10-17).** The owner: "etc means
+  everything else i have not mentioned or thought of". It covers every case
+  the owner did not name and every case nobody has thought of yet. Never read
+  it as a short list.
+
+### What the app must do (product rules; their decisions are in PLAN.md)
+
+These are the owner's decisions about how Muse Spark Code behaves. Build them
+into the product as code, exactly as stated, and nothing from the section
+above.
+
+- **Limits (2026-10-16, 2026-10-17).** The only hard-coded limits are each
+  provider's own, per provider and per model, from the model's capability
+  record ("the limits we set on our agents hardcoded are **ONLY** the limit
+  set from the providers"). Every other limit or threshold is one the person
+  sets in the app, none by default: per agent or role (the model role
+  settings), per team, and for their machine's resources ("the limits are
+  supposed to be setable in the app to prevent overconsumption or use").
+- **Every cap the person sets is static or dynamic, and a cap that fires
+  notifies the orchestrator (2026-10-17).** The owner: "the caps should be
+  dynamic and static ie if we set a dynamic cap lets say 80 perct cpu cap that
+  should allow as many agents as the role limits allow up until it hits the
+  cpu cap when this cap is triggered the orchistrator should get a
+  notification so it can assess what needs to be done if jobs should be paused
+  or moved etc, and this should be true for all of the different caps and
+  restrictions that can be set by the user". A static cap is a fixed ceiling
+  ("dont use more than this many agents"). A dynamic cap on a live reading
+  fires only when the reading stays over its threshold for the duration the
+  person set with it ("you dont want to trigger a stop for like breif
+  spikes"), and clears only when it stays back under.
+- **A role gets everything its model's platform provides (2026-10-17).** When
+  a model is selected for a role, the role offers every feature that model's
+  platform provides, and the person can set custom limits per agent and per
+  team. Each role has meaningful instructions, and is applied and enforced in
+  code.
+- **Orchestration rules are code on the orchestrator role (2026-10-17, D200).**
+  The rules that prevent failures and duplicates, and that make the
+  orchestrator watch every agent, are enforced by the harness in code on the
+  orchestrator role only. They are never a playbook, a skill, a suggestion or
+  a document.
 
 ## Working rules
 
@@ -35,15 +135,16 @@ history from PLAN.md").
    (CONTRIBUTING.md, "Before you open a pull request"). Never weaken a gate
    (rule levels, ignores) to get green; fix the code or record a justified
    deferral in `PLAN.md` §7. An exact-size assertion may move with the
-   measured number and a one-line reason in the same change; a cap moves only
-   on the owner's word.
+   measured number and a one-line reason in the same change. A limit on what
+   the product does follows the standing rule above (models only).
 3. **Prove new gates and tests fire.** A test or lint rule that has never been
    seen to fail is a decoration. Break the thing on purpose, watch it fail,
    revert, and note it in the milestone's certification record under
    `docs/certification/`. Tests run real code only, no exceptions: no
    `vi.mock`, fake timers, stand-in for our modules, a provider, the CLI,
    GitHub, an MCP server, the editor API or a store, no hand-answering local
-   server, no screenshot or frame comparison. A UI change gets one small
+   server, no invented data, no test that only checks text exists, no
+   screenshot or frame comparison. A UI change gets one small
    local look (`npm run ui:look -- <scene>`).
 4. **Escape hatches are logged.** Any `eslint-disable`, `@ts-expect-error`,
    `as` cast that is not a narrowing the compiler can verify, or `any` needs an
@@ -93,8 +194,8 @@ history from PLAN.md").
      CI), in one light and one dark theme, and the two pictures go into
      the change's certification record. README screenshots use `scripts/readme-shots.mjs` (2 MiB curated set).
 6. **No dead code, no placeholders.** No commented-out code, unused exports,
-   unused dependencies, TODO stubs, fake implementations, or mock data outside
-   `test/**`. A function that cannot do its job throws or returns an explicit
+   unused dependencies, TODO or FIXME, stubs, temporary code, fallbacks to
+   legacy code, workarounds, fake implementations or mock data, anywhere. A function that cannot do its job throws or returns an explicit
    error; it never returns an empty success.
 7. **Boundaries are validated.** Every message across postMessage, every MSP
    frame, every HTTP response is parsed with a zod schema before use.
@@ -146,7 +247,9 @@ history from PLAN.md").
     PLAN.md D30, D34). A paid call runs only while `PaidFeatureGate.isOn`
     (`src/core/paid/paidFeatures.ts`) says so: its setting on, machine-scoped
     and available by default on interactive Model API (D78), with consent
-    naming its price and the shared daily budget before spending. Existing
+    naming its price before spending. A spending limit applies only when the
+    model's platform sets one or the person sets one in the model role
+    settings (the standing rule on limits). Existing
     explicit false settings remain off; explicit OFF-to-ON changes still
     confirm the price. ACP/headless defaults and Muse Code opt-ins are unchanged. It is
     named in the composer's badge, shown as its own row marked paid
@@ -167,7 +270,7 @@ history from PLAN.md").
 
 - **Tab (M94, D73):** `museSpark.modelApiTab` is machine-scoped and on by
   default. The first paid request asks D48's question with the model's rates
-  and daily budget ($1.00 by default). Allow once covers this window until
+  (and the person's own budget, when they set one). Allow once covers this window until
   it closes; Always is workspace-scoped and revocable; Deny snoozes this
   window. No charge precedes consent. Consent is keyed by (`tab`, model,
   price): the question names the request's own model, which is the model
@@ -183,7 +286,8 @@ history from PLAN.md").
 
 - **Headless exception (M80, D65):** interactive popup policy above stays.
   Headless images require the explicit `--image-generation` flag,
-  `acceptEdits`, a hard USD budget, and per-use admission/settlement tally;
+  `acceptEdits`, and a per-use admission/settlement tally (a USD budget only
+  when the person passes one);
   refuse before unaffordable dispatch. Protected paths and
   `requiresAsking` are denied. No remembered grants, ordinary approval
   grants or translated-title decisions. CI paid defaults off; hosted search,
@@ -400,9 +504,11 @@ native/darwin/**      Dictation.swift, Info.plist, build.sh, check-disclaim.sh:
                       Muse Voice's `--capture` mode
 resources/            the walkthrough
 test/unit/**          vitest (node + jsdom via docblock) over real code only:
-                      no mocks, fakes, stand-ins or screenshot comparisons;
-                      the `vscode` alias and its hand-written module stay for
-                      the listed integration and host suites only
+                      no mocks, fakes, stand-ins, invented data, screenshot
+                      comparisons or tests that only check that text, a key
+                      or a file exists; no `vscode` module (the editor API is
+                      tested inside VS Code, test/integration). What the
+                      deleted fake tests covered: docs/real-life/unproven.md
 test/e2e/**           the live drills, kept listed for the real-life run
                       (the Muse Code CLI; the Model API sweep and the M75
                       evaluation, which bill the owner's key)
@@ -415,8 +521,9 @@ test/harness/         the webview behind a scripted host, for the local look
                       captured themes
                       playbook.mjs scenes run standalone as
                       `npm run harness:playbook` until the panel port is bound
-test/hosts/           the extension and the ACP agent in other editors
-                      against the fake CLI, one script per host (hosts.yml)
+test/hosts/           the integration tests in VSCodium and the forks, and the
+                      installed ACP agent's help, trust refusal and key round
+                      trip, one script per check (hosts.yml, forks.yml)
 scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
                       notices, audit, PSScriptAnalyzer, semgrep, accessibility,
                       localization, tokens, reference
@@ -428,8 +535,7 @@ scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
 docs/certification/   per-milestone gate-fire records and screenshots
 docs/plan-archive/    closed history moved out of PLAN.md, byte for byte
                       (decisions.md, milestones.md, gates.md); each passage
-                      stands between hashed markers that
-                      test/unit/planArchive.test.ts checks. `check:plan`
+                      stands between hashed markers. `check:plan`
                       fails when PLAN.md passes 85% of the plan reader's
                       bound; CONTRIBUTING.md has the archive procedure and
                       `npm run plan:archive` (scripts/plan-archive.mjs)
@@ -441,7 +547,8 @@ docs/ide-compatibility.md, docs/ide-compatibility/
 action/**             composite proposal Action, bounded trusted launcher,
                       sanitized Git and exact verified package installation
                       action/apply/ holds prepare and reviewer-approved push
-                      in separate jobs; test/action/ contains fake-only fixtures
+                      in separate jobs; test/action/la-check.mjs judges the
+                      live receipt (action-live.yml)
 docs/ci.md            headless/CI contract, security and accounting assumptions
 docs/schemas/**       generated versioned event/result schemas, shipped in npm
 docs/acp.md           the ACP agent's guide, shipped as its package's README
@@ -476,14 +583,12 @@ media/                icons, banner, social preview, README screenshots
 | Package `.vsix`                | `npm run package`                                    |
 | Package the ACP agent (D62)    | `npm run package:acp`                                |
 | Exec schemas (M80)             | `npm run schema:exec` (`-- --check`)                 |
-| Fake-only test package (M80)   | `node scripts/package-acp-test.mjs`                  |
 | Scan staged text (M80)         | `muse-spark-code-acp scan-secrets <file>`            |
-| Host checks (hosts.yml)        | `sh test/hosts/run-<host>.sh`                        |
+| Host checks (hosts.yml)        | `sh test/hosts/<script>.sh`                          |
 
-M80's lanes are integrated and their fake-only suites pass on the rigs; do not
-call exec, the scanner or the Action supported until the hosted action-check
-matrix and the live receipts (L, LA; LR after release) pass. The test tarball
-is private, unsigned and never published as product.
+M80's lanes are integrated; their fake-only suites were deleted on 2026-10-17
+(no fakes). Do not call exec, the scanner or the Action supported until the
+live receipts (L, LA; LR after release) pass.
 
 ## Toolchain pins that matter
 
