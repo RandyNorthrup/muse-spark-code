@@ -14509,6 +14509,19 @@ CONTRIBUTING.md, "The capacity repository (D122)"; proofs:
 
 ## 3. Open questions (need the owner)
 
+**Q-REALUSE-KEY (lane PR232W2, 2026-10-18).** D65's CI exception names two
+key readers (`exec --key-stdin` for the run, `scan-secrets --key-stdin` for
+the staged patch) in the Action's single bounded flow. The real-use launcher
+(`scripts/real-use-run.mjs`) sends the key to the first of those readers
+only, once per steps-file step (at most 8, each under the remaining calls
+and dollars), and never invokes the scanner because this flow publishes no
+patch — only a transcript the keyless check judges before any upload. Does
+D65 cover those N bounded `exec --key-stdin` children with no patch, or does
+the exception need amending before the workflow's first dispatch? Until the
+owner answers, the launcher keeps the key to the D65-named exec reader with
+every steps-file field validated before key intake, and the workflow is not
+dispatched. Record: `docs/certification/real-use-pr232w2.md`.
+
 **Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13).** GAPANTH-G11's scan row
 notes that an Anthropic reply stopped with `refusal` offers no fallback
 model. No model-fallback mechanism exists in the product; building one (when
