@@ -6,13 +6,9 @@ import {
   type AcpBackendKind,
   EFFORT_LEVELS,
   type EffortLevel,
-  EXEC_DEFAULT_MAX_REQUESTS,
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
   EXEC_DEFAULT_TIMEOUT_SECONDS,
-  EXEC_MAX_BUDGET_USD,
-  EXEC_MAX_REQUESTS,
-  EXEC_MAX_TIMEOUT_SECONDS,
   EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MODES,
   EXEC_OUTPUTS,
@@ -129,9 +125,7 @@ function budgetUnits(value: unknown): UsdAmount | undefined {
   const units =
     BigInt(whole) * BigInt(EXEC_USD_UNITS) + BigInt(fraction.padEnd(EXEC_USD_DECIMALS, '0'))
   const ZERO_UNITS = 0n
-  return units > ZERO_UNITS && units <= BigInt(EXEC_MAX_BUDGET_USD * EXEC_USD_UNITS)
-    ? Usd.fromUnits(units, EXEC_USD_DECIMALS).toAmount()
-    : undefined
+  return units > ZERO_UNITS ? Usd.fromUnits(units, EXEC_USD_DECIMALS).toAmount() : undefined
 }
 
 function invalid(reason: string): { readonly ok: false; readonly reason: string } {
@@ -233,21 +227,25 @@ export function parseExec(
   if (shellSandbox === undefined) return invalidFlagValue('shell-sandbox', values['shell-sandbox'])
   if (effort === undefined && values['effort'] !== undefined)
     return invalidFlagValue('effort', values['effort'])
+  // A set deadline is any positive safe integer: no provider publishes a run
+  // deadline, so the product sets no maximum (the deadline timer re-arms
+  // past Node's setTimeout ceiling instead of overflowing).
   const timeout = integer(
     values['timeout'],
     EXEC_DEFAULT_TIMEOUT_SECONDS,
     EXEC_MIN_TIMEOUT_SECONDS,
-    EXEC_MAX_TIMEOUT_SECONDS,
+    Number.MAX_SAFE_INTEGER,
   )
-  const maxRequests = integer(
-    values['max-requests'],
-    EXEC_DEFAULT_MAX_REQUESTS,
-    1,
-    EXEC_MAX_REQUESTS,
-  )
+  // No default: without `--max-requests` the run has no request limit. A set
+  // value is any positive safe integer; no provider publishes a maximum.
+  const maxRequests =
+    values['max-requests'] === undefined
+      ? undefined
+      : integer(values['max-requests'], 0, 1, Number.MAX_SAFE_INTEGER)
   const budgetUsd = budgetUnits(values['max-budget-usd'])
   if (timeout === undefined) return invalidFlagValue('timeout', values['timeout'])
-  if (maxRequests === undefined) return invalidFlagValue('max-requests', values['max-requests'])
+  if (maxRequests === undefined && values['max-requests'] !== undefined)
+    return invalidFlagValue('max-requests', values['max-requests'])
   if (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
     return invalid(
       `${fill(UI_TEXT.acpUnknownArgument, { argument: flagArgument('max-budget-usd', values['max-budget-usd']) })}: ${UI_TEXT.execNumberInvalid}`,

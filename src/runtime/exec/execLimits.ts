@@ -2,6 +2,7 @@ import {
   EXEC_FORCE_WRITE_MS,
   EXEC_SIGNAL_DEDUP_MS,
   EXEC_STOP_GRACE_MS,
+  NODE_SET_TIMEOUT_MAX_MS,
   UI_TEXT,
 } from '../../shared/constants'
 import { exitCodeFor, type ExecSignal, type ExecStatus } from './execProtocol'
@@ -119,11 +120,26 @@ export function createLifecycle(input: {
       ),
     )
   }
-  removers.push(
-    input.setTimer(Math.max(0, deadlineMs - input.now()), () => {
-      latch({ kind: 'timeout' })
-    }),
-  )
+  // A set deadline has no maximum of ours, and a delay past Node's setTimeout
+  // ceiling would fire after 1 ms: arm at most the platform ceiling and
+  // re-arm until the deadline is reached, so a large --timeout is honored.
+  let clearDeadline: (() => void) | undefined
+  const armDeadline = (): void => {
+    const delay = Math.max(0, deadlineMs - input.now())
+    if (delay <= NODE_SET_TIMEOUT_MAX_MS) {
+      clearDeadline = input.setTimer(delay, () => {
+        clearDeadline = undefined
+        latch({ kind: 'timeout' })
+      })
+    } else {
+      clearDeadline = input.setTimer(NODE_SET_TIMEOUT_MAX_MS, () => {
+        clearDeadline = undefined
+        armDeadline()
+      })
+    }
+  }
+  armDeadline()
+  removers.push(() => clearDeadline?.())
   for (const signal of ['SIGINT', 'SIGTERM'] as const)
     removers.push(
       input.onSignal(signal, () => {

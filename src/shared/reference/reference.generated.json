@@ -5136,7 +5136,6 @@
         "type": "string",
         "repeatable": false,
         "exclusiveMinimum": 0,
-        "maximum": 20,
         "decimals": 6,
         "required": "modelApi",
         "unit": "USD"
@@ -6686,7 +6685,6 @@
         "type": "string",
         "repeatable": false,
         "exclusiveMinimum": 0,
-        "maximum": 20,
         "decimals": 6,
         "required": "modelApi",
         "unit": "USD",
@@ -6698,14 +6696,7 @@
       "name": "exec: --max-requests <value>",
       "description": "Set the maximum number of model requests.",
       "text": { "cli": "max-requests" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "default": 30,
-        "minimum": 1,
-        "maximum": 500,
-        "purpose": "maxRequests"
-      }
+      "contract": { "type": "string", "repeatable": false, "minimum": 1, "purpose": "maxRequests" }
     },
     {
       "route": "exec",
@@ -6717,7 +6708,6 @@
         "repeatable": false,
         "default": 1800,
         "minimum": 10,
-        "maximum": 21600,
         "unit": "seconds",
         "purpose": "timeoutMs"
       }
