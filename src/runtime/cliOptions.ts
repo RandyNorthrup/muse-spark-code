@@ -75,6 +75,7 @@ const COMMON_OPTIONS = {
   [ACP_PAID_FLAGS.autoCompaction]: { type: 'boolean' },
   [ACP_PAID_FLAGS.webSearch]: { type: 'boolean' },
   [ACP_PAID_FLAGS.imageGeneration]: { type: 'boolean' },
+  [ACP_PAID_FLAGS.voice]: { type: 'boolean' },
   verbose: { type: 'boolean' },
   'questions-defer-after': { type: 'string' },
   help: { type: 'boolean', short: 'h' },
@@ -188,7 +189,6 @@ export const CLI_OPTION_REGISTRY = {
 export const CLI_OPTION_TEXT = {
   'context-window': 'context-window',
   'usage-history': 'usage-history',
-  'muse-voice': 'muse-voice',
   preset: 'preset',
   as: 'as',
   address: 'address',
@@ -214,6 +214,7 @@ export const CLI_OPTION_TEXT = {
   'allow-contributor-models': 'allow-contributor-models',
   'web-search': 'web-search',
   'image-generation': 'image-generation',
+  'muse-voice': 'muse-voice',
   'scheduled-prompts': 'scheduled-prompts',
   verbose: 'verbose',
   'questions-defer-after': 'questions-defer-after',

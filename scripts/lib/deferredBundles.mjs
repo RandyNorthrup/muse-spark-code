@@ -180,6 +180,50 @@ export const DEFERRED = [
     files: ['src/core/backends/modelapi/modelApiHooksEntry.ts'],
   },
   {
+    // M105 W: one production media service per session (D85.13). Neither
+    // activation, the Model API bundle nor ACP carries its closure.
+    output: 'dist/productionMedia.js',
+    metafile: 'dist/meta/productionMedia.json',
+    files: [
+      'src/host/backend/sessionUploads.ts',
+      'src/core/media/productionMedia.ts',
+      'src/core/media/replayMedia.ts',
+      'src/core/media/mediaCost.ts',
+      'src/core/media/mediaCalibration.ts',
+      'src/core/media/metaMediaCapabilities.ts',
+      'src/core/media/responsesMediaCodec.ts',
+      'src/core/media/uploadLedger.ts',
+      'src/core/media/uploadLedgerStorage.ts',
+      // RVMEDIAV3 3: the conversion root's lease and crash reclaim.
+      'src/runtime/privateRootLease.ts',
+    ],
+  },
+  {
+    // M105 lane V seam 3B: Muse Voice's batch transcription, its paid seams
+    // and the trusted converter, loaded on the first turn with attached sound.
+    output: 'dist/productionAudio.js',
+    metafile: 'dist/meta/productionAudio.json',
+    files: [
+      'src/host/backend/productionAudioEntry.ts',
+      'src/core/voice/productionAudio.ts',
+      'src/core/voice/voiceBatchSeams.ts',
+      'src/core/voice/transcribeBatchHttp.ts',
+      'src/core/voice/audioMessagePreparation.ts',
+      'src/runtime/converterTrust.ts',
+    ],
+  },
+  {
+    // M105 lane V seam 5: the runtime's ACP and exec media port and its
+    // attached-media registry, loaded on the first media prompt.
+    output: 'dist/runtimeMedia.js',
+    metafile: 'dist/meta/runtimeMedia.json',
+    files: [
+      'src/runtime/runtimeMediaEntry.ts',
+      'src/acp/mediaPort.ts',
+      'src/runtime/exec/filesTransport.ts',
+    ],
+  },
+  {
     output: 'dist/modelApiMcp.js',
     metafile: 'dist/meta/modelApiMcp.json',
     files: [
@@ -370,6 +414,7 @@ export const RESOURCE_PROCESS_ONLY = [
   'src/core/resources/resourceProcessEntry.ts',
   'src/core/resources/process.ts',
   'src/core/resources/commands.ts',
+  'src/host/backend/mediaJobRun.ts',
 ]
 // The MCP job launch, which the launcher shares with the window's activation.
 export const RESOURCE_PROCESS_SHARED = ['src/host/backend/mcpJobLaunch.ts']
@@ -1098,6 +1143,8 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/backends/modelapi/hookRuntimeEntry.ts'), 'dist/hookRuntime.js'],
   [path.resolve('src/host/web/webFetchEntry.ts'), 'dist/webFetch.js'],
   [path.resolve('src/core/backends/modelapi/pluginHooksEntry.ts'), 'dist/pluginHooks.js'],
+  [path.resolve('src/host/backend/productionAudioEntry.ts'), 'dist/productionAudio.js'],
+  [path.resolve('src/runtime/runtimeMediaEntry.ts'), 'dist/runtimeMedia.js'],
   [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
 ])
 /** @type {import('esbuild').Plugin} */
@@ -1127,7 +1174,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (
@@ -1254,6 +1301,7 @@ export const MODEL_API_BOUNDARY_SOURCES = [
   // INT0170: the Windows path rules and their words, once per process.
   'src/core/windowsPathSpelling.ts',
   'src/core/backends/modelapi/schemas.ts',
+  'src/shared/usageJournal.ts',
   'src/shared/teamConversation.ts',
   'src/shared/paidBoundary.ts',
   'src/shared/usd.ts',
@@ -1272,10 +1320,16 @@ export const sharedModelApiBoundaries = {
     build.onResolve(
       {
         filter:
-          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
+          /\/(?:schemas|sessionStore|usageJournal|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+        // The store owner depends on wire; keep it outside the boundary wire loads.
+        if (source === path.resolve('src/core/backends/modelapi/sessionStore.ts'))
+          return path.resolve(build.initialOptions.outfile ?? '') ===
+            path.resolve('dist/modelApiSessions.js')
+            ? undefined
+            : { path: './modelApiSessions.js', external: true }
         // INT0170: the resource journal, once for the window governor and the usage service.
         if (source === path.resolve(RESOURCE_JOURNAL_SOURCE))
           return path.resolve(build.initialOptions.outfile ?? '') ===
@@ -1307,7 +1361,9 @@ export const sharedModelApiBoundaries = {
             ? undefined
             : { path: './vaultBoundaries.js', external: true }
         }
-        return MODEL_API_BOUNDARY_SOURCES.some((file) => source === path.resolve(file))
+        return path.resolve(build.initialOptions.outfile ?? '') !==
+          path.resolve('dist/modelApiBoundaries.js') &&
+          MODEL_API_BOUNDARY_SOURCES.some((file) => source === path.resolve(file))
           ? { path: './modelApiBoundaries.js', external: true }
           : undefined
       },

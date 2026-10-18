@@ -11,7 +11,10 @@ import {
   type MediaSource,
 } from '../../core/media/limits'
 import { modalityGate, type MediaModelCapabilities } from '../../core/media/modalityGate'
-import { UI_TEXT } from '../../shared/constants'
+import type { MediaContributorConsent } from '../../core/media/contributorConsent'
+import { isMediaAttachRefusal, sourceDigest } from '../../core/media/attachedMedia'
+import { CONTRIBUTOR_MODEL_SUFFIX, UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import { mediaAttachmentRequestSchema } from '../../shared/media'
 import type { AttachmentSummary } from '../../shared/protocol'
 import type { PickedFile } from '../conversation/conversationController'
@@ -43,6 +46,7 @@ export interface MediaAttachmentPort {
     token: string,
     backend: 'museCode' | 'modelApi',
     modelId: string,
+    options?: { readonly isScreenRecording?: boolean },
   ) => Promise<PrepareMediaResult>
   readonly clear: () => void
 }
@@ -50,13 +54,90 @@ export interface MediaAttachmentPort {
 export interface MediaAttachDeps {
   readonly newToken: () => string
   /** Recheck confinement/approval and file identity on every open. */
-  readonly open: (
-    file: PickedFile,
-  ) => Promise<{ readonly source: MediaSource; readonly close: () => Promise<void> } | undefined>
+  readonly open: (file: PickedFile) => Promise<
+    | {
+        readonly source: MediaSource
+        readonly close: () => Promise<void>
+      }
+    | undefined
+  >
   readonly capabilities: (modelId: string) => MediaModelCapabilities
   readonly limits: () => MediaLimits
-  /** Bind the approved private source to M2, including its digest check. */
-  readonly bind: (file: PickedFile, info: MediaFileInfo) => (summary: AttachmentSummary) => TurnPart
+  /** Register the approved source and its digest with the host's attached-media
+   * registry; `release` lets go of it when its chip is discarded. */
+  readonly bind: (
+    file: PickedFile,
+    info: MediaFileInfo,
+    sha256: string,
+  ) => {
+    readonly part: (summary: AttachmentSummary) => TurnPart
+    readonly release: () => void
+  }
+  /** The conversation ends: every registration this port made and no turn holds goes. */
+  readonly release?: () => void
+  /**
+   * D85.7: one `MediaContributorConsent` per port over the editor's own
+   * modal (built by the host, so this bundle stays small). On a contributor
+   * model, video and audio ask once per conversation; a screen recording
+   * always asks. Absent there, the attachment is refused rather than sent
+   * unasked.
+   */
+  readonly chooseContributor?: MediaContributorConsent['choose']
+  /**
+   * Lane V seam 3B: whether this host transcribes attached sound for the
+   * model (Muse Voice on, the Model API key's transcription POST). A
+   * standalone audio file the model does not hear is then admitted, and the
+   * caller says it will be transcribed; absent, the gate's refusal stands.
+   */
+  readonly transcribesSound?: (info: MediaFileInfo, modelId: string) => boolean
+}
+
+/** The model's own gate, or, for audio it does not hear, Muse Voice's transcription. */
+function admission(
+  info: MediaFileInfo,
+  model: MediaModelCapabilities,
+  transcribesSound: MediaAttachDeps['transcribesSound'],
+): ReturnType<typeof modalityGate> {
+  const gate = modalityGate(info, model)
+  return !gate.ok && info.kind === 'audio' && transcribesSound?.(info, model.modelId) === true
+    ? {
+        ok: true,
+        soundtrackWarning: fill(UI_TEXT.media.audioWillTranscribe, { model: model.modelName }),
+      }
+    : gate
+}
+
+/** D85.7's answer for one attachment: proceed, or the reason it was not attached. */
+async function contributorChoice(
+  choose: MediaAttachDeps['chooseContributor'],
+  request: {
+    readonly conversationId: string
+    readonly name: string
+    readonly info: MediaFileInfo
+    readonly modelId: string
+    readonly isScreenRecording: boolean
+  },
+  capabilities: MediaAttachDeps['capabilities'],
+): Promise<{ readonly ok: true } | { readonly ok: false; readonly reason: string }> {
+  const isContributor = request.modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
+  if (!isContributor && !request.isScreenRecording) return { ok: true }
+  if (choose === undefined)
+    return { ok: false, reason: fill(UI_TEXT.media.contributorDeclined, { name: request.name }) }
+  const choice = await choose({ ...request, contributor: isContributor })
+  if (choice === 'send') return { ok: true }
+  if (choice === 'remove')
+    return { ok: false, reason: fill(UI_TEXT.media.contributorDeclined, { name: request.name }) }
+  // The Standard model is gated as itself: its own refusal, or switch and retry.
+  const standard = isContributor
+    ? request.modelId.slice(0, -CONTRIBUTOR_MODEL_SUFFIX.length)
+    : request.modelId
+  const gate = modalityGate(request.info, capabilities(standard))
+  return {
+    ok: false,
+    reason: gate.ok
+      ? fill(UI_TEXT.media.useStandardThenAttach, { model: standard, name: request.name })
+      : gate.reason,
+  }
 }
 
 /** One-use tokens, invalidated with the conversation's attachment generation. */
@@ -76,7 +157,7 @@ export function createMediaAttachments(deps: MediaAttachDeps): MediaAttachmentPo
       files.set(token, file)
       return token
     },
-    prepare: async (token, backend, modelId) => {
+    prepare: async (token, backend, modelId, options) => {
       const file = files.get(token)
       files.delete(token)
       if (file === undefined) return { ok: false, reason: UI_TEXT.attachmentUnreadable }
@@ -94,9 +175,33 @@ export function createMediaAttachments(deps: MediaAttachDeps): MediaAttachmentPo
         if (!limits.ok) return limits
         const model = deps.capabilities(modelId)
         if (model.modelId !== modelId) throw new Error('Media capability model mismatch')
-        const gate = modalityGate(sniffed.info, model)
+        const gate = admission(sniffed.info, model, deps.transcribesSound)
         if (!gate.ok) return gate
-        const part = deps.bind(file, sniffed.info)
+        // The digest the upload ledger dedups by and every reopen must match.
+        const sha256 = await sourceDigest(opened.source)
+        if (epoch !== generation) return { ok: false, reason: UI_TEXT.attachmentUnreadable }
+        const chosen = await contributorChoice(
+          deps.chooseContributor,
+          {
+            conversationId: String(epoch),
+            name: file.name,
+            info: sniffed.info,
+            modelId,
+            isScreenRecording: options?.isScreenRecording === true,
+          },
+          deps.capabilities,
+        )
+        if (!chosen.ok) return chosen
+        if (epoch !== generation) return { ok: false, reason: UI_TEXT.attachmentUnreadable }
+        let bound: ReturnType<MediaAttachDeps['bind']>
+        try {
+          bound = deps.bind(file, sniffed.info, sha256)
+        } catch (error: unknown) {
+          // The registry's bound (RVMEDIAV2): its own translated cause and
+          // recovery reach the chip, in VS Code as in ACP; no read failed.
+          if (isMediaAttachRefusal(error)) return { ok: false, reason: error.message }
+          throw error
+        }
         return {
           ok: true,
           ...(gate.soundtrackWarning !== undefined && {
@@ -109,12 +214,13 @@ export function createMediaAttachments(deps: MediaAttachDeps): MediaAttachmentPo
               sniff: sniffMediaBytes,
               check: (info) =>
                 info === sniffed.info
-                  ? modalityGate(info, model)
+                  ? admission(info, model, deps.transcribesSound)
                   : { ok: false, reason: UI_TEXT.attachmentUnreadable },
               part: (summary, info) => {
                 if (info !== sniffed.info) throw new Error('Media source mismatch')
-                return part(summary)
+                return bound.part(summary)
               },
+              release: bound.release,
             },
           },
         }
@@ -125,6 +231,7 @@ export function createMediaAttachments(deps: MediaAttachDeps): MediaAttachmentPo
     clear: () => {
       generation += 1
       files.clear()
+      deps.release?.()
     },
   }
 }

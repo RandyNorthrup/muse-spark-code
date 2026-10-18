@@ -448,6 +448,10 @@ export function createConfiguredProviderServices(
       throw new ModelApiError(UI_TEXT.mainServiceUnavailable, 0, undefined, undefined)
     return meta
   }
+  // Production media (D85.2): the Files transport rides to the Meta
+  // delegate; a provider set without Meta keeps the established refusal.
+  const filesTransport = meta?.requestFile?.bind(meta)
+  const transcription = meta?.requestTranscription?.bind(meta)
   const base: ProviderClient = {
     hasPaidDailyBudget: meta?.hasPaidDailyBudget ?? false,
     currentKeyDigest: () => delegate().currentKeyDigest(),
@@ -458,6 +462,8 @@ export function createConfiguredProviderServices(
     streamResponse: (body, ...args) => delegate().streamResponse(body, ...args),
     createImage: (...args) => delegate().createImage(...args),
     editImage: (...args) => delegate().editImage(...args),
+    ...(filesTransport !== undefined && { requestFile: filesTransport }),
+    ...(transcription !== undefined && { requestTranscription: transcription }),
   }
   let revision = ''
   let plans = options.loadUsage?.() ?? []

@@ -36,6 +36,7 @@ import { AttachmentStore } from '../../core/attachments'
 import type { MediaAttachmentPort } from '../media/mediaAttach'
 import type { RecordingCommandDeps } from '../media/screenRecordBundle'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
+import type { StampedUploadedFilesPort } from '../backend/uploadedFilesBinding'
 import { isProtectedPath } from '../../core/protectedPaths'
 import {
   type AgentHost,
@@ -230,7 +231,7 @@ import type {
 import type { UsageInsightsReport } from '../../runtime/usage/traceLogs'
 import type { EstimateInputs } from '../../shared/estimate'
 import type { EstimatorRun } from '../estimator/estimatorBundle'
-import { uploadedFilesReportSchema, type UploadedFilesReport } from '../../shared/media'
+import { uploadedFilesReportSchema } from '../../shared/media'
 import type { AuthPort } from '../auth/authService'
 import type { CheckpointPort } from '../checkpoints/checkpointHost'
 import type { DescribedFile, EditReviewActions, ReviewNotice } from '../editor/editReview'
@@ -716,17 +717,13 @@ export interface ConversationDeps {
   readonly log: Logger
 }
 
-/** Lane W supplies the validated webview/MHP messages and the account-scoped ledger. */
-export interface ConversationUploadedFilesPort {
-  read(): Promise<unknown>
-  post(report: UploadedFilesReport): void
-  deleteFile(
-    fileId: string,
-    isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
-  ): Promise<void>
-  deleteAllOurs(): Promise<void>
-  confirmForeign(question: string): Promise<boolean>
-}
+/**
+ * The conversation's uploaded-files port (M105 lane F): one core shape over
+ * the account ledger, bound per host. Lane W supplies the validated
+ * webview/MHP messages and the account-scoped ledger. The once-only backlog
+ * notice rides on the core port's optional `deleteNotice`.
+ */
+export type ConversationUploadedFilesPort = StampedUploadedFilesPort
 
 const IDLE_STATUS = 'idle'
 const NOOP_STATUS = 'noop'
@@ -806,6 +803,8 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'forkSession',
   'renameSession',
   'readUsage',
+  'deleteUploadedFile',
+  'deleteAllUploadedFiles',
   'setPaidFeature',
   'importSession',
   'savePlan',
@@ -835,6 +834,18 @@ function describe(error: unknown): string {
 /** CLI errors are logged by kind/code; their message is for the redacted panel only. */
 function describeForLog(error: unknown): string {
   return isMspFailure(error) ? failureForLog(error) : describe(error)
+}
+
+// The ledger's explicit deletion failure, read by its fixed name: the ledger
+// rides in another bundle, so instanceof would compare across class copies.
+// fileName carries the file's display name, never its id.
+export function isUploadDeleteFailed(error: unknown): error is Error & { fileName: string } {
+  return (
+    error instanceof Error &&
+    error.name === 'UploadDeleteFailedError' &&
+    'fileName' in error &&
+    typeof error.fileName === 'string'
+  )
 }
 
 // The two tables below are built when used, never at module load: the
@@ -9181,7 +9192,7 @@ export class ConversationController {
       if (!isCurrent()) return undefined
       if (port === undefined) {
         // No port is an unbound pipeline, not an unreadable file (M105 E1 review).
-        rejected(UI_TEXT.media.uploadStorageUnknown)
+        rejected(UI_TEXT.media.uploadUnavailable)
         return
       }
       this.mediaAttachments = port
@@ -9190,7 +9201,9 @@ export class ConversationController {
         rejected(UI_TEXT.attachmentUnreadable)
         return
       }
-      const prepared = await port.prepare(pathToken, host.info.kind, this.modelId)
+      const prepared = await port.prepare(pathToken, host.info.kind, this.modelId, {
+        isScreenRecording,
+      })
       if (!isCurrent()) return undefined
       if (!prepared.ok) {
         rejected(prepared.reason)
@@ -9217,11 +9230,11 @@ export class ConversationController {
       rejected(result.reason)
       return
     } catch (error: unknown) {
-      // The unbound pipeline (W's throwing bind until U6c) keeps its own
-      // words; only a genuine read failure is unreadable (M105 E1 review).
+      // An unbound pipeline keeps its own words; only a genuine read
+      // failure is unreadable (M105 E1 review).
       rejected(
-        error instanceof Error && error.message === UI_TEXT.media.uploadStorageUnknown
-          ? UI_TEXT.media.uploadStorageUnknown
+        error instanceof Error && error.message === UI_TEXT.media.uploadUnavailable
+          ? UI_TEXT.media.uploadUnavailable
           : UI_TEXT.attachmentUnreadable,
       )
       return
@@ -10820,6 +10833,14 @@ export class ConversationController {
         await this.readUsage()
         break
       }
+      case 'deleteUploadedFile': {
+        await this.deleteUploadedFiles(message.fileId)
+        break
+      }
+      case 'deleteAllUploadedFiles': {
+        await this.deleteUploadedFiles()
+        break
+      }
       case 'setPaidFeature': {
         await this.deps.setPaidFeature(message.feature, message.isOn)
         break
@@ -10977,41 +10998,89 @@ export class ConversationController {
     this.postStartupNotice()
   }
 
-  /** Kept independent of backend sign-in so a removed key still shows retained expiry. */
-  public async readUploadedFiles(): Promise<void> {
+  /**
+   * Kept independent of backend sign-in so a removed key still shows
+   * retained expiry. The list belongs to an account and a read generation:
+   * a report (or failure) from a previous account or generation is dropped
+   * on both paths, never posted over the new account's view.
+   */
+  public async readUploadedFiles(signal?: AbortSignal): Promise<void> {
     const port = this.deps.uploadedFiles
     if (port === undefined || !this.canPostUploadedFiles()) return
+    signal?.throwIfAborted()
+    const authGeneration = this.deps.auth.admissionGeneration
+    const accountId = await this.deps.voiceAccountId()
+    // The generation is compared after the account lookup resolves: a
+    // generation change that lands during that await still drops the stale
+    // read. The post carries the read's own immutable stamp, never the
+    // latest one a newer read may have set since.
+    const isCurrent = async () =>
+      (await this.deps.voiceAccountId()) === accountId &&
+      this.canPostUploadedFiles() &&
+      this.deps.auth.admissionGeneration === authGeneration
     try {
-      const report = uploadedFilesReportSchema.parse(await port.read())
-      if (this.canPostUploadedFiles()) port.post(report)
+      // THE CANCEL SIGNAL REACHES EVERY CLEANUP (round 4, P2-4): the read
+      // carries the turn's signal, so its retry and sweep delete nothing
+      // after a cancel.
+      const stamped = await port.readStamped(signal)
+      const report = uploadedFilesReportSchema.parse(stamped.report)
+      if (await isCurrent())
+        port.post(report, { accountId: stamped.accountId, generation: stamped.generation })
+      // Provider deletions that keep failing are told once, here, as a count
+      // only: no file name and no file id ever reaches this notice
+      // (ported RVAPP-PORTM105R4 P2-B).
+      const notice = await port.deleteNotice?.()
+      if (notice !== undefined && (await isCurrent()))
+        this.say(
+          'warning',
+          plural(UI_TEXT.media.uploadDeleteBacklog, notice.count, {
+            provider: notice.provider,
+          }),
+        )
     } catch (error: unknown) {
-      if (this.canPostUploadedFiles())
-        this.say('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
+      if (await isCurrent()) this.say('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
     }
   }
 
   /** Called only by the integration's explicit account UI/command action. */
-  public async deleteUploadedFiles(fileId?: string): Promise<void> {
+  public async deleteUploadedFiles(fileId?: string, signal?: AbortSignal): Promise<void> {
     if (!this.canPostUploadedFiles()) return
+    signal?.throwIfAborted()
     const port = this.deps.uploadedFiles
     if (port === undefined) {
       this.say('error', UI_TEXT.usageUnavailable)
       return
     }
     try {
-      if (fileId === undefined) await port.deleteAllOurs()
+      // A cancel that landed while the dialog or the command waited here
+      // deletes nothing.
+      signal?.throwIfAborted()
+      if (fileId === undefined) await port.deleteAllOurs(signal)
       else
-        await port.deleteFile(fileId, (name) =>
-          port.confirmForeign(fill(UI_TEXT.media.otherAppFileConfirmation, { name })),
+        await port.deleteFile(
+          fileId,
+          (name) => port.confirmForeign(fill(UI_TEXT.media.otherAppFileConfirmation, { name })),
+          signal,
         )
-      await this.readUploadedFiles()
+      // The listing after the delete carries the signal too (P2-4).
+      await this.readUploadedFiles(signal)
     } catch (error: unknown) {
+      // The notice names the file's display name, never its id, with a fixed
+      // reason: the provider's message echoes the id (RVAPP-PORTM105R4 P3-4).
       if (this.canPostUploadedFiles())
         this.say(
           'error',
           fill(UI_TEXT.media.uploadDeleteFailed, {
-            name: fileId ?? UI_TEXT.media.uploadedFiles,
-            reason: describe(error),
+            // The ledger lives in another bundle (D6 diet), so its failure is
+            // read by its fixed name rather than instanceof: each bundle
+            // carries its own copy of the class. The name is set by
+            // UploadDeleteFailedError and never minified away.
+            name: isUploadDeleteFailed(error)
+              ? error.fileName
+              : (fileId ?? UI_TEXT.media.uploadedFiles),
+            reason: isUploadDeleteFailed(error)
+              ? UI_TEXT.media.uploadDeleteProviderRefused
+              : describe(error),
           }),
         )
     }

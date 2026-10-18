@@ -337,8 +337,37 @@ export interface InputFilePart {
   readonly file_data: string
 }
 
+/**
+ * A file the provider already holds (M105, D85.2): the upload's id replays
+ * instead of its bytes. Captured on the wire in
+ * `docs/research/m105-captures/` (round 1 U6b `input_file`, round 3 I13/I12
+ * `input_image` at every detail, round 1/2/3 `input_video` with and without
+ * `fps`); only the replay codec mints these, never the request builder.
+ */
+export interface InputUploadedFilePart {
+  readonly type: 'input_file'
+  readonly file_id: string
+}
+
+/** An image the provider already holds: `file_id` plus the captured detail. */
+export interface InputUploadedImagePart {
+  readonly type: 'input_image'
+  readonly file_id: string
+  readonly detail: 'auto' | 'low' | 'high' | 'original'
+}
+
+/** A video the provider already holds: `file_id`, plus `fps` when explicit. */
+export interface InputVideoPart {
+  readonly type: 'input_video'
+  readonly file_id: string
+  readonly fps?: number | undefined
+}
+
 export type InputContentPart =
   | InputFilePart
+  | InputUploadedFilePart
+  | InputUploadedImagePart
+  | InputVideoPart
   | { readonly type: 'input_text'; readonly text: string }
   | { readonly type: 'input_image'; readonly image_url: string; readonly detail: 'auto' }
   | {

@@ -75,6 +75,17 @@ const BUDGETS = [
   // rounded up to 25 KiB. Existing Model API cap stays fixed.
   { path: 'dist/modelApiHooks.js', budgetKiB: 50 },
   { path: 'dist/modelApiMcp.js', budgetKiB: 75 },
+  // M105 W production media (replay, estimator, seeds, codec, upload ledger,
+  // session uploads): 66.2 KiB measured +15%, rounded up to 25 KiB. It
+  // returned dist/modelApi.js under its unchanged 525 KiB cap.
+  { path: 'dist/productionMedia.js', budgetKiB: 100 },
+  // M105 lane V seam 3B: transcription and the trusted converter, loaded on
+  // the first turn that carries attached sound: 58.4 KiB measured +15%,
+  // rounded up to 25 KiB.
+  { path: 'dist/productionAudio.js', budgetKiB: 75 },
+  // M105 lane V seam 5: the runtime's ACP and exec media port, loaded on the
+  // first media prompt: 52.5 KiB measured +15%, rounded up to 25 KiB.
+  { path: 'dist/runtimeMedia.js', budgetKiB: 75 },
   { path: 'dist/runtimeAccounting.js', budgetKiB: 50 },
   // TRAIN15E: credentials/model references only; 7.7 KiB +15%, rounded to 25 KiB.
   { path: 'dist/providerPolicy.js', budgetKiB: 25 },
@@ -157,6 +168,10 @@ const BUDGETS = [
   // sniffers, limits and modality gate), loaded on first attach: 21.0 KiB
   // after the USD split. Measured size plus 15%, rounded up to 25 KiB.
   { path: 'dist/media.js', budgetKiB: 25 },
+  // RVMEDIAV 8: the window's attached-media registry, the attach port's open
+  // hook and contributor consent, loaded on the first attach beside
+  // dist/media.js: 18.1 KiB measured. Measured size plus 15%, rounded up to 25 KiB.
+  { path: 'dist/mediaHost.js', budgetKiB: 25 },
   // M105 lane W: the screen-recording command with the R1-R3 platform
   // drivers, loaded on the first recording command: 30.2 KiB when split
   // out. Measured size plus 15%, rounded up to 25 KiB.

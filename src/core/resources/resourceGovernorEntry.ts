@@ -29,6 +29,9 @@ import { WindowsResourceTreeReader } from './trees/windows'
 import type { ResourceAdmission, ResourceLaunchRequest } from './queue'
 // POSTSPAWN: the launcher and helper preparation live in dist/resourceProcess.js.
 export { createResources } from '../../runtime/resources/entry'
+// M105 lanes V and VB: the converter's macOS RSS sampler reads through this
+// bundle's policy modules, so it ships here and loads with it.
+export { macRssSampler } from '../media/macRss'
 // U–C1: the window's status item and pause notices load with the governor, never at activation.
 export {
   createResourceStatus,

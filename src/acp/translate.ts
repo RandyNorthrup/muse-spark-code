@@ -710,7 +710,7 @@ async function blockPart(
       if (media !== undefined) return await media.block(block, signal)
       // No port on the Model API backend is an unbound pipeline, not a
       // reason to switch backends (M105 E2 review).
-      return canAcceptDocuments ? UI_TEXT.media.uploadStorageUnknown : UI_TEXT.media.museCodeRefusal
+      return canAcceptDocuments ? UI_TEXT.media.uploadUnavailable : UI_TEXT.media.museCodeRefusal
     }
     case 'resource': {
       const { resource } = block
@@ -751,7 +751,7 @@ async function blockPart(
     }
     case 'audio': {
       if (media !== undefined) return await media.block(block, signal)
-      return canAcceptDocuments ? UI_TEXT.media.uploadStorageUnknown : UI_TEXT.media.museCodeRefusal
+      return canAcceptDocuments ? UI_TEXT.media.uploadUnavailable : UI_TEXT.media.museCodeRefusal
     }
     default: {
       return fill(UI_TEXT.media.attachmentUnknownType, { type: 'content' })

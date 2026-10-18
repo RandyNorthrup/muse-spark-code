@@ -798,8 +798,8 @@ describe('chat codec request goldens', () => {
       encodeChatRequest(off, 'deepseek-flash', locked)
       expect.unreachable()
     } catch (error) {
-      expect(error).toBeInstanceOf(Error)
-      expect((error as Error).name).toBe('ChatCodecError')
+      if (!(error instanceof Error)) throw new Error('expected a codec refusal', { cause: error })
+      expect(error.name).toBe('ChatCodecError')
     }
     // A preset without the switch keeps the base behaviour for any effort.
     expect(encodeChatRequest(unknown, 'm', OPENROUTER).body.reasoning).toEqual({ effort: 'ultra' })

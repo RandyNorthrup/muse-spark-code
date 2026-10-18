@@ -92,6 +92,11 @@ export interface TransportDeps {
   readonly sendFailure?: (error: unknown) => string
 }
 
+/** U18's captured route: one fresh lowercase session UUID per POST, nothing else. */
+const TRANSCRIPTION_ROUTE =
+  /^\/asr\/transcribe\?sessionId=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u
+const MULTIPART_PREFIX = 'multipart/form-data; boundary='
+
 /** The stream has already reported its failure; cancellation must not add a second one. */
 export function ignoreClosingError(): void {
   // Nothing to add after the response failure.
@@ -606,6 +611,39 @@ export class RequestTransport {
     }
   }
 
+  /** One direct request on the configured endpoint and key: no retry, no redirect. */
+  private async sendDirect(
+    route: string,
+    method: 'GET' | 'POST' | 'DELETE',
+    signal: AbortSignal,
+    multipart:
+      { readonly body: ReadableStream<Uint8Array>; readonly contentType: string } | undefined,
+    expectedAccountId: string | undefined,
+    beforeFetch?: () => void,
+  ): Promise<{ readonly response: Response; readonly redact: (text: string) => string }> {
+    const credentials = await this.headers(this.deps.baseUrl)
+    signal.throwIfAborted()
+    if (expectedAccountId !== undefined && credentials.keyDigest !== expectedAccountId)
+      throw new Error(UI_TEXT.media.filesReadOnly)
+    const init: RequestInit & { readonly duplex?: 'half' } = {
+      method,
+      headers: {
+        Authorization: credentials.values['Authorization'] ?? '',
+        Accept: JSON_MEDIA_TYPE,
+        ...(multipart !== undefined && { 'Content-Type': multipart.contentType }),
+      },
+      redirect: 'error',
+      signal,
+      ...(multipart !== undefined && { body: multipart.body, duplex: 'half' }),
+    }
+    await this.deps.verifyEndpoint?.(`${this.deps.baseUrl}${route}`)
+    signal.throwIfAborted()
+    // The caller's final admission, in the same tick as the fetch.
+    beforeFetch?.()
+    const response = await this.deps.fetch(`${this.deps.baseUrl}${route}`, init)
+    return { response, redact: credentials.redact }
+  }
+
   /** Bound headers and every body read, without timing local admission, backoff or consumers. */
   public async fetchWithIdleDeadline(url: string, init: RequestInit): Promise<Response> {
     const idleMs = this.deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
@@ -682,32 +720,44 @@ export class RequestTransport {
   ): Promise<Response> {
     if (!/^\/files(?:\?after=file-[A-Za-z0-9_-]+|\/file-[A-Za-z0-9_-]+)?$/u.test(route))
       throw new Error('Invalid Files route')
-    const credentials = await this.headers(this.deps.baseUrl)
-    signal.throwIfAborted()
-    if (expectedAccountId !== undefined && credentials.keyDigest !== expectedAccountId)
-      throw new Error(UI_TEXT.media.filesReadOnly)
-    const init: RequestInit & { readonly duplex?: 'half' } = {
-      method,
-      headers: {
-        Authorization: credentials.values['Authorization'] ?? '',
-        Accept: JSON_MEDIA_TYPE,
-        ...(multipart !== undefined && { 'Content-Type': multipart.contentType }),
-      },
-      redirect: 'error',
+    const sent = await this.sendDirect(route, method, signal, multipart, expectedAccountId)
+    if (!sent.response.ok)
+      throw await describeFailure(sent.response, this.deps.parseError, sent.redact, this.deps.now())
+    return sent.response
+  }
+
+  /**
+   * U18 / D85.5: the batch transcription POST, and nothing else. The route is
+   * the captured `/asr/transcribe?sessionId=<uuid>`; the body is the
+   * adapter's multipart. Unlike Files, a refusal is not thrown: the adapter
+   * reads the captured 400 body ("The 'audio' part must be…"). The body is
+   * read bounded and the key redacted before it is handed back. One attempt:
+   * a charged POST is never retried here. `dispatch` is the paid admission,
+   * run after the key and endpoint checks, immediately before the fetch.
+   */
+  public async requestTranscription(
+    route: string,
+    signal: AbortSignal,
+    multipart: { readonly body: ReadableStream<Uint8Array>; readonly contentType: string },
+    expectedAccountId: string | undefined,
+    dispatch: () => void,
+  ): Promise<Response> {
+    if (!TRANSCRIPTION_ROUTE.test(route) || !multipart.contentType.startsWith(MULTIPART_PREFIX))
+      throw new Error('Invalid transcription route')
+    const sent = await this.sendDirect(
+      route,
+      'POST',
       signal,
-      ...(multipart !== undefined && { body: multipart.body, duplex: 'half' }),
-    }
-    await this.deps.verifyEndpoint?.(`${this.deps.baseUrl}${route}`)
-    signal.throwIfAborted()
-    const response = await this.deps.fetch(`${this.deps.baseUrl}${route}`, init)
-    if (!response.ok)
-      throw await describeFailure(
-        response,
-        this.deps.parseError,
-        credentials.redact,
-        this.deps.now(),
-      )
-    return response
+      multipart,
+      expectedAccountId,
+      dispatch,
+    )
+    const text = sent.redact(await readBoundedText(sent.response))
+    return new Response(text, {
+      status: sent.response.status,
+      statusText: sent.response.statusText,
+      headers: { 'Content-Type': sent.response.headers.get('Content-Type') ?? JSON_MEDIA_TYPE },
+    })
   }
 
   public async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {

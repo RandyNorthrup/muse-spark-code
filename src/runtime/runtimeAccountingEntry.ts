@@ -20,6 +20,7 @@ import type { SessionBudgetClaim } from '../core/backends/modelapi/sessionBudget
 import type { ResponseObject } from '../core/backends/modelapi/schemas'
 import {
   EXEC_USD_DECIMALS,
+  MEDIA_CONVERTER_PATH_MAX_CHARS,
   HTTP_TOO_MANY_REQUESTS,
   PAID_DAILY_BUDGET,
   RUNTIME_SETTINGS_FILE,
@@ -37,6 +38,8 @@ const settingsSchema = z.strictObject({
       .number()
       .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
   ),
+  // M105 lane V: the converter path shares this machine file (runtimeConverterPath.ts).
+  mediaConverterPath: z.optional(z.string().check(z.maxLength(MEDIA_CONVERTER_PATH_MAX_CHARS))),
 })
 const dailyLimitSchema = z.object({ limitUsd: legacyUsdSchema, stopped: z.boolean() })
 const ceilUsd = (cost: UsdAmount) => Usd.from(cost).ceiling(EXEC_USD_DECIMALS).toAmount()
@@ -305,6 +308,14 @@ export function withRuntimeAccounting(
     waitBeforeRetry: client.waitBeforeRetry.bind(client),
     createImage: client.createImage.bind(client),
     editImage: client.editImage.bind(client),
+    // Production media (D85.2): the Files transport rides through runtime
+    // accounting untouched; a wrapped client without it keeps the refusal.
+    ...(client.requestFile !== undefined && {
+      requestFile: client.requestFile.bind(client),
+    }),
+    ...(client.requestTranscription !== undefined && {
+      requestTranscription: client.requestTranscription.bind(client),
+    }),
     hasPaidDailyBudget: client.hasPaidDailyBudget,
     ...(client.provider !== undefined && { provider: client.provider }),
     ...(client.modelContextLimit !== undefined && {

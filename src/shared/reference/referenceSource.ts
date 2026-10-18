@@ -171,6 +171,12 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   ]),
   ...['search'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']]),
+  // M105 lane F: Delete Uploaded Files and ACP /uploads over the account
+  // ledger, where the Model API backend runs.
+  ...['uploads'].map((id): [string, readonly string[]] => [
+    id,
+    ['vscode:modelApi', 'acp:modelApi'],
+  ]),
 ]
 export const REFERENCE_CAPABILITIES = Object.fromEntries<readonly string[]>(capabilityPairs)
 export const REFERENCE_FEATURE_IDS = Object.keys(REFERENCE_CAPABILITIES)
@@ -310,6 +316,8 @@ export const REFERENCE_ACTION_FEATURES = {
   showPlans: 'plans',
   renameSession: 'conversation-actions',
   readUsage: 'chat',
+  deleteUploadedFile: 'uploads',
+  deleteAllUploadedFiles: 'uploads',
   dictation: 'chat',
   setPaidFeature: 'budget',
   forgetPaidUse: 'budget',

@@ -24,6 +24,7 @@ import {
   LEGAL_HEADER_POLICIES,
   type LegalHeaderPolicy,
   MEDIA_AUDIO_ACTION_OPTIONS,
+  MEDIA_CONVERTER_PATH_MAX_CHARS,
   MEDIA_MAX_UPLOAD_MIB,
   MEDIA_UPLOAD_EXPIRY_MAX_DAYS,
   MEDIA_UPLOAD_EXPIRY_MIN_DAYS,
@@ -179,6 +180,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly mediaUploadExpiryDays: number
   readonly screenRecordingMaxSeconds: number
   readonly mediaAudioAction: (typeof MEDIA_AUDIO_ACTION_OPTIONS)[number]
+  /** M105 lane V: an absolute converter path; empty uses documented installs only. */
+  readonly mediaConverterPath: string
   /** M108 (PLAN.md D88.5): swap at the next request boundary; on by default. */
   readonly accountSwap: boolean
   /** M108 (PLAN.md D88.5): spread background work across accounts; on by default. */
@@ -320,6 +323,7 @@ const settingSchemas = {
     .int()
     .check(z.gte(SCREEN_RECORDING_MIN_SECONDS), z.lte(SCREEN_RECORDING_MAX_SECONDS)),
   mediaAudioAction: z.enum(MEDIA_AUDIO_ACTION_OPTIONS),
+  mediaConverterPath: z.string().check(z.maxLength(MEDIA_CONVERTER_PATH_MAX_CHARS)),
   accountSwap: z.boolean(),
   accountParallel: z.boolean(),
   'accounts.severalOnThisDevice': z.boolean(),
@@ -461,6 +465,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     mediaUploadExpiryDays: readSetting(config, 'mediaUploadExpiryDays', log),
     screenRecordingMaxSeconds: readSetting(config, 'screenRecordingMaxSeconds', log),
     mediaAudioAction: readSetting(config, 'mediaAudioAction', log),
+    mediaConverterPath: readSetting(config, 'mediaConverterPath', log),
     accountSwap: SETTING_DEFAULTS.accountSwap,
     accountParallel: SETTING_DEFAULTS.accountParallel,
     'accounts.severalOnThisDevice': SETTING_DEFAULTS['accounts.severalOnThisDevice'],

@@ -382,7 +382,12 @@ export interface ToolContext {
   readonly contextTokens?: number | undefined
   /** W binds selected-model admission, consent, exact reservation and the session upload ledger. */
   readonly media?:
-    | { readonly prepare: (file: ReadMediaFile, signal?: AbortSignal) => Promise<UploadedMediaRef> }
+    | {
+        readonly prepare: (file: ReadMediaFile, signal?: AbortSignal) => Promise<UploadedMediaRef>
+        /** The session's one media admission for an inline image/PDF read:
+         * throws the honest refusal when capped and unmeasurable. */
+        readonly admitVisual?: (visual: ImagePart | DocumentPart) => void
+      }
     | { readonly reason: string }
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
@@ -1202,7 +1207,7 @@ async function readMediaFile(
   const unavailable =
     context.media !== undefined && 'reason' in context.media
       ? context.media.reason
-      : UI_TEXT.media.uploadStorageUnknown
+      : UI_TEXT.media.uploadUnavailable
   if (readMedia === undefined) return failure(unavailable)
   try {
     context.signal?.throwIfAborted()
@@ -1375,7 +1380,23 @@ async function readVisual(
       fill(UI_TEXT.toolVisualFileMissing, { path: file.relative }),
     )
   }
-  return kind === 'pdf' ? pdfOutcome(file.relative, bytes) : imageOutcome(file.relative, bytes)
+  const outcome =
+    kind === 'pdf' ? pdfOutcome(file.relative, bytes) : imageOutcome(file.relative, bytes)
+  if (outcome.visibleFile === undefined) return outcome
+  // The read stays inline on the wire, admitted through the session's one
+  // media path before the model reads "the file follows": priced at the
+  // seeded bound, refused with the honest reason when capped and
+  // unmeasurable. The same admission runs again when the bytes are sent.
+  if (context.media === undefined || 'reason' in context.media) return outcome
+  const admitVisual = context.media.admitVisual
+  if (admitVisual === undefined) return outcome
+  try {
+    admitVisual(outcome.visibleFile.part)
+  } catch (error: unknown) {
+    const reason = error instanceof Error ? error.message : String(error)
+    return failure(reason)
+  }
+  return outcome
 }
 
 /** Whether the permission settings deny the tools this confined path (M78). */

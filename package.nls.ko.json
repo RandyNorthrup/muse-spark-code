@@ -225,6 +225,7 @@
   "config.mediaUploadExpiryDays.description": "정리를 제안하기 전에 제공업체 업로드가 목록에 남아 있는 일수. 기본값 7, 1–30. 만료는 제공업체가 결정하며, 다른 세션이 참조 중인 업로드는 삭제되지 않습니다. 이 컴퓨터의 설정만 사용됩니다.",
   "config.screenRecordingMaxSeconds.description": "확장이 캡처하는 가장 긴 화면 녹화(초). 기본값 120, 10–600. 녹화는 제한에서 중지되고 캡처한 내용을 유지합니다. 이 컴퓨터의 설정만 사용됩니다.",
   "config.mediaAudioAction.description": "`transcribe`는 첨부된 오디오를 보내기 전에 텍스트로 변환하고, `sendAudio`는 모델이 받는 경우 오디오를 보냅니다. 기본값은 전사입니다. 전사에는 유료 음성 요금이 청구되며, 항상 사전 동의 후에만 진행됩니다. 이 컴퓨터의 설정만 사용됩니다.",
+  "config.mediaConverterPath.description": "첨부한 오디오와 동영상을 전사용으로 변환할 때 이 컴퓨터가 사용하는 ffmpeg의 절대 경로입니다. 기본값은 비어 있으며, 문서화된 설치 위치만 사용합니다(Windows는 Program Files와 winget, macOS는 Homebrew와 MacPorts, Linux는 /usr/bin과 /usr/local/bin). PATH는 사용하지 않습니다. 여기에 설정한 경로가 유일한 후보이며, 신뢰할 수 있는 경로 확인을 통과하지 못하면 이유와 함께 변환이 거부됩니다. 런처 심은 거부됩니다. 이 컴퓨터의 설정만 사용됩니다.",
   "config.accountSwap.description": "호환성을 위해 저장됩니다. 이 설정은 이 빌드에서 효과가 없습니다.",
   "config.accountParallel.description": "호환성을 위해 저장됩니다. 이 설정은 이 빌드에서 효과가 없습니다.",
   "config.accounts.severalOnThisDevice.description": "호환성을 위해 저장됩니다. 이 설정은 이 빌드에서 효과가 없습니다.",

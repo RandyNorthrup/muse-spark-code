@@ -433,7 +433,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
 M105 media commands are parsed between turns: `/attach <path>` confines an
 approved local source; `/record` requires an interactive recorder and private
-preview before Attach. Embedded PDF/image blobs keep their established routes;
+preview before Attach; `/uploads` lists the account's uploaded files and
+`/uploads delete <file>` (or `delete-all`) deletes them early through the
+provider, keeping a file another app may still use. Embedded PDF/image blobs keep their established routes;
 video/audio blobs and media links require the selected-model media port.
 Ordinary source links remain mentions and URLs remain links. A missing media
 binding refuses before dispatch; it never claims that bytes were delivered.

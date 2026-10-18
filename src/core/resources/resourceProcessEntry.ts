@@ -7,3 +7,6 @@
 // instead (src/runtime/resources/jobs.ts), outside this module's graph.
 export { spawnResourceProcess } from './process'
 export { execResourceFile, handoffResourceFile } from './commands'
+
+// M105: Windows conversion uses the same owned process infrastructure.
+export { jobMemoryLimitedRun } from '../../host/backend/mediaJobRun'
