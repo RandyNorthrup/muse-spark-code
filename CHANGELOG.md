@@ -249,6 +249,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The ACP agent's packager no longer demands helpers only another OS builds:
+  like the per-platform `.vsix`, each pack now carries only its own
+  platform's built helpers (the darwin helper stays required on macOS, the
+  current architecture's Linux helpers on Linux, the Windows C# sources
+  everywhere). A foreign helper that is absent is skipped with a warning;
+  CI still composes every platform's helpers and its content check still
+  requires them all, so the release tarball is unchanged.
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
   `htmlToMarkdown` had no callers (both backends convert through
   `convertHtmlJob` on the page worker), so it was removed. No behaviour
