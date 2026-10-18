@@ -1,10 +1,8 @@
 import {
-  type VaultApprovalRequest,
   type VaultBinding,
   type VaultGrant,
   type VaultItemMetadata,
   type VaultRequester,
-  type VaultTicket,
   type VaultUse,
 } from '../../../../src/shared/vault'
 
@@ -45,35 +43,6 @@ export function use(): Extract<VaultUse, { kind: 'environment' }> {
     kind: 'environment',
     command: { executable: '/usr/bin/tool', argv: ['--check'], cwd: '/workspace' },
     names: ['SERVICE_TOKEN'],
-  }
-}
-export function approval(): VaultApprovalRequest {
-  return {
-    id: 'a'.repeat(32),
-    requester: requester(),
-    item: metadata(),
-    use: use(),
-    digest: 'b'.repeat(64),
-    nonce: 'c'.repeat(32),
-    createdAt: 0,
-    expiresAt: 120_000,
-    lockEpoch: 0,
-    taint: { tainted: false, reasons: [] },
-  }
-}
-export function ticket(): VaultTicket {
-  const request = approval()
-  return {
-    id: 'e'.repeat(32),
-    requestId: request.id,
-    requesterId: request.requester.id,
-    itemId: request.item.id,
-    digest: request.digest,
-    nonce: request.nonce,
-    issuedAt: request.createdAt,
-    expiresAt: request.expiresAt,
-    lockEpoch: request.lockEpoch,
-    maxUses: 1,
   }
 }
 export function grant(): VaultGrant {
