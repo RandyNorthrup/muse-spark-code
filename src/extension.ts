@@ -365,7 +365,6 @@ import { latestLinuxRecording } from './core/media/record/linux'
 import type { ScreenRecordingPreview } from './core/media/record/driver'
 import { loadVaultControls, registerVaultCommands } from './host/vault/vaultPanelBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
-import { askPaidUse } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
 import {
   modelsPanelLoader,
@@ -377,6 +376,7 @@ import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
 import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 import { paidBundleLoader } from './host/paid/paidBundle'
 import type { PaidFeatures } from './host/paid/paidHost'
+import type { askPaidUse as askPaidUseFn } from './host/paid/paidEntry'
 import { authBundleLoader } from './host/auth/authBundle'
 import type { AuthPort, AuthService } from './host/auth/authService'
 
@@ -3729,7 +3729,17 @@ async function activateWindow(
             capUsd: () => dailyPaid.capUsd(),
             isActive: isScheduleActive,
             isOn: (feature) => paid.gate.isOn(feature),
-            ask: ({ request }) => askPaidUse(request, vscode.workspace.isTrusted),
+            ask: async ({ request }) => {
+              let entry: { readonly askPaidUse: typeof askPaidUseFn }
+              try {
+                entry = await import('./host/paid/paidEntry.js')
+              } catch {
+                throw new Error(
+                  'the paid.js bundle could not be loaded; paid consent is unavailable',
+                )
+              }
+              return await entry.askPaidUse(request, vscode.workspace.isTrusted)
+            },
             reserve: async (schedule, amount, signal) => {
               signal.throwIfAborted()
               assertScheduleOwnCap(schedule, amount)

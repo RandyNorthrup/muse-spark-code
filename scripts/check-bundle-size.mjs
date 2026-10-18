@@ -106,6 +106,11 @@ const BUDGETS = [
   // scheduler, delivery, time, events, registry, control and engine), loaded
   // on first schedule use: 167.8 KiB measured, plus 15%, rounded up to 25 KiB.
   { path: 'dist/schedules.js', budgetKiB: 200 },
+  // SCHEDULEDELIVERY: the schedules' editor-delivery binding (workspace
+  // targets, run dispatch, grant checks), loaded on the first delivery:
+  // 36.2 KiB when split out (2026-10-18); 36.2 x 1.15 = 41.7 KiB, rounded
+  // up to the next 25 KiB multiple (PLAN.md D6).
+  { path: 'dist/scheduleDelivery.js', budgetKiB: 50 },
   // The review (M70): git's material, the review turn's text, the Plan-mode
   // hold and edit review, loaded the first time one is used: 40.6 KiB when
   // split out, plus room (PLAN.md D6).

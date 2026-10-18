@@ -147,6 +147,10 @@ const TEAM_RUNNERS_OUTFILE = 'dist/teamRunners.js'
 // M115 W: v1's Model API schedules re-exported beside the v2 runtime binding.
 const SCHEDULES_ENTRY = 'src/runtime/schedules/schedulesBundle.ts'
 const SCHEDULES_OUTFILE = 'dist/schedules.js'
+// SCHEDULEDELIVERY: the schedules' editor-delivery binding (workspace
+// targets, run dispatch, grant checks), loaded on the first delivery.
+const SCHEDULE_DELIVERY_ENTRY = 'src/host/schedules/scheduleDeliveryEntry.ts'
+const SCHEDULE_DELIVERY_OUTFILE = 'dist/scheduleDelivery.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
 const REVIEWER_OUTFILE = 'dist/reviewer.js'
 // M91 lane W: the adapters for hooks imported in another agent's format,
@@ -462,6 +466,13 @@ const schedulesOptions = {
   ...modelApiOptions,
   entryPoints: [SCHEDULES_ENTRY],
   outfile: SCHEDULES_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const scheduleDeliveryOptions = {
+  ...schedulesOptions,
+  entryPoints: [SCHEDULE_DELIVERY_ENTRY],
+  outfile: SCHEDULE_DELIVERY_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1261,6 +1272,7 @@ if (isWatch) {
     esbuild.context(sessionBoardOptions),
     esbuild.context(referenceOptions),
     esbuild.context(schedulesOptions),
+    esbuild.context(scheduleDeliveryOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(teamOptions),
     esbuild.context(teamRunnersOptions),
@@ -1388,6 +1400,7 @@ if (isWatch) {
     reportingPanel: () => esbuild.build(reportingPanelOptions),
     reference: () => esbuild.build(referenceOptions),
     schedules: () => esbuild.build(schedulesOptions),
+    scheduleDelivery: () => esbuild.build(scheduleDeliveryOptions),
     reviewer: () => esbuild.build(reviewerOptions),
     team: () => esbuild.build(teamOptions),
     teamRunners: () => esbuild.build(teamRunnersOptions),

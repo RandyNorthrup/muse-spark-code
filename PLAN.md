@@ -892,6 +892,18 @@ rounded up to the next 25 KiB multiple (51,200 B). Certify the removed-VSIX-line
 red drill with byte-exact restoration and run all dependent suites at the
 repository deadlines; full quality remains the integration lead's gate.
 
+**SCHEDULEDELIVERY (2026-10-18, macbook rig).** The #207 merge put
+`dist/schedules.js` 0.5 KiB over its unchanged 200 KiB cap; the terminal CLI
+never binds editor delivery, so the editor path rode every schedule
+invocation. `runtimeEntry.ts` loads the new deferred
+**`dist/scheduleDelivery.js`** (37,105 B; new 50 KiB budget, 36.2 KiB +15%
+rounded up to 25 KiB) on the first delivery with the same memoized loader
+and fail-closed chunk-named refusal as the billing path beside it:
+`schedules.js` 205,304 → 176,256 B. The schedule billing popup reaches
+`askPaidUse` through the paid entry for the same reason (activation may not
+carry `paidHost.ts`/`paidConsent.ts`). Evidence:
+`docs/certification/schedule-delivery-diet.md`.
+
 **HOTFIX0181, cross-bundle members (2026-10-12, kubuntu).** The build points
 every import of `transport.ts`, `sse.ts` and `ndjson.ts` outside
 `dist/modelApi.js` at that bundle (`deferredCohort`), which exports what

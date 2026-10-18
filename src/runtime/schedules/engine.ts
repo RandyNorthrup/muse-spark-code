@@ -57,10 +57,15 @@ export interface ScheduleEngineOptions {
   readonly consent?: (schedule: ScheduleV2) => Promise<ScheduleV2['paidConsent']>
   readonly runtimeDelivery?: RuntimeScheduleDeliveryPorts
   readonly runtimeDeliveryFactory?: typeof createRuntimeScheduleDelivery
-  /** A host installs complete unattended delivery; absent hosts stay refused. */
+  /**
+   * A host installs complete unattended delivery; absent hosts stay refused.
+   * A host whose delivery loads on its first use returns its promise.
+   */
   readonly delivery?: (
     authority: ScheduleAuthorityStore,
-  ) => Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'>
+  ) =>
+    | Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'>
+    | Promise<Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'>>
   readonly fs: ScheduleFsPort
   readonly queue: ScheduleQueuePort
   /** M52's v1 jobs migrate into v2 once per workspace, verified then removed. */
@@ -124,7 +129,7 @@ function unavailableTarget(): Promise<never> {
 }
 
 /** Production composition of S admission/claims/polling with D/U delivery ledgers. */
-export function createScheduleEngine(options: ScheduleEngineOptions) {
+export async function createScheduleEngine(options: ScheduleEngineOptions) {
   const closeSignal = new AbortController()
   const now = options.now ?? Date.now
   const store = createScheduleStore(options.fs)
@@ -182,7 +187,7 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     now,
     monotonicNow: () => performance.now(),
     holds: (workspace: string) => host.holds(workspace),
-    ...(options.delivery?.(authority) ??
+    ...((await options.delivery?.(authority)) ??
       runtimeDelivery?.delivery ?? {
         targets: {
           find: () => Promise.resolve(undefined),

@@ -92,6 +92,7 @@ export const ACP_BUNDLES = [
   'teamRunners.js',
   'teamScheduler.js',
   'schedules.js',
+  'scheduleDelivery.js',
   'foreignHooks.js',
   'hookRuntime.js',
   'modelApiTools.js',
