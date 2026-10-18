@@ -360,3 +360,28 @@ each with a fresh data folder, 6 to 10 sharing one; `TEMP`, `TMP` and
 `LOCALAPPDATA` inside the worktree's `temp/`): every run exited 0 with 31
 passed and 1 skipped, both Windows tests included. "Reads this process's
 birth from the system" took 271 248 285 251 287 253 255 255 250 262 ms.
+
+## Lane PR220W2 (plan, 2026-10-18)
+
+One line per thread, as the lane demands within 15 minutes:
+
+- 259 handle (fileLease.test.ts, P2): already fixed at its cause in
+  `bdabb7ea1f` (an independent C# holder keeps the ended child's process
+  object open; no Node exit listener involved). This lane re-verifies the
+  suite and answers the thread with that commit.
+- Stale readers on PID reuse (fileLease.test.ts, P2): already fixed at
+  its cause in `bdabb7ea1f` (the sweep removes readers named with this
+  process's own id; the tamper test plants such a leftover). This lane
+  re-verifies and answers with that commit.
+- Birth helper in lower-integrity storage (processOwner.ts:309, P2):
+  open. Planned: an elevated or System host walls what it builds (its
+  source and its executable) with a High mandatory label through
+  `icacls`, so a medium-integrity same-user process can no longer write,
+  replace or delete it; a host that cannot be walled while elevated
+  refuses the build (no birth, fail closed), and any other host builds as
+  today (no privilege boundary to cross). A new Windows test asserts the
+  wall when elevated and the plain working build otherwise.
+- Hosted CI failures: the brief lists none after the threads, and this
+  rig cannot read PR checks (`gh` has no authentication here and must get
+  none). Hosted CI stays the merge gate; this lane runs the local gates
+  the brief names.
