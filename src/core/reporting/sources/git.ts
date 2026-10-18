@@ -65,7 +65,7 @@ export function gitSource(io: ReportGitIo, scrub: SourceScrub, roots: readonly s
     }
     return scrub(root.replaceAll('\\', '/'))
   }
-  return localSource('git', async ({ signal }) => {
+  return localSource('git', async ({ signal, reportText }) => {
     const run = async (args: readonly string[]) => {
       signal.throwIfAborted()
       return await io.run([...GIT_METADATA_OPTIONS, ...args], signal)
@@ -244,7 +244,7 @@ export function gitSource(io: ReportGitIo, scrub: SourceScrub, roots: readonly s
           ),
       },
       ...((isBounded || defaultRef === undefined) && {
-        partial: sourceReason(isBounded ? 'limit' : 'unbound'),
+        partial: sourceReason(isBounded ? 'limit' : 'unbound', reportText),
       }),
     }
   })

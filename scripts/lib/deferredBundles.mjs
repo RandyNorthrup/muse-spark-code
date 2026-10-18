@@ -243,6 +243,7 @@ export const DEFERRED = [
       'src/shared/redact.ts',
       'src/shared/vault.ts',
       'src/shared/vaultProtocol.ts',
+      'src/shared/vaultStatus.ts',
       'src/shared/vaultPanel.ts',
       'src/core/vault/taint.ts',
       'src/core/vault/exec/schema.ts',
@@ -826,6 +827,20 @@ export const ON_FIRST_USE = [
       'src/core/estimator/provision/start.ts',
     ],
   },
+  // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97): the
+  // host, the CLI and the ACP agent require it the first time an estimate
+  // needs a plan snapshot. It carries M113's plan reader beside the shared
+  // core adapter; the reader stays listed under the reporting bundle too.
+  {
+    output: 'dist/planSnapshot.js',
+    metafile: 'dist/meta/planSnapshot.json',
+    use: 'the first estimate needing a plan snapshot',
+    files: [
+      'src/host/estimator/planSnapshotEntry.ts',
+      'src/host/estimator/planSnapshotSource.ts',
+      'src/core/estimator/planSnapshot.ts',
+    ],
+  },
   // The flight recorder's journal (M93, PLAN.md D6, D72): activation keeps
   // only the front that answers and queues; the journal, its policy and the
   // frame mapping load just after activation or at the first failure.
@@ -1337,7 +1352,7 @@ export const sharedModelApiBoundaries = {
     build.onResolve(
       {
         filter:
-          /\/(?:schemas|sessionStore|usageJournal|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
+          /\/(?:schemas|sessionStore|usageJournal|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultStatus|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
@@ -1367,6 +1382,7 @@ export const sharedModelApiBoundaries = {
             'src/shared/redact.ts',
             'src/shared/vault.ts',
             'src/shared/vaultProtocol.ts',
+            'src/shared/vaultStatus.ts',
             'src/shared/vaultPanel.ts',
             'src/core/vault/taint.ts',
             'src/core/vault/exec/schema.ts',

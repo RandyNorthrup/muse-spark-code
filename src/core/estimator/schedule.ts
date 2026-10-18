@@ -1,3 +1,4 @@
+import { parseEstimate, EstimateDiagnosticError } from './diagnostic'
 import {
   fleetSnapshotSchema,
   estimateLaneSchema,
@@ -13,7 +14,6 @@ import {
   MINUTES_PER_HOUR,
   SECONDS_PER_MINUTE,
 } from '../../shared/constants'
-import { UI_TEXT, fill } from '../../shared/l10n/text'
 import { buildEstimateDag, isEstimateDurationEvidence, type EstimateDurationEvidence } from './dag'
 import { compareEstimateIds } from './goal'
 
@@ -57,15 +57,15 @@ export interface EstimateScheduler {
 }
 
 /** Resource infeasibility is distinct from corrupt inputs and engine faults. */
-export class EstimateSchedulingError extends Error {
+export class EstimateSchedulingError extends EstimateDiagnosticError {
   constructor(readonly reason: string) {
-    super(fill(UI_TEXT.estimateFailed, { detail: reason }))
+    super(reason)
     this.name = 'EstimateSchedulingError'
   }
 }
 
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 
 /** One candidate cannot be placed: R records it as infeasible and ranks the
@@ -207,10 +207,10 @@ export function prepareEstimateSchedule(
   relaxation?: EstimateRelaxation,
 ): EstimateScheduler {
   const dag = buildEstimateDag(input)
-  const fleet = fleetSnapshotSchema.parse(fleetInput)
+  const fleet = parseEstimate(fleetSnapshotSchema, fleetInput)
   const asOf = Date.parse(fleet.asOf)
   const lanes = input
-    .map((lane) => estimateLaneSchema.parse(lane))
+    .map((lane) => parseEstimate(estimateLaneSchema, lane))
     .toSorted((a, b) => compareEstimateIds(a.id, b.id))
   const lanesById = new Map(lanes.map((lane) => [lane.id, lane]))
   const childrenById = new Map(

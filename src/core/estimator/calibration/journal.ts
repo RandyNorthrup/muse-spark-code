@@ -1,3 +1,4 @@
+import { type EstimateDiagnosticError, asEstimateDiagnostic } from '../diagnostic'
 import { Buffer } from 'node:buffer'
 import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
@@ -132,7 +133,7 @@ export class EstimateHistoryJournal implements EstimateHistoryPort {
             'mixedHistoryBasis',
             'conflictingLaneIdentity',
           ].find((candidate) => hasCode(error, candidate))
-          if (!code) throw error
+          if (!code) throw asEstimateDiagnostic(error, 'historyReadFailed')
           skipped.push({ recordId: createHash('sha256').update(file).digest('hex'), code })
         }
       }
@@ -153,7 +154,7 @@ export class EstimateHistoryJournal implements EstimateHistoryPort {
     const target = path.join(this.directory, fileOf(record))
     const temporary = path.join(this.directory, `${randomUUID()}.tmp`)
     let hasStagingFile = false
-    let failure: Error | undefined
+    let failure: EstimateDiagnosticError | undefined
     try {
       // Before the first claim, existing legacy observations must agree too.
       for (const durationBasis of [
@@ -166,7 +167,7 @@ export class EstimateHistoryJournal implements EstimateHistoryPort {
           )
           if (!hasSameIdentity(previous, record)) throw calibrationFailure('conflictingHistory')
         } catch (error) {
-          if (!hasCode(error, 'ENOENT')) throw error
+          if (!hasCode(error, 'ENOENT')) throw asEstimateDiagnostic(error, 'historyReadFailed')
         }
       }
       await mkdir(this.directory, { recursive: true, mode: PRIVATE_DIR_MODE })
@@ -183,14 +184,14 @@ export class EstimateHistoryJournal implements EstimateHistoryPort {
       try {
         await link(temporary, identity)
       } catch (error) {
-        if (!hasCode(error, 'EEXIST')) throw error
+        if (!hasCode(error, 'EEXIST')) throw asEstimateDiagnostic(error, 'historyReadFailed')
         if (!hasSameIdentity(await this.read(identity), record))
           throw calibrationFailure('conflictingHistory')
       }
       try {
         await link(temporary, target)
       } catch (error) {
-        if (!hasCode(error, 'EEXIST')) throw error
+        if (!hasCode(error, 'EEXIST')) throw asEstimateDiagnostic(error, 'historyReadFailed')
         if (JSON.stringify(await this.read(target)) !== JSON.stringify(record))
           throw calibrationFailure('conflictingHistory')
       }
@@ -216,6 +217,6 @@ export class EstimateHistoryJournal implements EstimateHistoryPort {
         }
       }
     }
-    if (failure) throw failure
+    if (failure) throw asEstimateDiagnostic(failure, 'historyWriteFailed')
   }
 }

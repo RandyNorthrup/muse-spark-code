@@ -1,8 +1,9 @@
 import { chmod } from 'node:fs/promises'
 import { constants } from 'node:fs'
-import { createServer, type Server, type Socket } from 'node:net'
+import { createServer, type Server } from 'node:net'
+import { type Duplex } from 'node:stream'
 import { randomBytes } from 'node:crypto'
-import * as z from 'zod/mini'
+import type * as z from 'zod/mini'
 import {
   VAULT_PROTOCOL_VERSION,
   VAULT_APPROVAL_TTL_MS,
@@ -10,47 +11,46 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import {
-  vaultBrokerRequestSchema,
-  vaultBrokerResponseSchema,
-  vaultPrivateReadSchema,
+  vaultBrokerEventFrameSchema,
   vaultPrivateMaterialSchema,
+  vaultPrivateRecoveryCodeSchema,
   type VaultBrokerRequest,
   type VaultBrokerResponse,
+  type VaultPrivateRequest,
 } from '../../../shared/vaultProtocol'
 import {
+  vaultItemSchema,
   type VaultRequester,
   type VaultUse,
   type VaultTaint,
   type VaultAuditRecord,
 } from '../../../shared/vault'
+import { decodeVaultMaterial, eraseVaultMaterial, VaultError } from '../crypto'
 import { vaultPrivateDirectory } from './files'
 import pathModule from 'node:path'
 import { type VaultBroker } from './broker'
 import { isVaultBootTokenMatch } from './broker'
-import { type VaultUseLifetime, type VaultConnectionIdentity } from './ports'
+import {
+  VaultManagementError,
+  VaultStoreUnavailableError,
+  type VaultManagementPort,
+  type VaultManagementRefusal,
+  type VaultUseLifetime,
+  type VaultConnectionIdentity,
+} from './ports'
 import { type RegistrationToken, type ConnectionToken } from './state'
 import { type VaultCeiling } from './policy'
 import { type VaultPeerVerifier, type VaultProcessIdentity } from './peer'
 
-const privateEnvelope = z.strictObject({
-  v: z.literal(VAULT_PROTOCOL_VERSION),
-  sequence: z.number().check(z.int(), z.nonnegative()),
-  request: vaultPrivateReadSchema,
-})
-export const vaultChannelRequestSchema = z.union([vaultBrokerRequestSchema, privateEnvelope])
-export const vaultChannelResponseSchema = z.union([
-  vaultBrokerResponseSchema,
-  z.strictObject({
-    v: z.literal(VAULT_PROTOCOL_VERSION),
-    sequence: z.number().check(z.int(), z.nonnegative()),
-    response: vaultPrivateMaterialSchema,
-  }),
-])
-export type VaultChannelResponse = z.infer<typeof vaultChannelResponseSchema>
+import {
+  vaultChannelRequestSchema,
+  vaultChannelResponseSchema,
+  type VaultChannelResponse,
+} from './frames'
 export type { VaultConnectionIdentity } from './ports'
 export interface VaultSecuredListenerPort {
   /** P creates an owner-only, remote-refusing pipe before handing over any accepted socket. */
-  listen(path: string, accepted: (socket: Socket) => void): Promise<() => Promise<void>>
+  listen(path: string, accepted: (socket: Duplex) => void): Promise<() => Promise<void>>
 }
 export interface VaultChannelDeps {
   listener?: VaultSecuredListenerPort
@@ -68,9 +68,57 @@ export interface VaultChannelDeps {
   ): Promise<VaultConnectionIdentity>
   ceiling(requester: VaultRequester): VaultCeiling
   /** S/X/L/O dispatch only here after redemption. This never returns values on a public frame. */
-  lifetime(requester: VaultRequester, socket: Socket): VaultUseLifetime
-  perform(requester: VaultRequester, ticketId: string, use: VaultUse, socket: Socket): Promise<void>
+  lifetime(requester: VaultRequester, socket: Duplex): VaultUseLifetime
+  perform(requester: VaultRequester, ticketId: string, use: VaultUse, socket: Duplex): Promise<void>
   scrub(text: string): Promise<string>
+  /** Protocol v2's management side; only manage connections reach it. */
+  manage: VaultManagementPort
+}
+type ManageRequest = Extract<
+  VaultBrokerRequest['request'],
+  {
+    kind:
+      | 'snapshot'
+      | 'editMetadata'
+      | 'remove'
+      | 'import'
+      | 'publicKey'
+      | 'confirmSetup'
+      | 'cancelSetup'
+      | 'importKeep'
+      | 'importDelete'
+      | 'resetBegin'
+      | 'resetConfirm'
+  }
+>
+/** Store and management failures become a fixed reason, never exception text. */
+function refusal(error: unknown): VaultManagementRefusal | null {
+  if (error instanceof VaultManagementError) return error.reason
+  if (error instanceof VaultStoreUnavailableError) return 'storeUnavailable'
+  if (!(error instanceof VaultError)) return null
+  return error.code === 'authentication' ? 'invalid' : error.code
+}
+type ManagePrivateRequest = Extract<VaultPrivateRequest, { kind: 'add' | 'edit' | 'recover' }>
+const MANAGE_PRIVATE_KINDS = new Set<string>(['add', 'edit', 'recover'])
+function isManagePrivate(
+  request: z.infer<typeof vaultChannelRequestSchema>['request'],
+): request is ManagePrivateRequest {
+  return MANAGE_PRIVATE_KINDS.has(request.kind)
+}
+/** A private add/edit frame's item, owned here; the caller erases it. */
+function privateItem(request: Extract<VaultPrivateRequest, { kind: 'add' | 'edit' }>) {
+  const bytes = Buffer.from(request.material, 'base64')
+  try {
+    const material = decodeVaultMaterial(bytes)
+    const parsed = vaultItemSchema.safeParse({ metadata: request.metadata, material })
+    if (!parsed.success) {
+      eraseVaultMaterial(material)
+      throw new VaultManagementError('invalid')
+    }
+    return parsed.data
+  } finally {
+    bytes.fill(0)
+  }
 }
 /** NDJSON with a byte limit and validation before dispatch; one sequential stream per pinned peer.
  * @unwired M109 vault broker channel server
@@ -79,9 +127,9 @@ export class VaultChannelServer {
   private server: Server | null = null
   private isClosed = false
   private securedClose: (() => Promise<void>) | null = null
-  private readonly sockets = new Set<Socket>()
+  private readonly sockets = new Set<Duplex>()
   private readonly identities = new Map<
-    Socket,
+    Duplex,
     { identity: VaultConnectionIdentity; token?: RegistrationToken }
   >()
   private readonly unsubscribe: () => void
@@ -101,7 +149,7 @@ export class VaultChannelServer {
   private async dispatch(
     identity: VaultConnectionIdentity,
     request: VaultBrokerRequest['request'],
-    socket: Socket,
+    socket: Duplex,
     token: RegistrationToken | undefined,
     connection: ConnectionToken,
   ): Promise<VaultBrokerResponse['response']> {
@@ -122,7 +170,15 @@ export class VaultChannelServer {
       }
       case 'unlock': {
         if (!identity.manage) return denied
-        await broker.unlock(request.slotId)
+        try {
+          await broker.unlock(request.slotId)
+        } catch (error: unknown) {
+          // A fixed reason (an unusable OS store) reaches the person; anything
+          // else still closes the connection without diagnostics.
+          const reason = refusal(error)
+          if (reason === null) throw error
+          return { kind: 'refused', reason }
+        }
         return { kind: 'ok' }
       }
       case 'registerRequester': {
@@ -229,6 +285,111 @@ export class VaultChannelServer {
           await this.deps.perform(requester, result.ticket.id, request.use, socket)
         return result
       }
+      case 'snapshot':
+      case 'editMetadata':
+      case 'remove':
+      case 'import':
+      case 'publicKey':
+      case 'confirmSetup':
+      case 'cancelSetup':
+      case 'importKeep':
+      case 'importDelete':
+      case 'resetBegin':
+      case 'resetConfirm': {
+        return identity.manage ? await this.manageCall(request, socket) : denied
+      }
+      case 'setup':
+      case 'watch': {
+        // authorize() answers both: setup's code is a private frame, watch streams events.
+        return denied
+      }
+    }
+  }
+  private async manageCall(
+    request: ManageRequest,
+    socket: Duplex,
+  ): Promise<VaultBrokerResponse['response']> {
+    const manage = this.deps.manage
+    // A requester that closed its connection has cancelled: nothing commits.
+    const isCurrent = () => !socket.destroyed && socket.writable
+    try {
+      switch (request.kind) {
+        case 'snapshot': {
+          return { kind: 'snapshot', snapshot: await manage.snapshot() }
+        }
+        case 'publicKey': {
+          return { kind: 'publicKey', publicKey: await manage.publicKey(request.itemId) }
+        }
+        case 'editMetadata': {
+          await manage.editMetadata(request.metadata)
+          break
+        }
+        case 'remove': {
+          await manage.remove(request.itemId)
+          break
+        }
+        case 'import': {
+          const report = await manage.importFile(request.path, isCurrent)
+          return { kind: 'imported', receipt: report.receipt, items: [...report.items] }
+        }
+        case 'importKeep': {
+          await manage.keepImport(request.receipt)
+          break
+        }
+        case 'importDelete': {
+          await manage.deleteImport(request.receipt, isCurrent)
+          break
+        }
+        case 'resetBegin': {
+          const challenge = await manage.resetBegin()
+          return { kind: 'resetChallenge', resetId: challenge.resetId, word: challenge.word }
+        }
+        case 'resetConfirm': {
+          await manage.resetConfirm(request.resetId, request.word)
+          break
+        }
+        case 'confirmSetup': {
+          await manage.confirmSetup(request.setupId)
+          break
+        }
+        case 'cancelSetup': {
+          await manage.cancelSetup(request.setupId)
+          break
+        }
+      }
+      return { kind: 'ok' }
+    } catch (error: unknown) {
+      const reason = refusal(error)
+      if (reason === null) throw error
+      return { kind: 'refused', reason }
+    }
+  }
+  /** Private v2 writes and recovery: manage-only, values never on a public frame. */
+  private async managePrivate(
+    request: Extract<VaultPrivateRequest, { kind: 'add' | 'edit' | 'recover' }>,
+  ): Promise<VaultBrokerResponse['response']> {
+    try {
+      if (request.kind === 'recover') {
+        const code = Buffer.from(request.code, 'ascii')
+        try {
+          await this.deps.manage.recover(code)
+        } finally {
+          code.fill(0)
+        }
+      } else {
+        const item = privateItem(request)
+        try {
+          if (request.kind === 'add') await this.deps.manage.add(item)
+          else await this.deps.manage.edit(item)
+        } finally {
+          eraseVaultMaterial(item.material)
+        }
+      }
+      return { kind: 'ok' }
+    } catch (error: unknown) {
+      const reason = refusal(error)
+      if (reason === null) throw error
+      return { kind: 'refused', reason }
     }
   }
   async listen(path: string): Promise<void> {
@@ -255,7 +416,7 @@ export class VaultChannelServer {
     await chmod(path, constants.S_IRUSR | constants.S_IWUSR)
   }
   /** P's Windows named-pipe adapter may deliver an already accepted secured socket. */
-  accept(socket: Socket): void {
+  accept(socket: Duplex): void {
     if (this.isClosed) {
       socket.destroy()
       return
@@ -267,6 +428,7 @@ export class VaultChannelServer {
     const cancellation = new AbortController()
     let identity: VaultConnectionIdentity | null = null
     let sequence = 0
+    let isWatching = false
     let buffer = Buffer.alloc(0)
     let queuedBytes = 0
     let tail: Promise<unknown> = Promise.resolve()
@@ -339,11 +501,61 @@ export class VaultChannelServer {
         })
         return
       }
-      if (!identity) {
+      if (!identity || isWatching) {
         close()
         return
       }
       let response: VaultChannelResponse['response']
+      const denied = { kind: 'denied', reason: 'peer' } as const
+      if (isManagePrivate(request)) {
+        response = identity.manage ? await this.managePrivate(request) : denied
+        await write({ v: VAULT_PROTOCOL_VERSION, sequence: message.sequence, response })
+        return
+      }
+      if (request.kind === 'setup' && identity.manage) {
+        let created: { setupId: string; code: Buffer } | undefined
+        try {
+          created = await this.deps.manage.setup()
+        } catch (error: unknown) {
+          const reason = refusal(error)
+          if (reason === null) throw error
+          response = { kind: 'refused', reason }
+          await write({ v: VAULT_PROTOCOL_VERSION, sequence: message.sequence, response })
+          return
+        }
+        try {
+          // Shown once: the code leaves only on this private frame, then is erased.
+          await write({
+            v: VAULT_PROTOCOL_VERSION,
+            sequence: message.sequence,
+            response: vaultPrivateRecoveryCodeSchema.parse({
+              v: VAULT_PROTOCOL_VERSION,
+              kind: 'recoveryCode',
+              setupId: created.setupId,
+              code: created.code.toString('ascii'),
+            }),
+          })
+        } finally {
+          created.code.fill(0)
+        }
+        return
+      }
+      if (request.kind === 'watch' && identity.manage) {
+        await write({
+          v: VAULT_PROTOCOL_VERSION,
+          sequence: message.sequence,
+          response: { kind: 'ok' },
+        })
+        isWatching = true
+        const unsubscribe = this.deps.manage.subscribe((event) => {
+          if (socket.destroyed || !socket.writable) return
+          const frame = vaultBrokerEventFrameSchema.parse({ v: VAULT_PROTOCOL_VERSION, event })
+          socket.write(`${JSON.stringify(frame)}\n`)
+        })
+        socket.once('close', unsubscribe)
+        if (socket.destroyed) unsubscribe()
+        return
+      }
       if (request.kind === 'firstPartyRead') {
         if (!identity.firstParty || identity.requester !== null)
           response = { kind: 'denied', reason: 'peer' }

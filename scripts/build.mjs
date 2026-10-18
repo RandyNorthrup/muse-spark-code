@@ -243,6 +243,11 @@ const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
 const REPORT_OUTFILE = 'dist/report.js'
 const ESTIMATOR_ENTRY = 'src/host/estimator/estimatorEntry.ts'
 const ESTIMATOR_OUTFILE = 'dist/estimator.js'
+// M117 C-M117-1: the shared core adapter over M113's plan reader with the
+// host's git and `gh` reads, loaded the first time an estimate needs a plan
+// snapshot.
+const PLAN_SNAPSHOT_ENTRY = 'src/host/estimator/planSnapshotEntry.ts'
+const PLAN_SNAPSHOT_OUTFILE = 'dist/planSnapshot.js'
 const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
 const RECORDER_OUTFILE = 'dist/recorder.js'
 const CREDENTIAL_LEASE_ENTRY = 'src/core/credentialLeaseEntry.ts'
@@ -270,6 +275,10 @@ const PLAYBOOK_ENTRY = 'src/runtime/playbook/playbookEntry.ts'
 const PLAYBOOK_OUTFILE = 'dist/acpPlaybook.js'
 const RUNTIME_ACCOUNTS_ENTRY = 'src/runtime/providers/accountsEntry.ts'
 const RUNTIME_ACCOUNTS_OUTFILE = 'dist/runtimeAccounts.js'
+// C-M109-1 (lead decision 5): the vault for the CLI, the ACP agent and
+// headless runs, loaded on the first vault need; no `vscode` import.
+const VAULT_RUNTIME_ENTRY = 'src/runtime/vault/vaultRuntimeEntry.ts'
+const VAULT_RUNTIME_OUTFILE = 'dist/vaultRuntime.js'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
 // The data module uses the same verified solid archive loader as lazy bundles.
@@ -380,6 +389,22 @@ const reportingDestinationsOptions = {
   ...reportingOptions,
   entryPoints: ['src/runtime/reporting/destinationsEntry.ts'],
   outfile: 'dist/reportingDestinations.js',
+}
+// C-M113-2: the session and usage inputs (usage journal machinery) load on
+// the first session or usage report, off the reporting engine's budget.
+const reportInputsOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/reportInputsEntry.ts'],
+  outfile: 'dist/reportInputs.js',
+}
+// C-M113-4: the playbook and schedules inputs (journal replay, schedule
+// store) load on the first playbook or schedules report. They ride their
+// own chunk because the replay and store machinery would overflow the
+// session/usage chunk's budget, which stays unchanged.
+const playbookSchedulesInputsOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/playbookSchedulesInputsEntry.ts'],
+  outfile: 'dist/playbookSchedulesInputs.js',
 }
 const reportingPanelOptions = {
   ...hostOptions,
@@ -571,6 +596,20 @@ const estimatorOptions = {
   plugins: [sharedUiText, sharedValidation, sharedWire],
   entryPoints: [ESTIMATOR_ENTRY],
   outfile: ESTIMATOR_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97), loaded the
+// first time an estimate needs a plan snapshot; it reads no `vscode`, so a
+// stray import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const planSnapshotOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [PLAN_SNAPSHOT_ENTRY],
+  outfile: PLAN_SNAPSHOT_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -1086,6 +1125,11 @@ const runtimeAccountsOptions = {
   entryPoints: [RUNTIME_ACCOUNTS_ENTRY],
   outfile: RUNTIME_ACCOUNTS_OUTFILE,
 }
+const vaultRuntimeOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [VAULT_RUNTIME_ENTRY],
+  outfile: VAULT_RUNTIME_OUTFILE,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -1129,7 +1173,8 @@ const vaultBoundariesOptions = {
 
 const estimateContractsOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, sharedValidation],
+  // Typed refusals reuse the shipped scrubber instead of copying it into contracts.
+  plugins: [sharedUiText, sharedValidation, sharedRedaction],
   entryPoints: ['src/shared/estimateContractsEntry.ts'],
   outfile: 'dist/estimateContracts.js',
 }
@@ -1303,6 +1348,8 @@ if (isWatch) {
     esbuild.context(reportingOptions),
     esbuild.context(reportingNetworkOptions),
     esbuild.context(reportingDestinationsOptions),
+    esbuild.context(reportInputsOptions),
+    esbuild.context(playbookSchedulesInputsOptions),
     esbuild.context(reportingPanelOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
@@ -1400,6 +1447,7 @@ if (isWatch) {
     esbuild.context(vaultOptions),
     esbuild.context(reportOptions),
     esbuild.context(estimatorOptions),
+    esbuild.context(planSnapshotOptions),
     esbuild.context(recorderOptions),
     esbuild.context(credentialLeaseOptions),
     esbuild.context(whatsNewOptions),
@@ -1554,6 +1602,7 @@ if (isWatch) {
     vault: () => esbuild.build(vaultOptions),
     report: () => esbuild.build(reportOptions),
     estimator: () => esbuild.build(estimatorOptions),
+    planSnapshot: () => esbuild.build(planSnapshotOptions),
     recorder: () => esbuild.build(recorderOptions),
     credentialLease: () => esbuild.build(credentialLeaseOptions),
     whatsNew: () => esbuild.build(whatsNewOptions),
@@ -1587,6 +1636,7 @@ if (isWatch) {
     ['fontInstall', () => esbuild.build(fontInstallOptions)],
     ['playbook', () => esbuild.build(playbookOptions)],
     ['runtimeAccounts', () => esbuild.build(runtimeAccountsOptions)],
+    ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
   ]
   if (!isProduction) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -1600,6 +1650,7 @@ if (isWatch) {
   let fontInstall
   let playbook
   let runtimeAccounts
+  let vaultRuntime
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -1611,6 +1662,7 @@ if (isWatch) {
       fontInstall,
       playbook,
       runtimeAccounts,
+      vaultRuntime,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -1638,6 +1690,11 @@ if (isWatch) {
     const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
     const { metafile: playbookMetafile } = await playbook
     const { metafile: runtimeAccountsMetafile } = await runtimeAccounts
+    const { metafile: vaultRuntimeMetafile } = await vaultRuntime
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'vaultRuntime.json'),
+      JSON.stringify(vaultRuntimeMetafile, null, 2),
+    )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),
       JSON.stringify(runtimeQuestionsMetafile, null, 2),

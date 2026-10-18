@@ -24,6 +24,9 @@ describe('the local report command grammar', () => {
     expect(
       parseReportRequest('estimate M113 --by 2026-11-01T00:00:00Z --fleet minimum', AS_OF),
     ).toMatchObject({ options: { deadline: '2026-11-01T00:00:00Z', fleet: 'minimum' } })
+    expect(parseReportRequest('estimate M113 --by 2026-11-01', AS_OF)).toMatchObject({
+      options: { deadline: '2026-11-01T00:00:00.000Z' },
+    })
   })
   it('refuses malformed scopes, flags and duplicate options without quoting the input', () => {
     for (const text of [

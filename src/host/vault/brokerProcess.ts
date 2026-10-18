@@ -1,9 +1,6 @@
 import { UI_TEXT } from '../../shared/constants'
-import {
-  type VaultBrokerDiscovery,
-  type VaultBrokerLocation,
-} from '../../core/vault/broker/discovery'
-import { type VaultProcessIdentity } from '../../core/vault/broker/peer'
+import type { VaultBrokerDiscovery, VaultBrokerLocation } from '../../core/vault/broker/discovery'
+import type { VaultProcessIdentity } from '../../core/vault/broker/peer'
 
 export interface VaultBrokerProcessPort {
   identity(pid: number): Promise<VaultProcessIdentity>

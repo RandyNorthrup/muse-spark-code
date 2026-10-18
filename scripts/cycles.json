@@ -221,6 +221,7 @@
     "src/core/judge/fast/inspectExec.ts",
     "test/fixtures/inspect-helper.mjs",
     "test/fixtures/tabHooks/completion.mjs",
+
     "test/harness/playbook.mjs",
     "test/harness/schedules.mjs",
     "test/harness/vault/main.tsx",

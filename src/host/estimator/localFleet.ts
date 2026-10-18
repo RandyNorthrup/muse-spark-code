@@ -1,3 +1,4 @@
+import { parseEstimate, EstimateDiagnosticError } from '../../core/estimator/diagnostic'
 // The estimate's local fleet (M117, PLAN.md D97): this machine, measured,
 // nothing invented. Cores and RAM come from the OS; disks stay unknown
 // (Node cannot read headroom); the machine runs one lane at a time
@@ -32,7 +33,7 @@ const MACHINE_OS: ReadonlyMap<string, MachineOs> = new Map<string, MachineOs>([
 ])
 
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 
 /** This machine's fleet for these lanes; refuses platforms it cannot name. */
@@ -66,7 +67,7 @@ export function fleetFromHost(
     }
     return total
   }
-  return fleetSnapshotSchema.parse({
+  return parseEstimate(fleetSnapshotSchema, {
     asOf,
     machines: [
       {
@@ -104,23 +105,29 @@ export function fleetFromHost(
 
 /** A milestone binding that refuses with its handoff name until it merges. */
 function missingEstimateBinding(dependency: string): never {
-  throw new Error(fill(UI_TEXT.estimateWaiting, { dependency }))
+  throw new EstimateDiagnosticError(
+    `source-waiting: ${dependency}`,
+    fill(UI_TEXT.estimateWaiting, { dependency }),
+  )
 }
 
 /**
- * The refusing milestone bindings every shell assembles (M117, PLAN.md D97):
- * this machine measured as the fleet; the snapshot, board, broker and catalog
- * bindings refuse with their handoff names until those merge; history appends
- * arrive with M115's lane-finished trigger. Only the price lookup differs.
+ * The milestone bindings every shell assembles (M117, PLAN.md D97): this
+ * machine measured as the fleet; the snapshot reads the workspace plan
+ * through the shared core adapter (C-M117-1); the board, broker and catalog
+ * bindings refuse with their handoff names until those merge; history
+ * appends arrive with M115's lane-finished trigger. Only the price lookup
+ * differs.
  */
 export function estimatorSourcePorts(
   priceLookup: EstimatorSourcePorts['priceLookup'],
+  snapshot: EstimatorSourcePorts['snapshot'],
 ): EstimatorSourcePorts {
   return {
-    snapshot: () => missingEstimateBinding('M117-W-M113-plan-reader'),
-    fleet: (lanes) => Promise.resolve(localFleet(lanes)),
+    snapshot,
+    fleet: (lanes, asOf) => Promise.resolve(localFleet(lanes, asOf)),
     history: () => Promise.resolve([]),
-    candidatePool: (lanes) => Promise.resolve(localFleet(lanes)),
+    candidatePool: (lanes, asOf) => Promise.resolve(localFleet(lanes, asOf)),
     board: () => ({
       audit: () => missingEstimateBinding('M117-W-M96-board'),
       start: () => missingEstimateBinding('M117-W-M96-board'),
@@ -134,8 +141,10 @@ export function estimatorSourcePorts(
   }
 }
 
-/** This machine's fleet now. Read at call time: hot-plugged cores count. */
-export function localFleet(lanes: readonly EstimateLane[]): FleetSnapshot {
+/** This machine's fleet at the request's asOf: cores are read at call time
+ * (hot-plugged cores count) but the stamp is passed through, never a second
+ * clock, so the inputs' fleet/request equality holds. */
+export function localFleet(lanes: readonly EstimateLane[], asOf: string): FleetSnapshot {
   return fleetFromHost(
     {
       platform: os.platform(),
@@ -144,6 +153,6 @@ export function localFleet(lanes: readonly EstimateLane[]): FleetSnapshot {
       ramGiB: os.totalmem() / ESTIMATE_BYTES_PER_GIB,
     },
     lanes,
-    new Date().toISOString(),
+    asOf,
   )
 }

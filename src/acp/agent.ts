@@ -1,3 +1,4 @@
+import { estimateFailureText } from '../shared/estimateDiagnostic'
 import type { UsdAmount } from '../shared/usdSchema'
 import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // The Muse Spark agent over the Agent Client Protocol (PLAN.md D62): one
@@ -2199,14 +2200,14 @@ class AcpSession {
           this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
           await this.outbox
           return 'end_turn'
-        } catch {
+        } catch (error: unknown) {
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
           if ('error' in preparing) throw preparing.error
           this.send({
             sessionUpdate: 'agent_message_chunk',
             content: {
               type: 'text',
-              text: fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }),
+              text: estimateFailureText(error),
             },
           })
           await this.outbox

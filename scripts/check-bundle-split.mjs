@@ -1034,6 +1034,10 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
               input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
             ) &&
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
+            // C-M113-2: the session and usage inputs read M102's journal
+            // through its store, whose static record import carries the card.
+            // Reporting never prices; the bytes ride the journal machinery.
+            !(input === 'src/core/providers/priceCard.ts' && output === 'dist/reportInputs.js') &&
             !(
               output === 'dist/runtimeAccounts.js' &&
               ['accounts.ts', 'accountPolicy.ts', 'accountCredentialRecord.ts'].some(
@@ -1468,6 +1472,8 @@ const deferredWebviewSources = [
   'src/webview/components/TeamCards.tsx',
   'src/core/prompts/promptSearch.ts',
   'src/shared/slashCommands.ts',
+  // Refusal validation loads with the boundary; it stays in the unchanged deferred aggregate.
+  'src/shared/estimateDiagnostic.ts',
 ]
 for (const source of deferredWebviewSources) {
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
