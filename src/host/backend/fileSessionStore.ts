@@ -39,7 +39,8 @@ import {
 import type { QuestionStore } from '../../shared/questions'
 import { writeFileAtomically } from '../fsAtomic'
 import type { Logger } from '../logger'
-import { describeStoreError, isStoreErrorCode, storeErrorCode } from './storeErrors'
+import { describeStoreError, isStoreErrorCode } from './storeErrors'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { SessionUploadLifecycle, SessionUploadOwnership } from '../../core/media/uploadLedger'
 import type { UploadedMediaRef } from '../../shared/media'
 import { FifoLimiter } from '../../core/fifoLimiter'
@@ -162,6 +163,22 @@ function assertSessionId(sessionId: string): void {
   }
 }
 
+/** A session file the store could not read, as the ledger's typed refusal, keeping the cause. */
+function unreadableLedger(error: unknown): SpendLedgerError {
+  return new SpendLedgerError(
+    'unreadable',
+    {
+      scope: 'session',
+      file: 'fileSessionStore',
+      errno:
+        typeof error === 'object' && error !== null && 'code' in error
+          ? String(error.code)
+          : undefined,
+    },
+    error,
+  )
+}
+
 async function hasSessionFile(file: string): Promise<boolean> {
   try {
     await stat(file)
@@ -170,18 +187,7 @@ async function hasSessionFile(file: string): Promise<boolean> {
     if (isStoreErrorCode(error, ENOENT)) {
       return false
     }
-    throw new SpendLedgerError(
-      'unreadable',
-      {
-        scope: 'session',
-        file: 'fileSessionStore',
-        errno:
-          typeof error === 'object' && error !== null && 'code' in error
-            ? String(error.code)
-            : undefined,
-      },
-      error,
-    )
+    throw unreadableLedger(error)
   }
 }
 
@@ -253,7 +259,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       try {
         accounts = await readdir(journalRoot)
       } catch (error: unknown) {
-        if (storeErrorCode(error) === ENOENT) return session
+        if (isStoreErrorCode(error, ENOENT)) return session
         throw error
       }
       const wanted =
@@ -269,7 +275,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
             'utf8',
           )
         } catch (error: unknown) {
-          if (storeErrorCode(error) === ENOENT) continue
+          if (isStoreErrorCode(error, ENOENT)) continue
           throw error
         }
         const seed = legacySeedSchema.parse(JSON.parse(text))
@@ -296,7 +302,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
         } catch (error: unknown) {
           // An unsettled claim (a dead process's, for example) holds its
           // reservation but never spent it, so it stays out (D121).
-          if (storeErrorCode(error) === ENOENT) continue
+          if (isStoreErrorCode(error, ENOENT)) continue
           throw error
         }
         const claim = legacyClaimSchema.parse(JSON.parse(text))
@@ -317,7 +323,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       return { ...session, budgetSpentUsd: spent.toAmount(), spendSettledOnly: true }
     } catch (error: unknown) {
       deps.log.warn(
-        `Session ${session.sessionId} keeps its saved spend total: the legacy journal does not read (${describeStoreError(error)})`,
+        `Session ${session.sessionId} keeps its saved spend total: the legacy journal does not read (${failureForLog(error)})`,
       )
       return session
     }
@@ -373,19 +379,8 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     try {
       return uploadIntentSchema.parse(JSON.parse(await readFile(intentFor(sessionId), 'utf8')))
     } catch (error: unknown) {
-      if (storeErrorCode(error) === ENOENT) return undefined
-      throw new SpendLedgerError(
-        'unreadable',
-        {
-          scope: 'session',
-          file: 'fileSessionStore',
-          errno:
-            typeof error === 'object' && error !== null && 'code' in error
-              ? String(error.code)
-              : undefined,
-        },
-        error,
-      )
+      if (isStoreErrorCode(error, ENOENT)) return undefined
+      throw unreadableLedger(error)
     }
   }
   const writeIntent = async (
