@@ -26,8 +26,14 @@ editor API or a store. Stand-ins are named with what they pretend to be.
   model `resolved` record, host (`ensureHost`/`backendOf`/`pendingSessionIds`),
   `deps` (`newId`/`now`/`isStillAllowed`), a `Module._load` trap returning a
   `Proxy` for `vscode` (editor-API stand-in), and a `fetch` stub.
-  Remaining branches (boundaries, hookRuntime, pluginHooks, modelApiTools)
-  are REAL (real schemas/parsers with data).
+  Remaining branches (hookRuntime, pluginHooks, modelApiTools) are REAL
+  (real schemas/parsers with data). Correction (review lane RVSTANDINS):
+  the kept boundaries branch also carried a scanner double — a
+  hand-written `LegalScanRunner` returning a fixture result, the same
+  pattern deleted from `modelApiLegalScan.test.ts`. RVSTANDINS replaced it
+  with the real unoffered-tool case (`undefined` runner); the disclaimer
+  assertion it carried is proven in `modelApiLegalScan.test.ts` through
+  the real scanner instead.
 - `test/unit/pluginDispatch.test.ts` — STAND-IN, cases using `host()` /
   `adapterWith()` with plugins. Shell scripts "standing in for bun",
   scripted `PluginHostDeps` (`containment`/`warn`/`now`), `noRunner.runHook`

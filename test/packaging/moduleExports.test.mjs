@@ -25,22 +25,13 @@ async function exercise(api, name, table) {
       assert.deepEqual(decision, { mode: 'single-model', reason: 'team-off' })
       const legal = await api.runLegalScanCall(
         {},
-        async () => ({
-          version: 1,
-          ruleVersion: 'fixture',
-          dataVersion: 'fixture',
-          scope: '',
-          distribution: 'fixture',
-          exclusions: [],
-          incompleteChecks: [],
-          findings: [],
-        }),
+        undefined,
         true,
         new globalThis.AbortController().signal,
         'Přehled, nikoli právní rada.',
       )
-      assert.equal(legal.ok, true)
-      assert.equal(JSON.parse(legal.json).disclaimer, 'Přehled, nikoli právní rada.')
+      assert.equal(legal.ok, false)
+      assert.equal(legal.isRestricted, false)
       const detail = `fixture: ${table.teamInPlaceOrchestratorRefused}`
       const refusal = api.teamInPlaceRefusalFor({
         name: 'shell',
