@@ -7079,10 +7079,10 @@ export const REVIEW_MODEL_TEXT = {
 
 // The playback turn's text (D203): the agent states its current
 // understanding of the goal and instructions from its working memory only,
-// with no tools for the turn. The same on every backend and surface; the
-// Model API backend offers no tools and refuses every call in code, while
-// Muse Code holds the turn in Plan mode and the surface stops it at the
-// first tool use. Model text: English whatever the display language.
+// with no tools for the turn. The same on every surface; only the Model API
+// backend runs one (no tools offered, every call refused in code), while any
+// other backend is refused the turn instead. Model text: English whatever
+// the display language.
 export const PLAYBACK_MODEL_TEXT = {
   playbackRole:
     'You are playing back your current understanding of this task, from your working memory only.',
