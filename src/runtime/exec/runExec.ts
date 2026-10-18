@@ -86,6 +86,7 @@ import type { ExecBudgetRefusal } from './execProtocol'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
 import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { metaSideCallFormats } from '../../core/backends/modelapi/modelCapabilities'
 import { compileOutputSchema, type OutputSchema } from './outputSchema'
 
@@ -589,7 +590,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       transport?.close()
       cancelSession?.()
     } catch (error_: unknown) {
-      log.error(error_ instanceof Error ? error_.message : String(error_))
+      log.error(failureForLog(error_))
     }
   })()
   const cleanupStart = { value: 0 }
@@ -1291,7 +1292,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 await lifecycle.race(close())
               } catch (error_: unknown) {
                 if (lifecycle.cause === null) {
-                  log.error(error_ instanceof Error ? error_.message : String(error_))
+                  log.error(failureForLog(error_))
                   lifecycle.latch({ kind: 'internal' })
                 }
               }
@@ -1545,14 +1546,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               : (async () => {
                   try {
                     await closingVault.close()
-                  } catch {
-                    throw new Error(UI_TEXT.vault.noAccess)
+                  } catch (vaultError: unknown) {
+                    throw new Error(UI_TEXT.vault.noAccess, { cause: vaultError })
                   }
                 })(),
           ]),
         )
       } catch (error_: unknown) {
-        log.error(error_ instanceof Error ? error_.message : String(error_))
+        log.error(failureForLog(error_))
         lifecycle.latch({ kind: 'internal' })
       }
       await grace(transport?.whenSettled() ?? Promise.resolve())
