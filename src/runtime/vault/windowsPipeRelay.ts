@@ -23,7 +23,6 @@ import {
   VAULT_LIMITS,
 } from '../../shared/constants'
 import { VaultError } from '../../core/vault/crypto'
-import { spawnResourceProcess } from '../../core/resources/launcher'
 import { handleIdentitySync, lstatIdentitySync, sameFile } from '../../core/fs/fileIdentity'
 import {
   WINDOWS_VAULT_PIPE_FRAME,
@@ -42,9 +41,14 @@ import {
   type WindowsVaultPipeClient,
   type WindowsVaultPipeHelper,
 } from '../../core/vault/broker/windowsPipe'
+import {
+  monitoredDescriptor,
+  monitoredFileWriter,
+  replaceFileContent,
+} from '../../core/vault/broker/files'
 import type { VaultPrivateFilesPort, VaultFileWriter } from '../../core/vault/broker/files'
 import { collectSlotChunk, drainSlotStderr, watchSlotChildErrors } from './slots/slotChild'
-import { windowsVaultGuardScript, type WindowsVaultExecutable } from './slots/windowsVaultTransport'
+import { spawnGuardedHelper, type WindowsVaultExecutable } from './slots/windowsVaultTransport'
 
 /** A new random pipe name per broker start, published only in the owner-only lock file. */
 export function windowsVaultPipeName(): string {
@@ -619,72 +623,42 @@ export class WindowsVaultPrivateFiles implements VaultPrivateFilesPort {
       descriptor = null
       throw new Error(UI_TEXT.vault.noAccess)
     }
-    const current = (): number => {
-      if (descriptor === null) throw new Error(UI_TEXT.vault.locked)
-      if (!sameFile(handleIdentitySync(descriptor), lstatIdentitySync(path))) {
-        closeSync(descriptor)
-        verifyWindowsVaultFileSync(this.helperFile, path)
-        const replacement = openSync(path, 'a')
-        const resample = fstatSync(replacement)
-        try {
-          if (!resample.isFile()) throw new Error(UI_TEXT.vault.noAccess)
-        } catch (error: unknown) {
-          closeSync(replacement)
-          throw error
-        }
-        descriptor = replacement
-      }
-      return descriptor
-    }
-    return {
-      append: (bytes) => {
-        const fd = current()
-        let offset = 0
-        while (offset < bytes.byteLength) {
-          const count = writeSync(fd, bytes, offset, bytes.byteLength - offset, null)
-          if (count === 0) throw new Error(UI_TEXT.vault.noAccess)
-          offset += count
-        }
-        fsyncSync(fd)
-      },
-      replace: (bytes) => {
-        current()
-        const temporary = `${path}.${randomBytes(VAULT_LIMITS.idBytes).toString('hex')}.tmp`
-        const fd = openSync(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL)
-        try {
-          let offset = 0
-          while (offset < bytes.byteLength) {
-            const count = writeSync(fd, bytes, offset, bytes.byteLength - offset, null)
-            if (count === 0) throw new Error(UI_TEXT.vault.noAccess)
-            offset += count
-          }
-          fsyncSync(fd)
-          const previous = current()
-          renameSync(temporary, path)
-          closeSync(previous)
+    const current = (): number =>
+      monitoredDescriptor(
+        () => descriptor,
+        (fd) => {
           descriptor = fd
-          const dir = openSync(pathModule.dirname(path), 'r')
-          try {
-            fsyncSync(dir)
-          } finally {
-            closeSync(dir)
+        },
+        path,
+        (target) => {
+          verifyWindowsVaultFileSync(this.helperFile, target)
+          const replacement = openSync(target, 'a')
+          if (!fstatSync(replacement).isFile()) {
+            closeSync(replacement)
+            throw new Error(UI_TEXT.vault.noAccess)
           }
-        } catch (error: unknown) {
-          if (descriptor !== fd) closeSync(fd)
-          try {
-            unlinkSync(temporary)
-          } catch {
-            /* Rename may have consumed this owned file. */
-          }
-          throw error
-        }
+          return replacement
+        },
+      )
+    return monitoredFileWriter({
+      current,
+      replace: (bytes) => {
+        replaceFileContent(path, bytes, {
+          current,
+          open: (temporary) =>
+            openSync(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL),
+          syncDirectory: (directory) => openSync(directory, 'r'),
+          adopt: (fd) => {
+            descriptor = fd
+          },
+        })
       },
       close: () => {
         if (descriptor === null) return
         closeSync(descriptor)
         descriptor = null
       },
-    }
+    })
   }
 }
 
@@ -763,38 +737,7 @@ async function spawnPipeRelay(
   pipe: string | null,
   signal?: AbortSignal,
 ): Promise<PipeRelay> {
-  if (
-    !pathModule.isAbsolute(helper.file) ||
-    !helper.file.toLowerCase().endsWith('.exe') ||
-    !pathModule.isAbsolute(helper.powershell) ||
-    !/^[a-f0-9]{64}$/u.test(helper.sha256)
-  )
-    throw new Error(UI_TEXT.vault.noAccess)
-  // Do not inherit credentials, a shell, or a visible console window.
-  let launched: Awaited<ReturnType<typeof spawnResourceProcess>>
-  try {
-    launched = await spawnResourceProcess(
-      'contained',
-      helper.powershell,
-      [
-        '-NoLogo',
-        '-NoProfile',
-        '-NonInteractive',
-        '-EncodedCommand',
-        Buffer.from(windowsVaultGuardScript(helper.file, helper.sha256), 'utf16le').toString(
-          'base64',
-        ),
-      ],
-      {
-        cwd: pathModule.dirname(helper.powershell),
-        env: {},
-        windowsHide: true,
-      },
-    )
-  } catch {
-    throw new Error(UI_TEXT.vault.noAccess)
-  }
-  const { child, stop } = launched
+  const { child, stop } = await spawnGuardedHelper(helper)
   const relay = new PipeRelay(adaptPipeRelayChild(child), () => stop(), mode, pipe)
   watchSlotChildErrors(child, signal, () => {
     relay.fail(new Error(UI_TEXT.vault.noAccess))

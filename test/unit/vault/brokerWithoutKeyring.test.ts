@@ -1,13 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
+import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { build } from 'esbuild'
 import { createRequire } from 'node:module'
-import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
+import { buildBrokerChildren } from '../helpers/vault/sessionBrokerBuild'
 
 // A staged package carries no node_modules, so the OS keyring binding is
 // genuinely absent in this fixture: the broker must still start its
@@ -31,37 +30,9 @@ beforeAll(async () => {
   const runtimeBase = process.env['XDG_RUNTIME_DIR'] ?? tmpdir()
   fixture.xdg = path.join(runtimeBase, `vs-nokeyring-xdg-${String(process.pid)}`)
   await mkdir(fixture.xdg, { recursive: true, mode: 0o700 })
-  const helper = vaultPeerExecutable(fixture.root)
-  await mkdir(path.dirname(helper), { recursive: true })
-  await mkdir(path.join(fixture.root, 'dist'))
-  execFileSync('/usr/bin/cc', [
-    '-Os',
-    '-Wall',
-    '-Wextra',
-    '-Werror',
-    'native/posix/vaultPeer.c',
-    '-o',
-    helper,
+  await buildBrokerChildren(fixture.root, [
+    ['sessionBrokerNoKeyringChild', 'vaultBrokerNoKeyring.js'],
   ])
-  await build({
-    entryPoints: ['test/unit/helpers/vault/sessionBrokerNoKeyringChild.ts'],
-    outfile: path.join(fixture.root, 'dist', 'vaultBrokerNoKeyring.js'),
-    bundle: true,
-    external: ['@napi-rs/keyring'],
-    define: { 'require.main': 'undefined' },
-    platform: 'node',
-    format: 'cjs',
-    plugins: [
-      {
-        name: 'generated-admission',
-        setup(builder) {
-          builder.onResolve({ filter: /admission(?:\.js)?$/ }, () => ({
-            path: path.resolve('test/unit/helpers/vault/sessionAdmission.ts'),
-          }))
-        },
-      },
-    ],
-  })
 })
 afterAll(async () => {
   for (const child of children) {

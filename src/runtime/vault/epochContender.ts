@@ -66,6 +66,78 @@ async function retireStalePending(writer: string, mutexAcquiredAt: number): Prom
   await unlink(pending)
 }
 
+/** A writer read: its owner, a release to reclaim, or a remnant to retire. */
+export type EpochWriterRead =
+  | { readonly state: 'owner'; readonly owner: VaultEpochWriterOwner }
+  | { readonly state: 'retry' }
+  | { readonly state: 'unparsable' }
+
+/** The writer's owner, read and parsed; releases reclaim, remnants retire. */
+export async function readEpochWriterOwner(
+  files: Pick<VaultPrivateFilesPort, 'read'>,
+  writer: string,
+): Promise<EpochWriterRead> {
+  let raw: Buffer
+  try {
+    raw = await files.read(writer)
+  } catch (error: unknown) {
+    // Released between our claim and this read: reclaim on the next round.
+    if (isVaultFileMissing(error)) return { state: 'retry' }
+    throw error
+  }
+  try {
+    const parsed = vaultEpochWriterSchema.parse(JSON.parse(raw.toString('utf8')))
+    return { state: 'owner', owner: { processId: parsed.processId, startedAt: parsed.startedAt } }
+  } catch {
+    return { state: 'unparsable' }
+  }
+}
+
+/**
+ * A complete record that appeared under the mutex goes back to the rule;
+ * anything else stays for the remnant below to retire.
+ */
+export async function rereadEpochWriter(
+  files: Pick<VaultPrivateFilesPort, 'read'>,
+  writer: string,
+): Promise<'retry' | 'unparsable'> {
+  let reread: Buffer
+  try {
+    reread = await files.read(writer)
+  } catch (error: unknown) {
+    if (isVaultFileMissing(error)) return 'retry'
+    throw error
+  }
+  try {
+    vaultEpochWriterSchema.parse(JSON.parse(reread.toString('utf8')))
+    // A complete record appeared under the mutex: decide it by rule next round.
+    return 'retry'
+  } catch {
+    /* Still unparsable: the remnant below is retired. */
+    return 'unparsable'
+  }
+}
+
+/** Only a contended writer is decided by rule; every other failure keeps its meaning. */
+export function isEpochContended(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'EEXIST'
+}
+
+/** One settle round's wait, if the round says to wait. */
+async function settleEpochRound(settled: Promise<'retry' | 'wait'>): Promise<void> {
+  if ((await settled) === 'wait') await delay(EPOCH_WRITER_SETTLE_WAIT_MS)
+}
+
+/** A contended bump round: exhausted rounds refuse, settled ones wait. */
+export async function settleBumpRound(
+  round: number,
+  cause: unknown,
+  settle: () => Promise<'retry' | 'wait'>,
+): Promise<void> {
+  if (round + 1 >= EPOCH_WRITER_SETTLE_ROUNDS) throw new Error(UI_TEXT.vault.noAccess, { cause })
+  await settleEpochRound(settle())
+}
+
 /**
  * Retire an empty or partial writer record left by a publisher killed before
  * its publication. Only while the kernel mutex is held (the sole caller
@@ -87,20 +159,7 @@ async function retireUnparsableWriter(
   }
   assertOwnerOnlyRemnant(sample)
   if (sample.mtimeMs > mutexAcquiredAt) return 'wait'
-  let reread: Buffer
-  try {
-    reread = await files.read(writer)
-  } catch (error: unknown) {
-    if (isVaultFileMissing(error)) return 'retry'
-    throw error
-  }
-  try {
-    vaultEpochWriterSchema.parse(JSON.parse(reread.toString('utf8')))
-    // A complete record appeared under the mutex: decide it by rule next round.
-    return 'retry'
-  } catch {
-    /* Still unparsable: the remnant below is retired. */
-  }
+  if ((await rereadEpochWriter(files, writer)) === 'retry') return 'retry'
   try {
     await unlink(writer)
   } catch (error: unknown) {
@@ -119,21 +178,11 @@ async function settleEpochWriter(
 ): Promise<'retry' | 'wait'> {
   const writer = vaultEpochWriterPath(runDirectory)
   await retireStalePending(writer, mutexAcquiredAt)
-  let raw: Buffer
-  try {
-    raw = await files.read(writer)
-  } catch (error: unknown) {
-    // Released between our claim and this read: reclaim on the next round.
-    if (isVaultFileMissing(error)) return 'retry'
-    throw error
-  }
-  let owner: VaultEpochWriterOwner
-  try {
-    const parsed = vaultEpochWriterSchema.parse(JSON.parse(raw.toString('utf8')))
-    owner = { processId: parsed.processId, startedAt: parsed.startedAt }
-  } catch {
+  const read = await readEpochWriterOwner(files, writer)
+  if (read.state === 'retry') return 'retry'
+  if (read.state === 'unparsable')
     return await retireUnparsableWriter(files, writer, mutexAcquiredAt)
-  }
+  const owner = read.owner
   // Our own record, or a same-process sibling's: both are alive by definition.
   if (owner.processId === self.processId && owner.startedAt === self.startedAt) return 'wait'
   let live: { startedAt: number } | null
@@ -198,12 +247,10 @@ export async function bumpVaultEpoch(
           authorize?.()
         })
       } catch (error: unknown) {
-        // Only a contended writer is decided by rule; every other failure keeps its meaning.
-        if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
-        if (round + 1 >= EPOCH_WRITER_SETTLE_ROUNDS)
-          throw new Error(UI_TEXT.vault.noAccess, { cause: error })
-        const settled = await settleEpochWriter(files, helper, runDirectory, owner, mutexAcquiredAt)
-        if (settled === 'wait') await delay(EPOCH_WRITER_SETTLE_WAIT_MS)
+        if (!isEpochContended(error)) throw error
+        await settleBumpRound(round, error, () =>
+          settleEpochWriter(files, helper, runDirectory, owner, mutexAcquiredAt),
+        )
       }
     }
     throw new Error(UI_TEXT.vault.noAccess)

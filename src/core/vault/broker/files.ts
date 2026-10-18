@@ -178,7 +178,94 @@ export interface VaultFileWriter {
   replace(bytes: Uint8Array): void
   close(): void
 }
-const writePrivateBytes = (fd: number, bytes: Uint8Array): void => {
+/**
+ * Publish `bytes` under `path` through a temporary file: write, rename over
+ * the record, adopt the new descriptor and sync the directory. The platform
+ * supplies its temporary-file open, directory open and descriptor adoption;
+ * a failure before adoption closes the unpublished file.
+ */
+export function replaceFileContent(
+  path: string,
+  bytes: Uint8Array,
+  parts: {
+    readonly current: () => number
+    readonly open: (temporary: string) => number
+    readonly syncDirectory: (directory: string) => number
+    readonly adopt: (fd: number) => void
+  },
+): void {
+  parts.current()
+  const temporary = `${path}.${randomBytes(VAULT_LIMITS.idBytes).toString('hex')}.tmp`
+  const fd = parts.open(temporary)
+  let isAdopted = false
+  try {
+    writePrivateBytes(fd, bytes)
+    const previous = parts.current()
+    renameSync(temporary, path)
+    closeSync(previous)
+    parts.adopt(fd)
+    isAdopted = true
+    const dir = parts.syncDirectory(pathModule.dirname(path))
+    try {
+      fsyncSync(dir)
+    } finally {
+      closeSync(dir)
+    }
+  } catch (error: unknown) {
+    if (!isAdopted) closeSync(fd)
+    try {
+      unlinkSync(temporary)
+    } catch {
+      /* Rename may have consumed this owned file. */
+    }
+    throw error
+  }
+}
+
+/**
+ * The monitored descriptor, reopened where the path now names another file.
+ * A null descriptor is locked; anything else proves itself first.
+ */
+export function monitoredDescriptor(
+  get: () => number | null,
+  set: (fd: number | null) => void,
+  path: string,
+  reopen: (path: string) => number,
+): number {
+  const descriptor = get()
+  if (descriptor === null) throw new Error(UI_TEXT.vault.locked)
+  const held = handleIdentitySync(descriptor),
+    named = lstatIdentitySync(path)
+  if (!sameFile(held, named)) {
+    closeSync(descriptor)
+    set(null)
+    const replacement = reopen(path)
+    set(replacement)
+    return replacement
+  }
+  return descriptor
+}
+
+/**
+ * A monitored-descriptor writer shell: appends write fully through the
+ * current descriptor; the platform supplies replace and close.
+ */
+export function monitoredFileWriter(parts: {
+  readonly current: () => number
+  readonly replace: (bytes: Uint8Array) => void
+  readonly close: () => void
+}): VaultFileWriter {
+  return {
+    append: (bytes) => {
+      writePrivateBytes(parts.current(), bytes)
+    },
+    replace: parts.replace,
+    close: parts.close,
+  }
+}
+
+/** A full blocking write; a short write that stalls refuses. */
+export const writePrivateBytes = (fd: number, bytes: Uint8Array): void => {
   let offset = 0
   while (offset < bytes.byteLength) {
     const count = writeSync(fd, bytes, offset, bytes.byteLength - offset)
@@ -206,64 +293,47 @@ function privateWriter(path: string): VaultFileWriter {
     closeSync(descriptor)
     throw error
   }
-  const current = (): number => {
-    if (descriptor === null) throw new Error(UI_TEXT.vault.locked)
-    const held = handleIdentitySync(descriptor),
-      named = lstatIdentitySync(path)
-    if (!sameFile(held, named)) {
-      closeSync(descriptor)
-      descriptor = null
-      const replacement = openSync(path, flags, ownerFile),
-        sample = fstatSync(replacement)
-      try {
-        if (!sample.isFile() || sample.nlink !== 1) throw new Error(UI_TEXT.vault.noAccess)
-        checkOwner(sample.mode, sample.uid)
-      } catch (error: unknown) {
-        closeSync(replacement)
-        throw error
-      }
-      descriptor = replacement
-    }
-    return descriptor
-  }
-
-  return {
-    append: (bytes) => {
-      writePrivateBytes(current(), bytes)
-    },
-    replace: (bytes) => {
-      current()
-      const temporary = `${path}.${randomBytes(VAULT_LIMITS.idBytes).toString('hex')}.tmp`
-      const fd = openSync(
-        temporary,
-        constants.O_WRONLY |
-          constants.O_APPEND |
-          constants.O_CREAT |
-          constants.O_EXCL |
-          constants.O_NOFOLLOW,
-        ownerFile,
-      )
-      try {
-        writePrivateBytes(fd, bytes)
-        const previous = current()
-        renameSync(temporary, path)
-        closeSync(previous)
+  const current = (): number =>
+    monitoredDescriptor(
+      () => descriptor,
+      (fd) => {
         descriptor = fd
-        const directory = openSync(pathModule.dirname(path), constants.O_RDONLY)
+      },
+      path,
+      (target) => {
+        const replacement = openSync(target, flags, ownerFile),
+          sample = fstatSync(replacement)
         try {
-          fsyncSync(directory)
-        } finally {
-          closeSync(directory)
+          if (!sample.isFile() || sample.nlink !== 1) throw new Error(UI_TEXT.vault.noAccess)
+          checkOwner(sample.mode, sample.uid)
+        } catch (error: unknown) {
+          closeSync(replacement)
+          throw error
         }
-      } catch (error: unknown) {
-        if (descriptor !== fd) closeSync(fd)
-        try {
-          unlinkSync(temporary)
-        } catch {
-          /* Rename may have consumed this owned file. */
-        }
-        throw error
-      }
+        return replacement
+      },
+    )
+
+  return monitoredFileWriter({
+    current,
+    replace: (bytes) => {
+      replaceFileContent(path, bytes, {
+        current,
+        open: (temporary) =>
+          openSync(
+            temporary,
+            constants.O_WRONLY |
+              constants.O_APPEND |
+              constants.O_CREAT |
+              constants.O_EXCL |
+              constants.O_NOFOLLOW,
+            ownerFile,
+          ),
+        syncDirectory: (directory) => openSync(directory, constants.O_RDONLY),
+        adopt: (fd) => {
+          descriptor = fd
+        },
+      })
     },
     close: () => {
       if (descriptor === null) {
@@ -273,7 +343,7 @@ function privateWriter(path: string): VaultFileWriter {
       closeSync(descriptor)
       descriptor = null
     },
-  }
+  })
 }
 
 /** Windows supplies native owner-DACL creation/verification; there is no POSIX-mode fallback. */
