@@ -35,7 +35,7 @@ import { MacVaultSlots } from './slots/macVaultSlots'
 import { WindowsVaultSlots } from './slots/windowsVaultSlots'
 import { macVaultTransport } from './slots/macVaultTransport'
 import { macVaultSlotExecutable } from './posixNative'
-import { startVaultBrokerProcess } from './brokerProcess'
+import { startVaultBrokerProcess, type VaultBrokerProcessOptions } from './brokerProcess'
 import { startWindowsVaultBrokerProcess } from './windowsBrokerProcess'
 import { WindowsPipeFiles } from './windowsPipeRelay'
 import { VaultError } from '../../core/vault/crypto'
@@ -154,6 +154,29 @@ export function defaultBrokerSlots(
  * and the claim, and supplies exactly what differs (files, keyring, peers,
  * epoch contention and the listener). Everything else runs the same.
  */
+/**
+ * Locking a broker process cancels a pending setup first; disposal only
+ * disposes. One pair for every starter.
+ */
+export function brokerProcessLock(owned: {
+  broker?: VaultBroker
+  management?: VaultManagement
+}): Pick<VaultBrokerProcessOptions, 'lock' | 'dispose'> {
+  return {
+    lock: async () => {
+      try {
+        const pending = await owned.management?.snapshot()
+        if (pending?.setupId) await owned.management?.cancelSetup(pending.setupId)
+      } finally {
+        await owned.broker?.lock()
+      }
+    },
+    dispose: async () => {
+      await owned.broker?.dispose()
+    },
+  }
+}
+
 export async function buildBrokerChannel(
   context: VaultBrokerContext,
   bindings: VaultBrokerBindings,
@@ -273,17 +296,7 @@ export async function createVaultBrokerProcess(
     userSession: context.userSession,
     helper,
     ...(bindings.idleMs !== undefined && { idleMs: bindings.idleMs }),
-    lock: async () => {
-      try {
-        const pending = await owned.management?.snapshot()
-        if (pending?.setupId) await owned.management?.cancelSetup(pending.setupId)
-      } finally {
-        await owned.broker?.lock()
-      }
-    },
-    dispose: async () => {
-      await owned.broker?.dispose()
-    },
+    ...brokerProcessLock(owned),
     channel: async (location, listener) => {
       const privateFiles = bindings.privateFiles ?? new UnixVaultPrivateFiles()
       const files = new NodeVaultFiles(context.dataDir, VAULT_LIMITS.frameBytes)
@@ -337,17 +350,7 @@ async function createWindowsVaultBrokerProcess(
       },
     },
     ...(bindings.idleMs !== undefined && { idleMs: bindings.idleMs }),
-    lock: async () => {
-      try {
-        const pending = await owned.management?.snapshot()
-        if (pending?.setupId) await owned.management?.cancelSetup(pending.setupId)
-      } finally {
-        await owned.broker?.lock()
-      }
-    },
-    dispose: async () => {
-      await owned.broker?.dispose()
-    },
+    ...brokerProcessLock(owned),
     channel: async (location, endpoint) => {
       const security = new WindowsPipeFiles(endpoint.platform.relay, () => new VaultError('io'))
       const files = new NodeVaultFiles(context.dataDir, VAULT_LIMITS.frameBytes, security, 'win32')

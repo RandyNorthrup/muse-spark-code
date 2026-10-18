@@ -1,14 +1,9 @@
-import { VAULT_LIMITS } from '../../../shared/constants'
 import { VaultError } from '../../../core/vault/crypto'
 import type { VaultSlotProvider } from '../../../core/vault/broker/repository'
 import type { VaultSlotRecord } from '../../../shared/vault'
 import { OsStoreVaultSlot } from './osStoreVaultSlot'
-import {
-  LinuxTpm2Slot,
-  contextFrom,
-  linuxTpm2Capabilities,
-  type LinuxTpm2Runner,
-} from './linuxTpm2Slot'
+import { LinuxTpm2Slot, linuxTpm2Capabilities, type LinuxTpm2Runner } from './linuxTpm2Slot'
+import { freshSlotContext, slotContextFromRecord } from './slotIdentity'
 
 type OpenEntry = ConstructorParameters<typeof OsStoreVaultSlot>[2]
 
@@ -35,49 +30,16 @@ export class LinuxVaultSlots implements VaultSlotProvider {
   }
   slotFor(record: VaultSlotRecord): OsStoreVaultSlot | LinuxTpm2Slot | null {
     if (record.tier === 'osStore' && record.provider === 'secretService')
-      return new OsStoreVaultSlot(
-        {
-          id: record.id,
-          vaultId: record.vaultId,
-          lastGeneration: record.lastGeneration,
-          auditGeneration: record.auditGeneration,
-          auditHead: record.auditHead,
-          createdAt: record.createdAt,
-        },
-        this.platform,
-        this.deps.open,
-      )
+      return new OsStoreVaultSlot(slotContextFromRecord(record), this.platform, this.deps.open)
     return record.tier === 'hardware' && record.provider === 'linuxTpm2'
-      ? new LinuxTpm2Slot(contextFrom(record), this.deps.runner, this.platform)
+      ? new LinuxTpm2Slot(slotContextFromRecord(record), this.deps.runner, this.platform)
       : null
   }
   osStore(vaultId: string, slotId: string): OsStoreVaultSlot {
-    return new OsStoreVaultSlot(
-      {
-        id: slotId,
-        vaultId,
-        lastGeneration: 0,
-        auditGeneration: 0,
-        auditHead: '0'.repeat(VAULT_LIMITS.sha256Hex),
-        createdAt: Date.now(),
-      },
-      this.platform,
-      this.deps.open,
-    )
+    return new OsStoreVaultSlot(freshSlotContext(vaultId, slotId), this.platform, this.deps.open)
   }
   hardware(vaultId: string, slotId: string): LinuxTpm2Slot {
-    return new LinuxTpm2Slot(
-      {
-        id: slotId,
-        vaultId,
-        lastGeneration: 0,
-        auditGeneration: 0,
-        auditHead: '0'.repeat(VAULT_LIMITS.sha256Hex),
-        createdAt: Date.now(),
-      },
-      this.deps.runner,
-      this.platform,
-    )
+    return new LinuxTpm2Slot(freshSlotContext(vaultId, slotId), this.deps.runner, this.platform)
   }
   /** Refused after a real probe: nothing on Linux can prompt per-use presence. */
   async presence(): Promise<boolean> {

@@ -1,4 +1,4 @@
-import { UI_TEXT, VAULT_LIMITS } from '../../../shared/constants'
+import { UI_TEXT } from '../../../shared/constants'
 import { VaultError } from '../../../core/vault/crypto'
 import type { VaultSlotProvider } from '../../../core/vault/broker/repository'
 import type { VaultSlotRecord, VaultUse } from '../../../shared/vault'
@@ -6,7 +6,12 @@ import { type vaultPrivateReadSchema } from '../../../shared/vaultProtocol'
 import { OsStoreVaultSlot } from './osStoreVaultSlot'
 import { MacVaultSlot } from './macVaultSlot'
 import type { MacVaultTransport } from './macVaultProtocol'
-import type { PresenceRecords } from './slotIdentity'
+import {
+  freshSlotContext,
+  isPresenceUnwrapped,
+  slotContextFromRecord,
+  type PresenceRecords,
+} from './slotIdentity'
 
 type OpenEntry = ConstructorParameters<typeof OsStoreVaultSlot>[2]
 
@@ -33,49 +38,14 @@ export class MacVaultSlots implements VaultSlotProvider {
   }
   slotFor(record: VaultSlotRecord): OsStoreVaultSlot | MacVaultSlot | null {
     if (record.tier === 'osStore' && record.provider === 'loginKeychain')
-      return new OsStoreVaultSlot(
-        {
-          id: record.id,
-          vaultId: record.vaultId,
-          lastGeneration: record.lastGeneration,
-          auditGeneration: record.auditGeneration,
-          auditHead: record.auditHead,
-          createdAt: record.createdAt,
-        },
-        this.platform,
-        this.deps.open,
-      )
-    if (
-      (record.tier === 'hardware' || record.tier === 'presence') &&
+      return new OsStoreVaultSlot(slotContextFromRecord(record), this.platform, this.deps.open)
+    return (record.tier === 'hardware' || record.tier === 'presence') &&
       record.provider === 'secureEnclave'
-    )
-      return new MacVaultSlot(
-        record.tier,
-        {
-          id: record.id,
-          vaultId: record.vaultId,
-          lastGeneration: record.lastGeneration,
-          auditGeneration: record.auditGeneration,
-          auditHead: record.auditHead,
-          createdAt: record.createdAt,
-        },
-        this.transport,
-      )
-    return null
+      ? new MacVaultSlot(record.tier, slotContextFromRecord(record), this.transport)
+      : null
   }
   osStore(vaultId: string, slotId: string): OsStoreVaultSlot {
-    return new OsStoreVaultSlot(
-      {
-        id: slotId,
-        vaultId,
-        lastGeneration: 0,
-        auditGeneration: 0,
-        auditHead: '0'.repeat(VAULT_LIMITS.sha256Hex),
-        createdAt: Date.now(),
-      },
-      this.platform,
-      this.deps.open,
-    )
+    return new OsStoreVaultSlot(freshSlotContext(vaultId, slotId), this.platform, this.deps.open)
   }
   /**
    * A fresh Secure Enclave presence unwrap: the helper prompts (Touch ID or
@@ -88,29 +58,10 @@ export class MacVaultSlots implements VaultSlotProvider {
     _challenge: string,
     _use: VaultUse | ReturnType<typeof vaultPrivateReadSchema.parse>,
   ): Promise<boolean> {
-    try {
-      const records = (await this.deps.presenceRecords?.()) ?? []
-      const record = records.find(
-        (candidate) => candidate.tier === 'presence' && candidate.provider === 'secureEnclave',
-      )
-      if (!record) return false
-      const slot = new MacVaultSlot(
-        'presence',
-        {
-          id: record.id,
-          vaultId: record.vaultId,
-          lastGeneration: record.lastGeneration,
-          auditGeneration: record.auditGeneration,
-          auditHead: record.auditHead,
-          createdAt: record.createdAt,
-        },
-        this.transport,
-      )
+    return await isPresenceUnwrapped(this.deps.presenceRecords, 'secureEnclave', async (record) => {
+      const slot = new MacVaultSlot('presence', slotContextFromRecord(record), this.transport)
       await slot.unwrap(record, UI_TEXT.vault.presenceWarning)
-      return true
-    } catch {
-      return false
-    }
+    })
   }
   onScreenLock(): () => void {
     // No screen-lock capture in this lane: callers must supply that binding before enabling it.

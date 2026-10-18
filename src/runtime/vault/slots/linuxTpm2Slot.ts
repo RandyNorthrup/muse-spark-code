@@ -1,6 +1,5 @@
 import { open } from 'node:fs/promises'
 import { constants } from 'node:fs'
-import * as z from 'zod/mini'
 import {
   UI_TEXT,
   VAULT_FORMAT_VERSION,
@@ -16,6 +15,7 @@ import {
   type VaultSlotRecord,
 } from '../../../shared/vault'
 import { spawnResourceProcess } from '../../../core/resources/launcher'
+import { slotContextSchema, type SlotContext } from './slotIdentity'
 import { wrapSlotKey } from './slotWrap'
 
 // A TPM2 sealed object through `systemd-creds --user` (systemd 256 or later),
@@ -153,25 +153,6 @@ export async function linuxTpm2Capabilities(
   return { hasDevice, canSeal }
 }
 
-interface LinuxTpm2Context {
-  readonly id: string
-  readonly vaultId: string
-  readonly lastGeneration: number
-  readonly auditGeneration: number
-  readonly auditHead: string
-  readonly createdAt: number
-}
-const slotId = z.string().check(z.regex(/^[a-f0-9]{32}$/u))
-const generation = z.number().check(z.int(), z.nonnegative())
-const contextSchema = z.strictObject({
-  id: slotId,
-  vaultId: slotId,
-  lastGeneration: generation,
-  auditGeneration: generation,
-  auditHead: z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
-  createdAt: generation,
-})
-
 /** The sealed blob, base64 inside the slot record's wrappedKey. */
 interface SealedContainer {
   readonly v: typeof VAULT_FORMAT_VERSION
@@ -183,15 +164,15 @@ interface SealedContainer {
 
 /** TPM2-sealed hardware slot. Presence-tier records never resolve here. */
 export class LinuxTpm2Slot implements VaultSlotPort {
-  private readonly context: LinuxTpm2Context
+  private readonly context: SlotContext
   readonly tier = 'hardware' as const
   constructor(
-    context: LinuxTpm2Context,
+    context: SlotContext,
     private readonly runner: LinuxTpm2Runner = defaultLinuxTpm2Runner,
     platform: NodeJS.Platform = process.platform,
   ) {
     if (platform !== 'linux') throw new VaultError('invalid')
-    const parsed = contextSchema.safeParse(context)
+    const parsed = slotContextSchema.safeParse(context)
     if (!parsed.success) throw new Error(UI_TEXT.vault.useChanged)
     this.context = parsed.data
   }
@@ -333,17 +314,5 @@ export class LinuxTpm2Slot implements VaultSlotPort {
     // The sealed blob lives inside the slot record: dropping the record
     // removes it. No TPM object persists on the machine.
     return Promise.resolve()
-  }
-}
-
-/** Slot identity fields every platform provider derives from a stored record. */
-export function contextFrom(record: VaultSlotRecord): LinuxTpm2Context {
-  return {
-    id: record.id,
-    vaultId: record.vaultId,
-    lastGeneration: record.lastGeneration,
-    auditGeneration: record.auditGeneration,
-    auditHead: record.auditHead,
-    createdAt: record.createdAt,
   }
 }
