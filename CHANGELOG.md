@@ -14,6 +14,11 @@ happened, not what was planned; superseded entries are kept.
   saved", although nothing was wrong with the ledger. Windows answers a lock
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
+- On macOS, the resource panel no longer reports GPU use, disk busyness and
+  memory headroom as unknown: GPU percent comes from the accelerators'
+  published utilization, disk busyness from the storage drivers' busy-time
+  counters, and memory headroom from the runtime's available-memory reading
+  on new enough runtimes.
 
 ### Release infrastructure
 
