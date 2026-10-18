@@ -9,26 +9,10 @@ import { failureForLog } from '../../src/core/backends/musecode/logText'
 import type { CoreLogger } from '../../src/core/logging'
 import {
   MuseCodeHookModels,
-  type MuseCodeHookModelDeps,
   type MuseCodeHookModelJob,
 } from '../../src/host/review/museCodeHookModels'
+import { recordLog } from './helpers/recordLog'
 import { usingTempDir } from './helpers/temporaryFolders'
-
-function recordLog() {
-  const warnings: string[] = []
-  const infos: string[] = []
-  const log: CoreLogger = {
-    trace: () => undefined,
-    info: (message) => {
-      infos.push(message)
-    },
-    warn: (message) => {
-      warnings.push(message)
-    },
-    error: () => undefined,
-  }
-  return { log, warnings, infos }
-}
 
 function noUnsubscribe(): void {
   return undefined
@@ -50,6 +34,28 @@ function sideSession(send: AgentSession['sendTurn']) {
     setReasoningEffort: () => Promise.resolve(),
   } as unknown as AgentSession
   return { session, disposed: () => disposed }
+}
+
+/** Fresh models for one root; the caller disposes them. */
+function turnModels(root: string, log: CoreLogger): MuseCodeHookModels {
+  return new MuseCodeHookModels({
+    root,
+    log,
+    onSideSession: () => undefined,
+    describeFailure: failureForLog,
+    notify: () => undefined,
+  })
+}
+
+/** One turn through fresh models, disposed after. */
+async function runTurn(root: string, log: CoreLogger, host: AgentHost): Promise<void> {
+  const models = turnModels(root, log)
+  try {
+    const answer = await models.runHookModelTurn(job(host, new AbortController().signal))
+    expect(answer).toBe(undefined)
+  } finally {
+    models.dispose()
+  }
 }
 
 function job(host: AgentHost, signal: AbortSignal, timeoutMs = 5000): MuseCodeHookModelJob {
@@ -76,15 +82,8 @@ describe('MuseCodeHookModels', () => {
           return Promise.reject(new Error('must not start'))
         },
       } as unknown as AgentHost
-      const deps: MuseCodeHookModelDeps = {
-        root,
-        log,
-        onSideSession: () => undefined,
-        describeFailure: failureForLog,
-        notify: () => undefined,
-      }
-      const models = new MuseCodeHookModels(deps)
       const aborted = new AbortController()
+      const models = turnModels(root, log)
       aborted.abort()
       try {
         const answer = await models.runHookModelTurn(job(host, aborted.signal))
@@ -105,20 +104,7 @@ describe('MuseCodeHookModels', () => {
       const host = {
         startSession: () => Promise.reject(startFailure),
       } as unknown as AgentHost
-      const deps: MuseCodeHookModelDeps = {
-        root,
-        log,
-        onSideSession: () => undefined,
-        describeFailure: failureForLog,
-        notify: () => undefined,
-      }
-      const models = new MuseCodeHookModels(deps)
-      try {
-        const answer = await models.runHookModelTurn(job(host, new AbortController().signal))
-        expect(answer).toBe(undefined)
-      } finally {
-        models.dispose()
-      }
+      await runTurn(root, log, host)
       expect(warnings).toHaveLength(1)
       expect(warnings[0]).toContain('Error')
       expect(warnings[0]).not.toContain('/secret/path')
@@ -133,20 +119,7 @@ describe('MuseCodeHookModels', () => {
       const host = {
         startSession: () => Promise.resolve(session),
       } as unknown as AgentHost
-      const deps: MuseCodeHookModelDeps = {
-        root,
-        log,
-        onSideSession: () => undefined,
-        describeFailure: failureForLog,
-        notify: () => undefined,
-      }
-      const models = new MuseCodeHookModels(deps)
-      try {
-        const answer = await models.runHookModelTurn(job(host, new AbortController().signal))
-        expect(answer).toBe(undefined)
-      } finally {
-        models.dispose()
-      }
+      await runTurn(root, log, host)
       expect(disposed()).toBeGreaterThan(0)
       expect(warnings).toHaveLength(2)
       for (const warning of warnings) {
@@ -163,14 +136,7 @@ describe('MuseCodeHookModels', () => {
       const host = {
         startSession: () => Promise.resolve(session),
       } as unknown as AgentHost
-      const deps: MuseCodeHookModelDeps = {
-        root,
-        log,
-        onSideSession: () => undefined,
-        describeFailure: failureForLog,
-        notify: () => undefined,
-      }
-      const models = new MuseCodeHookModels(deps)
+      const models = turnModels(root, log)
       try {
         const first = models.runHookModelTurn(job(host, new AbortController().signal, 400))
         const stop = new AbortController()

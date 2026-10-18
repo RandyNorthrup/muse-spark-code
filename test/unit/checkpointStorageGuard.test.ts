@@ -30,24 +30,24 @@ const io = {
   writeFileIfUnchanged: () => Promise.resolve('written'),
 } as unknown as ToolIo
 
+/** Runs the entry, returning the failure it throws. */
+async function runThrowing(
+  guarded: ReturnType<typeof withCheckpointStorageGuard>,
+): Promise<unknown> {
+  try {
+    await guarded.runShell('true', '/ws', 1000, new AbortController().signal, 1000, () => undefined)
+  } catch (error: unknown) {
+    return error
+  }
+  return undefined
+}
+
 describe('withCheckpointStorageGuard', () => {
   it('refuses the entry with the mark failure, closing the uncertain mark', async () => {
     const markFailure = new Error('presence file is down')
     const { checkpoints, marks } = ports({ markTrue: markFailure })
     const guarded = withCheckpointStorageGuard(io, checkpoints)
-    let failure: unknown
-    try {
-      await guarded.runShell(
-        'true',
-        '/ws',
-        1000,
-        new AbortController().signal,
-        1000,
-        () => undefined,
-      )
-    } catch (error: unknown) {
-      failure = error
-    }
+    const failure = await runThrowing(guarded)
     expect(failure).toBeInstanceOf(ShellEntryError)
     expect((failure as ShellEntryError).cause).toBe(markFailure)
     expect(marks).toHaveLength(2)
@@ -63,19 +63,7 @@ describe('withCheckpointStorageGuard', () => {
       markFalse: new Error('presence file is still down'),
     })
     const guarded = withCheckpointStorageGuard(io, checkpoints)
-    let failure: unknown
-    try {
-      await guarded.runShell(
-        'true',
-        '/ws',
-        1000,
-        new AbortController().signal,
-        1000,
-        () => undefined,
-      )
-    } catch (error: unknown) {
-      failure = error
-    }
+    const failure = await runThrowing(guarded)
     expect(failure).toBeInstanceOf(ShellEntryError)
     expect((failure as ShellEntryError).cause).toBe(markFailure)
   })

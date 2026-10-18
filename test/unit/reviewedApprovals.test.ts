@@ -11,7 +11,6 @@ import {
 } from '../../src/core/agent/agentBackend'
 import { failureForLog } from '../../src/core/backends/musecode/logText'
 import { ReviewBreaker } from '../../src/core/backends/modelapi/autoReviewer'
-import type { CoreLogger } from '../../src/core/logging'
 import { UI_TEXT } from '../../src/shared/constants'
 import { MuseCodeReviewer } from '../../src/host/review/museCodeReviewer'
 import {
@@ -19,23 +18,8 @@ import {
   type ReviewedApprovalsDeps,
   type ReviewHold,
 } from '../../src/host/review/reviewedApprovals'
+import { recordLog } from './helpers/recordLog'
 import { usingTempDir } from './helpers/temporaryFolders'
-
-function recordLog() {
-  const warnings: string[] = []
-  const infos: string[] = []
-  const log: CoreLogger = {
-    trace: () => undefined,
-    info: (message) => {
-      infos.push(message)
-    },
-    warn: (message) => {
-      warnings.push(message)
-    },
-    error: () => undefined,
-  }
-  return { log, warnings, infos }
-}
 
 function recordCards() {
   const cards: { readonly note: string | undefined }[] = []
