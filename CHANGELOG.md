@@ -7,13 +7,6 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-### Changed
-
-- A Model API turn no longer stops itself after 50 tool rounds. No provider
-  publishes a round count, so the product sets none: a turn runs until the
-  model answers without a tool call, you press Stop, a hook stops it, or a
-  budget you set is spent.
-
 ### Fixed
 
 - On Windows, two requests that reserve session spend at the same moment
