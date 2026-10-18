@@ -4485,6 +4485,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           mediaProjected,
           undefined,
           this.media?.pending(mediaProjected),
+          resolved.policy.identity.provider,
         )
         // Packing projects per request only: the replay keeps the originals, so
         // a later request (or a restore) packs from the full outputs again.
@@ -15029,12 +15030,17 @@ export class ModelApiSession implements ScheduledAgentSession {
         ...(cached !== undefined && {
           instructions: cached.instructions,
         }),
-        input: this.budget.fit([
-          ...(this.media?.summaryInput(current.input) ?? current.input).filter(
-            (item) => canReplayReasoning || !isReasoningItem(item),
-          ),
-          append,
-        ]),
+        input: this.budget.fit(
+          [
+            ...(this.media?.summaryInput(current.input) ?? current.input).filter(
+              (item) => canReplayReasoning || !isReasoningItem(item),
+            ),
+            append,
+          ],
+          undefined,
+          [],
+          resolved.policy.identity.provider,
+        ),
         tools: canReuse ? current.tools : [],
         include: ['reasoning.encrypted_content'],
       })
