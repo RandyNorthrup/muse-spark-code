@@ -691,16 +691,35 @@ export const ON_FIRST_USE = [
       'src/host/providers/copilotClient.ts',
     ],
   },
+  // ACTIVATIONROOM: the CLI-backed and workspace command flows (the MCP
+  // servers and hooks pickers, the skills flows, the worktree flows, the
+  // memory flow and the Plans picker), required on the first of those
+  // commands; activation keeps no command implementation.
+  {
+    output: 'dist/commands.js',
+    metafile: 'dist/meta/commands.json',
+    use: 'the first CLI-backed or workspace command',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/host/commands/commandsEntry.ts',
+      'src/host/commands/museConfigCommands.ts',
+      'src/host/commands/skillsCommands.ts',
+      'src/host/commands/worktreeCommands.ts',
+      'src/host/commands/memoryCommands.ts',
+      'src/host/commands/planCommands.ts',
+    ],
+  },
   // The report dialog (M93, PLAN.md D72), split out from the start.
   {
     output: 'dist/report.js',
     metafile: 'dist/meta/report.json',
-    use: 'the first report dialog',
+    use: 'the first report dialog or Diagnostics command',
     files: [
       'src/host/support/reportEntry.ts',
       'src/host/conversation/reportProblemHandler.ts',
       'src/host/support/reportProblem.ts',
       'src/core/support/problemReport.ts',
+      'src/core/support/report.ts',
     ],
   },
   // The capacity estimator's engine (M117, PLAN.md D6, D97): the host, the
@@ -1048,6 +1067,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/web/webFetchEntry.ts'), 'dist/webFetch.js'],
   [path.resolve('src/core/backends/modelapi/pluginHooksEntry.ts'), 'dist/pluginHooks.js'],
   [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
+  [path.resolve('src/host/commands/commandsEntry.ts'), 'dist/commands.js'],
 ])
 /** @type {import('esbuild').Plugin} */
 export const deferredCohort = {
@@ -1076,7 +1096,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|commandsEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

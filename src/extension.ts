@@ -149,7 +149,7 @@ import {
 import { memoryDataRoot } from './core/memory/memoryLocation'
 import { isSamePath } from './core/paths'
 import { terminalArgument } from './core/shellQuote'
-import { renderSupportReport } from './core/support/report'
+import type * as ReportBundle from './host/support/reportEntry'
 import { isSandboxNetworkApplied } from './core/backends/musecode/sandbox'
 import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry, diagnosticsTool } from './core/diagnostics'
 import type { EditorContext } from './core/editorContext'
@@ -4581,6 +4581,8 @@ async function activateWindow(
     }),
     // The support report (PLAN.md D14): facts only, credentials as booleans.
     registerLoggedCommand(log, COMMAND_IDS.diagnostics, async () => {
+      // The report builder loads on first use (PLAN.md D6): dist/report.js.
+      const reportBundle: typeof ReportBundle = await import('./host/support/reportEntry')
       const settings = currentSettings()
       const resolution = backend.resolveLaunch()
       const posture = backend.shellSandboxPosture()
@@ -4613,53 +4615,57 @@ async function activateWindow(
             )
           : undefined
       log.info(
-        renderSupportReport({
-          extensionVersion: version,
-          vscodeVersion: vscode.version,
-          nodeVersion: process.versions.node,
-          platform: process.platform,
-          arch: process.arch,
-          remoteName: vscode.env.remoteName,
-          hasWorkspace: workspaceRoot !== undefined,
-          isWorkspaceTrusted: vscode.workspace.isTrusted,
-          backendSetting: settings.backend,
-          shellSandboxSetting: settings.shellSandbox,
-          shellSandboxPosture: `${posture.isSandboxed ? 'sandboxed' : 'disabled'} (${posture.reason})`,
-          isShellSandboxed: posture.isSandboxed,
-          sandboxNetworkSetting: settings.sandboxNetwork,
-          isSandboxNetworkApplied: isSandboxNetworkApplied(settings.sandboxNetwork, posture),
-          isBinaryPathConfigured: settings.museBinaryPath !== '',
-          environmentVariableCount: settings.environmentVariables.length,
-          cli: resolution.ok
-            ? {
-                ok: true,
-                installDir: resolution.launch.installDir,
-                version: backend.installedVersion(resolution.launch.installDir),
-              }
-            : { ok: false, reason: resolution.reason },
-          cliCredentialFile: backend.credentialFileVerdict(),
-          cliSignIn: await cliAccount.signIn(true),
-          keychainItem:
-            keychainLookup === undefined
-              ? undefined
-              : keychainItemPresence(keychainLookup.exitCode),
-          delegationMode: delegationMode(),
-          workflowTriggerMode: workflowTriggerMode(),
-          hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
-          hasEnvironmentApiKey: backend.hasEnvironmentKey(),
-          dictation: dictation.isAvailable
-            ? { isAvailable: true }
-            : { isAvailable: false, reason: dictation.reason },
-          network: readNetworkFacts(
-            vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION),
-            process.env,
-            process.platform,
-            backend,
-            globalThis,
-          ),
-          managedConfiguration: managed,
-          homeDir: homedir(),
-        }),
+        reportBundle.renderSupportReport(
+          {
+            extensionVersion: version,
+            vscodeVersion: vscode.version,
+            nodeVersion: process.versions.node,
+            platform: process.platform,
+            arch: process.arch,
+            remoteName: vscode.env.remoteName,
+            hasWorkspace: workspaceRoot !== undefined,
+            isWorkspaceTrusted: vscode.workspace.isTrusted,
+            backendSetting: settings.backend,
+            shellSandboxSetting: settings.shellSandbox,
+            shellSandboxPosture: `${posture.isSandboxed ? 'sandboxed' : 'disabled'} (${posture.reason})`,
+            isShellSandboxed: posture.isSandboxed,
+            sandboxNetworkSetting: settings.sandboxNetwork,
+            isSandboxNetworkApplied: isSandboxNetworkApplied(settings.sandboxNetwork, posture),
+            isBinaryPathConfigured: settings.museBinaryPath !== '',
+            environmentVariableCount: settings.environmentVariables.length,
+            cli: resolution.ok
+              ? {
+                  ok: true,
+                  installDir: resolution.launch.installDir,
+                  version: backend.installedVersion(resolution.launch.installDir),
+                }
+              : { ok: false, reason: resolution.reason },
+            cliCredentialFile: backend.credentialFileVerdict(),
+            cliSignIn: await cliAccount.signIn(true),
+            keychainItem:
+              keychainLookup === undefined
+                ? undefined
+                : keychainItemPresence(keychainLookup.exitCode),
+            delegationMode: delegationMode(),
+            workflowTriggerMode: workflowTriggerMode(),
+            hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
+            hasEnvironmentApiKey: backend.hasEnvironmentKey(),
+            dictation: dictation.isAvailable
+              ? { isAvailable: true }
+              : { isAvailable: false, reason: dictation.reason },
+            network: readNetworkFacts(
+              vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION),
+              process.env,
+              process.platform,
+              backend,
+              globalThis,
+            ),
+            managedConfiguration: managed,
+            homeDir: homedir(),
+          },
+          UI_TEXT,
+          uiLocale(),
+        ),
       )
       channel.show(true)
     }),

@@ -5988,6 +5988,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/reference.js',
   'dist/webview/models.js',
   'dist/webview/usage.js',
+  'dist/commands.js',
   'dist/report.js',
   'dist/reporting.js',
   'dist/reportingPanel.js',
