@@ -766,9 +766,10 @@ export function resourceName(uri: string): string {
     return path.posix.basename(decodeURIComponent(new URL(uri).pathname).replaceAll('\\', '/'))
   } catch (error: unknown) {
     // Only a malformed URL or escape keeps the raw name: anything else keeps
-    // its kind.
-    if (!(error instanceof TypeError) && !(error instanceof URIError)) throw error
-    return path.posix.basename(uri.replaceAll('\\', '/'))
+    // its kind past the display-name boundary.
+    if (error instanceof TypeError) return path.posix.basename(uri.replaceAll('\\', '/'))
+    if (error instanceof URIError) return path.posix.basename(uri.replaceAll('\\', '/'))
+    throw error
   }
 }
 
