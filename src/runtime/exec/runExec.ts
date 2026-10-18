@@ -354,7 +354,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   // through the shared accounting wrapper's zero-price tickets (the same
   // single-admission pattern as a configured-provider run), so the run's
   // request count still bounds it.
-  const isPlanRun = options.model !== undefined && isPlanModelRef(options.model)
+  // Re-decided from the session's resolved model below: without `--model`
+  // the default may be a plan model the transport must not wrap (Codex on
+  // PR #213).
+  let isPlanRun = options.model !== undefined && isPlanModelRef(options.model)
   let providerRun: AssembledProviderRun | undefined
   let memory: MemorySecretStore | undefined
   let runtime: RuntimeBackend | undefined
@@ -723,7 +726,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         homeDir: deps.homeDir,
         secrets: watchedSecrets,
         runGit: deps.runGit,
-        fetch: transport?.fetch ?? deps.fetch,
+        // Late-bound: a default plan model resolved after session creation
+        // drops the Meta-only transport below, and later requests must ride
+        // the plain fetch (Codex on PR #213).
+        fetch: (url, init) => (transport?.fetch ?? deps.fetch)(url, init),
         sleep: (ms) => lifecycle.race(deps.sleep(ms)),
         log,
         usageRecording,
@@ -731,10 +737,15 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           isEphemeral: options.ephemeral,
           outputCap,
           ...(providerRun !== undefined && { providerRun }),
-          ...((providerRun !== undefined || isPlanRun) &&
+          ...((providerRun !== undefined || isPlanRun || options.model === undefined) &&
             ledger !== undefined && {
               responseAccounting: {
                 ledger,
+                // No `--model`: the session's default is unknown yet. The
+                // wrapper admits plan requests only, so a resolved Meta
+                // model is not counted twice (Codex on PR #213).
+                ...(providerRun === undefined &&
+                  options.model === undefined && { admitOnlyPlan: true }),
                 refuse: (reason) => {
                   if (reason === 'closed') latch({ kind: 'internal' })
                   else latch({ kind: reason })
@@ -937,6 +948,16 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 }),
               )
               model = options.model
+            }
+            if (!isPlanRun && isPlanModelRef(model ?? '')) {
+              // No `--model`: the session's default resolved to a plan
+              // model after transport selection. Drop the Meta-only
+              // transport so the subscription request rides the plain
+              // fetch, like an explicit `--model` plan run; later
+              // requests read the late-bound fetch above (Codex on PR
+              // #213).
+              isPlanRun = true
+              transport = undefined
             }
             if (options.effort === undefined) {
               const config = created.configOptions?.find(
