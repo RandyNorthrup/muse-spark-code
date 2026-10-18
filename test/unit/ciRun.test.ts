@@ -147,6 +147,25 @@ describe('adapters: each system’s facts and trust', () => {
       reason: 'image-generation needs fix mode',
     })
   })
+
+  it('refuses Azure BatchedCI: the batch head alone cannot cover the batch', () => {
+    const head = 'a'.repeat(40)
+    const batched = ciFacts('azure', {
+      BUILD_SOURCESDIRECTORY: '/w',
+      BUILD_BUILDID: '1',
+      BUILD_REASON: 'BatchedCI',
+      BUILD_SOURCEVERSION: head,
+      BUILD_SOURCEBRANCHNAME: 'main',
+    })
+    expect(batched.event).toBe('unsupported')
+    expect(
+      decideCi(batched, {
+        trustPullRequests: true,
+        imageGeneration: false,
+        mode: 'review' as const,
+      }),
+    ).toEqual({ allowed: false, reason: 'this pipeline event cannot start a run' })
+  })
 })
 
 describe('key intake, inputs and the job deadline', () => {
