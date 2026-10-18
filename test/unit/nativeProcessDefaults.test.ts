@@ -1,7 +1,9 @@
+import { realpathSync } from 'node:fs'
 import { mkdtemp, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { workspaceChildEnvironment } from '../../src/core/executables'
 import { WORKER_NATIVE_IO } from '../../src/core/team/workers/workerFence'
 import { nodeGitProcesses } from '../../src/runtime/panel/pullRequests/checkout'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -21,7 +23,12 @@ describe('native process defaults', () => {
   it('runs git to completion through nodeGitProcesses.run and .start', async () => {
     const options = {
       cwd: root,
-      env: process.env,
+      // The real guarded child environment for the run's directory: git
+      // still resolves, but never to a program planted under it.
+      env: workspaceChildEnvironment(process.platform, process.env, {
+        workspaceRoot: root,
+        realpath: realpathSync,
+      }),
       signal: new AbortController().signal,
       timeout: GIT_TIMEOUT_MS,
     }
