@@ -95,6 +95,7 @@ import type { PaidUseRequest } from '../shared/paid'
 import {
   approvalModeFor,
   availablePermissionModes,
+  mspPermissionProfile,
   permissionModeDetail,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
@@ -2608,10 +2609,16 @@ class AgentState {
     const { host, models } = await this.openHost(cwd)
     const modelId = startingModel(models)
     const mcpServers = this.forwardedMcp(host, requestedMcp)
+    const approvalMode = approvalModeFor(this.deps.options.initialMode, true)
+    // Manual asks the person because the session reviews with `:ask-me`
+    // instead of Muse Code's judge (Muse Code 1.4.7); Auto keeps the judge
+    // its words describe. Omitted profiles keep the host default.
+    const permissionProfile = mspPermissionProfile(approvalMode)
     const session = await host.startSession({
       workspaceRoot: cwd,
       modelId,
-      approvalMode: approvalModeFor(this.deps.options.initialMode, true),
+      approvalMode,
+      ...(permissionProfile !== undefined && { permissionProfile }),
       ...(mcpServers !== undefined && { mcpServers }),
     })
     // The mode and model went with the start; the effort is set here.

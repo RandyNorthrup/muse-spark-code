@@ -14575,6 +14575,23 @@ resolved against the plan's user-visible promise, not against the tag:
   both backends) must pass the role's answer through. MSM58M69 shipped
   no behaviour change for it.
 
+### D123 — Manual asks the person on Muse Code 1.4.7: the `:ask-me` profile (lane MANUALMODE, 2026-10-18)
+
+Real use on Muse Code 1.4.7 showed Manual running commands with no approval
+reaching the editor: the session files record `"policy_decision":
+"allow:llm_judge"`. MSP `promptUnmatched` does not remove Muse Code's LLM
+judge; neither do `muse serve` flags (it refuses `--approval-judge`) nor the
+MSP modes (closed enum, select-never-create). Muse Code 1.4.7's stable
+`session/start.permissionProfile` (amendment 42624) does: `:ask-me` keeps
+the session's access and selects the human reviewer, while the default
+`:auto-review` lets the judge allow eligible actions. So interactive Manual
+and Edit-automatically sessions start with `:ask-me`, Auto sessions with
+`:auto-review`, and every mode switch re-syncs the profile (experimental
+`session/setPermissionProfile`, tolerated as `methodNotFound` on older
+hosts). Headless sessions pass no profile and behave as before. Manual's
+words stand unchanged; they hold on Muse Code 1.4.7 and later. Record:
+`docs/certification/manualmode.md`.
+
 ## 3. Open questions (need the owner)
 
 **Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13).** GAPANTH-G11's scan row
