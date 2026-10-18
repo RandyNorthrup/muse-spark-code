@@ -39616,7 +39616,11 @@ packed-product runs on both target OSs are recorded, per the branch's own
 rule. PR #244 (`fix/macos-parity`: macOS parity — protected names listed
 with contents denied, real GPU/disk/headroom readings, Darwin disk
 counters keyed by registry entry id, walk budget in entries visited)
-merged fifth, with its CHANGELOG entries under `[0.19.0]`. The `0.19.0 released (…)` line is written by the lead after the tag's
+merged fifth, with its CHANGELOG entries under `[0.19.0]`. PR #220
+(`fix/windows-process-birth`: the Windows birth reader each process
+builds with the C# compiler and seals, replacing PowerShell for the
+timed birth read; the vault's exact evidence path is unchanged) merged
+sixth, with its CHANGELOG entry under `[0.19.0]`. The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**

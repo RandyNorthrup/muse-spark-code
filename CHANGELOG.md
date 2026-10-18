@@ -609,6 +609,13 @@ happened, not what was planned; superseded entries are kept.
   `dist/mcpVault.js`, new 25 KiB budget), so the resource governor is back
   within its unchanged 125 KiB budget and activation no longer carries the
   vault MCP start.
+- On Windows, the time a process started (how a lock or a pending checkout
+  tells its live owner from a later process with the same id) is read by a
+  small reader that Windows' own C# compiler builds for each process in
+  `%LOCALAPPDATA%\Muse Spark Code\native`, instead of by Windows PowerShell.
+  Windows PowerShell's first start on a hosted CI runner took longer than
+  the 10-second bound, so the read came back empty and a lease test failed.
+  Not yet run in the packed product.
 
 ### Packaging
 
