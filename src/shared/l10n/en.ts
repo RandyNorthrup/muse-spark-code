@@ -4949,6 +4949,13 @@ export const EN = {
     'The playback stopped: the agent reached for a tool, and a playback answers from memory only, with no tools.',
   playbackPlanModeNotice:
     'This playback runs in Plan mode, and the permission mode you had comes back when it ends. Muse Code applies its own allow rules in Plan mode, so reads there can still run; the playback stops at the first tool use.',
+  // The playback's turn text loads with the review's module (dist/review.js), which could not be loaded.
+  playbackUnavailable:
+    'The playback could not be loaded, so no playback can start; reinstall the extension and reload the window. The log has the details.',
+  // {mode}: the permission mode's name.
+  playbackModeRestored: 'The playback ended: the permission mode is {mode} again.',
+  playbackModeNotRestored:
+    'The permission mode could not be set back after the playback, so the conversation stays in Plan mode',
   // M78 (PLAN.md D49): command rules, permission profiles and the Auto
   // reviewer on the Model API backend. Why a card asks beyond the mode:
   approvalProfileNote: 'A permission profile is on. Calls outside its file rules ask.',
