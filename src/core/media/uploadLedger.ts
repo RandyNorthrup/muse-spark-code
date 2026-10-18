@@ -28,17 +28,32 @@ import {
   type FilesApi,
   type UploadSource,
 } from '../backends/modelapi/files'
+import {
+  currentProcessOwner,
+  isProcessOwnerGone,
+  processStartTime,
+  systemBootId,
+} from '../locks/processOwner'
 
 // USE BEATS INTENT (round 4, P1-1): every ledger entry carries a use
 // generation that rises on each session (re)use. A delete intent records
 // the generation it saw; the delete runs only when the generation is
-// unchanged under the lock at the moment of the remote call, otherwise the
-// intent is dropped and the reused file stays.
+// unchanged under the lock at the moment of the remote call. A stale intent
+// for a file something still holds is dropped and the reused file stays;
+// once nothing holds it, the release or delete reissues at the current
+// generation instead of leaving a provider copy no intent names.
 const pendingDeleteIntentSchema = z.strictObject({ fileId: z.string(), useGen: z.number() })
 // PINS ARE COUNTED REFERENCES WITH AN OWNER (round 4, P2-1/P2-2): each
 // request that carries a file holds one reference (owner = process birth
-// plus request id). The file is unpinned only when the count reaches zero.
-const pinRefSchema = z.strictObject({ fileId: z.string(), owner: z.string() })
+// plus request id). The birth the system recorded travels with the row, so
+// a reaped id belongs to its owner only while the birth still matches. The
+// file is unpinned only when the count reaches zero.
+const pinRefSchema = z.strictObject({
+  fileId: z.string(),
+  owner: z.string(),
+  processStart: z.optional(z.number()),
+  bootId: z.optional(z.string()),
+})
 const pendingDeleteAttemptSchema = z.strictObject({
   fails: z.number(),
   nextRetry: z.number(),
@@ -78,6 +93,10 @@ export interface DeleteIntent {
 export interface PinRef {
   readonly fileId: string
   readonly owner: string
+  /** The owner's birth as the system recorded it; rows without one reap by id alone. */
+  readonly processStart?: number | undefined
+  /** Linux: the boot the owning process ran in. */
+  readonly bootId?: string | undefined
 }
 
 /**
@@ -134,6 +153,42 @@ function isOwnerGone(owner: string): boolean {
       (error as { code: string }).code === 'ESRCH'
     )
   }
+}
+
+/** This process's verifiable birth for a pin row: the system's own reading,
+ * never the wall clock. Undefined where the system cannot say (or on Linux
+ * without its boot, where ticks since boot name no boot): those pins reap
+ * by id alone. Read once per process: a birth never changes. */
+async function currentBirth(): Promise<Pick<PinRef, 'processStart' | 'bootId'> | undefined> {
+  const [processStart, bootId] = await Promise.all([processStartTime(process.pid), systemBootId()])
+  if (processStart === undefined) return undefined
+  if (bootId === undefined && process.platform === 'linux') return undefined
+  return bootId === undefined ? { processStart } : { processStart, bootId }
+}
+
+const birth: { current?: Promise<Pick<PinRef, 'processStart' | 'bootId'> | undefined> } = {}
+
+function processBirth(): Promise<Pick<PinRef, 'processStart' | 'bootId'> | undefined> {
+  birth.current ??= currentBirth()
+  return birth.current
+}
+
+/** Whether the process that took this pin is provably gone. A row carrying
+ * its owner's birth compares against the live process behind the id, so an
+ * id the system handed to another process reads gone; rows without a birth
+ * keep the old signal-zero check. Any doubt keeps the row. */
+async function isPinOwnerGone(pin: PinRef): Promise<boolean> {
+  if (pin.owner === LEGACY_PIN_OWNER) return false
+  const pid = pidOfOwner(pin.owner)
+  if (pid === undefined || pid === process.pid) return false
+  if (pin.processStart === undefined) return isOwnerGone(pin.owner)
+  const self = await currentProcessOwner()
+  return await isProcessOwnerGone({
+    host: self.host,
+    pid,
+    processStart: pin.processStart,
+    ...(pin.bootId !== undefined && { bootId: pin.bootId }),
+  })
 }
 
 function intentsOf(state: UploadLedgerState): DeleteIntent[] {
@@ -251,10 +306,16 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /** Drops the references of processes proven gone (round 4, P2-1): a crash,
-   * a reload or a dead host never pins a file forever. Any doubt keeps the row. */
-  private reapDeadOwners(state: UploadLedgerState): boolean {
+   * a reload or a dead host never pins a file forever. A pin carrying its
+   * owner's birth is gone when no live process matches both id and birth,
+   * so a reused id does not pin forever. Any doubt keeps the row. */
+  private async reapDeadOwners(state: UploadLedgerState): Promise<boolean> {
     const pins = pinsOf(state)
-    const live = pins.filter((pin) => !isOwnerGone(pin.owner))
+    const live: PinRef[] = []
+    for (const pin of pins) {
+      if (await isPinOwnerGone(pin)) continue
+      live.push(pin)
+    }
     if (live.length === pins.length) return false
     state.pinned = live
     return true
@@ -319,9 +380,22 @@ export class UploadLedger implements SessionUploadLifecycle {
     // and the dispatch without its generation showing here.
     const entry = state.entries.find((candidate) => candidate.file.fileId === fileId)
     if (entry !== undefined && (entry.useGen ?? 0) !== intent.useGen) {
-      state.pendingDeletes = intentsOf(state).filter((pending) => pending.fileId !== fileId)
+      if (entry.sessions.length > 0 || pinCountOf(state, fileId) > 0) {
+        // A use the intent predates still holds the file: the old retry
+        // stops here and the reused file stays.
+        state.pendingDeletes = intentsOf(state).filter((pending) => pending.fileId !== fileId)
+        await this.deps.storage.write(state)
+        return 'dropped'
+      }
+      // Nothing holds the file anymore: this release or delete reissues the
+      // delete at the current generation instead of leaving a provider copy
+      // no intent names.
+      intent = { fileId, useGen: entry.useGen ?? 0 }
+      state.pendingDeletes = [
+        ...intentsOf(state).filter((pending) => pending.fileId !== fileId),
+        intent,
+      ]
       await this.deps.storage.write(state)
-      return 'dropped'
     }
     if (pinCountOf(state, fileId) > 0) throw new Error(UI_TEXT.media.filesInUseRequest)
     try {
@@ -398,8 +472,9 @@ export class UploadLedger implements SessionUploadLifecycle {
   }
 
   /** Retry the durable delete intents the previous read left behind. A file
-   * used again since (generation moved) drops its intent instead of being
-   * deleted; a failing entry keeps its backoff and never breaks the read. */
+   * used again since (generation moved) drops its intent while something
+   * still holds it; an unreferenced file's delete reissues at the current
+   * generation. A failing entry keeps its backoff and never breaks the read. */
   private async retryPending(state: UploadLedgerState, signal?: AbortSignal): Promise<void> {
     signal?.throwIfAborted()
     if (!(await this.isCurrentAccount())) return
@@ -528,12 +603,17 @@ export class UploadLedger implements SessionUploadLifecycle {
     state.pendingDeletes = intentsOf(state).filter((intent) => intent.fileId !== fileId)
   }
 
-  private pinLocked(state: UploadLedgerState, fileIds: readonly string[], owner: string): boolean {
+  private pinLocked(
+    state: UploadLedgerState,
+    fileIds: readonly string[],
+    owner: string,
+    birth?: Pick<PinRef, 'processStart' | 'bootId'>,
+  ): boolean {
     const pins = pinsOf(state)
     let hasChanged = false
     for (const fileId of fileIds) {
       if (pins.some((pin) => pin.fileId === fileId && pin.owner === owner)) continue
-      pins.push({ fileId, owner })
+      pins.push({ fileId, owner, ...birth })
       hasChanged = true
     }
     if (hasChanged) state.pinned = pins
@@ -565,7 +645,7 @@ export class UploadLedger implements SessionUploadLifecycle {
         signal,
         onProgress,
       )
-      if (owner !== undefined) this.pinLocked(state, [ref.fileId], owner)
+      if (owner !== undefined) this.pinLocked(state, [ref.fileId], owner, await processBirth())
       try {
         signal.throwIfAborted()
         await this.deps.storage.write(state)
@@ -699,11 +779,12 @@ export class UploadLedger implements SessionUploadLifecycle {
     if (fileIds.length === 0) return
     await this.deps.storage.withLock(async () => {
       const state = await this.read()
-      let hasChanged = this.reapDeadOwners(state)
+      let hasChanged = await this.reapDeadOwners(state)
+      const birth = await processBirth()
       const pins = pinsOf(state)
       for (const fileId of fileIds) {
         if (pins.some((pin) => pin.fileId === fileId && pin.owner === owner)) continue
-        pins.push({ fileId, owner })
+        pins.push({ fileId, owner, ...birth })
         hasChanged = true
       }
       if (!hasChanged) return
@@ -854,7 +935,7 @@ export class UploadLedger implements SessionUploadLifecycle {
       if (!isReadOnly) {
         // References of a process proven gone release before the listing's
         // own cleanup runs, so a crash never hides a file forever.
-        if (this.reapDeadOwners(state)) await this.deps.storage.write(state)
+        if (await this.reapDeadOwners(state)) await this.deps.storage.write(state)
         // A cancel that landed during the reads above deletes nothing:
         // every destructive step below checks the signal first, and one
         // failing entry never breaks the listing.

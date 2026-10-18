@@ -230,4 +230,25 @@ describe('production media calibration (M105 captures)', () => {
         ?.estimatedInputTokens,
     ).toBe(2751)
   })
+
+  it('records one remaining item of a mixed bill as an upper observation', async () => {
+    const { cost, writes } = estimator([])
+    await cost.observe(
+      'meta',
+      'muse-spark-1.3-contributor',
+      [{ info: video10s.info }],
+      { input_tokens: 2751, output_tokens: 64 },
+      'local-mixed-settlement',
+      { mixed: true },
+    )
+    expect(writes).toHaveLength(1)
+    const points = writes[0] as readonly { upperOnly: boolean }[]
+    expect(points).toHaveLength(1)
+    expect(points[0]?.upperOnly).toBe(true)
+    // An upper-only point never becomes the capped rate: the turn still
+    // refuses instead of reserving the mixed bill as the video's typical cost.
+    expect(() =>
+      cost.estimate('meta', 'muse-spark-1.3-contributor', { info: video10s.info }, true),
+    ).toThrow(fill(UI_TEXT.media.cappedRateUnknown, { model: 'muse-spark-1.3-contributor' }))
+  })
 })

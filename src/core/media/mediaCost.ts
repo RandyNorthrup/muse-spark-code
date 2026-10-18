@@ -194,9 +194,14 @@ export class MediaCostEstimator {
     items: readonly MediaCostItem[],
     usage: Usage,
     captureId: string,
+    options?: { readonly mixed?: boolean },
   ): Promise<void> {
     const reported = usageSchema.parse(usage)
     tokens.parse(reported.input_tokens)
+    // The caller filters inline-priced visuals before observing: the bill
+    // still covers them, so one remaining item of a mixed request is an upper
+    // observation, never a typical rate.
+    const isMixed = options?.mixed === true || items.length !== 1
     const additions = items.flatMap((item) => {
       const measured = measurement(item)
       if (measured?.units === undefined || measured.units === null) return []
@@ -207,7 +212,7 @@ export class MediaCostEstimator {
           ...measured,
           inputTokens: reported.input_tokens,
           captureId,
-          upperOnly: items.length !== 1,
+          upperOnly: isMixed,
         }),
       ]
     })
@@ -353,7 +358,9 @@ export async function reserveMediaRequest(request: {
         for (const result of results) if (result.status === 'rejected') throw result.reason
         if (bill.usage !== undefined) {
           try {
-            // Inline-priced visuals settle their bound but teach nothing.
+            // Inline-priced visuals settle their bound but teach nothing. The
+            // bill still covers them, so the request stays mixed for the
+            // remaining items even when one is left.
             const observed = request.items.filter((item) => item.inlinePriced !== true)
             if (observed.length === 0) return
             await request.estimator.observe(
@@ -362,6 +369,7 @@ export async function reserveMediaRequest(request: {
               observed,
               bill.usage,
               request.captureId,
+              { mixed: observed.length !== request.items.length },
             )
           } catch {
             // Local calibration is optional evidence, not the provider result.
