@@ -1167,6 +1167,7 @@ body {
   border-radius: var(--ms-radius-md);
   color: var(--ms-muted);
   font-size: var(--ms-font-size);
+  overflow-wrap: anywhere;
 }
 
 .notice-action {
