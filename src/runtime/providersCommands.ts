@@ -337,7 +337,7 @@ function ignoreProbeLog(): void {
   // Commands return fixed probe outcomes; transport details never reach terminal logs.
 }
 
-/** One pinned, authenticated provider read (D117): the status with its parsed body, an HTTP status alone, or the transport failure. */
+/** One pinned, authenticated provider read (D119): the status with its parsed body, an HTTP status alone, or the transport failure. */
 async function getProviderJson(
   fetch: typeof globalThis.fetch,
   provider: ResolvedProvider,
@@ -431,7 +431,7 @@ function providerListHeaders(provider: ResolvedProvider): Record<string, string>
 }
 
 /**
- * The provider's own model list (D117): the ids as the provider lists them,
+ * The provider's own model list (D119): the ids as the provider lists them,
  * or undefined where the list cannot be read with the stored key (no key,
  * no free check, unreachable, unparseable). Nothing is billed.
  */
@@ -476,7 +476,90 @@ export async function probeProvider(
   if (key === undefined && provider.preset.auth === 'apiKey') {
     return { ok: false, paid: false, reason: 'no-key' }
   }
+  const shared = await import('../host/backend/modelApiEntry')
+  const auth = await import('../host/backend/configuredProvidersEntry')
+  shared.setUiText(UI_TEXT, uiLocale())
+  auth.setUiText(UI_TEXT, uiLocale())
   const pinned = pinProviderFetch(fetch, provider, allowedProviderPaths(provider), resolveHost)
+  // Lane PROVERRORS: an answer reads with the provider's own format parser
+  // and refusal sentence, a send with no answer with the network codes and
+  // its unknown fate — the configured path's one reader, never a bare status.
+  const reader = auth.providerFailureReader(provider.entry, provider.preset)
+  let failureReason = 'unreachable'
+  const get = async (
+    url: string,
+    transport: typeof fetch = pinned,
+  ): Promise<
+    { readonly status: number; readonly body: unknown; readonly refusal?: string } | undefined
+  > => {
+    const origin = new URL(url).origin
+    const source =
+      key === undefined
+        ? new auth.NoAuthSource(origin)
+        : new auth.ApiKeyAuthSource(
+            () =>
+              Promise.resolve({
+                record: { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin },
+                key,
+              }),
+            provider.preset.id === 'custom' && provider.entry.format === 'anthropic'
+              ? 'x-api-key'
+              : (provider.preset.authHeader ?? 'bearer'),
+          )
+    const client = new shared.RequestTransport({
+      baseUrl: origin,
+      auth: source,
+      // pinProviderFetch rechecks DNS and the saved path/network at every dispatch.
+      verifyEndpoint: async (requestUrl) => {
+        await source.headers(requestUrl)
+      },
+      fetch: transport,
+      parseError: reader.parseError,
+      sendFailure: reader.sendFailure,
+      now: Date.now,
+      random: Math.random,
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      // Commands report fixed probe outcomes; transport detail is never logged.
+      log: {
+        info: ignoreProbeLog,
+        warn: ignoreProbeLog,
+        error: ignoreProbeLog,
+        trace: ignoreProbeLog,
+      },
+    })
+    let result: Awaited<ReturnType<typeof client.request>>
+    const signal = AbortSignal.timeout(PROVIDER_PROBE_TIMEOUT_MS)
+    try {
+      result = await client.request(
+        url.slice(origin.length),
+        {
+          method: 'GET',
+          headers,
+          accept: 'application/json',
+          retries: 'rateLimitOnly',
+        },
+        signal,
+      )
+    } catch (error: unknown) {
+      if (shared.isModelApiError(error) && error.status !== 0) {
+        return { status: error.status, body: undefined, refusal: reader.refusal(error) }
+      }
+      if (error instanceof Error && error.message === 'rebinding') failureReason = 'rebinding'
+      // A send with no answer says what failed; the probe's own time running
+      // out, or a pin refusal before sending, keeps the fixed sentence.
+      else if (shared.isModelApiError(error) && !signal.aborted) failureReason = error.message
+      else failureReason = 'unreachable'
+      return undefined
+    }
+    try {
+      return {
+        status: result.response.status,
+        body: await shared.parseJsonResponse(result, (value) => value),
+      }
+    } catch {
+      return { status: result.response.status, body: undefined }
+    }
+  }
   return await presets.runProviderKeyTest(
     test,
     provider.origin,
@@ -490,32 +573,25 @@ export async function probeProvider(
               [{ kind: 'exact', path }],
               resolveHost,
             )
-      const checked = await getProviderJson(
-        fetch,
-        provider,
-        key,
-        resolveHost,
-        headers,
-        `${base}${path}`,
-        keyFetch,
-      )
-      if (!('status' in checked)) return { ok: false, paid: false, reason: checked.transport }
+      const checked = await get(`${base}${path}`, keyFetch)
+      if (checked === undefined) return { ok: false, paid: false, reason: failureReason }
       return checked.status === HTTP_STATUS.ok
         ? { ok: true, modelCount: undefined }
-        : { ok: false, paid: false, reason: `HTTP ${String(checked.status)}` }
+        : {
+            ok: false,
+            paid: false,
+            reason: checked.refusal ?? `HTTP ${String(checked.status)}`,
+          }
     },
     async () => {
-      const listed = await getProviderJson(
-        fetch,
-        provider,
-        key,
-        resolveHost,
-        headers,
-        `${provider.origin}${providerModelsPath(provider)}`,
-      )
-      if (!('status' in listed)) return { ok: false, paid: false, reason: listed.transport }
+      const listed = await get(`${provider.origin}${providerModelsPath(provider)}`)
+      if (listed === undefined) return { ok: false, paid: false, reason: failureReason }
       if (listed.status !== HTTP_STATUS.ok)
-        return { ok: false, paid: false, reason: `HTTP ${String(listed.status)}` }
+        return {
+          ok: false,
+          paid: false,
+          reason: listed.refusal ?? `HTTP ${String(listed.status)}`,
+        }
       const ids = listModelIds(listed.body, provider.preset)
       return ids === undefined
         ? { ok: false, paid: false, reason: 'unparseable' }

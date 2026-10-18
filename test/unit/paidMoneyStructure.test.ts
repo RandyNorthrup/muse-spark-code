@@ -80,10 +80,6 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
     category: 'nonMoney',
     reason: 'Duration in milliseconds, not money.',
   },
-  'shared/retryPolicy.ts:retryAfterCapMs': {
-    category: 'nonMoney',
-    reason: 'Duration in milliseconds, not money.',
-  },
   'core/team/intensity.ts:runningCap': { category: 'nonMoney', reason: 'Worker count, not money.' },
   'core/team/intensity.ts:configuredCap': {
     category: 'nonMoney',
