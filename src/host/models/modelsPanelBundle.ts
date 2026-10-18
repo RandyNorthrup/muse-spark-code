@@ -27,6 +27,45 @@ import type * as ModelsPanelEntry from './modelsPanelEntry'
 import { CredentialStore, type SecretStore } from '../auth/credentialStore'
 import type { ProviderEntry } from '../providers/providerPorts'
 
+/** The machine's credential lease directory (the terminal derives the same one). */
+export function credentialLeaseDir(): string {
+  return credentialLockDir(
+    providerConfigFilePath({
+      platform: process.platform,
+      homeDir: homedir(),
+      xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+    }),
+  )
+}
+
+/**
+ * The panel's secrets inside the one credential lease (M95 D74): every
+ * provider-credential write or removal the panel performs (wizard save,
+ * removal finish, Connect) runs through this store, so holding the same
+ * lease the terminal Connect transaction holds excludes it. Reads stay
+ * direct: a reader never fails on a live writer's lease. A held lease
+ * refuses with the retry sentence instead of the lock path.
+ */
+export function credentialLeaseSecrets(
+  secrets: SecretStore,
+  lockDir: string = credentialLeaseDir(),
+): SecretStore {
+  const guarded = async (run: () => PromiseLike<void>): Promise<void> => {
+    try {
+      await withCredentialLock(lockDir, () => Promise.resolve(run()))
+    } catch (error: unknown) {
+      if (error instanceof CredentialLockBusyError)
+        throw new Error(UI_TEXT.providerConnectBusy, { cause: error })
+      throw error
+    }
+  }
+  return {
+    get: (key) => secrets.get(key),
+    store: (key, value) => guarded(() => secrets.store(key, value)),
+    delete: (key) => guarded(() => secrets.delete(key)),
+  }
+}
+
 /** Activation and the panel share this store, including credential-free locals. */
 export function providerCredentials(
   secrets: SecretStore,
@@ -77,14 +116,7 @@ export async function recoverOpenRouterConnect(
   const acquire =
     lock?.withCredentialLock ??
     (async <T>(operation: () => Promise<T>): Promise<T> => {
-      const lockDir = credentialLockDir(
-        providerConfigFilePath({
-          platform: process.platform,
-          homeDir: homedir(),
-          xdgConfigHome: process.env['XDG_CONFIG_HOME'],
-        }),
-      )
-      return await withCredentialLock(lockDir, operation)
+      return await withCredentialLock(credentialLeaseDir(), operation)
     })
   let recovery
   try {

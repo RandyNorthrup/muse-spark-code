@@ -30,7 +30,8 @@ import {
   PROVIDER_SECRET_PREFIX,
 } from '../shared/constants'
 
-const OWNER_FILE = 'owner.json'
+/** The owner record inside a credential lease directory (shared with the CLI producer). */
+export const OWNER_FILE = 'owner.json'
 const TAKEOVER_SETTLE_MS = 50
 
 /** Who holds a credential lease. */
@@ -190,33 +191,49 @@ export async function acquireCredentialLock(
       }
     } catch (error: unknown) {
       if (lockErrorCode(error) !== 'EEXIST') throw error
-      let previous = await readOwner(lockDir)
-      if (previous === undefined) {
-        // A crash between the winner's mkdir and its owner write looks
-        // exactly like this; give it a moment before reclaiming.
+      const observed = await readOwner(lockDir)
+      if (observed === undefined) {
+        // Ownerless: a live holder writes its owner record immediately
+        // after the mkdir (both producers do), so after a settle only a
+        // crash between the two leaves this state. Reclaim only while it
+        // is still ownerless: a non-recursive rmdir fails once a fresh
+        // owner.json lands, so a live lock is never removed.
         await pause(TAKEOVER_SETTLE_MS)
-        previous = await readOwner(lockDir)
-        if (previous === undefined) {
-          try {
-            await rm(lockDir, { recursive: true, force: true })
-          } catch {
-            // Lost a takeover race; re-read below.
-          }
-          continue
+        if ((await readOwner(lockDir)) !== undefined) {
+          throw new CredentialLockBusyError(lockDir)
         }
-      }
-      if (previous.pid === pid && previous.startTime === startTime) {
-        throw new CredentialLockBusyError(lockDir)
-      }
-      if (!isProcessAlive(previous.pid)) {
         try {
-          await rm(lockDir, { recursive: true, force: true })
+          await rmdir(lockDir)
         } catch {
-          // Lost a takeover race; re-read below.
+          // A contender claimed it meanwhile; re-observe below.
         }
         continue
       }
-      throw new CredentialLockBusyError(lockDir)
+      if (observed.pid === pid && observed.startTime === startTime) {
+        throw new CredentialLockBusyError(lockDir)
+      }
+      if (isProcessAlive(observed.pid)) {
+        throw new CredentialLockBusyError(lockDir)
+      }
+      // The owner is proven gone, but a fellow contender may have taken
+      // over since the read above. Re-verify the exact record
+      // (pid, start and nonce) immediately before deleting; anything else
+      // means someone else owns the directory now.
+      const current = await readOwner(lockDir)
+      const isDeadTakeover =
+        current?.pid === observed.pid &&
+        current.startTime === observed.startTime &&
+        current.nonce === observed.nonce &&
+        !isProcessAlive(observed.pid)
+      if (!isDeadTakeover) {
+        continue
+      }
+      try {
+        await rm(lockDir, { recursive: true, force: true })
+      } catch {
+        // Lost a takeover race; re-read below.
+      }
+      continue
     }
   }
   throw new CredentialLockBusyError(lockDir)
