@@ -2878,10 +2878,13 @@ The hand-written stand-ins the lint gate could not see. Full classification in `
 
 ### test/unit/teamResources.test.ts (twelve time-driven cases; the rest of the file stays on the real clock)
 
-- lease waits and wait/timeout expiry
-- idle release boundaries and idle eviction
+Restored on the real clock by RVSTANDINS: busy past the wait, idle
+release after the last terminal answer, replayed-completion isolation,
+command resources held past idleness, timer shutdown on close. Still
+unproven:
+
+- exact idle release boundaries
 - take-back admission timeout and pending-admission expiry
-- timer shutdown on close
 - replay after replacement (record: `docs/certification/m96-b.md`)
 
 ### test/unit/modelApiLegalScan.test.ts (the runner-driven block; definition and unoffered-tool cases stay)

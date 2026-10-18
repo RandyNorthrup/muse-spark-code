@@ -537,9 +537,17 @@ export class ResourceRegistry {
         waiter.finish({ status: 'cancelled' })
         this.wake(lease.token.resourceName)
       }
-      const timer = this.clock.schedule(() => {
+      // A real timer may fire a hair before the deadline; re-arm for the
+      // remainder instead of leaving the waiter with no timer at all.
+      const onDeadline = (): void => {
+        const remaining = waiter.deadline - this.clock.now()
+        if (remaining > 0) {
+          timer = this.clock.schedule(onDeadline, remaining)
+          return
+        }
         this.pump(lease.token.resourceName)
-      }, this.waitMs)
+      }
+      let timer = this.clock.schedule(onDeadline, this.waitMs)
       live.waiters.push(waiter)
       signal?.addEventListener('abort', onAbort, { once: true })
       this.pump(lease.token.resourceName)
