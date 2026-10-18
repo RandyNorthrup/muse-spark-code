@@ -54,7 +54,10 @@ permissions:
 jobs:
   checks:
     name: static gates (${{ matrix.os }}, ${{ matrix.part.name }})
-    if: ${{ inputs.part != 'org' }}
+    # No job-level `if`: every part runs this job and the matrix below picks
+    # its operating systems (`home` Ubuntu only, `org` Windows and macOS
+    # only, `all` every OS). A `part != 'org'` condition here would skip the
+    # Windows and macOS gates in the only run that holds them.
     # Larger runners (CISHARDS2): in the capacity repository's own run
     # (`org`), and only while its `LARGE_RUNNERS` variable is `on`, the
     # Windows and macOS gates take the larger labels. `vars` resolves in the
