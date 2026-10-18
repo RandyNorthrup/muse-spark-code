@@ -1,9 +1,8 @@
 // The conversation's session-transfer bundle (CONVBUDGET, PLAN.md D6): the
 // entry answers the import flow over a document the real exporter built, in
-// the caller's language, and every flow the controller loads on first use is
-// a function. The export flow keeps its own suites through the moved modules
-// (sessionTransfer, transcriptMarkdown, sessionImport); this suite holds the
-// entry to its lazy contract.
+// the caller's language. The export flow keeps its own suites through the
+// moved modules (sessionTransfer, transcriptMarkdown, sessionImport); the
+// controller guards the four flow names at load and retries.
 import { describe, expect, it } from 'vitest'
 import type { ItemSnapshot } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -25,13 +24,6 @@ function source(items: readonly ItemSnapshot[]): SessionExportSource {
 }
 
 describe('conversationTransferEntry', () => {
-  it('exposes the four flows the controller loads on first use', () => {
-    expect(typeof entry.exportConversationFlow).toBe('function')
-    expect(typeof entry.readTransferDocumentFlow).toBe('function')
-    expect(typeof entry.transferRefusalFlow).toBe('function')
-    expect(typeof entry.transferMessageCountFlow).toBe('function')
-  })
-
   it('parses, refuses nothing, and counts a document the real exporter built', async () => {
     const items: readonly ItemSnapshot[] = [
       { itemId: 'u1', kind: 'userMessage', status: 'completed', text: 'first question' },
