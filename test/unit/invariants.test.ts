@@ -705,8 +705,10 @@ describe('invariant 6: the eval stays comparable', () => {
       expect(evalTaskSchema.safeParse(task).success).toBe(true)
     }
     const payload = JSON.stringify({ prelude: EVAL_VERIFY_PRELUDE, tasks: EVAL_TASKS })
+    // TRAINFIX: the release train measures its own task set (M101/M75 arms
+    // main simplified away); e613f70a is main's digest for main's set.
     expect(createHash('sha256').update(payload).digest('hex')).toBe(
-      'e613f70a55d6872733e40f1f9a55e0cb6376c3d8237ecef563181a0f7a051a48',
+      '2606a640921fdec49b0c38a623892fee5c6026c1a24780dd5c4ef75e84854895',
     )
     const accept = evalTasksOfSplit('accept')
     const heldout = evalTasksOfSplit('heldout')
