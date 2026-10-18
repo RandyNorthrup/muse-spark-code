@@ -427,7 +427,7 @@ function slashed(folder: string): string {
  * unresolvable. Anything else (a bug above the store) is not a probe's
  * answer to give.
  */
-function isUnreadableStoreError(error: unknown): boolean {
+export function isUnreadableStoreError(error: unknown): boolean {
   return (
     isMissingPath(error) ||
     isStoreErrorCode(error, 'EACCES') ||
