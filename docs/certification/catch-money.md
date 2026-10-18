@@ -720,4 +720,8 @@ main rewrote. Regenerated with the byte-identical classifier under the
 same identity rule: 1,347 sites before and after (per-area counts
 unchanged), gate green. No branch debt baselined: the only
 conflict-resolved catch (configured.ts) took main's text verbatim.
-`docs/catches-burndown.md` counts stand.
+`docs/catches-burndown.md` counts stand. Red drill on the final tree: a
+scratch `src/__drill-scratch.ts` with one new `catch { return 'failed' }`
+makes `npm run check:catches` exit 1 (`new GENERIC catch site` + `root:
+GENERIC rose from 9 to 10`); removing it restores exit 0 with the
+baseline byte-identical.
