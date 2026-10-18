@@ -5,14 +5,8 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, it } from 'vitest'
-import type { Logger } from '../../src/host/logger'
 import { readHostUsageTableText } from '../../src/host/usage/usageTableText'
-
-const quiet = (): void => undefined
-
-function memoryLog(warned: string[]): Logger {
-  return { trace: quiet, info: quiet, warn: (message) => void warned.push(message), error: quiet }
-}
+import { warnLog } from './helpers/memoryLogs'
 
 it('reads the disk copy with kind words when the primary read fails', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'usage-table-'))
@@ -27,7 +21,7 @@ it('reads the disk copy with kind words when the primary read fails', async () =
   const warned: string[] = []
   const readPrimary = (): Promise<Uint8Array> => Promise.reject(refusal)
   await expect(
-    readHostUsageTableText(readPrimary, root, ['table.json'], memoryLog(warned)),
+    readHostUsageTableText(readPrimary, root, ['table.json'], warnLog(warned)),
   ).resolves.toBe('{"disk":true}')
   expect(warned).toHaveLength(1)
   expect(warned[0]).toContain('disk copy')
@@ -41,7 +35,7 @@ it('a working primary never touches the disk or the log', async () => {
     () => Promise.resolve(new TextEncoder().encode('{"live":true}')),
     tmpdir(),
     ['table.json'],
-    memoryLog(warned),
+    warnLog(warned),
   )
   expect(text).toBe('{"live":true}')
   expect(warned).toHaveLength(0)

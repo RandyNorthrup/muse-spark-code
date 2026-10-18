@@ -6,14 +6,10 @@ import { mkdtemp, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, it } from 'vitest'
-import type { Logger } from '../../src/host/logger'
 import { EditReview } from '../../src/host/editor/editReview'
+import { warnLog } from './helpers/memoryLogs'
 
 const quiet = (): void => undefined
-
-function memoryLog(warned: string[]): Logger {
-  return { trace: quiet, info: quiet, warn: (message) => void warned.push(message), error: quiet }
-}
 
 it('refuses a file the workspace cannot hand over, with kind words in the log', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'edit-review-'))
@@ -31,7 +27,7 @@ it('refuses a file the workspace cannot hand over, with kind words in the log', 
       createFileIfAbsent: () => Promise.reject(new Error('unused in describe')),
     },
     openDiff: () => Promise.resolve(),
-    log: memoryLog(warned),
+    log: warnLog(warned),
   })
   const patchJson = JSON.stringify({ files: [{ path: 'missing.ts', hunks: [] }] })
   const described = await review.describe(patchJson)

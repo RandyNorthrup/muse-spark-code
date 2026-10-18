@@ -3,19 +3,10 @@ import path from 'node:path'
 import * as z from 'zod/mini'
 import { describe, expect, it } from 'vitest'
 import { usingTempDir } from './helpers/temporaryFolders'
-import type { CoreLogger } from '../../src/core/logging'
+import { silentCoreLog } from './helpers/memoryLogs'
 import { safeParseLine, TeamLedger } from '../../src/host/team/teamLedger'
 import { createTeamJournal } from '../../src/host/team/teamJournal'
 import { createWindowAuthority, createWindowIdentity } from '../../src/host/team/windowIdentity'
-
-function log(): CoreLogger {
-  return {
-    trace: () => undefined,
-    info: () => undefined,
-    warn: () => undefined,
-    error: () => undefined,
-  }
-}
 const localDayKey = (nowMs: number): string => {
   const date = new Date(nowMs)
   const pad = (value: number): string => String(value).padStart(2, '0')
@@ -34,7 +25,7 @@ describe('team ledger torn lines', () => {
   it('counts a crashed writer’s partial tail as skipped, never fatal', async () => {
     await usingTempDir('pr161-team-', async (storage) => {
       const ledger = new TeamLedger({
-        log: log(),
+        log: silentCoreLog(),
         directory: storage,
         workspaceId: 'ws',
         windowId: 'win-1',
@@ -51,17 +42,22 @@ describe('team ledger torn lines', () => {
   })
 })
 
+const makeJournal = (storage: string) => {
+  const owner = createWindowIdentity(Date.now())
+  const journal = createTeamJournal({
+    storageDirectory: storage,
+    authority: createWindowAuthority(owner, () => Promise.resolve()),
+    owner,
+    maxRecordBytes: 1024,
+    platform: process.platform,
+  })
+  return { journal, owner }
+}
+
 describe('team journal unreadable evidence', () => {
   it('keeps a torn record as broken evidence instead of throwing', async () => {
     await usingTempDir('pr161-team-', async (storage) => {
-      const owner = createWindowIdentity(Date.now())
-      const journal = createTeamJournal({
-        storageDirectory: storage,
-        authority: createWindowAuthority(owner, () => Promise.resolve()),
-        owner,
-        maxRecordBytes: 1024,
-        platform: process.platform,
-      })
+      const { journal, owner } = makeJournal(storage)
       const valueSchema = z.object({ text: z.string() })
       await journal.write('note', { text: 'kept' }, valueSchema)
       const directory = path.join(storage, 'team', 'journal', owner.instanceId)
@@ -74,14 +70,7 @@ describe('team journal unreadable evidence', () => {
 
   it('names a foreign window’s torn record without trusting it', async () => {
     await usingTempDir('pr161-team-', async (storage) => {
-      const owner = createWindowIdentity(Date.now())
-      const journal = createTeamJournal({
-        storageDirectory: storage,
-        authority: createWindowAuthority(owner, () => Promise.resolve()),
-        owner,
-        maxRecordBytes: 1024,
-        platform: process.platform,
-      })
+      const { journal } = makeJournal(storage)
       const foreignId = '223e4567-e89b-12d3-a456-426614174001'
       const foreignDirectory = path.join(storage, 'team', 'journal', foreignId)
       mkdirSync(foreignDirectory, { recursive: true })
@@ -96,14 +85,7 @@ describe('team journal unreadable evidence', () => {
 
   it('still journals after a torn record is preserved', async () => {
     await usingTempDir('pr161-team-', async (storage) => {
-      const owner = createWindowIdentity(Date.now())
-      const journal = createTeamJournal({
-        storageDirectory: storage,
-        authority: createWindowAuthority(owner, () => Promise.resolve()),
-        owner,
-        maxRecordBytes: 1024,
-        platform: process.platform,
-      })
+      const { journal, owner } = makeJournal(storage)
       const valueSchema = z.object({ text: z.string() })
       const directory = path.join(storage, 'team', 'journal', owner.instanceId)
       mkdirSync(directory, { recursive: true })
