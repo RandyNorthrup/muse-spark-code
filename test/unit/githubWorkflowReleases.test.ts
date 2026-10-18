@@ -41,7 +41,7 @@ describe('github workflow and releases port', () => {
     // Production bounds: the full github read (pulls, three check scopes,
     // tags, releases, runs) fits the shipped page and byte budget.
     const rig = networkRig({
-      transport,
+      transport: transport.transport,
       maxBytes: REPORT_NETWORK_MAX_BYTES,
       maxPages: REPORT_NETWORK_MAX_PAGES,
     })
@@ -84,7 +84,7 @@ describe('github workflow and releases port', () => {
         url: 'https://github.com/RandyNorthrup/muse-spark-code/actions/runs/38035245475',
       },
     ])
-    const urls = transport.mock.calls.map((call) => call[0].url)
+    const urls = transport.calls.map((call) => call.request.url)
     expect(urls).toContain(`${BASE}/tags?per_page=100&page=1`)
     expect(urls).toContain(`${BASE}/releases?per_page=30&page=1`)
     expect(urls).toContain(`${BASE}/actions/workflows/release.yml/runs?per_page=100&page=1`)
@@ -96,7 +96,11 @@ describe('github workflow and releases port', () => {
     const transport = capturedTransport()
     // pulls (1) plus three check scopes (3) plus tags (1) leave room for
     // one releases page: the runs page refuses as page-bound.
-    const result = await readGithubReleases({ transport, options, maxPages: 6 })
+    const result = await readGithubReleases({
+      transport: transport.transport,
+      options,
+      maxPages: 6,
+    })
     // Pulls, checks and the parsed releases survive; only the refused runs
     // read stays empty, with the bound named and never truncated rows.
     expect(result.record.status).toBe('partial')
@@ -115,7 +119,7 @@ describe('github workflow and releases port', () => {
           ? Promise.resolve(Response.json(RELEASES_PAGE_1))
           : Promise.resolve(new Response('not found', { status: 404 })),
     })
-    const result = await readGithubReleases({ transport, options })
+    const result = await readGithubReleases({ transport: transport.transport, options })
     expect(result.record.status).toBe('partial')
     expect(result.record.reason).toContain('http-404')
     expect(result.data?.releases.map((release) => release.version)).toEqual(['v0.16.0', 'v0.17.0'])
@@ -141,7 +145,7 @@ describe('github workflow and releases port', () => {
       releases: page2,
       runs: RELEASE_RUNS,
     })
-    const result = await readGithubReleases({ transport, options })
+    const result = await readGithubReleases({ transport: transport.transport, options })
     expect(result.record.status).toBe('partial')
     expect(result.record.reason).toContain('release-commit-required')
     expect(result.data?.releases).toEqual([
@@ -272,7 +276,7 @@ describe('github workflow and releases port', () => {
         runs: runsBody,
         onUnknown: () => Promise.resolve(Response.json(runsBody)),
       })
-      const result = await readGithubReleases({ transport, options })
+      const result = await readGithubReleases({ transport: transport.transport, options })
       expect(result.record.status).toBe('partial')
       expect(result.record.reason).toContain(reason)
       expect(result.data?.releases.map((release) => release.version)).toEqual(versions)
