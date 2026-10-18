@@ -359,6 +359,7 @@ async function dispatch(
   payload: Record<string, unknown>,
   adapter: ForeignHookAdapter,
   warnings: string[] = [],
+  maxRunningCommands?: number,
 ) {
   return await dispatchHooks(
     hooks,
@@ -373,6 +374,9 @@ async function dispatch(
     // No typed handlers here (lane H's position), then the adapter.
     undefined,
     adapter,
+    undefined,
+    undefined,
+    maxRunningCommands === undefined ? undefined : { maxRunningCommands },
   )
 }
 
@@ -640,7 +644,9 @@ describe.runIf(IS_REAL && process.platform === 'linux' && BUN !== undefined)(
 
 describe('plugin dispatch without real children', () => {
   const pluginRoot = process.platform === 'win32' ? 'C:/plugins' : '/plugins'
-  it('runs plugin hooks under the host-wide cap', async () => {
+  // Seven plugin hooks through the real dispatch, each holding 30 ms while
+  // the peak concurrency is recorded.
+  async function peakPlugins(maxRunningCommands?: number): Promise<number> {
     let running = 0
     let peak = 0
     const adapter: ForeignHookAdapter = {
@@ -665,8 +671,18 @@ describe('plugin dispatch without real children', () => {
       'PreToolUse',
       toolPayload('PreToolUse', 'bash', { command: 'ls' }),
       adapter,
+      [],
+      maxRunningCommands,
     )
-    expect(peak).toBe(HOOK_MAX_RUNNING_COMMANDS)
+    return peak
+  }
+
+  it('runs plugin hooks under the host-wide cap', async () => {
+    expect(await peakPlugins()).toBe(HOOK_MAX_RUNNING_COMMANDS)
+  })
+
+  it('caps plugin hooks at the configured running-commands value', async () => {
+    expect(await peakPlugins(2)).toBe(2)
   })
 
   it('strips a grant from a plugin answer, as from every imported hook', async () => {

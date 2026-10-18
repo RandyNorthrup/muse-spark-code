@@ -135,6 +135,9 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly strictTools?: ModelApiHostDeps['strictTools']
   readonly parallelReads?: ModelApiHostDeps['parallelReads']
   readonly webSearchMaxPerRequest?: ModelApiHostDeps['webSearchMaxPerRequest']
+  readonly hookMaxStopContinuations?: ModelApiHostDeps['hookMaxStopContinuations']
+  readonly hookMaxRunningCommands?: ModelApiHostDeps['hookMaxRunningCommands']
+  readonly subagentMaxConcurrent?: ModelApiHostDeps['subagentMaxConcurrent']
   readonly modelFacts?: ModelApiHostDeps['modelFacts']
   readonly modelCapabilities?: ModelApiHostDeps['modelCapabilities']
   readonly argumentPreviewCapabilities?: ModelApiHostDeps['argumentPreviewCapabilities']
@@ -435,6 +438,15 @@ export class ModelApiBackendManager {
         ...(this.deps.parallelReads !== undefined && { parallelReads: this.deps.parallelReads }),
         ...(this.deps.webSearchMaxPerRequest !== undefined && {
           webSearchMaxPerRequest: this.deps.webSearchMaxPerRequest,
+        }),
+        ...(this.deps.hookMaxStopContinuations !== undefined && {
+          hookMaxStopContinuations: this.deps.hookMaxStopContinuations,
+        }),
+        ...(this.deps.hookMaxRunningCommands !== undefined && {
+          hookMaxRunningCommands: this.deps.hookMaxRunningCommands,
+        }),
+        ...(this.deps.subagentMaxConcurrent !== undefined && {
+          subagentMaxConcurrent: this.deps.subagentMaxConcurrent,
         }),
         ...(this.deps.modelFacts !== undefined && { modelFacts: this.deps.modelFacts }),
         ...(this.deps.modelCapabilities !== undefined && {

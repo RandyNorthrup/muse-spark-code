@@ -111,6 +111,7 @@ import {
   GOAL_STATUS,
   type GoalCommandVerb,
   HOOK_MAX_STOP_CONTINUATIONS,
+  HOOK_MAX_TASK_REFUSALS,
   HOOK_MODEL_READ_TOOLS,
   HOOK_NOTIFICATION_DELAY_MS,
   HOOK_ON_FAILURE_MAX_DEPTH,
@@ -171,6 +172,7 @@ import {
   SUBAGENT_TASK_MAX_REQUESTS,
   SUBAGENT_WAIT_DEFAULT_MS,
   type SubagentAction,
+  TEAMMATE_MAX_IDLE_KEEPS,
   THEN_RUN_ARGUMENT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
@@ -761,6 +763,21 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
     | undefined
   /** The configured bound is captured once for the session (D86.1). */
   readonly webSearchMaxPerRequest?: () => number
+  /**
+   * Stop-hook continuations in a row (M127, Muse Code's default 8):
+   * `museSpark.hooksMaxStopContinuations`, captured once for the session.
+   */
+  readonly hookMaxStopContinuations?: () => number
+  /**
+   * Running hook commands at once, 0 for all at once as Muse Code does
+   * (M127): `museSpark.hooksMaxRunningCommands`, read per dispatch.
+   */
+  readonly hookMaxRunningCommands?: () => number
+  /**
+   * Concurrent subagents (M127, Muse Code's 1–64 range, default 8):
+   * `museSpark.subagentMaxConcurrent`, captured once for the session.
+   */
+  readonly subagentMaxConcurrent?: () => number
   /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
   readonly showReplyUsage: () => boolean
   /** M106 L1: selected M95 record projection; absent/unknown leaves today's stream unchanged. */
@@ -2743,8 +2760,9 @@ export class ModelApiSession implements ScheduledAgentSession {
   private toolSelection:
     { readonly turnId: string; readonly allowed: readonly string[] } | undefined
   /**
-   * Consecutive TaskCreated/TaskCompleted refusals (M91 lane E): past
-   * `HOOK_MAX_STOP_CONTINUATIONS` the turn ends; no refused task is admitted.
+   * Consecutive TaskCreated/TaskCompleted refusals (M91 lane E): past the
+   * stop-continuation limit (M127 setting, Muse Code's default 8) the turn
+   * ends; no refused task is admitted.
    */
   private taskRefusals = 0
   private readonly observedRules = new Set<string>()
@@ -2835,6 +2853,10 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** The reservation of the request in flight, until its usage is reported or it ends (M82). */
   private openReservation: OpenReservation | undefined
   private readonly searchMaxPerRequest: number
+  /** Stop-hook continuations in a row before the turn ends (M127 setting). */
+  private readonly stopContinuationLimit: number
+  /** Subagents working at once; later ones queue (M127 setting). */
+  private readonly subagentConcurrency: number
   /** What the requests since the last reply line used (M82), for the next line. */
   private unshownUsage: ReplyUsageTally | undefined
   /**
@@ -3005,6 +3027,17 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.workspaceEdits.add(this.ledger)
     this.modelId = modelId
     this.searchMaxPerRequest = deps.webSearchMaxPerRequest?.() ?? WEB_SEARCH_MAX_PER_REQUEST
+    // Muse Code's own hook and subagent defaults as settings (M127),
+    // captured once for the session like the search bound above. The Stop
+    // ceiling is unoverrideable: a programmatic getter is never validated
+    // by the settings schema, and machine settings are writable by a
+    // dev-container definition, so the effective bound never passes what
+    // Muse Code itself spends.
+    this.stopContinuationLimit = Math.min(
+      deps.hookMaxStopContinuations?.() ?? HOOK_MAX_STOP_CONTINUATIONS,
+      HOOK_MAX_STOP_CONTINUATIONS,
+    )
+    this.subagentConcurrency = deps.subagentMaxConcurrent?.() ?? SUBAGENT_CAPACITY
     this.sessionPermissions = new PermissionEngine(approvalMode)
     this.policies = new PolicyCache(
       deps.permissionSettings ?? (() => NO_PERMISSION_SETTINGS),
@@ -3513,6 +3546,8 @@ export class ModelApiSession implements ScheduledAgentSession {
             this.track(execution, false)
           }
         : undefined,
+      // 0 starts them all at once, as Muse Code does (M127 setting).
+      { maxRunningCommands: this.deps.hookMaxRunningCommands?.() ?? 0 },
     )
     if (shouldShowMessages) {
       for (const message of result.messages) {
@@ -4856,6 +4891,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         delegationFamily(teamMode) === 'subagents' &&
         !isSubagent &&
         this.deps.isPaidFeatureOn('subagents'),
+      subagentCapacity: this.subagentConcurrency,
       ...(delegationFamily(teamMode) === 'team' &&
         !isSubagent && {
           teamTools: this.team.TEAM_TOOL_DEFINITIONS,
@@ -7590,8 +7626,9 @@ export class ModelApiSession implements ScheduledAgentSession {
    * Replace the task list (M91 lane E): each added item runs TaskCreated,
    * each newly completed one TaskCompleted, with the bounded subject and
    * description. A refusal keeps the old list and tells the model why; after
-   * `HOOK_MAX_STOP_CONTINUATIONS` refusals in a row the turn ends, keeping the
-   * old list. A new user turn may try again, through every hook.
+   * the stop-continuation limit (M127 setting) refusals in a row the turn
+   * ends, keeping the old list. A new user turn may try again, through
+   * every hook.
    */
   private async writeTodos(
     call: FunctionCallItem,
@@ -7654,7 +7691,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** A refused task write: the old list stands, and the refusal counts toward the pause. */
   private taskRefused(kind: 'created' | 'completed', subject: string, reason: string): ToolOutcome {
     this.taskRefusals += 1
-    if (this.taskRefusals >= HOOK_MAX_STOP_CONTINUATIONS) {
+    if (this.taskRefusals >= HOOK_MAX_TASK_REFUSALS) {
       this.deps.log.warn(
         `Model API extension hooks: task continuation limit after ${String(this.taskRefusals)} refusals`,
       )
@@ -9385,7 +9422,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (
       siblings === 0 ||
       grant === undefined ||
-      keeps >= HOOK_MAX_STOP_CONTINUATIONS ||
+      keeps >= TEAMMATE_MAX_IDLE_KEEPS ||
       grant.remainingAttempts <= 0 ||
       !this.canContinueChild(child, grant)
     )
@@ -9941,7 +9978,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     }
     for (const child of this.children.values()) {
-      if (active >= SUBAGENT_CAPACITY) {
+      if (active >= this.subagentConcurrency) {
         return
       }
       if (child.state !== 'queued' || child.session.activeTurnId !== undefined) {
@@ -13245,7 +13282,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (
         effectiveCall.name === MODEL_API_TOOLS.todoWrite &&
         outcome.failureReason !== undefined &&
-        this.taskRefusals >= HOOK_MAX_STOP_CONTINUATIONS
+        this.taskRefusals >= HOOK_MAX_TASK_REFUSALS
       ) {
         throw new HookStoppedError(outcome.failureReason)
       }
@@ -14005,7 +14042,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           if (stop.stopReason !== undefined) {
             return
           }
-          if (stop.blockedReason !== undefined && stopContinuations < HOOK_MAX_STOP_CONTINUATIONS) {
+          if (stop.blockedReason !== undefined && stopContinuations < this.stopContinuationLimit) {
             isStopHookActive = true
             stopContinuations += 1
             this.replay.push({

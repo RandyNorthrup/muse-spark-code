@@ -52,6 +52,7 @@ import {
   CLI_OUTPUT_MAX_BYTES,
   BYTES_PER_MIB,
   FILE_REFUSAL_MODEL_TEXT,
+  HOOK_MAX_RUNNING_COMMANDS,
   HOOK_OUTPUT_MAX_BYTES,
   HOOK_STDIN_MAX_BYTES,
   MAX_DOCUMENT_BYTES,
@@ -163,6 +164,12 @@ export interface ToolIoDeps {
   readonly shellJobAssembly?: (() => Promise<string | undefined>) | undefined
   /** Off is allowed only for the interactive main conversation. Runtime workers omit it. */
   readonly agentFence?: (() => boolean) | undefined
+  /**
+   * Running hook commands at once, 0 for all at once as Muse Code does
+   * (M127): `museSpark.hooksMaxRunningCommands`, read per hook process so
+   * a changed setting applies. Absent keeps the extension-host fallback cap.
+   */
+  readonly hookMaxRunningCommands?: (() => number) | undefined
   /** Per-requester facts supplied by the trusted launcher. */
   readonly vaultFence?: (() => VaultFenceOptions) | undefined
 }
@@ -1074,7 +1081,10 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       let release: () => void
       try {
         const runtime = await import('../../core/backends/modelapi/hookRuntimeEntry.js')
-        release = await runtime.acquireHookProcessSlot(signal)
+        release = await runtime.acquireHookProcessSlot(
+          signal,
+          deps.hookMaxRunningCommands?.() ?? HOOK_MAX_RUNNING_COMMANDS,
+        )
       } catch (error: unknown) {
         // No process started: a load failure or a cancelled slot wait gives
         // the admitted lease back, as runCommand does on every exit (RVM94KR 4).

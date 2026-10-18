@@ -577,6 +577,7 @@ async function setupHooks(
             },
           })
         : undefined,
+    hookMaxRunningCommands: () => SETTING_DEFAULTS.hooksMaxRunningCommands,
   })
   const runHook = io.runHook?.bind(io)
   if (runHook === undefined) throw new Error(UI_TEXT.hooksNotRunnable)

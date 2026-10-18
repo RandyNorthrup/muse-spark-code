@@ -120,6 +120,12 @@ const VALIDATION_ENTRY = 'src/shared/validationEntry.ts'
 const VALIDATION_OUTFILE = 'dist/validation.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
+// The Muse Code backend's own bundle (PR206, PLAN.md D6): the host, its
+// notification mapping and the SDK, required the first time that backend
+// starts. Nothing it bundles may import `vscode` (src/core must not), so
+// `vscode` is not external there and a stray import fails this build.
+const MUSE_CODE_ENTRY = 'src/host/backend/museCodeEntry.ts'
+const MUSE_CODE_OUTFILE = 'dist/museCode.js'
 const RESOURCE_ENTRY = 'src/core/resources/resourceGovernorEntry.ts'
 const RESOURCE_OUTFILE = 'dist/resourceGovernor.js'
 // POSTSPAWN: the governed launcher, beside (never inside) the governor.
@@ -457,6 +463,15 @@ const teamRunnersOptions = {
   ...teamOptions,
   entryPoints: [TEAM_RUNNERS_ENTRY],
   outfile: TEAM_RUNNERS_OUTFILE,
+}
+
+// The Muse Code backend's own bundle (PR206, PLAN.md D6): the same plugins
+// as the team bundles, which already carry the host today, so what the entry
+// pulls in splits the same way.
+const museCodeOptions = {
+  ...teamOptions,
+  entryPoints: [MUSE_CODE_ENTRY],
+  outfile: MUSE_CODE_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1310,6 +1325,7 @@ if (isWatch) {
     esbuild.context(teamOptions),
     esbuild.context(teamRunnersOptions),
     esbuild.context(teamSchedulerOptions),
+    esbuild.context(museCodeOptions),
     esbuild.context(foreignHooksOptions),
     esbuild.context({
       ...modelApiOptions,
@@ -1456,6 +1472,7 @@ if (isWatch) {
     team: () => esbuild.build(teamOptions),
     teamRunners: () => esbuild.build(teamRunnersOptions),
     teamScheduler: () => esbuild.build(teamSchedulerOptions),
+    museCode: () => esbuild.build(museCodeOptions),
     foreignHooks: () => esbuild.build(foreignHooksOptions),
     modelApiHooks: () =>
       esbuild.build({

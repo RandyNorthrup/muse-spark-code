@@ -58,6 +58,7 @@ import {
   DICTATION_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
   VOICE_LINUX_BUNDLE_FILE,
+  MUSE_CODE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   JUDGE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
@@ -114,7 +115,6 @@ import {
   isUsageWriterBundle,
   type UsageRecording,
 } from './core/usage/recording'
-import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
 import { agentDataFolder } from './runtime/dataFolder'
 import { requireFile } from './host/lazyBundle'
 import { isJudgeEngineOn } from './core/judge/engine'
@@ -771,7 +771,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       })
     },
   })
-  MuseCodeHost.usageRecording = usageRecording
   ModelApiBackendManager.usageRecording = usageRecording
   context.subscriptions.push({
     dispose: () => {
@@ -1644,6 +1643,8 @@ async function activateWindow(
   }
   const backend = new MuseCodeBackendManager({
     shellJobAssembly: () => windowsJobAssembly?.() ?? Promise.resolve(undefined),
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MUSE_CODE_BUNDLE_FILE).fsPath,
+    usageRecording,
     beforeWorkspaceHostStart: async () => {
       await checkpoints.markNativeBackend()
     },
@@ -2132,6 +2133,7 @@ async function activateWindow(
       vscode.workspace.textDocuments
         .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
         .map((document) => document.uri.fsPath),
+    hookMaxRunningCommands: () => currentSettings().hooksMaxRunningCommands,
   })
   // The window's tool io: no tool writes the checkpoint storage, and every
   // command is workspace activity. It records nothing: each Model API turn
@@ -3001,6 +3003,9 @@ async function activateWindow(
     strictTools: () => currentSettings().modelApiStrictTools,
     parallelReads: () => currentSettings().modelApiParallelReads,
     webSearchMaxPerRequest: () => currentSettings().webSearchMaxPerRequest,
+    hookMaxStopContinuations: () => currentSettings().hooksMaxStopContinuations,
+    hookMaxRunningCommands: () => currentSettings().hooksMaxRunningCommands,
+    subagentMaxConcurrent: () => currentSettings().subagentMaxConcurrent,
     isShellKeepsDirectoryOn: () => currentSettings().modelApiShellKeepsDirectory,
     allowsPaidUse: async (request, requiresAsking) =>
       await paid.consent.allows(request, requiresAsking),

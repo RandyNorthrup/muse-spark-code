@@ -1086,7 +1086,9 @@
       "settings": [
         "museSpark.modelApiHooks",
         "museSpark.hookHttpAllowedHosts",
-        "museSpark.modelApiShellKeepsDirectory"
+        "museSpark.modelApiShellKeepsDirectory",
+        "museSpark.hooksMaxStopContinuations",
+        "museSpark.hooksMaxRunningCommands"
       ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#hooks",
       "backends": ["museCode", "modelApi"],
@@ -1535,7 +1537,7 @@
       "summary": { "tip": "paid:subagents" },
       "description": { "tip": "paid:subagents" },
       "commands": [],
-      "settings": ["museSpark.modelApiSubagents"],
+      "settings": ["museSpark.modelApiSubagents", "museSpark.subagentMaxConcurrent"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#session-board-and-best-of-n",
       "backends": ["modelApi"],
       "paid": true,
@@ -2999,6 +3001,50 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "text": {
+        "conditions": [{ "when": "hooks", "text": { "setting": "hooksMaxStopContinuations" } }]
+      },
+      "id": "museSpark.hooksMaxStopContinuations",
+      "name": "museSpark.hooksMaxStopContinuations",
+      "description": "How many times in a row Stop hooks may keep a finished turn going (1–8; Muse Code's own bound 8, the default). Past that the turn ends. Higher values are refused, so no workspace can raise it.",
+      "descriptionKey": "config.hooksMaxStopContinuations.description",
+      "type": "number",
+      "default": 8,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 8, "minimum": 1, "maximum": 8 }
+    },
+    {
+      "text": {
+        "conditions": [{ "when": "hooks", "text": { "setting": "hooksMaxRunningCommands" } }]
+      },
+      "id": "museSpark.hooksMaxRunningCommands",
+      "name": "museSpark.hooksMaxRunningCommands",
+      "description": "How many hook commands run at once (minimum 0). 0 starts them all at once, as Muse Code does.",
+      "descriptionKey": "config.hooksMaxRunningCommands.description",
+      "type": "number",
+      "default": 0,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 0, "minimum": 0 }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "sessionBoard&subagents", "text": { "setting": "subagentMaxConcurrent" } }
+        ]
+      },
+      "id": "museSpark.subagentMaxConcurrent",
+      "name": "museSpark.subagentMaxConcurrent",
+      "description": "How many subagents work at once (1–64, Muse Code's default 8). Later ones queue.",
+      "descriptionKey": "config.subagentMaxConcurrent.description",
+      "type": "number",
+      "default": 8,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 8, "minimum": 1, "maximum": 64 }
     },
     {
       "id": "museSpark.modelApiShellKeepsDirectory",
