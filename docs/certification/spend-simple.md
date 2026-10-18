@@ -482,3 +482,107 @@ re-verified against the current tree as its fix lands below. Threads
 - CI `paidMoneyStructure`: reproduced — `unexpected:
 ["host/backend/fileSessionStore.ts:spentUsd"]` from the migration's
   `seeds` array typed `number | string`. Fix: `UsdAmount`.
+
+## PR217W1 — fixes (2026-10-18, lane PR217W1)
+
+Threads 1–7 re-verified green on the final tree (suites below); threads
+8–12 fixed at their cause. Red drills: each fix reverted alone (the
+four src breaks in one tree, the Action mirror on its own), the new
+tests fail with the quoted message, the fix restored, green rerun.
+
+- `fileSessionStore.ts:306` (security P2, retained claims):
+  `legacyClaimSpendUsd` (`src/host/backend/legacyJournal.ts`) counts a
+  settled charge, else a retained liability, else nothing. Retained is
+  not a reservation: the removed journal wrote it at retain time for
+  fees a run incurred past its reservation
+  (`sessionBudgetJournal.ts:315` at `b6ba938849^`), so counting it
+  refines thread 2's settled-only rule instead of contradicting it —
+  held-but-never-spent money still stays out. Both migrations share the
+  reader (also fixes the `duplication` clone). Red drill:
+  `expected { spentUsd: '3.75' } to deeply equal { spentUsd: '5.75' }`
+  (daily) and the session load reading `8.5` for `10.5`.
+- `ModelApiHost.ts:16511` (P2, unknown-count merge):
+  `fileSessionStore` keeps per-window unknown-count bases beside the
+  spend bases (`load` sets them, `save` stores the window's own
+  unmerged count after the write) and merges count deltas the same way
+  as spend. Red drill: `expected 2 to be 3`.
+- `ModelApiHost.ts:16618` (P2, unknown-cost guard): `adopt` sets
+  `hasUnknownBudgetCost` from the restored count, so the turn-cost
+  notice stays suppressed after a reload. No unit test can reach
+  `adopt` (no test builds a `ModelApiSession`; stand-ins are
+  forbidden), so the proof is the round-tripped count it derives from
+  plus inspection; stated plainly as untested.
+- `runLedger.ts:344` (P1, priced incomplete/failed): the
+  `lastResponseSchema` invariant now mirrors the ledger's pricing
+  condition (settled terminal, valid usage, no transport error) instead
+  of requiring `completed`; `action/lib/result.mjs` carries the same
+  mirror. The existing incomplete/failed ledger test now also validates
+  the runExec-shaped settled attempt event against both validators.
+  Red drills: `expected false to be true` on the schema alone and on
+  the mirror alone.
+- `fileSessionStore.ts:305` (P2, claim ownership): both migrations
+  compare `claimId` (against the directory name, as the removed
+  journal wrote it), `scopeId` (against the seed), `sessionId` and
+  `accountId` before summing; a mismatch keeps the stored total with a
+  log line (session) or refuses as damaged (daily). Fixtures completed
+  to the real journal shape (identity fields, directories named for
+  their claim ids). Red drill: `expected false to be 'damaged'`
+  (daily); the session load keeps `10` unstamped.
+- CI `paidMoneyStructure`: the migration's `seeds` hold `UsdAmount`
+  (what `legacyUsdSchema` outputs); the dead `typeof === 'number'`
+  finite checks went with it. Green.
+- CI `duplication`: the two legacy schema blocks now live once in
+  `legacyJournal.ts`; the repeated two-window setup and the repeated
+  legacy-day seed are helpers. `jscpd`: 0 clones.
+- CI `packages` (VSIX 3801461 vs 3788800): measured, partly cut.
+  Shipped `dist/` is 4.7 KB smaller than the merge base; the growth is
+  `l10n/` (+87 KB raw, +23.2 KB gzip), i.e. the branch's feature
+  strings. Removed the only provably dead branch-added strings:
+  `execBudgetStartExact` (superseded by the Rule/Bytes start lines)
+  and `execStaleHoldsClosed` (the holds-aging feature is gone under
+  D121) — no reader anywhere in src, test, scripts or action, in any
+  of the 15 tables. `check:l10n` 0 problems; l10n suites green. The
+  rest is live feature text, so the remaining overrun cannot be cut
+  without cutting features or raising the budget — both forbidden. The
+  cap itself is provisional (its record says the hosted universal VSIX
+  on the release PR sets the final cap, a lead decision).
+
+## PR217W1 — gates on the final tree (2026-10-18, lane PR217W1)
+
+Every check below ran in the lane worktree with the repository's own
+timeout (no `--testTimeout`); suites at most 3 files per run,
+`--maxWorkers=3`.
+
+| Gate                                                     | Exit                          |
+| -------------------------------------------------------- | ----------------------------- |
+| `npm run typecheck` (all projects)                       | 0                             |
+| `eslint --max-warnings=0` on the 10 changed TS/MJS files | 0                             |
+| `prettier --check` on changed sources and the 14 tables  | clean                         |
+| `npm run deadcode` (knip)                                | 0                             |
+| `npm run cycles` (dpdm)                                  | no cycles                     |
+| `npx jscpd`                                              | 0 clones                      |
+| `node scripts/check-l10n.mjs`                            | 0 problems                    |
+| `npm run check:plan`                                     | 0 drift                       |
+| `npm run check:reference`                                | current                       |
+| `npm run check:host-api`                                 | 0 problems                    |
+| `npm run build`                                          | 0                             |
+| SAST (`security:sast`)                                   | 0 findings                    |
+| `security:audit`                                         | 0 (2 advisories, 1 exception) |
+
+Suites, all with the repository's own timeout: `fileSessionSpend`
+(10), `dailySpend` (7), `runLedger` (47), `paidMoneyStructure` (46),
+`providerUnpriced` + `sessionStore` + `sessionRecords` (36),
+`sessionImport` + `sessionTransfer` + `sessions` (39),
+`usageLiability` + `usageContracts` + `l10n` (40),
+`l10nPacked` + `runtimeDailyBudget` + `sessionBudgetFit` (12).
+
+Not run here with a result claimed: the universal VSIX itself (its
+`package` step needs CI-only helpers — no macOS artifacts and no
+arm64 Linux helper exist on this rig, so `npm run package` stops at
+the helper check; the numbers above are measured over the same staged
+content instead). The `hasUnknownBudgetCost` restore line has no unit
+test (named above); everything else is drilled.
+
+Real-use note: no paid or live model calls in this lane (nothing
+changed needs one); the proof is the packed-product-shaped suites and
+gates above, plus the real-file journals the migration tests drive.

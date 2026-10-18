@@ -18,6 +18,8 @@ import {
   legacyClaimSpendUsd,
   legacyClaimSchema,
   legacySeedSchema,
+  type LegacyClaim,
+  type LegacySeed,
 } from '../backend/legacyJournal'
 
 const FILE_EXTENSION = '.json'
@@ -106,14 +108,14 @@ export function createDailySpend(deps: {
         )
       }
     }
-    const parseSeed = (text: string): z.infer<typeof legacySeedSchema> => {
+    const parseSeed = (text: string): LegacySeed => {
       try {
         return legacySeedSchema.parse(JSON.parse(text))
       } catch (error: unknown) {
         return damaged(LEGACY_SEED_FILE, error)
       }
     }
-    const parseClaim = (file: string, text: string): z.infer<typeof legacyClaimSchema> => {
+    const parseClaim = (file: string, text: string): LegacyClaim => {
       try {
         return legacyClaimSchema.parse(JSON.parse(text))
       } catch (error: unknown) {
