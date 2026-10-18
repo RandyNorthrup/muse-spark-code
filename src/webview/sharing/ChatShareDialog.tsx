@@ -52,7 +52,6 @@ function failureText(error: unknown): string {
   const known = [
     UI_TEXT.shareConfidential,
     UI_TEXT.shareRangeInvalid,
-    UI_TEXT.shareTooLarge,
     UI_TEXT.shareAttachmentUnavailable,
     UI_TEXT.sharePreviewExpired,
     UI_TEXT.exportNothing,

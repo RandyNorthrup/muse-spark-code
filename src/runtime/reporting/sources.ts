@@ -2,12 +2,12 @@ import { execResourceFile } from '../../core/resources/launcher'
 import { constants as fsConstants, existsSync } from 'node:fs'
 import { open, opendir, realpath } from 'node:fs/promises'
 import {
+  BOUNDED_FILE_READ_CHUNK_BYTES,
   EXEC_UNTRUSTED_FILE_MAX_BYTES,
   GIT_OUTPUT_MAX_BYTES,
   REPORT_MAX_ROWS,
   REPORT_STORAGE_LINK_COUNT,
   REPORT_SOURCE_TIMEOUT_MS,
-  SESSION_EXPORT_MAX_BYTES,
 } from '../../shared/constants'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import { withoutCredentials } from '../../core/credentialEnvironment'
@@ -39,11 +39,18 @@ function isPrivatePath(file: string): boolean {
         /^(?:\.?credentials?|auth|secrets?|tokens?)(?:\.|$)/iu.test(name),
     )
 }
-/** One confined, regular-file descriptor, size bound before and during the read. */
+/**
+ * One confined, regular-file descriptor. NOLIMITS1FIX: the removed 16 MiB
+ * bound was invented — the default reads at any size. The chunks decode
+ * straight into the returned string through one streaming decoder, so a
+ * large source is never held as retained chunks plus a second concatenated
+ * buffer plus the string on top. An explicit finite `maxBytes` (the
+ * untrusted-file bound one caller passes) still refuses past itself.
+ */
 export function reportFileIo(
   root: string,
   platform: NodeJS.Platform,
-  maxBytes = SESSION_EXPORT_MAX_BYTES,
+  maxBytes = Infinity,
 ): LocalFileIo {
   const p = pathModule(platform)
   async function target(
@@ -77,7 +84,8 @@ export function reportFileIo(
       const rootBefore = await statIdentity(checked.root)
       if (!before.isFile() || Number(before.nlink) !== REPORT_STORAGE_LINK_COUNT)
         throw new LocalSourceError('refused')
-      if (before.size > BigInt(maxBytes)) throw new LocalSourceError('limit')
+      if (Number.isFinite(maxBytes) && before.size > BigInt(maxBytes))
+        throw new LocalSourceError('limit')
       const handle = await open(checked.absolute, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW)
       try {
         const held = await handleIdentity(handle)
@@ -89,19 +97,30 @@ export function reportFileIo(
           rechecked.absolute !== checked.absolute
         )
           throw new LocalSourceError('refused')
-        const buffer = Buffer.alloc(maxBytes + 1)
+        const decoder = new TextDecoder('utf-8', { fatal: true })
+        const pieces: string[] = []
         let count = 0
-        while (count <= maxBytes) {
+        let position = 0
+        for (;;) {
           signal.throwIfAborted()
-          const { bytesRead } = await handle.read(buffer, count, buffer.length - count, null)
+          const chunk = Buffer.alloc(BOUNDED_FILE_READ_CHUNK_BYTES)
+          const { bytesRead } = await handle.read(chunk, 0, chunk.length, position)
           if (bytesRead === 0) break
+          position += bytesRead
           count += bytesRead
+          if (count > maxBytes) throw new LocalSourceError('limit')
+          try {
+            pieces.push(decoder.decode(chunk.subarray(0, bytesRead), { stream: true }))
+          } catch {
+            throw new LocalSourceError('invalid')
+          }
         }
-        if (count > maxBytes) throw new LocalSourceError('limit')
         if (!sameFile(held, await lstatIdentity(checked.absolute)))
           throw new LocalSourceError('refused')
         try {
-          const text = new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, count))
+          // The flush completes a character split across the last chunk, or
+          // throws on truncated bytes, exactly as one whole decode does.
+          const text = `${pieces.join('')}${decoder.decode()}`
           if (text.includes('\0')) throw new LocalSourceError('invalid')
           return text
         } catch {

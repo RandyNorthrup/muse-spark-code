@@ -3,17 +3,15 @@
 // already saved under one of its names. Every path is confined to the
 // workspace, links and junctions resolved (PLAN.md D24), and the plans
 // folder must be the workspace's own `.agents/plans`, not a link to
-// somewhere else inside it. Reads are bounded. The file system is a port.
+// somewhere else inside it. Reads take the whole file (D121: the removed
+// 256 KiB ceiling was invented). The file system is a port.
 
 import {
-  PLAN_FILE_MAX_BYTES,
-  PLAN_FILE_MAX_KB,
   PLAN_LIST_MAX,
   PLAN_NAME_ATTEMPTS,
   PLANS_DIR_SEGMENTS,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
 import { hasBinaryControlCharacters } from '../attachments'
 import { confineWorkspacePath, type RealPathIo } from '../workspacePath'
 import type { EditedFile } from '../verify/diagnosticsReport'
@@ -116,11 +114,6 @@ function isSameBytes(left: Uint8Array, right: Uint8Array): boolean {
   return left.byteLength === right.byteLength && left.every((byte, index) => byte === right[index])
 }
 
-/** The refusal for a plan over the size limit, in the user's language. */
-export function planTooLargeText(): string {
-  return fill(UI_TEXT.planTooLarge, { size: PLAN_FILE_MAX_KB })
-}
-
 export class PlanStore {
   public constructor(private readonly deps: PlanStoreDeps) {}
 
@@ -193,10 +186,8 @@ export class PlanStore {
     content: PlanContent,
     ownerRecorder?: WorkspaceEditRecorder,
   ): Promise<SaveOutcome> {
+    // D121: a plan saves at any size — the removed 256 KiB ceiling was invented.
     const bytes = new TextEncoder().encode(content.text)
-    if (bytes.byteLength > PLAN_FILE_MAX_BYTES) {
-      throw new Error(planTooLargeText())
-    }
     const folder = await this.place(PLANS_DIR)
     await this.deps.io.removeStaleStages(folder.checkedAbsolute)
     const slug = planSlug(content.title)
@@ -230,20 +221,22 @@ export class PlanStore {
     return entries.some((entry) => entry.kind === 'file' && entry.name === fileName)
   }
 
-  /** A plan whole, bounded; throws with the reason when it cannot be read as one. */
+  /** A plan whole, at any size; throws with the reason when it cannot be read as one. */
   public async read(fileName: string): Promise<PlanFile> {
     const markdown = this.deps.markdown()
     const place = await this.planPlace(fileName)
+    // No plan file reaches integer precision, so the shared bounded reader's
+    // own bound never fires: the whole file comes back.
     const read = await this.deps.io.readFile(
       place.checkedAbsolute,
-      PLAN_FILE_MAX_BYTES,
+      Number.MAX_SAFE_INTEGER,
       place.checkedAbsolute,
     )
     if (read.isPdf) {
       throw new Error(UI_TEXT.textFileInvalid)
     }
     if (read.bytes === undefined) {
-      throw new Error((await this.has(fileName)) ? planTooLargeText() : UI_TEXT.planFileMissing)
+      throw new Error(UI_TEXT.planFileMissing)
     }
     // Text, as a picked text file must be (M54): the brief is written from
     // the parsed plan, which would turn a NUL into U+FFFD and pass it on.

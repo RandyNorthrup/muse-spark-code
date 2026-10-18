@@ -1,11 +1,13 @@
+import { Buffer } from 'node:buffer'
 import { describe, expect, it } from 'vitest'
-import { foldName, heldTree } from '../../src/core/git/heldTree'
 import {
-  HELD_CHECKOUT_MAX_BYTES,
-  HELD_CHECKOUT_MAX_ENTRIES,
-  UI_TEXT,
-} from '../../src/shared/constants'
-import { fill, formatBytes } from '../../src/shared/l10n/text'
+  ListingRecords,
+  foldName,
+  heldTree,
+  heldTreeFromRecords,
+} from '../../src/core/git/heldTree'
+import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 const BLOB = 'ce013625030ba8dba906f756967f9e9ca394464a'
 const COMMIT = '1111111111111111111111111111111111111111'
@@ -152,36 +154,61 @@ describe('heldTree (M71): what a held pull request writes', () => {
     },
   )
 
-  it('writes up to its limits and refuses one entry or one byte more', () => {
-    const tooLarge = {
-      ok: false,
-      reason: fill(UI_TEXT.openPullRequestTooLarge, {
-        files: HELD_CHECKOUT_MAX_ENTRIES,
-        size: formatBytes(HELD_CHECKOUT_MAX_BYTES),
-      }),
-    }
-    const names = Array.from(
-      { length: HELD_CHECKOUT_MAX_ENTRIES + 1 },
-      (_, index) => `f${String(index)}`,
-    )
-    const most = heldTree(files(...names.slice(0, -1)), 'linux')
-    expect(most.ok ? most.entries.length : 0).toBe(HELD_CHECKOUT_MAX_ENTRIES)
-    expect(heldTree(files(...names), 'linux')).toEqual(tooLarge)
-    const half = Math.floor(HELD_CHECKOUT_MAX_BYTES / 2)
-    expect(heldTree(record('100644', 'a', half) + record('100644', 'b', half), 'linux').ok).toBe(
-      true,
-    )
+  it('writes past the old limits: entries and bytes at any size (D121)', () => {
+    const names = Array.from({ length: 20_001 }, (_, index) => `f${String(index)}`)
+    const many = heldTree(files(...names), 'linux')
+    expect(many.ok).toBe(true)
+    expect(many.ok ? many.entries.length : 0).toBe(20_001)
     expect(
-      heldTree(
-        record('100644', 'a', half) + record('100644', 'b', HELD_CHECKOUT_MAX_BYTES - half + 1),
-        'linux',
-      ),
-    ).toEqual(tooLarge)
+      heldTree(record('100644', 'a', 200_000_000) + record('100644', 'b', 100_000_000), 'linux'),
+    ).toEqual({
+      ok: true,
+      entries: [
+        { path: 'a', kind: 'file', oid: BLOB, size: 200_000_000 },
+        { path: 'b', kind: 'file', oid: BLOB, size: 100_000_000 },
+      ],
+    })
   })
 
   it('folds names as the platform’s usual file systems compare them', () => {
     expect(foldName('Docs/E\u{301}', 'win32')).toBe('docs/\u{E9}')
     expect(foldName('Docs/E\u{301}', 'darwin')).toBe('docs/\u{E9}')
     expect(foldName('Docs/E\u{301}', 'linux')).toBe('Docs/E\u{301}')
+  })
+
+  it('streams records whole across chunk cuts, even mid-character', () => {
+    const listing = new ListingRecords()
+    // A multibyte name cut between its bytes, then two records in one chunk.
+    const first = Buffer.from(record('100644', 'caf\u{E9}.txt'), 'utf8')
+    // Cut inside the two-byte e-acute: no record ends before its NUL.
+    expect(listing.take(first.subarray(0, -6))).toEqual([])
+    const rest = Buffer.concat([first.subarray(-6), Buffer.from(files('b.txt', 'c.txt'), 'utf8')])
+    expect(listing.take(rest)).toEqual([
+      record('100644', 'caf\u{E9}.txt').slice(0, -1),
+      record('100644', 'b.txt').slice(0, -1),
+      record('100644', 'c.txt').slice(0, -1),
+    ])
+    expect(listing.finish()).toEqual([])
+  })
+
+  it('validates streamed records exactly as the whole listing', () => {
+    const whole = [record('100644', 'a.txt'), record('100755', 'bin/run.sh', 10)].join('')
+    const bytes = Buffer.from(whole, 'utf8')
+    const listing = new ListingRecords()
+    const records = [...listing.take(bytes.subarray(0, 7)), ...listing.take(bytes.subarray(7))]
+    expect(heldTreeFromRecords([...records, ...listing.finish()], 'linux')).toEqual(
+      heldTree(whole, 'linux'),
+    )
+    // Undecodable bytes refuse the listing, as a buffered read’s
+    // replacement character does.
+    const bad = new ListingRecords()
+    const poisoned = Buffer.concat([
+      Buffer.from(record('100644', 'ok.txt'), 'utf8'),
+      Buffer.from([0xff, 0x00]),
+    ])
+    expect(heldTreeFromRecords([...bad.take(poisoned), ...bad.finish()], 'linux')).toEqual({
+      ok: false,
+      reason: unsafe('\u{FFFD}'),
+    })
   })
 })

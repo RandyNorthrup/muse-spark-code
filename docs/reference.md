@@ -282,7 +282,7 @@ Attach files by selecting or dropping them, and paste images into the composer. 
     ".sh"
   ],
   "textSources": "trustedIndexedWorkspacePaths",
-  "modelApiTextAllowanceBytes": 786432,
+  "modelApiTextAllowanceTokens": 786432,
   "imageBytes": 10485760,
   "pdfBytes": 32000000,
   "textBytes": 1048576,
@@ -2333,7 +2333,6 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
 {
   "type": "array",
   "default": [],
-  "maxItems": 8,
   "items": {
     "type": "object",
     "required": ["name", "command"],
@@ -2361,7 +2360,6 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
       "timeoutSeconds": {
         "type": "integer",
         "minimum": 1,
-        "maximum": 600,
         "default": 300,
         "description": "Seconds before the command is stopped (300 unless set).",
         "descriptionKey": "config.checkCommands.timeoutSeconds.description"
@@ -3479,7 +3477,7 @@ These are defaults; editor customizations take precedence.
 - `serve: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false}`
 - `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
-- `serve: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD"}`
+- `serve: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"decimals":6,"required":"modelApi","unit":"USD"}`
 - `login: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
 - `login: --as <value>`: --as: Provider `{"type":"string","repeatable":false,"refused":true}`
 - `login: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`
@@ -3613,8 +3611,8 @@ These are defaults; editor customizations take precedence.
 - `exec: --account <value>`: --account &lt;id&gt; The account to use (auth set, exec). `{"type":"string","repeatable":false,"purpose":"account"}`
 - `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max"],"purpose":"effort"}`
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
-- `exec: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
-- `exec: --max-requests <value>`: Set the maximum number of model requests. `{"type":"string","repeatable":false,"default":30,"minimum":1,"maximum":500,"purpose":"maxRequests"}`
+- `exec: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
+- `exec: --max-requests <value>`: Set the maximum number of model requests. `{"type":"string","repeatable":false,"default":30,"minimum":1,"purpose":"maxRequests"}`
 - `exec: --timeout <value>`: Set the run deadline in seconds. `{"type":"string","repeatable":false,"default":1800,"minimum":10,"maximum":21600,"unit":"seconds","purpose":"timeoutMs"}`
 - `exec: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"muse-binary"}`
 - `exec: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"shell-sandbox"}`

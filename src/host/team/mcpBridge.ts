@@ -23,7 +23,6 @@ import {
   MCP_PROTOCOL_VERSION,
   MODEL_API_MODEL_TEXT,
   MCP_POOL_MODEL_TEXT,
-  CHECK_COMMANDS_MAX,
   CHECK_NAME_MAX_CHARS,
   GIT_PATH_MAX_DEFAULT,
   TEAM_WRITE_SET_MAX,
@@ -640,11 +639,7 @@ export interface BridgeToolListing {
 // --- M96c lane O: bridge run_checks region. ---
 
 const argsSchema = z.strictObject({
-  names: z.optional(
-    z
-      .array(z.string().check(z.minLength(1), z.maxLength(CHECK_NAME_MAX_CHARS)))
-      .check(z.maxLength(CHECK_COMMANDS_MAX)),
-  ),
+  names: z.optional(z.array(z.string().check(z.minLength(1), z.maxLength(CHECK_NAME_MAX_CHARS)))),
   paths: z.optional(
     z
       .array(z.string().check(z.minLength(1), z.maxLength(GIT_PATH_MAX_DEFAULT)))
@@ -682,7 +677,10 @@ export function bridgeRunChecks(deps: BridgeChecksDeps): {
       }
       admit()
       if (checks.length === 0) throw new Error(MODEL_API_MODEL_TEXT.runChecksNone)
-      const names = args.names ?? checks.map((check) => check.name)
+      // One run per distinct check, in requested order: a repeated name
+      // would execute the same command again for every duplicate (PR229FIX
+      // T6). Distinct checks stay unbounded.
+      const names = [...new Set(args.names ?? checks.map((check) => check.name))]
       const paths = await deps.pathsFor(args.paths)
       admit()
       const chosen = names.map((name) => {
