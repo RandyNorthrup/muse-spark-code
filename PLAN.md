@@ -39008,17 +39008,25 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 cannot-start notice), PR #189 (`ms/msm112`: the production build runs through
 a bounded pool of 8), PR #190 (`ms/msm56`: Muse Voice stays unavailable with
 its reason past an unrouted proxy), PR #199 (`ms/msm58m69`: the consent audit
-and the dead `htmlToMarkdown` removal), and PR #203 (`ms/msm82`: turn and
-background notices), and PR #230 (`fix/vsix-room`: the Get Started
+and the dead `htmlToMarkdown` removal), and PR #230 (`fix/vsix-room`: the Get Started
 walkthrough's four screenshots ship as lossless WebP instead of PNG and
 `docs/PRIVACY.md` leaves the package, banking about 70 KB of .vsix headroom
-against the unchanged budget). `package.json` and `package-lock.json` at
+against the unchanged budget). PR #203 (`ms/msm82`: turn and background
+notices) merged and then left the release again: `659d179ff1` reverts its
+merge (`7374e26283`), so the release holds five pull requests (#185, #189,
+#190, #199, #230) and #203 is held for the next release — its unfocused-turn
+notice and Show Conversation action need a model turn in a real editor window
+and could not be proven in real use tonight, and nothing ships unproven.
+#203 added no CHANGELOG entry of its own (its behaviour was already recorded
+under `[0.12.0]`'s Awareness and budgets), so `[0.19.0]` stands as promoted;
+its entries return to `[Unreleased]` on main when #203 merges there.
+`package.json` and `package-lock.json` at
 0.19.0; CHANGELOG's `[Unreleased]` promoted to `[0.19.0] - 2026-10-17` with
 a five-bullet Highlights list, plus PR #230's Packaging entry under
 `[0.19.0]` from its merge; the roadmap regenerated. Gates on the final
 tree: format, eslint zero warnings, typecheck, check:plan, check:roadmap,
 check:l10n, check:reference, knip, build with bundle budgets, and the unit
-suites of every merged change, all green; the full .vsix is packed by hosted
+suites of the files the revert touched, all green; the full .vsix is packed by hosted
 CI. The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 
