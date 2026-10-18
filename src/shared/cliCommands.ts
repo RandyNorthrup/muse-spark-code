@@ -22,6 +22,18 @@ export function cliCommands() {
       text: { ui: 'referenceProviders' },
     },
     {
+      route: 'openRouterConnect',
+      name: 'providers connect openrouter',
+      description: UI_TEXT.providerOpenRouterServices,
+      text: { ui: 'providerOpenRouterServices' },
+    },
+    {
+      route: 'providerKeyUsage',
+      name: 'providers usage <id>',
+      description: UI_TEXT.usageKeyUsage,
+      text: { ui: 'usageKeyUsage' },
+    },
+    {
       route: 'providersAdd',
       name: 'providers add --preset <preset> [--as <id>] [--address <url>] [--model <model>] [--privacy <policy>] [--private-ok] [--key-stdin]',
       description: UI_TEXT.startWithOwnModelDetail,

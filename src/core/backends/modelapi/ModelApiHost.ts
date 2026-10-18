@@ -4459,6 +4459,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.deps.modelOutputMaxTokens?.(resolved.ref, resolved) ??
       (resolved.ref.includes('/') ? resolved.policy.output.maxTokens : undefined) ??
       MODEL_API_MAX_OUTPUT_TOKENS
+
     if (!Number.isSafeInteger(requested)) throw new RangeError('invalid output.maxTokens')
     // A cap below the provider's minimum refuses here with the minimum's own
     // sentence (MINOUT), zero and negative caps included.
@@ -4478,11 +4479,22 @@ export class ModelApiSession implements ScheduledAgentSession {
         source: { kind: 'harness', operation: 'media-input' },
       })),
       project: () => {
-        const mediaProjected = this.media?.project(original, this.modelId, this.budget) ?? original
+        const mediaProjected =
+          this.media?.project(
+            original,
+            this.modelId,
+            this.budget,
+            this.modelPolicy().identity.provider,
+          ) ?? original
         const fitted = this.budget.fit(
           mediaProjected,
-          undefined,
+          // The resolved model's own record, when its lane carried one:
+          // fresh attachments above its image/page caps are refused here
+          // instead of rejected remotely. Absent keeps the provider-identity
+          // gating (Meta's number never meets a configured provider).
+          resolved.capabilityRecord,
           this.media?.pending(mediaProjected),
+          resolved.policy.identity.provider,
         )
         // Packing projects per request only: the replay keeps the originals, so
         // a later request (or a restore) packs from the full outputs again.
@@ -7528,7 +7540,12 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.budget.note(sent, part.pageCount)
       }
     }
-    this.media?.assertPendingFits(content, this.budget)
+    this.media?.assertPendingFits(
+      content,
+      this.budget,
+      undefined,
+      this.modelPolicy().identity.provider,
+    )
     return content
   }
 
@@ -7812,7 +7829,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   private canQueueMedia(chars: number, slots: number): boolean {
     const queued = this.queuedMediaUsage()
     const limit = this.deps.mediaBudgetMaxEncodedChars ?? MAX_ENCODED_MEDIA_CHARS
-    return queued.chars + chars <= limit && queued.slots + slots <= MODEL_API_MEDIA_PER_REQUEST
+    // The slot count is Meta's per-request budget; a configured provider
+    // answers for its own counts, so only the byte bound queues its media.
+    const isSlotsFit =
+      this.modelPolicy().identity.provider !== 'meta' ||
+      queued.slots + slots <= MODEL_API_MEDIA_PER_REQUEST
+    return queued.chars + chars <= limit && isSlotsFit
   }
 
   /** Reserve all current-batch visual outputs before their tool row reports success. */
@@ -7829,7 +7851,12 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   private canQueueSteeredMedia(parts: readonly TurnPart[]): boolean {
     if (this.media !== undefined) {
-      this.media.assertPendingFits(this.contentParts(parts), this.budget, this.queuedMediaUsage())
+      this.media.assertPendingFits(
+        this.contentParts(parts),
+        this.budget,
+        this.queuedMediaUsage(),
+        this.modelPolicy().identity.provider,
+      )
       return true
     }
     let chars = 0
@@ -14780,7 +14807,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
       return false
     const sent = this.compactionPrefix
-    const window = contextModelFor(this.deps, this.modelId)?.contextTokens
+    // C-M95-4 R5: a registry (`provider/model`) window comes from the
+    // turn's fresh resolution (the turn resolved this same ref before the
+    // loop); anything else keeps the synchronous seam, whose static Meta
+    // window a stored resolution must never shadow.
+    const window =
+      (this.modelId.includes('/')
+        ? this.resolvedModels.get(this.modelId)?.contextTokens
+        : undefined) ?? contextModelFor(this.deps, this.modelId)?.contextTokens
     if (
       window === undefined ||
       sent?.body.model !== this.modelId ||
@@ -15005,12 +15039,17 @@ export class ModelApiSession implements ScheduledAgentSession {
         ...(cached !== undefined && {
           instructions: cached.instructions,
         }),
-        input: this.budget.fit([
-          ...(this.media?.summaryInput(current.input) ?? current.input).filter(
-            (item) => canReplayReasoning || !isReasoningItem(item),
-          ),
-          append,
-        ]),
+        input: this.budget.fit(
+          [
+            ...(this.media?.summaryInput(current.input) ?? current.input).filter(
+              (item) => canReplayReasoning || !isReasoningItem(item),
+            ),
+            append,
+          ],
+          undefined,
+          [],
+          resolved.policy.identity.provider,
+        ),
         tools: canReuse ? current.tools : [],
         include: ['reasoning.encrypted_content'],
       })

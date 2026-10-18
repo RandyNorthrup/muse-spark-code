@@ -1,0 +1,393 @@
+{
+  "platform": "macmini",
+  "files": 77,
+  "passed": 2474,
+  "failed": 0,
+  "suites": [
+    {
+      "file": "test/unit/openRouterComposition.test.ts",
+      "passed": 52,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providerOpenRouter.test.ts",
+      "passed": 17,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providerProvidersHost.test.ts",
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providerOAuthLoopback.test.ts",
+      "passed": 17,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/usageL10nGate.test.mjs",
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/usageRecording.test.ts",
+      "passed": 27,
+      "failed": 0
+    },
+    {
+      "file": "test/e2e/acpStdio.e2e.test.ts",
+      "passed": 13,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/UsageApp.test.tsx",
+      "passed": 31,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/UsageAppResources.test.tsx",
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/UsageCharts.test.tsx",
+      "passed": 20,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/UsageEntry.test.tsx",
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/UsageLimitsSection.test.tsx",
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/acpAgent.test.ts",
+      "passed": 142,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/acpModelApi.test.ts",
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/acpRuntime.test.ts",
+      "passed": 43,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/authSource.test.ts",
+      "passed": 13,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/chatGptSignIn.test.ts",
+      "passed": 105,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/chatGptVsCode.test.ts",
+      "passed": 26,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/configuredProviders.test.ts",
+      "passed": 40,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/execFetch.test.ts",
+      "passed": 36,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/execKeyInput.test.ts",
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/execProvider.test.ts",
+      "passed": 17,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/execResources.test.ts",
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/execRun.test.ts",
+      "passed": 94,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/execVault.test.ts",
+      "passed": 25,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/m106Wiring.test.ts",
+      "passed": 14,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/modelsPanel.test.ts",
+      "passed": 27,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/modelsPanelEdit.test.tsx",
+      "passed": 41,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/modelsPanelEntry.test.ts",
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/modelsQuickPick.test.ts",
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/paidMoneyStructure.test.ts",
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providerImportExport.test.ts",
+      "passed": 17,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providerPanelSeam.test.ts",
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providerTransport.test.ts",
+      "passed": 33,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providerWiring.test.ts",
+      "passed": 26,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providersX.test.ts",
+      "passed": 34,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providersXFix.test.ts",
+      "passed": 16,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/reasoningResolver.test.ts",
+      "passed": 39,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/resourceHistoryDisposal.test.ts",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/resourceHistoryReview.test.ts",
+      "passed": 36,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/resourceHistorySettled.test.ts",
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/resourceHistoryWiring.test.ts",
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/runtimeChatGpt.test.ts",
+      "passed": 35,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/runtimeChatGptCallback.test.ts",
+      "passed": 18,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/runtimeChatGptLock.test.ts",
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/runtimeServices.test.ts",
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/scanSecrets.test.ts",
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/subscriptionIntegration.test.ts",
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/usageCompanionChunks.test.ts",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/usageIntegration.test.ts",
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/usageRollup.test.ts",
+      "passed": 66,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/usageService.test.ts",
+      "passed": 15,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/usageText.test.ts",
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/wizardSessionBudget.test.ts",
+      "passed": 48,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/l10nPacked.test.ts",
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/openRouterChrome.test.mjs",
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/usageL10nTables.test.mjs",
+      "passed": 16,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/acpPackageFixtures.test.ts",
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/runtimeChatGptPackage.test.ts",
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/vsixPackaging.test.mjs",
+      "passed": 79,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/UsageDialog.test.tsx",
+      "passed": 61,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/conversationController.test.ts",
+      "passed": 686,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/vsixCompression.test.mjs",
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providerCatalog.test.ts",
+      "passed": 80,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providerCredentialRecords.test.ts",
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providerCredentialStore.test.ts",
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providerOrderedSave.test.ts",
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providerRemoval.test.ts",
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providerWizardSave.test.ts",
+      "passed": 19,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/modelsPanelReducer.test.ts",
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/modelsPanelSchemas.test.ts",
+      "passed": 13,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providerRetry.test.ts",
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/modelsPanelSections.test.tsx",
+      "passed": 35,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/providersL10n.test.ts",
+      "passed": 19,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/usageContracts.test.ts",
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "file": "test/e2e/execStdio.e2e.test.ts",
+      "passed": 44,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/modelsPanelBundle.test.ts",
+      "passed": 5,
+      "failed": 0
+    }
+  ]
+}

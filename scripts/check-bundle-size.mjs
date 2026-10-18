@@ -236,6 +236,10 @@ const BUDGETS = [
   // the shared protocol it validates against), plus 15%, rounded up to 25 KiB
   // (PLAN.md D6).
   { path: 'dist/recorder.js', budgetKiB: 75 },
+  // The credential lease (M95 D74), loaded on the first guarded credential
+  // write or Connect recovery. 8.6 KiB when split out (the lease, its
+  // journal and the entry), plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/credentialLease.js', budgetKiB: 25 },
   // What's New (M99, PLAN.md D79), loaded on the first page or notice: the
   // page's renderer, its content schema (zod's mini parser) and its tab.
   // 34.8 KiB when split out, plus 15%, rounded up to 25 KiB.
@@ -284,6 +288,8 @@ const BUDGETS = [
   // M105's trusted media inspector stays in its first-use media bundle.
   { path: 'dist/acp.js', budgetKiB: 850 },
   // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
+  // PR219W1: the credential lease loads from its own bundle on the first
+  // guarded write, so the preflight keeps its 100 KiB budget (never raised).
   { path: 'dist/headless.js', budgetKiB: 100 },
   // M114 F: runtime-only installer, measured with the shared validation API.
   { path: 'dist/fontsInstall.js', budgetKiB: 25 },
@@ -353,14 +359,21 @@ for (const { path, budgetKiB } of BUDGETS) {
 // TRAIN15H: optional surfaces' English has its own measured closure cap in
 // webviewBundles.mjs, following measured +15%, rounded up to 25 KiB.
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
-for (const { name, source, budgetKiB } of [
+for (const { name, page, source, budgetKiB } of [
   // TRAIN15G: full lazy closure 56.3 KiB +15%, rounded up to 25 KiB.
-  { name: 'models', source: 'src/webview/models/panel.tsx', budgetKiB: 75 },
+  { name: 'models', page: 'models', source: 'src/webview/models/panel.tsx', budgetKiB: 75 },
+  // CM954R4: first-use table closure, measured +15%, rounded up to 25 KiB.
+  {
+    name: 'local model table',
+    page: 'models',
+    source: 'src/webview/models/ModelsSection.tsx',
+    budgetKiB: 25,
+  },
   // TRAIN15G: full lazy closure 35.4 KiB +15%, rounded up to 25 KiB.
-  { name: 'usage', source: 'src/webview/usage/UsageApp.tsx', budgetKiB: 50 },
+  { name: 'usage', page: 'usage', source: 'src/webview/usage/UsageApp.tsx', budgetKiB: 50 },
 ]) {
-  const meta = JSON.parse(readFileSync(`dist/meta/${name}Webview.json`, 'utf8'))
-  const files = webviewPanelOutputs(meta, `dist/webview/${name}.js`, source)
+  const meta = JSON.parse(readFileSync(`dist/meta/${page}Webview.json`, 'utf8'))
+  const files = webviewPanelOutputs(meta, `dist/webview/${page}.js`, source)
   const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   if (sizeKiB > budgetKiB) hasFailure = true
   console.log(
@@ -373,6 +386,8 @@ for (const { name, source, budgetKiB } of [
 // on the release train on 2026-10-11 at the merge of b92fab054 onto
 // acf388a14: providers section 37 KiB (32,197 bytes measured, plus 15
 // percent, rounded up), models section 13 KiB (12,074 bytes measured).
+// M95 (CM954 R4): the saved-model editor's validated per-model window field
+// grew the chunk to 13,448 bytes, so the row is 14 KiB (PLAN.md §7).
 const modelsMeta = JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8'))
 const modelsSectionGroups = modelsDeferredBudgetGroups(modelsMeta)
 for (const { name, budgetKiB, outputs } of modelsSectionGroups) {

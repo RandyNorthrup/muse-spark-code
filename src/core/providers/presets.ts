@@ -254,6 +254,32 @@ export interface ProviderPreset {
   readonly quirks: Partial<FormatQuirks>
   /** The preset's own wire capture is recorded (rule 13). */
   readonly wireCapture: boolean
+  /**
+   * The exact server build the quirks were captured against (C-M95-4 R2,
+   * local presets only; from the capture ledgers). The models lists carry
+   * no version, so this stamps what was proven, not what is assumed.
+   */
+  readonly capturedBuild?: string | undefined
+}
+
+/** Which reasoning field a preset's assistant messages replay (C-M95-4 R2). */
+export type PresetReplayField = 'details' | 'content' | 'none'
+
+/**
+ * The reasoning field a preset replays on its assistant messages. A local
+ * server carries no version on the wire, so a build older or newer than
+ * the capture may not understand the captured replay field: local presets
+ * never replay thinking (fail closed). Display is unaffected — the chat
+ * decoder still reads every reasoning field, and a mistranslated replay
+ * would otherwise be dropped silently or refused loudly mid-turn.
+ */
+export function replayFieldFor(preset: ProviderPreset): PresetReplayField {
+  let field: PresetReplayField = 'none'
+  if (preset.category !== 'local') {
+    if (preset.quirks.reasoningField === 'reasoning_details') field = 'details'
+    else if (preset.quirks.reasoningField === 'reasoning_content') field = 'content'
+  }
+  return field
 }
 
 /** A preset's effective quirks: its format's defaults plus its overrides. */
@@ -296,8 +322,10 @@ export function customQuirksFor(
 
 // The presets. Origins, headers, key shapes, key tests and quirks are from
 // the research (`docs/certification/m95-research.md`) and the live captures
-// (`docs/certification/m95-captures.md`, 2026-10-04). A preset without its
-// own capture (`wireCapture: false`) stays out of the panel (rule 13).
+// (`docs/certification/m95-captures.md`, 2026-10-04; the local servers'
+// own frames in `docs/certification/m95-captures/<llamacpp|lmstudio>/`,
+// 2026-10-10). A preset without its own capture (`wireCapture: false`)
+// stays out of the panel (rule 13).
 
 const OPENAI_PRESET: ProviderPreset = {
   id: 'openai',
@@ -343,7 +371,9 @@ const AZURE_PRESET: ProviderPreset = {
     return UI_TEXT.providerText.hints.azure
   },
   keyTest: { kind: 'paid-token' },
-  modelsList: { path: '/openai/v1/models', priceSource: 'catalogue' },
+  // The address root is `/openai/v1`, so list and request paths below are
+  // relative to it (research §1.2 [AZ1, AZ6]).
+  modelsList: { path: '/models', priceSource: 'catalogue' },
   quirks: {
     // Azure OpenAI's constrained decoding takes strict tool schemas.
     supportsStrictTools: true,
@@ -730,14 +760,18 @@ const LMSTUDIO_PRESET: ProviderPreset = {
   keyShape: { kind: 'any', minLength: 1 },
   keyHint: '',
   keyTest: { kind: 'models-list' },
-  modelsList: { path: '/v1/models', windowField: 'max_context_length', priceSource: 'none-local' },
+  // The list carries no window (captured 2026-10-10: entries are id,
+  // object and owned_by only), so the scan leaves it unknown.
+  modelsList: { path: '/v1/models', priceSource: 'none-local' },
   quirks: {
     outputCapParam: 'max_tokens',
     sendsParallelToolCalls: false,
-    reasoningField: 'reasoning',
+    // Captured 2026-10-10: thinking streams as `reasoning_content`.
+    reasoningField: 'reasoning_content',
     cachedUsageFields: [],
   },
-  wireCapture: false,
+  wireCapture: true,
+  capturedBuild: 'llmster 0.0.25-1',
 }
 
 const VLLM_PRESET: ProviderPreset = {
@@ -777,16 +811,21 @@ const LLAMACPP_PRESET: ProviderPreset = {
   keyShape: { kind: 'any', minLength: 1 },
   keyHint: '',
   keyTest: { kind: 'models-list' },
-  // `/props` gives `n_ctx`; `/v1/models` gives `meta.n_ctx_train`.
+  // `/v1/models` gives the live window as `meta.n_ctx` (`--ctx-size`)
+  // with the trained window in `meta.n_ctx_train`; `/props` repeats
+  // `n_ctx` in `default_generation_settings`.
   modelsList: { path: '/v1/models', windowField: 'n_ctx', priceSource: 'none-local' },
   quirks: {
     outputCapParam: 'max_tokens',
-    toolChoice: 'string-only',
+    // Captured 2026-10-10 (b11541): the object form is accepted and the
+    // template reports `supports_object_arguments`, so this is `auto`.
+    toolChoice: 'auto',
     sendsParallelToolCalls: false,
     reasoningField: 'reasoning_content',
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
   },
-  wireCapture: false,
+  wireCapture: true,
+  capturedBuild: 'b11541 (0.6.0-dev, commit f2918cabb)',
 }
 
 const CUSTOM_PRESET: ProviderPreset = {
@@ -870,6 +909,22 @@ export function azureOrigin(resource: string): string | undefined {
   return AZURE_RESOURCE_PATTERN.test(name)
     ? `https://${name}${AZURE_ORIGIN_SUFFIX}${AZURE_API_PATH}`
     : undefined
+}
+
+/**
+ * The model name on the wire for an entry (research §1.2 [AZ1, AZ6]):
+ * Azure's v1 API takes the deployment name, every other preset the listed
+ * model. Records stay keyed by the model family in the entry's models, so
+ * a deployment name never becomes a record lookup.
+ */
+export function wireModelFor(
+  entry: { readonly preset: string; readonly deployment?: string | undefined },
+  nativeModel: string,
+): string {
+  if (entry.preset !== 'azure') return nativeModel
+  const deployment = entry.deployment
+  if (deployment === undefined || deployment === '') throw new Error(UI_TEXT.actionFailed)
+  return deployment
 }
 
 // --- OpenRouter as a first-class provider (D74) ---

@@ -1,0 +1,45 @@
+{
+  "provider": "lmstudio",
+  "step": "models-list",
+  "serverVersion": "llmster 0.0.25-1",
+  "capturedAt": "2026-10-10T18:28:37.894+00:00",
+  "billed": false,
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:1234/v1/models",
+    "headers": {
+      "content-type": "application/json"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-powered-by": "Express",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "270",
+      "etag": "W/\"10e-zl9hN16zaGYQUuQUXDk7bt4Zi3g\"",
+      "date": "Sat, 10 Oct 2026 18:28:37 GMT",
+      "connection": "keep-alive",
+      "keep-alive": "timeout=5"
+    },
+    "bodySummary": {
+      "note": "trimmed: count, keys and sample entries",
+      "count": 2,
+      "topLevelKeys": ["data", "object"],
+      "entryKeys": ["id", "object", "owned_by"],
+      "sample": [
+        {
+          "id": "qwen3-0.6b",
+          "object": "model",
+          "owned_by": "organization_owner"
+        },
+        {
+          "id": "text-embedding-nomic-embed-text-v1.5",
+          "object": "model",
+          "owned_by": "organization_owner"
+        }
+      ]
+    },
+    "chunkBytes": [270]
+  }
+}

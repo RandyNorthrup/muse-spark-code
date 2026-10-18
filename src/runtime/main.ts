@@ -8,7 +8,7 @@ import { failureForLog } from '../core/backends/musecode/logText'
 
 import { spawnResourceProcess, handoffResourceFile } from '../core/resources/launcher'
 import { isResourcePaused } from '../core/resources/launch'
-import { randomBytes, randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { open, writeFile, realpath, lstat } from 'node:fs/promises'
 import { createInterface } from 'node:readline'
@@ -52,17 +52,9 @@ import {
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
+import { authClear, type AuthCommandDeps, authSet, login } from './authCommands'
 import {
-  authClear,
-  authClearProvider,
-  type AuthCommandDeps,
-  authSet,
-  authSetProvider,
-  authStatus,
-  authStatusProvider,
-  login,
-} from './authCommands'
-import {
+  authSetProviderId,
   isHeadlessCommand,
   parseCommandLine,
   type RuntimeCommand,
@@ -88,6 +80,8 @@ import { readSecretLine } from './hiddenInput'
 import {
   credentialStoreName,
   keyringSecretStore,
+  parseStoredProviderSecret,
+  providerSecretAccount,
   StoreUnavailableError,
   type KeyringEntry,
 } from './keyStore'
@@ -399,6 +393,20 @@ async function providersDeps(): Promise<ProvidersDeps> {
   }
 }
 
+async function openRouterApi() {
+  const entry = await import('../host/backend/configuredProvidersEntry')
+  entry.setUiText(UI_TEXT, uiLocale())
+  return entry.createConfiguredProviderServices(undefined, {
+    configFile: path.join(
+      process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
+      PROVIDERS_CONFIG_DIR_NAME,
+      PROVIDERS_FILE_NAME,
+    ),
+    catalogFile: path.join(distDir, 'providerCatalog.json'),
+    secrets,
+  })
+}
+
 function signInMethod(options: ServeOptions): SignInMethod {
   if (options.backend === 'modelApi') {
     const { id, args } = ACP_AUTH_METHODS.modelApiKey
@@ -609,6 +617,31 @@ async function setupHooks(
   return 0
 }
 
+/**
+ * The stored credential's identity for a provider id, or undefined when none
+ * is stored, unreadable or damaged. The usage service shows only the budgets
+ * of the key in use, so a rotated or removed key's numbers disappear.
+ */
+async function currentProviderCredentialId(providerId: string): Promise<string | undefined> {
+  const account = providerSecretAccount(providerId)
+  if (account === undefined) return undefined
+  let stored: string | undefined
+  try {
+    stored = await secrets.get(account)
+  } catch {
+    return undefined
+  }
+  if (stored === undefined) return undefined
+  let value: unknown
+  try {
+    value = JSON.parse(stored)
+  } catch {
+    return undefined
+  }
+  const parsed = parseStoredProviderSecret(value)
+  return parsed === undefined ? undefined : createHash('sha256').update(parsed.key).digest('hex')
+}
+
 function usageFor(
   log: Logger,
   recording?: UsageRecording,
@@ -629,12 +662,16 @@ function usageFor(
     historySettings: () => ({ enabled: isHistoryEnabled, days: USAGE_HISTORY_DAYS_DEFAULT }),
     ...(recording !== undefined && {
       beforeRead: () => recording.flush(),
-      live: {
-        readBudgets: runtime?.readUsageBudgets ?? (() => Promise.resolve([])),
-        readLiveLimits: () => Promise.resolve(recording.limits?.() ?? []),
-        providerConsoles: () => [],
-      },
     }),
+    live: {
+      readBudgets:
+        recording === undefined
+          ? () => Promise.resolve([])
+          : (runtime?.readUsageBudgets ?? (() => Promise.resolve([]))),
+      readLiveLimits: () => Promise.resolve(recording?.limits?.() ?? []),
+      providerConsoles: () => [],
+      currentCredentialId: currentProviderCredentialId,
+    },
   })
 }
 
@@ -726,6 +763,10 @@ async function serve(
     // "Allow always" lapses for a paid feature started without its flag (M58).
     await runtime.forgetUnflaggedGrants()
     const providerCommands = await chatGptDeps()
+    const openRouterCommands = await import('./openRouterCommands')
+    const openRouterSignIns = openRouterCommands.openRouterAuthenticationMethods(
+      await providersDeps(),
+    )
     const legalRegistryNotices = new Map<string, Set<string>>()
     const agentLegalBundle = legalScanLoader({
       bundlePath: path.join(distDir, LEGAL_SCAN_BUNDLE_FILE),
@@ -821,7 +862,7 @@ async function serve(
         }),
       },
       signIn: signInMethod(options),
-      providerSignIns: providerCommands.signIns,
+      providerSignIns: [...providerCommands.signIns, ...openRouterSignIns],
       defaultCwd: process.cwd(),
       sharing: {
         commands: acpSharingCommands,
@@ -1356,13 +1397,22 @@ async function main(): Promise<number> {
       })
     }
     case 'authSet': {
-      const { target } = command
-      if (target === undefined) return await authSet(authDeps())
-      if (target.provider !== 'meta' && target.account === ACCOUNT_DEFAULT_ID) {
+      // A provider-only set (`auth set --provider <id>`, the ACP paste-key
+      // method) routes to the provider's own key shape, never Meta's.
+      const providerId = authSetProviderId(command)
+      if (providerId !== undefined) {
         const providersFile = await userProvidersFile()
-        return await authSetProvider(authDeps(), target.provider, providersFile.readUserFile)
+        const { runAuthSetProvider } = await import('./providerAuth')
+        return await runAuthSetProvider(
+          authDeps(),
+          providerId,
+          providersFile.readUserFile,
+          providersFile.withUserFileLock,
+        )
       }
-      return target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID
+      const { target } = command
+      return target === undefined ||
+        (target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID)
         ? await authSet(authDeps())
         : await loadAccountsBundle(log).runAccountAuthSet(target, {
             ...loadAccounts(log).commands,
@@ -1398,18 +1448,40 @@ async function main(): Promise<number> {
       return result.exitCode
     }
     case 'authStatus': {
+      // Every provider command and `auth status` runs the crashed-Connect
+      // recovery first and reports it (R5).
+      const providersFile = await userProvidersFile()
+      const { runAuthStatusProvider, runAuthStatusWithRecovery } = await import('./providerAuth')
+      const deps = authDeps()
       return command.provider === undefined
-        ? await authStatus(authDeps())
-        : await authStatusProvider(authDeps(), command.provider)
+        ? await runAuthStatusWithRecovery(deps, providersFile.withUserFileLock)
+        : await runAuthStatusProvider(deps, command.provider, providersFile.withUserFileLock)
     }
     case 'authClear': {
-      return command.provider === undefined
-        ? await authClear(authDeps())
-        : await authClearProvider(authDeps(), command.provider)
+      if (command.provider === undefined) return await authClear(authDeps())
+      const providersFile = await userProvidersFile()
+      const { runAuthClearProvider } = await import('./providerAuth')
+      return await runAuthClearProvider(
+        authDeps(),
+        command.provider,
+        providersFile.withUserFileLock,
+      )
     }
     case 'providersList': {
       const { providersList } = await import('./providersCommands')
       return await providersList(await providersDeps())
+    }
+    case 'openRouterConnect': {
+      const { runOpenRouterConnect } = await import('./openRouterCommands')
+      return await runOpenRouterConnect(await providersDeps(), await openRouterApi())
+    }
+    case 'providerKeyUsage': {
+      const { runOpenRouterUsage } = await import('./openRouterCommands')
+      return await runOpenRouterUsage(
+        await providersDeps(),
+        await openRouterApi(),
+        command.provider,
+      )
     }
     case 'providersAdd': {
       const { providersAdd } = await import('./providersCommands')

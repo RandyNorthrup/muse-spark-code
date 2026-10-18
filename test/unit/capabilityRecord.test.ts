@@ -64,6 +64,10 @@ function samples(provider: string, file = '01-models-list.json'): unknown {
   return summary.sample
 }
 
+const contextOf = (row: unknown) =>
+  nativeCapabilityEvidence('llamacpp', row, { kind: 'models-list', ref: 'test' }).fields.limits
+    ?.contextTokens
+
 function catalogueModel(provider: string, id: string): unknown {
   const snapshot: unknown = JSON.parse(
     readFileSync(new URL('../../vendor/models-dev/snapshot.json', import.meta.url), 'utf8'),
@@ -586,6 +590,31 @@ describe('native metadata and reasoning encoding', () => {
       effortLevels: { value: ['max', 'xhigh', 'high', 'medium', 'low'] },
     })
   })
+  it('reads captured Fireworks tools/image flags and DeepSeek effort levels', () => {
+    // Captured 2026-10-04 list rows, through the real chat parser: without
+    // these fields a listed Fireworks model kept unknown tools and vision,
+    // and a listed DeepSeek model kept unknown effort levels, so supported
+    // features were never offered and images threw before send.
+    const fireworks = parseChatModelsList({ data: samples('fireworks') })
+    const gptOss = fireworks.find((row) => row['id'] === 'accounts/fireworks/models/gpt-oss-120b')
+    const fireworksEvidence = nativeCapabilityEvidence('fireworks', gptOss, {
+      kind: 'models-list',
+    }).fields
+    expect(fireworksEvidence.tools?.calling).toMatchObject({ state: 'yes', value: true })
+    expect(fireworksEvidence.modalities?.image).toMatchObject({ state: 'no' })
+    expect(fireworksEvidence.limits?.contextTokens).toBe(131_072)
+    const deepseek = parseChatModelsList({ data: samples('deepseek') })
+    const flash = deepseek.find((row) => row['id'] === 'deepseek-flash')
+    const deepseekEvidence = nativeCapabilityEvidence('deepseek', flash, {
+      kind: 'models-list',
+    }).fields
+    expect(deepseekEvidence.reasoning?.effortLevels).toMatchObject({
+      value: ['low', 'high', 'max'],
+    })
+    expect(deepseekEvidence.modalities?.image).toMatchObject({ state: 'yes' })
+    expect(deepseekEvidence.limits?.contextTokens).toBe(1_048_576)
+    expect(deepseekEvidence.output?.maxTokens).toBe(393_216)
+  })
   it('re-parses sealed catalogue efforts and partial budget bounds', () => {
     const entries = [
       ['openai', 'gpt-5.4', ['none', 'low', 'medium', 'high', 'xhigh']],
@@ -613,6 +642,16 @@ describe('native metadata and reasoning encoding', () => {
     ]
     expect(parseOllamaModelsList({ models: rows })).toEqual(rows)
     expect(() => parseOllamaModelsList({ models: [{ name: 1 }] })).toThrow()
+  })
+  it('reads local server windows: llama.cpp live meta.n_ctx first, vLLM max_model_len', () => {
+    // C-M95-4 R2: the llama.cpp list names `n_ctx` as the window but the
+    // scan never read it, so a 4096-token server kept an unknown window
+    // and manual compact assumed Meta's. The live `--ctx-size` window wins
+    // over the trained one; a list with no window stays unknown.
+    expect(contextOf({ id: 'm', meta: { n_ctx: 4096, n_ctx_train: 40_960 } })).toBe(4096)
+    expect(contextOf({ id: 'm', meta: { n_ctx_train: 40_960 } })).toBe(40_960)
+    expect(contextOf({ id: 'm', max_model_len: 8192 })).toBe(8192)
+    expect(contextOf({ id: 'm', owned_by: 'llmster' })).toBeUndefined()
   })
 })
 

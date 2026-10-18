@@ -253,13 +253,51 @@ export type StreamEvent = z.infer<typeof streamEventSchema>
 /** Just the discriminator, to tell an unknown event type from a malformed one. */
 export const eventTypeSchema = z.object({ type: z.string() })
 
+/**
+ * An error envelope's `code`, as text. llama.cpp's server sends it as a
+ * number (its HTTP status, captured b11541); every other captured preset
+ * sends a string. A number decodes to its decimal text so the overflow
+ * classifier still sees the code; absent stays absent.
+ */
+const errorCodeSchema = z.codec(
+  z.optional(z.nullable(z.union([z.string(), z.number()]))),
+  z.optional(z.nullable(z.string())),
+  {
+    decode: (code) => (typeof code === 'number' ? String(code) : code),
+    encode: (code) => code,
+  },
+)
+
+const errorObjectSchema = z.object({
+  message: z.string(),
+  type: z.optional(z.nullable(z.string())),
+  code: errorCodeSchema,
+  param: z.optional(z.nullable(z.string())),
+})
+
+/**
+ * An error envelope's `error`, as an object. LM Studio's server sends it as
+ * a bare string instead (Express-style, captured 2026-10-10); a string
+ * decodes to a message-only object so the failure still reads as the
+ * server's words rather than a bare HTTP status.
+ */
+type ErrorObject = z.output<typeof errorObjectSchema>
+
+const errorFieldSchema = z.codec(z.union([z.string(), errorObjectSchema]), errorObjectSchema, {
+  decode: (error): ErrorObject =>
+    typeof error === 'string'
+      ? { message: error }
+      : {
+          message: error.message,
+          type: error.type,
+          code: typeof error.code === 'number' ? String(error.code) : error.code,
+          param: error.param,
+        },
+  encode: (error) => errorObjectSchema.parse(error),
+})
+
 export const errorBodySchema = z.object({
-  error: z.object({
-    message: z.string(),
-    type: z.optional(z.nullable(z.string())),
-    code: z.optional(z.nullable(z.string())),
-    param: z.optional(z.nullable(z.string())),
-  }),
+  error: errorFieldSchema,
 })
 
 export const modelListSchema = z.object({

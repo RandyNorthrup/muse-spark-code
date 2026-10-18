@@ -59,7 +59,7 @@
       "details": [
         {
           "conditions": [
-            { "when": "openRouterServices=absent", "text": { "ui": "providerOpenRouterServices" } }
+            { "when": "provider=openrouter", "text": { "ui": "providerOpenRouterServices" } }
           ]
         },
         { "ui": "pricePerMillion" },
@@ -75,7 +75,8 @@
           "conditions": [
             { "when": "outputMinimum=known", "text": { "ui": "referenceOutputCapMinimum" } }
           ]
-        }
+        },
+        { "ui": "localContextWindowHint" }
       ],
       "facts": {
         "management": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
@@ -4415,6 +4416,22 @@
       "text": { "ui": "referenceProviders" }
     },
     {
+      "route": "openRouterConnect",
+      "name": "providers connect openrouter",
+      "description": "Connect your OpenRouter account and view the key’s usage, limit and remaining balance.",
+      "text": {
+        "conditions": [
+          { "when": "provider=openrouter", "text": { "ui": "providerOpenRouterServices" } }
+        ]
+      }
+    },
+    {
+      "route": "providerKeyUsage",
+      "name": "providers usage <id>",
+      "description": "API Key Usage",
+      "text": { "ui": "usageKeyUsage" }
+    },
+    {
       "route": "providersAdd",
       "name": "providers add --preset <preset> [--as <id>] [--address <url>] [--model <model>] [--privacy <policy>] [--private-ok] [--key-stdin]",
       "description": "Add a model provider with an API key and pick a model.",
@@ -4636,6 +4653,13 @@
     },
     {
       "route": "providersAdd",
+      "name": "providersAdd: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "providersAdd",
       "name": "providersAdd: --privacy <value>",
       "description": "--privacy: Any provider may be used, including ones that train on data.",
       "text": { "cli": "privacy" },
@@ -4819,6 +4843,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": true, "refused": true }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false }
     },
     {
       "route": "serve",
@@ -5018,6 +5049,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": true, "refused": true }
+    },
+    {
+      "route": "login",
+      "name": "login: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "login",
@@ -5249,6 +5287,13 @@
     },
     {
       "route": "setup",
+      "name": "setup: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "setup",
       "name": "setup: --privacy <value>",
       "description": "--privacy: Any provider may be used, including ones that train on data.",
       "text": { "cli": "privacy" },
@@ -5473,6 +5518,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": true, "refused": true }
+    },
+    {
+      "route": "authSet",
+      "name": "authSet: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "authSet",
@@ -5723,6 +5775,13 @@
     },
     {
       "route": "authStatus",
+      "name": "authStatus: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "authStatus",
       "name": "authStatus: --privacy <value>",
       "description": "--privacy: Any provider may be used, including ones that train on data.",
       "text": { "cli": "privacy" },
@@ -5960,6 +6019,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": true, "refused": true }
+    },
+    {
+      "route": "authClear",
+      "name": "authClear: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "authClear",

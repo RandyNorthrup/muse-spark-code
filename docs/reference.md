@@ -26,13 +26,15 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 Add a model provider with an API key and pick a model.
 
-openRouterServices=absent: OpenRouter account connection and key usage are unavailable. Paste a key to use models.
+provider=openrouter: Connect your OpenRouter account and view the key’s usage, limit and remaining balance.
 
 Prices per million tokens.
 
 provider=openrouter&privacy=zdr: Only providers that retain no data are used.
 
 outputMinimum=known: Output caps below the provider’s known minimum are refused when saved and before sending. Meta requires at least 16 tokens.
+
+Enter the context window loaded on the local server. Manual values override scanned limits.
 
 ```json
 {
@@ -3382,6 +3384,8 @@ These are defaults; editor customizations take precedence.
 - `usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json`: Show usage and cost across models, or open the usage page.
 - `exec legal-scan --json / legal [--format text|json] [--out <file>] [--registry]`: Scan the workspace for licensing, attribution and header findings
 - `providers list`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers connect openrouter`: Connect your OpenRouter account and view the key’s usage, limit and remaining balance.
+- `providers usage <id>`: API Key Usage
 - `providers add --preset <preset> [--as <id>] [--address <url>] [--model <model>] [--privacy <policy>] [--private-ok] [--key-stdin]`: Add a model provider with an API key and pick a model.
 - `providers test <id>`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `providers remove <id>`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
@@ -3439,6 +3443,7 @@ These are defaults; editor customizations take precedence.
 - `providersAdd: --address <value>`: --address: Address `{"type":"string","repeatable":false}`
 - `providersAdd: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false,"enum":["chat","responses","anthropic"],"preset":"custom"}`
 - `providersAdd: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":true}`
+- `providersAdd: --context-window <value>`: --context-window &lt;tokens&gt;: Enter the context window loaded on the local server. Manual values override scanned limits. `{"type":"string","repeatable":false}`
 - `providersAdd: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"preset":"openrouter"}`
 - `providersAdd: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"consent":"privateNetwork","default":false}`
 - `providersAdd: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false}`
@@ -3461,6 +3466,7 @@ These are defaults; editor customizations take precedence.
 - `serve: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`
 - `serve: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false,"refused":true}`
 - `serve: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":true,"refused":true}`
+- `serve: --context-window <value>`: --context-window &lt;tokens&gt;: Enter the context window loaded on the local server. Manual values override scanned limits. `{"type":"string","repeatable":false}`
 - `serve: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"refused":true}`
 - `serve: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"refused":true,"consent":"privateNetwork","default":false}`
 - `serve: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"refused":true,"default":false}`
@@ -3485,6 +3491,7 @@ These are defaults; editor customizations take precedence.
 - `login: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`
 - `login: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false,"refused":true}`
 - `login: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":true,"refused":true}`
+- `login: --context-window <value>`: --context-window &lt;tokens&gt;: Enter the context window loaded on the local server. Manual values override scanned limits. `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `login: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"refused":true}`
 - `login: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"refused":true,"consent":"privateNetwork","default":false}`
 - `login: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"refused":true,"default":false}`
@@ -3508,6 +3515,7 @@ These are defaults; editor customizations take precedence.
 - `setup: --address <value>`: --address: Address `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":true,"purpose":"acceptedUnused"}`
+- `setup: --context-window <value>`: --context-window &lt;tokens&gt;: Enter the context window loaded on the local server. Manual values override scanned limits. `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"purpose":"acceptedUnused"}`
 - `setup: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"consent":"privateNetwork","default":false,"purpose":"acceptedUnused"}`
 - `setup: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
@@ -3531,6 +3539,7 @@ These are defaults; editor customizations take precedence.
 - `authSet: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`
 - `authSet: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false,"refused":true}`
 - `authSet: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":true,"refused":true}`
+- `authSet: --context-window <value>`: --context-window &lt;tokens&gt;: Enter the context window loaded on the local server. Manual values override scanned limits. `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authSet: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"refused":true}`
 - `authSet: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"refused":true,"consent":"privateNetwork","default":false}`
 - `authSet: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"refused":true,"default":false}`
@@ -3556,6 +3565,7 @@ These are defaults; editor customizations take precedence.
 - `authStatus: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`
 - `authStatus: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false,"refused":true}`
 - `authStatus: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":true,"refused":true}`
+- `authStatus: --context-window <value>`: --context-window &lt;tokens&gt;: Enter the context window loaded on the local server. Manual values override scanned limits. `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authStatus: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"refused":true}`
 - `authStatus: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"refused":true,"consent":"privateNetwork","default":false}`
 - `authStatus: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"refused":true,"default":false}`
@@ -3580,6 +3590,7 @@ These are defaults; editor customizations take precedence.
 - `authClear: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`
 - `authClear: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false,"refused":true}`
 - `authClear: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":true,"refused":true}`
+- `authClear: --context-window <value>`: --context-window &lt;tokens&gt;: Enter the context window loaded on the local server. Manual values override scanned limits. `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authClear: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"refused":true}`
 - `authClear: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"refused":true,"consent":"privateNetwork","default":false}`
 - `authClear: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"refused":true,"default":false}`

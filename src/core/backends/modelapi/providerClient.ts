@@ -224,6 +224,18 @@ export class CodecClient implements ProviderClient {
           body: request.body,
           ...(request.headers !== undefined && { headers: request.headers }),
           accept: this.provider.format === 'ollama' ? 'application/x-ndjson' : 'text/event-stream',
+          // The pacing bucket's key: a configured provider's inference
+          // joins it like Meta's, so learned quotas and 429 pauses
+          // throttle its background fan-out too. Count and list calls
+          // carry no model id and stay observation-only.
+          modelId: body.model,
+          ...(admitAttempt?.pacingClass !== undefined && {
+            pacingClass: admitAttempt.pacingClass,
+          }),
+          estimatedTokens:
+            (admitAttempt?.paidEstimatedInputTokens ??
+              new TextEncoder().encode(JSON.stringify([body.input, body.instructions, body.tools]))
+                .length) + body.max_output_tokens,
         },
         signal,
         onRetry,

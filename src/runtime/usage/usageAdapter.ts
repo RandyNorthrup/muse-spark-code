@@ -56,7 +56,10 @@ export interface UsageAccessDeps {
   readonly log: CoreLogger
   readonly historySettings?: () => { readonly enabled: boolean; readonly days: number }
   readonly beforeRead?: () => Promise<void>
-  readonly live?: Pick<UsageServiceDeps, 'readBudgets' | 'readLiveLimits' | 'providerConsoles'> &
+  readonly live?: Pick<
+    UsageServiceDeps,
+    'readBudgets' | 'readLiveLimits' | 'providerConsoles' | 'currentCredentialId'
+  > &
     Partial<Pick<UsageServiceDeps, 'readModelPrice' | 'priceUnpriced' | 'readAttempts'>>
 }
 

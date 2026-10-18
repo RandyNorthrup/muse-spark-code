@@ -195,9 +195,10 @@ export class ReplayMedia {
     content: readonly InputContentPart[],
     budget: MediaBudget,
     queued?: { readonly chars: number; readonly slots: number },
+    provider?: string,
   ): void {
     try {
-      budget.assertMessageFits(content, queued)
+      budget.assertMessageFits(content, queued, provider)
     } catch (error) {
       const names = new Set(
         content.flatMap((part) => {
@@ -412,6 +413,7 @@ export class ReplayMedia {
     input: readonly InputItem[],
     modelId: string,
     budget: MediaBudget,
+    provider?: string,
   ): readonly InputItem[] {
     if (this.managed(input).length === 0) return input
     const model = this.model(modelId)
@@ -463,10 +465,10 @@ export class ReplayMedia {
         )
         return encoded
       })
-      if (hasFreshMedia) this.assertPendingFits(content, budget)
+      if (hasFreshMedia) this.assertPendingFits(content, budget, undefined, provider)
       return { ...item, content }
     })
-    this.assertPendingFits(this.pending(projected), budget)
+    this.assertPendingFits(this.pending(projected), budget, undefined, provider)
     return projected
   }
 

@@ -20,7 +20,9 @@ import { ProviderCredentialStore as CredentialStore } from '../providers/credent
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import { showPickOne } from '../quickPick'
+import { openRouterDiscardedKeyNotice } from '../backend/providersEntry'
 import { startOAuthLoopback } from '../providers/oauthLoopback'
+import { fetchLoopback } from '../providers/loopbackFetch'
 import { createModelsPanel, type ModelsPanel, type ModelsPanelNavigate } from './modelsPanel'
 import { runAddProviderQuickPick, type ProviderQuickPickOutcome } from './modelsQuickPick'
 import { createSessionBudgetConfig } from './sessionBudget'
@@ -30,6 +32,7 @@ import type { PendingRemoval, RemovalStore } from '../providers/providerRemoval'
 import type { ModelsPanelSeam, ProviderEntry, ProviderModelRow } from '../providers/providerPorts'
 export type { ModelsPanelSeam } from '../providers/providerPorts'
 import type { WizardSaveOutcome } from '../providers/wizardSave'
+export { credentialLeaseSecrets } from './credentialLeaseSecrets'
 
 /** VS Code's global state, taken by shape (as `MementoLike` in paidHost). */
 export interface ModelsPanelMemento {
@@ -279,10 +282,15 @@ export function createModelsPanelFeatures(
         }
       },
     },
-    loopbackFetch: globalThis.fetch,
+    // M95 step 1: the probe never uses VS Code's patched fetch (it honors
+    // the user's proxy, and loopback needs no proxy at all).
+    loopbackFetch: fetchLoopback,
     now: () => Date.now(),
     setComposerModel: host.setComposerModel,
     ui: {
+      onDiscardedKey: () => {
+        void vscode.window.showWarningMessage(openRouterDiscardedKeyNotice())
+      },
       showInputBox: vscode.window.showInputBox,
       confirmPaidTest: async (message) =>
         (await vscode.window.showWarningMessage(
@@ -298,9 +306,10 @@ export function createModelsPanelFeatures(
           UI_TEXT.providerPrivateConfirmLabel,
           UI_TEXT.wizardCancel,
         )) === UI_TEXT.providerPrivateConfirmLabel,
-      openBrowser: (url) => {
-        void vscode.env.openExternal(vscode.Uri.parse(url))
-        return Promise.resolve()
+      openBrowser: async (url) => {
+        if (!(await vscode.env.openExternal(vscode.Uri.parse(url)))) {
+          throw new Error(UI_TEXT.providerConnectFailed)
+        }
       },
     },
   })

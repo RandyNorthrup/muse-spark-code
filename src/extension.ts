@@ -131,7 +131,6 @@ import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
 import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
 import type { UsagePanel } from './host/usage/usagePanel'
-
 import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
@@ -3594,6 +3593,12 @@ async function activateWindow(
             }
           },
           usageInsights: () => insights.read(),
+          readProviderKeyUsage: async () => {
+            // A Meta-only window keeps the optional provider bundles cold.
+            return subscriptions === undefined && !existsSync(providerConfigFile)
+              ? []
+              : await subscriptionFeatures().readKeyUsage()
+          },
           // Only the sidebar reopens on its last session; a tab is a new
           // conversation by construction (M6).
           isRestorable: surface.id === SIDEBAR_SURFACE_ID,
@@ -4127,7 +4132,7 @@ async function activateWindow(
           connectCopilot: () => subscriptionFeatures().connectCopilot(),
           removeSubscription: (id) => subscriptionFeatures().removeSubscription(id),
           isConfidential: () => currentSettings().confidentialWorkspace,
-          secrets: context.secrets,
+          secrets: bundle.credentialLeaseSecrets(context.secrets),
           extensionUri: context.extensionUri,
           l10n,
           log,
@@ -4138,8 +4143,10 @@ async function activateWindow(
           onKeyUsage: (snapshot) => {
             usageRecording.limit({
               backend: 'modelApi',
-              provider: 'openrouter',
+              provider: snapshot.providerId,
               source: 'openRouter',
+              credentialId: snapshot.credentialId,
+              observationId: snapshot.observationId,
               observedAt: Date.now(),
               windows: [],
               // OpenRouter's `/key` numbers become exact decimals here (M121).
@@ -4190,6 +4197,13 @@ async function activateWindow(
           ],
           readLiveLimits: () => Promise.resolve(usageRecording.limits?.() ?? []),
           providerConsoles: () => [],
+          // The stored credential's identity selects the budgets the usage
+          // page shows: a rotated or removed key's numbers disappear. The
+          // identity reader loads with the lease's bundle, never here.
+          currentCredentialId: async (providerId: string) => {
+            const { storedCredentialId } = await import('./core/credentialLeaseEntry')
+            return await storedCredentialId(context.secrets, providerId)
+          },
         },
         openModels: (provider, model) => {
           ensureModelsFeatures().openPanel({
@@ -4222,6 +4236,22 @@ async function activateWindow(
     context.globalState.get(GLOBAL_STATE_KEYS.providerPendingRemovals),
     ensureModelsFeatures,
     log,
+  )
+  // A crashed terminal Connect is found at this start without connecting
+  // again (RVCM952D R5): the journal is compared with the primary and
+  // reported, inside the one credential lease. The lease's bundle loads for
+  // the recovery, never at activation.
+  void import('./core/credentialLeaseEntry').then((lease) =>
+    lease.recoverOpenRouterConnect(
+      context.secrets,
+      (message) => {
+        void vscode.window.showWarningMessage(message)
+      },
+      (message) => {
+        void vscode.window.showInformationMessage(message)
+      },
+      log,
+    ),
   )
 
   editorContext.update(editorSnapshot)

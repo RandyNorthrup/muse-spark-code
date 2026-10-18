@@ -32,7 +32,7 @@ const UI_CONDITIONS: Readonly<
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
   resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold&memoryHeadroom=available',
   resourceMemoryMinFreeGiBDescription: 'memoryHeadroom=available',
-  providerOpenRouterServices: 'openRouterServices=absent',
+  providerOpenRouterServices: 'provider=openrouter',
   privacyNoRetentionDetail: 'provider=openrouter&privacy=zdr',
   referenceOutputCapMinimum: 'outputMinimum=known',
   referenceSandbox: 'platform=win32&shellSandbox',
@@ -333,6 +333,13 @@ export function featureCatalog(): readonly Feature[] {
         'connectChatGpt',
         'connectCopilot',
       ],
+      // OpenRouter Connect is composed with the pinned exchange transport;
+      // local callbacks need no paste and remote/ACP terminal flows paste an
+      // authorization code. Cancellation reaches both exchange and usage transport;
+      // both usage surfaces discard missing/changed/failed key observations.
+      // Panel usage reads only on open, Save and Refresh, sharing pending reads.
+      // Terminal replacement asks first and preserves the previous credential on
+      // cancellation; exact usage decimals and discarded-key removal notices are shared.
       // Saved custom limits persist directly from Edit without a new test
       // while the connection is unchanged; pre-write failures retain the draft.
       // Edit and Change key share a full saved snapshot; unchanged routing,
@@ -1155,6 +1162,7 @@ const REFERENCE_DETAILS: Readonly<
     'pricePerMillion',
     'privacyNoRetentionDetail',
     'referenceOutputCapMinimum',
+    'localContextWindowHint',
   ],
   estimator: ['estimateCliHelp'],
   // Includes Muse Code's permission-rule exceptions, shared with localized settings.

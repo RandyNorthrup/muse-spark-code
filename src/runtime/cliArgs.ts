@@ -111,6 +111,8 @@ export interface ProvidersAddOptions {
   readonly format?: 'chat' | 'responses' | 'anthropic' | undefined
   /** The models to offer (`<modelId>` as the provider lists them). */
   readonly models: readonly string[]
+  /** Validated window applied to each selected local-server model. */
+  readonly contextWindow?: number | undefined
   /** OpenRouter's privacy routing; the default stays `zdr` (D74). */
   readonly privacy?: OpenRouterPrivacy | undefined
   /** Confirm a private-network address (asked once, D74). */
@@ -152,6 +154,8 @@ export type RuntimeCommand =
   | { readonly command: 'providersAdd'; readonly options: ProvidersAddOptions }
   | { readonly command: 'providersTest'; readonly provider: string }
   | { readonly command: 'providersRemove'; readonly provider: string }
+  | { readonly command: 'openRouterConnect' }
+  | { readonly command: 'providerKeyUsage'; readonly provider: string }
   | {
       readonly command: 'authSet'
       readonly provider?: string | undefined
@@ -207,11 +211,33 @@ const PROVIDER_AUTH_OPTIONS = [
   'privacy',
   'private-ok',
   'key-stdin',
+  'context-window',
 ] as const
 const NON_SERVE_OPTIONS = ['provider', ...PROVIDER_AUTH_OPTIONS] as const
 
 /** The strict parser's values, for the provider subcommands below. */
 type StrictValues = ReturnType<typeof parseCommandLineStrictly>['values']
+
+/**
+ * The non-Meta provider an `auth set` stores a key for, if any (M95,
+ * PLAN.md D74). Both spellings count: `auth set --provider <id>` parses
+ * without an account, and `--account default` names the same default
+ * slot. Anything else (Meta, a named account, no provider at all) is not
+ * a provider key set. One rule here, so the parser's two shapes cannot
+ * drift from the dispatch again.
+ */
+export function authSetProviderId(
+  command: Extract<RuntimeCommand, { command: 'authSet' }>,
+): string | undefined {
+  const targeted = command.target
+  if (targeted !== undefined) {
+    return targeted.provider !== 'meta' && targeted.account === ACCOUNT_DEFAULT_ID
+      ? targeted.provider
+      : undefined
+  }
+  const provider = command.provider
+  return provider !== undefined && provider !== 'meta' ? provider : undefined
+}
 
 /** `auth set|status|clear`: the key's three commands (D61). */
 function authCommand(name: string | undefined): 'authSet' | 'authStatus' | 'authClear' | undefined {
@@ -440,6 +466,20 @@ function parseProviders(
   rest: readonly string[],
 ): RuntimeCommand {
   switch (verb) {
+    case 'connect': {
+      return rest.length === 1 && rest[0] === 'openrouter' && Object.keys(values).length === 0
+        ? { command: 'openRouterConnect' }
+        : invalid('providers connect openrouter')
+    }
+    case 'usage': {
+      const [provider] = rest
+      return provider !== undefined &&
+        rest.length === 1 &&
+        isProviderId(provider) &&
+        Object.keys(values).length === 0
+        ? { command: 'providerKeyUsage', provider }
+        : invalid('providers usage <id>')
+    }
     case 'list': {
       return rest.length === 0 ? { command: 'providersList' } : invalid('providers list')
     }
@@ -520,6 +560,11 @@ function parseProvidersAdd(values: StrictValues, rest: readonly string[]): Runti
     return invalid('providers add')
   }
   const rawModels = values.model ?? []
+  const rawWindow = values['context-window']
+  const contextWindow = rawWindow === undefined ? undefined : Number(rawWindow)
+  if (contextWindow !== undefined && (!Number.isSafeInteger(contextWindow) || contextWindow <= 0)) {
+    return { command: 'invalid', reason: UI_TEXT.localContextWindowInvalid }
+  }
   if (rawModels.some((model) => typeof model !== 'string' || model === '')) {
     return invalid('providers add')
   }
@@ -531,6 +576,7 @@ function parseProvidersAdd(values: StrictValues, rest: readonly string[]): Runti
         'address',
         'format',
         'model',
+        'context-window',
         'privacy',
         'key-stdin',
         'private-ok',
@@ -547,6 +593,7 @@ function parseProvidersAdd(values: StrictValues, rest: readonly string[]): Runti
       ...(address !== undefined && { address }),
       ...(formatOption !== undefined && { format: formatOption }),
       models: rawModels,
+      ...(contextWindow !== undefined && { contextWindow }),
       ...(privacyOption !== undefined && { privacy: privacyOption }),
       privateOk: values['private-ok'] === true,
       keyFromStdin: values['key-stdin'] === true,
