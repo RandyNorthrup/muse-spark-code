@@ -37,9 +37,7 @@ export {
   EXEC_OUTPUTS,
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
-  EXEC_DEFAULT_MAX_REQUESTS,
   EXEC_DEFAULT_TIMEOUT_SECONDS,
-  EXEC_MAX_BUDGET_USD,
   EXEC_MAX_REQUESTS,
   EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MAX_TIMEOUT_SECONDS,
@@ -55,7 +53,6 @@ export {
   AGENT_FILE_NAME,
   PROJECT_AGENTS_DIR_SEGMENTS,
   PERSONAL_AGENTS_DIR_SEGMENTS,
-  BROWSER_CHECK_MAX_ACTIONS,
 } from '../constants'
 export { parseGoalPrompt } from '../goalCommand'
 export { parseReviewPrompt } from '../reviewCommand'
@@ -74,6 +71,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // streamed arguments.
   ['argument-preview', ['vscode:modelApi', 'acp:modelApi']],
   ...['service-status'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi']]),
+  // Lane RETRYLIMITS: the person's retry limit is a VS Code setting; the
+  // documented per-provider bounds apply on every surface.
+  ['retry-limits', ['vscode:modelApi']],
   ['native-deletion', ['vscode:museCode']],
   ['output-schema', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
@@ -340,7 +340,7 @@ export {
 } from '../constants'
 export {
   TEXT_ATTACHMENT_EXTENSIONS,
-  MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
+  MODEL_API_TEXT_BUDGET_TOKENS,
   MSP_ATTACHMENT_FRAME_BUDGET_BYTES,
   CONTEXT_PRESSURE_MEDIUM,
   CONTEXT_PRESSURE_HIGH,

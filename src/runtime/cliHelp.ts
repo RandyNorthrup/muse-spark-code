@@ -12,11 +12,9 @@ import {
   ACP_DEFAULT_BACKEND,
   CLI_EXIT,
   EFFORT_LEVELS,
-  EXEC_DEFAULT_MAX_REQUESTS,
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
   EXEC_DEFAULT_TIMEOUT_SECONDS,
-  EXEC_MAX_BUDGET_USD,
   EXEC_MAX_REQUESTS,
   EXEC_MAX_TIMEOUT_SECONDS,
   EXEC_MIN_TIMEOUT_SECONDS,
@@ -52,7 +50,7 @@ export type CliOptionFact =
       readonly kind: 'range'
       readonly min: number
       readonly max: number
-      readonly default: number
+      readonly default?: number | undefined
       readonly unit?: string
     }
   | { readonly kind: 'maximum'; readonly max: number; readonly unit?: string }
@@ -117,11 +115,11 @@ function factFor(name: string): CliOptionFact | undefined {
       return { kind: 'enum', values: EFFORT_LEVELS }
     }
     case 'max-requests': {
+      // No default of ours: unset, a run has no request limit.
       return {
         kind: 'range',
         min: 1,
         max: EXEC_MAX_REQUESTS,
-        default: EXEC_DEFAULT_MAX_REQUESTS,
       }
     }
     case 'timeout': {
@@ -134,7 +132,9 @@ function factFor(name: string): CliOptionFact | undefined {
       }
     }
     case 'max-budget-usd': {
-      return { kind: 'maximum', max: EXEC_MAX_BUDGET_USD, unit: 'USD' }
+      // D121: the person's budget has no ceiling of ours, so no bound fact;
+      // the meaning sentence carries the exact decimal grammar.
+      return undefined
     }
     case 'usage-history': {
       return { kind: 'enum', values: ['on', 'off'], default: 'on' }
@@ -316,6 +316,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'output', shape: '', fact: factFor('output') },
       { name: 'max-budget-usd', shape: '<amount>', fact: factFor('max-budget-usd') },
       { name: 'max-requests', shape: '<count>', fact: factFor('max-requests') },
+      { name: 'max-tool-output-bytes', shape: '<bytes>' },
       { name: 'timeout', shape: '<seconds>', fact: factFor('timeout') },
       { name: 'cwd', shape: '<directory>' },
       { name: 'prompt-file', shape: '<file>' },
@@ -604,7 +605,9 @@ function factNote(table: UiText, fact: CliOptionFact): string | undefined {
       const accepts = fill(table.cliHelp.accepts, {
         values: `${String(fact.min)}–${String(fact.max)}${unit}`,
       })
-      return `${fill(table.cliHelp.defaultIs, { value: String(fact.default) })}; ${accepts}`
+      return fact.default === undefined
+        ? accepts
+        : `${fill(table.cliHelp.defaultIs, { value: String(fact.default) })}; ${accepts}`
     }
     case 'maximum': {
       const unit = fact.unit === undefined ? '' : ` ${fact.unit}`

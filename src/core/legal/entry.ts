@@ -1,5 +1,5 @@
 // Production legalScan.js entry: local reads only, shared by both loaders.
-import { LEGAL_SCAN_TIMEOUT_MS, SETTING_DEFAULTS } from '../../shared/constants'
+import { SETTING_DEFAULTS } from '../../shared/constants'
 import { legalScanInputSchema } from '../../shared/legal'
 import type {
   LegalScanRequest,
@@ -17,10 +17,10 @@ import { createLegalSnapshot } from './workspace'
 export async function runLegalScan(request: LegalScanRequest): Promise<LegalScanHandle> {
   request.signal?.throwIfAborted()
   const input = legalScanInputSchema.parse(request.input)
-  const deadline = Date.now() + LEGAL_SCAN_TIMEOUT_MS
-  const snapshot = createLegalSnapshot(request.workspaceRoot, request.signal, deadline)
-  const result = scanLegal(snapshot, {
-    deadline,
+  // No deadline of its own: the scan runs until it is done or the signal
+  // aborts (owner 2026-10-16: no arbitrary limits).
+  const snapshot = await createLegalSnapshot(request.workspaceRoot, request.signal)
+  const result = await scanLegal(snapshot, {
     ...(input.paths !== undefined && { paths: input.paths }),
     headerPolicy: input.headerPolicy ?? SETTING_DEFAULTS.legalHeaderPolicy,
     ...(request.signal !== undefined && { signal: request.signal }),
@@ -54,16 +54,16 @@ export async function runLegalScan(request: LegalScanRequest): Promise<LegalScan
  * every enumeration and build-evidence problem, unbounded. Empty only when
  * every input, generated module and output is attributed and fresh.
  */
-export function verifyLegalBuildRecords(workspaceRoot: string): readonly string[] {
-  const snapshot = createLegalSnapshot(workspaceRoot)
+export async function verifyLegalBuildRecords(workspaceRoot: string): Promise<readonly string[]> {
+  const snapshot = await createLegalSnapshot(workspaceRoot)
   return [...snapshot.incompleteChecks, ...buildRecordProblems(snapshot)]
 }
 
-export function prepareLegalFixes(
+export async function prepareLegalFixes(
   workspaceRoot: string,
   findings: readonly LegalFinding[],
 ): Promise<readonly LegalPreparedPatch[]> {
-  return Promise.resolve(prepareLegalHeaderPatches(createLegalSnapshot(workspaceRoot), findings))
+  return prepareLegalHeaderPatches(await createLegalSnapshot(workspaceRoot), findings)
 }
 
 export { renderLegalMarkdown } from './markdown'

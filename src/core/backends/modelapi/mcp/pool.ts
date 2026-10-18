@@ -1,7 +1,8 @@
 // The MCP servers of one Model API host (M50, PLAN.md D42): read from Muse
 // Code's settings when the first conversation starts, started together
-// (each within its start-up deadline), their tools offered to the model
-// while they are connected, and closed with the host (the window). Only a
+// (each within the start-up deadline its entry names, or waited on with
+// still-waiting notices when it names none), their tools offered to the
+// model while they are connected, and closed with the host (the window). Only a
 // trusted workspace starts any: in Restricted Mode every server stays
 // stopped, and trusting the workspace starts them with the next message.
 // A server that cannot start, or stops later, keeps its reason for the
@@ -10,7 +11,6 @@
 
 import path from 'node:path'
 import {
-  MCP_REQUEST_TIMEOUT_MS,
   MCP_START_CONCURRENCY,
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
@@ -18,7 +18,12 @@ import {
   UI_TEXT,
 } from '../../../../shared/constants'
 import type { CoreLogger } from '../../../logging'
-import { withDeadline } from '../../../timeouts'
+import {
+  startStillWaiting,
+  type StillWaitingSubject,
+  stillWaitingText,
+  withDeadline,
+} from '../../../timeouts'
 import type { McpVaultPoolPort } from '../../../vault/mcpSecrets'
 import { mcpSecretReferences } from '../../../vault/mcpReferences'
 import type { McpSettingsEntries } from '../../musecode/museConfigView'
@@ -202,12 +207,22 @@ function initialState(spec: McpServerSpec, isTrusted: boolean): McpServerState {
 }
 
 function startupDeadline(spec: McpServerSpec, launch: McpLaunch): string {
-  const seconds = String(Math.round(spec.startupTimeoutMs / MILLISECONDS_PER_SECOND))
+  const seconds =
+    spec.startupTimeoutMs === undefined
+      ? undefined
+      : String(Math.round(spec.startupTimeoutMs / MILLISECONDS_PER_SECOND))
   const hint =
     launch.transport === MCP_TRANSPORTS.stdio && launch.framing === 'auto'
       ? '; if it frames its messages with Content-Length, set "framing": "content_length" in its entry'
       : ''
-  return `it did not finish starting within ${seconds} s${hint}`
+  return seconds === undefined
+    ? `it did not finish starting${hint}`
+    : `it did not finish starting within ${seconds} s${hint}`
+}
+
+/** What the still-waiting notices name while a server starts. */
+function startupWaitWhat(spec: McpServerSpec): StillWaitingSubject {
+  return { key: 'mcpServerStartup', name: spec.name }
 }
 
 export class McpServerPool implements McpToolSource {
@@ -327,11 +342,22 @@ export class McpServerPool implements McpToolSource {
     }
     const launch = spec.launch.value
     try {
-      await withDeadline(
-        this.open(server, launch),
-        spec.startupTimeoutMs,
-        startupDeadline(spec, launch),
-      )
+      const timeoutMs = spec.startupTimeoutMs
+      if (timeoutMs === undefined) {
+        // No deadline of its own: the start is waited on until the server
+        // answers or is stopped, saying so out loud (owner 2026-10-16: no
+        // silent hangs, no arbitrary limits).
+        const stopNoticing = startStillWaiting((elapsedMs) => {
+          this.deps.log.info(stillWaitingText(startupWaitWhat(spec), elapsedMs))
+        })
+        try {
+          await this.open(server, launch)
+        } finally {
+          stopNoticing()
+        }
+      } else {
+        await withDeadline(this.open(server, launch), timeoutMs, startupDeadline(spec, launch))
+      }
     } catch (error: unknown) {
       const { connection } = server
       server.connection = undefined
@@ -457,7 +483,9 @@ export class McpServerPool implements McpToolSource {
   /** `notifications/tools/list_changed`: the list read again; a failure is logged. */
   private async relist(server: LiveServer, connection: McpConnection): Promise<void> {
     try {
-      const tools = await connection.listTools(MCP_REQUEST_TIMEOUT_MS)
+      // Waited on until the server answers or the connection closes (a
+      // close rejects whatever still waits); a failure is logged below.
+      const tools = await connection.listTools(undefined)
       if (!this.isClosed && server.connection === connection) {
         this.offer(server, tools)
         this.deps.log.info(

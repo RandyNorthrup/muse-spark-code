@@ -23,7 +23,7 @@ const GPL_BODY = canonicalText('GPL-3.0-only')
 const MODIFIED_MIT = `${FULL_MIT_LICENSE}Each copy requires a payment of one dollar to the author.\n`
 
 describe('GPL variant from the project grant (RVCM971B P2-6)', () => {
-  it('reads or-later from the sole source header, without a manifest', () => {
+  it('reads or-later from the sole source header, without a manifest', async () => {
     const files = {
       COPYING: GPL_BODY,
       'src/main.c': '// SPDX-License-Identifier: GPL-3.0-or-later\nint main(void) { return 0; }\n',
@@ -33,7 +33,7 @@ describe('GPL variant from the project grant (RVCM971B P2-6)', () => {
     const project = scanProjectLicense(snapshot, [], projectHeaderGrants(snapshot))
     expect(project.licenses).toEqual(['GPL-3.0-or-later'])
     // The header is the project's own grant, never "outside the project license".
-    const result = scanLegal(snapshot, { headerPolicy: 'optional' })
+    const result = await scanLegal(snapshot, { headerPolicy: 'optional' })
     expect(
       result.findings.filter(
         (finding) => finding.file === 'src/main.c' && finding.severity === 'should-fix',
@@ -73,7 +73,7 @@ describe('inexact texts named by dependencies keep human review (RVCM971B P2-8)'
     [BUNDLE_OUTPUT]: BUNDLE_TEXT,
   }
 
-  it('checks a Cargo license-file with a non-standard name', () => {
+  it('checks a Cargo license-file with a non-standard name', async () => {
     const files = {
       ...base,
       'Cargo.toml':
@@ -85,7 +85,7 @@ describe('inexact texts named by dependencies keep human review (RVCM971B P2-8)'
       'vendor/terms/terms.txt': MODIFIED_MIT,
       'vendor/terms/src/lib.rs': 'pub fn f() {}\n',
     }
-    const result = scanLegal(snapshotFrom(files), {
+    const result = await scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
       distribution: hashEvidence(files),
     })
@@ -95,7 +95,7 @@ describe('inexact texts named by dependencies keep human review (RVCM971B P2-8)'
     expect(result.incompleteChecks).toContain(UI_TEXT.legalScanner.m110)
   })
 
-  it('checks a Python distribution License-File entry', () => {
+  it('checks a Python distribution License-File entry', async () => {
     const files = {
       ...base,
       'requirements.txt': 'termslib==1.0.0\n',
@@ -103,7 +103,7 @@ describe('inexact texts named by dependencies keep human review (RVCM971B P2-8)'
         'Metadata-Version: 2.4\nName: termslib\nVersion: 1.0.0\nLicense-Expression: MIT\nLicense-File: TERMS.rst\n',
       'site-packages/termslib-1.0.0.dist-info/licenses/TERMS.rst': MODIFIED_MIT,
     }
-    const result = scanLegal(snapshotFrom(files), {
+    const result = await scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
       distribution: hashEvidence(files),
     })
@@ -115,14 +115,14 @@ describe('inexact texts named by dependencies keep human review (RVCM971B P2-8)'
     )
   })
 
-  it('keeps a modified nested vendored licence under review', () => {
+  it('keeps a modified nested vendored licence under review', async () => {
     const files = { ...base, 'vendor/custom/LICENSE': MODIFIED_MIT, 'vendor/custom/a.js': 'x\n' }
     const project = scanProjectLicense(snapshotFrom(files))
     expect(project.requiresReview).toBe(true)
     expect(project.incomplete).toContain(
       fill(UI_TEXT.legalScanner.m199, { v0: 'vendor/custom', v1: 'vendor/custom/LICENSE' }),
     )
-    const result = scanLegal(snapshotFrom(files), {
+    const result = await scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
       distribution: hashEvidence(files),
     })

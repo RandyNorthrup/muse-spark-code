@@ -112,7 +112,9 @@ const schemas = {
     ...sessionScoped,
     turnId: z.string(),
     attempt: z.number(),
-    maxAttempts: z.number(),
+    // Lane RETRYLIMITS: an older sender always names one; a newer sender
+    // omits it when neither the provider nor the person sets a retry limit.
+    maxAttempts: z.optional(z.number()),
     retryDelayMs: z.number(),
     reason: z.string(),
   }),
@@ -297,6 +299,9 @@ function rawNotification(notification: WireNotification): MapOutcome {
       >
       return {
         sessionId,
+        // The platform's ceiling survives the mapping (PR #214 review);
+        // the boundary schema above requires it, while Model API retries
+        // stay unbounded by leaving the shared event's own field unnamed.
         event: { type: 'turnRetry', turnId, attempt, maxAttempts, retryDelayMs, reason },
       }
     }

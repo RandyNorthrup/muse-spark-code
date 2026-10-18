@@ -271,6 +271,33 @@ happened, not what was planned; superseded entries are kept.
   from the Marketplace icon as a single-colour mask, replacing the Meta logo
   silhouette. The Marketplace icon, banner and social preview already used
   the "m"; the activity-bar icon was missed.
+- Each provider's own retry limit, nothing global (lane RETRYLIMITS, the
+  owner's binding rule). The single 4-retries/1 s-to-60 s default is
+  replaced by the documented values — Anthropic 2, OpenAI 2, Gemini 4 (about 1 s to
+  60 s), Azure 10, xAI 4, Meta 4 — and a provider that documents no maximum
+  retries until its own wait or stop answer ends the exchange. The new
+  machine-scoped `museSpark.modelApiMaxRetries` setting caps every
+  provider's retries when set (`0` never retries); unset, the providers'
+  documented maxima govern. Record:
+  `docs/certification/provider-refusals.md` ("Lane RETRYLIMITS").
+
+### Changed
+
+- Tab has no daily budget unless the person sets one: `museSpark.tabDailyBudgetUsd`
+  defaults to `0` (no budget, nothing reserved or locked) instead of `$1.00`,
+  and there is no `$50` ceiling — a set budget starts at `$0.05`. The status
+  bar, the first-request consent popup, Account & usage and the usage history
+  report spend without a cap when none is set, and Account & usage says the
+  budget is not known yet while Tab state has not arrived instead of showing
+  `$1.00`.
+- Headless `exec` has no default request limit: without `--max-requests` a
+  Model API run is not stopped after 30 requests. A set value caps the run
+  at 1–500 requests.
+
+- A Model API turn no longer stops itself after 50 tool rounds. No provider
+  publishes a round count, so the product sets none: a turn runs until the
+  model answers without a tool call, you press Stop, a hook stops it, or a
+  budget you set is spent.
 
 ### Fixed
 
@@ -603,11 +630,100 @@ happened, not what was planned; superseded entries are kept.
   "Context window full: /compact or /handoff" instead, and anything the
   turn was holding is still re-queued for its own turn. Image generation refuses
   on the same reserved slot as every other caller-ledger side call.
+- D121 (owner 2026-10-16: limits only on models): best-of-N no longer caps
+  attempts or requests per attempt at 2–5 and 5–50 — both numbers are your
+  own per-run choice (defaults 3 × 20 stay); headless exec no longer caps
+  `--max-requests` at 500 or `--max-budget-usd` at $20 — your flags stay
+  with no ceiling of ours; `rename_symbol` no longer refuses a rename that
+  touches more than 200 files; a hook agent handler loops over its
+  read-only tools until the model stops calling them instead of stopping
+  after 5 steps; a goal objective of any length stands instead of refusing
+  past 4000 characters; a plan keeps every step past 50 and saves and reads
+  back at any size instead of refusing past 256 KB (handoff briefs too);
+  a saved prompt keeps any title, body and per-scope count past 200, 80
+  and 10000 characters;
+  the proposal Action's same $20 and 500-request caps went too; image generation takes a prompt of any length and
+  any number of edit sources past 4000 characters and 4 (Meta documents no
+  prompt length and 1–10 edit items — its own refusal answers oversize calls);
+  a provider holds any number of accounts past 64 per provider; check
+  commands no longer refuse a 9th check and a check names any positive
+  `timeoutSeconds` past 600 (300 unless set); a conversation spawns
+  subagents past 64 per conversation (paid consent still asks per spawn);
+  a team `delegate` starts past 6 tasks and engines run past the 20-worker
+  hard ceiling (the provider's documented limits, live 429 adaptation and
+  the machine bound the rest); exports and shares write and read back past
+  16 MiB (transcripts of any item count; report sources read at any size);
+  a held pull request checks
+  out past 20000 entries and 250 MB (an unreadable listing still refuses;
+  unsafe and colliding paths still refuse before anything is written).
+- NOLIMITS1FIX (same owner rule: the review's kept bounds go too): a saved
+  prompt file reads, imports and shares at any size instead of refusing past
+  128 KiB — only a blank title still refuses ("A title is required."); a link
+  import reads under web fetch's own 5 MiB body bound. Exports, shares and
+  imports take any transcript item count instead of refusing past 20,000;
+  picking a share file no longer refuses for size (a file that went away
+  reports as missing).
+  import is refused only past the provider's own documented context window
+  instead of the window-minus-reserve formula. A check's long
+  `timeoutSeconds` waits its whole length instead of firing at once past
+  Node's 2^31-1 ms timer maximum (timers re-arm in slices; no cap added).
+
+- Model API requests are no longer ended by the product's own clocks: no 30-second request timeout and no 300-second stream idle limit. A request names how long it has been waiting and keeps waiting until Stop or a caller-named deadline. Retries are not counted out at four and a Retry-After is honoured at any length; only a call that names its own ceiling stops early, and quota never retries.
+- Model API pacing follows the provider instead of invented numbers: no 10-requests-a-minute starting shape, no reserved foreground fraction and no 600-second admission wait. A queued request names what it is waiting for and keeps waiting until Stop; only the provider's observed rate-limit headers, 429 answers and Retry-After shape the wait.
+- Vault approvals no longer expire after 120 seconds: a request waits until the person allows or denies it, or until it is stopped. Granted uses carry the vault item's own lifetime instead of the approval clock; socket, helper-call and peer handshakes keep their own bounds.
+
+- The GitHub Action no longer caps a run at 30 requests unless the person
+  asks: with no `max-requests` input the Action sets no request limit, and a
+  set value still allows 1–500 billable HTTP attempts, retries included.
+
+- Headless `--max-budget-usd` no longer stops at 20 USD: a person's amount is
+  honored as given (validated only as a positive number), in `exec`, `serve`,
+  the run ledger, the protocol schemas, the generated reference and the
+  Action's input and result validation. The 20 USD ceiling was ours, not a
+  provider's.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
+- First-use command flows no longer load at activation: the MCP-servers and
+  hooks pickers, the skills flows, the worktree flows, the memory flow and
+  the Plans picker now load with a new `dist/commands.js` bundle on the
+  first of those commands, and the Diagnostics report text loads with the
+  report bundle on that command's first run instead of living in the
+  activation bundle. `dist/extension.js` measures about 24 KB lighter
+  against the unchanged activation budget. No behaviour change.
+
+- Git is waited on instead of killed after 15 seconds: status, diff and the
+  other readers name no deadline of their own, so a slow repository no
+  longer falls back to git-absent answers; a timeout a caller names still
+  applies, and team runs share the dispatching job's own bound.
+- `muse serve` startup is waited on instead of ended at 30 seconds with one
+  120-second second chance: the handshake runs until the server answers or
+  the wait is stopped, saying so in the log each minute, and a server that
+  never finishes is still closed rather than left behind.
+- The browser check runs until it finishes or is stopped instead of ending
+  at 60 seconds, and takes any number of click or type steps instead of at
+  most eight. Loopback-only addressing, the per-call extra-hosts approval
+  and the 45-day runtime expiry are unchanged.
+- Web fetch no longer stops same-host redirects after 5 or refuses pages
+  past 5 MiB; a redirect loop ends at the fetch deadline and cross-host
+  redirects are still handed back. The https-only, no-credentials and
+  public-hosts refusals stay, and a caller-set text limit still applies.
+- MCP servers are waited on instead of timed out: an entry's own startup
+  and tool timeouts are honoured whole however long, and unnamed they are
+  no deadline at all, with a still-waiting notice each minute.
+- Muse Code commands no longer fail at 60 or 180 seconds: unnamed they are
+  waited on until Muse Code answers or the wait is stopped, with notices
+  that still count toward the unresponsive-host watchdog.
+- Shell commands no longer default to 120 seconds or clamp to 600: the
+  model's own timeout is honoured whole, unnamed commands run until they
+  end or are stopped, and the user's own shell loses its 10-minute kill.
+- Billed image requests no longer abort at 180 seconds: the backend waits
+  until Meta answers or the turn stops it, saying so each minute.
+- The legal scan, its workspace walk and the headless legal command no
+  longer stop at 120 seconds: unnamed they run until done or stopped, and
+  a caller-named deadline still marks what it could not cover.
 
 - When Muse Code failed and was restarted, the next turn could fail with a
   bare "missing meta credentials" and nothing said the sign-in had been lost
@@ -813,6 +929,20 @@ happened, not what was planned; superseded entries are kept.
   checked, rather than falsely claiming no key is stored (all display languages).
 - RVCLIFLOWS: `scan-secrets` no longer emits a panel-language diagnostic on
   stderr; successful scans print only their count.
+- Lane PROVKEYS: a working Google Gemini key was refused for how it
+  looked (it did not begin with the frozen `AIza…` prefix), so the route
+  could not be set up at all. No provider key is refused for its looks
+  any more, on any surface: any non-blank key is sent to the provider's
+  own free key test, and a refusal shows the provider's reason. Values
+  that look like the wrong thing (a web address, a file path,
+  placeholder text, a key with a space in it) ask a "use it anyway?"
+  question instead of dead-ending. A key piped in that is not text is
+  now told so, instead of "No key was entered, so nothing was stored."
+  `exec --provider … --key-stdin` names a wrong-looking piped key on
+  stderr before the run starts, as the terminal surfaces do. The
+  wrong-key questions on `providers add`, `auth set --provider` and the
+  exec run are shown in the installed language.
+
 - Provider refusals read as the provider's refusal (lane PROVERR): when a
   configured provider answers with an error — out of credit, a rejected key,
   rate-limited, overloaded, an invalid request and the rest — the turn ends

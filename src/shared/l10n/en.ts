@@ -131,11 +131,7 @@ export const EN = {
   outputSchemaLocalValidation:
     'Output schema validation: local (the selected model has no structured-output format).',
   outputSchemaReadFailed: 'Could not read the output schema: {detail}',
-  modelApiPacingTokenLimit:
-    'Fan-out request exceeds the token budget reserved for background work.',
   modelApiPacingWaiting: 'Waiting for rate limit headroom…',
-  modelApiPacingExpired:
-    'The wait for rate limit headroom expired. Send the message again to retry.',
   modelApiStatusLabel: 'Meta API Status',
   modelApiStatusUnavailable: 'Status unavailable',
   modelApiStatusOpen: 'Open Service Status',
@@ -149,7 +145,6 @@ export const EN = {
   companionLaunchFailed:
     'Could not open the panel. Return to your editor and open Muse Spark Code again to get a fresh launch link.',
   // M118: prompt library and local sharing; read UI_TEXT at use time.
-  promptLimits: 'The prompt exceeds the size limit, or this scope has too many prompts.',
   promptWorkspaceRequired: 'Open a workspace to save workspace prompts.',
   promptScopeDamaged:
     '{scope}: The prompt store is unreadable or damaged. Its files were kept unchanged.',
@@ -174,6 +169,9 @@ export const EN = {
     'Composer toolbar or right-click: Save, Share, Use saved. Outside VS Code, Shift-right-click keeps native clipboard actions. Prompts are plain text; save no secrets.',
   promptCopyToUser: 'Copy to My Prompts',
   promptTitle: 'Title',
+  // NOLIMITS1FIX: the only prompt refusal left — a blank title. The removed
+  // size/count bounds were invented.
+  promptTitleRequired: 'A title is required.',
   promptBody: 'Prompt Text',
   promptTags: 'Tags',
   promptVariables: 'Variables',
@@ -212,7 +210,6 @@ export const EN = {
   shareAllMessages: 'All Messages',
   shareAttachmentContents: 'Include Selected Attachment Contents',
   shareRangeInvalid: 'Choose an ordered range of messages from this conversation.',
-  shareTooLarge: 'This share exceeds the file size or transcript limit.',
   shareAttachmentUnavailable: 'Selected attachment content is unavailable in this range.',
   sharePreviewExpired: 'The preview changed or expired. Preview again before sharing.',
   // M117 / D97: portable estimator surfaces, help and future manifest copy.
@@ -420,7 +417,7 @@ export const EN = {
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
     'max-requests':
-      'Set the maximum request allowance. The last model call produces a final summary without tools.',
+      'Set the maximum number of model requests; without it, there is no request limit.',
     'max-tool-output-bytes': 'Raise the per-tool-result byte guard for this run.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
@@ -627,7 +624,6 @@ export const EN = {
     'Muse Code exited before deletion was confirmed. The session remains in History.',
   sessionDeleteHostClosed:
     'The host closed before deletion was confirmed. The session remains in History.',
-  sessionDeleteTimedOut: 'Deletion confirmation timed out. The session remains in History.',
   // M116 / D96: shared panel, Agent map, ACP, CLI and report wording.
   playbookTitle: 'Orchestrator Playbook',
   playbookStatus: 'Status',
@@ -1581,7 +1577,6 @@ export const EN = {
   }),
   exportPreviewKnownCredentials:
     'Known credential shapes (API keys, tokens, passwords, private keys) and the key digest are always removed. A secret in another shape stays: read the file before you share it.',
-  exportTooLarge: 'This conversation is too long for a session export file.',
   importPreviewTitle: 'Import Session',
   // {source}: the backend label; {messages}: a message-count line; {model}:
   // the model id; {mode}: Manual or Plan in the display language.
@@ -1610,8 +1605,6 @@ export const EN = {
   // After "could not be imported: ". {size}, {limit}: sizes such as 2.4 MB.
   importReplayTooLarge:
     'It holds {size} of text for the model, and a resumed conversation can start with at most {limit}. Open it as a share file to read it.',
-  // Why a picked file was refused, after "could not be imported/opened: ".
-  transferTooLarge: 'The file is larger than a session export can be.',
   transferFileMissing: 'The picked file no longer exists.',
   transferEmpty: 'The file holds no conversation.',
   transferNotAnExport: 'The file is not a Muse Spark session export.',
@@ -2144,8 +2137,6 @@ export const EN = {
     'The pull request has a path a held checkout does not write: {path}. Nothing was checked out.',
   openPullRequestPathCollision:
     '{first} and {second} would be the same file or folder here. Nothing was checked out.',
-  openPullRequestTooLarge:
-    'The pull request is larger than a held checkout writes (at most {files} files and folders, {size} in all). Nothing was checked out.',
   openPullRequestUnreadable:
     'Git did not give back the pull request’s files as its tree lists them.',
   openPullRequestAction: 'Open',
@@ -2490,7 +2481,6 @@ export const EN = {
     'Web fetch is no longer allowed here (the workspace lost its trust, the permission mode changed, or the sandbox network setting became restricted), so the fetch stopped before its next request.',
   webFetchNat64Unknown:
     '{host} has only IPv6 addresses here, and whether this network translates them to IPv4 addresses (NAT64) could not be learned ({detail}), so they could not be checked for a private address. Nothing was fetched.',
-  webFetchTooManyRedirects: 'The page redirected more than {max} times.',
   webFetchRedirectWithoutLocation: 'The server answered {status} without saying where to go.',
   webFetchRedirectRefused: 'The page redirected to an address that is refused: {reason}',
   webFetchHttpStatus: 'The server answered {status}.',
@@ -3074,6 +3064,10 @@ export const EN = {
   reject: 'Reject',
   modelApiStalled:
     'The Model API sent nothing for {seconds} s, so the reply was ended; send the message again to retry',
+  // Lane PR225W1: the person's own retry cap stopped the turn, not the
+  // provider. The orchestrator reads this notice off its feed.
+  modelApiRetryCapReached:
+    'Retry limit reached (museSpark.modelApiMaxRetries: {count}): the request was not sent again. Raise the limit to allow more retries.',
   queuedTurnDropped: 'Not sent: Stop cleared the queued messages',
   compactionStopped: 'the compaction was stopped',
   compactionEmpty: 'The summary was empty; the conversation is unchanged.',
@@ -3244,8 +3238,6 @@ export const EN = {
     'Muse Code does not let the extension set its todo list, so the brief asks Muse to list the plan’s steps there.',
   planNamesTaken: 'Every file name for this plan is taken in .agents/plans.',
   planFileMissing: 'That plan file no longer exists.',
-  // {size}: the limit in KB.
-  planTooLarge: 'This plan is larger than {size} KB, the most a plan may be.',
   planSessionGone:
     'That conversation is no longer open in this panel, so this reply can no longer be saved or implemented as a plan.',
   planNotFromPlanTurn:
@@ -3294,7 +3286,6 @@ export const EN = {
   handoffFailed: 'Could not prepare the handoff',
   // After handoffFailed: the distillation turn ended with no reply text.
   handoffNoBrief: 'The model returned no brief.',
-  handoffTooLarge: 'The brief is larger than {size} KB; start the new conversation by hand.',
   handoffChangedNotStarted:
     'The handoff was not started: the conversation changed in the meantime.',
   // {mode}: the permission mode's name. The model wrote the brief, so it
@@ -3999,8 +3990,8 @@ export const EN = {
   goalCannotEdit:
     'Only an active or paused goal can be changed; set a new one with /goal <objective>.',
   goalObjectiveMissing: 'Type the objective after /goal.',
-  // {limit} is the maximum objective length, formatted in the user's locale.
-  goalObjectiveTooLong: 'Keep the goal objective within {limit} characters.',
+  goalObjectiveTooLarge:
+    'That objective is too long for the selected model’s context window. Shorten it or pick a model with a larger window.',
   goalCommandFailed: 'The goal command failed',
   // A goal command the backend already had when a key activation or a
   // backend restart came: whether it took is not known.
@@ -4076,6 +4067,22 @@ export const EN = {
   stopAllTasksTitle: 'Stop every background task of this conversation',
   stopTaskFailed: 'The background task could not be stopped',
   taskNotRunning: 'That task is not running any more',
+  stillWaitingNotice: 'Still waiting: {what} ({duration}). Stop ends it.',
+  // The subjects the still-waiting notices name (PR #214 review): each one
+  // is translated, so a notice never interpolates English prose. The
+  // request and command names ({name}, {method}) stay as the other side
+  // spelled them.
+  stillWaitingSubject: {
+    imageRequest: 'the image request',
+    providerAnswer: 'the provider answer',
+    modelReply: 'the model reply',
+    mcpServerStartup: 'MCP server "{name}" startup',
+    mcpServerRequest: 'MCP server "{name}" {method}',
+    museCodeCommand: 'Muse Code {method}',
+    sessionDeletion: 'session deletion',
+    shellCommand: 'the shell command',
+    museServeStarting: 'muse serve starting',
+  },
   userShellLabel: 'You Ran',
   userShellExitCode: 'Exit code {code}',
   userShellExitSignal: 'Ended by signal {signal}',
@@ -4463,12 +4470,18 @@ export const EN = {
   // {provider}: the provider id; {store}: where the key lives; {origin}: the bound origin.
   providerKeyStored: 'The {provider} key is stored in {store}.',
   providerKeyNotStored: 'No key was entered, so nothing was stored.',
+  providerKeyNotText: 'That input is not text (it is not valid UTF-8), so it was not used.',
   providerKeyPresent: 'A {provider} key is stored in {store}, bound to {origin}.',
   providerKeyAbsent: 'No {provider} key is stored.',
   providerKeyCleared: 'The {provider} key was removed from this computer’s credential store.',
-  // {provider}: the id as typed; {hint}: the key's shape as a hint.
+  // {provider}: the id as typed.
   providerUnknown: 'Unknown provider: {provider}.',
-  providerKeyShape: 'That key is not shaped like {provider} keys ({hint}).',
+  // A pasted provider key is never refused for its looks; each notice is
+  // a question the person answers ("use it anyway?"), never a dead end.
+  providerKeyNoticeWhitespace: 'This key contains a space or line break. Use it anyway?',
+  providerKeyNoticeUrl: 'This looks like a web address, not a key. Use it anyway?',
+  providerKeyNoticePath: 'This looks like a file path, not a key. Use it anyway?',
+  providerKeyNoticePlaceholder: 'This looks like placeholder text, not a key. Use it anyway?',
   providerKeyNeeded: '{provider} needs its key from stdin (--key-stdin).',
   providerNotConfigured: '{provider} is not configured; add it with providers add first.',
   providerSecretUnreadable: 'The stored {provider} credential cannot be read; enter the key again.',
@@ -4677,6 +4690,10 @@ export const EN = {
   // A failed turn's card when the backend gave no reason.
   turnFailed: 'The turn failed.',
   turnRetrying: 'Attempt {attempt}/{maxAttempts} failed ({reason}); retrying in {seconds} s.',
+  // A retry notice with no retry limit (lane RETRYLIMITS): neither the
+  // provider nor the person sets one, so the provider governs.
+  turnRetryingUncapped:
+    'Attempt {attempt} failed ({reason}); retrying in {seconds} s (no retry limit set).',
   // The subscription window's length (English writes the unit singular here).
   usageWindowHours: forms({ one: '{count}-hour window', other: '{count}-hour window' }),
   usageWindowMinutes: forms({ one: '{count}-minute window', other: '{count}-minute window' }),
@@ -4819,16 +4836,20 @@ export const EN = {
   // language's money format.
   paidTabName: 'Tab Completions',
   paidConfirmTab:
-    'Tab completions send the code around your cursor to Meta as you type, billed to your Model API key. {price} At typical typing that is about $0.80 an hour on Standard and about $0.05 on the contributor model, capped by a daily budget you can change in settings. The contributor model is cheaper, and Meta trains on the code it is sent. Copilot, if on, is yielded to: automatic Tab suggestions pause for its languages unless you run both. Tab asks once per window before its first suggestion.',
+    'Tab completions send the code around your cursor to Meta as you type, billed to your Model API key. {price} At typical typing that is about $0.80 an hour on Standard and about $0.05 on the contributor model. You can set a daily budget in settings; with none set, Tab spending is uncapped. The contributor model is cheaper, and Meta trains on the code it is sent. Copilot, if on, is yielded to: automatic Tab suggestions pause for its languages unless you run both. Tab asks once per window before its first suggestion.',
   paidUseTabTitle: 'Let Tab suggest in this window?',
   paidUseTabDetail:
     'Tab sends the code around your cursor to Meta’s {model} model, billed to your Model API key at {price}. Today’s budget is {budget}; Tab stops for the day if it is reached. {training} Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
+  paidUseTabDetailNoBudget:
+    'Tab sends the code around your cursor to Meta’s {model} model, billed to your Model API key at {price}. No daily budget is set, so Tab keeps suggesting until you turn it off or snooze it. {training} Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
   tabTrainingContributor:
     'The contributor model is cheaper, and Meta trains on the code it is sent.',
   // The status bar item while the feature is on; {spend} is today's spend.
   tabStatusSpend: 'Tab {spend}',
   tabStatusTooltip:
     'Tab completions ({model}). {requests} today, {spend} of the {budget} daily budget.',
+  tabStatusTooltipNoBudget:
+    'Tab completions ({model}). {requests} today, {spend} spent, with no daily budget set.',
   // Each state D73 names; {left} is the snooze's remaining time.
   tabStatusSnoozed: 'Tab snoozed ({left} left)',
   tabStatusBudget: 'Tab daily budget reached',
@@ -4868,6 +4889,8 @@ export const EN = {
   usagePaidTabCostToday: 'Today: {cost}',
   usagePaidTabCostWindow: 'This window: {cost}',
   usagePaidTabBudget: 'Daily budget: {budget}',
+  usagePaidTabBudgetNone: 'No daily budget',
+  usagePaidTabBudgetUnknown: 'Daily budget: not known yet',
   // The prompt and agent hook handlers on the Model API (M91, PLAN.md D70):
   // a paid use under D30 and D48, tallied on their own line.
   paidHookModelName: 'Model Hooks',
@@ -4935,9 +4958,9 @@ export const EN = {
   bestOfNTakenMark: 'Took {branch}',
   bestOfNDiffClipped: 'Diff clipped.',
   bestOfNInvalidPrompt: 'Describe what the attempts should do.',
-  bestOfNInvalidRequest: 'That best-of-N run is outside the attempt or ceiling bounds.',
-  bestOfNInvalidAttempts: 'Attempts must be between {min} and {max}.',
-  bestOfNInvalidCeiling: 'Requests per attempt must be between {min} and {max}.',
+  bestOfNInvalidRequest: 'That best-of-N run needs at least 1 attempt and 1 request per attempt.',
+  bestOfNInvalidAttempts: 'Attempts must be 1 or more.',
+  bestOfNInvalidCeiling: 'Requests per attempt must be 1 or more.',
   bestOfNNeedsTrust:
     'Best-of-N needs a trusted workspace: worktrees run git, which Restricted Mode forbids.',
   bestOfNModelApiOnly:
@@ -5403,8 +5426,6 @@ export const EN = {
   // The OAuth loopback's callback page, shown in the browser.
   oauthCallbackDone: 'You can close this window and return to VS Code.',
   providerKeyPrompt: '{provider} API Key',
-  // {provider}: the preset's name. Said under the password box while typing.
-  providerKeyInvalid: 'This does not look like a {provider} key.',
   // {origin}: the address the credential is sent to, and no other.
   keyStoredNote: 'Stored in your system keychain; sent only to {origin}.',
   changeKey: 'Change Key',
@@ -5599,7 +5620,6 @@ export const EN = {
       pick: 'Pick a provider first.',
       address: 'Enter the server address.',
       credential: 'Enter the key or connect the account first.',
-      keyShape: 'The key is not shaped like this provider’s keys.',
       test: 'Test the connection first.',
       models: 'Tick at least one model.',
       validate: 'Validate the server address first.',
@@ -5607,7 +5627,6 @@ export const EN = {
       private: 'Confirm access to this private network first.',
       pickStep: 'Pick a provider from its own step.',
       keyStep: 'Enter the key at its own step.',
-      badKey: 'That key is not shaped like this provider’s keys.',
       oauthStep: 'Connect the account at its own step.',
       costStep: 'Accept the test cost at its own step.',
       testStep: 'Run the test at its own step.',
@@ -5654,10 +5673,9 @@ export const EN = {
       custom: 'Any Chat Completions, Responses or Messages server',
     },
     hints: {
-      prefix: 'Key beginning with {prefix}… ({site})',
       site: 'The key from {site}',
       azure: 'The resource key from the Azure portal',
-      router: 'Key beginning with {prefix}… ({site}) or Connect OpenRouter account',
+      router: 'The key from {site} or Connect OpenRouter account',
       custom: 'The key the server expects',
     },
     privacy: {

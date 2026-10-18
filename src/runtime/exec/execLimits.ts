@@ -29,7 +29,10 @@ export interface StopLatch {
 export interface Lifecycle extends StopLatch {
   readonly signal: AbortSignal
   readonly stopped: Promise<StopCause>
-  readonly deadlineMs: number
+  /** Absent when the command runs until a signal stops it (no deadline). */
+  readonly deadlineMs: number | undefined
+  /** When the process started, for durations that outlive any deadline. */
+  readonly startMs: number
   race<T>(waiting: Promise<T>): Promise<T>
   remainingGraceMs(): number
   forceExit(code: number): never
@@ -69,7 +72,8 @@ export function statusForStop(cause: StopCause): ExecStatus {
 
 export function createLifecycle(input: {
   processStartMs: number
-  timeoutMs: number
+  /** Undefined: the command runs until a signal stops it (no deadline). */
+  timeoutMs: number | undefined
   now: () => number
   setTimer: (ms: number, run: () => void) => () => void
   onSignal: (signal: ExecSignal, run: () => void) => () => void
@@ -77,7 +81,8 @@ export function createLifecycle(input: {
   exit: (code: number) => never
 }): Lifecycle {
   const controller = new AbortController()
-  const deadlineMs = input.processStartMs + input.timeoutMs
+  const deadlineMs =
+    input.timeoutMs === undefined ? undefined : input.processStartMs + input.timeoutMs
   let cause: StopCause | null = null
   const stopped = new Promise<StopCause>((resolve) => {
     controller.signal.addEventListener(
@@ -119,11 +124,13 @@ export function createLifecycle(input: {
       ),
     )
   }
-  removers.push(
-    input.setTimer(Math.max(0, deadlineMs - input.now()), () => {
-      latch({ kind: 'timeout' })
-    }),
-  )
+  if (deadlineMs !== undefined) {
+    removers.push(
+      input.setTimer(Math.max(0, deadlineMs - input.now()), () => {
+        latch({ kind: 'timeout' })
+      }),
+    )
+  }
   for (const signal of ['SIGINT', 'SIGTERM'] as const)
     removers.push(
       input.onSignal(signal, () => {
@@ -137,6 +144,7 @@ export function createLifecycle(input: {
     signal: controller.signal,
     stopped,
     deadlineMs,
+    startMs: input.processStartMs,
     latch,
     race(waiting) {
       // Attach to the awaited operation even when stop already won: late

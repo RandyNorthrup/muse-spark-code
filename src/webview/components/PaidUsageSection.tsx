@@ -1,7 +1,7 @@
 import {
   PAID_PRICES_VERIFIED_ON,
   MILLISECONDS_PER_SECOND,
-  TAB_DAILY_BUDGET_DEFAULT_USD,
+  TAB_NO_BUDGET_USD,
   type PaidFeature,
   UI_TEXT,
 } from '../../shared/constants'
@@ -14,6 +14,7 @@ import {
   type PaidTally,
 } from '../../shared/paid'
 import { formatUsd } from '../../core/usage/insights'
+import { Usd } from '../../shared/usd'
 import { formatDurationMs } from '../agentFormat'
 
 /**
@@ -115,7 +116,16 @@ function TabRow({ paid }: { readonly paid: PaidState }) {
   const hasRun = requests > 0 || paid.features.includes('tab')
   const cost = formatUsd(paidCostUsd('tab', paid.tally))
   const todayUsd = paid.tab?.todayUsd
-  const budget = formatUsd(paid.tab?.budgetUsd ?? TAB_DAILY_BUDGET_DEFAULT_USD)
+  // Before Tab state arrives there is no budget to show, so the row says the
+  // value is not known yet instead of the old $1.00 fallback. A zero budget
+  // is the person having set none.
+  let budgetLine = UI_TEXT.usagePaidTabBudgetUnknown
+  if (paid.tab !== undefined) {
+    budgetLine =
+      Usd.from(paid.tab.budgetUsd).compare(Usd.from(TAB_NO_BUDGET_USD)) === 0
+        ? UI_TEXT.usagePaidTabBudgetNone
+        : fill(UI_TEXT.usagePaidTabBudget, { budget: formatUsd(paid.tab.budgetUsd) })
+  }
   const windowText = fill(UI_TEXT.usagePaidTabCostWindow, { cost })
   return (
     <>
@@ -133,10 +143,10 @@ function TabRow({ paid }: { readonly paid: PaidState }) {
                 ? windowText
                 : `${fill(UI_TEXT.usagePaidTabCostToday, { cost: formatUsd(todayUsd) })} · ${windowText}`}
             </p>
-            <p className={'usage-row-meta'}>{fill(UI_TEXT.usagePaidTabBudget, { budget })}</p>
+            <p className={'usage-row-meta'}>{budgetLine}</p>
           </>
         ) : (
-          <span className={'usage-row-meta'}>{fill(UI_TEXT.usagePaidTabBudget, { budget })}</span>
+          <span className={'usage-row-meta'}>{budgetLine}</span>
         )}
       </dd>
     </>

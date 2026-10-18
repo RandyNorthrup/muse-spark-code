@@ -21,8 +21,6 @@ import {
   EXPORT_FILE_EXTENSIONS,
   EXPORT_TITLE_MAX_CHARS,
   type ExportFormat,
-  SESSION_EXPORT_MAX_BYTES,
-  SESSION_EXPORT_MAX_ITEMS,
   UI_TEXT,
 } from '../../shared/constants'
 import type { ItemSnapshot } from '../../shared/agentEvents'
@@ -95,11 +93,12 @@ export async function previewConversationShare(
  * `historyUnavailable`: Muse Code answered with history mode `none` (a
  * conversation past its replay budget), so an export would hold nothing but
  * its header; the session log still has everything. `empty`: nothing has
- * been said yet. `tooLarge`: the portable file would be past what an import
- * reads, so it is not written. `dismissed`: the preview was closed.
+ * been said yet. `dismissed`: the preview was closed. NOLIMITS1FIX: the
+ * `tooLarge` outcome went with the removed 20,000-item bound — an export
+ * writes at any item count.
  */
 export type ExportOutcome =
-  'exported' | 'logUnavailable' | 'historyUnavailable' | 'empty' | 'tooLarge' | 'dismissed'
+  'exported' | 'logUnavailable' | 'historyUnavailable' | 'empty' | 'dismissed'
 
 const USER_MESSAGE = 'userMessage'
 // MSP `session/read` history mode when it returns no items (a budget, D26).
@@ -117,20 +116,24 @@ function titleOf(name: string | undefined, items: readonly ItemSnapshot[]): stri
   return firstLine === '' ? UI_TEXT.exportDefaultTitle : firstLine.slice(0, EXPORT_TITLE_MAX_CHARS)
 }
 
-/** The portable file's text; undefined when it is past what an import reads. */
+/**
+ * The portable file's text at any byte size (D121: the removed 16 MiB
+ * ceiling was invented); NOLIMITS1FIX: the removed 20,000-item ceiling was
+ * invented too — the file writes at any item count.
+ */
 async function portableFile(
   source: SessionExportSource,
   shouldRedact: boolean,
   localRoots: readonly string[],
   vaultScrub?: SecretScrubPort,
-): Promise<{ readonly content: string; readonly built: BuiltSessionExport } | undefined> {
+): Promise<{ readonly content: string; readonly built: BuiltSessionExport }> {
   const built = await buildSessionExport(source, {
     redact: shouldRedact,
     localRoots,
     ...(vaultScrub !== undefined && { vaultScrub }),
   })
   const content = JSON.stringify(built.doc, undefined, JSON_INDENT)
-  return Buffer.byteLength(content) > SESSION_EXPORT_MAX_BYTES ? undefined : { content, built }
+  return { content, built }
 }
 
 /** Portable JSON (M84): the redacted file previewed first, the chosen one written. */
@@ -147,9 +150,6 @@ async function exportJson(
   if (history.items.length === 0) {
     return 'empty'
   }
-  if (history.items.length > SESSION_EXPORT_MAX_ITEMS) {
-    return 'tooLarge'
-  }
   const source: SessionExportSource = {
     backend: host.info.kind,
     ...(history.name !== undefined && { name: history.name }),
@@ -159,9 +159,6 @@ async function exportJson(
   }
   const localRoots = exports.localRoots()
   const redacted = await portableFile(source, true, localRoots, exports.vaultScrub)
-  if (redacted === undefined) {
-    return 'tooLarge'
-  }
   const { built } = redacted
   // Named from the redacted title: a file name travels with the file.
   const fileName = exportFileName(
@@ -186,9 +183,6 @@ async function exportJson(
   }
   const chosen =
     choice === 'full' ? await portableFile(source, false, localRoots, exports.vaultScrub) : redacted
-  if (chosen === undefined) {
-    return 'tooLarge'
-  }
   // The preview can remain open while values are added or the vault locks.
   const safeName = await scrubSecrets(fileName, exports.vaultScrub)
   const safeContent =

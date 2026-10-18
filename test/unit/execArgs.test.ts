@@ -180,11 +180,29 @@ describe('M80 args (A1–A10, F1)', () => {
       reason: UI_TEXT.execBudgetRequired,
     })
   })
+  it('leaves no request limit without --max-requests and still bounds a set value', () => {
+    // NOLIMITS5: no default request limit; 1–500 still bounds an explicit one.
+    const parsed = parseExec({ backend: 'modelApi', 'max-budget-usd': '1' }, ['hi'])
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(parsed.reason)
+    expect(parsed.options.maxRequests).toBeUndefined()
+    for (const value of ['0', '501', 'abc', '10x']) {
+      expect(
+        parseExec({ backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': value }, ['hi']).ok,
+      ).toBe(false)
+    }
+    const capped = parseExec(
+      { backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': '500' },
+      ['hi'],
+    )
+    expect(capped.ok).toBe(true)
+    if (!capped.ok) throw new Error(capped.reason)
+    expect(capped.options.maxRequests).toBe(500)
+  })
   it.each([
     '0',
     '-1',
     'abc',
-    '20.01',
     'Infinity',
     '+1',
     '1e0',
@@ -213,6 +231,10 @@ describe('M80 args (A1–A10, F1)', () => {
     ['0.108135', 108_135],
     ['1.409024', 1_409_024],
     ['20.000000', 20_000_000],
+    // Above-$20 budgets from the recorded real CLI exchange in
+    // docs/certification/pr228fix.md (2026-10-18, rig macmini).
+    ['20.01', 20_010_000],
+    ['250.50', 250_500_000],
     ['0001.000001', 1_000_001],
   ])('F1 parses %s directly into exact micro-USD', (value, units) => {
     const parsed = parseExec({ backend: 'modelApi', 'max-budget-usd': value }, ['hi'])
@@ -240,6 +262,7 @@ describe('M80 args (A1–A10, F1)', () => {
     { timeout: '9' },
     { timeout: '21601' },
     { backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': '501' },
+    { backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': '0' },
     { backend: 'modelApi', 'max-budget-usd': '1', 'max-tool-output-bytes': '0' },
     { backend: 'modelApi', 'max-budget-usd': '1', 'max-tool-output-bytes': '1023' },
     { backend: 'museCode', 'max-tool-output-bytes': '70000' },

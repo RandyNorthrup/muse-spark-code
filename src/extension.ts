@@ -906,6 +906,10 @@ async function activateWindow(
   }
   const currentSettings = () =>
     readSettings(vscode.workspace.getConfiguration(SETTINGS_SECTION), log)
+  // Lane RETRYLIMITS: the person's retry limit, read live wherever a retry
+  // limit is needed; null stays unset. One reader for the three clients
+  // below keeps the activation bundle small (modelsActivationBudget).
+  const personCap = (): number | undefined => currentSettings().modelApiMaxRetries ?? undefined
   const updateSetting = (key: string, value: unknown) =>
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
@@ -1099,6 +1103,7 @@ async function activateWindow(
       l10n,
       catalogFile: vscode.Uri.joinPath(context.extensionUri, 'dist', 'providerCatalog.json').fsPath,
       configFile: providerConfigFile,
+      personCap,
       isRemote: vscode.env.remoteName !== undefined,
       isConfidential: () => currentSettings().confidentialWorkspace,
       access: context.languageModelAccessInformation,
@@ -1708,6 +1713,7 @@ async function activateWindow(
     // and count for the session that was live when the import began.
     agentImport: {
       isActive: () => !nativeStarts.signal.aborted,
+      signal: nativeStarts.signal,
       isProjectTrusted,
       isProjectHeld: () => windowHold.isHeld,
       currentRoot: firstFolderPath,
@@ -2080,10 +2086,9 @@ async function activateWindow(
       fetch: liveFetch,
       baseUrl: MODEL_API_BASE_URL,
       apiKey: () => credentials.getApiKey(),
-      sleep: (ms) =>
-        new Promise((resolve) => {
-          setTimeout(resolve, ms)
-        }),
+      personCap,
+      // Lane PR225W1: no `sleep` here — the transport waits with
+      // `abortableSleep`, so a Stop clears the wait's own timer.
       now: () => Date.now(),
       random: () => Math.random(),
       log,
@@ -2658,12 +2663,12 @@ async function activateWindow(
     contextIo: fileContextIo,
     // VS Code's proxy-aware fetch, as it stands at each request (M56, D43).
     fetch: liveFetch,
+    // PR #225: the conversation client reads it too, not only the stored-key one.
+    personCap,
     newId: () => crypto.randomUUID(),
     now: () => Date.now(),
-    sleep: (ms) =>
-      new Promise((resolve) => {
-        setTimeout(resolve, ms)
-      }),
+    // Lane PR225W1: no `sleep` here — the transport waits with
+    // `abortableSleep`, so a Stop clears the wait's own timer.
     random: () => Math.random(),
     personalSkillsRoot: skillsHome,
     bundledSkills: {
@@ -4673,58 +4678,62 @@ async function activateWindow(
       // (dist/report.js, PLAN.md D6) on the first run, not at activation.
       const report: typeof ReportBundle = await import('./host/support/reportEntry')
       log.info(
-        report.renderSupportReport({
-          extensionVersion: version,
-          vscodeVersion: vscode.version,
-          nodeVersion: process.versions.node,
-          platform: process.platform,
-          arch: process.arch,
-          remoteName: vscode.env.remoteName,
-          hasWorkspace: workspaceRoot !== undefined,
-          isWorkspaceTrusted: vscode.workspace.isTrusted,
-          backendSetting: settings.backend,
-          shellSandboxSetting: settings.shellSandbox,
-          shellSandboxPosture: `${posture.isSandboxed ? 'sandboxed' : 'disabled'} (${posture.reason})`,
-          // F91: the health line for the sandbox (posture and this check);
-          // a fresh probe when no host has started yet.
-          shellSandboxReadiness: report.sandboxReadinessLine(
-            await backend.readShellSandboxReadiness(),
-          ),
-          isShellSandboxed: posture.isSandboxed,
-          sandboxNetworkSetting: settings.sandboxNetwork,
-          isSandboxNetworkApplied: isSandboxNetworkApplied(settings.sandboxNetwork, posture),
-          isBinaryPathConfigured: settings.museBinaryPath !== '',
-          environmentVariableCount: settings.environmentVariables.length,
-          cli: resolution.ok
-            ? {
-                ok: true,
-                installDir: resolution.launch.installDir,
-                version: backend.installedVersion(resolution.launch.installDir),
-              }
-            : { ok: false, reason: resolution.reason },
-          cliCredentialFile: backend.credentialFileVerdict(),
-          cliSignIn: await cliAccount.signIn(true),
-          keychainItem:
-            keychainLookup === undefined
-              ? undefined
-              : keychainItemPresence(keychainLookup.exitCode),
-          delegationMode: delegationMode(),
-          workflowTriggerMode: workflowTriggerMode(),
-          hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
-          hasEnvironmentApiKey: backend.hasEnvironmentKey(),
-          dictation: dictation.isAvailable
-            ? { isAvailable: true }
-            : { isAvailable: false, reason: dictation.reason },
-          network: readNetworkFacts(
-            vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION),
-            process.env,
-            process.platform,
-            backend,
-            globalThis,
-          ),
-          managedConfiguration: managed,
-          homeDir: homedir(),
-        }),
+        report.renderSupportReport(
+          {
+            extensionVersion: version,
+            vscodeVersion: vscode.version,
+            nodeVersion: process.versions.node,
+            platform: process.platform,
+            arch: process.arch,
+            remoteName: vscode.env.remoteName,
+            hasWorkspace: workspaceRoot !== undefined,
+            isWorkspaceTrusted: vscode.workspace.isTrusted,
+            backendSetting: settings.backend,
+            shellSandboxSetting: settings.shellSandbox,
+            shellSandboxPosture: `${posture.isSandboxed ? 'sandboxed' : 'disabled'} (${posture.reason})`,
+            // F91: the health line for the sandbox (posture and this check);
+            // a fresh probe when no host has started yet.
+            shellSandboxReadiness: report.sandboxReadinessLine(
+              await backend.readShellSandboxReadiness(),
+            ),
+            isShellSandboxed: posture.isSandboxed,
+            sandboxNetworkSetting: settings.sandboxNetwork,
+            isSandboxNetworkApplied: isSandboxNetworkApplied(settings.sandboxNetwork, posture),
+            isBinaryPathConfigured: settings.museBinaryPath !== '',
+            environmentVariableCount: settings.environmentVariables.length,
+            cli: resolution.ok
+              ? {
+                  ok: true,
+                  installDir: resolution.launch.installDir,
+                  version: backend.installedVersion(resolution.launch.installDir),
+                }
+              : { ok: false, reason: resolution.reason },
+            cliCredentialFile: backend.credentialFileVerdict(),
+            cliSignIn: await cliAccount.signIn(true),
+            keychainItem:
+              keychainLookup === undefined
+                ? undefined
+                : keychainItemPresence(keychainLookup.exitCode),
+            delegationMode: delegationMode(),
+            workflowTriggerMode: workflowTriggerMode(),
+            hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
+            hasEnvironmentApiKey: backend.hasEnvironmentKey(),
+            dictation: dictation.isAvailable
+              ? { isAvailable: true }
+              : { isAvailable: false, reason: dictation.reason },
+            network: readNetworkFacts(
+              vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION),
+              process.env,
+              process.platform,
+              backend,
+              globalThis,
+            ),
+            managedConfiguration: managed,
+            homeDir: homedir(),
+          },
+          UI_TEXT,
+          uiLocale(),
+        ),
       )
       channel.show(true)
     }),

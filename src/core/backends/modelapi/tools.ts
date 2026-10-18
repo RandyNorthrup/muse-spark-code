@@ -45,8 +45,6 @@ import {
   SEARCH_MAX_RESULTS,
   SEARCH_PATTERN_MAX_LENGTH,
   SEARCH_TIMEOUT_MS,
-  SHELL_DEFAULT_TIMEOUT_MS,
-  SHELL_MAX_TIMEOUT_MS,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
@@ -187,7 +185,7 @@ export interface ToolIo {
   readonly runVaultShell?: (
     command: string,
     cwd: string,
-    timeoutMs: number,
+    timeoutMs: number | undefined,
     secrets: VaultShellSecrets,
     signal?: AbortSignal,
     limit?: ShellTimeLimit,
@@ -270,16 +268,18 @@ export interface ToolIo {
   /** Evaluates the pattern off the host thread with a time budget (ReDoS containment). */
   searchFiles(job: SearchJob, signal?: AbortSignal): Promise<SearchOutcome>
   /**
-   * A timeout or the signal kills the whole process tree (PLAN.md D25);
-   * `limit` lets the caller lift the timeout while it runs (M46).
-   * `assertCanRun` is the owner's final admission, asked at the real entry
-   * after every wait of the adapter and the checkpoint wrapper: a throw
-   * refuses the command, which starts nothing (`isEntryRefused`).
+   * A named timeout or the signal kills the whole process tree (PLAN.md
+   * D25); unnamed, the command runs until it ends or is stopped, saying so
+   * out loud while it runs. `limit` lets the caller lift the timeout while
+   * it runs (M46). `assertCanRun` is the owner's final admission, asked at
+   * the real entry after every wait of the adapter and the checkpoint
+   * wrapper: a throw refuses the command, which starts nothing
+   * (`isEntryRefused`).
    */
   runShell(
     command: string,
     cwd: string,
-    timeoutMs: number,
+    timeoutMs: number | undefined,
     signal?: AbortSignal,
     limit?: ShellTimeLimit,
     assertCanRun?: () => void,
@@ -807,7 +807,8 @@ export function toolDefinitions(
               description: { type: 'string', description: 'One line saying what the command does' },
               timeout_ms: {
                 type: 'integer',
-                description: 'Milliseconds before the command is stopped',
+                description:
+                  'Milliseconds before the command is stopped; leave unset to wait until it ends or is stopped',
               },
             },
             ['command', 'description'],
@@ -1950,10 +1951,10 @@ async function listFiles(
 }
 
 async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Promise<ToolOutcome> {
-  const timeoutMs = Math.min(
-    Math.max(args.timeout_ms ?? SHELL_DEFAULT_TIMEOUT_MS, 1),
-    SHELL_MAX_TIMEOUT_MS,
-  )
+  // The model's own timeout, honoured whole however long; unnamed, the
+  // command runs until it ends or is stopped (owner 2026-10-16: no
+  // arbitrary limits), saying so out loud while it runs.
+  const timeoutMs = args.timeout_ms === undefined ? undefined : Math.max(args.timeout_ms, 1)
   if (args.command.includes('secret://'))
     return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
   if (args.secrets && !context.io.runVaultShell)
@@ -2075,7 +2076,7 @@ export function shellText(
  */
 export function shellOutcome(
   result: ShellResult,
-  timeoutMs: number,
+  timeoutMs: number | undefined,
   maxChars: number = TOOL_OUTPUT_MAX_CHARS,
   shouldKeepWhole = false,
 ): ToolOutcome {
@@ -2083,7 +2084,10 @@ export function shellOutcome(
   if (result.isCancelled) {
     exit = SHELL_STOPPED_BY_USER
   } else if (result.isTimedOut) {
-    exit = `stopped after ${String(timeoutMs)} ms`
+    exit =
+      timeoutMs === undefined
+        ? 'stopped at its time limit'
+        : `stopped after ${String(timeoutMs)} ms`
   }
   const body = `${shellText(result, maxChars, shouldKeepWhole)}\n[${exit}]`.trim()
   // The row keeps the elided text it always showed; only what the model

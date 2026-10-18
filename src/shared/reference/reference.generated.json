@@ -422,7 +422,7 @@
           ".sh"
         ],
         "textSources": "trustedIndexedWorkspacePaths",
-        "modelApiTextAllowanceBytes": 786432,
+        "modelApiTextAllowanceTokens": 786432,
         "imageBytes": 10485760,
         "pdfBytes": 32000000,
         "textBytes": 1048576,
@@ -481,6 +481,21 @@
       "details": [],
       "facts": {},
       "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "retry-limits",
+      "name": { "setting": "modelApiMaxRetries" },
+      "summary": { "setting": "modelApiMaxRetries" },
+      "description": { "setting": "modelApiMaxRetries" },
+      "commands": [],
+      "settings": ["museSpark.modelApiMaxRetries"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
     },
     {
       "id": "auto-compaction",
@@ -1393,7 +1408,6 @@
       ],
       "facts": {
         "actions": ["click", "type"],
-        "maxActions": 8,
         "results": ["consoleErrors", "failedRequests"],
         "screenshot": { "modelApi": "PNG", "museCode": false }
       },
@@ -1768,7 +1782,7 @@
         "trigger": "onInvoke",
         "key": "SecretStorage",
         "ledger": "tabDailyBudgetUsd",
-        "budgetUsd": 1,
+        "budgetUsd": 0,
         "rates": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
           "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
@@ -3136,7 +3150,6 @@
       "schema": {
         "type": "array",
         "default": [],
-        "maxItems": 8,
         "items": {
           "type": "object",
           "required": ["name", "command"],
@@ -3164,7 +3177,6 @@
             "timeoutSeconds": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 600,
               "default": 300,
               "description": "Seconds before the command is stopped (300 unless set).",
               "descriptionKey": "config.checkCommands.timeoutSeconds.description"
@@ -3543,7 +3555,7 @@
     {
       "id": "museSpark.modelApiTab",
       "name": "museSpark.modelApiTab",
-      "description": "Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.\nHard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.\nAllow once / Allow always in this workspace.",
+      "description": "Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.\nOptional daily budget in US dollars for Tab completion requests across every window on this machine (museSpark.tabDailyBudgetUsd, 0 is no budget); a set budget refuses a request whose worst case would pass it.\nAllow once / Allow always in this workspace.",
       "descriptionKey": "config.modelApiTab.description",
       "type": "boolean",
       "default": true,
@@ -3579,13 +3591,13 @@
     {
       "id": "museSpark.tabDailyBudgetUsd",
       "name": "museSpark.tabDailyBudgetUsd",
-      "description": "Hard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.",
+      "description": "Daily budget in US dollars for Tab completion requests across every window on this machine; 0 is no budget. A set budget refuses a request whose worst case would pass it. A set budget starts at $0.05, with no maximum.",
       "descriptionKey": "config.tabDailyBudgetUsd.description",
       "type": "number",
-      "default": 1,
+      "default": 0,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "minimum": 0.05, "maximum": 50, "default": 1 }
+      "schema": { "type": "number", "minimum": 0, "default": 0 }
     },
     {
       "text": { "conditions": [{ "when": "language", "text": { "setting": "tabLanguages" } }] },
@@ -4014,6 +4026,17 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "number", "default": 5, "minimum": 1, "maximum": 20 }
+    },
+    {
+      "id": "museSpark.modelApiMaxRetries",
+      "name": "museSpark.modelApiMaxRetries",
+      "description": "Retry limit for failed Model API requests, per try after the first (0 never retries). Unset by default: each provider's documented maximum governs (Anthropic 2, OpenAI 2, Gemini 4, Azure 10, xAI 4, Meta 4), and a provider that documents none retries until its own wait or stop answer ends it.",
+      "descriptionKey": "config.modelApiMaxRetries.description",
+      "type": ["integer", "null"],
+      "default": null,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": ["integer", "null"], "default": null, "minimum": 0 }
     },
     {
       "id": "museSpark.usageHistory",
@@ -5204,7 +5227,6 @@
         "type": "string",
         "repeatable": false,
         "exclusiveMinimum": 0,
-        "maximum": 20,
         "decimals": 6,
         "required": "modelApi",
         "unit": "USD"
@@ -6545,7 +6567,6 @@
         "type": "string",
         "repeatable": false,
         "exclusiveMinimum": 0,
-        "maximum": 20,
         "decimals": 6,
         "required": "modelApi",
         "unit": "USD",
@@ -6555,16 +6576,9 @@
     {
       "route": "exec",
       "name": "exec: --max-requests <value>",
-      "description": "Set the maximum request allowance. The last model call produces a final summary without tools.",
+      "description": "Set the maximum number of model requests; without it, there is no request limit.",
       "text": { "cli": "max-requests" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "default": 30,
-        "minimum": 1,
-        "maximum": 500,
-        "purpose": "maxRequests"
-      }
+      "contract": { "type": "string", "repeatable": false, "minimum": 1, "purpose": "maxRequests" }
     },
     {
       "route": "exec",

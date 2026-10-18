@@ -1,7 +1,7 @@
 import './PromptLibrary.css'
 import { useEffect, useRef, useState } from 'react'
 import { fill } from '../../shared/l10n/text'
-import { PROMPT_LIMITS, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import type { SavedPrompt } from '../../shared/prompts'
 import type { PromptDraft, PromptImportPreview } from '../../core/prompts/promptTypes'
 import { filterPrompts } from '../../core/prompts/promptSearch'
@@ -214,7 +214,6 @@ export function PromptLibrary(props: PromptLibraryProps) {
               <input
                 required
                 disabled={isSaving}
-                maxLength={PROMPT_LIMITS.title}
                 value={edit.title}
                 onChange={(event) => {
                   setEdit({ ...edit, title: event.target.value })
@@ -226,7 +225,6 @@ export function PromptLibrary(props: PromptLibraryProps) {
               <textarea
                 required
                 disabled={isSaving}
-                maxLength={PROMPT_LIMITS.body}
                 value={edit.body}
                 onChange={(event) => {
                   setEdit({ ...edit, body: event.target.value })

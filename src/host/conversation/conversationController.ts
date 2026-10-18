@@ -84,12 +84,7 @@ import {
   planSteps,
   planTitle,
 } from '../../core/plans/planDocument'
-import {
-  type PlanStore,
-  type PlanSummary,
-  type SaveOutcome,
-  planTooLargeText,
-} from '../../core/plans/planStore'
+import type { PlanStore, PlanSummary, SaveOutcome } from '../../core/plans/planStore'
 import type { WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import {
   isLinuxSandboxBlocked,
@@ -153,8 +148,6 @@ import {
   MAX_TEXT_ATTACHMENT_BYTES,
   PDF_EXTENSION,
   PLAN_BRIEF_LOCAL_ID_PREFIX,
-  PLAN_FILE_MAX_BYTES,
-  PLAN_FILE_MAX_KB,
   PLAN_TODO_PENDING_STATUS,
   MENTION_RESULT_LIMIT,
   CONVERSATION_MODEL_TEXT,
@@ -203,7 +196,6 @@ import {
   type ItemSnapshot,
   type TodoItem,
 } from '../../shared/agentEvents'
-import { usableReply } from '../../core/turns/usableReply'
 import { fill, plural, uiLocale } from '../../shared/l10n/text'
 import type { GitDraftOutputPort } from '../../core/git/gitText'
 import type { GitAction, GitDraftKind } from '../../shared/git'
@@ -926,7 +918,6 @@ function exportNotice(outcome: ExportOutcome): ExportNotice | undefined {
     logUnavailable: { level: 'warning', text: UI_TEXT.exportLogUnavailable },
     historyUnavailable: { level: 'warning', text: UI_TEXT.exportHistoryUnavailable },
     empty: { level: 'info', text: UI_TEXT.exportNothing },
-    tooLarge: { level: 'warning', text: UI_TEXT.exportTooLarge },
   }
   return notices[outcome]
 }
@@ -1192,6 +1183,12 @@ export class ConversationController {
    */
   private readonly trainingModelIds = new Set<string>()
   private modelListing: Promise<void> | undefined
+  /**
+   * Stop owns the outstanding model listing (PR #214 review): invalidating
+   * a pending send aborts its wait, and the next send lists again. The
+   * listing shared by overlapping sends keeps the first call's controller.
+   */
+  private modelListingStop: AbortController | undefined
   /** The backend the model catalogue was listed from; a new backend or sign-in starts a new one. */
   private modelGeneration = 0
   private skills: readonly SkillOption[] | undefined
@@ -1457,12 +1454,6 @@ export class ConversationController {
    * waiting in the dialog. One at a time; a new conversation drops it.
    */
   private pendingHandoff: PendingHandoff | undefined
-  /**
-   * Turns that completed at their model-call limit: their "what is done /
-   * what remains" summary never becomes a handoff brief. Cleared with the
-   * finished turns when the session changes.
-   */
-  private readonly cappedTurns = new Set<string>()
   /** Report a problem (M93): the dialog's handler, one per surface, loaded with dist/report.js. */
   private reportHandler:
     Promise<{ handle: (message: ReportProblemMessage) => Promise<void> }> | undefined
@@ -1974,6 +1965,7 @@ export class ConversationController {
     }
     if (!isOwnedRecovery) {
       this.sendInvalidationEpoch += 1
+      this.stopModelListing()
       // A review starting in the old conversation answers its own card; the
       // next conversation neither waits for it nor is refused because of it.
       this.reviewStart = undefined
@@ -2028,7 +2020,6 @@ export class ConversationController {
     this.forgetReviews(isOwnedRecovery)
     this.childSessionIds.clear()
     this.finishedTurns.clear()
-    this.cappedTurns.clear()
     this.forgetForegroundShells()
     this.pendingShellApprovals.clear()
     this.pausedForegroundShells.clear()
@@ -2800,7 +2791,6 @@ export class ConversationController {
         if (event.turnId === this.activeTurnId) this.clearJudgeCards()
         this.endTurnClock(event)
         this.finishedTurns.add(event.turnId)
-        if (event.errorKind === 'max_turn_requests') this.cappedTurns.add(event.turnId)
         // A review turn's end puts the user's mode back (M70).
         this.planHold?.hold.turnEnded(event.turnId)
         // A Plan-mode turn that finished with the panel in Plan mode throughout (M79).
@@ -3874,10 +3864,15 @@ export class ConversationController {
     if (this.models !== undefined) {
       return
     }
-    const listing = this.modelListing ?? this.listModels(host, this.modelGeneration)
+    const stop = (this.modelListingStop ??= new AbortController())
+    const listing = this.modelListing ?? this.listModels(host, this.modelGeneration, stop.signal)
     this.modelListing = listing
     try {
       await listing
+    } catch (error: unknown) {
+      // Stop owns this wait: an aborted listing ends quietly and the
+      // caller's generation check drops the send; anything else surfaces.
+      if (!stop.signal.aborted) throw error
     } finally {
       if (this.modelListing === listing) {
         this.modelListing = undefined
@@ -3885,8 +3880,18 @@ export class ConversationController {
     }
   }
 
-  private async listModels(host: AgentHost, generation: number): Promise<void> {
-    const listed = await host.listModels()
+  /** Ends the outstanding model listing, if any: the next send lists again. */
+  private stopModelListing(): void {
+    this.modelListingStop?.abort()
+    this.modelListingStop = undefined
+  }
+
+  private async listModels(
+    host: AgentHost,
+    generation: number,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const listed = await host.listModels(undefined, signal)
     if (this.isDisposed || this.modelGeneration !== generation) {
       return
     }
@@ -5557,11 +5562,8 @@ export class ConversationController {
     }
     // The plan the reply holds, byte for byte: a Muse Code plan reply's
     // handoff lines are not part of it (captured, D13).
+    // D121: a plan reply saves at any size — the removed 256 KiB ceiling was invented.
     const text = planBody(reply.text)
-    if (new TextEncoder().encode(text).byteLength > PLAN_FILE_MAX_BYTES) {
-      this.notice('warning', planTooLargeText())
-      return undefined
-    }
     // A direction override or a zero-width character: the panel paints the
     // plan otherwise than the model reads it, so it is neither saved nor started.
     if (hasUnshownCharacters(text)) {
@@ -6161,27 +6163,8 @@ export class ConversationController {
         this.handoffFailed(new Error(UI_TEXT.handoffNoBrief))
         return
       }
-      // A capped turn's summary never becomes the brief: only a turn that
-      // completed without a limit answers what was asked. The turn's own
-      // typed limit notice already said why.
-      const usable = usableReply(
-        {
-          terminal: 'completed',
-          errorKind: this.cappedTurns.has(turnId) ? 'max_turn_requests' : undefined,
-        },
-        text,
-      )
-      if (!usable.usable) {
-        this.pendingHandoff = undefined
-        this.notice('warning', UI_TEXT.handoffInterrupted)
-        return
-      }
-      if (new TextEncoder().encode(text).byteLength > PLAN_FILE_MAX_BYTES) {
-        this.pendingHandoff = undefined
-        this.notice('warning', fill(UI_TEXT.handoffTooLarge, { size: PLAN_FILE_MAX_KB }))
-        return
-      }
-      pending.brief = usable.reply
+      // D121: a brief reads at any size — the removed 256 KiB ceiling was invented.
+      pending.brief = text
       pending.todos = history.todos.filter((todo) => HANDOFF_OPEN_TODO_STATUSES.has(todo.status))
       this.postHandoffReady()
     } catch (error: unknown) {
@@ -6272,11 +6255,6 @@ export class ConversationController {
     if (brief.trim() === '') {
       this.post({ type: 'handoffCommandResult', requestId, accepted: false })
       this.say('warning', UI_TEXT.handoffEmpty)
-      return
-    }
-    if (new TextEncoder().encode(brief).byteLength > PLAN_FILE_MAX_BYTES) {
-      this.post({ type: 'handoffCommandResult', requestId, accepted: false })
-      this.say('warning', fill(UI_TEXT.handoffTooLarge, { size: PLAN_FILE_MAX_KB }))
       return
     }
     pending.isStarting = true
@@ -9644,10 +9622,6 @@ export class ConversationController {
     if (this.isDisposed || picked.kind === 'dismissed') {
       return undefined
     }
-    if (picked.kind === 'tooLarge') {
-      this.notice('error', `${failure}: ${UI_TEXT.transferTooLarge}`)
-      return undefined
-    }
     const parsed = readTransferDocument(picked.content)
     if (!parsed.ok) {
       this.notice('error', `${failure}: ${parsed.reason}`)
@@ -11254,6 +11228,7 @@ export class ConversationController {
     try {
       // Invalidate a pending send before a running turn's cancel can await.
       this.sendInvalidationEpoch += 1
+      this.stopModelListing()
       this.invalidateEstimate()
       if (isConversationEnding) {
         this.accountStopEpoch = this.sendInvalidationEpoch

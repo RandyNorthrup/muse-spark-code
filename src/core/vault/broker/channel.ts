@@ -5,7 +5,7 @@ import { randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
   VAULT_PROTOCOL_VERSION,
-  VAULT_APPROVAL_TTL_MS,
+  VAULT_TRANSPORT_TIMEOUT_MS,
   VAULT_LIMITS,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -270,7 +270,7 @@ export class VaultChannelServer {
     let buffer = Buffer.alloc(0)
     let queuedBytes = 0
     let tail: Promise<unknown> = Promise.resolve()
-    const timeout = setTimeout(() => socket.destroy(), VAULT_APPROVAL_TTL_MS)
+    const timeout = setTimeout(() => socket.destroy(), VAULT_TRANSPORT_TIMEOUT_MS)
     const close = (): void => {
       try {
         clearTimeout(timeout)

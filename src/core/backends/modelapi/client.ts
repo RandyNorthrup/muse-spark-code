@@ -42,8 +42,6 @@ import {
   type PaidFeature,
   MODEL_API_BASE_URL,
   MODEL_API_MIN_OUTPUT_TOKENS,
-  IMAGE_REQUEST_TIMEOUT_MS,
-  MODEL_API_REQUEST_TIMEOUT_MS,
   UI_TEXT,
 } from '../../../shared/constants'
 import { estimateInput, requestParts, searchAllowanceUsd } from './sessionBudget'
@@ -80,6 +78,7 @@ interface PaidRequestClaim {
 
 import { redactSecrets } from '../../redact'
 import { fill } from '../../../shared/l10n/text'
+import { startStillWaiting, stillWaitingText } from '../../timeouts'
 import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 
 import type { PacingProvider, RequestPacer } from './pacing'
@@ -149,7 +148,14 @@ export interface ModelApiClientDeps {
   readonly baseUrl: string
   /** Read per request so a key pasted later applies without a restart. */
   readonly apiKey: () => Promise<string | undefined>
-  readonly sleep: (ms: number) => Promise<void>
+  /**
+   * Lane RETRYLIMITS: the person's `museSpark.modelApiMaxRetries` setting,
+   * read live so a change applies without a restart; undefined (or absent)
+   * leaves Meta's documented 3–5 attempts in force.
+   */
+  readonly personCap?: (() => number | undefined) | undefined
+  /** Absent, the transport waits with `abortableSleep` (see `TransportDeps.sleep`). */
+  readonly sleep?: ((ms: number) => Promise<void>) | undefined
   /** Epoch ms, for a `Retry-After` given as a date. */
   readonly now: () => number
   /** 0 ≤ n < 1, for the retry jitter; injected so tests are deterministic. */
@@ -222,17 +228,24 @@ export class ModelApiClient implements TransportProviderClient {
     return claim === undefined ? undefined : { claim, isSent: false, run }
   }
 
-  /** A billed image request: only a 429 is retried, with a deadline of its own. */
+  /** A billed image request: only a 429 is retried, with no deadline of its own. */
   private async imageRequest(
     path: string,
     body: CreateImageBody,
     signal: AbortSignal,
     admitAttempt?: ResponseAttemptGuard,
   ): Promise<ImagesResponse> {
-    const active = AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
-    const paid = await this.paidReservation(body, 'imageGeneration', active, admitAttempt)
-    const claim = paid?.claim
+    // Waited on until Meta answers or the turn stops it (owner 2026-10-16:
+    // no arbitrary limits), saying so out loud while it waits.
+    const stopNoticing = startStillWaiting((elapsedMs) => {
+      this.deps.log.info(stillWaitingText({ key: 'imageRequest' }, elapsedMs))
+    })
+    // The reservation is inside the try: it can throw (consent denied, the
+    // daily ledger unavailable), and the notice timer must still stop.
+    let paid: Awaited<ReturnType<ModelApiClient['paidReservation']>>
     try {
+      paid = await this.paidReservation(body, 'imageGeneration', signal, admitAttempt)
+      const claim = paid?.claim
       const result = await this.transport.request(
         path,
         {
@@ -243,7 +256,7 @@ export class ModelApiClient implements TransportProviderClient {
           retries: 'rateLimitOnly',
           ...(paid !== undefined && { paid }),
         },
-        active,
+        signal,
         undefined,
         undefined,
         admitAttempt,
@@ -255,6 +268,7 @@ export class ModelApiClient implements TransportProviderClient {
       }
       return parsed
     } finally {
+      stopNoticing()
       if (paid?.isSent === false) {
         await paid.claim.settle(Usd.from(0).toAmount())
       }
@@ -344,18 +358,34 @@ export class ModelApiClient implements TransportProviderClient {
     return this.transport.backoffMs(attempt, undefined)
   }
 
+  /**
+   * This client's effective retry limit (see `ProviderClient.maxRetries`).
+   * Meta serves its own models only, so the selected model does not change
+   * the answer; an aggregate client reads it instead (PR #225).
+   */
+  public maxRetries(_modelId?: string): number | undefined {
+    return this.transport.maxRetries()
+  }
+
+  /** The person's live retry limit, uncapped (see `RequestTransport.personCap`). */
+  public personCap(): number | undefined {
+    return this.transport.personCap()
+  }
+
   /** Waits `ms`, or rejects as soon as the turn's Stop aborts `signal`. */
   public async waitBeforeRetry(ms: number, signal: AbortSignal): Promise<void> {
     await this.transport.pause(ms, signal)
   }
 
   /** The chat model ids the key can use, as the catalogue lists them. */
-  public async listModels(): Promise<readonly string[]> {
-    // No turn to stop it: a deadline instead, so a panel never waits for ever (D25).
+  public async listModels(signal?: AbortSignal): Promise<readonly string[]> {
+    // No deadline of our own (owner 2026-10-16): the catalogue read ends at
+    // the provider's answer, a network failure, or the caller's signal
+    // (Stop owns the wait; PR #214 review).
     const result = await this.transport.request(
       '/models',
       { method: 'GET', accept: JSON_MEDIA_TYPE },
-      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      signal,
     )
     const parsed = await parseJsonResponse(result, (json) => modelListSchema.parse(json))
     return parsed.data.map((model) => result.redact(model.id))
@@ -374,10 +404,8 @@ export class ModelApiClient implements TransportProviderClient {
       const response = await this.transport.fetchWithIdleDeadline(`${MODEL_API_BASE_URL}/status`, {
         method: 'GET',
         headers: { Accept: JSON_MEDIA_TYPE },
-        signal: AbortSignal.any([
-          AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-          ...(signal === undefined ? [] : [signal]),
-        ]),
+        // The caller's signal, if any; no deadline of our own (owner 2026-10-16).
+        ...(signal !== undefined && { signal }),
       })
       status = response.status
       retryAfter = providerWaitMs(response.headers, this.deps.now())
@@ -405,11 +433,12 @@ export class ModelApiClient implements TransportProviderClient {
     body: Omit<CreateResponseBody, 'stream'>,
     signal?: AbortSignal,
   ): Promise<number> {
-    const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
+    // No deadline of our own (owner 2026-10-16): the caller's signal, if
+    // any, ends it, else the provider's answer or a network failure.
     const result = await this.transport.request(
       '/responses/input_tokens',
       { method: 'POST', body, modelId: body.model, accept: JSON_MEDIA_TYPE },
-      signal === undefined ? deadline : AbortSignal.any([signal, deadline]),
+      signal,
     )
     return await parseJsonResponse(result, (json) => inputTokensSchema.parse(json).input_tokens)
   }

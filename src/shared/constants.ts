@@ -140,7 +140,8 @@ export const PRODUCT_NAME = 'Muse Spark'
 export const ACCOUNT_DEFAULT_ID = 'default'
 export const ACCOUNT_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/
 export const ACCOUNT_LABEL_MAX_LENGTH = 128
-export const ACCOUNT_MAX_PER_PROVIDER = 64
+// D121: a provider holds any number of accounts — the removed 64-per-provider
+// ceiling was invented.
 export const ACCOUNT_POLICY_RECHECK_DAYS = 90
 export const ACCOUNT_DAY_MS = 86_400_000
 export const ACCOUNT_REMOTE_LIMIT_DEFAULT_MS = 60_000
@@ -679,6 +680,12 @@ export const SETTING_DEFAULTS = {
   modelApiStrictTools: true,
   modelApiParallelReads: true,
   webSearchMaxPerRequest: 5,
+  // Lane RETRYLIMITS (owner's binding rule): the person's retry limit, unset
+  // by default (null). Set, it caps every provider's retries; unset, each
+  // provider's documented maximum governs, and a provider that documents
+  // none retries unbounded (its own Retry-After waits and stop answers
+  // govern). Machine scoped, since a repository must not set what is billed.
+  modelApiMaxRetries: null as number | null,
   // Restore by the tools' own writes (M86, PLAN.md D63): each Model API turn
   // records what its file tools write, with nothing of the workspace
   // captured, so it is on by default.
@@ -736,8 +743,9 @@ export const SETTING_DEFAULTS = {
   modelApiTab: true,
   // Q-M94b, decided 2026-10-04: Standard, which Meta does not train on.
   tabModel: 'muse-spark-1.3',
-  // Q-M94c, decided 2026-10-04: the hard daily budget in US dollars.
-  tabDailyBudgetUsd: 1,
+  // The daily budget in US dollars: 0 is no budget (nothing reserved or
+  // locked); only a budget the person sets caps the local day.
+  tabDailyBudgetUsd: 0,
   // Shaped like Copilot's `github.copilot.enable` with the same default
   // (V12): every language on except plaintext, markdown and scminput.
   tabLanguages: { '*': true, plaintext: false, markdown: false, scminput: false },
@@ -942,9 +950,9 @@ export const HOOK_HTTP_REDIRECT_MIN_STATUS = 300
 // the hook's answer parsed like a command's.
 export const HOOK_MODEL_TIMEOUT_MS = 60_000
 export const HOOK_MODEL_MAX_OUTPUT_TOKENS = 1024
-// An agent handler's read-only tool loop: this many model requests at most,
-// then its partial answer is parsed as-is.
-export const HOOK_AGENT_MAX_STEPS = 5
+// An agent handler's read-only tool loop runs until the model stops calling
+// tools (D121: the removed 5-step ceiling was invented); a verdict resting
+// on a partial answer is parsed as-is when the run ends.
 // A prompt/agent hook's transcript row: the paid run is loud, like a review's.
 export const HOOK_MODEL_ROW_TOOL = 'hook_model'
 // RVM91X P2 12: a plugin child's whole memory, as a Windows job limit and,
@@ -1534,8 +1542,12 @@ export const GIT_LS_FILES_ARGS = [
 ] as const
 // `git ls-files` on a large monorepo can exceed Node's 1 MiB default.
 export const GIT_OUTPUT_MAX_BYTES = 64 * 1024 * 1024
-// A git call that has not answered by then (a hung network drive, a lock)
-// is killed; the callers fall back as if git were absent (PLAN.md D24).
+// Synchronous spawns name this bound in their own options (the playbook's
+// contained/sync hooks): a hung child under `spawnSync` would freeze the
+// host thread with no Stop able to reach it, so the bound stays exactly
+// there. Every stoppable git wait names no deadline of its own: it ends at
+// git's answer or its abort, and a real failure still falls back as if git
+// were absent (PLAN.md D24; owner 2026-10-16: no arbitrary limits).
 export const GIT_TIMEOUT_MS = 15_000
 /** Boolean fsmonitor=false is supported from Git 2.36. */
 export const UNTRUSTED_CHECKOUT_MIN_GIT_MINOR = 36
@@ -1810,11 +1822,10 @@ export const GIT_PUSH_CREDENTIAL_VARIABLES = [
   'GH_ENTERPRISE_TOKEN',
   'GITHUB_ENTERPRISE_TOKEN',
 ] as const
-// The extension writes such a checkout itself (core/git/heldTree.ts): at
-// most this many files and folders, and this many bytes in all; a bigger
-// pull request is refused before anything is written.
-export const HELD_CHECKOUT_MAX_ENTRIES = 20_000
-export const HELD_CHECKOUT_MAX_BYTES = 250_000_000
+// The extension writes such a checkout itself (core/git/heldTree.ts) at any
+// size (D121: the removed 20,000-entry / 250 MB ceilings were invented); a
+// pull request is still refused before anything is written when a path is
+// unsafe or collides.
 // git's modes for a symbolic link and a submodule in a tree.
 export const GIT_MODE_SYMLINK = '120000'
 export const GIT_MODE_GITLINK = '160000'
@@ -2117,9 +2128,9 @@ export const CODE_INTEL_NAME_MAX_CHARS = 200
 // A language server that does not answer (a stuck one, a project still
 // loading) ends the call with that reason instead of holding it.
 export const CODE_INTEL_TIMEOUT_MS = 20_000
-// A rename touching more files than this is refused (a rename that large is
-// a refactor for the user); its card names a few and counts the rest.
-export const RENAME_MAX_FILES = 200
+// A rename touches as many files as the language service names (D121: the
+// removed 200-file ceiling was invented); its card names a few and counts
+// the rest.
 export const RENAME_CARD_FILES_SHOWN = 5
 // VS Code's `SymbolKind`, by value (vscode.d.ts): the words the model reads.
 export const SYMBOL_KIND_NAMES = [
@@ -2216,13 +2227,12 @@ export const MODEL_API_PRICED_MODELS = {
 } as const
 /** A consent grant covers actual child HTTP attempts, including all retries. */
 export const SUBAGENT_TASK_MAX_REQUESTS = 4
-// Best-of-N parallel attempts (M77, PLAN.md D49): the same prompt runs in
-// this many worktrees, each attempt stopping after this many model requests.
-export const BEST_OF_N_MIN_ATTEMPTS = 2
-export const BEST_OF_N_MAX_ATTEMPTS = 5
+// Best-of-N parallel attempts (M77, PLAN.md D49, D121): the same prompt runs
+// in this many worktrees, each attempt stopping after this many model
+// requests. Both numbers are the person's own per-run choice: no provider
+// documents a cap, so ours (2-5 attempts, 5-50 requests) are removed and only
+// the dialog's defaults stay.
 export const BEST_OF_N_DEFAULT_ATTEMPTS = 3
-export const BEST_OF_N_MIN_REQUESTS_PER_ATTEMPT = 5
-export const BEST_OF_N_MAX_REQUESTS_PER_ATTEMPT = 50
 export const BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT = 20
 // The branch each attempt works on: `best-of-n/<runId>/<index>`, beside the
 // repository like every worktree M32 makes.
@@ -2293,15 +2303,12 @@ export const STRUCTURED_OUTPUT_REPAIRS_MAX = 1
 export const WEB_SEARCH_MAX_PER_REQUEST = 5
 export const WEB_SEARCH_MIN_PER_REQUEST = 1
 export const WEB_SEARCH_MAX_PER_REQUEST_LIMIT = 20
-// U12 captured no reset header: Meta documents a one-minute window. The
-// startup allowance is conservative; captured headers replace it, never a
-// hard-coded account limit. Other providers require their own captures.
+// U12 captured no reset header: Meta documents a one-minute window.
+// Captured headers replace the empty initial bucket, never a hard-coded
+// account limit; unobserved buckets admit freely and 429 pauses hold
+// (owner 2026-10-16: no pace of our own). Other providers require their own
+// captures.
 export const PACING_WINDOW_MS = 60_000
-export const PACING_START_REQUESTS_PER_MINUTE = 10
-// Half the observed tokens remain available to the foreground after a background burst.
-export const PACING_BACKGROUND_TOKEN_FRACTION = 0.5
-// Six one-RPM admissions may wait six minutes; a stuck queue still has a finite deadline.
-export const PACING_ADMISSION_TIMEOUT_MS = 600_000
 /** Smallest documented manual-thinking budget; always below the output cap. */
 export const PROVIDER_MANUAL_THINKING_BUDGET = 1024
 /**
@@ -2335,11 +2342,13 @@ export const SESSION_BUDGET_MIN_BYTES_PER_TOKEN = 1
 // How long closing the window waits for the Model API turns it stops to
 // end, so what they spent is saved (M82).
 export const MODEL_API_CLOSE_SETTLE_MS = 5000
-// Conservatively bound named text attachments by UTF-8 bytes. The reserve
-// covers output and leaves room for prompt/replay; already long replay still
-// needs the backend's request/context handling.
+// The named text attachments' share of the provider's documented window, in
+// tokens: what the model reads, estimated high with
+// `MODEL_API_CONTEXT_BYTES_PER_TOKEN`, must fit the window minus the
+// reserve. The reserve covers output and leaves room for prompt/replay;
+// already long replay still needs the backend's request/context handling.
 export const MODEL_API_TEXT_CONTEXT_RESERVE_TOKENS = 256 * 1024
-export const MAX_MODEL_API_TEXT_ATTACHMENT_BYTES =
+export const MODEL_API_TEXT_BUDGET_TOKENS =
   MODEL_API_CONTEXT_WINDOW - MODEL_API_TEXT_CONTEXT_RESERVE_TOKENS
 // Prompt caching (M56, PLAN.md D43; dev.meta.ai/docs/prompt-caching, read
 // 2026-09-25). "Use one stable key per shared prefix … Don't over-partition:
@@ -2367,17 +2376,37 @@ export const MODEL_API_RETRYABLE_STREAM_CODES: ReadonlySet<string> = new Set([
   'service_overloaded',
   'backend_unavailable',
 ])
-export const MODEL_API_MAX_RETRIES = 4
+// How long one fallback wait may grow between silent-provider retries
+// (owner 2026-10-16): exponential to this ceiling, forever until Stop. A
+// wait the provider names is honoured whole and never capped here.
+// Lane RETRYLIMITS (owner's binding rule): no global retry count or backoff
+// cap. Each provider's documented bounds live in
+// `src/shared/retryPolicy.ts` (`PROVIDER_RETRY_LIMITS` per format,
+// `META_DOCUMENTED_RETRY_LIMITS` for Meta's own 3–5 attempts) with
+// per-preset overrides in `src/core/providers/presets.ts` (`FormatQuirks.retryLimits`);
+// the person's `museSpark.modelApiMaxRetries` setting wins when set. What
+// remains here is mechanism, not a limit: the default initial wait (1 s is
+// the only documented base: Gemini's SDK and xAI's examples) used while the
+// provider names no wait and documents no base, and the anti-herd jitter.
+// `MODEL_API_RETRY_MAX_MS` below is pacing's assumed 429 wait when the
+// answer names none (lane PROVM95's area), never a retry cap.
 export const MODEL_API_RETRY_BASE_MS = 1000
 export const MODEL_API_RETRY_MAX_MS = 60_000
 export const MODEL_API_RETRY_JITTER_MS = 1000
+// The longest delay one timer holds: "When `delay` is larger than
+// `2147483647` … the `delay` will be set to `1`" (nodejs.org/api/timers.html,
+// Node.js v26.12.0, read 2026-10-17). A longer retry wait (an uncapped
+// backoff, a provider's Retry-After date weeks away) is slept in pieces of
+// at most this, so it is never cut to 1 ms (PR #225). Mechanism, not a limit.
+export const MODEL_API_TIMER_MAX_MS = 2_147_483_647
+// A stream that ends with an `error` event of these codes (the instance shut
+// down or was overloaded mid-reply) is retried whole, as the guide says.
 // The model list and the token count have no turn to stop them (PLAN.md D25).
 export const MODEL_API_STATUS_READ_TIMEOUT_MS = 3000
-export const MODEL_API_REQUEST_TIMEOUT_MS = 30_000
-// A reply stream that sends nothing for this long, headers or frames, ends
-// its turn (M39): it would otherwise hold the turn until Stop. Long enough
-// for a model reasoning at length before its first words.
-export const MODEL_API_STREAM_IDLE_MS = 300_000
+// The ChatGPT sign-in's token-freshness bound (minimum validity), not a
+// request kill: a staler token is refreshed, never refused. (NOLIMITS2 C1:
+// no request names a deadline of its own any more.)
+export const CHATGPT_TOKEN_MIN_VALIDITY_MS = 30_000
 // The file tools load a file whole (read_file shows a window of it,
 // edit_file changes it): one larger than this is refused unread (M39).
 export const BYTES_PER_MIB = 1024 * 1024
@@ -2559,11 +2588,12 @@ export const TAB_HOLE_MARKER = '{{FILL_HERE}}'
 // The reply is the text between these two fixed tags (L8).
 export const TAB_REPLY_OPEN_TAG = '<COMPLETION>'
 export const TAB_REPLY_CLOSE_TAG = '</COMPLETION>'
-// The hard daily budget's default (Q-M94c, decided 2026-10-04).
-export const TAB_DAILY_BUDGET_DEFAULT_USD = 1
-// The daily budget setting's bounds (D73).
+// The daily budget the person sets (`museSpark.tabDailyBudgetUsd`): 0 is no
+// budget (nothing reserved or locked), anything else caps the local day, with
+// no ceiling. The dust floor below keeps a set budget above display noise.
+export const TAB_NO_BUDGET_USD = 0
+// The daily budget setting's dust floor (D73).
 export const TAB_DAILY_BUDGET_MIN_USD = 0.05
-export const TAB_DAILY_BUDGET_MAX_USD = 50
 // Files past this are never read into a request (D73: 192 KiB).
 export const TAB_FILE_MAX_BYTES = 192 * 1024
 // The status-bar menu's timed snoozes: 15 minutes and an hour.
@@ -2641,12 +2671,21 @@ export const HTTP_SUCCESS_MIN = 200
 export const HTTP_SUCCESS_MAX = 299
 // The whole fetch, redirects and body included, ends by this deadline.
 export const WEB_FETCH_TIMEOUT_MS = 30_000
-// Redirects followed on the same host, each hop resolved, checked and pinned
-// again; a redirect to another host is handed back to the model instead.
-export const WEB_FETCH_MAX_REDIRECTS = 5
-// The body after any decompression; a larger page is refused, never cut.
-export const WEB_FETCH_MAX_MIB = 5
-export const WEB_FETCH_MAX_BYTES = WEB_FETCH_MAX_MIB * BYTES_PER_MIB
+// Redirects on the same host are followed without a count of their own,
+// each hop resolved, checked and pinned again; a redirect to another host
+// is handed back to the model instead. (NOLIMITS A17: the fetch used to
+// stop after 5 redirects and refuse pages past 5 MiB; both caps are gone.
+// The https-only, no-credentials and public-hosts refusals stay: they are
+// safety rules, not size limits.)
+// Safety, not a size limit (SECURITY.md, the trusted policy): at most this
+// much decompressed body is ever buffered for one page, on every product
+// call, even when the caller named no smaller ingress cap (M118 raw files
+// name one and keep their refusal). Past it the stream stops and the page
+// converts truncated-with-notice, never refused: a gzip/Brotli bomb or a
+// fast text stream costs no more than this of host memory, and a valid page
+// past it still reads.
+export const WEB_FETCH_BUFFER_WINDOW_MIB = 5
+export const WEB_FETCH_BUFFER_WINDOW_BYTES = WEB_FETCH_BUFFER_WINDOW_MIB * BYTES_PER_MIB
 // What the model receives of the converted text, within TOOL_OUTPUT_MAX_CHARS.
 export const WEB_FETCH_MAX_CONTENT_CHARS = 50_000
 // The HTML converter stops past this much Markdown (room for the text it
@@ -2814,20 +2853,21 @@ export const IDE_PAID_TOOLS: ReadonlySet<string> = new Set([
 // agent to report progress after about ten model calls without any (its
 // step probe, docs/muse-code/interactive); the same note rides in the
 // instructions here, with no extra call. The objective is pinned into every
-// request while the goal is active, so it is capped (Muse Code states no
-// limit; this one is the extension's).
+// request while the goal is active, at any length (D121: the removed
+// 4000-character ceiling was invented; Muse Code states no limit).
 export const GOAL_PROGRESS_REMINDER_STEPS = 10
-export const GOAL_OBJECTIVE_MAX_CHARS = 4000
 export const GOAL_ID_PREFIX = 'goal-'
 
 // Meta's hosted search (M33): a Responses tool the server runs, shown in
 // the transcript as a tool row of this name, marked paid.
 export const MODEL_API_WEB_SEARCH_TOOL = 'web_search'
-// Image generation (M34, dev.meta.ai/docs/image-generation, read 2026-09-25):
-// `POST /images/generations` with Meta's image model, one PNG per call,
-// returned inline. `size` sets only the aspect ratio; the generator picks the
-// pixels. Meta states no prompt limit: this one keeps a runaway prompt from
-// being sent and billed. An image can take a while (the model may search and
+// Image generation (M34, dev.meta.ai/docs/image-generation, read 2026-09-25;
+// error catalog read 2026-10-16: an over-long prompt is rejected with 400,
+// no length stated): `POST /images/generations` with Meta's image model, one
+// PNG per call, returned inline. `size` sets only the aspect ratio; the
+// generator picks the pixels. A prompt of any length is sent (D121: the
+// removed 4000-character ceiling was invented); Meta's own refusal reaches
+// the person in words. An image can take a while (the model may search and
 // reason first), so its request has a deadline of its own.
 export const MODEL_API_IMAGE_MODEL = 'muse-image-1.0'
 export const IMAGE_ASPECT_SIZES = {
@@ -2838,14 +2878,20 @@ export const IMAGE_ASPECT_SIZES = {
 export type ImageAspect = keyof typeof IMAGE_ASPECT_SIZES
 export const IMAGE_OUTPUT_FORMAT = 'png'
 export const IMAGE_FILE_EXTENSION = '.png'
-export const IMAGE_PROMPT_MAX_CHARS = 4000
-export const IMAGE_REQUEST_TIMEOUT_MS = 180_000
+// Billed image requests carry no deadline of their own: waited on until
+// Meta answers or the caller stops waiting (owner 2026-10-16), saying so
+// out loud while they wait.
 // Image edits (M44, dev.meta.ai/docs/api-reference/images/edit-image, read
-// 2026-09-25): `POST /images/edits` with the source images inline as data
-// URLs, one PNG back, the same price as a generated image. Meta requires at
-// least one source and states no maximum: this one keeps a call's upload
-// (each source up to MAX_IMAGE_BYTES) bounded.
-export const IMAGE_EDIT_MAX_SOURCES = 4
+// 2026-09-25; error catalog dev.meta.ai/docs/image-generation, read
+// 2026-10-16: "an edit needs 1–10 items"): `POST /images/edits` with the
+// source images inline as data URLs, one PNG back, the same price as a
+// generated image. Meta's own 1–10-item range is enforced in the runtime
+// schema and the tool definition (IMAGE_EDIT_SOURCE_MIN/MAX), before any
+// source is read or the paid-use question is asked. Each source stays
+// bounded by MAX_IMAGE_BYTES.
+/** Meta's own edit-item range: an edit needs 1–10 items. */
+export const IMAGE_EDIT_SOURCE_MIN = 1
+export const IMAGE_EDIT_SOURCE_MAX = 10
 // The source images an edit can send, by the media type their name gives.
 export const IMAGE_EDIT_SOURCE_TYPES: ReadonlySet<string> = new Set([
   'image/png',
@@ -3849,11 +3895,8 @@ export const PLAN_NAME_ATTEMPTS = 100
 export const PLAN_SLUG_MAX_CHARS = 60
 export const PLAN_SLUG_FALLBACK = 'plan'
 export const PLAN_TITLE_MAX_CHARS = 80
-// A plan larger than this is neither saved nor read back (Plans…,
-// Implement): it travels as one named text part, far inside both backends'
-// text budgets (M54). The message names it in KB.
-export const PLAN_FILE_MAX_BYTES = 256 * 1024
-export const PLAN_FILE_MAX_KB = PLAN_FILE_MAX_BYTES / 1024
+// A plan saves and reads back at any size (Plans…, Implement): it travels
+// as one named text part (D121: the removed 256 KiB ceiling was invented).
 // A save's hidden stage left in the plans folder (a crash, a file a scanner
 // held) is removed by the next save or listing once it is this old.
 export const PLAN_STAGE_STALE_MS = 5 * 60 * 1000
@@ -3861,8 +3904,8 @@ export const PLAN_STAGE_STALE_MS = 5 * 60 * 1000
 export const PLAN_LOG_HASH_CHARS = 8
 // What Plans… lists at most, newest first.
 export const PLAN_LIST_MAX = 200
-// The todo list a plan seeds: at most this many steps, each cut to this length.
-export const PLAN_STEPS_MAX = 50
+// The todo list a plan seeds holds every step (D121: the removed 50-step
+// ceiling was invented); each step is cut to this length.
 export const PLAN_STEP_MAX_CHARS = 200
 export const PLAN_TODO_PENDING_STATUS = 'pending'
 // A handoff seeds its open items only (M74, PLAN.md D49): what is done or
@@ -4107,6 +4150,9 @@ export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
   '.gitmodules',
 ])
 export const LIST_FILES_DEFAULT_LIMIT = 500
+// Backstop waits owned by other rows (checks, the verify loop, the judge
+// harness, media conversion, the vault service default): the shell tool
+// itself no longer defaults or clamps (owner 2026-10-16).
 export const SHELL_DEFAULT_TIMEOUT_MS = 120_000
 // D107 §9.4: internal B1 boundary; F1b installs it only after certification.
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
@@ -4123,6 +4169,9 @@ export const JUDGE_FAST_B1_PROTOCOL_MAX_BYTES = 1024
 export const JUDGE_FAST_B1_ELF_MAX_BYTES = 32 * 1024 * 1024
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_SYSTEM_MAX_FILES = 64
+// The longest a backstop wait may run (check commands derive their own
+// ceiling from it): the shell tool itself no longer clamps (owner
+// 2026-10-16).
 export const SHELL_MAX_TIMEOUT_MS = 600_000
 // Per stream: past it the middle of the output is dropped with a count.
 export const SHELL_OUTPUT_MAX_CHARS = 2 * 1024 * 1024
@@ -4198,9 +4247,9 @@ export const EXEC_RAW_TOOL_FIELDS = ['rawInput', 'rawOutput', 'toolCallId'] as c
 export const EXEC_DEFAULT_TIMEOUT_SECONDS = 1800
 export const EXEC_MIN_TIMEOUT_SECONDS = 10
 export const EXEC_MAX_TIMEOUT_SECONDS = 21_600
-export const EXEC_DEFAULT_MAX_REQUESTS = 30
+// No default request limit: without `--max-requests` the person set, a run
+// has no request cap. A set value is bounded below.
 export const EXEC_MAX_REQUESTS = 500
-export const EXEC_MAX_BUDGET_USD = 20
 export const EXEC_PROMPT_MAX_BYTES = 262_144
 // Bound synchronous schema expansion and answer validation so Stop can run.
 export const EXEC_OUTPUT_SCHEMA_LIMITS = { expandedNodes: 50_000, validationSteps: 10_000 } as const
@@ -4493,9 +4542,9 @@ export const HIDDEN_ITEM_KINDS: ReadonlySet<string> = new Set(['userMessage', 'r
 export const USER_SHELL_ITEM_KIND = 'userShell'
 export const USER_SHELL_PREFIX = '!'
 // The Model API backend runs the user's command through the shell tool's own
-// runner (job objects on Windows, M27) with this limit, the shell tool's
-// longest; the row's Stop ends it sooner.
-export const USER_SHELL_TIMEOUT_MS = 10 * 60 * 1000
+// runner (job objects on Windows, M27) with no deadline of its own: the
+// command runs until it ends or the row's Stop ends it (owner 2026-10-16),
+// saying so out loud while it runs.
 // Who moved a task to the background (MSP `BackgroundInitiator`).
 export const BACKGROUND_INITIATOR_USER = 'user'
 // What a row's button asked of a task: `task/background` or `task/stop`.
@@ -4586,8 +4635,11 @@ export const MODEL_API_SUBAGENT_TOOLS = {
   readResult: 'subagent_read_result',
   cancel: 'subagent_cancel',
 } as const
+// D121: a conversation spawns subagents without a count of ours (the
+// removed 64-per-conversation ceiling was invented); paid consent still
+// asks per spawn and Stop still ends them. The 8-at-once queue is C6,
+// owned by the integration branch.
 export const SUBAGENT_CAPACITY = 8
-export const SUBAGENT_MAX_PER_CONVERSATION = 64
 export const SUBAGENT_DEPTH = 1
 export const SUBAGENT_ID_PREFIX = 'subagent-'
 export const SUBAGENT_WAIT_DEFAULT_MS = 60_000
@@ -4680,6 +4732,17 @@ export const HEARTBEAT_BEAM_MAX_TICKS_PER_FRAME = 8
 export const MILLISECONDS_PER_SECOND = 1000
 export const SECONDS_PER_MINUTE = 60
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
+// How often a wait with no deadline of its own says so out loud (owner
+// 2026-10-16: no silent hangs — the wait tells the person it is still
+// waiting, and Stop ends it). A notice cadence, not a limit: nothing stops.
+export const STILL_WAITING_NOTICE_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
+// The longest delay one timer takes, 2^31 - 1 ms (about 24.8 days). Node
+// runs a longer one after 1 ms ("When delay is larger than 2147483647 or
+// less than 1 or NaN, the delay will be set to 1", nodejs.org/api/timers.html,
+// read 2026-10-17), so a longer wait a provider or a person names runs as
+// a chain of such pieces (`setLongTimeout`). The platform's fact, not a
+// limit of ours: nothing is cut short.
+export const TIMER_MAX_DELAY_MS = 2_147_483_647
 
 // M102 / D82: machine-local usage history, independent of spend ledgers.
 // Version 2 (M121) stores dollars as exact decimal text; version 3 adds the
@@ -4825,20 +4888,19 @@ export const OUTPUT_DOCUMENT_SCHEME = 'muse-output'
 // first: the IDE server's warning names it.
 export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp', 'sessionListStream', 'userShell'] as const
 export const MSP_USER_SHELL_CAPABILITY = 'userShell'
-// How long the extension waits on `muse serve` (PLAN.md D25; the SDK has no
-// timeouts of its own, INV-006): the handshake, an ordinary command, and the
-// commands that load or copy a whole session. Past them the command fails
-// with a message instead of leaving the panel waiting for ever.
+// How the extension waits on `muse serve` (PLAN.md D25; the SDK has no
+// timeouts of its own, INV-006): a command — and the opening handshake —
+// is waited on until Muse Code answers or the wait is stopped, saying so
+// out loud on the log while it waits (owner 2026-10-16: no arbitrary
+// limits, no silent hangs). A test may still name a command wait through
+// CommandTimeouts. The handshake bound below is not the serve
+// handshake's any more (NOLIMITS2 C12): the device sign-in, the account
+// host and the team process lifetime name it for their own waits. A slow
+// serve start on a CPU-starved machine (0.10.0, an activation that took
+// 211 s) is outlasted by the wait itself, saying so each minute, and a
+// healthy start still connects in a second or two (the log's
+// "Connected ... in N ms").
 export const MSP_HANDSHAKE_TIMEOUT_MS = 30_000
-// A `muse serve` whose process still runs at the handshake's deadline is
-// starting slowly, not stuck: on a CPU-starved machine (0.10.0, an
-// activation that took 211 s) it missed 30 s and was killed. It gets one
-// longer wait, this long in all. A healthy start connects in a second or
-// two (the log's "Connected ... in N ms"), so a process still silent after
-// four times the first deadline is stuck, and is ended.
-export const MSP_SLOW_HANDSHAKE_TIMEOUT_MS = 120_000
-export const MSP_COMMAND_TIMEOUT_MS = 60_000
-export const MSP_LONG_COMMAND_TIMEOUT_MS = 180_000
 // A command the host refused without admitting it (the SDK's own rule, D26):
 // sent again with the same id up to this many times in all.
 export const MSP_COMMAND_ATTEMPTS = 3
@@ -4987,14 +5049,12 @@ export const MCP_SCHEMA_LIMITS = {
   largeEnumChars: 15_000,
   nodes: 200_000,
 } as const
-// Muse Code's `startup_timeout_sec` and `tool_timeout_sec`, when the entry
-// sets none; a value is capped at the hour.
-export const MCP_STARTUP_TIMEOUT_MS = 30_000
+// An entry's own `startup_timeout_sec` and `tool_timeout_sec` (Muse Code's
+// documented keys, seconds); when the entry sets none, starting and tool
+// calls are waited on until the server answers or is stopped, never killed
+// at an invented default (owner 2026-10-16: no arbitrary limits). The wait
+// says so out loud on STILL_WAITING_NOTICE_MS; Stop ends it.
 export const MCP_START_CONCURRENCY = 4
-export const MCP_TOOL_TIMEOUT_MS = 300_000
-export const MCP_TIMEOUT_MAX_SECONDS = 3600
-// `tools/list` and the other short requests after the handshake.
-export const MCP_REQUEST_TIMEOUT_MS = 30_000
 // Closing: a stdio server gets this long to leave after its input closes
 // before its process tree is killed; a remote session's DELETE this long.
 export const MCP_SHUTDOWN_GRACE_MS = 1500
@@ -5075,14 +5135,13 @@ export const VERIFY_COMMAND_RULE_KEY = 'verify_command'
 // decides what it runs was edited while it was being authorized (M68).
 export const VERIFY_AUTHORIZE_ATTEMPTS = 2
 export const THEN_RUN_ARGUMENT = 'then_run'
-// `museSpark.checkCommands`: at most this many, each within these lengths.
-export const CHECK_COMMANDS_MAX = 8
+// `museSpark.checkCommands` (D121: the removed at-most-8 count was
+// invented): any number of checks, each within these lengths.
 export const CHECK_NAME_MAX_CHARS = 40
 export const CHECK_COMMAND_MAX_CHARS = 1000
-// A check's time cap unless it names its own, and the most it may name: the
-// shell tool's own ceiling.
+// A check's time cap unless it names its own (D121: the removed 600-second
+// ceiling was invented); the person names any number of seconds.
 export const CHECK_DEFAULT_TIMEOUT_SECONDS = 300
-export const CHECK_MAX_TIMEOUT_SECONDS = SHELL_MAX_TIMEOUT_MS / MILLISECONDS_PER_SECOND
 // A scoped check's paths follow the end-of-options marker, each quoted as one
 // argument. A path that starts like an option (`-`) or a response file
 // (`@`) is refused, never passed; so, on Windows, is one holding a character
@@ -5479,6 +5538,10 @@ export const REPORT_NETWORK_MAX_BYTES = 2 * 1024 * 1024
 export const REPORT_NETWORK_MAX_PAGES = 3
 export const REPORT_NETWORK_CACHE_ENTRIES = 100
 export const REPORT_SOURCE_TIMEOUT_MS = 5000
+// NOLIMITS1FIX: report source files read at any size — the removed 16 MiB
+// bound (which A30 had renamed from the session-export cap) was invented.
+// Row and text bounds elsewhere (`REPORT_MAX_ROWS`, `REPORT_MAX_TEXT_CHARS`)
+// still refuse what they bound.
 export const REPORT_GITHUB_RATE_FLOOR = 10
 export const REPORT_CHECK_RUNS_MAX = 500
 export const REPORT_HISTORY_MAX_PER_KIND = 50
@@ -5723,12 +5786,10 @@ export const EXPORT_FILE_EXTENSIONS: Readonly<Record<ExportFormat, string>> = {
 export const SESSION_EXPORT_FORMAT = 'muse-spark-session-export'
 export const SESSION_EXPORT_VERSION = 1
 // M118 lane 0: our portable prompt/share formats, never provider wire shapes.
-export const PROMPT_LIMITS = {
-  perScope: 200,
-  title: 80,
-  body: 10_000,
-  fileBytes: 128 * 1024,
-} as const
+// D121: a scope holds any number of prompts of any title/body length (the
+// removed 200/80/10000 ceilings were invented). NOLIMITS1FIX: the prompt
+// file bound is gone too — a prompt file reads and writes at any size; only
+// a blank title refuses.
 export const PROMPT_SYNC_KEY = 'museSpark.savedPrompts.v1'
 export const PROMPT_SYNC_SETTING = 'syncPromptsAndBookmarks'
 export const PROMPT_FILE_MODE = 0o600
@@ -5738,6 +5799,10 @@ export const SHARE_PREFERENCES_KEY = 'museSpark.sharing.preferences.v1'
 export const PROMPT_STDIN_TIMEOUT_MS = 30_000
 export const PROMPT_SCHEMA_VERSION = 1
 export const PROMPT_FILE_EXTENSION = '.muse-prompt.md'
+// One filename component on every supported filesystem (NTFS, APFS, ext4)
+// holds 255 bytes; a suggested name longer than that fails with
+// ENAMETOOLONG before the person picks anything.
+export const FILENAME_COMPONENT_MAX_BYTES = 255
 export const PROMPT_USER_FOLDER = 'prompts'
 export const PROMPT_WORKSPACE_FOLDER = '.muse/prompts'
 export const PROMPT_COMMAND_IDS = {
@@ -5759,29 +5824,27 @@ export const SHARE_DESTINATIONS = [
   'email',
 ] as const
 export const SHARE_LOCAL_DESTINATIONS = ['copy', 'file', 'browser'] as const
-// A file is read whole and its transcript posted to the panel. It holds text
-// only (no image or PDF bytes), so 16 MiB is far past a long conversation;
-// an export over it is refused, so every file written can be read back.
-export const SESSION_EXPORT_MAX_BYTES = 16 * 1024 * 1024
-// The most transcript items a file may hold; a long agentic session has a few thousand.
-export const SESSION_EXPORT_MAX_ITEMS = 20_000
+// NOLIMITS1FIX: the removed 16 MiB file ceiling and the 20,000-item ceiling
+// were both invented — files write and read back at any byte size and any
+// item count. A long agentic session has a few thousand items.
 // How many characters an export scrubs before it lets the extension host's
 // event loop run (RV84 #9). Measured 2026-10-01: a 4 MiB conversation held
 // the loop at most 11 ms (Mac mini) and 14 ms (Windows 11 VM) per slice,
 // where scrubbing it in one go held it 1.4 s and 2.5 s.
 export const SESSION_EXPORT_SCRUB_SLICE_CHARS = 64 * 1024
 // The share view renders this many of a file's items at first, and this many
-// more each time Show more is pressed (RV84 #14): all 20,000 at once took
-// 18 s in jsdom (about 0.9 ms an item), and the panel cannot answer while it
-// renders.
+// more each time Show more is pressed (RV84 #14): rendering a 20,000-item
+// file at once took 18 s in jsdom (about 0.9 ms an item), and the panel
+// cannot answer while it renders.
 export const SHARE_VIEW_PAGE_ITEMS = 200
-// The most text an imported conversation may hand the model (RV84 #10),
-// counted high as named text attachments are: one token per UTF-8 byte, so
-// the same reserve stays for the instructions, the tools and the replies. A
+// How much text an imported conversation may hand the model (RV84 #10):
+// NOLIMITS1FIX removed our window-minus-reserve formula
+// (`MODEL_API_IMPORT_MAX_REPLAY_BYTES`, about 768 KiB) — the reserve was
+// ours, not the provider's. An import is refused only past the provider's
+// own documented window (`MODEL_API_CONTEXT_WINDOW`, dev.meta.ai/docs/models),
+// counted high as named text attachments are (one token per UTF-8 byte). A
 // file over it is refused at import, naming both sizes, rather than accepted
-// for every later message to fail.
-export const MODEL_API_IMPORT_MAX_REPLAY_BYTES =
-  MODEL_API_CONTEXT_WINDOW - MODEL_API_TEXT_CONTEXT_RESERVE_TOKENS
+// for every later message to fail past the model's window.
 // A refused file's unknown field is named by its path, cut to this many
 // characters: the key is the file's own text and reaches the notice and the log.
 export const SESSION_EXPORT_FIELD_PATH_MAX = 120
@@ -6120,6 +6183,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/reference.js',
   'dist/webview/models.js',
   'dist/webview/usage.js',
+  'dist/commands.js',
   'dist/report.js',
   'dist/reporting.js',
   'dist/reportingPanel.js',
@@ -6322,7 +6386,7 @@ export const MODEL_TEXT = {
   browserCheckUrlRefused:
     'only an http:// or https:// URL whose host is a plain name or IP address, with no user name or password, can be opened, such as http://localhost:3000/',
   browserCheckInvalidArguments:
-    'the arguments are not valid, so nothing was opened: url is a string, and actions, when given, is a list of at most {actions} steps, each with kind click or type and a CSS selector of 1 to {selector} characters, a type step also with the text it types (at most {text} characters)',
+    'the arguments are not valid, so nothing was opened: url is a string, and actions, when given, is a list of steps, each with kind click or type and a CSS selector of 1 to {selector} characters, a type step also with the text it types (at most {text} characters)',
   // The closed failures (M81 A1, browserRun.ts): the runtime's preparation.
   browserCheckRuntimeMissing:
     "the browser check's browser runtime is not installed and could not be downloaded now; nothing was opened",
@@ -6402,7 +6466,6 @@ export const WEB_FETCH_MODEL_TEXT = {
     'web fetch is no longer allowed here (the workspace lost its trust, the permission mode changed, or museSpark.sandboxNetwork became restricted), so the fetch stopped before its next request',
   webFetchNat64Unknown:
     '{host} resolves only to IPv6 addresses here, and whether this network translates IPv6 addresses to IPv4 ones (NAT64) could not be learned ({detail}), so they cannot be checked for a private address; nothing was fetched',
-  webFetchTooManyRedirects: 'more than {max} redirects',
   webFetchRedirectWithoutLocation: 'the server answered HTTP {status} without a Location to go to',
   webFetchRedirectRefused: 'the page redirected to a URL that is refused: {reason}',
   webFetchHttpStatus: 'the server answered HTTP {status}',
@@ -6648,7 +6711,6 @@ export const CODE_INTEL_MODEL_TEXT = {
   renameSameName: 'the new name `{name}` is already the name there; nothing to rename',
   renameOutside:
     'this rename would also change {count} files outside the workspace; nothing was changed',
-  renameTooMany: 'this rename would change {count} files, more than {max}; nothing was changed',
   renameStale:
     "the language service's rename does not match {path} as it is now (it differs between VS Code and the disk, has unsaved changes, or changed after the service last read it); nothing was changed, so call rename_symbol again shortly",
   renameNothing: 'nothing to rename at {place}',
@@ -6805,7 +6867,8 @@ export const MODEL_API_MODEL_TEXT = {
   goalBadPercent: 'percent_complete must be between 0 and 100',
   goalEmptyWork: 'current_work and next_work must not be empty',
   goalEmptyObjective: 'objective must not be empty',
-  goalObjectiveTooLong: 'objective is too long; the limit in characters is',
+  goalObjectiveTooLarge:
+    'objective is too long for the selected model’s context window; shorten it or use a model with a larger window',
   goalBadBudget: 'token_budget must be a positive whole number',
   // M50: an MCP tool's schema and results on the Model API backend.
   mcpSchemaReplaced:
@@ -7026,7 +7089,7 @@ export const TEAM_MODEL_TEXT = {
   toolShowTheTeamAsItIs:
     'Show the team as it is now: each role with its pool and headroom, the queue, the budget left today and finished tasks not yet merged. Call it once before delegating.',
   toolStartOneToTasksBehindOne:
-    "Start one to {value1} tasks behind one approval and answer at once with each task's id, entry, state and ceilings. A retry with the same command_id and the same tasks starts nothing new. dry_run plans without starting or spending anything.",
+    "Start tasks behind one approval and answer at once with each task's id, entry, state and ceilings. A retry with the same command_id and the same tasks starts nothing new. dry_run plans without starting or spending anything.",
   toolTheWorkYouKeepForYourself2: 'The work you keep for yourself, so the user sees the whole plan',
   toolOptionalRequestIdARetryWith:
     'Optional request id; a retry with the same id and tasks reuses the tasks already started',
@@ -7373,8 +7436,6 @@ export const EVAL_ARM_MIN_NODE_VERSION_23 = '23.5.0'
 // folder: `<config home>/muse-spark-code/providers.json`. It holds ids,
 // presets, addresses, chosen models, user-entered prices, OpenRouter's
 // routing choices and the default model; never a credential.
-// Captured Z.ai key shape: a hexadecimal account prefix and alphanumeric secret.
-export const ZAI_KEY_PATTERN = /^[0-9a-f]{32}\.[A-Za-z0-9]{8,64}$/
 export const PROVIDERS_CONFIG_DIR_NAME = 'muse-spark-code'
 export const PROVIDERS_FILE_NAME = 'providers.json'
 export const PROVIDERS_FILE_VERSION = 1
@@ -7704,11 +7765,11 @@ export const TEAM_META_STANDARD_RPM = 3000
 export const TEAM_META_STANDARD_TPM = 4_000_000
 export const TEAM_META_CONTRIBUTOR_RPM = 100
 export const TEAM_META_CONTRIBUTOR_TPM = 3_000_000
-// Our hard ceilings (D75): 20 on the Model API and M95's engines (the
-// owner's figure), 4 sessions per `muse serve`, 4 per external agent.
-// Unknown external agents start at 2, until refusals show their limits.
-// The engine ceiling is also the top of `museSpark.teamMaxWorkers`' default.
-export const TEAM_ENGINE_HARD_CEILING = 20
+// The kinds' ceilings (D75, D121): 4 sessions per `muse serve`, 4 per
+// external agent. Unknown external agents start at 2, until refusals show
+// their limits. Engines carry no hard ceiling of ours (the removed 20 was
+// invented): the provider's documented limits and live 429 adaptation bound
+// them, then the machine's (`museSpark.teamMaxWorkers`).
 export const TEAM_MUSE_CODE_HOST_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_DEFAULT = 2
@@ -7725,9 +7786,8 @@ export const TEAM_USAGE_LIMIT_COOLDOWN_MS = 1_800_000
 // A delegating worker never gets `merge`: its sub-tasks' changes are merged
 // by the orchestrator.
 export const TEAM_MAX_DEPTH = 2
-// One `delegate` call starts this many tasks at most, behind one approval
-// (D75).
-export const TEAM_DELEGATE_MAX = 6
+// One `delegate` call starts any number of tasks behind one approval
+// (D75, D121: the removed at-most-6 count was invented).
 export const TEAM_MCP_SERVER_NAME = 'team'
 export const TEAM_MCP_TOKEN_BYTES = 32
 // No positive collect wait until the Muse Code timeout capture lands (M96 P).
@@ -8029,6 +8089,10 @@ export const LEGAL_DIRECTORY_ENTRIES_MAX = 20_000
 // output, text or binary) keep no bytes, so they get their own bounds.
 export const LEGAL_HASH_FILE_MAX_BYTES = 64_000_000
 export const LEGAL_HASH_TOTAL_MAX_BYTES = 512_000_000
+// Entries, files and readers between event-loop yields inside the legal
+// walk and scan (PR #214 review): often enough that Stop lands mid-scan,
+// seldom enough that yielding costs nothing measurable against sync syscalls.
+export const LEGAL_SCAN_YIELD_EVERY = 64
 export const LEGAL_FINDINGS_PER_RULE_MAX = 100
 // The only raw file content a finding may carry: a short excerpt around the
 // evidence (a header block, a license line), never a whole file, so a report
@@ -8115,11 +8179,10 @@ export const LEGAL_EXIT = {
 // scanner, loaded lazily by the host and the headless command, never part of
 // activation. The bundle-split gate refuses it in dist/extension.js.
 
-// The headless scan's own deadline: a workspace walk of up to
-// LEGAL_FILES_SCANNED_MAX files plus the bounded registry reads below. The
-// headless lifecycle still owns the process deadline.
+// The headless scan used to stop at its own deadline; it now runs until it
+// is done or a signal stops it (owner 2026-10-16: no arbitrary limits). The
+// headless lifecycle still owns the process for commands that name one.
 export const LEGAL_REGISTRY_NOTICE_KEY = 'legalRegistryNoticed'
-export const LEGAL_SCAN_TIMEOUT_MS = 120_000
 // Registry enrichment (D76: disclosed, bounded, OFF unless `--registry`): the
 // only hosts ever queried, over HTTPS, with no credentials. npm answers one
 // version document per package@version; PyPI one project document per
@@ -8138,7 +8201,8 @@ export const LEGAL_REGISTRY_NAME_MAX_CHARS = 214
 // A version or project document past this is refused instead of buffered:
 // the license shapes both registries use fit in kilobytes.
 export const LEGAL_REGISTRY_RESPONSE_MAX_BYTES = 262_144
-// One registry request's own deadline; LEGAL_SCAN_TIMEOUT_MS bounds the run.
+// One registry request's own deadline (registry enrichment is OFF unless
+// `--registry`; its per-request wait is not this lane's row to remove).
 export const LEGAL_REGISTRY_TIMEOUT_MS = 10_000
 // A rendered report past this is refused instead of written: 500 findings
 // with full excerpts stay far below it, so past it means a broken renderer.
@@ -8290,6 +8354,14 @@ export const DEVELOPER_MACHINE_ID_DOMAIN = 'muse-spark-developer-machine/v1'
 // M109 lane 0: vault format, limits and budgets (D89).
 export const VAULT_FORMAT_VERSION = 1
 export const VAULT_PROTOCOL_VERSION = 1
+// Transport and peer hygiene only (NOLIMITS2 A33): unauthenticated
+// sockets, helper calls and native peer handshakes end at it. It never
+// bounds an approval: approvals wait for the person or Stop.
+export const VAULT_TRANSPORT_TIMEOUT_MS = 120_000
+// The old approval clock's name, kept only for the vault harness fixture
+// and the unmerged M109 broker work that still reads it: nothing in src/
+// ends an approval at it any more (NOLIMITS2 A33). Delete it when that
+// work lands on the no-expiry rule.
 export const VAULT_APPROVAL_TTL_MS = 120_000
 // Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
 export const VAULT_LOCK_DRAIN_MS = 1000
@@ -8355,7 +8427,6 @@ export const MCP_OAUTH_LIMITS = {
 // U's independent lazy surfaces; W registers these new caps without changing existing caps.
 export const VAULT_PANEL_BUDGET_KIB = 75
 export const VAULT_HOST_BUDGET_KIB = 50
-export const VAULT_UI_TICK_MS = 1000
 export const VAULT_ID_BYTES = 16
 export const VAULT_TOTP_PERIOD_SECONDS = 30
 

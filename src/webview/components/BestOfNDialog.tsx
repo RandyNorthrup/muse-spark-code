@@ -7,13 +7,7 @@ import { webviewKey } from '../../shared/keybindings'
 // start the host refuses (a notice, no update) leaves it to fix and retry.
 
 import { useMemo, useState, type KeyboardEvent } from 'react'
-import {
-  BEST_OF_N_MAX_ATTEMPTS,
-  BEST_OF_N_MAX_REQUESTS_PER_ATTEMPT,
-  BEST_OF_N_MIN_ATTEMPTS,
-  BEST_OF_N_MIN_REQUESTS_PER_ATTEMPT,
-  UI_TEXT,
-} from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import {
   defaultBestOfNRequest,
   validateBestOfNRequest,
@@ -23,7 +17,7 @@ import {
   type BestOfNRunStatus,
   type BestOfNValidationError,
 } from '../../shared/bestOfN'
-import { fill, formatNumber, plural } from '../../shared/l10n/text'
+import { fill, plural } from '../../shared/l10n/text'
 import { ListBody } from './ListBody'
 
 export interface BestOfNDialogProps {
@@ -88,16 +82,10 @@ function fieldError(
       return UI_TEXT.bestOfNInvalidPrompt
     }
     case 'attempts': {
-      return fill(UI_TEXT.bestOfNInvalidAttempts, {
-        min: formatNumber(BEST_OF_N_MIN_ATTEMPTS),
-        max: formatNumber(BEST_OF_N_MAX_ATTEMPTS),
-      })
+      return UI_TEXT.bestOfNInvalidAttempts
     }
     case 'ceiling': {
-      return fill(UI_TEXT.bestOfNInvalidCeiling, {
-        min: formatNumber(BEST_OF_N_MIN_REQUESTS_PER_ATTEMPT),
-        max: formatNumber(BEST_OF_N_MAX_REQUESTS_PER_ATTEMPT),
-      })
+      return UI_TEXT.bestOfNInvalidCeiling
     }
   }
 }
@@ -296,8 +284,7 @@ export function BestOfNDialog(props: BestOfNDialogProps) {
             id="bestofn-attempts"
             className="bestofn-number"
             type="number"
-            min={BEST_OF_N_MIN_ATTEMPTS}
-            max={BEST_OF_N_MAX_ATTEMPTS}
+            min={1}
             value={attemptsText}
             aria-invalid={attemptsError !== undefined}
             aria-describedby={attemptsError === undefined ? undefined : 'bestofn-attempts-error'}
@@ -319,8 +306,7 @@ export function BestOfNDialog(props: BestOfNDialogProps) {
             id="bestofn-ceiling"
             className="bestofn-number"
             type="number"
-            min={BEST_OF_N_MIN_REQUESTS_PER_ATTEMPT}
-            max={BEST_OF_N_MAX_REQUESTS_PER_ATTEMPT}
+            min={1}
             value={ceilingText}
             aria-invalid={ceilingError !== undefined}
             aria-describedby={ceilingError === undefined ? undefined : 'bestofn-ceiling-error'}

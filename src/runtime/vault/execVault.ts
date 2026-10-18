@@ -112,7 +112,7 @@ export class HeadlessVaultSession implements ExecVaultSession {
         return this.deny(item, use, 'policy')
       if (result.ticket.requesterId !== this.requester.id || result.ticket.digest !== digest)
         return this.deny(item, use, 'digest')
-      return this.broker.clock.now() >= result.ticket.expiresAt
+      return result.ticket.expiresAt !== null && this.broker.clock.now() >= result.ticket.expiresAt
         ? this.deny(item, use, 'expired')
         : result
     } catch {

@@ -10,7 +10,6 @@ import {
   RUNNER_SELFTEST_TIMEOUT_MS,
   RUNNER_WINDOWS_COMMAND_MAX_CHARS,
   MILLISECONDS_PER_SECOND,
-  GIT_TIMEOUT_MS,
   GIT_METADATA_OPTIONS,
   UI_TEXT,
   TEAM_SCHED_ID_MAX_CHARS,
@@ -259,9 +258,15 @@ export class SshRunner {
     try {
       const helper = await this.install(runner, job.signal)
       await this.ssh(runner, this.invocation(runner, helper, 'init', []), job.signal)
-      const snapshot = await captureCheckSnapshot(job.cwd, this.deps.scratch, this.deps, () => {
-        this.admit(job.signal)
-      })
+      const snapshot = await captureCheckSnapshot(
+        job.cwd,
+        this.deps.scratch,
+        this.deps,
+        () => {
+          this.admit(job.signal)
+        },
+        job.timeoutMs,
+      )
       // A source repository's url.*.insteadOf must never redirect a runner push.
       pushCopy = await mkdtemp(path.join(this.deps.scratch, 'push-'))
       const gitEnvironment = {
@@ -286,7 +291,8 @@ export class SshRunner {
         ],
         cwd: this.deps.scratch,
         env: gitEnvironment,
-        timeoutMs: GIT_TIMEOUT_MS,
+        // The job's own bound, not an invented git kill (owner 2026-10-16).
+        timeoutMs: job.timeoutMs,
         signal: job.signal,
       })
       hasPushProof = cloned.descendantsEnded
@@ -315,7 +321,8 @@ export class SshRunner {
           GIT_SSH_COMMAND: sshCommand,
           GIT_TERMINAL_PROMPT: '0',
         },
-        timeoutMs: GIT_TIMEOUT_MS,
+        // The job's own bound, not an invented git kill (owner 2026-10-16).
+        timeoutMs: job.timeoutMs,
         signal: job.signal,
       })
       hasPushProof = pushed.descendantsEnded
@@ -333,7 +340,8 @@ export class SshRunner {
           args: [...GIT_METADATA_OPTIONS, 'rev-parse', '--verify', `${snapshot}:${file}`],
           cwd: job.cwd,
           env: runnerEnvironment(this.deps.env),
-          timeoutMs: GIT_TIMEOUT_MS,
+          // The job's own bound, not an invented git kill (owner 2026-10-16).
+          timeoutMs: job.timeoutMs,
           signal: job.signal,
         })
         if (!blob.descendantsEnded || blob.exitCode !== 0)

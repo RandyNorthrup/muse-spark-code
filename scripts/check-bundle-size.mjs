@@ -236,6 +236,11 @@ const BUDGETS = [
   // and the handler, loaded on the first open. 63.6 KiB when split out (its
   // own zod), plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/report.js', budgetKiB: 75 },
+  // ACTIVATIONROOM: the CLI-backed and workspace command flows (the MCP
+  // servers and hooks pickers, the skills, worktree, memory and plan flows),
+  // required on the first of those commands. 29,962 B when split out
+  // (29.3 KiB); plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/commands.js', budgetKiB: 50 },
   // The capacity estimator's engine (M117, PLAN.md D6, D97), loaded on the
   // first estimate: goal and DAG, calibration, schedule and simulation,
   // recommendations, dated prices and the first-wave starter with their

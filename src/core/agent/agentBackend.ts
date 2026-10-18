@@ -675,7 +675,7 @@ export interface AgentHost {
   peekRestartCause?(): string | undefined
   /** A completed turn proves the host: no later failure blames the restart. */
   clearRestartCause?(): void
-  listModels(sessionId?: string): Promise<readonly ModelSummary[]>
+  listModels(sessionId?: string, signal?: AbortSignal): Promise<readonly ModelSummary[]>
   startSession(options: StartSessionOptions): Promise<AgentSession>
   listSessions(options: ListSessionsOptions): Promise<SessionPage>
   /** A session's transcript without loading it (a subagent's child session, M14). */

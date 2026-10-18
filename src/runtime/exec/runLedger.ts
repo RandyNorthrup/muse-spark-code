@@ -2,7 +2,6 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
 import type { ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import {
-  EXEC_MAX_BUDGET_USD,
   EXEC_MAX_REQUESTS,
   EXEC_MIN_OUTPUT_TOKENS,
   EXEC_USD_DECIMALS,
@@ -91,19 +90,73 @@ export interface RunLedger {
   totals(): LedgerTotals
 }
 
-/** Quote start admission without spending or consuming this run's request count. */
+type ReservationQuote = { readonly amount: bigint } | { readonly refused: Refusal }
+
+/** The worst-case reservation for one response, before any cap admission. */
+function quoteReservation(input: {
+  readonly maxOutputTokens: number
+  readonly price: TierPrice
+  readonly contextTokens?: number | undefined
+  readonly reserveUsd?: UsdAmount | undefined
+  readonly outputCap: number
+}): ReservationQuote {
+  const { maxOutputTokens: m, price } = input
+  if (!Number.isSafeInteger(m) || m < EXEC_MIN_OUTPUT_TOKENS || m > input.outputCap)
+    return { refused: 'request_shape' }
+  try {
+    if (
+      input.reserveUsd === undefined &&
+      Usd.from(price.cachedInput).compare(Usd.from(price.input)) > 0
+    )
+      return { refused: 'unpriced' }
+    return {
+      amount:
+        input.reserveUsd === undefined
+          ? charge(price, MODEL_API_CONTEXT_WINDOW - m, m)
+          : units(Usd.from(input.reserveUsd).toAmount()),
+    }
+  } catch {
+    return { refused: 'unpriced' }
+  }
+}
+
+function freezeResponseTicket(
+  request: {
+    readonly model: string
+    readonly maxOutputTokens: number
+    readonly price: TierPrice
+    readonly contextTokens?: number | undefined
+    readonly reserveUsd?: UsdAmount | undefined
+  },
+  amount: bigint,
+  n: number,
+): ResponseTicket {
+  return Object.freeze({
+    ...request,
+    price: Object.freeze({ ...request.price }),
+    kind: 'responses',
+    n,
+    reserveUsd: usd(amount),
+  })
+}
+
+/**
+ * Quote the start reservation without spending, consuming this run's request
+ * count, or admitting it against the run cap: a valid low budget stays
+ * quotable so the caller reports its own minimum, never an unpriced model.
+ */
 export function previewResponseReservation(
   ledger: RunLedger,
   model: string,
   price: TierPrice,
 ): ResponseTicket {
-  const preview = createRunLedger({
-    capUsd: Usd.from(EXEC_MAX_BUDGET_USD).toAmount(),
-    maxRequests: 1,
-    outputCap: () => ledger.outputCap,
-  }).admitResponse({ model, maxOutputTokens: ledger.outputCap, price })
-  if ('refused' in preview) throw new Error(UI_TEXT.execModelUnpriced)
-  return preview
+  const quoted = quoteReservation({
+    maxOutputTokens: ledger.outputCap,
+    price,
+    outputCap: ledger.outputCap,
+  })
+  if ('refused' in quoted) throw new Error(UI_TEXT.execModelUnpriced)
+  return freezeResponseTicket({ model, maxOutputTokens: ledger.outputCap, price }, quoted.amount, 1)
 }
 
 const ZERO = 0n
@@ -121,9 +174,14 @@ const usageSchema = z.object({
 })
 
 function units(amount: UsdAmount): bigint {
+  // A person's amount is honored as given: exact BigInt micro-USD with no
+  // upper bound (only the provider's own tariff bounds a run). Negative input
+  // is invalid, never a cap.
   const value = Usd.from(amount).units(EXEC_USD_DECIMALS)
-  if (value < ZERO || value > BigInt(Number.MAX_SAFE_INTEGER))
-    throw new Error(UI_TEXT.execNumberInvalid)
+  // D121: the person's budget has no ceiling of ours — the range is
+  // whatever the argument parser accepts, held exactly as micro-USD BigInt
+  // throughout the ledger. Only a negative amount refuses.
+  if (value < ZERO) throw new Error(UI_TEXT.execNumberInvalid)
   return value
 }
 function usd(value: bigint): UsdAmount {
@@ -142,17 +200,18 @@ function charge(price: TierPrice, input: number, output: number, cached = 0): bi
 
 export function createRunLedger(input: {
   capUsd: UsdAmount
-  maxRequests: number
+  /** No request cap when the person set none. */
+  maxRequests: number | undefined
   outputCap?: () => number
 }): RunLedger {
   const outputCap = input.outputCap ?? (() => resolveExecOutputCap())
   const cap = units(input.capUsd)
   if (
     cap <= ZERO ||
-    cap > units(Usd.from(EXEC_MAX_BUDGET_USD).toAmount()) ||
-    !Number.isSafeInteger(input.maxRequests) ||
-    input.maxRequests < 1 ||
-    input.maxRequests > EXEC_MAX_REQUESTS
+    (input.maxRequests !== undefined &&
+      (!Number.isSafeInteger(input.maxRequests) ||
+        input.maxRequests < 1 ||
+        input.maxRequests > EXEC_MAX_REQUESTS))
   )
     throw new Error(UI_TEXT.execNumberInvalid)
   let requests = 0
@@ -183,7 +242,7 @@ export function createRunLedger(input: {
   const admit = (amount: bigint): { refused: Refusal } | undefined => {
     if (isClosed) return refuse('closed')
     if (active !== undefined) throw new Error(UI_TEXT.execRequestShape)
-    if (requests >= input.maxRequests) return refuse('requests')
+    if (input.maxRequests !== undefined && requests >= input.maxRequests) return refuse('requests')
     if (settled + uncertain + amount > cap) return refuse('budget')
     reserve = amount
     requests += 1
@@ -218,32 +277,11 @@ export function createRunLedger(input: {
       return outputCap()
     },
     admitResponse(request) {
-      const { maxOutputTokens: m, price } = request
-      if (!Number.isSafeInteger(m) || m < EXEC_MIN_OUTPUT_TOKENS || m > outputCap())
-        return refuse('request_shape')
-      let amount: bigint
-      try {
-        if (
-          request.reserveUsd === undefined &&
-          Usd.from(price.cachedInput).compare(Usd.from(price.input)) > 0
-        )
-          return refuse('unpriced')
-        amount =
-          request.reserveUsd === undefined
-            ? charge(price, MODEL_API_CONTEXT_WINDOW - m, m)
-            : units(Usd.from(request.reserveUsd).toAmount())
-      } catch {
-        return refuse('unpriced')
-      }
-      const rejected = admit(amount)
+      const quoted = quoteReservation({ ...request, outputCap: outputCap() })
+      if ('refused' in quoted) return refuse(quoted.refused)
+      const rejected = admit(quoted.amount)
       if (rejected !== undefined) return rejected
-      active = Object.freeze({
-        ...request,
-        price: Object.freeze({ ...price }),
-        kind: 'responses',
-        n: requests,
-        reserveUsd: usd(amount),
-      })
+      active = freezeResponseTicket(request, quoted.amount, requests)
       lastResponse = null
       return active
     },

@@ -38,7 +38,7 @@ function writeTree(files: Record<string, string>): string {
 }
 
 describe('order: what ships is admitted first, the rest is walked', () => {
-  it('admits build records, their inputs and shipped package metadata; skips .git and node_modules', () => {
+  it('admits build records, their inputs and shipped package metadata; skips .git and node_modules', async () => {
     const metafile = JSON.stringify({
       inputs: { 'src/a.ts': { bytes: 1 }, 'node_modules/shipped/index.js': { bytes: 1 } },
       outputs: {
@@ -70,7 +70,7 @@ describe('order: what ships is admitted first, the rest is walked', () => {
     } catch {
       // Links need a privilege on some Windows hosts; the walk skips node_modules either way.
     }
-    const snapshot = createLegalSnapshot(root)
+    const snapshot = await createLegalSnapshot(root)
     expect(snapshot.files).toEqual(
       expect.arrayContaining([
         'dist/meta/bundle.json',
@@ -121,8 +121,8 @@ describe('shipped vs not', () => {
     }),
   }
 
-  it('lists a non-shipping dependency with a modified text as information, never incomplete', () => {
-    const result = scanLegal(snapshotFrom(files), {
+  it('lists a non-shipping dependency with a modified text as information, never incomplete', async () => {
+    const result = await scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
       distribution: evidence,
     })
@@ -137,9 +137,9 @@ describe('shipped vs not', () => {
     expect(result.findings.filter((finding) => finding.severity !== 'advice')).toEqual([])
   })
 
-  it('still keeps human review for a shipping dependency with a modified text', () => {
+  it('still keeps human review for a shipping dependency with a modified text', async () => {
     const shippedModified = { ...files, 'node_modules/shipped/LICENSE': MODIFIED_MIT }
-    const result = scanLegal(snapshotFrom(shippedModified), {
+    const result = await scanLegal(snapshotFrom(shippedModified), {
       headerPolicy: 'optional',
       distribution: evidence,
     })
@@ -148,7 +148,7 @@ describe('shipped vs not', () => {
     )
   })
 
-  it('does not ship a bundle input the bundler shook out entirely', () => {
+  it('does not ship a bundle input the bundler shook out entirely', async () => {
     const metafile = JSON.stringify({
       inputs: { 'src/a.ts': { bytes: 1 }, 'node_modules/shipped/index.js': { bytes: 1 } },
       outputs: {
@@ -175,7 +175,7 @@ describe('shipped vs not', () => {
       'dist/meta/bundle.json': metafile,
       'dist/meta-hashes/bundle.json': record,
     }
-    const result = scanLegal(snapshotFrom(shippedModified), { headerPolicy: 'optional' })
+    const result = await scanLegal(snapshotFrom(shippedModified), { headerPolicy: 'optional' })
     expect(result.incompleteChecks).toEqual([])
   })
 })
@@ -211,30 +211,33 @@ describe('RVCM971C reader coverage follows distribution', () => {
     ['Composer', { 'composer.json': '{"name":"own","require":{"example/leftpad":"*"}}' }],
     ['Ruby', { Gemfile: 'gem "leftpad", "1.3.0"\n' }],
   ]
-  it.each(cases)('keeps non-shipping %s reader gaps out of completeness', (_name, metadata) => {
-    const files = {
-      LICENSE: FULL_MIT_LICENSE,
-      'src/a.ts': HEADED,
-      [BUNDLE_OUTPUT]: BUNDLE_TEXT,
-      ...metadata,
-    }
-    const result = scanLegal(snapshotFrom(files), {
-      headerPolicy: 'optional',
-      distribution: hashEvidence({ 'src/a.ts': HEADED, [BUNDLE_OUTPUT]: BUNDLE_TEXT }),
-    })
-    expect(result.incompleteChecks).toEqual([])
-    const unknown = scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
-    expect(unknown.incompleteChecks.length).toBeGreaterThan(0)
-  })
+  it.each(cases)(
+    'keeps non-shipping %s reader gaps out of completeness',
+    async (_name, metadata) => {
+      const files = {
+        LICENSE: FULL_MIT_LICENSE,
+        'src/a.ts': HEADED,
+        [BUNDLE_OUTPUT]: BUNDLE_TEXT,
+        ...metadata,
+      }
+      const result = await scanLegal(snapshotFrom(files), {
+        headerPolicy: 'optional',
+        distribution: hashEvidence({ 'src/a.ts': HEADED, [BUNDLE_OUTPUT]: BUNDLE_TEXT }),
+      })
+      expect(result.incompleteChecks).toEqual([])
+      const unknown = await scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
+      expect(unknown.incompleteChecks.length).toBeGreaterThan(0)
+    },
+  )
 
-  it('keeps malformed manifest coverage even when no dependency ships', () => {
+  it('keeps malformed manifest coverage even when no dependency ships', async () => {
     const files = {
       LICENSE: FULL_MIT_LICENSE,
       'package.json': '{broken',
       'src/a.ts': HEADED,
       [BUNDLE_OUTPUT]: BUNDLE_TEXT,
     }
-    const result = scanLegal(snapshotFrom(files), {
+    const result = await scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
       distribution: hashEvidence({ 'src/a.ts': HEADED, [BUNDLE_OUTPUT]: BUNDLE_TEXT }),
     })
@@ -243,7 +246,7 @@ describe('RVCM971C reader coverage follows distribution', () => {
     )
   })
 
-  it('ignores unresolved non-shipping rows alongside a licensed shipped npm package', () => {
+  it('ignores unresolved non-shipping rows alongside a licensed shipped npm package', async () => {
     const files = {
       LICENSE: FULL_MIT_LICENSE,
       'yarn.lock': 'shipped@^1.0.0:\n  version "1.0.0"\n\ndevonly@^2.0.0:\n  version "2.0.0"\n',
@@ -253,7 +256,7 @@ describe('RVCM971C reader coverage follows distribution', () => {
       THIRD_PARTY_NOTICES: 'shipped',
       [BUNDLE_OUTPUT]: BUNDLE_TEXT,
     }
-    const result = scanLegal(snapshotFrom(files), {
+    const result = await scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
       distribution: hashEvidence({
         'node_modules/shipped/index.js': files['node_modules/shipped/index.js'],
@@ -265,7 +268,7 @@ describe('RVCM971C reader coverage follows distribution', () => {
 
   it.each(['BSD-2-Clause', 'Apache-2.0', 'GPL-2.0-only'])(
     'preserves a shipped exact %s text disagreeing with MIT metadata',
-    (id) => {
+    async (id) => {
       const files = {
         LICENSE: FULL_MIT_LICENSE,
         THIRD_PARTY_NOTICES: 'leftpad',
@@ -276,7 +279,7 @@ describe('RVCM971C reader coverage follows distribution', () => {
         'node_modules/leftpad/LICENSE': canonicalText(id),
         [BUNDLE_OUTPUT]: BUNDLE_TEXT,
       }
-      const result = scanLegal(snapshotFrom(files), {
+      const result = await scanLegal(snapshotFrom(files), {
         headerPolicy: 'optional',
         distribution: hashEvidence({
           'node_modules/leftpad/index.js': files['node_modules/leftpad/index.js'],
@@ -298,7 +301,7 @@ describe('RVCM971C reader coverage follows distribution', () => {
 })
 
 describe('report bounds', () => {
-  it('summarizes omitted advice instead of making the scan incomplete', () => {
+  it('summarizes omitted advice instead of making the scan incomplete', async () => {
     const sources = Object.fromEntries(
       Array.from({ length: LEGAL_FINDINGS_PER_RULE_MAX + 5 }, (_, index) => [
         `src/f${String(index)}.ts`,
@@ -311,7 +314,7 @@ describe('report bounds', () => {
       ...sources,
       [BUNDLE_OUTPUT]: BUNDLE_TEXT,
     }
-    const result = scanLegal(snapshotFrom(files), {
+    const result = await scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
       distribution: hashEvidence(files),
     })

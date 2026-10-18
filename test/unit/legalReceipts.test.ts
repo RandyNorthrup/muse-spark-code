@@ -58,8 +58,8 @@ function workspace(
   }
 }
 
-function scan(files: Record<string, string>) {
-  return scanLegal(snapshotFrom(files), {
+async function scan(files: Record<string, string>) {
+  return await scanLegal(snapshotFrom(files), {
     headerPolicy: 'optional',
     distribution: hashEvidence(files),
   })
@@ -104,13 +104,13 @@ describe('workspace licence review receipts', () => {
     })
   })
 
-  it('keeps the strict default without a receipt', () => {
-    const result = scan(workspace([]))
+  it('keeps the strict default without a receipt', async () => {
+    const result = await scan(workspace([]))
     expect(result.incompleteChecks.some((check) => check.includes('lz-string'))).toBe(true)
   })
 
-  it('resolves only the receipt text check and reports its reason visibly', () => {
-    const result = scan(workspace())
+  it('resolves only the receipt text check and reports its reason visibly', async () => {
+    const result = await scan(workspace())
     expect(result.incompleteChecks).toEqual([])
     expect(result.findings).toContainEqual(
       expect.objectContaining({
@@ -128,25 +128,27 @@ describe('workspace licence review receipts', () => {
     { version: '1.5.1' },
     { sha256: '0'.repeat(64) },
     { spdx: 'BSD-3-Clause' },
-  ])('refuses a receipt whose identity differs: %j', (change) => {
-    const result = scan(workspace([{ ...REVIEW, ...change }]))
+  ])('refuses a receipt whose identity differs: %j', async (change) => {
+    const result = await scan(workspace([{ ...REVIEW, ...change }]))
     expectReview(result)
   })
 
   it.each(['\n', '\r\n', '\u{FEFF}'])(
     'voids the receipt after any licence byte change: %j',
-    (change) => {
-      expect(scan(workspace([REVIEW], LICENCE + change)).incompleteChecks.length).toBeGreaterThan(0)
+    async (change) => {
+      const changed = await scan(workspace([REVIEW], LICENCE + change))
+      expect(changed.incompleteChecks.length).toBeGreaterThan(0)
     },
   )
 
-  it('voids the receipt on a package version bump', () => {
-    expect(scan(workspace([REVIEW], LICENCE, '1.5.1')).incompleteChecks.length).toBeGreaterThan(0)
+  it('voids the receipt on a package version bump', async () => {
+    const bumped = await scan(workspace([REVIEW], LICENCE, '1.5.1'))
+    expect(bumped.incompleteChecks.length).toBeGreaterThan(0)
   })
 
-  it('requires the exact native byte digest when the snapshot offers it', () => {
+  it('requires the exact native byte digest when the snapshot offers it', async () => {
     const files = workspace()
-    const result = scanLegal(
+    const result = await scanLegal(
       {
         ...snapshotFrom(files),
         readFileHash: (file) =>
@@ -157,7 +159,7 @@ describe('workspace licence review receipts', () => {
     expectReview(result)
   })
 
-  it('requires a single agreeing declaration, even when alternatives include the found SPDX id', () => {
+  it('requires a single agreeing declaration, even when alternatives include the found SPDX id', async () => {
     const files = workspace()
     const license = 'MIT OR BSD-3-Clause'
     files['package-lock.json'] = JSON.stringify({
@@ -171,7 +173,7 @@ describe('workspace licence review receipts', () => {
       version: '1.5.0',
       license,
     })
-    const result = scan(files)
+    const result = await scan(files)
     expect(result.incompleteChecks.length).toBeGreaterThan(0)
     expect(result.findings.some((finding) => finding.evidenceSource === LEGAL_REVIEW_FILE)).toBe(
       false,
@@ -194,8 +196,8 @@ describe('workspace licence review receipts', () => {
     { ...REVIEW, package: 'p'.repeat(LEGAL_TEXT_MAX_CHARS + 1) },
     { ...REVIEW, spdx: 's'.repeat(LEGAL_TEXT_MAX_CHARS + 1) },
     { ...REVIEW, reason: 'r'.repeat(LEGAL_EVIDENCE_EXCERPT_MAX_CHARS + 1) },
-  ])('fails closed on malformed receipt entries: %j', (entry) => {
-    const result = scan(workspace([entry]))
+  ])('fails closed on malformed receipt entries: %j', async (entry) => {
+    const result = await scan(workspace([entry]))
     expect(result.incompleteChecks.some((check) => check.includes('valid licence-review'))).toBe(
       true,
     )
@@ -230,14 +232,14 @@ describe('workspace licence review receipts', () => {
     expect(nestedIncomplete).toEqual([])
   })
 
-  it('keeps declaration/text conflicts unresolved even with a matching receipt', () => {
+  it('keeps declaration/text conflicts unresolved even with a matching receipt', async () => {
     const files = workspace()
     files['node_modules/lz-string/package.json'] = JSON.stringify({
       name: 'lz-string',
       version: '1.5.0',
       license: 'BSD-3-Clause',
     })
-    const result = scan(files)
+    const result = await scan(files)
     expect(result.incompleteChecks.length).toBeGreaterThan(0)
     expect(
       result.findings.some((finding) => finding.explanation.includes('License evidence conflict')),
@@ -247,7 +249,7 @@ describe('workspace licence review receipts', () => {
   it.each(['text', 'json'] as const)(
     'shows reviewed by receipt in %s and exits zero',
     async (format) => {
-      const result = scan(workspace())
+      const result = await scan(workspace())
       const rendered = await runLegalCommand({
         options: { format, registry: false, out: undefined },
         deps: {
@@ -265,7 +267,7 @@ describe('workspace licence review receipts', () => {
     },
   )
 
-  it('does not report a complete scan when the receipt finding cannot fit', () => {
+  it('does not report a complete scan when the receipt finding cannot fit', async () => {
     const files: Record<string, string> = workspace([])
     const packages: Record<string, { version: string; license: string }> = {}
     const reviews = Array.from({ length: LEGAL_FINDINGS_PER_RULE_MAX + 1 }, (_, index) => {
@@ -283,8 +285,9 @@ describe('workspace licence review receipts', () => {
     files[LEGAL_REVIEW_FILE] = JSON.stringify(reviews)
     delete files['node_modules/lz-string/LICENSE']
     delete files['node_modules/lz-string/package.json']
+    const truncated = await scan(files)
     expect(
-      scan(files).incompleteChecks.some((check) => check.includes('report truncated for receipt')),
+      truncated.incompleteChecks.some((check) => check.includes('report truncated for receipt')),
     ).toBe(true)
   })
 })

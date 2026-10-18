@@ -21,12 +21,13 @@ import {
   type SkillImportSource,
   UI_TEXT,
 } from '../shared/constants'
-import { fill } from '../shared/l10n/text'
+import { fill, uiLocale } from '../shared/l10n/text'
 import type { ProcessResult } from './backend/sandboxSetup'
 import type { AgentImportHostDeps } from './agentImportHost'
 import { runAgentImport } from './agentImportBundle'
-import { type MuseConfigDeps, showHooks, showMcpServers } from './commands/museConfigCommands'
-import { importSkills, manageSkills, type SkillsCliDeps } from './commands/skillsCommands'
+import type * as CommandsBundle from './commands/commandsEntry'
+import type { MuseConfigDeps } from './commands/museConfigCommands'
+import type { SkillsCliDeps } from './commands/skillsCommands'
 import type { ConversationExports } from './conversation/exportConversation'
 import type { Logger } from './logger'
 import { loggedPopups } from './popups'
@@ -228,42 +229,61 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
     return target
   }
   return {
-    showMcpServers: () => showMcpServers(configDeps()),
-    showHooks: () => showHooks(configDeps()),
-    manageSkills: () =>
-      manageSkills({
-        ...skillsDeps(),
-        pickSkills: async (items) => {
-          const picked = await vscode.window.showQuickPick(
-            items.map((item) => ({ ...item })),
-            {
-              canPickMany: true,
-              title: UI_TEXT.skillsPickTitle,
-              placeHolder: UI_TEXT.skillsPickPlaceholder,
-              matchOnDescription: true,
-              matchOnDetail: true,
-              ignoreFocusOut: true,
-            },
-          )
-          return picked === undefined ? undefined : new Set(picked.map((item) => item.id))
+    // The command flows load on first use (PLAN.md D6): dist/commands.js.
+    showMcpServers: async () => {
+      const commands: typeof CommandsBundle = await import('./commands/commandsEntry')
+      await commands.showMcpServers(configDeps(), UI_TEXT, uiLocale())
+    },
+    showHooks: async () => {
+      const commands: typeof CommandsBundle = await import('./commands/commandsEntry')
+      await commands.showHooks(configDeps(), UI_TEXT, uiLocale())
+    },
+    manageSkills: async () => {
+      const commands: typeof CommandsBundle = await import('./commands/commandsEntry')
+      await commands.manageSkills(
+        {
+          ...skillsDeps(),
+          pickSkills: async (items) => {
+            const picked = await vscode.window.showQuickPick(
+              items.map((item) => ({ ...item })),
+              {
+                canPickMany: true,
+                title: UI_TEXT.skillsPickTitle,
+                placeHolder: UI_TEXT.skillsPickPlaceholder,
+                matchOnDescription: true,
+                matchOnDetail: true,
+                ignoreFocusOut: true,
+              },
+            )
+            return picked === undefined ? undefined : new Set(picked.map((item) => item.id))
+          },
         },
-      }),
-    importSkills: () =>
-      importSkills({
-        ...skillsDeps(),
-        pickSource: async () => {
-          const choice = await vscode.window.showQuickPick(sourceChoices(), {
-            title: UI_TEXT.importSourceTitle,
-          })
-          return choice?.source
+        UI_TEXT,
+        uiLocale(),
+      )
+    },
+    importSkills: async () => {
+      const commands: typeof CommandsBundle = await import('./commands/commandsEntry')
+      await commands.importSkills(
+        {
+          ...skillsDeps(),
+          pickSource: async () => {
+            const choice = await vscode.window.showQuickPick(sourceChoices(), {
+              title: UI_TEXT.importSourceTitle,
+            })
+            return choice?.source
+          },
+          confirmImport: async (message, detail) =>
+            (await vscode.window.showInformationMessage(
+              message,
+              { modal: true, detail },
+              UI_TEXT.importConfirmAction,
+            )) === UI_TEXT.importConfirmAction,
         },
-        confirmImport: async (message, detail) =>
-          (await vscode.window.showInformationMessage(
-            message,
-            { modal: true, detail },
-            UI_TEXT.importConfirmAction,
-          )) === UI_TEXT.importConfirmAction,
-      }),
+        UI_TEXT,
+        uiLocale(),
+      )
+    },
     importFromAgents: () =>
       runAgentImport({
         ...deps.agentImport,

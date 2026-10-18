@@ -48,15 +48,12 @@ import {
 import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
 import { clipForLog } from '../../core/logging'
 import { isSamePath } from '../../core/paths'
-import { withSlowDeadline } from '../../core/timeouts'
+import { stillWaitingText, waitForAnswer } from '../../core/timeouts'
 import { resolveWorkspacePath } from '../../core/workspacePath'
 import {
-  MILLISECONDS_PER_SECOND,
   MSP_CLIENT_NAME,
-  MSP_HANDSHAKE_TIMEOUT_MS,
   MSP_KNOWN_SCHEMA_FINGERPRINTS,
   MSP_REQUESTED_CAPABILITIES,
-  MSP_SLOW_HANDSHAKE_TIMEOUT_MS,
   MUSE_VERSION_FILE,
   type EnvironmentVariable,
   MUSE_CERTIFICATE_VARIABLES,
@@ -130,10 +127,6 @@ export interface BackendManagerDeps {
   readonly isWorkspaceTrusted: () => boolean
   /** VS Code's proxy settings, read at each spawn. */
   readonly getProxySettings: () => ProxySettings
-  /** The handshake's deadline; the constant unless a test shortens it. */
-  readonly handshakeTimeoutMs?: number
-  /** The whole wait for a slow start whose process still runs; likewise. */
-  readonly slowHandshakeTimeoutMs?: number
   /** The commands' deadlines and the watchdog's silence; the constants unless a test shortens them. */
   readonly featurePorts?: MuseCodeFeaturePorts | undefined
   readonly commandTimeouts?: CommandTimeouts
@@ -351,19 +344,14 @@ export class MuseCodeBackendManager {
             assertCanRun,
           )
         : await this.spawnAccountHost(spawnOptions, accountHome, resource, assertCanRun)
-    const firstMs = this.deps.handshakeTimeoutMs ?? MSP_HANDSHAKE_TIMEOUT_MS
-    const totalMs = this.deps.slowHandshakeTimeoutMs ?? MSP_SLOW_HANDSHAKE_TIMEOUT_MS
-    const seconds = (ms: number) => String(Math.round(ms / MILLISECONDS_PER_SECOND))
-    // A process that exits fails the handshake at once; one still running at
-    // the first deadline is starting slowly, and is waited for once more.
-    let hasExited = false
-    const noteExit = () => {
-      hasExited = true
-    }
-    void handshake.exited.then(noteExit).catch(noteExit)
+    // No deadline of our own (owner 2026-10-16: no arbitrary limits): the
+    // handshake is waited on until the server answers or the wait is
+    // stopped, saying so out loud each minute. A process that exits fails
+    // the handshake through its own rejection; dispose aborts
+    // `resourceStop`, which ends this wait and reaps the process below.
     let spawned: Awaited<ReturnType<typeof handshake.initialize>>
     try {
-      spawned = await withSlowDeadline<Awaited<ReturnType<typeof handshake.initialize>>>(
+      spawned = await waitForAnswer<Awaited<ReturnType<typeof handshake.initialize>>>(
         handshake.initialize({
           clientInfo: { name: MSP_CLIENT_NAME, version: this.deps.extensionVersion },
           // The panel renders question cards (M4), so the host may send
@@ -374,16 +362,10 @@ export class MuseCodeBackendManager {
             requestedCapabilities: [...MSP_REQUESTED_CAPABILITIES],
           },
         }),
-        {
-          firstMs,
-          totalMs,
-          isRunning: () => !hasExited,
-          message: (ms) => `Muse Code did not finish starting within ${seconds(ms)} s`,
-          onSlow: () => {
-            this.deps.log.info(
-              `muse serve is still starting after ${seconds(firstMs)} s and its process runs; waiting up to ${seconds(totalMs)} s in all`,
-            )
-          },
+        this.resourceStop.signal,
+        () => new Error(UI_TEXT.questionCancelled),
+        (elapsedMs) => {
+          this.deps.log.info(stillWaitingText({ key: 'museServeStarting' }, elapsedMs))
         },
       )
     } catch (error: unknown) {

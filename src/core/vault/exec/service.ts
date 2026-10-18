@@ -27,7 +27,7 @@ export interface VaultExecHostPort {
   realPath(path: string): Promise<string>
 }
 export interface VaultExecRunOptions {
-  readonly timeoutMs: number
+  readonly timeoutMs: number | undefined
   readonly limit?: ShellTimeLimit | undefined
 }
 

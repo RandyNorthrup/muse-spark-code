@@ -17,6 +17,7 @@ import { isOriginBound } from './credentialRecords'
 import { readOpenRouterKeyUsage } from './openRouter'
 import { connectOpenRouterAccount } from './openRouter'
 import type { OAuthLoopback } from './oauthLoopback'
+import { inspectProviderKey, providerKeyNoticeText } from '../../core/providers/keyInspection'
 import { promptForProviderKey } from './keyPrompt'
 import { probeLocalServers, type LocalProbeResult } from './localProbe'
 import {
@@ -60,6 +61,11 @@ export interface ProvidersHostUi {
   readonly confirmPaidTest: (message: string) => Promise<boolean>
   /** Asks once about a private-network address (D74). */
   readonly confirmPrivateNetwork: (message: string) => Promise<boolean>
+  /**
+   * Asks whether a pasted key with a wrong-thing notice is used anyway.
+   * A "no" re-opens the box; the provider judges the sent key.
+   */
+  readonly confirmKeyUse: (message: string) => Promise<boolean>
   /** Opens a URL in the system browser. */
   readonly openBrowser: (url: string) => Promise<void>
 }
@@ -237,13 +243,30 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       }
       return isConfirmed ? verdict : { kind: 'refused', detail: UI_TEXT.providerPrivateConfirm }
     },
-    promptForKey: (preset) =>
-      promptForProviderKey(deps.ui.showInputBox, {
-        providerName: preset.name,
-        origin: preset.origin,
-        keyHint: preset.keyHint,
-        isKeyShape: (value) => preset.isKeyShape(value),
-      }),
+    promptForKey: async (preset) => {
+      // Any non-blank key is accepted for the free key test; a value that
+      // looks like the wrong thing (a URL, a path, placeholder text, inner
+      // whitespace) asks once whether to use it anyway, and a "no"
+      // re-opens the box. The provider judges the sent key.
+      for (;;) {
+        const key = await promptForProviderKey(deps.ui.showInputBox, {
+          providerName: preset.name,
+          origin: preset.origin,
+          keyHint: preset.keyHint,
+        })
+        if (key === undefined) {
+          return key
+        }
+        const inspection = inspectProviderKey(key)
+        if (inspection === 'ok' || inspection === 'empty') {
+          return key
+        }
+        const shouldUse = await deps.ui.confirmKeyUse(providerKeyNoticeText(inspection))
+        if (shouldUse) {
+          return key
+        }
+      }
+    },
     testCredential: (entry, credential) => runTest(entry, credential),
     testStoredCredential: async (entry) => {
       const credential = await credentialFor(deps.credentials, entry)

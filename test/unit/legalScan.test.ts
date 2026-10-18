@@ -35,11 +35,11 @@ const project = {
 const LEGAL_CAP_SCAN_TIMEOUT_MS = 15_000
 
 describe('scanLegal', () => {
-  it('cancels before invoking any supplied reader', () => {
+  it('cancels before invoking any supplied reader', async () => {
     let reads = 0
     const controller = new AbortController()
     controller.abort()
-    expect(() =>
+    await expect(
       scanLegal(
         {
           files: ['x.ts'],
@@ -50,12 +50,12 @@ describe('scanLegal', () => {
         },
         { headerPolicy: 'off', signal: controller.signal },
       ),
-    ).toThrow('cancelled')
+    ).rejects.toThrow('cancelled')
     expect(reads).toBe(0)
   })
 
-  it('scans a clean project with a valid envelope', () => {
-    const result = scanLegal(snapshotFrom(project), { headerPolicy: 'optional' })
+  it('scans a clean project with a valid envelope', async () => {
+    const result = await scanLegal(snapshotFrom(project), { headerPolicy: 'optional' })
     expect(legalScanResultSchema.safeParse(result).success).toBe(true)
     expect(result.version).toBe(1)
     expect(result.ruleVersion).toBe('1')
@@ -64,7 +64,7 @@ describe('scanLegal', () => {
     expect(result.exclusions).toEqual([])
   })
 
-  it('leaves a fully evidenced scan complete with no incomplete checks', () => {
+  it('leaves a fully evidenced scan complete with no incomplete checks', async () => {
     // C-M97-1 acceptance: a verbatim license file (Windows line endings),
     // an agreeing manifest, a headed source file and hash-proven bundle
     // inputs carry no blanket caveat, so the run exits 0 or 1 downstream,
@@ -76,7 +76,7 @@ describe('scanLegal', () => {
       'src/ok.ts': headed,
       [BUNDLE_OUTPUT]: BUNDLE_TEXT,
     }
-    const result = scanLegal(snapshotFrom(files), {
+    const result = await scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
       distribution: hashEvidence(files),
     })
@@ -85,7 +85,7 @@ describe('scanLegal', () => {
     expect(result.incompleteChecks).toEqual([])
   })
 
-  it('keeps a modified dependency license text under human review (RVCM971 P2)', () => {
+  it('keeps a modified dependency license text under human review (RVCM971 P2)', async () => {
     // Finding 3: a dependency declaring MIT whose vendored LICENSE adds a
     // payment term reads heuristically as MIT with agreeing ids; the scan
     // must still name the human-review limitation instead of exiting clean.
@@ -101,7 +101,7 @@ describe('scanLegal', () => {
       'src/ok.ts': headed,
       [BUNDLE_OUTPUT]: BUNDLE_TEXT,
     }
-    const result = scanLegal(snapshotFrom(files), {
+    const result = await scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
       distribution: hashEvidence(files),
     })
@@ -129,7 +129,7 @@ describe('scanLegal', () => {
     outputs: { [BUNDLE_OUTPUT]: fingerprint(BUNDLE_TEXT) },
   }
 
-  it('derives distribution from a version-2 build record, generated modules included', () => {
+  it('derives distribution from a version-2 build record, generated modules included', async () => {
     // A plugin-generated `namespace:name` module is attributed by the hash
     // the build recorded for its contents; every workspace input and
     // listed output verifies against the record.
@@ -137,7 +137,7 @@ describe('scanLegal', () => {
       { 'src/ok.ts': { bytes: 1 }, 'browser-ns:virtual': { bytes: 1 } },
       { ...versionTwo, generated: { 'browser-ns:virtual': fingerprint('EN') } },
     )
-    const result = scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
+    const result = await scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
     expect(result.incompleteChecks).toEqual([])
     expect(result.findings).toEqual([])
   })
@@ -167,18 +167,18 @@ describe('scanLegal', () => {
     ).toEqual([])
   })
 
-  it('names a generated module the build did not record (CM971-R3)', () => {
+  it('names a generated module the build did not record (CM971-R3)', async () => {
     const files = metaProject(
       { 'src/ok.ts': { bytes: 1 }, 'browser-ns:virtual': { bytes: 1 } },
       versionTwo,
     )
-    const result = scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
+    const result = await scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
     expect(result.incompleteChecks).toContain(
       fill(UI_TEXT.legalScanner.m206, { v0: 'bundle', v1: 'browser-ns:virtual' }),
     )
   })
 
-  it('names inputs outside the workspace instead of treating them as constants (RVCM971B P2-5)', () => {
+  it('names inputs outside the workspace instead of treating them as constants (RVCM971B P2-5)', async () => {
     const files = metaProject(
       {
         'src/ok.ts': { bytes: 1 },
@@ -187,22 +187,22 @@ describe('scanLegal', () => {
       },
       versionTwo,
     )
-    const result = scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
+    const result = await scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
     for (const outside of ['../shared/review.ts', '/abs/path.js'])
       expect(result.incompleteChecks).toContain(
         fill(UI_TEXT.legalScanner.m202, { v0: 'bundle', v1: outside }),
       )
   })
 
-  it('refuses a version-1 record, which re-read files after the build (RVCM971B P2-4)', () => {
+  it('refuses a version-1 record, which re-read files after the build (RVCM971B P2-4)', async () => {
     const files = metaProject({ 'src/ok.ts': { bytes: 1 } }, { ...versionTwo, version: 1 })
-    const result = scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
+    const result = await scanLegal(snapshotFrom(files), { headerPolicy: 'optional' })
     expect(result.incompleteChecks).toContain(
       fill(UI_TEXT.legalScanner.m206, { v0: 'bundle', v1: 'src/ok.ts' }),
     )
   })
 
-  it('reads stale bundle bytes as stale, not as fresh (RVCM971 P2)', () => {
+  it('reads stale bundle bytes as stale, not as fresh (RVCM971 P2)', async () => {
     // Finding 4: retaining a prior input list while changing a source file
     // without rebuilding must keep the stale-input and freshness reasons.
     const files = {
@@ -211,7 +211,7 @@ describe('scanLegal', () => {
       'src/ok.ts': `${headed}export const extra = 2\n`,
       [BUNDLE_OUTPUT]: BUNDLE_TEXT,
     }
-    const stale = scanLegal(snapshotFrom(files), {
+    const stale = await scanLegal(snapshotFrom(files), {
       headerPolicy: 'optional',
       distribution: hashEvidence({ ...files, 'src/ok.ts': headed }),
     })
@@ -219,14 +219,14 @@ describe('scanLegal', () => {
     expect(stale.incompleteChecks).toContain(UI_TEXT.legalScanner.m035)
   })
 
-  it('sorts findings deterministically with stable rule ids', () => {
+  it('sorts findings deterministically with stable rule ids', async () => {
     const files = {
       ...project,
       'src/a.ts': 'export const a = 1\n',
       'src/b.ts': 'export const b = 1\n',
     }
-    const first = scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
-    const second = scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
+    const first = await scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
+    const second = await scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
     expect(first).toEqual(second)
     const ids = first.findings.map((finding) => finding.id)
     expect(ids).toEqual([...ids].toSorted((a, b) => a.localeCompare(b, 'en')))
@@ -239,20 +239,20 @@ describe('scanLegal', () => {
 
   it(
     'reads every file past the old twenty-thousand scan stop, with no incomplete marker',
-    () => {
+    async () => {
       const files: Record<string, string> = { ...project }
       for (let index = 0; index < LEGAL_FILES_SCANNED_MAX + 5; index += 1) {
         files[`src/many${String(index)}.ts`] = headed
       }
       const { snapshot, readPaths } = countingSnapshot(files)
-      const result = scanLegal(snapshot, { headerPolicy: 'optional' })
+      const result = await scanLegal(snapshot, { headerPolicy: 'optional' })
       expect(result.incompleteChecks.some((entry) => entry.includes('more not read'))).toBe(false)
       expect(new Set(readPaths())).toEqual(new Set(Object.keys(files)))
     },
     LEGAL_CAP_SCAN_TIMEOUT_MS,
   )
 
-  it('keeps every finding past the old five-hundred truncation, blockers first', () => {
+  it('keeps every finding past the old five-hundred truncation, blockers first', async () => {
     // Six rules with a hundred findings each: headers, dependencies,
     // compatibility, notices, distribution and project licenses.
     const files: Record<string, string> = {
@@ -270,7 +270,7 @@ describe('scanLegal', () => {
       packages[`node_modules/gpl${String(index)}`] = { version: '1', license: 'GPL-3.0-only' }
     }
     files['package-lock.json'] = JSON.stringify({ lockfileVersion: 3, packages })
-    const result = scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
+    const result = await scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
     expect(result.findings.length).toBeGreaterThan(LEGAL_FINDINGS_MAX)
     // Only the removed whole-report finding truncation is gone: the combined
     // tree's stricter license-expression handling fills the retained
@@ -282,33 +282,33 @@ describe('scanLegal', () => {
     ).toBe(false)
   })
 
-  it('refuses traversal paths instead of reading them', () => {
-    expect(() =>
+  it('refuses traversal paths instead of reading them', async () => {
+    await expect(
       scanLegal(snapshotFrom({ '../evil.ts': 'x' }), { headerPolicy: 'optional' }),
-    ).toThrow('outside the workspace')
-    expect(() => scanLegal(snapshotFrom({ '/abs.ts': 'x' }), { headerPolicy: 'optional' })).toThrow(
-      'outside the workspace',
-    )
-    expect(() =>
+    ).rejects.toThrow('outside the workspace')
+    await expect(
+      scanLegal(snapshotFrom({ '/abs.ts': 'x' }), { headerPolicy: 'optional' }),
+    ).rejects.toThrow('outside the workspace')
+    await expect(
       scanLegal(snapshotFrom({ 'src/ok.ts': headed }), {
         headerPolicy: 'optional',
         paths: ['../evil.ts'],
       }),
-    ).toThrow('outside the workspace')
+    ).rejects.toThrow('outside the workspace')
   })
 
-  it('limits header checks to an explicit subset but keeps workspace facts', () => {
+  it('limits header checks to an explicit subset but keeps workspace facts', async () => {
     const files = {
       ...project,
       'src/bare.ts': 'export const value = 1\n',
     }
-    const scoped = scanLegal(snapshotFrom(files), {
+    const scoped = await scanLegal(snapshotFrom(files), {
       headerPolicy: 'required',
       paths: ['src/ok.ts'],
     })
     expect(scoped.scope).toBe('src/ok.ts')
     expect(scoped.findings).toEqual([])
-    const whole = scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
+    const whole = await scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
     expect(whole.scope).toBe('')
     expect(whole.findings.length).toBeGreaterThan(0)
   })
@@ -320,7 +320,7 @@ describe('scanLegal', () => {
     { prefix: 'a/', isExplicit: true },
   ])(
     'retains build evidence past $prefix file-cap noise (explicit inputs $isExplicit)',
-    ({ prefix, isExplicit }) => {
+    async ({ prefix, isExplicit }) => {
       const files = {
         ...Object.fromEntries(
           Array.from({ length: LEGAL_FILES_SCANNED_MAX }, (_, index) => [
@@ -343,7 +343,7 @@ describe('scanLegal', () => {
         }),
       }
       const { snapshot, readPaths } = countingSnapshot(files)
-      const result = scanLegal(snapshot, {
+      const result = await scanLegal(snapshot, {
         headerPolicy: 'off',
         ...(isExplicit && { distribution: { bundleInputs: ['src/z.ts'] } }),
       })
@@ -364,9 +364,23 @@ describe('scanLegal', () => {
     },
   )
 
-  it('rejects an unknown header policy instead of guessing', () => {
-    expect(() => {
-      Reflect.apply(scanLegal, undefined, [snapshotFrom(project), { headerPolicy: 'sometimes' }])
-    }).toThrow('Unknown header policy')
+  it('rejects an unknown header policy instead of guessing', async () => {
+    await expect(
+      Reflect.apply(scanLegal, undefined, [snapshotFrom(project), { headerPolicy: 'sometimes' }]),
+    ).rejects.toThrow('Unknown header policy')
+  })
+
+  it('honours a named deadline and marks what it could not cover (NOLIMITS2 A32)', async () => {
+    const result = await scanLegal(snapshotFrom(project), {
+      headerPolicy: 'required',
+      deadline: 1,
+    })
+    expect(result.incompleteChecks).toContain(UI_TEXT.legalScanner.m112)
+  })
+
+  it('reads everything when no deadline is named (NOLIMITS2 A32)', async () => {
+    const result = await scanLegal(snapshotFrom(project), { headerPolicy: 'required' })
+    expect(result.incompleteChecks).not.toContain(UI_TEXT.legalScanner.m112)
+    expect(result.findings).toEqual([])
   })
 })

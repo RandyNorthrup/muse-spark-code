@@ -17,7 +17,6 @@ import {
   presetsByCategory,
   PRESETS,
   quirksOf,
-  isKeyShape,
   FORMAT_QUIRKS,
   type ProviderPreset,
 } from '../../src/core/providers/presets'
@@ -156,25 +155,21 @@ describe('the preset table', () => {
     expect(preset('ollama').authHeader).toBeUndefined()
   })
 
-  it('checks key shapes as they are typed', () => {
-    const anthropicKey = ['sk', '-', 'ant', '-', 'test-key-00001'].join('')
-    expect(isKeyShape(preset('anthropic').keyShape, anthropicKey)).toBe(true)
-    expect(isKeyShape(preset('anthropic').keyShape, 'sk-test-key-1')).toBe(false)
-    expect(isKeyShape(preset('anthropic').keyShape, '')).toBe(false)
-    const groqKey = ['gsk', '_', 'test-key-0000001'].join('')
-    expect(isKeyShape(preset('groq').keyShape, groqKey)).toBe(true)
-    const zaiKey = `${'a'.repeat(32)}.${'b'.repeat(16)}`
-    expect(isKeyShape(preset('zai').keyShape, zaiKey)).toBe(true)
-    expect(isKeyShape(preset('zai').keyShape, 'not-a-key')).toBe(false)
-    expect(isKeyShape(preset('mistral').keyShape, 'short')).toBe(false)
-    expect(isKeyShape(preset('mistral').keyShape, 'long-enough-key-1')).toBe(true)
-  })
-
-  it('accepts the captured Fireworks underscore key prefix', () => {
-    const key = ['fw', '_', 'synthetic-fixture-00001'].join('')
-    expect(isKeyShape(preset('fireworks').keyShape, key)).toBe(true)
-    expect(isKeyShape(preset('fireworks').keyShape, key.replace('_', '-'))).toBe(false)
-    expect(preset('fireworks').keyHint).toContain('fw_')
+  it('hints name where the key comes from, never a key shape', () => {
+    for (const candidate of PRESETS) {
+      if (candidate.auth !== 'apiKey') {
+        continue
+      }
+      expect(candidate.keyHint).not.toContain('AIza')
+      expect(candidate.keyHint).not.toContain('sk-ant-')
+      expect(candidate.keyHint).not.toContain('sk-or-')
+      expect(candidate.keyHint).not.toContain('gsk_')
+      expect(candidate.keyHint).not.toContain('fw_')
+      expect(candidate.keyHint).not.toContain('hf_')
+      expect(candidate.keyHint).not.toContain('xai-')
+      expect(candidate.keyHint).not.toMatch(/beginning with/i)
+    }
+    expect(preset('fireworks').keyHint).toContain('fireworks.ai')
   })
 
   it('tests keys for free where a check exists, else states a paid token', () => {
@@ -191,10 +186,12 @@ describe('the preset table', () => {
   it('reads quirks from the preset over its format defaults', () => {
     // M101 BYO 5: OpenAI adds its documented server_error past the responses table.
     // M101 item 24: OpenAI takes strict tool schemas.
+    // Lane RETRYLIMITS (review RVRETRYLIMITS): OpenAI's SDK-documented 2 retries.
     expect(quirksOf(preset('openai'))).toEqual({
       ...FORMAT_QUIRKS.responses,
       retry: { ...FORMAT_QUIRKS.responses.retry, errorKinds: ['server_error'] },
       supportsStrictTools: true,
+      retryLimits: { maxRetries: 2 },
     })
     expect(quirksOf(preset('openrouter')).reasoningField).toBe('reasoning_details')
     expect(quirksOf(preset('deepseek')).reasoningField).toBe('reasoning_content')

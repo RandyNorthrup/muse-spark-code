@@ -1,5 +1,6 @@
 import { Usd, isPositiveUsd } from '../../../shared/usd'
 import type { ResponseObservation, ConfirmedModelRequest, ResponseAttemptGuard } from './client'
+import { streamRepairAttempt } from './repairAttempt'
 // Paid Auto review execution: loaded only after the paid-use popup allows it.
 // Session-owned fences and journal observers are passed through unchanged.
 import type { ModelApiHostDeps, DirectResponseBudget } from './ModelApiHost'
@@ -40,7 +41,6 @@ import {
   AUTO_REVIEWER_MODEL_TEXT,
   AUTO_REVIEWER_TIMEOUT_MS,
   MODEL_API_EFFORT_OFF,
-  MODEL_API_MAX_RETRIES,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill, setUiText } from '../../../shared/l10n/text'
@@ -329,19 +329,13 @@ async function requestReviewer(
         },
       },
     )
-    const events = context.resolved.client.streamResponse(
+    const events = streamRepairAttempt(
+      context.resolved.client,
       body,
-      AbortSignal.any([signal, AbortSignal.timeout(AUTO_REVIEWER_TIMEOUT_MS)]),
-      undefined,
-      // No transport retry; structured repair is separately admitted and settled.
-      { retriesUsed: MODEL_API_MAX_RETRIES },
+      signal,
+      AUTO_REVIEWER_TIMEOUT_MS,
       admission,
-      {
-        ...confirmed,
-        onRequestStarted: () => {
-          // The combined admission observer above counts this paid use once.
-        },
-      },
+      confirmed,
     )
     for await (const event of events) {
       if (event.type === 'response.completed') hasCompleted = true

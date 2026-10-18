@@ -3,14 +3,15 @@ import { Usd, isPositiveUsd } from '../../../shared/usd'
 // only after the paid-use popup allows it. No transport retry, hooks off,
 // billed to the Model API key on the hookModels tally line, apart from the
 // conversation. `prompt` asks with no tools; `agent` loops over read-only
-// tools (read, grep, list, code intelligence) at most HOOK_AGENT_MAX_STEPS
-// requests per answer attempt. Invalid structured answers get one repair,
+// tools (read, grep, list, code intelligence) until the model stops calling
+// them (D121: no step ceiling of ours). Invalid structured answers get one repair,
 // then the existing text path. Every request is admitted and settled.
 // Session-owned fences and journal observers are passed through unchanged.
 import * as z from 'zod/mini'
 import type { ModelApiHostDeps, DirectResponseBudget } from './ModelApiHost'
 import type { reviewPaidCall } from './reviewerEntry'
 import type { ConfirmedModelRequest, ResponseAttemptGuard } from './client'
+import { streamRepairAttempt } from './repairAttempt'
 import { isFunctionCallItem } from './schemas'
 import type { FunctionCallItem, InputItem, StreamEvent, ToolDefinition, Usage } from './schemas'
 import {
@@ -25,12 +26,10 @@ import { estimateCostUsd } from '../../usage/insights'
 import type { SubagentUsage } from '../../../shared/paid'
 import type { ItemSnapshot } from '../../../shared/agentEvents'
 import {
-  HOOK_AGENT_MAX_STEPS,
   HOOK_MODEL_MAX_OUTPUT_TOKENS,
   HOOK_MODEL_ROW_TOOL,
   HOOK_MODEL_TIMEOUT_MS,
   MODEL_API_EFFORT_OFF,
-  MODEL_API_MAX_RETRIES,
   TOOL_OUTPUT_MAX_CHARS,
   TOOL_RESULT_MAX_LINE_CHARS,
   TOOL_RESULT_MAX_TOKENS,
@@ -205,9 +204,12 @@ async function callHookModel(
       const history: InputItem[] = [
         { type: 'message', role: 'user', content: [{ type: 'input_text', text: input.user }] },
       ]
-      const steps = input.kind === 'agent' ? HOOK_AGENT_MAX_STEPS : 1
+      // D121: an agent handler loops over its read-only tools until the
+      // model stops calling them — the removed 5-step ceiling was invented
+      // and no provider documents one. Each step is admitted and settled
+      // against the session and daily budgets, and Stop aborts the loop.
       let text = ''
-      for (let step = 0; step < steps; step += 1) {
+      for (;;) {
         text = ''
         const calls = await requestHookStep(
           context,
@@ -235,7 +237,7 @@ async function callHookModel(
         if (calls.length === 0) {
           break
         }
-        if (input.kind !== 'agent' || step === steps - 1) {
+        if (input.kind !== 'agent') {
           throw new Error('the hook model exceeded its tool allowance')
         }
         for (const call of calls) {
@@ -370,19 +372,13 @@ async function requestHookStep(
         },
       },
     )
-    const events = context.deps.client.streamResponse(
+    const events = streamRepairAttempt(
+      context.deps.client,
       body,
-      AbortSignal.any([signal, AbortSignal.timeout(HOOK_MODEL_TIMEOUT_MS)]),
-      undefined,
-      // No transport retry; structured repair has its own admission and settlement.
-      { retriesUsed: MODEL_API_MAX_RETRIES },
+      signal,
+      HOOK_MODEL_TIMEOUT_MS,
       admission,
-      {
-        ...confirmed,
-        onRequestStarted: () => {
-          // The combined admission observer above counts this paid use once.
-        },
-      },
+      confirmed,
     )
     for await (const event of events) {
       if (event.type === 'response.completed') hasCompleted = true

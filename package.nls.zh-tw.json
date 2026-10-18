@@ -196,6 +196,7 @@
   "config.modelApiStrictTools.description": "當所選模型支援時，使用嚴格的工具結構描述。關閉後保留原有工具宣告。",
   "config.modelApiParallelReads.description": "並行執行安全的唯讀工具呼叫，每次最多四個。其他工具呼叫依序執行。",
   "config.webSearchMaxPerRequest.description": "每次回答允許的服務端網頁搜尋次數上限（1–20，預設 5）。首次收費前會顯示價格和共用每日預算。",
+  "config.modelApiMaxRetries.description": "失敗的模型 API 請求的重試上限，按首次之後的每次嘗試計算（0 表示不重試）。預設未設定：適用各提供商文件記載的上限（Anthropic 2、OpenAI 2、Gemini 4、Azure 10、xAI 4、Meta 4），未記載上限的提供商會一直重試，直到其自身的等待或停止應答結束本次互動。",
   "config.modelApiTeamWorkers.description": "為相容性保留；此偏好設定在此組建中不起作用。",
   "config.legalHeaderPolicy.description": "用於法律掃描的版權與 SPDX 標頭檢查：必要會標記每個缺少相符標頭的專案自有原始檔，選用僅標記與偵測到的專案風格或其 REUSE 聲明相矛盾的標頭，關閉則略過標頭檢查。預設為選用；產生的檔案一律排除。",
   "config.legalHeaderPolicy.enumDescriptions.required": "每個專案自有原始檔都需要相符的版權與 SPDX 標頭。",

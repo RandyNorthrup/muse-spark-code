@@ -303,7 +303,7 @@ export function referenceFacts(source) {
       maxAttachments: source.MAX_ATTACHMENTS_PER_MESSAGE,
       textExtensions: [...source.TEXT_ATTACHMENT_EXTENSIONS],
       textSources: 'trustedIndexedWorkspacePaths',
-      modelApiTextAllowanceBytes: source.MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
+      modelApiTextAllowanceTokens: source.MODEL_API_TEXT_BUDGET_TOKENS,
       imageBytes: source.MAX_IMAGE_BYTES,
       pdfBytes: source.MAX_DOCUMENT_BYTES,
       textBytes: source.MAX_TEXT_ATTACHMENT_BYTES,
@@ -336,7 +336,6 @@ export function referenceFacts(source) {
     },
     browser: {
       actions: ['click', 'type'],
-      maxActions: source.BROWSER_CHECK_MAX_ACTIONS,
       results: ['consoleErrors', 'failedRequests'],
       screenshot: { modelApi: 'PNG', museCode: false },
     },
@@ -848,10 +847,9 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     questions: { actions: ['submit', 'explain', 'cancel'] },
     'mcp-elicitation': { actions: ['accept', 'decline', 'cancel'], answers: 'requestingServer' },
     effort: { enum: source.EFFORT_LEVELS },
+    // No default: without `--max-requests` a run has no request limit.
     'max-requests': {
-      default: source.EXEC_DEFAULT_MAX_REQUESTS,
       minimum: 1,
-      maximum: source.EXEC_MAX_REQUESTS,
     },
     timeout: {
       default: source.EXEC_DEFAULT_TIMEOUT_SECONDS,
@@ -859,9 +857,10 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       maximum: source.EXEC_MAX_TIMEOUT_SECONDS,
       unit: 'seconds',
     },
+    // D121: the person's --max-budget-usd has no ceiling of ours (the removed
+    // EXEC_MAX_BUDGET_USD = 20 was invented; no provider documents it).
     'max-budget-usd': {
       exclusiveMinimum: 0,
-      maximum: source.EXEC_MAX_BUDGET_USD,
       decimals: source.EXEC_USD_DECIMALS,
       required: 'modelApi',
       unit: 'USD',
@@ -1040,9 +1039,13 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       ...options,
       'prompt',
     ])
-  for (const value of [source.EXEC_DEFAULT_MAX_REQUESTS, source.EXEC_MAX_REQUESTS])
-    if (exec(['--max-requests', String(value)]).options?.maxRequests !== value)
-      errors.push('CLI request limit mismatch')
+  if (exec([]).options?.maxRequests !== undefined)
+    errors.push('CLI request limit mismatch: --max-requests unset must leave no limit')
+  if (
+    exec(['--max-requests', String(source.EXEC_MAX_REQUESTS)]).options?.maxRequests !==
+    source.EXEC_MAX_REQUESTS
+  )
+    errors.push('CLI request limit mismatch')
   if (exec(['--max-requests', String(source.EXEC_MAX_REQUESTS + 1)]).command !== 'invalid')
     errors.push('CLI request bound mismatch')
   for (const value of [source.EXEC_MIN_TIMEOUT_SECONDS, source.EXEC_MAX_TIMEOUT_SECONDS])

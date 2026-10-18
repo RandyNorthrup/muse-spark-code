@@ -57,7 +57,7 @@ The VS Code adapter: 48 files. Everything else reaches VS Code only through them
 | `src/host/prompts/promptEntry.ts`            | 57                |
 | `src/host/providers/chatgptSignIn.ts`        | 3                 |
 | `src/host/providers/copilotClient.ts`        | 29                |
-| `src/host/providers/keyPrompt.ts`            | 6                 |
+| `src/host/providers/keyPrompt.ts`            | 5                 |
 | `src/host/providers/providersHost.ts`        | 4                 |
 | `src/host/providers/subscriptionFeatures.ts` | 2                 |
 | `src/host/questions/questionStore.ts`        | 3                 |
@@ -200,7 +200,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `InputBoxOptions.placeHolder`                                                        | `src/extension.ts`, `src/host/git/gitWindow.ts`, `src/host/memoryFeatures.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/providers/keyPrompt.ts`, `src/host/worktreeFeatures.ts`                                                                                                                                                                                                                                                                                                                                                                                       |
 | `InputBoxOptions.prompt`                                                             | `src/host/paid/paidDailyBudget.ts`, `src/host/providers/keyPrompt.ts`, `src/host/providers/providersHost.ts`, `src/host/reporting/reportPanel.ts`                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `InputBoxOptions.title`                                                              | `src/extension.ts`, `src/host/git/gitWindow.ts`, `src/host/memoryFeatures.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/paid/paidDailyBudget.ts`, `src/host/prompts/promptEntry.ts`, `src/host/providers/keyPrompt.ts`, `src/host/providers/providersHost.ts`, `src/host/reporting/reportPanel.ts`, `src/host/worktreeFeatures.ts`                                                                                                                                                                                                                                    |
-| `InputBoxOptions.validateInput`                                                      | `src/extension.ts`, `src/host/git/gitWindow.ts`, `src/host/memoryFeatures.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/paid/paidDailyBudget.ts`, `src/host/prompts/promptEntry.ts`, `src/host/providers/keyPrompt.ts`, `src/host/worktreeFeatures.ts`                                                                                                                                                                                                                                                                                                                |
+| `InputBoxOptions.validateInput`                                                      | `src/extension.ts`, `src/host/git/gitWindow.ts`, `src/host/memoryFeatures.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/paid/paidDailyBudget.ts`, `src/host/prompts/promptEntry.ts`, `src/host/worktreeFeatures.ts`                                                                                                                                                                                                                                                                                                                                                   |
 | `InputBoxOptions.value`                                                              | `src/host/models/modelsPanelEntry.ts`, `src/host/paid/paidDailyBudget.ts`, `src/host/prompts/promptEntry.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `LanguageModelAccessInformation.canSendRequest`                                      | `src/host/providers/subscriptionFeatures.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `LanguageModelChat.countTokens`                                                      | `src/host/providers/copilotClient.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
@@ -496,7 +496,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | Module                   | Files |
 | ------------------------ | ----- |
 | `node:async_hooks`       | 2     |
-| `node:buffer`            | 67    |
+| `node:buffer`            | 69    |
 | `node:child_process`     | 34    |
 | `node:crypto`            | 185   |
 | `node:dgram`             | 1     |
@@ -518,7 +518,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:stream`            | 19    |
 | `node:stream/promises`   | 3     |
 | `node:string_decoder`    | 3     |
-| `node:timers/promises`   | 29    |
+| `node:timers/promises`   | 31    |
 | `node:tls`               | 1     |
 | `node:url`               | 9     |
 | `node:util`              | 11    |

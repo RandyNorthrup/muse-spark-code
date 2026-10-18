@@ -144,7 +144,6 @@ const state: VaultPanelState = {
             digest: 'a'.repeat(64),
             nonce: id(),
             createdAt: now,
-            expiresAt: now + VAULT_APPROVAL_TTL_MS,
             lockEpoch: 1,
             taint:
               scenario === 'allow-session'

@@ -1,3 +1,4 @@
+import { setImmediate as yieldToHost } from 'node:timers/promises'
 import { fill, plural } from '../../shared/l10n/text'
 import { fingerprint } from '../verify/fingerprint'
 import { compareLegalText } from './files'
@@ -14,11 +15,11 @@ import {
   LEGAL_FILE_MAX_BYTES,
   LEGAL_TOTAL_MAX_BYTES,
   LEGAL_FINDINGS_PER_RULE_MAX,
-  LEGAL_SCAN_TIMEOUT_MS,
   LEGAL_HEADER_POLICIES,
   LEGAL_INCOMPLETE_MAX,
   LEGAL_RESULT_VERSION,
   LEGAL_SCAN_PATHS_MAX,
+  LEGAL_SCAN_YIELD_EVERY,
   LEGAL_TEXT_MAX_CHARS,
   LEGAL_EVIDENCE_EXCERPT_MAX_CHARS,
   LEGAL_FINDING_ID_MAX_CHARS,
@@ -405,18 +406,34 @@ function deriveDistribution(snapshot: LegalFileSnapshot): DistributionEvidence {
  * The result always validates against the lane 0 schema: a validation
  * failure is an internal bug and throws.
  */
-export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions): LegalScanResult {
+export async function scanLegal(
+  snapshot: LegalFileSnapshot,
+  options: LegalScanOptions,
+): Promise<LegalScanResult> {
   if (!LEGAL_HEADER_POLICIES.includes(options.headerPolicy)) {
     throw new LegalScanError(UI_TEXT.legalScanner.m108)
+  }
+  let sinceYield = 0
+  const checkYield = async (): Promise<void> => {
+    sinceYield += 1
+    if (sinceYield < LEGAL_SCAN_YIELD_EVERY) return
+    sinceYield = 0
+    // Let a Stop/SIGINT abort land mid-scan (PR #214 review): the scan is
+    // CPU-bound over thousands of files on one thread, so without a yield
+    // the abort below could only have arrived before the scan started.
+    await yieldToHost()
+    if (options.signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
   }
   const listed2 = snapshot.files
   for (const file of listed2) {
     assertWorkspaceRelative(file)
+    await checkYield()
   }
   const paths = options.paths ?? []
   if (paths.length > LEGAL_SCAN_PATHS_MAX) throw new LegalScanError(UI_TEXT.legalScanner.m109)
   for (const path of paths) {
     assertWorkspaceRelative(path)
+    await checkYield()
   }
 
   const sorted = snapshot.files.toSorted((a, b) => compareLegalText(a, b))
@@ -445,7 +462,10 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   const incomplete: string[] = [...(snapshot.incompleteChecks ?? [])]
   const cache = new Map<string, string | undefined>()
   let bytesRead = 0
-  const deadline = options.deadline ?? Date.now() + LEGAL_SCAN_TIMEOUT_MS
+  // A deadline only when the caller names one: unnamed, the scan reads
+  // until it is done or the signal aborts (owner 2026-10-16: no arbitrary
+  // limits), never stopping at an invented 120 s.
+  const deadline = options.deadline
   let isTimedOut = false
   const bounded: LegalFileSnapshot = {
     get files() {
@@ -453,7 +473,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     },
     readFile: (path: string) => {
       if (options.signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
-      if (Date.now() >= deadline) {
+      if (deadline !== undefined && Date.now() >= deadline) {
         if (!isTimedOut) incomplete.push(UI_TEXT.legalScanner.m112)
         isTimedOut = true
         return
@@ -485,7 +505,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     ...(snapshot.readFileHash !== undefined && {
       readFileHash: (path: string) => {
         if (options.signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
-        return allowed.has(path) && Date.now() < deadline
+        return allowed.has(path) && (deadline === undefined || Date.now() < deadline)
           ? snapshot.readFileHash?.(path)
           : undefined
       },
@@ -554,6 +574,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   const manifests: ManifestLicenseDeclaration[] = []
   const readerResults = []
   for (const reader of readers) {
+    await checkYield()
     const result = reader(view)
     const remaining = LEGAL_DEPENDENCIES_MAX - dependencies.length
     if (result.dependencies.length > remaining)
@@ -602,6 +623,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
       ]),
     ]
     for (const file of localFiles) {
+      await checkYield()
       const text = bounded.readFile(file)
       if (text === undefined) continue
       const match = identifyLicenseText(text)
@@ -764,7 +786,11 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   incomplete.push(
     ...(snapshot.incompleteChecks ?? []).filter((entry) => !incomplete.includes(entry)),
   )
-  if (Date.now() >= deadline && !incomplete.includes('scan stopped at limit: elapsed time'))
+  if (
+    deadline !== undefined &&
+    Date.now() >= deadline &&
+    !incomplete.includes('scan stopped at limit: elapsed time')
+  )
     incomplete.push(UI_TEXT.legalScanner.m112)
   // No whole-report truncation past a finding count (B18): every finding
   // the per-rule bound above admits is kept, whatever the report's size.

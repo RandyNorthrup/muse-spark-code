@@ -11,7 +11,7 @@
 // panel shows. Pure besides the injected run.
 
 import type { GitProcess } from '../../host/git'
-import { GIT_PROMPT_COMMITS_MAX, GIT_TIMEOUT_MS } from '../../shared/constants'
+import { GIT_PROMPT_COMMITS_MAX } from '../../shared/constants'
 import { isPlainRefName } from './pushPlan'
 import type { NativeGitContext } from './status'
 
@@ -54,10 +54,12 @@ export async function readNativeDiff(
   isStaged: boolean,
   maxBytes: number,
 ): Promise<TruncatedDiff> {
+  // No deadline of our own: the diff is waited on until git answers or the
+  // signal aborts (owner 2026-10-16); a real failure still falls back as if
+  // git were absent.
   const output = await run(nativeDiffArgs(isStaged), {
     cwd: context.cwd,
     env: context.env,
-    timeoutMs: GIT_TIMEOUT_MS,
     ...(context.signal !== undefined && { signal: context.signal }),
   })
   return truncateDiffBytes(output, maxBytes)

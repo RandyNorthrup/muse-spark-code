@@ -18,6 +18,8 @@ import * as z from 'zod/mini'
 export interface AgentImportHostDeps {
   readonly workspaceRoot: string | undefined
   readonly isActive: () => boolean
+  /** Ends the import's git probes when it aborts (the window closing). */
+  readonly signal?: AbortSignal
   /**
    * Whether the project's own configuration may load (M71): VS Code trusts
    * the folder and the window is not held on someone else's pull request.
@@ -136,6 +138,7 @@ export async function runAgentImportUi(deps: AgentImportHostDeps): Promise<void>
       isWorkspaceTrusted: deps.isProjectTrusted,
       ...(deps.isProjectHeld !== undefined && { isProjectHeld: deps.isProjectHeld }),
       isActive: deps.isActive,
+      ...(deps.signal !== undefined && { signal: deps.signal }),
       museSettingsFile: deps.museSettingsPath(),
       editProject: deps.editProject,
       beforeProjectWrite: deps.beforeProjectWrite,
