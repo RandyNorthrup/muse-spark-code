@@ -12,6 +12,7 @@ import {
 import { classifyTool, toolDefinitions } from '../../src/core/backends/modelapi/tools'
 import { runLegalScan } from '../../src/core/legal/entry'
 import { LEGAL_SCAN_TOOL_MODEL_TEXT, MODEL_API_TOOLS, UI_TEXT } from '../../src/shared/constants'
+import { legalScanResultSchema } from '../../src/shared/legal'
 import type { LegalScanRunner } from '../../src/shared/legal'
 
 // The committed offline fixture workspaces, read through the production
@@ -71,16 +72,16 @@ describe('runLegalScanCall', () => {
       SIGNAL,
     )
     if (!outcome.ok) throw new Error(outcome.reason)
-    const parsed: unknown = JSON.parse(outcome.json)
-    expect(parsed).toMatchObject({
+    const parsed = legalScanResultSchema.safeParse(JSON.parse(outcome.json))
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) throw new Error('legal_scan JSON failed its schema')
+    expect(parsed.data).toMatchObject({
       version: 1,
       scope: 'package.json',
       findings: [],
       disclaimer: UI_TEXT.legalScanDisclaimer,
     })
-    const evidence = (parsed as { evidenceFiles: { path: string }[] }).evidenceFiles.map(
-      (entry) => entry.path,
-    )
+    const evidence = (parsed.data.evidenceFiles ?? []).map((entry) => entry.path)
     expect(evidence).toContain('package.json')
   })
 
@@ -94,12 +95,11 @@ describe('runLegalScanCall', () => {
       disclaimer,
     )
     if (!outcome.ok) throw new Error(outcome.reason)
-    const parsed: unknown = JSON.parse(outcome.json)
-    expect(parsed).toMatchObject({ version: 1, disclaimer })
-    const evidence = (parsed as { evidenceFiles: { path: string }[] }).evidenceFiles.map(
-      (entry) => entry.path,
-    )
-    expect(evidence.length).toBeGreaterThan(0)
+    const parsed = legalScanResultSchema.safeParse(JSON.parse(outcome.json))
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) throw new Error('legal_scan JSON failed its schema')
+    expect(parsed.data).toMatchObject({ version: 1, disclaimer })
+    expect((parsed.data.evidenceFiles ?? []).length).toBeGreaterThan(0)
   })
 
   it('forwards the header policy to the production scan', async () => {
@@ -110,10 +110,10 @@ describe('runLegalScanCall', () => {
       SIGNAL,
     )
     if (!outcome.ok) throw new Error(outcome.reason)
-    const parsed = JSON.parse(outcome.json) as {
-      findings: { category: string; file?: string; severity: string }[]
-    }
-    expect(parsed.findings).toContainEqual(
+    const parsed = legalScanResultSchema.safeParse(JSON.parse(outcome.json))
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) throw new Error('legal_scan JSON failed its schema')
+    expect(parsed.data.findings).toContainEqual(
       expect.objectContaining({
         category: 'copyrightHeader',
         file: 'src/noheader.js',
