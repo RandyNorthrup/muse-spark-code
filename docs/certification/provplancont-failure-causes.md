@@ -90,3 +90,65 @@ owner's PC are rows 4/5 (store/lock/listener), `sign-in-required invalid_grant`
    `host-id-unreadable` with the file name). Proof: the snapshot's own
    `test/unit/chatGptHostId.test.ts` case was red before and passes after;
    it finishes the half of the snapshot the stopped agent left undone.
+
+## PR180TRUTH (2026-10-17): what real use and hosted CI found on 183ac75674
+
+Branch `fix/plan-review-truth`, from `origin/fix/plan-review` at
+`183ac75674`. `origin/main` (`81dacaf5a7`) is already this branch's merge
+base, so `git merge origin/main` has nothing to take yet; it is repeated
+before the last commit.
+
+### Hosted CI causes (CI run 39086390519, Hosts run 39086390489)
+
+Read with `gh run view --job <id> --log-failed` (read-only), each failed job:
+
+| Job                                                   | Measured cause                                                                                                                                                                                                                                     |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| tests (ubuntu-latest, shard 4)                        | `test/unit/runtimeChatGptLock.test.ts`: 4 failed. `serializes callers`, `releases after a thrown operation`, `recovers after the owner crashes` time out at 5000 ms; `takes the lock past a dead socket entry` rejects `chatgpt.lock-busy`.        |
+| tests (windows, macos) in the capacity repository     | Its run 39086430315 failed on macOS only: shard 8 is the same lock file (4 failed, incl. `old fixed TCP port` → `lock-busy`, `recovers` → 0 entries), shard 5 is `test/unit/namedLockRace.test.ts` timing out at 180000 ms. Windows shards passed. |
+| universal release artifacts; Hosts `packages`         | `scripts/check-vsix-size.mjs`: "VSIX is 3800805 bytes; budget is 3788800 bytes (3700 KiB)", 12,005 bytes over. PRs on the same main pass this job (e.g. `chore/no-standins`, run 39090625665), so the growth is this branch's.                     |
+| package (.vsix); dictation helper (macos); quality ×3 | No failure of their own: each is the gate step `test "$UNIT" = success` etc., failing on `UNIT: failure`, `ORG: failure`, `PACKAGES: failure` from the rows above.                                                                                 |
+
+Lock cause, from the logs: every failing case binds a Unix socket under
+`<repo>/temp/m95b-x-lock-XXXXXX/<case>-XXXXXX/grant.lock.<pid>.<6 hex>`
+(or `<repo>/temp/named-lock-race-XXXXXX/work/…`). The failures split by that
+path's length against `sockaddr_un` (107 usable bytes on Linux, 103 on
+macOS): on Linux (repo root 49 bytes) the 12-byte case folders (`live-`,
+`port-`) pass and the 13-14-byte ones (`crash-`, `stale-`, `serial-`,
+`thrown-`) fail; on macOS (repo root 56 bytes, 4 fewer usable) every
+binding case fails. Node binds an over-long path truncated: the contender's
+own entry then shows up in `readdir` under a name that is not its own, is
+live (its own listener), so it gives way to itself forever: timeouts
+without a deadline, `lock-busy` with one. That is exactly the failure set.
+The product's lock root is `/tmp/<folder>` (`src/runtime/namedLock.ts:231`),
+short, so only the tests' long folders reach it. To confirm on a POSIX box
+before the fix lands: bind the same path length and read the entry name.
+
+### Plan for findings 1-3 (real use of the packed agent)
+
+1. Broken providers file → "credential store cannot be used". The
+   providers-file reader in `createConfiguredProviderServices`
+   (`src/core/providers/configured.ts:375-381`) throws `RangeError(zod
+detail)` for `invalid` and `ModelApiError(actionFailed)` for
+   `unparseable`; `isInvalidProvidersFileError` (`src/acp/accountText.ts:37`)
+   looks for the `AccountStoreError` brand, so the account check in
+   `src/runtime/backends.ts:683-690` falls back to `acpStoreUnavailable`.
+   Fix: the reader throws the providers-file error type
+   (`AccountStoreError('invalidProvidersFile')`) whose message is
+   `acpChatGpt.providersFileUnreadable` filled with the reason
+   (`unparseable` / `invalid`), and the account check returns that message.
+2. The sentence must be the error message an editor shows, not
+   `data.details` under "Internal error": trace where an `unavailable`
+   readiness becomes an ACP error and give that error the sentence as its
+   message.
+3. `providers list` prints "Test failed: {detail}": the call sites
+   (`src/runtime/providersCommands.ts:155`,
+   `src/runtime/exec/providerExec.ts:447`) fill `{ reason }` while the key's
+   template says `{detail}`. Fix the placeholder in one place so every
+   table and every call site agree, and check every translated table carries
+   the same name.
+
+Each fix is proven by driving the packed agent (`node dist/acp.js`) with a
+real broken providers file in an empty workspace, plus a unit test over the
+real modules where one adds meaning; each new test is broken once on
+purpose and recorded here.
