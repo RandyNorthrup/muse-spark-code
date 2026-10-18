@@ -7,6 +7,7 @@
 !dist/mcpVault.js
 !dist/questionNotes.js
 !dist/conversation.js
+!dist/conversationTransfer.js
 !dist/tab.js
 !dist/prompts.js
 !dist/modelApi.js
