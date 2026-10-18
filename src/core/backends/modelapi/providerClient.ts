@@ -77,6 +77,12 @@ export interface ProviderClient {
    * an aggregate client answers for the provider that handled the request.
    */
   maxRetries(modelId?: string): number | undefined
+  /**
+   * The person's live `museSpark.modelApiMaxRetries` setting, before any
+   * provider maximum caps it, so the turn loop can tell a person-set cap
+   * stop from a provider refusal (PR #225).
+   */
+  personMaxRetries(): number | undefined
 }
 
 export interface ProviderModel {
@@ -170,6 +176,11 @@ export class CodecClient implements ProviderClient {
   /** This client's effective retry limit (see `ProviderClient.maxRetries`). */
   public maxRetries(): number | undefined {
     return this.transport.maxRetries()
+  }
+
+  /** The person's live retry limit, uncapped (see `ProviderClient.personMaxRetries`). */
+  public personMaxRetries(): number | undefined {
+    return this.transport.personMaxRetries()
   }
   public async listModels(): Promise<readonly string[]> {
     const result = await this.transport.request(

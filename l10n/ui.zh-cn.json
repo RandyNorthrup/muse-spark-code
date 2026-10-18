@@ -2453,6 +2453,7 @@
   "allowSessionPrefix": "在此会话中始终允许：",
   "reject": "拒绝",
   "modelApiStalled": "Model API 在 {seconds} 秒内没有发送任何内容，因此回复已结束；请再次发送消息以重试",
+  "modelApiRetryCapReached": "已达到重试上限（museSpark.modelApiMaxRetries：{count}）：请求未再次发送。若要允许更多重试，请提高上限。",
   "queuedTurnDropped": "未发送：“停止”清除了排队的消息",
   "compactionStopped": "压缩已停止",
   "compactionEmpty": "摘要为空；对话未更改。",

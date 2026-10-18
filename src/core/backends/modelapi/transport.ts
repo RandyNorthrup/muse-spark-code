@@ -941,6 +941,15 @@ export class RequestTransport {
     return effectiveMaxRetries(this.deps.personMaxRetries?.(), documentedLimits(this.deps))
   }
 
+  /**
+   * The person's live retry limit, before any provider maximum caps it
+   * (lane PR225W1): the turn loop reads it to tell a person-set cap stop
+   * from a provider refusal on the orchestrator's feed.
+   */
+  public personMaxRetries(): number | undefined {
+    return this.deps.personMaxRetries?.()
+  }
+
   public backoffMs(attempt: number, suggestedMs?: number): number {
     // The provider's own wait is the least it asks for (every provider
     // documents it so): waited out whole, never shortened to our backoff.

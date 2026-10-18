@@ -34,6 +34,7 @@ import {
 import {
   effectiveMaxRetries,
   META_DOCUMENTED_RETRY_LIMITS,
+  isPersonRetryCap,
   PROVIDER_RETRY_LIMITS,
   type RetryLimits,
 } from '../../src/shared/retryPolicy'
@@ -369,6 +370,28 @@ describe('each subscription route answers its own retry limit', () => {
     const generous = subscriptionClient(10)
     expect(generous.maxRetries('chatgpt/gpt-5.2')).toBe(10)
     expect(generous.maxRetries('some-model')).toBe(4)
+  })
+  it('the raw setting rides along for the cap stop, unset stays unset', () => {
+    // The turn loop reads this (not the capped limit) to tell a person-set
+    // cap stop from a provider refusal on the orchestrator's feed.
+    expect(subscriptionClient(undefined).personMaxRetries()).toBeUndefined()
+    expect(subscriptionClient(1).personMaxRetries()).toBe(1)
+  })
+})
+
+describe("the orchestrator is told when the person's cap stops the turn", () => {
+  it("fires on the person's cap, never on a provider maximum or no cap", () => {
+    // Person at or under the documented maximum: their cap stopped the
+    // turn (effective equals their setting), so the feed says so.
+    expect(isPersonRetryCap(1, 1)).toBe(true)
+    expect(isPersonRetryCap(0, 0)).toBe(true)
+    expect(isPersonRetryCap(10, 10)).toBe(true)
+    // Above the documented maximum the provider stopped it instead.
+    expect(isPersonRetryCap(10, 2)).toBe(false)
+    expect(isPersonRetryCap(10, 4)).toBe(false)
+    // Nothing set, nothing fired.
+    expect(isPersonRetryCap(undefined, 2)).toBe(false)
+    expect(isPersonRetryCap(undefined, undefined)).toBe(false)
   })
 })
 

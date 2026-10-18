@@ -2561,6 +2561,7 @@
   "allowSessionPrefix": "Sempre permitir nesta sessão:",
   "reject": "Rejeitar",
   "modelApiStalled": "A Model API não enviou nada por {seconds} s, então a resposta foi encerrada; envie a mensagem novamente para tentar de novo",
+  "modelApiRetryCapReached": "Limite de novas tentativas atingido (museSpark.modelApiMaxRetries: {count}): a solicitação não foi enviada novamente. Aumente o limite para permitir mais tentativas.",
   "queuedTurnDropped": "Não enviada: Parar limpou as mensagens da fila",
   "compactionStopped": "a compactação foi interrompida",
   "compactionEmpty": "O resumo estava vazio; a conversa permanece inalterada.",

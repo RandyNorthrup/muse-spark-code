@@ -3002,6 +3002,10 @@ export const EN = {
   reject: 'Reject',
   modelApiStalled:
     'The Model API sent nothing for {seconds} s, so the reply was ended; send the message again to retry',
+  // Lane PR225W1: the person's own retry cap stopped the turn, not the
+  // provider. The orchestrator reads this notice off its feed.
+  modelApiRetryCapReached:
+    'Retry limit reached (museSpark.modelApiMaxRetries: {count}): the request was not sent again. Raise the limit to allow more retries.',
   queuedTurnDropped: 'Not sent: Stop cleared the queued messages',
   compactionStopped: 'the compaction was stopped',
   compactionEmpty: 'The summary was empty; the conversation is unchanged.',

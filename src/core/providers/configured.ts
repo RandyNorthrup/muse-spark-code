@@ -370,6 +370,7 @@ export function createConfiguredProviderServices(
     retryDelayMs: (attempt) => delegate().retryDelayMs(attempt),
     waitBeforeRetry: (delay, signal) => delegate().waitBeforeRetry(delay, signal),
     maxRetries: () => delegate().maxRetries(),
+    personMaxRetries: () => delegate().personMaxRetries(),
     countInputTokens: (body) => delegate().countInputTokens(body),
     streamResponse: (body, ...args) => delegate().streamResponse(body, ...args),
     createImage: (...args) => delegate().createImage(...args),

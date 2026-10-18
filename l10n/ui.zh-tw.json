@@ -2453,6 +2453,7 @@
   "allowSessionPrefix": "在此工作階段中一律允許：",
   "reject": "拒絕",
   "modelApiStalled": "Model API 在 {seconds} 秒內沒有傳送任何內容，因此已結束回覆；請再次傳送訊息以重試",
+  "modelApiRetryCapReached": "已達到重試上限（museSpark.modelApiMaxRetries：{count}）：請求未再次傳送。若要允許更多重試，請提高上限。",
   "queuedTurnDropped": "未傳送：「停止」已清除排入佇列的訊息",
   "compactionStopped": "壓縮已停止",
   "compactionEmpty": "摘要為空；對話未變更。",
