@@ -4296,7 +4296,6 @@ export const EN = {
     'Model {model} is not on provider {provider}. Available models: {available}.',
   execModelAvailable:
     'Model {model} is not available on this backend. Available models: {available}.',
-  execBudgetMinimum: 'This run requires at least {minimum}.',
   execBudgetOverage:
     'The last request exceeded its reservation by {overage} ({cost} charged, {reserved} reserved). The run stopped before another request.',
   execBudgetBreach: 'Observed accounting exceeded its reservation.',
@@ -5341,8 +5340,6 @@ export const EN = {
   sessionBudgetScopeGlobal: 'this computer',
   wizardSessionBudgetInvalid:
     'Enter a non-negative amount in dollars, for example 2 (0 means no limit).',
-  // {detail}: why the setting write failed, in the settings' own words.
-  sessionBudgetWriteFailed: 'The spending limit was not saved: {detail}',
   // {detail}: why the limit could not change after provider persistence succeeded.
   sessionBudgetPartialSave: 'Provider saved; the spending limit was not changed: {detail}',
   // {amount}: the concurrent current limit; {requested}: the user's retained edit.
