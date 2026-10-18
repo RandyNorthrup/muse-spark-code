@@ -1823,13 +1823,16 @@ export const WORKTREE_RECORD_LOCK_UNREADABLE_MS = 2000
 // macOS) agree within this; a live process id whose birth is further off
 // belongs to another process. Linux births (ticks since boot) compare exactly.
 export const PROCESS_START_TOLERANCE_MS = 1000
-// Reading another process's birth (Windows PowerShell, macOS `ps`) gives
-// up after this.
+// Reading another process's birth (macOS `ps`; on Windows the native
+// reader's one-time build and each of its runs) gives up after this.
 export const PROCESS_START_QUERY_TIMEOUT_MS = 10_000
 /** Failed owner evidence is retried after a short bound, never on every operation. */
 export const PROCESS_OWNER_FAILURE_CACHE_MS = 2000
 export const WINDOWS_FILETIME_TICKS_PER_MS = 10_000n
 export const WINDOWS_FILETIME_EPOCH_MS = 11_644_473_600_000n
+// Windows' process birth reader is compiled once per user into this folder
+// of the user's data folder (`%LOCALAPPDATA%\Muse Spark Code`).
+export const WINDOWS_BIRTH_READER_FOLDER = 'native'
 export const FILE_LEASE_RELEASE_ATTEMPTS = 3
 /** A lease release pauses this long between attempts: a scanner holding the file defeats back-to-back retries alike (RVAPP-LEASE2 P3-4). */
 export const FILE_LEASE_RELEASE_RETRY_MS = 100

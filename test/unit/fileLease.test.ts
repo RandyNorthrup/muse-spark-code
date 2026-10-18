@@ -6,10 +6,11 @@
 // cannot be proven — on real files, with a port that pauses or fails one
 // call where an interleaving matters.
 
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { hostname, tmpdir } from 'node:os'
+import { copyFile, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { homedir, hostname, tmpdir } from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -29,7 +30,13 @@ import {
   systemBootId,
   type ProcessOwner,
 } from '../../src/core/locks/processOwner'
-import { FILE_LEASE_FENCES_KEPT, FILE_LEASE_RELEASE_RETRY_MS } from '../../src/shared/constants'
+import {
+  ACP_DATA_FOLDER,
+  FILE_LEASE_FENCES_KEPT,
+  FILE_LEASE_RELEASE_RETRY_MS,
+  WINDOWS_BIRTH_READER_FOLDER,
+  WINDOWS_FRAMEWORK_RELATIVE_PATH,
+} from '../../src/shared/constants'
 import { deferred, exitedProcessId, nextTurn, pausingPort } from './helpers/leaseFs'
 
 /** A lock instance's stats as inode reuse looks: one inode number for all. */
@@ -107,6 +114,116 @@ function liveProcess(): { readonly pid: number; readonly stop: () => Promise<voi
       await exited
     },
   }
+}
+
+/** Windows: `source` built by Windows' own C# compiler into `folder` as `name`.exe. */
+async function windowsProgram(folder: string, name: string, source: string): Promise<string> {
+  const file = path.join(folder, `${name}.cs`)
+  const program = path.join(folder, `${name}.exe`)
+  await writeFile(file, source)
+  const framework = path.win32.join(
+    process.env['SystemRoot'] ?? '',
+    WINDOWS_FRAMEWORK_RELATIVE_PATH,
+  )
+  // csc writes its diagnostics to stdout: a failed build shows them.
+  execFileSync(
+    path.win32.join(framework, 'csc.exe'),
+    [
+      '/nologo',
+      '/noconfig',
+      `/reference:${path.win32.join(framework, 'System.dll')}`,
+      `/out:${program}`,
+      file,
+    ],
+    { encoding: 'utf8', windowsHide: true },
+  )
+  return program
+}
+
+// Starts itself again to end with exit code 259, waits for that child to
+// end, prints its id and exit code, and keeps its own handle to it (the
+// `Process` object) open until it is ended: the ended child's process object
+// stays, held independently of Node and libuv, while the test reads it.
+const HOLDER_OF_ENDED_259 = `using System;
+using System.Diagnostics;
+using System.Threading;
+
+static class Holder
+{
+    static int Main(string[] args)
+    {
+        if (args.Length == 1 && args[0] == "end") return 259;
+        ProcessStartInfo start = new ProcessStartInfo(typeof(Holder).Assembly.Location, "end");
+        start.UseShellExecute = false;
+        start.CreateNoWindow = true;
+        Process child = Process.Start(start);
+        child.WaitForExit();
+        Console.Out.WriteLine(child.Id + " " + child.ExitCode);
+        Console.Out.Flush();
+        Thread.Sleep(30000);
+        GC.KeepAlive(child);
+        return 0;
+    }
+}
+`
+
+/** Windows: a child that ended with exit code 259 while its parent still holds its handle. */
+async function endedWith259(): Promise<{
+  readonly pid: number
+  readonly code: number
+  readonly stop: () => Promise<void>
+}> {
+  const scratch = await mkdtemp(path.join(tmpdir(), 'm123p-holder-'))
+  const holder = spawn(await windowsProgram(scratch, 'Holder', HOLDER_OF_ENDED_259), [], {
+    windowsHide: true,
+  })
+  const exited = new Promise((resolve) => {
+    holder.once('exit', resolve)
+  })
+  const line = await new Promise<string>((resolve, reject) => {
+    let text = ''
+    holder.stdout.on('data', (bytes: Buffer) => {
+      text += bytes.toString('utf8')
+      if (text.includes('\n')) resolve(text.trim())
+    })
+    holder.once('exit', () => {
+      reject(new Error('the holder ended before its child did'))
+    })
+  })
+  const [pid, code] = line.split(' ').map(Number)
+  if (pid === undefined || code === undefined) {
+    throw new Error(`the holder answered ${line}`)
+  }
+  return {
+    pid,
+    code,
+    stop: async () => {
+      holder.kill('SIGKILL')
+      await exited
+      await rm(scratch, { recursive: true, force: true })
+    },
+  }
+}
+
+/** Windows: where this process's birth reader is built. */
+function birthReaderFolder(): string {
+  const localAppData = process.env['LOCALAPPDATA'] ?? path.join(homedir(), 'AppData', 'Local')
+  return path.join(localAppData, ACP_DATA_FOLDER.win32, WINDOWS_BIRTH_READER_FOLDER)
+}
+
+/** Windows: the birth readers in `folder` named with process `pid`'s id. */
+async function readersNamedFor(folder: string, pid: number): Promise<string[]> {
+  const names = await readdir(folder)
+  return names.filter((name) => name.startsWith(`MuseSparkBirth-${String(pid)}-`))
+}
+
+/** Windows: a program that prints 42 whatever it is asked. */
+async function impostorProgram(folder: string): Promise<string> {
+  return await windowsProgram(
+    folder,
+    'Impostor',
+    'static class Impostor { static void Main() { System.Console.Out.Write("42"); } }',
+  )
 }
 
 async function lockFolder(): Promise<{ readonly folder: string; readonly lockPath: string }> {
@@ -247,6 +364,54 @@ describe('process owners (M123 lane P)', () => {
     expect(self.processStart).toBe(started)
     expect(await processStartTime(await exitedProcessId())).toBeUndefined()
   })
+
+  it.runIf(process.platform === 'win32')(
+    'reads no birth for a process that ended with exit code 259 while a handle keeps it',
+    async () => {
+      const ended = await endedWith259()
+      try {
+        // 259 is STILL_ACTIVE's value: only the ended process object tells.
+        expect(ended.code).toBe(259)
+        expect(await processStartTime(ended.pid)).toBeUndefined()
+      } finally {
+        await ended.stop()
+      }
+    },
+  )
+
+  it.runIf(process.platform === 'win32')(
+    'never runs a birth reader whose bytes changed after this process built it',
+    async () => {
+      const born = await processStartTime(process.pid)
+      expect(born).toBeDefined()
+      const folder = birthReaderFolder()
+      // This process's build swept any reader an earlier process with this id
+      // left, so the one reader named with this id is this process's own.
+      const mine = await readersNamedFor(folder, process.pid)
+      expect(mine).toHaveLength(1)
+      const reader = path.join(folder, mine[0] ?? '')
+      const scratch = await mkdtemp(path.join(tmpdir(), 'm123p-impostor-'))
+      try {
+        const impostor = await impostorProgram(scratch)
+        // What an earlier process with this id leaves when Windows reuses it.
+        const leftover = path.join(
+          folder,
+          `MuseSparkBirth-${String(process.pid)}-${randomUUID()}.exe`,
+        )
+        await copyFile(impostor, leftover)
+        await copyFile(impostor, reader)
+        // Refused and removed, never run (it would answer 42); the next read
+        // builds a new reader, and its sweep removes the leftover.
+        expect(await processStartTime(process.pid)).toBeUndefined()
+        expect(existsSync(reader)).toBe(false)
+        expect(await processStartTime(process.pid)).toBe(born)
+        expect(existsSync(leftover)).toBe(false)
+        expect(await readersNamedFor(folder, process.pid)).toHaveLength(1)
+      } finally {
+        await rm(scratch, { recursive: true, force: true })
+      }
+    },
+  )
 
   it.skipIf(process.platform === 'linux')(
     'reads a Windows or macOS birth as the epoch time it was recorded at',
