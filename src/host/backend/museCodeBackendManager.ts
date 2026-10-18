@@ -45,6 +45,8 @@ import {
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
 import { failureForLog, stderrForLog } from '../../core/backends/musecode/logText'
+import { isMissingPath } from '../canonicalPath'
+import { describeStoreError } from './storeErrors'
 import { clipForLog } from '../../core/logging'
 import { isSamePath } from '../../core/paths'
 import { withSlowDeadline } from '../../core/timeouts'
@@ -144,9 +146,6 @@ const META_API_KEY = 'META_API_KEY'
 // The variables VS Code's `http.proxy` is handed over as.
 const PROXY_VARIABLES = ['HTTPS_PROXY', 'HTTP_PROXY'] as const
 
-// A path that is not there, as opposed to one that is there and unreadable.
-const MISSING_CODES: ReadonlySet<string> = new Set(['ENOENT', 'ENOTDIR'])
-
 /**
  * The CLI lookup's reads (M39): a missing file or folder is simply absent,
  * but one that cannot be read is said in the log, or "CLI not found" would
@@ -156,10 +155,14 @@ function unlessMissing<T>(log: Logger, what: string, read: () => T, absent: T): 
   try {
     return read()
   } catch (error: unknown) {
-    const code = error instanceof Error && 'code' in error ? String(error.code) : ''
-    if (!MISSING_CODES.has(code)) {
-      log.warn(`Could not read ${what} while looking for the Muse Code CLI: ${String(error)}`)
+    // A missing file or folder is simply absent (M39); anything else is
+    // said in the log, or "CLI not found" would hide a permission problem.
+    if (isMissingPath(error)) {
+      return absent
     }
+    log.warn(
+      `Could not read ${what} while looking for the Muse Code CLI: ${describeStoreError(error)} (${failureForLog(error)})`,
+    )
     return absent
   }
 }
@@ -230,6 +233,15 @@ export class MuseCodeBackendManager {
     this.deps.log.info(
       `MSP schema ${warning.served} is Muse Code ${build}'s, an additive successor of the SDK's ${warning.pinned}`,
     )
+  }
+
+  /** A process that never finished its handshake is ended, not left behind. */
+  private async closeUnstarted(handshake: { close(): Promise<void> }): Promise<void> {
+    try {
+      await handshake.close()
+    } catch (closeError: unknown) {
+      this.deps.log.warn(`Closing the unstarted muse serve failed: ${failureForLog(closeError)}`)
+    }
   }
 
   /** A capture-gated account's host: the same admission, with its tree registered on the lease. */
@@ -370,12 +382,7 @@ export class MuseCodeBackendManager {
         },
       )
     } catch (error: unknown) {
-      // A process that never finished its handshake is ended, not left behind.
-      try {
-        await handshake.close()
-      } catch (closeError: unknown) {
-        this.deps.log.warn(`Closing the unstarted muse serve failed: ${failureForLog(closeError)}`)
-      }
+      await this.closeUnstarted(handshake)
       throw error
     }
     this.logFingerprint(spawned.fingerprintWarning)
@@ -622,7 +629,9 @@ export class MuseCodeBackendManager {
       this.deps.accountHome?.assertCurrent()
     } catch (error: unknown) {
       return Promise.reject(
-        error instanceof Error ? error : new Error(UI_TEXT.accounts.invalidAccount),
+        error instanceof Error
+          ? error
+          : new Error(UI_TEXT.accounts.invalidAccount, { cause: error }),
       )
     }
     if (this.hostPromise !== undefined) {
@@ -684,8 +693,8 @@ export class MuseCodeBackendManager {
       let folder: string
       try {
         ;[root, folder] = await Promise.all([systemPath(workspaceRoot), systemPath(cwd)])
-      } catch {
-        throw new Error(UI_TEXT.checkpointFailed)
+      } catch (error: unknown) {
+        throw new Error(UI_TEXT.checkpointFailed, { cause: error })
       }
       check()
       if (

@@ -5,6 +5,7 @@
 
 import { createRequire } from 'node:module'
 import type { Logger } from './logger'
+import { describeStoreError } from './backend/storeErrors'
 
 /** Node's own `require` of an absolute path. */
 export function requireFile(file: string): unknown {
@@ -87,9 +88,7 @@ export function lazyBundleLoader<T>(options: LazyBundleLoaderOptions<T>): () => 
     try {
       loaded = loadBundle(bundlePath)
     } catch (error: unknown) {
-      log.error(
-        `The ${label} ${bundlePath} could not be loaded: ${error instanceof Error ? error.message : String(error)}`,
-      )
+      log.error(`The ${label} ${bundlePath} could not be loaded: ${describeStoreError(error)}`)
       throw new Error(unavailable(), { cause: error })
     }
     if (!isBundle(loaded)) {
