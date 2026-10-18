@@ -327,14 +327,6 @@ export interface AcpWorkerDeps {
   readonly signal: AbortSignal
 }
 
-/**
- * Runs one external worker's task: `initialize`, `session/new` with the
- * working copy as `cwd` and the bridge's servers, the preset's captured mode
- * for the role's shape, then the prompt. A terminal sign-in surfaces as
- * `AcpAuthRequiredError` for the host's terminal flow; no vendor credential
- * file is ever read.
- * @unwired M96 ACP worker runner
- */
 /** Cancels a worker session with a grace bound; an unreachable peer still closes below. */
 async function cancelWorkerSession(
   cancel: (sessionId: string) => Promise<unknown>,
@@ -355,6 +347,14 @@ async function cancelWorkerSession(
   }
 }
 
+/**
+ * Runs one external worker's task: `initialize`, `session/new` with the
+ * working copy as `cwd` and the bridge's servers, the preset's captured mode
+ * for the role's shape, then the prompt. A terminal sign-in surfaces as
+ * `AcpAuthRequiredError` for the host's terminal flow; no vendor credential
+ * file is ever read.
+ * @unwired M96 ACP worker runner
+ */
 export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
   readonly sessionId: string
   readonly report: WorkerReportOutcome
