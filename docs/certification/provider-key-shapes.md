@@ -402,3 +402,13 @@ looks like a web address, not a key. Use it anyway?` first, then the
   artifacts absent from this checkout, so `npm run package` stops).
   The lead's prescribed manual look above ("Panel look (pending)")
   stands unchanged.
+
+### PR159FIX2 triage (2026-10-18, linuxlt rig, lane PR159FIX2)
+
+One line per new Codex thread; fixes follow in this lane.
+
+- cert T7 (`notOffered` gate): ACCEPTED — the recorded run never reaches `readSecret`, so the per-account inspection/notice/store path stays unproven; this lane will drive it in the packed product before merge.
+- `providerKeyInspect.test.ts:28` (invented fixtures): ACCEPTED — the provider-prefixed strings are synthetic; this lane replaces them with shape-neutral inputs since the classifier under test is provider-agnostic.
+- `hiddenInput.ts:64` (whole-stream decode): ACCEPTED — the reader's contract is the first line, so it will locate the first LF in bytes and validate only that prefix.
+- `presets.ts:48` (dead `isKeyShape`): ACCEPTED — no production reader remains, so the API and the now-uniform `keyShape` field go, with their tests.
+- `CHANGELOG.md:60` (`auth set --provider` routing): ACCEPTED — dispatch reads only `command.target`, so the documented form falls into the Meta path; this lane routes `command.provider` before claiming the notice.
