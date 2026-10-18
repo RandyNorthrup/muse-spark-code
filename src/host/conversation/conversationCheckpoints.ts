@@ -201,12 +201,6 @@ export class ConversationCheckpoints {
     }
   }
 
-  /** A restore or a Redo that threw: its message in the transcript, its stack in the log. */
-  private sayFailed(error: unknown): void {
-    this.deps.log.warn(`Restore failed: ${failureForLog(error)}`)
-    this.deps.notice('error', UI_TEXT.restoreFailed)
-  }
-
   /** The text for a restore or a Redo that did nothing. */
   private failureText(reason: RestoreFailure): string {
     if (reason === 'unavailable') {
@@ -464,11 +458,14 @@ export class ConversationCheckpoints {
         post: this.notices(outcome, UI_TEXT.restoreDone),
       }
     } catch (error: unknown) {
+      // The record keeps the failure's kind at once; the transcript learns
+      // it in fixed words when the caller posts the report.
+      this.deps.log.warn(`Restore failed: ${failureForLog(error)}`)
       return {
         isRestored: false,
         isComplete: false,
         post: () => {
-          this.sayFailed(error)
+          this.deps.notice('error', UI_TEXT.restoreFailed)
         },
       }
     }
@@ -496,7 +493,10 @@ export class ConversationCheckpoints {
       isSpent = outcome.ok ? outcome.isRedoSpent : outcome.reason === 'redoGone'
       this.notices(outcome, UI_TEXT.redoDone, true)()
     } catch (error: unknown) {
-      this.sayFailed(error)
+      // The record keeps the failure's kind; the transcript learns it in
+      // fixed words.
+      this.deps.log.warn(`Restore failed: ${failureForLog(error)}`)
+      this.deps.notice('error', UI_TEXT.restoreFailed)
     }
     this.deps.post({ type: 'restoreRedone', restoreId, isSpent })
   }
