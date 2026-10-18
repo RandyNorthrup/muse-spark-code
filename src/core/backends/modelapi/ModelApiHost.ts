@@ -14642,8 +14642,8 @@ export class ModelApiSession implements ScheduledAgentSession {
           !isAbortRequested(signal) &&
           (!turn.didTrimOverflow || !turn.didRecoverOverflow)
         ) {
-          // TOOLCAP recovery, in order, at most OVERFLOW_MAX_REQUEST_SENDS
-          // sends: (a) the largest tool results still riding whole become
+          // TOOLCAP recovery, in order, at most three sends: (a) the largest
+          // tool results still riding whole become
           // the cut form with spills, then send again once; (b) compact once
           // through the existing entry when available, then send again;
           // (c) otherwise the turn ends with the true sentence below.

@@ -3929,9 +3929,6 @@ export const TOOL_RESULT_SPILL_DIR = '.muse-spark/tool-results'
 /* A spill file's life: pruned past this many days, whatever session it
  * belonged to. The setting description states the rule in plain words. */
 export const TOOL_RESULT_SPILL_MAX_AGE_DAYS = 30
-/* Context-overflow recovery sends at most: the first attempt, one resend
- * after trimming the largest tool results, one resend after compaction. */
-export const OVERFLOW_MAX_REQUEST_SENDS = 3
 // M101 lane P1 (PLAN.md D81, BYO codec item 1): wire markers the BYO codecs
 // send when a history item cannot ride as it came. Fixed strings, never
 // templated, so the cached prefix stays byte-stable. Model-read, English by

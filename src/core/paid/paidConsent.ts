@@ -104,6 +104,7 @@ export function isScheduleConsentCurrent(
 }
 
 /** Creation/renewal only. No workspace-wide grant can silently authorize a schedule.
+ * @unwired M58 schedule-run paid consent
  */
 export async function askSchedulePaidConsent(deps: {
   readonly schedule: ScheduleV2
@@ -163,6 +164,7 @@ export async function askSchedulePaidConsent(deps: {
 }
 
 /** The run's paid port: live identity/gates plus a hard, noninteractive reservation.
+ * @unwired M58 schedule paid scope
  */
 export function createSchedulePaidScope(deps: {
   readonly backend: 'modelApi' | 'museCode'
@@ -860,6 +862,7 @@ export interface AccountPaidUseConsentDeps extends Omit<
   readonly revokeQuoteGrants: () => Promise<void>
 }
 
+/** @unwired M58 account paid-use question */
 export function paidAccountQuestion(binding: PaidAccountBinding): string {
   return fill(UI_TEXT.accounts.paidConsent, {
     provider: binding.provider,
