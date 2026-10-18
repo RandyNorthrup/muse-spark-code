@@ -85,8 +85,10 @@ export async function readTraceLogs(deps: TraceLogDeps): Promise<readonly TraceL
   let names: readonly string[]
   try {
     names = await readdir(directory)
-  } catch {
-    return []
+  } catch (error) {
+    // An absent directory holds no logs. Anything else keeps its kind.
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return []
+    throw error
   }
   const candidates = names.filter((name) => name.endsWith(TRACE_LOG_FILE_SUFFIX))
   const stamped = await Promise.all(
@@ -95,8 +97,11 @@ export async function readTraceLogs(deps: TraceLogDeps): Promise<readonly TraceL
       try {
         const info = await stat(file)
         return { file, mtimeMs: info.mtimeMs }
-      } catch {
-        return
+      } catch (error) {
+        // Gone between the listing and the read: skip it. Anything else
+        // keeps its kind.
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return
+        throw error
       }
     }),
   )

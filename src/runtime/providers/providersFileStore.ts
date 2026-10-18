@@ -86,8 +86,11 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
     let envelope: unknown
     try {
       envelope = JSON.parse(text)
-    } catch {
-      throw new AccountStoreError('invalidProvidersFile')
+    } catch (error) {
+      // A file no JSON value denotes is not a providers file. Anything else
+      // keeps its kind.
+      if (error instanceof SyntaxError) throw new AccountStoreError('invalidProvidersFile')
+      throw error
     }
     if (typeof envelope !== 'object' || envelope === null || Array.isArray(envelope))
       throw new AccountStoreError('invalidProvidersFile')
