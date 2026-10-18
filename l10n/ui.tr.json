@@ -1113,6 +1113,7 @@
     "paid:subagents": "Ücretli alt ajanları açın veya kapatın.",
     "paid:scheduledPrompts": "Ücretli zamanlanmış istemleri açın veya kapatın.",
     "paid:autoReviewer": "Ücretli otomatik inceleyiciyi açın veya kapatın.",
+    "paid:autoCompaction": "Turn paid automatic compaction on or off.",
     "paid:bestOfN": "Ücretli N arasından en iyi özelliğini açın veya kapatın.",
     "paid:tab": "Ücretli Tab tamamlamalarını açın veya kapatın.",
     "paid:legalExplanation": "Hukuki bulguların ücretli açıklamalarını açın veya kapatın. Saklanan Model API anahtarı faturalandırılır.",

@@ -1121,6 +1121,7 @@
     "paid:subagents": "Włącz lub wyłącz płatnych podagentów.",
     "paid:scheduledPrompts": "Włącz lub wyłącz płatne zaplanowane monity.",
     "paid:autoReviewer": "Włącz lub wyłącz płatnego automatycznego oceniającego.",
+    "paid:autoCompaction": "Turn paid automatic compaction on or off.",
     "paid:bestOfN": "Włącz lub wyłącz płatną funkcję Najlepszy z N.",
     "paid:tab": "Włącz lub wyłącz płatne uzupełnienia Tab.",
     "paid:legalExplanation": "Włącz lub wyłącz płatne wyjaśnienia ustaleń prawnych. Koszt jest naliczany dla zapisanego klucza Model API.",

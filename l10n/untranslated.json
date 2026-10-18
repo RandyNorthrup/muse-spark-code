@@ -96,7 +96,8 @@
       "referenceCliOptions.share-from",
       "referenceCliOptions.share-to",
       "referenceCliOptions.share-out",
-      "referenceCliOptions.sharing-json"
+      "referenceCliOptions.sharing-json",
+      "paletteTips.paid:autoCompaction"
     ],
     "cs": [
       "groupModel",

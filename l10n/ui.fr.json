@@ -1117,6 +1117,7 @@
     "paid:subagents": "Activer ou désactiver les sous-agents payants.",
     "paid:scheduledPrompts": "Activer ou désactiver les prompts planifiés payants.",
     "paid:autoReviewer": "Activer ou désactiver le réviseur auto payant.",
+    "paid:autoCompaction": "Turn paid automatic compaction on or off.",
     "paid:bestOfN": "Activer ou désactiver Best-of-N payant.",
     "paid:tab": "Activer ou désactiver les complétions payantes de Tab.",
     "paid:legalExplanation": "Activer ou désactiver les explications payantes des constats juridiques. La clé Model API enregistrée est facturée.",

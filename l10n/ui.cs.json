@@ -1121,6 +1121,7 @@
     "paid:subagents": "Zapnout nebo vypnout placené podagenty.",
     "paid:scheduledPrompts": "Zapnout nebo vypnout placené naplánované prompty.",
     "paid:autoReviewer": "Zapnout nebo vypnout placeného automatického kontrolora.",
+    "paid:autoCompaction": "Turn paid automatic compaction on or off.",
     "paid:bestOfN": "Zapnout nebo vypnout placenou funkci Nejlepší z N.",
     "paid:tab": "Zapnout nebo vypnout placené doplňování pomocí Tab.",
     "paid:legalExplanation": "Zapnout nebo vypnout placené vysvětlení právních zjištění. Účtuje se uloženému klíči Model API.",

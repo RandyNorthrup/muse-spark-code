@@ -1113,6 +1113,7 @@
     "paid:subagents": "Fizetős alügynökök be- vagy kikapcsolása.",
     "paid:scheduledPrompts": "Fizetős ütemezett promptok be- vagy kikapcsolása.",
     "paid:autoReviewer": "Fizetős automatikus ellenőrző be- vagy kikapcsolása.",
+    "paid:autoCompaction": "Turn paid automatic compaction on or off.",
     "paid:bestOfN": "Fizetős N legjobbja funkció be- vagy kikapcsolása.",
     "paid:tab": "A fizetős Tab-kiegészítések be- vagy kikapcsolása.",
     "paid:legalExplanation": "A jogi megállapítások fizetős magyarázatának be- vagy kikapcsolása. A tárolt Model API-kulcsot terheli a díj.",
