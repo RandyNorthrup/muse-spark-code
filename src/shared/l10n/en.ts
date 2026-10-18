@@ -1560,8 +1560,6 @@ export const EN = {
   // After "could not be imported: ". {size}, {limit}: sizes such as 2.4 MB.
   importReplayTooLarge:
     'It holds {size} of text for the model, and a resumed conversation can start with at most {limit}. Open it as a share file to read it.',
-  // Why a picked file was refused, after "could not be imported/opened: ".
-  transferTooLarge: 'The file is larger than a session export can be.',
   transferFileMissing: 'The picked file no longer exists.',
   transferEmpty: 'The file holds no conversation.',
   transferNotAnExport: 'The file is not a Muse Spark session export.',

@@ -1264,7 +1264,6 @@
   "shareShownCount": "已显示：{shown} / {total}",
   "shareShowMore": "显示更多",
   "importReplayTooLarge": "其中有 {size} 的文本要交给模型，而恢复的对话开始时最多只能有 {limit}。请将其作为共享文件打开阅读。",
-  "transferTooLarge": "文件超过了会话导出文件的大小上限。",
   "transferFileMissing": "所选文件已不存在。",
   "transferEmpty": "文件中没有对话。",
   "transferNotAnExport": "该文件不是 Muse Spark 会话导出文件。",

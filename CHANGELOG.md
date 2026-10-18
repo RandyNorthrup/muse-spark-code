@@ -39,7 +39,9 @@ happened, not what was planned; superseded entries are kept.
   prompt file reads, imports and shares at any size instead of refusing past
   128 KiB — only a blank title still refuses ("A title is required."); a link
   import reads under web fetch's own 5 MiB body bound. Exports, shares and
-  imports take any transcript item count instead of refusing past 20,000.
+  imports take any transcript item count instead of refusing past 20,000;
+  picking a share file no longer refuses for size (a file that went away
+  reports as missing).
   import is refused only past the provider's own documented context window
   instead of the window-minus-reserve formula. A check's long
   `timeoutSeconds` waits its whole length instead of firing at once past

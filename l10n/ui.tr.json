@@ -1272,7 +1272,6 @@
   "shareShownCount": "Gösterilen: {shown} / {total}",
   "shareShowMore": "Daha fazla göster",
   "importReplayTooLarge": "Model için {size} metin içeriyor; sürdürülen bir konuşma en fazla {limit} ile başlayabilir. Okumak için paylaşılan dosya olarak açın.",
-  "transferTooLarge": "Dosya, bir oturum dışa aktarımının olabileceğinden daha büyük.",
   "transferFileMissing": "Seçilen dosya artık yok.",
   "transferEmpty": "Dosyada konuşma yok.",
   "transferNotAnExport": "Dosya bir Muse Spark oturum dışa aktarımı değil.",

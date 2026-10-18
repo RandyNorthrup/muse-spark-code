@@ -1264,7 +1264,6 @@
   "shareShownCount": "표시됨: {shown} / {total}",
   "shareShowMore": "더 보기",
   "importReplayTooLarge": "모델에 전달할 텍스트가 {size}이지만, 다시 시작하는 대화는 최대 {limit}까지만 시작할 수 있습니다. 읽으려면 공유 파일로 여세요.",
-  "transferTooLarge": "파일이 세션 내보내기의 최대 크기보다 큽니다.",
   "transferFileMissing": "선택한 파일이 더 이상 없습니다.",
   "transferEmpty": "파일에 대화가 없습니다.",
   "transferNotAnExport": "이 파일은 Muse Spark 세션 내보내기가 아닙니다.",

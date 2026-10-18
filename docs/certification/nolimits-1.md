@@ -101,8 +101,9 @@ files, asserted with exit codes:
   (red drill: the new `reportSourceSize.test.ts` fails on the pre-N3
   tree, passes on it).
 - Refusal strings: `promptLimits` (`exceeds the size limit`),
-  `shareTooLarge` (`exceeds the file size`) and `exportTooLarge`
-  (`too long for a session export`) appear in no `dist/*.js` bundle
+  `shareTooLarge` (`exceeds the file size`), `exportTooLarge`
+  (`too long for a session export`) and `transferTooLarge`
+  (`larger than a session export can be`) appear in no `dist/*.js` bundle
   and no shipped `l10n/ui.*.json`; the new `promptTitleRequired`
   ships in `dist/prompts.js`, `dist/sharingRuntime.js` and all
   14 tables; the repointed `importReplayTooLarge` ships with the
@@ -112,6 +113,15 @@ files, asserted with exit codes:
   `sessionTransfer.test.ts`) plus the observed platform fact
   (`setTimeout(..., 2 ** 31)` warns `TimeoutOverflowWarning` and
   fires after ~14 ms).
+
+### §N9 — the picker's size refusal goes with the removed ceiling
+
+`transferTooLarge` (`The file is larger than a session export can be.`)
+deleted from English and all 14 tables; the `tooLarge` pick kind dropped
+from `PickedTransferFile`, its branch dropped from the picker (a vanished
+file reports as missing through `transferFileMissing`) and its notice
+dropped from the controller. No test covered the dead branch, so none
+changes; typecheck, `check-l10n` and the related suites prove the removal.
 
 ## Correction review (2026-10-16 continuation)
 
@@ -186,14 +196,15 @@ Removed refusal texts went from English and all 14 tables in the same
 commits (A21, A22, A23, A35); `node scripts/check-l10n.mjs` is green.
 `shareTooLarge` stayed through the lane (it still fired for the transcript
 item count; NOLIMITS1FIX §N2 removed it with the count).
-`transferTooLarge` stays: the picker's size branch is now unreachable
-through size but the shape is unchanged.
+`transferTooLarge` stayed while the picker's unreachable size branch kept
+its shape; NOLIMITS1FIX §N9 removes the string from all 15 tables with
+the branch, the `tooLarge` pick kind and the controller notice.
 
 NOLIMITS1FIX: `promptLimits` is gone from all 15 tables (§N1, blank titles
 refuse with the new `promptTitleRequired`); `shareTooLarge` and
-`exportTooLarge` are gone from all 15 tables (§N2);
-`node scripts/check-l10n.mjs` is green. `transferTooLarge` still stays
-(the picker's branch is unchanged).
+`exportTooLarge` are gone from all 15 tables (§N2); `transferTooLarge`
+is gone from all 15 tables (§N9);
+`node scripts/check-l10n.mjs` is green.
 
 ## Gates (final tree, exit codes)
 
@@ -254,12 +265,10 @@ the three remains in code, English or any table.
 
 ## APP PROBLEMS
 
-None found in this lane's rows. One neighbouring observation, not
-changed (out of scope): the share-file picker's `tooLarge` branch is
-unreachable through size (reads are unbounded); kept to avoid
-defensive-branch removal. (`shareTooLarge` went with §N2.) The
-`museSpark.teamMaxWorkers` name appears only in comments — no such
-setting exists yet.
+None found in this lane's rows. The share-file picker's unreachable
+`tooLarge` branch went with §N9 (reads are unbounded; a vanished file
+reports as missing). The `museSpark.teamMaxWorkers` name appears only in
+comments — no such setting exists yet.
 
 ## A8 correction (2026-10-17): the starved start reservation
 
