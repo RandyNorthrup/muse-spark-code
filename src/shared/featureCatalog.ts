@@ -1315,8 +1315,11 @@ export function sharingFeatures(table: UiText = UI_TEXT) {
   ]
 }
 
+// Terminal and ACP help only: the editor's own commands and settings
+// (museSpark.*) cannot be run there, so they stay out of this text.
 export function sharingHelp(table: UiText = UI_TEXT): string {
   return sharingFeatures(table)
+    .filter((feature) => feature.surface !== 'editor' && feature.surface !== 'setting')
     .map((feature) => `${feature.syntax}\n${feature.label}: ${feature.detail}`)
     .join('\n\n')
 }
