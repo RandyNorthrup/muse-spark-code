@@ -33,8 +33,9 @@ export function createLinuxDictation(
       driver.stop()
     },
     dispose: () => {
-      driver.dispose()
+      const disposal = driver.dispose()
       linuxDrivers.delete(driver)
+      return disposal
     },
   }
 }
