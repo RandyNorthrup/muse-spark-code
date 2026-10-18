@@ -35,6 +35,8 @@ export function vaultPanelService(
         try {
           ambientFiles = await deps.ambientFiles()
         } catch {
+          // Import discovery is optional: an unreadable ambient location
+          // degrades to no suggestions, never to a failed snapshot.
           ambientFiles = []
         }
       }

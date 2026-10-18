@@ -80,6 +80,7 @@ function brokerService(
 /** The native prompts and error channel every vault host shares. */
 function nativeHostDeps(deps: {
   readonly now: () => number
+  readonly log: Logger
   /** The second lazy bundle; required only when an action needs it. */
   readonly actions: () => VaultActionsBundle
 }): Omit<VaultPanelHostDeps, 'service' | 'publish' | 'status'> {
@@ -90,6 +91,7 @@ function nativeHostDeps(deps: {
   const dialogs = () => deps.actions().vaultActionDialogs({ now: deps.now })
   return {
     now: deps.now,
+    log: deps.log,
     importDone: (names) => dialogs().importDone(names),
     confirmReset: (word, signal, warning) => dialogs().confirmReset(word, signal, warning),
     showRecoveryCode: (code, signal) => dialogs().showRecoveryCode(code, signal),
@@ -195,8 +197,9 @@ export function createModelsVaultBinding(
   })
   const { service, statusItem, status, disposeBroker } = serviceAndStatus({ ...deps, actions })
   const host = new VaultPanelHost({
-    ...nativeHostDeps({ now: deps.now, actions }),
+    ...nativeHostDeps({ now: deps.now, log: deps.log, actions }),
     service,
+    log: deps.log,
     publish: deps.publish,
     status,
   })
