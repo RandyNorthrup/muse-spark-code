@@ -19,7 +19,10 @@ const PROJECT_ID = /^[0-9]{1,20}$/
 // A branch name as gate.mjs accepts a pull request head ref.
 const BRANCH = /^(?!-)(?!.*\.\.)(?!.*\/\/)(?!.*@\{)[A-Za-z0-9._/-]{1,255}(?<![./])$/
 const GITLAB_BRANCH_SOURCES = new Set(['push', 'web', 'schedule', 'api'])
-const AZURE_BRANCH_REASONS = new Set(['Manual', 'IndividualCI', 'BatchedCI', 'Schedule'])
+// BatchedCI is deliberately absent: a batch folds several new commits into
+// one build and Azure names no pre-batch revision, so there is no base that
+// covers the whole batch. BatchedCI builds are refused below.
+const AZURE_BRANCH_REASONS = new Set(['Manual', 'IndividualCI', 'Schedule'])
 
 /**
  * Azure's string booleans: Azure turns every boolean into the text True or
@@ -122,6 +125,19 @@ function azure(env) {
       number,
       isFork,
       base: { mergeParent: true },
+    }
+  }
+  if (reason === 'BatchedCI') {
+    // A batch carries every commit since the previous build, but Azure's
+    // predefined variables name only the batch head: first-parent would
+    // review just the last commit and silently drop the rest. Refuse.
+    return {
+      ...common,
+      event: 'unsupported',
+      label: `branch ${optional(env, 'BUILD_SOURCEBRANCHNAME')}`,
+      number: null,
+      isFork: false,
+      base: branchBase(),
     }
   }
   return {
