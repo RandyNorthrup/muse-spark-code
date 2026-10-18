@@ -1,0 +1,14 @@
+{
+  "id": "models-list-made-up-key",
+  "provider": "xai",
+  "sentAt": "2026-10-13T01:27:17.753Z",
+  "method": "GET",
+  "url": "https://api.x.ai/v1/models",
+  "requestHeaders": {},
+  "status": 400,
+  "responseHeaders": {},
+  "response": {
+    "code": "invalid-argument",
+    "error": "Incorrect API key provided. You can obtain an API key from https://console.x.ai."
+  }
+}
