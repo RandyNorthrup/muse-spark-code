@@ -281,6 +281,19 @@ manifest.test.ts, usagePackaging.test.mjs, vsixPackaging.test.mjs}`
   `node dist/acp.js dictate` → `Unknown argument: dictate` (exit 1).
   Stand-in grep over the surviving lane-changed test files: no hits.
 
+## PR224W1 first result (2026-10-18, macmini, head `dfafc6ddaa`)
+
+One line per thread and per CI failure, measured by reading the head tree:
+
+- `dictation.ts:466` twice-refused kill: ALREADY FIXED by `923887be3` — `finishFail` retains the reaping and retries the kill in `retainUntilExit` until the exit is observed; the queued press spawns only then.
+- `dictationHost.ts:108` stale cleanup directory: ALREADY FIXED by `8069fec1b` — `removeLinuxDictationModel` rmdirs the directory with its managed files, so the `existsSync` check reports `linuxDictationRemoved` on the next reload.
+- `linuxHelperPins.ts:64` unpublished CPU variants: ALREADY FIXED by `c5913257c` — all 24 built backends pinned, staged, checked and refused from the VSIX.
+- `linuxModel.ts` empty download lock: ALREADY FIXED by `30fc11457` — an empty `.download-lock` is reclaimed instead of reporting busy forever.
+- `en.ts:4560` Allow-once scope text: OPEN, confirmed — `paidUseVoiceDetail` and `paidConfirmVoice` still promise "Allow once covers this window" while the registry is one-recording scoped; fix the two strings plus tables, reference and the stale `conversationController.ts:9911` comment.
+- `dictation.ts:420` clean-stop kill refused: OPEN, confirmed — `finishStop` still clears the reaping, publishes idle and spawns the queued press when the exit is never observed; mirror the retain-until-exit fix there.
+- CI `check:host-api` stale on all three OS gates: OPEN — regenerate with `npm run check:host-api -- --write` and review the diff.
+- CI VSIX over budget (3,826,413 B vs 3,788,800 B): OPEN — cut ~38 KiB with a lazy split, never by raising the budget; other listed failures are downstream of these two.
+
 ## APP PROBLEMS
 
 - `usagePackaging` cases take 7–10 s on this rig vs the 5 s repo timeout;
