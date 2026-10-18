@@ -75,22 +75,29 @@ headless `EXEC_EXIT`/`LEGAL_EXIT` codes). `--help` exits 0 everywhere.
   notice instead of failing silently.
 - `src/runtime/providers/accountsEntry.ts`: `developer` misuse exits 2
   with the usage before any store is touched.
-- `test/unit/cliHelpConsistency.test.ts`: 47 checks with no stand-ins —
-  the real parser and renderer in-process, plus a block that spawns the
-  built `dist/acp.js` itself for misuse (exit 2 plus flag naming) and help
-  (exit 0) cases. That block needs a build first: CI unit shards run
-  `vitest` without `dist/`, so it fails there with `built binary is
-missing` until the pipeline builds before testing; the lead owns that
-  call. The built-binary sweep above is the recorded real-use drill.
+- `test/unit/cliHelpConsistency.test.ts`: 37 checks with no stand-ins —
+  the real parser and renderer in-process. The built `dist/acp.js` itself
+  is proven in `test/hosts/exec.sh` (10 misuse/help checks, then 4
+  no-bounds checks below): the unit shards run `vitest` without `dist/`,
+  and that script runs in CI only after the production package is built
+  and installed (hosts.yml `agent` job). The built-binary sweep above is
+  the recorded real-use drill.
+- No bound of ours on `exec` (owner's Limits rule, 2026-10-16): without
+  `--max-requests` a run has no request limit (the ledger cap is optional
+  end to end, and the Action forwards the flag only when set); a set
+  `--timeout`/`--max-requests` is any positive safe integer;
+  `--max-budget-usd` is positive-only. The 21,600-second, 500-request and
+  20 USD maxima and the 30-request default are gone from the parser, the
+  ledger, the protocol schemas, the generated reference, the v2 exec
+  schemas, the Action and the docs; `--timeout` keeps its 1800-second
+  default and 10-second floor. The deadline timer re-arms at Node's
+  setTimeout ceiling instead of overflowing on a large value. Proven
+  through the real binary: large values fall through to the missing-prompt
+  check instead of being refused as bounds (red on the stale binary,
+  green on the rebuild). Frozen v1 wire snapshots untouched.
 
 ## Open (not fixed here)
 
-- Outcome 3 vs the standing Limits rule: the parser enforces our own bounds
-  (`EXEC_MAX_REQUESTS` 500, `EXEC_MAX_TIMEOUT_SECONDS` 21600,
-  `EXEC_MAX_BUDGET_USD` 20, file count/byte caps) and defaults (30 requests,
-  1800 s), all published in the reference contracts. Hiding them would make
-  help lie (outcome 1); removing them changes spend safety and needs a
-  PLAN.md decision. Left for the lead (§3 question).
 - `report --help` shows the named-reports help, never the M93
   `--out/--description/--no-facts/--no-events` flags (only in the reference).
 - `exec --record` / `--trust-workspace` / `--web-search` refusals name the
