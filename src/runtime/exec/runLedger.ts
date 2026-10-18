@@ -142,7 +142,8 @@ function charge(price: TierPrice, input: number, output: number, cached = 0): bi
 
 export function createRunLedger(input: {
   capUsd: UsdAmount
-  maxRequests: number
+  /** No request cap when the person set none. */
+  maxRequests: number | undefined
   outputCap?: () => number
 }): RunLedger {
   const outputCap = input.outputCap ?? (() => resolveExecOutputCap())
@@ -150,9 +151,10 @@ export function createRunLedger(input: {
   if (
     cap <= ZERO ||
     cap > units(Usd.from(EXEC_MAX_BUDGET_USD).toAmount()) ||
-    !Number.isSafeInteger(input.maxRequests) ||
-    input.maxRequests < 1 ||
-    input.maxRequests > EXEC_MAX_REQUESTS
+    (input.maxRequests !== undefined &&
+      (!Number.isSafeInteger(input.maxRequests) ||
+        input.maxRequests < 1 ||
+        input.maxRequests > EXEC_MAX_REQUESTS))
   )
     throw new Error(UI_TEXT.execNumberInvalid)
   let requests = 0
@@ -183,7 +185,7 @@ export function createRunLedger(input: {
   const admit = (amount: bigint): { refused: Refusal } | undefined => {
     if (isClosed) return refuse('closed')
     if (active !== undefined) throw new Error(UI_TEXT.execRequestShape)
-    if (requests >= input.maxRequests) return refuse('requests')
+    if (input.maxRequests !== undefined && requests >= input.maxRequests) return refuse('requests')
     if (settled + uncertain + amount > cap) return refuse('budget')
     reserve = amount
     requests += 1

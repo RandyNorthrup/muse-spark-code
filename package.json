@@ -1303,9 +1303,8 @@
         },
         "museSpark.tabDailyBudgetUsd": {
           "type": "number",
-          "minimum": 0.05,
-          "maximum": 50,
-          "default": 1,
+          "minimum": 0,
+          "default": 0,
           "description": "%config.tabDailyBudgetUsd.description%",
           "scope": "machine"
         },
