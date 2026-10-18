@@ -96,8 +96,9 @@ export async function spawnVaultFeeder(
             }),
           ])
         } catch {
+          // Best effort ends the root's group/job; the flag still fails the result below.
           hasTerminationFailed = true
-          // Best effort ends the root's group/job; only the native port can prove the compound tree.
+          // Only the native port can prove the compound tree.
           await killTree(child, deps.tree, startedAt, deps.job)
         } finally {
           clearTimeout(deadline)

@@ -245,6 +245,7 @@ export class PipeRelay {
           try {
             word = JSON.parse(payload.toString('utf8'))
           } catch {
+            // An unparsable fault frame still fails below: safeParse refuses null.
             word = null
           }
           const parsed = windowsVaultPipeFaultSchema.safeParse(word)
@@ -260,6 +261,7 @@ export class PipeRelay {
           try {
             answer = JSON.parse(payload.toString('utf8'))
           } catch {
+            // An unparsable answer fails the relay; pending queries settle with the fixed refusal.
             this.fail(new Error(UI_TEXT.vault.noAccess))
             return
           }
@@ -293,6 +295,7 @@ export class PipeRelay {
     try {
       ready = JSON.parse(payload.toString('utf8'))
     } catch {
+      // An unparsable ready frame fails the relay before any query is accepted.
       this.fail(new Error(UI_TEXT.vault.noAccess))
       return
     }
@@ -315,6 +318,7 @@ export class PipeRelay {
     try {
       client = windowsVaultPipeClientSchema.parse(JSON.parse(payload.toString('utf8')))
     } catch {
+      // An untrusted client frame fails the relay; nothing is registered.
       this.fail(new Error(UI_TEXT.vault.noAccess))
       return
     }
@@ -850,6 +854,7 @@ async function spawnPipeRelay(
         )
         child.stdin.write(Buffer.from('\n'))
       } catch {
+        // The handshake never reached the helper; the relay fails and the spawn rejects.
         clearTimeout(timer)
         relay.fail(new Error(UI_TEXT.vault.noAccess))
         reject(new Error(UI_TEXT.vault.noAccess))
@@ -876,6 +881,7 @@ async function spawnPipeRelay(
     try {
       child.stdin.write(Buffer.from(helper.guardSource, 'utf8').toString('base64') + '\n')
     } catch {
+      // The guard source never reached the helper; the spawn rejects with the fixed refusal.
       clearTimeout(timer)
       reject(new Error(UI_TEXT.vault.noAccess))
     }
