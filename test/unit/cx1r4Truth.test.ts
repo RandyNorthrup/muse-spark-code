@@ -9,10 +9,11 @@ import {
 import manifest from '../../package.json'
 import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { createRuntimeReports } from '../../src/runtime/reporting/reportsEntry'
-import { parseReportsArguments } from '../../src/runtime/reporting/reportsArgs'
+import { parseReportsArguments, reportsUsage } from '../../src/runtime/reporting/reportsArgs'
+import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { parseReportRequest } from '../../src/host/reporting/reportRequest'
 import { EN } from '../../src/shared/l10n/en'
-import { REPORT_KINDS } from '../../src/shared/constants'
+import { REPORT_KINDS, REPORT_WORKING_KINDS } from '../../src/shared/constants'
 import { currentWhatsNewText } from './helpers/currentWhatsNew'
 
 function repoFile(name: string): string {
@@ -128,6 +129,21 @@ describe('CX1R4 F3: live Help and pickers list only the thirteen working kinds',
     for (const kind of WORKING_REPORT_KINDS) expect(text).toContain(`/report ${kind}`)
     for (const kind of DORMANT_REPORT_KINDS) expect(text).not.toContain(`/report ${kind}`)
     expect(text).toContain('/report history')
+  })
+
+  it('the terminal usage lists every working kind with its required argument (RVMSM113)', () => {
+    const usage = reportsUsage(EN)
+    for (const kind of WORKING_REPORT_KINDS) expect(usage).toContain(kind)
+    expect(usage).toContain('milestone <id>')
+    expect(usage).toContain('release <version|latest>')
+    expect(usage).toContain('estimate <milestone>')
+  })
+
+  it('report --help reaches the report command, not the whole help reference (RVMSM113)', () => {
+    expect(parseCommandLine(['report', '--help'])).toEqual({
+      command: 'reports',
+      args: ['--help'],
+    })
   })
 
   it('parsers and history keep accepting every kind', () => {

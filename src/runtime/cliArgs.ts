@@ -740,6 +740,10 @@ function parseResources(argv: readonly string[]): RuntimeCommand {
 
 /** `report [options]`: the standalone problem report (M93 lane A, PLAN.md D72). */
 function parseReport(argv: readonly string[], canUseNamed = true): RuntimeCommand {
+  // `report --help` is the report command's own help, not the whole
+  // reference (REALLIFE F34); the reports command prints its usage.
+  if (canUseNamed && argv.some((argument) => argument === '--help' || argument === '-h'))
+    return { command: 'reports', args: argv }
   // M113 owns named reports; M93's bare command and option parser stay intact.
   if (
     canUseNamed &&

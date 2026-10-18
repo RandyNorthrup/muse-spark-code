@@ -28,8 +28,10 @@ export interface ReportsRequest {
   readonly save: boolean
 }
 
-export function reportsUsage(table: Pick<UiText, 'reportCliUsage'> = UI_TEXT): string {
-  return fill(table.reportCliUsage, { command: ACP_AGENT_NAME })
+export function reportsUsage(
+  table: Pick<UiText, 'reportCliUsage' | 'reportCliKinds'> = UI_TEXT,
+): string {
+  return fill(table.reportCliUsage, { command: ACP_AGENT_NAME }) + table.reportCliKinds
 }
 
 function isOneOf<T extends string>(values: readonly T[], value: string): value is T {
