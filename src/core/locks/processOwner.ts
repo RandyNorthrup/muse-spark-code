@@ -24,7 +24,7 @@
 
 import { execFile } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { homedir, hostname } from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -226,7 +226,37 @@ async function prepareWindowsBirthReader(systemRoot: string): Promise<string> {
     await rm(`${stem}.cs`, { force: true })
     await rm(`${stem}.exe`, { force: true })
   }
+  await removeStaleBirthReaders(folder, reader)
   return reader
+}
+
+/**
+ * Removes the readers built from earlier sources beside `current`, as the
+ * job helpers' builds are removed. One another process is running cannot
+ * go yet on Windows and stays for a later build; a reader removed under a
+ * process of an earlier version is built again by its next read.
+ */
+async function removeStaleBirthReaders(folder: string, current: string): Promise<void> {
+  const currentName = path.win32.basename(current)
+  let names: string[]
+  try {
+    names = await readdir(folder)
+  } catch {
+    return
+  }
+  for (const name of names) {
+    if (
+      name !== currentName &&
+      name.startsWith(WINDOWS_BIRTH_READER_STEM) &&
+      name.endsWith('.exe')
+    ) {
+      try {
+        await rm(path.win32.join(folder, name), { force: true })
+      } catch {
+        // Still running somewhere: a later build tries again.
+      }
+    }
+  }
 }
 
 const windowsBirthReader: { ready?: Promise<string> | undefined } = {}
