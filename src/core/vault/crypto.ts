@@ -16,12 +16,37 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { vaultEncodedSchema, vaultMaterialSchema, type VaultItem } from '../../shared/vault'
+import type { VaultBrokerResponse } from '../../shared/vaultProtocol'
+import { vaultWriterDetail } from '../../shared/vaultRefusals'
 
 /** Safe codes for callers; exceptions never include a value or parser input. */
 export class VaultError extends Error {
-  constructor(readonly code: 'invalid' | 'authentication' | 'rollback' | 'locked' | 'busy' | 'io') {
+  constructor(
+    readonly code:
+      | 'invalid'
+      | 'authentication'
+      | 'rollback'
+      | 'locked'
+      | 'busy'
+      | 'io'
+      | 'filesystemUnsupported',
+  ) {
     super(code === 'rollback' ? UI_TEXT.vault.rollback : UI_TEXT.vault.noAccess)
     this.name = 'VaultError'
+  }
+}
+
+/** Typed, value-free writer refusal, also validated on the private management channel. */
+export class VaultWriterError extends VaultError {
+  constructor(
+    readonly writer: NonNullable<
+      Extract<VaultBrokerResponse['response'], { kind: 'refused' }>['writer']
+    >,
+  ) {
+    super('busy')
+    // The sentence lives in the shared refusals so hosts without the
+    // write-only crypto name the same holder.
+    this.message = vaultWriterDetail(writer)
   }
 }
 

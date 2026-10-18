@@ -22,8 +22,8 @@ export const JOB_SOURCES = [
   path.join('native', 'windows', 'MuseSparkScreenRecord.cs'),
 ]
 export const DARWIN_HELPER = path.join('native', 'darwin', 'muse-dictate')
-export const LINUX_HELPERS = ['x64', 'arm64'].map((arch) =>
-  path.join('native', 'linux', arch, 'muse-created'),
+export const LINUX_HELPERS = ['x64', 'arm64'].flatMap((arch) =>
+  ['muse-created', 'muse-vault-peer'].map((helper) => path.join('native', 'linux', arch, helper)),
 )
 // The governed runner's helper scripts, copied as a folder.
 export const RUNNER_HELPERS = path.join('native', 'runner')

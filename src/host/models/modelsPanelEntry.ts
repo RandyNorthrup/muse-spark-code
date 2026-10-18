@@ -19,9 +19,15 @@ import type { SecretStore } from '../auth/credentialStore'
 import { ProviderCredentialStore as CredentialStore } from '../providers/credentialRecords'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
+import type { VaultBundle } from '../vault/vaultPanelBundle'
 import { showPickOne } from '../quickPick'
 import { startOAuthLoopback } from '../providers/oauthLoopback'
-import { createModelsPanel, type ModelsPanel, type ModelsPanelNavigate } from './modelsPanel'
+import {
+  createModelsPanel,
+  type ModelsPanel,
+  type ModelsPanelNavigate,
+  type ModelsVaultFactory,
+} from './modelsPanel'
 import { runAddProviderQuickPick, type ProviderQuickPickOutcome } from './modelsQuickPick'
 import { createSessionBudgetConfig } from './sessionBudget'
 import { createProvidersHost, type ProvidersHost } from '../providers/providersHost'
@@ -63,6 +69,14 @@ export interface ModelsPanelHostDeps {
   readonly readImportFile?: () => Promise<string | undefined>
   readonly onWizardSaved?: (outcome: WizardSaveOutcome) => void | Promise<void>
   readonly onKeyUsage?: Parameters<typeof createProvidersHost>[0]['onKeyUsage']
+  /**
+   * The vault bundle loader and its dist/ directory (C-M109-1 P1): the entry
+   * builds the broker-backed binding factory around this panel's publisher
+   * here, in dist/modelsPanel.js, so activation carries no factory body.
+   * Without both the section stays hidden.
+   */
+  readonly vault?: (() => VaultBundle) | undefined
+  readonly vaultDir?: string | undefined
 }
 
 export interface ModelsPanelFeatures {
@@ -232,6 +246,25 @@ async function readImportFile(): Promise<string | undefined> {
  * The panel's features, composed from the VS Code host and the lane-P/T
  * seam. One instance serves the window; the panel it opens is one tab.
  */
+/**
+ * The vault binding factory around this panel's publisher, built here in
+ * dist/modelsPanel.js so activation carries no factory body. A throwing
+ * loader (a switched-off vault, a missing bundle) leaves the panel without
+ * the section, refusing exactly as 0.17.0 does.
+ */
+function vaultBindingFactory(host: ModelsPanelHostDeps): ModelsVaultFactory | undefined {
+  const bundle = host.vault
+  const distDir = host.vaultDir
+  return bundle === undefined || distDir === undefined
+    ? undefined
+    : (publish) =>
+        bundle().createModelsVaultBinding(
+          { distDir, now: Date.now, publish, log: host.log },
+          host.l10n.table,
+          host.l10n.locale,
+        )
+}
+
 export function createModelsPanelFeatures(
   host: ModelsPanelHostDeps,
   seam: ModelsPanelSeam,
@@ -342,6 +375,7 @@ export function createModelsPanelFeatures(
         extensionUri: host.extensionUri,
         l10n: host.l10n,
         log: host.log,
+        vault: vaultBindingFactory(host),
         providers,
         sessionBudget,
         connectChatGpt: host.connectChatGpt,

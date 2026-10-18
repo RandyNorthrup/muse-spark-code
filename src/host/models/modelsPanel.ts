@@ -23,6 +23,11 @@ import {
   type ModelRow,
   type ProviderTest,
 } from '../../shared/modelsPanel'
+import {
+  vaultClientMessageSchema,
+  vaultHostMessageSchema,
+  type VaultHostMessage,
+} from '../../shared/hostApi/vaultMessages'
 import { buildWebviewHtml, createNonce } from '../html'
 import { fill } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
@@ -65,11 +70,50 @@ export interface ModelsPanelDeps {
   readonly readImportFile: () => Promise<string | undefined>
   readonly confirmImport: (preview: ImportPreview) => Promise<boolean>
   readonly onWizardSaved: (outcome: WizardSaveOutcome) => void
+  /**
+   * The vault binding factory (C-M109-1 P1). Without it the section stays
+   * hidden; a factory that throws leaves the panel without the section too.
+   */
+  readonly vault?: ModelsVaultFactory | undefined
 }
 export interface ModelsPanelNavigate {
   readonly section?: string | undefined
   readonly presetId?: string | undefined
   readonly wizard?: boolean | undefined
+}
+/**
+ * The vault section's host side (C-M109-1 P1): built in dist/vault.js and
+ * owned by this panel while its tab lives. The factory and the binding
+ * never import this file, and this file never imports the vault's host
+ * files, so the bundle-split gate keeps them in their own bundles; only
+ * the shared message schemas are carried by both.
+ */
+export interface ModelsVaultBinding {
+  readonly handle: (raw: unknown) => Promise<void>
+  readonly refresh: () => Promise<void>
+  /** Idempotent: the panel disposes its tab and the binding together. */
+  readonly dispose: () => void
+}
+/** Builds the binding with its publisher into this panel's webview. */
+export type ModelsVaultFactory = (
+  publish: (message: VaultHostMessage) => void,
+) => ModelsVaultBinding
+/** The navigate target the host posts; a vault link needs the binding. */
+function navigateSection(
+  section: string,
+  isVaultOffered: boolean,
+): 'providers' | 'models' | 'vault' {
+  switch (section) {
+    case 'models': {
+      return 'models'
+    }
+    case 'vault': {
+      return isVaultOffered ? 'vault' : 'providers'
+    }
+    default: {
+      return 'providers'
+    }
+  }
 }
 export interface ModelsPanel {
   readonly reveal: (navigate?: ModelsPanelNavigate) => void
@@ -195,8 +239,46 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     void panel.webview.postMessage(parsed.message)
   }
+  const publishVault = (message: VaultHostMessage): void => {
+    if (isDisposed) {
+      return
+    }
+    const parsed = vaultHostMessageSchema.safeParse(message)
+    if (!parsed.success) {
+      log.warn('Dropped malformed vault host message')
+      return
+    }
+    void panel.webview.postMessage(parsed.data)
+  }
+  // The gate: no factory, no vault section. The binding is built on first
+  // vault use (navigation or message), never for an unrelated panel action,
+  // so opening Models & Agents never connects to or launches the broker. A
+  // factory that throws leaves the panel without the section too, refusing
+  // exactly as 0.17.0 does.
+  let vault: ModelsVaultBinding | undefined
+  let hasVaultFailed = false
   const publish = (): void => {
+    state.vaultOffered = !hasVaultFailed && (vault !== undefined || deps.vault !== undefined)
     post({ type: 'modelsPanel/state', state })
+  }
+  const ensureVault = (): ModelsVaultBinding | undefined => {
+    if (vault === undefined && !hasVaultFailed && deps.vault !== undefined) {
+      try {
+        vault = deps.vault(publishVault)
+      } catch {
+        log.warn('Vault section unavailable')
+        hasVaultFailed = true
+        vault = undefined
+        publish()
+      }
+    }
+    return vault
+  }
+  // A vault navigation builds the binding first; when the factory throws,
+  // the section falls back to providers and hides, as if never offered.
+  const vaultSection = (section: string | undefined): 'providers' | 'models' | 'vault' => {
+    if (section !== 'vault') return navigateSection(section ?? 'providers', false)
+    return ensureVault() === undefined ? 'providers' : 'vault'
   }
   const fail = (draft?: PanelDraft, error?: unknown): void => {
     // Exception text can contain a bare key even before it is retained.
@@ -685,7 +767,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (navigation !== undefined) {
           post({
             type: 'modelsPanel/navigate',
-            section: navigation.section === 'models' ? 'models' : 'providers',
+            section: vaultSection(navigation.section),
             itemId: navigation.presetId,
           })
         }
@@ -1221,6 +1303,19 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     })()
   }
   const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
+    // The vault's own messages ride the same webview; its host validates
+    // them again before acting. Without the binding they fall through to
+    // the panel's parser, which drops them. A first vault message builds
+    // the binding, so the broker stays untouched until the vault is used.
+    if (vaultClientMessageSchema.safeParse(raw).success) {
+      const binding = ensureVault()
+      if (binding !== undefined) {
+        void binding.handle(raw).catch(() => {
+          log.warn('Vault panel operation failed')
+        })
+        return
+      }
+    }
     const parsed = parsePanelToHostMessage(raw)
     if (!parsed.ok) {
       log.warn('Dropped malformed models panel message')
@@ -1236,6 +1331,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     isDisposed = true
     credentials.clear()
     subscription.dispose()
+    vault?.dispose()
+    vault = undefined
   }
   panel.onDidDispose(cleanup)
   return {
@@ -1254,7 +1351,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       if (navigate !== undefined) {
         post({
           type: 'modelsPanel/navigate',
-          section: navigate.section === 'models' ? 'models' : 'providers',
+          section: vaultSection(navigate.section),
           itemId: navigate.presetId,
         })
       }

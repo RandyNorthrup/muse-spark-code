@@ -15,6 +15,7 @@ import {
 import { pathToFileURL } from 'node:url'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
 import { assertNoVsixFonts } from './notices-fonts.mjs'
+import { assertPackagedBundles } from './check-packaged-bundles.mjs'
 import { renderPackageReadme } from './check-badges.mjs'
 import {
   VSIX_TARGETS,
@@ -92,6 +93,7 @@ export async function stageVsix(root, stage, target) {
     throw new Error(`Unknown VSIX target: ${target}`)
   const listed = await listFiles({ cwd: root, dependencies: false })
   assertNoVsixFonts(listed)
+  assertPackagedBundles(root, listed)
   // One package per platform (PLAN.md D123): a targeted package stages
   // only its own platform's native pieces; the universal stage keeps all.
   const files = target === undefined ? listed : listed.filter((file) => vsixKeepsFile(target, file))

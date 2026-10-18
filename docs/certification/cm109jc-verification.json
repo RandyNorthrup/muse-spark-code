@@ -1,0 +1,819 @@
+{
+  "base": "495f8b476",
+  "machine": "kubuntu",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "availability": "off",
+  "gates": [
+    {
+      "name": "roadmap",
+      "exit": 0,
+      "command": ["npm", "run", "roadmap:generate"],
+      "log": "temp/cm109jc-final-roadmap.log"
+    },
+    {
+      "name": "deadcode",
+      "exit": 0,
+      "command": ["npm", "run", "deadcode"],
+      "log": "temp/cm109jc-final-deadcode.log"
+    },
+    {
+      "name": "l10n",
+      "exit": 0,
+      "command": ["npm", "run", "check:l10n"],
+      "log": "temp/cm109jc-final-l10n.log"
+    },
+    {
+      "name": "host-api",
+      "exit": 0,
+      "command": ["npm", "run", "check:host-api"],
+      "log": "temp/cm109jc-final-host-api.log"
+    },
+    {
+      "name": "reference",
+      "exit": 0,
+      "command": ["npm", "run", "check:reference"],
+      "log": "temp/cm109jc-final-reference.log"
+    },
+    {
+      "name": "plan",
+      "exit": 0,
+      "command": ["npm", "run", "check:plan"],
+      "log": "temp/cm109jc-final-plan.log"
+    },
+    {
+      "name": "roadmap-check",
+      "exit": 0,
+      "command": ["npm", "run", "check:roadmap"],
+      "log": "temp/cm109jc-final-roadmap-check.log"
+    },
+    {
+      "name": "select",
+      "exit": 0,
+      "command": ["node", "temp/cm109jc-select.mjs"],
+      "log": "temp/cm109jc-final-select.log"
+    },
+    {
+      "name": "types",
+      "exit": 0,
+      "command": ["npx", "run-s", "typecheck:host", "typecheck:unit"],
+      "log": "temp/cm109jc-final-types.log"
+    },
+    {
+      "name": "lint",
+      "exit": 0,
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "src/host/vault/brokerProcess.ts",
+        "src/host/vault/vaultPanelEntry.ts",
+        "src/runtime/vault/posixClientPlatform.ts",
+        "src/runtime/vault/posixNative.ts",
+        "src/runtime/vault/vaultBrokerEntry.ts",
+        "src/runtime/vault/vaultRuntimeEntry.ts",
+        "test/hosts/vault-posix-broker.mjs",
+        "test/unit/helpers/vault/sessionBrokerChild.ts",
+        "test/unit/helpers/vault/sessionClientChild.ts",
+        "test/unit/vault/brokerProcess.test.ts",
+        "test/unit/vault/brokerSession.test.ts",
+        "test/unit/vault/channel.test.ts",
+        "test/unit/vault/posixBindings.test.ts",
+        "test/unit/helpers/vault/receiptWarnings.mjs",
+        "test/unit/vault/nativeReceipt.test.mjs"
+      ],
+      "log": "temp/cm109jc-final-lint.log"
+    },
+    {
+      "name": "format",
+      "exit": 0,
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "README.md",
+        "ROADMAP.md",
+        "docs/certification/cm109-join-posix.md",
+        "docs/certification/cm109jc-drills.json",
+        "docs/orchestration-gotchas.md",
+        "docs/roadmap/entries.json",
+        "src/host/vault/brokerProcess.ts",
+        "src/host/vault/vaultPanelEntry.ts",
+        "src/runtime/vault/posixClientPlatform.ts",
+        "src/runtime/vault/posixNative.ts",
+        "src/runtime/vault/vaultBrokerEntry.ts",
+        "src/runtime/vault/vaultRuntimeEntry.ts",
+        "test/hosts/vault-posix-broker.mjs",
+        "test/unit/helpers/vault/sessionBrokerChild.ts",
+        "test/unit/helpers/vault/sessionClientChild.ts",
+        "test/unit/vault/brokerProcess.test.ts",
+        "test/unit/vault/brokerSession.test.ts",
+        "test/unit/vault/channel.test.ts",
+        "test/unit/vault/posixBindings.test.ts",
+        "test/unit/helpers/vault/receiptWarnings.mjs",
+        "test/unit/vault/nativeReceipt.test.mjs"
+      ],
+      "log": "temp/cm109jc-final-format.log"
+    },
+    {
+      "name": "duplication",
+      "exit": 0,
+      "command": ["npx", "jscpd"],
+      "log": "temp/cm109jc-final-duplication.log"
+    },
+    {
+      "name": "build",
+      "exit": 0,
+      "command": ["npm", "run", "build"],
+      "log": "temp/cm109jc-final-build.log"
+    },
+    {
+      "name": "native-1",
+      "exit": 0,
+      "command": ["sh", "test/hosts/run-vault-posix.sh"],
+      "log": "temp/cm109jc-final-native-1.log"
+    },
+    {
+      "name": "native-2",
+      "exit": 0,
+      "command": ["sh", "test/hosts/run-vault-posix.sh"],
+      "log": "temp/cm109jc-final-native-2.log"
+    },
+    {
+      "name": "adoption-typecheck",
+      "command": ["npm", "run", "typecheck:unit"],
+      "exit": 0,
+      "log": "temp/cm109jc-adoption-typecheck.log"
+    },
+    {
+      "name": "adoption-lint",
+      "command": ["npx", "eslint", "--max-warnings=0", "test/unit/vault/brokerAdoption.test.ts"],
+      "exit": 0,
+      "log": "temp/cm109jc-adoption-lint.log"
+    },
+    {
+      "name": "adoption-format",
+      "command": ["npx", "prettier", "--check", "test/unit/vault/brokerAdoption.test.ts"],
+      "exit": 0,
+      "log": "temp/cm109jc-adoption-format.log"
+    },
+    {
+      "name": "final-duplication",
+      "command": ["npx", "jscpd"],
+      "exit": 0,
+      "log": "temp/cm109jc-final-duplication.log"
+    }
+  ],
+  "fullFiveProjectTypecheck": {
+    "command": "npm run typecheck",
+    "exit": 0,
+    "note": "All five projects passed before the final owned-startup cleanup refinement; host and unit projects were repeated after it."
+  },
+  "selection": {
+    "sources": [
+      "src/host/vault/brokerProcess.ts",
+      "src/host/vault/vaultPanelEntry.ts",
+      "src/runtime/vault/posixClientPlatform.ts",
+      "src/runtime/vault/posixNative.ts",
+      "src/runtime/vault/vaultBrokerEntry.ts",
+      "src/runtime/vault/vaultRuntimeEntry.ts"
+    ],
+    "files": [
+      "test/unit/vault/brokerAdoption.test.ts",
+      "test/unit/vault/brokerComposition.test.ts",
+      "test/unit/vault/brokerProcess.test.ts",
+      "test/unit/vault/brokerSession.test.ts",
+      "test/unit/vault/channel.test.ts",
+      "test/unit/vault/posixBindings.test.ts",
+      "test/unit/vault/rvcm1091a.test.ts",
+      "test/unit/vault/rvcm1091a2.test.ts",
+      "test/unit/vault/vaultBrokerEntry.test.ts",
+      "test/unit/vault/vaultNativeEditor.test.ts",
+      "test/unit/vault/vaultRuntimeEntry.test.ts"
+    ],
+    "shards": 4
+  },
+  "testRuns": [
+    {
+      "name": "related-1",
+      "exit": 0,
+      "command": [
+        "npx",
+        "vitest",
+        "related",
+        "--run",
+        "src/host/vault/brokerProcess.ts",
+        "src/host/vault/vaultPanelEntry.ts",
+        "src/runtime/vault/posixClientPlatform.ts",
+        "src/runtime/vault/posixNative.ts",
+        "src/runtime/vault/vaultBrokerEntry.ts",
+        "src/runtime/vault/vaultRuntimeEntry.ts",
+        "--shard=1/4",
+        "--maxWorkers=3",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=temp/cm109jc-related-1.json"
+      ],
+      "files": 3,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0,
+      "report": "temp/cm109jc-related-1.json",
+      "log": "temp/cm109jc-related-1.log"
+    },
+    {
+      "name": "related-2",
+      "exit": 0,
+      "command": [
+        "npx",
+        "vitest",
+        "related",
+        "--run",
+        "src/host/vault/brokerProcess.ts",
+        "src/host/vault/vaultPanelEntry.ts",
+        "src/runtime/vault/posixClientPlatform.ts",
+        "src/runtime/vault/posixNative.ts",
+        "src/runtime/vault/vaultBrokerEntry.ts",
+        "src/runtime/vault/vaultRuntimeEntry.ts",
+        "--shard=2/4",
+        "--maxWorkers=3",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=temp/cm109jc-related-2.json"
+      ],
+      "files": 3,
+      "passed": 82,
+      "failed": 0,
+      "skipped": 0,
+      "report": "temp/cm109jc-related-2.json",
+      "log": "temp/cm109jc-related-2.log"
+    },
+    {
+      "name": "related-3",
+      "exit": 0,
+      "command": [
+        "npx",
+        "vitest",
+        "related",
+        "--run",
+        "src/host/vault/brokerProcess.ts",
+        "src/host/vault/vaultPanelEntry.ts",
+        "src/runtime/vault/posixClientPlatform.ts",
+        "src/runtime/vault/posixNative.ts",
+        "src/runtime/vault/vaultBrokerEntry.ts",
+        "src/runtime/vault/vaultRuntimeEntry.ts",
+        "--shard=3/4",
+        "--maxWorkers=3",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=temp/cm109jc-related-3.json"
+      ],
+      "files": 3,
+      "passed": 50,
+      "failed": 0,
+      "skipped": 0,
+      "report": "temp/cm109jc-related-3.json",
+      "log": "temp/cm109jc-related-3.log"
+    },
+    {
+      "name": "related-4",
+      "exit": 0,
+      "command": [
+        "npx",
+        "vitest",
+        "related",
+        "--run",
+        "src/host/vault/brokerProcess.ts",
+        "src/host/vault/vaultPanelEntry.ts",
+        "src/runtime/vault/posixClientPlatform.ts",
+        "src/runtime/vault/posixNative.ts",
+        "src/runtime/vault/vaultBrokerEntry.ts",
+        "src/runtime/vault/vaultRuntimeEntry.ts",
+        "--shard=4/4",
+        "--maxWorkers=3",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=temp/cm109jc-related-4.json"
+      ],
+      "files": 2,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "temp/cm109jc-related-4.json",
+      "log": "temp/cm109jc-related-4.log"
+    },
+    {
+      "name": "extra-1",
+      "exit": 0,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/nativeReceipt.test.mjs",
+        "test/unit/acpVault.test.ts",
+        "test/unit/vaultSurface.test.ts",
+        "--maxWorkers=3",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=temp/cm109jc-extra-1.json"
+      ],
+      "files": 3,
+      "passed": 44,
+      "failed": 0,
+      "skipped": 0,
+      "report": "temp/cm109jc-extra-1.json",
+      "log": "temp/cm109jc-extra-1.log"
+    },
+    {
+      "name": "extra-2",
+      "exit": 0,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/vaultPanelHost.test.ts",
+        "test/unit/vault/vaultPanelBundle.test.ts",
+        "test/unit/vault/vaultPanel.test.tsx",
+        "--maxWorkers=3",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=temp/cm109jc-extra-2.json"
+      ],
+      "files": 3,
+      "passed": 61,
+      "failed": 0,
+      "skipped": 0,
+      "report": "temp/cm109jc-extra-2.json",
+      "log": "temp/cm109jc-extra-2.log"
+    },
+    {
+      "name": "extra-3",
+      "exit": 0,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/execAdapters.test.ts",
+        "test/unit/vault/execSpawn.test.ts",
+        "test/unit/vault/boundaries.test.ts",
+        "--maxWorkers=3",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=temp/cm109jc-extra-3.json"
+      ],
+      "files": 3,
+      "passed": 71,
+      "failed": 0,
+      "skipped": 0,
+      "report": "temp/cm109jc-extra-3.json",
+      "log": "temp/cm109jc-extra-3.log"
+    },
+    {
+      "name": "extra-4",
+      "exit": 0,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/contracts.test.ts",
+        "test/unit/vault/peer.test.ts",
+        "test/unit/vault/reviewRound2.test.ts",
+        "--maxWorkers=3",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=temp/cm109jc-extra-4.json"
+      ],
+      "files": 3,
+      "passed": 42,
+      "failed": 0,
+      "skipped": 0,
+      "report": "temp/cm109jc-extra-4.json",
+      "log": "temp/cm109jc-extra-4.log"
+    },
+    {
+      "name": "extra-5",
+      "exit": 0,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/reviewRound3.test.ts",
+        "test/unit/vault/reviewRound4.test.ts",
+        "test/unit/vault/reviewRound5.test.ts",
+        "--maxWorkers=3",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=temp/cm109jc-extra-5.json"
+      ],
+      "files": 3,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "report": "temp/cm109jc-extra-5.json",
+      "log": "temp/cm109jc-extra-5.log"
+    },
+    {
+      "name": "extra-6",
+      "exit": 0,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/vaultManagement.test.ts",
+        "test/unit/vaultCommand.test.ts",
+        "test/unit/osStoreVaultSlot.test.ts",
+        "--maxWorkers=3",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=temp/cm109jc-extra-6.json"
+      ],
+      "files": 3,
+      "passed": 64,
+      "failed": 0,
+      "skipped": 0,
+      "report": "temp/cm109jc-extra-6.json",
+      "log": "temp/cm109jc-extra-6.log"
+    },
+    {
+      "name": "extra-7",
+      "exit": 0,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/paidMoneyStructure.test.ts",
+        "test/unit/vault/audit.test.ts",
+        "test/unit/spawnBoundaries.test.ts",
+        "--maxWorkers=3",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=temp/cm109jc-extra-7.json"
+      ],
+      "files": 3,
+      "passed": 38,
+      "failed": 0,
+      "skipped": 1,
+      "report": "temp/cm109jc-extra-7.json",
+      "log": "temp/cm109jc-extra-7.log"
+    },
+    {
+      "name": "extra-8",
+      "exit": 0,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/readmeVaultProtection.test.ts",
+        "--maxWorkers=3",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile.json=temp/cm109jc-extra-8.json"
+      ],
+      "files": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "report": "temp/cm109jc-extra-8.json",
+      "log": "temp/cm109jc-extra-8.log"
+    }
+  ],
+  "latestFiles": [
+    {
+      "file": "test/unit/vault/brokerComposition.test.ts",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/brokerProcess.test.ts",
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/rvcm1091a2.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/brokerSession.test.ts",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/channel.test.ts",
+      "passed": 60,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/vaultNativeEditor.test.ts",
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/posixBindings.test.ts",
+      "passed": 32,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/rvcm1091a.test.ts",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/vaultRuntimeEntry.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/brokerAdoption.test.ts",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/vaultBrokerEntry.test.ts",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/acpVault.test.ts",
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vaultSurface.test.ts",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/nativeReceipt.test.mjs",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/vaultPanel.test.tsx",
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/vaultPanelBundle.test.ts",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/vaultPanelHost.test.ts",
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/boundaries.test.ts",
+      "passed": 53,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/execAdapters.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/execSpawn.test.ts",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/contracts.test.ts",
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/peer.test.ts",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/reviewRound2.test.ts",
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/reviewRound3.test.ts",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/reviewRound4.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/reviewRound5.test.ts",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/osStoreVaultSlot.test.ts",
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vaultCommand.test.ts",
+      "passed": 37,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/vaultManagement.test.ts",
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/paidMoneyStructure.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/spawnBoundaries.test.ts",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/unit/vault/audit.test.ts",
+      "passed": 20,
+      "failed": 0,
+      "skipped": 1
+    },
+    {
+      "file": "test/unit/vault/readmeVaultProtection.test.ts",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    }
+  ],
+  "summary": {
+    "files": 33,
+    "passed": 509,
+    "failed": 0,
+    "skipped": 1
+  },
+  "drills": 21,
+  "nativeReceipts": [
+    {
+      "run": 1,
+      "exit": 0,
+      "launchMs": 998,
+      "expectedWarnings": 4,
+      "log": "PASS: linux native slot create/read/delete; no secret in record\nMEASURE: governed broker launch under two CPU workers: 998 ms; comparison window 5000 ms\nEXPECTED resource warning: finished-native-helper-membership-race; native helper and process group exited\nPASS: installed POSIX launch, v2 setup, native OS slot/anchor, private read, Lock and reopen; no model calls\nEXPECTED resource warning: finished-native-helper-membership-race; native helper and process group exited\nEXPECTED resource warning: finished-native-helper-membership-race; native helper and process group exited\nEXPECTED resource warning: finished-native-helper-membership-race; native helper and process group exited\n"
+    },
+    {
+      "run": 2,
+      "exit": 0,
+      "launchMs": 558,
+      "expectedWarnings": 5,
+      "log": "PASS: linux native slot create/read/delete; no secret in record\nMEASURE: governed broker launch under two CPU workers: 558 ms; comparison window 5000 ms\nPASS: installed POSIX launch, v2 setup, native OS slot/anchor, private read, Lock and reopen; no model calls\nEXPECTED resource warning: finished-native-helper-membership-race; native helper and process group exited\nEXPECTED resource warning: finished-native-helper-membership-race; native helper and process group exited\nEXPECTED resource warning: finished-native-helper-membership-race; native helper and process group exited\nEXPECTED resource warning: finished-native-helper-membership-race; native helper and process group exited\nEXPECTED resource warning: finished-native-helper-membership-race; native helper and process group exited\n"
+    }
+  ],
+  "bundles": [
+    {
+      "bundle": "dist/vault.js",
+      "bytes": 33937,
+      "capBytes": 51200
+    },
+    {
+      "bundle": "dist/vaultBoundaries.js",
+      "bytes": 39941,
+      "capBytes": 51200
+    },
+    {
+      "bundle": "dist/vaultBroker.js",
+      "bytes": 112384,
+      "capBytes": 119290
+    },
+    {
+      "bundle": "dist/vaultBrokerBindings.js",
+      "bytes": 28014,
+      "capBytes": 32768
+    },
+    {
+      "bundle": "dist/vaultPosix.js",
+      "bytes": 19743,
+      "capBytes": 25600
+    },
+    {
+      "bundle": "dist/vaultRuntime.js",
+      "bytes": 20335,
+      "capBytes": 25600
+    },
+    {
+      "bundle": "dist/vaultStore.js",
+      "bytes": 33759,
+      "capBytes": 51200
+    }
+  ],
+  "unchanged": [
+    "src/core/vault/store.ts",
+    "src/core/vault/broker/files.ts",
+    "src/core/vault/broker/epoch.ts",
+    "src/shared/constants.ts",
+    "native/posix/vaultPeer.c"
+  ],
+  "sourceHashes": [
+    {
+      "file": "src/host/vault/brokerProcess.ts",
+      "sha256": "971d3e0248cf99ce8071a91b60f6eae7ab6b58709269cc25d4f0eb121cfb20c4"
+    },
+    {
+      "file": "src/host/vault/vaultPanelEntry.ts",
+      "sha256": "01abf5bb942d0dc8c620596a620b956a3730a39f246b249071807a6973a7d709"
+    },
+    {
+      "file": "src/runtime/vault/posixClientPlatform.ts",
+      "sha256": "d536772d9e10b5fec1e3fd226c6b53a7d7bd4091f5396e02c82f4c0ad238ffe1"
+    },
+    {
+      "file": "src/runtime/vault/posixNative.ts",
+      "sha256": "2a57128d21150afde052349860e0720d0b412fd7c167e6cdbf189d0fd2ffb589"
+    },
+    {
+      "file": "src/runtime/vault/vaultBrokerEntry.ts",
+      "sha256": "6d29de89a5b02d35993bfe5d17f8e2b635e00ed4044563429e76480cb10811f6"
+    },
+    {
+      "file": "src/runtime/vault/vaultRuntimeEntry.ts",
+      "sha256": "d01cd8d205ac022023c97871f162d886394346ba73b729d670538cc30afbbda0"
+    },
+    {
+      "file": "test/hosts/vault-posix-broker.mjs",
+      "sha256": "473bda9322429fc5f4f9c60d90bfa315dfcfd7efdbc47468fc6d2bcda51de0da"
+    },
+    {
+      "file": "test/unit/helpers/vault/sessionBrokerChild.ts",
+      "sha256": "665773e49fdf7155c5e5ea7c0d9be2b7d3e7227d39120e3faa0400488a3ef46b"
+    },
+    {
+      "file": "test/unit/helpers/vault/sessionClientChild.ts",
+      "sha256": "016454899e10c5c12751f99e737e4001957efd1fd9109b3160fc92415f3e33df"
+    },
+    {
+      "file": "test/unit/vault/brokerAdoption.test.ts",
+      "sha256": "d17dae0fab8e698f86eb5b5a34c73883c2ddbabafe6fa33ac30f1850ccf06e0d"
+    },
+    {
+      "file": "test/unit/vault/brokerProcess.test.ts",
+      "sha256": "70a9615caafb981e3403e471838cea42767ea9ebae238e5353a80dd2b3a9d251"
+    },
+    {
+      "file": "test/unit/vault/brokerSession.test.ts",
+      "sha256": "a34ba1b39bb224a9d3d12bbed5cf1b85be0f31c0d44e40397ebf2eed861175d7"
+    },
+    {
+      "file": "test/unit/vault/channel.test.ts",
+      "sha256": "88d3696598da511e3bf50603e9915bd1b57b55f3b3d7512d67b6b430122685a7"
+    },
+    {
+      "file": "test/unit/vault/posixBindings.test.ts",
+      "sha256": "ff1f599ebd77a0d23b39bf45a680a1d7e6e27758153083a12c06a0aee25ff97e"
+    },
+    {
+      "file": "test/unit/helpers/vault/receiptWarnings.mjs",
+      "sha256": "d46ab91a00deb3bfeefabf8120efe8a77b6ac0c7c8080113d33e645beac3eb5f"
+    },
+    {
+      "file": "test/unit/vault/nativeReceipt.test.mjs",
+      "sha256": "ce55a966ba5766c198f63de6bd19ff1e5075060d2af2d1be0f90224fae5d17ea"
+    }
+  ],
+  "cleanup": {
+    "scratchSocketsLocksTokens": 0,
+    "ownedBrokerClientHelperProcesses": 0
+  }
+}

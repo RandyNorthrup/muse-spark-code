@@ -29,7 +29,7 @@ import {
   systemBootId,
   type ProcessOwner,
 } from '../../src/core/locks/processOwner'
-import { FILE_LEASE_FENCES_KEPT } from '../../src/shared/constants'
+import { FILE_LEASE_FENCES_KEPT, FILE_LEASE_RELEASE_RETRY_MS } from '../../src/shared/constants'
 import { deferred, exitedProcessId, nextTurn, pausingPort } from './helpers/leaseFs'
 
 /** A lock instance's stats as inode reuse looks: one inode number for all. */
@@ -935,5 +935,62 @@ describe('file lease: waiting and takeover (M123 LOCKLIB)', () => {
     await a.release()
     expect(await b.isHeld()).toBe(true)
     await b.release()
+  })
+})
+
+describe('file lease: publication and release failures (RVAPP-LEASE2)', () => {
+  it('a link refusal for an unsupported filesystem keeps its cause', async () => {
+    // RVAPP-LEASE2 P2-5: FAT/exFAT and some SMB or sync folders refuse the
+    // exclusive link with EPERM; the lease names the cause instead of a
+    // generic failure a caller would map to `io`.
+    const { lockPath } = await lockFolder()
+    const port: LeasePort = {
+      ...nodeLeasePort,
+      link: () =>
+        Promise.reject(
+          Object.assign(new Error('EPERM: hard links unsupported'), { code: 'EPERM' }),
+        ),
+    }
+    await expect(
+      acquireFileLease(
+        lockPath,
+        await leaseEnv({ port, takeover: 'ownerDeathOnly', timeoutMs: 0, pollMs: 0 }),
+      ),
+    ).rejects.toMatchObject({ name: 'LeaseLinkUnsupportedError' })
+  })
+
+  it('release pauses between attempts while a scanner holds the file', async () => {
+    // RVAPP-LEASE2 P3-4: back-to-back retries lose to a transient holder
+    // alike; the release waits between attempts and still retires.
+    const { lockPath } = await lockFolder()
+    const sleeps: number[] = []
+    let isArmed = false
+    let failures = 0
+    const port: LeasePort = {
+      ...nodeLeasePort,
+      lstat: async (file) => {
+        // A throwing observation never reaches its second read: fail the
+        // first two release attempts, then let the third retire.
+        if (isArmed && file === lockPath && failures < 2) {
+          failures += 1
+          throw Object.assign(new Error('a scanner holds the file'), { code: 'EBUSY' })
+        }
+        return await nodeLeasePort.lstat(file)
+      },
+    }
+    const lease = await acquireFileLease(
+      lockPath,
+      await leaseEnv({
+        port,
+        sleep: (ms: number) => {
+          sleeps.push(ms)
+          return Promise.resolve()
+        },
+      }),
+    )
+    isArmed = true
+    await lease.release()
+    expect(sleeps).toEqual([FILE_LEASE_RELEASE_RETRY_MS, FILE_LEASE_RELEASE_RETRY_MS])
+    expect(existsSync(lockPath)).toBe(false)
   })
 })

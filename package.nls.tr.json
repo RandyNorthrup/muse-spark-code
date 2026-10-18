@@ -230,7 +230,7 @@
   "config.accounts.severalOnThisDevice.description": "Uyumluluk için saklanır; bu tercih bu derlemede etkili değildir.",
   "command.vault.title": "Kasa",
   "command.lockVault.title": "Kasayı şimdi kilitle",
-  "config.vault.description": "Uyumluluk için saklanır; bu tercih bu derlemede etkili değildir.",
+  "config.vault.enabled.description": "Kullanıcı başına kimlik bilgileri kasasını açar veya kapatır. Kayıtlı eski museSpark.vault değeri, bu ayar yapılandırılana kadar geçerlidir.",
   "config.vault.protection.description": "Uyumluluk için saklanır; bu tercih bu derlemede etkili değildir.",
   "config.vault.agentFence.description": "Etkileşimli Model API kabuk komutlarının kimlik bilgisi korumasını denetler. Doğrulama, zamanlamalar, çalışanlar ve kancalar korumalı kalır.",
   "config.vault.lockAfterIdleMinutes.description": "Uyumluluk için saklanır; bu tercih bu derlemede etkili değildir.",
