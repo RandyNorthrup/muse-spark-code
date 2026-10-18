@@ -912,6 +912,13 @@ export const MODEL_API_HOOK_PROVIDER = 'meta'
 // The default stop-hook continuation depth (Muse Code's own default 8,
 // M127): `museSpark.hooksMaxStopContinuations` overrides this.
 export const HOOK_MAX_STOP_CONTINUATIONS = 8
+// Independent safety pauses that never follow that setting (PR206FIX T5):
+// refused task writes pause the turn, and an idle teammate stops being
+// kept working, each after this many in a row. Both shared the bound
+// above before the M127 setting; the setting governs only Stop-hook
+// continuations, as its description says.
+export const HOOK_MAX_TASK_REFUSALS = 8
+export const TEAMMATE_MAX_IDLE_KEEPS = 8
 export const HOOK_CONTROL_CODE_LIMIT = 32
 export const HOOK_NEWLINE_CODE = 10
 export const HOOK_DELETE_CODE = 127

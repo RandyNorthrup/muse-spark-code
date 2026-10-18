@@ -1190,9 +1190,8 @@ interface HookCommandState {
 const commandState: HookCommandState = { running: 0, waiters: [] }
 const processState: HookCommandState = { running: 0, waiters: [] }
 
-function releaseCommand(state: HookCommandState): void {
-  state.running -= 1
-  // Hand freed room to queued waiters in order, each under its own cap: a
+function wakeEligibleWaiters(state: HookCommandState): void {
+  // Hand room to queued waiters in order, each under its own cap: a
   // dispatch whose cap was lowered after others started (the setting is
   // read per dispatch) waits until the running count is under its cap,
   // instead of inheriting a slot freed above it.
@@ -1209,6 +1208,11 @@ function releaseCommand(state: HookCommandState): void {
     next.signal?.removeEventListener('abort', next.onAbort)
     next.resolve()
   }
+}
+
+function releaseCommand(state: HookCommandState): void {
+  state.running -= 1
+  wakeEligibleWaiters(state)
 }
 
 /**
@@ -1234,6 +1238,9 @@ async function acquireCommand(
       const index = state.waiters.findIndex((candidate) => candidate.onAbort === onAbort)
       if (index !== -1) {
         state.waiters.splice(index, 1)
+        // The removed waiter may have headed the queue under a lower cap;
+        // hand its place to the waiters behind it while room allows.
+        wakeEligibleWaiters(state)
       }
       reject(new Error('hook command cancelled'))
     }
@@ -1249,9 +1256,16 @@ async function acquireCommand(
   }
 }
 
-/** The production IO cap is shared by lazy dispatch bundles, separate from admission. */
-export async function acquireHookProcessSlot(signal: AbortSignal | undefined): Promise<() => void> {
-  return await acquireCommand(signal, processState)
+/**
+ * The production IO cap is shared by lazy dispatch bundles, separate from
+ * admission: the caller passes its configured running-commands value (0
+ * runs everything at once), or the extension-host fallback cap applies.
+ */
+export async function acquireHookProcessSlot(
+  signal: AbortSignal | undefined,
+  maxRunningCommands: number = HOOK_MAX_RUNNING_COMMANDS,
+): Promise<() => void> {
+  return await acquireCommand(signal, processState, maxRunningCommands)
 }
 
 async function runBoundedHook(
@@ -1453,10 +1467,11 @@ async function runPluginHandler(
   signal: AbortSignal | undefined,
   judgeAnswer: (answer: HookAnswer) => HookAnswer | undefined,
   onUnstarted: () => void,
+  maxRunningCommands: number,
 ): Promise<HookAnswer | undefined> {
   let release: () => void
   try {
-    release = await acquireCommand(signal)
+    release = await acquireCommand(signal, commandState, maxRunningCommands)
   } catch {
     return undefined
   }
@@ -1525,9 +1540,15 @@ async function runForeignHandler(
     })
   }
   if (prepared.outcome === 'plugin') {
-    return await runPluginHandler(prepared.run, signal, judgeAnswer, () => {
-      warn(`${label} could not start`)
-    })
+    return await runPluginHandler(
+      prepared.run,
+      signal,
+      judgeAnswer,
+      () => {
+        warn(`${label} could not start`)
+      },
+      maxRunningCommands,
+    )
   }
   if (Buffer.byteLength(prepared.stdin) > HOOK_STDIN_MAX_BYTES) {
     warn(`${label} input exceeds limit; it was not started`)

@@ -110,6 +110,7 @@ import {
   GOAL_STATUS,
   type GoalCommandVerb,
   HOOK_MAX_STOP_CONTINUATIONS,
+  HOOK_MAX_TASK_REFUSALS,
   HOOK_MODEL_READ_TOOLS,
   HOOK_NOTIFICATION_DELAY_MS,
   HOOK_ON_FAILURE_MAX_DEPTH,
@@ -170,6 +171,7 @@ import {
   SUBAGENT_TASK_MAX_REQUESTS,
   SUBAGENT_WAIT_DEFAULT_MS,
   type SubagentAction,
+  TEAMMATE_MAX_IDLE_KEEPS,
   THEN_RUN_ARGUMENT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
@@ -7436,7 +7438,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** A refused task write: the old list stands, and the refusal counts toward the pause. */
   private taskRefused(kind: 'created' | 'completed', subject: string, reason: string): ToolOutcome {
     this.taskRefusals += 1
-    if (this.taskRefusals >= this.stopContinuationLimit) {
+    if (this.taskRefusals >= HOOK_MAX_TASK_REFUSALS) {
       this.deps.log.warn(
         `Model API extension hooks: task continuation limit after ${String(this.taskRefusals)} refusals`,
       )
@@ -9140,7 +9142,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (
       siblings === 0 ||
       grant === undefined ||
-      keeps >= this.stopContinuationLimit ||
+      keeps >= TEAMMATE_MAX_IDLE_KEEPS ||
       grant.remainingAttempts <= 0 ||
       !this.canContinueChild(child, grant)
     )
@@ -12988,7 +12990,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (
         effectiveCall.name === MODEL_API_TOOLS.todoWrite &&
         outcome.failureReason !== undefined &&
-        this.taskRefusals >= this.stopContinuationLimit
+        this.taskRefusals >= HOOK_MAX_TASK_REFUSALS
       ) {
         throw new HookStoppedError(outcome.failureReason)
       }

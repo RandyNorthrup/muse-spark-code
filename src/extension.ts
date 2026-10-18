@@ -2016,6 +2016,7 @@ async function activateWindow(
       vscode.workspace.textDocuments
         .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
         .map((document) => document.uri.fsPath),
+    hookMaxRunningCommands: () => currentSettings().hooksMaxRunningCommands,
   })
   // The window's tool io: no tool writes the checkpoint storage, and every
   // command is workspace activity. It records nothing: each Model API turn
