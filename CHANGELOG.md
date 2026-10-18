@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- A new schedule draft no longer starts with a $1 spending cap: it starts at
+  zero and never spends until the person sets a cap and completes paid
+  consent for it, on both backends.
+
 - Closing the schedules runtime no longer touches the native background entry
   when no background consent was ever recorded, so terminal `schedule`
   management (`add`, `list`, `timeline`, `remove`) exits on its merits even
