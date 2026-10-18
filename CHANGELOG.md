@@ -44,38 +44,32 @@ happened, not what was planned; superseded entries are kept.
 - Claude Haiku 5.5 is listed with an unknown price pending a documented receipt.
 - `help reference` explicitly opens the full terminal reference.
 
-- Installed POSIX vault client and broker bindings now connect the shared editor,
-  CLI and ACP management ports to real native peer checks, encrypted storage,
-  protected OS-store anchors and authenticated audit history. The vault remains
-  hidden pending the Windows/shared-lease join, panel mount and reviews.
-
+- Installed POSIX vault client and broker bindings connect the shared editor,
+  CLI and ACP management ports to native peer checks, encrypted storage,
+  OS-store anchors and audited history. The vault stays hidden pending the
+  Windows/shared-lease join, panel mount and reviews.
 - Internal vault broker composition uses the shared v2 repository, management
-  and OS-store anchor, with a lazy child bundle, POSIX peer checks, kernel startup
-  serialization, stale-socket recovery and lock-before-idle-exit cleanup. Linux
-  Secret Service and macOS login Keychain slots report fixed actionable storage
-  failures. Editor vault bindings remain closed until integration is certified;
-  Touch ID is not offered under the named Apple Developer ID exception.
+  and OS-store anchor (lazy child bundle, POSIX peer checks, serialized
+  startup, stale-socket recovery, lock-before-idle-exit). Linux Secret
+  Service and macOS Keychain slots report actionable storage failures.
+  Editor bindings stay closed until integration is certified; no Touch ID
+  under the named Apple Developer ID exception.
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
-  available memory against your limits, what is waiting, any override, and
-  that relocation is not available on this build. Its buttons are **Resume
-  now**, **Open settings** and **Show resources** (the Usage & cost page). A
-  status bar item shows while the governor throttles or pauses. At pause, one
-  notice per conversation names the reading and its limit, with the same
-  actions. New commands: **Muse Spark: Show Resources** opens the popover in
-  the chat in view, and **Muse Spark: Resume Work Now** holds this window's
-  governor at normal for fifteen minutes. A governor you switched off stays
-  off. The governor, its status item and the chip still load on first use,
-  never at activation, and chat's first paint stays within its budget.
-  A status the chip cannot trust (unreadable, with unknown fields, or too
-  large) shows as **Resources: Unknown** with a short explanation, never as
-  an older reading. While the chip loads it says so in place, and if it
-  cannot load it offers **Try again** without disturbing the conversation.
-  JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
-  chip and status adapter once their M104 bridges bind them; none does yet.
-  ACP and terminals keep `/resources` and `resources status|resume`.
+  available memory against your limits, what is waiting and any override.
+  Its buttons are **Resume now**, **Open settings** and **Show resources**.
+  A status bar item shows while the governor throttles or pauses; at pause,
+  one notice per conversation names the reading and its limit. New commands:
+  **Muse Spark: Show Resources** and **Muse Spark: Resume Work Now** (holds
+  this window's governor at normal for fifteen minutes). A governor you
+  switched off stays off. Governor, status item and chip load on first use,
+  never at activation. An untrustworthy status reads **Resources: Unknown**,
+  never an older reading; a chip that cannot load offers **Try again**.
+  JetBrains, Visual Studio, Eclipse and the companion page can reuse the
+  chip once their M104 bridges bind them; none does yet. ACP and terminals
+  keep `/resources` and `resources status|resume`.
 
 
 - Connect the credential vault end to end on Linux and macOS: the Models & Agents panel mounts its vault section, the `Vault` command opens it, `Lock vault now` (Ctrl+Alt+Shift+L) ends every use, and SSH keys can be generated or imported when adding an item. The vault Help reference is published. Windows still waits on lane C-M109-1c's pipe helper, existing extension keys still live in SecretStorage until the key-store migration, and the companion page has no vault surface yet (RVMSM109).
@@ -86,512 +80,327 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
-- POSIX vault packaging includes the four installed sibling bundles and derives
-  package coverage from production output and lazy-loader dependencies. Protected
-  audit intents recover interrupted checkpoint transitions while independent
+- POSIX vault packaging includes the four installed sibling bundles and
+  derives coverage from production output and lazy-loader dependencies.
+  Protected audit intents recover interrupted checkpoints; independent
   advances still refuse access.
-
-- POSIX vault brokers belong to the user session and survive the window or CLI
-  that starts them. Concurrent clients wait for one broker; closed launcher
-  streams cannot crash it. The last client disconnect triggers idle Lock and
-  orderly cleanup. Native client registrations are removed on exit and stale
-  registrations are pruned. Availability remains off pending the reviewed join.
-
+- POSIX vault brokers belong to the user session and survive their starter.
+  Concurrent clients wait for one broker; closed launcher streams cannot
+  crash it; the last disconnect triggers idle Lock and cleanup. Native
+  registrations are removed on exit, stale ones pruned. Availability stays
+  off pending the reviewed join.
 - **Credential vault review repairs (RVCM1091A4 / RVCM1091B4).** Impossible
-  public authentication/framing fields, protected anchor mismatches and pending history now qualify a lost
-  vault for Reset, using the same checks as the recovery reader. The panel
-  reloads committed imports even when their report or Keep/Delete step fails,
-  while still reporting the refusal and preserving a changed source file.
-  Headless `vault reset` now says that Reset requires an interactive terminal
-  in all fourteen languages. Installed broker and panel qualification remains
-  the separate integration step.
+  auth/framing fields, anchor mismatches and pending history qualify a lost
+  vault for Reset. The panel reloads committed imports even when their
+  report or Keep/Delete step fails, still reporting the refusal. Headless
+  `vault reset` says Reset needs an interactive terminal, in all fourteen
+  languages. Broker and panel qualification stays the separate step.
 
 - **Credential vault: protocol v2, setup and recovery underneath** (M109,
   C-M109-1). The vault still refuses every use with "The broker cannot
   start…" until its broker process and per-OS connections are installed;
   nothing new appears on screen yet. Underneath:
-  - The broker protocol moves to v2. It adds management requests (snapshot,
-    edit, remove, import, public key) and pushed lock, revoke, approval and
-    change events. Item values travel only in private frames.
-  - Grants live inside the encrypted vault (store format 2), and their use
-    counts are spent under the vault's cross-process writer lock.
-  - The rollback anchor is one record in the operating system's credential
-    store.
-  - Setup shows a one-time recovery code and writes nothing until you confirm
-    you saved it, in the agent's terminal (`vault setup`, `vault recover`)
-    and as **Set Up Vault** in the vault section.
-  - The Models & Agents panel mounts the vault section (Set Up Vault, lock
-    state, items, grants, recovery) behind the broker gate (C-M109-1 P1):
-    it stays hidden until the broker process and per-OS connections land,
-    so nothing new appears on screen yet. Its navigation gap clears the
-    focus ring, its actions keep button chrome in dark and high-contrast
-    themes, its protection summary names the tier and provider in plain
-    words, and every action label is Title Case.
-  - `dist/vaultRuntime.js` carries the vault for the ACP agent, the CLI and
-    headless runs, without `vscode`.
-  - The SecretStorage slot is dropped for the OS-store slot every editor
-    shares.
-  - On macOS, Touch ID (Keychain biometry) unlock is not offered: it needs an
-    Apple Developer ID.
-  - Review repairs (RVCM1091A):
-    - A setup confirmation keeps its key even if the setup window expires
-      meanwhile.
-    - Grant, item and metadata writes check their authority, the vault's lock
-      and the item's presence at the moment they commit, so nothing retired
-      or removed comes back after recovery.
-    - A new grant is no longer treated as revoked.
-    - A failed event stream is reported (`vault watch` exits 1) and retried.
-    - A cancelled watcher closes its late connection.
-    - The Windows contract requires a native check that the pipe's server
-      runs as the same user.
-  - Import is all or nothing. A discovered credential file (SSH keys,
-    `.git-credentials`, `.netrc`, `.npmrc`, AWS, Docker) goes into the
-    vault in one encrypted commit with a per-item report of names and kinds
-    only. Imported items stay hidden from agents until you review them, and
-    you then keep the original file or delete it. A cancelled import writes
-    nothing.
-  - **Reset Vault** (`vault reset`), offered only when the vault can no longer
-    be opened:
-    - It states that every secret is gone and that rollback protection
-      restarts with a new anchor.
-    - It asks you to type `RESET`.
-    - It records a value-free audit line.
-    - A file from the old vault never opens again.
-  - Review repairs (RVCM1091B, part A):
-    - Lock now erases an unconfirmed setup and any recovery key.
-    - Recovery while unlocked unwraps nothing.
-    - A setup interrupted by a transient store failure completes when you
-      confirm again; an abandoned one no longer blocks a new setup.
-    - When the operating system's credential store is unavailable, the vault
-      now says how to make it available, in every language, instead of
-      "No access".
-  - Review repairs (RVCM1091A2):
-    - First creation and Reset Vault re-check Lock at the physical commit,
-      including while their writes are staged. Import labels format their
-      ordinal using the installed language.
-    - A Lock during setup confirmation, recovery, Reset Vault or an import
-      now stops that operation. The vault is never left unlocked and nothing
-      is committed after the Lock.
-    - A headless run cancelled while opening the vault gets no session, and
-      its connection closes.
+  - The broker protocol moves to v2: management requests (snapshot, edit,
+    remove, import, public key) plus pushed lock, revoke, approval and
+    change events; item values travel only in private frames.
+  - Grants live inside the encrypted vault (store format 2), spent under
+    the vault's cross-process writer lock. The rollback anchor is one
+    record in the OS credential store.
+  - Setup shows a one-time recovery code and writes nothing until confirmed,
+    in the terminal (`vault setup`, `vault recover`) and as **Set Up Vault**.
+  - The Models & Agents panel mounts the vault section behind the broker
+    gate (C-M109-1 P1): hidden until the broker binds; Title Case labels,
+    plain-words protection summary, dark/high-contrast button chrome.
+  - `dist/vaultRuntime.js` carries the vault for ACP, CLI and headless runs
+    without `vscode`. The SecretStorage slot is dropped for the shared
+    OS-store slot. No Touch ID on macOS (needs an Apple Developer ID).
+  - Review repairs (RVCM1091A): setup confirmation keeps its key past window
+    expiry; grant/item/metadata writes check authority, lock and presence
+    at commit; new grants are not revoked; failed event streams report
+    (`vault watch` exits 1) and retry; cancelled watchers close; Windows
+    requires a native same-user pipe-server check.
+  - Import is all or nothing: a discovered credential file (SSH keys,
+    `.git-credentials`, `.netrc`, `.npmrc`, AWS, Docker) commits encrypted
+    at once with a names-and-kinds report; imports stay hidden from agents
+    until reviewed, then the original is kept or deleted; a cancelled
+    import writes nothing.
+  - **Reset Vault** (`vault reset`), only for an unopenable vault: states
+    every secret is gone and the anchor restarts; asks you to type `RESET`;
+    records a value-free audit line; old-vault files never open again.
+  - Review repairs (RVCM1091B, part A): Lock erases unconfirmed setups and
+    recovery keys; recovery while unlocked unwraps nothing; interrupted
+    setups complete on re-confirm while abandoned ones unblock; an
+    unavailable OS store names its repair in every language.
+  - Review repairs (RVCM1091A2): creation and Reset re-check Lock at the
+    physical commit; Lock during setup/recovery/Reset/import stops it, so
+    nothing commits after Lock and the vault is never left unlocked;
+    cancelled headless opens get no session.
   - Migration codecs for provider credentials (M95) and account secrets
-    (M108) underneath (C-M109-4, acceptance 17): each installed record moves
-    into a first-party hidden vault item bound to its origin with equal
-    SHA-256, stays mirrored for the previous release until two minor releases
-    pass, and can be undone. The previous release's code still reads its key
-    from the mirror. Vault item names are one-to-one across kinds, ids and
-    both forms; `migrate` on an `active` slot reports a legacy copy changed
-    behind the vault as `diverged`, or as `legacyDeleted` when it is gone:
-    `retire` writes its intent before deleting, so its own interrupted
-    retire finishes to `retired` while a user deletion stays reported until
-    answered, and deleting the last copy needs explicit user confirmation;
-    the 158 readers, writers and deleters of the three key families are
-    inventoried for the vault join (an `AccountStore` removal is found by
-    resolved type). Nothing is wired to these codecs yet, so no behaviour
-    changes.
-  - Review repairs (RVCM1091A3): queued work loses authority at Lock; imports
-    verify every parent and held file within the home, retain private profile
-    and field identity in encrypted material, and cancel sent requests when
-    the panel retires. Ordinary change notifications preserve Keep/Delete.
-    Reset detects lost documents and damaged pending transactions, refuses
-    unlocked stores, checks every destructive boundary and retires the exact
-    anchor while holding the writer lock.
-  - Vault part D (CM1091DADOPT): the Models & Agents panel's vault section
-    adopts the reviewed core. The section offers Set Up Vault (the one-time
-    recovery code stays in the native dialog), Unlock, Lock, Import with the
-    native Keep-or-Delete question, and Reset Vault with the typed word, the
-    last only for a lost vault. A failed source deletion reloads so the
-    section shows the imported items. Typed refusals keep their own
-    sentences (an unavailable OS store names its repair); anything else
-    stays the generic failure, never native text. The lock toggle is
-    disabled while the vault is unavailable or first-party-only, so nothing
-    is offered that the broker would refuse. The section stays hidden until
-    the broker binds, as before; no new user-visible string.
+    (M108) underneath (C-M109-4, acceptance 17): each record moves into a
+    first-party hidden item bound to its origin (equal SHA-256), mirrored
+    until two minor releases pass, undoable. `migrate` reports `diverged` /
+    `legacyDeleted`; `retire` finishes its own interrupts to `retired`;
+    deleting the last copy needs confirmation; the 158 readers/writers/
+    deleters are inventoried for the join. Nothing wired yet.
+  - Review repairs (RVCM1091A3): queued work loses authority at Lock;
+    imports verify parents and held files, keep field identity, cancel sent
+    requests on panel retire; Reset detects lost documents and damaged
+    transactions, refuses unlocked stores and retires the exact anchor.
+  - Vault part D (CM1091DADOPT): the panel section adopts the reviewed core
+    (Set Up, Unlock, Lock, Import with Keep-or-Delete, Reset with the typed
+    word for lost vaults only). Typed refusals keep their sentences;
+    anything else stays the generic failure. Hidden until the broker binds;
+    no new user-visible string.
   - Review repairs (RVCM1091D, CM1091DR2): every vault state gets its own
-    heading and sentence, so nothing asks for an unlock of a vault that
-    does not exist or is lost and no cached slot claims protection for one
-    that cannot be opened; item and path collisions refuse as conflict with
-    their own sentence instead of the setup sentence; a failed Lock restores
-    the vault's real snapshot instead of staying Locked; the grant-form
-    hints are table keys; the mounted harness paints every added state with
-    a true locked frame across all six themes.
+    heading and sentence; collisions refuse as conflict; a failed Lock
+    restores the real snapshot; grant-form hints are table keys.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
-  (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
-  without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
-  after earlier bumps. The SDK now hides the `muse serve` window on Windows
-  itself (meta-models/muse-code-sdk#34). The extension's other Muse Code
-  workarounds were re-checked against 1.4.4 and are still needed
-  (`docs/certification/sdk144.md`).
-- `@agentclientprotocol/sdk` moves from 1.5.1 to 1.7.0 (SDK144). The ACP
-  agent, headless `exec` and team workers speak the same ACP v1; the SDK's
-  transport is unchanged, so the agent's 32 MiB line override and the
-  session-router seam carry over as they were.
+  serves the new pin's schema fingerprint, so it connects without a mismatch
+  warning; the SDK now hides the `muse serve` window on Windows itself
+  (meta-models/muse-code-sdk#34). The other workarounds were re-checked and
+  are still needed (`docs/certification/sdk144.md`).
+- `@agentclientprotocol/sdk` moves from 1.5.1 to 1.7.0 (SDK144): same ACP
+  v1, unchanged transport; the 32 MiB line override and session-router seam
+  carry over.
 - **A sent message's menu is shorter and its pills fit their labels.**
   **Fork conversation from here** is now **Fork Conversation**, and **Fork
   conversation and rewind code** is now **Fork and Rewind**, in every
-  language. Every radial menu's pills stay one size, but that size is now
-  the longest label's own width instead of a fixed 272 px, so short menus
-  no longer carry empty blue space; only a label wider than the panel ends
-  in an ellipsis with the whole label in its tooltip.
-- The README's Resources screenshot is retaken with the rest of the set (the
-  same Linux Chrome build and fonts); the other 18 screenshots still match the
-  current UI and are unchanged.
-- README and `docs/acp.md` name all four places the project ships from (VS Code Marketplace, Open VSX, npm, GitHub Releases), add an npm version badge, and install the ACP agent with `npm install -g muse-spark-code-acp` first, the release `.tgz` second.
-- The npm package's README and the Marketplace/Open VSX page list the same four channels as the README (VS Code Marketplace, Open VSX, npm, GitHub Releases); the npm page adds the release `.tgz` install.
-- README adds a total downloads badge (all channels) and a GitHub app installs badge, both served by the project's Cloudflare Worker, now kept in `infra/marketplace-hook` (counters only; not part of any package).
-- README notes the project's unofficial GitHub OAuth app for M123 sign-in and that its GitHub Marketplace listing awaits GitHub's review; the privacy notice adds the app's device flow, `repo` scope, keychain or vault storage and revocation.
-- The working line is calmer: the heartbeat trace sweeps in about 1.4 s instead of
-  1.2 s, and the circle mark before the status text keeps its 0.16.0 loop at 75 % size
-  (12 px instead of 16 px).
-- Preserve exact decimal USD across schedule authorization, consent and agent caps,
-  rental cost estimates, reporting facts, account totals and voice consent. Read
-  historical numeric records at validated boundaries; saved reports verify their
-  original hashes before migration to exact money version 2.
-- The resource history journal is one shared bundle that the window's
-  governor and the usage page both load, instead of a copy in each; both stay
-  inside their size budgets. Usage records read the account id from a small
-  leaf instead of every account schema.
-- The Model API backend's session store loads with that backend instead of
-  at activation (its own `dist/modelApiSessions.js`), taking 24.5 KB off the
-  activation bundle; sessions are kept and read as before (ACTBUD017).
+  language. Pills are one size: the longest label's own width, not a fixed
+  272 px; only a label wider than the panel ellipsizes, with the whole
+  label in its tooltip.
+- The README's Resources screenshot is retaken with the set; the other 18
+  still match and are unchanged.
+- README and `docs/acp.md` name all four ship channels (VS Code
+  Marketplace, Open VSX, npm, GitHub Releases), add an npm version badge,
+  and install the ACP agent with `npm install -g muse-spark-code-acp`
+  first, the release `.tgz` second. The npm README and store pages list
+  the same four channels.
+- README adds total-downloads and GitHub-app-installs badges from the
+  project's Cloudflare Worker (`infra/marketplace-hook`, counters only),
+  and notes the unofficial GitHub OAuth app for M123 sign-in (Marketplace
+  listing pending review); the privacy notice adds its device flow, `repo`
+  scope, keychain/vault storage and revocation.
+- The working line is calmer: the heartbeat trace sweeps in about 1.4 s,
+  and the circle mark keeps its 0.16.0 loop at 75% size (12 px).
+- Exact decimal USD is preserved across schedule authorization, consent,
+  agent caps, rental estimates, reporting facts, account totals and voice
+  consent. Historical records read at validated boundaries; saved reports
+  verify hashes before migration to exact money version 2.
+- The resource history journal is one shared bundle for the governor and
+  the usage page instead of a copy in each; usage records read the account
+  id from a small leaf.
+- The Model API session store loads with that backend (its own
+  `dist/modelApiSessions.js`), taking 24.5 KB off activation; sessions are
+  kept and read as before (ACTBUD017).
 
 ### Fixed
 
-- Web fetch no longer ships a dead second HTML-to-Markdown entry point:
-  `htmlToMarkdown` had no callers (both backends convert through
-  `convertHtmlJob` on the page worker), so it was removed. No behaviour
-  change.
-- Paid-use consent audit: the four unused consent helpers for scheduled
-  runs and per-account consent stay unwired until their owning milestones
-  land (M115 Lane U's per-schedule consent; M108 lane P's per-account
-  consent). Meanwhile a paid schedule draft from the panel is refused
-  (its caller carries no paid flag or budget) and every reachable paid
-  use still asks the popup; a unit suite now tests that surface refusal
-  through the real surface, separately from the unwired helpers' logic
+- Web fetch no longer ships the dead `htmlToMarkdown` entry point (both
+  backends convert through `convertHtmlJob` on the page worker). No
+  behaviour change.
+- Paid-use consent audit: the four unused helpers for scheduled runs and
+  per-account consent stay unwired until M115 Lane U / M108 lane P land.
+  A paid schedule draft from the panel is refused, every reachable paid
+  use still asks the popup, and a unit suite tests that surface refusal
   (RVMSM58M69). No behaviour change.
-- On VS Code 1.101 to 1.111 with `http.proxy` set, Muse Voice recorded audio
-  and then failed, because those versions do not route an extension's
-  WebSocket through the proxy. The microphone now stays unavailable with the
-  reason while a proxy is set there, instead of recording audio that cannot
-  be sent.
-- Behind a proxy on VS Code 1.112 or later, a Muse Voice refusal caused by
-  the person's own settings (`http.proxySupport` off, or
-  `http.webSocketAdditionalSupport` off) wrongly blamed the VS Code
-  version. The microphone now names the setting that is off and what to
-  change; the version text stays only for VS Code before 1.112.
-- The production build no longer starts every bundle at once through one
-  esbuild service, which could fail under machine load with an error that
-  named no bundle and then hang. Bundles now run through a bounded pool
-  of 8; a failure names its bundle, in-flight bundles settle, and the
-  process exits with the true error.
-- A team task waiting for a busy exclusive resource (for example browser
-  control) could wait forever instead of being told the resource is busy:
-  its wait timer could fire a moment before the deadline and was never
-  re-armed. The waiter now re-arms for the remainder and is answered at
-  the deadline.
+- On VS Code 1.101 to 1.111 with `http.proxy` set, Muse Voice no longer
+  records audio it cannot send: those versions do not route an
+  extension's WebSocket through the proxy, so the microphone stays
+  unavailable with the reason.
+- Behind a proxy on VS Code 1.112 or later, a refusal caused by the
+  person's own settings (`http.proxySupport` / `http.webSocketAdditionalSupport`
+  off) names the setting and what to change; the version text stays only
+  before 1.112.
+- The production build runs bundles through a bounded pool of 8 instead of
+  one esbuild service that could fail namelessly under load and hang; a
+  failure names its bundle and the process exits with the true error.
+- A team task waiting on a busy exclusive resource whose timer fired just
+  before the deadline could wait forever: the waiter now re-arms for the
+  remainder and is answered at the deadline.
 
-- A spending limit exists only when you set one (D121). The editor's
-  `museSpark.paidDailyBudgetUsd` and the agent's `paidDailyBudgetUsd` in its
-  `settings.json` are none by default, so the ACP agent no longer stops a job
-  on a daily budget it was never given. With no limit there is no spending
-  check on the request path: nothing is reserved, locked or written before a
-  send.
-- Under a limit you set, the session and daily budgets keep running totals
-  from the usage each call reported, saved after the call, so a resume
-  continues from them. A request whose estimate would pass the limit is not
-  sent and the reason says so; one warning comes when what is left no longer
-  fits a request like the last one. A response that ended without its usage
-  counts as cost unknown instead of its whole reservation: one job's thirteen
-  failed responses had counted $352.66 of reservations as spent.
-- The atomic claim ledger is gone: its journal files, cross-process lock, the
-  100 ms admission bound and its benchmark.
-- A request the provider refused before answering (an invalid key, for
-  example) books nothing: `exec` no longer keeps its reservation as
-  uncertain or fails to write its JSON result, and the next run does not
-  count it as used.
-- Initial provider rejections release their holds; incomplete responses with final
-  usage settle at the reported cost. Unresolved liability is shown separately
-  from spend, and terminal startup prices each real request instead of the
-  whole context window. Output-cap remedies are accepted by the parser.
+- A spending limit exists only when you set one (D121). Editor
+  `museSpark.paidDailyBudgetUsd` and the agent's `paidDailyBudgetUsd` are
+  none by default, so the ACP agent no longer stops a job on a budget it
+  was never given; with no limit nothing is reserved, locked or written
+  before a send.
+- Under a limit you set, session and daily budgets keep running totals
+  from reported usage, saved after each call, so a resume continues. An
+  over-limit estimate is not sent and says so; one warning comes when the
+  remainder no longer fits a request like the last. A response that ended
+  without usage counts as cost unknown, not its whole reservation.
+- The atomic claim ledger is gone (journal files, lock, 100 ms bound,
+  benchmark). Refused-before-answer requests book nothing; `exec` keeps
+  no uncertain reservation and still writes its JSON result.
+- Initial rejections release their holds; incomplete responses with final
+  usage settle at the reported cost. Unresolved liability shows separately
+  from spend; terminal startup prices each real request. Session, editor
+  daily and terminal daily admission use one atomic versioned ledger.
+- Concurrent spend checks in one process queue instead of refusing each
+  other; a model whose context equals its output limit no longer ends a
+  full answer as over budget; an invalid `--max-output-tokens`,
+  `--timeout` or `--max-requests` names that flag.
+- Anthropic estimates reserve 25%; Gemini uses the size bound until its
+  count shape is verified. A headless budget refusal names both numbered
+  remedies (the admitting run cap; the largest fitting
+  `--max-output-tokens`); ACP and the editor show the budget remedy only.
+- Headless provider runs count exact input tokens where the provider
+  documents a same-body count call (OpenAI Responses `input_tokens`,
+  Anthropic `count_tokens`, Gemini `countTokens`), built from the native
+  request, never retried or recorded; anything larger than the byte bound
+  falls back to it. Wires with no counter keep the byte bound and say so.
+  A capped run states its next reservation and remainder first; an
+  empty-output budget stop says the run was still reading. The refused
+  request's numbers ride in typed `budget` fields.
+- Closing a stale hold no longer locks capped runs out for the day:
+  settled unknown cost admits later runs as an upper bound; only unbounded
+  money refuses, naming the ledger, spend and working remedies. Holds from
+  older builds close by age; each run logs one info line. Holds from dead
+  runs release instead of leaking.
+- A model with no known tariff returns `unpriced` (exit 4) naming the
+  model and the providers file, not a budget stop. Limit refusals name
+  the limit with numbers. Budget-stopped turns and headless runs keep
+  their partial work with an incomplete marker.
 
-- Session, editor daily and terminal daily spend admission uses one atomic
-  versioned ledger. Refused requests publish no hold; dead locks recover by
-  process identity, and each ambiguous attempt retains its full reservation.
-- Concurrent spend checks inside one process queue instead of refusing each
-  other as busy, a model whose context equals its output limit no longer ends
-  a full answer as over budget (including media requests' daily reservation),
-  and an invalid `--max-output-tokens`, `--timeout` or `--max-requests` value
-  names that flag instead of the USD budget's decimal places.
-- Anthropic token estimates reserve a 25% margin; Gemini uses the size bound
-  until its complete count shape is verified. Overages are recorded before
-  another request, and refusal remedies stay within accepted flag limits.
-
-- A headless budget refusal names both remedies with numbers: the run cap
-  that admits the request (rounded up to the cent) and the largest
-  `--max-output-tokens` value that fits the remaining cap (or that even the
-  input alone does not fit). ACP and the editor show the same reason with
-  the budget remedy only.
-- A headless provider run counts the request's exact input tokens where the
-  provider documents a same-body count call (the OpenAI Responses
-  `input_tokens` call), instead of reserving every body byte as a token at
-  the uncached price; entries keep the byte bound with
-  `"exactInputCount": false`, and any failed count falls back to it with an
-  info line. A capped run states its next reservation and what is left before
-  it spends; a budget stop that produced nothing says the run was still
-  reading and no answer exists, and the JSON result carries the refused
-  request's numbers in typed `budget` fields.
-- The same-body count now covers every wire that documents one: Anthropic
-  Messages (`POST /v1/messages/count_tokens`) and Google Gemini
-  (`models/<model>:countTokens`) join the OpenAI Responses call, each built
-  from the already-built native request on the request's own origin, never
-  retried, never recorded as a model call, and a count larger than the byte
-  bound falls back to the byte bound. Wires with no counter (OpenAI
-  compatible chat completions and the other presets without one) keep the
-  byte bound and say so on the start line; the refusal already names the
-  higher cap and the lower `--max-output-tokens` that admit the request.
-- Closing a stale spend hold no longer locks capped runs out for the rest of
-  the day. A settled unknown cost (a hold closed at its full reservation, a
-  sent request whose answer was lost) stays counted as an upper bound and
-  admits later capped runs; only money no record bounds (history written
-  without fees, an open unbounded claim, an unverified tariff) refuses one,
-  with a sentence naming the ledger and its counted spend and remedies that
-  work.
-- A headless run refused for a model with no known tariff no longer reports
-  a budget stop: it returns its own `unpriced` status (exit 4) with a
-  sentence naming the model and the providers file where a price is added,
-  or a priced model to choose instead.
-- Holds left by older builds with no recorded owner close by age once older
-  than the longest a request can be in flight, settling at their reservation
-  as unknown cost; each run logs one info line with the count and total, and
-  the usage output keeps showing the unknown-cost share of the day's total.
-- A paid limit refusal names the limit with its numbers instead of a generic failure.
-- A budget hold left by a run that died is released instead of leaking into the daily ledger.
-- A turn stopped by its budget keeps the work produced so far instead of withholding it.
-- Stopped headless runs retain the redacted partial answer and its cost with an explicit incomplete marker.
-- Bounded uncertain daily liability keeps its full amount without blocking all later requests as an unknown historical fee.
-
-- Deep command `--help` stays in the terminal’s command, including prompts, provider accounts, named reports, schedules and ChatGPT maintenance; authentication help shows its own flags.
-
-- Headless daily claims recover killed owners, refund interrupted DNS checks, and durably retain sent requests whose usage is unknown.
-
-- ACP and headless runs offer each provider model’s recorded effort levels, including Opus `xhigh`, and list allowed values when a choice is refused.
-
-- ACP sign-in choices include ChatGPT Add; Remove and Status remain terminal commands.
-
-- Headless provider runs accept configured native model IDs containing slashes; provider setup accepts repeated `--model` flags.
-
-- Exec and ACP honor the configured provider default and refuse a missing default
-  instead of silently choosing another model.
-- Provider setup errors name terminal flags and available model IDs. Models absent
-  from this build’s catalogue have a specific refusal.
-- Ephemeral exec omits durable usage history and says so in its JSON record.
-- Command `--help` stays within that command’s own usage and options.
-- An invalid usage-history settings file pauses recording with a specific repair
-  warning instead of the generic write warning on every run.
-- `estimate --help` lists its deadline and export formats from the route’s own
-  reference words instead of the shared flag placeholders.
-- Bare `--help` prints the compact agent help with the machine flags instead of
-  the default launch’s options.
-
-- Provider and headless Meta requests reserve their actual conservative input
-  and output cap instead of a full context window. Budget refusals show the
-  arithmetic, and configured provider JSONL records show admission and settlement.
-- Catalogue price cards retain cache-write premiums and long-context rates.
-
-- Configured providers keep budget, consent, model, codec and stale-confirmation
-  refusals visible instead of reporting that Models & Agents is unavailable.
-  Provider diagnostics still pass through credential redaction.
-
-- Unsent headless requests refund both their daily and run reservations, including
-  their request count. New unsent daily claims recover after their owner exits;
-  requests that may have reached the provider retain their liability.
+- Deep command `--help` stays in that command (prompts, provider
+  accounts, reports, schedules, ChatGPT maintenance); authentication help
+  shows its own flags. Command `--help` stays within its own usage;
+  `estimate --help` lists its deadline and export formats; bare `--help`
+  prints the compact agent help with the machine flags.
+- Headless daily claims recover killed owners, refund interrupted DNS
+  checks, and retain sent requests whose usage is unknown.
+- ACP and headless runs offer each provider model's recorded effort levels
+  (including Opus `xhigh`), listing allowed values when refused. ACP
+  sign-in adds ChatGPT Add; Remove and Status stay terminal commands.
+- Headless runs accept native model IDs with slashes; setup accepts
+  repeated `--model` flags. Exec and ACP honor the configured default and
+  refuse a missing one instead of silently choosing another model.
+- Provider setup errors name terminal flags and available model IDs, with
+  a specific refusal for models outside this build's catalogue. Ephemeral
+  exec omits durable usage history and says so in its JSON record. A bad
+  usage-history settings file pauses recording with a repair warning.
+- Provider and headless Meta requests reserve their conservative input and
+  output cap instead of a full context window; refusals show the
+  arithmetic; JSONL records show admission and settlement. Price cards
+  retain cache-write premiums and long-context rates.
+- Configured providers keep budget, consent, model, codec and
+  stale-confirmation refusals visible instead of reporting Models & Agents
+  unavailable; diagnostics still pass credential redaction.
+- Unsent headless requests refund daily and run reservations including
+  their request count; new unsent daily claims recover after owner exit;
+  possibly-sent requests retain liability.
 <!-- PR236W1: the "Attach Latest Screen Recording" Windows/macOS entry is
   withheld until packed-product runs on both target OSs are recorded
   (review thread on CHANGELOG.md:15; repo rule: no release claim before
   packed real use). It returns with that proof. -->
-- On Windows, two requests that reserve session spend at the same moment
-  could end one of them with "The session spend ledger could not be read or
-  saved", although nothing was wrong with the ledger. Windows answers a lock
-  that is just being released differently from one that is held; the product
-  now waits for both the same way, within the same one-second bound.
-- On macOS, the resource panel no longer reports GPU use, disk busyness and
-  memory headroom as unknown: GPU percent comes from the accelerators'
-  published utilization, disk busyness from the storage drivers' busy-time
-  counters, and memory headroom from the runtime's available-memory reading
-  on new enough runtimes.
-- On macOS, OpenCode plugins now run instead of being refused: bun runs
-  directly, as OpenCode itself runs it, under the same per-call timeout,
-  answer-size and process-tree bounds. There is no kernel memory cap on
-  macOS as there is on Windows (job) and Linux (prlimit).
+- On Windows, two requests reserving session spend at the same moment
+  could end one with a ledger error although nothing was wrong: a lock
+  being released reads differently from a held one there, so the product
+  now waits for both the same way within the one-second bound.
+- On macOS, the resource panel reports GPU percent (accelerators'
+  utilization), disk busyness (drivers' busy-time counters) and memory
+  headroom (runtime reading on new enough runtimes) instead of unknown.
+- On macOS, OpenCode plugins now run: bun runs directly, as OpenCode runs
+  it, under the same per-call bounds. No kernel memory cap on macOS, as
+  on Windows (job) and Linux (prlimit).
 
-- The vault section never keeps a stale view after a failed operation: every
-  failure reloads a fresh snapshot (a change that arrived meanwhile is
-  applied), or shows Unavailable with no item labels when no snapshot can be
-  had, and the message never tells the user to unlock a vault shown unlocked.
-  A Delete refused because the source changed after a successful import says
-  so instead of claiming nothing was added; a duplicate that wins the race
-  past add's pre-check reports a collision; unopenable vaults name no
-  protection; and setup confirmation broadcasts once, so its unlock no
-  longer loses the writer to a mid-flight snapshot.
-- Vault writer notes are now flushed before exclusive publication and remain
-  immutable. Failed release is retried and an abandoned own hold is adopted.
-  Confirmed Reset/Restore can replace unknown ownership, with holder facts
-  and an explicit warning about another writer losing changes.
-- Vault writer death evidence now binds the installation machine identity, boot
-  and PID namespace before comparing a process ID or its birth. macOS uses
-  base-system tools; Windows reads boot and birth in one bounded query.
-  Failed evidence probes are cached briefly.
-- Vault takeover now requires proven process death on the same machine;
-  lease expiry never displaces a suspended or hung writer. Exact OS birth
-  evidence is mandatory at acquisition. Busy refusals name the process and
-  acquisition time, including foreign-machine ownership, in every language.
-  Local mutations drain before ownership release; native directory identity
-  admits Windows case variants while retaining link checks, and authenticated
-  journal recovery preserves protected-anchor regression refusal.
-- The vault README distinguishes qualified Windows damaged-document
-  retention and writer recovery from pending installed/platform qualification.
-- Vault writers use the shared owner-bound, renewing file lease. A broker
-  terminated inside Reset or Restore no longer leaves an ownerless writer
-  lock blocking every later operation. A new writer recovers incomplete
-  retention and authenticated intents; lost fences refuse file publication,
-  removal and protected-anchor dispatch. Installed vault bindings stay pending.
+- A failed vault operation reloads a fresh snapshot (meanwhile changes
+  applied) or shows Unavailable with no item labels, and never asks to
+  unlock a vault shown unlocked. Changed-source Deletes say so; raced
+  duplicates report collision; unopenable vaults name no protection;
+  setup confirmation broadcasts once.
+- Vault writer notes flush before exclusive publication and stay immutable;
+  failed release retries, abandoned own holds are adopted. Confirmed
+  Reset/Restore can replace unknown ownership with holder facts and an
+  explicit warning. Death evidence binds machine identity, boot and PID
+  namespace first (macOS: base-system tools; Windows: one bounded query);
+  failed probes cache briefly.
+- Vault takeover needs proven same-machine process death; lease expiry never
+  displaces a suspended writer; exact OS birth evidence is mandatory. Busy
+  refusals name process and acquisition time in every language. Mutations
+  drain before release; directory identity admits Windows case variants;
+  journal recovery keeps anchor-regression refusal. Writers use the shared
+  renewing file lease; a broker killed inside Reset/Restore leaves no
+  ownerless lock. The README distinguishes qualified Windows retention and
+  recovery from pending qualification.
+- Windows vault reset/restore keep a complete private copy of a damaged
+  document without a hard link; the original stays until the copy
+  publishes; path and link guards stay enforced. Bindings remain pending.
+- Review repairs (RVCM1091F, CM1091DR4): the vault host is one explicit
+  view state machine, so a lock from anywhere locks this window at once
+  with no item names, and later changes, cards and re-shown tabs recover
+  it. A busy-broker failure keeps the last view, retries twice, then offers
+  **Retry**; only an unstartable broker names the repair. View-guard
+  refusals still toast; only a retired generation stays silent. A
+  source-gone Delete says the file is gone and clears the stuck record at
+  the next Delete.
+- Review repairs (RVAPP-CM1091D5, CM1091DR6): Lock/Revoke during Import or
+  Delete aborts silently into the locked state. Unlocked snapshots sweep
+  kept and orphaned import receipts (panel Keep/Delete; `vault receipts`
+  on the terminal); doubly-gone receipts are forgotten. Refused Deletes
+  print their true reason; probe errors name their cause; mistyped channel
+  replies close with typed reasons. Focus returns only to an unmounted
+  control; retry announcements live in a persistent live region. The host
+  bundle is back under its 50 KiB cap: explicit-action code loads on first
+  use from `dist/vaultActions.js` (own 25 KiB cap).
+- Review repairs (RVCM1091G, CM1091DR5): approval reloads carry their own
+  sequence, so overlapping reloads settle newest-wins. Unreadable-source
+  Deletes say so and keep the record; dead broker channels name
+  themselves. Source-gone Deletes clear the leftover record when they can.
+  Retrying views announce aria-busy; vanished focused controls hand focus
+  to the first actionable control. The host bundle still exceeds its
+  50 KiB cap (lead decision pending); the vault stays off for users.
+- On macOS 26, a `ps` unknown-state (`?`) process mid-change no longer
+  voids every resource tree's membership read.
+- The two-account backend test waits for the post-turn usage event, and the
+  estimator harness pays first-navigation work once, keeping the
+  two-second bound.
 
-- Windows vault reset and restore retain a complete private copy of a
-  damaged document without adding a hard link. The original remains until
-  the copy is flushed and published; owner-only path and link guards stay
-  enforced. Installed broker and panel bindings remain pending.
-
-- Review repairs (RVCM1091F, CM1091DR4): the vault section's host is one
-  explicit view state machine instead of a flag, so a lock from anywhere
-  (idle auto-lock, screen lock, another window, the CLI) locks this window
-  at once with no item names listed, and later changes, approval cards and
-  re-shown tabs always recover it. A failure while the broker is busy keeps
-  the last view, says it is retrying, retries twice, then offers **Retry**;
-  only a broker that cannot start names the repair. Guard refusals on the
-  current view (Reset on a vault that is not lost, edit/grant/answer/import
-  guards) still toast; only a retired older generation stays silent.
-  A Delete whose source
-  is already gone but whose import record stuck says the file is gone, with
-  nothing to retry, and the record is cleared at the next Delete.
-
-- Review repairs (RVAPP-CM1091D5, CM1091DR6): a Lock or Revoke during an
-  Import or Delete aborts the in-flight call silently (the panel shows the
-  locked state, never a failure toast beside it). Every unlocked snapshot
-  sweeps kept and orphaned import receipts whose source or secret still
-  exists: the panel lists them with Keep and Delete, and `vault receipts`
-  offers the same two actions on the terminal; a receipt whose source and
-  secret are both gone is forgotten by the sweep itself. The terminal prints
-  each refused Delete's true reason instead of No access for all. Probe
-  errors name their cause (permissions, an unavailable drive with its own
-  sentence, other); an unavailable drive is never reported gone. Oversized,
-  missequenced and trailed channel replies close with their typed reasons.
-  Focus returns only to a control that unmounted, and the retry announcement
-  lives in a persistent live region. The vault host bundle is back under its
-  50 KiB cap: explicit-action code (the native Add/Edit editor, write-only
-  crypto, Reset/Setup/Import dialogs) loads on first use from
-  `dist/vaultActions.js` with its own 25 KiB cap.
-
-- Review repairs (RVCM1091G, CM1091DR5): every approval reload carries its
-  own sequence inside the view state machine, so two overlapping approval
-  reloads settle newest-wins in both landing orders instead of an older
-  reply overwriting a newer one. A Delete whose source cannot be read says
-  so and keeps the import record; pre-unlink store refusals keep the source
-  and the record with the broker's own reason. A dead or corrupted broker
-  channel names itself and says the operation failed, never Locked beside
-  an unlocked section. The source-gone sentence no longer claims the record
-  could not be cleared. A Delete rejected as source-gone finishes by
-  clearing the leftover record in the panel and the CLI when it can; a
-  record it cannot clear stays for the next finish. A kept view with
-  a retry scheduled or in flight says it is retrying with aria-busy, and a
-  focused control that disappears hands focus to the first control that can
-  act (else the section heading). The mounted harness scenes cover the
-  redesigned unreachable/Retry path and the transient busy, timeout and
-  watch-lost cases. The host bundle still exceeds its 50 KiB cap (lead
-  decision pending); the vault stays off for users.
-
-- On macOS 26, a process that `ps` lists with an unknown state (`?`) while
-  it changes no longer voids every resource tree's membership read, which
-  could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
-
-- The two-account Muse Code backend test waits for the usage event that
-  follows a turn instead of assuming both arrive together, and the estimator
-  browser harness pays the browser's first-navigation work once before its
-  matrix, keeping every case's two-second bound.
-
-- The estimator browser harness uses the same packed English fallback as
-  independent production pages, avoiding cold Windows navigation timeouts
-  while keeping its two-second bound and complete accessibility/keyboard matrix.
-
+- The estimator harness uses the packed English fallback of production
+  pages, avoiding cold Windows navigation timeouts within its two-second
+  bound and full accessibility/keyboard matrix.
 - macOS UI regressions give each target-size scene its own test and await
-  the palette view's actual lazy-import rejection before checking its failure
-  row, retaining every assertion at the existing deadlines (CIR4MAC).
-
+  the palette's real lazy-import rejection, keeping every assertion at the
+  existing deadlines (CIR4MAC).
 - macOS runtimes with libuv older than 1.52 report unknown memory headroom
-  instead of counting only free pages, preventing false resource pauses and
-  ACP multi-workspace session timeouts on Node 22 (ACPM118).
-
-- Windows recorder destinations accept native 8.3 temporary-folder spelling
+  instead of free pages only, preventing false resource pauses and ACP
+  multi-workspace timeouts on Node 22 (ACPM118).
+- Windows recorder destinations accept native 8.3 temp-folder spelling
   while still refusing traversal and existing destinations (CIFIX017W).
-
 - Companion uploads close their inspection handle and remove private bytes
-  before acknowledging the request, avoiding Windows cleanup races.
-  A failed inspection close returns a refusal with private diagnostics withheld.
-
+  before acknowledging; a failed close refuses with diagnostics withheld.
 - Windows resource-history tests wait for durable disposal output before
-  checking or corrupting journal files.
-
-- Windows native probes avoid unnecessary PowerShell module startup;
-  packaging tests share one production build while retaining private outputs.
-
-- Visual capture waits for restored question rows to finish loading before
-  measuring the context-menu passage, preventing a timing-dependent 14 px
-  menu displacement in narrow captures. Pixel allowances are unchanged.
-
-- Schedule runtime tests cover Linux, Windows and macOS rearm ownership
-  explicitly; macOS wake shutdown retains its independent after-exit helper.
-
-- Reporting journal, history-engine and response-cache tests retain real OS
-  process-birth probes on macOS and Windows without requiring unrelated
-  resource-governor installation in their storage fixtures.
-- Windows: the ACP agent (`muse-spark-code-acp`) could not start a Muse
-  Code session. Its governed `muse serve` launch was missing the Windows job
-  helper the extension's launch already had, so every new session failed
-  with an internal error.
-
-- Windows: the npm package of the ACP agent now ships the C# of that job
-  helper's launcher (`MuseSparkMcpLauncher.cs`). An agent installed with
-  `npm install -g` still failed every new session with an internal error
-  without it (CIFIX017W2).
-
-- Windows: the trusted-path check behind background schedules reads each
-  folder's attributes and ACL through .NET alone. Its PowerShell no longer
-  loads the modules behind `Get-Item`, `Get-Acl` and `ConvertTo-Json`, which
-  took over 15 s per folder on machines with many PowerShell modules
-  installed, such as hosted CI runners (CIFIX017W2).
-
-- macOS with Node 22 (or an editor on its libuv): the resource governor read
-  free memory pages as headroom, judged an ordinary Mac critically short of
-  memory and held every later process start for 20 seconds, so a second ACP
-  session took over 20 s to open. That reading is now treated as unknown
-  (CIFIX017R3).
-
-- A report save could fail after two seconds when another save released
-  its lock while a third retired one: a lock file being deleted was taken
-  for an unsafe file, and the releasing save kept its lock (CIFIX017R3).
-
-- The report's plan reader no longer parses each plan line three times;
-  this repository's plan reads about 15% faster (CIFIX017R3).
-
-- Windows: `muse-spark-code-acp usage open` and sharing to the clipboard or
-  browser failed with "That did not work". The program lookup added `.exe`
-  to names that already had it (`rundll32.exe.exe`) and found nothing.
-
-- Linux: `muse-spark-code-acp usage open` waited 10 s and then reported
-  failure when `xdg-open` stayed open with the browser, as many handlers do.
-  The opener now counts as launched once it starts, in its own session, and
-  is never stopped. Any OS opener still running at the hand-off limit is
-  detached and counted as launched, not killed; one that exits with an
-  error still fails.
+  checking or corrupting journals. Native probes skip needless PowerShell
+  module startup; packaging tests share one production build.
+- Visual capture waits for restored question rows to load before measuring
+  the context-menu passage, preventing a timing-dependent 14 px
+  displacement. Pixel allowances unchanged.
+- Schedule runtime tests cover Linux, Windows and macOS rearm ownership;
+  macOS wake shutdown keeps its after-exit helper. Reporting, history and
+  response-cache tests keep real OS process-birth probes without unrelated
+  governor installation.
+- Windows: the ACP agent could not start a Muse Code session — its
+  governed `muse serve` launch missed the Windows job helper the
+  extension's launch had, so every session failed internally. The npm
+  package now ships that launcher's C# (`MuseSparkMcpLauncher.cs`),
+  without which a global install still failed every session (CIFIX017W2).
+- Windows: the trusted-path check behind background schedules reads
+  attributes and ACLs through .NET alone; its PowerShell no longer loads
+  the modules behind `Get-Item`, `Get-Acl` and `ConvertTo-Json` (over
+  15 s per folder on module-heavy machines like hosted CI, CIFIX017W2).
+- macOS with Node 22 (or an editor on its libuv): the governor read free
+  pages as headroom, judged an ordinary Mac critically short and held
+  every later start 20 s, so a second ACP session took 20 s to open. That
+  reading is now unknown (CIFIX017R3).
+- A report save could fail after two seconds when one save's lock release
+  raced another's retire: a deleting lock file read as unsafe, and the
+  releaser kept its lock (CIFIX017R3). The plan reader no longer parses
+  each line three times; this plan reads ~15% faster (CIFIX017R3).
+- Windows: `usage open` and clipboard/browser sharing failed because the
+  program lookup doubled `.exe` (`rundll32.exe.exe`).
+- Linux: `usage open` waited 10 s when `xdg-open` stayed open with the
+  browser, as many handlers do. The opener now counts as launched once
+  started, in its own session, never stopped; a lingering opener at the
+  hand-off limit detaches as launched; an error exit still fails.
 
 - When a Windows job helper fails to compile, the log names the compiler's
   errors and exit code again, not only "Bootstrap command failed".
@@ -673,75 +482,48 @@ happened, not what was planned; superseded entries are kept.
 - Draw Models buttons, the accounts picker and traffic buttons from a new assured boundary role that mixes the theme foreground into its background, keeping control boundaries at 3:1 or more in every captured theme.
 - Give the team merge card's path lists their own full-width row so long paths wrap instead of one character per line at narrow widths.
 
-- Media request tariffs accept exact USD amounts only and reject numeric
-  JavaScript callers before admission. Ordinary session reservations share the
-  atomic-admission lock, preventing competing owners from publishing during an
-  unfinished claim and preserving cap checks at the remaining headroom.
-
-- The Account & usage spend meter sums exact decimal amounts instead of
-  rounding through nano-USD, so sub-nano spend below a nearby cap reports
-  unreached exactly as admission evaluates it.
-
-- The media accounting core claims its calibrated upper bound
-  against both schedule and shared daily caps, including replayed file IDs,
-  settles the admitted media tariff once, and retains uncertain liabilities.
-  Above-reserve bills refuse settlement; daily claim transfers secure their
-  replacement before releasing held budget.
-  Production video/audio uploads remain unavailable in this version pending
-  the production upload and transcription bindings (PLAN D85.6, M105).
-  Scheduled reads now explain that limitation explicitly in every editor.
-  Media read-file references through a bound adapter carry their checked source
-  into the run ledger;
-  stopped reads cannot publish a new proof.
-
-- The 0.17.0 integration's daily-budget and durable schedule tests now assert
-  exact decimal money, including entered limits below nano precision, while
-  account consent fixtures persist quote ceilings and retain account refusal.
-  Account-bound paid consent carries exact decimal budgets through its popup.
-
-- Account-bound paid consent holds "Always" across instances and restarts for
-  the same workspace, provider, account and price through the binding-kept
-  grant when no host quote store is configured; it still asks again when any
-  of them changes, when the quote generation changes, or when only a
-  differently-keyed legacy grant exists.
-
-- Account-bound paid consent no longer fabricates quote approval from the
-  binding's feature grant: it requires an account-scoped quote store and
-  generation, persists the approved quote and generation per account, asks
-  again for a higher tariff or a different model on the same or a new
-  instance, and revoke() clears that account's quote grants too. No
-  production host constructs account-bound consent yet — paid approval stays
-  per workspace until M108 lane P wires it — and Help now says so.
-
-- Account-bound paid consent binds grant authority to a durable revocation
-  epoch persisted per account binding: revoke() advances the epoch before
-  clearing, so leftover grants from a failed clear stay stale on every
-  instance after a restart, and a failed advance rejects with the grants
-  still working. Every grant records its approval epoch; concurrent asks on
-  another instance cannot resurrect a revoked grant. Help says paid consent
-  stays per workspace in all fourteen translated tables.
-
-- Resource history now includes Windows contained and probe commands: the
-  helper's final CPU and memory use is recorded once in this window's
-  history (at most 512 waiting results between reads). The governed process
-  launcher and the start of vault-backed MCP servers now load on first use
-  in bundles of their own (`dist/resourceProcess.js`, new 50 KiB budget;
-  `dist/mcpVault.js`, new 25 KiB budget), so the resource governor is back
-  within its unchanged 125 KiB budget and activation no longer carries the
-  vault MCP start.
-- On Windows, the time a process started (how a lock or a pending checkout
-  tells its live owner from a later process with the same id) is read by a
-  small reader that Windows' own C# compiler builds for each process in
-  `%LOCALAPPDATA%\Muse Spark Code\native`, instead of by Windows PowerShell.
-  Windows PowerShell's first start on a hosted CI runner took longer than
-  the 10-second bound, so the read came back empty and a lease test failed.
-  Not yet run in the packed product.
-
-- On Windows, a browser check could end at once with "unrecognized" although
-  nothing was wrong with the browser: the check read the browser's process
-  list before the browser had started its network service. It now waits for
-  that service, within the check's own time and Stop, before it reads it;
-  what it requires of the browser is unchanged.
+- Media tariffs accept exact USD only and reject numeric JS callers before
+  admission. Session reservations share the atomic-admission lock, so no
+  owner publishes during an unfinished claim and cap checks hold at the
+  remaining headroom. The spend meter sums exact decimals, so sub-nano
+  spend below a cap reports unreached exactly as admission evaluates it.
+- The media core claims its calibrated upper bound against schedule and
+  daily caps (replayed file IDs included), settles each admitted tariff
+  once, retains uncertain liabilities, refuses above-reserve settlement,
+  and secures replacement before releasing held budget. Production
+  video/audio uploads stay unavailable pending the upload and
+  transcription bindings (PLAN D85.6, M105); scheduled reads say so in
+  every editor. Bound read-file references carry their source into the
+  ledger; stopped reads publish no new proof.
+- The 0.17.0 integration's budget and schedule tests assert exact decimal
+  money; account consent fixtures persist quote ceilings; account-bound
+  consent carries exact decimal budgets through its popup.
+- Account-bound paid consent holds "Always" across instances and restarts
+  for the same workspace, provider, account and price, and asks again when
+  any of them, the quote generation, or a differently-keyed legacy grant
+  changes. It requires an account-scoped quote store and generation (no
+  fabricated approval from the feature grant); revoke() clears that
+  account's quote grants. No production host constructs it yet — approval
+  stays per workspace until M108 lane P wires it — and Help says so.
+- Account-bound consent binds grants to a durable per-account revocation
+  epoch: revoke() advances the epoch before clearing, so leftovers stay
+  stale after restarts and a failed advance rejects with grants working.
+  Concurrent asks cannot resurrect a revoked grant. Help says consent stays
+  per workspace in all fourteen tables.
+- Resource history includes Windows contained and probe commands (final
+  CPU/memory recorded once per window). The governed launcher and
+  vault-backed MCP server starts load on first use in their own bundles
+  (`dist/resourceProcess.js`, 50 KiB; `dist/mcpVault.js`, 25 KiB), so the
+  governor is back within 125 KiB and activation drops the vault MCP start.
+- On Windows, process start time (telling a live lock owner from a later
+  same-id process) is read by a small reader Windows' own C# compiler
+  builds per process under `%LOCALAPPDATA%\Muse Spark Code\native`, not
+  PowerShell (whose first start on hosted CI exceeded the 10-second
+  bound and emptied a lease test's read). Not yet run packed.
+- On Windows, a browser check could end "unrecognized" with a healthy
+  browser: it read the process list before the browser's network service
+  started. It now waits for that service first, within its own time and
+  Stop; browser requirements unchanged.
 
 
 - Honour the documented legacy vault switch: an explicitly stored `museSpark.vault` boolean stays effective until `museSpark.vault.enabled` is explicitly configured, and a switched-off vault refuses its commands and hides its panel section instead of launching. Vault audit views keep the newest 10,000 records once the log outgrows the consumer contract, and a setup retry reuses its failed attempt's OS slot instead of leaving another native credential behind (PR216W1).
