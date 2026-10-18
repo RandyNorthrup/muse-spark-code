@@ -1,19 +1,26 @@
-# PATHGUARD spawn inventory — every program start and its guard (2026-10-18, lane PR249FIX3)
+# PATHGUARD spawn inventory — every program start and its guard (2026-10-18, lane PR249FIX4)
 
 One comparison (`isSameOrInsideDirectory` in `src/core/executables.ts`:
 device/verbatim prefixes stripped, `.\UNC\` mapped like `?\UNC\`,
-loopback admin shares mapped to their drive, trailing dots stripped per
-segment, `.`/`..` collapsed, case-insensitive on Windows, then realpath
-where the path exists), one lookup (every product name resolved outside
-the workspace, links followed), one child environment
+loopback admin shares mapped to their drive, trailing spaces and dots
+stripped the way `GetFullPathName` strips them (every trailing space and
+dot off the final segment, so `repo .` is `repo`; one trailing dot off a
+non-final segment, so `repo.\bin` is `repo\bin` while `repo...\bin` stays
+a distinct name), `.`/`..` collapsed, case-insensitive on Windows, then
+realpath where the path exists), one lookup (every product name resolved
+outside the workspace, links followed), one child environment
 (`workspaceChildEnvironment`: PATH sanitised, empty/relative/
 drive-relative/workspace entries dropped, `NoDefaultCurrentDirectoryInExePath=1`
 on Windows). `test/unit/pathGuardSpawns.test.ts` enumerates every direct
 child-process start in `src/` from the source itself (TypeScript AST: bare
 calls and references of names value-imported from `node:child_process`,
-including `require`) and fails on any file outside the lists below, on any
-listed file that loses its anchor, and on any `exec`/`execSync` import
-(shell strings stay banned, D4).
+including `require`), every wrapper that ends in one (`runProgram`,
+`runTreeSync`, `runResourceCommand`, literal or variable command alike),
+every embedded supervisor script (a backtick literal spawning a process,
+where the playbook's `git` variable used to hide), and every raw governed
+launch, and fails on any file outside the lists below, on any listed file
+that loses its anchor, and on any `exec`/`execSync` import (shell strings
+stay banned, D4).
 
 ## Guarded in the file (lookup + child env)
 
@@ -35,13 +42,23 @@ listed file that loses its anchor, and on any `exec`/`execSync` import
   child env for that directory.
 - Shell and hooks (`src/host/backend/toolIo.ts`): `bash`/`sh`/`cmd`/
   PowerShell resolved outside the workspace (`ToolIoDeps.workspaceRoot`,
-  from the window's workspace); `shellEnvironment` and `hookEnvironment`
-  carry the guarded child env for the run's directory, and `hookEnvironment`
-  additionally drops Windows drive-relative entries.
-- Team launches (`src/host/team/processLifetime.ts`): the person's
-  configured command keeps running, with the guarded child env for its cwd
-  (bare launchers and helpers can no longer shadow from the workspace);
-  Windows runs absolute PowerShell with the same guarded env.
+  from the window's workspace, the ACP agent's workspace, and the setup
+  hooks' working directory); an absolute `SHELL` inside the workspace is
+  ignored and `sh` resolves outside instead; `shellEnvironment` and
+  `hookEnvironment` carry the guarded child env for the run's directory,
+  and `hookEnvironment` additionally drops Windows drive-relative entries.
+- Team launches and probes (`src/host/team/processLifetime.ts`): the
+  person's configured command keeps running, with the guarded child env
+  for its cwd; `setpriv`/`systemd-run`/`systemctl` probe on the absolute
+  PATH entries only and resolve outside each launch's own working directory
+  (links followed), with the guarded child env for the scope queries — a
+  tool the probe saw but the launch directory shadows fails the launch
+  closed. Windows runs absolute PowerShell with the same guarded env.
+- Playbook git (`src/core/orchestration/playbook/outcomes.ts`,
+  `modules.ts`): every effect's command is `processGitPath(workspace)`
+  (links followed), admitted and spawned absolute, with the guarded child
+  env for the workspace, so the POSIX supervisor's `spec.command` is never
+  a bare name either.
 - Governed commands (`src/core/resources/commands.ts`, serving
   `handoffResourceFile`/`execResourceFile`): bare names (`xdg-open`,
   `open`, `rundll32.exe`, probes) resolved outside the run's workspace with
@@ -57,8 +74,11 @@ listed file that loses its anchor, and on any `exec`/`execSync` import
 ## Reviewed: fixed path or the person's own terminal (no PATH search)
 
 - `src/host/processTree.ts`: fixed `/bin/ps`, `process.execPath`
-  supervisor; `runProgram` callers pass absolute system paths (the
-  `systemctl` probes run with the host cwd, never a workspace cwd).
+  supervisor; the supervisor template itself is parsed by the
+  embedded-script check and spawns only its caller's `spec.command`
+  (every `runTreeSync` caller resolves that command outside the
+  workspace); `runProgram` callers pass absolute or launch-resolved
+  system paths.
 - `src/core/resources/trees/linuxLaunch.ts`: fixed `/usr/bin/systemd-run`,
   `/bin/sh`.
 - `src/core/resources/trees/run.ts`: callers pass absolute OS/native-helper
@@ -96,3 +116,49 @@ listed file that loses its anchor, and on any `exec`/`execSync` import
   `src/core/schedules/events/git.ts`, `src/core/reporting/history.ts`,
   `src/core/reporting/sources/github.ts`: injected runners, the guarded
   spawners above, or the governed `execResourceFile` boundary.
+- `src/core/media/record/macos.ts`: an injected `spawn` port; the commands
+  are fixed `/usr/bin/codesign` and a helper path that must be absolute and
+  trust-verified before it runs.
+- `src/runtime/panel/pullRequests/checkout.ts`: injected `spawn`/`execFile`
+  ports; the caller hands the absolute git only.
+
+## Round-5 hunt: every product-chosen name (lane PR249FIX4)
+
+Grep over every command position in `src/` (direct starts, wrapper first
+arguments literal or variable, injected-port arguments, `Worker` paths):
+no name below is looked up on a workspace-searchable PATH, and no child
+with a workspace working directory inherits a raw PATH.
+
+- Fixed OS paths, never PATH-resolved: `/bin/ps` (locks, `trees/mac`,
+  the supervisor's table), `/bin/sh` (Linux launcher, team launch
+  leader), `/usr/bin/systemd-run` + `/bin/sh` (`trees/linuxLaunch`),
+  `/usr/bin/python3` (team signal helper, darwin orphan observer),
+  `/usr/bin/security` (macOS keychain, governed), `/usr/bin/codesign`
+  (macOS recording probe), `/usr/sbin/lsof` (worker fence), `/bin/ls`
+  (token ACL receipt), `process.execPath` (eval verifier, supervisor
+  host), `nvidia-smi`/`powershell` at fixed absolute candidates only
+  (the sampler refuses a non-absolute file with a near-empty env).
+- SystemRoot-joined, never PATH-resolved: PowerShell/`cmd.exe`/`taskkill`
+  (sampler, lock owner, Windows team driver, token ACLs, browser kills,
+  resource holders and sweepers).
+- Packaged natives by absolute path: the created-registry helpers
+  (`__dirname`-joined per platform), the dictate helper, the digest-named
+  job launcher (`mcpJobLaunch`), the search/page/image workers (bundled
+  `dist/` paths — threads, not PATH lookups).
+- Guarded-resolved outside the run directory, guarded child env: `git`
+  (both runners, the M123 native route, the report source, the playbook),
+  `node`/`bun`/`prlimit` (plugin host), MCP server commands (bare names
+  outside the server directory), `bash`/`sh`/`cmd` (shell and hook
+  interpreters on every backend), `arecord`/`parec` (voice), `xdg-open`/
+  `open`/`rundll32.exe` (governed commands), `setpriv`/`systemd-run`/
+  `systemctl` (team launch, per launch directory).
+- The person's own, intentionally: the team worker's configured command
+  (guarded env for its cwd), interactive terminal launches, a `SHELL`
+  outside the workspace (hooks), an absolute `COMSPEC` (hook env).
+- No `shell: true` in `src/`; no `exec`/`execSync` import (gate-enforced);
+  `openExternal` takes URIs, never programs.
+- Stated boundary: the team capability probes run at driver creation,
+  before any launch directory is known, so they resolve on the absolute
+  PATH entries only; every later use (launch chain, scope queries)
+  additionally excludes the launch's own working directory, and a tool
+  the probe saw but that directory shadows fails the launch closed.
