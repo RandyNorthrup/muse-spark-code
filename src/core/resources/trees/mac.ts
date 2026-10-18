@@ -7,7 +7,12 @@ import {
 } from '../../../shared/resources'
 import { PosixResourceTreeReader, type PosixTreeSnapshot, type PosixTreeSource } from './posix'
 import { parseMacProcessTable, processSampleSchema, type ProcessSample } from './posixTable'
-import { coalescedTreeRead, runTreeProgram, type ResourceTreeRun } from './run'
+import {
+  coalescedTreeRead,
+  probeChildEnvironment,
+  runTreeProgram,
+  type ResourceTreeRun,
+} from './run'
 import { signalVerifiedPosix, type ResourceActionResult, type ResourceSignal } from './actions'
 
 const macIdentitySchema = z.extend(resourceProcessIdentitySchema, {
@@ -61,10 +66,11 @@ class MacTreeSource implements PosixTreeSource {
   }
 
   private async readTable(): Promise<ReturnType<typeof parseMacProcessTable>> {
-    const text = await (this.deps.run ?? runTreeProgram)('/bin/ps', [
-      '-axo',
-      'pid=,ppid=,pgid=,state=,time=,rss=',
-    ])
+    const text = await (this.deps.run ?? runTreeProgram)(
+      '/bin/ps',
+      ['-axo', 'pid=,ppid=,pgid=,state=,time=,rss='],
+      probeChildEnvironment({ LC_ALL: 'C' }),
+    )
     return parseMacProcessTable(text)
   }
 
@@ -81,10 +87,11 @@ class MacTreeSource implements PosixTreeSource {
         }),
       )
     if (this.deps.helperPath === undefined) throw new Error('Native process helper unavailable')
-    const text = await (this.deps.run ?? runTreeProgram)(this.deps.helperPath, [
-      'proc-identity',
-      ...pids.map(String),
-    ])
+    const text = await (this.deps.run ?? runTreeProgram)(
+      this.deps.helperPath,
+      ['proc-identity', ...pids.map(String)],
+      probeChildEnvironment({ LC_ALL: 'C' }),
+    )
     const raw: unknown = JSON.parse(text)
     const native = z.extend(resourceProcessIdentitySchema, {
       startTime: macIdentitySchema.shape.startTime,

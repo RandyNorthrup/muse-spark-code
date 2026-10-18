@@ -1,4 +1,5 @@
 import { spawnResourceProcess } from '../../../core/resources/launcher'
+import { probeChildEnvironment } from '../../../core/resources/trees/run'
 import path from 'node:path'
 import {
   UI_TEXT,
@@ -96,7 +97,9 @@ export function windowsVaultTransport(
           ],
           {
             cwd: path.dirname(helper.powershell),
-            env: {},
+            // Absolute PowerShell with an empty environment: absolute
+            // entries only, links followed.
+            env: probeChildEnvironment({}),
             windowsHide: true,
           },
         )

@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawnGuarded } from '../../core/guardedChildProcess'
 import { powerShellQuoted } from '../../core/shellQuote'
 import type { ResourceJob, ResourceLease } from '../../core/resources/launch'
 import {
@@ -16,7 +16,7 @@ export async function holdResourceJob(
 ): Promise<ResourceLease> {
   const ps = windowsPowerShell(systemRoot)
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- absolute Windows PowerShell, the packaged verified job assembly and a fresh generated job name only; the holder never receives a model/workspace command or credentials (M107 C1, PLAN.md §8).
-  const child = spawn(
+  const child = spawnGuarded(
     ps.file,
     [
       ...WINDOWS_POWERSHELL_COMMAND_ARGS,

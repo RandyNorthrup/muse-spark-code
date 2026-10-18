@@ -6,7 +6,8 @@ import { resourceEnvironment } from '../core/resources/launch'
 // and `GIT_OPTIONAL_LOCKS=0` so a background `git status` never takes the
 // index lock out from under the user's own git.
 
-import { type ExecFileOptions, spawn } from 'node:child_process'
+import type { ExecFileOptions } from 'node:child_process'
+import { spawnGuarded } from '../core/guardedChildProcess'
 import { existsSync, realpathSync } from 'node:fs'
 import { admitResource, resourceWindowsJob, stopResourceTree } from '../core/resources/admission'
 import { spawnMcpJob } from './backend/mcpJobLaunch'
@@ -14,7 +15,11 @@ import { observeResourceProcess } from './resources/resourceAdmission'
 import { treeSpawnOptions } from './processTree'
 import { Buffer } from 'node:buffer'
 import * as z from 'zod/mini'
-import { resolveExecutable, workspaceChildEnvironment } from '../core/executables'
+import {
+  resolveExecutable,
+  workspaceChildEnvironment,
+  type GuardedChildEnv,
+} from '../core/executables'
 import type { BestOfNGitGuard } from '../core/bestOfN/bestOfNRunner'
 import { environmentValue } from '../core/backends/musecode/launch'
 import {
@@ -168,13 +173,15 @@ export function quietGitEnvironment(
     readonly platform: NodeJS.Platform
     readonly realpath: (filePath: string) => string
   },
-): NodeJS.ProcessEnv {
-  const base = { ...withoutCredentials(env), GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' }
-  return {
-    ...workspaceChildEnvironment(workspace.platform, base, workspace),
-    GIT_OPTIONAL_LOCKS: '0',
-    GIT_TERMINAL_PROMPT: '0',
-  }
+): GuardedChildEnv {
+  const child = workspaceChildEnvironment(
+    workspace.platform,
+    { ...withoutCredentials(env), GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' },
+    workspace,
+  )
+  child['GIT_OPTIONAL_LOCKS'] = '0'
+  child['GIT_TERMINAL_PROMPT'] = '0'
+  return child
 }
 
 export interface GitRunnerDeps {
@@ -338,7 +345,7 @@ export function processGitRunner(
         env: options.env,
         fileExists: existsSync,
         realpath: realpathSync,
-        spawn,
+        spawn: spawnGuarded,
       })
       const result = await run(args, {
         cwd: options.cwd,
@@ -443,7 +450,12 @@ export interface GitProcessDeps {
    * it. REQUIRED: a lexical-only comparison keeps such an entry on PATH.
    */
   readonly realpath: (filePath: string) => string
-  readonly spawn: typeof spawn
+  /**
+   * The guarded starter: the run hands it only the guarded child
+   * environment for the call's working directory, so a raw environment
+   * does not type-check here.
+   */
+  readonly spawn: typeof spawnGuarded
   /**
    * The git to run instead of a PATH search (M123's native route: the git
    * the host resolved, absolute only, `fixedGitLocator`), or undefined
@@ -466,7 +478,7 @@ function childGitEnvironment(
     readonly platform: NodeJS.Platform
     readonly realpath: (filePath: string) => string
   },
-): NodeJS.ProcessEnv {
+): GuardedChildEnv {
   const base =
     options.credentialRoutes === undefined
       ? withoutCredentials(options.env)
@@ -728,13 +740,13 @@ export function processGitLocator(): () => boolean {
   return () => locate(process.cwd()) !== undefined
 }
 
-/** The process runner over this process's PATH and Node's `spawn` (M72). */
+/** The process runner over this process's PATH and the guarded starter (M72). */
 export function processGitProcess(): GitProcess {
   return createGitProcess({
     platform: process.platform,
     env: process.env,
     fileExists: existsSync,
     realpath: realpathSync,
-    spawn,
+    spawn: spawnGuarded,
   })
 }

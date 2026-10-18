@@ -3,8 +3,11 @@
 // supervisor script, and every raw governed launch in src/ is enumerated
 // from the source itself and must either route through the guarded lookup +
 // child environment or stand on the short reviewed lists below with its
-// reason. Add an unguarded spawn and this suite fails; remove a guard and
-// its anchor fails with it.
+// reason. Since round 7 only two modules may start a process directly —
+// the one guarded wrapper and the tree helpers whose signatures already
+// take the branded environment — so a new direct `spawn`/`execFile` import
+// anywhere else fails the first test below, and a bypass of the branded
+// types fails the last. Remove a guard and its anchor fails with it.
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -45,109 +48,24 @@ interface KnownSpawn {
   readonly reason: string
 }
 
+/**
+ * Round 7 closed the class: every other start moved behind `spawnGuarded` /
+ * `execFileGuarded` (whose signatures take only the branded environment) or
+ * the already-branded `runProgram` / `runTreeSync` / governed launch, so
+ * these two modules are the only direct starters left. A direct
+ * `spawn`/`execFile` value import anywhere else is an unknown file below.
+ */
 const KNOWN: Record<string, KnownSpawn> = {
-  'src/core/backends/modelapi/pluginHost.ts': {
+  'src/core/guardedChildProcess.ts': {
     kind: 'guarded',
-    anchor: 'workspaceChildEnvironment',
-    reason: 'absolute runtime from resolvePluginRuntime (workspace excluded) + guarded child env',
-  },
-  'src/core/backends/musecode/MuseCodeHost.ts': {
-    kind: 'guarded',
-    anchor: 'spawnAccountMspConnection',
-    reason:
-      'absolute launch command from the manager resolveLaunch (workspace excluded) + guarded builder env',
-  },
-  'src/core/locks/processOwner.ts': {
-    kind: 'reviewed',
-    anchor: '/bin/ps',
-    reason: 'fixed /bin/ps and SystemRoot powershell only, no shell, no workspace cwd',
-  },
-  'src/core/eval/workspace.ts': {
-    kind: 'reviewed',
-    anchor: 'process.execPath',
-    reason: 'fixed process.execPath verifier + empty env',
-  },
-  'src/core/resources/process.ts': {
-    kind: 'guarded',
-    anchor: 'ResourceLaunchProfile',
-    reason:
-      'the one governed launch: file + env supplied by commands.ts resolveCommand + child env',
-  },
-  'src/core/resources/trees/run.ts': {
-    kind: 'reviewed',
-    anchor: 'runTreeProgram',
-    reason: 'callers pass absolute OS/native-helper paths only',
-  },
-  'src/core/resources/trees/linuxLaunch.ts': {
-    kind: 'reviewed',
-    anchor: '/usr/bin/systemd-run',
-    reason: 'fixed /usr/bin/systemd-run and /bin/sh only',
-  },
-  'src/core/resources/sampler/system.ts': {
-    kind: 'reviewed',
-    anchor: 'RESOURCE_PROBE_EMPTY_ENV_KEYS',
-    reason: 'absolute paths only + near-empty env',
-  },
-  'src/core/team/workers/workerFence.ts': {
-    kind: 'reviewed',
-    anchor: '/usr/sbin/lsof',
-    reason: 'fixed /usr/sbin/lsof + scrubbed env',
-  },
-  'src/host/voice/voiceProcesses.ts': {
-    kind: 'reviewed',
-    anchor: 'helperEnvironment',
-    reason: 'absolute helper/recorder command from the guarded lookup, no shell',
-  },
-  'src/host/git.ts': {
-    kind: 'guarded',
-    anchor: 'workspaceChildEnvironment',
-    reason: 'git resolved outside the run directory (links followed) + guarded child env',
-  },
-  'src/host/backend/mcpJobLaunch.ts': {
-    kind: 'reviewed',
-    anchor: 'launch.executablePath',
-    reason: 'digest-named packaged job launcher only, never PATH-resolved',
-  },
-  'src/host/backend/mcpProcess.ts': {
-    kind: 'guarded',
-    anchor: 'workspaceChildEnvironment',
-    reason: 'absolute server file (bare names exclude the server directory) + guarded child env',
-  },
-  'src/host/backend/toolIo.ts': {
-    kind: 'guarded',
-    anchor: 'workspaceChildEnvironment',
-    reason: 'absolute interpreter + guarded shell/hook envs for the run directory',
-  },
-  'src/host/team/processLifetime.ts': {
-    kind: 'guarded',
-    anchor: 'workspaceChildEnvironment',
-    reason: "person's team command + guarded child env for its cwd; absolute powershell on Windows",
+    anchor: 'GuardedChildEnv',
+    reason: 'the one guarded wrapper: spawnGuarded/execFileGuarded take only the branded child env',
   },
   'src/host/processTree.ts': {
-    kind: 'reviewed',
-    anchor: '/bin/ps',
-    reason:
-      'fixed /bin/ps and process.execPath supervisor; the supervisor template itself is parsed by the embedded-script check, and runProgram callers pass absolute system paths (systemctl probes run with the host cwd, never a workspace cwd)',
-  },
-  'src/host/browser/browserProcess.ts': {
-    kind: 'reviewed',
-    anchor: 'WINDOWS_TASKKILL_RELATIVE_PATH',
-    reason: 'pinned runtime verified against browserRuntime.json + SystemRoot taskkill only',
-  },
-  'src/host/resources/resourceJobHolder.ts': {
-    kind: 'reviewed',
-    anchor: 'WINDOWS_POWERSHELL_COMMAND_ARGS',
-    reason: 'absolute SystemRoot powershell + packaged job assembly only',
-  },
-  'src/runtime/panel/pullRequests/checkout.ts': {
-    kind: 'reviewed',
-    anchor: 'GitProcessPort',
-    reason: 'thin wrapper: the caller hands the absolute git only',
-  },
-  'src/runtime/panel/git/service.ts': {
     kind: 'guarded',
-    anchor: 'fixedGitLocator',
-    reason: 'hands spawn + links into createGitProcess with the bound-root-refusing locator',
+    anchor: 'GuardedChildEnv',
+    reason:
+      'runProgram (execFile) and runTreeSync (spawnSync) take only the branded child env; the supervisor template itself is parsed by the embedded-script check',
   },
 }
 
@@ -634,21 +552,60 @@ describe('PATHGUARD spawn inventory', () => {
     // breaks); this test pins the signatures the enforcement rests on, so
     // loosening one fails here too.
     const root = path.join(__dirname, '..', '..')
-    const executables = readFileSync(path.join(root, 'src/core/executables.ts'), 'utf8')
+    const readSrc = (file: string): string => readFileSync(path.join(root, file), 'utf8')
+    const executables = readSrc('src/core/executables.ts')
     expect(executables).toContain('readonly scope: ExecutableScope')
     expect(executables).toContain('NO_WORKSPACE')
     expect(executables).toContain('GuardedChildEnv')
-    const processTree = readFileSync(path.join(root, 'src/host/processTree.ts'), 'utf8')
-    expect(processTree).toContain('GuardedChildEnv')
-    const pluginHost = readFileSync(
-      path.join(root, 'src/core/backends/modelapi/pluginHost.ts'),
-      'utf8',
-    )
-    expect(pluginHost).toContain('GuardedChildEnv')
+    expect(readSrc('src/host/processTree.ts')).toContain('GuardedChildEnv')
+    expect(readSrc('src/core/backends/modelapi/pluginHost.ts')).toContain('GuardedChildEnv')
     // The only producers of the branded environment.
     expect(executables.match(/export function (workspace|noWorkspace)ChildEnvironment/g)).toEqual([
       'export function workspaceChildEnvironment',
       'export function noWorkspaceChildEnvironment',
     ])
+  })
+
+  it('round 7: every starter and every native payload takes only the branded env', () => {
+    // The class closure: direct `spawn`/`execFile` live only behind the one
+    // guarded wrapper, and a native helper payload serializes only from a
+    // branded environment. Loosening any signature below reopens the
+    // Windows-team-payload hole (a `string[]` the compiler could not see).
+    const root = path.join(__dirname, '..', '..')
+    const readSrc = (file: string): string => readFileSync(path.join(root, file), 'utf8')
+    const wrapper = readSrc('src/core/guardedChildProcess.ts')
+    expect(wrapper).toContain('readonly env: GuardedChildEnv')
+    expect(wrapper).toContain('export function spawnGuarded')
+    expect(wrapper).toContain('export function execFileGuarded')
+    // Every process entry takes the brand: the governed launch, the job
+    // payload, the serve spawn, the git runner and the checkout port.
+    for (const file of [
+      'src/core/resources/launch.ts',
+      'src/host/backend/mcpJobLaunch.ts',
+      'src/core/backends/musecode/MuseCodeHost.ts',
+      'src/host/git.ts',
+      'src/runtime/panel/pullRequests/checkout.ts',
+    ]) {
+      expect(readSrc(file), `${file} takes the branded child env`).toContain('GuardedChildEnv')
+    }
+    // Helper payloads serialize only from the brand.
+    expect(readSrc('src/core/executables.ts')).toContain(
+      'export function guardedEnvironmentBlock(env: GuardedChildEnv)',
+    )
+    expect(readSrc('src/host/team/processLifetime.ts')).toContain('guardedEnvironmentBlock(')
+    // The only cast to the brand is its producer: a second `as
+    // GuardedChildEnv` anywhere in src/ would launder a raw environment.
+    const unbranded: string[] = []
+    const sources = walk(path.join(root, 'src')).filter((file) => file.endsWith('.ts'))
+    for (const file of sources) {
+      const relative = path.relative(root, file).replaceAll('\\', '/')
+      const casts = readFileSync(file, 'utf8').match(/as GuardedChildEnv/g) ?? []
+      if (relative === 'src/core/executables.ts') {
+        if (casts.length !== 1) unbranded.push(`${relative}: producer lost its single cast`)
+      } else if (casts.length > 0) {
+        unbranded.push(`${relative}: ${String(casts.length)} casts`)
+      }
+    }
+    expect(unbranded, 'a raw environment laundered into the brand').toEqual([])
   })
 })

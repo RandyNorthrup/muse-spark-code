@@ -4,9 +4,10 @@ import type { AcpPermissionInput, AcpPermissionVerdict, AcpPreset, AcpPresetId }
 // One admission authority for every team worker (PLAN.md M96 W-F1-W-F3).
 // Names locate objects; only native identities establish containment.
 import { open, realpath } from 'node:fs/promises'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
+import { realpathSync } from 'node:fs'
 import { handleIdentity } from '../../fs/fileIdentity'
+import { noWorkspaceChildEnvironment } from '../../executables'
+import { execFileGuarded } from '../../guardedChildProcess'
 import { scrubWorkerEnv } from './workerEnv'
 import { fileIdentityKey, statIdentity } from '../../fs/fileIdentity'
 import { homedir } from 'node:os'
@@ -48,17 +49,28 @@ async function openWorkerFile(absolute: string, isWrite: boolean): Promise<Worke
       if (process.platform === 'win32') final = await realpath(absolute)
       else if (process.platform === 'darwin') {
         // macOS fd paths are not symlinks; lsof reads the kernel's fd name.
-        const result = await promisify(execFile)(
-          '/usr/sbin/lsof',
-          ['-a', '-p', String(process.pid), '-d', String(handle.fd), '-Fn'],
-          {
-            timeout: WORKER_FILE_PATH_TIMEOUT_MS,
-            env: {
-              ...scrubWorkerEnv({ platform: process.platform, baseEnv: process.env }),
-              LC_CTYPE: 'en_US.UTF-8',
+        // Fixed `/usr/sbin/lsof`: absolute entries only, links followed.
+        const result = await new Promise<{ stdout: string }>((resolve, reject) => {
+          execFileGuarded(
+            '/usr/sbin/lsof',
+            ['-a', '-p', String(process.pid), '-d', String(handle.fd), '-Fn'],
+            {
+              timeout: WORKER_FILE_PATH_TIMEOUT_MS,
+              env: noWorkspaceChildEnvironment(
+                process.platform,
+                {
+                  ...scrubWorkerEnv({ platform: process.platform, baseEnv: process.env }),
+                  LC_CTYPE: 'en_US.UTF-8',
+                },
+                realpathSync,
+              ),
             },
-          },
-        )
+            (error, stdout) => {
+              if (error === null) resolve({ stdout })
+              else reject(error instanceof Error ? error : new Error('lsof failed'))
+            },
+          )
+        })
         const names = result.stdout.split('\n').filter((line) => line.startsWith('n'))
         if (names.length !== 1 || names[0] === undefined) throw new MuseWorkerFolderError()
         final = await realpath(names[0].slice(1))

@@ -2,6 +2,8 @@
 // and its policy stay in the first-use resourceGovernor bundle, so this runner
 // may ride in every bundle that builds a helper.
 import { spawnResourceProcess } from './resources/launcher'
+import { realpathSync } from 'node:fs'
+import { noWorkspaceChildEnvironment } from './executables'
 import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../shared/constants'
 
 /**
@@ -25,8 +27,10 @@ export async function runBootstrap(
   const deadline = AbortSignal.timeout(options.timeoutMs ?? PROCESS_TABLE_TIMEOUT_MS)
   const signal =
     options.signal === undefined ? deadline : AbortSignal.any([options.signal, deadline])
+  // A build-time helper builds with the host cwd, never a workspace cwd:
+  // absolute entries only, links followed.
   const { child: root, stop: stopTree } = await spawnResourceProcess('bootstrap', file, args, {
-    env,
+    env: noWorkspaceChildEnvironment(process.platform, env, realpathSync),
     cwd: options.cwd,
     signal,
   })

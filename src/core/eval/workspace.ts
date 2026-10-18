@@ -5,7 +5,7 @@
 // nothing from the run's environment (the Model API key above all) reaches
 // the code the model wrote.
 
-import { execFile } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -23,6 +23,8 @@ import {
 } from '../../shared/constants'
 import { EVAL_VERIFY_PRELUDE, isEvalPath, type EvalTask } from './tasks'
 import { wireWordForLog } from '../logging'
+import { noWorkspaceChildEnvironment } from '../executables'
+import { execFileGuarded } from '../guardedChildProcess'
 
 export interface EvalFolders {
   /** The task's own temporary folder; removing it removes everything. */
@@ -119,13 +121,18 @@ export async function runEvalVerifier(
   const script = path.join(folder, EVAL_VERIFY_FILE)
   await writeFile(script, `${EVAL_VERIFY_PRELUDE}${task.verify}\n`)
   return await new Promise<EvalVerdict>((resolve) => {
-    execFile(
+    execFileGuarded(
       process.execPath,
       [script, folders.workspace],
       // An empty environment. On Windows, libuv adds back only what a
       // process needs to start (PATH, SYSTEMROOT, TEMP, the profile's
       // folders), never a variable of the run's own.
-      { cwd: folder, env: {}, timeout: timeoutMs, windowsHide: true },
+      {
+        cwd: folder,
+        env: noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
+        timeout: timeoutMs,
+        windowsHide: true,
+      },
       (error, stdout, stderr) => {
         if (error === null) {
           resolve({ passed: true, detail: '' })

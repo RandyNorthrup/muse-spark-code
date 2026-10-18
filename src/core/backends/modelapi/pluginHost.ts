@@ -27,7 +27,8 @@ import { resourceEnvironment, type ResourceLease } from '../../resources/launch'
 import { Buffer } from 'node:buffer'
 import { admitResource, stopResourceTree } from '../../resources/admission'
 
-import { type ChildProcess, spawn as nodeSpawn } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
+import { spawnGuarded } from '../../guardedChildProcess'
 import { withoutCredentials } from '../../credentialEnvironment'
 import { statSync } from 'node:fs'
 import path from 'node:path'
@@ -400,7 +401,7 @@ async function didStopRegisteredPlugin(child: PluginChildHandle): Promise<boolea
 /** POSIX: the child leads a process group of its own, killed as one. */
 export const posixProcessTree: PluginProcessTree = {
   spawn: (command, args, options) => {
-    const child = nodeSpawn(command, [...args], {
+    const child = spawnGuarded(command, [...args], {
       env: options.env,
       cwd: options.cwd,
       detached: true,

@@ -15,11 +15,12 @@
 
 import path from 'node:path'
 import {
-  absolutePathEntries,
   isFullyQualifiedWindowsPath,
   isWorkspacePath,
-  sanitizePathForWorkspace,
+  noWorkspaceChildEnvironment,
+  workspaceChildEnvironment,
   type ExecutableScope,
+  type GuardedChildEnv,
 } from '../../executables'
 import type { MuseCodeAccountHome } from './accountHomes'
 import type { EnvironmentVariable } from '../../../shared/constants'
@@ -327,50 +328,17 @@ export function windowsPowerShellModulePath(
  * user's own environment is inherited untouched, as the CLI documents.
  */
 /**
- * PATH entries that would let a workspace program run are dropped from a
- * copied environment: relative, empty, or inside `workspaceRoot` (resolved
- * through links). On Windows every spelling of PATH is guarded, since names
- * are case-insensitive there. Keys holding no PATH are never added, and a
- * PATH with nothing left is deleted: an empty PATH makes POSIX `execvp`
- * search the working directory, while a missing one does not.
- *
- * On Windows the child also gets `NoDefaultCurrentDirectoryInExePath`, so
+ * The guarded environment for `muse serve`: PATH entries that would let a
+ * workspace program run are dropped (relative, empty, or inside
+ * `workspaceRoot`, resolved through links; with the explicit no-workspace
+ * scope, relative, empty and drive-relative entries still go). On Windows
+ * the child also gets `NoDefaultCurrentDirectoryInExePath`, so
  * CreateProcess does not try the working directory before PATH (probed on
  * Windows 11, Node 24.20: docs/certification/m21.md). Sanitizing PATH alone
- * does not close that lookup.
+ * does not close that lookup. Only the branded producers below can make the
+ * returned environment, so a raw one never reaches the serve spawn.
  */
-function guardWorkspacePath(env: NodeJS.ProcessEnv, input: ChildEnvironmentInput): void {
-  const names =
-    input.platform === 'win32'
-      ? Object.keys(env).filter((name) => name.toLowerCase() === 'path')
-      : Object.keys(env).filter((name) => name === 'PATH')
-  for (const name of names) {
-    // With a workspace, entries inside it (resolved through links) go too;
-    // with the explicit no-workspace scope, relative, empty and
-    // drive-relative entries still go.
-    const sanitized =
-      'workspaceRoot' in input.scope
-        ? sanitizePathForWorkspace({
-            platform: input.platform,
-            pathVariable: env[name],
-            workspaceRoot: input.scope.workspaceRoot,
-            realpath: input.scope.realpath,
-          })
-        : absolutePathEntries(input.platform, env[name], input.scope).join(
-            input.platform === 'win32' ? ';' : ':',
-          )
-    if (sanitized === '') {
-      Reflect.deleteProperty(env, name)
-    } else {
-      env[name] = sanitized
-    }
-  }
-  if (input.platform === 'win32') {
-    setEnvironmentVariable(env, input.platform, 'NoDefaultCurrentDirectoryInExePath', '1')
-  }
-}
-
-export function buildChildEnvironment(input: ChildEnvironmentInput): NodeJS.ProcessEnv {
+export function buildChildEnvironment(input: ChildEnvironmentInput): GuardedChildEnv {
   const env: NodeJS.ProcessEnv = { ...input.baseEnv }
   if (input.platform === 'win32' && input.systemRoot !== undefined) {
     setEnvironmentVariable(
@@ -383,10 +351,6 @@ export function buildChildEnvironment(input: ChildEnvironmentInput): NodeJS.Proc
   for (const variable of input.extraVariables) {
     setEnvironmentVariable(env, input.platform, variable.name, variable.value)
   }
-  // The guard runs after the person's variables, so a PATH from
-  // `museSpark.environmentVariables` is sanitized like the inherited one and
-  // cannot put a workspace entry back.
-  guardWorkspacePath(env, input)
   if (input.accountHome !== undefined) {
     input.accountHome.assertCurrent()
   }
@@ -404,7 +368,12 @@ export function buildChildEnvironment(input: ChildEnvironmentInput): NodeJS.Proc
     }
     setEnvironmentVariable(env, input.platform, 'XDG_CONFIG_HOME', input.accountHome.configHome)
   }
-  return env
+  // The guard runs after the person's variables, so a PATH from
+  // `museSpark.environmentVariables` is sanitized like the inherited one and
+  // cannot put a workspace entry back.
+  return 'workspaceRoot' in input.scope
+    ? workspaceChildEnvironment(input.platform, env, input.scope)
+    : noWorkspaceChildEnvironment(input.platform, env, input.scope.realpath)
 }
 
 /**
@@ -435,17 +404,19 @@ export function terminalEnvironment(
  * names are added to each NO_PROXY spelling already there, or to a new
  * NO_PROXY; entries already listed stay as they are.
  */
-export function withLoopbackBypass(
-  env: NodeJS.ProcessEnv,
+export function withLoopbackBypass<T extends NodeJS.ProcessEnv>(
+  env: T,
   platform: NodeJS.Platform,
-): NodeJS.ProcessEnv {
+): T {
+  // Adding loopback names to NO_PROXY cannot introduce a workspace PATH
+  // entry: a guarded environment stays guarded.
   const isProxied = PROXY_VARIABLE_SPELLINGS.some(
     (name) => (environmentValue(env, platform, name) ?? '') !== '',
   )
   if (!isProxied) {
     return env
   }
-  const bypassed: NodeJS.ProcessEnv = { ...env }
+  const bypassed: T = { ...env }
   const present = NO_PROXY_SPELLINGS.filter(
     (name) => environmentValue(bypassed, platform, name) !== undefined,
   )

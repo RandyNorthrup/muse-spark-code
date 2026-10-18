@@ -72,7 +72,7 @@ import {
   spawnResourceMuseConnection,
   spawnResourceAccountConnection,
 } from '../resources/museResourceLaunch'
-import { NO_WORKSPACE } from '../../core/executables'
+import { NO_WORKSPACE, type GuardedChildEnv } from '../../core/executables'
 import { vaultFenceEnvironment, type VaultFenceOptions } from '../../core/vault/exec/fence'
 
 /** VS Code's proxy settings (`http.proxy`, `http.noProxy`), handed to the CLI when its environment has none. */
@@ -247,7 +247,7 @@ export class MuseCodeBackendManager {
       accountHome,
       resource,
       () => this.deps.shellJobAssembly?.() ?? Promise.resolve(undefined),
-      environmentValue(options.env ?? {}, process.platform, 'SystemRoot'),
+      environmentValue(options.env, process.platform, 'SystemRoot'),
       async () => {
         await assertCanRun()
         accountHome.assertCurrent()
@@ -451,7 +451,7 @@ export class MuseCodeBackendManager {
    * `museSpark.environmentVariables` on top; with any proxy, loopback
    * bypasses it so Muse Code reaches the extension's `ide` server (M56).
    */
-  public childEnvironment(): NodeJS.ProcessEnv {
+  public childEnvironment(): GuardedChildEnv {
     const env = withLoopbackBypass(
       buildChildEnvironment({
         platform: process.platform,

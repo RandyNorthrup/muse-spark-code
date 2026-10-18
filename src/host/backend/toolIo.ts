@@ -9,7 +9,8 @@
 // credential routes fenced (D89).
 
 import { fileReadIdentity } from '../../core/fs/fileIdentity'
-import { spawn, type ChildProcess } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
+import { spawnGuarded } from '../../core/guardedChildProcess'
 import { createHash } from 'node:crypto'
 import { existsSync, realpathSync, type BigIntStats } from 'node:fs'
 import { type FileHandle, lstat, mkdir, open, rm } from 'node:fs/promises'
@@ -49,6 +50,7 @@ import {
   resolveExecutable,
   workspaceChildEnvironment,
   type ExecutableScope,
+  type GuardedChildEnv,
 } from '../../core/executables'
 import { isPdf } from '../../core/pdf'
 import type { ToolImageIo } from '../../core/toolImages'
@@ -117,11 +119,18 @@ export async function runResourceCommand(
       stderr: error instanceof Error ? error.message : String(error),
     }
   }
+  // Short-window CLI commands run with the guarded child PATH for their
+  // working directory (the caller's workspace root, or this process's), so
+  // a planted helper there never runs by bare name.
+  const childWorkspaceRoot = cwd ?? process.cwd()
   const result = await runCommand({
     file: invocation.command,
     args: invocation.args,
-    cwd: cwd ?? process.cwd(),
-    env: childEnv,
+    cwd: childWorkspaceRoot,
+    env: workspaceChildEnvironment(process.platform, childEnv, {
+      workspaceRoot: childWorkspaceRoot,
+      realpath: realpathSync,
+    }),
     timeoutMs,
     signal,
     tree: {
@@ -349,7 +358,7 @@ export function shellEnvironment(
   isFenced = true,
   vault: VaultFenceOptions = {},
   scope: ExecutableScope,
-): NodeJS.ProcessEnv {
+): GuardedChildEnv {
   const clean: NodeJS.ProcessEnv = {}
   const entries = Object.entries(withoutCredentials(env, passNames, platform))
   for (const [key, value] of entries) {
@@ -379,7 +388,7 @@ export function hookEnvironment(
   platform: NodeJS.Platform,
   extraNames: readonly string[] = [],
   scope: ExecutableScope,
-): NodeJS.ProcessEnv {
+): GuardedChildEnv {
   const clean: NodeJS.ProcessEnv = {}
   const names: readonly string[] =
     platform === 'win32'
@@ -1239,7 +1248,11 @@ export interface CommandRun {
   readonly file: string
   readonly args: readonly string[]
   readonly cwd: string
-  readonly env: NodeJS.ProcessEnv
+  /**
+   * The child's whole environment: the guarded shell/hook environment for
+   * `cwd`, so a raw environment does not type-check here.
+   */
+  readonly env: GuardedChildEnv
   readonly timeoutMs: number
   readonly signal: AbortSignal | undefined
   /** Lifts the timeout while the command runs (M46: moved to the background). */
@@ -1268,7 +1281,7 @@ function startProcess(run: CommandRun) {
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is the payload by design: the user approved it on a card, and it runs through the interpreter as an argument array, never a shell string (PLAN.md §8)
     const child =
       run.nativeJob === undefined
-        ? spawn(run.file, [...run.args], {
+        ? spawnGuarded(run.file, [...run.args], {
             cwd: run.cwd,
             env: resourceEnvironment(run.env, run.resource),
             windowsHide: true,
