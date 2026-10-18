@@ -1043,3 +1043,19 @@ touches these paths)`, and the offloaded jobs run green.
   in-workflow incremental gate), as the removed push filter did.
 - No `relay` takes the no-run branch; if one ever does, it fails the run
   with `the push or Actions there failed`.
+
+### Review fixes (PR218W2, 2026-10-18, this rig)
+
+Three Codex threads on PR #218 (branch `ci/more-shards2`), first result —
+no hosted CI failure list follows the threads in this brief, so none to add:
+
+- browser-check.yml (cumulative PR paths on capacity updates, P1): ALREADY
+  FIXED by `70e829764` (HEAD) — the `ci/pr-*` push triggers carry no
+  `paths:` filter and each `route` job's `touches` output re-applies the
+  path list to the cumulative merge diff (`HEAD^1..HEAD`); answered, not redone.
+- hosts.yml:409 (appearance deadline from relay start, P1): ACCEPTED, fix in
+  this lane — each `relay` waits for the capacity push to land first, then
+  starts its ten-minute run-appearance clock from the push.
+- forks.yml:302 (relays must outlive healthy multi-stage runs, P2): ACCEPTED,
+  fix in this lane — each `relay`'s `timeout-minutes` goes 120 to 360, the
+  platform-scale bound build.yml's capacity waiter already uses.
