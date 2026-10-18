@@ -1858,7 +1858,8 @@ function fileOperationOf(outcome: ToolOutcome): ForeignDispatchContext['fileOper
       files.some((file: unknown) => isPlainRecord(file) && file['created'] === true)
       ? 'create'
       : 'save'
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return 'save'
   }
 }
@@ -2218,7 +2219,8 @@ function parsedArguments(argsJson: string): Record<string, unknown> {
   try {
     const parsed: unknown = JSON.parse(argsJson)
     return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {}
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return {}
   }
 }
@@ -3726,11 +3728,12 @@ export class ModelApiSession implements ScheduledAgentSession {
             scope: recorded.scope,
           })
       }
-    } catch (error: unknown) {
+    } catch {
       if (!signal.aborted) {
         this.repoMapTries += 1
       }
-      this.deps.log.warn(`The repo map for the prompt could not be made: ${describe(error)}`)
+      // The record names the missing map, never the failure's text.
+      this.deps.log.warn('The repo map for the prompt could not be made')
     }
   }
 
@@ -3746,8 +3749,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         })
       }
       return value
-    } catch (error: unknown) {
-      this.deps.log.warn(`The environment could not be described: ${describe(error)}`)
+    } catch {
+      // The record names the missing section, never the failure's text.
+      this.deps.log.warn('The environment could not be described')
       return NO_ENVIRONMENT
     }
   }
@@ -6457,8 +6461,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         },
         'permission_prompt',
         notificationAbort.signal,
-      ).catch((error: unknown) => {
-        this.deps.log.warn(`Model API Notification hook failed: ${describe(error)}`)
+      ).catch(() => {
+        // The record names the failed hook, never the failure's text.
+        this.deps.log.warn('Model API Notification hook failed')
       })
     }, this.deps.hookNotificationDelayMs ?? HOOK_NOTIFICATION_DELAY_MS)
     return () => {
@@ -6891,7 +6896,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     let args: unknown
     try {
       args = JSON.parse(call.arguments)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
       return undefined
     }
     return this.deps.judge?.start(
@@ -7244,7 +7250,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     let raw: unknown
     try {
       raw = JSON.parse(call.arguments)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
       raw = undefined
     }
     const parsed = todoWriteArgs.safeParse(raw)
@@ -8071,9 +8078,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (!this.shellSidecarMade) {
       try {
         await prepareShellSidecar(p.dirname(sideFile))
-      } catch (error: unknown) {
+      } catch {
         // Nowhere to report to: the command still runs at the root, as before.
-        this.deps.log.warn(`The shell's directory tracking is off: ${describe(error)}`)
+        this.deps.log.warn(`The shell's directory tracking is off`)
         return untracked()
       }
       this.shellSidecarMade = true
@@ -8118,8 +8125,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     let text: string | undefined
     try {
       text = await this.deps.io.readFile(tracking.sideFile)
-    } catch (error: unknown) {
-      this.deps.log.warn(`The shell's directory report could not be read: ${describe(error)}`)
+    } catch {
+      // The record names the unread report, never the failure's text.
+      this.deps.log.warn(`The shell's directory report could not be read`)
     }
     const reported = parseShellDirectoryReport(text, tracking.sequence)
     if (reported === undefined) {
@@ -8668,10 +8676,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         throw new TypeError('Invalid hook model export')
       }
       runHookModel = entry.runHookModelTurn
-    } catch {
+    } catch (error: unknown) {
       if (signal.aborted) throw new AbortedError()
       this.deps.log.warn('The hook model bundle could not be loaded')
-      throw new Error('the hook model bundle could not be loaded')
+      throw new Error('the hook model bundle could not be loaded', { cause: error })
     }
     if (!isCurrent()) throw new AbortedError()
     // The run is tallied when the gate allowed it; the request observer below
@@ -10242,8 +10250,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         }
         try {
           return await verify.formatAfterEdit(target.checkedAbsolute, text)
-        } catch (error: unknown) {
-          warn(`Format on edit failed; the edit stays as written: ${describe(error)}`)
+        } catch {
+          // The record names the outcome, never the formatter failure's text.
+          warn('Format on edit failed; the edit stays as written')
           return
         }
       },
@@ -10700,8 +10709,9 @@ export class ModelApiSession implements ScheduledAgentSession {
           if (!isAllowed() || !this.verificationAllowed([file])) return false
           const isExisting = await this.deps.io.pathExists(file.absolute)
           return isExisting && isAllowed() && this.verificationAllowed([file])
-        } catch (error: unknown) {
-          this.deps.log.warn(`Verify: ${file.relative} could not be looked up: ${describe(error)}`)
+        } catch {
+          // The record names the unlooked file, never the failure's text.
+          this.deps.log.warn(`Verify: ${file.relative} could not be looked up`)
           return false
         }
       }),
@@ -10735,8 +10745,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.verificationAllowed(files) &&
         files.every((file, index) => real[index] === file.absolute)
       )
-    } catch (error: unknown) {
-      this.deps.log.warn(`Verify: a checked file could not be resolved again: ${describe(error)}`)
+    } catch {
+      // The record names the unresolved file, never the failure's text.
+      this.deps.log.warn('Verify: a checked file could not be resolved again')
       return false
     }
   }
@@ -12134,12 +12145,10 @@ export class ModelApiSession implements ScheduledAgentSession {
             visibleDetail: UI_TEXT.agentToolNotOffered,
           }
     } catch (error: unknown) {
-      if (!(error instanceof AbortedError) && !isAbortRequested(signal)) {
-        throw error
-      }
       // Stopped at its hooks or its card: the edit happened, so the call keeps
       // its result and its diff; the turn ends when the loop sees the stop.
-      return {
+      // isAbortRequested(signal) is signal.aborted.
+      const cancelled: Performed = {
         outcome: {
           ...edit,
           output: `${edit.output}\n\n${fill(MODEL_API_MODEL_TEXT.thenRunNotRun, { reason: MODEL_API_MODEL_TEXT.toolCancelledByStop })}`,
@@ -12147,6 +12156,13 @@ export class ModelApiSession implements ScheduledAgentSession {
         },
         hookEffects: effects,
       }
+      if (error instanceof AbortedError) {
+        return cancelled
+      }
+      if (signal.aborted) {
+        return cancelled
+      }
+      throw error
     }
     if (ran.kind === 'skipped') {
       const reason = skipReason(ran.skip, ran.detail)
@@ -12206,8 +12222,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     let current: string | undefined
     try {
       current = await this.deps.io.readFile(target.checkedAbsolute, target.checkedAbsolute)
-    } catch (error: unknown) {
-      this.deps.log.warn(`then_run's guard could not read the file: ${describe(error)}`)
+    } catch {
+      // The record names the unread guard file, never the failure's text.
+      this.deps.log.warn(`then_run's guard could not read the file`)
       return false
     }
     return (
@@ -13882,9 +13899,8 @@ export class ModelApiSession implements ScheduledAgentSession {
           this.isSubagent ? (this.topTurn ?? { checkpoint: undefined }) : undefined,
         )
       } catch (error: unknown) {
-        this.deps.log.warn(
-          `The turn checkpoint could not be admitted: ${error instanceof Error ? error.name : 'unknown failure'}`,
-        )
+        // The record names the unadmitted checkpoint; the throw keeps the cause.
+        this.deps.log.warn('The turn checkpoint could not be admitted')
         throw new Error(this.isSubagent ? UI_TEXT.childCheckpointFailed : UI_TEXT.sendMarkFailed, {
           cause: error,
         })
@@ -14101,10 +14117,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         checkpoint: turn.checkpoint,
         ranProcesses: turn.ranProcesses || this.hasLiveCommands(),
       })
-    } catch (error: unknown) {
-      this.deps.log.warn(
-        `The turn checkpoint could not be ended: ${error instanceof Error ? error.name : 'unknown failure'}`,
-      )
+    } catch {
+      // The record names the unended checkpoint, never the failure's text.
+      this.deps.log.warn('The turn checkpoint could not be ended')
     }
     this.deps.judge?.discardTurn(this.sessionId, turn.turnId)
     for (const callId of this.argumentPreviewRows.keys()) {
@@ -14503,7 +14518,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     try {
       const files = compactionFilesSchema.safeParse(JSON.parse(line ?? ''))
       return files.success ? files.data : undefined
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
       return undefined
     }
   }
@@ -15026,8 +15042,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     } catch (error: unknown) {
       // The summary is committed. Its owning automatic turn checks Stop on return.
-      if (isAbortRequested(signal) || error instanceof AbortedError)
+      if (error instanceof AbortedError) {
         return { status: ACCEPTED, reason: undefined }
+      }
       const status = isModelApiError(error) ? `HTTP ${String(error.status)}` : 'request failed'
       this.deps.log.warn(`The compacted context could not be counted: ${status}`)
     }
@@ -15498,8 +15515,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.seenFiles.clear()
     this.ledger.noteEdit(file, [file.relative])
     // FileChanged is observation only and never starts a turn (M91 lane E).
-    void this.noteFileChanged(file.relative, 'external-edit').catch((error: unknown) => {
-      this.deps.log.warn(`Model API extension hooks: FileChanged failed: ${describe(error)}`)
+    void this.noteFileChanged(file.relative, 'external-edit').catch(() => {
+      // The record names the failed hook, never the failure's text.
+      this.deps.log.warn('Model API extension hooks: FileChanged failed')
     })
   }
 
@@ -17164,7 +17182,8 @@ export class ModelApiHost implements AgentHost {
           this.stored.set(sessionId, pending.header)
         }
       } catch (error: unknown) {
-        this.deps.log.warn(`Session ${sessionId} was not saved: ${describe(error)}`)
+        // The record names the unsaved session; the waiters keep the failure.
+        this.deps.log.warn(`Session ${sessionId} was not saved`)
         this.settleSaveWaiters(state, coveredThrough, error)
         continue
       }
@@ -17190,6 +17209,15 @@ export class ModelApiHost implements AgentHost {
             : new Error(`Session save failed: ${describe(failure)}`),
         )
       }
+    }
+  }
+
+  /** A fork's settled snapshot retained before the fork is released. */
+  private async persistAndRelease(fork: ModelApiSession): Promise<void> {
+    try {
+      await this.persist(fork, true)
+    } finally {
+      fork.dispose()
     }
   }
 
@@ -17327,8 +17355,9 @@ export class ModelApiHost implements AgentHost {
   private async sessionHooks(): Promise<readonly HookDefinition[]> {
     try {
       return (await this.deps.loadHooks?.()) ?? []
-    } catch (error: unknown) {
-      this.deps.log.warn(`Model API hooks could not load: ${describe(error)}`)
+    } catch {
+      // The record names the unloadable hooks, never the failure's text.
+      this.deps.log.warn('Model API hooks could not load')
       return []
     }
   }
@@ -17340,8 +17369,9 @@ export class ModelApiHost implements AgentHost {
   private async sessionExtensionHooks(): Promise<readonly ExtensionHookDefinition[]> {
     try {
       return (await this.deps.loadExtensionHooks?.()) ?? []
-    } catch (error: unknown) {
-      this.deps.log.warn(`Model API extension hooks could not load: ${describe(error)}`)
+    } catch {
+      // The record names the unloadable hooks, never the failure's text.
+      this.deps.log.warn('Model API extension hooks could not load')
       return []
     }
   }
@@ -17450,8 +17480,9 @@ export class ModelApiHost implements AgentHost {
   private async startMcpServers(): Promise<void> {
     try {
       await this.deps.mcpServers?.start()
-    } catch (error: unknown) {
-      this.deps.log.warn(`The MCP servers could not be started: ${describe(error)}`)
+    } catch {
+      // The record names the unstarted servers, never the failure's text.
+      this.deps.log.warn('The MCP servers could not be started')
     }
   }
 
@@ -17830,17 +17861,16 @@ export class ModelApiHost implements AgentHost {
       }
       await this.requireAccountId()
     } catch (error: unknown) {
-      try {
-        if (
-          options?.withSummary === true &&
-          fork.didStartSummaryFork &&
-          this.deps.store !== undefined
-        ) {
-          // Failed/incomplete responses still have usage. Retain their settled
-          // snapshot as well as the journal liability before releasing the fork.
-          await this.persist(fork, true)
-        }
-      } finally {
+      // Failed/incomplete responses still have usage. Retain their settled
+      // snapshot as well as the journal liability before releasing the fork.
+      // A persist failure replaces the first; the fork is released either way.
+      if (
+        options?.withSummary === true &&
+        fork.didStartSummaryFork &&
+        this.deps.store !== undefined
+      ) {
+        await this.persistAndRelease(fork)
+      } else {
         fork.dispose()
       }
       if (options?.withSummary === true && !fork.didStartSummaryFork) {
@@ -17913,8 +17943,9 @@ export class ModelApiHost implements AgentHost {
         }
         try {
           await session.endHooks(ending.signal)
-        } catch (error: unknown) {
-          this.deps.log.warn(`Model API SessionEnd hook failed: ${describe(error)}`)
+        } catch {
+          // The record names the failed hook, never the failure's text.
+          this.deps.log.warn('Model API SessionEnd hook failed')
         }
       }
     } finally {
@@ -17933,8 +17964,9 @@ export class ModelApiHost implements AgentHost {
     }
     try {
       await withDeadline(settling, MODEL_API_CLOSE_SETTLE_MS, 'closing')
-    } catch (error: unknown) {
-      this.deps.log.warn(`Model API sessions still running at close: ${describe(error)}`)
+    } catch {
+      // The record names the unclosed sessions, never the deadline's text.
+      this.deps.log.warn('Model API sessions still running at close')
     }
     // The MCP servers go with the host (M50): a stdio server's process tree is killed.
     try {
