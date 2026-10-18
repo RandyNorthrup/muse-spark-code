@@ -24,11 +24,13 @@ belong to lane NOLIMITS5 (`fix/nolimits-5`); the apply sub-action has no
 
 ## Old receipts (history, not a reason to keep a limit)
 
-The M80 LA live receipt (2026-10-05, `test/action/la-check.mjs`) ran without a
-`max-requests` input, i.e. under the old default of 30. It covered a completed
-contributor-model review within the $0.25 budget cap; the request cap never
-bound the run (`la-check` asserts budget, cost, requests and patch shape, never
-the cap). That receipt proves the run path, not the default.
+The M80 LA live receipt (2026-10-05, `test/action/la-check.mjs`,
+[run 37249121568](https://github.com/RandyNorthrup/muse-spark-code/actions/runs/37249121568))
+ran without a `max-requests` input, i.e. under the old default of 30, and used
+5 requests. It covered a completed contributor-model review within the $0.25
+budget cap; the request cap never bound the run (`la-check` asserts budget,
+cost, requests and patch shape, never the cap). That receipt proves the run
+path, not the default.
 
 ## Change log
 
@@ -47,3 +49,19 @@ the cap). That receipt proves the run path, not the default.
   6 tests, all pass; the pre-change tree returns 30 and always forwards the
   flag (probed on a `HEAD` copy in `temp/`, since removed), so the no-limit
   tests fail there.
+
+## Gates (final tree, 2026-10-17)
+
+- `test/unit/actionMaxRequests.test.mjs`: 6/6 pass, repo-default timeout,
+  no `--testTimeout`.
+- eslint on all changed files: zero warnings.
+- `npm run typecheck`: exit 0.
+- `npm run check:plan`: exit 0 (0 drift).
+- `node scripts/check-l10n.mjs`: 0 problems (no new UI strings).
+- `npm run build`: exit 0 (dist rebuilt the repo way; the Action ships
+  `action/lib` source and the agent package packs from that dist).
+- prettier check on all changed files: pass.
+- Real use: `parseActionInputs`/`execArguments`/`isExecResult` driven
+  directly; old-default behavior confirmed on the pre-change code (30,
+  flag always sent). Live receipts L/LA/LR need the lead (real key,
+  owner-run workflow); LA history above is not re-run.
