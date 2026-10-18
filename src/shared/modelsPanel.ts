@@ -283,13 +283,27 @@ const endpointFields = {
  * may still be empty while the wizard asks. The host requires both before
  * saving (the production entry schema rejects an incomplete set).
  */
-export const draftModelLimitsSchema = z.record(
-  z.string(),
-  z.strictObject({
+/**
+ * One draft's per-model limits: either bound may be absent while the person
+ * edits, but a complete pair obeys the same output-within-context rule as
+ * a saved row (a reply cannot outgrow its window), so a draft the host
+ * could never store fails parsing instead of persisting.
+ */
+const draftModelLimitSchema = z
+  .strictObject({
     contextTokens: z.optional(z.number()),
     outputTokens: z.optional(z.number()),
-  }),
-)
+  })
+  .check(
+    z.refine(
+      (limits) =>
+        limits.contextTokens === undefined ||
+        limits.outputTokens === undefined ||
+        limits.outputTokens <= limits.contextTokens,
+    ),
+  )
+
+export const draftModelLimitsSchema = z.record(z.string(), draftModelLimitSchema)
 
 export const panelDraftSchema = z.strictObject({
   ...endpointFields,
