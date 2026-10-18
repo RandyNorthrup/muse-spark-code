@@ -190,8 +190,15 @@ export async function saveWizardDraft(
   let origin: string
   try {
     origin = new URL(draft.provider.address).origin
-  } catch {
-    throw new Error(fill(UI_TEXT.providerAddressInvalid, { detail: draft.provider.address }))
+  } catch (error: unknown) {
+    // Only a malformed address fails here, always as a TypeError; anything
+    // else is not this parse's to refuse.
+    if (!(error instanceof TypeError)) {
+      throw error
+    }
+    throw new Error(fill(UI_TEXT.providerAddressInvalid, { detail: draft.provider.address }), {
+      cause: error,
+    })
   }
   const secret = (draft.credential ?? '').trim()
   if (
