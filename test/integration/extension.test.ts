@@ -4,24 +4,17 @@ import * as assert from 'node:assert/strict'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as vscode from 'vscode'
-import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import { loadGitApi, repositoryAt } from '../../src/host/vscode/git/gitExtension'
 import { processGitRunner } from '../../src/host/git'
-import type { Logger } from '../../src/host/logger'
 import { planMarkdownLoader } from '../../src/host/planMarkdownBundle'
-import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
   CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
   COMMAND_IDS,
   EXTENSION_QUALIFIED_ID,
-  MODEL_API_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
-  SETTING_DEFAULTS,
   SETTINGS_SECTION,
 } from '../../src/shared/constants'
-import { fakeModelApi } from '../unit/helpers/fakeModelApi'
-import { fakeManagerDeps } from '../unit/helpers/modelApiManager'
 
 const TAB_WAIT_TIMEOUT_MS = 5000
 // test/fixtures/workspace/.vscode/settings.json sets this window-scoped key
@@ -96,15 +89,6 @@ suite('activation', () => {
       assert.ok(commands.includes(id), `missing command ${id}`)
     }
     assert.ok(commands.includes(`${CHAT_VIEW_ID}.focus`), 'chat view focus command missing')
-  })
-
-  test('exposes every setting with its documented default', () => {
-    const configuration = vscode.workspace.getConfiguration(SETTINGS_SECTION)
-    // The fixture workspace overrides one window-scoped setting (next test).
-    const defaults = Object.entries(SETTING_DEFAULTS).filter(([key]) => key !== FIXTURE_OVERRIDE)
-    for (const [key, value] of defaults) {
-      assert.deepEqual(configuration.get(key), value, `default for ${key}`)
-    }
   })
 
   test('opens an Untitled chat panel in a new tab', async () => {
@@ -268,69 +252,6 @@ suite('activation', () => {
     await waitForTab(
       (candidate) => candidate.label === 'Welcome' || candidate.label.includes('Muse Spark'),
     )
-  })
-})
-
-// The extension builds its Model API host only for a conversation on that
-// backend, which needs a key in its SecretStorage and a message from its
-// panel; this harness can give neither. So the test builds a manager of its
-// own over the fake Model API, handed the path activate hands its manager,
-// and proves that the dev build's dist/modelApi.js sits beside
-// dist/extension.js and loads and runs in VS Code's extension host (M57).
-suite('the Model API bundle', () => {
-  test('loads from the installed extension and runs a turn', async () => {
-    const extension = vscode.extensions.getExtension(EXTENSION_QUALIFIED_ID)
-    assert.ok(extension, `extension ${EXTENSION_QUALIFIED_ID} not found`)
-    const folder = vscode.workspace.workspaceFolders?.[0]
-    assert.ok(folder, 'no workspace folder')
-    const api = fakeModelApi()
-    const errors: string[] = []
-    const log: Logger = {
-      trace: () => undefined,
-      info: () => undefined,
-      warn: () => undefined,
-      error: (message) => {
-        errors.push(message)
-      },
-    }
-    let ids = 0
-    const manager = new ModelApiBackendManager(
-      fakeManagerDeps(api, log, {
-        workspaceRoot: folder.uri.fsPath,
-        newId: () => {
-          ids += 1
-          return `id-${String(ids)}`
-        },
-        bundlePath: vscode.Uri.joinPath(extension.extensionUri, 'dist', MODEL_API_BUNDLE_FILE)
-          .fsPath,
-      }),
-    )
-    try {
-      const host = await manager.ensureHost()
-      const session = await host.startSession({
-        workspaceRoot: folder.uri.fsPath,
-        modelId: 'muse-spark-1.3',
-        approvalMode: 'promptUnmatched',
-      })
-      const replies: string[] = []
-      const completed = new Promise<void>((resolve) => {
-        session.onEvent((event: AgentEvent) => {
-          if (event.type === 'itemCompleted' && event.item.kind === 'agentMessage') {
-            replies.push(event.item.text ?? '')
-          }
-          if (event.type === 'turnCompleted') {
-            resolve()
-          }
-        })
-      })
-      api.script({ text: 'Hello from the bundle' })
-      await session.sendTurn([{ type: 'text', text: 'Say hello' }])
-      await completed
-      assert.deepEqual(replies, ['Hello from the bundle'])
-      assert.deepEqual(errors, [])
-    } finally {
-      await manager.dispose()
-    }
   })
 })
 

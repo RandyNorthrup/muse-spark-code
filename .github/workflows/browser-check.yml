@@ -83,6 +83,11 @@ jobs:
         if: steps.userns.outputs.restricted == 'true'
         shell: bash
         run: |
+          # The guard below is deliberately "not (A and B)": either test is a
+          # [ ] comparison, which fails only when its condition is false, so
+          # the brace group runs exactly when this is not a GitHub-hosted
+          # runner. There is no third state for C to leak into.
+          # shellcheck disable=SC2015
           [ "$GITHUB_ACTIONS" = true ] && [ "$RUNNER_ENVIRONMENT" = github-hosted ] || { echo "not a GitHub-hosted runner"; exit 1; }
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
