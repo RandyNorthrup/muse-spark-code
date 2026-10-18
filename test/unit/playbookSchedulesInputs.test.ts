@@ -5,23 +5,19 @@
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import * as ts from 'typescript'
 import { codeUnitCompare, localFailureOf } from '../../src/core/reporting/sources/local'
-import type { ScheduleFsPort } from '../../src/core/schedules/journal'
 import { createScheduleStore, scheduleStorageHash } from '../../src/core/schedules/store'
 import {
   createSchedulesReportReader,
   SCHEDULE_QUEUE_FAILURES,
 } from '../../src/runtime/reporting/playbookSchedulesInputs'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
-import * as nodeSchedules from '../../src/runtime/schedules/nodeScheduleFs'
-import { MemoryScheduleFs } from './helpers/schedules/kindStorage'
 import { schedulesSource } from '../../src/core/reporting/sources/schedules'
-import { scheduleTimePlan } from '../../src/runtime/schedules/timePlan'
-import { UI_TEXT, SCHEDULE_FS_RETRY_ATTEMPTS } from '../../src/shared/constants'
+import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
-import { fireFixture, sectionById } from './helpers/reporting/reportKindFixtures'
+import { fireFixture } from './helpers/reporting/reportKindFixtures'
 import {
   scheduleV2Schema,
   scheduleFireRecordSchema,
@@ -89,155 +85,14 @@ async function holdProductionLease(root: string) {
   return { release, held }
 }
 
-function spyReaderPort(readerFs: ScheduleFsPort) {
-  return {
-    read: vi.spyOn(readerFs, 'read'),
-    names: vi.spyOn(readerFs, 'names'),
-    publish: vi.spyOn(readerFs, 'publish'),
-    replace: vi.spyOn(readerFs, 'replace'),
-    remove: vi.spyOn(readerFs, 'remove'),
-    lock: vi.spyOn(readerFs, 'lock'),
-  }
-}
-
-async function holdMemoryLease() {
-  const fs = new MemoryScheduleFs()
-  const store = createScheduleStore(fs)
-  const job = scheduleV2Schema.parse(scheduleFixture(FIXTURE_WORKSPACE_KEY))
-  await store.create(job)
-  const release = Promise.withResolvers<undefined>()
-  const entered = Promise.withResolvers<undefined>()
-  const held = fs.lock(`${FIXTURE_WORKSPACE_KEY}/index`, () => {
-    entered.resolve(undefined)
-    return release.promise
-  })
-  await entered.promise
-  return { fs, store, job, release, held }
-}
-
 describe('schedules report reader failures', () => {
-  it('reconciles a manual one-shot fire between schedule and history reads', async () => {
-    const fs = new MemoryScheduleFs()
-    const store = createScheduleStore(fs)
-    const job = scheduleV2Schema.parse(
-      scheduleFixture(FIXTURE_WORKSPACE_KEY, { trigger: { kind: 'once', atMs: 2000 } }),
-    )
-    await store.create(job)
-    const originalLock = fs.lock.bind(fs)
-    let isInterleave = true
-    vi.spyOn(fs, 'lock').mockImplementation(async (key, work) => {
-      const result = await originalLock(key, work)
-      if (isInterleave) {
-        isInterleave = false
-        const runId = `${job.id}:3000`
-        await admitFirstFire(store, job, runId, 3000)
-        await store.record(
-          scheduleFireRecordSchema.parse(
-            fireFixture({
-              runId,
-              occurrenceMs: 3000,
-              observedAtMs: 3000,
-              outcome: 'ran',
-              refusedActions: [],
-            }),
-          ),
-        )
-      }
-      return result
-    })
-    const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(fs)
-    try {
-      const read = await readerFor('memory').read(context())
-      const observed = scheduleV2Schema.parse(read.schedules[0])
-      expect(observed.fireCount).toBe(1)
-      expect(observed.nextFireAtMs).toBe(2000)
-      expect(
-        scheduleTimePlan(observed, {
-          nowMs: 3000,
-          monotonicMs: 3000,
-          wallDeltaMs: 1,
-          monotonicDeltaMs: 1,
-          hasJumped: false,
-          isStartup: false,
-        }),
-      ).toEqual({ missed: false })
-      const result = await schedulesSource(
-        { read: () => Promise.resolve(read) },
-        (text) => text,
-      ).read(context())
-      expect(sectionById(result.data, 'schedules/timeline').rows).toEqual([])
-      expect(sectionById(result.data, 'schedules/schedules').rows[0]!.cells['status']?.value).toBe(
-        'complete',
-      )
-      expect(read.fires).toHaveLength(1)
-    } finally {
-      createFs.mockRestore()
-    }
-  })
-
-  it('retries a valid writer winning the reader fencing CAS', async () => {
-    const fs = new MemoryScheduleFs()
-    const store = createScheduleStore(fs)
-    const job = scheduleV2Schema.parse(scheduleFixture(FIXTURE_WORKSPACE_KEY))
-    await store.create(job)
-    let token = 0
-    vi.spyOn(fs, 'lock').mockImplementation(
-      async (_key, work) =>
-        await work(Object.assign(() => Promise.resolve(), { fencingToken: ++token })),
-    )
-    const entered = Promise.withResolvers<undefined>()
-    const resume = Promise.withResolvers<undefined>()
-    const publish = fs.publish.bind(fs)
-    let isPark = true
-    vi.spyOn(fs, 'publish').mockImplementation(async (file, bytes, guard) => {
-      if (isPark && /\/index\/[^/]+\/\d+\.json$/.test(file.replaceAll('\\', '/'))) {
-        isPark = false
-        await guard?.()
-        entered.resolve(undefined)
-        await resume.promise
-      }
-      return await publish(file, bytes, guard)
-    })
-    const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(fs)
-    try {
-      const pending = readerFor('memory').read(context())
-      // Attach rejection immediately; a losing reader is an expected race.
-      const result = (async () => {
-        try {
-          return { value: await pending }
-        } catch (error: unknown) {
-          return { error }
-        }
-      })()
-      await entered.promise
-      expect(await store.update({ ...job, name: 'Winning writer' })).toBe(true)
-      resume.resolve(undefined)
-      const observed = await result
-      expect(observed).toHaveProperty('value')
-      if (!('value' in observed)) throw new Error('Expected contention to retry')
-      expect(scheduleV2Schema.parse(observed.value.schedules[0]).name).toBe('Winning writer')
-    } finally {
-      resume.resolve(undefined)
-      createFs.mockRestore()
-    }
-  })
-
-  it.each(['scheduleJournalOwnershipLost', 'scheduleQueueOwnershipLost'])(
-    'names persistent %s as busy, never corrupt',
-    async (message) => {
-      const fs = new MemoryScheduleFs()
-      vi.spyOn(fs, 'lock').mockRejectedValue(new Error(message))
-      const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(fs)
-      try {
-        const result = await schedulesSource(readerFor('memory'), (text) => text).read(context())
-        expect(result.record.status).toBe('unavailable')
-        expect(result.record.reason).toBe(UI_TEXT.teamHostBusy)
-        expect(fs.lock).toHaveBeenCalledTimes(SCHEDULE_FS_RETRY_ATTEMPTS)
-      } finally {
-        createFs.mockRestore()
-      }
-    },
-  )
+  // NOTE (MSM113FIX): the former mid-read interleave cases are gone. The
+  // one-shot reconciliation, the fencing-CAS retry and the persistent
+  // ownership-loss cases hooked the reader's lock/publish calls through the
+  // module factory: interception, unrepresentable through the real reader.
+  // Their verdicts are withdrawn in docs/certification/msm113.md; the busy
+  // verdict itself stays proven below against a real held lease, and the
+  // retry loop is admission's own suites.
 
   it('reads damaged stored JSON as invalid, never a generic failure', async () => {
     await withSchedulesRoot('schedules-corrupt-', async (root) => {
@@ -407,30 +262,23 @@ describe('schedules report contention waits', () => {
     async () => {
       await withSchedulesRoot('schedules-held-lease-', async (root) => {
         const { release, held } = await holdProductionLease(root)
-        const readerFs = createNodeScheduleFs(root)
-        const spies = spyReaderPort(readerFs)
-        const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(readerFs)
         try {
           // A valid writer holds the lease past the source deadline: the
           // verdict is the Host busy sentence, never cancelled or timed out.
           const result = await sourceFor(root).read(freshContext())
           expect(result.record.status).toBe('unavailable')
           expect(result.record.reason).toBe(UI_TEXT.teamHostBusy)
-          // One attempt only: the expired wait is terminal, never retried.
-          expect(spies.lock).toHaveBeenCalledTimes(1)
-          const counts = Object.fromEntries(
-            Object.entries(spies).map(([method, spy]) => [method, spy.mock.calls.length]),
-          )
           release.resolve(undefined)
           await held
+          const settled = await inventory(root)
           await delay(300)
-          // The stopped reader performs no further read, write or publish once
-          // the holder lets go: every call count stays where it was.
-          for (const [method, spy] of Object.entries(spies))
-            expect(spy.mock.calls.length, method).toBe(counts[method])
+          // The stopped reader performs no further read, write or publish
+          // once the holder lets go: the tree stays exactly as it settled.
+          // (Lock attempts leave no trace, so the single attempt is not
+          // asserted here.)
+          expect(await inventory(root)).toEqual(settled)
         } finally {
           release.resolve(undefined)
-          createFs.mockRestore()
         }
       })
     },
@@ -468,84 +316,58 @@ describe('schedules report contention waits', () => {
 
   // The full 5 s reader wait must elapse against the gated lock, so this
   // needs longer than the repository default timeout.
-  it(
-    'stops a queued memory reader on its deadline with frozen calls',
-    { timeout: 30_000 },
-    async () => {
-      const { fs, release, held } = await holdMemoryLease()
-      const readerFs = new MemoryScheduleFs(fs)
-      const spies = spyReaderPort(readerFs)
-      const baseline = {
-        read: spies.read.mock.calls.length,
-        names: spies.names.mock.calls.length,
-        publish: spies.publish.mock.calls.length,
-        replace: spies.replace.mock.calls.length,
-        remove: spies.remove.mock.calls.length,
-        lock: spies.lock.mock.calls.length,
-      }
-      const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(readerFs)
+  it('stops a queued reader on its deadline with a frozen tree', { timeout: 30_000 }, async () => {
+    await withSchedulesRoot('schedules-queued-reader-', async (root) => {
+      const { release, held } = await holdProductionLease(root)
       try {
-        expect(await codeOf(() => readerFor('memory').read(freshContext()))).toBe('busy')
-        // The single lock attempt waited out its deadline; no read, listing,
-        // write or removal followed the stop.
-        expect(spies.lock.mock.calls.length).toBe(baseline.lock + 1)
-        expect(spies.read.mock.calls.length).toBe(baseline.read)
-        expect(spies.names.mock.calls.length).toBe(baseline.names)
-        expect(spies.publish.mock.calls.length).toBe(baseline.publish)
-        expect(spies.replace.mock.calls.length).toBe(baseline.replace)
-        expect(spies.remove.mock.calls.length).toBe(baseline.remove)
+        expect(await codeOf(() => readerFor(root).read(freshContext()))).toBe('busy')
         release.resolve(undefined)
         await held
-        // Check the abandoned tail before a reread can repair it.
-        await delay(0)
-        expect(fs.tails.size).toBe(0)
-        const reread = await readerFor('memory').read(context())
+        const settled = await inventory(root)
+        await delay(300)
+        // No read, listing, write or removal followed the stop: the tree
+        // stays exactly as it settled.
+        expect(await inventory(root)).toEqual(settled)
+        const reread = await readerFor(root).read(context())
         expect(reread.schedules).toHaveLength(1)
-        expect(fs.tails.size).toBe(0)
       } finally {
         release.resolve(undefined)
-        createFs.mockRestore()
       }
-    },
-  )
+    })
+  })
 
   it('still reports an explicit abort as cancelled, never busy', async () => {
-    const { fs, release, held } = await holdMemoryLease()
-    const readerFs = new MemoryScheduleFs(fs)
-    const publish = vi.spyOn(readerFs, 'publish')
-    const replace = vi.spyOn(readerFs, 'replace')
-    const published = publish.mock.calls.length
-    const replaced = replace.mock.calls.length
-    const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(readerFs)
-    try {
-      const controller = new AbortController()
-      const pending = sourceFor('memory').read({ ...freshContext(), signal: controller.signal })
-      const outcome = (async () => {
-        try {
-          return { value: await pending }
-        } catch (error: unknown) {
-          return { error }
-        }
-      })()
-      await delay(50)
-      controller.abort()
-      const settled = await outcome
-      expect(settled).toHaveProperty('value')
-      if (!('value' in settled)) throw new Error('Expected the source to settle its record')
-      expect(settled.value.record.status).toBe('unavailable')
-      expect(settled.value.record.reason).toBe(UI_TEXT.reportSourceReasons.cancelled)
-      // Freeze only after releasing/settling the holder, so an abandoned
-      // reader cannot resume unseen after these assertions.
-      release.resolve(undefined)
+    await withSchedulesRoot('schedules-abort-', async (root) => {
+      const { release, held } = await holdProductionLease(root)
+      try {
+        const controller = new AbortController()
+        const pending = sourceFor(root).read({ ...freshContext(), signal: controller.signal })
+        const outcome = (async () => {
+          try {
+            return { value: await pending }
+          } catch (error: unknown) {
+            return { error }
+          }
+        })()
+        await delay(50)
+        controller.abort()
+        const settled = await outcome
+        expect(settled).toHaveProperty('value')
+        if (!('value' in settled)) throw new Error('Expected the source to settle its record')
+        expect(settled.value.record.status).toBe('unavailable')
+        expect(settled.value.record.reason).toBe(UI_TEXT.reportSourceReasons.cancelled)
+        // Freeze only after releasing/settling the holder, so an abandoned
+        // reader cannot resume unseen after these assertions.
+        release.resolve(undefined)
+        await held
+        const frozen = await inventory(root)
+        await delay(100)
+        expect(await inventory(root)).toEqual(frozen)
+      } finally {
+        release.resolve(undefined)
+      }
       await held
-      await delay(100)
-      expect(publish.mock.calls.length).toBe(published)
-      expect(replace.mock.calls.length).toBe(replaced)
-    } finally {
-      release.resolve(undefined)
-      createFs.mockRestore()
-    }
-    await held
+    })
   })
 })
 
@@ -581,52 +403,20 @@ describe('schedules report lease identity words', () => {
     async (_name, forge) => {
       await withSchedulesRoot('schedules-lease-invalid-', async (root) => {
         await seedJob(root)
-        const fs = createNodeScheduleFs(root)
-        const lock = vi.spyOn(fs, 'lock')
-        const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(fs)
-        try {
-          await forge(await firstFile(root, 'leaseFences'))
-          // No competing writer can make a self-contradicting identity valid:
-          // invalid at once, with a single lock attempt and no retry.
-          expect(await codeOf(() => readerFor(root).read(context()))).toBe('invalid')
-          expect(lock).toHaveBeenCalledTimes(1)
-        } finally {
-          createFs.mockRestore()
-        }
+        await forge(await firstFile(root, 'leaseFences'))
+        // No competing writer can make a self-contradicting identity valid:
+        // invalid at once. (Lock attempts leave no trace, so the single
+        // attempt is not asserted here.)
+        expect(await codeOf(() => readerFor(root).read(context()))).toBe('invalid')
       })
     },
   )
 
-  it('heals a fence entry that vanishes between listing and read', async () => {
-    await withSchedulesRoot('schedules-lease-transient-', async (root) => {
-      await seedJob(root)
-      const fs = createNodeScheduleFs(root)
-      const header = await firstFile(root, 'leaseFences')
-      const segment = path.relative(root, path.dirname(header)).replaceAll('\\', '/')
-      await fs.remove(path.relative(root, header))
-      const through = fs.names.bind(fs)
-      const names = vi.spyOn(fs, 'names')
-      let isStale = true
-      names.mockImplementation(async (directory: string) => {
-        const listed = await through(directory)
-        if (isStale && directory.replaceAll('\\', '/') === segment) {
-          isStale = false
-          return [...listed, path.basename(header)]
-        }
-        return listed
-      })
-      const createFs = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(fs)
-      try {
-        // The first attempt loses the listed fence to a writer that moved
-        // on; the retry observes the takeover and reads successfully.
-        const read = await readerFor(root).read(context())
-        expect(read.schedules).toHaveLength(1)
-        expect(isStale, 'the listed-then-vanished fault was injected').toBe(false)
-      } finally {
-        createFs.mockRestore()
-      }
-    })
-  })
+  // NOTE (MSM113FIX): the listed-then-vanished healing case is gone. It made
+  // the reader's listing lie once through a names hook: interception,
+  // unrepresentable through the real reader (a real concurrent removal is a
+  // race, never deterministic). The healing verdict is withdrawn in
+  // docs/certification/msm113.md.
 })
 
 async function recordFire(root: string, scheduleId: string, runId: string) {
@@ -773,22 +563,12 @@ describe('queue vocabulary coverage', () => {
     expect([...emitted].toSorted(codeUnitCompare)).toEqual([...declared].toSorted(codeUnitCompare))
   })
 
-  it.each(Object.entries(SCHEDULE_QUEUE_FAILURES))(
-    'classifies %s as %s',
-    async (word, classification) => {
-      const fs = new MemoryScheduleFs()
-      const lock = vi.spyOn(fs, 'lock').mockRejectedValue(new Error(word))
-      const factory = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(fs)
-      try {
-        expect(await codeOf(() => readerFor('memory').read(context()))).toBe(
-          classification === 'retry' ? 'busy' : classification,
-        )
-        expect(lock).toHaveBeenCalledTimes(
-          classification === 'retry' ? SCHEDULE_FS_RETRY_ATTEMPTS : 1,
-        )
-      } finally {
-        factory.mockRestore()
-      }
-    },
-  )
+  // NOTE (MSM113FIX): the per-word lock-rejection table is gone. It made
+  // the lock fail with each queue word through the module factory:
+  // interception, and lock attempts leave no real trace to assert. Each
+  // verdict stays proven for real elsewhere in this file: busy against a
+  // real held lease, invalid through forged fence headers, failed through
+  // forged store states. The retry rows (ownership loss) and the heartbeat
+  // failure have no deterministic real trigger; their runtime
+  // classification is withdrawn in docs/certification/msm113.md.
 })
