@@ -114,9 +114,10 @@ function authStates(messages: readonly HostToWebviewMessage[]): HostToWebviewMes
   return messages.filter((message) => message.type === 'authState')
 }
 
-// The parse keeps presence only (`0` stands in for the value, which the
-// parse replaces; no credential ever lands in a test).
-const INLINE = '{"schema_version":1,"providers":{"meta":{"api_key":0}}}'
+// The parse keeps presence only (a placeholder string stands in for the
+// value, which the parse replaces with a boolean; no credential ever lands
+// in a test). Only a string key is the captured inline sign-in (F94).
+const INLINE = '{"schema_version":1,"providers":{"meta":{"api_key":"<placeholder>"}}}'
 const SIGNED_OUT = '{"schema_version":1,"providers":{}}'
 
 describe('sign-in fast path', () => {

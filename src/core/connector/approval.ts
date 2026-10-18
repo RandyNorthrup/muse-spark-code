@@ -64,7 +64,6 @@ export class ApprovalLedger {
       outcome: 'approved' | 'denied' | 'expired',
     ) => void,
     private readonly leaseMs: number = CONNECTOR_LIMITS.approvalLeaseMs,
-    private readonly maxPending: number = CONNECTOR_LIMITS.pendingApprovals,
     private readonly maxSettled: number = CONNECTOR_LIMITS.operationsKept,
   ) {}
 
@@ -78,13 +77,12 @@ export class ApprovalLedger {
     }
   }
 
-  /** A new pending intent, or undefined when the connection's pending cap is reached. */
+  /** A new pending intent. No fixed cap stands beside it (Codex on PR #227). */
   public open(
     binding: ApprovalBinding,
     view: Omit<ConnectorIntentView, 'intentId' | 'digest' | 'expiresAt'>,
-  ): string | undefined {
+  ): string {
     this.expireDue()
-    if (this.intents.size >= this.maxPending) return undefined
     const id = randomBytes(CONNECTOR_LIMITS.idBytes).toString('hex')
     const expiresAt = this.now() + this.leaseMs
     this.intents.set(id, {

@@ -89,6 +89,7 @@ import {
 import { walkFiles } from './fileWalk'
 import { isStoreUnavailable, StoreUnavailableError } from './keyStore'
 import { isPlanModelRef } from '../shared/providerRouting'
+import { readProvidersFile } from '../core/providers/providersFile'
 import { paidGrantFile } from './paidGrants'
 
 import type { AssembledProviderRun } from './exec/providerExec'
@@ -751,7 +752,27 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     }
     if (deps.exec?.providerRun !== undefined) return { state: 'ready' }
     if (key !== undefined && key !== '') return { state: 'ready' }
-    const isPlan = modelHint !== undefined && isPlanModelRef(modelHint)
+    // No `--model`: the configured default decides, as the late default-model
+    // resolution does after the session starts (Codex on PR #227). A default
+    // plan model must reach the subscription checks below instead of this
+    // key gate, or the keyless default-plan flow never starts.
+    let hint = modelHint
+    if (hint === undefined && deps.exec !== undefined) {
+      try {
+        const read = await readProvidersFile(
+          path.join(
+            deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
+            PROVIDERS_CONFIG_DIR_NAME,
+            PROVIDERS_FILE_NAME,
+          ),
+        )
+        if (read.ok) hint = read.file.defaultModel
+      } catch {
+        // An unreadable providers file reads as no default: the key gate
+        // below still refuses, and the run surfaces the file's own error.
+      }
+    }
+    const isPlan = hint !== undefined && isPlanModelRef(hint)
     if (!isPlan && deps.exec !== undefined)
       return { state: 'signedOut', message: UI_TEXT.acpNoStoredKey }
     try {
@@ -781,16 +802,19 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       }
       return { state: 'unavailable', message: UI_TEXT.acpChatGpt.failure }
     }
-    // A plan model's refusal names its own sign-in, never the Meta key.
+    // A plan model's refusal names its own sign-in, never the Meta key. The
+    // name comes from the resolved hint (the configured default included),
+    // not the flag: without `--model` the flag is empty here (Codex on PR
+    // #227).
     let refusal = UI_TEXT.acpNoStoredKey
-    if (isPlan && modelHint.startsWith('chatgpt/'))
-      refusal = UI_TEXT.acpChatGpt.states['signed-out']
-    // The Copilot dispatch adapter is VS Code's Language Model API
-    // (src/host/providers/copilotClient.ts): this terminal cannot reach that
-    // grant, so the refusal names its source instead of offering a sign-in
-    // no terminal can perform.
-    else if (isPlan && modelHint.startsWith('copilot/'))
-      refusal = UI_TEXT.planUi.copilotTerminalGrant
+    if (hint !== undefined && isPlanModelRef(hint)) {
+      if (hint.startsWith('chatgpt/')) refusal = UI_TEXT.acpChatGpt.states['signed-out']
+      // The Copilot dispatch adapter is VS Code's Language Model API
+      // (src/host/providers/copilotClient.ts): this terminal cannot reach that
+      // grant, so the refusal names its source instead of offering a sign-in
+      // no terminal can perform.
+      else if (hint.startsWith('copilot/')) refusal = UI_TEXT.planUi.copilotTerminalGrant
+    }
     return { state: 'signedOut', message: refusal }
   }
 

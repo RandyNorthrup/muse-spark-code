@@ -596,6 +596,7 @@ tested on chunk splits inside frames and inside multi-byte characters.
 | `stylelint` + `stylelint-config-standard`                                                            | 17.15.0 / 40.0.0                  |
 | `vitest` + `@vitest/coverage-v8`                                                                     | 5.0.3                             |
 | `jsdom`                                                                                              | 30.1.1                            |
+| `@types/jsdom`                                                                                       | 30.0.0                            |
 | `@testing-library/react` / `dom` / `jest-dom`                                                        | 16.3.3 / 10.4.2 / 7.0.1           |
 | `@vscode/test-cli` + `@vscode/test-electron` + `mocha` + `@types/mocha`                              | 0.0.15 / 3.1.0 / 12.0.2 / 10.0.10 |
 | `esbuild`                                                                                            | 0.28.2                            |
@@ -683,6 +684,8 @@ tested on chunk splits inside frames and inside multi-byte characters.
 **`mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown`** — M79: the host reads a plan with the panel's own Markdown grammar (what react-markdown 10.1.0 and remark-gfm 4.0.1 resolve to; no peers; 0 advisories). Its own lazily loaded bundle, `dist/planMarkdown.js` (139.0 KiB with the brief writer, `character-entities` among it), so `dist/extension.js` carries none of it (464.8 KiB after merging `main`, D6).
 
 **`smol-toml`** — Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.
+
+**`@types/jsdom`** — PR #227 lane (2026-10-18): the approval-page double-decision suite drives the real shipped page script in a real jsdom DOM; the pinned jsdom 30.1.1 ships no types, so the suite imports untyped without it. MIT; no peers; a dev dependency, never bundled.
 
 DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,
 Vitest and V8 coverage 5.0.3 together, jscpd 5.4.0, knip 6.39.0 and
@@ -17213,7 +17216,7 @@ all of them; the `trackedDebt` category is the complete inventory it found.
 
 **Sanctioned numeric money (M121 decision, 2026-10-09).** The type-checker
 guard reads all of `src` (host, runtime, ACP and webview too), so it judges
-more than the 0.17 inventory. Four kinds of number stay numeric, each listed
+more than the 0.17 inventory. Six kinds of number stay numeric, each listed
 in the guard's `sanctioned` category with this paragraph as its citation:
 (1) per-unit rates — USD per million tokens, per token or per hour on a price
 card or catalog row, display and comparison only, settled through `Usd`;
@@ -17226,11 +17229,17 @@ estimator's demand quantities (RVM121A P3-3, 2026-10-09: `accountUsdPerHour`
 and the `usd` rate read from it), USD/hour forecasts compared as numbers
 inside scheduling math beside requests/tokens/percent per hour through the
 shared number-based `Quantity` machinery — converting one unit would fracture
-it, so conversion waits for estimator-milestone work. Everything
+it, so conversion waits for estimator-milestone work; (5) the connector's
+integer micro-USD amounts (grant paid caps, approval prices), exact integer
+math end to end and never float, shown as micros until the paid-authority UI
+decides their display (PR #227, 2026-10-18); (6) the frozen eval plan's
+recorded budget and measured cost (`src/core/eval/plan.json`), the live run's
+own numbers read back for estimates only, never billed or enforced (PR #227,
+2026-10-18). Everything
 else is converted to `UsdAmount`; old persisted numbers are read through a
 versioned schema whose number member pipes straight to the canonical string.
 
-**Citations by text (INT0180, 2026-10-11).** The guard cites the four clauses
+**Citations by text (INT0180, 2026-10-11).** The guard cites the six clauses
 above by this milestone's heading and their own words
 (`test/unit/helpers/planCitation.ts`, `moneyPlanCitations.ts`), not by line
 number: a line number moved with every edit above it, and the old check only
@@ -36883,6 +36892,10 @@ No new escape hatch is introduced.
 | Location                                                   | Escape hatch                                                                          | Reason                                                                                                                                                                                                                   | Date       |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
 | `test/unit/eval/evalFreezeLayout.test.ts` (`trackedFiles`) | `eslint-disable-next-line unicorn/prefer-unicode-code-point-escapes` on the NUL split | The lane brief mandates the `\x00` escape text where a literal NUL byte stood (Git read the file as binary); `\u{0}` would satisfy the rule but not the mandated text. Test-only; the split still yields NUL at runtime. | 2026-10-12 |
+
+| PR227W1 location                                                  | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                            | Date       |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/core/backends/modelapi/ModelApiHost.ts`, `trackIdentityWait` | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | Node 20 (VS Code 1.99's host) lacks `Promise.withResolvers`; the close-drain gate uses `new Promise` with a synchronously assigned resolver instead (the M62 pattern, as in `developerOptions.ts` `serialize`). Remove if the minimum host gains `withResolvers`. | 2026-10-18 |
 
 ## 9. Security assumptions and accepted residual risk
 

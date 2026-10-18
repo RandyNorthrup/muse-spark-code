@@ -329,14 +329,21 @@ function summarizeChecks(
 export class GitHubClient {
   public constructor(private readonly deps: GitHubClientDeps) {}
 
-  /** One call: JSON in and out, the token in the header, a deadline, GitHub's refusals as `GitHubError`. */
+  /**
+   * One call: JSON in and out, the token in the header, a deadline,
+   * GitHub's refusals as `GitHubError`. An operation's signal joins the
+   * deadline, so Cancel stops pull-request discovery at once (Codex on PR
+   * #227); without one the deadline stands alone as before.
+   */
   private async request(
     token: string,
     method: 'GET' | 'POST',
     path: string,
     body?: unknown,
+    signal?: AbortSignal,
   ): Promise<unknown> {
     const url = `${this.deps.baseUrl ?? GITHUB_API_BASE_URL}${path}`
+    const deadline = AbortSignal.timeout(this.deps.timeoutMs ?? GITHUB_REQUEST_TIMEOUT_MS)
     let response: Response
     try {
       response = await this.deps.fetch(url, {
@@ -349,7 +356,7 @@ export class GitHubClient {
           ...(body !== undefined && { 'Content-Type': 'application/json' }),
         },
         ...(body !== undefined && { body: JSON.stringify(body) }),
-        signal: AbortSignal.timeout(this.deps.timeoutMs ?? GITHUB_REQUEST_TIMEOUT_MS),
+        signal: signal === undefined ? deadline : AbortSignal.any([deadline, signal]),
       })
     } catch (error: unknown) {
       this.deps.log.warn(`GitHub ${method} did not reach GitHub`)
@@ -395,10 +402,11 @@ export class GitHubClient {
   public async repositoryFacts(
     token: string,
     repository: GitHubRepository,
+    signal?: AbortSignal,
   ): Promise<RepositoryFacts> {
     const parsed = this.parse(
       repositorySchema,
-      await this.request(token, 'GET', repositoryPath(repository)),
+      await this.request(token, 'GET', repositoryPath(repository), undefined, signal),
       'repository',
     )
     const parent =
@@ -431,6 +439,7 @@ export class GitHubClient {
     repository: GitHubRepository,
     headOwner: string,
     branch: string,
+    signal?: AbortSignal,
   ): Promise<PullRequest | undefined> {
     const query = new URLSearchParams({
       head: `${headOwner}:${branch}`,
@@ -441,6 +450,8 @@ export class GitHubClient {
       token,
       'GET',
       `${repositoryPath(repository)}/pulls?${query.toString()}`,
+      undefined,
+      signal,
     )
     const [first] = this.parse(z.array(pullRequestSchema), raw, 'pull request list')
     return first === undefined ? undefined : toPullRequest(first)

@@ -23,7 +23,7 @@ import {
   providerOutputMinimum,
   openRouterRoutingSchema,
 } from '../../shared/providerRouting'
-import { isProviderId, parseModelRef } from './modelRef'
+import { isProviderId, isStorableModelId, parseModelRef } from './modelRef'
 import type { PriceCard } from './priceCard'
 import { capabilityOverridesSchema, userCapabilityOverrides } from './capabilityRecord'
 
@@ -66,8 +66,13 @@ export const providerEntrySchema = z
     // The wire format (a custom server's choice; presets fix their own).
     format: z.optional(providerFormatSchema),
     auth: providerAuthSchema,
-    // The chosen models (`<modelId>` as the provider lists them).
-    models: z.array(z.string()),
+    // The chosen models (`<modelId>` as the provider lists them). A stored
+    // id is printed back by later lists, so control and format characters
+    // never validate: no stored value can steer a terminal (Codex on PR
+    // #227, like the `--force` reasons below).
+    models: z.array(
+      z.string().check(z.refine(isStorableModelId, { error: () => UI_TEXT.actionFailed })),
+    ),
     // Required for every chosen custom model; retained across save/reload.
     modelLimits: z.optional(z.record(z.string(), modelLimitsSchema)),
     // Compatibility overrides for a custom server's wire shape (BYO 14).

@@ -7,7 +7,7 @@
 import type { ProviderEntry, ProvidersFile } from '../core/providers/providersFile'
 import { modelRef, presets, providersFile } from '../host/backend/providersEntry'
 
-const { sanitizeModelLabel } = modelRef
+const { isStorableModelId, sanitizeModelLabel } = modelRef
 const { presetById } = presets
 import { ACP_AGENT_NAME, UI_TEXT } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
@@ -89,9 +89,11 @@ async function readProviderModelList(
     stored.key,
     deps.resolveHost,
   )
-  // Fetched ids are remote text: strip terminal controls before they are
-  // printed or suggested (Codex on PR #213).
-  return listed?.map((model) => sanitizeModelLabel(model))
+  // Fetched ids stay raw here: the equality check below must see the
+  // provider's exact ids (a long id the display cap would cut is still the
+  // provider's id). Remote text is sanitized only where it is printed or
+  // suggested (Codex on PR #213, PR #227).
+  return listed
 }
 
 /**
@@ -123,7 +125,11 @@ export async function providersModels(
   const clean = (models: readonly string[]): readonly string[] | undefined => {
     const cleaned = models.map((model) => model.trim()).filter((model) => model !== '')
     // A repeated flag names the model once; the file never carries it twice.
-    return cleaned.some((model) => /\s/.test(model)) ? undefined : [...new Set(cleaned)]
+    // Whitespace, control and format characters never store: a stored id is
+    // printed back by later lists (Codex on PR #227).
+    return cleaned.some((model) => /\s/.test(model) || !isStorableModelId(model))
+      ? undefined
+      : [...new Set(cleaned)]
   }
   const add = clean(options.add)
   const remove = clean(options.remove)
@@ -143,7 +149,7 @@ export async function providersModels(
     const extra = listed.filter((model) => !entry.models.includes(model))
     if (extra.length > 0) {
       deps.print(UI_TEXT.cliHelp.modelsExtra)
-      deps.print(extra.join(', '))
+      deps.print(extra.map((model) => sanitizeModelLabel(model)).join(', '))
     }
     return EXIT_OK
   }
@@ -174,7 +180,10 @@ export async function providersModels(
           fill(UI_TEXT.cliHelp.modelsUnknown, {
             model,
             entry: entry.id,
-            closest: closestIds(model, listed),
+            closest: closestIds(
+              model,
+              listed.map((candidate) => sanitizeModelLabel(candidate)),
+            ),
           }),
         )
         deps.printError(UI_TEXT.cliHelp.modelsNeedsForce)
