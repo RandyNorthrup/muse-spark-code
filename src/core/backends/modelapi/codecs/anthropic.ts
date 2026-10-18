@@ -55,12 +55,13 @@ import {
   ANTHROPIC_MAX_STREAM_BYTES,
   CODEC_EMPTY_TOOL_OUTPUT,
   CODEC_IMAGE_WITHOUT_VISION,
-  HTTP_TOO_MANY_REQUESTS,
   THINKING_OFF_EFFORT,
   PROVIDER_MANUAL_THINKING_BUDGET,
+  PROVIDER_RETRY_HTTP_STATUS,
 } from '../../../../shared/constants'
 import { fill, UI_TEXT } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../transport'
+import { parseRefusalError } from '../providerRefusal'
 import {
   ChatCodecError,
   cleanJsonStrings,
@@ -92,7 +93,6 @@ const ANTHROPIC_PATH = '/v1/messages'
 const ANTHROPIC_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 type AnthropicEffort = (typeof ANTHROPIC_EFFORTS)[number]
 const IMAGE_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const
-const SPEND_CAP_REASON = 'enforced_spend_limit_reached'
 
 class AnthropicCodecError extends Error {
   override readonly name = 'AnthropicCodecError'
@@ -844,7 +844,14 @@ function stopOutcome(stopReason: string | null | undefined): StopOutcome {
     case 'stop_sequence': {
       return { status: 'completed' }
     }
-    case 'max_tokens':
+    // The host continues only on its own output-limit word, which every
+    // provider's limit stop maps to (GAPANTH-G11): the chat codec maps
+    // `length`, Gemini maps `MAX_TOKENS`, Anthropic maps `max_tokens` here.
+    // `refusal`, `pause_turn` and any other stop keep the provider's word:
+    // the turn must not blindly continue a refused or paused turn.
+    case 'max_tokens': {
+      return { status: 'incomplete', reason: 'max_output_tokens' }
+    }
     case 'refusal':
     case 'pause_turn': {
       return { status: 'incomplete', reason: stopReason }
@@ -1299,26 +1306,35 @@ function emptyResponse(
 
 // --- errors: the envelope to `ModelApiError` (lane T retries from this) ---
 
-const anthropicErrorSchema = z.object({
-  type: z.literal('error'),
-  error: z.object({ type: z.string(), message: z.string() }),
-})
-
 /**
  * Map a non-2xx Messages answer to `ModelApiError`: the envelope's message,
- * its `error.type` as the kind, and — for a 429 whose prose names the spend
- * cap (research §1.5, [A-rl]) — that reason as the code, so the transport
- * never retries what no wait would fix. Anything unenveloped falls back to
- * the status, as the Meta client does.
+ * its `error.type` as the kind, and the documented
+ * `error.details.error_code` as the code (GAPANTH-G20:
+ * https://platform.claude.com/docs/en/api/rate-limits#reaching-your-spend-cap,
+ * read 2026-10-13 — a tier spend-cap 429 carries
+ * `enforced_spend_limit_reached` there while its `type` stays
+ * `rate_limit_error`, and retrying it keeps failing). Where no documented
+ * code rides along, a 429 whose prose names that exact code word still
+ * carries it as the code (the base parser's rule, research §1.5 [A-rl],
+ * restored by RVPROVERR: removing it made such a 429 retryable again).
+ * Anything unenveloped carries `parsed: false` with the status and the
+ * first bounded line of the body (lane PROVERR): still the provider's
+ * refusal, never a product sentence.
  */
+const SPEND_CAP_REASON = 'enforced_spend_limit_reached'
 export function parseAnthropicError(status: number, body: unknown): ModelApiError {
-  const parsed = anthropicErrorSchema.safeParse(body)
-  if (!parsed.success) {
-    return new ModelApiError(`HTTP ${String(status)}`, status, undefined, undefined)
-  }
-  const { type, message } = parsed.data.error
-  const isSpendCapped = status === HTTP_TOO_MANY_REQUESTS && message.includes(SPEND_CAP_REASON)
-  return new ModelApiError(message, status, type, isSpendCapped ? SPEND_CAP_REASON : undefined)
+  const refusal = parseRefusalError(status, body)
+  const proseCode =
+    status === PROVIDER_RETRY_HTTP_STATUS.tooManyRequests &&
+    refusal.message.includes(SPEND_CAP_REASON)
+      ? SPEND_CAP_REASON
+      : undefined
+  return new ModelApiError(
+    refusal.message,
+    status,
+    refusal.kind,
+    refusal.errorCode ?? refusal.code ?? proseCode,
+  )
 }
 
 // --- models list: `GET /v1/models` (capture 01; the scan lives in lane P) ---
