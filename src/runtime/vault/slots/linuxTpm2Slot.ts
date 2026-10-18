@@ -369,15 +369,3 @@ export class LinuxTpm2Slot implements VaultSlotPort {
     return Promise.resolve()
   }
 }
-
-/** Slot identity fields every platform provider derives from a stored record. */
-export function contextFrom(record: VaultSlotRecord): LinuxTpm2Context {
-  return {
-    id: record.id,
-    vaultId: record.vaultId,
-    lastGeneration: record.lastGeneration,
-    auditGeneration: record.auditGeneration,
-    auditHead: record.auditHead,
-    createdAt: record.createdAt,
-  }
-}
