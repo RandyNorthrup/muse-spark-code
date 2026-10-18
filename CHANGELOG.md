@@ -614,9 +614,9 @@ happened, not what was planned; superseded entries are kept.
   The reply opens with `My playback — my own understanding, from memory
   only:`, so the person can compare it with what they asked and correct it
   in the next message. On the Model API backend the turn is offered no
-  tools and every call is refused in code; on Muse Code it runs in Plan
-  mode and stops at the first tool use. It runs on the panel, the terminal
-  and ACP editors, in all fourteen languages.
+  tools and every call is refused in code; on Muse Code it is refused
+  instead of run, which has no turn without tools. It runs on the panel,
+  the terminal and ACP editors, in all fourteen languages.
 - Dictation setups leave the activation bundle: the window's dictation and
   Muse Voice setups with the helper probes ship as `dist/dictation.js`,
   required at their existing construction points, bringing the lane-K
@@ -709,6 +709,25 @@ happened, not what was planned; superseded entries are kept.
   the thirteen working kinds (`milestone <id>`, `release <version|latest>`,
   `estimate <milestone>`, …) in all fourteen languages, and `report --help`
   shows the report command's own usage.
+
+- **The production build emits the report input bundles it budgets**
+  (RUFEATURESL). `dist/reportInputs.js` (session/usage kinds) and
+  `dist/playbookSchedulesInputs.js` (playbook/schedules kinds) were budgeted
+  and loaded on first use but never emitted by the production build, so the
+  packed product could not run those four report kinds. Both now build in
+  the bounded pool beside the other reporting bundles, inside their budgets.
+
+- **The deferred bundle map names the production media entry**
+  (RUFEATURESL). `productionMediaEntry.ts` had no row in the split plugin's
+  entry-to-bundle map, so its dynamic imports were inlined into their
+  importers and the lazy registry could not resolve the loads. One map row:
+  the media entry stays lazy, the registry command is current, and the
+  importing bundles are back inside their unchanged budgets.
+
+- **The split gate lists the runtime media port as a text-template reader**
+  (RUFEATURESL). The ACP/exec media port formats picked text files through
+  the shared template, which the gate's reader list did not name. Listed
+  with a reason; no code moved.
 
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or

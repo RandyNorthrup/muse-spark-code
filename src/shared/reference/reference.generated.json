@@ -1194,9 +1194,9 @@
       "commands": [],
       "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#playback",
-      "backends": ["museCode", "modelApi"],
+      "backends": ["modelApi"],
       "paid": false,
-      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
       "details": [],
       "facts": {},
       "editors": ["vscode", "acp"]
