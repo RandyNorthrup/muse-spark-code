@@ -25,7 +25,7 @@ import {
   deleteEnvironmentVariable,
   setEnvironmentVariable,
   windowsPowerShellModulePath,
-} from '../backends/musecode/launch'
+} from '../childEnvironment'
 import { resolveExecutable } from '../executables'
 import type { HelperInvocation } from './dictation'
 

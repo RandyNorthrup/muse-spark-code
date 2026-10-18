@@ -331,6 +331,17 @@ above.
     source fingerprint), a milestone without an entry or an entry for a
     milestone PLAN.md does not have (PLAN.md M122; CONTRIBUTING.md has the
     entry format).
+18. **Starts cells are strict.** A `Starts` cell in a PLAN.md lane table is
+    `day 0`, `first`, `last`, or `after <ref>[, <ref> | and <ref>]...`
+    (clauses split on `;`), where a ref is a lane of its own milestone
+    (`0`, `lane 0`), a qualified lane (`M100:T`), or a whole milestone
+    (`M100`, expanding to its lanes). Text in parentheses is a note and is
+    ignored; `after lane 0` means lane `0`; an empty cell binds nothing.
+    Anything else refuses with `malformed-starts` naming the cell and its
+    plan line. Strictness applies to the goal's dependency closure (rows
+    outside it never block a forecast); `estimate --check-plan` lists every
+    problem in the whole plan. Write prose as a parenthetical note, never
+    as a ref. One table per milestone is a lane table.
 
 ## Layout
 
@@ -387,13 +398,16 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       the first attach) and screen
                       recording (dist/screenRecord.js: the recorder command,
                       loaded on the first recording; M105),
-                      the vault's window (vault/: the panel host and the
-                      native editor in dist/vault.js, loaded on the first
-                      vault command; only the command shim stays at
-                      activation, and both commands refuse closed until the
-                      broker-backed service lands),
+                      the vault's window (vault/: the panel host, the
+                      native editor and the broker-backed panel service in
+                      dist/vault.js, loaded on the first vault command; only
+                      the command shim stays at activation, and both
+                      commands refuse closed until the broker is installed
+                      and the Models & Agents panel mounts the vault section),
                       the estimator's engine and history honesty
                       (dist/estimator.js, loaded on the first estimate; M117),
+                      the estimator's plan snapshot (dist/planSnapshot.js,
+                      loaded on the first estimate needing one; M117),
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web
@@ -463,7 +477,9 @@ src/runtime/**        the agent's process: arguments, backends outside VS Code,
                       `report` (M93), `providers accounts` and the runtime
                       account services (dist/runtimeAccounts.js, loaded on the
                       first accounts, developer or keyed headless command; M108),
-                      the journal-backed `playbook` command
+                      the vault's CLI, ACP and headless binding
+                      (dist/vaultRuntime.js, loaded on the first vault need;
+                      C-M109-1), the journal-backed `playbook` command
                       with its ACP `/playbook` surface (M116); the schedule command and settle path
                       (schedules/), and the native background scheduler entry
                       (dist/scheduleBackground.js, run by the OS launcher)

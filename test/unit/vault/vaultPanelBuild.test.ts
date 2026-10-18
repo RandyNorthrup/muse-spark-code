@@ -79,11 +79,15 @@ it('U new UI has its own lazy graph and hard 75 KiB cap; activation shares no Va
     ),
   ).toBe(true)
 })
-it('U host has an independent hard 50 KiB cap and does not carry a broker, store or platform helper', async () => {
+it('U host has an independent hard 50 KiB cap and does not carry the broker engine, store or platform helper', async () => {
   const host = built.host!
   const file = Object.keys(host.outputs)[0]!
   const stats = await stat(file)
   expect(stats.size / 1024).toBeLessThanOrEqual(VAULT_HOST_BUDGET_KIB)
+  // C-M109-1: the host's client side (client, frames, discovery, manage
+  // session) belongs here; the broker's engine, server and store never do.
   for (const input of Object.keys(host.inputs))
-    expect(input.replaceAll('\\', '/')).not.toMatch(/core\/vault\/(?:broker|store)|vault\/slots/)
+    expect(input.replaceAll('\\', '/')).not.toMatch(
+      /core\/vault\/(?:store|broker\/(?:broker|state|policy|audit|channel|epoch|management|repository|firstParty))\.ts|vault\/slots/,
+    )
 })

@@ -284,6 +284,9 @@ export const EN = {
   estimateWaiting: 'Waiting for {dependency}.',
   estimateRunning: 'Estimating…',
   estimateFailed: 'Estimate failed: {detail}',
+  // A refused estimate's omitted lanes: {count} is the lanes the estimator
+  // did not name, rendered in the report's language from that number.
+  estimateMissingMore: forms({ one: 'and {count} more', other: 'and {count} more' }),
   estimateSchedule: 'Lane Schedule',
   estimateGantt: 'Schedule for {goal}, with the critical path and P50 and P90 finish marks.',
   estimateOptimizeDescription:
@@ -444,6 +447,7 @@ export const EN = {
     'estimate-by': '--by <date>: Deadline',
     fleet: '--fleet current|minimum|optimum: Current / Minimum / Optimum',
     'estimate-format': '--format md|html|json|text: Output format',
+    'estimate-check-plan': '--check-plan: List every plan problem instead of estimating',
     seed: '--seed <seed>: Simulation seed',
   },
   referenceScanSecrets:
@@ -593,7 +597,10 @@ export const EN = {
   referenceDiagnostics: 'Show local backend and extension diagnostics.',
   referenceReport: 'Preview a scrubbed problem report before saving or sending it.',
   referenceInProgress: 'In progress.',
-  referenceEstimate: 'In progress.',
+  estimateDiagnosticHelp:
+    'Plan and engine refusals show the same named diagnostic in the panel, CLI and ACP; external errors hide private details. A refused estimate, refresh or start replaces the previous forecast with that diagnostic.',
+  referenceEstimate:
+    'Ship-date forecast for a goal from the current fleet, or the setup a target date needs.',
   referenceTerminal: 'Open the Muse Code CLI in the editor’s terminal.',
   referenceRules: 'Create or open AGENTS.md in the workspace root.',
   referenceWalkthrough: 'Open the Getting Started walkthrough.',
@@ -2199,6 +2206,8 @@ export const EN = {
     fires: 'Fires',
     keybindings: 'Key Bindings',
     conflicts: 'Conflicts',
+    shortcut: 'Shortcut',
+    command: 'Command',
     diff: 'Difference',
     sources: 'Sources',
     planFormat: 'Plan Format',
@@ -2238,6 +2247,7 @@ export const EN = {
     merged: 'Merged',
     released: 'Released',
     complete: 'Complete',
+    ended: 'Ended',
     superseded: 'Superseded',
     waiting: 'Waiting',
     blocked: 'Blocked',
@@ -2255,6 +2265,20 @@ export const EN = {
     removed: 'Removed',
     changed: 'Changed',
     unchanged: 'Unchanged',
+    paused: 'Paused',
+    active: 'Active',
+    all: 'All',
+    total: 'Total',
+    once: 'Once',
+    user: 'User',
+    hookVerification: 'Hook verification',
+  },
+  reportScheduleCells: {
+    triggerInterval: 'every {everyMs} ms',
+    triggerDaily: 'every {everyDays}d {times}x daily',
+    triggerWeekdays: '{times}x on weekdays',
+    triggerWeekly: '{days}d weekly',
+    scheduleGrant: '{rules} rules, {destinations} destinations, cap {cap}',
   },
   reportKinds: {
     project: 'Project',
@@ -2347,9 +2371,32 @@ export const EN = {
     unbound: 'This source integration is unavailable.',
     history: 'History for the selected session is unavailable.',
   },
+  reportDetailReasons: {
+    journalIncomplete:
+      'The usage journal contains damaged, incomplete or newer-version entries; totals exclude them.',
+    sessionUsageUnavailable:
+      'Usage for this session is not attributable in the retained journal; token and cost totals are unavailable.',
+    budgetsUnavailable: 'Budget snapshots for the selected period are unavailable.',
+    sessionModelUnavailable:
+      'The session catalogue names no active model, so the model is reported as unknown.',
+
+    sessionTurnsUnavailable:
+      'The session history records no turn identifiers, so turns cannot be counted.',
+    sessionApprovalsUnavailable: 'The session history records no approval decisions.',
+    toolBreakdownUnavailable: 'Per-tool usage is not recorded in the usage journal.',
+    rolledUpBreakdownExcluded: 'Rolled-up history is included in totals but not in this breakdown.',
+    rolledUpSessionExcluded:
+      'Rolled-up history is excluded from this session’s totals and breakdown.',
+    accountsFacetsUnavailable: 'Unavailable account details: {facets}.',
+    securityVaultUnavailable: 'The vault is locked or unavailable.',
+    securityDeveloperAuditUnavailable: 'The developer audit is unavailable.',
+  },
   reportRowsMore: forms({ one: '{count} more', other: '{count} more' }),
+  reportProblemsMore: forms({ one: '{count} more problem', other: '{count} more problems' }),
   reportCliUsage:
     'Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n',
+  reportCliKinds:
+    'Kinds: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n',
   reportIssue: 'Report an Issue…',
   // Report a problem (M93, PLAN.md D72): the crash offer, the report
   // dialog's labels and actions, and the export outcomes. The preview shows
@@ -6552,6 +6599,36 @@ export const EN = {
       'Passkeys stay with your authenticator. Sign in yourself; the vault stores session cookies only.',
     recoveryWarning:
       'Keep the recovery code somewhere safe. It is shown only once and unlocks the vault.',
+    // C-M109-1: the setup flow and the CLI (lead decision 8).
+    setUp: 'Set Up Vault',
+    savedIt: 'I Saved It',
+    copyCode: 'Copy',
+    cancelSetup: 'Cancel Setup',
+    setupNeeded: 'Set up the vault before you store a secret in it.',
+    setupExists: 'A vault already exists for this user.',
+    setupPending: 'Save the recovery code, then confirm to finish setting up the vault.',
+    setupCancelled: 'Vault setup was cancelled. Nothing was saved.',
+    setupHeadless:
+      'Vault setup and recovery need an interactive terminal; headless runs cannot do them.',
+    recoveryShownOnce: 'Recovery code (shown only now): {code}',
+    savedItPrompt: 'Have you saved the recovery code somewhere safe?',
+    busy: 'The vault is busy in another window. Try again.',
+    // C-M109-1: import and Reset Vault (lead decisions, 2026-10-10).
+    importedLabel: 'Imported {source} credential {number}',
+    importedSummary: 'Imported into the vault: {names}',
+    importKeepOrDelete:
+      'Keep the original file, or delete it now that its credentials are in the vault?',
+    resetVault: 'Reset Vault',
+    resetContinue: 'Continue',
+    resetWarning:
+      'Resetting erases this vault for good: every stored secret is gone, and rollback protection restarts with a new anchor when you set the vault up again.',
+    resetTypeWord: 'Type {word} to reset the vault.',
+    resetDone: 'The vault was reset. Set it up again to store secrets.',
+    vaultLost:
+      'This vault can no longer be opened: its files are missing or damaged. Reset it to start again.',
+    // RVCM1091B 4: the OS store's fixed repair, never native text.
+    storeUnavailable:
+      "The operating system's credential store is not available. On Linux, sign in to a desktop session with an unlocked keyring (the Secret Service); on macOS, unlock the login Keychain; on Windows, sign in interactively. Then try again.",
     remoteWarning:
       'Only a signature or a one-time code may be requested from another device. Its user must approve each use there.',
     approvalExpired: 'This approval expired. Request the use again.',

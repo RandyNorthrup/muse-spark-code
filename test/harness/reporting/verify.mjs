@@ -31,7 +31,7 @@ const scratch = path.join(root, 'temp/m113-v')
 mkdirSync(scratch, { recursive: true })
 await build({
   stdin: {
-    contents: `export * from './test/unit/reportRenderFixtures';
+    contents: `export * from './test/unit/reportKindRenderFixtures';
       export { EN } from './src/shared/l10n/en';
       export { verifyReport } from './src/core/reporting/render/canonical';`,
     resolveDir: root,

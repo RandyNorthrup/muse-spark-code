@@ -125,6 +125,8 @@
             "fires",
             "keybindings",
             "conflicts",
+            "shortcut",
+            "command",
             "diff",
             "sources",
             "planFormat",
@@ -164,6 +166,7 @@
             "merged",
             "released",
             "complete",
+            "ended",
             "superseded",
             "waiting",
             "blocked",
@@ -180,7 +183,14 @@
             "added",
             "removed",
             "changed",
-            "unchanged"
+            "unchanged",
+            "paused",
+            "active",
+            "all",
+            "total",
+            "once",
+            "user",
+            "hookVerification"
           ]
         },
         "sortKey": { "type": "string", "const": "key" },
@@ -265,6 +275,8 @@
                   "fires",
                   "keybindings",
                   "conflicts",
+                  "shortcut",
+                  "command",
                   "diff",
                   "sources",
                   "planFormat",
@@ -304,6 +316,7 @@
                   "merged",
                   "released",
                   "complete",
+                  "ended",
                   "superseded",
                   "waiting",
                   "blocked",
@@ -320,7 +333,14 @@
                   "added",
                   "removed",
                   "changed",
-                  "unchanged"
+                  "unchanged",
+                  "paused",
+                  "active",
+                  "all",
+                  "total",
+                  "once",
+                  "user",
+                  "hookVerification"
                 ]
               }
             },
@@ -431,6 +451,8 @@
                             "fires",
                             "keybindings",
                             "conflicts",
+                            "shortcut",
+                            "command",
                             "diff",
                             "sources",
                             "planFormat",
@@ -470,6 +492,7 @@
                             "merged",
                             "released",
                             "complete",
+                            "ended",
                             "superseded",
                             "waiting",
                             "blocked",
@@ -486,7 +509,14 @@
                             "added",
                             "removed",
                             "changed",
-                            "unchanged"
+                            "unchanged",
+                            "paused",
+                            "active",
+                            "all",
+                            "total",
+                            "once",
+                            "user",
+                            "hookVerification"
                           ]
                         }
                       },
@@ -685,6 +715,8 @@
               "fires",
               "keybindings",
               "conflicts",
+              "shortcut",
+              "command",
               "diff",
               "sources",
               "planFormat",
@@ -724,6 +756,7 @@
               "merged",
               "released",
               "complete",
+              "ended",
               "superseded",
               "waiting",
               "blocked",
@@ -740,7 +773,14 @@
               "added",
               "removed",
               "changed",
-              "unchanged"
+              "unchanged",
+              "paused",
+              "active",
+              "all",
+              "total",
+              "once",
+              "user",
+              "hookVerification"
             ]
           },
           "sortKey": { "type": "string", "const": "key" },
@@ -825,6 +865,8 @@
                     "fires",
                     "keybindings",
                     "conflicts",
+                    "shortcut",
+                    "command",
                     "diff",
                     "sources",
                     "planFormat",
@@ -864,6 +906,7 @@
                     "merged",
                     "released",
                     "complete",
+                    "ended",
                     "superseded",
                     "waiting",
                     "blocked",
@@ -880,7 +923,14 @@
                     "added",
                     "removed",
                     "changed",
-                    "unchanged"
+                    "unchanged",
+                    "paused",
+                    "active",
+                    "all",
+                    "total",
+                    "once",
+                    "user",
+                    "hookVerification"
                   ]
                 }
               },
@@ -991,6 +1041,8 @@
                               "fires",
                               "keybindings",
                               "conflicts",
+                              "shortcut",
+                              "command",
                               "diff",
                               "sources",
                               "planFormat",
@@ -1030,6 +1082,7 @@
                               "merged",
                               "released",
                               "complete",
+                              "ended",
                               "superseded",
                               "waiting",
                               "blocked",
@@ -1046,7 +1099,14 @@
                               "added",
                               "removed",
                               "changed",
-                              "unchanged"
+                              "unchanged",
+                              "paused",
+                              "active",
+                              "all",
+                              "total",
+                              "once",
+                              "user",
+                              "hookVerification"
                             ]
                           }
                         },

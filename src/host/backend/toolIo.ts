@@ -28,7 +28,7 @@ import {
   environmentValue,
   setEnvironmentVariable,
   windowsPowerShellModulePath,
-} from '../../core/backends/musecode/launch'
+} from '../../core/childEnvironment'
 import type {
   ReservationStep,
   SearchHit,

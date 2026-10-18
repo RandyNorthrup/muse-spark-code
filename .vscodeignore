@@ -134,10 +134,13 @@
 !dist/webview/reportingDestinations.js
 !dist/webview/reportingDestinations.css
 !dist/reportingNetwork.js
+!dist/reportInputs.js
+!dist/playbookSchedulesInputs.js
 !dist/vault.js
 !dist/vaultBoundaries.js
 !dist/estimator.js
 !dist/estimateContracts.js
+!dist/planSnapshot.js
 !dist/native/darwin/muse-vault
 !native/windows/MuseSparkVault.cs
 !native/windows/MuseSparkVaultCng.cs

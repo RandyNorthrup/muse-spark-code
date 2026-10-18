@@ -1907,6 +1907,13 @@ export const GITHUB_LEASE_TTL_MS = 15 * 60_000
 // `gh auth token` for github.com only (D104 source c).
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const GH_AUTH_TOKEN_ARGS: readonly string[] = ['auth', 'token', '--hostname', 'github.com']
+// Report adapter page sizes from the C-M113-6 captures: a tag record is tiny
+// (100 per page); a release record is 15 to 55 KB, so 30 per page stays
+// under the reader's 2 MiB bound where 100 would exceed it; a workflow run
+// is about 14 KB, so 100 per page fits the same bound.
+export const GITHUB_TAGS_PAGE_SIZE = 100
+export const GITHUB_RELEASES_PAGE_SIZE = 30
+export const GITHUB_WORKFLOW_RUNS_PAGE_SIZE = 100
 // GitHub's own limits on a pull request's title and description.
 export const PULL_REQUEST_TITLE_MAX_CHARS = 256
 export const PULL_REQUEST_BODY_MAX_CHARS = 65_536
@@ -4105,6 +4112,9 @@ export const REVIEW_BUNDLE_FILE = 'review.js'
 // The capacity estimator's engine (M117, PLAN.md D6, D97), loaded the first
 // time an estimate runs.
 export const ESTIMATOR_BUNDLE_FILE = 'estimator.js'
+// The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97), loaded the
+// first time an estimate needs a plan snapshot.
+export const PLAN_SNAPSHOT_BUNDLE_FILE = 'planSnapshot.js'
 // Checkpoint implementation, synchronously loaded at activation's store construction (M72, D6).
 export const CHECKPOINT_STORE_BUNDLE_FILE = 'checkpointStore.js'
 // Code intelligence's answers for Muse Code's `ide` server (M67, D6), loaded
@@ -4134,6 +4144,8 @@ export const EXTENSION_HOOKS_BUNDLE_FILE = 'extensionHooks.js'
 // The vault's window (M109 lane W, PLAN.md D6): the panel host, the native
 // editor and the broker client, loaded on the first vault command.
 export const VAULT_BUNDLE_FILE = 'vault.js'
+// C-M109-1: the CLI, ACP and headless vault (no `vscode`), lead decision 5.
+export const VAULT_RUNTIME_BUNDLE_FILE = 'vaultRuntime.js'
 // The empty folder under the extension's global storage the reviewer's side
 // session runs in: outside every workspace, so no History lists it, and
 // with no rules, skills or files of the user's to read.
@@ -4480,6 +4492,8 @@ export const SCHEDULE_FS_RETRY_ATTEMPTS = 5
 export const SCHEDULE_FS_RETRY_BACKOFF_MS = 20
 export const SCHEDULE_LEASE_HEARTBEAT_MS = 2000
 export const SCHEDULE_LEASE_EXPIRES_MS = 10_000
+// Lease release owns a separate short window, independent of caller cancellation.
+export const SCHEDULE_LEASE_RELEASE_TIMEOUT_MS = 1000
 export const SCHEDULE_LEASE_POLL_MS = 40
 export const SCHEDULE_QUEUE_COALESCE_MS = 100
 export const SCHEDULE_PROTOCOL_VERSION = 1
@@ -5623,9 +5637,17 @@ export const REPORT_NEXT_STEP_LIMIT = 3
 export const REPORT_EMPTY_HASH = '0000000000000000000000000000000000000000000000000000000000000000'
 export const REPORT_GIT_MAX_COMMITS = 5000
 export const REPORT_NETWORK_MAX_BYTES = 2 * 1024 * 1024
-export const REPORT_NETWORK_MAX_PAGES = 3
+// One github source read shares this budget across pulls (1), check scopes
+// (3: head, default branch, release tag), tags (1), releases (up to 3) and
+// release-workflow runs (1): 10 covers the typical full read, and anything
+// past it refuses as `page-bound` instead of truncating silently (C-M113-6).
+export const REPORT_NETWORK_MAX_PAGES = 10
 export const REPORT_NETWORK_CACHE_ENTRIES = 100
 export const REPORT_SOURCE_TIMEOUT_MS = 5000
+// A handed deadline aborts the read's signal and then waits for the
+// reader's own settlement instead of abandoning it mid-flight; a reader
+// that ignores the signal cannot outlive this grace (RVREPORTJOIN P2-3).
+export const REPORT_SOURCE_SETTLE_MS = 1000
 export const REPORT_GITHUB_RATE_FLOOR = 10
 export const REPORT_CHECK_RUNS_MAX = 500
 export const REPORT_HISTORY_MAX_PER_KIND = 50
@@ -5706,6 +5728,14 @@ export const REPORT_WORKING_KINDS = [
   'release',
   'changes',
   'quality',
+  'usage',
+  'session',
+  'keybindings',
+  'accounts',
+  'security',
+  'estimate',
+  'playbook',
+  'schedules',
 ] as const
 export const REPORT_FORMATS = ['md', 'html', 'json', 'text'] as const
 export const REPORT_FAIL_ON = [
@@ -5789,6 +5819,8 @@ export const REPORT_LABEL_KEYS = [
   'fires',
   'keybindings',
   'conflicts',
+  'shortcut',
+  'command',
   'diff',
   'sources',
   'planFormat',
@@ -5828,6 +5860,7 @@ export const REPORT_LABEL_KEYS = [
   'merged',
   'released',
   'complete',
+  'ended',
   'superseded',
   'waiting',
   'blocked',
@@ -5845,6 +5878,13 @@ export const REPORT_LABEL_KEYS = [
   'removed',
   'changed',
   'unchanged',
+  'paused',
+  'active',
+  'all',
+  'total',
+  'once',
+  'user',
+  'hookVerification',
 ] as const
 export const REFERENCE_DOCS_URL =
   'https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/reference.md'
@@ -7625,6 +7665,23 @@ export const ESTIMATE_LOCAL_BUDGET_MS = 2000
 export const ESTIMATE_LOCAL_BUDGET_LANES = 40
 // Bounds on our own documents, not provider wire shapes.
 export const ESTIMATE_MAX_ITEMS = 512
+// M117 C-M117-1: the plan snapshot's assumed per-lane demands. The plan
+// carries hours, deps, rigs and files, never metered demand, yet the
+// schedule refuses unknown demand (schedule.ts): these assumptions let a
+// forecast run, marked assumption with zero samples so the estimate
+// discloses them and calibration (C-M117-2) replaces them per kind. The
+// scale follows the engine fixtures' own assumed lane
+// (test/fixtures/estimator/dags.json): one slot, one request and ten tokens
+// an hour, no CI, a 4 GiB peak over a 2 GiB steady workspace.
+export const ESTIMATE_ASSUMED_TOKENS_PER_HOUR = 10
+export const ESTIMATE_ASSUMED_PEAK_BYTES = 4 * 1024 ** 3
+export const ESTIMATE_ASSUMED_STEADY_BYTES = 2 * 1024 ** 3
+// M117 C-M117-1: the snapshot binding's git and `gh` evidence reads share
+// this bound, like M113's report sources share theirs.
+export const ESTIMATE_SOURCE_TIMEOUT_MS = 5000
+// M117 C-M117-1: how many unestimated lanes a refused snapshot names before
+// counting the rest, so the detail stays a short technical label.
+export const ESTIMATE_MISSING_DETAIL_LIMIT = 10
 export const ESTIMATE_ID_MAX_CHARS = 128
 export const ESTIMATE_LABEL_MAX_CHARS = 256
 // M117 W (PLAN.md D100, gotcha G4): a lane whose base is this many days old
@@ -8416,10 +8473,18 @@ export const DEVELOPER_MACHINE_ID_TMP_SUFFIX_BYTES = 8
 export const DEVELOPER_MACHINE_ID_DOMAIN = 'muse-spark-developer-machine/v1'
 // M109 lane 0: vault format, limits and budgets (D89).
 export const VAULT_FORMAT_VERSION = 1
-export const VAULT_PROTOCOL_VERSION = 1
+// Lead decisions 2026-10-10 (C-M109-1): protocol v2 adds the management kinds,
+// private write frames and pushed events; the store document v2 carries grants
+// in its encrypted index. No v1 vault or broker exists in the field.
+export const VAULT_PROTOCOL_VERSION = 2
+export const VAULT_STORE_FORMAT_VERSION = 2
 export const VAULT_APPROVAL_TTL_MS = 120_000
 // Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
 export const VAULT_LOCK_DRAIN_MS = 1000
+// C-M109-1: pace of re-opening a `watch` stream the broker closed.
+export const VAULT_WATCH_RETRY_MS = 1000
+// RVCM1091A F7: the panel's watch backoff doubles up to this while the broker is down.
+export const VAULT_WATCH_RETRY_MAX_MS = 30_000
 export const VAULT_ASKPASS_USES = 3
 export const VAULT_ASKPASS_TTL_MS = 600_000
 export const VAULT_SESSION_MAX_DAYS = 30
@@ -8438,6 +8503,12 @@ export const VAULT_KEY_BYTES = 32
 export const VAULT_NONCE_BYTES = 12
 export const VAULT_TAG_BYTES = 16
 export const VAULT_RECOVERY_BYTES = 20
+/** Reset Vault's fixed confirmation word, typed exactly (lead decision 2026-10-10).
+ * @unwired M109 Reset Vault confirmation word; its reader lands with the vault lane */
+export const VAULT_RESET_WORD = 'RESET'
+/** Random bytes in an imported item's name, so a second import never collides.
+ * @unwired M109 vault import name bytes; its reader lands with the vault lane */
+export const VAULT_IMPORT_NAME_BYTES = 3
 export const VAULT_KDF = {
   argon2: { memoryKiB: 65_536, iterations: 3, parallelism: 4 },
   scrypt: { N: 131_072, r: 8, p: 1 },

@@ -1,18 +1,25 @@
 import { connect, type Socket } from 'node:net'
+import { once } from 'node:events'
 import {
   VAULT_PROTOCOL_VERSION,
   VAULT_APPROVAL_TTL_MS,
   VAULT_LIMITS,
   UI_TEXT,
 } from '../../../shared/constants'
-import { vaultPrivateReadSchema, type VaultBrokerRequest } from '../../../shared/vaultProtocol'
+import {
+  vaultBrokerEventFrameSchema,
+  vaultPrivateReadSchema,
+  type VaultBrokerEvent,
+  type VaultBrokerRequest,
+  type VaultPrivateRequest,
+} from '../../../shared/vaultProtocol'
 import {
   vaultChannelRequestSchema,
   vaultChannelResponseSchema,
   type VaultChannelResponse,
-} from './channel'
-import { type VaultPeerVerifier } from './peer'
-import { type VaultBrokerLocation } from './discovery'
+} from './frames'
+import type { VaultPeerVerifier } from './peer'
+import type { VaultBrokerLocation } from './discovery'
 
 export class VaultBrokerClient {
   static async open(
@@ -57,6 +64,9 @@ export class VaultBrokerClient {
     timer: ReturnType<typeof setTimeout>
   } | null = null
   private tail: Promise<unknown> = Promise.resolve()
+  /** Set by watch(): from then on every line is a pushed event frame. */
+  private onEvent: ((event: VaultBrokerEvent) => void) | null = null
+  private isAwaitingWatch = false
   private constructor(private readonly socket: Socket) {
     socket.on('error', () => {
       this.close()
@@ -75,20 +85,31 @@ export class VaultBrokerClient {
         this.close()
         return
       }
+      if (this.onEvent !== null) {
+        this.drainEvents(this.onEvent)
+        return
+      }
       const end = this.buffer.indexOf('\n')
       if (end === -1) return
       try {
         const response = vaultChannelResponseSchema.parse(
           JSON.parse(this.buffer.subarray(0, end).toString('utf8')),
         )
-        if (response.sequence !== this.pending?.sequence || end !== this.buffer.length - 1) {
+        // Only a watch answer may share its read with the first pushed events.
+        if (
+          response.sequence !== this.pending?.sequence ||
+          (end !== this.buffer.length - 1 && !this.isAwaitingWatch)
+        ) {
           this.close()
           return
         }
         const pending = this.pending
         this.pending = null
+        const rest = this.isAwaitingWatch
+          ? Buffer.from(this.buffer.subarray(end + 1))
+          : Buffer.alloc(0)
         this.buffer.fill(0)
-        this.buffer = Buffer.alloc(0)
+        this.buffer = rest
         clearTimeout(pending.timer)
         pending.resolve(response.response)
       } catch {
@@ -96,8 +117,29 @@ export class VaultBrokerClient {
       }
     })
   }
+  /** Validated pushed events, one per line; a bad frame closes the stream. */
+  private drainEvents(onEvent: (event: VaultBrokerEvent) => void): void {
+    let end = this.buffer.indexOf('\n')
+    while (end !== -1) {
+      const line = this.buffer.subarray(0, end)
+      let event: VaultBrokerEvent
+      try {
+        event = vaultBrokerEventFrameSchema.parse(JSON.parse(line.toString('utf8'))).event
+      } catch {
+        this.close()
+        return
+      }
+      this.buffer = this.buffer.subarray(end + 1)
+      try {
+        onEvent(event)
+      } catch {
+        /* A failing listener cannot stop later events. */
+      }
+      end = this.buffer.indexOf('\n')
+    }
+  }
   async send(
-    request: VaultBrokerRequest['request'] | ReturnType<typeof vaultPrivateReadSchema.parse>,
+    request: VaultBrokerRequest['request'] | VaultPrivateRequest,
   ): Promise<VaultChannelResponse['response']> {
     const sequence = this.sequence++
     const frame = vaultChannelRequestSchema.parse({
@@ -148,6 +190,25 @@ export class VaultBrokerClient {
     })()
     this.tail = next
     return await next
+  }
+  /**
+   * v2 watch: this connection then carries only pushed lock, revoke, approval
+   * and change events until close(); it accepts no further request.
+   */
+  async watch(onEvent: (event: VaultBrokerEvent) => void): Promise<void> {
+    this.isAwaitingWatch = true
+    const response = await this.send({ kind: 'watch' })
+    if (response.kind !== 'ok') {
+      this.close()
+      throw new Error(UI_TEXT.vault.noAccess)
+    }
+    this.onEvent = onEvent
+    this.drainEvents(onEvent)
+  }
+  /** Resolves when the connection ends, so a watcher can reconnect. */
+  async closed(): Promise<void> {
+    if (this.socket.destroyed) return
+    await once(this.socket, 'close')
   }
   async firstPartyRead(input: ReturnType<typeof vaultPrivateReadSchema.parse>): Promise<Buffer> {
     const response = await this.send(vaultPrivateReadSchema.parse(input))

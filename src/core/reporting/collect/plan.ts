@@ -1,5 +1,5 @@
 import type { ReportOptions, ReportRow, ReportSection } from '../../../shared/reportSchema'
-import type { PlanFacts, PlanMilestone, SourceSnapshot } from '../sources/types'
+import type { PlanFacts, PlanMilestone, ReportQuestion, SourceSnapshot } from '../sources/types'
 import {
   certificationRows,
   compare,
@@ -103,26 +103,27 @@ export function planFormat(snapshot: SourceSnapshot, options: ReportOptions): Re
 }
 
 export function laneRows(milestones: readonly PlanMilestone[], sourceId: string): ReportRow[] {
-  return milestones.flatMap((milestone) =>
-    milestone.lanes.map((lane) =>
-      row(
-        'lane',
-        // Separate declaration tables can reuse an owner id for distinct scopes.
-        [milestone.id, lane.id, lane.scope],
-        {
-          name: text(lane.id),
-          scope: text(lane.scope),
-          milestones: text(milestone.id),
-          branch: lane.branch === null ? label('unavailable') : text(lane.branch),
-          status: label(lane.state),
-          pullRequests: lane.pullRequest === null ? label('unavailable') : count(lane.pullRequest),
-          certification:
-            lane.certification === null
-              ? label('unavailable')
-              : text(lane.certification.replaceAll('\\', '/')),
-        },
-        [sourceId],
-      ),
+  const entries = milestones.flatMap((milestone) =>
+    milestone.lanes.map((lane) => ({ milestone, lane })),
+  )
+  // A repeated triple gets its unique key from the central section guarantee.
+  return entries.map(({ milestone, lane }) =>
+    row(
+      'lane',
+      [milestone.id, lane.id, lane.scope],
+      {
+        name: text(lane.id),
+        scope: text(lane.scope),
+        milestones: text(milestone.id),
+        branch: lane.branch === null ? label('unavailable') : text(lane.branch),
+        status: label(lane.state),
+        pullRequests: lane.pullRequest === null ? label('unavailable') : count(lane.pullRequest),
+        certification:
+          lane.certification === null
+            ? label('unavailable')
+            : text(lane.certification.replaceAll('\\', '/')),
+      },
+      [sourceId],
     ),
   )
 }
@@ -162,6 +163,79 @@ export function deliveryRows(facts: PlanFacts, limit: number, sourceId: string):
       [sourceId],
     ),
   )
+}
+
+/** Risk rows, shared by the milestone and project kinds. */
+export function planRiskRows(risks: PlanFacts['risks'], sourceIds: readonly string[]): ReportRow[] {
+  return risks.map((risk) =>
+    row('risk', [risk.id], { name: text(risk.id), reason: text(risk.text) }, sourceIds),
+  )
+}
+
+/** Residual rows, shared by the milestone and project kinds. */
+export function planResidualRows(
+  residuals: PlanFacts['residuals'],
+  sourceIds: readonly string[],
+): ReportRow[] {
+  return residuals.map((residual) =>
+    row(
+      'residual',
+      [residual.id],
+      { name: text(residual.id), reason: text(residual.text) },
+      sourceIds,
+    ),
+  )
+}
+
+/** Question rows, shared by the milestone and session kinds. */
+export function planQuestionRows(
+  questions: readonly ReportQuestion[],
+  sourceIds: readonly string[],
+): ReportRow[] {
+  return questions.map((question) =>
+    row(
+      'question',
+      [question.id],
+      {
+        name: text(question.id),
+        questions: text(question.text),
+        status: label(question.state),
+      },
+      sourceIds,
+    ),
+  )
+}
+
+function milestoneRiskRows(
+  facts: PlanFacts | null,
+  scope: string,
+  sourceIds: readonly string[],
+): ReportRow[] {
+  return facts === null
+    ? []
+    : planRiskRows(
+        facts.risks.filter((risk) => risk.milestoneIds.some((id) => isSameMilestone(id, scope))),
+        sourceIds,
+      )
+}
+
+function milestoneResidualRows(facts: PlanFacts | null, sourceIds: readonly string[]): ReportRow[] {
+  return facts === null ? [] : planResidualRows(facts.residuals, sourceIds)
+}
+
+function milestoneQuestionRows(
+  facts: PlanFacts | null,
+  scope: string,
+  sourceIds: readonly string[],
+): ReportRow[] {
+  return facts === null
+    ? []
+    : planQuestionRows(
+        facts.questions.filter((question) =>
+          question.milestoneIds.some((id) => isSameMilestone(id, scope)),
+        ),
+        sourceIds,
+      )
 }
 
 export function collectMilestone(
@@ -275,46 +349,12 @@ export function collectMilestone(
       ['name'],
       milestone?.requiredGates.map((gate) => row('gate', [gate], { name: text(gate) }, ids)) ?? [],
     ),
-    make(
-      'milestoneRisks',
-      ['name', 'reason'],
-      facts?.risks
-        .filter((risk) => risk.milestoneIds.some((id) => isSameMilestone(id, options.scope)))
-        .map((risk) =>
-          row('risk', [risk.id], { name: text(risk.id), reason: text(risk.text) }, ids),
-        ) ?? [],
-    ),
-    make(
-      'milestoneResiduals',
-      ['name', 'reason'],
-      facts?.residuals.map((residual) =>
-        row(
-          'residual',
-          [residual.id],
-          { name: text(residual.id), reason: text(residual.text) },
-          ids,
-        ),
-      ) ?? [],
-    ),
+    make('milestoneRisks', ['name', 'reason'], milestoneRiskRows(facts, options.scope, ids)),
+    make('milestoneResiduals', ['name', 'reason'], milestoneResidualRows(facts, ids)),
     make(
       'milestoneQuestions',
       ['name', 'questions'],
-      facts?.questions
-        .filter((question) =>
-          question.milestoneIds.some((id) => isSameMilestone(id, options.scope)),
-        )
-        .map((question) =>
-          row(
-            'question',
-            [question.id],
-            {
-              name: text(question.id),
-              questions: text(question.text),
-              status: label(question.state),
-            },
-            ids,
-          ),
-        ) ?? [],
+      milestoneQuestionRows(facts, options.scope, ids),
     ),
   ]
   const certification = snapshot.sources.certification

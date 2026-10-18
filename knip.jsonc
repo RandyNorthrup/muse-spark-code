@@ -19,6 +19,8 @@
     "src/webview/reporting/destinations/DestinationPicker.tsx",
     "src/runtime/reference.node.generated.ts",
     "src/runtime/reporting/reportsEntry.ts",
+    "src/runtime/reporting/reportInputsEntry.ts",
+    "src/runtime/reporting/playbookSchedulesInputsEntry.ts",
     "src/host/reporting/reportPanelEntry.ts",
     "src/webview/reporting/main.tsx",
     "src/extension.ts",
@@ -123,6 +125,9 @@
     // The capacity estimator's engine (M117, PLAN.md D97), required by path
     // on the first estimate.
     "src/host/estimator/estimatorEntry.ts",
+    // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6), required by
+    // path the first time an estimate needs a plan snapshot.
+    "src/host/estimator/planSnapshotEntry.ts",
     // Both-backend extension hooks, required by path on first use (M91 E).
     "src/host/extensionHooksEntry.ts",
     // What's New (M99), required on the first page or notice, and its page script.
@@ -159,6 +164,10 @@
     "src/runtime/schedules/backgroundEntry.ts",
     // The vault's window (M109 W), required by path on the first vault command.
     "src/host/vault/vaultPanelEntry.ts",
+    // C-M109-1 (lead decision 5): the vault runtime bundle's esbuild entry
+    // (scripts/build.mjs), loaded by file name on the first vault need,
+    // which knip does not trace.
+    "src/runtime/vault/vaultRuntimeEntry.ts",
     // The vault harness page and its runner (M109 U): the page is the harness
     // build's esbuild entry, which knip does not read, and the runner is run
     // by path for the panel scenes and axe (`node test/harness/vault/run.mjs`).
@@ -186,6 +195,11 @@
     // The README-shots script starts this reporting verifier by path
     // (scripts/readme-shots.mjs), which knip does not trace.
     "test/harness/reporting/verify.mjs",
+    // The verifier's esbuild stdin bundle (`export * from
+    // './test/unit/reportKindRenderFixtures' plus a computed dynamic import)
+    // reads this fixture module's renderFixture/REPORT_THEMES, which knip
+    // does not trace.
+    "test/unit/reportKindRenderFixtures.ts",
     // Tab's configured hook flow starts this real fake-hook process by path.
     "test/fixtures/tabHooks/completion.mjs",
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
@@ -212,6 +226,16 @@
     // M109 (A credential vault and broker for agents, D89): the vault/broker
     // service lands later; remote-server MCP OAuth tokens are born in the
     // vault. Wiring: the vault panel and broker entries require these by path.
+    // C-M109-1's broker management side, repository, Windows pipe relay,
+    // batch-import builder and keyring anchor ride the pending broker-process
+    // lanes (C-M109-1b/c; REPORTJOIN knip deferral, PLAN.md section 7):
+    // constructed beside the broker or required by its entry, never imported
+    // statically yet.
+    "src/core/vault/broker/management.ts",
+    "src/core/vault/broker/repository.ts",
+    "src/core/vault/broker/windowsPipe.ts",
+    "src/core/vault/migrate/prepareImport.ts",
+    "src/runtime/vault/keyringAnchor.ts",
     "src/core/vault/backup.ts",
     "src/core/vault/broker/audit.ts",
     "src/core/vault/broker/epoch.ts",

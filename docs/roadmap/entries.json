@@ -830,7 +830,7 @@
     {
       "id": "M113",
       "title": "Deterministic reports",
-      "summary": "Run /report for project, quality, milestone, release and change reports built from local facts in Markdown, HTML, JSON or text, with saved history and comparisons and nothing sent to a model, while additional report kinds are in progress.",
+      "summary": "Run /report for project, quality, milestone, release, change, session, usage, keybindings, accounts, security, estimate, playbook, schedules as Markdown, HTML, JSON or text, with snapshots, lease release on cancellation and no model call.",
       "area": "platform",
       "release": "0.17.0"
     },
@@ -857,8 +857,9 @@
     {
       "id": "M117",
       "title": "Capacity estimator",
-      "summary": "Capacity estimator is in progress.",
-      "area": "agents"
+      "summary": "Forecast goal completion with explicit prerequisite grammar and closure-scoped validation; check every plan row with --check-plan, preserve typed refusal diagnostics and replace stale forecasts across all surfaces, and honor the current Reports network policy.",
+      "area": "agents",
+      "release": "0.17.0"
     },
     {
       "id": "M118",

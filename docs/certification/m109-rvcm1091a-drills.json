@@ -1,0 +1,141 @@
+{
+  "rig": "kubuntu",
+  "results": [
+    {
+      "id": "F1 confirmation owns the setup key",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/rvcm1091a.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 9 passed (10)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F1: setup expiry during a held confirmation never zeroes the key it wraps"
+      ],
+      "sha256": {
+        "before": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "after": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "restored": true
+      }
+    },
+    {
+      "id": "F2 authority and lock checked at the physical commit",
+      "file": "src/core/vault/store.ts",
+      "test": "test/unit/vault/rvcm1091a.test.ts",
+      "exit": 1,
+      "summary": "Tests  2 failed | 8 passed (10)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F2: a grant retired while its write waited is neither published nor recovered",
+        "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F2 class: a store locked while any write waited commits nothing"
+      ],
+      "sha256": {
+        "before": "64530f3e1daa78ab65aaafd01aebf3f1dd55d0678cae47849b53e3d8d1cb11f7",
+        "after": "64530f3e1daa78ab65aaafd01aebf3f1dd55d0678cae47849b53e3d8d1cb11f7",
+        "restored": true
+      }
+    },
+    {
+      "id": "F3 a saved grant is not a revocation",
+      "file": "src/core/vault/broker/repository.ts",
+      "test": "test/unit/vault/rvcm1091a.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 9 passed (10)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F3: saving a grant is not a revocation; removing it is"
+      ],
+      "sha256": {
+        "before": "98b03db16fa31c9f297a0831447f0c25282863b03c55ea9d0b33cd446a8ac89e",
+        "after": "98b03db16fa31c9f297a0831447f0c25282863b03c55ea9d0b33cd446a8ac89e",
+        "restored": true
+      }
+    },
+    {
+      "id": "F4 setup emits no echo that retires its own dialog",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/rvcm1091a.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 9 passed (10)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F4: a watched panel's own setup does not retire its I Saved It"
+      ],
+      "sha256": {
+        "before": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "after": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "restored": true
+      }
+    },
+    {
+      "id": "F5 authorize after the connection, before the send",
+      "file": "src/core/vault/broker/manageClient.ts",
+      "test": "test/unit/vault/rvcm1091a.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 9 passed (10)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F5: a panel retired while its connection was pending sends nothing"
+      ],
+      "sha256": {
+        "before": "5646be1b7572f6ebab510e2111810ed6c31cb78b41f0288d159d47e5de5aed8f",
+        "after": "5646be1b7572f6ebab510e2111810ed6c31cb78b41f0288d159d47e5de5aed8f",
+        "restored": true
+      }
+    },
+    {
+      "id": "F6 metadata edit in one transaction",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/rvcm1091a.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 9 passed (10)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F6: a metadata edit never resurrects an item removed between transactions"
+      ],
+      "sha256": {
+        "before": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "after": "85fb7cc03a0755b7364508af394ace19ea9baaacfc4a40eb160caa5173f3e6f2",
+        "restored": true
+      }
+    },
+    {
+      "id": "F7 a failed watch connection rejects",
+      "file": "src/core/vault/broker/manageClient.ts",
+      "test": "test/unit/vault/rvcm1091a.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 9 passed (10)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F7: a watch that cannot connect fails `vault watch` instead of exiting 0"
+      ],
+      "sha256": {
+        "before": "5646be1b7572f6ebab510e2111810ed6c31cb78b41f0288d159d47e5de5aed8f",
+        "after": "5646be1b7572f6ebab510e2111810ed6c31cb78b41f0288d159d47e5de5aed8f",
+        "restored": true
+      }
+    },
+    {
+      "id": "F8 a late watch connection is closed on cancellation",
+      "file": "src/core/vault/broker/manageClient.ts",
+      "test": "test/unit/vault/rvcm1091a.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 9 passed (10)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F8: cancelling while the watch connection is pending closes the late connection"
+      ],
+      "sha256": {
+        "before": "5646be1b7572f6ebab510e2111810ed6c31cb78b41f0288d159d47e5de5aed8f",
+        "after": "5646be1b7572f6ebab510e2111810ed6c31cb78b41f0288d159d47e5de5aed8f",
+        "restored": true
+      }
+    },
+    {
+      "id": "F9 the pipe server's SID must be the host's",
+      "file": "src/core/vault/broker/windowsPipe.ts",
+      "test": "test/unit/vault/rvcm1091a.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 9 passed (10)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a.test.ts > RVCM1091A > F9: the host trusts a Windows pipe only when its server is the user's broker from the lock"
+      ],
+      "sha256": {
+        "before": "d8bd6fc0b3984a81ff1eaecfdda4ce20f53157018c67bcc6ad095ce39fd927e5",
+        "after": "d8bd6fc0b3984a81ff1eaecfdda4ce20f53157018c67bcc6ad095ce39fd927e5",
+        "restored": true
+      }
+    }
+  ]
+}

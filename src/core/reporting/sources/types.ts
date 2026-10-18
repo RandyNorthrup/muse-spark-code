@@ -1,3 +1,4 @@
+import type { UiText } from '../../../shared/l10n/en'
 import type { UsdAmount } from '../../../shared/usdSchema'
 // Normalized, scrubbed facts supplied by injected readers. These types are
 // application contracts; upstream HTTP/MSP parsers stay with their source owners.
@@ -146,12 +147,10 @@ export interface UsageFacts {
     readonly costUsd: UsdAmount | null
     readonly certainty: 'reported' | 'estimated' | 'unknown'
   }[]
-  readonly limits: readonly {
-    readonly key: string
-    readonly used: number
-    readonly limit: number
-    readonly resetsAt: string | null
-  }[]
+  readonly limits: readonly ({ readonly key: string; readonly resetsAt: string | null } & (
+    | { readonly unit: 'usd'; readonly used: UsdAmount; readonly limit: UsdAmount }
+    | { readonly unit?: 'percent'; readonly used: number; readonly limit: number }
+  ))[]
 }
 export interface CheckRunRecord {
   readonly check: string
@@ -159,6 +158,79 @@ export interface CheckRunRecord {
   readonly durationMs: number
   readonly commit: string
   readonly at: string
+}
+// M108 binding: the provider registry with locally resolved labels, per
+// account use, swaps and stops, and confirmations. Labels name accounts;
+// no credential, key or vendor secret ever enters these facts.
+export interface AccountsRegistryAccount {
+  readonly id: string
+  readonly label: string
+  readonly order: number
+  readonly limitGroup: string | null
+  readonly thresholds: {
+    readonly spendUsd: readonly { readonly period: string; readonly value: UsdAmount }[]
+    readonly counts: readonly {
+      readonly metric: 'inputTokens' | 'outputTokens' | 'requests'
+      readonly period: string
+      readonly value: number
+    }[]
+    readonly percents: readonly { readonly name: string; readonly value: number }[]
+  }
+}
+export interface AccountsFacts {
+  readonly providers: readonly {
+    readonly provider: string
+    readonly product: string
+    readonly auth: string
+    readonly accounts: readonly AccountsRegistryAccount[]
+  }[]
+  readonly usage: readonly {
+    readonly provider: string
+    readonly account: string
+    readonly label: string
+    readonly period: string
+    readonly inputTokens: number
+    readonly outputTokens: number
+    readonly costUsd: UsdAmount | null
+    readonly certainty: 'reported' | 'estimated' | 'unknown'
+  }[]
+  readonly events: readonly {
+    readonly type: 'swap' | 'stop' | 'spread'
+    readonly provider: string
+    readonly account: string
+    readonly time: string
+    readonly trigger: string
+    readonly previousAccount: string | null
+  }[]
+  readonly confirmations: readonly {
+    readonly provider: string
+    readonly product: string
+    readonly choice: 'confirm' | 'ownCapsOnly' | 'cancel'
+    readonly answeredAt: string
+  }[]
+}
+// M109 binding: vault aggregates and the developer audit. Counts, kinds,
+// decisions and authorities only: no id, name, label, target, handle,
+// digest, hash, mac or other value ever enters these facts.
+export interface SecurityFacts {
+  readonly vault: {
+    readonly state:
+      'uncreated' | 'setupPending' | 'locked' | 'unlocked' | 'unavailable' | 'firstPartyOnly'
+    readonly tier: string | null
+    readonly itemCount: number
+    readonly itemsByKind: readonly { readonly kind: string; readonly count: number }[]
+    readonly grants: readonly { readonly scope: string; readonly count: number }[]
+  } | null
+  readonly audit: readonly {
+    readonly kind: string
+    readonly decision: 'allow' | 'deny' | 'ask'
+    readonly authority: string
+    readonly outcome: string
+  }[]
+  readonly developerAudit: readonly {
+    readonly action: string
+    readonly source: string
+  }[]
 }
 export interface ReportSourcePayloads {
   readonly plan: PlanFacts
@@ -214,8 +286,10 @@ export interface ReportSourcePayloads {
   }[]
   // Later milestones supply report rows, through these ports, when available.
   readonly fleet: readonly ReportSection[]
-  readonly security: readonly ReportSection[]
-  readonly accounts: readonly ReportSection[]
+  // C-M113-3: M109's vault audit and the developer audit, never a value.
+  readonly security: SecurityFacts
+  // C-M113-3: M108's registry, use, swaps and stops, and confirmations.
+  readonly accounts: AccountsFacts
   readonly estimate: readonly ReportSection[]
   readonly playbook: readonly ReportSection[]
   readonly issues: readonly ReportSection[]
@@ -233,10 +307,27 @@ export type SourceResult<T> =
     }
 
 export interface SourceReadContext {
+  /** Captured once by the request owner, also across lazy bundle boundaries. */
+  readonly reportText: UiText
+
+  /** The BCP-47 locale of reportText, for locale-sensitive formatting. */
+  readonly locale: string
+
+  /** Identity shared by all reads in one generation, including refreshes at the same stamp. */
+  readonly run?: object
+
   readonly asOf: string
   readonly workspaceKey: string
   readonly options: ReportOptions
   readonly signal: AbortSignal
+
+  /**
+   * Last instant (epoch milliseconds) a source may start new work. The
+   * engine sets it from the source timeout; a wait that outlasts it with a
+   * live holder retires as busy, and no new read, write or publish starts
+   * past it. Absent in older fakes, which keep the source timeout.
+   */
+  readonly deadline?: number
 }
 export interface ReportSourcePort<K extends ReportSourceKind> {
   readonly kind: K

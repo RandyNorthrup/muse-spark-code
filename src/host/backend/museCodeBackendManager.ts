@@ -29,10 +29,10 @@ import type {
   spawnAccountMspConnection,
   MspHost,
 } from '../../core/backends/musecode/MuseCodeHost'
+import { environmentValue } from '../../core/childEnvironment'
 import {
   buildChildEnvironment,
   credentialFilePath,
-  environmentValue,
   type LaunchResolution,
   type MuseLaunch,
   resolveMuseLaunch,

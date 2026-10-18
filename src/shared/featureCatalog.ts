@@ -371,7 +371,13 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'reportShowCommand' },
       { ui: 'reportSlashDescription' },
       ['showReport'],
-      ['reports.network', 'reports.keepHistory', 'reports.agentSources'],
+      [
+        'reports.network',
+        'reports.keepHistory',
+        'reports.agentSources',
+        'usageHistory',
+        'usageHistoryDays',
+      ],
       'report',
       ['museCode', 'modelApi'],
       false,
@@ -1128,7 +1134,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'estimateTitle' },
       { ui: 'referenceEstimate' },
       ['estimate'],
-      ['estimator.optimize', 'estimator.priceLookup'],
+      ['estimator.optimize', 'estimator.priceLookup', 'reports.network'],
       'estimates',
       ['museCode', 'modelApi'],
       false,
@@ -1215,7 +1221,8 @@ const REFERENCE_DETAILS: Readonly<
     'referenceOutputCapMinimum',
     'localContextWindowHint',
   ],
-  estimator: ['estimateCliHelp'],
+  // The estimator also exposes the exclusive whole-plan check in ESTIMATE_OPTIONS.
+  estimator: ['estimateDiagnosticHelp', 'estimateCliHelp'],
   // Includes Muse Code's permission-rule exceptions, shared with localized settings.
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],

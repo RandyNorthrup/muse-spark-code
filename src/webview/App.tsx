@@ -1,3 +1,4 @@
+import type { EstimateDiagnostic, EstimateViewState } from '../shared/estimateDiagnostic'
 import { loadDeferredEnglish } from '../shared/l10n/deferredEnglish'
 import { JudgeStatusLine } from './components/JudgeStatusLine'
 import { retrySurface } from './surfaceRetry'
@@ -968,21 +969,31 @@ export function App({
   // reveals the panel and settles every pending run. Re-estimates are
   // legitimate (the panel's Refresh), so runs are never deduplicated here.
   const estimatePendings = useRef(
-    new Map<string, { resolve(section: EstimateSection): void; reject(error: Error): void }>(),
+    new Map<
+      string,
+      {
+        resolve(section: EstimateSection | EstimateDiagnostic): void
+        reject(error: DOMException): void
+      }
+    >(),
   )
-  const estimateStarts = useRef(new Map<string, { resolve(): void; reject(error: Error): void }>())
+  const estimateStarts = useRef(
+    new Map<
+      string,
+      { resolve(diagnostic?: EstimateDiagnostic): void; reject(error: DOMException): void }
+    >(),
+  )
   const estimateSequence = useRef(0)
   const estimateCurrentId = useRef<string | undefined>(undefined)
-  const [estimateDisplayId, setEstimateDisplayId] = useState<string | undefined>(undefined)
   const [estimateLastRequest, setEstimateLastRequest] = useState<EstimateRequest | undefined>(
     undefined,
   )
-  const estimateSubscribers = useRef(new Set<(section: EstimateSection) => void>())
+  const estimateSubscribers = useRef(new Set<(state: EstimateViewState) => void>())
   const postEstimateRun = useCallback(
     (request: EstimateRequest, requestId?: string) => {
       const id = requestId ?? `estimate-${String(++estimateSequence.current)}`
       estimateCurrentId.current = id
-      setEstimateDisplayId(id)
+      dispatch({ type: 'estimatorLoading', requestId: id })
       for (const [pendingId, pending] of estimatePendings.current) {
         if (pendingId === id) continue
         pending.reject(new DOMException('The estimate was replaced', 'AbortError'))
@@ -991,9 +1002,10 @@ export function App({
       setEstimateLastRequest(request)
       postMessage({ type: 'estimateRun', requestId: id, request })
     },
-    [postMessage],
+    [postMessage, dispatch],
   )
-  const estimatorSection = state.estimator
+  const estimatorSection =
+    state.estimator.status === 'showing' ? state.estimator.section : undefined
   const estimatorRequestId = state.estimatorRequestId
   useEffect(() => {
     if (estimatorSection === undefined || estimatorRequestId !== estimateCurrentId.current) return
@@ -1001,42 +1013,49 @@ export function App({
       estimatePendings.current.get(estimatorRequestId)?.resolve(estimatorSection)
       estimatePendings.current.delete(estimatorRequestId)
     }
-    for (const listener of estimateSubscribers.current) listener(estimatorSection)
+    setEstimateLastRequest(estimatorSection.inputs.request)
   }, [estimatorSection, estimatorRequestId])
   const estimatorFailure = state.estimatorFailure
   useEffect(() => {
     if (estimatorFailure === undefined) return
     const requestId = estimatorFailure.requestId ?? estimateCurrentId.current
     if (requestId === undefined) return
-    estimatePendings.current.get(requestId)?.reject(new Error(estimatorFailure.reason))
+    estimatePendings.current.get(requestId)?.resolve(estimatorFailure.diagnostic)
     estimatePendings.current.delete(requestId)
   }, [estimatorFailure])
   const estimatorStarted = state.estimatorStarted
   useEffect(() => {
     if (estimatorStarted === undefined) return
     if (estimatorStarted.requestId === undefined) {
-      if (estimatorStarted.error !== undefined) {
+      if (estimatorStarted.diagnostic !== undefined) {
         for (const pending of estimateStarts.current.values())
-          pending.reject(new Error(estimatorStarted.error))
+          pending.resolve(estimatorStarted.diagnostic)
         estimateStarts.current.clear()
       }
       return
     }
     const pending = estimateStarts.current.get(estimatorStarted.requestId)
-    if (estimatorStarted.error === undefined) pending?.resolve()
-    else pending?.reject(new Error(estimatorStarted.error))
+    if (estimatorStarted.diagnostic === undefined) pending?.resolve()
+    else pending?.resolve(estimatorStarted.diagnostic)
     estimateStarts.current.delete(estimatorStarted.requestId)
   }, [estimatorStarted])
+  useEffect(() => {
+    if (state.estimator.status !== 'loading')
+      for (const listener of estimateSubscribers.current) listener(state.estimator)
+  }, [state.estimator])
   const estimatorSession = state.sessionId
   useEffect(() => {
     const estimates = estimatePendings.current
     const starts = estimateStarts.current
     return () => {
-      for (const pending of estimates.values()) pending.reject(new Error('estimate-replaced'))
+      for (const pending of estimates.values())
+        pending.reject(new DOMException('The estimate was replaced', 'AbortError'))
       estimates.clear()
-      for (const pending of starts.values()) pending.reject(new Error('estimate-replaced'))
+      for (const pending of starts.values())
+        pending.reject(new DOMException('The estimate was replaced', 'AbortError'))
       starts.clear()
       estimateCurrentId.current = undefined
+      setEstimateLastRequest(undefined)
     }
   }, [estimatorSession])
   const estimatorOptimize = state.settings?.['estimator.optimize'] ?? 'cost'
@@ -1044,7 +1063,7 @@ export function App({
     () => ({
       context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
       estimate: (request, signal) =>
-        new Promise<EstimateSection>((resolve, reject) => {
+        new Promise<EstimateSection | EstimateDiagnostic>((resolve, reject) => {
           if (signal.aborted) {
             reject(new DOMException('The estimate was replaced', 'AbortError'))
             return
@@ -1074,14 +1093,15 @@ export function App({
         }
       },
       startExisting: (_section, setup) =>
-        new Promise<void>((resolve, reject) => {
+        new Promise<EstimateDiagnostic | undefined>((resolve, reject) => {
           const requestId = `estimate-start-${String(++estimateSequence.current)}`
+          dispatch({ type: 'estimatorStarting', requestId })
           estimateStarts.current.set(requestId, { resolve, reject })
           postMessage({ type: 'estimateSpinUp', requestId, setup: setup.kind })
         }),
       provision: { state: 'waiting', dependency: 'M117-P-M109-provider' },
     }),
-    [postEstimateRun, postMessage, estimatorOptimize],
+    [postEstimateRun, postMessage, estimatorOptimize, dispatch],
   )
   // The extension's `museSpark.estimate` command (M117).
   const estimatorRequests = state.estimatorRequests
@@ -1224,7 +1244,7 @@ export function App({
     }
     // `/estimate …` opens the estimator panel, not a message (M117): the
     // draft clears and the host's `estimatorSection` reveals it. The full
-    // parse loads with the composer so startup carries only the prefix check.
+    // parse runs in the host so startup carries only the prefix check.
     if (isEstimateCommandText(text)) {
       if (!OPTIONAL_RUNTIME_AVAILABILITY.estimator) {
         dispatch({
@@ -1239,12 +1259,20 @@ export function App({
       void import('./estimator/composer')
         .then(({ wasEstimateComposerHandled }) => {
           wasEstimateComposerHandled(text, {
-            context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
-            open: (request) => {
-              postEstimateRun(request)
-            },
-            notice: (noticeText) => {
-              dispatch({ type: 'noticeRaised', level: 'warning', text: noticeText })
+            submit: (command) => {
+              const id = `estimate-${String(++estimateSequence.current)}`
+              estimateCurrentId.current = id
+              dispatch({ type: 'estimatorLoading', requestId: id })
+              for (const [pendingId, pending] of estimatePendings.current) {
+                pending.reject(new DOMException('The estimate was replaced', 'AbortError'))
+                estimatePendings.current.delete(pendingId)
+              }
+              postMessage({
+                type: 'estimateCommand',
+                requestId: id,
+                command,
+                context: { asOf: new Date().toISOString(), optimize: estimatorOptimize },
+              })
             },
           })
         })
@@ -1439,7 +1467,6 @@ export function App({
     onPlayback,
     onLegalScan,
     onHandoff,
-    postEstimateRun,
     estimatorOptimize,
   ])
   // Send exactly the payload the dialog previewed. The composer may now
@@ -3428,22 +3455,18 @@ export function App({
         {/* A failed money load leaves every price out, said here with Retry,
             which rebuilds the document (the palette says it inside itself). */}
         <MoneyUnavailable isInert={isModalOpen} onRetry={retrySurface} />
-        {estimatorFailure?.reason === UI_TEXT.surfaceLoadFailed ? (
-          <div role="alert" inert={isModalOpen}>
-            {UI_TEXT.surfaceLoadFailed}
-            <button type="button" onClick={retrySurface}>
-              {UI_TEXT.surfaceLoadRetry}
-            </button>
-          </div>
+        {state.estimator.status === 'failed' &&
+        state.estimator.diagnostic.estimateDiagnostic === 'source-unavailable' ? (
+          <button type="button" onClick={retrySurface} inert={isModalOpen}>
+            {UI_TEXT.surfaceLoadRetry}
+          </button>
         ) : null}
-        {estimateLastRequest === undefined || state.estimator === undefined ? null : (
+        {state.estimator.status === 'idle' ? null : (
           <EstimatorPanel
             key={state.sessionId}
             port={estimatorPort}
             initial={estimateLastRequest}
-            initialSection={
-              state.estimatorRequestId === estimateDisplayId ? state.estimator : undefined
-            }
+            initialState={state.estimator}
             isInert={isModalOpen}
           />
         )}

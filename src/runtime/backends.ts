@@ -29,11 +29,8 @@ import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountTex
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
-import {
-  buildChildEnvironment,
-  environmentValue,
-  withLoopbackBypass,
-} from '../core/backends/musecode/launch'
+import { environmentValue } from '../core/childEnvironment'
+import { buildChildEnvironment, withLoopbackBypass } from '../core/backends/musecode/launch'
 import { personalSkillsRoot } from '../core/context/skills'
 import { personalAgentsRoot } from '../core/context/customAgents'
 import { memoryDataRoot } from '../core/memory/memoryLocation'
@@ -926,10 +923,15 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   })
   return {
     readUsageBudgets: async () => {
-      const budgets = await Promise.all(
-        Array.from(modelApiHosts.values(), ({ manager }) => manager.readUsageBudgets()),
-      )
-      return budgets.flat()
+      // The shared daily paid budget first, then the live session budgets:
+      // the same pair VS Code passes (RVCM1132B finding 3). The ledger read
+      // never starts a backend.
+      const accounting = await import('./runtimeAccountingEntry.js')
+      const [daily, ...session] = await Promise.all([
+        accounting.readRuntimeDailyBudget({ dataFolder: agentDataFolder(deps), now: Date.now }),
+        ...Array.from(modelApiHosts.values(), ({ manager }) => manager.readUsageBudgets()),
+      ])
+      return [...daily, ...session.flat()]
     },
     backend: {
       kind: deps.options.backend,

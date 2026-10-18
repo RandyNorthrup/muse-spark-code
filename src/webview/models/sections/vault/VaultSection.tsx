@@ -3,7 +3,7 @@ import { type vaultClientMessageSchema } from '../../../../shared/hostApi/vaultM
 import { type VaultPanelState } from '../../../../shared/modelsPanel'
 import { UI_TEXT } from '../../../../shared/constants'
 import { plural, formatDateTime, formatNumber } from '../../../../shared/l10n/text'
-import { type VaultStatus } from '../../../../shared/vaultProtocol'
+import type { VaultStatus } from '../../../../shared/vaultStatus'
 import { VaultDetails, vaultUseLabel } from './vaultPresentation'
 import { VaultGrantEditor } from './VaultGrantEditor'
 import './vault.css'
@@ -46,6 +46,10 @@ export function VaultSection({
   const [kindFilter, setKindFilter] = useState('')
   const [outcomeFilter, setOutcomeFilter] = useState('')
   const isUnlocked = state.status.state === 'unlocked'
+  // Set Up Vault (lead decision 8): the host shows the one-time code natively.
+  const isUncreated = state.status.state === 'uncreated'
+  const isSetupPending = state.status.state === 'setupPending'
+  const isLost = state.status.reason === 'vaultLost'
   const audit = state.audit.filter(
     (row) =>
       (itemFilter === '' || row.handle === itemFilter) &&
@@ -73,15 +77,43 @@ export function VaultSection({
           {UI_TEXT.vault[notice]}
         </p>
       ))}
+      {isLost && (
+        <div className="vault-actions">
+          <p role="status">{UI_TEXT.vault.vaultLost}</p>
+          <button
+            type="button"
+            onClick={() => {
+              post({ type: 'vaultReset' })
+            }}
+          >
+            {UI_TEXT.vault.resetVault}
+          </button>
+        </div>
+      )}
+      {(isUncreated || isSetupPending) && (
+        <p role="status">{isUncreated ? UI_TEXT.vault.setupNeeded : UI_TEXT.vault.setupPending}</p>
+      )}
       <div className="vault-actions">
-        <button
-          type="button"
-          onClick={() => {
-            post({ type: isUnlocked ? 'vaultLock' : 'vaultUnlock' })
-          }}
-        >
-          {isUnlocked ? UI_TEXT.vault.lock : UI_TEXT.vault.unlock}
-        </button>
+        {isUncreated || isSetupPending ? (
+          <button
+            type="button"
+            disabled={isSetupPending}
+            onClick={() => {
+              post({ type: 'vaultSetup' })
+            }}
+          >
+            {UI_TEXT.vault.setUp}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              post({ type: isUnlocked ? 'vaultLock' : 'vaultUnlock' })
+            }}
+          >
+            {isUnlocked ? UI_TEXT.vault.lock : UI_TEXT.vault.unlock}
+          </button>
+        )}
         <button
           type="button"
           disabled={!isUnlocked}

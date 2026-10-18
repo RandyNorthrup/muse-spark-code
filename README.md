@@ -268,13 +268,21 @@ model call or a charge. **Needs You** comes first; every source names its
 availability, freshness and observation time. Missing integrations remain
 visible as unavailable.
 
-| Kind      | Input                                                                        |
-| --------- | ---------------------------------------------------------------------------- |
-| Project   | `/report project`                                                            |
-| Milestone | `/report milestone M113`                                                     |
-| Release   | `/report release latest`                                                     |
-| Changes   | `/report changes`; `since <tag, branch, or YYYY-MM-DD>` selects Git ancestry |
-| Quality   | `/report quality`                                                            |
+| Kind                 | Input                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------- |
+| Project              | `/report project`                                                                           |
+| Milestone            | `/report milestone M113`                                                                    |
+| Release              | `/report release latest`                                                                    |
+| Changes              | `/report changes`; `since <tag, branch, or YYYY-MM-DD>` selects Git ancestry                |
+| Quality              | `/report quality`                                                                           |
+| Usage                | `/report usage`; `30d --by model` scopes the window and breakdown                           |
+| Session              | `/report session`                                                                           |
+| Key Bindings         | `/report keybindings`                                                                       |
+| Accounts             | `/report accounts`                                                                          |
+| Security             | `/report security`                                                                          |
+| Estimate             | `/report estimate M113`; `--by <date>` sets the deadline, `--fleet minimum` picks the setup |
+| Engineering Playbook | `/report playbook`                                                                          |
+| Schedules            | `/report schedules`                                                                         |
 
 Each table shows at most ten rows with an omitted-row count; `--full` retains
 all available rows. Next steps follow the plan's declared delivery order and
@@ -312,6 +320,14 @@ Installed native editor tabs are certified by M104; the portable MHP 1.2
 report methods are already validated. In a terminal, the command is
 `muse-spark-code-acp report <kind>`; bare `report` retains the problem-report
 command. See the [ACP guide](docs/acp.md#deterministic-reports-m113).
+
+The estimator also checks the workspace plan without forecasting.
+`/estimate --check-plan` checks every plan row independently of any forecast's
+dependency closure and answers empty for a clean plan. Use the flag alone,
+with no goal or other flags; it requires plan-format-v1 and a lane table.
+The exclusive standalone check is `muse-spark-code-acp estimate --check-plan`:
+exit 0 means a clean plan, 1 means problems or an unavailable check, 2 means
+usage.
 
 ![Local report tab with export actions](https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/deterministic-report.png)
 

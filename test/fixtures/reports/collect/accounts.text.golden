@@ -1,0 +1,222 @@
+Accounts
+
+Scope: fixture-workspace
+Generated as of 2026-10-06T12:00:00+00:00
+Version: 0.14.2
+SHA-256: 88328c8e89c4fae8e396fdc15582c2c305b188e7db4b910b247bb345dd25408e
+
+Needs You
+Name: Q-M12
+Reason: Choose the target
+Status: Open
+Sources: plan
+
+Name: npm
+Reason: Waiting for publication
+Status: Lagging
+Sources: stores
+
+Name: Quality
+Reason: https://example.invalid/actions/runs/2
+Status: Failed
+Sources: github
+
+Accounts
+Provider: meta
+Account: primary
+Name: Primary
+Scope:
+Count: 1
+Status: Available
+Reason:
+Sources: accounts
+
+Limits
+Name: Primary
+Kind: percent/plan
+Count: 80%
+Status: Available
+Reason:
+Sources: accounts
+
+Name: Primary
+Kind: requests/day
+Count: 100
+Status: Available
+Reason:
+Sources: accounts
+
+Name: Primary
+Kind: spendUsd/day
+Count: $5.00 (Reported)
+Status: Available
+Reason:
+Sources: accounts
+
+Usage
+Name: Primary
+Scope: meta
+Input Tokens: 100
+Output Tokens: 20
+Cost: $0.25 (Reported)
+Certainty: Reported
+Status: Available
+Reason:
+Sources: accounts
+
+Swaps
+Name: backup
+Kind: swap
+Outcome: userCap/spendUsd/day
+Date: 2026-10-06T10:00:00.000+00:00
+Status: Available
+Reason:
+Sources: accounts
+
+Refusals
+Name: Primary
+Kind: stop
+Outcome: vendorLimit/quota
+Date: 2026-10-06T11:00:00.000+00:00
+Status: Available
+Reason:
+Sources: accounts
+
+Confirmations
+Provider: meta
+Name: muse
+Kind: confirm
+Date: 2026-10-06T09:00:00.000+00:00
+Status: Available
+Reason:
+Sources: accounts
+
+Plan Format
+Name: plan-format-v1
+Count: Unknown
+Reason:
+Status: Available
+Sources: plan
+
+Sources
+Name: accounts
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: agentUsage
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: certification
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: changelog
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: checkRuns
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: estimate
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: fleet
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: git
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: github
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: issues
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: keybindings
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: package
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: plan
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: playbook
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: questions
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: schedules
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: security
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: session
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: stores
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Name: usage
+Status: Available
+Reason:
+Observed At: 2026-10-06T12:00:00.000+00:00
+Freshness: Fresh (0s)
+
+Renderer 1; ICU 77.1; locale en

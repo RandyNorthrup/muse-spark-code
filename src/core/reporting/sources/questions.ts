@@ -1,5 +1,6 @@
 import { REPORT_MAX_ROWS, REPORT_MAX_TEXT_CHARS } from '../../../shared/constants'
 import * as z from 'zod/mini'
+import { duplicateProblem, joinPartialReasons, readReportRows } from './boundary'
 import { codeUnitCompare, localSource, LocalSourceError, type SourceScrub } from './local'
 import type { ReportQuestion, SourceReadContext } from './types'
 
@@ -19,14 +20,33 @@ export function questionsSource(reader: ReportQuestionsReader | undefined, scrub
   return localSource('questions', async (context) => {
     if (reader === undefined) throw new LocalSourceError('unbound')
     const result = await reader.read(context)
-    const parsed = z
-      .array(questionSchema)
-      .check(z.maxLength(REPORT_MAX_ROWS))
-      .parse(result.questions)
-    if (new Set(parsed.map((row) => row.id)).size !== parsed.length)
-      throw new LocalSourceError('invalid')
+    // Each question parses on its own: one damaged entry is a named problem
+    // beside the good rows, never a lost registry (RVREPORTJOIN P2-1). A
+    // repeated id keeps its first row; the later one is the problem.
+    const recovered = readReportRows(
+      context.reportText,
+      'questions',
+      'questions',
+      result.questions,
+      questionSchema,
+    )
+    const seen = new Set<string>()
+    const rows: ReportQuestion[] = []
+    const problems = [...recovered.problems]
+    for (const row of recovered.rows) {
+      if (seen.has(row.id)) {
+        problems.push(duplicateProblem(context.reportText, 'questions', `questions/${row.id}`))
+        continue
+      }
+      seen.add(row.id)
+      rows.push(row)
+    }
+    const partial = joinPartialReasons(
+      context.reportText,
+      problems.map((problem) => problem.reason),
+    )
     return {
-      data: parsed
+      data: rows
         .map((row) => ({
           ...row,
           id: scrub(row.id),
@@ -38,6 +58,7 @@ export function questionsSource(reader: ReportQuestionsReader | undefined, scrub
             codeUnitCompare(a.id, b.id) || codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
         ),
       observedAt: result.observedAt,
+      ...(partial !== undefined && { partial }),
     }
   })
 }
