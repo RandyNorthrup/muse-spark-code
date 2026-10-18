@@ -1,6 +1,7 @@
 // The provider key's password box (M95 lane K, PLAN.md D74): **Enter
-// key…** opens VS Code's password box with the preset's shape checked as it
-// is typed. The key never enters the webview, and this module never logs it.
+// key…** opens VS Code's password box. Any non-blank key is accepted: the
+// provider judges it through the free key test, never its looks. The key
+// never enters the webview, and this module never logs it.
 
 import type * as vscode from 'vscode'
 import { UI_TEXT } from '../../shared/constants'
@@ -11,10 +12,8 @@ export interface ProviderKeyPrompt {
   readonly providerName: string
   /** The address the credential is sent to, and no other. */
   readonly origin: string
-  /** The key's documented shape, shown as the box's hint. */
+  /** Where the key comes from, shown as the box's hint. */
   readonly keyHint: string
-  /** The preset's live shape check, run as the key is typed. */
-  isKeyShape(value: string): boolean
 }
 
 /**
@@ -31,10 +30,6 @@ export async function promptForProviderKey(
     placeHolder: prompt.keyHint,
     password: true,
     ignoreFocusOut: true,
-    validateInput: (value) =>
-      prompt.isKeyShape(value.trim())
-        ? undefined
-        : fill(UI_TEXT.providerKeyInvalid, { provider: prompt.providerName }),
   })
   if (entered === undefined) {
     return undefined

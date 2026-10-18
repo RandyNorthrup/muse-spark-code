@@ -298,6 +298,13 @@ export function createModelsPanelFeatures(
           UI_TEXT.providerPrivateConfirmLabel,
           UI_TEXT.wizardCancel,
         )) === UI_TEXT.providerPrivateConfirmLabel,
+      confirmKeyUse: async (message) =>
+        (await vscode.window.showWarningMessage(
+          message,
+          { modal: true },
+          UI_TEXT.wizardContinue,
+          UI_TEXT.wizardCancel,
+        )) === UI_TEXT.wizardContinue,
       openBrowser: (url) => {
         void vscode.env.openExternal(vscode.Uri.parse(url))
         return Promise.resolve()
