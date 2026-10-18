@@ -1,12 +1,14 @@
 // Native Node loader regressions run during packaging, after its production build.
 // Workers isolate CLI/host state; the remaining calls drive real schemas and
-// parsers with data, and no model call is made. The worker's Module._load trap
-// for 'vscode' and the throwing fetch are load isolation only: VS Code-bound
-// bundles must import in bare Node, and no exercised call reaches them.
+// parsers with data, and no model call is made. Nothing intercepts the loader
+// and no module is substituted: a bundle bare Node rejects, or one that boots
+// a worker protocol instead of exporting, compares as the identical refusal
+// on both sides. The throwing fetch is a network guard: it fails any network
+// use instead of answering it.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
-import Module, { createRequire } from 'node:module'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { test, after } from 'node:test'
 import { pathToFileURL } from 'node:url'
@@ -117,46 +119,87 @@ if (isMainThread) {
     })
   }
   for (const file of files) {
-    test(`${kind} ${file}: native import and require retain baseline exports and calls`, async () => {
+    test(`${kind} ${file}: packaged bundle matches the baseline bundle`, async () => {
       const [baseline, packaged] = await Promise.all([
         observe(path.join(root, 'dist', file)),
         observe(path.join(packageRoot, 'dist', file)),
       ])
       assert.deepEqual(packaged, baseline)
-      assert.deepEqual(packaged.importCall, packaged.requireCall)
+      if (packaged.kind === 'library') {
+        assert.deepEqual(packaged.importCall, packaged.requireCall)
+      }
     })
   }
 } else {
   // The real CLI entry takes its help path; neither auth nor backend setup runs.
   process.argv = [process.execPath, workerData.file, '--help']
-  // Load isolation only (PLAN §8): VS Code-bound bundles must import in bare
-  // Node so every dist file's exports can be compared. No exercised call
-  // below reaches the trap: the remaining branches drive real schemas and
-  // parsers whose sources never import 'vscode'.
-  const inert = () => undefined
-  // eslint-disable-next-line no-restricted-syntax -- load isolation, PLAN §8.
-  const noop = new Proxy(inert, { get: () => noop })
-  const load = Module._load
-  // eslint-disable-next-line no-restricted-syntax -- load isolation, PLAN §8.
-  Module._load = function (name, ...args) {
-    if (name === 'vscode') return noop
-    return name === 'node:worker_threads'
-      ? { parentPort: undefined, workerData: undefined }
-      : Reflect.apply(load, Module, [name, ...args])
+  // Worker entries boot their job protocol on a real thread instead of
+  // exporting (their entries are named in scripts/build.mjs); each runs
+  // jobless here and answers its own refusal over the thread protocol.
+  const workerEntries = new Set(['imageResizeWorker.js', 'pageWorker.js', 'searchWorker.js'])
+  const scrubRoot = (value) =>
+    String(value ?? '')
+      .split(path.dirname(workerData.file))
+      .join('<dist>')
+      .split(process.cwd())
+      .join('<root>')
+  const headlineOf = (error) => scrubRoot(error?.message).split('\n', 1)[0]
+  async function loadLibrary(file) {
+    let imported
+    try {
+      imported = await import(pathToFileURL(file).href)
+    } catch (error) {
+      const failure = { code: error?.code, headline: headlineOf(error) }
+      try {
+        createRequire(file)(file)
+        return { kind: 'hostModule', import: failure, require: { loaded: true } }
+      } catch (requireError) {
+        return {
+          kind: 'hostModule',
+          import: failure,
+          require: { code: requireError?.code, headline: headlineOf(requireError) },
+        }
+      }
+    }
+    const require = createRequire(file)
+    const required = require(file)
+    const table = require(path.join(path.dirname(file), 'uiText.js')).EN
+    return {
+      kind: 'library',
+      imported: Object.keys(imported).toSorted(compare),
+      required: Object.getOwnPropertyNames(required).toSorted(compare),
+      importCall: await exercise(imported, path.basename(file), table),
+      requireCall: await exercise(required, path.basename(file), table),
+    }
+  }
+  function bootWorkerEntry(file) {
+    return new Promise((resolve) => {
+      const nested = new Worker(file)
+      let isSettled = false
+      const settle = async (boot) => {
+        if (isSettled) return
+        isSettled = true
+        nested.removeAllListeners()
+        try {
+          await nested.terminate()
+        } catch {
+          // The thread is already gone; its refusal was already recorded.
+        }
+        resolve({ kind: 'workerBoot', boot })
+      }
+      nested.once('message', (message) => settle({ posted: message }))
+      nested.once('error', (error) => settle({ error: headlineOf(error) }))
+      nested.once('exit', (code) => settle({ exit: code }))
+    })
   }
   Object.defineProperty(globalThis, 'fetch', {
     value() {
       throw new Error('Packaging regression must not use the network')
     },
   })
-  const require = createRequire(workerData.file)
-  const imported = await import(pathToFileURL(workerData.file).href)
-  const required = require(workerData.file)
-  const table = require(path.join(path.dirname(workerData.file), 'uiText.js')).EN
-  parentPort.postMessage({
-    imported: Object.keys(imported).toSorted(compare),
-    required: Object.getOwnPropertyNames(required).toSorted(compare),
-    importCall: await exercise(imported, path.basename(workerData.file), table),
-    requireCall: await exercise(required, path.basename(workerData.file), table),
-  })
+  parentPort.postMessage(
+    workerEntries.has(path.basename(workerData.file))
+      ? await bootWorkerEntry(workerData.file)
+      : await loadLibrary(workerData.file),
+  )
 }

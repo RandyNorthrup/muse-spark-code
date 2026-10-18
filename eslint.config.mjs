@@ -319,9 +319,8 @@ export default tseslint.config(
             'A mock function is a stand-in. Test the real code (AGENTS.md: no fakes in tests).',
         },
         {
-          // Lane STANDINS: the packaging loader's vscode trap is the only
-          // `new Proxy` in test/, kept as documented load isolation
-          // (test/packaging/moduleExports.test.mjs header, PLAN.md §8).
+          // No exemption: a Proxy that answers property reads is a
+          // module-surface stand-in everywhere it appears.
           selector: "NewExpression[callee.name='Proxy']",
           message:
             'A Proxy that answers property reads is a module-surface stand-in. Test the real code (AGENTS.md: no fakes in tests).',

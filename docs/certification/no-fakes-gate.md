@@ -11,7 +11,7 @@ The owner, 2026-10-17: "there can be no more fakes at all everything needs to be
 - (lane STANDINS) `new Proxy(...)` — a Proxy answering property reads is a module-surface stand-in (`no-restricted-syntax`);
 - (lane STANDINS) assignment to `Module._load` / `Module._resolveFilename` — loader interception is a stand-in (`no-restricted-syntax`).
 
-The block covers `test/**/*.mjs` since lane STANDINS: the marketplace-hook KV double lived in a `.mjs` test the old `ts,tsx` glob never saw. The packaging loader's `vscode` trap (`test/packaging/moduleExports.test.mjs`) is the one deliberate exception: two scoped `eslint-disable-next-line no-restricted-syntax` lines with inline reasons, logged in PLAN.md §8. It is load isolation only — VS Code-bound bundles must import in bare Node — and no exercised call reaches it.
+The block covers `test/**/*.mjs` since lane STANDINS: the marketplace-hook KV double lived in a `.mjs` test the old `ts,tsx` glob never saw. The packaging loader's `vscode` trap (`test/packaging/moduleExports.test.mjs`) was the one deliberate exception, with two scoped `eslint-disable-next-line no-restricted-syntax` lines logged in PLAN.md §8. Lane PR223FIX (2026-10-17, Codex thread) deleted the trap, the Proxy and both suppressions, and withdrew the §8 row: VS Code-bound bundles now compare as identical bare-Node refusals and worker entries boot as real threads, so the gate has no exception left.
 
 `vi.stubEnv` stays allowed: it sets a real environment variable that a real child process must not inherit (`test/unit/eval/evalTasks.test.ts`).
 
@@ -48,14 +48,14 @@ test/unit/zzDrill.test.ts
   13:5   error  Intercepting the module loader is a stand-in. Test the real code (AGENTS.md: no fakes in tests)                         no-restricted-syntax
 ```
 
-Both rules fire in `.ts` and `.mjs`. `test/packaging/moduleExports.test.mjs` reports no errors: its two scoped disables hold. After the planted files were removed, `npx eslint --max-warnings=0` on every touched file exited 0.
+Both rules fire in `.ts` and `.mjs`. `test/packaging/moduleExports.test.mjs` reports no errors: it carries no suppression (lane PR223FIX deleted the trap and both disables). After the planted files were removed, `npx eslint --max-warnings=0` on every touched file exited 0.
 
 Correction (review lane RVSTANDINS, 2026-10-17): the loader selector
 matched only the dotted spelling; `Module['_load'] = ...` passed lint
 (planted and measured). A computed-property selector now covers it:
 the same planted file reports both the computed `_load` and the dotted
-`_resolveFilename` assignments, and the packaging file's scoped disables
-still hold.
+`_resolveFilename` assignments. (Lane PR223FIX deleted the packaging
+file's scoped disables with the trap itself, so no disable remains.)
 
 ## Gates on the final tree
 
