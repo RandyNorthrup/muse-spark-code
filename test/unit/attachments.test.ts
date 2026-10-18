@@ -98,7 +98,11 @@ describe('AttachmentStore', () => {
       ok: false,
       reason: UI_TEXT.invalidPdf,
     })
-    expect(attachments.add('huge.png', png(1, 1, MAX_IMAGE_BYTES))).toMatchObject({
+    // The size check reads only the length, so an over-limit header-shaped
+    // buffer proves the refusal without spreading ten million padding bytes.
+    const huge = new Uint8Array(MAX_IMAGE_BYTES + 1)
+    huge.set(png(1, 1))
+    expect(attachments.add('huge.png', huge)).toMatchObject({
       ok: false,
       reason: expect.stringContaining('10 MB'),
     })
