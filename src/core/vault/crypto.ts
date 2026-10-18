@@ -30,8 +30,9 @@ export class VaultError extends Error {
       | 'busy'
       | 'io'
       | 'filesystemUnsupported',
+    options?: { cause?: unknown },
   ) {
-    super(code === 'rollback' ? UI_TEXT.vault.rollback : UI_TEXT.vault.noAccess)
+    super(code === 'rollback' ? UI_TEXT.vault.rollback : UI_TEXT.vault.noAccess, options)
     this.name = 'VaultError'
   }
 }
@@ -192,8 +193,10 @@ export function aesGcmOpen(
     plaintext.set(chunk)
     plaintext.set(tail, chunk.length)
     return plaintext
-  } catch {
-    throw new VaultError('authentication')
+  } catch (error: unknown) {
+    // A failed open is authentication failure whatever the cipher threw; the
+    // failure rides along as the cause while the person keeps fixed words.
+    throw new VaultError('authentication', { cause: error })
   } finally {
     chunk?.fill(0)
     tail?.fill(0)
@@ -320,8 +323,14 @@ export function decodeVaultMaterial(bytes: Buffer): VaultItem['material'] {
     const material = vaultMaterialSchema.safeParse(Object.fromEntries(entries))
     if (!material.success || used.size !== fields.length) throw new VaultError('invalid')
     return material.data
-  } catch {
-    for (const field of fields) field.fill(0)
-    throw new VaultError('invalid')
+  } catch (error: unknown) {
+    // Wiped as one expression: a torn-down split reads invalid whatever broke
+    // it, and the failure rides along as the cause while the person keeps
+    // fixed words.
+    for (const field of fields) {
+      field.fill(0)
+    }
+    if (error instanceof VaultError) throw error
+    throw new VaultError('invalid', { cause: error })
   }
 }

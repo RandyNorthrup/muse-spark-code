@@ -22,8 +22,10 @@ export const SSH = {
   ecScalarBytes: 32,
 }
 
-export function sshFailure(): Error {
-  return new Error(UI_TEXT.vault.noAccess)
+export function sshFailure(cause?: unknown): Error {
+  return cause === undefined
+    ? new Error(UI_TEXT.vault.noAccess)
+    : new Error(UI_TEXT.vault.noAccess, { cause })
 }
 export function uint32(value: number): Buffer {
   const bytes = Buffer.alloc(SSH.uint32Bytes)

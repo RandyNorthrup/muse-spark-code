@@ -18,8 +18,9 @@ export class VaultMigrationFault extends Error {
       | 'unreadable'
       /** The source's location is not available (drive down): the receipt stays. */
       | 'unavailable',
+    options?: { cause?: unknown },
   ) {
-    super(UI_TEXT.vault.noAccess)
+    super(UI_TEXT.vault.noAccess, options)
     this.name = 'VaultMigrationFault'
   }
 }
