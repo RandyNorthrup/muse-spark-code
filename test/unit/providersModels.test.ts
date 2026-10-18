@@ -242,6 +242,26 @@ describe('providers models list', () => {
     await expectEntryOnlyList(f)
   })
 
+  it('lists the entry models when the credential store is locked', async () => {
+    const f = deps()
+    await writeInitial(f.filePath, fileWith())
+    // A locked OS store rejects the read: the read-only list still prints
+    // the configured models with the unreadable notice instead of crashing.
+    const locked: ProvidersDeps = {
+      ...f.deps,
+      secrets: {
+        ...f.deps.secrets,
+        get: () => Promise.reject(new Error('the store is locked')),
+      },
+    }
+    expect(
+      await providersModels(locked, { entry: 'openrouter', add: [], remove: [], force: undefined }),
+    ).toBe(0)
+    expect(f.printed.join('\n')).toContain('model-a')
+    expect(f.printed).toContain(UI_TEXT.cliHelp.modelsUnreadable)
+    expect(f.errors).toEqual([])
+  })
+
   it('lists an entry whose preset is retired without touching the network', async () => {
     const f = deps()
     await writeInitial(f.filePath, {
