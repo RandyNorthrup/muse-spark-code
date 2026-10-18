@@ -87,47 +87,49 @@ function depsFor(response: PinnedResponse, rawTextLimit?: number): WebFetchDeps 
   }
 }
 
+async function readCapture(
+  name: 'big-txt' | 'example',
+  rawTextLimit?: number,
+): Promise<{ result: Awaited<ReturnType<typeof fetchWebPage>>; closed: number; capture: Capture }> {
+  const { body, capture } = loadCapture(name)
+  const closed = { count: 0 }
+  const result = await fetchWebPage(
+    capture.finalUrl,
+    depsFor(recordedResponse(body, capture.responseHeaders, closed), rawTextLimit),
+    new AbortController().signal,
+  )
+  return { result, closed: closed.count, capture }
+}
+
+function expectPage(
+  actual: Awaited<ReturnType<typeof fetchWebPage>>,
+  closed: number,
+): asserts actual is { kind: 'page'; page: { bytes: number }; text: string } & typeof actual {
+  expect(actual).toMatchObject({ kind: 'page' })
+  if (actual.kind !== 'page') throw new Error('expected the page to read')
+  expect(closed).toBe(1)
+}
+
 describe('web fetch decompression window', () => {
   it('streams a real body past the window truncated-with-notice instead of refusing', async () => {
-    const { body, capture } = loadCapture('big-txt')
+    const { result, closed, capture } = await readCapture('big-txt')
     expect(capture.decompressedBytes).toBeGreaterThan(WEB_FETCH_BUFFER_WINDOW_BYTES)
-    const closed = { count: 0 }
-    const result = await fetchWebPage(
-      capture.finalUrl,
-      depsFor(recordedResponse(body, capture.responseHeaders, closed)),
-      new AbortController().signal,
-    )
-    expect(result).toMatchObject({ kind: 'page' })
-    if (result.kind !== 'page') throw new Error('expected the large page to read')
+    expectPage(result, closed)
     // Only the window is ever buffered, however far the gzip expands.
     expect(result.page.bytes).toBe(WEB_FETCH_BUFFER_WINDOW_BYTES)
     expect(result.text).toContain('Project Gutenberg')
     expect(result.text).toContain('the page has more')
-    expect(closed.count).toBe(1)
   })
 
   it('still reads a real small page whole, HTML converted', async () => {
-    const { body, capture } = loadCapture('example')
-    const closed = { count: 0 }
-    const result = await fetchWebPage(
-      capture.finalUrl,
-      depsFor(recordedResponse(body, capture.responseHeaders, closed)),
-      new AbortController().signal,
-    )
-    expect(result).toMatchObject({ kind: 'page' })
-    if (result.kind !== 'page') throw new Error('expected the small page to read')
+    const { result, closed, capture } = await readCapture('example')
+    expectPage(result, closed)
     expect(result.page.bytes).toBe(capture.decompressedBytes)
     expect(result.text).toContain('Example Domain')
-    expect(closed.count).toBe(1)
   })
 
   it('keeps a smaller caller cap when the caller named one', async () => {
-    const { body, capture } = loadCapture('big-txt')
-    const result = await fetchWebPage(
-      capture.finalUrl,
-      depsFor(recordedResponse(body, capture.responseHeaders), 10),
-      new AbortController().signal,
-    )
+    const { result } = await readCapture('big-txt', 10)
     expect(result).toMatchObject({ kind: 'failed', failure: { kind: 'tooLarge' } })
   })
 })
