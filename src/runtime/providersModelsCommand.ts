@@ -5,6 +5,7 @@
 // provider command; the stored key is read only when the provider's own
 // list is consulted, never for a forced add.
 import type { ProviderEntry, ProvidersFile } from '../core/providers/providersFile'
+import { sanitizeModelLabel } from '../core/providers/modelRef'
 import { presets, providersFile } from '../host/backend/providersEntry'
 
 const { presetById } = presets
@@ -72,10 +73,25 @@ async function readProviderModelList(
 ): Promise<readonly string[] | undefined> {
   const resolved = await resolveProvider(file, entry.id, presetById, deps.resolveHost)
   if (!resolved.ok) return undefined
-  const stored = await storedProviderKey(deps, resolved.provider, isQuiet)
-  return stored.ok
-    ? await listProviderModels(deps.fetch, resolved.provider, stored.key, deps.resolveHost)
-    : undefined
+  let stored: Awaited<ReturnType<typeof storedProviderKey>>
+  try {
+    stored = await storedProviderKey(deps, resolved.provider, isQuiet)
+  } catch {
+    // A locked or unavailable credential store reads like no key: the
+    // caller prints the configured models with the unreadable notice
+    // instead of crashing the read-only list (Codex on PR #213).
+    return undefined
+  }
+  if (!stored.ok) return undefined
+  const listed = await listProviderModels(
+    deps.fetch,
+    resolved.provider,
+    stored.key,
+    deps.resolveHost,
+  )
+  // Fetched ids are remote text: strip terminal controls before they are
+  // printed or suggested (Codex on PR #213).
+  return listed?.map((model) => sanitizeModelLabel(model))
 }
 
 /**
