@@ -62,3 +62,40 @@
 - `npm run security:sast`: exit 0, 0 findings on 3265 files.
 - `npm run security:audit`: exit 0 (2 advisories, 1 documented exception;
   no dependency changed here).
+
+## Lane PR236W1 triage (2026-10-18, macmini rig)
+
+One line per review thread and per hosted CI failure; fixes follow in this
+lane unless the line says otherwise.
+
+- T1 `recordingLatest.ts:137` Windows known folder: FIX — resolve
+  `FOLDERID_Videos` through `[Environment]::GetFolderPath('MyVideos')`
+  (system PowerShell, absolute path, bounded, validated) with the homedir
+  layout as fallback.
+- T2 `recordingLatest.ts:143` macOS filter: FIX — Screenshot-name predicate
+  on the macOS port so Desktop exports/downloads are never presented.
+- T3 `recordingLatest.test.ts:174` captured fixtures: PARTIAL — real capture
+  is blocked on this rig (no Windows host; headless session denies
+  ScreenCaptureKit video: `screencapture -v -V 2 -x -m temp/real-recording.mov`
+  fails "The operation could not be completed" while stills succeed). The
+  false OS-format claims are removed; recorded bytes stay pending on GUI
+  hosts.
+- T4 `CHANGELOG.md:15` release claim: WITHHOLD — the entry is deferred until
+  packed-product runs on Windows and macOS are recorded.
+- T5 `recordingLatest.ts:77` Windows DACL: FIX — owner-only lockdown via
+  `icacls` plus `Get-Acl` verification, required on win32 (mirrors
+  `convert.ts`'s `createPrivateDirectory` seam).
+- T6 `extension.ts:3385` attach admission: NO CHANGE IN THIS LANE — real
+  video capability/binding is U6c's lead-owned upload work; `modalityGate`
+  refuses video as `unknown` before `bind` runs, so latest-preview Attach
+  reaches exactly the shipped direct-recording admission state (named
+  refusal, preview kept). The deferred changelog (T4) keeps the claim
+  honest.
+- T7 `extension.ts:3385` liveness: FIX — recheck `isLive` after latest
+  discovery; dispose the copied preview when its conversation is gone.
+- CI `modelsActivationBudget` (growth 3289 > 3072, reproduced here with the
+  repo default timeout): FIX — lazy-load latest discovery out of the
+  activation bundle; the 3 KiB budget is untouched.
+- CI quality/package/dictation `ubuntu/windows/macos` "downstream" entries:
+  no independent cause found; they clear with the budget fix (verified on
+  the next CI run).
