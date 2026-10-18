@@ -382,6 +382,12 @@ happened, not what was planned; superseded entries are kept.
   the provider's request id, and a rejected key, missing permission or
   unknown model says nothing reached a model, no longer that nothing was
   sent. Record: `docs/certification/provider-refusals.md`.
+- `providers add` and `providers test` against a refused endpoint name the
+  connection's codes again ("Could not reach … (fetch failed: ECONNREFUSED),
+  so whether the request arrived is unknown"), instead of falling back to
+  "The provider could not be reached": the spend lane's endpoint pin answered
+  the refusal before the probe's reader could say it. A refusal with no codes
+  (a Fetch-blocked port) keeps the fixed sentence.
 - All fourteen translated settings tables now say Muse Code asks before a
   command unless a permission rule allows it, matching the English modes.
 
