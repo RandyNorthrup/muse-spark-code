@@ -294,7 +294,8 @@ export async function runHttpHandler(
   let url: URL
   try {
     url = new URL(rawUrl)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof TypeError)) throw error
     warn(`${config.event}: http hook has an invalid url`)
     return failed('http hook has an invalid url')
   }
