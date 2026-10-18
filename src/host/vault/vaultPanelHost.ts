@@ -64,6 +64,11 @@ export interface VaultPanelHostDeps {
   readonly copyPublicKey: (key: string) => Promise<void>
   readonly publish: (message: ReturnType<typeof vaultHostMessageSchema.parse>) => void
   readonly status: (isUnlocked: boolean) => void
+  /**
+   * Fires on lock-state edges only (not every frame), for the key-store
+   * migration's unlock trigger. Absent in tests and lock-only hosts.
+   */
+  readonly onVaultLockStateChange?: (isUnlocked: boolean) => void
   readonly showError: (message: string) => void
   /** The per-item report (names only) and the person's Keep or Delete of the source. */
   readonly importDone: (names: readonly string[]) => Promise<'keep' | 'delete'>
@@ -151,6 +156,8 @@ export class VaultPanelHost {
   // Every event below ends in a publish (a frame now, or a reload whose
   // settle always publishes): there is no silent path.
   private view: VaultViewState = { kind: 'loading', generation: 0 }
+  /** Last published lock state; the edge callback fires only on change. */
+  private lastLockState: boolean | null = null
   private retryTimer: ReturnType<typeof setTimeout> | null = null
   private readonly answered = new Set<string>()
   private cancellation = new AbortController()
@@ -256,7 +263,11 @@ export class VaultPanelHost {
     const state = isRetrying && frame.retrying !== true ? { ...frame, retrying: true } : frame
     const message = vaultHostMessageSchema.parse({ type: 'vaultState', state })
     this.deps.publish(structuredClone(message))
-    this.deps.status(message.state.status.state === 'unlocked')
+    const isUnlocked = message.state.status.state === 'unlocked'
+    this.deps.status(isUnlocked)
+    if (isUnlocked === this.lastLockState) return
+    this.lastLockState = isUnlocked
+    this.deps.onVaultLockStateChange?.(isUnlocked)
   }
 
   /** True while a bounded auto-retry loop owns the view. */

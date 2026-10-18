@@ -227,6 +227,10 @@ const VAULT_OUTFILE = 'dist/vault.js'
 // loaded on the first action that needs it instead of when the panel opens.
 const VAULT_ACTIONS_ENTRY = 'src/host/vault/vaultActionsEntry.ts'
 const VAULT_ACTIONS_OUTFILE = 'dist/vaultActions.js'
+// The key-store migration's own chunk (D89.14 lane M, dist/vaultMigration.js),
+// loaded on the first unlock edge instead of with the panel or at activation.
+const VAULT_MIGRATION_ENTRY = 'src/host/vault/vaultMigrationEntry.ts'
+const VAULT_MIGRATION_OUTFILE = 'dist/vaultMigration.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
@@ -774,6 +778,20 @@ const vaultActionsOptions = {
   plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [VAULT_ACTIONS_ENTRY],
   outfile: VAULT_ACTIONS_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+// The key-store migration's own chunk, loaded on the first unlock edge.
+// Same shape as the explicit-action bundle above.
+const vaultMigrationOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+  entryPoints: [VAULT_MIGRATION_ENTRY],
+  outfile: VAULT_MIGRATION_OUTFILE,
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
@@ -1371,6 +1389,7 @@ if (isWatch) {
     esbuild.context(vaultWindowsOptions),
     esbuild.context(vaultBrokerBindingsOptions),
     esbuild.context(vaultActionsOptions),
+    esbuild.context(vaultMigrationOptions),
     esbuild.context(reportOptions),
     esbuild.context(estimatorOptions),
     esbuild.context(recorderOptions),
@@ -1493,6 +1512,7 @@ if (isWatch) {
     vaultWindows: esbuild.build(vaultWindowsOptions),
     vaultBrokerBindings: esbuild.build(vaultBrokerBindingsOptions),
     vaultActions: esbuild.build(vaultActionsOptions),
+    vaultMigration: esbuild.build(vaultMigrationOptions),
     report: esbuild.build(reportOptions),
     estimator: esbuild.build(estimatorOptions),
     recorder: esbuild.build(recorderOptions),

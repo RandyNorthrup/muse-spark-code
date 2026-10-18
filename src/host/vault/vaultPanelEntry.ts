@@ -2,7 +2,12 @@ import * as vscode from 'vscode'
 import { randomBytes } from 'node:crypto'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import { UI_TEXT, VAULT_ACTIONS_BUNDLE_FILE, VAULT_LIMITS } from '../../shared/constants'
+import {
+  UI_TEXT,
+  VAULT_ACTIONS_BUNDLE_FILE,
+  VAULT_LIMITS,
+  VAULT_MIGRATION_BUNDLE_FILE,
+} from '../../shared/constants'
 import { vaultRefusalSentences } from '../../shared/vaultRefusals'
 import { type VaultHostMessage } from '../../shared/hostApi/vaultMessages'
 import { type UiText } from '../../shared/l10n/en'
@@ -12,19 +17,19 @@ import { discoverAmbientFiles } from '../../core/vault/migrate/ambient'
 import { agentDataFolder } from '../../runtime/dataFolder'
 import { vaultClientPlatform, type VaultClientPlatform } from '../../runtime/vault/clientPlatform'
 import type { Logger } from '../logger'
+import { errorDetail } from '../logger'
 import { VaultBrokerProcess } from './brokerProcess'
 import { VaultPanelHost, type VaultPanelHostDeps, type VaultPanelService } from './vaultPanelHost'
+import type { MigrationShell } from './migrationShell'
+import type { SecretStore } from '../auth/credentialStore'
+import { vaultMigrationLoader } from './vaultMigrationBundle'
 import { vaultPanelService } from './vaultPanelService'
 import { type VaultActionsBundle, vaultActionsLoader } from './vaultActionsBundle'
 import { VAULT_COMMANDS, type VaultWindowControls } from './vaultPanelBundle'
 
-/** The broker-backed service over the platform's connection, and a probe that proves it is up. */
-function brokerService(
-  distDir: string,
-  actions: () => VaultActionsBundle,
-): {
-  service: VaultPanelService
-  probe: () => Promise<void>
+/** One host registration against the per-user broker, shared with the key-store migration chunk. */
+function vaultConnection(distDir: string): {
+  connect: () => Promise<Awaited<ReturnType<VaultBrokerProcess['connect']>>>
   dispose: () => void
 } {
   // The same per-user vault every editor and the ACP agent open (D89.1).
@@ -56,6 +61,7 @@ function brokerService(
     )
   }
   return {
+    connect,
     dispose: () => {
       void connection?.then(
         ({ platform }) => platform.dispose?.(),
@@ -64,16 +70,36 @@ function brokerService(
         },
       )
     },
-    service: vaultPanelService(
-      new VaultManageSession(connect, (material) => actions().encodeVaultMaterial(material)),
-      {
-        ambientFiles: () => discoverAmbientFiles(homedir()),
-      },
-    ),
+  }
+}
+
+/** The broker-backed service over the platform's connection, and a probe that proves it is up. */
+function brokerService(
+  distDir: string,
+  actions: () => VaultActionsBundle,
+): {
+  service: VaultPanelService
+  probe: () => Promise<void>
+  dispose: () => void
+  /** Shared with the key-store migration chunk; the binding owns its life. */
+  session: VaultManageSession
+  connect: () => Promise<Awaited<ReturnType<VaultBrokerProcess['connect']>>>
+} {
+  const connection = vaultConnection(distDir)
+  const session = new VaultManageSession(connection.connect, (material) =>
+    actions().encodeVaultMaterial(material),
+  )
+  return {
+    dispose: connection.dispose,
+    service: vaultPanelService(session, {
+      ambientFiles: () => discoverAmbientFiles(homedir()),
+    }),
     probe: async () => {
-      const client = await connect()
+      const client = await connection.connect()
       client.close()
     },
+    session,
+    connect: connection.connect,
   }
 }
 
@@ -121,6 +147,21 @@ export interface ModelsVaultBindingDeps {
   readonly log: Logger
   /** A test's actions module; the window's own is required from dist. */
   readonly loadActionsBundle?: ((file: string) => unknown) | undefined
+  /** A test's migration chunk; the window's own is required from dist. */
+  readonly loadMigrationBundle?: ((file: string) => unknown) | undefined
+  /**
+   * The key-store migration's shell and sources (D89.14 lane M). While a
+   * test owns the service no migration binds. The controller runs after an
+   * unlock, never at activation, and the legacy port reads the raw store.
+   */
+  readonly credentialMigration?:
+    | {
+        readonly shell: MigrationShell
+        readonly rawSecrets: SecretStore
+        readonly minorRelease: () => number
+        readonly listProviderIds: () => Promise<readonly string[]>
+      }
+    | undefined
 }
 
 export interface ModelsVaultBinding {
@@ -156,6 +197,12 @@ function serviceAndStatus(deps: {
   probe: () => Promise<void>
   /** Disposes the broker-backed service's platform; no-op while a test owns the service. */
   disposeBroker: () => void
+  /**
+   * The broker-backed session and its connection, shared with the key-store
+   * migration chunk; both absent while a test owns the service.
+   */
+  session: VaultManageSession | undefined
+  connect: (() => Promise<Awaited<ReturnType<VaultBrokerProcess['connect']>>>) | undefined
 } {
   const broker = deps.service === undefined ? brokerService(deps.distDir, deps.actions) : undefined
   const service = deps.service ?? broker?.service
@@ -170,6 +217,8 @@ function serviceAndStatus(deps: {
     },
     probe: () => broker?.probe() ?? Promise.resolve(),
     disposeBroker: () => broker?.dispose(),
+    session: broker?.session,
+    connect: broker?.connect,
   }
 }
 
@@ -193,12 +242,56 @@ export function createModelsVaultBinding(
     log: deps.log,
     loadBundle: deps.loadActionsBundle,
   })
-  const { service, statusItem, status, disposeBroker } = serviceAndStatus({ ...deps, actions })
+  const { service, statusItem, status, disposeBroker, session, connect } = serviceAndStatus({
+    ...deps,
+    actions,
+  })
+  // The key-store migration (D89.14 lane M) loads its own chunk on the first
+  // unlock edge only — never at activation, never with the panel — and runs
+  // there. While a test owns the service nothing binds.
+  const source =
+    session === undefined || connect === undefined ? undefined : deps.credentialMigration
+  const migration =
+    source === undefined
+      ? undefined
+      : vaultMigrationLoader({
+          bundlePath: path.join(deps.distDir, VAULT_MIGRATION_BUNDLE_FILE),
+          log: deps.log,
+          loadBundle: deps.loadMigrationBundle,
+        })
   const host = new VaultPanelHost({
     ...nativeHostDeps({ now: deps.now, actions }),
     service,
     publish: deps.publish,
     status,
+    ...(migration !== undefined &&
+      source !== undefined &&
+      session !== undefined &&
+      connect !== undefined && {
+        onVaultLockStateChange: (isUnlocked) => {
+          if (!isUnlocked) return
+          // The loader keeps the chunk from the first unlock; a missing or
+          // corrupt bundle is retried at the next unlock, and the keys keep
+          // working in SecretStorage meanwhile. ensureMigrated never throws.
+          try {
+            const bound = migration()
+            const controller = bound.bindCredentialMigration({
+              session,
+              connect,
+              secrets: source.rawSecrets,
+              shell: source.shell,
+              listProviderIds: source.listProviderIds,
+              minorRelease: source.minorRelease,
+              now: deps.now,
+              log: deps.log,
+              label: UI_TEXT.vault.secret,
+            })
+            void controller.ensureMigrated()
+          } catch (error: unknown) {
+            deps.log.warn(`Credential migration unavailable: ${errorDetail(error)}`)
+          }
+        },
+      }),
   })
   return {
     handle: (raw) => host.handle(raw),

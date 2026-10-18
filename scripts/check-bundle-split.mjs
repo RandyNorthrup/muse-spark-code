@@ -804,6 +804,35 @@ if (vault.has('src/core/vault/migrate/ports.ts')) {
     `${VAULT.output} carries src/core/vault/migrate/ports.ts, which loads only broker-side`,
   )
 }
+// The key-store migration's own chunk (D89.14 lane M, dist/vaultMigration.js)
+// loads on the first unlock edge, never with the panel or at activation:
+// the engine, its codecs and the first-party reader travel here.
+const VAULT_MIGRATION = {
+  output: 'dist/vaultMigration.js',
+  metafile: 'dist/meta/vaultMigration.json',
+}
+const VAULT_MIGRATION_ONLY = [
+  'src/host/vault/vaultMigrationEntry.ts',
+  'src/host/vault/migrateCredentials.ts',
+  'src/core/vault/migrate/migrate.ts',
+  'src/core/vault/broker/firstParty.ts',
+]
+const vaultMigration = inputsOf(VAULT_MIGRATION)
+for (const file of VAULT_MIGRATION_ONLY) {
+  for (const [output, inputs] of [
+    ...loaders,
+    [BUNDLES.modelApi.output, modelApi],
+    [VAULT.output, vault],
+    [VAULT_ACTIONS.output, vaultActions],
+  ]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which loads only on the first unlock edge`)
+    }
+  }
+  if (!vaultMigration.has(file)) {
+    problems.push(`${VAULT_MIGRATION.output} no longer carries ${file}`)
+  }
+}
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',

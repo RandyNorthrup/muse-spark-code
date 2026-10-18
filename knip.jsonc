@@ -154,6 +154,9 @@
     // The vault's explicit-action code, required by path on the first vault
     // action (RVAPP-CM1091D5 BYTES).
     "src/host/vault/vaultActionsEntry.ts",
+    // The key-store migration's own chunk (D89.14 lane M), required by path
+    // on the first unlock edge.
+    "src/host/vault/vaultMigrationEntry.ts",
     // The vault harness page and its runner (M109 U): the page is the harness
     // build's esbuild entry, which knip does not read, and the runner is run
     // by path for the panel scenes and axe (`node test/harness/vault/run.mjs`).
