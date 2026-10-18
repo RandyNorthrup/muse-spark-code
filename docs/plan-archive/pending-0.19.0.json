@@ -1,0 +1,306 @@
+{
+  "provenance": {
+    "base": "c72aef8cd3",
+    "groups": ["9483a6b8de", "81a393060c", "b7537ba6f3", "ba5d533709", "749fb4c8c5", "dfd2ec61f2"],
+    "unionBytes": 3786180,
+    "gateBytes": 3565158
+  },
+  "moves": [
+    {
+      "to": "decisions",
+      "heading": "### D1a — Locating and spawning `muse` per platform (verified 2026-09-22, Muse Code 1.3.0)",
+      "firstLine": "| OS                    | Install dir (installer default)                                             | Entry                                                                                            | Beside it                                                                                       | Credential                                                                                   |",
+      "summary": "Discovered per-OS launch entries are used in a fixed order (the `museSpark.museBinaryPath` setting, then `PATH`, then the per-OS default install dir); on Windows the direct versioned exe spawns by default with the PowerShell-shim replication as fallback, on Linux and macOS the bash launcher spawn is direct, and no shell string is ever built (D4).",
+      "reason": "Shipped per-OS install-dir record (1.3.0 paths); the Constraints and decisions list stays as the rule."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D15 — Harness parity: what the Claude Code extension preconfigures that we did not (2026-09-22)",
+      "firstLine": "| Area                       | Claude Code                                                                                                                                                                                                                                                                                                         | Muse Spark Code before M12                                                                                                                                                             | Decision                                                                                                                                                                                                                                                                                                                                                                                                                 |",
+      "summary": "The owner asked whether the files the Claude Code extension ships preconfigured hold things this extension should have. Findings and the decision for each: everything marked M12 ships in 0.3.0.",
+      "reason": "September harness-parity findings for M12 (shipped in 0.3.0); no test or script cites this table."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D16 — Production-readiness verification and its findings (2026-09-22)",
+      "firstLine": "| Check                    | Finding                                                                                                                                                                                                                                                          | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |",
+      "lastLine": "the defect it found are in `docs/certification/release-0.9.0.md`.",
+      "summary": "The owner asked for proof of an enterprise production grade app fully working in a big proprietary repo. The tree was checked marker by marker: the findings table stands, and the M13 follow-ups it produced.",
+      "reason": "September production-readiness findings and the M13 follow-ups (all shipped); the follow-up drill record moves with its table."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D17 — Subagents, the Agent map, the Account & Usage modal, and the smaller parity gaps, in one milestone (2026-09-22)",
+      "firstLine": "| Area                    | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |",
+      "summary": "The owner asked for four things in the same evening and then said stop: show subagents and Agent files in the panel, run them on a schedule, edit rules in a settings page, and skills. Findings for each; the M13 gaps the Agent work left.",
+      "reason": "September subagent findings and the M13 gaps (all shipped); no live table."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D31 — Rewind finds a hunk that only moved (2026-09-24)",
+      "firstLine": "- **First look:** the hunk's lines (context plus the edit's own) are looked",
+      "summary": "A reader asked whether a hand edit in the same lines rewind misses; it does not. The owner's go-ahead (2026-09-24): yes, fix it. A moved hunk is matched exactly, never guessed.",
+      "reason": "Shipped rewind matching rule (0.3.x); the question and the owner's go-ahead stay as the rule."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D35 — Replay as Meta validates it (2026-09-25)",
+      "firstLine": "- **Commentary.** Text the model writes before a tool call comes back with",
+      "lastLine": "and only the retried response is replayed.",
+      "summary": "Replay as Meta validates it: a full read of the Model API documentation for the parity audit found two wrong items (code execution and web search): both are fixed, and two missing retry rules were added.",
+      "reason": "Shipped Model API replay fixes from the parity audit; the opening documentation rule stays."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)",
+      "firstLine": "- **Minor for a batch of features, patch for fixes.** The minor number keeps",
+      "summary": "The owner (2026-09-25): no 1.0 until the app is ready; the minor counts past nine, patch counts fixes back in time, and releases bunch by four-day train windows.",
+      "reason": "Shipped pre-1.0 versioning mechanics; the owner's ruling stays as the rule."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D64 — Exposure-preserving import, replacing credential detection (2026-10-02)",
+      "firstLine": "The preview lists kind, source item name, scope and target path, never",
+      "lastLine": "`docs/certification/m83e.md`. Full quality and native UI remain lead-owned.",
+      "summary": "Five independent review rounds found spellings that bypassed credential detection. M83 owns destinations instead of inspecting content: the preview lists kind, source item name, scope and target path, never values.",
+      "reason": "Shipped credential-detection replacement (M83); the review finding stays as the rule."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D71 — Muse Gadgets: help build them, never become one (M92, 2026-10-04)",
+      "firstLine": "**What the SDK is (checked 2026-10-04):**",
+      "lastLine": "  cloud assistant run any command there; README and the skill say so.",
+      "summary": "The owner asked whether Meta's Muse Gadgets belong in the extension to make programming and working with devices easier, and approved the scope on 2026-10-04: help build gadgets (bounded device commands, tokens kept as secrets, an optional skill, the phone ping as a recipe), never become one (no Linux gadget service on a dev machine, no prosthesis for Cursor).",
+      "reason": "Shipped gadget-scope record (M92, parts shipped in 0.13.0); the owner's question and approved scope stay."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D101 — Evidence-backed agent activity, outcomes and recovery (M119, owner 2026-10-06)",
+      "firstLine": "| Source                               | Available evidence                                                                                                                                   | Limits and recovery                                                                                                                                                                                                                                                                                                      |",
+      "lastLine": "outcome changes have a polite announcement. Harness states run in four themes.",
+      "summary": "The Agent map and ACP listing separate activity (Active, Waiting with a reason, Scheduled, Recent, Queued, Blocked-needs-action, Background, Dead) from evidence (owned conversations, handoffs, tool calls, verification, errors, cost): activity rows stay live, evidence rows stay inspectable.",
+      "reason": "Shipped evidence-mapping design (M119, released in 0.16.0); the activity/evidence rule stays."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D105 — Windows trusted paths: a trusted root, links above it by identity (TRUSTROOT, 2026-10-09)",
+      "firstLine": "- At and above the root, links and redirection are accepted. The root is",
+      "lastLine": "`docs/certification/trustroot.md`.",
+      "summary": "Owner rule (2026-10-08, Windows paths: any drive): profile folders may be links; links at and above a trusted root are accepted by resolved identity, links inside that escape are refused. Lead decision (2026-10-09): the verifier checks against the owned root by identity, never string prefix.",
+      "reason": "Shipped trusted-path mechanism (SECWINPATH, 0.17.x); the owner rule and lead decision stay."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)",
+      "firstLine": "- **A test stays only if it runs real code** (no `vi.mock`, fake timers,",
+      "summary": "The owner, verbatim: get the useless tests, streamline it, and prove the gate short. A test stays only if it runs real code (no stand-ins, no fakes, no screenshot or frame comparison); no coverage gate; the short gate and the real-life run are the proof.",
+      "reason": "Completed test-overhaul record (the current no-fakes rule); the owner's verbatim order stays."
+    },
+    {
+      "to": "milestones",
+      "heading": "### M53 — Conversation rewind and side chat (D46)",
+      "firstLine": "- **C-M53-1 Windows retest (2026-10-10, probes complete).** Captured Muse Code",
+      "pointer": true,
+      "reason": "Closed probe records on a released milestone section (shipped 0.14.0); stub keeps heading, status, and a fresh pointer."
+    },
+    {
+      "to": "milestones",
+      "heading": "### M56 — Enterprise network and posture (D43)",
+      "firstLine": "- **MSM56 finish (2026-10-17).** While `http.proxy` is set on an editor",
+      "linked": true,
+      "reason": "Release lane MSM56 finished (PR #190, merged); the closed milestone section keeps its stub."
+    },
+    {
+      "to": "milestones",
+      "heading": "### PROVWIRE — Provider setup through the real transport and panel (2026-10-09)",
+      "firstLine": "Completed: F2–F7 are capture-backed through the real facade, with 14",
+      "lastLine": "commits, committed-diff review and certification in `docs/certification/cx1.md`.",
+      "linked": true,
+      "reason": "Closed provider-wiring rounds (shipped 0.17.1); all checklist items checked; stub keeps heading, status, and pointer."
+    },
+    {
+      "to": "gates",
+      "heading": "TRAINACT scoped qualification",
+      "firstLine": "**TRAINACT scoped qualification.** The explicit rig/common brief reserves",
+      "pointer": true,
+      "reason": "Closed activation-train qualification; verified, no longer worked on; PR merged."
+    },
+    {
+      "to": "gates",
+      "heading": "MODELSPLIT4 scoped rig qualification (2026-10-11)",
+      "firstLine": "**MODELSPLIT4 scoped rig qualification (2026-10-11, kubuntu).** The",
+      "pointer": true,
+      "reason": "Closed model-split drill record; verified, no longer worked on; PR merged."
+    },
+    {
+      "to": "gates",
+      "heading": "REL0171B final 0.17.1 branch (2026-10-10)",
+      "firstLine": "**REL0171B final 0.17.1 branch (2026-10-10, linuxlt + Kubuntu).** Merge",
+      "pointer": true,
+      "reason": "Closed 0.17.1 branch-merge record (shipped 0.17.1); verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "VIS0171 0.17.1 visual refresh (2026-10-10)",
+      "firstLine": "**VIS0171 0.17.1 visual refresh (2026-10-10, linuxlt).** Compare the full",
+      "pointer": true,
+      "reason": "Closed visual-refresh record (shipped 0.17.1); its checklist stays; verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "VIS0171 round 1 historical stopped outcome",
+      "firstLine": "**Round 1 historical stopped outcome.** The complete light matrix has 1,440 over-allowance frames",
+      "pointer": true,
+      "reason": "Superseded historical stop (closed by round 2 and the 0.17.1 release); verified history."
+    },
+    {
+      "to": "gates",
+      "heading": "VIS0171 round 2 reviewed baseline",
+      "firstLine": "**Round 2 reviewed baseline and drill complete; full replay unqualified.** The lead accepts both harness repairs and approves",
+      "pointer": true,
+      "reason": "Closed round record superseded by REL0171B's closing receipt (shipped 0.17.1)."
+    },
+    {
+      "to": "gates",
+      "heading": "PROVWIZ10 scoped qualification (2026-10-09)",
+      "firstLine": "**PROVWIZ10 scoped qualification (2026-10-09, complete).** Both RVPROVWIZ9C",
+      "pointer": true,
+      "reason": "Closed provider-wizard lane (shipped 0.17.1); verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "PROVWIZ9 scoped qualification (2026-10-09)",
+      "firstLine": "**PROVWIZ9 scoped qualification (2026-10-09).** Ordered provider saves remove",
+      "pointer": true,
+      "reason": "Closed provider-wizard lane (shipped 0.17.1); verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "PROVWIZ8 scoped qualification (2026-10-09)",
+      "firstLine": "**PROVWIZ8 scoped qualification and retained duplication hold (2026-10-09).**",
+      "pointer": true,
+      "reason": "Closed provider-wizard lane (shipped 0.17.1); the retained hold is recorded, not open work."
+    },
+    {
+      "to": "gates",
+      "heading": "PROVWIZ7 scoped qualification (2026-10-09)",
+      "firstLine": "**PROVWIZ7 scoped qualification and retained duplication hold (2026-10-09).**",
+      "pointer": true,
+      "reason": "Closed provider-wizard lane (shipped 0.17.1); the retained hold is recorded, not open work."
+    },
+    {
+      "to": "gates",
+      "heading": "PROVWIZ6 scoped qualification (2026-10-09)",
+      "firstLine": "**PROVWIZ6 scoped qualification and inherited duplication hold (2026-10-09).**",
+      "pointer": true,
+      "reason": "Closed provider-wizard lane (shipped 0.17.1); verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "PROVWIZ2 round 5 scoped qualification (2026-10-09)",
+      "firstLine": "**PROVWIZ2 round 5 scoped qualification (2026-10-09).** The rig brief",
+      "pointer": true,
+      "reason": "Closed provider-wizard round (shipped 0.17.1); verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "PROVWIZ2 round 4 scoped qualification (2026-10-09)",
+      "firstLine": "**PROVWIZ2 round 4 scoped qualification (2026-10-09).** The explicit lane",
+      "pointer": true,
+      "reason": "Closed provider-wizard round (shipped 0.17.1); verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "PROVWIRE lane note (2026-10-09)",
+      "firstLine": "PROVWIRE (2026-10-09): the lane brief/common rules reserve aggregate",
+      "pointer": true,
+      "reason": "Closed provider-wiring note (shipped 0.17.1); verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "CIR4MAC scoped hosted-CI repair (2026-10-09)",
+      "firstLine": "**CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce",
+      "pointer": true,
+      "reason": "Closed CI repair record; verified, no longer worked on; PR merged."
+    },
+    {
+      "to": "gates",
+      "heading": "CIFIX017 round 5 (2026-10-09)",
+      "firstLine": "**CIFIX017 round 5 (2026-10-09, lead + CIR5WIN + CIR5MAC).** Run 38022741513",
+      "pointer": true,
+      "reason": "Closed 0.17.0-era CI repair round; verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "CIFIXM macOS CI repair scope with CIFIXV hosted visual repair (2026-10-09)",
+      "firstLine": "**CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting",
+      "pointer": true,
+      "reason": "Closed CI repair scope with its visual-repair paragraph; verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "CIFIXV hosted visual repair (2026-10-09, linuxlt)",
+      "firstLine": "- [x] Prove historical schedule loading fails before the repair and passes after.",
+      "lastLine": "for the lead's integration gate. Receipt: `docs/certification/cifixv.md`.",
+      "pointer": true,
+      "reason": "Closed visual-repair record (all checklist items checked); verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "MERGESPAWN (2026-10-08)",
+      "firstLine": "**MERGESPAWN (2026-10-08).** `rel017/spawn4` is merged into `release/0.17.0`",
+      "pointer": true,
+      "reason": "Closed 0.17.0 spawn-merge record (shipped 0.17.0); verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "VISREGEN2 release-content repair and verified refresh (2026-10-09)",
+      "firstLine": "**VISREGEN2 release-content repair and verified refresh (2026-10-09).**",
+      "pointer": true,
+      "reason": "Closed visual-refresh verification (shipped 0.17.x); verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "M119PLAN documentation-only certification (2026-10-07)",
+      "firstLine": "**M119PLAN documentation-only certification (2026-10-07, Kubuntu; planned",
+      "pointer": true,
+      "reason": "Closed planning-lane record (M119, released in 0.16.0); verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "CM1012R7 lane verification (2026-10-10)",
+      "firstLine": "**CM1012R7 lane verification (2026-10-10, linuxlt).** The shared lane",
+      "pointer": true,
+      "reason": "Closed lane verification; verified, no longer worked on; PR merged."
+    },
+    {
+      "to": "gates",
+      "heading": "MSM113 finish (2026-10-17)",
+      "firstLine": "**MSM113 finish (2026-10-17, linuxlt).** Merged `main-now` and flipped the",
+      "pointer": true,
+      "reason": "Release lane MSM113 finished (PR #243, merged); verified, no longer worked on; its open checklist stays."
+    },
+    {
+      "to": "gates",
+      "heading": "CM1133R4 bounded review gates with CM1134AR6 scoped qualification (2026-10-11/12)",
+      "firstLine": "**CM1133R4 bounded review gates (2026-10-11, kubuntu).** The rig/common",
+      "pointer": true,
+      "reason": "Closed M113 review rounds (MSM113 merged via PR #243); verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "CM1134AR6 journal follow-up (2026-10-12)",
+      "firstLine": "**CM1134AR6 journal follow-up (2026-10-12, Kubuntu).** The dependent closure",
+      "pointer": true,
+      "reason": "Closed M113 journal follow-up (fixed in code first, bounds corrected to measured cost); verified."
+    },
+    {
+      "to": "gates",
+      "heading": "CM1134AR4 scoped qualification (2026-10-11)",
+      "firstLine": "**CM1134AR4 scoped qualification (2026-10-11, Kubuntu).** The explicit",
+      "lastLine": "`docs/certification/m113-session-usage-c-m113-2.md`.",
+      "pointer": true,
+      "reason": "Closed M113 round with its R2 qualification note (setup failures recorded as lead deferrals, nothing relaxed)."
+    }
+  ]
+}
