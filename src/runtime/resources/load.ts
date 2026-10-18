@@ -57,7 +57,11 @@ export function lazyRuntimeResources(
         for (const subscribe of subscriptions) bound.set(subscribe, subscribe(host))
         return host
       } catch (error) {
-        for (const unsubscribe of bound.values()) unsubscribe()
+        // Release half-bound subscriptions in insertion order before the
+        // failure keeps its kind past the load.
+        bound.forEach((unsubscribe) => {
+          unsubscribe()
+        })
         bound.clear()
         loaded = undefined
         created?.dispose()

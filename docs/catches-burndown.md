@@ -101,6 +101,23 @@ Designed baselines with reasons (accepted, not forgotten):
   Evidence: `test/unit/runtimeCatchHandlers.test.ts` "usage stdio
   service boundary" (malformed, oversized, failing and malformed-input
   lines each answer their code).
+- `src/runtime/resources/history.ts` fingerprint/consent/sample/event
+  catches (CATCHRUN2): the certified damage-noter design (TBL-12). The
+  fingerprint degrades any unreadable choice to `unknown` rather than
+  breaking damage identity; unreadable or invalid consent fails closed
+  to `false` and is announced once per distinct damage, never mistaken
+  for a refusal; a failed sample or event is reported once through the
+  designated error port and dropped, never replaced by an invented
+  reading, and sampling survives. Non-Errors rethrow past every one.
+  Restructuring them for the classifier would touch certified money
+  gates; the `onError`/`noteDamaged` record channels are invisible to it.
+- `src/runtime/resources/host.ts` listener/sampler catches (CATCHRUN2):
+  a failing listener or sampler reports the original error through the
+  designated `onError` port; throwing there would break the sampling
+  loop and every other listener. No other channel in scope.
+- `src/runtime/resources/entry.ts` flush catch (CATCHRUN2): disposal
+  never throws; a failed flush reaches the error port with its cause
+  under fixed words.
 - Everything else below: pre-existing, grouped for area-by-area lanes.
 
 | Folder                 | GENERIC | SWALLOW |
