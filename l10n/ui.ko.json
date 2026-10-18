@@ -3845,6 +3845,8 @@
   "museVoiceClosed": "Muse Voice가 연결을 닫았습니다(코드 {code})",
   "museVoiceNoWebSocket": "Muse Voice에는 VS Code 확장 호스트의 WebSocket 지원이 필요하지만 이 버전에는 없습니다.",
   "museVoiceNoProxy": "Muse Voice는 이 VS Code 버전에서 구성된 프록시를 사용할 수 없습니다. 프록시 환경에서는 VS Code 1.112 이상이 필요합니다.",
+  "museVoiceProxySupportOff": "Muse Voice는 http.proxySupport 설정이 \"off\"인 동안 구성된 프록시를 사용할 수 없습니다. 음성 연결이 프록시를 통하도록 http.proxySupport를 \"on\"으로 설정하세요.",
+  "museVoiceProxyWebSocketOff": "Muse Voice는 http.webSocketAdditionalSupport 설정이 꺼져 있는 동안 구성된 프록시를 사용할 수 없습니다. 음성 연결이 프록시를 통하도록 http.webSocketAdditionalSupport를 켜세요.",
   "museVoiceNoRecorder": "Linux의 Muse Voice는 arecord(ALSA) 또는 parec(PulseAudio)로 녹음하지만 PATH에서 둘 다 찾을 수 없습니다.",
   "networkUntrustedCertificate": "서버 인증서를 신뢰할 수 없습니다. 네트워크가 HTTPS를 검사하는 경우 해당 루트 인증서를 운영 체제의 인증서 저장소에 설치하거나(http.systemCertificates가 켜져 있으면 VS Code가 읽음), http.systemCertificates를 끄고 VS Code를 시작하기 전에 NODE_EXTRA_CA_CERTS에 루트 인증서 파일을 지정하세요.",
   "networkProxyCredentials": "프록시가 자격 증명을 요청했지만 받은 자격 증명을 수락하지 않았습니다. http.proxy와 http.proxyAuthorization 또는 VS Code가 요청한 자격 증명을 확인하세요.",

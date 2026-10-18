@@ -10,8 +10,13 @@
 import { type HTTP_PROXY_SUPPORT_MODES } from '../../shared/constants'
 import type { HostRouting } from '../support/report'
 
-/** Why Muse Voice stays off: no socket at all, or one a proxy would block. */
-export type VoiceNetworkRefusal = 'noSocket' | 'proxy'
+/**
+ * Why Muse Voice stays off: no socket at all, one no editor version routes
+ * through a proxy (`proxy`), or one the person's own `http` settings leave
+ * unrouted while a proxy is set (`proxySupportOff`,
+ * `proxyWebSocketOff`).
+ */
+export type VoiceNetworkRefusal = 'noSocket' | 'proxy' | 'proxySupportOff' | 'proxyWebSocketOff'
 
 /**
  * The live `http` settings behind the socket decision: `proxySupport`
@@ -27,9 +32,10 @@ export interface VoiceHttpSupport {
 /**
  * The refusal for this editor's socket and proxy, or undefined when the
  * socket can go (`absent` routing is hostRouting's word for no socket). A
- * set proxy refuses an unrouted socket — and a socket the live settings
- * leave unrouted, where the wrapper marker alone still reads `routed`;
- * without a proxy the socket goes direct, as it always did.
+ * set proxy refuses an unrouted socket — the before-1.112 case — and a
+ * marker-`routed` socket the live settings leave unrouted, naming the
+ * setting at fault (`proxySupport` off wins when both are off); without
+ * a proxy the socket goes direct, as it always did.
  */
 export function voiceNetworkRefusal(
   webSocketRouting: HostRouting,
@@ -45,7 +51,11 @@ export function voiceNetworkRefusal(
   if (webSocketRouting !== 'routed') {
     return 'proxy'
   }
-  return support !== undefined && (support.proxySupport === 'off' || !support.isWebSocketSupportOn)
-    ? 'proxy'
-    : undefined
+  if (support === undefined) {
+    return undefined
+  }
+  if (support.proxySupport === 'off') {
+    return 'proxySupportOff'
+  }
+  return support.isWebSocketSupportOn ? undefined : 'proxyWebSocketOff'
 }

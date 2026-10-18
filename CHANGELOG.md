@@ -53,6 +53,11 @@ happened, not what was planned; superseded entries are kept.
   WebSocket through the proxy. The microphone now stays unavailable with the
   reason while a proxy is set there, instead of recording audio that cannot
   be sent.
+- Behind a proxy on VS Code 1.112 or later, a Muse Voice refusal caused by
+  the person's own settings (`http.proxySupport` off, or
+  `http.webSocketAdditionalSupport` off) wrongly blamed the VS Code
+  version. The microphone now names the setting that is off and what to
+  change; the version text stays only for VS Code before 1.112.
 - The production build no longer starts every bundle at once through one
   esbuild service, which could fail under machine load with an error that
   named no bundle and then hang. Bundles now run through a bounded pool

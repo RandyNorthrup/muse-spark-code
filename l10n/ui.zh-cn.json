@@ -3845,6 +3845,8 @@
   "museVoiceClosed": "Muse Voice 关闭了连接（代码 {code}）",
   "museVoiceNoWebSocket": "Muse Voice 需要 VS Code 扩展主机支持 WebSocket，而此版本不支持。",
   "museVoiceNoProxy": "Muse Voice 在此 VS Code 版本中无法使用配置的代理；在代理环境下需要 VS Code 1.112 或更高版本。",
+  "museVoiceProxySupportOff": "Muse Voice 在 http.proxySupport 设置为 \"off\" 时无法使用配置的代理。请将 http.proxySupport 设为 \"on”，以便语音连接通过代理。",
+  "museVoiceProxyWebSocketOff": "Muse Voice 在 http.webSocketAdditionalSupport 设置关闭时无法使用配置的代理。请打开 http.webSocketAdditionalSupport，以便语音连接通过代理。",
   "museVoiceNoRecorder": "Linux 上的 Muse Voice 使用 arecord（ALSA）或 parec（PulseAudio）录音；但在 PATH 中均未找到。",
   "networkUntrustedCertificate": "服务器的证书不受信任。如果你的网络会检查 HTTPS 流量，请将其根证书安装到操作系统的证书存储中（http.systemCertificates 开启时 VS Code 会读取它），或者关闭 http.systemCertificates，并在启动 VS Code 之前用 NODE_EXTRA_CA_CERTS 指定根证书文件。",
   "networkProxyCredentials": "代理要求提供凭据，但未接受收到的凭据。请检查 http.proxy 和 http.proxyAuthorization，或 VS Code 向你询问的凭据。",

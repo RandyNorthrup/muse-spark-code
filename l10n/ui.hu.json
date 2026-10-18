@@ -3940,6 +3940,8 @@
   "museVoiceClosed": "A Muse Voice bezárta a kapcsolatot (kód: {code})",
   "museVoiceNoWebSocket": "A Muse Voice használatához WebSocket-támogatás szükséges a VS Code kiegészítőinek gazdafolyamatában, ez a verzió azonban nem rendelkezik vele.",
   "museVoiceNoProxy": "A Muse Voice ebben a VS Code-verzióban nem tudja használni a beállított proxyt; proxy mögött VS Code 1.112 vagy újabb szükséges.",
+  "museVoiceProxySupportOff": "A Muse Voice nem tudja használni a beállított proxyt, amíg a http.proxySupport beállítás értéke \"off\". Állítsa a http.proxySupport értékét \"on\"-ra, hogy a hangkapcsolat a proxyn keresztül menjen.",
+  "museVoiceProxyWebSocketOff": "A Muse Voice nem tudja használni a beállított proxyt, amíg a http.webSocketAdditionalSupport beállítás ki van kapcsolva. Kapcsolja be a http.webSocketAdditionalSupport beállítást, hogy a hangkapcsolat a proxyn keresztül menjen.",
   "museVoiceNoRecorder": "A Muse Voice Linuxon az arecord (ALSA) vagy a parec (PulseAudio) programmal rögzít; egyik sem található a PATH-on.",
   "networkUntrustedCertificate": "A kiszolgáló tanúsítványa nem megbízható. Ha a hálózata vizsgálja a HTTPS-forgalmat, telepítse a gyökértanúsítványát az operációs rendszer tanúsítványtárolójába (a VS Code onnan olvassa, amíg a http.systemCertificates be van kapcsolva), vagy kapcsolja ki a http.systemCertificates beállítást, és a VS Code indítása előtt adja meg a gyökértanúsítvány fájlját a NODE_EXTRA_CA_CERTS változóban.",
   "networkProxyCredentials": "A proxy hitelesítő adatokat kért, és nem fogadta el a kapottakat. Ellenőrizze a http.proxy és a http.proxyAuthorization beállítást, vagy azokat a hitelesítő adatokat, amelyeket a VS Code kért Öntől.",

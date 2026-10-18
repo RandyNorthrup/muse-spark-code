@@ -15,7 +15,7 @@ import {
   locateCaptureHelper,
   locateDictationHelper,
 } from '../../core/voice/helperLocation'
-import { voiceNetworkRefusal } from '../../core/voice/voiceNetwork'
+import { voiceNetworkRefusal, type VoiceNetworkRefusal } from '../../core/voice/voiceNetwork'
 import { hostRouting, type VoiceNetworkPosture } from '../networkPosture'
 import { EXTENSION_QUALIFIED_ID, UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
@@ -78,6 +78,30 @@ export interface MuseVoiceSetupDeps {
  * (validated, never raw) and the support settings behind the socket, read
  * fresh on every rebuild so a settings change takes effect at once.
  */
+
+/**
+ * The microphone's sentence for a network refusal: the old-version text
+ * only for a socket no editor version routes, otherwise the setting left
+ * off and what to change. Called when the setup runs (never at module
+ * load) so the installed language is the one shown.
+ */
+function reasonForRefusal(refusal: VoiceNetworkRefusal): string {
+  switch (refusal) {
+    case 'proxy': {
+      return UI_TEXT.museVoiceNoProxy
+    }
+    case 'proxySupportOff': {
+      return UI_TEXT.museVoiceProxySupportOff
+    }
+    case 'proxyWebSocketOff': {
+      return UI_TEXT.museVoiceProxyWebSocketOff
+    }
+    case 'noSocket': {
+      return UI_TEXT.museVoiceNoWebSocket
+    }
+  }
+}
+
 export function createMuseVoiceSetup(
   probe: Omit<
     CaptureProbe,
@@ -103,7 +127,11 @@ export function createMuseVoiceSetup(
         })
       : {
           isAvailable: false as const,
-          reason: refusal === 'proxy' ? UI_TEXT.museVoiceNoProxy : UI_TEXT.museVoiceNoWebSocket,
+          // The old-version text only for a socket no editor version
+          // routes; otherwise the setting left off and what to change.
+          // Read here (not at module load) so the installed language is
+          // the one shown.
+          reason: reasonForRefusal(refusal),
         }
   if (!location.isAvailable) {
     deps.log.info(`Muse Voice unavailable: ${location.reason}`)

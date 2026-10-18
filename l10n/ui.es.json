@@ -4035,6 +4035,8 @@
   "museVoiceClosed": "Muse Voice cerró la conexión (código {code})",
   "museVoiceNoWebSocket": "Muse Voice necesita compatibilidad con WebSocket en el host de extensiones de VS Code, que esta versión no tiene.",
   "museVoiceNoProxy": "Muse Voice no puede usar el proxy configurado en esta versión de VS Code; detrás de un proxy necesita VS Code 1.112 o posterior.",
+  "museVoiceProxySupportOff": "Muse Voice no puede usar el proxy configurado mientras el ajuste http.proxySupport esté en \"off\". Cambie http.proxySupport a \"on\" para que la conexión de voz pase por el proxy.",
+  "museVoiceProxyWebSocketOff": "Muse Voice no puede usar el proxy configurado mientras el ajuste http.webSocketAdditionalSupport esté desactivado. Active http.webSocketAdditionalSupport para que la conexión de voz pase por el proxy.",
   "museVoiceNoRecorder": "En Linux, Muse Voice graba con arecord (ALSA) o parec (PulseAudio); no se encontró ninguno de los dos en PATH.",
   "networkUntrustedCertificate": "El certificado del servidor no es de confianza. Si su red inspecciona HTTPS, instale su certificado raíz en el almacén de certificados del sistema operativo (VS Code lo lee mientras http.systemCertificates está activado), o desactive http.systemCertificates e indique el archivo del certificado raíz en NODE_EXTRA_CA_CERTS antes de iniciar VS Code.",
   "networkProxyCredentials": "El proxy pidió credenciales y no aceptó las que recibió. Compruebe http.proxy y http.proxyAuthorization, o las credenciales que le pidió VS Code.",
