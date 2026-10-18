@@ -55,6 +55,16 @@ async function signInError(promise: Promise<unknown>): Promise<ChatGptSignInErro
   return failure
 }
 
+type CallbackFlow = Awaited<ReturnType<typeof startChatGptCallback>>
+
+/** A callback with the wrong state answers 400 and settles the validated failure. */
+async function expectWrongState(flow: CallbackFlow): Promise<void> {
+  const status = await getStatus(`${flow.redirectUri}?code=x&client_id=y&state=wrong-state-is-here`)
+  expect(status).toBe(400)
+  const failure = await signInError(flow.waitForCallback())
+  expect(failure.code).toBe('invalid-state')
+}
+
 describe('chatGptCallback failure rules', () => {
   it('answers an unparseable request-target with the fixed page and keeps the flow', async () => {
     const flow = await startChatGptCallback(STATE, 10_000, pageText)
@@ -64,12 +74,7 @@ describe('chatGptCallback failure rules', () => {
       expect(garbage.status).toBe(400)
       expect(garbage.body).toContain('callback page')
       // The flow is still waiting: the probe settled nothing.
-      const status = await getStatus(
-        `${flow.redirectUri}?code=x&client_id=y&state=wrong-state-is-here`,
-      )
-      expect(status).toBe(400)
-      const failure = await signInError(flow.waitForCallback())
-      expect(failure.code).toBe('invalid-state')
+      await expectWrongState(flow)
     } finally {
       flow.close()
     }
@@ -78,12 +83,7 @@ describe('chatGptCallback failure rules', () => {
   it('keeps only the validated failure for a mismatched state', async () => {
     const flow = await startChatGptCallback(STATE, 10_000, pageText)
     try {
-      const status = await getStatus(
-        `${flow.redirectUri}?code=x&client_id=y&state=wrong-state-is-here`,
-      )
-      expect(status).toBe(400)
-      const failure = await signInError(flow.waitForCallback())
-      expect(failure.code).toBe('invalid-state')
+      await expectWrongState(flow)
     } finally {
       flow.close()
     }

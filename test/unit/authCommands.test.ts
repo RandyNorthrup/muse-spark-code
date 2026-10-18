@@ -2,7 +2,7 @@
 // label lookup failure degrades the label without changing the verdict.
 import { describe, expect, it } from 'vitest'
 import type { SecretStore } from '../../src/host/auth/credentialStore'
-import type { ProvidersFileRead } from '../../src/core/providers/providersFile'
+import type { ProviderEntry, ProvidersFileRead } from '../../src/core/providers/providersFile'
 import {
   authStatusAll,
   authStatusProvider,
@@ -10,8 +10,14 @@ import {
 } from '../../src/runtime/authCommands'
 import { formatStoredProviderSecret } from '../../src/runtime/keyStore'
 import { CREDENTIAL_RECORD_VERSION } from '../../src/shared/constants'
+import { mapSecrets } from './helpers/mapSecrets'
 
-const ENTRY = { id: 'testprovider', preset: 'testprovider', auth: 'apiKey', models: [] }
+const ENTRY: ProviderEntry = {
+  id: 'testprovider',
+  preset: 'testprovider',
+  auth: 'apiKey',
+  models: [],
+}
 const ENVELOPE = formatStoredProviderSecret(
   { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin: 'https://api.example.com' },
   'candidate-key',
@@ -27,21 +33,6 @@ function deps(secrets: SecretStore, lines: { out: string[]; err: string[] }): Au
     },
     printError: (line) => {
       lines.err.push(line)
-    },
-  }
-}
-
-function mapSecrets(entries: Readonly<Record<string, string>>): SecretStore {
-  const backing = new Map(Object.entries(entries))
-  return {
-    get: (key: string) => Promise.resolve(backing.get(key)),
-    store: (key: string, value: string) => {
-      backing.set(key, value)
-      return Promise.resolve()
-    },
-    delete: (key: string) => {
-      backing.delete(key)
-      return Promise.resolve()
     },
   }
 }

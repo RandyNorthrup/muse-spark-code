@@ -5,21 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { ChatGptSignInError } from '../../src/core/providers/subscriptions/chatgpt'
 import type { SecretStore } from '../../src/host/auth/credentialStore'
 import { createRuntimeChatGptHost } from '../../src/runtime/chatGptHost'
-
-function mapSecrets(entries: Readonly<Record<string, string>>): SecretStore {
-  const backing = new Map(Object.entries(entries))
-  return {
-    get: (key: string) => Promise.resolve(backing.get(key)),
-    store: (key: string, value: string) => {
-      backing.set(key, value)
-      return Promise.resolve()
-    },
-    delete: (key: string) => {
-      backing.delete(key)
-      return Promise.resolve()
-    },
-  }
-}
+import { mapSecrets } from './helpers/mapSecrets'
 
 function options(secrets: SecretStore) {
   return {

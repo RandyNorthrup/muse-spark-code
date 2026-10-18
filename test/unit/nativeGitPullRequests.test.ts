@@ -9,40 +9,24 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createMemoryPullRequestLinkStore } from '../../src/core/git/pullRequestLinksStore'
 import type { RuntimeGitDeps } from '../../src/core/git/runtimeGit'
-import type { GitHubCredential, GitHubTokenSource } from '../../src/core/git/tokenSource'
-import type { CoreLogger } from '../../src/core/logging'
+import type { GitHubTokenSource } from '../../src/core/git/tokenSource'
 import {
   RuntimePullRequests,
+  type CreatePullRequestInput,
   type RuntimePullRequestDeps,
 } from '../../src/runtime/panel/pullRequests/pullRequests'
 import { UI_TEXT } from '../../src/shared/constants'
-
-const quiet = (): void => undefined
-const testLog: CoreLogger = { trace: quiet, info: quiet, warn: quiet, error: quiet }
+import {
+  neverCalled,
+  silentLogger,
+  testCredentialSource,
+  testGit,
+} from './helpers/nativeGitHarness'
 
 const root = mkdtempSync(path.join(tmpdir(), 'm123-native-prs-'))
+const git = testGit(root)
 /** A port nothing listens on: the refused connection is the unreachable GitHub. */
 const UNREACHABLE_BASE_URL = 'http://127.0.0.1:9/'
-
-const credential: GitHubCredential = {
-  source: 'ghLogin',
-  bearer: 'untransmitted-test-bearer',
-  fetch,
-  expiresAt: undefined,
-}
-
-const source: GitHubTokenSource = {
-  kind: 'ghLogin',
-  credential: () => Promise.resolve(credential),
-  rejected: () => Promise.resolve(),
-  signOut: () => Promise.resolve(),
-}
-
-function never(name: string): () => never {
-  return () => {
-    throw new Error(`must not be called: ${name}`)
-  }
-}
 
 function depsFor(options?: {
   isTrusted?: () => boolean
@@ -51,20 +35,20 @@ function depsFor(options?: {
 }): RuntimePullRequestDeps {
   const gitDeps: RuntimeGitDeps = {
     repositoryRoot: root,
-    gitPath: 'git',
-    tokenSources: options?.tokenSources ?? [source],
+    gitPath: git.git,
+    tokenSources: options?.tokenSources ?? [testCredentialSource],
     links: createMemoryPullRequestLinkStore(),
     isTrusted: options?.isTrusted ?? (() => true),
-    confirmPush: never('confirmPush'),
-    pickRemote: never('pickRemote'),
-    userEnvironment: never('userEnvironment'),
-    openInTerminal: never('openInTerminal'),
-    openFolder: never('openFolder'),
-    openExternal: never('openExternal'),
+    confirmPush: neverCalled('confirmPush'),
+    pickRemote: neverCalled('pickRemote'),
+    userEnvironment: neverCalled('userEnvironment'),
+    openInTerminal: neverCalled('openInTerminal'),
+    openFolder: neverCalled('openFolder'),
+    openExternal: neverCalled('openExternal'),
     dataFolder: root,
     userAgent: 'native-pull-requests-test',
     signal: options?.signal ?? new AbortController().signal,
-    log: testLog,
+    log: silentLogger,
   }
   return {
     ...gitDeps,
@@ -77,6 +61,26 @@ function depsFor(options?: {
 
 const repository = { owner: 'octocat', name: 'hello-world' }
 const remoteUrl = 'https://github.com/octocat/hello-world'
+
+/** The create call's input: the destination GitHub never answers. */
+function createInput(): CreatePullRequestInput {
+  return {
+    destination: {
+      targetRepository: repository,
+      repository,
+      defaultBase: 'main',
+      apiHead: 'feature',
+      headRepository: undefined,
+      remote: 'origin',
+      remoteUrl,
+      head: 'feature',
+    },
+    title: 'Title',
+    body: 'Body',
+    base: 'main',
+    isDraft: true,
+  }
+}
 
 describe('RuntimePullRequests trust', () => {
   it('refuses to prepare when untrusted', async () => {
@@ -92,22 +96,7 @@ describe('RuntimePullRequests trust', () => {
 
   it('refuses to create when untrusted', async () => {
     const service = new RuntimePullRequests(depsFor({ isTrusted: () => false }))
-    const result = await service.create({
-      destination: {
-        targetRepository: repository,
-        repository,
-        defaultBase: 'main',
-        apiHead: 'feature',
-        headRepository: undefined,
-        remote: 'origin',
-        remoteUrl,
-        head: 'feature',
-      },
-      title: 'Title',
-      body: 'Body',
-      base: 'main',
-      isDraft: true,
-    })
+    const result = await service.create(createInput())
     expect(result).toEqual({ ok: false, reason: UI_TEXT.gitRestricted })
   })
 
@@ -179,22 +168,7 @@ describe('RuntimePullRequests unreachable GitHub', () => {
 
   it('reports the unreachable destination when resolving the create target', async () => {
     const service = new RuntimePullRequests(depsFor())
-    const result = await service.create({
-      destination: {
-        targetRepository: repository,
-        repository,
-        defaultBase: 'main',
-        apiHead: 'feature',
-        headRepository: undefined,
-        remote: 'origin',
-        remoteUrl,
-        head: 'feature',
-      },
-      title: 'Title',
-      body: 'Body',
-      base: 'main',
-      isDraft: true,
-    })
+    const result = await service.create(createInput())
     expect(result.ok).toBe(false)
     if (result.ok) {
       throw new Error('the unreachable create reported success')

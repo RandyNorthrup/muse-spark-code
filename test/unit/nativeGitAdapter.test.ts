@@ -4,57 +4,27 @@
 // The surface records what the person would see; it answers nothing, so
 // every failure below is the real service and the real git failing.
 
-import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { GitSurface } from '../../src/host/conversation/conversationController'
-import { resolveExecutable } from '../../src/core/executables'
 import { createMemoryPullRequestLinkStore } from '../../src/core/git/pullRequestLinksStore'
 import type { RuntimeGitDeps } from '../../src/core/git/runtimeGit'
 import type { CoreLogger } from '../../src/core/logging'
 import { RuntimeGit } from '../../src/runtime/panel/git/adapter'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import { neverCalled, testGit } from './helpers/nativeGitHarness'
 
 const quiet = (): void => undefined
 
 const root = mkdtempSync(path.join(tmpdir(), 'm123-native-adapter-'))
 const dataFolder = mkdtempSync(path.join(root, 'data-'))
-
-function gitPath(): string {
-  const resolved = resolveExecutable('git', {
-    platform: process.platform,
-    pathVariable: process.env.PATH,
-    fileExists: existsSync,
-  })
-  if (resolved === undefined) {
-    throw new Error('git is not on PATH')
-  }
-  return resolved
-}
-
-function git(cwd: string, ...args: string[]): void {
-  execFileSync(gitPath(), args, { cwd, stdio: 'pipe' })
-}
+const git = testGit(root)
 
 function makeRepository(): string {
-  const repo = mkdtempSync(path.join(root, 'repo-'))
-  git(repo, 'init', '-q', '-b', 'main')
-  git(
-    repo,
-    '-c',
-    'user.name=t',
-    '-c',
-    'user.email=t@t',
-    'commit',
-    '-q',
-    '--allow-empty',
-    '-m',
-    'Base',
-  )
-  return repo
+  return git.makeRepository().repo
 }
 
 /** What the person would see: notices, panel speech and posted state. */
@@ -101,25 +71,19 @@ function harness(
   }
   const deps: RuntimeGitDeps = {
     repositoryRoot,
-    gitPath: gitPath(),
+    gitPath: git.git,
     tokenSources: [],
     links: createMemoryPullRequestLinkStore(),
     isTrusted: () => isTrusted,
     confirmPush: () => shouldConfirm(),
-    pickRemote: () => {
-      throw new Error('must not be called: pickRemote')
-    },
+    pickRemote: neverCalled('pickRemote'),
     userEnvironment: () => process.env,
     openInTerminal: (command, cwd) => {
       terminals.push({ command, cwd })
       return Promise.resolve()
     },
-    openFolder: () => {
-      throw new Error('must not be called: openFolder')
-    },
-    openExternal: () => {
-      throw new Error('must not be called: openExternal')
-    },
+    openFolder: neverCalled('openFolder'),
+    openExternal: neverCalled('openExternal'),
     dataFolder,
     userAgent: 'native-git-adapter-test',
     signal: new AbortController().signal,
@@ -178,8 +142,8 @@ function aheadOfCheckedOut(): string {
   const remote = makeRepository()
   const parent = mkdtempSync(path.join(root, 'clone-'))
   const local = path.join(parent, 'local')
-  execFileSync(gitPath(), ['clone', '-q', remote, local], { stdio: 'pipe' })
-  git(
+  git.run(root, 'clone', '-q', remote, local)
+  git.run(
     local,
     '-c',
     'user.name=t',
@@ -207,7 +171,7 @@ describe('RuntimeGit push failures', () => {
     expect(surface.said.some((said) => said.text.startsWith(UI_TEXT.gitPushFailed))).toBe(true)
     expect(terminals.length).toBe(1)
     const [terminal] = terminals
-    expect(terminal?.command).toContain(gitPath())
+    expect(terminal?.command).toContain(git.git)
     expect(terminal?.cwd).toBe(repo)
   })
 

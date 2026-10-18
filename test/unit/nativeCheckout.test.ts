@@ -4,7 +4,7 @@
 // failed cleanups and dead batch children are arranged on the real file
 // system. The credential is test input the service never validates.
 
-import { execFileSync, spawn } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -12,8 +12,6 @@ import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { BlobAnswers } from '../../src/core/git/heldCheckoutCore'
 import { lstatIdentitySync, identityOf } from '../../src/core/fs/fileIdentity'
-import { resolveExecutable } from '../../src/core/executables'
-import type { GitHubCredential, GitHubTokenSource } from '../../src/core/git/tokenSource'
 import type { CoreLogger } from '../../src/core/logging'
 import type { PullRequest } from '../../src/core/git/github'
 import {
@@ -31,85 +29,22 @@ import { createMemoryPullRequestLinkStore } from '../../src/core/git/pullRequest
 import { createFileWorktreeRecordStore } from '../../src/runtime/panel/pullRequests/records'
 import { createMemoryWorktreeRecordStore } from '../../src/runtime/panel/pullRequests/records'
 import { UI_TEXT } from '../../src/shared/constants'
+import {
+  isolatedGitEnv,
+  neverCalled,
+  testCredentialSource,
+  testGit,
+} from './helpers/nativeGitHarness'
 
 const quiet = (): void => undefined
 
 const root = mkdtempSync(path.join(tmpdir(), 'm123-native-checkout-'))
+const shells = testGit(root)
 /** A port nothing listens on: the refused connection is the unreachable GitHub. */
 const UNREACHABLE_BASE_URL = 'http://127.0.0.1:9/'
 
-function gitPath(): string {
-  const resolved = resolveExecutable('git', {
-    platform: process.platform,
-    pathVariable: process.env.PATH,
-    fileExists: existsSync,
-  })
-  if (resolved === undefined) {
-    throw new Error('git is not on PATH')
-  }
-  return resolved
-}
-
-function never(name: string): () => never {
-  return () => {
-    throw new Error(`must not be called: ${name}`)
-  }
-}
-
-/** The isolated environment git runs in: no system or user configuration. */
-function gitEnv(): NodeJS.ProcessEnv {
-  const home = mkdtempSync(path.join(root, 'home-'))
-  return {
-    ...(process.platform === 'win32' && { SystemRoot: process.env.SystemRoot }),
-    ...(process.env.DEVELOPER_DIR !== undefined && { DEVELOPER_DIR: process.env.DEVELOPER_DIR }),
-    PATH: process.env.PATH,
-    HOME: home,
-    GIT_CONFIG_NOSYSTEM: '1',
-    GIT_TERMINAL_PROMPT: '0',
-  }
-}
-
-const credential: GitHubCredential = {
-  source: 'ghLogin',
-  bearer: 'untransmitted-test-bearer',
-  fetch,
-  expiresAt: undefined,
-}
-
-const source: GitHubTokenSource = {
-  kind: 'ghLogin',
-  credential: () => Promise.resolve(credential),
-  rejected: () => Promise.resolve(),
-  signOut: () => Promise.resolve(),
-}
-
-function git(cwd: string, ...args: string[]): void {
-  execFileSync(gitPath(), args, { cwd, env: gitEnv(), stdio: 'pipe' })
-}
-
 function makeRepository(): { repo: string; sha: string } {
-  const repo = mkdtempSync(path.join(root, 'repo-'))
-  git(repo, 'init', '-q', '-b', 'main')
-  git(
-    repo,
-    '-c',
-    'user.name=t',
-    '-c',
-    'user.email=t@t',
-    'commit',
-    '-q',
-    '--allow-empty',
-    '-m',
-    'Base',
-  )
-  const sha = execFileSync(gitPath(), ['rev-parse', 'HEAD'], {
-    cwd: repo,
-    env: gitEnv(),
-    stdio: 'pipe',
-  })
-    .toString('utf8')
-    .trim()
-  return { repo, sha }
+  return shells.makeRepository()
 }
 
 interface Harness {
@@ -132,10 +67,11 @@ function harness(repositoryRoot: string): Harness {
   }
   let isTrusted = true
   const dataFolder = mkdtempSync(path.join(root, 'data-'))
+  const gitEnv = isolatedGitEnv(root)
   const git = createNodePullRequestCheckoutGit({
-    gitPath: gitPath(),
-    userEnv: gitEnv(),
-    quietEnv: gitEnv(),
+    gitPath: shells.git,
+    userEnv: gitEnv,
+    quietEnv: gitEnv,
     platform: process.platform,
     signal: new AbortController().signal,
     log: testLog,
@@ -149,18 +85,19 @@ function harness(repositoryRoot: string): Harness {
     log: testLog,
     now: () => Date.now(),
     confirm: () => Promise.resolve(true),
-    openFolder: never('openFolder'),
+    openFolder: neverCalled('openFolder'),
     repositoryRoot,
   }
   const serviceDeps: RuntimeCheckoutDeps = {
     ...protocolDeps,
-    tokenSources: [source],
+    gitPath: shells.git,
+    tokenSources: [testCredentialSource],
     links: createMemoryPullRequestLinkStore(),
-    confirmPush: never('confirmPush'),
-    pickRemote: never('pickRemote'),
-    userEnvironment: never('userEnvironment'),
-    openInTerminal: never('openInTerminal'),
-    openExternal: never('openExternal'),
+    confirmPush: neverCalled('confirmPush'),
+    pickRemote: neverCalled('pickRemote'),
+    userEnvironment: neverCalled('userEnvironment'),
+    openInTerminal: neverCalled('openInTerminal'),
+    openExternal: neverCalled('openExternal'),
     dataFolder,
     userAgent: 'native-checkout-test',
     platform: process.platform,
