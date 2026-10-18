@@ -880,8 +880,12 @@ export class MuseVoiceDictation implements DictationHandle {
           const isCurrent = this.current?.stream === stream
           this.settle(stream)
           if (isCurrent) {
-            void this.releaseCapture(stream)
-            this.startPending()
+            // Idle (and any queued press) waits for the capture's real
+            // release: starting pending now would find `current` still
+            // set, return at once, and leave the button non-idle forever.
+            void this.releaseCapture(stream).then(() => {
+              this.startPending()
+            })
           }
           this.listener.onError(reason)
         },
