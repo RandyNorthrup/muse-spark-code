@@ -1,13 +1,16 @@
 // RVCM1136B P1 class guard: EVERY adapter bound by createReportingNetwork
 // (the three store channels plus the workflow/release port) must survive the
-// production transport and reader. The only boundary replaced is fetch,
-// faked with the committed captures; no hand-built reader factory.
+// production transport and reader. The only boundary replaced is the public
+// fetch, injected with the committed captures; no hand-built reader factory.
 //
 // - Stores run on the real CLI composition (no surface transport at all, so
 //   the `gh` fallback is never addressed by a store read).
-// - GitHub runs on the real editor composition with a capture-serving GitHub
-//   lane shaped like the credential-owning fetch (GitHub URLs only; anything
-//   else throws, so a misrouted request fails here).
+// - GitHub runs on the real editor policy through the shared network rig
+//   with a capture-serving GitHub lane shaped like the credential-owning
+//   fetch (GitHub URLs only; anything else throws, so a misrouted request
+//   fails here). The origin remote comes from a real scratch git repo; only
+//   reportGitIo's governed exec is out of scope (governance is admission's
+//   own suites), never the git facts.
 //
 // A bound adapter the production transport refuses (method, host, content
 // type, headers, body, size) comes back as an unavailable row and fails its
@@ -18,19 +21,14 @@ import { readFileSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
+import { REPORT_NETWORK_MAX_BYTES, REPORT_NETWORK_MAX_PAGES } from '../../src/shared/constants'
 import { createReportingNetwork } from '../../src/runtime/reporting/network'
 import type { ReportStoreProject } from '../../src/core/reporting/sources/storeProject'
-import { networkContext } from './helpers/reportKindNetwork'
-
-// reportGitIo shells out through the resource launcher: the failure under
-// test is routing, not process governance, so the direct bounded execFile
-// fixture stands in, as in storeProject.test.ts.
-vi.mock('../../src/core/resources/launcher', async (original) => {
-  const { withFixtureCommand } = await import('./helpers/resources/kindLaunch')
-  return withFixtureCommand(await original())
-})
+import { githubReportSource } from '../../src/core/reporting/sources/github'
+import { githubWorkflowReleasesPort } from '../../src/core/reporting/sources/githubWorkflowReleases'
+import { networkContext, networkRig, recordingTransport } from './helpers/reportKindNetwork'
 
 function capture(leaf: string): unknown {
   return JSON.parse(
@@ -97,28 +95,28 @@ function policy(surface: 'editor' | 'terminal') {
   }
 }
 
-beforeAll(async () => {
-  // Only fetch is faked: every committed capture, keyed by the exact
-  // request the production transport must be able to send.
-  vi.stubGlobal(
-    'fetch',
-    vi.fn((url: string, init: SeenFetch['init'] = {}) => {
-      seenFetch.push({ url, init })
-      const headers = new Headers(init.headers)
-      if (headers.has('authorization') || headers.has('cookie'))
-        return Promise.reject(new Error(`credential leaked to ${url}`))
-      if (url.startsWith('https://marketplace.visualstudio.com/'))
-        return init.method !== 'POST' || init.body !== MARKETPLACE_REQUEST_BODY
-          ? Promise.reject(new Error('marketplace request is not the captured form'))
-          : Promise.resolve(Response.json(MARKETPLACE_ANSWER))
-      if (url.startsWith('https://open-vsx.org/'))
-        return Promise.resolve(Response.json(OPENVsx_ANSWER))
-      return url.startsWith('https://registry.npmjs.org/')
-        ? Promise.resolve(Response.json(NPM_ANSWER))
-        : Promise.reject(new Error(`unexpected public fetch ${url}`))
-    }),
-  )
+// Only the public fetch is injected: every committed capture, keyed by
+// the exact request the production transport must be able to send.
+const fetchPublic: typeof fetch = (input, init = {}) => {
+  let url: string
+  if (typeof input === 'string') url = input
+  else if (input instanceof URL) url = input.href
+  else url = input.url
+  seenFetch.push({ url, init })
+  const headers = new Headers(init.headers)
+  if (headers.has('authorization') || headers.has('cookie'))
+    return Promise.reject(new Error(`credential leaked to ${url}`))
+  if (url.startsWith('https://marketplace.visualstudio.com/'))
+    return init.method !== 'POST' || init.body !== MARKETPLACE_REQUEST_BODY
+      ? Promise.reject(new Error('marketplace request is not the captured form'))
+      : Promise.resolve(Response.json(MARKETPLACE_ANSWER))
+  if (url.startsWith('https://open-vsx.org/')) return Promise.resolve(Response.json(OPENVsx_ANSWER))
+  return url.startsWith('https://registry.npmjs.org/')
+    ? Promise.resolve(Response.json(NPM_ANSWER))
+    : Promise.reject(new Error(`unexpected public fetch ${url}`))
+}
 
+beforeAll(async () => {
   // Stores on the CLI composition: no surface transport.
   const storeRoot = await scratch()
   const stores = createReportingNetwork(
@@ -127,6 +125,7 @@ beforeAll(async () => {
       storageRoot: path.join(storeRoot, 'data'),
       l10n: { table: EN, locale: 'en' },
       policy: policy('terminal'),
+      fetchPublic,
     },
     {
       head: '82d50d5e456d17205623064b0a70caf8a6e34471',
@@ -146,9 +145,10 @@ beforeAll(async () => {
     status: row.status,
   }))
 
-  // GitHub on the editor composition: the injected lane serves the GitHub
+  // GitHub on the real editor policy: the injected lane serves the GitHub
   // captures and refuses anything off api.github.com, like the real
-  // credential-owning fetch.
+  // credential-owning fetch. The origin remote is read from a real scratch
+  // repo with the real git binary.
   const gitRoot = await scratch()
   execFileSync('git', ['init'], { cwd: gitRoot, stdio: 'ignore' })
   execFileSync(
@@ -159,7 +159,11 @@ beforeAll(async () => {
       stdio: 'ignore',
     },
   )
-  const githubLane = vi.fn((request: { url: string }) => {
+  const remote = execFileSync('git', ['remote', 'get-url', 'origin'], {
+    cwd: gitRoot,
+    encoding: 'utf8',
+  }).trim()
+  const githubLane = recordingTransport((request) => {
     if (!request.url.startsWith('https://api.github.com/'))
       return Promise.reject(new Error(`github lane addressed ${request.url}`))
     if (request.url.includes('/pulls?')) return Promise.resolve(Response.json([]))
@@ -171,25 +175,19 @@ beforeAll(async () => {
       ? Promise.resolve(Response.json(RELEASE_RUNS))
       : Promise.reject(new Error(`unexpected github request ${request.url}`))
   })
-  const github = createReportingNetwork(
-    {
-      workspaceRoot: gitRoot,
-      storageRoot: path.join(gitRoot, 'data'),
-      l10n: { table: EN, locale: 'en' },
-      policy: policy('editor'),
-      transport: githubLane,
-    },
-    {
-      head: '82d50d5e456d17205623064b0a70caf8a6e34471',
-      defaultBranch: 'main',
-      commits: [],
-      tags: [],
-      branches: [],
-      worktrees: [],
-    },
-    project,
-  )
-  const githubResult = await github.github.read(networkContext())
+  const rig = networkRig({
+    transport: githubLane.transport,
+    maxBytes: REPORT_NETWORK_MAX_BYTES,
+    maxPages: REPORT_NETWORK_MAX_PAGES,
+    policy: policy('editor'),
+  })
+  const githubResult = await githubReportSource({
+    remote,
+    headSha: '82d50d5e456d17205623064b0a70caf8a6e34471',
+    defaultBranch: 'main',
+    reader: rig.reader,
+    additional: githubWorkflowReleasesPort(),
+  }).read(networkContext())
   state.githubStatus = githubResult.record.status
   state.releases = (githubResult.data?.releases ?? []).map((release) => ({
     version: release.version,
@@ -201,7 +199,6 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  vi.unstubAllGlobals()
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
 })
 
