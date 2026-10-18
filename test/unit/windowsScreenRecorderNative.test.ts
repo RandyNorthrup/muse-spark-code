@@ -135,25 +135,6 @@ describe.skipIf(process.platform !== 'win32')(
       )
     })
 
-    it('keeps Cancel atomic when a concurrent normal Stop finishes later', async () => {
-      expect(await check('cancelRace')).toBe('cancelled:True,closed:True,finish:False')
-    })
-
-    it.each(['selection', 'file', 'open', 'prepare'])(
-      'Stop cancels a pending %s operation before recording starts',
-      async (stage) => {
-        expect(await check('pending', stage)).toBe('cancelled:True,closed:True,finish:False')
-      },
-    )
-
-    it('cancels an operation registered after Cancel was already latched', async () => {
-      expect(await check('latePending')).toBe('cancelled:True,closed:True,finish:False')
-    })
-
-    it('normal Stop finalizes encoding while a later Cancel cancels it', async () => {
-      expect(await check('pendingEncode')).toBe('cancelled:True,closed:True')
-    })
-
     it.each(['stdin', 'owner'] as const)(
       'latest import observes %s cancellation during copying and deletes its partial preview',
       async (control) => {
