@@ -21,6 +21,7 @@ import {
   type ReportSourcePort,
   type SourceReadContext,
 } from './types'
+import { isParseFailure } from './local'
 import type { ReportKind } from '../../../shared/reportSchema'
 import { reportKindSchema } from '../../../shared/reportSchema'
 import { isReportNetworkAllowed, type ReportNetworkPolicy } from './cache'
@@ -226,9 +227,14 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
               if (raw.length < GITHUB_CHECKS_PAGE_SIZE) break
             }
           } catch (error: unknown) {
-            reasons.push(
-              error instanceof ReportNetworkFailure ? error.message : 'pulls-unavailable',
-            )
+            // A section keeps its own failure: network failures carry their
+            // code, an unparsable page or a cancelled read is unavailable.
+            // Anything else is not a section outcome.
+            if (error instanceof ReportNetworkFailure) reasons.push(error.message)
+            else if (isParseFailure(error)) reasons.push('pulls-unavailable')
+            // eslint-disable-next-line unicorn/no-duplicate-if-branches -- a cancelled read shares the closed unavailable outcome; the catch gate forbids merging the named tests (PLAN §8, D119-catch).
+            else if (context.signal.aborted) reasons.push('pulls-unavailable')
+            else throw error
           }
           const refs: z.infer<typeof reportCiRunSchema>['ref'][] = [
             { kind: 'head', name: options.headSha },
@@ -245,9 +251,12 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
             try {
               await readScopedChecks(query, base, ref, runs)
             } catch (error: unknown) {
-              reasons.push(
-                `${ref.kind}: ${error instanceof ReportNetworkFailure ? error.message : 'checks-unavailable'}`,
-              )
+              if (error instanceof ReportNetworkFailure)
+                reasons.push(`${ref.kind}: ${error.message}`)
+              else if (isParseFailure(error)) reasons.push(`${ref.kind}: checks-unavailable`)
+              // eslint-disable-next-line unicorn/no-duplicate-if-branches -- a cancelled read shares the closed unavailable outcome; the catch gate forbids merging the named tests (PLAN §8, D119-catch).
+              else if (context.signal.aborted) reasons.push(`${ref.kind}: checks-unavailable`)
+              else throw error
             }
           }
           if (options.additional === undefined) reasons.push('workflow-release-capture-required')
@@ -258,8 +267,17 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
               )
               runs.push(...additional.runs)
               releases = additional.releases
-            } catch {
-              reasons.push('workflow-releases-unavailable')
+            } catch (error: unknown) {
+              // The extended reader is host-owned: its network failure keeps
+              // its code and its unparsable answer stays unavailable. Anything
+              // else is not an extended-reader outcome.
+              if (error instanceof ReportNetworkFailure) reasons.push(error.message)
+              else if (error instanceof z.core.$ZodError)
+                reasons.push('workflow-releases-unavailable')
+              // eslint-disable-next-line unicorn/no-duplicate-if-branches -- a cancelled read shares the closed unavailable outcome; the catch gate forbids merging the named tests (PLAN §8, D119-catch).
+              else if (context.signal.aborted) reasons.push('workflow-releases-unavailable')
+              else throw error
+              // (No SyntaxError: this path parses no text; the reader answers objects.)
             }
           }
           return {
