@@ -270,9 +270,10 @@ function writePlugin(source: string, name = 'plugin.mjs'): string {
 function host(warnings: string[] = []): PluginHostDeps {
   const dir = mkdtempSync(path.join(tmpdir(), 'm91b-bin-'))
   const bun = path.join(dir, 'bun')
-  // Portable Linux fixture: its Bun stand-in is this Node with a real heap
-  // bound. The wrapper checks the exact production prlimit admission args.
-  // pluginHost.test separately proves actual Bun is refused on macOS.
+  // Portable fixture: its Bun stand-in is this Node with a real heap bound.
+  // The wrapper checks the exact production prlimit admission args on Linux;
+  // on macOS bun runs directly, so the same stand-in proves the call works
+  // with no kernel memory bound.
   writeFileSync(
     bun,
     `#!/bin/sh\nexec "${process.execPath}" --max-old-space-size=${String(PLUGIN_CHILD_MAX_HEAP_MB)} --input-type=module "$@"\n`,
@@ -580,18 +581,36 @@ describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
   })
 
   it.runIf(process.platform === 'darwin')(
-    'an OpenCode plugin is refused on macOS, where bun cannot be bounded',
+    'an OpenCode plugin runs on macOS, where bun has no kernel memory bound',
     async () => {
       const plugin = writePlugin(
-        `export const Quiet = async () => ({ 'tool.execute.before': async () => {} })`,
+        `export const Shield = async () => ({ 'tool.execute.before': async (input, output) => { if (input.tool === 'read') output.args.filePath = 'safe.txt' } })`,
       )
       const result = await dispatch(
         definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
         'PreToolUse',
+        toolPayload('PreToolUse', MODEL_API_TOOLS.readFile, { path: '.env' }),
+        adapterWith(host(), 'darwin'),
+      )
+      expect(result.blockedReason).toBeUndefined()
+      expect(result.updatedInput).toEqual({ path: 'safe.txt' })
+    },
+  )
+
+  it.runIf(process.platform === 'darwin')(
+    'a macOS plugin child completes past the Linux prlimit bound',
+    async () => {
+      const hungry = writePlugin(
+        `export const Hungry = async () => ({ 'tool.execute.before': async (input, output) => { const block = Buffer.alloc(1300 * 1024 * 1024, 1); output.args.command = 'allocated ' + block.length } })`,
+      )
+      const result = await dispatch(
+        definitions('PreToolUse', 'opencode', 'tool.execute.before', hungry),
+        'PreToolUse',
         toolPayload('PreToolUse', 'bash', { command: 'ls' }),
         adapterWith(host(), 'darwin'),
       )
-      expect(result.blockedReason).toContain("bun's memory cannot be bounded on darwin")
+      expect(result.blockedReason).toBeUndefined()
+      expect(result.updatedInput).toEqual({ command: `allocated ${String(1300 * 1024 * 1024)}` })
     },
   )
 })

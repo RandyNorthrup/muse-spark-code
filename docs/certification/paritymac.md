@@ -55,7 +55,28 @@ PerformanceStatistics "Device Utilization %"`, disk busy `%` from the
   `ioreg -r -c IOAccelerator -d 1` and `ioreg -r -c IOBlockStorageDriver -d 1`
   (twice), MacBookPro15,1, 2026-10-17.
 
-## Item 2 — OpenCode plugins on macOS (TODO)
+## Item 2 — OpenCode plugins on macOS (DONE on this Mac)
+
+- `boundedBun` no longer refuses darwin: `resolvePluginRuntime('opencode',
+{platform:'darwin'})` now returns `{ok:true, command: <bun>, args:['-e']}`
+  (was `bun's memory cannot be bounded on darwin`). macOS offers a spawner
+  no per-process memory cap (no job objects, no prlimit), and OpenCode
+  itself runs bun plugins unbounded — so we match OpenCode instead of
+  refusing. Timeout, answer-frame, process-tree and fail-closed bounds hold
+  unchanged.
+- Measured on this Mac through the real dispatch path (node standing in for
+  the absent bun, as the existing portable fixture does):
+  an args-rewriting guard runs and narrows the call; a 1,300 MB allocation —
+  past the 1 GiB Linux prlimit bound — completes with the call applied
+  (documents the platform difference: no kernel cap on macOS).
+  No installed bun exists on this rig or CI, so the real-bun drill stays
+  Linux-gated as before.
+- Tests: `test/unit/pluginDispatch.test.ts` 29 passed, 2 skipped (the 2 are
+  the installed-bun drills: Linux-only, no bun here).
+- `ulimit -v`/`setrlimit(RLIMIT_AS)` as a bound was investigated and
+  rejected: this shell's sandbox denies the call, so no enforcement reading
+  could be taken here, and a shell wrapper would be an unverified bound —
+  worse than stating plainly that macOS applies none.
 
 ## Item 1 — fast judge on macOS (TODO)
 

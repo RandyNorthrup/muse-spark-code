@@ -19,6 +19,10 @@ happened, not what was planned; superseded entries are kept.
   published utilization, disk busyness from the storage drivers' busy-time
   counters, and memory headroom from the runtime's available-memory reading
   on new enough runtimes.
+- On macOS, OpenCode plugins now run instead of being refused: bun runs
+  directly, as OpenCode itself runs it, under the same per-call timeout,
+  answer-size and process-tree bounds. There is no kernel memory cap on
+  macOS as there is on Windows (job) and Linux (prlimit).
 
 ### Release infrastructure
 

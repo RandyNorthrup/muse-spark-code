@@ -277,11 +277,15 @@ export async function resolvePluginRuntime(
 }
 
 /**
- * Bun has no heap flag, so its memory is bounded outside it (RVM91X P2 12):
- * on Windows by the job's memory limit (the host's tree), on Linux by
- * util-linux's `prlimit --data`, the data segment and private writable
- * mappings since Linux 4.7. Elsewhere (macOS does not enforce a data
- * limit) the hook is refused rather than run unbounded.
+ * Bun has no heap flag, so its memory is bounded outside it (RVM91X P2 12)
+ * where the OS offers a spawner-set cap: on Windows by the job's memory
+ * limit (the host's tree), on Linux by util-linux's `prlimit --data`, the
+ * data segment and private writable mappings since Linux 4.7. macOS offers
+ * neither, and OpenCode itself runs bun plugins with no memory bound there —
+ * so on macOS bun runs directly, under the same per-call timeout, answer
+ * frame and process-tree bounds as everywhere else, and the same fail-closed
+ * rule. A plugin child that outgrows the machine is ended with its tree on
+ * timeout or by the OS, not refused up front.
  */
 function boundedBun(
   bun: string,
@@ -289,7 +293,7 @@ function boundedBun(
   platform: NodeJS.Platform,
   deps: PluginRunDeps,
 ): RuntimeResolution {
-  if (platform === 'win32') {
+  if (platform === 'win32' || platform === 'darwin') {
     return { ok: true, command: bun, args: ['-e'] }
   }
   if (platform !== 'linux') {
