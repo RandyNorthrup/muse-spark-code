@@ -56,17 +56,17 @@ export interface LazyBundleRow {
   /** The bundle's path below dist/, e.g. 'tab.js' or 'webview/models.js'. */
   readonly file: string
   /**
-   * Which process loads it: the VS Code extension host, the agent, or both.
-   * A bundle no import edge and no load by file name reaches (an empty
-   * requestedBy) takes the side of the packages that carry it, and
-   * \`unreached\` when neither does.
-   */
+  Which process loads it: the VS Code extension host, the agent, or both.
+  A bundle no import edge and no load by file name reaches (an empty
+  requestedBy) takes the side of the packages that carry it, and
+  \`unreached\` when neither does.
+  */
   readonly side: 'vscode' | 'acp' | 'both' | 'unreached'
   /**
-   * Every source that names it by file name: the file, the function, method
-   * or constant the name stands in, and the side that load needs. No line
-   * number: an unrelated edit of the source must not make this file stale.
-   */
+  Every source that names it by file name: the file, the function, method
+  or constant the name stands in, and the side that load needs. No line
+  number: an unrelated edit of the source must not make this file stale.
+  */
   readonly requestedBy: readonly {
     readonly importer: string
     readonly symbol: string
