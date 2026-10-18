@@ -405,6 +405,7 @@ export function summaryFor(report, outputs) {
     '',
     `- status: ${outputs.status}`,
     `- exec exit code: ${report.execCode === null ? 'none' : String(report.execCode)}`,
+    `- output directory: ${outputs['out-dir'] || 'n/a'}`,
     `- wrapper failure: ${String(report.wrapperFailed)}`,
     `- requests: ${outputs.requests || 'n/a'}`,
     `- cost (USD): ${outputs['cost-usd'] || 'n/a'}${upper}`,
