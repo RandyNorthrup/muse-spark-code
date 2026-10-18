@@ -2977,5 +2977,6 @@ proves it.
 
 The journal-backed migration suite was deleted with the reservation journal
 it measured; nothing in the merged tree replaces its migration claims. The
-schedule own-cap check (`assertScheduleOwnCap`) is exercised where the
-terminal real-use record covers it (`docs/real-life/pr207-2026-10-18.md`).
+schedule own-cap check (`assertScheduleOwnCap`) likewise stays here: no paid
+fire could run while delivery is uncertified
+(`docs/real-life/pr207-2026-10-18.md`).
