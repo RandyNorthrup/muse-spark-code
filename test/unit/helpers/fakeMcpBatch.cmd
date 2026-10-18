@@ -1,2 +1,0 @@
-@echo off
-"%M50_NODE_EXE%" "%M50_BINARY_FIXTURE%"

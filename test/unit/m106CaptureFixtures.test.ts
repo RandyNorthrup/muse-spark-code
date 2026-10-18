@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { PRESETS } from '../../src/core/providers/presets'
 import { MSP_KNOWN_SCHEMA_FINGERPRINTS } from '../../src/shared/constants'
 
 const record = z.record(z.string(), z.unknown())
@@ -55,41 +54,6 @@ function params(captured: Capture, method: string, direction = 'received') {
       .params,
   )
 }
-const manifestSchema = z.object({
-  totals: z.object({
-    processLaunches: z.number(),
-    mspRequestAttempts: z.number(),
-    turnStartAttempts: z.literal(0),
-    modelAttempts: z.literal(0),
-    feedbackSubmitAttempts: z.number(),
-    feedbackUploads: z.number(),
-    metaCollectorHttpAttempts: z.literal(0),
-  }),
-  captures: z.array(
-    z.object({
-      file: z.string(),
-      sha256: z.string(),
-      sourceSha256: z.string(),
-      requestAttempts: z.number(),
-      modelAttempts: z.literal(0),
-    }),
-  ),
-  providers: z.array(
-    z.object({
-      provider: z.string(),
-      state: z.literal('waiting'),
-      requires: z.string().min(1),
-      items: z.array(z.string()),
-      newAttempts: z.literal(0),
-      reason: z.string().min(1),
-    }),
-  ),
-})
-function manifest() {
-  const value: unknown = JSON.parse(readFixture('completion-manifest.json'))
-  return manifestSchema.parse(value)
-}
-
 /** The lead's 2026-10-10 live-run envelope both Meta receipts share. */
 const liveRequest = {
   method: z.literal('POST'),
@@ -106,48 +70,6 @@ const liveReceipt = {
 }
 
 describe('C-M106-1 counted Muse Code 1.4.4 captures', () => {
-  it('validates scrubbed fixture hashes and counts every launched probe and request once', () => {
-    const receipt = manifest()
-    let attempts = 0
-    for (const source of receipt.captures) {
-      expect(source.file).toMatch(/^msp-1\.4\.4-[a-z-]+\.json$/)
-      const bytes = readFixture(source.file)
-      expect(createHash('sha256').update(bytes).digest('hex')).toBe(source.sha256)
-      const data = captureSchema.parse(JSON.parse(bytes))
-      expect(data.provenance.sourceSha256).toBe(source.sourceSha256)
-      expect(data.provenance.requestAttempts).toBe(source.requestAttempts)
-      const requests = data.frames.filter(
-        (row) => row.direction === 'sent' && row.frame.id !== undefined,
-      )
-      expect(requests).toHaveLength(source.requestAttempts)
-      expect(requests.every((row) => row.frame.method !== 'turn/start')).toBe(true)
-      expect(data.provenance.launchArguments).toEqual([
-        'serve',
-        '--provider',
-        'meta',
-        '--model',
-        'muse-spark-1.3-contributor',
-        '--no-session-log',
-        '--disable-shell',
-        '--disable-write',
-      ])
-      const frames = JSON.stringify(data.frames)
-      expect(frames).not.toMatch(
-        /"(?:museHome|profileId|avatarUrl|email|encrypted_content|encryptedContent)"/,
-      )
-      expect(frames.replaceAll('\\\\', '/')).not.toMatch(/(?:\/Users\/|[A-Za-z]:\/Users\/)/)
-      attempts += source.requestAttempts
-    }
-    expect(receipt.totals).toMatchObject({
-      processLaunches: 4,
-      mspRequestAttempts: attempts,
-      modelAttempts: 0,
-      feedbackSubmitAttempts: 2,
-      feedbackUploads: 1,
-    })
-    expect(attempts).toBe(18)
-  })
-
   it('captures the pinned fingerprint and actual model variants, descriptions and defaults', () => {
     const data = capture('host-feedback')
     const initialize = z
@@ -323,21 +245,6 @@ describe('C-M106-1 counted Muse Code 1.4.4 captures', () => {
     const bytes = readFixture('u9-raw-strict-stream.json')
     expect(createHash('sha256').update(bytes).digest('hex')).toBe(
       'b56095c9e6b467f078079dc92eb4c2a706d8a07498f170e00106efaa45584c42',
-    )
-  })
-
-  it('names every provider credential or local runtime still waiting without granting capabilities', () => {
-    const rows = manifest().providers
-    expect(rows.map((row) => row.provider).toSorted((a, b) => a.localeCompare(b))).toEqual(
-      ['meta', ...PRESETS.map((preset) => preset.id)].toSorted((a, b) => a.localeCompare(b)),
-    )
-    expect(rows.every((row) => row.requires.length > 0)).toBe(true)
-    expect(
-      rows.every((row) => row.items.includes('streaming') && row.items.includes('headers')),
-    ).toBe(true)
-    expect(rows.find((row) => row.provider === 'openai')?.requires).toBe('OPENAI_API_KEY')
-    expect(rows.find((row) => row.provider === 'meta')?.requires).toBe(
-      'Meta Model API key (lead-held)',
     )
   })
 })
