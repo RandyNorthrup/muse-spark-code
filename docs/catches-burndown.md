@@ -43,6 +43,17 @@ Designed baselines with reasons (accepted, not forgotten):
   multi-account start/enable, `src/runtime/chatGptProviderCommands.ts`
   setup: fixed in PR161FIN (named closers, kind words, cause slots).
 - Everything else below: pre-existing, grouped for area-by-area lanes.
+- `src/runtime/panel/git/service.ts` spawn-time and held-parent checks
+  (2 SWALLOW): fail-closed denies; any unreadable bound root refuses as
+  `changed`. Proved on a real repository (`nativeGitService.test.ts`
+  binding cases); the catch bodies run only in the check-to-spawn race.
+- `src/runtime/panel/git/adapter.ts` form, push, operation and draft
+  catches (6 GENERIC + 1 SWALLOW): every failure reaches the person
+  (refusals in the panel's fixed words, git's own words redacted first)
+  and every form comes back answered; rethrowing would drop the notice
+  or strand the form. Proved on real repositories
+  (`nativeGitAdapter.test.ts`: swept-root notices, the failed push's
+  terminal offer, revoked trust, the failed generation).
 
 | Folder                 | GENERIC | SWALLOW |
 | ---------------------- | ------- | ------- |
