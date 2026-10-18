@@ -48,8 +48,8 @@ export class JudgeUnpricedError extends Error {
 
 /** The daily ledger failed: admission refuses, settlement keeps liability. */
 export class JudgeLedgerError extends Error {
-  public constructor(detail: string) {
-    super(`Judge admission ledger failed: ${detail}`)
+  public constructor(detail: string, options?: { cause?: unknown }) {
+    super(`Judge admission ledger failed: ${detail}`, options)
     this.name = 'JudgeLedgerError'
   }
 }
@@ -267,7 +267,7 @@ function isValidBinding(binding: JudgeAdmissionBinding): boolean {
 function wrapLedgerError(error: unknown): JudgeLedgerError {
   return error instanceof JudgeLedgerError
     ? error
-    : new JudgeLedgerError(error instanceof Error ? error.message : String(error))
+    : new JudgeLedgerError(error instanceof Error ? error.message : String(error), { cause: error })
 }
 
 interface ClaimState {
@@ -433,7 +433,11 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
   let remainingUsd: UsdAmount | undefined
   try {
     remainingUsd = await ledger.remainingUsd()
-  } catch {
+  } catch (error: unknown) {
+    // A ledger fault refuses admission. A paid stop is never a ledger
+    // fault, and anything else is wrapped with its cause, never refused.
+    if (isPaidStop(error)) throw error
+    if (!(error instanceof JudgeLedgerError)) throw wrapLedgerError(error)
     return { admitted: false, refusal: 'ledger-unavailable' }
   }
   const afterRemaining = bindingRefusal()
@@ -453,7 +457,11 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
   try {
     reserved = await ledger.reserve(reservedUsd)
   } catch (error: unknown) {
-    return { admitted: false, refusal: isPaidStop(error) ? 'over-budget' : 'ledger-unavailable' }
+    // A paid stop refuses as over-budget; a ledger fault refuses as
+    // unavailable; anything else is wrapped with its cause, never refused.
+    if (isPaidStop(error)) return { admitted: false, refusal: 'over-budget' }
+    if (!(error instanceof JudgeLedgerError)) throw wrapLedgerError(error)
+    return { admitted: false, refusal: 'ledger-unavailable' }
   }
   if (reserved === undefined) {
     // No daily limit is set: nothing backs the call, and nothing is checked.
@@ -480,7 +488,11 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
       // A competing reservation, lowered cap, new day or Stop can invalidate
       // an earlier remainingUsd read. Only D78's per-claim guard admits it.
       reserved.check()
-    } catch {
+    } catch (error: unknown) {
+      // A paid stop is never a ledger fault. A ledger fault refuses; anything
+      // else is wrapped with its cause, never refused as unavailable.
+      if (isPaidStop(error)) throw error
+      if (!(error instanceof JudgeLedgerError)) throw wrapLedgerError(error)
       refusal = 'ledger-unavailable'
     }
   }
@@ -488,7 +500,11 @@ export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<Ju
     // We own a known nonsent reservation even if its final guard refused it.
     try {
       await reserved.settle(Usd.from(0).toAmount())
-    } catch {
+    } catch (error: unknown) {
+      // A paid stop is never a ledger fault, and anything else is wrapped
+      // with its cause: a failed zero-settlement keeps its liability visible.
+      if (isPaidStop(error)) throw error
+      if (!(error instanceof JudgeLedgerError)) throw wrapLedgerError(error)
       return { admitted: false, refusal: 'ledger-unavailable' }
     }
     return { admitted: false, refusal: bindingRefusal() ?? refusal }
@@ -587,7 +603,11 @@ export async function verifyJudgeDispatch(
   }
   try {
     await ledger.remainingUsd()
-  } catch {
+  } catch (error: unknown) {
+    // A ledger fault refuses dispatch. A paid stop is never one, and
+    // anything else is wrapped with its cause, never refused.
+    if (isPaidStop(error)) throw error
+    if (!(error instanceof JudgeLedgerError)) throw wrapLedgerError(error)
     return { proceed: false, reason: 'ledger-unavailable' }
   }
   const afterWait = rebindJudgeClaim(claim, readBinding())
@@ -595,7 +615,11 @@ export async function verifyJudgeDispatch(
   if (claim.status() !== 'open') return { proceed: false, reason: 'already-settled' }
   try {
     claim.check()
-  } catch {
+  } catch (error: unknown) {
+    // A paid stop is never a ledger fault. A ledger fault refuses dispatch;
+    // anything else is wrapped with its cause, never refused.
+    if (isPaidStop(error)) throw error
+    if (!(error instanceof JudgeLedgerError)) throw wrapLedgerError(error)
     return { proceed: false, reason: 'ledger-unavailable' }
   }
   return { proceed: true }
