@@ -145,6 +145,9 @@ happened, not what was planned; superseded entries are kept.
   the run ledger, the protocol schemas, the generated reference and the
   Action's input and result validation. The 20 USD ceiling was ours, not a
   provider's.
+- The published headless v2 event/result schemas again state the 1–500
+  set-value request bound the code enforces; they were left at the earlier
+  unbounded maximum when the bound was reinstated. No behaviour change.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
