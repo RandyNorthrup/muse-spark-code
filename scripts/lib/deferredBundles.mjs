@@ -759,7 +759,7 @@ export const ON_FIRST_USE = [
     ],
   },
   // The sign-in gate (CIFIX161B, PLAN.md D6): activation keeps only the
-  // entry's dynamic import; AuthService and the three-valued credential
+  // bundle loader; AuthService and the three-valued credential
   // read load the first time a credential, money or consent path needs
   // them.
   {
@@ -773,7 +773,7 @@ export const ON_FIRST_USE = [
     ],
   },
   // The paid features (CIFIX161B, PLAN.md D6): activation keeps only the
-  // entry's dynamic import; the gate, consent, usage and quote authority
+  // bundle loader; the gate, consent, usage and quote authority
   // load the first time a paid path needs them.
   {
     output: 'dist/paid.js',

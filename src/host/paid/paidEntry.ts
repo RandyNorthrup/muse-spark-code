@@ -1,6 +1,6 @@
 // The paid features' bundle (dist/paid.js, PLAN.md D6): the paid gate, use
 // consent, usage and quote authority load the first time a paid path needs
-// them; activation keeps only this entry's dynamic import. The bundle keeps
+// them; activation keeps only the bundle loader. The bundle keeps
 // its own installed-language state, so the factory installs the caller's
 // table from its deps before anything reads it.
 
