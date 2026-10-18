@@ -182,7 +182,13 @@ targets read before the wait) and are already fixed on this branch by
   above, and the live suite (`browserCheckLive`) exercises this path with
   real Chrome.
 
-| Gate (round 2, docs-only change)  | Exit |
-| --------------------------------- | ---- |
-| `prettier --check` (changed file) | 0    |
-| `npm run check:plan`              | 0    |
+| Gate (round 2; no source change, full lane gates re-run on this head)   | Exit                                         |
+| ----------------------------------------------------------------------- | -------------------------------------------- |
+| `prettier --check` (changed file)                                       | 0                                            |
+| `eslint --max-warnings 0` (`browserRun.ts`, `browserCheckConstants.ts`) | 0                                            |
+| `npm run typecheck` (all projects)                                      | 0                                            |
+| `node scripts/check-l10n.mjs`                                           | 0 (0 problems)                               |
+| `npm run build` (sizes, split, host globals, notices)                   | 0                                            |
+| `vitest run` runtimeManifest, browserLaunch, browserPolicy              | 0: 25 passed                                 |
+| `vitest run` browserCheckLive, browserCheckR51                          | 0: 8 skipped (no pinned runtime on this rig) |
+| `npm run check:plan`                                                    | 0 (0 drift)                                  |
