@@ -23,6 +23,22 @@ function errorCode(error: unknown): string | undefined {
 }
 
 /**
+ * Runs the rename fence; a refusal carries its reason (a foreign value as
+ * the cause under a fixed marker, never as its text), or is undefined when
+ * the fence commits.
+ */
+async function commitOrRefusal(
+  commit: (() => Promise<void>) | undefined,
+): Promise<Error | undefined> {
+  try {
+    await commit?.()
+    return undefined
+  } catch (error) {
+    return error instanceof Error ? error : new Error('usageCommitFailed', { cause: error })
+  }
+}
+
+/**
  * The catch-gate-visible form of the expected usage-FS condition: `is`-named
  * so the inventory reads it as the one handled case, with exactly the same
  * answer as `errorCode` on every input.
@@ -433,12 +449,7 @@ export class NodeUsageFs implements UsageFs {
           }
           // The fence refuses with its own error (RVM107W2L): only an identity
           // or parent change is reported as usagePathChanged.
-          if (refusal === undefined)
-            try {
-              await commit?.()
-            } catch (error) {
-              refusal = error instanceof Error ? error : new Error(String(error), { cause: error })
-            }
+          refusal ??= await commitOrRefusal(commit)
           if (refusal !== undefined) {
             // Put back what this rename moved into the validated parent, never
             // over a replacement, then refuse.

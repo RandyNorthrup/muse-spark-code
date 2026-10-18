@@ -2,7 +2,7 @@
 // rethrow the rest. Every test drives the real code into its real failure:
 // a missing file, a refused permission, a vanished listing entry, malformed
 // arguments, a corrupt store, a failing key read.
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { mkdir, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -12,6 +12,9 @@ import { runEstimateCommand } from '../../src/runtime/estimator/command'
 import { nodeFontInstallPort } from '../../src/runtime/fonts/nodeInstall'
 import { runPlaybookCommand, type PlaybookSurfacePort } from '../../src/runtime/playbook/command'
 import { parseAccountsCommand } from '../../src/runtime/providers/accountArgs'
+import { runtimeSharingConfidential } from '../../src/runtime/sharing/sharingEntry'
+import { runUsageCommand } from '../../src/runtime/usage/usageCli'
+import { serveUsageStdio } from '../../src/runtime/usage/usageServiceEntry'
 import {
   checkDeveloperAccount,
   createRuntimeAccountServices,
@@ -27,9 +30,11 @@ import {
   readResourceReset,
   writeResourceReset,
 } from '../../src/runtime/usage/resourceResetFile'
-import { RESOURCE_JOURNAL_RESET_FILE, UI_TEXT } from '../../src/shared/constants'
+import { RESOURCE_JOURNAL_RESET_FILE, SETTING_DEFAULTS, UI_TEXT } from '../../src/shared/constants'
 import { estimateSectionSchema } from '../../src/shared/estimate'
 import { fill } from '../../src/shared/l10n/text'
+import type { UsageService } from '../../src/core/usage/usageService'
+import type { UsageServiceToPageMessage } from '../../src/shared/usagePage'
 
 const folders: string[] = []
 afterEach(async () => {
@@ -365,5 +370,178 @@ describe('failed deferral fallback', () => {
       marks += 1
     })
     expect(marks).toBe(0)
+  })
+})
+
+function settingsFile(dir: string, content: string): void {
+  mkdirSync(path.join(dir, '.vscode'), { recursive: true })
+  writeFileSync(path.join(dir, '.vscode', 'settings.json'), content, 'utf8')
+}
+
+describe('sharing confidentiality read', () => {
+  it('reads the default without a settings file', () => {
+    expect(runtimeSharingConfidential(folder())).toBe(SETTING_DEFAULTS.confidentialWorkspace)
+  })
+
+  it('reads a stored policy value', () => {
+    const dir = folder()
+    settingsFile(dir, '{"museSpark.confidentialWorkspace": true}')
+    expect(runtimeSharingConfidential(dir)).toBe(true)
+  })
+
+  it('refuses admission on a corrupt policy file', () => {
+    const dir = folder()
+    settingsFile(dir, '{oops')
+    expect(runtimeSharingConfidential(dir)).toBeUndefined()
+  })
+
+  it('refuses admission on a mis-shaped policy file', () => {
+    const dir = folder()
+    settingsFile(dir, '{"museSpark.confidentialWorkspace": "yes"}')
+    expect(runtimeSharingConfidential(dir)).toBeUndefined()
+  })
+
+  it.runIf(isPosix)('refuses admission on a refused policy read', () => {
+    const dir = folder()
+    settingsFile(dir, '{"museSpark.confidentialWorkspace": true}')
+    chmodSync(path.join(dir, '.vscode', 'settings.json'), 0o000)
+    expect(runtimeSharingConfidential(dir)).toBeUndefined()
+  })
+})
+
+function unusedPort(): never {
+  throw new Error('unused in this path')
+}
+
+async function* lines(...items: string[]): AsyncGenerator<string> {
+  await Promise.resolve()
+  yield* items
+}
+
+function stdioPorts(
+  input: string[],
+  receive: () => Promise<void>,
+): {
+  printed: string[]
+  disposed: { count: number }
+  ports: {
+    usage: {
+      connect: () => { receive: () => Promise<void>; dispose: () => void }
+      read: () => Promise<never>
+      usageText: () => never
+      export: () => Promise<never>
+    }
+    openPage: () => Promise<never>
+    openBrowser: () => Promise<never>
+    writeFile: () => Promise<never>
+    input: string[]
+    print: (text: string) => Promise<void>
+  }
+} {
+  const printed: string[] = []
+  const disposed = { count: 0 }
+  return {
+    printed,
+    disposed,
+    ports: {
+      usage: {
+        connect: () => ({
+          receive,
+          dispose: () => {
+            disposed.count += 1
+          },
+        }),
+        read: unusedPort,
+        usageText: unusedPort,
+        export: unusedPort,
+      },
+      openPage: unusedPort,
+      openBrowser: unusedPort,
+      writeFile: unusedPort,
+      input,
+      print: (text: string) => {
+        printed.push(text)
+        return Promise.resolve()
+      },
+    },
+  }
+}
+
+function boundaryPorts(
+  requests: string[],
+  handle: (input: unknown) => Promise<UsageServiceToPageMessage[]>,
+): {
+  sent: string[]
+  service: UsageService
+  ports: {
+    requests: AsyncGenerator<string>
+    sendLine: (line: string) => Promise<void>
+  }
+} {
+  const sent: string[] = []
+  return {
+    sent,
+    service: { snapshot: unusedPort, handle },
+    ports: {
+      requests: lines(...requests),
+      sendLine: (line: string) => {
+        sent.push(line)
+        return Promise.resolve()
+      },
+    },
+  }
+}
+
+describe('usage stdio pump', () => {
+  it('reports a malformed line and a failed message, and survives both', async () => {
+    const failure = new Error('backend blew up')
+    const { printed, disposed, ports } = stdioPorts(['{oops', '{"type":"usage/refresh"}'], () =>
+      Promise.reject(failure),
+    )
+    await expect(runUsageCommand({ action: 'stdio' }, ports)).resolves.toBe(0)
+    expect(printed).toEqual([
+      `${JSON.stringify({ type: 'usage/error', code: 'invalidMessage' })}\n`,
+      `${JSON.stringify({ type: 'usage/error', code: 'readFailed' })}\n`,
+    ])
+    expect(disposed.count).toBe(1)
+  })
+
+  it('lets a failed print keep its kind', async () => {
+    const failure = new Error('print blew up')
+    const { ports } = stdioPorts(['{"type":"usage/refresh"}'], () =>
+      Promise.reject(new Error('backend blew up')),
+    )
+    ports.print = () => Promise.reject(failure)
+    await expect(runUsageCommand({ action: 'stdio' }, ports)).rejects.toBe(failure)
+  })
+})
+
+describe('usage stdio service boundary', () => {
+  it('refuses a malformed line as invalid', async () => {
+    const { sent, service, ports } = boundaryPorts(['{oops'], unusedPort)
+    await serveUsageStdio(service, ports)
+    expect(sent).toEqual([`${JSON.stringify({ type: 'usage/error', code: 'invalidMessage' })}\n`])
+  })
+
+  it('refuses an oversized line without reaching the service', async () => {
+    const { sent, service, ports } = boundaryPorts(['x'.repeat(5000)], unusedPort)
+    await serveUsageStdio(service, ports)
+    expect(sent).toEqual([`${JSON.stringify({ type: 'usage/error', code: 'invalidMessage' })}\n`])
+  })
+
+  it('reports a failing read as readFailed, not invalid', async () => {
+    const { sent, service, ports } = boundaryPorts(['{"type":"usage/refresh"}'], () =>
+      Promise.reject(new Error('backend blew up')),
+    )
+    await serveUsageStdio(service, ports)
+    expect(sent).toEqual([`${JSON.stringify({ type: 'usage/error', code: 'readFailed' })}\n`])
+  })
+
+  it('keeps a malformed service input invalid', async () => {
+    const { sent, service, ports } = boundaryPorts(['[1,2,3]'], () =>
+      Promise.reject(foreignEstimateFailure()),
+    )
+    await serveUsageStdio(service, ports)
+    expect(sent).toEqual([`${JSON.stringify({ type: 'usage/error', code: 'invalidMessage' })}\n`])
   })
 })
