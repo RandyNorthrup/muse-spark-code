@@ -377,6 +377,7 @@ import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 import { paidBundleLoader } from './host/paid/paidBundle'
 import type { PaidFeatures } from './host/paid/paidHost'
 import type { askPaidUse as askPaidUseFn } from './host/paid/paidEntry'
+import type * as ScheduleSurfaces from './host/conversation/scheduleSurfacesEntry'
 import { authBundleLoader } from './host/auth/authBundle'
 import type { AuthPort, AuthService } from './host/auth/authService'
 
@@ -3543,9 +3544,32 @@ async function activateWindow(
     StartSessionOptions,
     { agent?: BackendSession | undefined; readonly dispose: () => void }
   >()
+  /**
+   * The deferred conversation schedule surfaces (dist/scheduleSurfaces.js,
+   * D6): the delivery target readout, the scheduled-question settlement and
+   * the schedules panel commands. Warmed when the schedule wiring builds so
+   * the first delivery finds them; every caller past liveSchedule awaits the
+   * load, while liveSchedule reads the cache synchronously and falls back to
+   * the unattended path only inside the load window, so a first fire still
+   * runs. A bundle that cannot load refuses the run that needed it.
+   */
+  let loadedScheduleSurfaces: typeof ScheduleSurfaces | undefined
+  const loadScheduleSurfaces = async (): Promise<typeof ScheduleSurfaces> => {
+    if (loadedScheduleSurfaces !== undefined) return loadedScheduleSurfaces
+    try {
+      loadedScheduleSurfaces = await import('./host/conversation/scheduleSurfacesEntry.js')
+      return loadedScheduleSurfaces
+    } catch {
+      throw new Error(
+        'the scheduleSurfaces.js bundle could not be loaded; schedule surfaces are unavailable',
+      )
+    }
+  }
   const liveSchedule = (schedule: ScheduleV2) => {
+    const surfaces = loadedScheduleSurfaces
     for (const controller of controllers.values()) {
-      const live = controller.scheduleTarget(schedule)
+      if (surfaces === undefined) break
+      const live = surfaces.scheduleTargetOf(controller.scheduleSnapshot(), schedule)
       if (live !== undefined) return live
     }
     if (schedule.target.kind !== 'conversation') return
@@ -3706,7 +3730,10 @@ async function activateWindow(
                 }
               }
             if (kind === undefined) throw new Error(UI_TEXT.questionAnswerFailed)
-            await controller.scheduledQuestion(agent, kind, event, run)
+            const snapshot = controller.scheduleSnapshot()
+            await snapshot.attach(agent, kind)
+            const surfaces = await loadScheduleSurfaces()
+            await surfaces.settleScheduledQuestion(snapshot, agent, event, run)
           },
           safety: (action, requester) => {
             return !isScheduleActive() ||
@@ -3769,6 +3796,14 @@ async function activateWindow(
     defaultDelivery: () => currentSettings().scheduleDefaultDelivery,
     ...(scheduleDelivery !== undefined && { delivery: scheduleDelivery }),
     ...(scheduleMigration !== undefined && { migration: scheduleMigration }),
+  })
+  // Warm the deferred schedule surfaces while the wiring builds, so the
+  // first delivery finds them; liveSchedule still falls back to the
+  // unattended path inside the load window.
+  void loadScheduleSurfaces().catch((error: unknown) => {
+    log.warn(
+      `schedule surfaces preload failed: ${error instanceof Error ? error.message : String(error)}`,
+    )
   })
   scheduleWorkspace.value = scheduleWindowWorkspace(
     schedulesBridge,

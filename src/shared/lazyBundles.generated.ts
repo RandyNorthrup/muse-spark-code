@@ -728,6 +728,18 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'scheduleSurfaces.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'loadScheduleSurfaces', side: ['vscode'] },
+      {
+        importer: 'src/host/conversation/conversationController.ts',
+        symbol: 'ConversationController.scheduleSurfaces',
+        side: ['vscode'],
+      },
+    ],
+  },
+  {
     file: 'screenRecord.js',
     side: 'vscode',
     requestedBy: [{ importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] }],

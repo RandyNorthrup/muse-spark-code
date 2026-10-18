@@ -87,6 +87,7 @@ const HOST_BUNDLES = [
   'dist/imageResizeWorker.js',
   'dist/scheduleBackground.js',
   'dist/scheduleDelivery.js',
+  'dist/scheduleSurfaces.js',
 ]
 const NAVIGATOR = /\bnavigator\b/g
 

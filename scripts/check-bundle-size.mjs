@@ -111,6 +111,12 @@ const BUDGETS = [
   // 36.2 KiB when split out (2026-10-18); 36.2 x 1.15 = 41.7 KiB, rounded
   // up to the next 25 KiB multiple (PLAN.md D6).
   { path: 'dist/scheduleDelivery.js', budgetKiB: 50 },
+  // SCHEDULESURFACES: the conversation's schedule surfaces (delivery target
+  // readout, scheduled-question settlement, schedules panel commands), loaded
+  // on the first schedule delivery, panel command or scheduled question:
+  // 9.1 KiB when split out (2026-10-18); 9.1 x 1.15 = 10.5 KiB, rounded up
+  // to the next 25 KiB multiple (PLAN.md D6).
+  { path: 'dist/scheduleSurfaces.js', budgetKiB: 25 },
   // The review (M70): git's material, the review turn's text, the Plan-mode
   // hold and edit review, loaded the first time one is used: 40.6 KiB when
   // split out, plus room (PLAN.md D6).

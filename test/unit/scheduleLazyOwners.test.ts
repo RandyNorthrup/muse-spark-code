@@ -11,6 +11,7 @@ beforeAll(async () => {
       schedules: 'src/runtime/schedules/schedulesBundle.ts',
       reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
       runtimeEngine: 'src/runtime/runtimeEngineEntry.ts',
+      conversation: 'src/host/conversation/conversationEntry.ts',
     },
     outdir: 'temp/schedule-owner-graph',
     write: false,
@@ -42,6 +43,16 @@ it('keeps paid consent and runtime session ownership out of the first schedule s
   expect(graphs.get('schedules.js')?.has('src/runtime/schedules/delivery.ts')).toBe(false)
   expect(graphs.get('reviewer.js')?.has('src/host/schedules/paidBinding.ts')).toBe(true)
   expect(graphs.get('runtimeEngine.js')?.has('src/runtime/schedules/delivery.ts')).toBe(true)
+})
+
+it('SCHEDULESURFACES: the conversation schedule surfaces load beside the first chat surface, never inside it', () => {
+  expect(graphs.get('conversation.js')?.has('src/host/conversation/scheduleSurfaces.ts')).toBe(
+    false,
+  )
+  expect(graphs.get('conversation.js')?.has('src/host/conversation/scheduleSurfacesEntry.ts')).toBe(
+    false,
+  )
+  expect(externalEdges.get('conversation.js')).toContain('./scheduleSurfaces.js')
 })
 
 it('SCHEDULEDELIVERY: the editor delivery loads beside the first surface, never inside it', () => {

@@ -105,6 +105,11 @@ const isWatch = args.has('--watch')
 const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
 const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
+// SCHEDULESURFACES: the conversation's schedule surfaces (delivery target
+// readout, scheduled-question settlement, schedules panel commands), loaded
+// on the first schedule delivery, panel command or scheduled question.
+const SCHEDULE_SURFACES_ENTRY = 'src/host/conversation/scheduleSurfacesEntry.ts'
+const SCHEDULE_SURFACES_OUTFILE = 'dist/scheduleSurfaces.js'
 const CONVERSATION_OUTFILE = 'dist/conversation.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
@@ -308,6 +313,13 @@ const conversationOptions = {
   ...hostOptions,
   entryPoints: [CONVERSATION_ENTRY],
   outfile: CONVERSATION_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const scheduleSurfacesOptions = {
+  ...conversationOptions,
+  entryPoints: [SCHEDULE_SURFACES_ENTRY],
+  outfile: SCHEDULE_SURFACES_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1257,6 +1269,7 @@ if (isWatch) {
     esbuild.context(reportingPanelOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
+    esbuild.context(scheduleSurfacesOptions),
     esbuild.context(tabOptions),
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
@@ -1381,6 +1394,7 @@ if (isWatch) {
     structuredSchema: () => esbuild.build(structuredSchemaOptions),
     extension: () => esbuild.build(hostOptions),
     conversation: () => esbuild.build(conversationOptions),
+    scheduleSurfaces: () => esbuild.build(scheduleSurfacesOptions),
     tab: () => esbuild.build(tabOptions),
     prompts: () => esbuild.build(promptsOptions),
     sharingRuntime: () => esbuild.build(sharingRuntimeOptions),
