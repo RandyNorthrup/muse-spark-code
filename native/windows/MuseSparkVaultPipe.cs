@@ -529,7 +529,7 @@ internal static class MuseSparkVaultPipe
                     {
                         record["v"] = RelayVersion;
                         record["remote"] = false;
-                        record["ownerOnlyDacl"] = false;
+                        record["ownerOnlyDacl"] = IsOwnerOnlyPipe(handle);
                         server = record;
                         result = "ok";
                     }
