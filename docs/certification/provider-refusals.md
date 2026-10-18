@@ -678,3 +678,9 @@ Still open:
   needs a per-model `maxRetries`, which `ProviderClient` does not have.
   Not changed here.
 - ACP/headless still pass no `personMaxRetries` (see above).
+
+## The three new Codex threads on PR #225 (lane PR225FIX2, in progress)
+
+1. `ModelApiHost.ts:14610` (P1, compaction reads the aggregate client): accepted — `collectText`'s catch reads `this.deps.client` (Meta's limit) while the attempt went through `resolved.client`; retaining the attempt's client for the limit and the wait.
+2. `transport.ts:760` (P2, an aborted long wait leaves its timer): accepted — `pause` races the chunk's sleep but never cancels it, so a referenced production timer outlives the stop; making the chunk itself cancellable.
+3. `transport.ts:1175` (P2 security, unbounded ambiguous replays): accepted — with no person setting and no documented maximum, `undefined` becomes `UNBOUNDED_RETRIES` and a reset connection replays a possibly-executed paid send forever; ambiguous sends will require an explicit cap.
