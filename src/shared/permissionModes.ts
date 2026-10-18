@@ -116,6 +116,19 @@ export function mspPermissionProfile(mode: string): string | undefined {
   return PROFILE_FOR_MODE[mode]
 }
 
+/**
+ * The native permission profile an ACP `session/start` carries for an MSP
+ * approval mode: the mode's reviewer on an interactive session, so Manual
+ * asks the person instead of Muse Code's judge; none on a headless session
+ * (exec and any other non-interactive path), which keeps the host default
+ * (`:auto-review`) and behaves as before — the judge still decides the
+ * commands it used to allow, and nothing can stall on an unanswered
+ * approval. An older host ignores the member and keeps the default.
+ */
+export function mspStartPermissionProfile(mode: string, isHeadless: boolean): string | undefined {
+  return isHeadless ? undefined : mspPermissionProfile(mode)
+}
+
 /** Modes whose MSP counterpart needs the approval cards before it is safe. */
 const PROMPTING_MODES: ReadonlySet<ApprovalMode> = new Set(['promptUnmatched', 'onRequest'])
 

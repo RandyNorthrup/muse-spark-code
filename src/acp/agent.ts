@@ -90,7 +90,7 @@ import type { PaidUseRequest } from '../shared/paid'
 import {
   approvalModeFor,
   availablePermissionModes,
-  mspPermissionProfile,
+  mspStartPermissionProfile,
   permissionModeDetail,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
@@ -2523,8 +2523,12 @@ class AgentState {
     const approvalMode = approvalModeFor(this.deps.options.initialMode, true)
     // Manual asks the person because the session reviews with `:ask-me`
     // instead of Muse Code's judge (Muse Code 1.4.7); Auto keeps the judge
-    // its words describe. Omitted profiles keep the host default.
-    const permissionProfile = mspPermissionProfile(approvalMode)
+    // its words describe. Omitted profiles keep the host default, which is
+    // what every headless session starts with, as before.
+    const permissionProfile = mspStartPermissionProfile(
+      approvalMode,
+      this.deps.options.isHeadless === true,
+    )
     const session = await host.startSession({
       workspaceRoot: cwd,
       modelId,
