@@ -20,7 +20,7 @@ import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvid
 // through the client (M63c).
 
 import { randomUUID } from 'node:crypto'
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
@@ -170,6 +170,7 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
           extraVariables: [],
           systemRoot: environmentValue(env, deps.platform, 'SystemRoot'),
           programFiles: environmentValue(env, deps.platform, 'ProgramFiles'),
+          ...(workspaceRoot !== undefined && { workspaceRoot, realpath: realpathSync }),
         }),
         deps.platform,
       )

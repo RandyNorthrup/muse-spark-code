@@ -13,7 +13,7 @@ import { resourceEnvironment, type ResourceLease } from '../../core/resources/la
 // location is resolved once per set of inputs instead of probing PATH on
 // every message.
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { type FingerprintWarning } from '@muse-code/sdk'
@@ -452,6 +452,10 @@ export class MuseCodeBackendManager {
         systemRoot: process.env['SystemRoot'],
         programFiles: process.env['ProgramFiles'],
         ...(this.deps.accountHome !== undefined && { accountHome: this.deps.accountHome }),
+        ...(this.deps.workspaceRoot !== undefined && {
+          workspaceRoot: this.deps.workspaceRoot,
+          realpath: realpathSync,
+        }),
       }),
       process.platform,
     )
