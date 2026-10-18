@@ -143,3 +143,12 @@ updates on every playback turn, vs 2 on the ordinary turn before it).
   venv (repo-pinned `requirements.txt`), removed afterwards.
 - `npm run package` (VSIX) not run: unrelated to this change; `build`
   (which it starts with) is green.
+
+## Review fix (RVPLAYBACK, 2026-10-17)
+
+- A first-turn `/playback` on the Model API backend ran the git describe
+  and the repo-map scan in `runTurn`, though neither result is in the
+  playback prompt (`PlaybackFacts.environment` was never read). Both are
+  now skipped for playback turns and the dead field is gone
+  (`7ace2be80`). The standing context load (the rules the turn reports)
+  and user hooks still run, as on a review turn.
