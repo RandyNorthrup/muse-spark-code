@@ -36,7 +36,7 @@ export async function readWebPage(
     const clean = await scrub(answer.result.value)
     assertWebTarget(target, origin)
     return z.string().parse(clean).slice(0, VAULT_LIMITS.text)
-  } catch {
-    throw new Error('useChanged')
+  } catch (error: unknown) {
+    throw new Error('useChanged', { cause: error })
   }
 }

@@ -17,6 +17,9 @@ import { accountSecretMigrationCredential } from '../../../src/core/vault/migrat
 import { providerCredentialMigrationCredential } from '../../../src/core/vault/migrate/providerCredentials'
 import { discoverAmbientFiles } from '../../../src/core/vault/migrate/ambient'
 import { VaultMigrationFault } from '../../../src/core/vault/migrate/ports'
+import { importSshKey, isSshSignatureValid } from '../../../src/core/vault/ssh/keys'
+import { decodeCookies } from '../../../src/core/vault/web/cookies'
+import { decodeTotpSeed } from '../../../src/core/vault/web/totp'
 import { UI_TEXT, VAULT_KEY_BYTES, VAULT_NONCE_BYTES } from '../../../src/shared/constants'
 
 function sealedUnder(key: Buffer) {
@@ -167,5 +170,49 @@ describe('vault catch causes', () => {
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }
+  })
+
+  it('an unreadable key file denies with the parse failure', () => {
+    let failure: unknown
+    try {
+      importSshKey(Buffer.from('not a key', 'utf8'))
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(Error)
+    expect((failure as Error).message).toBe(UI_TEXT.vault.noAccess)
+    expect((failure as Error).cause).toBeDefined()
+  })
+
+  it('a garbage signature reads invalid instead of throwing', () => {
+    // Fail-closed boolean by design: a crypto failure rejects the signature,
+    // whatever broke it.
+    expect(
+      isSshSignatureValid(Buffer.from('garbage'), Buffer.from('data'), Buffer.from('garbage')),
+    ).toBe(false)
+  })
+
+  it('malformed cookie bytes deny with the parsing failure', () => {
+    let failure: unknown
+    try {
+      decodeCookies(Buffer.from('{torn', 'utf8'), 'https://example.com', Date.now())
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(Error)
+    expect((failure as Error).message).toBe('useChanged')
+    expect((failure as Error).cause).toBeInstanceOf(SyntaxError)
+  })
+
+  it('a truncated seed denies with the decoding failure', () => {
+    let failure: unknown
+    try {
+      decodeTotpSeed('A')
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(Error)
+    expect((failure as Error).message).toBe('invalidTotp')
+    expect((failure as Error).cause).toBeDefined()
   })
 })
