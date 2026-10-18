@@ -905,6 +905,10 @@ export function checkDeferredBundles(inputsOf) {
           source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageService.js'
         ) &&
         !(
+          source === 'src/core/providers/keyInspection.ts' &&
+          (bundle.output === 'dist/modelsPanel.js' || bundle.output === 'dist/runtimeAccounts.js')
+        ) &&
+        !(
           bundle.output === 'dist/runtimeAccounts.js' &&
           ['accounts.ts', 'accountPolicy.ts', 'accountCredentialRecord.ts'].some(
             (file) => source === `src/core/providers/${file}`,

@@ -505,3 +505,45 @@ Proofs: reassembly identical to the old `PLAN.md` (SHA-256
 `status` (53 + 168 + 87 blocks, all intact), and the plan suites that remain
 after PR #183 (`planReader`, `planCitation`, `autoCompact`,
 `paidMoneyStructure`: 129 passed).
+
+## D123 design record archived (2026-10-14, lane PRFIX159; renumbered from D108 on the 2026-10-17 merge with main)
+
+Review finding 4273569038: the branch added its decision straight to
+`PLAN.md` §2 with its full record inline, but new design records belong
+in `docs/plan-archive/decisions.md` in the same change. The move keeps
+the heading and the rule-in-force paragraph in `PLAN.md`. The record
+was numbered D108 on the branch; main's D108 is the test overhaul, so
+the merge renumbered this decision D123 in `PLAN.md`, the archive
+heading and the code citations. The hashed archive body is unchanged.
+
+`npm run plan:archive -- move decisions --heading "D108 — The provider
+judges a key; no key is refused for its shape (lane PROVKEYS,
+2026-10-12)" --lines 14315-14336 --summary temp/d108-summary.txt`
+at `a64aebd4a`:
+
+| Measure                                | Before    | After     |
+| -------------------------------------- | --------- | --------- |
+| `PLAN.md` bytes                        | 3,565,134 | 3,564,632 |
+| Share of the reader's bound            | 85.0%     | 85.0%     |
+| Room under the gate's line (3,565,158) | 24        | 526       |
+| Hashed blocks in `decisions.md`        | 51        | 52        |
+| Bytes moved (1 block)                  |           | 1,420     |
+
+The block stands under `## D123` there as
+`decisions-a64aebd4a-14315` (`lines="14315-14336"`,
+`sha256="04385ca919235e6aea41a6ba2fb179aa3a925a792ef99a07cfd37c0741652958"`).
+
+Proofs:
+
+- Reassembly: the command rebuilt the old `PLAN.md` from the result,
+  SHA-256 `97943e29d03e87261052a963a949d1671b868f2da2ced31af1d92b489b0c93d4`,
+  before writing.
+- Parsed facts: identical; format drift after: 0.
+- `npm run check:plan`: `plan-format-v1; 218 milestones; 0 drift`, exit 0.
+- `npm run roadmap:generate`: 218 entries, `ROADMAP.md` byte-identical.
+- `npm run check:reference`: current, exit 0.
+- `npx prettier --check PLAN.md docs/plan-archive/decisions.md`: clean.
+- Suites that read the plan, all green at the repo default timeout on
+  the branch: `planArchive` (7), `planReader` (49), `checkPlan` (28),
+  `planCitation` (19), `m113cLaneClosure` (2), `teamPlanRecord` (2),
+  `autoCompact` (26), `geminiCodec` (67), `paidMoneyStructure` (46).

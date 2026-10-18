@@ -11,7 +11,7 @@ import {
   readProvidersFile,
   writeProvidersFileAtomic,
 } from './providersFile'
-import { listedPresets, PRESETS, PLAN_KEY_PRESETS, isKeyShape } from './presets'
+import { listedPresets, PRESETS, PLAN_KEY_PRESETS } from './presets'
 import { checkEndpointUrl } from './endpointPolicy'
 import { createPkcePair } from './pkce'
 import { UI_TEXT } from '../../shared/constants'
@@ -142,7 +142,6 @@ export function createModelsPanelSeam(options: {
       auth: preset.auth,
       keyHint: preset.keyHint,
       keyPage: preset.keyPage ?? '',
-      isKeyShape: (value) => isKeyShape(preset.keyShape, value),
       freeTest: preset.keyTest.kind === 'models-list' ? 'modelsList' : 'none',
       localProbes:
         preset.origin.kind === 'loopback'
@@ -165,7 +164,6 @@ export function createModelsPanelSeam(options: {
       auth: 'subscription',
       keyHint: '',
       keyPage: '',
-      isKeyShape: () => false,
       freeTest: 'none',
       localProbes: [],
     })

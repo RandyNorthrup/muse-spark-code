@@ -14652,6 +14652,21 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   the report reader's 16 MiB bound — report sources read at any size
   (row and text bounds elsewhere still refuse what they bound).
 
+### D123 — The provider judges a key; no key is refused for its shape (lane PROVKEYS, 2026-10-12; numbered D108 until the 2026-10-17 merge with main, where D108 is the test overhaul)
+
+No key is ever refused for its looks, on any surface. What decides is the
+provider's own answer to the first authenticated request the product already
+makes (the free model-list key test); a refusal shows the provider's reason.
+The only checks before sending are the ones that protect the person and hold
+for every provider — the value is not empty, has no whitespace or line break
+inside, and is not obviously the wrong thing (a URL, a file path, placeholder
+text) — each asked as a "use it anyway?" question, never a dead end. This
+supersedes M95 lane K's "password box with the preset's live shape check": the
+box accepts any non-blank key, and every preset carries the open `{ kind:
+'any' }` shape with a hint naming where the key comes from. The endpoint
+policy, log redaction and the product's own Meta-key format are unchanged.
+Full record: [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
 ### D140 — Claimed-shipped milestones: an `@unwired` tag is resolved by the user-visible promise (MSM58M69, 2026-10-17)
 
 A verification scan found `@unwired` tags carrying shipped milestone ids
@@ -39194,6 +39209,11 @@ and unbounded means the provider's own Retry-After waits and stop answers
 govern; the pacing queue keeps no deadline of ours) merged 2026-10-18 with
 its Added entry under `[0.19.0]`; the release now holds thirteen pull
 requests.
+PR #159 (`fix/provider-key-shapes`: no key is refused for its looks — any
+non-blank key goes to the provider's own free key test and a refusal shows
+the provider's reason; wrong-looking values ask a "use it anyway?"
+question) merged 2026-10-18 with its Pending entry under `[0.19.0]`; the
+release now holds fourteen pull requests.
 The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 
