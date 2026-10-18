@@ -271,8 +271,11 @@ export async function createRuntimeVault(
     await broker.connect(hostId, hostSession, platform.peers)
   const session = new VaultManageSession(connect, encodeVaultMaterial)
   // Process lifetime: the runtime binding owns no close, so routing runs
-  // until the broker or the process goes away.
-  routeBrokerApprovals(session, context.acp, new AbortController().signal)
+  // until the broker or the process goes away. One-shot CLI commands never
+  // attach an asker, so they start no watch and exit once done.
+  context.acp.onAttach(() => {
+    routeBrokerApprovals(session, context.acp, new AbortController().signal)
+  })
   return {
     commands: () => Promise.resolve(vaultCommandPort(session)),
     exec: {
