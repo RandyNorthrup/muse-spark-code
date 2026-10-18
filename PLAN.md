@@ -14396,21 +14396,27 @@ and thats it." A thousand-test suite kept shipping broken code as
 
 ### D122 — CI capacity from a second account; the project stays here (owner, 2026-10-16; redesigned 2026-10-17)
 
-**D122 — The capacity repository runs the unit shards (eight on Ubuntu,
-sixteen each on Windows and macOS); the project, its pull requests and main
-stay on the owner's account.** While
+**D122 — The capacity repository runs every Windows and macOS job (static
+gates, unit shards, Windows integration, the macOS dictation helper, the
+Hosts/Forks checks and the Windows/macOS browser captures); the project, its
+pull requests and main stay on the owner's account.** While
 `ORG_CI` is `on` and the organization GitHub App's key
 (`ORG_CI_APP_PRIVATE_KEY`, which GitHub never gives a fork's or Dependabot's
 run) reaches a same-repository pull request's full-tier run, that run is part
 `home`: build.yml's `org` job pushes the merge commit to
 `scnetsolutions/muse-spark-code-ci` as `ci/pr-<number>` with a one-hour token
-for that repository alone (contents and workflows write), the same `ci.yml`
-runs the forty unit shards there (part `org`), and `org`
-succeeds only if that run did. The seven required names fold in its result, so
+for that repository alone (contents and workflows write), the same workflows
+run every Windows and macOS leg there (part `org`), and `org`
+succeeds only if that run did; the macOS helper artifacts come back through
+`org` for the `packages` job. The seven required names fold in its result, so
 the ruleset is unchanged; every other run keeps every job here (part `all`).
-The capacity repository stays public and holds no secret. Owner setup:
+The Windows and macOS static gates and the Windows browser capture take
+larger runners there while that repository's `LARGE_RUNNERS` variable is
+`on` (owner, 2026-10-18, $40 monthly budget backstop); test shards stay on
+free standard runners. The capacity repository stays public and holds no
+secret. Owner setup:
 CONTRIBUTING.md, "The capacity repository (D122)"; proofs:
-`docs/certification/ciflow.md` (D122). Full record:
+`docs/certification/ciflow.md` (D122, CISHARDS2). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ## 3. Open questions (need the owner)

@@ -265,13 +265,16 @@ shards (eight on Ubuntu, sixteen each on Windows and macOS) besides the
 gates. The organization `scnetsolutions` lends its runners: while the
 repository variable `ORG_CI` is `on` and the capacity app's key reaches the
 run, a pull request from a branch of this repository runs part `home`.
-Every job runs here except the unit shards; in their place
+Only the Ubuntu legs run here; in place of every Windows and macOS leg
+(static gates, unit shards, Windows integration, the macOS dictation
+helper, the Hosts/Forks checks and the Windows/macOS browser captures)
 the `org` job pushes the pull request's merge commit to
 [`scnetsolutions/muse-spark-code-ci`](https://github.com/scnetsolutions/muse-spark-code-ci)
-as `ci/pr-<number>`, where the same `ci.yml` runs those forty shards on
+as `ci/pr-<number>`, where the same workflows run those legs on
 the organization's runners (part `org`), and waits for that run. Its
 result feeds every required name, so a pull request merges only when those
-shards passed there; its summary lists each shard with a link. Both
+legs passed there; its summary lists each shard with a link, and the macOS
+helper artifacts come back through it for the `packages` job. Both
 accounts' runners work on one pull request at once. A newer push replaces the
 branch, and the capacity repository cancels the older run. Forks, Dependabot,
 merge groups, manual runs and every pull request while `ORG_CI` is not `on`
@@ -279,6 +282,10 @@ keep every job here (part `all`): GitHub passes them no key. Nothing waits
 on anyone's computer: `gh variable delete ORG_CI` sends the next run back to
 part `all`. The project, its pull requests, releases and `main` stay here;
 the capacity repository's `main` holds only a README, and it holds no secret.
+The `org` job mints the App token but never installs or runs the pull
+request's code: its steps are the token action, a clone, `git push`, `gh`
+API reads and the artifact relay (proof: `docs/certification/ciflow.md`,
+CISHARDS2).
 
 The owner's one-time setup (no step pushes code or changes this repository's
 ruleset):
@@ -358,6 +365,19 @@ ruleset):
              cache: npm
          - run: npm ci --ignore-scripts --no-audit --no-fund
    ```
+
+7. Switch the capacity run's unsplittable jobs to larger runners. On the
+   capacity repository (not here) set the repository variable
+   `LARGE_RUNNERS` to `on`:
+   `gh variable set LARGE_RUNNERS --body on --repo scnetsolutions/muse-spark-code-ci`.
+   The Windows and macOS static gates and the Windows browser capture then
+   take `msc-windows-8core` / `macos-latest-xlarge` in that repository's
+   push runs; anything else there keeps free standard runners, and every
+   run here is unaffected (a fork's `pull_request` run can never take the
+   larger labels). Costs about $1.40 per pull request run at measured
+   minutes; an enterprise $40 monthly budget stops paid usage at the limit,
+   so switch back to free runners first (`--body off`).
+   Proof: `docs/certification/ciflow.md`, CISHARDS2.
 
 ## The public roadmap (M122)
 
