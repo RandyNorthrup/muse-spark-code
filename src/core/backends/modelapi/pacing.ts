@@ -122,20 +122,34 @@ function derivedWindowMs(
  * minute), so the token bucket refills at its own rate instead of the
  * slower request one; no derivable window keeps the default.
  */
-export function openaiPacingLimits(headers: Headers): PacingLimits | undefined {
+/**
+ * The request/token header pairs the OpenAI-style readers share (captured
+ * 2026-10-04): both buckets must parse before either reader answers.
+ */
+function requestTokenPair(headers: Headers):
+  | {
+      readonly requests: { readonly limit: number; readonly remaining: number }
+      readonly tokens: { readonly limit: number; readonly remaining: number }
+    }
+  | undefined {
   const requests = limitPair(
     headers,
     'x-ratelimit-limit-requests',
     'x-ratelimit-remaining-requests',
   )
   const tokens = limitPair(headers, 'x-ratelimit-limit-tokens', 'x-ratelimit-remaining-tokens')
-  return requests === undefined || tokens === undefined
+  return requests === undefined || tokens === undefined ? undefined : { requests, tokens }
+}
+
+export function openaiPacingLimits(headers: Headers): PacingLimits | undefined {
+  const pair = requestTokenPair(headers)
+  return pair === undefined
     ? undefined
     : pacingLimits(
-        requests,
-        tokens,
-        derivedWindowMs(requests, resetDurationMs(headers.get('x-ratelimit-reset-requests'))),
-        derivedWindowMs(tokens, resetDurationMs(headers.get('x-ratelimit-reset-tokens'))),
+        pair.requests,
+        pair.tokens,
+        derivedWindowMs(pair.requests, resetDurationMs(headers.get('x-ratelimit-reset-requests'))),
+        derivedWindowMs(pair.tokens, resetDurationMs(headers.get('x-ratelimit-reset-tokens'))),
       )
 }
 
@@ -144,15 +158,10 @@ export function openaiPacingLimits(headers: Headers): PacingLimits | undefined {
  * so the default window stands.
  */
 export function xaiPacingLimits(headers: Headers): PacingLimits | undefined {
-  const requests = limitPair(
-    headers,
-    'x-ratelimit-limit-requests',
-    'x-ratelimit-remaining-requests',
-  )
-  const tokens = limitPair(headers, 'x-ratelimit-limit-tokens', 'x-ratelimit-remaining-tokens')
-  return requests === undefined || tokens === undefined
+  const pair = requestTokenPair(headers)
+  return pair === undefined
     ? undefined
-    : pacingLimits(requests, tokens, undefined, undefined)
+    : pacingLimits(pair.requests, pair.tokens, undefined, undefined)
 }
 
 /**

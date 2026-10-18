@@ -16,6 +16,19 @@ const requiredImages = (count: number) =>
       }) as const,
   )
 
+/** A configured chat model whose image support caps at two PNGs. */
+const fireworksTwoImageRecord = () =>
+  resolveModelCapabilities({ provider: 'fireworks', nativeModel: 'm', format: 'chat' }, [
+    {
+      source: { kind: 'user' as const },
+      fields: {
+        modalities: {
+          image: { state: 'yes', value: { mimes: ['image/png'], maxCount: 2 } },
+        },
+      },
+    },
+  ])
+
 describe('Model API replay media budget', () => {
   it('refuses overfull required media instead of fitting it as delivered history', () => {
     const required = requiredImages(51)
@@ -284,19 +297,7 @@ describe('Model API replay media budget', () => {
     // A fresh batch above the model's own maxCount is refused locally with
     // the model's reason, not sent intact for a remote rejection. A batch
     // at the cap still rides through protected.
-    const record = resolveModelCapabilities(
-      { provider: 'fireworks', nativeModel: 'm', format: 'chat' },
-      [
-        {
-          source: { kind: 'user' as const },
-          fields: {
-            modalities: {
-              image: { state: 'yes', value: { mimes: ['image/png'], maxCount: 2 } },
-            },
-          },
-        },
-      ],
-    )
+    const record = fireworksTwoImageRecord()
     const over = requiredImages(3)
     const overfull: readonly InputItem[] = [{ type: 'message', role: 'user', content: over }]
     expect(() => new MediaBudget().fit(overfull, record, over)).toThrow(
@@ -311,19 +312,7 @@ describe('Model API replay media budget', () => {
     // Required parts consume the cap they just passed: with two fresh
     // images protected under a maxCount of two, an older replay image no
     // longer fits and is named instead of overflowing the model cap.
-    const record = resolveModelCapabilities(
-      { provider: 'fireworks', nativeModel: 'm', format: 'chat' },
-      [
-        {
-          source: { kind: 'user' as const },
-          fields: {
-            modalities: {
-              image: { state: 'yes', value: { mimes: ['image/png'], maxCount: 2 } },
-            },
-          },
-        },
-      ],
-    )
+    const record = fireworksTwoImageRecord()
     const fresh = requiredImages(2)
     const replay = requiredImages(1)
     const input: readonly InputItem[] = [
