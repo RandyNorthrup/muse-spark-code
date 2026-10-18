@@ -122,13 +122,13 @@ export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> 
       authority: store.authority(command.connectionId),
       confidential: runtimeSharingConfidential,
       audit,
-      limits: store.limits(command.connectionId),
       scrub,
       schedules: deps.schedules,
       reports: deps.reports,
       prompts: {
         list: (root, scope) => storeFor(root).list(scope),
-        write: (root, prompt: SavedPrompt) => storeFor(root).write(prompt),
+        write: (root, prompt: SavedPrompt, expectedGeneration?: number) =>
+          storeFor(root).write(prompt, false, expectedGeneration),
         preview: (_root, prompt, format) => {
           const request: ShareRequest = {
             target: 'prompt',

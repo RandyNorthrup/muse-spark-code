@@ -34,7 +34,8 @@ import type { SavedPrompt } from '../../shared/prompts'
 import { ApprovalLedger, type ApprovalBinding } from './approval'
 import type { AuditEvent, ConnectorAudit } from './audit'
 import { Operation, OperationTable, type OperationEnv, type OperationScope } from './operations'
-import { SharedLimits, admit, isRefusal, refusal, type LimitsPort, type Refusal } from './policy'
+import { PromptLibraryStaleError } from '../prompts/promptStore'
+import { admit, isRefusal, refusal, type Refusal } from './policy'
 import type { ConnectorCallResult, ConnectorServer, ConnectorToolEntry } from './protocol'
 import type { ConnectorScrub } from './redaction'
 import {
@@ -92,8 +93,6 @@ export interface RegistryDeps {
   readonly authority: AuthorityPort
   readonly confidential: (root: string) => boolean | undefined
   readonly audit: ConnectorAudit
-  /** The grant's limits, shared with every other process of this connection. */
-  readonly limits: LimitsPort
   readonly scrub: ConnectorScrub
   readonly surface: ApprovalSurface
   readonly prompts: PromptsPort
@@ -193,7 +192,6 @@ function forbidden(reason: string): Refusal {
   return refusal('forbidden', fill(CONNECTOR_MODEL_TEXT.forbidden, { reason }))
 }
 
-const rateLimited = () => refusal('rate_limited', CONNECTOR_MODEL_TEXT.rateLimited)
 const auditUnavailable = () => refusal('audit_unavailable', CONNECTOR_MODEL_TEXT.auditUnavailable)
 const ownerFailed = () => unavailable('owner failed')
 
@@ -210,7 +208,6 @@ export class ConnectorRegistry implements ConnectorServer {
   /** Approved writes' plans, by intent id, while their approval is open. */
   private readonly plans = new Map<string, WritePlan>()
   private readonly ledger: ApprovalLedger
-  private readonly limits: SharedLimits
   private readonly env: OperationEnv
   /** Set by disconnect: the authority stops every live operation and admits nothing. */
   private isClosed = false
@@ -236,7 +233,6 @@ export class ConnectorRegistry implements ConnectorServer {
     serverName: string,
   ) {
     this.serverInfo = { name: serverName, version: deps.version }
-    this.limits = new SharedLimits(deps.limits, deps.now)
     this.ledger = new ApprovalLedger(deps.now, (intentId, outcome) => {
       this.decided(intentId, outcome)
     })
@@ -380,7 +376,6 @@ export class ConnectorRegistry implements ConnectorServer {
     if (!operation.gate(['received'])) return operation.final()
     if (name !== 'muse_operation_get' && this.deps.authority.current().killed)
       return operation.refuse(refusal('forbidden', CONNECTOR_MODEL_TEXT.killSwitch))
-    if (!(await this.limits.take())) return operation.refuse(rateLimited())
     const parsed = connectorInputSchemas[name].safeParse(args ?? {})
     if (!parsed.success) return operation.refuse(invalid(issueOf(parsed.error)))
     const input: Readonly<Record<string, unknown>> = parsed.data
@@ -413,31 +408,6 @@ export class ConnectorRegistry implements ConnectorServer {
     operation.grantGeneration = grant.generation
     operation.scope = scope
     return { grant, workspace: admission.workspace }
-  }
-
-  /**
-   * A lease of `kind` for `operation`; taking it is an effect, so it is called
-   * right after a passed gate. It is freed once: by `release`, or as soon as
-   * the operation leaves `states`, even when that happened before the lease
-   * was recorded.
-   */
-  private lease(
-    operation: Operation,
-    kind: 'read' | 'pending',
-    ttlMs: number,
-    states: readonly ConnectorCallState[],
-  ): { readonly entering: Promise<boolean>; readonly release: () => void } {
-    const entering = this.limits.enter(kind, operation.id, ttlMs)
-    let isReleased = false
-    const release = () => {
-      if (isReleased) return
-      isReleased = true
-      void entering.then(async (isHeld) => {
-        if (isHeld) await this.limits.leave(operation.id)
-      })
-    }
-    operation.holdWhile(states, release)
-    return { entering, release }
   }
 
   /** The call's work; an owner's failure ends it as failed, with fixed words. */
@@ -482,33 +452,20 @@ export class ConnectorRegistry implements ConnectorServer {
         admitted.workspace,
         signal,
       )
-    // A read: its lease is an effect too, gated like the rest.
     if (!operation.gate(['admitted'])) return operation.final()
-    const lease = this.lease(operation, 'read', CONNECTOR_LIMITS.requestDeadlineMs, [
-      'admitted',
-      'dispatching',
-    ])
-    if (!(await lease.entering)) return operation.refuse(rateLimited())
     if (!(await operation.writeAhead('dispatching'))) return operation.refuse(auditUnavailable())
     await this.refresh()
     // The final gate, the move and the owner read's start: one synchronous block.
     if (!operation.gate(['admitted'])) return operation.final()
     if (!operation.move('dispatching', true)) return operation.fail(ownerFailed())
-    // The slot is free once the owner read returns, whatever its delivery awaits.
-    const outcome = await this.whileHeld(
-      lease.release,
-      this.read(name, admitted.input, admitted.grant, admitted.workspace, signal),
+    const outcome = await this.read(
+      name,
+      admitted.input,
+      admitted.grant,
+      admitted.workspace,
+      signal,
     )
     return 'reason' in outcome ? operation.refuse(outcome) : outcome
-  }
-
-  /** The work's answer; `release` runs when it settles. */
-  private async whileHeld<T>(release: () => void, work: Promise<T>): Promise<T> {
-    try {
-      return await work
-    } finally {
-      release()
-    }
   }
 
   /** The owner ports; each starts in the same tick as the gate that admitted it. */
@@ -709,7 +666,7 @@ export class ConnectorRegistry implements ConnectorServer {
   /**
    * A write request: inert until our page approves this exact intent. The
    * call's own operation becomes the kept operation the client polls; each
-   * effect on the way (the claim, the pending lease, the intent) is gated.
+   * effect on the way (the claim, the intent) is gated.
    */
   private async request(
     operation: Operation,
@@ -733,7 +690,11 @@ export class ConnectorRegistry implements ConnectorServer {
     const claim = this.operations.claim(operation, `${tool.name}\u{0}${save.requestId}`, digest)
     if (claim.kind === 'conflict')
       return operation.refuse(invalid(CONNECTOR_MODEL_TEXT.reasonRequestReused))
-    if (claim.kind === 'full') return operation.refuse(rateLimited())
+    // The settled-history bound, full of live work: refuse rather than
+    // forget (operations.ts). The fixed call budget is gone (Codex on PR
+    // #227); this names the busy server, as the transport's busy does.
+    if (claim.kind === 'full')
+      return operation.refuse(refusal('rate_limited', CONNECTOR_MODEL_TEXT.serverBusy))
     // A retry answers the kept operation's real state; this call is a status read.
     if (claim.kind === 'same') {
       if (!(await operation.writeAhead('dispatching'))) return operation.refuse(auditUnavailable())
@@ -752,11 +713,6 @@ export class ConnectorRegistry implements ConnectorServer {
     if (!(await operation.writeAhead('awaitingApproval')))
       return operation.refuse(auditUnavailable())
     if (!operation.gate(['admitted'])) return operation.final()
-    const lease = this.lease(operation, 'pending', CONNECTOR_LIMITS.approvalLeaseMs, [
-      'admitted',
-      'awaitingApproval',
-    ])
-    if (!(await lease.entering)) return operation.refuse(rateLimited())
     await this.refresh()
     // The final gate and the intent: one synchronous block.
     if (!operation.gate(['admitted'])) return operation.final()
@@ -786,7 +742,6 @@ export class ConnectorRegistry implements ConnectorServer {
         { label: 'body', value: draft.body },
       ],
     })
-    if (intentId === undefined) return operation.refuse(rateLimited())
     operation.intentId = intentId
     this.plans.set(intentId, { binding, draft, root, intentId })
     // Until the write starts, any end withdraws the intent from the page.
@@ -848,7 +803,18 @@ export class ConnectorRegistry implements ConnectorServer {
       }
       if (!operation.move('dispatching', true)) throw new Error('not dispatched')
       const prompt = newPrompt(plan.draft, new Date(this.deps.now()).toISOString())
-      await this.deps.prompts.write(plan.root, prompt)
+      // `live` was read above; the store recomputes it under its write lock,
+      // so a library another save changed first refuses this one as stale
+      // instead of landing both (Codex on PR #227).
+      try {
+        await this.deps.prompts.write(plan.root, prompt, live)
+      } catch (error: unknown) {
+        if (error instanceof PromptLibraryStaleError) {
+          operation.cancel('stale')
+          return
+        }
+        throw error
+      }
       operation.result = this.deps.scrub.leaves({
         promptId: prompt.id,
         generation: promptGeneration(prompt),
