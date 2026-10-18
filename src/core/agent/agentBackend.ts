@@ -286,13 +286,17 @@ export interface SkillSummary {
 
 /**
  * One background-task row (M127, MSP `task/list`): `kind` is an open
- * vocabulary, `status` the host's lifecycle word.
+ * vocabulary, `status` the host's lifecycle word. `tool` names the
+ * running tool on item-visible rows; `backgroundInitiator` who
+ * backgrounded it: both additive-optional on the wire, never inferred.
  */
 export interface BackgroundTaskSummary {
   readonly taskId: string
   readonly kind: string
   readonly status: string
   readonly startedAt?: string | undefined
+  readonly tool?: string | undefined
+  readonly backgroundInitiator?: string | undefined
 }
 
 /** One installed hook row (M127, MSP `hook/list`): `event` is open. */
