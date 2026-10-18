@@ -452,6 +452,7 @@
   "sessionDeleteHostExited": "O Muse Code foi encerrado antes da confirmação da exclusão. A sessão permanece no histórico.",
   "sessionDeleteHostClosed": "O host foi fechado antes da confirmação da exclusão. A sessão permanece no histórico.",
   "sessionDeleteTimedOut": "O tempo de espera pela confirmação da exclusão expirou. A sessão permanece no histórico.",
+  "sessionDeleteUnsupported": "O Muse Code {version} não pode excluir conversas.",
   "playbookTitle": "Manual do orquestrador",
   "playbookStatus": "Estado",
   "playbookRecord": "Registro",
@@ -2400,6 +2401,10 @@
   "historyShowArchived": "Mostrar arquivadas",
   "historyArchive": "Arquivar",
   "historyUnarchive": "Desarquivar",
+  "historyDeleteConfirm": "Excluir a conversa {name}?",
+  "historyDeleteConfirmDetail": "Ela sairá do histórico para sempre. Isso não pode ser desfeito.",
+  "historyDeleted": "{name} excluída",
+  "historyDeleteFailed": "Não foi possível excluir a conversa",
   "historyCurrent": "Atual",
   "historyForkMark": "Bifurcação",
   "historyTurns": {
