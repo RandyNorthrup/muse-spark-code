@@ -17,8 +17,7 @@
 //
 // `lines` are its line numbers in PLAN.md at commit `at` (blocks of the first
 // move carry no `at`; their file's introduction names the commit). The bytes
-// between the two blank lines hash to `sha256`, which
-// test/unit/planArchive.test.ts checks for every block.
+// between the two blank lines hash to `sha256`.
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 

@@ -25,19 +25,6 @@ export const USER_SHELL_STARTED = {
   },
 }
 
-export const USER_SHELL_COMPLETED = {
-  sessionId: SESSION,
-  item: {
-    ...USER_SHELL_STARTED.item,
-    revision: 2,
-    status: 'completed',
-    recordedAt: '2026-09-25T19:13:49.712383Z',
-    visibleOutput: 'hello-m46\r\n',
-    exitCode: 0,
-    durationMs: 563,
-  },
-}
-
 /** `Write-Output 'failing-m46'; exit 3`: failed, with its exit code. */
 export const USER_SHELL_FAILED = {
   sessionId: SESSION,
@@ -56,24 +43,6 @@ export const USER_SHELL_FAILED = {
   },
 }
 
-/** The same command with the Windows sandbox on and not set up (the first capture). */
-export const USER_SHELL_SANDBOX_FAILED = {
-  sessionId: SESSION,
-  item: {
-    itemId: '0eb1fa9c-6202-40e4-b750-535510b49f05',
-    kind: 'userShell',
-    turnId: null,
-    revision: 2,
-    status: 'failed',
-    recordedAt: '2026-09-25T19:08:31.571503Z',
-    commandId: '01a0d9f8-1d90-7000-beaa-411fc517fba2',
-    visibleOutput:
-      'tool failed: environment failure: managed shell sandbox is unavailable\nThe execution environment is broken: the command was never started and every later command will fail the same way. Do not retry and do not fabricate command output; report this environment failure.',
-    commandText: "Write-Output 'hello-m46'",
-    durationMs: 50,
-  },
-}
-
 const SHELL_ITEM = {
   itemId: '01a0d9fd-1e6e-7e91-b1a5-a7686bb2ae48',
   kind: 'toolCall',
@@ -81,12 +50,6 @@ const SHELL_ITEM = {
   tool: 'powershell',
   callId: 'call_01a0d9fd293176638d1afd9d0ae77f28',
   args: '{"command":"Start-Sleep -Seconds 40; Write-Output done-m46","description":"Run delayed output command"}',
-}
-
-/** The model's foreground shell call, running. */
-export const SHELL_CALL_STARTED = {
-  sessionId: SESSION,
-  item: { ...SHELL_ITEM, revision: 1, status: 'inProgress' },
 }
 
 /** `task/background` on it: this update arrived before the command's ack. */
@@ -99,33 +62,6 @@ export const SHELL_CALL_BACKGROUNDED = {
     background: true,
     backgroundInitiator: 'user',
   },
-}
-
-/** `task/stop` on it: cancelled, its result the background envelope. */
-export const SHELL_CALL_STOPPED = {
-  sessionId: SESSION,
-  item: {
-    ...SHELL_ITEM,
-    revision: 3,
-    status: 'cancelled',
-    failureReason: 'cancelled by runtime client',
-    visibleOutput:
-      '{\n  "chunk_id": "exec-1-1",\n  "command": "Start-Sleep -Seconds 40; Write-Output done-m46",\n  "execution_state": "background_running",\n  "session_id": 1,\n  "work_id": "work.v1.managed_bash.sha256.c2adc75ef58ea2095e0abb7cc858d4044e86476e164cf60e45e0f9d0108b0e4f",\n  "output": "",\n  "truncated": false\n}',
-    background: true,
-    backgroundInitiator: 'user',
-  },
-}
-
-/** The acks of the task commands: echoing the task. */
-export function taskAck(params: Record<string, unknown>): Record<string, unknown> {
-  return { commandId: params['commandId'], status: 'accepted', taskId: params['taskId'] }
-}
-
-/** A task command naming no running task: refused, reason `invalid_target`. */
-export const INVALID_TARGET = {
-  kind: 'commandRejected',
-  code: -32_030,
-  data: { reason: 'invalid_target', retryable: false },
 }
 
 /** `userInput/clarify` settled the colour question (the first capture). */

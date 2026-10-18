@@ -36,38 +36,15 @@ must remain opaque and shadowless, with contrast borders. Never blur a control.
 Use the 120/180/240 ms motion tokens only for meaningful changes, inside
 `prefers-reduced-motion: no-preference`; streamed text stays still.
 
-Look at a change to the interface yourself. Build, open the changed screen
-in one light and one dark theme (`npm run harness:shots -- <scene>
---theme=light` renders one harness scene from the built webview), look at
-both pictures, and put them into the change's certification record. That is
-the whole visual check. No gate and no CI job renders or compares
-screenshots (the owner's decision, 2026-10-12, with 0.18.2), so a green CI
-says nothing about how a screen looks, and there is no baseline to update or
-wait for.
+A UI change gets one small local look: `npm run ui:look -- <scene>`
+renders that scene from the built webview into `temp/ui-look/`, in the
+light and dark themes unless `--theme` names one. No baseline, no
+comparison, no CI. There are no screenshot runs anywhere in the pipeline.
+Look at both pictures yourself and put them into the change's
+certification record: a green CI says nothing about how a screen looks.
 
-`npm run check:visual` still exists as a tool that nothing runs for you. It
-renders the audited component inventory in six themes at 320 and 690 px and
-compares it with the frames of a recorded Git revision (pixelmatch, colour
-threshold **0.1**, at most **0.01% of pixels or 12 pixels** per image). It
-answers one question only: did a frame change against the recorded one. It
-cannot say whether what a frame shows is allowed; that takes a person
-looking.
-
-The capture inputs are one list, `scripts/lib/captureInputs.mjs`: `src`,
-`design`, `test/harness`, `scripts/build.mjs`, `scripts/lib`,
-`package.json` and `package-lock.json`. `CHANGELOG.md` is not one: the
-What's New scenes render a fixed fixture
-(`test/harness/whats-new/CHANGELOG.fixture.md`, two made-up releases and a
-fixed version), so a release's notes and its version move no frame. The
-fixture must hold every kind of part the real notes use;
-`test/unit/whatsNewFixture.test.mjs` names a missing kind, and adding it to
-the fixture means re-rendering those scenes.
-
-Keep full-resolution capture sets out of git;
 README media comes only from the existing curated `scripts/readme-shots.mjs`
-list (2 MiB total budget, banner included). The
-[visual contract](test/harness/goldens/README.md) explains grouped scenes,
-CSS pseudo-states and the real-interaction/accessibility companion checks.
+list (2 MiB total budget, banner included).
 
 ## Before you open a pull request
 
@@ -77,11 +54,12 @@ Use this order for a candidate branch:
    conflicts and stage the candidate with no unstaged changes. Record its
    `git write-tree` hash.
 2. Run `npm ci` and the fast local checks on that exact staged tree: format,
-   lint, typecheck, the suites you touched and the packed-product file
-   (`npx vitest run test/e2e/execStdio.e2e.test.ts`). Hosted CI is the gate
-   for a release: every job green on the commit that merges. Its full tier
-   runs the static gates and the tests on three systems and the visual
-   render and the accessibility gate on Ubuntu, so no complete local
+   lint, typecheck, the suites you touched and the packed product itself
+   (its commands, its help, its errors, its files on disk). Hosted CI is the
+   gate for a release: every job green on the commit that merges. Its full
+   tier runs the static gates and the unit tests on three systems and the
+   accessibility and integration gates on Ubuntu (no screenshot runs
+   anywhere), so no complete local
    `npm run quality` is owed before a push, and the maintainer's Mac mini,
    Kubuntu VM and Windows 11 VM serve targeted runs and reproductions only
    (the affected real filesystem, process and packaging paths,
@@ -102,11 +80,11 @@ Use this order for a candidate branch:
    full branch check without a pull request.
 5. Use `gh run watch RUN_ID --exit-status`, then
    `gh run view RUN_ID --json headSha,jobs`. Match `headSha` to the pushed
-   commit and inspect all seven required conclusions. After the PR checks and
+   commit and inspect all five required conclusions. After the PR checks and
    review pass, choose **Merge when ready** (`gh pr merge N --merge`) to put
    the PR in GitHub's merge queue. The `merge_group` event runs the full tier
    once on the merge commit that will become `main`; the queue merges it only
-   if all seven pass, and removes the PR otherwise. Fix failures and repeat
+   if all five pass, and removes the PR otherwise. Fix failures and repeat
    from the exact-tree gate; later branch changes need fresh PR checks and a
    fresh queue entry. Do not merge `main` into a PR just to refresh it: the
    queue tests the combination itself.
@@ -127,11 +105,11 @@ Use this order for a candidate branch:
   the VS Code integration tests (`npm run test:integration`, run by
   `npm run quality:ci` and CI): formatting, ESLint (zero warnings),
   stylelint, the PowerShell lint, type checks, the localization and host-API
-  checks, dead-code and cycle detection, duplication, unit tests with coverage thresholds, the
+  checks, dead-code and cycle detection, duplication, unit tests with no coverage gate, the
   production build with bundle budgets and the bundle split, `npm audit`,
   the accessibility gate, secret scanning and semgrep. CI's full tier runs
-  the gates on Ubuntu, Windows and macOS, the complete accessibility gate on
-  Ubuntu and integration tests on Ubuntu and Windows, and gitleaks and
+  the gates on Ubuntu, Windows and macOS, the accessibility gate on Ubuntu
+  except on pull requests, and integration tests on Ubuntu and Windows, and gitleaks and
   semgrep as jobs of their own; the PowerShell lint runs only where Windows
   PowerShell exists, so a green run on one platform is not quite the whole
   set.
@@ -163,7 +141,7 @@ Use this order for a candidate branch:
 
 - A visible change gets a harness scenario (`test/harness/index.html`, its
   name listed in `scripts/lib/harnessServer.mjs` beside the related one),
-  rendered with `npm run harness:shots -- <names>` (`--theme=dark`, `light`,
+  rendered with `npm run ui:look -- <names>` (`--theme=dark`, `light`,
   `hc-dark`, `hc-light`, `one-dark-pro` or `dracula`; `--lang=pseudo` for clipping) and checked with
   `node scripts/a11y.mjs <names>` in the four themes. Scenes wait with
   `whenFound`, never fixed delays; nest waits when one control reveals the
@@ -201,10 +179,9 @@ Use this order for a candidate branch:
   that needs a true 320 px viewport says so and is opened at that width by
   both scripts. Scenarios drive the real App through the fake host's
   messages; none mounts a component on its own.
-- Motion respects `prefers-reduced-motion`: `test/unit/reducedMotion.test.ts`
-  reads `src/webview/styles.css` and fails when any selector with an
-  `animation` or `transition` is not set to none in the closing
-  reduced-motion block. A new animation adds its selector there.
+- Motion respects `prefers-reduced-motion`: every selector of
+  `src/webview/styles.css` with an `animation` or `transition` is set to none
+  in the closing reduced-motion block. A new animation adds its selector there.
 - Refresh the README's screenshots with `npm run readme:shots`, which
   renders each image in `scripts/readme-shots.json` from its harness
   scenario at its declared theme, size and language. `readme:shots --list`
@@ -242,33 +219,29 @@ Use this order for a candidate branch:
 the repository variable `CI_MERGE_QUEUE` is `on`. That tier runs formatting,
 ESLint/stylelint, all five compiler projects, localization, host API, knip,
 cycles, duplication, token checks, the production build and its size/split/host-global/
-notices checks, audit, and every unit/process-e2e test on Ubuntu (no
-coverage). Gitleaks and semgrep also run. Both tiers require the six-theme visual job:
-its validated manifest supplies the reviewed Git revision, fetched explicitly
-if absent from the full checkout history. It rebuilds baseline PNGs in the
-runner's Chrome/font environment under the 512 MiB limit, compares every
-scene/state/width, and uploads only the receipt. A failed, cancelled or skipped
-visual job fails the required aggregate. Visual replay adds a bounded browser job (45-minute deadline); hosted wall time awaits measurement.
+notices checks, audit, and every unit test on Ubuntu. Gitleaks and semgrep
+also run. There is no screenshot run on either tier.
 
 Everything else selects the full tier: `merge_group`, manual dispatch, the
 release workflow's fallback build, and every PR while `CI_MERGE_QUEUE` is not
-`on`. Static gates run on all three OSes. Ubuntu and macOS run four Vitest
-shards, Windows six (its files stay serial within a shard); each uploads blob
-reports, checks that every shard arrived, then merges them and enforces the unchanged coverage
-thresholds once per OS. The 448-page a11y harness runs once on Ubuntu against
-the production webview from the static gate; its pages, themes and scenarios
-do not depend on the OS. Linux/Windows VS Code integration, the macOS helper
-and the universal VSIX/ACP package checks remain. Expected wall time is
-roughly 10–15 minutes, pending hosted proof. In a merge group, gitleaks runs
-its pinned CLI (checksum-checked) over every commit the group reaches, since
-the gitleaks action refuses the `merge_group` event.
+`on`. Static gates run on all three OSes. Ubuntu runs four Vitest shards,
+Windows and macOS eight (their files stay serial within a shard); all run
+without a coverage gate. The accessibility harness runs on Ubuntu against
+the production webview from the static gate except on pull requests; its
+pages, themes and scenarios do not depend on the OS. Linux/Windows VS Code
+integration, the macOS helper and the universal VSIX/ACP package checks
+remain. Expected wall time is roughly 10–15 minutes, pending hosted proof.
+In a merge group, gitleaks runs its pinned CLI (checksum-checked) over every
+commit the group reaches, since the gitleaks action refuses the
+`merge_group` event.
 
 The seven required names stay: `build / quality (ubuntu-latest)`,
 `build / quality (windows-latest)`, `build / quality (macos-latest)`,
 `build / gitleaks`, `build / semgrep`, `build / dictation helper (macos)` and
 `build / package (.vsix)`. The quality/helper/package names come from one
 aggregate job that fails unless every job of the selected tier succeeded
-(failed, cancelled and unexpectedly skipped all fail). On a fast PR run they
+(failed, cancelled and unexpectedly skipped all fail; on a run that uses the
+capacity repository, below, its run is one of those jobs). On a fast PR run they
 mean the fast tier passed; in the queue, the full tier. Artifact names and
 contents stay unchanged. Hosts and Action check are not required by the main
 ruleset and keep their existing triggers.
@@ -284,6 +257,106 @@ documentation offers merge queues only in organization-owned repositories,
 and this one belongs to a user account: until the owner decides otherwise,
 PRs keep the full tier. Settings and evidence:
 [`docs/certification/ciflow.md`](docs/certification/ciflow.md).
+
+### The capacity repository (D122)
+
+GitHub runs at most five macOS jobs at a time per account, and a full run
+has twelve. The organization `scnetsolutions` lends its own five: while the
+repository variable `ORG_CI` is `on` and the capacity app's key reaches the
+run, a pull request from a branch of this repository runs part `home`.
+Every job runs here except the Windows and macOS unit shards; in their place
+the `org` job pushes the pull request's merge commit to
+[`scnetsolutions/muse-spark-code-ci`](https://github.com/scnetsolutions/muse-spark-code-ci)
+as `ci/pr-<number>`, where the same `ci.yml` runs those sixteen shards on
+the organization's runners (part `org`), and waits for that run. Its
+result feeds every required name, so a pull request merges only when those
+shards passed there; its summary lists each shard with a link. Both
+accounts' runners work on one pull request at once. A newer push replaces the
+branch, and the capacity repository cancels the older run. Forks, Dependabot,
+merge groups, manual runs and every pull request while `ORG_CI` is not `on`
+keep every job here (part `all`): GitHub passes them no key. Nothing waits
+on anyone's computer: `gh variable delete ORG_CI` sends the next run back to
+part `all`. The project, its pull requests, releases and `main` stay here;
+the capacity repository's `main` holds only a README, and it holds no secret.
+
+The owner's one-time setup (no step pushes code or changes this repository's
+ruleset):
+
+1. Create a GitHub App owned by the organization
+   (`https://github.com/organizations/scnetsolutions/settings/apps/new`):
+   any name, this repository as its homepage, the webhook's **Active** box
+   cleared, repository permissions **Contents: Read and write** and
+   **Workflows: Read and write** (Metadata read-only comes with them),
+   nothing else, installable **Only on this account**. Contents lets the job
+   push a branch; Workflows lets that push carry `.github/workflows` files,
+   which GitHub refuses otherwise.
+   Done 2026-10-17: the app is `msc-ci-capacity` (App ID 5362310, owned by
+   `scnetsolutions`).
+2. On the app's page, copy its **Client ID** and **Generate a private key**
+   (a `.pem` file downloads). Done 2026-10-17.
+3. **Install App** on `scnetsolutions`, **Only select repositories**:
+   `muse-spark-code-ci`. The key then reaches nothing else.
+   Done 2026-10-17: installed on that repository only.
+4. Here, as Actions settings (not Dependabot's):
+   `gh variable set ORG_CI_APP_CLIENT_ID --body <client id>`,
+   `gh secret set ORG_CI_APP_PRIVATE_KEY < <file>.pem` (then delete the
+   file), and last `gh variable set ORG_CI --body on`.
+   Done 2026-10-17: the client-ID variable and the private-key secret are
+   set, and `ORG_CI` is `on`.
+5. Keep `scnetsolutions/muse-spark-code-ci` public with Actions on: public
+   repositories use standard runners free (a private one would draw on the
+   free organization's 2,000 included minutes a month, and one of its runs
+   is sixteen shard jobs of up to 25 minutes), and the `org` job reads the
+   run there with its own read-only token. The first hosted split run is the
+   proof that read works with the job's token
+   (`docs/certification/ciflow.md`, D122).
+6. Warm the capacity repository's npm cache. A cache restores only from the
+   current or the default branch (the dependency-caching reference), and a
+   `ci/pr-<number>` branch is neither, so every new pull request's shards
+   would otherwise start cold; a cold `npm ci` is about a minute on top of
+   shards that measured up to 19 warm minutes under their 25-minute `org`
+   bound. Add this file once as `.github/workflows/seed-cache.yml` on the
+   capacity repository's `main` branch (nothing else ever lives there) and
+   run it once by hand (Actions, "seed npm cache", Run workflow); the weekly
+   schedule keeps it fresh. It checks out only this repository's
+   `package.json` and `package-lock.json`, warms one npm cache per
+   capacity OS, and holds no secret:
+
+   ```yaml
+   # One npm cache per capacity OS, saved on the default branch so the
+   # ci/pr-<number> runs restore it. Uses this repository's own lockfile,
+   # read-only; holds no secret.
+   name: seed npm cache
+   on:
+     schedule:
+       - cron: '23 4 * * 0'
+     workflow_dispatch:
+   permissions:
+     contents: read
+   jobs:
+     seed:
+       strategy:
+         fail-fast: false
+         matrix:
+           os: [windows-latest, macos-latest]
+       runs-on: ${{ matrix.os }}
+       timeout-minutes: 15
+       steps:
+         - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+           with:
+             repository: RandyNorthrup/muse-spark-code
+             ref: main
+             sparse-checkout: |
+               package.json
+               package-lock.json
+             sparse-checkout-cone-mode: false
+             persist-credentials: false
+         - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+           with:
+             node-version: 22
+             cache: npm
+         - run: npm ci --ignore-scripts --no-audit --no-fund
+   ```
 
 ## The public roadmap (M122)
 
@@ -370,8 +443,7 @@ To archive:
    `<!-- plan-archive:begin id="…" lines="…" at="…" bytes="…" sha256="…" -->`
    and `<!-- plan-archive:end id="…" -->`, with one blank line inside each
    marker (`at` is the commit the line numbers refer to; the first move's
-   blocks carry none). `test/unit/planArchive.test.ts` hashes every block;
-   never edit inside one.
+   blocks carry none). Never edit inside one.
 4. Write each decision's summary from the decision itself, amendments
    included, and nothing beyond it. Lanes read it first and act on it.
 5. Prove nothing was lost and nothing got harder: rebuild the old `PLAN.md`
@@ -381,8 +453,7 @@ To archive:
 6. Run `npm run check:plan`, `npm run roadmap:generate` (`ROADMAP.md` must not
    change), `npm run check:reference`, `prettier --check` on `PLAN.md` and
    the archive files, and the suites that read the plan (`planReader`,
-   `checkPlan`, `planArchive`, `planCitation`, `autoCompact`, `geminiCodec`,
-   `m113cLaneClosure`, `teamPlanRecord`, `paidMoneyStructure`).
+   `planCitation`, `autoCompact`, `paidMoneyStructure`).
 7. Record the bytes before and after, the bytes moved per section and the
    proofs in [`docs/certification/plan-archive.md`](docs/certification/plan-archive.md).
 
@@ -541,7 +612,7 @@ never a literal in the code:
 
 `npm run check:l10n` checks all of this. It fails a key missing from a
 translation, a changed `{slot}`, a wrong set of plural forms, and a
-`UI_TEXT` read at module load. `npm run harness:shots -- --lang=pseudo`
+`UI_TEXT` read at module load. `npm run ui:look -- --lang=pseudo`
 renders the panel in a pseudo-locale where any English left outside the
 table stands out.
 
@@ -557,7 +628,7 @@ there, and the gate compares each form's slots with the English.
 **Correcting a translation.** The translations are machine-made. Edit the
 line in `l10n/ui.<language>.json` or `package.nls.<language>.json`, keeping
 its `{slots}` and code spans. Run `npm run check:l10n` and
-`npm run harness:shots -- --lang=<language>` to see the result.
+`npm run ui:look -- --lang=<language>` to see the result.
 
 - **A value that reads the same as English** (a name, or a word the language
   borrows) goes in `l10n/untranslated.json` under that language.
@@ -662,34 +733,22 @@ as [docs/contributor-vetting.md](docs/contributor-vetting.md) sets out:
 By contributing you agree that your contribution is licensed under the MIT
 licence of this repository.
 
-## M80 implementation lanes and fake-only verification
+## M80 implementation lanes
 
 M80 v4 plus F1/F2 rulings assigns A contracts, B engine, C Action and D packaging/
 docs/process/hosts. Implementing lanes run owned focused files serially on rigs;
-hosted CI gates the exact integrated tree: the build.yml, hosts.yml and
-action-check.yml OS matrices.
+hosted CI gates the exact integrated tree: the build.yml and hosts.yml OS
+matrices.
 No lane's focused pass certifies integrated behavior or the release.
 
-Focused D command: `npx vitest run test/e2e/execStdio.e2e.test.ts` (on a rig).
-Its package guards and the built-process rows E1–E7 always run. With an
-installed package, set `MUSE_ACP_PACKAGE_DIR` to its absolute root. Host checks:
-`sh test/hosts/exec.sh <installed-package-root>`; add `--store` only in isolated,
-unlocked OS store. Host refuses existing credential and unavailable store before
-fake auth mutation, and traps cleanup. Windows standalone POSIX signals remain
-explicit skips, not green acceptance.
-
-After production package, `node scripts/package-acp-test.mjs` builds C's
-`test/action/exec-test-launcher.ts` into private fake-only variant. It preserves
-production stage/tarball bytes and emits `dist/muse-spark-code-acp-test-<version>.tgz`.
-Installed identity stays muse-spark-code-acp for the ordinary candidate path;
-manifest bin points to test launcher and private=true prevents npm publication.
-Separate name/digest; never release it. Test fetch/keyring loaders live only in
-test code, never production flags. C's focused action tests and action-check.yml
-exercise W-review/text/image, low-budget, trusted gate and exact bare-repo apply.
-Locally, `npx vitest run test/e2e/execTestLauncher.e2e.test.ts` (on a rig) packs
-the real launcher in its own tree and rehearses all four W scenarios through
-the real run-exec entry, judged by `test/action/w-check.mjs` as the workflow
-does.
+Host checks on an installed package: `sh test/hosts/exec.sh <installed-package-root>`
+(the agent's headless help and its trust-flag refusal) and
+`sh test/hosts/keystore.sh <agent>` (the key's round trip, only in an isolated,
+unlocked OS store). The fake-only suites (the stdio suites over the fake Muse
+Code CLI, the fake-only Action test package with its packer and the Action check
+that ran it) were deleted on 2026-10-17 (owner: no fakes); what they covered is
+listed in [`docs/real-life/unproven.md`](docs/real-life/unproven.md). The Action
+itself is proven by its live receipt (`action-live.yml`).
 
 Every new guard needs green → deliberate wrong behavior → intended failure →
 byte-exact SHA-256 restoration → restored green. Record mutated/restored hashes,

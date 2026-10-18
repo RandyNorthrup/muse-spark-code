@@ -673,6 +673,24 @@ export const ON_FIRST_USE = [
       'src/core/backends/modelapi/autoReviewer.ts',
     ],
   },
+  // PANELBUDGET: the subscriptions half of the Models & Agents panel's host
+  // side (the sign-in flows), split out of dist/modelsPanel.js; activation
+  // requires it on the first subscription action, the panel never does.
+  {
+    output: 'dist/modelsSubscriptions.js',
+    metafile: 'dist/meta/modelsSubscriptions.json',
+    use: 'the first subscription action',
+    parents: [
+      BUNDLES.activation,
+      { output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' },
+    ],
+    files: [
+      'src/host/models/modelsSubscriptionsEntry.ts',
+      'src/host/providers/subscriptionFeatures.ts',
+      'src/host/providers/chatgptSignIn.ts',
+      'src/host/providers/copilotClient.ts',
+    ],
+  },
   // The report dialog (M93, PLAN.md D72), split out from the start.
   {
     output: 'dist/report.js',
@@ -1037,19 +1055,24 @@ export const deferredCohort = {
   setup(build) {
     // The shared request/framing implementations stay in the existing backend
     // bundle; providers and ACP require its exported API only when used.
-    build.onResolve({ filter: /\/(?:transport|sse|ndjson|modelApiEntry)(?:\.ts)?$/ }, (args) => {
-      if (args.kind === 'entry-point') return
-      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
-      if (
-        (['transport.ts', 'sse.ts', 'ndjson.ts'].every(
-          (name) => source !== path.resolve(`src/core/backends/modelapi/${name}`),
-        ) &&
-          source !== path.resolve('src/host/backend/modelApiEntry.ts')) ||
-        path.resolve(build.initialOptions.outfile ?? '') === path.resolve('dist/modelApi.js')
-      )
-        return
-      return { path: './modelApi.js', external: true }
-    })
+    // Lane PROVERR's typed refusal rides the same way: one copy in the
+    // backend bundle, required from it by providers, configured and report.
+    build.onResolve(
+      { filter: /\/(?:transport|sse|ndjson|modelApiEntry|providerRefusal)(?:\.ts)?$/ },
+      (args) => {
+        if (args.kind === 'entry-point') return
+        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+        if (
+          (['transport.ts', 'sse.ts', 'ndjson.ts', 'providerRefusal.ts'].every(
+            (name) => source !== path.resolve(`src/core/backends/modelapi/${name}`),
+          ) &&
+            source !== path.resolve('src/host/backend/modelApiEntry.ts')) ||
+          path.resolve(build.initialOptions.outfile ?? '') === path.resolve('dist/modelApi.js')
+        )
+          return
+        return { path: './modelApi.js', external: true }
+      },
+    )
     build.onResolve(
       {
         filter:
