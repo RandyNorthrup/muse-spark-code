@@ -256,3 +256,71 @@ tests are never repaired by a lane):
   `$TMPDIR/provkeys-main`): identical — same 60 s hook timeout, same
   14 passed / 32 skipped. Fails on base too; pre-existing and
   unrelated (this lane adds no packaged file or bundle entry).
+
+### RVPR159RED review: merged with main, red checks fixed at their causes (2026-10-17, macmini rig)
+
+PR #159 stood red: the build on all three systems and the checks behind
+it. Merged main `81dacaf5a` first (`f8b4c8856`), keeping both sides:
+main's test-overhaul deletions stand (this lane's edits to
+`execProvider`, `providerKeyPrompt`, `modelsQuickPick`, `providersX`
+and `helpers/m95kFixtures` were edits to stand-in suites main deleted;
+the disclosure at "Left for the lead" above is superseded — those files
+are gone, not kept), the shape-free keys stand, and this lane's
+decision is renumbered **D123** (main's D108 is the test overhaul; the
+hashed archive body is unchanged, `plan:archive status`: 54 blocks, all
+intact).
+
+Measured red causes on the merged tree, each fixed and committed
+separately:
+
+1. `npm run build` failed at `check-bundle-split` (4 problems):
+   `providersHost` imported `inspectProviderKey` through `presets`,
+   dragging the whole presets module into `dist/modelsPanel.js`. The
+   same import and the same split rule exist at the branch's base, so
+   the unqualified "`npm run build` green" claims above could not have
+   held for the full build; only the bundle-size step they name was
+   green. Fixed in `c50b2061d`: the panel reads the small
+   `keyInspection` module directly (the split this lane made for
+   exactly that reader), declared for `dist/modelsPanel.js` in both
+   split checks beside the existing narrow declarations. Gate-fire
+   evidence: the same check reported the 4 problems before the fix and
+   0 after; the modelsPanel metafile no longer lists `presets.ts`.
+2. Behind it, the build failed at the lazy registry:
+   `readProviderKeyLine` no longer loads `providersEntry` (it needed
+   it only for the removed shape check), so the generated registry was
+   stale by that one importer row. Regenerated in `efe078de7`;
+   `npm run build` is then green end to end.
+3. `check:host-api` failed: `keyPrompt.ts` no longer reads
+   `InputBoxOptions.validateInput`. Regenerated and reviewed in
+   `f3e8d9d7a` (only that row and the file's count, 6 to 5).
+
+Re-run on the merged tree, repo default timeouts: typecheck (all five
+projects), lint, format, `check:l10n`, `check:reference`,
+`check:host-api`, `check:plan`, `check:roadmap`, `check:badges`,
+`check:tokens`, deadcode, cycles, duplication and `security:audit`
+green; unit suites covering the changed modules green
+(`providerKeyInspect`, `execProviderNotice`, `execKeyInput`,
+`providersPresets`, `providersFlow`, `providersL10n`, `m95Strings`,
+`accountsCommand`, `planKeyPresets`, `cx1r4Truth`, `planCitation`,
+`planReader`, the two codec suites: 316 tests). Packed-product drills
+re-run against the merged `dist/acp.js` under a fresh `HOME`: the
+no-prefix key reaches the key test ("Test failed: The provider could
+not be reached.", closed port), the URL value asks its question first,
+and non-UTF-8 bytes get the not-text sentence — the green wording
+above, byte for byte.
+
+Not run here, with the measured reason (no workaround attempted):
+`npm run package` and `package:acp` stop on the CI-built native
+helpers (`native/darwin/muse-dictate`, the Linux created-path helper),
+which are ignored build artifacts absent from this checkout — this
+lane touches no native code. `security:sast` dies in semgrep before
+scanning ("ca-certs: empty trust anchors" in this sandbox).
+`security:secrets` over this shared clone's every ref reports two
+findings in an unrelated lane's commit (`3e8ea2c25`, branch
+`rv/cm1134i`); over this branch's own history (`--log-opts=HEAD`,
+3,204 commits) it is clean. The panel look above stays pending for
+the lead (native dialogs; no Chrome on this rig). `test:a11y`
+measured 0 rules violated, but 108 of 1,072 pages never became ready
+within 10 s (spread over all four themes and unrelated scenarios on
+this loaded rig; this branch changes no webview or harness file, and
+the gate does not run on pull requests).
