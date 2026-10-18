@@ -36,6 +36,7 @@ import {
   LINUX_HELPERS,
   RUNNER_HELPERS,
 } from './lib/acpNativeSources.mjs'
+import { stageCiLauncher } from './lib/ciStageLayout.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
 import { ACP_BUNDLES as BUNDLES, acpUsageAssets } from './lib/acpBundles.mjs'
 
@@ -115,9 +116,7 @@ for (const bundle of BUNDLES) {
   copyFileSync(path.join('dist', bundle), path.join(STAGE, 'dist', bundle))
 }
 cpSync('dist/legal-data', path.join(STAGE, 'dist', 'legal-data'), { recursive: true })
-for (const source of CI_LAUNCHER_SOURCES) {
-  cpSync(source, path.join(STAGE, 'ci', path.basename(source)), { recursive: true })
-}
+stageCiLauncher(process.cwd(), STAGE, CI_LAUNCHER_SOURCES)
 for (const source of pageAssets) {
   const target = path.join(STAGE, source)
   mkdirSync(path.dirname(target), { recursive: true })
