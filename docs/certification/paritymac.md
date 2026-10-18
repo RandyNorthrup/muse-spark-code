@@ -260,6 +260,70 @@ Seatbelt step itself still needs the lead's unsandboxed Mac, as before):
   `test/unit/inspectNative.test.ts` 10 skipped / 0 failed here (the repo
   build path cannot produce the binary inside this sandbox).
 
+## Item 1c — PARITYMAC3: the confined program starts (rules to add)
+
+Cause (lead's macmini rerun, 6 passed / 4 failed): every live drill fails
+because the exec'd program never reaches `main` — macOS's own crash reports
+(`muse-confine-*.ips`) show the child dying in dyld, EXC_CRASH / SIGABRT,
+all crashing frames inside dyld. The PARITYMAC2 profile is `(deny default)`
+plus `file-read*` literals/subpaths and one `process-exec` literal: it
+denies exactly what the loader needs to start any program. Verified on this
+Mac (15.7.9): `/bin/cat` links `/usr/lib/libSystem.B.dylib`, dyld lives at
+`/usr/lib/dyld`, `/private/var/db/dyld` does not exist (the shared cache
+ships in the cryptexes), `/System/Cryptexes/{App,OS}` exist.
+
+Rules to add (all read/map/metadata-only — no `file-write*`, no `network*`,
+no `process-fork`, no new `process-exec`, workspace stays literal-only, the
+walk's protected-path exclusions unchanged), each cited to Apple's own
+`/System/Library/Sandbox/Profiles`:
+
+- `file-map-executable` on `(subpath "/System/Library/Frameworks")`,
+  `(subpath "/System/Library/PrivateFrameworks")`, `(subpath "/usr/lib")`:
+  dyld maps libSystem and the frameworks with MAP_EXEC; `file-read*` alone
+  does not grant it. Citation: `system.sb:43-52` (map system frameworks +
+  dylibs, a subset of the read paths).
+- `file-read* file-test-existence file-map-executable` on the five cryptex
+  graft-point subpaths (`/System/Cryptexes/App`, `/System/Cryptexes/OS`,
+  `/System/Volumes/Preboot/Cryptexes/App/System`,
+  `/System/Volumes/Preboot/Cryptexes/Incoming/OS`,
+  `/System/Volumes/Preboot/Cryptexes/OS`): the dyld shared cache lives
+  there on macOS 13+. Written with plain `subpath` lines (no `let`/`apply`:
+  the generated profile stays `(version 1)`); the graft points' ancestors
+  are already covered by the `/` literal and the `/System` read subpath.
+  Citation: `dyld-support.sb` cryptex block.
+- The `dyld-support.sb` bootstrap syscalls verbatim: `syscall-unix`
+  `SYS___mac_syscall`, `SYS_getfsstat`, `SYS_getfsstat64`,
+  `SYS_map_with_linking_np`, `SYS_open`, `SYS_openat`, `SYS_fstatat`,
+  `SYS_fstatat64`, `SYS_dup`; `system-fcntl` `F_ADDFILESIGS_RETURN`,
+  `F_CHECK_LV`, `F_GETPATH`; `system-mac-syscall` 2 under the Sandbox
+  filter. `deny default` denies these; every Apple profile gets them via
+  `system.sb:12`'s `(import "dyld-support.sb")`. Inlined because the
+  generated profile cannot import.
+- `file-read* file-test-existence` on `(literal "/")`: libignition opens
+  `/` as its `openat` root. Citation: `dyld-support.sb`.
+- `file-read* file-test-existence` on `(literal "/dev/null")`,
+  `(literal "/dev/zero")`, `(literal "/dev/random")`,
+  `(literal "/dev/urandom")`, and `file-read-metadata file-test-existence`
+  on `(literal "/etc")`, `(literal "/tmp")`, `(literal "/var")`,
+  `(literal "/private/etc/localtime")`: the standard special files and
+  symlink-resolution stat rules every Apple process gets. Citation:
+  `system.sb:78-104`.
+- `file-map-executable` on the verified target literal (and on the probe's
+  self literal, same line as its existing `process-exec` + `file-read*`):
+  dyld maps the main executable image itself, not just its dylibs —
+  same read+map pairing as `system.sb`'s `oopjit-runner`.
+
+What the lead's unsandboxed rerun must show (`npm ci --ignore-scripts`,
+`npm run build:confine`, `npx vitest run
+test/unit/inspectNative.test.ts`): 10/10 green — probe exits 0 with exactly
+`{"abi":1,"confined":true}`; cat/ls/grep/find each exit 0 with stderr
+starting `{"confined":true,` and `cat` printing `ALLOWED_CANARY`; find
+lists `.git/config` without its contents and grep reports `excluded > 0`;
+the swapped leaf still fails nonzero with empty stdout; the first session
+run outputs and the rewritten secret run refuses with `secret`. Nothing
+that must stay refused widens: writes, network, fork and the protected
+paths are still denied by `deny default` plus the unchanged walk.
+
 ## Drills
 
 - Item 3 and item 2 drills ran live on this Mac (above).
