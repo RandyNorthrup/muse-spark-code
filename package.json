@@ -1601,7 +1601,6 @@
           "type": "integer",
           "default": 200,
           "minimum": 1,
-          "maximum": 1024,
           "description": "%config.mediaMaxUploadMiB.description%",
           "scope": "machine"
         },
@@ -1651,6 +1650,12 @@
           "description": "%config.accounts.severalOnThisDevice.description%",
           "scope": "machine",
           "deprecationMessage": "%config.accounts.severalOnThisDevice.description%"
+        },
+        "museSpark.github.useGhLogin": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.github.useGhLogin.description%",
+          "scope": "machine"
         },
         "museSpark.vault.enabled": {
           "type": "boolean",
@@ -1789,7 +1794,7 @@
   },
   "scripts": {
     "clean": "rimraf dist coverage",
-    "build": "node scripts/check-tokens.mjs && node scripts/build.mjs --production && node scripts/check-bundle-size.mjs && node scripts/check-bundle-split.mjs && node scripts/gen-lazy-registry.mjs --check && node scripts/check-host-globals.mjs && node scripts/third-party-notices.mjs",
+    "build": "node scripts/check-tokens.mjs && node scripts/build.mjs --production && node scripts/check-bundle-size.mjs && node scripts/check-bundle-split.mjs && node scripts/gen-lazy-registry.mjs --check && node scripts/check-host-globals.mjs && node scripts/third-party-notices.mjs && node scripts/check-legal-build-records.mjs",
     "notices": "node scripts/build.mjs --production && node scripts/third-party-notices.mjs --write",
     "build:dev": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",
@@ -1870,6 +1875,7 @@
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
+    "@types/jsdom": "30.0.0",
     "@types/mocha": "10.0.10",
     "@types/node": "22.20.4",
     "@types/pngjs": "6.0.5",

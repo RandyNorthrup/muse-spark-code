@@ -81,6 +81,7 @@ import {
   MUSE_INIT_TIMEOUT_MS,
   MUSE_INSTALL_COMMANDS,
   RULES_FILE_BUNDLE_FILE,
+  NATIVE_GIT_BUNDLE_FILE,
   OUTPUT_DOCUMENT_SCHEME,
   PRODUCT_NAME,
   PROMPT_BUNDLE_FILE,
@@ -1653,7 +1654,7 @@ async function activateWindow(
   }
   // Tool outputs open as read-only documents (M15), the tab named through the
   // URI path as Claude Code names its own ("PowerShell tool output (a1b2c3)");
-  // the last OUTPUT_DOCUMENTS_KEPT stay readable after their tab is reopened.
+  // every one stays readable after its tab is reopened.
   // An export's preview (M84) and the import preview (M83) open the same way:
   // read-only, never on disk.
   const outputDocuments = new OutputDocumentStore()
@@ -1844,6 +1845,10 @@ async function activateWindow(
             }
       },
       cliSignIn: (isUserAction) => cliAccount.signIn(isUserAction),
+      // First start shows a signed-in file's answer before the refresh's
+      // remaining reads answer (F60); anything the file cannot settle waits
+      // for the probe.
+      peekCliSignIn: () => cliAccount.peekFile(),
       abandonCliProbe: () => {
         cliAccount.abandonProbe()
       },
@@ -2873,6 +2878,8 @@ async function activateWindow(
     hold: windowHold,
     registry: worktreeRegistry,
     workspaceState: context.workspaceState,
+    // Muse Spark's own GitHub sign-in keeps its token here (M123, D104 §2b).
+    secrets: context.secrets,
     fetch: liveFetch,
     userAgent: `${EXTENSION_NAME}/${version}`,
     runGit,
@@ -2880,8 +2887,11 @@ async function activateWindow(
     gitProcess: processGitProcess(),
     env: process.env,
     isCurrent: () => !nativeStarts.signal.aborted,
-    // M123's native route (a host without `vscode.git`) stops its git with the window.
+    // M123's native route (a host without `vscode.git`) stops its git with the window,
+    // and ships in its own bundle (PLAN.md D6).
     signal: nativeStarts.signal,
+    nativeGitBundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', NATIVE_GIT_BUNDLE_FILE)
+      .fsPath,
     // Commit and push run hooks, which can write the workspace: admitted as any such command is (M72).
     admit: (start) => backend.startWorkspaceCommand(start, nativeStarts.signal),
     restartBackends: (reason) => restartBackend(reason),

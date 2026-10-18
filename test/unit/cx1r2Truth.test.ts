@@ -19,6 +19,7 @@ function repoFile(name: string): string {
 }
 
 const readme = repoFile('README.md')
+const roadmap = repoFile('ROADMAP.md')
 const help = referenceModel()
 const releases = parseChangelog(
   repoFile('CHANGELOG.md'),
@@ -72,14 +73,148 @@ describe('RVCX1B F2: playbook panel claims are removed', () => {
 })
 
 describe('RVCX1B F3: v2 schedule delivery claims are removed on every surface', () => {
-  it('compact CLI help omits v2 delivery and inactive compaction instructions', () => {
-    expect(formatAcpUsage(EN, 'muse-spark-code-acp')).not.toMatch(
-      /schedule add --draft|--scheduled-prompts|--no-auto-compaction/,
+  it('README retains manual /loop and drops v2 paid-fire instructions', () => {
+    expect(readme).toContain('Run now')
+    expect(readme).toContain('`/loop 10m Review the build`')
+    expect(readme).not.toMatch(
+      /schedule add --draft|--scheduled-prompts|Unattended runs are opt-in|fires running in live VS Code/,
     )
+  })
+
+  it('Help omits v2 command, settings and CLI routes after complete inventory validation', () => {
+    expect(help.commands.map((command) => command.id)).not.toContain('museSpark.schedulePrompt')
+    // CX1R6 keeps the switch in Help: it still controls the legacy /loop
+    // shortcut, and its description says scheduled execution is unavailable.
+    // The agent-creation setting has no effect yet and stays out of Help.
+    const schedulesSwitch = help.settings.find((setting) => setting.id === 'museSpark.schedules')
+    expect(schedulesSwitch?.description).toBe(
+      'Controls the legacy /loop shortcut in Muse Code chat. Schedule management and scheduled prompt execution are unavailable.',
+    )
+    expect(help.settings.map((setting) => setting.id)).not.toContain(
+      'museSpark.scheduleAgentCreation',
+    )
+    expect(help.cli.map((command) => command.route)).not.toContain('schedule')
+    expect(help.cli.some((command) => command.name.includes('--scheduled-prompts'))).toBe(false)
+  })
+
+  it('compact CLI help omits v2 delivery instructions', () => {
+    expect(formatAcpUsage(EN, 'muse-spark-code-acp')).not.toMatch(
+      /schedule add --draft|--scheduled-prompts/,
+    )
+    expect(formatAcpUsage(EN, 'muse-spark-code-acp')).toMatch(/--no-auto-compaction/)
   })
 })
 
 describe('CX1R3 sibling sweep: dormant features have no published usage', () => {
+  // Accounts left both lists with CM108ACC (cx1r4Truth pins what is published);
+  // argument previews left them with C-M106-2 (the F1 block above pins theirs).
+  it.each(['team-workers', 'vault', 'estimator'])(
+    'omits %s from Help and clears its capability inventory',
+    (id) => {
+      expect(help.features.some((feature) => feature.id === id)).toBe(false)
+      expect(featureCatalog().find((feature) => feature.id === id)?.surfaces).toEqual([])
+    },
+  )
+
+  it('publishes evaluated automatic compaction in Help with its Model API surfaces', () => {
+    expect(help.features.some((feature) => feature.id === 'auto-compaction')).toBe(true)
+    expect(featureCatalog().find((feature) => feature.id === 'auto-compaction')?.surfaces).toEqual([
+      'vscode:modelApi',
+      'acp:modelApi',
+    ])
+  })
+
+  it('retains only neutral progress text in the dormant source inventory', () => {
+    for (const id of ['team-workers', 'vault', 'estimator']) {
+      const feature = featureCatalog().find((entry) => entry.id === id)
+      expect(feature?.summary).toEqual({ ui: 'referenceInProgress' })
+      expect(feature?.description).toEqual({ ui: 'referenceInProgress' })
+      expect(feature?.details).toEqual([])
+    }
+  })
+
+  it('removes dormant commands, options and paid availability facts', () => {
+    expect(help.commands.map((command) => command.id)).not.toContain('museSpark.estimate')
+    expect(
+      help.cli.some((command) => ['vault', 'vaultHelp', 'estimate'].includes(command.route)),
+    ).toBe(false)
+    expect(help.cli.some((command) => /--vault|--no-auto-compaction/.test(command.name))).toBe(
+      false,
+    )
+    expect(readme).not.toMatch(
+      /teams of workers|Team workers default on|When a team is active|unreleased scheduler and runner adapters ship|Schedule budgets, consent and rental|P50\/P90 dates|One encrypted vault per user/,
+    )
+  })
+
+  it('keeps only five working report kind instructions', () => {
+    for (const kind of [
+      'usage',
+      'session',
+      'playbook',
+      'issues',
+      'estimate',
+      'fleet',
+      'security',
+      'accounts',
+      'schedules',
+      'keybindings',
+    ]) {
+      expect(readme).not.toContain(`/report ${kind}`)
+    }
+    expect(readme).toContain('/report project')
+  })
+
+  it('roadmap places dormant work in progress with no shipped note or capability claims', () => {
+    const progress = roadmap.slice(roadmap.indexOf('## In progress'), roadmap.indexOf('## Planned'))
+    for (const id of [
+      'M96',
+      'M96b',
+      'M96c',
+      'M96d',
+      'M101',
+      'M106',
+      'M108',
+      'M109',
+      'M113',
+      'M115',
+      'M116',
+      'M117',
+    ]) {
+      const row = progress.split('\n').find((line) => line.includes(`<sub>${id}</sub>`))
+      expect(row).toBeDefined()
+      expect(row).toMatch(/(?:is|are) in progress\./)
+    }
+    for (const id of ['M96', 'M96b', 'M96c', 'M96d', 'M108', 'M109', 'M115', 'M117']) {
+      const row = progress.split('\n').find((line) => line.includes(`<sub>${id}</sub>`))
+      expect(row).toBeDefined()
+      expect(row).not.toMatch(/shipped|release|Schedule prompts|Configure|commands refuse/)
+    }
+    // CX1R4 F4: mixed milestones retain their working released portions and
+    // release associations; only the dormant portions are in progress.
+    const mixed: Readonly<Record<string, readonly RegExp[]>> = {
+      M101: [
+        /cache-stable/,
+        /First parts shipped in 0\.15\.0/,
+        /automatic compaction evaluated and on/,
+      ],
+      // C-M106-2: previews are bound; the native readers are what remains.
+      M106: [
+        /strict tool contracts/,
+        /First parts shipped in 0\.16\.0/,
+        /live tool-argument previews wherever the selected model supports them/,
+        /native effort and feedback readers are in progress/,
+      ],
+      M113: [/\/report for project/, /First parts shipped in 0\.17\.0/, /additional report kinds/],
+      M116: [/\/playbook shows status/, /First parts shipped in 0\.17\.0/, /panel integration/],
+    }
+    for (const [id, patterns] of Object.entries(mixed)) {
+      const row = progress.split('\n').find((line) => line.includes(`<sub>${id}</sub>`))
+      expect(row).toBeDefined()
+      for (const pattern of patterns) expect(row).toMatch(pattern)
+    }
+    expect(roadmap).not.toMatch(/not available yet|while arguments arrive/i)
+  })
+
   it('released history has dated corrections and no dormant feature highlight or Try it', () => {
     for (const version of ['0.15.0', '0.16.0', '0.17.0']) {
       expect(highlights(version)).not.toMatch(

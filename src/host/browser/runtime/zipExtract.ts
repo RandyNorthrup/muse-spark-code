@@ -437,7 +437,12 @@ export async function extractZipEntries(
     signal.throwIfAborted()
     const target = path.resolve(root, ...entry.name.split('/'))
     const relative = path.relative(root, target)
-    if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) {
+    if (
+      relative === '' ||
+      relative === '..' ||
+      relative.startsWith(`..${path.sep}`) ||
+      path.isAbsolute(relative)
+    ) {
       throw new ZipRefused('outside the destination')
     }
     await privateFolder(path.dirname(target))

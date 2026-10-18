@@ -37,6 +37,17 @@ function isMissing(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ENOENT'
 }
 
+/**
+ * The library moved under a writer that named its expected generation: the
+ * write did not land, and the writer is stale (Codex on PR #227).
+ */
+export class PromptLibraryStaleError extends Error {
+  public constructor() {
+    super('prompt library changed under the writer')
+    this.name = 'PromptLibraryStaleError'
+  }
+}
+
 /** Portable disk store shared by VS Code, ACP and native hosts; no VS Code state. */
 export class PromptStore implements PromptStoragePort {
   public constructor(
@@ -137,10 +148,30 @@ export class PromptStore implements PromptStoragePort {
     }
   }
 
-  public async write(input: SavedPrompt, shouldKeepNewer = false): Promise<void> {
+  /**
+   * Writes the prompt, holding the scope's write lock. With
+   * `expectedLibraryGeneration` the library's generation (newest revision,
+   * 0 when empty) is recomputed under that same lock first, and a mismatch
+   * throws `PromptLibraryStaleError` instead of landing a save approved
+   * from a stale view (Codex on PR #227).
+   */
+  public async write(
+    input: SavedPrompt,
+    shouldKeepNewer = false,
+    expectedLibraryGeneration?: number,
+  ): Promise<void> {
     const prompt = validatePrompt(input)
     await this.mutate(prompt.scope, async (directory) => {
       const rows = await this.scan(prompt.scope)
+      if (expectedLibraryGeneration !== undefined) {
+        // The same generation the connector's `libraryGeneration` reads
+        // (the newest revision, 0 when empty): recomputed under this lock,
+        // so a save approved from a stale view cannot land after a newer
+        // one changed the library.
+        let newest = 0
+        for (const row of rows) newest = Math.max(newest, Date.parse(row.prompt.updatedAt))
+        if (newest !== expectedLibraryGeneration) throw new PromptLibraryStaleError()
+      }
       const existing = rows.find((row) => row.prompt.id === prompt.id)
       if (existing === undefined && rows.length >= PROMPT_LIMITS.perScope)
         throw new Error(UI_TEXT.promptLimits)

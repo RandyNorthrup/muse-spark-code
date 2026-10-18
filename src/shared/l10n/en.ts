@@ -183,6 +183,7 @@ export const EN = {
   promptUntrusted:
     'Imported prompt: untrusted text. Review the text and variables before inserting.',
   promptInsert: 'Insert Into Chat',
+  promptPrintConfirm: 'Print prepared text',
   promptFileInvalid: 'The prompt file is invalid or unsupported.',
   shareChat: 'Share Chat…',
   sharePrompt: 'Share Prompt…',
@@ -193,6 +194,9 @@ export const EN = {
   shareDiffs: 'Include Diffs',
   sharePreview: 'Preview',
   shareConfirm: 'Confirm Sharing',
+  // The Share Chat dialog's destination group (F71): what the choice picks,
+  // not the button's own words.
+  shareDestination: 'Share as',
   shareCopy: 'Copy',
   shareFile: 'Save File…',
   shareBrowser: 'Open in Browser',
@@ -331,6 +335,9 @@ export const EN = {
     'Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget requires an owned parent budget scope shared by candidates. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.',
   referenceWindowsSessions:
     'Muse Code cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#30, #31).',
+  referenceWindowsPaths: 'Safer Windows paths',
+  referenceWindowsPathsDetail:
+    'On Windows, ambiguous spellings — device paths and namespaces, alternate streams, drive-relative paths, trailing dots or spaces, and reserved names — are refused at admission, or need a one-time manual answer for flagged writes. Ordinary workspaces on any drive keep working; schedules, helpers, and vault paths verify against the folder their caller owns.',
   referencePaletteKeys:
     'Navigate items, choose or complete a selection, or close the list. Choose how much effort Muse puts into each reply.',
   referenceServe:
@@ -399,6 +406,11 @@ export const EN = {
     record: 'Refused for headless runs: nobody is there to preview a recording.',
     'permission-mode': 'Choose how Muse asks before it acts.',
     model: 'Choose the model for this run.',
+    add: '--add <model>: Offer this model on the entry; repeat the option for more models.',
+    remove:
+      '--remove <model>: Stop offering this model on the entry; repeat the option for more models.',
+    force:
+      '--force <reason>: Add a model the provider does not list; the reason is stored on the entry.',
     provider:
       '--provider <id>                   The provider the account belongs to (auth set/status/clear).',
     account: '--account <id>                    The account to use (auth set, exec).',
@@ -420,7 +432,7 @@ export const EN = {
     'no-facts': '--no-facts           Leave the support facts out',
     'no-events': '--no-events          Leave the recent events out',
     'auto-compaction':
-      'Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.',
+      'Offer paid automatic compaction; where the host can ask, it asks once before its first charge, with model rates and the daily budget. Headless exec never asks and needs --max-budget-usd.',
     'no-auto-compaction': 'Disable automatic compaction',
     'output-schema':
       'Validate the final answer against a bounded JSON schema file (Model API only).',
@@ -429,6 +441,26 @@ export const EN = {
     fleet: '--fleet current|minimum|optimum: Current / Minimum / Optimum',
     'estimate-format': '--format md|html|json|text: Output format',
     seed: '--seed <seed>: Simulation seed',
+    mode: '--mode full|conversation: Share the full session or the conversation only.',
+    destination:
+      '--destination copy|file|browser: Copy to the clipboard, write a file, or open a browser.',
+    scope: '--scope user|workspace: Save the prompt for this user or this workspace.',
+    search: '--search <text>: List only prompts matching this text.',
+    tag: '--tag <tag>: Filter by tag, or tag the saved prompt.',
+    title: '--title <title>: Title for the saved prompt.',
+    var: '--var <name=value>: Set a prompt variable; repeat for more.',
+    chat: '--chat active|new: Use the prompt in the active chat or a new one.',
+    confirm: '--confirm: Confirm without asking.',
+    diffs: '--diffs: Include the session diff in the shared text.',
+    'no-code-blocks': '--no-code-blocks: Omit code blocks from the shared text.',
+    'no-attachment-names': '--no-attachment-names: Omit attachment names from the shared text.',
+    'attachment-content':
+      '--attachment-content <kind>: Include attachment contents; repeat for more.',
+    'exported-at': '--exported-at <time>: Timestamp of the confirmed export.',
+    'share-from': '--from <message>: First message to include.',
+    'share-to': '--to <message>: Last message to include.',
+    'share-out': '--out <file>: Write the shared text to a file instead of stdout.',
+    'sharing-json': '--json: Print the machine-readable result instead of the human preview.',
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
@@ -438,6 +470,8 @@ export const EN = {
   referenceVaultLock: 'In progress.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
+  referenceAuthGitHub:
+    'Sign in to GitHub for pull requests with GitHub’s device flow: enter the printed code at github.com/login/device; the token stays in this computer’s credential store. logout deletes it, status says whether one is stored.',
   referenceAccountsTitle: 'Several Accounts per Provider',
   referenceAccounts:
     'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.',
@@ -456,9 +490,9 @@ export const EN = {
   referenceInstallSkills:
     "Copy project_setup, feature_delivery and quality_retrofit into Muse Code's configuration and link them as skills.",
   referenceExecContract:
-    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.',
+    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.',
   referenceBriefHelp:
-    'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
+    'help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.',
   referenceKeyStdin:
     'auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.',
   referenceModalKeys: 'Close the dialog or move focus within it.',
@@ -540,7 +574,7 @@ export const EN = {
   referencePaidContexts:
     'Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
   referenceAcp:
-    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
   referenceWebFetchTitle: 'Web Fetch',
   referenceWebFetchDetail:
     'Fetch public web pages as readable text, with permission and network checks.',
@@ -1085,6 +1119,13 @@ export const EN = {
     copilotConsent: 'Allow access to Copilot in its consent dialog to continue.',
     // Said when a confidential workspace refuses Copilot sign-in.
     copilotConfidential: 'Copilot is unavailable while this workspace is confidential.',
+    // Said where the Copilot dispatch adapter cannot be reached (the
+    // terminal): the grant lives in VS Code, so no terminal can use it.
+    copilotTerminalGrant:
+      'Copilot models run only in VS Code, through the Copilot extension; this terminal cannot reach that grant.',
+    // Said where the adapter is absent on a non-terminal host: same source.
+    copilotHostGrant:
+      'Copilot models run only in VS Code, through the Copilot extension, which this host cannot reach.',
     // What Copilot uses and who bills it: VS Code's granted models, the Copilot plan.
     copilotNotice: 'Copilot models granted to VS Code, billed to your Copilot plan or AI credits.',
     expired: 'ChatGPT granted too little time to finish this request. Sign in again.',
@@ -1128,10 +1169,13 @@ export const EN = {
     'This conversation was too long to keep in the panel across the reload; open it from History to see all of it.',
   linkOutsideWorkspace: 'Links to files outside the workspace are not opened from the transcript.',
   emptyStateHint: 'Type /model to pick the right tool for the job.',
-  // macOS binds Cmd+Esc; Windows binds Ctrl+Alt+Esc (Ctrl+Esc opens Start
-  // there; M26, D29).
-  composerPlaceholder:
-    'ctrl esc (cmd esc on macOS, ctrl alt esc on Windows) to focus or unfocus Muse',
+  // The empty composer's invitation (F67): a message first, then only this
+  // machine's shortcut, in one line. The host fills `shortcut` for its own
+  // platform (webviewSetup); the all-platform tip stays in Getting Started
+  // (M26, D29).
+  composerPlaceholder: 'Ask Muse…',
+  // {shortcut}: this machine's focus key (Ctrl+Esc, Cmd+Esc or Ctrl+Alt+Esc).
+  composerPlaceholderWithShortcut: 'Ask Muse… ({shortcut} to focus)',
   // Shown while a turn runs: Enter then steers the running turn.
   composerQueuePlaceholder: 'Queue another message…',
   queuedLabel: 'Queued',
@@ -1203,6 +1247,9 @@ export const EN = {
     'Muse Code cannot start: its sign-in file {path} is in the macOS format, which Muse Code cannot read on this system. Move or rename that file, then sign in again.',
   hostExited: 'Muse Code stopped unexpectedly',
   hostStarting: 'Starting Muse Code…',
+  // The pill while the sign-in facts are still being read (F60): what the
+  // panel waits for, not the backend starting.
+  checkingSignIn: 'Checking sign-in…',
   // PLAN.md D25: restarts, crashes and closed sessions continue the conversation.
   hostRestartsOnSend: 'The next message restarts it and continues this conversation.',
   turnStoppedByRestart: 'Stopped: the backend restarted',
@@ -1316,6 +1363,7 @@ export const EN = {
     'paid:webSearch': 'Turn paid web search on or off.',
     'paid:subagents': 'Turn paid subagents on or off.',
     'paid:scheduledPrompts': 'Turn paid scheduled prompts on or off.',
+    'paid:autoCompaction': 'Turn paid automatic compaction on or off.',
     'paid:autoReviewer': 'Turn the paid Auto reviewer on or off.',
     'paid:bestOfN': 'Turn paid Best of N on or off.',
     'paid:tab': 'Turn paid Tab completions on or off.',
@@ -1915,6 +1963,12 @@ export const EN = {
   gitPullRequestItemDetail: 'On GitHub, as a draft or ready, linked to this conversation',
   gitCheckoutItem: 'Open a Pull Request in a Conversation…',
   gitCheckoutItemDetail: 'Check a pull request out in its own worktree and window',
+  gitHubSignInWithCodeItem: 'Sign In to GitHub With a Code',
+  gitHubSignInWithCodeDetail:
+    'Sign in to GitHub with a code you enter on github.com/login/device; the token stays in this computer’s credential store',
+  gitHubSignOutItem: 'Sign Out of GitHub',
+  gitHubSignOutItemDetail:
+    'Delete Muse Spark’s GitHub sign-in from this computer and open GitHub’s page where you revoke it',
   gitRestricted:
     'Git and pull requests are unavailable in Restricted Mode: git can run programs a repository’s configuration names. Trust the workspace to use them.',
   gitHeld: 'Git and pull requests wait until you trust this worktree in the card above.',
@@ -2020,10 +2074,28 @@ export const EN = {
   gitChecksRunning: forms({ one: '{count} running', other: '{count} running' }),
   gitChecksSkipped: forms({ one: '{count} skipped', other: '{count} skipped' }),
   gitChecksCancelled: forms({ one: '{count} cancelled', other: '{count} cancelled' }),
-  gitChecksNotRead: forms({ one: '{count} more not read', other: '{count} more not read' }),
+
   gitStatusNeedsSignIn: 'Sign in to GitHub to see its status.',
   gitCheckedAt: 'as of {time}',
   gitSignInGitHub: 'Sign In to GitHub',
+  // M123 (PLAN.md D104 §2): the panel's GitHub card.
+  gitHubCardLabel: 'GitHub sign-in',
+  // {url}: GitHub's https://github.com/login/device.
+  gitHubCardCode: 'Open {url} and enter this code:',
+  // {time}: when the code expires, in the user's locale.
+  gitHubCardExpires: 'The code expires at {time}.',
+  gitHubCopyCode: 'Copy Code',
+  gitHubOpenPage: 'Open GitHub',
+  // {login}: the GitHub account; {source}: one of gitHubSources.
+  gitHubAccount: 'GitHub: {login}, through {source}',
+  gitHubAccountNoLogin: 'GitHub: signed in through {source}',
+  gitHubSources: {
+    editorLease: 'the editor’s GitHub sign-in',
+    deviceFlow: 'Muse Spark’s GitHub sign-in',
+    ghLogin: 'the GitHub CLI (gh)',
+  },
+  gitHubSignOut: 'Sign Out',
+  gitHubSignOutFailed: 'GitHub sign-out could not finish. Try again.',
   gitRefresh: 'Refresh',
   gitOpenOnGitHub: 'Open on GitHub',
   gitWorktreeBranch: 'Worktree on {branch}, of {repository}',
@@ -2373,7 +2445,6 @@ export const EN = {
   attachmentUnreadable: 'The file could not be read.',
   documentTooLarge: 'PDFs must be 32 MB or smaller.',
   documentsOverBudget: 'Files must total at most 50 images and PDF pages per message.',
-  mediaTotalTooLarge: 'Attached images and PDFs exceed the combined media size limit.',
   olderMediaOmitted:
     'Older images or PDFs were left out of this request to stay within media limits. They remain in local history.',
   pdfNeedsModelApi: 'PDF attachments require the Model API backend.',
@@ -2893,7 +2964,6 @@ export const EN = {
     'Left as they are, edited from more than one window in an order that cannot be told: {files}',
   restoreRefusedLinked: 'Left as they are, reached through a link or junction: {files}',
   restoreRefusedNotKept: 'Not restorable, the earlier version was not kept: {files}',
-  restoreRefusedTooLarge: 'Not restorable, too large to keep a copy of: {files}',
   restoreRefusedFailed: 'Could not be changed: {files}',
   restoreUnchanged: forms({
     one: 'Already as before: {count} file.',
@@ -3037,6 +3107,12 @@ export const EN = {
   // A session whose Muse Code event log failed (a CLI fault) takes no new message.
   sessionLogDamaged:
     'This conversation’s Muse Code log is damaged (a fault in Muse Code), so it cannot take new messages. Start a new conversation; this one stays in History.',
+  // A restarted backend whose replacement lost the sign-in (F94): the
+  // first turn that fails for it names the restart and the way back,
+  // instead of failing as just another turn. {exit} is the previous
+  // run's end in the log's words; {detail} the turn's reason.
+  museSignInLostOnRestart:
+    '{exit}, and it is no longer signed in, so this turn could not run ({detail}). Sign in again with “muse login” in a terminal, or set META_API_KEY for the CLI, then send again.',
   // The vault scrubber is locked (or its build refused): the turn reason and
   // the export notice name the outage instead of failing silently (RVM109T 7).
   vaultScrubUnavailable: 'Vault scrub service is unavailable',
@@ -3068,7 +3144,7 @@ export const EN = {
   trainingBlocked:
     'Models that may train on workspace content are blocked in this workspace (museSpark.confidentialWorkspace).',
   backendItem: 'Backend',
-  backendDetail: 'museSpark.backend: auto / museCode / modelApi',
+  backendDetail: 'Which engine runs this conversation: automatic, Muse Code, or the Model API.',
   backendMuseCode: 'Muse Code (Your Muse Subscription)',
   backendModelApi: 'Meta Model API (Your Key, Pay as You Go)',
   modelApiBackendNotice:
@@ -3083,7 +3159,13 @@ export const EN = {
     'Automatic compaction uses the selected model at {price}. The subscription does not pay for it.',
   autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
   autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
+  autoCompactionBudgetRefused:
+    'Automatic compaction did not run: the daily paid budget refused it. Raise the budget or try again tomorrow; continuing with the original context.',
   contextWindowFull: 'Context window full: /compact or /handoff',
+  contextWindowFullAcp:
+    'Context window full: automatic compaction needs your one-time approval in the editor; approve its paid-use request, or run /compact. A client that cannot show the approval leaves it off.',
+  contextWindowFullExec:
+    'Context window full: rerun with --auto-compaction --max-budget-usd <amount> so the run can compact itself, or shorten the task.',
   // The Model API session budget (M82): a request that cannot fit is not
   // sent, and the turn's cost is shown against the cap afterwards.
   sessionBudgetStopped:
@@ -3112,6 +3194,8 @@ export const EN = {
   rewindConversationFailed: 'Could not rewind the conversation',
   sideChatFailed: 'Could not open a side chat',
   sideChatPlanOnly: 'Side chats stay in Plan mode.',
+  sideChatWriteRefused: 'Side chats are read-only, so this request was refused.',
+  sideChatResolver: 'Side Chat',
   // M79 (PLAN.md D49): plans as files. {path} is the plan's workspace path.
   planActionsLabel: 'Plan Actions',
   savePlan: 'Save Plan',
@@ -4060,6 +4144,7 @@ export const EN = {
   whatsNewDontShowAgain: 'Don’t Show Again',
   whatsNewUnavailable:
     'What’s New could not be loaded; reinstall the extension and reload the window. The log has the details.',
+  whatsNewAttachmentsRefused: '/whatsnew takes no attachments: send it alone.',
   // The conversation's notices (they were English literals in the controller).
   notSignedInReason: 'Sign in before sending a message.',
   noWorkspaceReason: 'Open a folder first; Muse works inside a workspace.',
@@ -4121,6 +4206,9 @@ export const EN = {
   acpKeyNotStored: 'No key was entered, so nothing was stored.',
   acpKeyPresent: 'A Meta Model API key is stored in {store}.',
   acpKeyAbsent: 'No Meta Model API key is stored.',
+  // An unavailable store cannot prove whether it contains a key (F43/F47).
+  acpStoreDown:
+    'This computer’s credential store is unavailable, so stored keys cannot be checked.',
   acpKeyCleared: 'The Meta Model API key was removed from this computer’s credential store.',
   // {reason}: the operating system's own error.
   acpStoreUnavailable:
@@ -4155,7 +4243,7 @@ export const EN = {
     '  {command} auth set|status|clear --provider <id>  Store, check or remove a provider key (read from stdin)',
     '  {command} providers list|add|test|remove  Manage model providers',
     '  {command} exec [options] <prompt>  Run one headless turn',
-    '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
+    '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number; exits 0 when clean, 10 when a secret is found, 2 for misuse)',
     '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
     '  {command} legal [options]  Run the read-only legal scan (no backend, no sign-in)',
     '  {command} fonts install [--from <directory>]  Install the optional fonts for standalone surfaces',
@@ -4188,9 +4276,82 @@ export const EN = {
     '  --no-facts           Leave the support facts out',
     '  --no-events          Leave the recent events out',
   ].join('\n'),
+  // The terminal agent's own help (PLAN.md D119): one topic per command,
+  // generated from the parser's option table, so help cannot drift from
+  // what the parser accepts. {command}: the executable's name; {cmd} and
+  // {topic}: the command as typed. Option names and values stay as typed.
+  cliHelp: {
+    usage: 'Usage:',
+    options: 'Options:',
+    examples: 'Examples:',
+    exits: 'Exits:',
+    commands: 'Commands:',
+    // {command}: the executable's name.
+    topHint: "Run '{command} help <command>' for one command's own options and examples.",
+    // {command}: the executable's name.
+    allHint: "'{command} help --all' prints the full Help & Reference.",
+    // {value}: the default, as typed.
+    defaultIs: 'default {value}',
+    // {value}: the bound with its unit, as typed.
+    atMost: 'at most {value}',
+    // {values}: the accepted values, as typed.
+    accepts: 'accepts {values}',
+    repeatable: 'repeatable',
+    // {option}: the option as typed; {cmd}: the command; {accepted}: its options.
+    unknownOption: "Unknown option {option} for '{cmd}': {cmd} accepts {accepted}.",
+    // {cmd}: the command; {accepted}: its options. A secret-looking name is
+    // never repeated: the refusal says only what the command accepts.
+    unknownOptionHidden: "Unknown option for '{cmd}': {cmd} accepts {accepted}.",
+    // {nearest}: the closest valid option, as typed.
+    suggestOption: "Did you mean '{nearest}'?",
+    // {command}: the executable's name; {topic}: the command.
+    seeHelp: "See '{command} {topic} --help'.",
+    // {topic}: the unknown command; {command}: the executable's name.
+    unknownTopic: "Unknown command '{topic}': run '{command} help' for the command list.",
+    purposeServe: 'Serve the Agent Client Protocol on stdin and stdout.',
+    purposeLogin: 'Sign in to Muse Code in this terminal.',
+    purposeAuth: 'Store, check or remove keys in this computer’s credential store.',
+    authSetNote:
+      'auth set reads the key from standard input (your terminal, or a pipe); auth status prints whether a key is stored, never the key itself.',
+    purposeProviders: 'Manage model providers and their model lists.',
+    purposeExec: 'Run one headless turn.',
+    purposeScanSecrets: 'Count likely secrets in one file (prints only the number).',
+    purposeReport: 'Print a scrubbed problem report.',
+    purposeLegal: 'Run the read-only legal scan.',
+    purposeFonts: 'Install the optional fonts for standalone surfaces.',
+    purposePlaybook: 'Show or change the orchestrator playbook.',
+    purposeSetup: 'Run the Setup hooks and exit.',
+    purposeUsage: 'Show usage and cost across models.',
+    purposeResources: 'Show machine pressure and recent history.',
+    purposeShare: 'Share a conversation: copy it, save it to a file, or open it in a browser.',
+    purposePrompts: 'Save, list, use and share reusable prompt templates.',
+    // {entry}: the provider entry id.
+    modelsList: 'Models for {entry}:',
+    // {reason}: the user's one-line reason for forcing the model.
+    modelsForced: 'forced: {reason}',
+    modelsExtra: 'On the provider but not in the entry:',
+    modelsUnreadable: 'The provider list could not be read; showing the entry only.',
+    // {models}: the model ids; {entry}: the provider entry id.
+    modelsAdded: 'Added {models} to {entry}.',
+    // {models}: the model ids; {entry}: the provider entry id.
+    modelsRemoved: 'Removed {models} from {entry}.',
+    // {model}: the unknown id; {entry}: the entry; {closest}: the closest ids.
+    modelsUnknown: "Unknown model '{model}' for {entry}; the closest matches are: {closest}.",
+    // {entry}: the unknown id; {closest}: the configured entry ids.
+    modelsUnknownEntry: "Unknown provider entry '{entry}'; configured entries are: {closest}.",
+    modelsNeedsForce: "Use --force '<reason>' to add a model the provider does not list.",
+    modelsForceNeedsAdd: '--force needs --add: only added models can carry a reason.',
+    modelsCustomReadOnly:
+      'Custom provider model lists are read-only here; use the Models panel to set each model’s context window and output cap.',
+    // {command}: the executable's name.
+    modelsUsage:
+      'Usage: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]',
+  },
   // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
   execBudgetRequired: 'Model API requires --max-budget-usd.',
   execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',
+  execValueInvalid:
+    'Invalid value for {option}; run exec --help for the accepted values and bounds.',
   execTrustRefused: 'Headless runs refuse workspace trust and bypass permissions.',
   execModeRefused: 'Headless runs permit only plan or acceptEdits.',
   execWebSearchUnbounded: 'Hosted web search has no bounded allowance and is refused.',
@@ -4243,10 +4404,6 @@ export const EN = {
   execRequestCapReached: forms({
     one: 'The request cap of {count} attempt was reached.',
     other: 'The request cap of {count} attempts was reached.',
-  }),
-  execScanMatches: forms({
-    one: '{count} secret match',
-    other: '{count} secret matches',
   }),
   // M95 lane X (PLAN.md D74): the ACP agent's provider commands. Every key
   // below also lives in all 14 `l10n/ui.*.json` tables.
@@ -4398,6 +4555,18 @@ export const EN = {
     'Provider runs need the provider transport lane; request validation passed for {provider}.',
   execUsage: 'exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -',
   execScanUsage: 'scan-secrets <file> [--key-stdin]',
+  scanSecretsExits: 'Exits 0 when clean, 10 when a secret is found, 2 for misuse.',
+  execExits:
+    'Exits 0 completed, 1 internal, 2 usage, 3 sign-in or backend unavailable, 4 failed, 5 budget or request limit, 6 timeout, 7 denied, 8 incomplete, 9 accounting unverified, 10 output schema mismatch, 130 on SIGINT, 143 on SIGTERM.',
+  reportExits: 'Exits 0 when the report is written, 1 on failure, 2 for misuse.',
+  // From LEGAL_EXIT (D76): 0 a complete scan with no blockers, 1 a complete
+  // scan with blockers, 2 incomplete coverage, bad input or failure.
+  legalExits:
+    'Exits 0 when the scan completes with no blockers, 1 when blockers are found, 2 for incomplete coverage or misuse.',
+  // The CLI-wide convention (CLI_EXIT) for commands with no exit table.
+  genericExits: 'Exits 0 on success, 1 on failure, 2 for misuse.',
+  // share/prompts: a cancelled or refused share is EXEC_EXIT.denied (7).
+  sharingExits: 'Exits 0 on success, 7 when cancelled or refused, 2 for misuse, 1 on failure.',
   execSummary:
     '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}',
   execSummaryUpperBound:
@@ -5231,6 +5400,9 @@ export const EN = {
   modelUnpriced: 'Unpriced',
   modelLocal: 'Local',
   modelPlan: 'Plan',
+  // A contributor-tier model's mark in the picker (F62): Meta may train on
+  // what it is sent, for the lower price.
+  pickerContributorTier: 'Contributor',
   modelFree: 'Free',
   modelColumns: {
     name: 'Model',
@@ -5330,8 +5502,36 @@ export const EN = {
     },
     callback: 'ChatGPT sign-in is complete. Return to your editor or terminal.',
     failure: 'ChatGPT sign-in could not be completed. Try again or remove it and sign in again.',
-    storeUnavailable:
-      'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
+  },
+  // GitHub sign-in outside VS Code (M123 lane A, PLAN.md D104): the device
+  // flow's code, shown by the CLI, the ACP notice and the panel alike.
+  githubSignIn: {
+    usage: 'Usage: muse-spark-code-acp auth github login|logout|status',
+    // {url}: GitHub's https://github.com/login/device; {code}: the user code.
+    code: 'To sign in to GitHub, open {url} and enter the code {code}. Waiting for GitHub; press Ctrl+C to cancel.',
+    // {store}: where the token is kept (the credential store's name).
+    signedIn: 'Signed in to GitHub. The token is kept in {store}.',
+    notSignedIn:
+      'Not signed in to GitHub. Run muse-spark-code-acp auth github login to sign in with GitHub’s device flow.',
+    // {url}: the app's page on github.com, where the grant is revoked.
+    signedOut:
+      'Signed out of GitHub: the token was deleted from this computer. To revoke the app’s access as well, open {url} and choose Revoke.',
+    cancelled: 'GitHub sign-in was cancelled.',
+    failures: {
+      clientIdUnset: 'This build has no GitHub app client id, so GitHub sign-in is unavailable.',
+      verificationAddress:
+        'GitHub’s reply named a sign-in address other than github.com/login/device, so it was refused.',
+      userCode: 'GitHub’s reply held a code that cannot be shown safely, so it was refused.',
+      expired: 'The code expired before it was entered. Sign in again.',
+      denied: 'The sign-in was denied on GitHub.',
+      disabled: 'GitHub has the device flow turned off for this app.',
+      incorrectClient: 'GitHub did not recognize this app’s client id.',
+      incorrectDeviceCode: 'GitHub did not recognize the sign-in code. Sign in again.',
+      unsupportedGrant: 'GitHub refused the sign-in request.',
+      refreshRefused: 'GitHub refused to renew the sign-in. Sign in again.',
+      network: 'GitHub could not be reached. Check the connection and try again.',
+      reply: 'GitHub’s reply could not be read.',
+    },
   },
   execProviderNotConfigured: 'Provider {id} is not configured.',
   // M95 providers: evaluated through UI_TEXT at use time.
@@ -5825,6 +6025,8 @@ export const EN = {
   legalConfidenceLabel: 'Confidence: {confidence}',
   legalScanItem: '/legal',
   legalCommandUsage: 'Usage: /legal [workspace-relative path …]. Options are not supported.',
+  legalScanReceiptHelp:
+    'Local licence scan; optional licence-review.json receipts bind a reviewed SPDX licence to its package, exact version and SHA-256, with a reason. Changed bytes or versions require review again.',
   legalScanItemDetail: 'Scan the workspace for licensing, attribution and header findings',
   legalScanBusy: 'A legal scan starts once the current turn has ended.',
   legalScanUntrusted:
@@ -5996,10 +6198,6 @@ export const EN = {
     m112: 'scan stopped at limit: elapsed time',
     m113: 'not checked: {v0} cannot be read as text',
     m114: 'scan stopped at limit: {v0} exceeds the bounded text read budget',
-    m115: forms({
-      one: 'not checked: the scan stopped after reading {count} file; {v1} more not read',
-      other: 'not checked: the scan stopped after reading {count} files; {v1} more not read',
-    }),
     m116: forms({
       one: 'not checked: dependency evidence bound reached; {count} entry omitted',
       other: 'not checked: dependency evidence bound reached; {count} entries omitted',
@@ -6013,11 +6211,7 @@ export const EN = {
     }),
     m120: 'Supply bundle inputs or package inventory evidence so shipped obligations are exact.',
     m121: 'scan stopped at limit: report truncated for {v0}',
-    m122: forms({
-      one: 'report truncated: {count} finding omitted past the {v1}-finding bound; blockers and should-fix findings kept first',
-      other:
-        'report truncated: {count} findings omitted past the {v1}-finding bound; blockers and should-fix findings kept first',
-    }),
+
     m123: forms({
       one: 'report truncated: {count} generated exclusions omitted past the bound',
       other: 'report truncated: {count} generated exclusions omitted past the bound',
@@ -6039,7 +6233,6 @@ export const EN = {
     m138: 'not checked: {v0} is a link or escaped directory',
     m139: 'scan stopped at limit: directory-entry budget reached; remaining tree not enumerated',
     m140: 'not checked: {v0} changed during enumeration',
-    m141: 'not checked: {v0} is repository internals',
     m142: 'not checked: {v0} is a link',
     m143: 'not checked: {v0} is a special file',
     m144: 'not checked: {v0} could not be admitted',
@@ -6110,11 +6303,6 @@ export const EN = {
     m171: 'not checked: {v0} has unreadable npm lock metadata',
     m172: 'not checked: {v0} uses an unsupported npm lock version',
     m173: 'not checked: {v0} exceeds the npm nested lock depth bound',
-    m174: forms({
-      one: 'not checked: {count} npm lock entry in {v1} carry no license metadata and no installed package data covers them',
-      other:
-        'not checked: {count} npm lock entries in {v1} carry no license metadata and no installed package data covers them',
-    }),
     m175: 'not checked: {v0} has no readable Yarn package entries',
     m176: forms({
       one: 'not checked: {v0} records versions but no license metadata for {count} packages; installed package data would close the gap',
@@ -6167,6 +6355,29 @@ export const EN = {
         'not checked: {count} Python requirements have no resolved version; their transitive licenses are unknown',
     }),
     m196: 'not checked: no Python manifests, locks or distribution metadata found',
+    m198: 'not checked: {v0} declares a malformed license expression ({v1}); its terms need human review',
+    m199: 'not checked: license text for {v0} at {v1} differs from its canonical wording',
+    m200: '{v0} differs from the SPDX {v1} template at “{v2}”, where the template continues “{v3}”; its modified terms need human review',
+    m201: '{v0} differs from the SPDX {v1} template: “{v2}” is not part of it; its modified terms need human review',
+    m202: 'not checked: bundle {v0} lists {v1}, which lies outside the workspace and cannot be verified',
+    m203: 'not checked: build records disagree about the content of {v0}',
+    m204: 'not checked: bundle {v0} output {v1} is missing or differs from its build record',
+    m205: 'not checked: pinned SPDX template data failed verification ({v0}); exact license-text matching is off for it',
+    m206: 'not checked: bundle {v0} input {v1} has no build-captured hash or no longer matches it',
+    m207: forms({
+      one: '{count} dependency that does not ship has a licence text that differs from its SPDX template or is unrecognized ({v0}); it is not distributed, so it does not limit this scan',
+      other:
+        '{count} dependencies that do not ship have licence texts that differ from their SPDX templates or are unrecognized ({v0}); they are not distributed, so they do not limit this scan',
+    }),
+    m208: 'If one of these dependencies starts to ship, review its licence text.',
+    m209: forms({
+      one: '{count} more advice finding for {v0} is not listed; nothing else was left out',
+      other: '{count} more advice findings for {v0} are not listed; nothing else was left out',
+    }),
+    m210: 'Scan a smaller set of paths to list them.',
+    reviewedReceipt: 'Reviewed by receipt: {reason}',
+    receiptRenew: 'A new version or changed licence bytes need a new review and receipt.',
+    invalidReceipt: 'not checked: {file} is not a valid licence-review receipt file',
     unknown: 'unknown',
     unresolved: 'unresolved',
     noLicense: 'no license',
@@ -6201,6 +6412,7 @@ export const EN = {
       'Headless accounts: {command} exec --account <id> [--account-pool]. CI with --key-stdin uses only the default account and never swaps.',
     unavailable:
       'Accounts are unavailable until this runtime is connected to the shared account service.',
+    providerUnavailable: 'Accounts for {provider} are not available in this terminal yet.',
     providersInvalid:
       'The providers file is invalid, so its entries were refused and the file was left unchanged.',
     poolUnavailable:
@@ -6330,6 +6542,57 @@ export const EN = {
     helpTerminal: 'Run `developer` to unlock; `developer status` shows this machine’s options.',
     commandUsage:
       'Usage: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]',
+  },
+  // M124 (D106): the connector's Help & Reference rows.
+  mcpConnectorTitle: 'MCP connector for other agents',
+  referenceMcpCommand:
+    'Serve Muse Spark Code’s tools to other agents (Codex, Claude Code, Gemini CLI) over MCP; every write waits for your approval.',
+  // M124 (D106): the MCP connector’s approval page and its `mcp` terminal commands
+  // (the runtime region, dist/uiTextRuntime.js: activation never reads them).
+  acpConnector: {
+    title: 'Approve connector requests',
+    intro:
+      'Another agent asked Muse Spark Code to do the following. Nothing happens until you approve it here; that agent’s own Allow, Auto or Bypass settings cannot approve it.',
+    loading: 'Loading requests…',
+    empty: 'No requests are waiting.',
+    failed: 'The request list could not be loaded.',
+    retry: 'Retry',
+    approve: 'Approve once',
+    deny: 'Deny',
+    approved: 'Approved.',
+    denied: 'Denied.',
+    decisionFailed: 'That request changed or expired. Nothing was done.',
+    client: 'Client (as it names itself)',
+    connection: 'Connection',
+    workspace: 'Workspace',
+    operation: 'Operation',
+    generation: 'Target generation',
+    price: 'Price',
+    free: 'Free',
+    expires: 'Expires',
+    fieldTitle: 'Title',
+    fieldScope: 'Scope',
+    fieldTags: 'Tags',
+    fieldBody: 'Text',
+    grantConfirm: 'Grant connection {connection}: {summary}? (y/N)',
+    grantSaved: 'Connection {connection} is granted. Its workspaces: {workspaces}',
+    grantNeedsTerminal:
+      'Run this in your own terminal: a grant needs you to type the confirmation.',
+    grantInvalid: 'The grant could not be made: {reason}',
+    notConfirmed: 'Nothing was changed.',
+    revoked: 'Connection {connection} is revoked.',
+    killOn: 'The connector is switched off. New effects are refused; Stop still works.',
+    killOff: 'The connector is switched on again.',
+    statusOn: 'Connector: on',
+    statusOff: 'Connector: switched off',
+    statusGrant: 'Connection {connection}{revoked}: {scopes}',
+    statusRevoked: ' (revoked)',
+    statusWorkspace: '  {id}: {root}{content}',
+    statusContent: ' (content)',
+    noGrants: 'No connection grants yet.',
+    unavailable: 'The connector could not start.',
+    usage:
+      'muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status',
   },
   // M109: read each key through UI_TEXT.vault at use time.
   vault: {

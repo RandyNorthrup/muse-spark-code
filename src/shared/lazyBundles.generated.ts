@@ -123,6 +123,14 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         side: ['acp', 'vscode'],
       },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'probeProvider', side: ['acp'] },
+      { importer: 'src/runtime/providersCommands.ts', symbol: 'readProviderJson', side: ['acp'] },
+    ],
+  },
+  {
+    file: 'connector.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'CONNECTOR_BUNDLE_FILE', side: ['acp'] },
     ],
   },
   {
@@ -394,6 +402,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'nativeGit.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'NATIVE_GIT_BUNDLE_FILE', side: ['vscode'] },
+    ],
+  },
+  {
     file: 'pageWorker.js',
     side: 'both',
     requestedBy: [
@@ -435,6 +450,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'providers.js',
     side: 'both',
     requestedBy: [
+      { importer: 'src/core/eval/driver.ts', symbol: 'bindEvalAdmission', side: ['acp', 'vscode'] },
       {
         importer: 'src/host/backend/modelApiEntry.ts',
         symbol: 'autoCompactionAdmission',

@@ -22,7 +22,6 @@ import {
   HOOK_MATCHER_COMPILE_TIMEOUT_MS,
   HOOK_MATCHER_TIMEOUT_MS,
   HOOK_MATCHER_VALUE_MAX_CHARS,
-  HOOK_MAX_RUNNING_COMMANDS,
   HOOK_MANAGED_ENV_MAX_NAMES,
   HOOK_MANAGED_ENV_NAME_MAX_CHARS,
   HOOK_ON_FAILURE_MAX_DEPTH,
@@ -1169,67 +1168,26 @@ export interface HookDispatch {
   readonly replacement?: HookReplacement | undefined
 }
 
-interface HookWaiter {
-  readonly resolve: () => void
-  readonly reject: (error: Error) => void
-  readonly signal: AbortSignal | undefined
-  readonly onAbort: () => void
+/** Nothing to release: hook commands start at once, uncapped. */
+function releaseCommandSlot(): void {
+  // Every hook process ends at its own timeout, stop or exit.
 }
 
-interface HookCommandState {
-  running: number
-  readonly waiters: HookWaiter[]
-}
-const commandState: HookCommandState = { running: 0, waiters: [] }
-const processState: HookCommandState = { running: 0, waiters: [] }
-
-function releaseCommand(state: HookCommandState): void {
-  const next = state.waiters.shift()
-  if (next === undefined) {
-    state.running -= 1
-    return
-  }
-  next.signal?.removeEventListener('abort', next.onAbort)
-  next.resolve()
-}
-
-/** One extension-host-wide cap: several sessions cannot spawn unlimited hooks. */
-async function acquireCommand(
-  signal: AbortSignal | undefined,
-  state: HookCommandState = commandState,
-): Promise<() => void> {
+/**
+ * Hook commands start at once, in every session: no host-wide count gates
+ * the user's own hook processes. Each run still ends at its own timeout or
+ * stop, and a call cancelled before it starts answers nothing.
+ */
+function acquireCommand(signal: AbortSignal | undefined): () => void {
   if (signal?.aborted === true) {
     throw new Error('hook command cancelled')
   }
-  if (state.running < HOOK_MAX_RUNNING_COMMANDS) {
-    state.running += 1
-    return () => {
-      releaseCommand(state)
-    }
-  }
-  await new Promise<void>((resolve, reject) => {
-    const onAbort = () => {
-      const index = state.waiters.findIndex((candidate) => candidate.onAbort === onAbort)
-      if (index !== -1) {
-        state.waiters.splice(index, 1)
-      }
-      reject(new Error('hook command cancelled'))
-    }
-    const waiter: HookWaiter = { resolve, reject, signal, onAbort }
-    state.waiters.push(waiter)
-    signal?.addEventListener('abort', onAbort, { once: true })
-    if (signal?.aborted === true) {
-      onAbort()
-    }
-  })
-  return () => {
-    releaseCommand(state)
-  }
+  return releaseCommandSlot
 }
 
-/** The production IO cap is shared by lazy dispatch bundles, separate from admission. */
-export async function acquireHookProcessSlot(signal: AbortSignal | undefined): Promise<() => void> {
-  return await acquireCommand(signal, processState)
+/** The hook-process start, shared by lazy dispatch bundles, separate from admission. */
+export function acquireHookProcessSlot(signal: AbortSignal | undefined): Promise<() => void> {
+  return Promise.resolve(acquireCommand(signal))
 }
 
 async function runBoundedHook(
@@ -1239,7 +1197,7 @@ async function runBoundedHook(
   runner: NonNullable<ToolIo['runHook']>,
   signal: AbortSignal | undefined,
 ): Promise<ShellResult> {
-  const release = await acquireCommand(signal)
+  const release = acquireCommand(signal)
   try {
     return await runner(
       hook.command,
@@ -1392,9 +1350,9 @@ function withoutGrant(answer: HookAnswer): HookAnswer {
 }
 
 /**
- * A plugin hook (M91b) under the same host-wide cap as every hook process;
- * its answer goes through the same judge, so no grant survives and a
- * failure never becomes feedback. A cancelled call answers nothing.
+ * A plugin hook (M91b), starting like every hook process; its answer goes
+ * through the same judge, so no grant survives and a failure never becomes
+ * feedback. A cancelled call answers nothing.
  */
 async function runPluginHandler(
   run: (signal: AbortSignal | undefined) => Promise<HookAnswer>,
@@ -1404,7 +1362,7 @@ async function runPluginHandler(
 ): Promise<HookAnswer | undefined> {
   let release: () => void
   try {
-    release = await acquireCommand(signal)
+    release = acquireCommand(signal)
   } catch {
     return undefined
   }

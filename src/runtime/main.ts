@@ -16,6 +16,7 @@ import { homedir, hostname, tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { Writable } from 'node:stream'
+import { setTimeout as abortableSleep } from 'node:timers/promises'
 import type { SignInMethod } from '../acp/agent'
 import { runtimeQuestionsLoader } from './questions/questionRegistryBundle'
 import { processGitRunner } from '../host/git'
@@ -37,6 +38,7 @@ import {
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
   EXEC_STOP_GRACE_MS,
+  USAGE_ERROR_LOCALE_MS,
   LEGAL_EXIT,
   LEGAL_SCAN_TIMEOUT_MS,
   LEGAL_SCAN_BUNDLE_FILE,
@@ -48,6 +50,7 @@ import {
   REFERENCE_BUNDLE_FILE,
   SESSION_EXPORT_MAX_BYTES,
   REPORT_SOURCE_TIMEOUT_MS,
+  CONNECTOR_BUNDLE_FILE,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
@@ -56,6 +59,7 @@ import {
   authClear,
   authClearProvider,
   type AuthCommandDeps,
+  authGitHub,
   authSet,
   authSetProvider,
   authStatus,
@@ -69,12 +73,14 @@ import {
   type ServeOptions,
 } from './cliArgs'
 import { parseSharingArgs, type SharingCommand } from './sharing/args'
+import { deviceFlowSource } from './github/deviceFlowSource'
 import { runtimeSharingLoader } from './sharing/sharingBundle'
 import { defaultServeOptions, sharingPorts, type SharingPortsDeps } from './sharing/sharingPorts'
 import { acpSharingCommands } from '../acp/sharing'
 import { boundedAcpStream } from '../shared/acpStream'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
 import { formatAcpUsage } from './cliOptions'
+import { helpTopicNamed, renderTopHelp, renderTopicHelp } from './cliHelp'
 import { referenceLoader } from '../host/referenceLoader'
 import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
@@ -124,7 +130,8 @@ import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { reportsLoader } from './reporting/reportsLoader'
 import type { createRuntimeReports } from './reporting/reportsEntry'
-import { runtimeSchedulesBinding } from './schedules/binding'
+import { runtimeSchedulesBinding, type RuntimeSchedulesBinding } from './schedules/binding'
+import { connectorLoader } from './connector/connectorBundle'
 import { settleScheduleCommand } from './schedules/settle'
 
 import { lazyRuntimeResources } from './resources/load'
@@ -467,7 +474,20 @@ function resourcesFor(
 }
 
 /** No account or backend is touched; W ships this entry in its own lazy chunk. */
-function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeReports> {
+/** The connector's reads keep no history and make no network request (M124). */
+interface ReportsPolicy {
+  readonly keepHistory: boolean
+  readonly allowEgress: () => Promise<boolean>
+}
+const CLI_REPORTS: ReportsPolicy = {
+  keepHistory: true,
+  allowEgress: () => Promise.resolve(process.env['CI'] === undefined),
+}
+
+function runtimeReports(
+  log: Logger,
+  policy: ReportsPolicy = CLI_REPORTS,
+): () => ReturnType<typeof createRuntimeReports> {
   const load = reportsLoader({ bundlePath: path.join(distDir, 'reporting.js'), log })
   let reports: ReturnType<typeof createRuntimeReports> | undefined
   return () => {
@@ -479,7 +499,7 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
       roots: [homedir()],
       servicesFor: (cwd, _sessionId, language) =>
         Promise.resolve({
-          keepHistory: true,
+          keepHistory: policy.keepHistory,
           services: load().createReportingServices({
             workspaceRoot: cwd,
             log,
@@ -490,14 +510,14 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
             }),
             l10n: language ?? { table: UI_TEXT, locale: uiLocale() },
             generatorVersion: packageVersion(),
-            keepHistory: true,
+            keepHistory: policy.keepHistory,
             enabledAgents: [],
             network: {
               policy: {
                 surface: 'terminal',
                 mode: 'always',
                 githubSignedIn: false,
-                allowEgress: () => Promise.resolve(process.env['CI'] === undefined),
+                allowEgress: policy.allowEgress,
               },
             },
           }),
@@ -923,14 +943,13 @@ function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
 }
 
 async function main(): Promise<number> {
-  if (process.argv[2] === 'share' || process.argv[2] === 'prompts')
-    await loadUiTable({
-      language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
-      readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
-      log: stderrLogger((line) => {
-        writeLine(process.stderr, line)
-      }, 'warn'),
-    })
+  // Parse first, on the bundled English table: a stalled package
+  // filesystem must not hang argument parsing past exec --timeout or the
+  // fixed scan/legal deadlines. Parser refusals read English until the
+  // loads below install the display language. Localization runs under the
+  // headless lifecycle further down (unbounded for the interactive
+  // commands after it), and scan-secrets does no localization work at all
+  // (Codex on PR #213).
   const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
   const servicesInput: RuntimeAccountServicesInput = {
     dataDir: agentDataFolder({
@@ -958,10 +977,35 @@ async function main(): Promise<number> {
     return cachedAccounts
   }
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
+    // The refusal was built from the bundled English table at parse time.
+    // Install the display language first, then re-parse so the refusal
+    // reads in it instead of always in English (Codex on PR #227). A
+    // stalled package filesystem must not hang the refusal: the wait is
+    // bounded, and a stall keeps the English parse above.
+    let reason = command.reason
+    const quiet = (): undefined => undefined
+    const installed = (async (): Promise<void> => {
+      try {
+        await loadUiTable({
+          language: displayLanguage(
+            process.env,
+            new Intl.DateTimeFormat().resolvedOptions().locale,
+          ),
+          readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+          surface: 'terminal',
+          log: { trace: quiet, info: quiet, warn: quiet, error: quiet },
+        })
+      } catch {
+        // An unreadable table keeps the bundled English parse above.
+      }
+    })()
+    await Promise.race([installed, sleep(USAGE_ERROR_LOCALE_MS)])
+    const reparsed = parseCommandLine(process.argv.slice(2), parseSharingArgs)
+    if (reparsed.command === 'invalid') reason = reparsed.reason
     const stderr = createFdWriter(process.stderr.fd, () => {
       /* A usage error already owns exit 2; a closed pipe cannot turn it into success. */
     })
-    stderr.write(`${redactWhole(command.reason, [])}\n`)
+    stderr.write(`${redactWhole(reason, [])}\n`)
     const isFlushed = await stderr.flush(EXEC_FORCE_WRITE_MS)
     exitHeadless(EXEC_EXIT.usage, !isFlushed)
   }
@@ -1004,21 +1048,8 @@ async function main(): Promise<number> {
     })
     let headlessCode: number = EXEC_EXIT.internal
     try {
-      try {
-        await lifecycle.race(
-          loadUiTable({
-            language: displayLanguage(
-              process.env,
-              new Intl.DateTimeFormat().resolvedOptions().locale,
-            ),
-            readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
-            log,
-          }),
-        )
-      } catch {
-        /* The bundled English table is already installed; stop still owns the deadline. */
-      }
-      setProviderPolicyText(UI_TEXT, uiLocale())
+      // The scanner has no translated output: stdout is a count, and even
+      // its refusal is exit-only. Do not emit panel language diagnostics.
       if (command.command === 'scan-secrets') {
         try {
           headlessCode = await lifecycle.race(
@@ -1037,6 +1068,22 @@ async function main(): Promise<number> {
           return headlessCode
         }
       }
+      try {
+        await lifecycle.race(
+          loadUiTable({
+            language: displayLanguage(
+              process.env,
+              new Intl.DateTimeFormat().resolvedOptions().locale,
+            ),
+            readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+            surface: 'terminal',
+            log,
+          }),
+        )
+      } catch {
+        /* The bundled English table is already installed; stop still owns the deadline. */
+      }
+      setProviderPolicyText(UI_TEXT, uiLocale())
       // The reserved read-only scan (M97 lane R): no backend, no auth, no
       // model. stdout carries only the rendered report; every other word
       // goes to stderr, as the sign-in commands' own output does.
@@ -1140,6 +1187,7 @@ async function main(): Promise<number> {
   await loadUiTable({
     language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
     readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+    surface: 'terminal',
     log,
   })
   setProviderPolicyText(UI_TEXT, uiLocale())
@@ -1372,6 +1420,14 @@ async function main(): Promise<number> {
     case 'accounts': {
       return await loadAccountsBundle(log).runAccountsCommand(command.options, {
         ...loadAccounts(log).commands,
+        // The account service reads its own metadata rows, not the
+        // runner's providers file: advice for a provider the runner
+        // already added names the missing accounts, not another add.
+        isProviderConfigured: async (provider) => {
+          const userFile = await userProvidersFile()
+          const read = await userFile.readUserFile()
+          return read.ok && read.file.providers.some((entry) => entry.id === provider)
+        },
         print: (line) => {
           writeLine(process.stdout, line)
         },
@@ -1397,6 +1453,53 @@ async function main(): Promise<number> {
       writeLine(result.exitCode === 0 ? process.stdout : process.stderr, result.text)
       return result.exitCode
     }
+    case 'authGitHub': {
+      const controller = new AbortController()
+      const abort = () => {
+        controller.abort()
+      }
+      process.once('SIGINT', abort)
+      try {
+        const network = globalThis.fetch.bind(globalThis)
+        return await authGitHub(command.action, {
+          // The terminal is this sign-in's surface: the code and GitHub's
+          // address are printed; the token never is.
+          source: deviceFlowSource({
+            store: secrets,
+            flow: {
+              fetch: network,
+              now: Date.now,
+              sleep: (ms, signal) => abortableSleep(ms, undefined, { signal }),
+            },
+            present: (prompt) => {
+              writeLine(
+                process.stdout,
+                fill(UI_TEXT.githubSignIn.code, {
+                  url: prompt.verificationUri,
+                  code: prompt.userCode,
+                }),
+              )
+              return Promise.resolve()
+            },
+            openExternal: (url) => {
+              writeLine(process.stdout, fill(UI_TEXT.githubSignIn.signedOut, { url }))
+              return Promise.resolve()
+            },
+            fetch: network,
+          }),
+          storeName: credentialStoreName(process.platform),
+          signal: controller.signal,
+          print: (line) => {
+            writeLine(process.stdout, line)
+          },
+          printError: (line) => {
+            writeLine(process.stderr, line)
+          },
+        })
+      } finally {
+        process.off('SIGINT', abort)
+      }
+    }
     case 'authStatus': {
       return command.provider === undefined
         ? await authStatus(authDeps())
@@ -1414,6 +1517,10 @@ async function main(): Promise<number> {
     case 'providersAdd': {
       const { providersAdd } = await import('./providersCommands')
       return await providersAdd(await providersDeps(), command.options)
+    }
+    case 'providersModels': {
+      const { providersModels } = await import('./providersModelsCommand')
+      return await providersModels(await providersDeps(), command.options)
     }
     case 'providersTest': {
       const { providersTest } = await import('./providersCommands')
@@ -1549,6 +1656,68 @@ async function main(): Promise<number> {
         uiLocale(),
       )
     }
+    case 'mcp': {
+      // M124: stdout is the MCP stream from here on; words go to stderr.
+      const loadSchedules = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+      let schedules: RuntimeSchedulesBinding | undefined
+      const scheduleAnswer = async (
+        root: string,
+        options: Parameters<RuntimeSchedulesBinding['command']>[0],
+      ): Promise<unknown> => {
+        schedules ??= await loadSchedules()
+        const result = await schedules.command(options, root, false)
+        const answer: unknown = JSON.parse(result.output)
+        return answer
+      }
+      const reports = runtimeReports(log, {
+        keepHistory: false,
+        allowEgress: () => Promise.resolve(false),
+      })
+      try {
+        return await connectorLoader(path.join(distDir, CONNECTOR_BUNDLE_FILE), log)().runConnector(
+          {
+            argv: command.argv,
+            table: UI_TEXT,
+            locale: uiLocale(),
+            dataFolder: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            homeDir: homedir(),
+            version: packageVersion(),
+            stdin: process.stdin,
+            stdout: process.stdout,
+            stderr: process.stderr,
+            isInteractive: process.stdin.isTTY,
+            registered: () => sharingCredentials.map((variable) => variable.value),
+            openBrowser: openUsageBrowser,
+            schedules: {
+              list: (root) => scheduleAnswer(root, { operation: 'list', isJson: true }),
+              pause: (root, id) => scheduleAnswer(root, { operation: 'pause', id, isJson: true }),
+            },
+            reports: {
+              generate: async (root, kind, subjectId, signal) => {
+                // M113's own grammar: a positional subject, except playbook's --milestone.
+                let subject: string[] = []
+                if (subjectId !== undefined)
+                  subject = kind === 'playbook' ? ['--milestone', subjectId] : [subjectId]
+                const result = await reports().acp.execute([kind, ...subject].join(' '), {
+                  cwd: root,
+                  sessionId: 'connector',
+                  format: 'md',
+                  signal,
+                })
+                if (result.code !== 0) throw new Error(UI_TEXT.reportUi.generationFailed)
+                return result.text
+              },
+            },
+          },
+        )
+      } finally {
+        await schedules?.close()
+      }
+    }
     case 'vaultHelp': {
       writeLine(process.stdout, vaultUsage())
       return 0
@@ -1563,8 +1732,23 @@ async function main(): Promise<number> {
         const nls: unknown = JSON.parse(await readUiTableFile(packageRoot, [file]))
         writeLine(process.stdout, reference.all(nls))
       } else {
-        writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+        writeLine(process.stdout, renderTopHelp(UI_TEXT, ACP_AGENT_NAME))
       }
+      return 0
+    }
+    case 'helpTopic': {
+      const topic = helpTopicNamed(command.topic)
+      if (topic === undefined) {
+        writeLine(
+          process.stderr,
+          fill(UI_TEXT.cliHelp.unknownTopic, {
+            topic: command.topic,
+            command: ACP_AGENT_NAME,
+          }),
+        )
+        return 2
+      }
+      writeLine(process.stdout, renderTopicHelp(UI_TEXT, ACP_AGENT_NAME, topic))
       return 0
     }
     case 'invalid': {

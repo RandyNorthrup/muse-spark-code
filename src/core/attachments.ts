@@ -7,12 +7,10 @@
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
 import {
-  BASE64_DATA_URL_OVERHEAD_CHARS,
   BASE64_INPUT_BLOCK_BYTES,
   BASE64_OUTPUT_BLOCK_CHARS,
   MAX_ATTACHMENTS_PER_MESSAGE,
   MAX_DOCUMENT_BYTES,
-  MAX_ENCODED_MEDIA_CHARS,
   MAX_IMAGE_BYTES,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MAX_TEXT_ATTACHMENT_BYTES,
@@ -91,29 +89,43 @@ function imageWeight(summary: AttachmentSummary): number {
     : 1
 }
 
+/**
+ * The record's byte limit when it names one, else Meta's published number
+ * while no record reached attach, else none (the platform refuses the rest).
+ */
+function recordByteLimit(
+  recordBytes: number | undefined,
+  isMeta: boolean,
+  metaBytes: number,
+): number | undefined {
+  return recordBytes ?? (isMeta ? metaBytes : undefined)
+}
+
+/**
+ * Bytes past the record's limit are refused; undefined when they fit, so
+ * both adders share one gate instead of mirroring it.
+ */
+function refuseOverLimit(
+  recordBytes: number | undefined,
+  isMeta: boolean,
+  metaBytes: number,
+  byteLength: number,
+  metaReason: string,
+): AddAttachmentResult | undefined {
+  const maxBytes = recordByteLimit(recordBytes, isMeta, metaBytes)
+  if (maxBytes !== undefined && byteLength > maxBytes) {
+    return { ok: false, reason: isMeta ? metaReason : UI_TEXT.modelAttachmentOverLimit }
+  }
+  return undefined
+}
+
 export class AttachmentStore {
   private readonly entries = new Map<string, StoredAttachment>()
 
   public constructor(
     private readonly newId: () => string,
-    private readonly maxEncodedMediaChars: number = MAX_ENCODED_MEDIA_CHARS,
     private media?: AttachmentMediaPort,
   ) {}
-
-  /** Encoded data URL characters held for this message's images and PDFs. */
-  private mediaChars(): number {
-    return Array.from(this.entries.values(), (entry) =>
-      !('bytes' in entry) || entry.summary.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE
-        ? 0
-        : this.encodedChars(entry.bytes, entry.summary.mediaType),
-    ).reduce((total, length) => total + length, 0)
-  }
-
-  private encodedChars(bytes: Uint8Array, mediaType: string): number {
-    const base64Length =
-      BASE64_OUTPUT_BLOCK_CHARS * Math.ceil(bytes.byteLength / BASE64_INPUT_BLOCK_BYTES)
-    return BASE64_DATA_URL_OVERHEAD_CHARS + mediaType.length + base64Length
-  }
 
   /** Serialized MSP attachment parts, before prompt/context and command envelope. */
   private mspAttachmentBytes(): number {
@@ -127,10 +139,6 @@ export class AttachmentStore {
     return Array.from(this.entries.values(), (entry) =>
       'bytes' in entry ? (entry.modelApiTextBytes ?? 0) : 0,
     ).reduce((total, length) => total + length, 0)
-  }
-
-  private fitsMediaBytes(bytes: Uint8Array, mediaType: string): boolean {
-    return this.mediaChars() + this.encodedChars(bytes, mediaType) <= this.maxEncodedMediaChars
   }
 
   private weight(): number {
@@ -149,12 +157,17 @@ export class AttachmentStore {
     if (policy !== undefined && policy.state !== 'yes')
       return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
     const isMeta = record === undefined || record.identity.provider === 'meta'
-    const maxBytes = isMeta ? MAX_DOCUMENT_BYTES : policy?.value.maxBytes
-    if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
-      return {
-        ok: false,
-        reason: isMeta ? UI_TEXT.documentTooLarge : UI_TEXT.modelAttachmentOverLimit,
-      }
+    // The record decides: Meta's own policy (its published inline limits),
+    // another provider's, or Meta's numbers while no record reached attach.
+    const documentLimit = refuseOverLimit(
+      policy?.state === 'yes' ? policy.value.maxBytes : undefined,
+      isMeta,
+      MAX_DOCUMENT_BYTES,
+      bytes.byteLength,
+      UI_TEXT.documentTooLarge,
+    )
+    if (documentLimit !== undefined) {
+      return documentLimit
     }
     const pageCount = pdfPageCount(bytes)
     if (
@@ -181,9 +194,6 @@ export class AttachmentStore {
         reason: UI_TEXT.documentsOverBudget,
       }
     }
-    if (!this.fitsMediaBytes(bytes, PDF_MEDIA_TYPE)) {
-      return { ok: false, reason: UI_TEXT.mediaTotalTooLarge }
-    }
     this.entries.set(summary.id, { summary, bytes })
     return { ok: true, attachment: summary }
   }
@@ -198,12 +208,15 @@ export class AttachmentStore {
     if (policy !== undefined && policy.state !== 'yes')
       return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
     const isMeta = record === undefined || record.identity.provider === 'meta'
-    const maxBytes = isMeta ? MAX_IMAGE_BYTES : policy?.value.maxBytes
-    if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
-      return {
-        ok: false,
-        reason: isMeta ? UI_TEXT.attachmentTooLarge : UI_TEXT.modelAttachmentOverLimit,
-      }
+    const imageLimit = refuseOverLimit(
+      policy?.state === 'yes' ? policy.value.maxBytes : undefined,
+      isMeta,
+      MAX_IMAGE_BYTES,
+      bytes.byteLength,
+      UI_TEXT.attachmentTooLarge,
+    )
+    if (imageLimit !== undefined) {
+      return imageLimit
     }
     const info = readImageInfo(bytes)
     if (info === undefined) {
@@ -226,9 +239,6 @@ export class AttachmentStore {
         ok: false,
         reason: isMeta ? UI_TEXT.documentsOverBudget : UI_TEXT.modelAttachmentOverLimit,
       }
-    }
-    if (!this.fitsMediaBytes(bytes, info.mediaType)) {
-      return { ok: false, reason: UI_TEXT.mediaTotalTooLarge }
     }
     const summary: AttachmentSummary = {
       id: this.newId(),

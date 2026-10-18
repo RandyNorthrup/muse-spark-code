@@ -34,6 +34,239 @@ happened, not what was planned; superseded entries are kept.
   namespace here and says so once on every surface, naming the two ways
   out, without ever switching the sandbox off on its own.
 
+### Added
+
+- **GitHub sign-in from three sources, and the GitHub card in the panel**
+  (PLAN.md D104). Every GitHub call (a pull request, its status and checks,
+  someone else's pull request) takes its sign-in from, in order: your
+  editor's own GitHub sign-in (VS Code and the forks that ship it,
+  unchanged); Muse Spark's own sign-in with GitHub's device flow through the
+  project's OAuth App "Muse Spark Code (Unofficial)" (public client id, no
+  secret, `repo` scope only); and your `gh` login, only after you turn on
+  the new machine-scoped setting `museSpark.github.useGhLogin` (off; a
+  repository's value is ignored), read for one call at a time. Where the
+  editor has no GitHub sign-in of its own (Arduino IDE 2, some forks),
+  **Sign In to GitHub** starts the device flow; anywhere, the palette's
+  **Sign In to GitHub With a Code** (`/github-login`) does. A card above the
+  composer shows the code with **Copy Code**, **Open GitHub** (only
+  github.com/login/device is ever opened) and **Cancel**; then a line names
+  the account and the sign-in in use, with **Sign Out** for Muse Spark's
+  own (`/github-logout`): the token is deleted from the editor's secret
+  storage and the app's page on GitHub opens, where you revoke the grant.
+  A token GitHub refuses is dropped, and you sign in again.
+- **In a terminal: `muse-spark-code-acp auth github login | logout | status`.**
+  `login` prints the code and GitHub's address and keeps the token in this
+  computer's credential store, renewing it before it expires; `status`
+  says whether one is stored (never the token); `logout` deletes it and
+  prints the app's page on GitHub. Signing out in one window also ends
+  sign-ins and renewals still running in others: once the sign-out has
+  written its new sign-in generation, none that began before it keeps or
+  returns a token (a call already overlapping the sign-out may still return
+  its earlier token).
+- **Git and pull requests without VS Code's Git extension.** An editor built
+  on VS Code that does not ship it (Arduino IDE 2, some forks) now gets
+  commit, push, pull requests and Write with Muse for both, through your own
+  `git` on PATH: the same forms and confirmations, the same refusals (never
+  a force-push), the push confirmation naming every URL Git will push to,
+  and each change checked again after every wait under one lock per
+  repository shared by every window. Creating a pull request signs in
+  first, pushes the branch after its confirmation, then asks once more
+  with what goes out before opening it. This route ships in its own bundle
+  (`dist/nativeGit.js`), so VS Code with its Git extension never loads it.
+- In an ACP editor (Zed, Neovim, Emacs and the other ACP clients),
+  `/whatsnew` reads this version's release highlights and full notes as
+  text, answered locally with no model turn.
+
+- **MCP connector for other agents, local phase (in progress)** (M124,
+  D106). `muse-spark-code-acp mcp` serves Muse Spark Code's tools over MCP
+  on stdio to Codex, Claude Code or Gemini CLI on the same machine. Built
+  so far: saved prompt list, read, fill and share preview; schedule list
+  and pause; deterministic reports in Markdown; operation status; Stop for
+  connector operations; and saving a new prompt, which waits for your
+  approval on Muse Spark Code's own loopback approval page and cannot be
+  approved by the other agent. Fleet status, agent outcomes, receipts,
+  lanes, teams, playbook advice, estimates, new or edited schedules and
+  share publishing answer `unavailable`, with their reason. Connections
+  are granted in your own terminal (`mcp grant`, with workspaces, families
+  and an optional content flag) and stopped with `mcp revoke` or `mcp
+  kill`; paid authority stays zero. Revoking, narrowing, switching off or
+  disconnecting stops at once every call that has not started its effect,
+  an approved save included; the connector notices those changes as they
+  happen and reads them again right before every effect. Results are
+  scrubbed; every call leaves one audit line per step, written before the
+  step, and exactly one that says how it ended, refused
+  frames and your own grant, revoke, kill and resume commands leave theirs
+  too; frames, results, rates, polls and pending approvals are bounded,
+  and the limits are shared by every process of a connection. The
+  connector loads from its own `connector.js` (99.9 KiB, budget 100 KiB);
+  activation is unchanged and `acp.js` gains only the 1.3 KiB loader. The
+  hosted connector for ChatGPT and claude.ai (OAuth over HTTPS) is planned,
+  not built; no client has been qualified yet, and the client setup
+  commands in the README have not been run against a real client. See
+  `docs/mcp.md`.
+
+- **Evaluated automatic compaction** (M101 CM1013R9, certified by the
+  second counted run in CM1013R10). The first binding run passed on
+  2026-10-12: verdict `pass` on the full frozen set (sixteen tasks across
+  all four arms, 274 attempts / 276 requests of the 588 ceiling, $0.06285), every arm above both
+  0.75 floors, packing engaged on both long-output tasks and a settled
+  D78 admission on both long-context tasks (receipts in
+  `docs/certification/m101-binding-report.json` and
+  `docs/certification/m101-binding-report.md`).
+  `IS_AUTO_COMPACTION_EVALUATED` is now `true`: automatic compaction is on
+  by default on the Model API backend (one setting turns it off) and is
+  published in Help, the ACP/CLI usage and the generated reference; its
+  first charge still asks once in the paid-use popup naming the price and
+  daily budget. `modelApiStrictTools` stays on: its arm held both floors in
+  the same run. The second counted run on the flipped head passed too
+  (265 attempts / 267 requests, $0.059742, all eight floors held; receipts in
+  `docs/certification/m101-binding-report-2026-10-12-28686235d.json`/`.md`
+  and the run log beside them), so the shipped digest `a59c8448…` is
+  certified: certified equals computed equals the frozen pin. In that run
+  the auto-compaction arm reached 7 of 9 on accept (one long-context task
+  completed after compaction but wrote no answer file) and 7 of 7 on
+  heldout. Every automatic attempt reserves its projected cost from the
+  daily ledger before dispatch, rechecks the claim at send, and settles
+  once per attempt at its exact cost; a refused or missing ledger sends
+  nothing. <!-- try: setting museSpark.modelApiAutoCompaction -->
+
+- **Execution-bound M75 freeze and private tool evidence** (CM1013R4,
+  RVCM1013C findings 2–3). The freeze binds the actual runner configuration,
+  setup/alias closure, compiler/package inputs and launch policy, including
+  source read as data by global setup. The live runner executes a freshly
+  frozen search worker instead of trusting a pre-existing build and refuses
+  mismatched task snapshots before sending. Unknown returned tool names are
+  counted as `other`; private text cannot enter tool-name evidence even when
+  the task recovers and passes. Production automatic compaction stays off.
+
+- **Completed M75 verifier assertions** (CM1013R4, RVCM1013C finding 1).
+  Every frozen task declares its assertion count. A verifier passes only
+  after its last assertion reports a fresh private-input token and that count
+  with a zero exit. Premature exits, fake completion output, caught failures
+  and timed-out solutions fail; all 64 bare-exit outputs fail the full paired
+  verdict. Production automatic compaction stays unevaluated.
+
+- **Evidence-first M75 harness repair** (CM1013B). Both compaction and packing
+  evidence tasks run before small tasks, each task/arm has an independent
+  measured allowance, and a local overrun cannot starve another task. Applied
+  history replacement and settled admission establish compaction engagement;
+  rejected attempts do not. Narrowed selections and global stops remain
+  incomplete through both verdict wrappers. The live launcher checks the
+  expanded source-graph freeze before credentials are opened; smoke mode
+  expects incomplete. Receipts retain exact ledger reservations, settlements
+  and unknown liability, plus request hashes and explicit module-fact visibility
+  for investigating the first run's CommonJS failures. Production automatic
+  compaction stays unevaluated.
+
+- **Frozen M75 evaluation arms and long-context tasks** (M101 C-M101-2).
+  The paired harness now freezes four arms (baseline, observation packing,
+  automatic compaction, strict tool schemas) and sixteen tasks: the twelve
+  previous fixtures plus, per split, one long-context compaction task whose
+  prompt-filled window compacts at the first settled boundary and one
+  two-defect multi-edit task. A SHA-256 digest pins the frozen bytes for the
+  counted run; fake baseline/mechanism pairs hold both 0.75 floors.
+  (The live evaluation has since passed twice; see the
+  evaluated-automatic-compaction entry above.)
+- **Repaired M75 evaluation freeze** (M101 CM1012R2, review RVCM1012).
+  Each arm now differs from its pair in one mechanism only: the context
+  window is harness condition shared by both arms (per task, resolved by the
+  runner), and a mechanism that moves the window, the memory store, the
+  client, the workspace or a paid-use hook does not run. The frozen digest
+  now covers each arm's implementation source, each task's resolved window,
+  the verifier prelude, the window rule, the held-deps list and the frozen
+  defaults. The memory evidence drives the real automatic flush through a
+  fake store — snapshot written when allowed, nothing written and the turn
+  still compacting when refused. No user-facing change; production stays
+  off.
+- **Frozen-digest source closure** (M101 CM1012R3, review RVCM1012B).
+  The frozen digest is now computed over the transitive static-import
+  closure of the arm modules instead of a hand-kept list: every
+  harness-owned file the arms reach contributes its bytes (covering arm
+  helpers such as the admission's `noop`), and every outside binding they
+  draw contributes its canonical value; anything uncoverable fails closed.
+  The held-deps list moved to its own module so the digest need not depend
+  on the driver that drives the production host. The two dependency-key
+  test assertions are recorded in PLAN.md §8. No user-facing change;
+  production stays off.
+- **Frozen-digest resolver redesign** (M101 CM1012R4, review RVCM1012C).
+  The frozen digest no longer walks imports with a pattern scanner or
+  hashes outside bindings by their current values: each arm root is
+  bundled by the real resolver (esbuild, already a build dependency) and
+  every input file it reports contributes its exact bytes, so accessor
+  implementations, comment-quoted edges, literal dynamic imports and
+  directory indexes are all covered exactly as the build resolves them.
+  A non-literal dynamic `import()` or `require()` fails the digest
+  instead of freezing around it, and canonical JSON keeps an own
+  `__proto__` field. No user-facing change; production stays off.
+- **Frozen-digest refusal parsing** (M101 CM1012R5, review RVCM1012D).
+  The remaining pattern-based refusal scanner is replaced with the
+  TypeScript compiler API: every file in the resolver's closure is
+  parsed, so interpolated and concatenated dynamic specifiers fail the
+  digest with file and line, as does every indirect loader spelling
+  (`module.require`, optional `require?.()`, require aliases,
+  `createRequire(…)(…)` and `require.call/apply/bind`) and every `new
+  Worker(…)` load, literal or not — none of which the bundler follows.
+  No user-facing change; production stays off.
+- **Frozen-digest load-closure rule** (M101 CM1012R6, review RVCM1012E).
+  The shape list becomes one rule: every runtime load the walk finds
+  (dynamic `import()` including `import.defer`, every `require`
+  spelling, every `new Worker(…)` spelling, two-argument `new URL`,
+  `import.meta.resolve`, module-relative file reads, dynamic
+  evaluation) is refused with file and line unless the bundler's own
+  metafile placed its target in the closure. Re-frozen digest
+  `9cfc4744…786278`. No user-facing change; production stays off.
+- **Frozen evaluation executes what it hashes** (M101 CM1012R7,
+  review RVCM1012F). Each arm is one self-contained esbuild Node bundle;
+  its emitted bytes and declared fixture snapshots determine the digest.
+  The runner executes that exact snapshot under Node's permission model,
+  granting reads only to its bundle and fixture files, with workers and
+  child processes denied. Undeclared loads and reads fail the task before
+  model dispatch, regardless of loader spelling. Validated declarative
+  options replace parent arm callbacks for frozen runs; their JSON reports
+  retain the receipt. The static scanner and resolver comparison are gone,
+  literal `.jsx` and absolute `.js` resolution work, and temporary paths are
+  canonical on macOS, Windows and Linux. No user-facing feature change;
+  production automatic compaction stays off.
+- **M75 evaluation with production compaction admission** (M101 C-M101-3,
+  part A, no user-facing change). The frozen auto-compaction arm now
+  admits through the real shared D78 gate and settles every extra attempt
+  against the run's own hard budget instead of a test double, and the
+  counted-run launcher prints its call plan (206 planned, 300 hard
+  ceiling) before anything sends. All four frozen arms run behind the
+  live switch with both mechanism engagements recorded. (The counted
+  live runs have since passed; see the evaluated-automatic-compaction
+  entry above.)
+- **M75 evaluation review repairs** (M101 CM1013AR2, review RVCM1013A, no
+  user-facing change). "Compaction engaged" now means the D78 admission
+  settled a summary: the report records the settled-admission count per
+  task and requires at least one on every long-context task of the
+  auto-compaction arm — more model calls than the baseline is not
+  evidence either way. A selection with no long-context (or long-output)
+  task is `incomplete`, never a pass, and the live test accepts only
+  `pass`. The printed plan (198) is exactly what runs with the hard
+  ceiling equal to it; a run that would exceed it stops `incomplete`.
+  The frozen receipt no longer calls admitted attempts uncharged, a
+  budget refusal after the body read consumes no ceiling slot, and the
+  missing-admission throw fails the turn instead of running uncompacted.
+  The counted live run is still ahead; production stays off.
+### Changed
+
+- Legal scans recognize the literal affiliate and `et al.` notice suffixes,
+  terminal periods after holder names, and paired email/URL contacts found in
+  shipped vendor licences, while keeping restrictive holder text under review.
+  Optional workspace-root `licence-review.json` receipts bind a reviewed text
+  to its package, exact version, SHA-256 and SPDX id and appear visibly as
+  **Reviewed by receipt** in all formats; changed bytes or versions need review
+  again. The restriction vocabulary moves unchanged beside the pinned templates,
+  preserving the legal bundle cap.
+
+- Legal scans reject restrictive holder/party text in pinned SPDX templates,
+  including Title Case, camelCase and multilingual variants, while recognizing
+  ordinary names such as Profit Inc. Coverage follows shipped dependencies,
+  exact license-text disagreements remain conflicts, build evidence survives
+  alphabetically earlier file-cap noise, and package versions remain visible
+  after email scrubbing. Exit documentation now agrees with blocker-only exit 1.
+
 ### Fixed
 
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
@@ -63,12 +296,130 @@ happened, not what was planned; superseded entries are kept.
   named no bundle and then hang. Bundles now run through a bounded pool
   of 8; a failure names its bundle, in-flight bundles settle, and the
   process exits with the true error.
+- On Windows, a folder literally named `..foo` directly under a trusted
+  root was refused as outside its trusted root, so native schedules
+  and helpers would not trust it. Only `..` itself or a leading `..\` leaves
+  the root now; genuine escapes still fail closed.
+- The same `..foo` mistake in the import preview, the playbook's file
+  identities, Tab's context, the browser runtime's ZIP extraction, problem
+  reports' frame paths, the schedule store and schedule file watches: a
+  name that only starts with two dots is an ordinary folder there too now,
+  and a genuine `..` segment still fails closed.
 
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
+
+- When Muse Code failed and was restarted, the next turn could fail with a
+  bare "missing meta credentials" and nothing said the sign-in had been lost
+  across the restart. The replacement now carries how the failed run ended,
+  and the first turn refused for the lost sign-in names the restart and the
+  way back (`muse login` or `META_API_KEY`) in the panel and, over the
+  editor protocol, as an `authRequired` error. A credential file whose
+  `api_key` is not a string, or that carries only an `access_token`, is no
+  longer read as a sign-in (current Muse Code refuses both); its verdict
+  is left to the CLI. Muse Code's "malformed auth file" start refusal is
+  named in the log in fixed words, without the file's path.
+
+- MCP elicitation hooks now run. With `museSpark.modelApiHooks` on, a
+  project's `Elicitation` hook can decline the request and a user hook can
+  answer it (checked against the server's schema); `ElicitationResult`
+  observers in the project see field names and the outcome only, while user
+  hooks also see accepted values. When a project or managed hook declines,
+  user hooks are not run for that request (they still see the outcome in
+  `ElicitationResult`). Previously these hooks were accepted by the
+  configuration but never ran.
+
+- The local MCP connector refuses a `--connection` name that is not a plain
+  file name (it became grant, audit and limits paths unvalidated, so
+  `--connection ../x` wrote its audit journal outside `connector/audit/`).
+  `mcp --help` now prints the usage and exits 0; declining or interrupting a
+  grant or resume confirmation says "Nothing was changed." instead of nothing,
+  the wrong sentence, or a stack trace. The approval page's embedded
+  language table is escaped for its script block. (Review RVMSM124.)
+
+- The local MCP connector restarts an approval page that closed on idle and
+  retries a recovered browser opener on the next save request. Failed openers
+  close their page immediately; disconnect still closes any open or starting
+  page before the runtime returns.
+
+- The local MCP connector closes its approval page's listener and idle timer
+  when the client disconnects after the browser opener failed. The requested
+  action still refuses with `approval_unavailable`.
+
+
+- Four orchestration gotcha rows G79–G82 (tests reap every process tree they
+  start, even after a timeout, with a leak check when a lane ends; a lead
+  session handoff ends or hands over every background job the old session
+  started; a sampler that cannot see a protected process reports the reading
+  as blind, never 0; no tight polling of a security product's status), with
+  D100 amendments for M96c and M107 that M109 and M120 also bind. The
+  playbook placement chapter gains lessons 28–31 covering the same failures,
+
+- A fully evidenced `/legal` scan now exits 0 (or 1 with a blocker) instead
+  of always exiting 2 (M97 C-M97-1). An ecosystem with no manifests at all
+  is a complete observation, not a gap; missing locks, stale artifacts,
+  assets without provenance and proprietary terms keep named incomplete
+  reasons.
+
+- The `/legal` scanner matches license texts against the official SPDX
+  License List 3.28.0 templates under the SPDX matching guidelines (M97
+  CM971-R3, reviews RVCM971 and RVCM971B). A text is an exact match only
+  when every fixed word of a template is present in order and only the
+  template's variable and optional parts vary, each variable holding just
+  what it stands for (a copyright notice, a list marker, a name); a
+  sentence, a condition or prose in any language never vanishes into a
+  match. Anything else is reported as differing from the template at a
+  quoted span, for human review. The 21 templates ship beside the scanner,
+  byte-identical and verified by SHA-256 before use. GPL-family texts match
+  their version stem; `-only`/`-or-later` comes only from the project's own
+  grant (manifest, README, source `SPDX-License-Identifier` headers, GNU
+  "any later version" notices, a trailing `+`). Every licence text a
+  dependency names (Cargo `license-file`, `SEE LICENSE IN`, Python
+  `License-File`) and every vendored licence below the root keeps its
+  human-review limitation unless it matches exactly. Artifact freshness is
+  proven per bundle from SHA-256 hashes the production build captures from
+  the exact bytes it compiles; every listed output must exist and match,
+  conflicting records fail, and inputs outside the workspace are named.
+  Plugin-generated modules, binary inputs and esbuild's disabled stand-ins
+  are hashed where the build hands them over, and `npm run build` now ends
+  by scanning this repository's own build records with the production
+  scanner (`scripts/check-legal-build-records.mjs`), failing on any
+  unverified input. Restriction words (noncommercial, nonprofit,
+  educational, only, personal, no, …) are never read as part of a
+  copyright holder's name, so such a notice keeps human review.
+
+- A `/legal` scan now judges what the workspace distributes (M97 scan-scope
+  ruling). Distribution is read from the build records first (inputs the
+  bundler shook out do not count), or from the package's files list;
+  `node_modules` is never walked for it, and `.git` and `node_modules` are
+  skipped as expected. Only dependencies that ship can make the scan
+  incomplete; development-only dependencies and test fixtures are listed
+  as information. The matcher applies more of the SPDX guidelines (quote
+  styles, Markdown emphasis such as `*AS IS*`, list markers, titles and
+  copyright lines outside the template's slot, an Apache appendix given
+  from its applied notice) and pins the MIT-0 template. A long report
+  summarizes the advice it leaves out instead of reporting itself
+  incomplete. This repository's own scan now completes (exit 0), and
+  `npm run build` checks that it does.
+
+- Removed the invented clipping, dropping and queue limits on output and
+  data (NOLIMITS4): the sent selection is no longer cut at 64 KiB, every MCP
+  tool is offered with every tools-list page followed, every output document
+  is kept, every checkpoint unit is kept with every file copied (idle
+  conversations still prune by the person's cleanup age), every code intel
+  location is shown with every listed file ranked, every FileChanged hook
+  run fires past its per-path quiet window, ACP tool output travels whole
+  with every session reachable by paging, the legal scan no longer stops
+  at a file count or truncates its report at a finding count (its
+  per-file, per-rule and time bounds still report as incomplete), media
+  follows the provider's per-request record with no aggregate budget and no
+  upload ceiling of ours, GitHub checks page through every check run and
+  status, hook commands start with no host-wide count, and delegated team
+  work waits for headroom with no task or time bound. The provider's own
+  refusals, and the person's own settings, decide what fits.
 
 ### Packaging
 
@@ -110,6 +461,61 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- M53 follow-up (C-M53-3): a Muse Code side chat is read-only at the panel.
+  Every approval its branch raises is refused with the card's own rejection,
+  including a staged approval's later stages, and an approving click on a
+  card the host left standing is refused too, so the branch cannot approve a
+  write. Refusals are labelled `Side Chat` with the reason. Writes the CLI's
+  own allow rules already cover still run without asking; that residual is
+  recorded for the upstream report (sdk#86).
+
+- Terminal commands (CLIFLOWS): sharing answers accept `y`/`yes` in any
+  case and the answered process exits; `share`/`prompts` print their result
+  JSON only with `--json`, and the CLI reference documents the scripted
+  `--confirm` repeat; `prompts use` asks once, after the variables, and only
+  imported prompts are called untrusted; `scan-secrets` prints only the
+  number and its help names the exits (0 clean, 10 found, 2 misuse);
+  `playbook settings` no longer shows `(panel)`; each slash command is
+  announced once; one sentence reports a dead credential store everywhere;
+  the terminal lists Meta provider accounts; non-Meta accounts are not yet
+  bound to the provider configuration. Pre-session refusals name what is missing.
+- Terminal commands (CLIFLOWSFIX): an `exec` with a ChatGPT plan model runs
+  on the shared subscription path (no Meta key needed; attempts count
+  against `--max-requests` at no USD reservation; a missing grant names the
+  ChatGPT sign-in, and a Copilot plan model names Copilot, never a Meta
+  key); with no unlocked credential store the agent starts and the host
+  opens, steps that need a stored key refuse in the one store sentence, and
+  nothing is written in plain text; `providers accounts` advice follows the
+  runner's providers file (a configured provider without account metadata
+  says its accounts are not available in this terminal yet); `prompts use`
+  takes scripted `--var name=value` and `--confirm` and its review asks to
+  print, not insert; `scan-secrets --help`, `exec --help`, `report --help`,
+  `share --help` and `prompts --help` each print their own one screen. A
+  keyless session opens with no account identity; identity and spend
+  resolve at the first step that needs a provider, and a step that needs
+  a stored key refuses in the one store sentence; grant-backed dispatch
+  still needs the owner's real-life run.
+- Review (RVCLIFLOWS2): `share --help` and `prompts --help` name exit 7 for
+  a cancelled or refused share, from the sharing handler's own codes; a key
+  step whose credential store has recovered returns the key it re-read.
+- Terminal commands (CLIFLOWS2): `share --help` and `prompts --help` list
+  every parsed option with its accepted values and defaults from the
+  sharing parser's own tables, and the CLI reference grows 23 rows without
+  dating the message range; `developer --help` prints its usage instead of
+  a stack trace, and any other misuse reports the usage with exit 2;
+  headless runs say their messages are in English instead of naming a
+  panel; a key step re-reads the credential store before reporting it
+  down, so an unlock mid-session is found.
+- RVCLIFLOWS: retain headless request and USD limits for every Model API/BYO
+  run; a user-configurable provider id is not evidence of subscription billing.
+- RVCLIFLOWS: terminal prompt save/list/use retain readable results without
+  `--json`; cancellation explains itself on stderr instead of silently exiting.
+- RVCLIFLOWS: an exact slash-command selector is announced once even if
+  repeated entries have different descriptions or argument hints.
+- RVCLIFLOWS: an unavailable credential store says stored keys cannot be
+  checked, rather than falsely claiming no key is stored (all display languages).
+- RVCLIFLOWS: `scan-secrets` no longer emits a panel-language diagnostic on
+  stderr; successful scans print only their count.
 - Provider refusals read as the provider's refusal (lane PROVERR): when a
   configured provider answers with an error — out of credit, a rejected key,
   rate-limited, overloaded, an invalid request and the rest — the turn ends
@@ -143,7 +549,6 @@ happened, not what was planned; superseded entries are kept.
   the provider's request id, and a rejected key, missing permission or
   unknown model says nothing reached a model, no longer that nothing was
   sent. Record: `docs/certification/provider-refusals.md`.
-
 - All fourteen translated settings tables now say Muse Code asks before a
   command unless a permission rule allows it, matching the English modes.
 
@@ -171,6 +576,28 @@ happened, not what was planned; superseded entries are kept.
   model-switch hooks or resets switch-related session state. ACP remembers
   backend-reported model and effort changes too, including changes received
   before a configuration command finishes.
+- Imported provider files reject blank force reasons, terminal controls and
+  line separators, matching the CLI's one-line reason requirement.
+
+- The feature catalogue links provider model editing and per-command help to
+  their CLI routes, with model add/remove/force details in the generated reference.
+
+- Forced-model annotations use the installed language in provider model lists.
+
+- The reference gate checks command topics only in the README's terminal-help
+  paragraph, so unrelated mentions cannot hide missing documentation.
+
+- Per-command help always shows declared value shapes, including provider
+  preset, id, address and privacy arguments.
+
+- Exit-2 CLI refusals load the display language before formatting the parser
+  error, without starting a backend or credential service.
+
+- CLI enum refusals list the accepted values from command help without
+  echoing the rejected value.
+
+- CLI review: custom provider model lists are explicitly read-only in the
+  terminal; edits require the Models panel's per-model context/output limits.
 
 - Activation budget: the Create AGENTS.md command, its rules template and
   their redaction load on the command's first run instead of at activation,
@@ -250,6 +677,20 @@ happened, not what was planned; superseded entries are kept.
   features' API surface leaves in wired files is measured in
   docs/testing/test-overhaul-2026-10-12.md for the per-feature owners.
 
+- Panel plain words (lane PANELTEXT, findings F59–F71): the Getting Started
+  rows are grid columns that can never overlap, at any sidebar width; the
+  empty composer invites a message and names only this machine's focus key
+  ("Ask Muse… (Ctrl+Esc to focus)" on Linux, Cmd+Esc on macOS,
+  Ctrl+Alt+Esc on Windows); the Share Chat destination group is headed
+  "Share as"; Muse Code skill rows show the skill's title ("Run the {name}
+  skill."), never SKILL.md's model-facing instructions; a palette tip that
+  repeats its row's detail reads once; the Backend row says which engine
+  runs the conversation instead of the raw setting id; the model picker
+  marks contributor-suffixed models; the pill says "Checking sign-in…"
+  while the sign-in facts are read, and a signed-in credential file shows
+  at once, before the rest of the sign-in facts are read; a skills "Not now" is
+  remembered even when the click reaches a window that never showed the
+  notice.
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
@@ -319,31 +760,29 @@ happened, not what was planned; superseded entries are kept.
   revocation, own-machine Reset included, is still published after an audit
   failure, and the caller still gets the persistence error.
 
-- M123 (Git and pull requests in every editor, PLAN.md D104): lanes 0, G
-  and P are merged and switched off until the milestone is complete, so
-  nothing changes for users yet. No GitHub setting is offered, and an
-  editor built on VS Code without its Git extension (Arduino IDE 2, some
-  forks) keeps its earlier behaviour. Merged: the GitHub token-source
-  contracts with fakes of GitHub, the device flow, `gh` and Git remotes
-  (lane 0); the runtime's native Git service (status, the commit form,
-  commit, a push confirmed with every URL Git will use and the same
-  refusals as VS Code, never a force-push, commit-message drafts),
-  revalidated after every wait and serialized per repository across
-  windows by one fenced lease (LOCKLIB) that renews every third of its
-  30-second lease, is checked synchronously at each Git dispatch and is
-  never re-created once lost (lane G, with M123G4 and M123G4C); pull
-  requests in the runtime (draft, open and link, status and checks, a
-  fork onto its parent) and checkouts of other people's pull requests
-  held under the runtime data folder, whose records take that lease with
-  fenced compare-and-swap generations, so at most one window gets a
-  checkout and no folder is left without its record (lane P, with
-  M123P9's logged sweep failures and translated uncertain writes). Still
-  to land: the GitHub sign-in (lane A, accepted on its branch), the
-  editors' leases (lane L), the panel and its strings (lane U) and each
-  editor's qualification (lane Q). The pull-request checkout's own git
-  launches are not yet under the resource governor; nothing in this release
-  can start them, and the process inventory fails the day something could.
+- M123 (Git and pull requests in every editor, PLAN.md D104): the
+  checkout of someone else's pull request outside VS Code's Git (the
+  runtime's held checkout) is built and not connected: its own git
+  launches are not yet under the resource governor, so nothing in this
+  build can start them, and the process inventory fails the day something
+  could. JetBrains IDEs, Visual Studio, Eclipse and the editor-protocol
+  editors get the Git panel with their M104 bridges, which are not in this
+  build.
 
+### Added
+
+- The terminal agent documents itself per command for `serve`, `login`, `auth`,
+  `providers`, `exec`, `scan-secrets`, `report`, `legal`, `fonts`, `playbook`,
+  `setup`, `usage` and `resources`. `<command> --help` and
+  `muse-spark-code-acp help <command>` print that command's own usage, its
+  options with defaults and bounds, and two examples that run; the full
+  Help & Reference stays behind `help --all`. A wrong option or value exits
+  2, names the option and the accepted values, and suggests the nearest
+  valid option when the name is close. `providers models <entry>`
+  lists an entry's models (and which of the provider's models the entry
+  does not offer) and changes the list with `--add`/`--remove`; a model the
+  provider does not list needs `--force '<reason>'`, and the reason is kept
+  on the entry. All of this reads in the installed language.
 - Muse Code permissions: on the Muse Code backend one command is asked
   about once — the first answer is reused for later stages instead of
   asking again, and an answer given while a newer stage arrives is applied

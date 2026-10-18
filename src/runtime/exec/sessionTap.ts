@@ -18,7 +18,7 @@ export interface SessionTap {
   releasedMessages(): readonly ReleasedMessage[]
 }
 
-export function observeBackend(backend: AcpBackend): SessionTap {
+export function observeBackend(backend: AcpBackend, modelHint?: string): SessionTap {
   const hosts = new WeakMap<AgentHost, AgentHost>()
   const sessions = new Map<string, AgentSession>()
   const items = new Map<string, { n: number; item: ItemSnapshot; isDone: boolean }>()
@@ -86,7 +86,11 @@ export function observeBackend(backend: AcpBackend): SessionTap {
   return {
     backend: {
       kind: backend.kind,
-      readiness: backend.readiness.bind(backend),
+      // The exec run names its model up front, so the session gate sees the
+      // same plan-model hint as the run's own readiness check: a plan model
+      // with only its subscription sign-in opens the session, and a refusal
+      // names the plan sign-in instead of a Meta key.
+      readiness: (isRecheck) => backend.readiness(isRecheck, modelHint),
       async hostFor(cwd) {
         return wrap(await backend.hostFor(cwd))
       },

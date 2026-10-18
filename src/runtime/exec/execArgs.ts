@@ -17,6 +17,7 @@ import {
   EXEC_MODES,
   EXEC_OUTPUTS,
   EXEC_PROMPT_MAX_BYTES,
+  PAID_PRICES_USD,
   EXEC_UNTRUSTED_FILES_MAX,
   EXEC_USD_DECIMALS,
   EXEC_USD_UNITS,
@@ -32,10 +33,14 @@ const { isProviderId, parseModelRef } = modelRef
 import type { ServeOptions } from '../cliArgs'
 import { accountIdSchema } from '../../shared/accounts'
 import { ACCOUNT_DEFAULT_ID } from '../../shared/constants'
+import type { PaidUseRequest } from '../../shared/paid'
+
+/** No remaining run budget in the ledger's units: headless compaction needs some. */
+const NO_REMAINING_UNITS = 0n
 
 export type ExecMode = 'plan' | 'acceptEdits'
 export type ExecOutput = 'text' | 'json' | 'jsonl'
-export type ExecPaidFeature = 'imageGeneration'
+export type ExecPaidFeature = 'imageGeneration' | 'autoCompaction'
 export type PromptSource =
   | { readonly kind: 'text'; readonly text: string }
   | { readonly kind: 'file'; readonly path: string }
@@ -79,6 +84,7 @@ export interface ExecOptions {
 const BOOLEAN_OPTIONS = new Set([
   'allow-contributor-models',
   'image-generation',
+  'auto-compaction',
   'no-auto-compaction',
   'fail-on-denial',
   'ephemeral',
@@ -212,31 +218,32 @@ export function parseExec(
       (values['account'] !== undefined && values['account'] !== ACCOUNT_DEFAULT_ID))
   )
     return invalid(UI_TEXT.accounts.museCodeUnavailable)
-  if (
-    backend === undefined ||
-    output === undefined ||
-    shellSandbox === undefined ||
-    (effort === undefined && values['effort'] !== undefined)
-  )
-    return invalid(UI_TEXT.execUsage)
+  // A wrong value names its own option (D119), never a bare usage line.
+  if (backend === undefined) return invalid(fill(UI_TEXT.execValueInvalid, { option: '--backend' }))
+  if (output === undefined) return invalid(fill(UI_TEXT.execValueInvalid, { option: '--output' }))
+  if (shellSandbox === undefined)
+    return invalid(fill(UI_TEXT.execValueInvalid, { option: '--shell-sandbox' }))
+  if (effort === undefined && values['effort'] !== undefined)
+    return invalid(fill(UI_TEXT.execValueInvalid, { option: '--effort' }))
   const timeout = integer(
     values['timeout'],
     EXEC_DEFAULT_TIMEOUT_SECONDS,
     EXEC_MIN_TIMEOUT_SECONDS,
     EXEC_MAX_TIMEOUT_SECONDS,
   )
+  // The six-decimal sentence is true only of the budget; a wrong timeout
+  // or request count names its own option instead.
+  if (timeout === undefined) return invalid(fill(UI_TEXT.execValueInvalid, { option: '--timeout' }))
   const maxRequests = integer(
     values['max-requests'],
     EXEC_DEFAULT_MAX_REQUESTS,
     1,
     EXEC_MAX_REQUESTS,
   )
+  if (maxRequests === undefined)
+    return invalid(fill(UI_TEXT.execValueInvalid, { option: '--max-requests' }))
   const budgetUsd = budgetUnits(values['max-budget-usd'])
-  if (
-    timeout === undefined ||
-    maxRequests === undefined ||
-    (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
-  )
+  if (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
     return invalid(UI_TEXT.execNumberInvalid)
   if (backend === 'modelApi' && budgetUsd === undefined) return invalid(UI_TEXT.execBudgetRequired)
   if (
@@ -252,6 +259,7 @@ export function parseExec(
       'ephemeral',
       'key-stdin',
       'image-generation',
+      'auto-compaction',
       'output-schema',
       'output-schema-outside',
     ].some((key) => values[key] !== undefined && values[key] !== false)
@@ -318,7 +326,10 @@ export function parseExec(
       budgetUsd,
       maxRequests: backend === 'modelApi' ? maxRequests : undefined,
       timeoutMs: timeout * MILLISECONDS_PER_SECOND,
-      paidFeatures: values['image-generation'] === true ? ['imageGeneration'] : [],
+      paidFeatures: [
+        ...(values['image-generation'] === true ? (['imageGeneration'] as const) : []),
+        ...(values['auto-compaction'] === true ? (['autoCompaction'] as const) : []),
+      ],
       failOnDenial: values['fail-on-denial'] === true,
       ephemeral: values['ephemeral'] === true,
       keyFromStdin: values['key-stdin'] === true,
@@ -326,9 +337,37 @@ export function parseExec(
       museBinary: stringValue('muse-binary') ?? SETTING_DEFAULTS.museBinaryPath,
       shellSandbox,
       isVerbose: values['verbose'] === true,
-      autoCompaction: values['no-auto-compaction'] !== true,
+      // Headless runs compact only with the explicit opt-in flag; nobody
+      // can be asked, so the default stays off and --no-auto-compaction wins.
+      autoCompaction: values['auto-compaction'] === true && values['no-auto-compaction'] !== true,
     },
   }
+}
+
+/**
+ * Headless paid-use admission for one feature: nobody can be asked, so
+ * image generation needs its flag, acceptEdits and an affordable hard run
+ * budget, and automatic compaction needs its flag and any remaining run
+ * budget (no `--max-budget-usd` means no ledger, so no compaction). Pure,
+ * so the run and its tests decide identically.
+ */
+export function isHeadlessPaidUseAllowed(
+  options: Pick<ExecOptions, 'paidFeatures' | 'mode'>,
+  remainingUsd: UsdAmount,
+  isAborted: boolean,
+  request: PaidUseRequest,
+  requiresAsking: boolean,
+): boolean {
+  if (requiresAsking || isAborted) return false
+  const remaining = Usd.from(remainingUsd).units(EXEC_USD_DECIMALS)
+  const isAdmitted =
+    request.feature === 'autoCompaction'
+      ? options.paidFeatures.includes('autoCompaction') && remaining > NO_REMAINING_UNITS
+      : request.feature === 'imageGeneration' &&
+        options.paidFeatures.includes('imageGeneration') &&
+        options.mode === 'acceptEdits' &&
+        remaining >= Usd.from(PAID_PRICES_USD.imageGeneration).units(EXEC_USD_DECIMALS)
+  return isAdmitted
 }
 
 export function serveOptionsFor(options: ExecOptions): ServeOptions {

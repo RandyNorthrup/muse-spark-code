@@ -69,6 +69,34 @@ describe('evaluateDependencyLicenses', () => {
     expect(result.findings.every((finding) => finding.severity === 'advice')).toBe(true)
   })
 
+  it('marks proprietary, unknown and custom terms for human review', () => {
+    // C-M97-1: the scan's human-review caveat follows this signal.
+    const review = evaluateDependencyLicenses(
+      [
+        shippedDep('secret', 'UNLICENSED'),
+        shippedDep('mystery', 'Foo-1.0'),
+        shippedDep('custom', 'LicenseRef-Mine'),
+      ],
+      () => false,
+    )
+    expect(review.requiresReview).toBe(true)
+    const recognized = evaluateDependencyLicenses(
+      [shippedDep('leftpad', 'MIT'), shippedDep('oldie', 'GPL-2.0')],
+      () => false,
+    )
+    expect(recognized.requiresReview).toBe(false)
+  })
+
+  it('marks malformed expressions for human review with a named reason (RVCM971 P2)', () => {
+    // Finding 6: a malformed declaration leaves the terms unresolved, so
+    // the dependency keeps a review limitation instead of exiting clean.
+    const result = evaluateDependencyLicenses([shippedDep('broken', 'MIT AND')], () => true)
+    expect(result.requiresReview).toBe(true)
+    expect(result.evaluated).toHaveLength(0)
+    expect(result.incomplete.join(' ')).toContain('human review')
+    expect(result.incomplete.join(' ')).toContain('broken')
+  })
+
   it('treats shipped UNLICENSED as should-fix and dev-only as advice', () => {
     const shipped = evaluateDependencyLicenses([shippedDep('secret', 'UNLICENSED')], () => true)
     expect(shipped.findings[0]?.severity).toBe('should-fix')

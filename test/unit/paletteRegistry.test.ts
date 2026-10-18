@@ -312,16 +312,16 @@ describe('buildPalette', () => {
       },
       {
         id: 'skill:fix-bug',
-        tip: 'Fixes a bug',
+        tip: 'Run the Fix bug skill.',
         label: '/fix-bug',
-        detail: 'Fixes a bug',
+        detail: 'Fix bug',
         action: { type: 'insertSkill', selector: 'fix-bug' },
       },
       {
         id: 'skill:acme:deploy',
-        tip: 'Deploys',
+        tip: 'Run the Deploy skill.',
         label: '/acme:deploy',
-        detail: 'Deploys — <env>',
+        detail: 'Deploy — <env>',
         action: { type: 'insertSkill', selector: 'acme:deploy' },
       },
     ])
@@ -423,7 +423,7 @@ describe('buildPalette', () => {
     }
   })
 
-  it('offers commit, push and pull requests on both backends (M71)', () => {
+  it('offers commit, push, pull requests and the GitHub sign-in on both backends (M71, M123)', () => {
     for (const backend of ['museCode', 'modelApi', undefined] as const) {
       const rows = pricedPalette({ ...context, backend })
         .find((group) => group.id === 'git')
@@ -433,6 +433,8 @@ describe('buildPalette', () => {
         { type: 'gitAction', action: 'push' },
         { type: 'gitAction', action: 'openPullRequest' },
         { type: 'openPullRequestInConversation' },
+        { type: 'gitAction', action: 'signInGitHubWithCode' },
+        { type: 'gitAction', action: 'signOutGitHub' },
       ])
     }
   })
@@ -616,6 +618,8 @@ describe('slashCommandsOf', () => {
       'push',
       'pr',
       'checkout-pr',
+      'github-login',
+      'github-logout',
       'model',
       'permissions',
       'mcp',
@@ -758,6 +762,13 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
     )
     expect(rows.map((row) => [row.label, row.detail, row.widget, row.action])).toEqual([
       [
+        'Automatic compaction (Paid)',
+        'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
+        { kind: 'toggle', isOn: false },
+        { type: 'setPaidFeature', feature: 'autoCompaction', isOn: true },
+      ],
+      [
         'Web Search (Paid)',
         '$2.50 per 1,000 searches',
         { kind: 'toggle', isOn: false },
@@ -875,16 +886,18 @@ describe('M87 palette tips', () => {
   })
 
   it.each(['', ' '.repeat(3), '  Own description.  '])(
-    'uses the skill description or a named fallback: %j',
+    'names the skill for people, never its model-facing description: %j',
     (description) => {
       const groups = pricedPalette({
         ...context,
         skills: [{ selector: 'review', displayName: 'Review code', description }],
       })
       const skill = groups.flatMap((group) => group.items).find((row) => row.id === 'skill:review')
-      const expected = description.trim() || 'Run the Review code skill.'
-      expect(skill?.tip).toBe(expected)
-      expect(slashCommandsOf(groups).find((row) => row.name === 'review')?.tip).toBe(expected)
+      expect(skill?.tip).toBe('Run the Review code skill.')
+      expect(skill?.detail).toBe('Review code')
+      expect(slashCommandsOf(groups).find((row) => row.name === 'review')?.tip).toBe(
+        'Run the Review code skill.',
+      )
     },
   )
 })

@@ -5,7 +5,8 @@
 // orphans, PLAN.md M27, sat in `toolIo.test.ts`'s folder this way).
 
 import { readdirSync } from 'node:fs'
-import { rm } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
 
 const REMOVE_RETRIES = 5
@@ -18,6 +19,25 @@ export function removeFolder(folder: string): Promise<void> {
     maxRetries: REMOVE_RETRIES,
     retryDelay: REMOVE_RETRY_DELAY_MS,
   })
+}
+
+/**
+ * The temporary folders one suite makes, all removed afterwards. Suites
+ * share it instead of repeating the tracker, so the duplication gate stays
+ * silent and every folder still cleans up the same way.
+ */
+export function temporaryTracker() {
+  const folders: string[] = []
+  return {
+    cleanup: async (): Promise<void> => {
+      await Promise.all(folders.splice(0).map((folder) => removeFolder(folder)))
+    },
+    make: async (prefix: string): Promise<string> => {
+      const folder = await mkdtemp(path.join(os.tmpdir(), prefix))
+      folders.push(folder)
+      return folder
+    },
+  }
 }
 
 /** Every file under a folder, as absolute paths: what a key scan reads. */

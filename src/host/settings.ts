@@ -24,7 +24,6 @@ import {
   LEGAL_HEADER_POLICIES,
   type LegalHeaderPolicy,
   MEDIA_AUDIO_ACTION_OPTIONS,
-  MEDIA_MAX_UPLOAD_MIB,
   MEDIA_UPLOAD_EXPIRY_MAX_DAYS,
   MEDIA_UPLOAD_EXPIRY_MIN_DAYS,
   ESTIMATE_OPTIMIZE_MODES,
@@ -184,6 +183,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly accountParallel: boolean
   /** D88 amendment b2: several accounts of one provider on this PC; off by default. */
   readonly 'accounts.severalOnThisDevice': boolean
+  /** M123 (PLAN.md D104 source c): the user's `gh` login for GitHub; off by default. */
+  readonly 'github.useGhLogin': boolean
   /** The per-user credential vault, shared by every editor (M109, PLAN.md D89). */
   readonly 'vault.enabled': boolean
   /** How the vault key is protected; `auto` is hardware plus the OS store. */
@@ -310,7 +311,8 @@ const settingSchemas = {
   usageHistoryDays: z
     .int()
     .check(z.minimum(USAGE_HISTORY_DAYS_MIN), z.maximum(USAGE_HISTORY_DAYS_MAX)),
-  mediaMaxUploadMiB: z.int().check(z.gte(1), z.lte(MEDIA_MAX_UPLOAD_MIB)),
+  // No ceiling of ours: the person sets any MiB, the provider refuses what it cannot take.
+  mediaMaxUploadMiB: z.int().check(z.gte(1)),
   mediaUploadExpiryDays: z
     .int()
     .check(z.gte(MEDIA_UPLOAD_EXPIRY_MIN_DAYS), z.lte(MEDIA_UPLOAD_EXPIRY_MAX_DAYS)),
@@ -321,6 +323,7 @@ const settingSchemas = {
   accountSwap: z.boolean(),
   accountParallel: z.boolean(),
   'accounts.severalOnThisDevice': z.boolean(),
+  'github.useGhLogin': z.boolean(),
   'vault.enabled': z.boolean(),
   'vault.protection': z.enum(VAULT_PROTECTION_MODES),
   'vault.agentFence': z.boolean(),
@@ -461,6 +464,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     accountSwap: SETTING_DEFAULTS.accountSwap,
     accountParallel: SETTING_DEFAULTS.accountParallel,
     'accounts.severalOnThisDevice': SETTING_DEFAULTS['accounts.severalOnThisDevice'],
+    'github.useGhLogin': readSetting(config, 'github.useGhLogin', log),
     'vault.enabled': SETTING_DEFAULTS['vault.enabled'],
     'vault.protection': SETTING_DEFAULTS['vault.protection'],
     'vault.agentFence': readSetting(config, 'vault.agentFence', log),

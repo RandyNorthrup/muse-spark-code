@@ -26,7 +26,6 @@ import type { LegalScanHandle } from '../../shared/legalScanEntry'
 import {
   HTTP_STATUS,
   UI_TEXT,
-  LEGAL_FINDINGS_MAX,
   LEGAL_INCOMPLETE_MAX,
   LEGAL_FINDING_ID_MAX_CHARS,
   LEGAL_REGISTRY_HOSTS,
@@ -366,7 +365,9 @@ export async function enrichInteractiveLegalScan(
   )
   return legalScanResultSchema.parse({
     ...handle.result,
-    findings: [...handle.result.findings, ...facts].slice(0, LEGAL_FINDINGS_MAX),
+    // Every finding is kept (B18): enrichment adds its facts to the scan's
+    // findings without cutting the combined list back to the old 500.
+    findings: [...handle.result.findings, ...facts],
     incompleteChecks: [UI_TEXT.legalRegistryMetadataOnly, ...handle.result.incompleteChecks].slice(
       0,
       LEGAL_INCOMPLETE_MAX,

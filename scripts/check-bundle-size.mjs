@@ -63,6 +63,9 @@ const BUDGETS = [
   { path: 'dist/prompts.js', budgetKiB: 200 },
   // M118: local CLI/ACP stores, renderer and destinations: 152.1 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/sharingRuntime.js', budgetKiB: 175 },
+  // M124 (D106): the MCP connector, loaded only by `mcp`: 85.8 KiB measured + 15%, rounded to 25 KiB.
+  // TRAINFIX: train growth (M124 merge + main PROVERRORS) measures 100.0 KiB; +15%, rounded to 25 KiB.
+  { path: 'dist/connector.js', budgetKiB: 125 },
   // REL0160B combined Model API: 479.2 KiB measured +5%, rounded to 25 KiB;
   // authorized rebuild brief and measurement recorded in PLAN.md (2026-10-07).
   { path: 'dist/modelApi.js', budgetKiB: 525 },
@@ -190,6 +193,11 @@ const BUDGETS = [
   // and their redaction) moved out of activation, required when that command
   // runs: 6.6 KiB measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/rulesFile.js', budgetKiB: 25 },
+  // M123: the native Git route (D104 §1: the runtime Git adapter, its service
+  // and repository lease, the runtime's pull requests), required only where
+  // vscode.git is missing, split out of dist/conversationGit.js at 87.8 KiB
+  // measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/nativeGit.js', budgetKiB: 125 },
   // M89: the bundled skills installer for Muse Code (the copy, the links and
   // zod's parser for the vendor record and the mark), loaded on first use:
   // 22.6 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.
@@ -284,7 +292,8 @@ const BUDGETS = [
   // M105's trusted media inspector stays in its first-use media bundle.
   { path: 'dist/acp.js', budgetKiB: 850 },
   // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
-  { path: 'dist/headless.js', budgetKiB: 100 },
+  // TRAINFIX: train growth + plan-model preflight measures 100.2 KiB; +15%, rounded to 25 KiB.
+  { path: 'dist/headless.js', budgetKiB: 125 },
   // M114 F: runtime-only installer, measured with the shared validation API.
   { path: 'dist/fontsInstall.js', budgetKiB: 25 },
   { path: 'dist/scheduleBackground.js', budgetKiB: 50 },

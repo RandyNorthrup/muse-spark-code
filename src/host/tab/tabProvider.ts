@@ -407,7 +407,10 @@ export async function isTabFileEligible(
 /** `file` under `root`, forward-slashed, or undefined when it is not inside. */
 function relativeInside(root: string, file: string): string | undefined {
   const relative = path.relative(root, file)
-  return relative === '' || relative.startsWith('..') || path.isAbsolute(relative)
+  return relative === '' ||
+    relative === '..' ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
     ? undefined
     : relative.split(path.sep).join('/')
 }
