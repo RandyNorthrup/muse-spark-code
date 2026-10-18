@@ -30,6 +30,7 @@ import type {
   ProvidersFile,
   ProvidersFileRead,
 } from '../core/providers/providersFile'
+import type { TransportDeps } from '../core/backends/modelapi/transport'
 const { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } = providersFile
 import {
   CREDENTIAL_RECORD_VERSION,
@@ -337,25 +338,27 @@ function ignoreProbeLog(): void {
   // Commands return fixed probe outcomes; transport details never reach terminal logs.
 }
 
-/** One pinned, authenticated provider read (D119): the status with its parsed body, an HTTP status alone, or the transport failure. */
-async function getProviderJson(
-  fetch: typeof globalThis.fetch,
+/**
+ * One pinned, authenticated provider GET as JSON: the shared read behind
+ * `getProviderJson` (D119) and `probeProvider` (D74). It answers the status
+ * with its parsed body, or the raw transport error with its signal for the
+ * caller to map; transport detail never reaches the terminal.
+ */
+async function readProviderJson(
+  fetchImpl: typeof fetch,
   provider: ResolvedProvider,
   key: string | undefined,
-  resolveHost: ProvidersDeps['resolveHost'],
-  headers: Readonly<Record<string, string>>,
   url: string,
-  transport?: typeof fetch,
+  headers: Readonly<Record<string, string>>,
+  failures: Pick<TransportDeps, 'parseError' | 'sendFailure'>,
 ): Promise<
   | { readonly status: number; readonly body: unknown }
-  | { readonly transport: 'rebinding' | 'unreachable' }
+  | { readonly error: unknown; readonly signal: AbortSignal }
 > {
   const shared = await import('../host/backend/modelApiEntry')
   const auth = await import('../host/backend/configuredProvidersEntry')
   shared.setUiText(UI_TEXT, uiLocale())
   auth.setUiText(UI_TEXT, uiLocale())
-  const via =
-    transport ?? pinProviderFetch(fetch, provider, allowedProviderPaths(provider), resolveHost)
   const origin = new URL(url).origin
   const source =
     key === undefined
@@ -377,7 +380,12 @@ async function getProviderJson(
     verifyEndpoint: async (requestUrl) => {
       await source.headers(requestUrl)
     },
-    fetch: via,
+    fetch: fetchImpl,
+    // Optional with exactOptionalPropertyTypes: an explicit undefined does
+    // not typecheck, so each reader stays out unless it is defined — the
+    // list read sends none, the key test sends the provider's own.
+    ...(failures.parseError !== undefined && { parseError: failures.parseError }),
+    ...(failures.sendFailure !== undefined && { sendFailure: failures.sendFailure }),
     now: Date.now,
     random: Math.random,
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
@@ -389,6 +397,7 @@ async function getProviderJson(
       trace: ignoreProbeLog,
     },
   })
+  const signal = AbortSignal.timeout(PROVIDER_PROBE_TIMEOUT_MS)
   let result: Awaited<ReturnType<typeof client.request>>
   try {
     result = await client.request(
@@ -399,16 +408,10 @@ async function getProviderJson(
         accept: 'application/json',
         retries: 'rateLimitOnly',
       },
-      AbortSignal.timeout(PROVIDER_PROBE_TIMEOUT_MS),
+      signal,
     )
   } catch (error: unknown) {
-    if (error instanceof shared.ModelApiError && error.status !== 0) {
-      return { status: error.status, body: undefined }
-    }
-    return {
-      transport:
-        error instanceof Error && error.message === 'rebinding' ? 'rebinding' : 'unreachable',
-    }
+    return { error, signal }
   }
   try {
     return {
@@ -418,6 +421,36 @@ async function getProviderJson(
   } catch {
     return { status: result.response.status, body: undefined }
   }
+}
+
+/** One pinned, authenticated provider read (D119): the status with its parsed body, an HTTP status alone, or the transport failure. */
+async function getProviderJson(
+  fetch: typeof globalThis.fetch,
+  provider: ResolvedProvider,
+  key: string | undefined,
+  resolveHost: ProvidersDeps['resolveHost'],
+  headers: Readonly<Record<string, string>>,
+  url: string,
+  transport?: typeof fetch,
+): Promise<
+  | { readonly status: number; readonly body: unknown }
+  | { readonly transport: 'rebinding' | 'unreachable' }
+> {
+  const shared = await import('../host/backend/modelApiEntry')
+  const via =
+    transport ?? pinProviderFetch(fetch, provider, allowedProviderPaths(provider), resolveHost)
+  const read = await readProviderJson(via, provider, key, url, headers, {})
+  if ('error' in read) {
+    const error = read.error
+    if (error instanceof shared.ModelApiError && error.status !== 0) {
+      return { status: error.status, body: undefined }
+    }
+    return {
+      transport:
+        error instanceof Error && error.message === 'rebinding' ? 'rebinding' : 'unreachable',
+    }
+  }
+  return read
 }
 
 /** The request headers behind a provider's list read. */
@@ -492,73 +525,23 @@ export async function probeProvider(
   ): Promise<
     { readonly status: number; readonly body: unknown; readonly refusal?: string } | undefined
   > => {
-    const origin = new URL(url).origin
-    const source =
-      key === undefined
-        ? new auth.NoAuthSource(origin)
-        : new auth.ApiKeyAuthSource(
-            () =>
-              Promise.resolve({
-                record: { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin },
-                key,
-              }),
-            provider.preset.id === 'custom' && provider.entry.format === 'anthropic'
-              ? 'x-api-key'
-              : (provider.preset.authHeader ?? 'bearer'),
-          )
-    const client = new shared.RequestTransport({
-      baseUrl: origin,
-      auth: source,
-      // pinProviderFetch rechecks DNS and the saved path/network at every dispatch.
-      verifyEndpoint: async (requestUrl) => {
-        await source.headers(requestUrl)
-      },
-      fetch: transport,
+    const read = await readProviderJson(transport, provider, key, url, headers, {
       parseError: reader.parseError,
       sendFailure: reader.sendFailure,
-      now: Date.now,
-      random: Math.random,
-      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      // Commands report fixed probe outcomes; transport detail is never logged.
-      log: {
-        info: ignoreProbeLog,
-        warn: ignoreProbeLog,
-        error: ignoreProbeLog,
-        trace: ignoreProbeLog,
-      },
     })
-    let result: Awaited<ReturnType<typeof client.request>>
-    const signal = AbortSignal.timeout(PROVIDER_PROBE_TIMEOUT_MS)
-    try {
-      result = await client.request(
-        url.slice(origin.length),
-        {
-          method: 'GET',
-          headers,
-          accept: 'application/json',
-          retries: 'rateLimitOnly',
-        },
-        signal,
-      )
-    } catch (error: unknown) {
+    if ('error' in read) {
+      const error = read.error
       if (shared.isModelApiError(error) && error.status !== 0) {
         return { status: error.status, body: undefined, refusal: reader.refusal(error) }
       }
       if (error instanceof Error && error.message === 'rebinding') failureReason = 'rebinding'
       // A send with no answer says what failed; the probe's own time running
       // out, or a pin refusal before sending, keeps the fixed sentence.
-      else if (shared.isModelApiError(error) && !signal.aborted) failureReason = error.message
+      else if (shared.isModelApiError(error) && !read.signal.aborted) failureReason = error.message
       else failureReason = 'unreachable'
       return undefined
     }
-    try {
-      return {
-        status: result.response.status,
-        body: await shared.parseJsonResponse(result, (value) => value),
-      }
-    } catch {
-      return { status: result.response.status, body: undefined }
-    }
+    return { status: read.status, body: read.body }
   }
   return await presets.runProviderKeyTest(
     test,
