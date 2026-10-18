@@ -5,6 +5,7 @@ import { compileGlob } from '../backends/modelapi/globLimits'
 import { isProtectedPath } from '../protectedPaths'
 import { TAB_FILE_MAX_BYTES } from '../../shared/constants'
 import { isPrivateFileName } from '../../shared/privateFiles'
+import type { TabHookContext } from './tabHooks'
 
 // --- `files.exclude` (Acceptance 4) ---
 //
@@ -276,6 +277,7 @@ export interface TabFileCheckDeps {
   readonly hasSibling?: ((relativePath: string) => boolean) | undefined
   /** Lane K's bridge; absent until lane K lands (then every failure refuses). */
   readonly hooks?: TabHookBridge | undefined
+  readonly hookContext?: TabHookContext | undefined
 }
 
 /**
@@ -314,7 +316,10 @@ export async function isTabFileEligible(
       // every hook failure fails closed.
       return false
     }
-    if (!(await deps.hooks.beforeRead(candidate.absolutePath, candidate.content))) {
+    if (
+      deps.hookContext === undefined ||
+      !(await deps.hooks.beforeRead(candidate.absolutePath, candidate.content, deps.hookContext))
+    ) {
       return false
     }
   }
@@ -329,9 +334,10 @@ export interface TabAcceptedEdit {
   readonly generationId: string
   /** The model the suggestion came from. */
   readonly model: string
-  /** 1-based, as Cursor sends them. */
-  readonly oldLine: number
-  readonly newLine: number
+  /** Actual line text around the accepted insertion. */
+  readonly oldLine: string
+  readonly newLine: string
+  readonly workspaceRoots: readonly string[]
   /** 1-based start/end line and column. */
   readonly range: {
     readonly startLineNumber: number
@@ -353,7 +359,7 @@ export interface TabAcceptedEdit {
  * read is allowed and every accept unobserved.
  */
 export interface TabHookBridge {
-  beforeRead(absolutePath: string, content: string): Promise<boolean>
+  beforeRead(absolutePath: string, content: string, context: TabHookContext): Promise<boolean>
   afterEdit(edit: TabAcceptedEdit): void
 }
 
