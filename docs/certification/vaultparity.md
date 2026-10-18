@@ -208,3 +208,18 @@ rules (socket-length refusal, owner-only mode assertion), not the product.
   HOME. The owner's own login keychain was never touched. The
   keyring-absent broker path (file anchor) above is the documented
   fallback and passes here.
+
+## Lane VAULTMIGFIX note (2026-10-18, appended by the VAULTMIGFIX lane)
+
+Grok's security review of the VAULTOPEN key-store migration (branch
+`ms/msm109-open`, PR #247) found it not mergeable: a save during unlock
+could write the older key back over the new one, a key saved after
+sign-out never migrated, a changed provider key stayed stale in the vault
+until the next unlock, and migrated rows were listed with Edit/Remove
+that a removal then left unrepaired. This lane fixes each at its cause on
+branch `ms/msm109-open-fix` (shared migration lock, legacy-match checks
+in `store`, phase-aware `mirrorWrite`/`ensureMigrated`, section hides
+hidden first-party rows, missing vault copies re-copied on unlock), with
+regression tests driving the real controller and the real VaultStore.
+Full record, tests and gates: `docs/certification/msm109.md`
+§VAULTMIGFIX. No parity-surface change.

@@ -265,6 +265,28 @@ async function persistedSecrets(
   return store
 }
 
+/** The real shell bound to a migrated controller, as the unlock edge leaves it. */
+async function migratedShell(
+  store: SecretStore,
+  providerIds: readonly string[],
+): Promise<{
+  shell: ReturnType<typeof createMigrationShell>
+  active: CredentialMigrationController
+}> {
+  const shell = createMigrationShell(store)
+  const active = controller(store, providerIds, noFail())
+  shell.bind(active)
+  await active.ensureMigrated()
+  return { shell, active }
+}
+
+/** Remove the migrated key through the shell, asserting both copies drop. */
+async function removeMigratedKey(shell: ReturnType<typeof createMigrationShell>): Promise<void> {
+  expect(await credentialCount()).toBe(1)
+  await shell.store.delete(MODEL_API_KEY)
+  expect(await credentialCount()).toBe(0)
+}
+
 describe('key-store migration against a real store', () => {
   it('copies the model API key and a provider key, verified, legacy retained', async () => {
     const first = modelApiKey()
@@ -316,10 +338,7 @@ describe('key-store migration against a real store', () => {
     const newer = modelApiKey()
     const inner = await persistedSecrets({ [MODEL_API_KEY]: first })
     const gate = gateValue(inner, older)
-    const shell = createMigrationShell(gate.store)
-    const active = controller(gate.store, [], noFail())
-    shell.bind(active)
-    await active.ensureMigrated()
+    const { shell, active } = await migratedShell(gate.store, [])
     // The legacy value changes while locked; the heal below reads `older`.
     await inner.store(MODEL_API_KEY, older)
     const heal = active.ensureMigrated()
@@ -339,13 +358,8 @@ describe('key-store migration against a real store', () => {
     const first = modelApiKey()
     const second = modelApiKey()
     const store = await persistedSecrets({ [MODEL_API_KEY]: first })
-    const shell = createMigrationShell(store)
-    const active = controller(store, [], noFail())
-    shell.bind(active)
-    await active.ensureMigrated()
-    expect(await credentialCount()).toBe(1)
-    await shell.store.delete(MODEL_API_KEY)
-    expect(await credentialCount()).toBe(0)
+    const { shell } = await migratedShell(store, [])
+    await removeMigratedKey(shell)
     await shell.store.store(MODEL_API_KEY, second)
     expect(await store.get(MODEL_API_KEY)).toBe(second)
     expect(await readMigratedSecret()).toBe(second)
@@ -355,10 +369,7 @@ describe('key-store migration against a real store', () => {
     const first = providerSecret()
     const rotated = providerSecret()
     const store = await persistedSecrets({ [PROVIDER_KEY]: JSON.stringify(apiKeyRecord(first)) })
-    const shell = createMigrationShell(store)
-    const active = controller(store, ['openrouter'], noFail())
-    shell.bind(active)
-    await active.ensureMigrated()
+    const { shell } = await migratedShell(store, ['openrouter'])
     expect(await readMigratedSecret()).toBe(first)
     await shell.store.store(PROVIDER_KEY, JSON.stringify(apiKeyRecord(rotated)))
     expect(await store.get(PROVIDER_KEY)).toBe(JSON.stringify(apiKeyRecord(rotated)))
@@ -413,13 +424,8 @@ describe('key-store migration against a real store', () => {
   it('mirrors removals out of both copies', async () => {
     const first = modelApiKey()
     const store = await persistedSecrets({ [MODEL_API_KEY]: first })
-    const shell = createMigrationShell(store)
-    const active = controller(store, [], noFail())
-    shell.bind(active)
-    await active.ensureMigrated()
-    expect(await credentialCount()).toBe(1)
-    await shell.store.delete(MODEL_API_KEY)
-    expect(await credentialCount()).toBe(0)
+    const { shell } = await migratedShell(store, [])
+    await removeMigratedKey(shell)
   })
 
   it('never writes the vault for opaque records, and says why', async () => {
