@@ -112,5 +112,8 @@ if (process.argv[2] === '--seed') {
     )
     process.exit(2)
   }
-  await main(path.resolve(bundle), path.resolve(base), Number(processes), Number(rounds))
+  // The work folder stays as given. Every worker inherits this working
+  // folder, so a relative one names the same sockets in each, and stays
+  // inside sockaddr_un (103 bytes on macOS) wherever the checkout lives.
+  await main(path.resolve(bundle), base, Number(processes), Number(rounds))
 }

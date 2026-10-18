@@ -64,7 +64,10 @@ describe('the named lock under a race (R2)', () => {
       [
         path.resolve('test/hosts/named-lock-race.mjs'),
         scratch.bundle,
-        path.join(scratch.folder, 'work'),
+        // Relative to the working folder the driver and its workers share: a
+        // socket path under a CI checkout's absolute path passed macOS's 103
+        // bytes (CI run 39086390519, capacity shard 5).
+        path.relative(process.cwd(), path.join(scratch.folder, 'work')),
         String(PROCESSES),
         String(ROUNDS),
       ],
