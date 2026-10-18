@@ -2,7 +2,7 @@ import type { ExecFileOptionsWithStringEncoding } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { resolveExecutable } from '../executables'
-import { environmentValue } from '../backends/musecode/launch'
+import { environmentValue } from '../childEnvironment'
 import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
 import { spawnResourceProcess } from './process'
 import {

@@ -14,7 +14,7 @@
 // password).
 
 import * as z from 'zod/mini'
-import { environmentValue } from '../core/backends/musecode/launch'
+import { environmentValue } from '../core/childEnvironment'
 import type { HostRouting, NetworkFacts, SupportFacts } from '../core/support/report'
 import {
   HTTP_NO_PROXY_SETTING,

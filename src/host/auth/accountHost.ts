@@ -9,7 +9,7 @@
 import { type Connection } from '@muse-code/sdk'
 import * as z from 'zod/mini'
 import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
-import { environmentValue } from '../../core/backends/musecode/launch'
+import { environmentValue } from '../../core/childEnvironment'
 import { spawnResourceMuseConnection } from '../resources/museResourceLaunch'
 import { wireWordForLog } from '../../core/logging'
 import { unlessAborted, withDeadline } from '../../core/timeouts'

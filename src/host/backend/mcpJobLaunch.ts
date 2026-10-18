@@ -10,7 +10,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { once } from 'node:events'
 import { createServer, type Socket } from 'node:net'
 import * as z from 'zod/mini'
-import { environmentValue, setEnvironmentVariable } from '../../core/backends/musecode/launch'
+import { environmentValue, setEnvironmentVariable } from '../../core/childEnvironment'
 import { redactSecrets } from '../../core/redact'
 import {
   resourceEnvironment,

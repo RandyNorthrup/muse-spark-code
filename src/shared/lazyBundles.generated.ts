@@ -412,6 +412,29 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'planSnapshot.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'PLAN_SNAPSHOT_BUNDLE_FILE',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'playbookSchedulesInputs.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/host/reporting/reportPanelEntry.ts',
+        symbol: 'createReportingWindow',
+        side: ['vscode'],
+      },
+      { importer: 'src/runtime/main.ts', symbol: 'runtimeReports', side: ['acp'] },
+    ],
+  },
+  {
     file: 'pluginHooks.js',
     side: 'both',
     requestedBy: [
@@ -520,6 +543,18 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'vscode',
     requestedBy: [{ importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] }],
   },
+  {
+    file: 'reportInputs.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/host/reporting/reportPanelEntry.ts',
+        symbol: 'createReportingWindow',
+        side: ['vscode'],
+      },
+      { importer: 'src/runtime/main.ts', symbol: 'runtimeReports', side: ['acp'] },
+    ],
+  },
   { file: 'resourceAdmission.js', side: 'both', requestedBy: [] },
   {
     file: 'resourceGovernor.js',
@@ -595,6 +630,8 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'acp',
     requestedBy: [
       { importer: 'src/runtime/backends.ts', symbol: 'accountingEntry', side: ['acp'] },
+      { importer: 'src/runtime/backends.ts', symbol: 'createRuntimeBackend', side: ['acp'] },
+      { importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] },
     ],
   },
   {
@@ -812,17 +849,19 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   { file: 'validation.js', side: 'both', requestedBy: [] },
   {
     file: 'vault.js',
-    side: 'both',
+    side: 'vscode',
     requestedBy: [
-      {
-        importer: 'src/runtime/vault/vaultRuntime.ts',
-        symbol: 'runtimeVaultLoader',
-        side: ['acp'],
-      },
       { importer: 'src/shared/constants.ts', symbol: 'VAULT_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
   { file: 'vaultBoundaries.js', side: 'both', requestedBy: [] },
+  {
+    file: 'vaultRuntime.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'VAULT_RUNTIME_BUNDLE_FILE', side: ['acp'] },
+    ],
+  },
   {
     file: 'voice.js',
     side: 'vscode',
