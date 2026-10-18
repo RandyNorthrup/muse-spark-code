@@ -452,6 +452,7 @@
   "sessionDeleteHostExited": "刪除確認前 Muse Code 已結束。工作階段仍保留在歷程記錄中。",
   "sessionDeleteHostClosed": "刪除確認前主程式已關閉。工作階段仍保留在歷程記錄中。",
   "sessionDeleteTimedOut": "等待刪除確認逾時。工作階段仍保留在歷程記錄中。",
+  "sessionDeleteUnsupported": "Muse Code {version} 無法刪除對話。",
   "playbookTitle": "協調器工作準則",
   "playbookStatus": "狀態",
   "playbookRecord": "紀錄",
@@ -2304,6 +2305,10 @@
   "historyShowArchived": "顯示已封存",
   "historyArchive": "封存",
   "historyUnarchive": "取消封存",
+  "historyDeleteConfirm": "要刪除對話 {name} 嗎？",
+  "historyDeleteConfirmDetail": "它將從歷程記錄中永久移除，此動作無法復原。",
+  "historyDeleted": "已刪除 {name}",
+  "historyDeleteFailed": "無法刪除對話",
   "historyCurrent": "目前",
   "historyForkMark": "分叉",
   "historyTurns": {

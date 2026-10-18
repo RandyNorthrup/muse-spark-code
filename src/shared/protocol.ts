@@ -833,6 +833,12 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     sessionId: stringSchema,
     isArchived: booleanSchema,
   }),
+  // History's Delete: the host confirms (naming the conversation) before it
+  // removes the stored session through the backend.
+  z.object({
+    type: z.literal('deleteSession'),
+    sessionId: stringSchema,
+  }),
   /** Fork the current session through `lastTurnId` (all turns when absent). */
   z.object({
     type: z.literal('forkSession'),
@@ -1046,6 +1052,8 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     sessions: z.array(sessionRowSchema),
     archivedIds: z.array(stringSchema),
     openQuestionCounts: z.optional(z.record(z.string(), z.number().check(z.int(), z.minimum(0)))),
+    // `false` where the host cannot delete a stored session (D26); absent means offered.
+    canDeleteSessions: z.optional(booleanSchema),
   }),
   // A resumed or forked session's history: the transcript is rebuilt from it.
   z.object({

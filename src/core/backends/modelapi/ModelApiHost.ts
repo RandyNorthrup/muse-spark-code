@@ -17160,12 +17160,20 @@ export class ModelApiHost implements AgentHost {
    * written onto this.
    */
   private readonly lastSaved = new Map<string, StoredSession>()
+  /**
+   * Sessions History deleted: their store file, header and queued saves are
+   * gone, and no later save may bring them back. Live handles are left
+   * alone — their surface drops them — but unlistable and unsavable.
+   */
+  private readonly deletedSessionIds = new Set<string>()
   public readonly info: HostInfo = {
     kind: 'modelApi',
     serverName: MODEL_API_SERVER_NAME,
     serverVersion: MODEL_API_VERSION,
     grantedCapabilities: [],
     canEditSessions: true,
+    // Deletion is the product's own session store, always available.
+    canDeleteSessions: true,
   }
 
   public constructor(private readonly deps: ModelApiHostDeps) {
@@ -17297,7 +17305,8 @@ export class ModelApiHost implements AgentHost {
       const coveredThrough = state.sequence
       try {
         await store.save(pending.snapshot)
-        if (pending.setHeaderAfterSave) {
+        // A save that History's delete overtook must not list the session again.
+        if (pending.setHeaderAfterSave && !this.deletedSessionIds.has(sessionId)) {
           this.stored.set(sessionId, pending.header)
         }
       } catch (error: unknown) {
@@ -17334,6 +17343,10 @@ export class ModelApiHost implements AgentHost {
     const { store } = this.deps
     if (store === undefined) {
       return isStrict ? Promise.reject(new Error(UI_TEXT.historyUnavailable)) : Promise.resolve()
+    }
+    // A deleted conversation stays deleted: its turns save nothing more.
+    if (this.deletedSessionIds.has(session.sessionId)) {
+      return Promise.resolve()
     }
     const snapshot = this.ownedSnapshot(session.snapshot())
     // A turn-start user message can be saved, but a function call without
@@ -17809,7 +17822,8 @@ export class ModelApiHost implements AgentHost {
       .filter(
         (record) =>
           record.workspaceRoot === options.workspaceRoot &&
-          !this.pendingSummaryForks.has(record.sessionId),
+          !this.pendingSummaryForks.has(record.sessionId) &&
+          !this.deletedSessionIds.has(record.sessionId),
       )
       .toSorted(
         (a, b) =>
@@ -17817,6 +17831,34 @@ export class ModelApiHost implements AgentHost {
       )
       .slice(0, options.limit)
     return { sessions, nextCursor: undefined }
+  }
+
+  /**
+   * History's Delete: the conversation leaves the product's own session
+   * store for good (its questions and uploads go with it, through the
+   * store), and no queued or later save may list it again. Unknown ids
+   * resolve: the store's removal is idempotent, and there is nothing to
+   * name — the row is already gone.
+   */
+  public async deleteSession(sessionId: string): Promise<void> {
+    await this.requireAccountId()
+    const { store } = this.deps
+    if (store === undefined) {
+      throw new Error(UI_TEXT.historyUnavailable)
+    }
+    this.deletedSessionIds.add(sessionId)
+    try {
+      // In-flight saves finish first, so the removal below wins over them.
+      await this.saving
+      await store.remove(sessionId)
+    } catch (error: unknown) {
+      this.deletedSessionIds.delete(sessionId)
+      throw error
+    }
+    this.stored.delete(sessionId)
+    this.lastSaved.delete(sessionId)
+    this.saveStates.delete(sessionId)
+    this.pendingSummaryForks.delete(sessionId)
   }
 
   /** A conversation or one of its private child transcripts (M48). */

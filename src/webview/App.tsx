@@ -2097,6 +2097,14 @@ export function App({
     },
     [postMessage],
   )
+  // History's Delete: the host confirms (naming the conversation) before it
+  // removes the stored session; the refreshed list drops the row.
+  const onDeleteSession = useCallback(
+    (sessionId: string) => {
+      postMessage({ type: 'deleteSession', sessionId })
+    },
+    [postMessage],
+  )
   const onRename = useCallback(
     (name: string) => {
       postMessage({ type: 'renameSession', name })
@@ -3053,6 +3061,7 @@ export function App({
         now={now}
         onResume={onResumeSession}
         onSetArchived={onSetSessionArchived}
+        onDelete={state.canDeleteSessions ? onDeleteSession : undefined}
         onClose={closeOverlay}
       />
     ) : null

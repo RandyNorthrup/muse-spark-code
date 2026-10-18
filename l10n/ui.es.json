@@ -452,6 +452,7 @@
   "sessionDeleteHostExited": "Muse Code terminó antes de confirmar la eliminación. La sesión permanece en el historial.",
   "sessionDeleteHostClosed": "El host se cerró antes de confirmar la eliminación. La sesión permanece en el historial.",
   "sessionDeleteTimedOut": "Se agotó el tiempo de espera para confirmar la eliminación. La sesión permanece en el historial.",
+  "sessionDeleteUnsupported": "Muse Code {version} no puede eliminar conversaciones.",
   "playbookTitle": "Guía del orquestador",
   "playbookStatus": "Estado",
   "playbookRecord": "Registro",
@@ -2400,6 +2401,10 @@
   "historyShowArchived": "Mostrar archivadas",
   "historyArchive": "Archivar",
   "historyUnarchive": "Desarchivar",
+  "historyDeleteConfirm": "¿Eliminar la conversación {name}?",
+  "historyDeleteConfirmDetail": "Desaparecerá del historial para siempre. Esto no se puede deshacer.",
+  "historyDeleted": "Se eliminó {name}",
+  "historyDeleteFailed": "No se pudo eliminar la conversación",
   "historyCurrent": "Actual",
   "historyForkMark": "Bifurcación",
   "historyTurns": {

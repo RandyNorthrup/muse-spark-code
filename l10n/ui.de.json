@@ -452,6 +452,7 @@
   "sessionDeleteHostExited": "Muse Code wurde beendet, bevor das Löschen bestätigt wurde. Die Sitzung bleibt im Verlauf.",
   "sessionDeleteHostClosed": "Der Host wurde geschlossen, bevor das Löschen bestätigt wurde. Die Sitzung bleibt im Verlauf.",
   "sessionDeleteTimedOut": "Die Wartezeit auf die Löschbestätigung ist abgelaufen. Die Sitzung bleibt im Verlauf.",
+  "sessionDeleteUnsupported": "Muse Code {version} kann keine Unterhaltungen löschen.",
   "playbookTitle": "Orchestrator-Leitfaden",
   "playbookStatus": "Zustand",
   "playbookRecord": "Protokoll",
@@ -2352,6 +2353,10 @@
   "historyShowArchived": "Archivierte anzeigen",
   "historyArchive": "Archivieren",
   "historyUnarchive": "Archivierung aufheben",
+  "historyDeleteConfirm": "Unterhaltung {name} löschen?",
+  "historyDeleteConfirmDetail": "Sie wird endgültig aus dem Verlauf entfernt. Dies kann nicht rückgängig gemacht werden.",
+  "historyDeleted": "{name} gelöscht",
+  "historyDeleteFailed": "Die Unterhaltung konnte nicht gelöscht werden",
   "historyCurrent": "Aktuell",
   "historyForkMark": "Abzweigung",
   "historyTurns": {
