@@ -161,6 +161,9 @@
     "test/harness/usageHost.mjs",
     // Native loader regression child, run by both package scripts after build.
     "test/packaging/moduleExports.test.mjs",
+    // The badge Worker; wrangler deploys worker.js by path (lane STANDINS:
+    // its only in-repo importer was the deleted KV-stand-in test).
+    "infra/marketplace-hook/worker.js",
     "test/e2e/**/*.test.ts",
     // The reports e2e bundles this entry with esbuild by path
     // (test/e2e/reports.e2e.test.ts), which knip does not trace.

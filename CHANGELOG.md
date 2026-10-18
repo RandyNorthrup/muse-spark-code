@@ -63,6 +63,11 @@ happened, not what was planned; superseded entries are kept.
   named no bundle and then hang. Bundles now run through a bounded pool
   of 8; a failure names its bundle, in-flight bundles settle, and the
   process exits with the true error.
+- A team task waiting for a busy exclusive resource (for example browser
+  control) could wait forever instead of being told the resource is busy:
+  its wait timer could fire a moment before the deadline and was never
+  re-armed. The waiter now re-arms for the remainder and is answered at
+  the deadline.
 
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or

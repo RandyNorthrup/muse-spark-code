@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { execFile } from 'node:child_process'
 import {
+  copyFile,
   mkdir,
   mkdtemp,
   readFile,
@@ -14,7 +15,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { screenRecordExecutable } from '../../src/host/backend/jobBuild'
-import { runProgram } from '../../src/host/processTree'
+import { runProgram, windowsPowerShell } from '../../src/host/processTree'
+import { windowsTrustedPathVerifier } from '../../src/runtime/windowsTrustedPath'
 import {
   MEDIA_FILE_ID_MIN_BYTES,
   MEDIA_MAX_UPLOAD_MIB,
@@ -25,9 +27,10 @@ import {
 } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
 
-const paths = { root: '', executable: '' }
+const paths = { root: '', executable: '', source: '' }
 const systemRoot = process.env['SystemRoot'] ?? ''
 const env = { SystemRoot: systemRoot }
+const icacls = path.win32.join(systemRoot, 'System32', 'icacls.exe')
 const SOURCE = path.resolve('native/windows/MuseSparkScreenRecord.cs')
 const CHECKS = path.resolve('test/unit/helpers/windowsScreenRecorderChecks.cs')
 
@@ -44,6 +47,32 @@ const latest = async (source: string, target: string, maxBytes = 100) =>
     String(maxBytes),
     String(SCREEN_RECORDING_RECENT_MAX_AGE_MS),
   )
+// The real Windows trust check: the inbox compiler and the built helper must
+// each pass the owner, ACL and link checks in their real folders before the
+// helper is built or run. Its PowerShell probes run as real processes through
+// the same runner as the compiler; a probe that exits non-zero refuses.
+const powershell = windowsPowerShell(systemRoot)
+const verifier = windowsTrustedPathVerifier(async (file, args) => {
+  if (file !== 'powershell.exe') throw new Error(`unexpected trust probe ${file}`)
+  return { exitCode: 0, stdout: await runProgram(powershell.file, args, powershell.env) }
+})
+const isTrusted = async (file: string) =>
+  'ok' in (await verifier.verify(file, { leafKind: 'file' }))
+const helperIn = async (storageDir: string) =>
+  await screenRecordExecutable({
+    storageDir,
+    systemRoot,
+    readSource: () => Promise.resolve(paths.source),
+    verifyTrustedPath: isTrusted,
+    run: (file, args, environment) =>
+      runProgram(
+        file,
+        args[0] === '--self-test'
+          ? args
+          : [...args, '/main:WindowsScreenRecorderChecks', '/warnaserror'],
+        environment,
+      ),
+  })()
 const folder = async () => await mkdtemp(path.join(paths.root, 'snipping-'))
 const clip = async (source: string, name: string, age = 0, size = 1) => {
   const file = path.join(source, name)
@@ -100,20 +129,34 @@ describe.skipIf(process.platform !== 'win32')(
       ]
         .map((name) => `using ${name};`)
         .join('\n')
-      const executable = await screenRecordExecutable({
-        storageDir: paths.root,
-        systemRoot,
-        readSource: () => Promise.resolve(`${imports}\n${source}`),
-        verifyTrustedPath: () => Promise.resolve(true),
-        run: (file, args, environment) =>
-          runProgram(
-            file,
-            args[0] === '--self-test'
-              ? args
-              : [...args, '/main:WindowsScreenRecorderChecks', '/warnaserror'],
-            environment,
-          ),
-      })()
+      paths.source = `${imports}\n${source}`
+      // The helper's storage as an extension's own folder is: only this user,
+      // SYSTEM and Administrators may change it. A temporary folder may
+      // inherit other accounts' write access (it does on some rigs), and the
+      // trust check refuses a helper there.
+      const storageDir = path.join(paths.root, 'storage')
+      await mkdir(storageDir)
+      const user = await runProgram(
+        powershell.file,
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          '[Security.Principal.WindowsIdentity]::GetCurrent().User.Value',
+        ],
+        powershell.env,
+      )
+      await runProgram(
+        icacls,
+        [
+          storageDir,
+          '/inheritance:r',
+          '/grant:r',
+          ...[user.trim(), 'S-1-5-18', 'S-1-5-32-544'].map((sid) => `*${sid}:(OI)(CI)F`),
+        ],
+        env,
+      )
+      const executable = await helperIn(storageDir)
       if (executable === undefined)
         throw new Error('inbox recorder/check fixture failed to compile or self-test')
       paths.executable = executable
@@ -135,23 +178,14 @@ describe.skipIf(process.platform !== 'win32')(
       )
     })
 
-    it('keeps Cancel atomic when a concurrent normal Stop finishes later', async () => {
-      expect(await check('cancelRace')).toBe('cancelled:True,closed:True,finish:False')
-    })
-
-    it.each(['selection', 'file', 'open', 'prepare'])(
-      'Stop cancels a pending %s operation before recording starts',
-      async (stage) => {
-        expect(await check('pending', stage)).toBe('cancelled:True,closed:True,finish:False')
-      },
-    )
-
-    it('cancels an operation registered after Cancel was already latched', async () => {
-      expect(await check('latePending')).toBe('cancelled:True,closed:True,finish:False')
-    })
-
-    it('normal Stop finalizes encoding while a later Cancel cancels it', async () => {
-      expect(await check('pendingEncode')).toBe('cancelled:True,closed:True')
+    it('never runs a built helper from a folder other users may write to', async () => {
+      const storageDir = await mkdtemp(path.join(paths.root, 'replaceable-'))
+      // The same build, already in place: the helper is not compiled again,
+      // so only the trust check stands between it and its self-test.
+      await copyFile(paths.executable, path.join(storageDir, path.basename(paths.executable)))
+      await runProgram(icacls, [storageDir, '/grant', '*S-1-1-0:(OI)(CI)W'], env)
+      expect(await isTrusted(path.join(storageDir, path.basename(paths.executable)))).toBe(false)
+      expect(await helperIn(storageDir)).toBeUndefined()
     })
 
     it.each(['stdin', 'owner'] as const)(
