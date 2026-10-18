@@ -176,3 +176,164 @@ Operation not permitted`, measured directly). Measured against the
    unsandboxed Mac rerun (paritymac 1b–1f checklist unchanged).
 4. Attach end-to-end needs a GUI Mac with a real Screenshot recording
    (withheld entry T4 stands); browser-check wait needs Windows.
+
+---
+
+# Round 2 (lane RUPLATFORMM2, branch `realuse/0190-platform-m2`)
+
+Version: 0.19.0. Base: round-1 record above plus commit `c77e5bd7c`.
+Platform: same macmini rig, macOS 15.7.4 Intel x86_64, Node v24.21.0,
+VS Code 1.139.1, Swift 6.2.4, Muse Code CLI 1.4.10 (product pins
+`@muse-code/sdk` 1.4.4). A VS Code instance with the person's own
+profile was already running on the rig; it was left untouched (all
+round-2 driving used isolated `--user-data-dir`/`--extensions-dir` in
+`temp/` and a directly launched second instance).
+
+Model calls through the product: **3 / 40** (1 CLI exec probe + 2 ACP
+turns), all on `muse-spark-1.3-contributor`, every provider line `meta`.
+Spend from the product's records: 3 tiny turns, well inside $2.00 (no
+USD figure is exposed in the local records; nothing else was sent).
+
+## R2.1. ACP packaging packs on macOS at last (fix, commit `c77e5bd7c`)
+
+- FAIL reproduced: `node scripts/package-acp.mjs` stopped with
+  `Required Linux created-path helper is missing:
+native/linux/x64/muse-created` (exit non-zero), because
+  `build-linux-helper.mjs` returns early off Linux by design.
+- Fix (per the brief's rule 3, mirroring D123): `acpHelperPlan` in
+  `scripts/lib/acpNativeSources.mjs` requires only the helpers the
+  running platform builds (darwin helper on macOS, current-arch Linux
+  helpers on Linux, none on Windows where C# compiles on first use)
+  and skips absent foreign helpers with a loud warning; CI composes
+  every platform's helpers and its content check still requires them
+  all, so the release tarball is unchanged. CHANGELOG `[0.19.0]`
+  Fixed carries the line.
+- Proof: `test/unit/acpNativeSources.test.mjs` (4/4, repo timeout),
+  a red drill (helper moved aside → `Required darwin helper is
+missing`, restored byte-identical), and the real pack:
+  `dist/muse-spark-code-acp-0.19.0.tgz` (3,046,050 bytes) stages the
+  darwin helpers, the Windows sources, the runner helpers and all
+  bundles, skipping the 4 Linux helpers with warnings. `npm install`
+  of the tarball into `temp/` works and the installed
+  `muse-spark-code-acp` serves ACP (used for every session below).
+
+## R2.2. Two-turn conversation on the named contributor model (a)
+
+- Driver: `temp/acp-two-turn.mjs` (scratch, gitignored) — a real ACP
+  client on the repo's own `@agentclientprotocol/sdk` 1.7.0 against
+  the installed packed agent (`--backend museCode
+--allow-contributor-models --trust-workspace`), workspace a fresh
+  empty `temp/ws`. Permission handler grants `allow_once` only and
+  logs each grant (none were asked: Manual mode edits files unasked).
+- Without contributor models listed, the driver refuses to continue
+  (verified twice) and the product itself refuses:
+  `session/set_config_option` → `Invalid params:
+muse-spark-1.3-contributor`; packed
+  `exec --model muse-spark-1.3-contributor` → `This model is not
+available for this run.` Both fire before dispatch: 0 calls.
+- Why unlisted: `muse serve` (CLI 1.4.10) answers `model/list` with
+  exactly 4 non-contributor models (`muse-wonder-1.0`,
+  `muse-wonder-full-1.0`, `muse-spark-1.3`, `muse-spark-1.2`) although
+  the persisted CLI setting has `contributor_mode_enabled: true` and
+  the CLI resolves/runs the contributor model itself (`muse exec
+--model muse-spark-1.3-contributor` answered `exec-probe-ok`: call
+  1/40). The agent also logs an MSP schema fingerprint mismatch
+  (pins SDK 1.4.4, serves 1.4.10). Listing is not group-changed
+  behaviour and contributor gating carries billing/consent weight, so
+  no product change was made here: recorded for the join (see open
+  item 5).
+- With serve started naming the model (diagnostic-only
+  `--muse-binary` wrapper in `temp/`, never committed, adding the
+  CLI's own `--contributor-mode on --model
+muse-spark-1.3-contributor` startup flags), serve lists 5 models
+  including the contributor tier, and the packed agent held the real
+  two-turn session `01a15079-d708-7640-abe3-d2aaa4c0a407`:
+  turn 1 answered `rig-turn-one-ok` (`end_turn`); turn 2 created
+  `temp/ws/hello-rig.txt` with exactly the 30 dictated bytes and no
+  trailing newline (`cmp` BYTE-EXACT, `end_turn`). Calls 2–3/40.
+- Provider-line audit in the CLI's own session records
+  (`data/muse/sessions/2026/10/18/01a15079-…` and the exec probe's
+  `01a15071-…`): every `"model"` line says
+  `muse-spark-1.3-contributor` (6 + 2) or `same-as-main` (13 + 6),
+  every `"provider"` line says `meta` (6 + 2). No other model on any
+  request. The failed pre-prompt sessions hold no provider lines.
+
+## R2.3. Vault for real (b): the product can only use the login Keychain
+
+- Read the slot code end to end: `native/darwin/VaultKey.swift`
+  hard-codes `NSHomeDirectory()/Library/Keychains/login.keychain-db`
+  (`loginKeychain()`, `keychainQuery()`), and its own comment says
+  production takes no path from argv, stdin, environment or settings;
+  no `MUSE_SPARK_VAULT*`/keychain-path setting or variable exists in
+  `src/` (checked). There is nothing to point at an isolated
+  keychain, so none was created and the login Keychain was never
+  touched; no keychain was added to any search list.
+- What the person sees, re-verified on this build
+  (`node dist/acp.js vault …`): `status` answers the designed
+  sentence (`The operating system's credential store is not
+available. … on macOS, unlock the login Keychain … Then try
+again.`); `lock` prints `Locked`. Store / read-back / lock /
+  unlock of a real item needs the person's unlocked login Keychain
+  (open item 2 stands). No code change.
+
+## R2.4. The real panel over CDP (c)
+
+- Packed `muse-spark-code-darwin-x64-0.19.0.vsix`: filter and manifest
+  PASS (all darwin entries incl. universal `muse-dictate`, screen
+  app, `muse-vault`, `muse-vault-peer`; zero foreign helpers;
+  `TargetPlatform="darwin-x64"`). `check-vsix-size` refuses the local
+  pack (3,814,201 vs 3,788,800 bytes) — the gate firing correctly on
+  this rig's Swift 6.2.4 output, as in round 1; binding proof stays
+  CI's package job. No code change.
+- Installed into VS Code 1.139.1 (`randynorthrup.muse-spark-code`
+  listed) and driven over CDP from `temp/cdp-drive.mjs` (text reads
+  only, no screenshots): extension activates in 295 ms, `Sign-in
+state: signedIn on the museCode backend`; the palette lists the
+  packed commands; `Muse Spark: Open in Sidebar` creates the
+  extension's webview (`purpose=webviewView`,
+  `extensionId=RandyNorthrup.muse-spark-code`).
+- Exact words read from the live panel: `Muse Spark: Lock Vault Now`
+  → `The vault operation failed. Try again.` (extension log: `Vault
+lock command failed`, 9× across runs); `Muse Spark: Attach Latest
+Screen Recording` → `No recent screen recording was found.`
+  (`Muse Spark: Vault` runs with no toast: it targets the vault
+  section.) No model turn was sent from the panel: the panel lists
+  the same 4 serve models, and the default was never let through.
+- Open limitation: the chat webview document stays bootstrap-only
+  here (no `#root`, no resource loads, `innerText` empty in every
+  frame), so the panel body text could not be read in this headless
+  run although its target, commands and notifications all drive for
+  real. Renderer/network logs show no load error. For the lead to
+  compare on a GUI Mac.
+
+## Round-2 gates (final tree, true exit codes, repo timeout throughout)
+
+- `npm run build`: 0 (budgets hold). Note: an intermediate rebuild
+  failed the lazy-registry check (505 problems) because this lane's
+  own `dist/acp-package` + `dist/vsix-package` stages were still on
+  disk; removing those gitignored stages and rebuilding gives 0. The
+  problems named only stage copies, never repo sources.
+- `test/unit/acpNativeSources.test.mjs` + `test/unit/vsixTargets.test.mjs`
+  (2 files, the lane's 3-file limit): 12/12 pass, exit 0.
+- prettier check on changed files: 0. eslint on changed files: 0,
+  zero warnings (one `unicorn/no-declarations-before-early-exit`
+  found and fixed in the lane).
+- typecheck (all 5 projects): 0. `deadcode` (knip): 0. `cycles`: 0.
+  duplication: 0 clones, exit 0. `check:l10n`: 0 problems, exit 0.
+  `check:reference`: 0. `check:host-api`: 0 problems, exit 0.
+  `check:plan`: 0 drift, exit 0. `security:audit`: 0.
+- SAST (`security:sast`): exit 2, sandbox-blocked, no scan ran:
+  `Fatal error: exception Failure: ca-certs: empty trust anchors`
+  (osemgrep crashes configuring TLS before any rule runs). For the
+  lead/CI outside the sandbox.
+- `check:catches` on group files: left to the join per the brief.
+
+## Still open for the join (adds to round 1)
+
+5. Contributor listing: `muse serve` 1.4.10 lists 4 models while the
+   persisted `contributor_mode_enabled` is true and the CLI itself
+   runs the contributor model; the product (agent, panel, exec)
+   therefore cannot select it and refuses by design. Needs the
+   bleeding-edge follow-up (pinned SDK 1.4.4 vs CLI 1.4.10,
+   fingerprint mismatch on record), not a lane-side gate bypass.
+6. Panel body text needs a GUI Mac comparison run (R2.4).
