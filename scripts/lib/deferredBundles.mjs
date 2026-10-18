@@ -886,7 +886,7 @@ export function checkDeferredBundles(inputsOf) {
         ) &&
         !(
           source === 'src/core/providers/keyInspection.ts' &&
-          bundle.output === 'dist/modelsPanel.js'
+          (bundle.output === 'dist/modelsPanel.js' || bundle.output === 'dist/runtimeAccounts.js')
         ) &&
         !(
           bundle.output === 'dist/runtimeAccounts.js' &&

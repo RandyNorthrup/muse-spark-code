@@ -1007,7 +1007,8 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             ) &&
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
             !(
-              input === 'src/core/providers/keyInspection.ts' && output === 'dist/modelsPanel.js'
+              input === 'src/core/providers/keyInspection.ts' &&
+              (output === 'dist/modelsPanel.js' || output === 'dist/runtimeAccounts.js')
             ) &&
             !(
               output === 'dist/runtimeAccounts.js' &&
