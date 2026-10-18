@@ -396,6 +396,13 @@ export interface LatestRecordingPort {
   /** The OS recordings locations: Linux Videos roots, Windows Screen
    * Recordings, or the macOS Desktop default. The host factory sets them. */
   readonly roots: readonly string[]
+  /**
+   * An extra per-platform file-name gate for a general-purpose directory:
+   * macOS scans the Desktop, so only Screenshot names qualify. Absent means
+   * every recent media file qualifies (Linux Videos, Windows Screen
+   * Recordings are dedicated recordings folders).
+   */
+  readonly isRecordingFileName?: (fileName: string) => boolean
   /** Nonrecursive, confined regular files only; reject symlinks/special files. */
   readonly list: (
     root: string,
@@ -431,9 +438,11 @@ export async function findLatestRecording(
       const files = await port.list(root)
       for (const file of files) {
         const normalFile = file.path.replaceAll('\\', '/')
+        const fileName = normalFile.slice(normalFile.lastIndexOf('/') + 1)
         if (
           isWithinRecordingRoot(root, file.path) &&
           /\.(?:mp4|mov|webm)$/iu.test(normalFile) &&
+          (port.isRecordingFileName?.(fileName) ?? true) &&
           file.modifiedAt <= now &&
           now - file.modifiedAt <= SCREEN_RECORDING_RECENT_MAX_AGE_MS
         )

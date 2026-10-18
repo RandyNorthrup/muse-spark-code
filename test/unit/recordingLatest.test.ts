@@ -1,8 +1,13 @@
 // M105 W + PARITYREC: the host recording-temp gate and latest-file discovery
 // run against real temp directories on every platform: no fake filesystem
-// stands in for them. Windows proves Videos/Screen Recordings, macOS proves
-// the Desktop Screenshot-app default, Linux its Videos roots.
-import { mkdtemp, mkdir, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
+// stands in for them. Windows proves the Screen Recordings layout, macOS the
+// Desktop default plus its Screenshot-name gate, Linux its Videos roots. The
+// video bytes below are runtime-built sniff fixtures (the header comment on
+// ./helpers/media/fixtures says they are not playable clips): they prove
+// layout, recency and selection, never an OS application's encoding.
+// Recorded Snipping Tool and Screenshot bytes stay pending capture on GUI
+// hosts (lane PR236W1).
+import { mkdtemp, mkdir, readdir, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -15,7 +20,11 @@ import {
   createLinuxLatestPort,
   createMacosLatestPort,
   createWindowsLatestPort,
+  createWindowsPrivateDirectory,
   isRecordingTempPath,
+  isScreenshotRecordingName,
+  parseWindowsVideosDir,
+  resolveWindowsVideosDir,
 } from '../../src/host/media/recordingLatest'
 
 const owned: string[] = []
@@ -38,6 +47,10 @@ async function homeWith(files: Record<string, { ageMs: number; bytes: Uint8Array
 }
 // path.win32.sep is the single Windows separator without a literal backslash.
 const WINDOWS_SEPARATOR = path.win32.sep
+/** PowerShell answers end in CRLF; the spoken dir plus its line ending. */
+function spoken(dir: string): string {
+  return dir + '\r\n'
+}
 function confine(workspaceRoot: string) {
   return (fsPath: string) => {
     const normal = fsPath.replaceAll(WINDOWS_SEPARATOR, '/')
@@ -166,7 +179,7 @@ describe('M105 W Linux latest-file discovery', () => {
 })
 
 describe('PARITYREC Windows latest-file discovery', () => {
-  it('attaches the newest Snipping Tool recording from Screen Recordings', async () => {
+  it('selects the newest recent .mp4 under Screen Recordings', async () => {
     const { home, tempRoot } = await homeWith({
       'Videos/Screen Recordings/Screen Recording 2026-10-18.mp4': {
         ageMs: 1000,
@@ -180,11 +193,24 @@ describe('PARITYREC Windows latest-file discovery', () => {
     const port = createWindowsLatestPort({ homeDir: home, tempRoot })
     expect(port.roots).toEqual([path.join(home, 'Videos', 'Screen Recordings')])
     const latest = await findLatestRecording(port)
-    if (!latest.ok) throw new Error('expected the recent Snipping Tool recording')
+    if (!latest.ok) throw new Error('expected the recent recording')
     expect(latest.preview.path.startsWith(tempRoot)).toBe(true)
     expect(latest.preview.info).toMatchObject({ kind: 'video', mediaType: 'video/mp4' })
     await latest.preview.dispose()
     await expect(stat(latest.preview.path)).rejects.toThrow()
+  })
+
+  it('follows a redirected Videos folder instead of the profile one', async () => {
+    const { home, tempRoot } = await homeWith({
+      'OD/Videos/Screen Recordings/moved.mp4': { ageMs: 1000, bytes: videoFixture() },
+    })
+    const videosDir = path.join(home, 'OD', 'Videos')
+    const port = createWindowsLatestPort({ homeDir: home, tempRoot, videosDir })
+    expect(port.roots).toEqual([path.join(videosDir, 'Screen Recordings')])
+    const latest = await findLatestRecording(port)
+    if (!latest.ok) throw new Error('expected the redirected recording')
+    expect(path.basename(latest.preview.path)).toBe('moved.mp4')
+    await latest.preview.dispose()
   })
 
   it('reports no recent recording when the folder holds only stale captures', async () => {
@@ -200,7 +226,7 @@ describe('PARITYREC Windows latest-file discovery', () => {
 })
 
 describe('PARITYREC macOS latest-file discovery', () => {
-  it('attaches the newest Screenshot-app recording from the Desktop', async () => {
+  it('selects the newest Screenshot-named .mov on the Desktop', async () => {
     const { home, tempRoot } = await homeWith({
       'Desktop/Screen Recording 2026-10-18 at 21.00.00.mov': {
         ageMs: 1000,
@@ -214,11 +240,35 @@ describe('PARITYREC macOS latest-file discovery', () => {
     const port = createMacosLatestPort({ homeDir: home, tempRoot })
     expect(port.roots).toEqual([path.join(home, 'Desktop')])
     const latest = await findLatestRecording(port)
-    if (!latest.ok) throw new Error('expected the recent Screenshot-app recording')
+    if (!latest.ok) throw new Error('expected the recent Screenshot-named recording')
     expect(latest.preview.path.startsWith(tempRoot)).toBe(true)
     expect(latest.preview.info).toMatchObject({ kind: 'video', mediaType: 'video/quicktime' })
     await latest.preview.dispose()
     await expect(stat(latest.preview.path)).rejects.toThrow()
+  })
+
+  it('prefers an older Screenshot recording over a newer Desktop export', async () => {
+    const screenshot = 'Screen Recording 2026-10-18 at 09.00.00.mov'
+    const { home, tempRoot } = await homeWith({
+      'Desktop/export.mov': { ageMs: 1000, bytes: videoFixture({ brand: 'qt  ' }) },
+      [`Desktop/${screenshot}`]: { ageMs: 60 * 1000, bytes: videoFixture({ brand: 'qt  ' }) },
+    })
+    const latest = await findLatestRecording(createMacosLatestPort({ homeDir: home, tempRoot }))
+    if (!latest.ok) throw new Error('expected the Screenshot-named recording, not the export')
+    expect(path.basename(latest.preview.path)).toBe(screenshot)
+    await latest.preview.dispose()
+  })
+
+  it('reports no recent recording when only non-Screenshot videos are fresh', async () => {
+    const { home, tempRoot } = await homeWith({
+      'Desktop/export.mov': { ageMs: 1000, bytes: videoFixture({ brand: 'qt  ' }) },
+      'Desktop/clip.mp4': { ageMs: 1000, bytes: videoFixture() },
+    })
+    const port = createMacosLatestPort({ homeDir: home, tempRoot })
+    await expect(findLatestRecording(port)).resolves.toMatchObject({
+      ok: false,
+      reason: UI_TEXT.media.recordingNoRecent,
+    })
   })
 
   it('reports no recent recording when the Desktop holds no fresh video', async () => {
@@ -230,6 +280,150 @@ describe('PARITYREC macOS latest-file discovery', () => {
       ok: false,
       reason: UI_TEXT.media.recordingNoRecent,
     })
+  })
+})
+
+describe('PR236W1 Screenshot-name gate', () => {
+  it.each([
+    ['Screen Recording 2026-10-18 at 09.00.00.mov', true],
+    ['Screen Recording 2026-10-18 at 9.00.00 PM.mov', true],
+    ['Screen Recording.mov', true],
+    ['Screen Recording 2026-10-18 at 09.00.00.mp4', false],
+    ['export.mov', false],
+    ['Screen Recording 2026-10-18 at 09.00.00.mov ', false],
+    ['screen recording 2026-10-18 at 09.00.00.mov', false],
+    ['My Screen Recording.mov', false],
+  ])('names %s as Screenshot output: %s', (name, expected) => {
+    expect(isScreenshotRecordingName(name)).toBe(expected)
+  })
+})
+
+describe('PR236W1 Windows Videos known folder', () => {
+  const systemRoot = String.raw`C:\Windows`
+  it.each([
+    [spoken(String.raw`C:\Users\u\Videos`), String.raw`C:\Users\u\Videos`],
+    [String.raw`D:\Media\Videos`, String.raw`D:\Media\Videos`],
+    ['', undefined],
+    [String.raw`relative\Videos`, undefined],
+    ['/posix/Videos', '/posix/Videos'],
+  ])('parses the known-folder answer %s as %s', (output, expected) => {
+    expect(parseWindowsVideosDir(output)).toBe(expected)
+  })
+
+  it('stays on the homedir layout off Windows', async () => {
+    let calls = 0
+    const resolved = await resolveWindowsVideosDir(
+      {
+        systemRoot,
+        run: () => {
+          calls += 1
+          return Promise.resolve(String.raw`C:\Users\u\Videos`)
+        },
+      },
+      'linux',
+    )
+    expect(resolved).toBeUndefined()
+    expect(calls).toBe(0)
+  })
+
+  it('resolves the redirected folder through system PowerShell', async () => {
+    const seen: { executable: string; args: readonly string[] }[] = []
+    const resolved = await resolveWindowsVideosDir(
+      {
+        systemRoot,
+        run: (executable, args) => {
+          seen.push({ executable, args })
+          return Promise.resolve(spoken(String.raw`D:\OneDrive\Videos`))
+        },
+      },
+      'win32',
+    )
+    expect(resolved).toBe(String.raw`D:\OneDrive\Videos`)
+    expect(seen).toHaveLength(1)
+    expect(seen[0]?.executable.split('/').join(WINDOWS_SEPARATOR)).toBe(
+      String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
+    )
+    expect(seen[0]?.args.join(' ')).toContain(`GetFolderPath('MyVideos')`)
+  })
+
+  it('falls back when the system will not answer', async () => {
+    await expect(
+      resolveWindowsVideosDir(
+        {
+          systemRoot,
+          run: () => Promise.reject(new Error('denied')),
+        },
+        'win32',
+      ),
+    ).resolves.toBeUndefined()
+    await expect(
+      resolveWindowsVideosDir(
+        {
+          systemRoot,
+          run: () => Promise.resolve(''),
+        },
+        'win32',
+      ),
+    ).resolves.toBeUndefined()
+  })
+})
+
+describe('PR236W1 Windows private preview directory', () => {
+  it('refuses off Windows instead of claiming a DACL', async () => {
+    await expect(createWindowsPrivateDirectory(await temp(), {}, 'darwin')).rejects.toThrow(
+      /Windows/,
+    )
+  })
+
+  it('locks down with icacls and verifies through the system', async () => {
+    const tempRoot = await temp()
+    const seen: { executable: string; args: readonly string[] }[] = []
+    const dir = await createWindowsPrivateDirectory(
+      tempRoot,
+      {
+        systemRoot: String.raw`C:\Windows`,
+        run: (executable, args) => {
+          seen.push({ executable, args })
+          return Promise.resolve(executable.endsWith('powershell.exe') ? 'True\r\n' : '')
+        },
+      },
+      'win32',
+    )
+    expect(dir.startsWith(tempRoot)).toBe(true)
+    const locked = await stat(dir)
+    expect(locked.isDirectory()).toBe(true)
+    const lockdown = seen.find((call) => call.executable.endsWith('icacls.exe'))
+    expect(lockdown?.args.slice(1)).toEqual(['/inheritance:r', '/grant:r', '*S-1-3-4:(OI)(CI)F'])
+    const verdict = seen.find((call) => call.executable.endsWith('powershell.exe'))
+    expect(verdict?.args.join(' ')).toContain('AreAccessRulesProtected')
+    await rm(dir, { force: true, recursive: true })
+  })
+
+  it('throws and removes the directory when verification fails', async () => {
+    const tempRoot = await temp()
+    await expect(
+      createWindowsPrivateDirectory(
+        tempRoot,
+        {
+          systemRoot: String.raw`C:\Windows`,
+          run: (executable) =>
+            Promise.resolve(executable.endsWith('powershell.exe') ? 'False\r\n' : ''),
+        },
+        'win32',
+      ),
+    ).rejects.toThrow()
+    expect(await readdir(tempRoot)).toEqual([])
+  })
+
+  it('creates a real owner-only directory on Windows', async () => {
+    if (process.platform !== 'win32') return
+    const dir = await createWindowsPrivateDirectory(await temp())
+    try {
+      const owned = await stat(dir)
+      expect(owned.isDirectory()).toBe(true)
+    } finally {
+      await rm(dir, { force: true, recursive: true })
+    }
   })
 })
 
