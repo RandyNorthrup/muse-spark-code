@@ -220,6 +220,46 @@ refuses with `secret`. The generated `profile.sb` is now the six-rule set
 (version, deny-default, system file-reads, root literal, process-exec +
 file-read literals for the verified target, walked literals).
 
+Proven in this sandbox 2026-10-18 (commit `015b46a74`; the live
+Seatbelt step itself still needs the lead's unsandboxed Mac, as before):
+
+- The fixed helper compiles clean under the repo's exact flags
+  (`-std=c11 -O2 -Wall -Wextra -Werror -Wconversion -Wshadow`): the repo
+  script's `/usr/bin/cc` exec fails on this rig (broken `xcode-select`
+  plus the sandbox denying the toolchain exec), so `policy.h` came from
+  `node scripts/build-confine.mjs` and the link from the direct CLT cc
+  against the MacOSX SDK — same flags, same `temp/confine/muse-confine`
+  output. `npm run build:confine` itself was NOT green here for that
+  environmental reason; it must run on the lead's machine.
+- Pre-confinement refusals measured on the fresh binary, one fixture per
+  run: identity `workspaceIdentity`, unknown program `program`, `.env` /
+  `x/../allowed.txt` / `C:outside` each `privateOperand`, symlink and
+  hardlink each `operand` — all exit 125 with empty stdout.
+- Home-reuse diagnosis reproduced: a second raw run against the same home
+  refuses `home` (the first run's `profile.sb` fails the empty-home
+  check), fail-closed, which is why the three multi-run tests now take a
+  fresh fixture per operand/name/program.
+- Generated `profile.sb` for `cat allowed.txt` (run fails here at
+  `sandbox_apply`, as before — this shell cannot apply any profile):
+
+```text
+(version 1)
+(deny default)
+(allow file-read* (literal "<workspace>"))
+(allow file-read* (subpath "/bin") (subpath "/sbin") (subpath "/usr") (subpath "/System"))
+(allow process-exec (literal "/bin/cat"))
+(allow file-read* (literal "/bin/cat"))
+(allow file-read* (literal "<workspace>/allowed.txt"))
+```
+
+- `probe` here still fails closed with `{"refused":"selfTest"}` exit 125
+  (`sandbox_apply: Operation not permitted`), unchanged.
+- Gates on the final tree: prettier clean, eslint zero warnings on the
+  changed test, all five typechecks green, `check:plan` 0 drift,
+  `check:l10n` 0 problems, `npm run build` green with budgets holding,
+  `test/unit/inspectNative.test.ts` 10 skipped / 0 failed here (the repo
+  build path cannot produce the binary inside this sandbox).
+
 ## Drills
 
 - Item 3 and item 2 drills ran live on this Mac (above).
