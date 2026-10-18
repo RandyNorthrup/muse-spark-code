@@ -33,6 +33,79 @@ export function absolutePathEntries(
     .filter((entry) => entry !== '' && p.isAbsolute(entry))
 }
 
+export interface WorkspacePathSanitizeProbe {
+  readonly platform: NodeJS.Platform
+  /** The PATH value, unsplit. */
+  readonly pathVariable: string | undefined
+  /** The workspace the child runs in (its working directory). */
+  readonly workspaceRoot: string
+  /**
+   * Resolves links in an entry or the workspace root; may throw (an entry
+   * that cannot be resolved is compared lexically instead). Injected so the
+   * Windows, macOS and Linux branches are all unit-tested on any OS.
+   */
+  readonly realpath: (filePath: string) => string
+}
+
+/**
+ * Compares two absolute paths on `platform`'s terms: separators normalised
+ * to `/` (so Windows spellings compare on any host) and, on Windows,
+ * case-insensitive.
+ */
+function isSameOrInsideDirectory(
+  platform: NodeJS.Platform,
+  directory: string,
+  candidate: string,
+): boolean {
+  const normalize = (value: string): string => {
+    const slashed = value.replaceAll('\\', '/').replaceAll(/\/+$/g, '')
+    return platform === 'win32' ? slashed.toLowerCase() : slashed
+  }
+  const root = normalize(directory)
+  const target = normalize(candidate)
+  return target === root || target.startsWith(`${root}/`)
+}
+
+function resolveForCompare(probe: WorkspacePathSanitizeProbe, filePath: string): string {
+  try {
+    return probe.realpath(filePath)
+  } catch {
+    return filePath
+  }
+}
+
+/**
+ * A PATH value with the workspace removed: entries that are empty,
+ * relative, or inside `workspaceRoot` (resolved through links) are dropped,
+ * on Windows, macOS and Linux alike. An empty or relative entry means the
+ * working directory on every platform (and Windows also tries the current
+ * directory before PATH), so with the workspace as the working directory a
+ * planted program would otherwise run instead of the real one — as Muse
+ * Code 1.4.9 proved with a planted `<workspace>/bin/bwrap` at `muse serve`
+ * start (docs/certification/pathguard.md). Nothing else changes: kept
+ * entries stay byte-identical and in order, and entries that cannot be
+ * resolved are kept unless they are relative, empty, or lexically inside.
+ */
+export function sanitizePathForWorkspace(probe: WorkspacePathSanitizeProbe): string {
+  const p = probe.platform === 'win32' ? path.win32 : path.posix
+  const separator = probe.platform === 'win32' ? ';' : ':'
+  const root = resolveForCompare(probe, probe.workspaceRoot)
+  const entries = (probe.pathVariable ?? '').split(separator)
+  const kept: string[] = []
+  for (const entry of entries) {
+    const trimmed = entry.trim()
+    if (
+      trimmed === '' ||
+      !p.isAbsolute(trimmed) ||
+      isSameOrInsideDirectory(probe.platform, root, resolveForCompare(probe, trimmed))
+    ) {
+      continue
+    }
+    kept.push(entry)
+  }
+  return kept.join(separator)
+}
+
 /**
  * The absolute path of `name` on PATH, or undefined when it is not there. On
  * Windows a name that already ends in `.exe` or `.com` (the OS adapters'

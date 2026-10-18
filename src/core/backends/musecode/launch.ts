@@ -14,6 +14,7 @@
 // end the direct child, so closing a launcher left muse-bin running.
 
 import path from 'node:path'
+import { sanitizePathForWorkspace } from '../../executables'
 import type { MuseCodeAccountHome } from './accountHomes'
 import type { EnvironmentVariable } from '../../../shared/constants'
 import {
@@ -213,6 +214,19 @@ export interface ChildEnvironmentInput {
   readonly programFiles: string | undefined
   /** Supplied only by the capture-gated account owner, never settings or a page. */
   readonly accountHome?: MuseCodeAccountHome
+  /**
+   * The workspace the child runs in. When defined, PATH entries that are
+   * relative, empty, or inside it (resolved through links) are dropped, so
+   * no workspace program runs from PATH when Muse Code starts
+   * (docs/certification/pathguard.md). Undefined leaves PATH untouched.
+   */
+  readonly workspaceRoot?: string
+  /**
+   * Resolves links for the PATH guard; injected so the Windows, macOS and
+   * Linux branches are all unit-tested on any OS. Absent means lexical
+   * comparison only (relative, empty and lexically-inside entries still go).
+   */
+  readonly realpath?: (filePath: string) => string
 }
 
 /**
@@ -293,8 +307,34 @@ export function windowsPowerShellModulePath(
  * subscription's work to the key (PLAN.md D1, M7). A key already in the
  * user's own environment is inherited untouched, as the CLI documents.
  */
+/**
+ * PATH entries that would let a workspace program run are dropped from a
+ * copied environment: relative, empty, or inside `workspaceRoot` (resolved
+ * through links). On Windows every spelling of PATH is guarded, since names
+ * are case-insensitive there. Keys holding no PATH are never added.
+ */
+function guardWorkspacePath(env: NodeJS.ProcessEnv, input: ChildEnvironmentInput): void {
+  if (input.workspaceRoot === undefined) {
+    return
+  }
+  const realpath = input.realpath ?? ((filePath: string): string => filePath)
+  const names =
+    input.platform === 'win32'
+      ? Object.keys(env).filter((name) => name.toLowerCase() === 'path')
+      : Object.keys(env).filter((name) => name === 'PATH')
+  for (const name of names) {
+    env[name] = sanitizePathForWorkspace({
+      platform: input.platform,
+      pathVariable: env[name],
+      workspaceRoot: input.workspaceRoot,
+      realpath,
+    })
+  }
+}
+
 export function buildChildEnvironment(input: ChildEnvironmentInput): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...input.baseEnv }
+  guardWorkspacePath(env, input)
   if (input.platform === 'win32' && input.systemRoot !== undefined) {
     setEnvironmentVariable(
       env,
