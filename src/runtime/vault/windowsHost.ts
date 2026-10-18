@@ -62,6 +62,7 @@ export async function windowsProcessIdentity(
   try {
     answer = await inspectWindowsProcess(relay, processId)
   } catch {
+    // An unprovable process is no host: identity needs proof, never a guess.
     return null
   }
   return answer.result !== 'ok' || answer.process?.userId !== answer.ownerSid
