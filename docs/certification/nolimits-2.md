@@ -141,3 +141,36 @@ after 15000 ms`.
   a pure `canRetryWithinBudget` proof (commit `358cf7134`, gate-fire
   recorded there). The retry loop's live end at Stop is unproven by
   any committed test and is a real-life step for the lead.
+
+## PR #214 review threads (2026-10-17, branch `fix/nolimits-2-threads`)
+
+Current main merged first (`5144bd5e9`). One line per unresolved thread:
+the fix at its cause, or the measured reason it needs none.
+
+- `transport.ts:871` (Retry-After past Node's timer range): fix — every
+  wait the transport sleeps goes through one cancellable sleep that splits
+  a delay into timer-safe pieces, so a provider's long wait is waited out
+  whole instead of firing after 1 ms.
+- `mcp/servers.ts:185` (entry timeouts past the timer range): fix — the
+  MCP request deadline uses the same split timer, so a long
+  `startup_timeout_sec`/`tool_timeout_sec` is honoured whole.
+- `tools.ts:1964` (model `timeout_ms` past the timer range): fix — the
+  shell's kill timer uses the same split timer, so the tree is killed at
+  the named time, not at once.
+- `pacing.ts:223` (estimate larger than the observed token bucket): fix —
+  once a full bucket still cannot cover the estimate, the request is
+  admitted for the provider to judge instead of waiting for headroom that
+  can never come.
+- `timeouts.ts:97` (English subjects in a translated notice): fix — each
+  still-waiting subject is a key in the English table and all 14
+  translated tables; callers pass the key, not English prose.
+- `browserCheckConstants.ts:143` (roadmap keeps the old limit): fix — the
+  M81 roadmap entry no longer says "a few steps"; `ROADMAP.md`
+  regenerated.
+- `MuseCodeHost.ts:799` (concurrent waits share one miss counter): fix —
+  the still-waiting notices of one connection count one miss per notice
+  period however many commands wait, so two long commands no longer mark
+  the host unresponsive after two minutes.
+- `importIo.ts:76` (import Git probes with no kill path): fix — the probes
+  take the import's cancellation signal, so Stop ends a stalled Git child;
+  no deadline of ours comes back.
