@@ -132,6 +132,23 @@ minimum 0`, no maximum. The settings editor stops showing "$1.00" as the
   paidUsageTabRow (3), execArgs, runLedger (36), tabSpend — all pass.
   No `--testTimeout` raised anywhere (repo default).
 
+## PR239W1 fix record (review threads: none; CI failure: activation budget)
+
+- Review threads: 0 unresolved on PR #239 at lane start — nothing to fix.
+- `modelsActivationBudget` (shard 3): growth 3104 B > 3072 B budget.
+  Cause measured in-worktree: `src/host/tab/tabBundle.ts` (this lane's
+  no-budget tooltip + `isBudgetReached` guard) added 203 B; the lane's
+  other activation-reachable edits netted 0 B. Fix at cause, budget
+  untouched: the two zero-budget checks now reuse the existing
+  `isPositiveUsd` helper (the same "0 is uncapped" precedent as
+  `hookModelEntry`/`reviewerEntry`) and read the budget once. Bundle
+  564456 → 564394 B (growth 3042 B, 30 B under budget).
+  Negative budgets stay rejected by settings validation, so `> 0` and
+  `!== 0` agree on every valid input; no suite feeds a negative budget.
+- Other CI failures (quality ×3, .vsix, dictation helper, capacity-repo
+  tests): downstream-of-another-failure requires, no independent cause;
+  they clear with the budget fix.
+
 ## Real-use drills (packed `dist/` from this tree, no model calls)
 
 - `node dist/acp.js exec --help`: `--max-requests` reads "Set the

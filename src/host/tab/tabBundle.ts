@@ -1,4 +1,4 @@
-import { Usd, type UsdAmount } from '../../shared/usd'
+import { Usd, isPositiveUsd, type UsdAmount } from '../../shared/usd'
 // Tab completions as the activation bundle sees them (M94, PLAN.md D73):
 // dist/tab.js, built from tabEntry.ts and required on the first Tab request
 // (PLAN.md D6). Only types cross from the lazy side into activation: a value
@@ -810,13 +810,13 @@ export function createTabStatusItem(
     const spend = deps.todaySpend()
     const spendText = formatUsd(spend.totalUsd, 2)
     // 0 is no budget: the tooltip says so instead of naming a $0.00 cap.
-    const hasBudget = Usd.from(deps.budgetUsd()).compare(Usd.from(0)) !== 0
-    const tooltip = hasBudget
+    const budget = deps.budgetUsd()
+    const tooltip = isPositiveUsd(budget)
       ? fill(table.tabStatusTooltip, {
           model: deps.model(),
           requests: spend.requests,
           spend: spendText,
-          budget: formatUsd(deps.budgetUsd(), 2),
+          budget: formatUsd(budget, 2),
         })
       : fill(table.tabStatusTooltipNoBudget, {
           model: deps.model(),
@@ -1124,11 +1124,13 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       requests: active?.spend.todayRequests() ?? 0,
     }),
     // 0 is no budget: nothing is ever reached, so the bar never warns.
-    isBudgetReached: () =>
-      Usd.from(deps.tabSettings().tabDailyBudgetUsd).compare(Usd.from(0)) !== 0 &&
-      Usd.from(active?.spend.todayTotalUsd() ?? 0).compare(
-        Usd.from(deps.tabSettings().tabDailyBudgetUsd),
-      ) >= 0,
+    isBudgetReached: () => {
+      const budget = deps.tabSettings().tabDailyBudgetUsd
+      return (
+        isPositiveUsd(budget) &&
+        Usd.from(active?.spend.todayTotalUsd() ?? 0).compare(Usd.from(budget)) >= 0
+      )
+    },
     model: () => deps.tabSettings().tabModel,
     budgetUsd: () => deps.tabSettings().tabDailyBudgetUsd,
     snooze,
