@@ -514,27 +514,33 @@ export class MuseCodeBackendManager {
   /**
    * What the Linux capability probe measured (F91): whether Muse Code's
    * sandbox can start on this machine. Undefined where the probe does not
-   * apply (off Linux, or the sandbox off) or while no host has started.
+   * apply (off Linux, or the sandbox off) or while no host has started. A
+   * stale cache never answers while the current posture is off: turning
+   * `museSpark.shellSandbox` off after a probe ran reads as not checked.
    */
   public shellSandboxReadiness(): LinuxSandboxReadiness | undefined {
-    return this.linuxSandboxReadiness
+    return process.platform !== 'linux' || !this.shellSandboxPosture().isSandboxed
+      ? undefined
+      : this.linuxSandboxReadiness
   }
 
   /**
    * The cached probe, or one fresh probe when it applies and none ran yet
    * (the Diagnostics report reads this before any host has started).
+   * Applicability is checked before the cache, so a posture change is
+   * honoured even when only an earlier run populated it.
    */
   public async readShellSandboxReadiness(
     posture?: ShellSandboxPosture,
   ): Promise<LinuxSandboxReadiness | undefined> {
-    if (this.linuxSandboxReadiness !== undefined) {
-      return this.linuxSandboxReadiness
-    }
     const active = posture ?? this.shellSandboxPosture()
     if (process.platform !== 'linux' || !active.isSandboxed) {
       return undefined
     }
-    this.linuxSandboxReadiness = await probeLinuxSandboxShell()
+    if (this.linuxSandboxReadiness !== undefined) {
+      return this.linuxSandboxReadiness
+    }
+    this.linuxSandboxReadiness = await probeLinuxSandboxShell(this.deps.workspaceRoot)
     return this.linuxSandboxReadiness
   }
 
