@@ -84,13 +84,14 @@ Branch names and the PR head SHA do not establish source identity: the package
 job records its actual checked-out `HEAD^{tree}` (the merge tree for PR/queue CI) in
 the `source-tree-<tree SHA>` artifact and `release-build.json`.
 
-The release downloads that run's universal VSIX, ACP tarball, SBOMs and receipt
+The release downloads that run's per-target VSIX packages (PLAN.md D123),
+ACP tarball, SBOMs and receipt
 with a pinned cross-run download action. It requires the recorded tree to equal
-the tag's `HEAD^{tree}`, checks all four asset SHA-256 hashes recorded by CI,
-and checks the VSIX and ACP manifests against the tag version. Only then are
+the tag's `HEAD^{tree}`, checks every recorded asset's SHA-256 hash recorded by CI,
+and checks each VSIX and the ACP manifest against the tag version. Only then are
 the verified bytes uploaded into the release run under the existing artifact
 names. Publication, attestations, release checksums and channel reporting use
-those same bytes. All four artifacts have explicit 30-day retention (previously
+those same bytes. All four artifact groups have explicit 30-day retention (previously
 the repository default); this also covers the SBOM/receipt dependency.
 
 No eligible run, expired/missing artifacts, API/download failure, a malformed
@@ -109,13 +110,16 @@ This lane admits those successful runs without changing `ci.yml`.
 
 ## Artifacts and channels
 
-CI's full tier produces one universal VSIX, including the macOS helper
+CI's full tier produces one VSIX per supported target
+(win32-x64, win32-arm64, darwin-x64, darwin-arm64, linux-x64, linux-arm64),
+each carrying only its own platform's native pieces, including the macOS helper
 compiled on macOS, and `muse-spark-code-acp-X.Y.Z.tgz`. The full tier runs in
 the merge queue, on manual runs, in the release workflow's own build, and on
 every PR until the merge queue is on; a fast PR run builds no packages
-(CONTRIBUTING.md, "CI tiers"). The same VSIX goes to GitHub,
-the VS Code Marketplace, and Open VSX. The same ACP tarball goes to GitHub
-and npm. A package made locally without the macOS helper is not that universal
+(CONTRIBUTING.md, "CI tiers"). Each target's VSIX goes to GitHub,
+the VS Code Marketplace, and Open VSX, which serve each person their
+platform's package. The same ACP tarball goes to GitHub
+and npm. A package made locally without the macOS helper is not that
 release artifact.
 
 npm history: 0.10.0's npm step failed on a path bug, and 0.10.1's and
@@ -146,8 +150,9 @@ not lists of every file or every dependency's complete source: tree shaking
 can ship only part of a package. Build-only tools and omitted dependency
 references are removed. See [npm's SBOM documentation](https://docs.npmjs.com/cli/commands/npm-sbom/).
 
-The universal VSIX size gate is measured in compressed bytes; its budget is in
-`PLAN.md` D6 and `scripts/check-vsix-size.mjs`. ACP package checks cover every
+Each target's VSIX size gate is measured in compressed bytes against the same
+budget; the budget is in
+`PLAN.md` D6 (one package per platform: D123) and `scripts/check-vsix-size.mjs`. ACP package checks cover every
 `l10n/ui.*.json` table. The ACP process compiles the shell job sources on
 Windows, but forwards MCP servers to Muse Code; it does not run the extension's
 `MuseSparkMcpLauncher.cs`.

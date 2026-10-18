@@ -3,7 +3,8 @@
 # build and every unit test with no coverage gate; the full tier (merge
 # groups, manual runs, release.yml) runs every gate on three platforms, unit
 # shards (four on Ubuntu, eight on Windows and macOS), the integration runs,
-# the macOS helper and the universal packages. Accessibility left the
+# the macOS helper and one .vsix per supported target (PLAN.md D123).
+# Accessibility left the
 # pull-request path: it runs on merge groups, manual runs and releases, never
 # on a pull_request event. The required check names come from the `required`
 # aggregate below on both tiers.
@@ -508,11 +509,13 @@ jobs:
           if-no-files-found: error
 
   packages:
-    name: universal release artifacts
+    name: platform release artifacts (.vsix per target)
     if: ${{ inputs.part != 'org' && !inputs.fast }}
     needs: [checks, native-build, linux-native-build]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # One production build, then six targeted packs, each with maximum
+    # DEFLATE recompression and its own module-exports run (PLAN.md D123).
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -542,53 +545,85 @@ jobs:
       - run: chmod +x native/darwin/muse-dictate
       - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
       - run: npm ci
-      - run: npm run package
+      # One production build for every target; each target is packed from
+      # its own filtered stage (PLAN.md D123).
+      - run: npm run build
+      - name: pack one .vsix per supported target
         env:
           # The packaged-README badge check lists public main (GitHub API).
           GITHUB_TOKEN: ${{ github.token }}
-      - name: the universal VSIX stays within its measured budget
-        run: node scripts/check-vsix-size.mjs ./*.vsix
-      # What must be inside the package: the licence, the third-party
-      # notices, the native helpers and every runtime bundle (the webview
-      # loads main.css beside main.js; the extension requires modelApi.js
-      # when the Model API backend first starts, M57, starts pageWorker.js
-      # as a worker for each web page it converts, M69, and requires
-      # browserCheck.js on the first browser check, M81).
-      - name: the .vsix carries the notices, the helpers, the bundles and the manifest's text
         run: |
-          listing="$(unzip -Z1 ./*.vsix)"
-          for entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json \
-            extension/native/linux/x64/muse-created extension/native/linux/arm64/muse-created \
-            extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \
-            extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
-            extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
-            extension/native/windows/MuseSparkScreenRecord.cs \
-            extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate \
-            extension/native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources \
-            extension/dist/vault.js extension/dist/vaultBoundaries.js extension/dist/estimator.js extension/dist/estimateContracts.js \
-            extension/dist/native/darwin/muse-vault \
-            extension/native/windows/MuseSparkVault.cs extension/native/windows/MuseSparkVaultCng.cs \
-            extension/native/windows/MuseSparkVaultHello.cs extension/native/windows/MuseSparkVaultLock.cs \
-            extension/dist/extension.js extension/dist/conversation.js extension/dist/prompts.js extension/dist/modelApi.js extension/dist/searchWorker.js \
-            extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
-            extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \
-            extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js \
-            extension/dist/uiTextMedia.js extension/dist/media.js extension/dist/screenRecord.js \
-            extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
-            extension/dist/legalScan.js extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json \
-            extension/dist/sessionBoard.js extension/dist/reviewer.js \
-            extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js \
-            extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \
-            extension/dist/report.js extension/dist/recorder.js \
-            extension/dist/webFetch.js extension/dist/judge.js extension/docs/judge.md extension/dist/whatsNew.js extension/dist/whatsNew.json \
-            extension/dist/webview/main.js extension/dist/webview/main.css \
-            extension/dist/webview/whatsNew.js extension/dist/webview/whatsNew.css; do
-            if ! grep -Fxq -- "$entry" <<< "$listing"; then
-              echo "::error::$entry is missing from the .vsix" >&2
+          for target in win32-x64 win32-arm64 darwin-x64 darwin-arm64 linux-x64 linux-arm64; do
+            node scripts/package-vsix.mjs --target "$target"
+          done
+          stat -c '%n %s' ./*.vsix
+      - name: every target VSIX stays within its measured budget
+        run: node scripts/check-vsix-size.mjs ./*.vsix
+      # What must be inside each package: the licence, the third-party
+      # notices and every runtime bundle (the webview loads main.css beside
+      # main.js; the extension requires modelApi.js when the Model API
+      # backend first starts, M57, starts pageWorker.js as a worker for each
+      # web page it converts, M69, and requires browserCheck.js on the first
+      # browser check, M81), plus only that target's own native helpers and
+      # its TargetPlatform in the packed manifest — and none of the other
+      # platforms' helpers (PLAN.md D123).
+      - name: each .vsix carries its own helpers, the bundles and its target
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          common='extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json
+            extension/dist/vault.js extension/dist/vaultBoundaries.js extension/dist/estimator.js extension/dist/estimateContracts.js
+            extension/dist/extension.js extension/dist/conversation.js extension/dist/prompts.js extension/dist/modelApi.js extension/dist/searchWorker.js
+            extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js
+            extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js
+            extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js
+            extension/dist/uiTextMedia.js extension/dist/media.js extension/dist/screenRecord.js
+            extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js
+            extension/dist/legalScan.js extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json
+            extension/dist/sessionBoard.js extension/dist/reviewer.js
+            extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js
+            extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js
+            extension/dist/report.js extension/dist/recorder.js
+            extension/dist/webFetch.js extension/dist/judge.js extension/docs/judge.md extension/dist/whatsNew.js extension/dist/whatsNew.json
+            extension/dist/webview/main.js extension/dist/webview/main.css
+            extension/dist/webview/whatsNew.js extension/dist/webview/whatsNew.css'
+          windows='extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1
+            extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs
+            extension/native/windows/MuseSparkMcpLauncher.cs extension/native/windows/MuseSparkScreenRecord.cs
+            extension/native/windows/MuseSparkVault.cs extension/native/windows/MuseSparkVaultCng.cs
+            extension/native/windows/MuseSparkVaultHello.cs extension/native/windows/MuseSparkVaultLock.cs'
+          darwin='extension/native/darwin/muse-dictate
+            extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate
+            extension/native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources
+            extension/dist/native/darwin/muse-vault'
+          for target in win32-x64 win32-arm64 darwin-x64 darwin-arm64 linux-x64 linux-arm64; do
+            vsix="muse-spark-code-${target}-${version}.vsix"
+            listing="$(unzip -Z1 "$vsix")"
+            case "$target" in
+              win32-*) want="$windows"; reject='extension/native/darwin/ extension/native/linux/ extension/dist/native/darwin/' ;;
+              darwin-*) want="$darwin"; reject='extension/native/windows/ extension/native/linux/' ;;
+              linux-x64) want='extension/native/linux/x64/muse-created'; reject='extension/native/windows/ extension/native/darwin/ extension/dist/native/darwin/ extension/native/linux/arm64/' ;;
+              linux-arm64) want='extension/native/linux/arm64/muse-created'; reject='extension/native/windows/ extension/native/darwin/ extension/dist/native/darwin/ extension/native/linux/x64/' ;;
+            esac
+            # shellcheck disable=SC2086
+            for entry in $common $want; do
+              if ! grep -Fxq -- "$entry" <<< "$listing"; then
+                echo "::error::$entry is missing from $vsix" >&2
+                exit 1
+              fi
+            done
+            # shellcheck disable=SC2086
+            for prefix in $reject; do
+              if grep -Fq -- "$prefix" <<< "$listing"; then
+                echo "::error::$vsix carries another platform's helper under $prefix" >&2
+                exit 1
+              fi
+            done
+            if ! unzip -p "$vsix" extension.vsixmanifest | grep -Fq "TargetPlatform=\"$target\""; then
+              echo "::error::$vsix does not declare TargetPlatform=\"$target\"" >&2
               exit 1
             fi
+            echo "$vsix holds $(wc -l <<< "$listing") entries, its own helpers and TargetPlatform=\"$target\" included"
           done
-          echo "the .vsix holds $(wc -l <<< "$listing") entries, the required ones included"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-spark-code-vsix
@@ -596,7 +631,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       # The ACP agent's npm package (M63, PLAN.md D62), from the same
-      # production build `npm run package` just ran.
+      # production build this job just ran.
       - run: node scripts/package-acp.mjs
         env:
           GITHUB_TOKEN: ${{ github.token }}
