@@ -290,3 +290,24 @@ bundle, size/split/globals gates inside). Real-use steps for the lead:
   `attachArgs`, `teamCeilings`, `accounts`, `accountPolicy`,
   `modelTextCompression`, `mediaBudget`, `questionContracts`,
   `bundleExports`, `lazyBundleFiles`, `bundleDiet`, `packagedBundles` green.
+
+## PR206 budget review corrections (2026-10-17, rig macmini, lane RVPR206BUDGET)
+
+- The `usageRecording` sentence above held only in the panel: the terminal
+  and headless runtime passed no dep, its installed recording landed on the
+  engine bundle's own copy of the host class, and the manager put the absent
+  dep over the bundle's copy, so those Muse Code sessions recorded no
+  usage. Proved on the built bundles (`installUsageRecording` left
+  `dist/museCode.js`'s static unset); fixed in `ac92aa667` (the manager
+  forwards dep-else-installed onto the bundle's class at every load).
+- Both spawn paths took their resource lease before requiring the bundle,
+  so a bundle that would not load held admission with no tree to release
+  it; the bundle loads first now (`06b695d10`).
+- The production build was red: the notices header named the new bundle
+  but `THIRD_PARTY_NOTICES.txt` was never regenerated (`8954974f7`).
+- The loader tests fed the guard a hand-written bundle and stayed green
+  with a renamed entry export; the guard is now also checked against the
+  real entry module, watched failing on the rename (`9f8a2e63b`).
+- Measured on the merged tree (main `81dacaf5a` is an ancestor):
+  `modelsActivationBudget` baseline 561,352 B, current 481,225 B,
+  growth −80,127 B against the unchanged +3,072 B cap.

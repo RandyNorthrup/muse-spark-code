@@ -23,6 +23,10 @@ happened, not what was planned; superseded entries are kept.
   Code's own defaults: `museSpark.hooksMaxStopContinuations` (8),
   `museSpark.hooksMaxRunningCommands` (0, starts them all at once, as Muse
   Code does), and `museSpark.subagentMaxConcurrent` (8, within 1–64).
+- The Muse Code backend now loads on its first start instead of at
+  activation (its own `dist/museCode.js`), so opening a window no longer
+  carries the backend, its notification mapping or the Muse Code SDK;
+  the backend behaves as before once started.
 
 ### Fixed
 
