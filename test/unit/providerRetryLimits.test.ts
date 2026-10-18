@@ -1,11 +1,14 @@
 // Lane RETRYLIMITS: each provider retries by its documented maximum, and
 // the person's `museSpark.modelApiMaxRetries` setting decides the rest.
 // Pure data and pure functions only: the documented tables in
-// `src/shared/retryPolicy.ts`, the per-preset quirks, the merge, the
-// backoff math and the settings read. No server, no fake, no mock.
+// `src/shared/retryPolicy.ts`, the per-preset quirks, the merge and the
+// backoff math. No server, no fake, no mock. The VS Code settings read
+// itself is not unit-tested here: its source is the editor's own
+// configuration object, which a unit test may not stand in for
+// (owner's testing rule, review RVRETRYLIMITS); the lead's real-life
+// run sets `museSpark.modelApiMaxRetries` in the packed product.
 import { describe, expect, it } from 'vitest'
 import { presetById, quirksOf } from '../../src/core/providers/presets'
-import { readSettings } from '../../src/host/settings'
 import { noRetryBudget, UNBOUNDED_RETRIES } from '../../src/core/backends/modelapi/transport'
 import {
   effectiveMaxRetries,
@@ -73,25 +76,6 @@ describe("the person's setting decides", () => {
     expect(effectiveMaxRetries(undefined, { maxRetries: 2 })).toBe(2)
     expect(effectiveMaxRetries(undefined, {})).toBeUndefined()
     expect(effectiveMaxRetries(undefined, undefined)).toBeUndefined()
-  })
-  it('reads unset, set and invalid values through the settings registry', () => {
-    const read = (value: unknown) =>
-      readSettings(
-        { get: (section: string) => (section === 'modelApiMaxRetries' ? value : undefined) },
-        {
-          trace: () => undefined,
-          info: () => undefined,
-          warn: () => undefined,
-          error: () => undefined,
-        },
-      ).modelApiMaxRetries
-    expect(read(undefined)).toBeNull()
-    expect(read(null)).toBeNull()
-    expect(read(3)).toBe(3)
-    expect(read(0)).toBe(0)
-    expect(read(-1)).toBeNull()
-    expect(read(2.5)).toBeNull()
-    expect(read('many')).toBeNull()
   })
 })
 
