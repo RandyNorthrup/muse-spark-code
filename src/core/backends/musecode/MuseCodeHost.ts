@@ -121,6 +121,7 @@ import {
   UNKNOWN_METHOD,
   type WireNotification,
 } from './mapNotification'
+import type { MuseUsageDeltas, UsageNotesBundle } from './usageDeltas'
 import { failureForLog } from './logText'
 import { redactSecrets } from '../../../shared/redact'
 import { PromptLedger } from './promptLedger'
@@ -864,72 +865,6 @@ export function describeExit(
         isExpected,
         isPersistent: MUSE_EXIT_PERSISTENT_CODES.has(exit.code),
       }
-}
-
-/** Each cumulative MSP report is journaled immediately as a known delta. */
-export class MuseUsageDeltas {
-  private baseline: { inputTokens: number; outputTokens: number } | undefined
-  private startedAt: number | undefined
-  private currentModel: string
-  public constructor(
-    private readonly recording: UsageRecording,
-    private readonly sessionId: string,
-    modelId: string,
-    isNew: boolean,
-    private readonly now: () => number = Date.now,
-  ) {
-    this.currentModel = modelId
-    if (isNew) this.baseline = { inputTokens: 0, outputTokens: 0 }
-  }
-  public receive(event: AgentEvent, isReplay = false): void {
-    if (isReplay) {
-      if (event.type === 'tokenUsage')
-        this.baseline = { inputTokens: event.inputTokens, outputTokens: event.outputTokens }
-      return
-    }
-    if (event.type === 'turnStarted') {
-      this.startedAt = this.now()
-      return
-    }
-    if (event.type === 'turnCompleted') {
-      this.startedAt = undefined
-      return
-    }
-    if (event.type === 'modelChanged') {
-      this.currentModel = event.modelId
-      return
-    }
-    if (event.type !== 'tokenUsage') return
-    const next = { inputTokens: event.inputTokens, outputTokens: event.outputTokens }
-    const prior = this.baseline
-    this.baseline = next
-    if (event.modelId !== undefined) this.currentModel = event.modelId
-    if (
-      prior === undefined ||
-      next.inputTokens < prior.inputTokens ||
-      next.outputTokens < prior.outputTokens
-    )
-      return
-    const input = next.inputTokens - prior.inputTokens
-    const output = next.outputTokens - prior.outputTokens
-    if (input === 0 && output === 0) return
-    const at = this.now()
-    const startedAt = this.startedAt ?? at
-    this.recording.note(
-      { input_tokens: input, output_tokens: output },
-      {
-        backend: 'museCode',
-        provider: 'museCode',
-        model: this.currentModel,
-        session: this.sessionId,
-        kind: 'turn',
-        pricing: { kind: 'plan' },
-        startedAt,
-        durationMs: Math.max(0, at - startedAt),
-        outcome: 'incomplete',
-      },
-    )
-  }
 }
 
 interface NativeFireToken {
@@ -1959,6 +1894,11 @@ export class MuseSession implements ScheduledAgentSession {
 export class MuseCodeHost implements AgentHost {
   /** Injected once by the editor/runtime before hosts are constructed. */
   public static usageRecording: UsageRecording | undefined
+  /**
+   * The deferred usage writers (dist/usageService.js), loaded on the first
+   * session. Unset outside the editor (unit tests drive the writers directly).
+   */
+  public static usageNotesLoader: (() => UsageNotesBundle) | undefined
   private readonly observedUsage = new Set<number>()
   private readonly sessions = new Map<string, MuseSession>()
   private readonly exitListeners = new Set<(exit: HostExit) => void>()
@@ -2230,25 +2170,7 @@ export class MuseCodeHost implements AgentHost {
         const usage = parsed.data
         if (!this.observedUsage.has(usage.observedAtMs)) {
           this.observedUsage.add(usage.observedAtMs)
-          this.usageRecording?.limit({
-            backend: 'museCode',
-            provider: 'museCode',
-            source: 'museCode',
-            observedAt: usage.observedAtMs,
-            windows: [
-              {
-                id: 'window',
-                usedPercent: usage.window.usedPercent,
-                resetsAt: usage.window.resetsAtMs,
-                windowMins: usage.window.windowDurationMins,
-              },
-              {
-                id: 'weekly',
-                usedPercent: usage.weekly.usedPercent,
-                resetsAt: usage.weekly.resetsAtMs,
-              },
-            ],
-          })
+          this.recordLimitSnapshot(usage)
         }
         this.accountHome?.assertCurrent()
         this.accountHome?.observeUsage(parsed.data)
@@ -2276,6 +2198,41 @@ export class MuseCodeHost implements AgentHost {
 
   private warnShape(method: string): void {
     this.log.warn(`MSP ${method} had an unexpected shape; ignored`)
+  }
+
+  /**
+   * The deferred usage writers, or undefined when the service bundle is not
+   * loaded (outside the editor) or cannot be read: journaling is best-effort,
+   * so a session without writers is kept but not recorded.
+   */
+  private usageNotes(): UsageNotesBundle | undefined {
+    const loader = MuseCodeHost.usageNotesLoader
+    if (loader === undefined) return undefined
+    try {
+      return loader()
+    } catch {
+      this.log.warn('Usage notes bundle unavailable; usage is not recorded for this session')
+      return undefined
+    }
+  }
+
+  /** One `usage/changed` meter reading, journaled through the deferred writers. */
+  private recordLimitSnapshot(usage: SubscriptionUsage): void {
+    const input = this.usageNotes()?.museCodeLimitInput(usage)
+    if (input !== undefined) this.usageRecording?.limit(input)
+  }
+
+  /** The session's journal writers, loaded with the service bundle on first use. */
+  private createUsageDeltas(
+    recording: UsageRecording,
+    sessionId: string,
+    modelId: string,
+    isNew: boolean,
+  ): MuseUsageDeltas | undefined {
+    const notes = this.usageNotes()
+    return notes === undefined
+      ? undefined
+      : new notes.MuseUsageDeltas(recording, sessionId, modelId, isNew)
   }
 
   private parseListEvent(method: string, params: unknown): SessionListEvent | undefined {
@@ -2312,7 +2269,7 @@ export class MuseCodeHost implements AgentHost {
       this.info.grantedCapabilities.includes(MSP_USER_SHELL_CAPABILITY),
       this.usageRecording === undefined
         ? undefined
-        : new MuseUsageDeltas(this.usageRecording, record.sessionId, modelId, isNew),
+        : this.createUsageDeltas(this.usageRecording, record.sessionId, modelId, isNew),
       initialApprovalMode,
     )
     this.sessions.set(record.sessionId, handle)

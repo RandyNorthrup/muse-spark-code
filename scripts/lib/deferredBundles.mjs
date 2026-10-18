@@ -266,6 +266,7 @@ export const DEFERRED = [
       'src/core/usage/journalStore.ts',
       'src/core/usage/aggregate.ts',
       'src/core/usage/usageText.ts',
+      'src/core/backends/musecode/usageDeltas.ts',
     ],
   },
   {

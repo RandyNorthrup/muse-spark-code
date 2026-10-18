@@ -1,5 +1,6 @@
 import { USAGE_TEXT } from '../../../shared/l10n/usageTable'
-import { fill, formatDateTime } from '../../../shared/l10n/text'
+import { fill } from '../../../shared/l10n/text'
+import { bucketHourLabel } from '../../../shared/usage'
 import type { UsagePageState, UsageQuery } from '../../../shared/usagePage'
 import {
   billedCost,
@@ -41,7 +42,7 @@ export function groupedChart(state: UsagePageState): {
   const isCost = state.query.metric === 'cost'
   const points = state.buckets.map((bucket, index) => ({
     id: String(index),
-    label: state.query.range === 'today' ? formatDateTime(bucket.at) : dayLabel(bucket.day),
+    label: state.query.range === 'today' ? bucketHourLabel(bucket) : dayLabel(bucket.day),
     values: series.map((item) =>
       item.sourceId === undefined
         ? knownSum(
