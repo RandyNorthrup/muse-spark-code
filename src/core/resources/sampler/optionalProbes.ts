@@ -51,15 +51,19 @@ export function createOptionalResourceProbes(port: ResourceProbePort): ResourceO
       script,
     ])
     if (text === null) return null
+    let input: unknown
     try {
-      const input: unknown = JSON.parse(text)
-      const parsed = percentages.safeParse(input)
-      return parsed.success
-        ? Math.max(...parsed.data.map((value) => (isIdle ? 100 - value : value)))
-        : null
-    } catch {
+      input = JSON.parse(text)
+    } catch (error) {
+      // JSON.parse throws only SyntaxError; anything else is not a probe
+      // outcome and must not read as no reading.
+      if (!(error instanceof SyntaxError)) throw error
       return null
     }
+    const parsed = percentages.safeParse(input)
+    return parsed.success
+      ? Math.max(...parsed.data.map((value) => (isIdle ? 100 - value : value)))
+      : null
   }
 
   async function gpu(): Promise<number | null> {

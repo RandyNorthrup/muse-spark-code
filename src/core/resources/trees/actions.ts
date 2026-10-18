@@ -4,6 +4,7 @@ import type {
   ResourceTicket,
   ResourceTreeReader,
 } from '../../../shared/resources'
+import { isErrno } from '../errno'
 
 export const resourceSignalSchema = z.enum(['SIGTERM', 'SIGKILL'])
 export type ResourceSignal = z.infer<typeof resourceSignalSchema>
@@ -62,8 +63,10 @@ export function signalVerifiedPosix(
     send(expected.pid, signal)
     return 'done'
   } catch (error: unknown) {
-    return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ESRCH'
-      ? 'gone'
-      : 'refused'
+    // A confirmed ESRCH proves the target gone; another errno refusal refuses
+    // the signal. Anything else is not a signal answer.
+    if (isErrno(error) && error.code === 'ESRCH') return 'gone'
+    if (isErrno(error)) return 'refused'
+    throw error
   }
 }

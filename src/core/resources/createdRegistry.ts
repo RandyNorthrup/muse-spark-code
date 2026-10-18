@@ -343,6 +343,30 @@ export class CreatedRegistry {
     }
   }
 
+  /**
+   * A refused quarantine restores its entry only onto a missing name, never
+   * over a replacement. Probe failures stay quarantined; the quarantine's own
+   * cause is refused and rethrown by the caller.
+   */
+  private async restoreQuarantined(
+    source: string,
+    trash: string,
+    storedIdentity: string,
+  ): Promise<void> {
+    // Never overwrite a replacement when restoring a refused quarantine.
+    try {
+      await lstatIdentity(source)
+    } catch (error: unknown) {
+      if (isMissing(error)) {
+        try {
+          await this.renameEntry(trash, source, storedIdentity)
+        } catch {
+          /* A raced or replaced restore name remains quarantined and reported. */
+        }
+      }
+    }
+  }
+
   private async removeEntry(entry: CreatedPath): Promise<boolean> {
     if (this.refused.has(entry.id)) return false
     await this.checkManifest()
@@ -397,20 +421,7 @@ export class CreatedRegistry {
             await this.removeDirectory(trash, identity)
           })
         } catch (error: unknown) {
-          if (isQuarantined) {
-            // Never overwrite a replacement when restoring a refused quarantine.
-            try {
-              await lstatIdentity(source)
-            } catch (error_: unknown) {
-              if (isMissing(error_)) {
-                try {
-                  await this.renameEntry(trash, source, storedIdentity)
-                } catch {
-                  /* A raced or replaced restore name remains quarantined and reported. */
-                }
-              }
-            }
-          }
+          if (isQuarantined) await this.restoreQuarantined(source, trash, storedIdentity)
           if (isQuarantined || !isMissing(error)) {
             this.refused.add(entry.id)
             throw error

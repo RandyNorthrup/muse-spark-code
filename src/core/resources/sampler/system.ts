@@ -11,6 +11,7 @@ import {
   RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR,
 } from '../../../shared/constants'
 import type { ResourceSampler, ResourceSettings } from '../../../shared/resources'
+import { isErrno } from '../errno'
 import { MachineResourceSampler } from './machineSampler'
 import type { ResourceProbePort } from './optionalProbes'
 
@@ -50,12 +51,10 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
         await handle.close()
       }
     } catch (error) {
-      return typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        error.code === 'ENOENT'
-        ? undefined
-        : null
+      // A missing probe file is absent; an unreadable one is unknown. Only
+      // errno failures read either way: anything else is not a probe outcome.
+      if (isErrno(error)) return error.code === 'ENOENT' ? undefined : null
+      throw error
     }
   }
 
@@ -124,7 +123,10 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
     list: async (directory) => {
       try {
         return await readdir(directory)
-      } catch {
+      } catch (error) {
+        // A directory the sampler cannot list holds no probe cards. Only
+        // errno failures read that way.
+        if (!isErrno(error)) throw error
         return null
       }
     },

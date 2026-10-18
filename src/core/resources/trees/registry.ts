@@ -16,6 +16,7 @@ import {
   type ResourceTreeActionReader,
   type ResourceTreeKillResult,
 } from './actions'
+import { isErrno } from '../errno'
 
 /** Local launch authority. OS readers prove membership; tickets never confer it alone. */
 export class ResourceTreeRegistry implements ResourceTreeReader {
@@ -86,7 +87,10 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
     try {
       const isMember = await this.reader.contains(structuredClone(entry.ticket), parsed.data)
       return isMember && this.entry(ticket) === entry
-    } catch {
+    } catch (error) {
+      // Unproven membership is not membership. Only errno failures read that
+      // way; anything else is not a membership answer.
+      if (!isErrno(error)) throw error
       return false
     }
   }
@@ -101,7 +105,11 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
       return this.entry(ticket) === entry
         ? members.filter((member) => member.pid !== process.pid)
         : []
-    } catch {
+    } catch (error) {
+      // No observed members: an unreadable reader or an unparsable answer
+      // proves nothing. Anything else is not a membership answer.
+      if (error instanceof z.core.$ZodError) return []
+      if (!isErrno(error)) throw error
       return []
     }
   }
@@ -114,7 +122,11 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
       return usage !== null && this.entry(ticket) === entry
         ? resourceTreeUsageSchema.parse(usage)
         : null
-    } catch {
+    } catch (error) {
+      // No usage without a readable, parsable answer. Anything else is not a
+      // usage answer.
+      if (error instanceof z.core.$ZodError) return null
+      if (!isErrno(error)) throw error
       return null
     }
   }
@@ -145,7 +157,11 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
           () => this.entries.get(entry.ticket.id) === entry && entry.ready,
         ),
       )
-    } catch {
+    } catch (error) {
+      // An unsent signal or an off-vocabulary answer refuses the action.
+      // Anything else is not a signal answer.
+      if (error instanceof z.core.$ZodError) return 'refused'
+      if (!isErrno(error)) throw error
       return 'refused'
     }
   }
