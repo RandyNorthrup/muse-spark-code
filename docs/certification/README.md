@@ -1,5 +1,7 @@
 # Certification records
 
+- [BCSTART](bcstart.md): the Windows browser check's random `unrecognized`
+  end, measured: the network service not yet started when the contract is read.
 - [MUSE143](muse143.md): live Windows 1.4.3 approval/rename/fork/sandbox
   receipts, version-aware update guidance and retained upstream limitations.
 - [FIXCYCLES](fixcycles.md): complete cycle-root inventory, worker environment dependency fix, red/restored drills and fresh-clone gates.
