@@ -64,6 +64,41 @@ release run (CLAUDE.md) states calls and a dollar cap first.
 | `build` (sizes, split, lazy registry, host globals, notices)                                                                                       | 0    |
 | vitest: `invariants`, `lazyBundleFiles`, `paidMoneyStructure`, `sideCallSchemas` (the suites naming `ModelApiHost` or `schedulesEntry`), 108 tests | 0    |
 
+## PR234W2 review-thread record (lane PR234W2, branch `fix/nolimits-6-w2`)
+
+One line per thread, then per hosted-CI failure (the brief lists none after the
+threads: it goes from thread 3 straight to Gates).
+
+- P1 CHANGELOG-prove: WITHDRAW UNTIL PROVED (this change) — the
+  `[Unreleased]` entry is removed until the lead's real-life run certifies a
+  turn past 50 tool rounds through the packed product; this rig may not make
+  provider calls (lane brief: "No paid or live model calls unless the brief
+  explicitly says so"), and no stand-in may stand in for the provider.
+  Restore text and steps below.
+- P2 repeat guard in stop conditions: FIX IN WORDING (this change) — the
+  withdrawn entry's restore text names the repeat-guard stop; the `loop()`
+  comment and the item-1 "After" cell below are corrected in the same change
+  (`RepeatGuard.before()` returns `stuck`, `settlePreparedCall` turns it into
+  the turn-ending `stopReason`).
+- P1 roadmap for this user-facing limit change: UPDATE M106 (this change) —
+  `Stronger agent-loop guarantees` gains the no-round-count turn rule;
+  `ROADMAP.md` regenerated.
+- Hosted CI failures: none listed in the brief; `check:roadmap` and the local
+  gates below are the check.
+
+### PR234W2: claim withdrawn pending the real-life run (thread 1)
+
+The code change stands (the loop is unbounded, the constant is deleted); the
+release-facing claim does not until it has worked for real. Restore the entry
+below only after the run in "Real-use steps" records a turn past 50 tool
+rounds through the packed product on the Model API backend:
+
+- A Model API turn no longer stops itself after 50 tool rounds. No provider
+  publishes a round count, so the product sets none: a turn runs until the
+  model answers without a tool call, you press Stop, a hook stops it, the
+  repeat guard stops an unchanged repeated tool call, the provider refuses the
+  request, or a budget you set is spent.
+
 ## Open (not done on this branch, with the exact sites)
 
 - **Item 2, shell time.** PR #214 holds the change. On main the shell
@@ -106,3 +141,21 @@ release run (CLAUDE.md) states calls and a dollar cap first.
   `text` sizes `SLOT_STDOUT_LIMIT` (`runtime/vault/slots/slotChild.ts:9`).
   The vault commands still refuse closed on main (AGENTS.md layout), so no
   person meets these caps today.
+
+## PR #234 review threads, lane PR234W2 (2026-10-18, rig macmini)
+
+- T1 (P1, CHANGELOG.md:15 unproven claim): no model provider is available
+  to this lane and the brief forbids live model calls, so the required
+  packed-product >50-round run cannot be done here; the `Changed` entry is
+  removed until that run is recorded.
+- T2 (P2, repeat guard missing from stop conditions): the exhaustive
+  four-event sentence is removed with the entry (the guard is real:
+  `repeatGuard.ts:67` `stuck` ends the turn via
+  `ModelApiHost.ts:13090-13091` with `toolRepeatStopped`).
+- T3 (P1, roadmap stale): no applicable entry exists —
+  `docs/roadmap/entries.json` and `ROADMAP.md` never mention the 50-round
+  ceiling (measured `grep`, 2026-10-18), the branch adds no PLAN.md
+  milestone, and the user-facing limit table (README) was updated in the
+  code commit; `npm run check:roadmap` passes unchanged.
+- Hosted CI failures: the brief lists none after the threads; none
+  addressed beyond the gates below.
