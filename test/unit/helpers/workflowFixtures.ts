@@ -4,9 +4,7 @@
 // is trimmed to the fields the panel reads.
 
 export const WORKFLOW_TURN_ID = '01a0d9f7-927d-7000-a46e-e01e393806b9'
-export const WORKFLOW_ITEM_ID = '552c5897-b341-440a-87c6-4edf5189153d'
 export const WORKFLOW_RUN_ID = 'workflow-run-model-tool-call_01a0d9f7b61c7128aacb297b2c9ef4ca'
-export const WORKFLOW_CHILD_ID = '01a0d9f7-adee-7810-bc80-8c4c29e4a87c'
 export const WORKFLOW_SCRIPT_PATH = String.raw`C:\Users\Randy\AppData\Local\Temp\muse-workflow-session-4pclcq\workflows\scripts\78b52bb7-5efb-4319-89f9-d221a30dd8e5.js`
 
 export const WORKFLOW_SCRIPT =

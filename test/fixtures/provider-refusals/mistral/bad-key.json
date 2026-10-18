@@ -1,0 +1,13 @@
+{
+  "id": "models-list-made-up-key",
+  "provider": "mistral",
+  "sentAt": "2026-10-13T01:27:20.813Z",
+  "method": "GET",
+  "url": "https://api.mistral.ai/v1/models",
+  "requestHeaders": {},
+  "status": 401,
+  "responseHeaders": {},
+  "response": {
+    "detail": "Invalid API Key"
+  }
+}
