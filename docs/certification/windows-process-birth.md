@@ -211,3 +211,26 @@ Windows run has measured the fixes yet.
   which is not measured here. The reader and its build run with only
   `SystemRoot` in their environment, no shell, one validated process
   id as the only argument, and digits-only output.
+
+## Codex threads on PR #220 (plan, 2026-10-18)
+
+- CHANGELOG.md:21 (P1, no claim before the packed-product proof): the entry
+  keeps only what is proven (the hosted CI failure's cause and that Windows
+  PowerShell is replaced by a native reader), drops the timings (they stay
+  in this record) and says the packed product has not been run with it.
+- processOwner.ts:288 (P1, validate the cached reader): never run a reader
+  this process did not build. Each process compiles its own reader under a
+  name with its process id and a random part, hashes the built bytes in
+  memory right after the compile and again before every run (the job
+  helpers' SPAWN017C seal); changed or missing bytes refuse the run, remove
+  the file and rebuild on the next read. The shared digest-named file and
+  its reuse go, so a file planted at a predictable name is never run; a
+  build removes readers whose process is gone. D105's trusted-path check is
+  not added per read: it starts Windows PowerShell, the measured cause of
+  this fix; that reason and the remaining race in a folder others can write
+  are recorded.
+- processOwner.ts:89 (P2, signalled state, not exit code 259): open the
+  process with `SYNCHRONIZE` as well and count it running only while
+  `WaitForSingleObject(handle, 0)` times out. A new Windows test exits a
+  real child with code 259 while its parent still holds the handle and
+  expects no birth; the old exit-code check is its red drill.
