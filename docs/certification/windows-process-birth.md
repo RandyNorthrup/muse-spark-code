@@ -10,10 +10,11 @@ No model calls.
 PR #154's run `39078271738`, job "build / tests (windows-latest, shard 3)"
 (`117529837694`), failed `test/unit/fileLease.test.ts` "process owners
 (M123 lane P) > reads this process's birth from the system" after
-10,076 ms with "expected undefined to be defined" at line 245. The same
-test failed the same way on main's code in PR #158's run `39082272956`
-(2026-10-18 00:18Z, shard 3, 10,097 ms) after passing on that pull
-request's run at 00:09Z.
+10,076 ms with "expected undefined to be defined" at line 245. The lead
+reports the same failure on main's code in PR #158's organization run
+`39082272956` (2026-10-18 00:18Z, shard 3, 10,097 ms) after a pass on that
+pull request's run at 00:09Z; that log was not reachable from this rig's
+GitHub access, so its numbers are not used below.
 
 **Measured cause.** On Windows, `processStartTime`
 (`src/core/locks/processOwner.ts:108-131`, `windowsStartTime`) starts
@@ -128,3 +129,52 @@ process's birth from the system" ("expected undefined to be defined"),
 "reads a Windows or macOS birth as the epoch time it was recorded at" and
 "names a gone owner only when it is provably gone". Reverted byte for byte
 (`cmp` against the saved copy).
+
+## Gates (this rig, commit `eb62e0693f`)
+
+| Gate                                                               | Exit                         |
+| ------------------------------------------------------------------ | ---------------------------- |
+| `prettier --check .`                                               | 0                            |
+| ESLint, product code (`lint:js:main`, `--max-warnings=0`)          | 0 (with `temp/**` excluded¹) |
+| `npm run typecheck` (host, webview, unit, e2e, integration)        | 0                            |
+| `npm run build` (production, size budgets, split, notices)         | 0                            |
+| `check:host-api` (record rewritten: `node:crypto` 174 → 175)       | 0                            |
+| `knip`, `cycles`, `jscpd`                                          | 0, 0, 0                      |
+| `fileLease.test.ts` + `runtimePullRequestRecords.test.ts`, one run | 0 (51 passed, 1 skipped)     |
+
+¹ ESLint's flat config does not ignore the gitignored `temp/`, so the
+scratch scripts of this record fail `lint:js:main` as run; CI has no
+`temp/`. Without them the gate is clean.
+
+## Twenty runs of the suite on the committed code
+
+`node node_modules/vitest/vitest.mjs run test/unit/fileLease.test.ts
+--reporter=verbose`, 20 times in a row on `eb62e0693f`, with `TEMP`, `TMP`
+and `LOCALAPPDATA` inside the worktree's `temp/`. Runs 1 to 10 each had a
+fresh data folder, so each built the reader; runs 11 to 20 shared one
+(run 11 built it, while the commit's hooks ran). Two load samples during
+the runs, with other agents working on the rig, read 74 % and 60 % CPU.
+Every run exited 0 with 29 passed and 1 skipped (the Linux case). "Reads
+this process's birth from the system" took, in ms:
+
+| Runs                           | Birth test ms                           |
+| ------------------------------ | --------------------------------------- |
+| 1–10 (build in each)           | 290 232 250 373 247 257 253 266 265 235 |
+| 11–20 (shared reader)          | 711 277 220 226 200 213 311 224 243 203 |
+| Main's PowerShell read, 5 runs | 756 852 802 754 870                     |
+
+## Still open
+
+- Hosted Windows CI on this branch is the proof for the fresh-VM case; the
+  reader's first build there (the inbox compiler plus one read) has not
+  been measured on a runner yet.
+- The packed product has not been run with this change.
+- `src/core/reporting/history.ts` still reads a process's start through
+  Windows PowerShell (`[Diagnostics.Process]::GetProcessById`), with the
+  same cold-start exposure; it is outside this fix.
+- A reader built from an earlier source stays in the folder (4.6 KB per
+  source change); nothing removes old builds.
+- Machines whose policy blocks programs in `%LOCALAPPDATA%` (AppLocker or
+  WDAC default rules) read no birth, so an owner there is never provably
+  gone and a lock waits out its lease; the job helpers in the extension's
+  storage have the same exposure.
