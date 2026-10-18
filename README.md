@@ -747,7 +747,8 @@ with the release's version:
 npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v<version>/muse-spark-code-acp-<version>.tgz
 ```
 
-**Zed** (tested with Zed 1.20.2): add this to `settings.json`, then pick
+**Zed** (this setup was checked in Zed 1.20.2, against a stand-in for Muse
+Code, not yet in a real conversation): add this to `settings.json`, then pick
 Muse Spark under External Agents in the Agent Panel's new-thread menu.
 
 ```json
@@ -819,10 +820,13 @@ platform ([docs/acp.md](docs/acp.md#install)).
 ```
 
 [docs/ide-compatibility/hosts.md](docs/ide-compatibility/hosts.md) records
-which editors have been tried: so far VSCodium, code-server, Eclipse
-Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
-the extension, and Zed, Emacs (agent-shell), Neovim (CodeCompanion) and
-JupyterLab (Jupyter AI) with the agent.
+which editors have been tried. The extension's integration tests pass in
+VSCodium, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron.
+code-server and Eclipse Theia ran it only against a stand-in for Muse Code,
+by hand and in checks since deleted, so they are not yet tried for real. The agent has
+run in Zed, Emacs (agent-shell), Neovim (CodeCompanion) and JupyterLab
+(Jupyter AI) only against that stand-in, so none of them is yet tried for
+real either.
 
 ## Subscriptions
 
@@ -4316,7 +4320,7 @@ Bypass at once.
 | `archiveInactiveSessions`         | `14`        | Hide sessions idle for this many days from the History dialog (`1`, `2`, `7`, `14`, or `0` for never); they stay on disk and **Show Archived** lists them                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `cleanupPeriodDays`               | `30`        | Delete Model API conversations idle for more than this many days when a window lists them (`0` keeps them); Muse Code's own sessions are the CLI's to keep                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `backend`                         | `auto`      | `auto`: Muse Code when the CLI is signed in, else the Model API when a key is stored; `museCode` / `modelApi` force one. The pasted key never reaches the CLI. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `shellSandbox`                    | `auto`      | `auto`: Muse Code's OS sandbox, except for Windows workspaces under your profile, where it cannot reliably run commands; `muse`: always the sandbox; `off`: commands run directly as you, gated by approvals (Claude Code style). Without the sandbox Muse Code's file tools can also write anywhere outside the workspace without asking, in every mode, and the panel warns once per window. Changing it restarts the host                                                                                                                                                                                                                                                                                   |
+| `shellSandbox`                    | `auto`      | `auto`: Muse Code's OS sandbox, except for Windows workspaces under your profile (`C:\Users\<you>\…`), where it cannot reliably run commands, so `auto` turns the sandbox off there; `muse`: always the sandbox; `off`: commands run directly as you, gated by approvals (Claude Code style). **Without the sandbox (`off`, or `auto` in a Windows workspace under your profile) Muse Code's file tools can write anywhere your account can, outside the workspace too, without asking, in every mode, Plan included**; the panel warns once per window. Changing it restarts the host                                                                                                                         |
 | `sandboxNetwork`                  | `default`   | The network Muse Code's shell sandbox gives commands: `proxy-only` asks before each new destination, `restricted` allows none, `enabled` allows all; `default` passes nothing, leaving Muse Code's own default (`proxy-only`) or your administrator's managed configuration. For commands it applies while the sandbox is on. Changing it restarts the host. At `restricted`, Muse Code is also not offered [web fetch](#web-fetch), sandbox or not; the Model API backend's web fetch follows its permission modes                                                                                                                                                                                            |
 | `museBinaryPath`                  | `""`        | Absolute path to the Muse Code executable (a relative one is refused); empty discovers it on `PATH` or the install dir. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `modelApiWebSearch`               | `true`      | Hosted web search ($2.50 per 1,000 searches); unavailable under a finite budget because no hard query bound is verified. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -4408,8 +4412,8 @@ stopped and the next message resumes the same session.
 ## Requirements
 
 - VS Code 1.99.0 or newer, on Windows, macOS or Linux, or an editor built
-  on it: VSCodium 1.99.3 and 1.135, code-server 4.99.4 and Theia 1.75 were
-  tested (see [hosts.md](docs/ide-compatibility/hosts.md)). On 1.99 and 1.100, whose
+  on it: VSCodium 1.99.3 and 1.135 were tested; code-server and Eclipse
+  Theia are not yet tried for real (see [hosts.md](docs/ide-compatibility/hosts.md)). On 1.99 and 1.100, whose
   extension host is Node 20, Muse Voice is unavailable; on 1.101 to 1.111 its
   socket does not use VS Code's proxy support (see
   [Proxies and certificates](#proxies-and-certificates)).
@@ -5370,10 +5374,17 @@ notice/provenance files in both packages.
 The dev build takes integration-test discovery from
 `scripts/lib/integrationTests.mjs`.
 
-**Tests.** Tests run real code only: no stand-in, no invented data and no
-test that only checks that some text, key or file exists (owner, 2026-10-17;
-what the deleted ones covered is in
-[`docs/real-life/unproven.md`](docs/real-life/unproven.md)). Unit tests
+**Tests.** The rule is that tests run real code only: no stand-in, no
+invented data and no test that only checks that some text, key or file
+exists (owner, 2026-10-17; what the deleted ones covered is in
+[`docs/real-life/unproven.md`](docs/real-life/unproven.md)). Some stand-ins
+remain and are being removed: the test-driven clock
+(`test/unit/helpers/manualClock.ts`), hand-written function stand-ins in
+`test/unit/teamPreview.test.ts` and `test/unit/modelApiLegalScan.test.ts`,
+the `vscode` stand-in in `test/harness/reporting/verify.mjs`, the
+`vi.stubEnv` environment in `test/unit/eval/evalTasks.test.ts`, the WinRT
+stand-ins in `test/unit/helpers/vault/*.cs` and the pending-operation
+stand-in in `test/unit/helpers/windowsScreenRecorderChecks.cs`. Unit tests
 (`test/unit/**`) run under vitest, webview components under jsdom; no
 `vscode` module exists there, so code that needs the editor API is tested
 inside VS Code. The e2e drills (`test/e2e/**`) run the real Muse Code CLI or
@@ -5462,12 +5473,12 @@ src/webview/                React app (own tsconfig, browser libs)
 native/windows/             dictate.ps1 (dictation, System.Speech) and capture.ps1 (Muse Voice's recorder); MuseSparkJob.cs, MuseSparkMcpLauncher.cs, MuseSparkMcpJob.cs: the Windows job helpers' C#, compiled on first use
 native/darwin/              Dictation.swift, Info.plist, build.sh, check-disclaim.sh: the macOS helper (built and checked in CI)
 resources/walkthrough/      the Get Started walkthrough
-test/unit/                  vitest tests over real code only: no mocks, fakes, stand-ins or screenshot comparisons
+test/unit/                  vitest tests; the rule is real code only (no mocks, fakes, stand-ins or screenshot comparisons), and the stand-ins still left, named under Tests above, are being removed
 test/e2e/                   the live drills, kept listed for the real-life run
 test/integration/           @vscode/test-cli suites
 test/fixtures/workspace/    the workspace the integration tests open
 test/harness/               the webview behind a scripted host, for the local look, the README pictures and the accessibility gate; themes/ holds four captured VS Code themes
-test/hosts/                 the extension and the ACP agent in other editors (VSCodium, code-server, Theia, JupyterLab, Emacs, Neovim), one script per host
+test/hosts/                 the extension's integration tests in VSCodium and the VS Code forks, and the installed ACP agent's help, trust refusal and key round trip, one script per check
 scripts/                    esbuild build; bundle-size, bundle-split, host-globals, notices, audit, PSScriptAnalyzer, accessibility, localization and host API gates; the pseudo-locale; theme capture, the local UI look, image rendering; CHANGELOG notes and VS Code versions for the workflows; the ACP agent's package
 docs/                       PRIVACY.md, and certification/: per-milestone gate-fire records
 media/                      icons, banner, social preview, README screenshots
