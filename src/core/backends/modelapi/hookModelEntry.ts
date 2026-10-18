@@ -30,8 +30,8 @@ import {
   HOOK_MODEL_ROW_TOOL,
   HOOK_MODEL_TIMEOUT_MS,
   MODEL_API_EFFORT_OFF,
-  MODEL_API_MAX_RETRIES,
 } from '../../../shared/constants'
+import { noRetryBudget } from './transport'
 import { hookDecisionSchema } from '../../../shared/sideCallSchemas'
 import { setUiText } from '../../../shared/l10n/text'
 import { minOutputTokensForPolicy, modelPolicyFor } from './modelPolicy'
@@ -357,7 +357,7 @@ async function requestHookStep(
       AbortSignal.any([signal, AbortSignal.timeout(HOOK_MODEL_TIMEOUT_MS)]),
       undefined,
       // No transport retry; structured repair has its own admission and settlement.
-      { retriesUsed: MODEL_API_MAX_RETRIES },
+      noRetryBudget(),
       admission,
       {
         ...confirmed,

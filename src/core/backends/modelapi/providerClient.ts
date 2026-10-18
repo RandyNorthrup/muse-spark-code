@@ -6,6 +6,7 @@ import type { ProviderFormat } from '../../providers/providersFile'
 import type { CreateResponseBody, StreamEvent } from './schemas'
 import {
   RequestTransport,
+  UNBOUNDED_RETRIES,
   assertConfirmedAllowed,
   ignoreClosingError,
   redactModelApiError,
@@ -20,7 +21,6 @@ import {
 import type { AuthSource } from './authSource'
 import { isRefusalRetryable, isRetryableStreamFailure } from './providerRefusal'
 import {
-  MODEL_API_MAX_RETRIES,
   MODEL_API_REQUEST_TIMEOUT_MS,
   PROVIDER_CONNECTION_LOST_CODE,
   UI_TEXT,
@@ -68,6 +68,13 @@ export interface ProviderClient {
   currentKeyDigest(): Promise<string>
   retryDelayMs(attempt: number): number
   waitBeforeRetry(ms: number, signal: AbortSignal): Promise<void>
+  /**
+   * The retries one call may use (lane RETRYLIMITS): the person's
+   * `museSpark.modelApiMaxRetries` setting when set, else the provider's
+   * documented maximum, else undefined (unbounded: the provider's own
+   * Retry-After waits and stop answers govern the loop).
+   */
+  maxRetries(): number | undefined
 }
 
 export interface ProviderModel {
@@ -156,6 +163,11 @@ export class CodecClient implements ProviderClient {
     this.currentKeyDigest = this.transport.currentKeyDigest.bind(this.transport)
     this.retryDelayMs = this.transport.backoffMs.bind(this.transport)
     this.waitBeforeRetry = this.transport.pause.bind(this.transport)
+  }
+
+  /** This client's effective retry limit (see `ProviderClient.maxRetries`). */
+  public maxRetries(): number | undefined {
+    return this.transport.maxRetries()
   }
   public async listModels(): Promise<readonly string[]> {
     const result = await this.transport.request(
@@ -266,12 +278,13 @@ export class CodecClient implements ProviderClient {
         const isResendable =
           isRetryableStreamFailure(failure, this.deps.transport.retryTable) ||
           (failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE)
+        const allowed = this.transport.maxRetries()
         if (
           !isResendable ||
           hasContent ||
           signal.aborted ||
           admitAttempt?.mediaAccounting !== undefined ||
-          retries.retriesUsed >= MODEL_API_MAX_RETRIES
+          retries.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
         )
           throw failure
         const attempt = retries.retriesUsed
@@ -279,7 +292,7 @@ export class CodecClient implements ProviderClient {
         const delayMs = this.retryDelayMs(attempt)
         onRetry?.({
           attempt: attempt + 1,
-          maxAttempts: MODEL_API_MAX_RETRIES + 1,
+          maxAttempts: allowed === undefined ? undefined : allowed + 1,
           delayMs,
           reason: `${failure.code ?? ''}: ${failure.message}`,
         })

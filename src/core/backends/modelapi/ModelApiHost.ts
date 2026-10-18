@@ -129,7 +129,6 @@ import {
   MODEL_API_HOOK_PROVIDER,
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
-  MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MODEL_PREFIX,
@@ -320,6 +319,7 @@ import {
   type ResponseAttemptGuard,
 } from './client'
 import { isDefiniteRefusal, scrubRefusalLeak } from './providerRefusal'
+import { UNBOUNDED_RETRIES, noRetryBudget } from './transport'
 import {
   applyGoalCommand,
   type GoalContext,
@@ -6001,11 +6001,16 @@ export class ModelApiSession implements ScheduledAgentSession {
           await this.refreshSearchConsent(signal)
           continue
         }
+        // Lane RETRYLIMITS: the selected model's own retry limit (the
+        // provider's documented maximum, or the person's setting when set;
+        // unbounded when neither sets one, so the provider governs).
+        const { client } = this.selectedModel()
+        const allowed = client.maxRetries()
         if (
           !hasRecoveredMedia &&
           !signal.aborted &&
           this.media !== undefined &&
-          budget.retriesUsed < MODEL_API_MAX_RETRIES &&
+          budget.retriesUsed < (allowed ?? UNBOUNDED_RETRIES) &&
           (await this.media.recover(
             error,
             this.replay.map((entry) => entry.item),
@@ -6020,19 +6025,18 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (
           !(error instanceof RetryableStreamError) ||
           signal.aborted ||
-          budget.retriesUsed >= MODEL_API_MAX_RETRIES
+          budget.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
         ) {
           throw error
         }
         const attempt = budget.retriesUsed
         budget.retriesUsed += 1
-        const { client } = this.selectedModel()
         const delayMs = client.retryDelayMs(attempt)
         this.emit({
           type: 'turnRetry',
           turnId,
           attempt: attempt + 1,
-          maxAttempts: MODEL_API_MAX_RETRIES + 1,
+          maxAttempts: allowed === undefined ? undefined : allowed + 1,
           retryDelayMs: delayMs,
           reason: `${error.code}: ${error.message}`,
         })
@@ -14592,11 +14596,14 @@ export class ModelApiSession implements ScheduledAgentSession {
           contexts: post.contexts,
         }
       } catch (error: unknown) {
+        // Lane RETRYLIMITS: the hook client's own retry limit (Meta's
+        // documented maximum, or the person's setting when set).
+        const allowed = this.deps.client.maxRetries()
         if (
           !(error instanceof RetryableStreamError) ||
           signal.aborted ||
           (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) ||
-          budget.retriesUsed >= MODEL_API_MAX_RETRIES
+          budget.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
         ) {
           throw error
         }
@@ -14607,7 +14614,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           type: 'turnRetry',
           turnId,
           attempt: retry + 1,
-          maxAttempts: MODEL_API_MAX_RETRIES + 1,
+          maxAttempts: allowed === undefined ? undefined : allowed + 1,
           retryDelayMs: delayMs,
           reason: `${error.code}: ${error.message}`,
         })
@@ -17022,13 +17029,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         send: async (body, signal, guard) => {
           if (guard === undefined) throw new Error('Judge dispatch requires admission')
           let final: ResponseObject | undefined
-          const stream = this.client.streamResponse(
-            body,
-            signal,
-            undefined,
-            { retriesUsed: MODEL_API_MAX_RETRIES },
-            guard,
-          )
+          const stream = this.client.streamResponse(body, signal, undefined, noRetryBudget(), guard)
           for await (const event of stream) {
             if (event.type === 'response.completed') final = event.response
           }

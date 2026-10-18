@@ -2050,16 +2050,22 @@ function applyAgentEvent(
     }
     case 'turnRetry': {
       const seconds = Math.round(event.retryDelayMs / MILLISECONDS_PER_SECOND)
-      return withNotice(
-        state,
-        'warning',
-        fill(UI_TEXT.turnRetrying, {
-          attempt: event.attempt,
-          maxAttempts: event.maxAttempts,
-          reason: event.reason,
-          seconds,
-        }),
-      )
+      // Lane RETRYLIMITS: no cap to name when neither the provider nor the
+      // person sets a retry limit.
+      const text =
+        event.maxAttempts === undefined
+          ? fill(UI_TEXT.turnRetryingUncapped, {
+              attempt: event.attempt,
+              reason: event.reason,
+              seconds,
+            })
+          : fill(UI_TEXT.turnRetrying, {
+              attempt: event.attempt,
+              maxAttempts: event.maxAttempts,
+              reason: event.reason,
+              seconds,
+            })
+      return withNotice(state, 'warning', text)
     }
     case 'tokenUsage': {
       return {

@@ -180,6 +180,7 @@ export function createSubscriptionClient(
     },
     retryDelayMs: (attempt) => meta.retryDelayMs(attempt),
     waitBeforeRetry: (ms, signal) => meta.waitBeforeRetry(ms, signal),
+    maxRetries: () => meta.maxRetries(),
     createImage: (...args) => meta.createImage(...args),
     editImage: (...args) => meta.editImage(...args),
     listModels: async () => {

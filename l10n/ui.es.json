@@ -3728,6 +3728,7 @@
   "announceApprovalFor": "Se necesita aprobación para {tool}",
   "turnFailed": "El turno falló.",
   "turnRetrying": "El intento {attempt}/{maxAttempts} falló ({reason}); se reintentará en {seconds} s.",
+  "turnRetryingUncapped": "El intento {attempt} falló ({reason}); se reintentará en {seconds} s (sin límite de reintentos).",
   "usageWindowHours": {
     "one": "ventana de {count} hora",
     "other": "ventana de {count} horas",

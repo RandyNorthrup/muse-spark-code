@@ -112,7 +112,9 @@ const schemas = {
     ...sessionScoped,
     turnId: z.string(),
     attempt: z.number(),
-    maxAttempts: z.number(),
+    // Lane RETRYLIMITS: an older sender always names one; a newer sender
+    // omits it when neither the provider nor the person sets a retry limit.
+    maxAttempts: z.optional(z.number()),
     retryDelayMs: z.number(),
     reason: z.string(),
   }),

@@ -242,6 +242,7 @@ export type ModelClient = Pick<
   | 'currentKeyDigest'
   | 'retryDelayMs'
   | 'waitBeforeRetry'
+  | 'maxRetries'
 >
 
 export interface ResolvedModel {

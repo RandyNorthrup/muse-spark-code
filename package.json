@@ -1507,6 +1507,16 @@
           "minimum": 1,
           "maximum": 20
         },
+        "museSpark.modelApiMaxRetries": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "default": null,
+          "scope": "machine",
+          "description": "%config.modelApiMaxRetries.description%",
+          "minimum": 0
+        },
         "museSpark.modelApiTeamWorkers": {
           "type": "boolean",
           "default": true,

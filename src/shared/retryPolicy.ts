@@ -8,7 +8,7 @@
 // the providers bundle carries in `FormatQuirks`. `FormatQuirks` references
 // these tables; it adds nothing of its own.
 
-import { PROVIDER_RETRY_HTTP_STATUS } from './constants'
+import { MODEL_API_RETRY_BASE_MS, PROVIDER_RETRY_HTTP_STATUS } from './constants'
 
 /** The wire formats with a retry table; mirrors `ProviderFormat`. */
 export type RetryFormat = 'responses' | 'chat' | 'anthropic' | 'gemini' | 'ollama'
@@ -118,6 +118,85 @@ export const RETRY_TABLES: Record<RetryFormat, RetryTables> = {
     errorKinds: [],
     quotaKinds: QUOTA_ERROR_KINDS,
   },
+}
+
+/**
+ * One provider's documented retry bounds (lane RETRYLIMITS, owner's binding
+ * rule: the only hard-coded limits are each provider's own). Every field a
+ * provider does not document stays absent: no limit of ours applies, the
+ * person's `museSpark.modelApiMaxRetries` setting decides, and with none
+ * set the provider's own Retry-After (or stop answer) governs.
+ */
+export interface RetryLimits {
+  /** Documented maximum retries after the first try (attempts minus one). */
+  readonly maxRetries?: number | undefined
+  /** Documented initial wait between tries in milliseconds. */
+  readonly baseMs?: number | undefined
+  /** Documented longest wait between tries in milliseconds. */
+  readonly maxMs?: number | undefined
+}
+
+/**
+ * Each format's documented bounds (read 2026-10-17; the per-provider table
+ * is `docs/certification/provider-refusals.md`, "Lane RETRYLIMITS").
+ * `responses` and `chat` carry none: OpenAI documents only "limit retries"
+ * (openai.md §4) and the other chat providers name no count or bounds, so
+ * presets on those formats retry unbounded unless the person sets a limit.
+ * `anthropic` retries twice (the official SDK default, "twice by default";
+ * its backoff has no documented bounds). `gemini` retries four times from
+ * ~1 s up to 60 s (the official SDK default). `ollama` serves local models
+ * that document no retry bounds at all.
+ */
+export const PROVIDER_RETRY_LIMITS: Record<RetryFormat, RetryLimits> = {
+  responses: {},
+  chat: {},
+  anthropic: { maxRetries: 2 },
+  gemini: { maxRetries: 4, baseMs: 1000, maxMs: 60_000 },
+  ollama: {},
+}
+
+/**
+ * Meta's own documented bounds (dev.meta.ai/docs/error-handling: 429 and
+ * the server errors are retryable with exponential backoff and jitter,
+ * honouring Retry-After; 3–5 attempts, so 4 retries; no documented backoff
+ * bounds). The Model API transport's default; configured providers use
+ * their preset's quirks instead.
+ */
+export const META_DOCUMENTED_RETRY_LIMITS: RetryLimits = { maxRetries: 4 }
+
+/**
+ * The retries one call may use: the person's setting when set, else the
+ * provider's documented maximum, else undefined (unbounded: the provider's
+ * own Retry-After waits and stop answers govern the loop).
+ */
+export function effectiveMaxRetries(
+  personMaxRetries: number | undefined,
+  documented: RetryLimits | undefined,
+): number | undefined {
+  return personMaxRetries ?? documented?.maxRetries
+}
+
+/**
+ * The wait before try number `attempt` (0-based): the provider's own wait
+ * whole when it named one (never shortened to our backoff), else
+ * exponential from the documented base (1 s is the only documented initial
+ * wait: Gemini's SDK and xAI's examples) doubling per try, up to the
+ * documented maximum when the provider sets one and uncapped otherwise.
+ * `jitterSample` is the transport's 0 ≤ n < 1 draw, added whole.
+ */
+export function retryDelayMs(
+  attempt: number,
+  documented: RetryLimits | undefined,
+  suggestedMs: number | undefined,
+  jitterSample: number,
+  jitterMs: number,
+): number {
+  const jitter = Math.floor(jitterSample * jitterMs)
+  if (suggestedMs !== undefined) return suggestedMs + jitter
+  const baseMs = documented?.baseMs ?? MODEL_API_RETRY_BASE_MS
+  const maxMs = documented?.maxMs ?? Infinity
+  const exponential = Math.min(baseMs * 2 ** attempt, maxMs)
+  return Math.min(exponential + jitter, maxMs)
 }
 
 /** One failed HTTP answer, as the envelope parser reports it. */

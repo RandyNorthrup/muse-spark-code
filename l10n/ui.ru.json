@@ -3808,6 +3808,7 @@
   "announceApprovalFor": "Требуется подтверждение для {tool}",
   "turnFailed": "Не удалось выполнить ход.",
   "turnRetrying": "Попытка {attempt}/{maxAttempts} не удалась ({reason}); повтор через {seconds} с.",
+  "turnRetryingUncapped": "Попытка {attempt} не удалась ({reason}); повтор через {seconds} с (лимит повторов не задан).",
   "usageWindowHours": {
     "one": "{count}-часовое окно",
     "other": "{count}-часовое окно",

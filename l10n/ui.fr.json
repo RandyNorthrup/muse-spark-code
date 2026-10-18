@@ -3728,6 +3728,7 @@
   "announceApprovalFor": "Approbation requise pour {tool}",
   "turnFailed": "Le tour a échoué.",
   "turnRetrying": "La tentative {attempt}/{maxAttempts} a échoué ({reason}) ; nouvelle tentative dans {seconds} s.",
+  "turnRetryingUncapped": "La tentative {attempt} a échoué ({reason}) ; nouvelle tentative dans {seconds} s (aucune limite de tentatives définie).",
   "usageWindowHours": {
     "one": "fenêtre de {count} heure",
     "other": "fenêtre de {count} heures",

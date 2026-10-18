@@ -419,7 +419,9 @@ const agentEventSchema = z.discriminatedUnion('type', [
     type: z.literal('turnRetry'),
     turnId: stringSchema,
     attempt: numberSchema,
-    maxAttempts: numberSchema,
+    // Lane RETRYLIMITS: absent when neither the provider nor the person sets
+    // a retry limit (the provider's own Retry-After governs instead).
+    maxAttempts: optionalNumber,
     retryDelayMs: numberSchema,
     reason: stringSchema,
   }),

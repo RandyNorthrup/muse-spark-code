@@ -1078,6 +1078,8 @@ async function activateWindow(
       l10n,
       catalogFile: vscode.Uri.joinPath(context.extensionUri, 'dist', 'providerCatalog.json').fsPath,
       configFile: providerConfigFile,
+      // Lane RETRYLIMITS: the person's retry limit, read live; null stays unset.
+      personMaxRetries: () => currentSettings().modelApiMaxRetries ?? undefined,
       isRemote: vscode.env.remoteName !== undefined,
       isConfidential: () => currentSettings().confidentialWorkspace,
       access: context.languageModelAccessInformation,
@@ -2048,6 +2050,8 @@ async function activateWindow(
       fetch: liveFetch,
       baseUrl: MODEL_API_BASE_URL,
       apiKey: () => credentials.getApiKey(),
+      // Lane RETRYLIMITS: the person's retry limit, read live; null stays unset.
+      personMaxRetries: () => currentSettings().modelApiMaxRetries ?? undefined,
       sleep: (ms) =>
         new Promise((resolve) => {
           setTimeout(resolve, ms)
