@@ -200,6 +200,20 @@ happened, not what was planned; superseded entries are kept.
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
 
+- Every ChatGPT plan-route failure now names its cause. A plan refusal with
+  no error words from OpenAI said "temporarily unavailable"; it now says
+  "The ChatGPT plan request failed: HTTP {status}". A session whose
+  providers file cannot be read said "That did not work"; it now says which
+  fault (`unparseable`, `invalid`). A garbage host-identifier file in the
+  editor said OpenAI's token answer was malformed; it now says the stored
+  host identifier could not be read. The packed agent also crashed with a
+  `TypeError` instead of the sentence where the account check failed: the
+  account check's failure-text helper was never exported from the
+  subscriptions bundle, and now is. An editor starting a session with an
+  unreadable providers file now gets that sentence as the error's message
+  instead of a bare "Internal error", and `providers list`
+  and `exec --provider` print the reason instead of "Test failed: {detail}".
+
 ### Packaging
 
 - The Get Started walkthrough's four screenshots ship as lossless WebP

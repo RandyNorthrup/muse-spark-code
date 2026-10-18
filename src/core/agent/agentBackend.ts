@@ -268,7 +268,6 @@ export interface ModelSummary {
    * prices only where the provider prices the model; `trainsOnContent`
    * hides the model in a confidential workspace.
    */
-  readonly effortLevels?: readonly EffortLevel[] | undefined
   readonly providerId?: string | undefined
   readonly providerLabel?: string | undefined
   readonly pricing?: ModelPricing | undefined
@@ -277,6 +276,17 @@ export interface ModelSummary {
   readonly isPinned?: boolean | undefined
   readonly trainsOnContent?: boolean | undefined
   readonly planLimitsUrl?: string | undefined
+  /**
+   * The effort levels this model serves, where the backend knows them (a
+   * plan model reports its catalogue's levels); absent where unknown, and
+   * the pickers fall back to the shared default range. `defaultEffort` is
+   * the level a new session selects unless the person chose one.
+   * `fastTier` is the provider's priority tier where the model lists one.
+   */
+  readonly effortLevels?: readonly EffortLevel[] | undefined
+  readonly defaultEffort?: EffortLevel | undefined
+  readonly fastTier?:
+    { readonly id: string; readonly name: string; readonly description: string } | undefined
 }
 
 export interface SkillSummary {
@@ -509,6 +519,12 @@ export interface AgentSession {
   setModel(modelId: string): Promise<void>
   /** The session's standing reasoning-effort default (wire vocabulary). */
   setReasoningEffort(reasoningEffort: string): Promise<void>
+  /**
+   * The conversation's Fast tier: the plan catalogue's priority tier id
+   * while on, undefined while off. Plan sessions only; sessions without it
+   * never offer the switch.
+   */
+  setServiceTier?: (serviceTier: string | undefined) => Promise<void>
   /** One of the four MSP approval modes (shared/permissionModes.ts). */
   setApprovalMode(mode: string): Promise<void>
   compact(): Promise<CompactOutcome>

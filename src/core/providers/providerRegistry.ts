@@ -48,6 +48,11 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
         const policy = modelPolicyFor(model.ref, { ...model.evidence, pricing: model.pricing })
         if (policy.tools.calling.state !== 'yes' && model.pricing.kind !== 'unpriced') return []
         const pricing = model.pricing
+        // The levels the model's own record lists, so every picker offers them
+        // (finding F79: a configured Anthropic model offered none, and the
+        // editor protocol refused every level).
+        const levels = policy.reasoning.effortLevels
+        const effortLevels = levels.state === 'yes' ? levels.value.filter(isEffortLevel) : []
         return [
           {
             modelId: model.ref,
@@ -55,16 +60,13 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
             providerId: policy.identity.provider,
             providerLabel: sanitizeModelLabel(model.providerLabel ?? policy.identity.provider),
             contextLimit: model.contextTokens,
-            effortLevels:
-              policy.reasoning.effortLevels.state === 'yes'
-                ? policy.reasoning.effortLevels.value.filter(isEffortLevel)
-                : [],
             isActive: false,
             isDefault: model.isDefault === true,
             pricing: pricing.kind,
             isPinned: model.isPinned,
             trainsOnContent: model.trainsOnContent,
             planLimitsUrl: model.planLimitsUrl,
+            ...(effortLevels.length > 0 && { effortLevels }),
             ...(pricing.kind === 'priced' && {
               inputUsdPerMTokens: pricing.card.input * TOKENS_PER_MILLION,
               outputUsdPerMTokens: pricing.card.output * TOKENS_PER_MILLION,

@@ -22,6 +22,7 @@ import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
 import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 import { effortLevelsFor, resolveReasoning } from '../../../shared/effort'
 import { modelApiPaidTier } from '../../../shared/paid'
+import { planOfferedLevels, resolvePlanEffort, type ChatGptPlanFacts } from './planFacts'
 
 /** The configured provider and exact model that produced opaque reasoning. */
 export interface ReplayProducer {
@@ -47,6 +48,8 @@ export interface ModelPolicyEvidence {
   /** A captured provider minimum for max_output_tokens; unknown keeps 1. */
   readonly minOutputTokens?: number | undefined
   readonly effortLevels?: readonly string[] | undefined
+  /** The plan catalogue's own facts for this model, where the catalogue named it. */
+  readonly planFacts?: ChatGptPlanFacts | undefined
   readonly canDisableReasoning?: boolean | undefined
   /** The preset's documented Thinking-off switch (lane DSTHINK3). */
   readonly thinkingOff?: 'thinking-switch' | undefined
@@ -61,6 +64,8 @@ export interface ModelPolicy {
     readonly effortLevels: Known<readonly string[]>
     readonly canDisable: Known<true>
     readonly thinkingOff?: 'thinking-switch' | undefined
+    /** The plan catalogue's own facts, carried for the plan send path only. */
+    readonly planFacts?: ChatGptPlanFacts | undefined
   }
   readonly output: {
     readonly maxTokens?: number | undefined
@@ -85,7 +90,11 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
   const capabilities = isMeta
     ? { toolCalling: true, vision: true, reasoning: true, parallelToolCalls: true }
     : evidence.capabilities
-  const levels = isMeta ? effortLevelsFor(model) : evidence.effortLevels
+  const planFacts = isMeta ? undefined : evidence.planFacts
+  const levels = isMeta
+    ? effortLevelsFor(model)
+    : (evidence.effortLevels ??
+      (planFacts === undefined ? undefined : planOfferedLevels(planFacts)))
   // BYO native hosted routes/prices are a captured M95 follow-up. A native
   // capability alone cannot authorize Meta's tool shape or search fee.
   const webSearch: Known<true> = { state: evidence.webSearch === false ? 'no' : 'unknown' }
@@ -119,6 +128,7 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
       effortLevels: levels === undefined ? { state: 'unknown' } : { state: 'yes', value: levels },
       canDisable: knownFlag(isMeta || evidence.canDisableReasoning),
       ...(!isMeta && evidence.thinkingOff !== undefined && { thinkingOff: evidence.thinkingOff }),
+      ...(!isMeta && planFacts !== undefined && { planFacts }),
     },
     output: {
       maxTokens: isMeta ? MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS : evidence.maxOutputTokens,
@@ -158,7 +168,11 @@ export function effortForPolicy(policy: ModelPolicy, requested: string): string 
   if (policy.identity.provider === 'meta') {
     return requested === 'none' ? 'minimal' : requested
   }
-  const { effortLevels, canDisable, thinkingOff } = policy.reasoning
+  const { effortLevels, canDisable, thinkingOff, planFacts } = policy.reasoning
+  // Plan models resolve from the catalogue's own levels: a listed level
+  // rides as named (`xhigh` stays `xhigh`), never `none` to a model that
+  // does not list it.
+  if (planFacts !== undefined) return resolvePlanEffort(planFacts, requested)
   const decision = resolveReasoning(
     {
       effortLevels: effortLevels.state === 'yes' ? effortLevels.value : undefined,
@@ -199,11 +213,15 @@ export function modelPricedUsage(usage: Usage): ModelPricedUsage {
   }
 }
 
-export function metaResolvedModel(ref: string, client: ProviderClient): ResolvedModel {
+export function metaResolvedModel(
+  ref: string,
+  client: ProviderClient,
+  planFacts?: ChatGptPlanFacts,
+): ResolvedModel {
   const isPlan = client.isPlanModel?.(ref) === true
   const policy = modelPolicyFor(
     ref,
-    isPlan ? { capabilities: { toolCalling: true }, pricing: { kind: 'plan' } } : {},
+    isPlan ? { capabilities: { toolCalling: true }, pricing: { kind: 'plan' }, planFacts } : {},
   )
   const estimate = (usage: PricedUsage) => {
     if (isPlan) return Usd.from(0).toAmount()
@@ -213,7 +231,9 @@ export function metaResolvedModel(ref: string, client: ProviderClient): Resolved
   }
   return {
     ref,
-    contextTokens: MODEL_API_CONTEXT_WINDOW,
+    // A plan model the catalogue named reports its own window; unknown
+    // keeps today's Meta constant.
+    contextTokens: planFacts?.contextTokens ?? MODEL_API_CONTEXT_WINDOW,
     client,
     origin: client.provider?.origin ?? new URL(MODEL_API_BASE_URL).origin,
     policy,

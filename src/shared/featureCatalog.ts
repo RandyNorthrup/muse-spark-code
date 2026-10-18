@@ -350,6 +350,10 @@ export function featureCatalog(): readonly Feature[] {
       // changes conflict. Confirmed limit retries retain all completed receipts.
       // Simultaneous cross-window saves remain last-writer-wins until LOCKLIB.
       // Earlier steps remain navigable while final Save validates limits.
+      // ChatGPT sign-in reuses the account's saved registration (its issued
+      // client survives sign-out); "Use a Different ChatGPT Account" (the
+      // panel, the ACP sign-in method, `providers add chatgpt --new-account`)
+      // registers another account instead.
       ['suggestedProvider', 'modelApiSessionBudgetUsd'],
       'backends',
       ['museCode', 'modelApi'],
@@ -575,6 +579,17 @@ export function featureCatalog(): readonly Feature[] {
       ['modelApi'],
       false,
       ['acp'],
+    ),
+    feature(
+      'fast-tier',
+      { cli: 'fast' },
+      { cli: 'fast' },
+      [],
+      [],
+      'headless-runs',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
     ),
     feature(
       'service-status',

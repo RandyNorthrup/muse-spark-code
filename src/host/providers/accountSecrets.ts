@@ -133,7 +133,7 @@ export class AccountSecrets implements AccountCredentialVault {
       // only the fixed kind crosses, with its cause (D119).
       throw error instanceof AccountStoreError
         ? error
-        : new AccountStoreError('unavailable', { cause: error })
+        : new AccountStoreError('unavailable', 'unavailable', { cause: error })
     }
     // A vault must never bypass account/origin checking, including M109's port.
     this.check(binding)
@@ -157,7 +157,7 @@ export class AccountSecrets implements AccountCredentialVault {
       // A store failure is unavailable, with its cause: anything else keeps
       // its kind (D119).
       if (!(error instanceof Error)) throw error
-      throw new AccountStoreError('unavailable', { cause: error })
+      throw new AccountStoreError('unavailable', 'unavailable', { cause: error })
     }
   }
 
@@ -178,7 +178,7 @@ export class AccountSecrets implements AccountCredentialVault {
       // A store failure is unavailable, with its cause: anything else keeps
       // its kind (D119).
       if (!(error instanceof Error)) throw error
-      throw new AccountStoreError('unavailable', { cause: error })
+      throw new AccountStoreError('unavailable', 'unavailable', { cause: error })
     }
   }
 
@@ -197,7 +197,7 @@ export class AccountSecrets implements AccountCredentialVault {
         this.available(binding)
         return undefined
       }
-      throw new AccountStoreError('unavailable', { cause: error })
+      throw new AccountStoreError('unavailable', 'unavailable', { cause: error })
     }
     this.available(binding)
     if (value === undefined) return undefined

@@ -7,10 +7,16 @@ export {
 } from '../../core/providers/subscriptions/chatgpt'
 export type { ChatGptHostPort } from '../../core/providers/subscriptions/chatgpt'
 export {
+  createChatGptHostId,
+  isChatGptHostId,
+} from '../../core/providers/subscriptions/chatgptHostId'
+export {
   createSubscriptionClient,
+  chatGptCatalog,
   chatGptModels,
   chatGptAccountId,
   chatGptPlanAccount,
+  chatGptFailureText,
 } from '../../core/providers/subscriptions/registry'
 // The Copilot adapter's failure, shared one copy with the host side exactly
 // like ChatGptSignInError above (PLAN.md D119): copilotClient.ts reads it
@@ -22,5 +28,6 @@ export {
   runtimeChatGptCommandDeps,
   runChatGptProviderCommand,
   chatGptAuthenticationMethods,
+  chatGptFailureOf,
   runtimeSubscriptionClient,
 } from '../../runtime/chatGptProviderCommands'

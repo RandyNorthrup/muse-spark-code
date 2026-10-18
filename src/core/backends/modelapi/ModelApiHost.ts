@@ -136,7 +136,7 @@ import {
   MODEL_API_OUTPUT_ENCODING,
   MODEL_API_OUTPUT_MEDIA_TYPE,
   MODEL_API_PDF_PAGE_IMAGES,
-  MODEL_API_RETRYABLE_STREAM_CODES,
+  isRetryableStreamCode,
   MODEL_API_SERVER_NAME,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
@@ -340,6 +340,7 @@ import type {
   HookReplacement,
 } from './hooks'
 import { toolMatcherNames } from './hookNames'
+import { planDefaultEffort, planFastTier, planOfferedLevels } from './planFacts'
 import {
   replayProducer,
   type ReplayProducer,
@@ -2670,6 +2671,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** The compaction in flight (D26): it holds the session like a turn. */
   private compacting: AbortController | undefined
   private effort: string = DEFAULT_EFFORT
+  /** The conversation's Fast tier id while the switch is on; off by default. */
+  private serviceTier: string | undefined
   private todos: readonly TodoItem[] = []
   private todoTurnId: string | undefined
   private outcomeStopReason: AgentEvidence['stopReason']
@@ -3001,11 +3004,18 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private async resolveModel(ref = this.modelId): Promise<ResolvedModel> {
+    // A plan turn resolves from the catalogue's own facts, fetched when no
+    // listing warmed the client's cache; without them the policy keeps
+    // today's behaviour.
+    const planFacts =
+      this.deps.client.isPlanModel?.(ref) === true
+        ? await this.deps.client.planModelFacts?.(ref)
+        : undefined
     const model =
       ref.includes('/') &&
       (this.deps.models !== undefined || this.deps.client.isPlanModel?.(ref) !== true)
         ? await this.deps.models?.resolve(ref)
-        : metaResolvedModel(ref, this.deps.client)
+        : metaResolvedModel(ref, this.deps.client, planFacts)
     if (model?.ref !== ref || !model.isCurrent()) {
       throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
     }
@@ -4448,8 +4458,16 @@ export class ModelApiSession implements ScheduledAgentSession {
       tool_choice: 'auto',
       reasoning: {
         effort: effortForPolicy(resolved.policy, this.effort),
-        summary: 'auto',
+        // The provider's own client sends no summary where the catalogue
+        // says the model takes none; every other request is unchanged.
+        ...(resolved.policy.reasoning.planFacts?.supportsReasoningSummary !== false && {
+          summary: 'auto' as const,
+        }),
       },
+      // The Fast switch rides as the catalogue's priority tier, on the
+      // plan route only; off by default.
+      ...(this.serviceTier !== undefined &&
+        resolved.policy.identity.provider === 'chatgpt' && { service_tier: this.serviceTier }),
       stream: true,
       store: false,
       include: this.includes(),
@@ -5791,13 +5809,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         )
       }
       case 'error': {
-        // The instance shut down or was overloaded mid-reply: the docs say to
-        // send the whole request again.
-        if (
-          event.code !== undefined &&
-          event.code !== null &&
-          MODEL_API_RETRYABLE_STREAM_CODES.has(event.code)
-        ) {
+        // The instance shut down or was overloaded mid-reply, or the ChatGPT
+        // plan could not check usage: the docs say to send the request again.
+        if (event.code !== undefined && event.code !== null && isRetryableStreamCode(event.code)) {
           throw new RetryableStreamError(event.message, event.code)
         }
         throw new ModelApiError(event.message, 0, undefined, event.code ?? undefined)
@@ -14193,7 +14207,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         )
       }
       case 'error': {
-        if (event.code != null && MODEL_API_RETRYABLE_STREAM_CODES.has(event.code)) {
+        if (event.code != null && isRetryableStreamCode(event.code)) {
           throw new RetryableStreamError(event.message, event.code)
         }
         throw new ModelApiError(event.message, 0, undefined, event.code ?? undefined)
@@ -15845,6 +15859,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       // Economic debt uses the selected tariff's units; paid ledger liability remains owned by D78.
       this.autoCompact.failed()
       this.autoCompact.newUserTask()
+      // Fast is the conversation's switch for one model: it never rides to
+      // another, so a switch back finds it off, as the panel shows it.
+      this.serviceTier = undefined
     }
     this.modelId = modelId
     this.modelRevision += 1
@@ -15870,6 +15887,13 @@ export class ModelApiSession implements ScheduledAgentSession {
       return Promise.reject(new Error('reasoning effort must not be empty'))
     }
     this.effort = reasoningEffort
+    this.touch()
+    return Promise.resolve()
+  }
+
+  /** The conversation's Fast tier (off by default); rides on plan turns only. */
+  public setServiceTier(serviceTier: string | undefined): Promise<void> {
+    this.serviceTier = serviceTier === '' ? undefined : serviceTier
     this.touch()
     return Promise.resolve()
   }
@@ -17528,20 +17552,34 @@ export class ModelApiHost implements AgentHost {
   }
 
   public async listModels(sessionId?: string): Promise<readonly ModelSummary[]> {
-    const ids = this.deps.hasMetaCredential?.() === false ? [] : await this.deps.client.listModels()
+    // Without a Meta key no Meta model is listed, but the signed-in plans still
+    // are, with their catalogue facts (findings F79 and F80: a plan-only
+    // computer otherwise saw its plan models only as configured entries, with
+    // no effort levels at all).
+    const ids =
+      this.deps.hasMetaCredential?.() === false
+        ? ((await this.deps.client.listPlanModels?.()) ?? [])
+        : await this.deps.client.listModels()
     const providers = (await this.deps.models?.list?.()) ?? []
     const preferred = await this.deps.models?.defaultModel?.()
     const isConfigured =
       preferred !== undefined ||
       (this.deps.models?.defaultModel !== undefined && providers.length > 0)
     const active = sessionId === undefined ? undefined : this.sessions.get(sessionId)?.modelId
-    return [
-      ...ids
-        .filter(
-          (id) =>
-            id.startsWith(MODEL_API_MODEL_PREFIX) || this.deps.client.isPlanModel?.(id) === true,
-        )
-        .map((id) => ({
+    const direct = ids.filter(
+      (id) => id.startsWith(MODEL_API_MODEL_PREFIX) || this.deps.client.isPlanModel?.(id) === true,
+    )
+    // A plan model carries its catalogue facts (effort levels, default,
+    // Fast tier) so every picker offers what the model serves.
+    const summaries = await Promise.all(
+      direct.map(async (id): Promise<ModelSummary> => {
+        const facts =
+          this.deps.client.isPlanModel?.(id) === true
+            ? await this.deps.client.planModelFacts?.(id)
+            : undefined
+        const fast = facts === undefined ? undefined : planFastTier(facts)
+        const fallback = facts === undefined ? undefined : planDefaultEffort(facts)
+        return {
           modelId: id,
           displayLabel: id,
           contextLimit:
@@ -17553,14 +17591,30 @@ export class ModelApiHost implements AgentHost {
             providerId: replayProducer(id).provider,
             trainsOnContent: id.startsWith('copilot/'),
           }),
+          ...(facts !== undefined && {
+            effortLevels: planOfferedLevels(facts),
+            ...(fallback !== undefined && { defaultEffort: fallback }),
+          }),
+          ...(fast !== undefined && {
+            fastTier: { id: fast.id, name: fast.name, description: fast.description },
+          }),
           isDefault: id === (isConfigured ? preferred : DEFAULT_MODEL_ID),
           isActive: id === active,
+        }
+      }),
+    )
+    // A plan model listed here carries its facts; its configured entry (the
+    // same reference) adds nothing and is not listed twice.
+    const listed = new Set(summaries.map((summary) => summary.modelId))
+    return [
+      ...summaries,
+      ...providers
+        .filter((model) => !listed.has(model.modelId))
+        .map((model) => ({
+          ...model,
+          ...(isConfigured && { isDefault: model.modelId === preferred }),
+          isActive: model.modelId === active,
         })),
-      ...providers.map((model) => ({
-        ...model,
-        ...(isConfigured && { isDefault: model.modelId === preferred }),
-        isActive: model.modelId === active,
-      })),
     ]
   }
 

@@ -124,6 +124,22 @@ export function networkFailureCodes(error: unknown): string {
 }
 
 /**
+ * The error and its causes by their codes, or by their class names where
+ * they carry none (`TypeError: ENOTFOUND`): never a message, so nothing a
+ * server, a path or a secret put in one can reach a sentence.
+ */
+export function failureCodeNames(error: unknown): string {
+  const names: string[] = []
+  let current: unknown = error
+  while (current instanceof Error && names.length < ERROR_CAUSE_MAX_DEPTH) {
+    const code = 'code' in current && typeof current.code === 'string' ? current.code : undefined
+    names.push(code ?? current.name)
+    current = current.cause
+  }
+  return names.length === 0 ? typeof error : names.join(': ')
+}
+
+/**
  * Whether `error` is a failure of the connection itself: Node, undici or a
  * proxy refusing the tunnel name one with a string code somewhere in its
  * causes (`ECONNRESET`, `UND_ERR_SOCKET`, `ERR_TLS_…`, `ERR_WEB_FETCH_NOT_TLS`).

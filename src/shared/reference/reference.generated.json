@@ -515,6 +515,21 @@
       "editors": ["acp"]
     },
     {
+      "id": "fast-tier",
+      "name": { "cli": "fast" },
+      "summary": { "cli": "fast" },
+      "description": { "cli": "fast" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#headless-runs",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "service-status",
       "name": { "ui": "modelApiStatusLabel" },
       "summary": { "ui": "modelApiStatusOpen" },
@@ -703,7 +718,12 @@
           "session/cancel"
         ],
         "clientRequests": ["session/request_permission", "elicitation/create"],
-        "configOptions": { "model": "model", "effort": "effort", "account": "account" },
+        "configOptions": {
+          "model": "model",
+          "effort": "effort",
+          "fast": "fast",
+          "account": "account"
+        },
         "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
         "bypassFlag": "--allow-dangerously-skip-permissions",
         "projectContext": {
@@ -4448,7 +4468,7 @@
     },
     {
       "route": "chatGptProvider",
-      "name": "providers add|remove|status chatgpt",
+      "name": "providers add|remove|status chatgpt [--new-account]",
       "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
       "text": { "ui": "referenceProviders" },
       "invocations": [
@@ -5744,6 +5764,13 @@
         "enum": ["minimal", "low", "medium", "high", "xhigh", "max"],
         "purpose": "effort"
       }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --fast",
+      "description": "--fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance.",
+      "text": { "cli": "fast" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false, "purpose": "fast" }
     },
     {
       "route": "exec",

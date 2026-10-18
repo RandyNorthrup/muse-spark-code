@@ -130,7 +130,7 @@ function failed(deps: ProvidersDeps, line: string): number {
 async function commandFile(deps: ProvidersDeps): Promise<ProvidersFile | undefined> {
   const loaded = fileOrError(await deps.readUserFile())
   if ('reason' in loaded) {
-    failed(deps, fill(UI_TEXT.providerTestFailed, { reason: loaded.reason }))
+    failed(deps, fill(UI_TEXT.providerTestFailed, { detail: loaded.reason }))
     return
   }
   return loaded.file
