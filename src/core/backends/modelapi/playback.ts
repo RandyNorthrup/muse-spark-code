@@ -5,7 +5,7 @@
 
 import { PLAYBACK_MODEL_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
-import { rulesText } from './instructions'
+import { agentRoleText, type InstructionFacts, rulesText } from './instructions'
 
 const PARAGRAPH = '\n\n'
 
@@ -23,6 +23,10 @@ export interface PlaybackFacts {
   readonly goalSection: string | undefined
   /** The workspace's rules files, trusted workspaces only (D13). */
   readonly rules: string | undefined
+  /** A team conversation's roster and guidance (M96), as its ordinary turns carry it. */
+  readonly teamRoster: string | undefined
+  /** The custom agent's role the session runs as (M76), as its ordinary turns carry it. */
+  readonly agent: InstructionFacts['agent']
 }
 
 /** The playback turn's system instructions: who it is, that no tools exist, what to report. */
@@ -42,6 +46,8 @@ export function playbackInstructionsFor(facts: PlaybackFacts): string {
     fill(PLAYBACK_MODEL_TEXT.playbackEnvironment, { today: facts.today }),
     facts.goalSection,
     rulesText(facts.rules),
+    facts.teamRoster,
+    agentRoleText(facts.agent),
   ]
   return sections.filter((section) => section !== undefined).join(PARAGRAPH)
 }
