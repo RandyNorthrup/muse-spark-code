@@ -428,3 +428,57 @@ total (nothing to rebuild from); legacy retained liability (sent but
 usageless, once counted as spend) is dropped by the rebuild per D121 and
 is not back-counted as unknown calls; the migration assumes all writers
 are new builds (an old build's save keeps old merge behaviour).
+
+## PR217W1 — triage, one line per thread and per CI failure (2026-10-18, lane PR217W1)
+
+Threads 1–7 were fixed on this branch under PR217FIX2/FIX3
+(`11f98e72b`, `5b72b8607`, `d3b765e4b0`, `c99b90e4a1`); each is
+re-verified against the current tree as its fix lands below. Threads
+8–12 are open. CI failures reproduced locally where marked.
+
+- `fileSessionStore.ts` (security P2, two-window base): already fixed
+  by `11f98e72b` — each window's base is its own unmerged
+  `incomingSpend`, stored only after the write lands.
+- `dailySpend.ts` (P1, open legacy reservations): already fixed by
+  `11f98e72b` — only `settledUsd` enters the migrated total.
+- `runExec.ts:1215` (P1, output cap caching): already fixed by
+  `5b72b8607` — a resolved provider policy replaces the cached cap.
+- `providerExec.ts` (P2, unpriced catalogue): already fixed by
+  `5b72b8607` — an `unpriced`-only entry keeps its no-price warning.
+- `providerExec.ts:208` (P2, plan presets): already fixed by
+  `d3b765e4b0` — plan-key presets skip the no-price warning.
+- `ModelApiHost.ts:16617` (P1, legacy session totals): already fixed
+  by `c99b90e4a1` — the store rebuilds seed plus settled claims.
+- `ModelApiHost.ts:16407` (P2, unknown charges row): already fixed by
+  `c99b90e4a1` — the conversation row carries `unknownChargeCalls`.
+- `fileSessionStore.ts:306` (security P2, retained claims): OPEN — a
+  legacy claim with `retainedUsd` but no `settledUsd` is skipped as
+  wholly open, so a resumed capped session can spend the incurred
+  liability again. Fix: count it conservatively as spent.
+- `ModelApiHost.ts:16511` (P2, unknown-count merge): OPEN — `save()`
+  delta-merges `budgetSpentUsd` but writes `unknownChargeCalls`
+  wholesale, so a second window's increment is lost. Fix: per-window
+  count bases, merged like spend.
+- `ModelApiHost.ts:16618` (P2, unknown-cost guard): OPEN — adopt
+  restores the count but leaves `hasUnknownBudgetCost` false, so the
+  next known-cost turn prints a misleading cost line. Fix: init the
+  boolean from the restored count.
+- `runLedger.ts:344` (P1, priced incomplete/failed): OPEN —
+  `lastResponseSchema` allows `priced` only with
+  `terminal === 'completed'`, so a billed `incomplete`/`failed`
+  response fails validation. Fix: the invariant.
+- `fileSessionStore.ts:305` (P2, claim ownership): OPEN — neither
+  migration compares the legacy identity fields (`scopeId`,
+  `claimId`, `sessionId`, `accountId`) before summing. Fix: parse and
+  compare in both journals; a mismatch keeps the stored total.
+- CI `duplication`: reproduced — 2 clones, both from this branch
+  (legacy schemas `fileSessionStore.ts`/`dailySpend.ts`; a repeated
+  two-window setup in `fileSessionSpend.test.ts`). Fix: one shared
+  legacy-journal module plus a test helper.
+- CI `packages` (VSIX 3801461 vs 3788800): measured — shipped `dist/`
+  is 6.2 KB smaller than the merge base; `l10n/` grew ~87 KB raw
+  (~24 KB gzip) from the branch's feature strings. Cuts TBD, budget
+  untouched.
+- CI `paidMoneyStructure`: reproduced — `unexpected:
+["host/backend/fileSessionStore.ts:spentUsd"]` from the migration's
+  `seeds` array typed `number | string`. Fix: `UsdAmount`.
