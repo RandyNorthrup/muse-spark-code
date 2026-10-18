@@ -7,7 +7,8 @@
 // template's canonical text and never accepts the result as exact.
 
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { SPDX_TEMPLATE_FILES, spdxProvenance } from '../../src/core/legal/data'
@@ -313,6 +314,31 @@ describe('SPDX template matching', () => {
     const set = loadLicenseTemplates(LEGAL_DATA, tampered)
     expect(set.problems).toEqual(['templates/MIT.template.txt'])
     expect(identifyLicenseText(FULL_MIT_LICENSE, set)?.exact).not.toBe(true)
+  })
+
+  it('fails closed when a template carries a pattern outside the compiled table', () => {
+    const folder = mkdtempSync(path.join(tmpdir(), 'legal-unknown-pattern-'))
+    try {
+      cpSync(LEGAL_DATA, folder, { recursive: true })
+      const file = path.join(folder, 'templates', 'MIT.template.txt')
+      const edited = readFileSync(file, 'utf8').replace(
+        'match="Software|Materials"',
+        'match="Software|Materials|Libre"',
+      )
+      expect(edited).not.toBe(readFileSync(file, 'utf8'))
+      writeFileSync(file, edited)
+      const bytes = readFileSync(file)
+      const files = SPDX_TEMPLATE_FILES.map((entry) =>
+        entry.path === 'templates/MIT.template.txt'
+          ? { ...entry, sha256: createHash('sha256').update(bytes).digest('hex') }
+          : entry,
+      )
+      const set = loadLicenseTemplates(folder, files)
+      expect(set.problems).toEqual(['templates/MIT.template.txt'])
+      expect(identifyLicenseText(FULL_MIT_LICENSE, set)?.exact).not.toBe(true)
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
+    }
   })
 
   it('matches nothing exactly with no templates (the matcher-off drill)', () => {
