@@ -2877,7 +2877,8 @@ export class ConversationController {
    */
   private noteShellSandbox(): void {
     // Called once per newly opened session (openSession's new-session
-    // path, never on resume), which is what makes the F91 panel notice
+    // path, `adopt` for a resumed, forked or imported session, and
+    // `resumeAfterRestart`), which is what makes the F91 panel notice
     // below once per session. This controller outlives its sessions (one
     // per surface), so the model flag resets here: a new conversation's
     // model has heard nothing yet.
@@ -4240,6 +4241,9 @@ export class ConversationController {
     this.activeTurnId = loaded.activeTurnId
     await this.attach(host, loaded.session, 'continued after a restart')
     this.requireCurrentOpening(generation)
+    // A conversation continued after a restart never passed the new-session
+    // path: it gets the shell-sandbox notice here instead.
+    this.noteShellSandbox()
     try {
       await loaded.session.setApprovalMode(
         approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
@@ -4886,6 +4890,9 @@ export class ConversationController {
     if (generation !== this.sendInvalidationEpoch) {
       return false
     }
+    // A resumed, forked or imported session is a new conversation here too:
+    // it gets the shell-sandbox notice a brand-new one would have shown.
+    this.noteShellSandbox()
     const target = approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
     try {
       await loaded.session.setApprovalMode(target)
@@ -6679,9 +6686,9 @@ export class ConversationController {
         isLinuxSandboxBlocked(this.deps.shellSandboxReadiness?.())
           ? [{ type: 'text', text: SANDBOX_CANNOT_START_MODEL_NOTE }]
           : []
-      if (sandboxNote.length > 0) {
-        this.hasToldModelSandboxCannotStart = true
-      }
+      // Marked only after an accepted submission below: a first send that
+      // fails or is cancelled before reaching Muse Code must not silence
+      // every later turn, which the model would then never hear about.
       // A brief's first message (M79): what to do with it, for the model only.
       const hasSetTodos =
         brief !== undefined && brief.todos.length > 0 && session.setTodos !== undefined
@@ -6772,6 +6779,11 @@ export class ConversationController {
         return { isAccepted: false, hasSetTodos: false, turnId: undefined }
       }
       const { turnId } = submission
+      // The turn reached Muse Code, so the appended sandbox note (when one
+      // rode along) reached the model too: only now is it marked as told.
+      if (sandboxNote.length > 0) {
+        this.hasToldModelSandboxCannotStart = true
+      }
       this.checkpoints.accepted(
         checkpoint,
         turnId,
