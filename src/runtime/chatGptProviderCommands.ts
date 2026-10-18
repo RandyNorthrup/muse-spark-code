@@ -24,6 +24,7 @@ import {
   chatGptFailureText,
 } from '../core/providers/subscriptions/registry'
 import { PROVIDER_SECRET_PREFIX, SECRET_KEYS } from '../shared/constants'
+import { providersFileUnreadable } from '../core/accountStoreError'
 
 /** The same registry serves JetBrains, Visual Studio, Eclipse and every ACP client. */
 export function runtimeSubscriptionClient(
@@ -60,8 +61,8 @@ export function runtimeSubscriptionClient(
         if (result.ok) return result.file
         if (result.reason === 'missing') return emptyProvidersFile()
         // A session reads its cause here, not through the command layer:
-        // the file's own fault, never a generic failure.
-        throw new Error(chatGptFailureText('providers-file-unreadable', result.reason))
+        // the file's own fault in the refusal the editor boundary names.
+        throw providersFileUnreadable(result.reason)
       }
       const file = await read()
       const subscribed = file.providers.some((entry) => entry.id === 'chatgpt')
