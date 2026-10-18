@@ -4,6 +4,7 @@
 // package copies (CIFIX017R3: three fixtures each kept a hand list, and one
 // missed the launcher below).
 import path from 'node:path'
+import { VSIX_TARGETS } from './vsixTargets.mjs'
 
 // The C# of the Windows job helpers, compiled on first use, as the extension
 // ships it (PLAN.md D6): the shell tool's job (M27), the half both helpers
@@ -27,3 +28,21 @@ export const LINUX_HELPERS = ['x64', 'arm64'].map((arch) =>
 )
 // The governed runner's helper scripts, copied as a folder.
 export const RUNNER_HELPERS = path.join('native', 'runner')
+
+/**
+ * The native sources the ACP package stages for a target: only that
+ * platform's pieces, so a platform's package never demands a helper only
+ * another OS builds. The runner ships everywhere (the SSH runner copies
+ * the helper to the remote side, as in the .vsix). No argument is the
+ * universal package, which keeps every platform's helpers.
+ */
+export function acpNativeFiles(target) {
+  if (target === undefined) return [...JOB_SOURCES, DARWIN_HELPER, ...LINUX_HELPERS]
+  if (!VSIX_TARGETS.includes(target)) throw new Error(`Unknown ACP target: ${target}`)
+  const platform = target.split('-', 1)[0]
+  return platform === 'linux'
+    ? [path.join('native', 'linux', target.split('-', 2)[1], 'muse-created')]
+    : platform === 'darwin'
+      ? [DARWIN_HELPER]
+      : [...JOB_SOURCES]
+}
