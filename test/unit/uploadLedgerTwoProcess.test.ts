@@ -149,6 +149,14 @@ async function seededChild(tag: string, action: string) {
   return { deletes, ledger, ready, stop, done, ...spawned }
 }
 
+/** Our own pin cycle, then the delete the test expects to proceed. */
+async function pinCycleThenDelete(ledger: UploadLedger, deletes: string[]) {
+  await ledger.pinFiles([fileId], 'parent-owner')
+  await ledger.unpinFiles([fileId], 'parent-owner')
+  await ledger.deleteFile(fileId, () => Promise.resolve(true))
+  expect(deletes).toEqual([fileId])
+}
+
 describe('upload ledger across two real processes', () => {
   it('holds a second process pin across this process unpin, then lets go', async () => {
     const { deletes, ledger, stop, done, stderr } = await seededChild('1', 'hold')
@@ -161,8 +169,7 @@ describe('upload ledger across two real processes', () => {
     expect(deletes).toEqual([])
     writeFileSync(stop, 'stop')
     await waitFor(done, stderr)
-    await ledger.deleteFile(fileId, () => Promise.resolve(true))
-    expect(deletes).toEqual([fileId])
+    await pinCycleThenDelete(ledger, deletes)
   })
 
   it('releases the references of a process proven gone', async () => {
@@ -171,10 +178,7 @@ describe('upload ledger across two real processes', () => {
     const code = await exited
     if (code !== 0) throw new Error(`the crashed child exited ${String(code)}: ${stderr()}`)
     // The next pin run reaps the gone process, so the delete proceeds.
-    await ledger.pinFiles([fileId], 'parent-owner')
-    await ledger.unpinFiles([fileId], 'parent-owner')
-    await ledger.deleteFile(fileId, () => Promise.resolve(true))
-    expect(deletes).toEqual([fileId])
+    await pinCycleThenDelete(ledger, deletes)
   })
 
   it('reaps a pin whose birth no longer matches its live id', async () => {
@@ -196,10 +200,7 @@ describe('upload ledger across two real processes', () => {
         },
       ],
     })
-    await ledger.pinFiles([fileId], 'parent-owner')
-    await ledger.unpinFiles([fileId], 'parent-owner')
-    await ledger.deleteFile(fileId, () => Promise.resolve(true))
-    expect(deletes).toEqual([fileId])
+    await pinCycleThenDelete(ledger, deletes)
     writeFileSync(stop, 'stop')
     await waitFor(done, stderr)
   })
