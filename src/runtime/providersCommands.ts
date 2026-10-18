@@ -107,6 +107,12 @@ export interface ProvidersDeps {
   readonly fetch: typeof fetch
   /** One line from the user, not echoed when it comes from a terminal. */
   readonly readSecret: (prompt: string) => Promise<string>
+  /**
+   * Whether to use a key that looks like the wrong thing (a URL, a path,
+   * placeholder text, inner whitespace). A pipe cannot answer, so it names
+   * the value and proceeds; a terminal asks and waits for the answer.
+   */
+  readonly confirmKeyUse: (message: string) => Promise<boolean>
   readonly print: (line: string) => void
   readonly printError: (line: string) => void
 }
@@ -633,26 +639,35 @@ export async function providersAdd(
     if (!options.keyFromStdin) {
       return failed(deps, fill(UI_TEXT.providerKeyNeeded, { provider: id }))
     }
-    let typed: string
-    try {
-      typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: id }))
-    } catch (error: unknown) {
-      if (isNonTextStdin(error)) return failed(deps, providerKeyFailureText('invalid'))
-      throw error
-    }
-    if (typed.trim() === '') {
-      return failed(deps, providerKeyFailureText('empty'))
-    }
-    key = typed.trim()
     // Any non-blank key goes to the free key test: the provider judges
     // it, never its shape. A value that looks like the wrong thing is
-    // named, and stdin cannot answer, so the run continues to the test.
-    // The notice is formatted in the providers bundle, which keeps its
-    // own installed language: install this command's table before reading it.
+    // named first. A pipe cannot answer, so the run continues to the
+    // test; a "no" on a terminal asks for the key again, like the panel's
+    // password box. The notice is formatted in the providers bundle, which
+    // keeps its own installed language: install this command's table
+    // before reading it.
     setProvidersUiText(UI_TEXT, uiLocale())
-    const inspection = inspectProviderKey(key)
-    if (inspection !== 'ok' && inspection !== 'empty') {
-      deps.printError(providerKeyNoticeText(inspection))
+    for (;;) {
+      let typed: string
+      try {
+        typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: id }))
+      } catch (error: unknown) {
+        if (isNonTextStdin(error)) return failed(deps, providerKeyFailureText('invalid'))
+        throw error
+      }
+      if (typed.trim() === '') {
+        return failed(deps, providerKeyFailureText('empty'))
+      }
+      const candidate = typed.trim()
+      const inspection = inspectProviderKey(candidate)
+      if (
+        inspection === 'ok' ||
+        inspection === 'empty' ||
+        (await deps.confirmKeyUse(providerKeyNoticeText(inspection)))
+      ) {
+        key = candidate
+        break
+      }
     }
     state = applyWizardEvent(state, { type: 'submit-key' })
     if (state.error !== undefined) {

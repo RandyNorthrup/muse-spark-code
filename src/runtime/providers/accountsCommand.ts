@@ -80,7 +80,7 @@ export async function runAccountsCommand(
  * argument, file or child-process port exists in this flow. */
 export async function runAccountAuthSet(
   target: AccountTarget,
-  deps: AccountsCommandDeps & Pick<AuthCommandDeps, 'readSecret' | 'storeName'>,
+  deps: AccountsCommandDeps & Pick<AuthCommandDeps, 'readSecret' | 'storeName' | 'confirmKeyUse'>,
 ): Promise<number> {
   const pending = { value: '' }
   try {
@@ -98,28 +98,37 @@ export async function runAccountAuthSet(
       target.provider === 'meta'
         ? UI_TEXT.acpKeyPrompt
         : fill(UI_TEXT.accounts.keyPrompt, { provider: target.provider, account: target.account })
-    try {
-      pending.value = await deps.readSecret(prompt)
-    } catch (error: unknown) {
-      if (isNonTextStdin(error)) {
-        deps.printError(providerKeyFailureText('invalid'))
-        return 1
+    // Any non-blank key is stored for the provider to judge, never its
+    // shape (PLAN.md D123). A value that looks like the wrong thing is
+    // named first: a pipe cannot answer, so the run continues to the
+    // store; a "no" on a terminal asks for the key again, like the
+    // panel's password box. The notice reads UI_TEXT at call time:
+    // install this command's table before formatting it.
+    setUiText(UI_TEXT, uiLocale())
+    for (;;) {
+      try {
+        pending.value = await deps.readSecret(prompt)
+      } catch (error: unknown) {
+        if (isNonTextStdin(error)) {
+          deps.printError(providerKeyFailureText('invalid'))
+          return 1
+        }
+        throw error
       }
-      throw error
-    }
-    pending.value = pending.value.trim()
-    if (pending.value === '' || (target.provider === 'meta' && !isValidModelApiKey(pending.value)))
-      throw new AccountStoreError('invalidCredential')
-    if (target.provider !== 'meta') {
-      // Any non-blank key is stored for the provider to judge, never its
-      // shape (PLAN.md D123). A value that looks like the wrong thing is
-      // named, and stdin cannot answer, so the run continues to the store.
-      // The notice reads UI_TEXT at call time: install this command's
-      // table before formatting it.
-      setUiText(UI_TEXT, uiLocale())
+      pending.value = pending.value.trim()
+      if (
+        pending.value === '' ||
+        (target.provider === 'meta' && !isValidModelApiKey(pending.value))
+      )
+        throw new AccountStoreError('invalidCredential')
+      if (target.provider === 'meta') break
       const inspection = inspectProviderKey(pending.value)
-      if (inspection !== 'ok' && inspection !== 'empty') {
-        deps.printError(providerKeyNoticeText(inspection))
+      if (
+        inspection === 'ok' ||
+        inspection === 'empty' ||
+        (await deps.confirmKeyUse(providerKeyNoticeText(inspection)))
+      ) {
+        break
       }
     }
     await deps.accounts.setCredential(target.provider, target.account, {
