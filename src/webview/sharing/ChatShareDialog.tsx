@@ -300,7 +300,7 @@ function SessionChatShareDialog({
           </fieldset>
         )}
         <fieldset disabled={busy}>
-          <legend>{UI_TEXT.shareConfirm}</legend>
+          <legend>{UI_TEXT.shareDestination}</legend>
           {(['copy', 'file', 'browser'] as const).map((destination) => (
             <label key={destination}>
               <input

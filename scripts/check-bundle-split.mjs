@@ -834,10 +834,12 @@ for (const file of RULES_FILE_ONLY) {
 }
 
 // M89: the bundled skills installer loads on its first install, removal or
-// offer; the activation bundle has its loader, its offer and its types only.
+// offer, and its two commands load with it; the activation bundle has its
+// loader, its offer and its types only.
 const BUNDLED_SKILLS_ONLY = [
   'src/host/skills/bundledSkillsEntry.ts',
   'src/host/skills/bundledSkillsInstall.ts',
+  'src/host/skills/bundledSkillsCommands.ts',
 ]
 const bundledSkills = inputsOf(BUNDLED_SKILLS)
 for (const file of BUNDLED_SKILLS_ONLY) {
