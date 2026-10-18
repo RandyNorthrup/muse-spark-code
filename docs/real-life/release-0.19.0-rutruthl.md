@@ -341,3 +341,124 @@ No FAILs. No code changed: the panel behaves as the 8 pull requests
 describe, the ACP boundary suppresses raw causes as designed, and the
 two packaging failures plus the absent #246 are recorded with exact
 errors instead of worked around. Only this record is committed.
+
+---
+
+# Round 3 (2026-10-18, rig `linuxlt`, lane RUTRUTHL2)
+
+Follow-up orders: make this platform's packaging pack, and drive the
+panel Retry path to its exact words. Both done, with one honest miss
+recorded below.
+
+## Per-platform packaging implemented on this branch (D123)
+
+The VSIX side mirrors upstream PR #246 file-for-file
+(`scripts/lib/vsixTargets.mjs` + `.d.mts`,
+`test/unit/vsixTargets.test.mjs`, the `stageVsix`/`main` hunks of
+`scripts/package-vsix.mjs`, the multi-artifact hunk of
+`scripts/check-vsix-size.mjs` — all byte-identical to `8212bed320`,
+so that join is a no-op). CI/release publication of per-target
+artifacts is NOT changed here; that stays the release packaging
+lane's. The ACP side is new (upstream did not cover it):
+`acpNativeFiles(target)` in `scripts/lib/acpNativeSources.mjs` (+
+`.d.mts` row) with `test/unit/acpNativeFiles.test.mjs`, and
+`--target` through `scripts/package-acp.mjs` (per-target requires,
+darwin-only extras gated, targeted `-<target>.tgz` filename).
+`--target` values and refusals share the six desktop targets; the
+universal packages keep every platform's helpers and still refuse
+when one is missing. Docs: PLAN.md D123 (scoped to this branch —
+mechanism plus local proof, no CI claims), CHANGELOG Packaging,
+README command rows, `docs/RELEASING.md` local-package note.
+
+Real proof on this rig (x64 helper built as CI builds it):
+
+- `npm run package -- --target linux-x64`: exit 0,
+  `muse-spark-code-linux-x64-0.19.0.vsix`, 3,312,793 bytes (budget
+  3,788,800). Inventory: exactly
+  `extension/native/linux/x64/muse-created` plus `native/runner/*`;
+  zero `linux/arm64`, `darwin` or `windows` entries.
+- `npm run package:acp -- --target linux-x64`: exit 0,
+  `dist/muse-spark-code-acp-0.19.0-linux-x64.tgz` (help checks and
+  module-exports gate ran inside the packager). Inventory: only
+  `package/native/linux/x64/muse-created` plus the runner pair; zero
+  foreign entries.
+- Untouched gates still refuse: universal `.vsix` →
+  `Required native helper excluded from VSIX:
+native/linux/arm64/muse-created`; universal ACP →
+  `Required native helper is missing for the universal package:
+native/darwin/muse-dictate`; `--target linux-armhf|web` →
+  `Unknown VSIX target`. (Both packed artifacts were inventoried and
+  then removed; sizes above are the record.)
+
+## Packed panel drive (the `.vsix` above, installed for real)
+
+`code --install-extension` into an isolated extensions dir, editor
+under `xvfb-run --no-sandbox`, driven over CDP with DOM clicks and
+text reads (XTEST key synthesis is dead on this rig — zero KeyPress
+in `xev` — so the palette path was replaced by clicking the
+activity-bar icon; no screenshots anywhere).
+
+- Fresh panel, real answer: the exact `packed-round3-ok` line plus
+  the sandbox notice. Backend `muse-bin-1.4.10 serve` spawned at send.
+- Slow subagent (60 single-line writes) started; backend SIGKILLed
+  mid-run. The watchdog restarted it, and the panel said, word for
+  word: `Interrupted / Muse Code stopped unexpectedly (Muse Code was
+stopped by SIGKILL). The next message restarts it and continues
+this conversation.` (with Report This).
+- The next message recovered the file (60 lines in the workspace) and
+  reported the writer honestly: `The background writer stalled at 48
+lines and its status checks failed, so I preserved its 48 lines and
+appended lines 49–60`.
+- The orphaned agent row stayed `Running · Active`; Stop on it
+  returned the backend's own cause, read from the panel word for
+  word: `The agent command was refused: subagent/stop command
+<id> rejected: subagent_state_ineligible`. No checkpoint blame, no
+  remap — the PR #242 pipeline live: the panel carries the backend's
+  refusal unchanged after `The agent command was refused: `.
+- The literal `agentGone` sentence (`That agent is no longer in this
+conversation.`) did NOT arise: Retry/Continue are offered only for
+  failed/incomplete rows or tasks, and honest use here produces none
+  (shell-less failures complete-with-cause; the crash orphans rows as
+  Running). That race guard stays proven by
+  `test/unit/panelRetryTruth.test.ts` and
+  `docs/certification/truthpanel.md`. Observation for the lead, not a
+  group FAIL: the orphaned row keeps offering Interrupt/Stop after the
+  backend reports them state-ineligible.
+- Editor and all X servers stopped afterwards; ports closed.
+
+## Model calls (product's own ledger, final)
+
+Three drill sessions, sequential, all `museCode` backend, all cost
+certainty `plan` ($0 metered): 4 turns `muse-wonder-1.0` (ACP) + 15
+turns dev-panel + 25 turns packed-panel (the 60-write diary agent's
+internal turns) `muse-spark-1.3` = 44 turn records. With round 1's 1
+exec call the lane totals 45 against the 40-call bound — over by 5,
+all $0, all from that diary agent. No API key needed or read. (The
+harness's own 382 turns sit under a separate session id and are not
+counted.)
+
+## Gates on the final tree
+
+- prettier (all changed files incl. docs): clean.
+- eslint `--max-warnings=0` (7 changed script/test files): clean
+  (3 of mine fixed: ternary, unsafe replacement, split limit).
+- `npm run typecheck` (all projects): exit 0.
+- `npx vitest run` (repo timeout, `--maxWorkers=3`):
+  `vsixTargets` + `acpNativeFiles` → 2 files passed; truth six
+  (`panelRetryTruth`, `accountErrorTruth`, `accountsCommand`,
+  `accounts`, `playbookSurface`, `providerRefusals`) → 6 files
+  passed.
+- `npm run check:plan`: 0 drift. `npm run check:reference`:
+  current. `npm run deadcode`: exit 0. `npm run duplication`:
+  0 clones. `npm run build`: exit 0, budgets hold.
+- `npm run package -- --target linux-x64` / `npm run package:acp --
+--target linux-x64`: exit 0 each (above).
+- `check:catches` untouched per the brief (join + catch lanes' work).
+
+## Result
+
+Two FAILs fixed in code on this branch (single-OS `.vsix` and ACP
+packaging), rebuilt, re-driven until green, committed below with the
+CHANGELOG line. The panel's control-refusal words are read from the
+packed product; only the un-reachable-in-honest-use `agentGone` race
+sentence stays unit-proven.
