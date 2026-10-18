@@ -331,10 +331,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let resolvedOutputCap: number | undefined
   const outputCap = (policy?: ModelPolicy): number =>
     (resolvedOutputCap ??= resolveExecOutputCap(policy ?? modelPolicyFor(model ?? '')))
+  // The budget is always kept by reservation; the request cap only when the
+  // person set one (without `--max-requests` there is no request limit).
   const ledger =
-    options.backend === 'modelApi' &&
-    options.budgetUsd !== undefined &&
-    options.maxRequests !== undefined
+    options.backend === 'modelApi' && options.budgetUsd !== undefined
       ? createRunLedger({
           capUsd: options.budgetUsd,
           maxRequests: options.maxRequests,

@@ -404,7 +404,8 @@ export const EN = {
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
-    'max-requests': 'Set the maximum number of model requests.',
+    'max-requests':
+      'Set the maximum number of model requests; without it, there is no request limit.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
     ephemeral: 'Keep the session in memory without saving it.',
@@ -4598,16 +4599,20 @@ export const EN = {
   // language's money format.
   paidTabName: 'Tab Completions',
   paidConfirmTab:
-    'Tab completions send the code around your cursor to Meta as you type, billed to your Model API key. {price} At typical typing that is about $0.80 an hour on Standard and about $0.05 on the contributor model, capped by a daily budget you can change in settings. The contributor model is cheaper, and Meta trains on the code it is sent. Copilot, if on, is yielded to: automatic Tab suggestions pause for its languages unless you run both. Tab asks once per window before its first suggestion.',
+    'Tab completions send the code around your cursor to Meta as you type, billed to your Model API key. {price} At typical typing that is about $0.80 an hour on Standard and about $0.05 on the contributor model. You can set a daily budget in settings; with none set, Tab spending is uncapped. The contributor model is cheaper, and Meta trains on the code it is sent. Copilot, if on, is yielded to: automatic Tab suggestions pause for its languages unless you run both. Tab asks once per window before its first suggestion.',
   paidUseTabTitle: 'Let Tab suggest in this window?',
   paidUseTabDetail:
     'Tab sends the code around your cursor to Meta’s {model} model, billed to your Model API key at {price}. Today’s budget is {budget}; Tab stops for the day if it is reached. {training} Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
+  paidUseTabDetailNoBudget:
+    'Tab sends the code around your cursor to Meta’s {model} model, billed to your Model API key at {price}. No daily budget is set, so Tab keeps suggesting until you turn it off or snooze it. {training} Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
   tabTrainingContributor:
     'The contributor model is cheaper, and Meta trains on the code it is sent.',
   // The status bar item while the feature is on; {spend} is today's spend.
   tabStatusSpend: 'Tab {spend}',
   tabStatusTooltip:
     'Tab completions ({model}). {requests} today, {spend} of the {budget} daily budget.',
+  tabStatusTooltipNoBudget:
+    'Tab completions ({model}). {requests} today, {spend} spent, with no daily budget set.',
   // Each state D73 names; {left} is the snooze's remaining time.
   tabStatusSnoozed: 'Tab snoozed ({left} left)',
   tabStatusBudget: 'Tab daily budget reached',
@@ -4647,6 +4652,8 @@ export const EN = {
   usagePaidTabCostToday: 'Today: {cost}',
   usagePaidTabCostWindow: 'This window: {cost}',
   usagePaidTabBudget: 'Daily budget: {budget}',
+  usagePaidTabBudgetNone: 'No daily budget',
+  usagePaidTabBudgetUnknown: 'Daily budget: not known yet',
   // The prompt and agent hook handlers on the Model API (M91, PLAN.md D70):
   // a paid use under D30 and D48, tallied on their own line.
   paidHookModelName: 'Model Hooks',

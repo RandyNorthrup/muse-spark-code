@@ -34,6 +34,19 @@ happened, not what was planned; superseded entries are kept.
   namespace here and says so once on every surface, naming the two ways
   out, without ever switching the sandbox off on its own.
 
+### Changed
+
+- Tab has no daily budget unless the person sets one: `museSpark.tabDailyBudgetUsd`
+  defaults to `0` (no budget, nothing reserved or locked) instead of `$1.00`,
+  and there is no `$50` ceiling — a set budget starts at `$0.05`. The status
+  bar, the first-request consent popup, Account & usage and the usage history
+  report spend without a cap when none is set, and Account & usage says the
+  budget is not known yet while Tab state has not arrived instead of showing
+  `$1.00`.
+- Headless `exec` has no default request limit: without `--max-requests` a
+  Model API run is not stopped after 30 requests. A set value caps the run
+  at 1–500 requests, and a set `--max-budget-usd` is refused past $20.
+
 ### Fixed
 
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:

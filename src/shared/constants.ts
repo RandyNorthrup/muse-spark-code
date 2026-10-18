@@ -730,8 +730,9 @@ export const SETTING_DEFAULTS = {
   modelApiTab: true,
   // Q-M94b, decided 2026-10-04: Standard, which Meta does not train on.
   tabModel: 'muse-spark-1.3',
-  // Q-M94c, decided 2026-10-04: the hard daily budget in US dollars.
-  tabDailyBudgetUsd: 1,
+  // The daily budget in US dollars: 0 is no budget (nothing reserved or
+  // locked); only a budget the person sets caps the local day.
+  tabDailyBudgetUsd: 0,
   // Shaped like Copilot's `github.copilot.enable` with the same default
   // (V12): every language on except plaintext, markdown and scminput.
   tabLanguages: { '*': true, plaintext: false, markdown: false, scminput: false },
@@ -2522,11 +2523,12 @@ export const TAB_HOLE_MARKER = '{{FILL_HERE}}'
 // The reply is the text between these two fixed tags (L8).
 export const TAB_REPLY_OPEN_TAG = '<COMPLETION>'
 export const TAB_REPLY_CLOSE_TAG = '</COMPLETION>'
-// The hard daily budget's default (Q-M94c, decided 2026-10-04).
-export const TAB_DAILY_BUDGET_DEFAULT_USD = 1
-// The daily budget setting's bounds (D73).
+// The daily budget the person sets (`museSpark.tabDailyBudgetUsd`): 0 is no
+// budget (nothing reserved or locked), anything else caps the local day, with
+// no ceiling. The dust floor below keeps a set budget above display noise.
+export const TAB_NO_BUDGET_USD = 0
+// The daily budget setting's dust floor (D73).
 export const TAB_DAILY_BUDGET_MIN_USD = 0.05
-export const TAB_DAILY_BUDGET_MAX_USD = 50
 // Files past this are never read into a request (D73: 192 KiB).
 export const TAB_FILE_MAX_BYTES = 192 * 1024
 // The status-bar menu's timed snoozes: 15 minutes and an hour.
@@ -4143,10 +4145,10 @@ export const EXEC_RAW_TOOL_FIELDS = ['rawInput', 'rawOutput', 'toolCallId'] as c
 export const EXEC_DEFAULT_TIMEOUT_SECONDS = 1800
 export const EXEC_MIN_TIMEOUT_SECONDS = 10
 export const EXEC_MAX_TIMEOUT_SECONDS = 21_600
-export const EXEC_DEFAULT_MAX_REQUESTS = 30
-// D121: the person's --max-requests and --max-budget-usd stay, with no
-// ceiling of ours (the removed EXEC_MAX_REQUESTS = 500 and
-// EXEC_MAX_BUDGET_USD = 20 were invented; no provider documents them).
+// No default request limit: without `--max-requests` the person set, a run
+// has no request cap. A set value is bounded below.
+export const EXEC_MAX_REQUESTS = 500
+export const EXEC_MAX_BUDGET_USD = 20
 export const EXEC_PROMPT_MAX_BYTES = 262_144
 // Bound synchronous schema expansion and answer validation so Stop can run.
 export const EXEC_OUTPUT_SCHEMA_LIMITS = { expandedNodes: 50_000, validationSteps: 10_000 } as const

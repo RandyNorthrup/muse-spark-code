@@ -391,12 +391,13 @@ function isBackendAccountingValid(value: ExecResult): boolean {
     )
   }
   // An early failed setup may have no accounting yet; completion always does.
+  // The request cap is the person's to set: without `--max-requests` there is
+  // no limit, so a completed run may carry a null one.
   if (
     ledger === null ||
     cost === null ||
     value.usage.requests === null ||
-    value.limits.budgetUsd === null ||
-    value.limits.maxRequests === null
+    value.limits.budgetUsd === null
   )
     return value.status !== 'completed'
   const cap = microUsd(ledger.capUsd)

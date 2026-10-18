@@ -145,11 +145,23 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
     }
     case 'tab': {
       // Tab bills the request's model per token (M94, PLAN.md D73): the
-      // popup names its rates, today's budget and the training note. An
-      // unpriced model has no rate to quote, so it never reaches a popup.
+      // popup names its rates, today's budget and the training note. With no
+      // budget set it says so instead of naming one. An unpriced model has
+      // no rate to quote, so it never reaches a popup.
       const tier = modelApiPaidTier(request.modelId)
       if (tier === undefined) {
         throw new Error(UI_TEXT.subagentTariffUnknown)
+      }
+      const training = tier === 'contributor' ? UI_TEXT.tabTrainingContributor : ''
+      if (Usd.from(request.budgetUsd).compare(Usd.from(0)) === 0) {
+        return {
+          title: UI_TEXT.paidUseTabTitle,
+          detail: fill(UI_TEXT.paidUseTabDetailNoBudget, {
+            model: request.modelId,
+            price: scheduledRunPrice(request.modelId),
+            training,
+          }),
+        }
       }
       return {
         title: UI_TEXT.paidUseTabTitle,
@@ -157,7 +169,7 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
           model: request.modelId,
           price: scheduledRunPrice(request.modelId),
           budget: formatUsd(request.budgetUsd, 2),
-          training: tier === 'contributor' ? UI_TEXT.tabTrainingContributor : '',
+          training,
         }),
       }
     }

@@ -2,7 +2,6 @@ import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   createRunLedger,
-  previewResponseReservation,
   type ResponseTicket,
   type RunLedger,
 } from '../../src/runtime/exec/runLedger'
@@ -69,15 +68,16 @@ describe('M80 ledger integer admission and retained liability', () => {
   it.each([0, 0.5, NaN, Infinity])('rejects invalid request cap %s', (maxRequests) => {
     expect(() => createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests })).toThrow()
   })
-  it('D121 admits a request cap past the removed 500 ceiling', () => {
-    const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 501 })
-    expect(l.totals().requests).toBe(0)
-  })
-  it('D121 quotes the full one-response reservation past a below-minimum run cap', () => {
-    const l = createRunLedger({ capUsd: Usd.from(0.1).toAmount(), maxRequests: 30 })
-    expect(previewResponseReservation(l, 'muse-spark-1.3-contributor', price).reserveUsd).toBe(
-      Usd.from(0.108135).toAmount(),
-    )
+  it('admits past any count when the person set no request cap', () => {
+    // NOLIMITS5: without `--max-requests` there is no request limit. Forty
+    // sequential admissions (past the old default of 30) settle tiny usage
+    // against a $20 cap and none is refused for requests.
+    const l = createRunLedger({ capUsd: Usd.from(20).toAmount(), maxRequests: undefined })
+    for (let n = 0; n < 40; n += 1) {
+      const ticket = response(l)
+      l.settleResponse(ticket, eof())
+    }
+    expect(l.totals().requests).toBe(40)
   })
   it('F1/L9 rounds contributor reservation upward and preserves isStandard minimum', () => {
     expect(
@@ -279,18 +279,12 @@ describe('M80 ledger integer admission and retained liability', () => {
     ).toEqual({ refused: 'unpriced' })
     for (const cap of [0, -1, 0.0000001, 0.1081351, Infinity])
       expect(() => createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 })).toThrow()
-    // D121: a budget past the removed $20 ceiling admits.
-    expect(
-      createRunLedger({ capUsd: Usd.from(25).toAmount(), maxRequests: 1 }).totals().requests,
-    ).toBe(0)
-    // PR229FIX T3: a budget past 9007199254.740991 USD (micro-USD above
-    // Number.MAX_SAFE_INTEGER, which the old units() ceiling refused)
-    // admits and round-trips exactly.
-    expect(
-      createRunLedger({ capUsd: Usd.from('9007199255').toAmount(), maxRequests: 1 }).totals(),
-    ).toMatchObject({
-      capUsd: Usd.from('9007199255').toAmount(),
-      remainingUsd: Usd.from('9007199255').toAmount(),
-    })
+    // NOLIMITS5: a set budget past the $20 set-value ceiling refuses
+    // (D121's removal held for one release; PR #228 settles the ceiling).
+    expect(() => createRunLedger({ capUsd: Usd.from(25).toAmount(), maxRequests: 1 })).toThrow()
+    // PR229FIX T3's huge budget is refused past $20 the same way.
+    expect(() =>
+      createRunLedger({ capUsd: Usd.from('9007199255').toAmount(), maxRequests: 1 }),
+    ).toThrow()
   })
 })

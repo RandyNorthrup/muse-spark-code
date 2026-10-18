@@ -6,10 +6,10 @@ import {
   type AcpBackendKind,
   EFFORT_LEVELS,
   type EffortLevel,
-  EXEC_DEFAULT_MAX_REQUESTS,
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
   EXEC_DEFAULT_TIMEOUT_SECONDS,
+  EXEC_MAX_REQUESTS,
   EXEC_MAX_TIMEOUT_SECONDS,
   EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MODES,
@@ -222,16 +222,16 @@ export function parseExec(
     EXEC_MIN_TIMEOUT_SECONDS,
     EXEC_MAX_TIMEOUT_SECONDS,
   )
-  const maxRequests = integer(
-    values['max-requests'],
-    EXEC_DEFAULT_MAX_REQUESTS,
-    1,
-    Number.MAX_SAFE_INTEGER,
-  )
+  // No default: without `--max-requests` the run has no request limit. A set
+  // value stays within 1–EXEC_MAX_REQUESTS, like the budget grammar below.
+  const maxRequests =
+    values['max-requests'] === undefined
+      ? undefined
+      : integer(values['max-requests'], 0, 1, EXEC_MAX_REQUESTS)
   const budgetUsd = budgetUnits(values['max-budget-usd'])
   if (
     timeout === undefined ||
-    maxRequests === undefined ||
+    (maxRequests === undefined && values['max-requests'] !== undefined) ||
     (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
   )
     return invalid(UI_TEXT.execNumberInvalid)

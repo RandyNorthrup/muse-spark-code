@@ -44,8 +44,8 @@ import {
   type ShellSandboxMode,
   USAGE_HISTORY_DAYS_MIN,
   USAGE_HISTORY_DAYS_MAX,
-  TAB_DAILY_BUDGET_MAX_USD,
   TAB_DAILY_BUDGET_MIN_USD,
+  TAB_NO_BUDGET_USD,
   TAB_MODELS,
   TAB_MULTILINE_MODES,
   TAB_TRIGGER_MODES,
@@ -256,11 +256,12 @@ const settingSchemas = {
   modelApiAutoReviewer: z.boolean(),
   modelApiTab: z.boolean(),
   tabModel: z.enum(TAB_MODELS),
+  // 0 is no budget; a set budget starts at the dust floor, with no ceiling.
   tabDailyBudgetUsd: legacyUsdSchema.check(
     z.refine(
       (value) =>
-        Usd.from(value).compare(Usd.from(TAB_DAILY_BUDGET_MIN_USD)) >= 0 &&
-        Usd.from(value).compare(Usd.from(TAB_DAILY_BUDGET_MAX_USD)) <= 0,
+        Usd.from(value).compare(Usd.from(TAB_NO_BUDGET_USD)) === 0 ||
+        Usd.from(value).compare(Usd.from(TAB_DAILY_BUDGET_MIN_USD)) >= 0,
     ),
   ),
   tabLanguages: z.record(z.string(), z.boolean()),
