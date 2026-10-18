@@ -65,16 +65,19 @@ same amount was kept as "unresolved" liability, still blocking requests.
   `src/runtime/runtimeAccountingEntry.ts:147` after reading only the
   settings file: no spend record is read and nothing is written.
 - A reservation is never spend; a response without usage is cost unknown and
-  adds nothing (`src/core/backends/modelapi/ModelApiHost.ts:4066-4101`).
+  adds nothing (`src/core/backends/modelapi/ModelApiHost.ts:4024-4032`).
 - The agent's daily stop says "daily budget" and names
   `paidDailyBudgetUsd` (`src/runtime/runtimeAccountingEntry.ts:157-162`).
 - The old ledger files are not read, so a day's total restarts from what
   calls report under the new files.
-- **Not changed:** the `120` in that settings file. The code cannot tell an
-  agent's write from a person's, so it treats the file as a limit the
-  person set. Removing the key is the owner's decision (lead, 2026-10-17:
-  leave it untouched). `mx-lanebuild\dist` keeps the old behaviour until it
-  is rebuilt from this branch.
+- **The `120` in that settings file:** the lead removed the key earlier on
+  2026-10-17 (review RVRVSPENDSIMPLE). Nothing on this branch depends on
+  it: a missing file or a missing key reads as the default, none
+  (`src/runtime/runtimeAccountingEntry.ts:110-131`), proven by
+  `runtimeDailyBudget.test.ts`. While the key was there, the code could
+  not tell an agent's write from a person's, so it treated the file as a
+  limit the person set. `mx-lanebuild\dist` keeps the old behaviour until
+  it is rebuilt from this branch.
 
 ## The design (PLAN.md D121)
 
@@ -241,8 +244,9 @@ plus `test/e2e/reports.e2e.test.ts` (Windows symlink permission).
 
 ## Left undone, named plainly
 
-- The `120` in `C:\Users\Randy\AppData\Local\Muse Spark Code\settings.json`
-  stays until the owner decides; it is still read as a $120 daily limit.
+- The `120` key in `C:\Users\Randy\AppData\Local\Muse Spark Code\settings.json`
+  was removed by the lead earlier on 2026-10-17; with no key the agent has
+  no daily limit (see above).
 - The exec run ledger otherwise keeps its published v2 rules: a response
   that went out and reported no usage stays "uncertain" at its reservation
   within that run (never carried to another run or to the daily total), and
