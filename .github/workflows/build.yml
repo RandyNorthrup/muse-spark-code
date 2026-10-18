@@ -547,12 +547,14 @@ jobs:
       - run: chmod +x dist/native/darwin/muse-vault
       - run: chmod +x native/darwin/muse-dictate
       - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
+      # Dependencies first: the pin checker imports esbuild to load the
+      # pins module, so it cannot run before `npm ci`.
+      - run: npm ci
       # D140: the Linux dictation helper ships as same-tag release assets,
       # never in the VSIX. Regenerate its pins from these built helpers so
       # the packaged extension embeds their exact digests; unset pins fail.
       - run: node scripts/build-linux-helper-pins.mjs native/linux/x64 native/linux/arm64
       - run: node scripts/check-linux-helper-pins.mjs --require-values
-      - run: npm ci
       - run: npm run package
         env:
           # The packaged-README badge check lists public main (GitHub API).
