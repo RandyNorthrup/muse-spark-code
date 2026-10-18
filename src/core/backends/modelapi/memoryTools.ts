@@ -123,7 +123,8 @@ function parsed(name: string, argsJson: string): Located<MemoryCall> {
   let raw: unknown
   try {
     raw = JSON.parse(argsJson)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return { ok: false, reason: 'arguments are not valid JSON' }
   }
   switch (name) {

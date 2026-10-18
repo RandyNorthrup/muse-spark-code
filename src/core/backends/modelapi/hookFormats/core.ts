@@ -71,7 +71,8 @@ export function splitMcpName(name: string): { server: string; tool: string } | u
 export function jsonOutput(stdout: string): unknown {
   try {
     return JSON.parse(stdout)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }

@@ -234,7 +234,8 @@ function httpLaunch(
   let parsed: URL
   try {
     parsed = new URL(url)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof TypeError)) throw error
     throw new EntryProblem('its url is not a URL')
   }
   if (!HTTP_SCHEMES.has(parsed.protocol)) {
