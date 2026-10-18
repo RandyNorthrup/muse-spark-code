@@ -64,7 +64,8 @@ const BUDGETS = [
   // M118: local CLI/ACP stores, renderer and destinations: 152.1 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/sharingRuntime.js', budgetKiB: 175 },
   // M124 (D106): the MCP connector, loaded only by `mcp`: 85.8 KiB measured + 15%, rounded to 25 KiB.
-  { path: 'dist/connector.js', budgetKiB: 100 },
+  // TRAINFIX: train growth (M124 merge + main PROVERRORS) measures 100.0 KiB; +15%, rounded to 25 KiB.
+  { path: 'dist/connector.js', budgetKiB: 125 },
   // REL0160B combined Model API: 479.2 KiB measured +5%, rounded to 25 KiB;
   // authorized rebuild brief and measurement recorded in PLAN.md (2026-10-07).
   { path: 'dist/modelApi.js', budgetKiB: 525 },
@@ -291,7 +292,8 @@ const BUDGETS = [
   // M105's trusted media inspector stays in its first-use media bundle.
   { path: 'dist/acp.js', budgetKiB: 850 },
   // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
-  { path: 'dist/headless.js', budgetKiB: 100 },
+  // TRAINFIX: train growth + plan-model preflight measures 100.2 KiB; +15%, rounded to 25 KiB.
+  { path: 'dist/headless.js', budgetKiB: 125 },
   // M114 F: runtime-only installer, measured with the shared validation API.
   { path: 'dist/fontsInstall.js', budgetKiB: 25 },
   { path: 'dist/scheduleBackground.js', budgetKiB: 50 },
