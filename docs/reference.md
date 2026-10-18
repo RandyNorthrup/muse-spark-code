@@ -3549,7 +3549,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
 - `exec: --max-budget-usd <value>`: Set the spending reservation limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
 - `exec: --max-requests <value>`: Set the maximum number of model requests. `{"type":"string","repeatable":false,"default":30,"minimum":1,"maximum":500,"purpose":"maxRequests"}`
-- `exec: --max-output-tokens <value>`: Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it. `{"type":"string","repeatable":false,"minimum":16,"maximum":32768,"unit":"tokens","purpose":"max-output-tokens"}`
+- `exec: --max-output-tokens <value>`: Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it. `{"type":"string","repeatable":false,"minimum":1,"maximum":32768,"unit":"tokens","purpose":"max-output-tokens"}`
 - `exec: --timeout <value>`: Set the run deadline in seconds. `{"type":"string","repeatable":false,"default":1800,"minimum":10,"maximum":21600,"unit":"seconds","purpose":"timeoutMs"}`
 - `exec: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"muse-binary"}`
 - `exec: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"shell-sandbox"}`

@@ -853,8 +853,10 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       minimum: 1,
       maximum: source.EXEC_MAX_REQUESTS,
     },
+    // The parse floor stays 1; the selected model's own provider minimum
+    // applies at admission and at the send.
     'max-output-tokens': {
-      minimum: source.EXEC_MIN_OUTPUT_TOKENS,
+      minimum: 1,
       maximum: source.MODEL_API_MAX_OUTPUT_TOKENS,
       unit: 'tokens',
     },
