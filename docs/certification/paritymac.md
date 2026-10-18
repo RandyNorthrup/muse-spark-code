@@ -427,6 +427,61 @@ the first session run outputs `ALLOWED_CANARY` and the rewritten secret
 run refuses with `secret`. Any remaining refusal now names its reason in
 the assertion message.
 
+## Item 1e — PARITYMAC5: the session self-test passes (8/10 → 10/10)
+
+Cause (from the code; the probe and profile are now fine — all 8 raw
+drills pass). `InspectRunner.selfTest()` (`src/core/judge/fast/inspectExec.ts`)
+created ONE `home` dir and passed it to BOTH confined self-test executes
+(`cat allowed.txt`, then `grep -r -e 'B1_.*_CANARY' .`). The Mac helper
+consumes its home on every run (`check_home` demands it empty,
+`open_profile` creates `profile.sb` with `O_EXCL`), so the second execute
+always refuses `home` (exit 125, `{"refused":"home"}`) — while the Linux
+helper never writes into home, so the mirrored Linux self-test passes.
+`selfTest()` dropped that reason, the runner latched generic `selfTest`,
+and both runner drills refused on the first run. Two changes, both in
+`selfTest()` — no helper, profile, refusal or skip touched:
+
+- Each self-test probe gets a fresh home (`b1-self-home-*` under the
+  self-test root, removed with it), the same fresh-home-per-run contract
+  every session run (`inspect()` → `b1-home-*`) and every drill fixture
+  already follows.
+- The latched refusal adopts the failing probe's own refused reason (cat
+  and grep steps, as the probe step already did). Probes run probe, cat,
+  grep in order and the first failure sticks, so the reason identifies
+  which probe failed and why; the refusal shape and vocabulary are
+  unchanged, no new strings. Had this run first, the rerun would have
+  shown `{kind:'refused', reason:'home'}` on the grep probe.
+
+Proven in this sandbox 2026-10-18 (live Seatbelt still needs the lead's
+unsandboxed Mac, as before):
+
+- Real binary, repo flags, direct CLT cc + MacOSX SDK (the repo script's
+  `/usr/bin/cc` shim still fails on the rig's broken `xcode-select`).
+  Self-test-shaped fixture (allowed/seeded `.git/config`, `.env`,
+  symlink, hardlink): first `run` prints
+  `{"confined":true,"abi":1,"excluded":0}`, writes `home1/profile.sb`,
+  and fails solely at `sandbox_apply` (exit 71, this shell's nested
+  sandbox); the same home reused refuses `{"refused":"home"}` exit 125
+  with empty stdout — the exact failure the shared home forced on the
+  grep probe; a fresh home proceeds like the first run.
+- No new committed test: the two live runner drills ARE the coverage
+  (they fail pre-fix, pass post-fix on a sandbox-capable Mac). A narrower
+  test would need a fake helper or start function (forbidden: no fakes),
+  and without a sandbox the probe step fails first on every platform, so
+  no honest deterministic unit test can reach the changed lines.
+- Gates on the final tree: prettier clean, eslint zero warnings,
+  typecheck all five projects exit 0, `test/unit/inspectNative.test.ts`
+  10 skipped / 0 failed here at the repo default timeout.
+
+What the lead's unsandboxed rerun must show (`npm ci
+--ignore-scripts`, `npm run build:confine`, `npx vitest run
+test/unit/inspectNative.test.ts`): 10/10 green — the two runner drills
+pass through a passing session self-test (find lists `.git/config`
+without its contents, grep reports `excluded > 0`; first session run
+outputs `ALLOWED_CANARY`, rewritten secret refuses `secret`). Any
+future self-test failure names its probe's own reason instead of bare
+`selfTest`.
+
 ## Drills
 
 - Item 3 and item 2 drills ran live on this Mac (above).

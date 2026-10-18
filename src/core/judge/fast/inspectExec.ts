@@ -283,10 +283,8 @@ export class InspectRunner {
     try {
       await mkdir(this.options.storage, { recursive: true, mode: 0o700 })
       root = await mkdtemp(path.join(this.options.storage, 'b1-test-'))
-      const workspace = path.join(root, 'workspace'),
-        home = path.join(root, 'home')
+      const workspace = path.join(root, 'workspace')
       await mkdir(workspace, { mode: 0o700 })
-      await mkdir(home, { mode: 0o700 })
       const identity = fileIdentityKey(await statIdentity(workspace))
       if (identity === undefined) return false
       const binding = { root: workspace, identity }
@@ -311,7 +309,13 @@ export class InspectRunner {
       await mkdir(path.join(workspace, '.git'))
       await writeFile(path.join(workspace, '.git', 'config'), forbidden)
       await writeFile(path.join(workspace, '.env'), forbidden)
-      const cat = await this.execute('cat allowed.txt', binding, home, this.lifetime.signal)
+      // The macOS helper consumes its home dir on every run (it writes
+      // profile.sb there with O_EXCL and demands it empty), while the Linux
+      // helper never writes there — so a shared self-test home always fails
+      // the second check on a Mac. Each probe gets a fresh home, the same
+      // fresh-home-per-run contract every session run already follows.
+      const catHome = await mkdtemp(path.join(root, 'b1-self-home-'))
+      const cat = await this.execute('cat allowed.txt', binding, catHome, this.lifetime.signal)
       if (cat.kind !== 'output' || cat.stdout !== allowed || cat.exitCode !== 0) {
         // The latched refusal names the failing probe's own reason. Probes
         // run in probe, cat, grep order and the first failure sticks, so the
@@ -319,10 +323,11 @@ export class InspectRunner {
         if (cat.kind === 'refused') this.offReason = cat.reason
         return false
       }
+      const grepHome = await mkdtemp(path.join(root, 'b1-self-home-'))
       const grep = await this.execute(
         "grep -r -e 'B1_.*_CANARY' .",
         binding,
-        home,
+        grepHome,
         this.lifetime.signal,
       )
       if (
