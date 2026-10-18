@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import {
   estimateFailureText,
@@ -18,7 +18,7 @@ import { buildPlanSnapshot } from '../../src/core/estimator/planSnapshot'
 import { buildEstimateDag } from '../../src/core/estimator/dag'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
-import { fakeEstimate } from './helpers/estimator/kindFixtures'
+import { sectionVector } from './helpers/estimator/sectionVectors'
 import {
   ESTIMATE_DIAGNOSTIC_CASES,
   ESTIMATE_SURFACES,
@@ -28,18 +28,29 @@ import {
 const plan = (starts: string) =>
   `## 6. Milestones\n\n### M112 — Questions\n\n**Status 2026-10-10: planned.**\n\n| Lane | Items | Starts | Hours |\n| --- | --- | --- | --- |\n| Q | 1 | ${starts} | 4 |\n`
 const byText = (a: string, b: string) => (a < b ? -1 : Number(a > b))
-const section = fakeEstimate()
+const section = sectionVector()
 const context = { asOf: section.asOf, optimize: 'cost' } as const
 const options = { goal: section.inputs.request.goal, fleet: 'current', format: 'text' } as const
 const money = { price: () => 'test-price' }
-const finished = { subscribe: () => vi.fn() }
-const runner = (diagnostic: EstimateDiagnostic) => ({
-  estimate: vi.fn().mockResolvedValueOnce(section).mockRejectedValue(diagnostic),
-})
+const unsubscribe = () => undefined
+const finished = { subscribe: () => unsubscribe }
+const runner = (diagnostic: EstimateDiagnostic) => {
+  let calls = 0
+  return {
+    estimate: () => {
+      calls += 1
+      if (calls === 1) return Promise.resolve(section)
+      // The runner port rejects with the diagnostic object itself, and the
+      // surfaces assert that object flows through unchanged.
+      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+      return Promise.reject(diagnostic)
+    },
+  }
+}
 const port = (diagnostic: EstimateDiagnostic): EstimatorPanelPort => ({
   context: () => context,
   estimate: () => Promise.resolve(diagnostic),
-  subscribe: () => vi.fn(),
+  subscribe: () => unsubscribe,
   startExisting: () => Promise.resolve(diagnostic),
   price: () => 'test-price',
   provision: { state: 'waiting', dependency: 'test-provider' },
@@ -72,8 +83,14 @@ afterEach(() => {
 
 const surfaces = {
   cli: async (diagnostic: EstimateDiagnostic, text: string) => {
-    const output = vi.fn()
-    const error = vi.fn()
+    const outputLines: unknown[][] = []
+    const errorLines: unknown[][] = []
+    const output = (...args: unknown[]) => {
+      outputLines.push(args)
+    }
+    const error = (...args: unknown[]) => {
+      errorLines.push(args)
+    }
     const deps = {
       context: () => context,
       runner: runner(diagnostic),
@@ -83,10 +100,10 @@ const surfaces = {
       signal: new AbortController().signal,
     }
     expect(await runEstimateCommand(['M117'], deps)).toBe(0)
-    output.mockClear()
+    outputLines.length = 0
     expect(await runEstimateCommand(['M117'], deps)).toBe(1)
-    expect(error).toHaveBeenLastCalledWith(text)
-    expect(output).not.toHaveBeenCalled()
+    expect(errorLines.at(-1)).toEqual([text])
+    expect(outputLines).toHaveLength(0)
   },
   acp: async (diagnostic: EstimateDiagnostic, text: string) => {
     const run = runner(diagnostic)
@@ -143,7 +160,10 @@ const surfaces = {
     expect(store.getState().estimator).not.toHaveProperty('section')
   },
   terminal: async (diagnostic: EstimateDiagnostic, text: string) => {
-    const show = vi.fn()
+    const shown: unknown[][] = []
+    const show = (...args: unknown[]) => {
+      shown.push(args)
+    }
     const session = await openEstimateTui(options, {
       context,
       runner: runner(diagnostic),
@@ -151,9 +171,9 @@ const surfaces = {
       money,
       view: () => ({ show }),
     })
-    expect(show.mock.lastCall?.[1]).toContain(UI_TEXT.estimateP50)
+    expect(shown.at(-1)?.[1]).toContain(UI_TEXT.estimateP50)
     await session.refresh()
-    expect(show.mock.lastCall).toEqual([UI_TEXT.estimateTitle, text])
+    expect(shown.at(-1)).toEqual([UI_TEXT.estimateTitle, text])
     session.dispose()
   },
 }
@@ -173,7 +193,11 @@ describe('M117 diagnostic × real surface replacement table', () => {
           ['/estimateDiagnostic.ts', '/estimateView.ts'].every(
             (suffix) => !file.replaceAll('\\', '/').endsWith(suffix),
           ) &&
-          /\bestimateFailureText\(|\bUI_TEXT\.estimateFailed\b/.test(readFileSync(file, 'utf8')),
+          // M113's estimate source renders through the report's installed
+          // table (reportText), not the global one.
+          /\bestimateFailureText\(|\bUI_TEXT\.estimateFailed\b|\breportText\.estimateFailed\b/.test(
+            readFileSync(file, 'utf8'),
+          ),
       )
       .map((file) => file.replaceAll('\\', '/'))
       .toSorted(byText)
