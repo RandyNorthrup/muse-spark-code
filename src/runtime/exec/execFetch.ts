@@ -96,7 +96,9 @@ export function execFetch(input: {
     let parsed: URL
     try {
       parsed = new URL(url)
-    } catch {
+    } catch (error) {
+      // Only an invalid address fails here; anything else is not this parse's answer.
+      if (!(error instanceof TypeError)) throw error
       return refuse('request_shape')
     }
     const base = new URL(MODEL_API_BASE_URL)
@@ -135,7 +137,9 @@ export function execFetch(input: {
     let data: unknown
     try {
       data = JSON.parse(body)
-    } catch {
+    } catch (error) {
+      // Only malformed text fails here; anything else is not this parse's answer.
+      if (!(error instanceof SyntaxError)) throw error
       return refuse('request_shape')
     }
     const responseShape = requestSchema(input.ledger.outputCap).safeParse(data)
@@ -414,9 +418,11 @@ export function execFetch(input: {
           let value: unknown
           try {
             value = JSON.parse(event.data)
-          } catch {
+          } catch (error) {
+            // Only malformed text fails here; anything else is not this frame's answer.
+            if (!(error instanceof SyntaxError)) throw error
             why = 'malformed'
-            throw new Error(UI_TEXT.execRequestShape)
+            throw new Error(UI_TEXT.execRequestShape, { cause: error })
           }
           const boundary = z.looseObject({ type: z.string() }).safeParse(value)
           if (!boundary.success) {
@@ -482,6 +488,9 @@ export function execFetch(input: {
         },
       })
       void response.body.pipeTo(transform.writable, { signal }).catch(() => {
+        // Every pipe failure is already settled through the reader, the
+        // abort listener or the consumer's cancel, and settle and abort are
+        // idempotent: this branch only stops the pump.
         lost()
         controller.abort()
       })
