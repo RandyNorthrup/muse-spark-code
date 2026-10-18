@@ -364,6 +364,15 @@ export function modelEffortLevels(
 }
 
 /**
+ * The refusal an editor reads for a level the model does not serve: the
+ * sentence plus the levels it does serve, the same words headless `exec`
+ * refuses with, so both surfaces name the choice.
+ */
+export function effortRefusalData(models: readonly ModelSummary[], modelId: string): string {
+  return `${UI_TEXT.execEffortUnavailable} --effort: ${modelEffortLevels(models, modelId).join(', ')}`
+}
+
+/**
  * The level a new session selects: the model's own default where the
  * backend knows it and serves it, else the standing default (a chosen
  * level still wins: applyEffort keeps every tier the model serves).
@@ -1863,7 +1872,7 @@ class AcpSession {
       throw RequestError.invalidParams(undefined, configId)
     }
     if (!isEffortLevel(value) || !modelEffortLevels(this.models, this.modelId).includes(value)) {
-      throw RequestError.invalidParams(undefined, value)
+      throw RequestError.invalidParams(undefined, effortRefusalData(this.models, this.modelId))
     }
     await this.applyEffort(value)
     this.isEffortChosen = true
