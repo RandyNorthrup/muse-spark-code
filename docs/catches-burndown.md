@@ -44,6 +44,67 @@ Designed baselines with reasons (accepted, not forgotten):
   setup: fixed in PR161FIN (named closers, kind words, cause slots).
 - Everything else below: pre-existing, grouped for area-by-area lanes.
 
+Lane CATCHHOST2 designed baselines (0.19.0; every one read in place, its
+fail-closed words proven by a real-failure test unless noted):
+
+- `src/host/auth/cliAccount.ts` (2): the credential-file tri-state
+  boundary — missing (ENOENT/ENOTDIR) reads as absent, anything else as
+  `unrecognized` with the `unreadable` signature; never a value from the
+  file, never a throw (`cliCredentialFile` tests: a real missing file, real
+  garbage).
+- `src/host/auth/credentialRead.ts` (3): every SecretStorage, provider-list
+  and provider-entry failure maps onto the closed `unreadable` kind and
+  warns once per kind with the kind only; presence answers stay tri-state
+  and never read as absence.
+- `src/host/editor/verifyEditor.ts` (2): a file that cannot be stat or read
+  cannot be compared, so it stays "not checked"; the check reruns on the
+  next report (vscode-bound, no logger seam).
+- `src/host/judge/museCodeSameJudge.ts` (1): a temp folder that cannot be
+  removed is logged through `failureForLog` directly (the unverifiable
+  `describeFailure` seam is removed) and disposal continues.
+- `src/host/models/accountsHandler.ts` (1): only fixed bridge codes leave
+  (`providersInvalid`, `invalidAccount`, `notOffered`, `unavailable`); a raw
+  adapter error, which may contain a credential, never crosses
+  (`accountsHandlerErrors` tests).
+- `src/host/prompts/promptEntry.ts` (3): the `safePromptFailure` boundary —
+  fixed words to the log and the surface, the cause discarded by design
+  since it may hold paths or prompt text (`promptFailure` tests).
+- `src/host/runners/sshRunner.ts` (4): every probe and act failure releases
+  admission and answers fixed notices or `uncertain`/`offline`; the runner
+  carries no logger seam (`sshRunnerUnreachable` test: a real refused
+  connection).
+- `src/host/support/reportJournal.ts` (13): storage failures centralize in
+  `disable(error)` — one warn with the closed code, `isAvailable` false
+  afterwards; a marker a peer just consumed races as missing, and anything
+  else stays for the next start rather than producing an offer from garbage.
+- `src/host/support/reportProblem.ts` (4): export answers stay in the fixed
+  `ReportExportOutcome` vocabulary; a refused browser open reads as not
+  opened (`reportProblemOutcomes` tests).
+- `src/host/support/reportRecorder.ts` (1): a load failure hands the
+  original error to `onUnavailable` and answers undefined
+  (`reportRecorderUnavailable` test).
+- `src/host/tab/tabBundle.ts` (1): completions stay quiet when the provider
+  is not loaded yet — typing never breaks (vscode-bound).
+- `src/host/team/processLifetime.ts` (4): probes answer false as capability
+  data; an unreadable cgroup stays `uncertain`, never invented proof; the
+  kill-signal fallback re-reads the scope file — a two-failure decision
+  (absent cgroup keeps `uncertain`, anything else rethrows the signal
+  failure) the classifier cannot express.
+- `src/host/team/teamJournal.ts` (3): reads answer the typed `JournalRead`
+  (`missing`, `broken`, record); torn records stay as evidence and are never
+  moved without authority (`teamEvidence` tests: real torn files).
+- `src/host/team/windowHints.ts` (1): an unreadable journal disables hints
+  and reads none; the owner is notified through `disabled()`
+  (`windowHintsRecovery` tests: a real blocking file, a real fatal file).
+- `src/host/voice/voiceProcesses.ts` (2): helper failures reach the
+  listeners as `error` events (an abort reads as a SIGTERM exit); the
+  emitter is the delivery channel.
+- `src/host/web/hookHttpRequest.ts` (1): the retry loop keeps the last
+  failure and throws it after the budget; an abort supersedes through
+  `throwIfAborted`.
+- `src/host/web/webFetchBundle.ts` (1): a bundle-loader failure answers
+  `unavailable()`; the loader logged the file and the cause.
+
 | Folder                 | GENERIC | SWALLOW |
 | ---------------------- | ------- | ------- |
 | src                    | 9       | 3       |
@@ -83,36 +144,36 @@ Designed baselines with reasons (accepted, not forgotten):
 | src/core/voice         | 3       | 3       |
 | src/core/web           | 8       | 3       |
 | src/host               | 31      | 1       |
-| src/host/auth          | 8       | 0       |
+| src/host/auth          | 5       | 0       |
 | src/host/backend       | 35      | 4       |
-| src/host/bestOfN       | 1       | 0       |
+| src/host/bestOfN       | 0       | 0       |
 | src/host/browser       | 10      | 6       |
 | src/host/checkpoints   | 14      | 6       |
 | src/host/commands      | 17      | 2       |
 | src/host/conversation  | 111     | 9       |
-| src/host/editor        | 9       | 0       |
-| src/host/estimator     | 1       | 0       |
+| src/host/editor        | 2       | 0       |
+| src/host/estimator     | 0       | 0       |
 | src/host/git           | 20      | 5       |
-| src/host/ide           | 2       | 0       |
-| src/host/judge         | 2       | 1       |
-| src/host/media         | 1       | 2       |
-| src/host/mention       | 1       | 0       |
-| src/host/models        | 4       | 2       |
-| src/host/prompts       | 4       | 0       |
+| src/host/ide           | 0       | 0       |
+| src/host/judge         | 1       | 0       |
+| src/host/media         | 0       | 0       |
+| src/host/mention       | 0       | 0       |
+| src/host/models        | 1       | 0       |
+| src/host/prompts       | 3       | 0       |
 | src/host/providers     | 8       | 8       |
-| src/host/resources     | 1       | 2       |
+| src/host/resources     | 0       | 0       |
 | src/host/review        | 11      | 1       |
 | src/host/runners       | 4       | 0       |
 | src/host/skills        | 10      | 0       |
-| src/host/support       | 18      | 1       |
-| src/host/tab           | 10      | 2       |
-| src/host/team          | 11      | 10      |
-| src/host/usage         | 1       | 0       |
+| src/host/support       | 18      | 0       |
+| src/host/tab           | 1       | 0       |
+| src/host/team          | 8       | 0       |
+| src/host/usage         | 0       | 0       |
 | src/host/vault         | 3       | 4       |
-| src/host/views         | 1       | 0       |
-| src/host/voice         | 3       | 0       |
-| src/host/web           | 4       | 0       |
-| src/host/whatsNew      | 3       | 0       |
+| src/host/views         | 0       | 0       |
+| src/host/voice         | 2       | 0       |
+| src/host/web           | 2       | 0       |
+| src/host/whatsNew      | 0       | 0       |
 | src/runtime            | 42      | 6       |
 | src/runtime/companion  | 2       | 5       |
 | src/runtime/estimator  | 1       | 0       |
