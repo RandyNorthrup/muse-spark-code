@@ -35415,6 +35415,19 @@ remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
+**PR226W1 budget remainder (2026-10-18, macbook rig, branch `ms/msm105-w1`).**
+The lane fixed the compact-help truth test and dieted activation 12777 →
+10704 bytes over the pre-K baseline (uploads binding to
+`dist/modelApiSessions.js`, picker filters to a dependency-free module;
+`ec11ab666`). The remainder (7632 over a 3072 budget) is structural
+activation wiring plus other milestones' post-K weight, and the VSIX
+stays ~46954 over 3700 KiB on the four new lazy media chunks (78372
+zipped); both measured in `docs/certification/msm105.md` with the exact
+decomposition. No budget raised, no test weakened. The VSIX cap decision
+is the lead's per D6; the activation remainder needs a cross-milestone
+diet lane or the same. Hosted CI re-runs the two tests and
+`npm run package` (Linux-only helpers) for the verdict.
+
 ## 8. Escape hatches register
 
 | Location                                            | Residual / follow-up                                | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
