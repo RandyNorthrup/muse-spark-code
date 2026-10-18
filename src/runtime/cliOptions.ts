@@ -43,6 +43,7 @@ interface CliParserOption {
 }
 type CliParserOptions = Readonly<Record<string, CliParserOption>>
 import { ACP_PAID_FLAGS } from '../shared/constants'
+import { COMPANION_VOICE_RELEASE } from '../shared/companionVoice'
 
 const PROVIDER_OPTIONS = {
   preset: { type: 'string' },
@@ -57,6 +58,7 @@ const PROVIDER_OPTIONS = {
 } as const satisfies CliParserOptions
 
 const COMMON_OPTIONS = {
+  ...(COMPANION_VOICE_RELEASE.isReady && { 'muse-voice': { type: 'boolean' as const } }),
   ...PROVIDER_OPTIONS,
   'usage-history': { type: 'string' },
 
@@ -186,6 +188,7 @@ export const CLI_OPTION_REGISTRY = {
 export const CLI_OPTION_TEXT = {
   'context-window': 'context-window',
   'usage-history': 'usage-history',
+  'muse-voice': 'muse-voice',
   preset: 'preset',
   as: 'as',
   address: 'address',

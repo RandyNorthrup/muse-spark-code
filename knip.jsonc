@@ -36,6 +36,8 @@
     "src/runtime/usage/usageCompanionEntry.ts",
     "src/host/usage/usagePanelEntry.ts",
     "src/webview/usage/usage.tsx",
+    "src/runtime/companion/voiceEntry.ts",
+    "src/webview/voice/companion.ts",
     "src/host/conversation/conversationEntry.ts",
     "src/shared/validationEntry.ts",
     // Help data: separate lazy runtime and generator build entries.
@@ -103,6 +105,12 @@
     // path on its first use (D6, 2026-10-03).
     "src/host/ide/codeIntelEntry.ts",
     "src/host/voice/voiceEntry.ts",
+    // Linux's offline voice driver, required by path on the first Linux
+    // recording (D6, D140).
+    "src/host/voice/voiceLinuxEntry.ts",
+    // Voice dictation's setups, required by path at their construction
+    // points (D6).
+    "src/host/voice/dictationEntry.ts",
     // The window's web fetch (M69), required by path on the first fetch (D6, 2026-10-04).
     "src/host/web/webFetchEntry.ts",
     // The Auto reviewer on Muse Code (M90), required on the first review.
@@ -479,7 +487,11 @@
   // System programs the tests start by name: mkfifo (POSIX coreutils) makes
   // the M80 stuck-output pipe and the pipe M86 refuses to open
   // (test/unit/writeRecorder.test.ts); both cases skip Windows.
-  "ignoreBinaries": ["gitleaks", "mkfifo"],
+  // M9 uses the installed CMake/strip toolchain for prebuilt native artifacts;
+  // cc/c++ compile only the fake-engine and hostile-plugin test fixtures.
+  // readelf checks the actual packaged loader search paths in real-engine tests.
+  // These are system programs, not npm dependencies.
+  "ignoreBinaries": ["gitleaks", "mkfifo", "cmake", "strip", "readelf", "cc", "^c\\+\\+$"],
 
   "ignoreExportsUsedInFile": true,
 

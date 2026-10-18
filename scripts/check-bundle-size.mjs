@@ -97,6 +97,10 @@ const BUDGETS = [
   // M102: independent lazy entries; measured + 15%, rounded up to 25 KiB.
   { path: 'dist/usageService.js', budgetKiB: 100 },
   { path: 'dist/usageCompanion.js', budgetKiB: 50 },
+  // CMICCOMP: independent first-use voice page, no chat startup imports.
+  { path: 'dist/voiceCompanion.js', budgetKiB: 125 },
+  { path: 'dist/webview/voiceCompanion.js', budgetKiB: 100 },
+  { path: 'dist/webview/voiceCompanion.css', budgetKiB: 25 },
   { path: 'dist/usagePanel.js', budgetKiB: 75 },
   { path: 'dist/webview/usage.js', budgetKiB: 500 },
   { path: 'dist/webview/usage.css', budgetKiB: 25 },
@@ -202,6 +206,14 @@ const BUDGETS = [
   { path: 'dist/legalScan.js', budgetKiB: 150 },
   { path: 'dist/codeIntel.js', budgetKiB: 100 },
   { path: 'dist/voice.js', budgetKiB: 50 },
+  // Linux's offline voice driver (M9, D140), split out of dist/voice.js on
+  // the first Linux recording: 35,907 B measured, plus 15%, rounded up to
+  // 25 KiB (PLAN.md D6).
+  { path: 'dist/voiceLinux.js', budgetKiB: 50 },
+  // Voice dictation's setups (M9, M35), required at their existing
+  // construction points: 13,032 B measured, plus 15%, rounded up to
+  // 25 KiB (PLAN.md D6).
+  { path: 'dist/dictation.js', budgetKiB: 25 },
   // The window's web fetch (M69), loaded on the first fetch: each hop's
   // checks and pins, the pinned transport, the decoders and the failures'
   // words. 46.7 KiB when split out on 2026-10-04, plus 15%, rounded up to

@@ -247,6 +247,11 @@
     "reason": "Injected helper spawn is supplied by admittedVoiceProcess with admission and contained job/group lifetime."
   },
   {
+    "site": "src/runtime/companion/voiceSystem.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "Injected file-recognition spawn is supplied by spawnHelper with admission and contained job/group lifetime; no host microphone is opened."
+  },
+  {
     "site": "src/host/backend/jobBuild.ts#call:runBootstrap:1",
     "profile": "bootstrap",
     "reason": "Containment helper compiler selects shared bounded bootstrap admission; it cannot use its unbuilt helper."

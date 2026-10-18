@@ -258,7 +258,7 @@ happened, not what was planned; superseded entries are kept.
   can forge an exact usage amount. Malformed loopback requests are refused
   without endangering the listener.
 - The Models panel lists the Custom server again alongside the captured
-  presets (M95 D140): it is the user's own server, admitted without a
+  presets (M95 D205): it is the user's own server, admitted without a
   capture, while presets without one (vLLM, Ollama) stay out until their
   captures land.
 
@@ -282,9 +282,74 @@ happened, not what was planned; superseded entries are kept.
   tools and every call is refused in code; on Muse Code it runs in Plan
   mode and stops at the first tool use. It runs on the panel, the terminal
   and ACP editors, in all fourteen languages.
+- Dictation setups leave the activation bundle: the window's dictation and
+  Muse Voice setups with the helper probes ship as `dist/dictation.js`,
+  required at their existing construction points, bringing the lane-K
+  activation growth (7,214 B) inside the 3,072 B cap with no behaviour
+  change (measured 13,032 B, 25 KiB budget; no existing cap changes).
+- Linux voice loads on first use: the offline driver, its helper/model
+  acquisition and pins ship as `dist/voiceLinux.js` on the first Linux
+  recording, keeping `dist/voice.js` inside its unchanged 50 KiB cap
+  (measured 35,907 B, 50 KiB budget; no existing cap changes).
+- Linux free dictation: a prebuilt CPU-only whisper.cpp helper for local x64/arm64
+  recognizes English offline. First use asks before a pinned 74 MiB tiny.en
+  model download; downloads resume, corrupt weights refuse recognition, and
+  `linuxDictationModel=false` stops recording and removes stored weights.
+  Audio stays in bounded memory; Windows/macOS retain their existing helpers.
+- Linux free dictation (D140, lead decision): the native helper leaves the
+  VSIX (the 3,700 KiB cap is unchanged) and ships as same-tag release assets
+  instead. One consent card asks once before the helper (~7.6 MB) and model
+  (74 MiB) downloads; every helper file is verified by embedded SHA-256 pins
+  before it ever runs, refuses loudly on mismatch, and is removed with the
+  model when the setting is off. Offline installs place both files in the
+  shown folder; digests are checked the same way. The feature stays off until
+  review passes and hosted receipts land.
+
+
+### Added
+
+- **Companion microphone implementation held for certification** (M9/M35,
+  CMICCOMP). Adds an authenticated, bounded browser capture and reviewed
+  ACP/terminal prompt handoff, Windows/macOS file recognition, and captured
+  paid batch transcription with consent, daily admission and usage accounting.
+  Stereo is mixed before PCM rounding to avoid signed sample overflow.
+  New entry points stay hidden until all platform/editor receipts pass; no new
+  supported command or editor capability is announced.
 
 ### Fixed
 
+- Review (RVMSM9M35): the Linux dictation helper downloads from its own
+  release tag instead of the latest release, so a later release's helpers
+  can no longer fail this version's embedded digests; the helper binary is
+  owner-only (0700) as its record states; and this changelog no longer
+  repeats thirteen already-released entries under Unreleased.
+- Review (RVMSM9M35, PR #224 threads): a refused recorder kill keeps its
+  ownership until the process really exits; a failed Muse Voice stream
+  returns the button to idle once its capture is released; Allow once for
+  Muse Voice covers one recording, not the window; Linux dictation's
+  reset publishes idle and its dispose returns the helper cleanup
+  promise; CI installs dependencies before the Linux helper pin checker
+  (it imports esbuild) and SHA256SUMS names the released helpers by the
+  basenames they are downloaded under.
+- Muse Voice gives each recording one owner from Start until its end: a queued
+  Start keeps the budget scope, consent and context fence it was pressed under
+  (rechecked at its turn, refused with the true reason when no longer valid),
+  every end awaits the native recorder process exit (bounded, then killed and
+  said) before reporting, and admission on a fresh session waits for the
+  parent session save to land instead of reporting missing storage.
+- Muse Voice keeps every recording's helper events and hard cap isolated across
+  rapid Stop/Start. Refused budget admission never starts the microphone.
+  Backend stop, closed tabs and window shutdown await admission and settlement
+  writes. Voice bills the stored Meta key independently of the conversation
+  provider or local model, with an explicit missing-key notice. Linux reports
+  listening only after resource admission and a successful OS spawn.
+- Muse Voice now works on Model API with a finite budget, through the existing
+  Windows, macOS and Linux microphone adapters. Three-minute recordings reserve
+  the shared daily budget and any conversation cap before connecting, then
+  settle from the final reported audio duration. The tally shows estimated
+  cost and explains that Meta’s invoice cannot be read back; interrupted audio
+  keeps its reserved liability. Idle streams with no audio settle zero.
+  Allow once covers one recording; workspace Always remains revocable.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

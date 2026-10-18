@@ -1,5 +1,6 @@
 import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
 import { notify } from './core/events/notify'
+import { unlessAborted } from './core/timeouts'
 import {
   PAID_APPROVAL_ORDER_DIRECTORY,
   LEGAL_EXPLANATION_BUNDLE_FILE,
@@ -26,6 +27,7 @@ import {
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
   EXTENSION_NAME,
+  EXTENSION_QUALIFIED_ID,
   DICTATION_HELPER_DIR,
   FIND_FILES_GLOB,
   MODEL_API_BASE_URL,
@@ -53,7 +55,9 @@ import {
   LEGAL_SCAN_BUNDLE_FILE,
   EXTENSION_SKILLS_DIR,
   WEB_FETCH_BUNDLE_FILE,
+  DICTATION_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
+  VOICE_LINUX_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   JUDGE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
@@ -127,6 +131,7 @@ import type { ReportPanel } from './host/reporting/reportPanel'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
 import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
@@ -238,7 +243,7 @@ import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTool'
 
-import { fill as fillLegalNotice, fill, plural, uiLocale } from './shared/l10n/text'
+import { fill as fillLegalNotice, fill, formatBytes, plural, uiLocale } from './shared/l10n/text'
 import { legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
@@ -333,8 +338,8 @@ import type { ChatSurface } from './host/views/chatSurface'
 import type { WebviewHostContext } from './host/views/webviewSetup'
 import { loadUiTable, readUiTableFile } from './host/l10n'
 import type { InsightsReader } from './runtime/usage/traceLogs'
-import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
-import { voiceLoader } from './host/voice/voiceBundle'
+import type { DictationSetup } from './core/voice/dictation'
+import { dictationLoader, type DictationBundle } from './host/voice/dictationBundle'
 import {
   createMediaAttachDeps,
   createMediaSourceOpen,
@@ -855,6 +860,7 @@ async function activateWindow(
   let promptHost: ReturnType<typeof createPromptHost> | undefined
 
   const controllers = new Map<string, ConversationController>()
+  const controllerDisposals = new Set<Promise<void>>()
   // Approvals and questions waiting on the user, shared by every surface's
   // controller so the session board marks them window-wide (M77).
   const boardPrompts = new PendingPrompts()
@@ -1171,7 +1177,9 @@ async function activateWindow(
       feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
     isDefaultOn: isDefaultPaidOn,
     dailyBudgetUsd: (feature) =>
-      paidBackend === 'modelApi' || feature === 'legalExplanation' ? dailyPaid.capUsd() : undefined,
+      paidBackend === 'modelApi' || feature === 'voice' || feature === 'legalExplanation'
+        ? dailyPaid.capUsd()
+        : undefined,
     isKeyStored: () => isKeyStored,
     // "Allow Always in This Workspace" (M58) needs a workspace to keep it,
     // and never in Restricted Mode.
@@ -1249,11 +1257,41 @@ async function activateWindow(
       judge.dispose()
     },
   })
-  // Both engines' drivers are dist/voice.js (D6), required on the first recording.
-  const voice = voiceLoader({
-    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_BUNDLE_FILE).fsPath,
+  // The remote this extension host runs on, or undefined on the user's own
+  // machine. `env.remoteName` alone is not enough: it is also set in the
+  // local extension host of a remote window, where a user's
+  // `remote.extensionKind` override could run this extension; the
+  // extension's kind says which side it is on.
+  const remoteHostNames = (() => {
+    const kind = vscode.extensions.getExtension(EXTENSION_QUALIFIED_ID)?.extensionKind
+    return {
+      remoteName: kind === vscode.ExtensionKind.UI ? undefined : vscode.env.remoteName,
+      appName: vscode.env.appName,
+    }
+  })()
+  // Voice dictation's setups (M9, M35) live in dist/dictation.js (D6),
+  // required at their existing construction points, so activation carries
+  // only this loader. A bundle that cannot load leaves both microphones
+  // unavailable (the log has the cause), as a helper that cannot be found
+  // does.
+  const loadDictation = dictationLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', DICTATION_BUNDLE_FILE).fsPath,
     log,
   })
+  let dictationServices: DictationBundle | undefined
+  try {
+    dictationServices = loadDictation()
+    dictationServices.installDictationText(UI_TEXT, uiLocale())
+  } catch {
+    dictationServices = undefined
+  }
+  const unavailableMicrophone = (): DictationSetup => ({
+    isAvailable: false,
+    reason: UI_TEXT.dictationNotLoaded,
+  })
+  // Both engines' drivers are dist/voice.js (D6), required on the first recording.
+  // Linux's offline driver is dist/voiceLinux.js (D6, D140), required on the
+  // first Linux recording, so the download machinery stays out of voice.js.
   // Muse Voice (M35): the paid engine's recorder, used only while it is
   // on, its price accepted, and the window runs on the Model API key.
   // M56 (PLAN.md D43): before VS Code 1.112 the socket bypasses a
@@ -1262,25 +1300,31 @@ async function activateWindow(
   // setup is rebuilt when it changes (see the configuration listener
   // below); a snapshot from activation would keep offering a microphone
   // that cannot send, or keep refusing after the proxy is gone.
-  const helperProbe = {
-    platform: process.platform,
-    systemRoot: process.env['SystemRoot'],
-    helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
-  }
-  let museVoiceSetup: ReturnType<typeof createMuseVoiceSetup>
+  let museVoiceSetup: DictationSetup = unavailableMicrophone()
   const refreshMuseVoiceNetwork = (): void => {
-    museVoiceSetup = createMuseVoiceSetup(
-      helperProbe,
-      {
-        apiKey: () => credentials.getApiKey(),
-        onSeconds: (seconds) => {
-          paid.usage.add('voice', seconds)
+    if (dictationServices !== undefined) {
+      museVoiceSetup = dictationServices.createMuseVoiceSetup(
+        {
+          platform: process.platform,
+          systemRoot: process.env['SystemRoot'],
+          helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
         },
-        log,
-        voice,
-      },
-      readVoiceNetworkPosture(vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)),
-    )
+        {
+          apiKey: () => credentials.getApiKey(),
+          reserveDaily: (costUsd) => dailyPaid.reserveExact(costUsd),
+          onSeconds: (seconds) => {
+            paid.usage.add('voice', seconds)
+          },
+          log,
+          voice: dictationServices.voiceLoader({
+            bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_BUNDLE_FILE).fsPath,
+            log,
+          }),
+        },
+        remoteHostNames,
+        readVoiceNetworkPosture(vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)),
+      )
+    }
     for (const controller of controllers.values()) {
       controller.refreshDictation()
     }
@@ -1534,7 +1578,70 @@ async function activateWindow(
     context.subscriptions.push(disposable)
   }
   // Voice dictation (M9): the OS recogniser behind the composer's microphone.
-  const dictation = createDictationSetup(helperProbe, log, voice)
+  let dictation: DictationSetup = unavailableMicrophone()
+  if (dictationServices !== undefined) {
+    const services = dictationServices
+    dictation = services.createDictationSetup(
+      {
+        platform: process.platform,
+        systemRoot: process.env['SystemRoot'],
+        helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
+      },
+      log,
+      services.voiceLoader({
+        bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_BUNDLE_FILE).fsPath,
+        log,
+      }),
+      services.voiceLinuxLoader({
+        bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_LINUX_BUNDLE_FILE)
+          .fsPath,
+        log,
+      }),
+      {
+        storageRoot: context.globalStorageUri.fsPath,
+        register: (disposable) => {
+          context.subscriptions.push(disposable)
+        },
+      },
+      {
+        ...remoteHostNames,
+        isLinuxModelEnabled: () => currentSettings().linuxDictationModel,
+        registerConfigListener: (listener) => {
+          const subscription = vscode.workspace.onDidChangeConfiguration((event) => {
+            if (event.affectsConfiguration(`${SETTINGS_SECTION}.linuxDictationModel`)) listener()
+          })
+          context.subscriptions.push(subscription)
+          return subscription
+        },
+        showError: (message) => {
+          void vscode.window.showErrorMessage(message)
+        },
+        askDownloadConsent: async (sizes, directory, signal) => {
+          if (signal.aborted) return false
+          const download = { title: UI_TEXT.browserRuntimeDownload }
+          const decline = { title: UI_TEXT.browserRuntimeNotNow, isCloseAffordance: true }
+          // One card for both downloads (PLAN.md D140): the helper's size is
+          // the measured first-download approximation; the pins enforce the
+          // exact per-file sizes at download.
+          const asked = vscode.window.showInformationMessage(
+            fill(UI_TEXT.linuxDictationDownloadTitle, {
+              helperSize: `~${formatBytes(sizes.helperDownloadBytes)}`,
+              size: formatBytes(sizes.bytes),
+            }),
+            {
+              modal: true,
+              detail: fill(UI_TEXT.linuxDictationDownloadDetail, { location: directory }),
+            },
+            download,
+            decline,
+          )
+          return (
+            (await unlessAborted(Promise.resolve(asked), signal)) === download && !signal.aborted
+          )
+        },
+      },
+    )
+  }
   const backend = new MuseCodeBackendManager({
     shellJobAssembly: () => windowsJobAssembly?.() ?? Promise.resolve(undefined),
     beforeWorkspaceHostStart: async () => {
@@ -1938,6 +2045,7 @@ async function activateWindow(
       await auth.stopSignIn()
       await restartBackend('the window is closing', true)
     } finally {
+      await Promise.allSettled(controllerDisposals)
       await usageRecording.flush()
     }
   }
@@ -2570,6 +2678,28 @@ async function activateWindow(
       log,
       context: { workspaceRoot: root, storageRoot, l10n },
     })
+  const modelApiStore =
+    context.storageUri === undefined
+      ? undefined
+      : lazyFileSessionStore({
+          bundlePath: vscode.Uri.joinPath(
+            context.extensionUri,
+            'dist',
+            MODEL_API_SESSIONS_BUNDLE_FILE,
+          ).fsPath,
+          log,
+          store: {
+            directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
+            questions: questionsStore,
+            log,
+            retentionDays: () => currentSettings().cleanupPeriodDays,
+            now: () => Date.now(),
+            sleep: (ms) =>
+              new Promise((resolve) => {
+                setTimeout(resolve, ms)
+              }),
+          },
+        })
   const modelApi = new ModelApiBackendManager({
     onServiceFailure: () => {
       notify(
@@ -2659,28 +2789,7 @@ async function activateWindow(
     // Sessions survive the window (PLAN.md D14) in the workspace storage
     // directory; no folder open, no storage, no persistence. The store is
     // dist/modelApiSessions.js, required when the host is first built.
-    store:
-      context.storageUri === undefined
-        ? undefined
-        : lazyFileSessionStore({
-            bundlePath: vscode.Uri.joinPath(
-              context.extensionUri,
-              'dist',
-              MODEL_API_SESSIONS_BUNDLE_FILE,
-            ).fsPath,
-            log,
-            store: {
-              directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
-              questions: questionsStore,
-              log,
-              retentionDays: () => currentSettings().cleanupPeriodDays,
-              now: () => Date.now(),
-              sleep: (ms) =>
-                new Promise((resolve) => {
-                  setTimeout(resolve, ms)
-                }),
-            },
-          }),
+    store: modelApiStore,
     scheduleStore:
       context.storageUri === undefined
         ? undefined
@@ -3610,21 +3719,45 @@ async function activateWindow(
               !usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')
             )
               return
-            if (auth.current.backend === 'modelApi') {
-              return currentSettings().dictationEngine === 'system'
-                ? undefined
-                : { isAvailable: false, reason: UI_TEXT.sessionBudgetVoiceUnavailable }
-            }
+            if (
+              auth.current.backend === 'modelApi' &&
+              currentSettings().dictationEngine === 'system'
+            )
+              return
             return museVoiceSetup
           },
           modelApiSessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
-          voiceAccountId: () => modelApi.accountId(),
+          // Muse Voice is a Meta service: its account is the stored Meta
+          // key's own digest, never the selected conversation provider's,
+          // and undefined when no Meta key exists (the press then says why).
+          voiceAccountId: async () => {
+            const key = await credentials.getApiKey()
+            return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
+          },
           ownedVoiceBudgetScope: async (sessionId) => {
-            if (auth.current.backend !== 'modelApi') {
-              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-            }
-            const host = await modelApi.ensureHost()
-            return await host.getOwnedBudgetScope(sessionId)
+            const authGeneration = auth.admissionGeneration
+            const key = await credentials.getApiKey()
+            if (key === undefined) throw new Error(UI_TEXT.museVoiceNoKey)
+            if (dictationServices === undefined) throw new Error(UI_TEXT.dictationNotLoaded)
+            return await dictationServices.ownedMetaVoiceBudgetScope({
+              journal: modelApiStore?.().budget,
+              sessionId,
+              accountId: createHash('sha256').update(key).digest('hex'),
+              capUsd: () => currentSettings().modelApiSessionBudgetUsd,
+              isCurrent: () =>
+                auth.current.backend === 'modelApi' &&
+                authGeneration === auth.admissionGeneration &&
+                isProjectTrusted() &&
+                !nativeStarts.signal.aborted,
+              // The parent session's save drains before the journal seeds
+              // from its file (RVCM352B P2): a first press waits out the
+              // save the controller's attach queued, as the host-owned
+              // scope's own refresh did.
+              awaitSessionSave: async () => {
+                const host = await modelApi.ensureHost()
+                await host.flush()
+              },
+            })
           },
           exports: cliFeatures.exports,
           transferFiles: createSessionTransferFiles(),
@@ -3953,7 +4086,14 @@ async function activateWindow(
 
   registry.onRemoved((surface) => {
     promptHost?.close(surface)
-    controllers.get(surface.id)?.dispose()
+    const controller = controllers.get(surface.id)
+    if (controller !== undefined) {
+      const disposal = controller.disposeAsync()
+      controllerDisposals.add(disposal)
+      void disposal
+        .finally(() => controllerDisposals.delete(disposal))
+        .catch(logRejection(log, 'conversation cleanup'))
+    }
     controllers.delete(surface.id)
     tasksTabs.get(surface.id)?.release()
   })

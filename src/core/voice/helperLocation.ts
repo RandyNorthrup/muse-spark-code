@@ -2,11 +2,11 @@
 //
 // Windows: Windows PowerShell 5.1 under %SystemRoot% runs the bundled script
 // on the .NET Framework's System.Speech. macOS: the Swift helper compiled in
-// CI and shipped in the .vsix. Linux: no distribution ships a speech
-// recogniser and the extension adds no third-party engine, so the button
-// explains itself (owner decision 2026-09-22). A remote window: the
-// extension host runs on the other machine, so neither recogniser can hear
-// the user (M26, PLAN.md D29).
+// CI and shipped in the .vsix. Linux: the offline English helper and its
+// weights are release assets acquired after one consent (CM9LNX, PLAN.md
+// D140); nothing is bundled, so the microphone is offered before the first
+// download and the files are verified before every start. A remote
+// workspace host cannot hear the local microphone (M26, PLAN.md D29).
 
 import path from 'node:path'
 import {
@@ -20,7 +20,12 @@ import {
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_PSMODULEPATH_VARIABLE,
 } from '../../shared/constants'
-import { setEnvironmentVariable, windowsPowerShellModulePath } from '../backends/musecode/launch'
+import { LINUX_DICTATION } from '../../shared/linuxDictationConstants'
+import {
+  deleteEnvironmentVariable,
+  setEnvironmentVariable,
+  windowsPowerShellModulePath,
+} from '../backends/musecode/launch'
 import { resolveExecutable } from '../executables'
 import type { HelperInvocation } from './dictation'
 
@@ -44,6 +49,9 @@ export interface HelperProbe {
   readonly appName: string
   /** The extension's `native/` folder. */
   readonly helperDir: string
+  /** Installed model path; acquisition happens lazily before the helper starts. */
+  readonly linuxModelPath?: string | undefined
+  readonly arch?: string | undefined
   readonly fileExists: (fsPath: string) => boolean
 }
 
@@ -140,15 +148,31 @@ function bundledHelper(
 }
 
 export function locateDictationHelper(probe: HelperProbe): HelperLocation {
-  return (
-    bundledHelper(probe, DICTATION_WINDOWS_SCRIPT_SEGMENTS, []) ?? {
-      isAvailable: false,
-      reason:
-        probe.platform === 'linux'
-          ? UI_TEXT.dictationUnavailableLinux
-          : UI_TEXT.dictationUnavailable,
+  const bundled = bundledHelper(probe, DICTATION_WINDOWS_SCRIPT_SEGMENTS, [])
+  if (bundled !== undefined) return bundled
+  if (
+    probe.platform === 'linux' &&
+    probe.linuxModelPath !== undefined &&
+    (probe.arch === 'x64' || probe.arch === 'arm64')
+  ) {
+    // The helper is downloaded, not bundled: its presence is proven by
+    // digest before every start (LinuxDictationHelper.ensure), never here.
+    const command = path.join(path.dirname(probe.linuxModelPath), LINUX_DICTATION.helperBinary)
+    return {
+      isAvailable: true,
+      invocation: {
+        command,
+        args: ['--model', probe.linuxModelPath],
+        stopGraceMs: LINUX_DICTATION.stopGraceMs,
+        environment: LINUX_DICTATION.environment,
+      },
     }
-  )
+  }
+  return {
+    isAvailable: false,
+    reason:
+      probe.platform === 'linux' ? UI_TEXT.dictationUnavailableLinux : UI_TEXT.dictationUnavailable,
+  }
 }
 
 /**
@@ -169,6 +193,18 @@ export function helperEnvironment(
   const variables = Object.entries(invocation.environment ?? {})
   for (const [name, value] of variables) {
     setEnvironmentVariable(env, platform, name, value)
+  }
+  if (platform === 'linux') {
+    // The offline Linux helper must capture from this computer only: drop
+    // every audio-server selector it could inherit (RVCM9LNX P2), so a
+    // `PULSE_SERVER=tcp:…` on the editor cannot move capture to the network.
+    // The helper itself refuses a non-local server as well. Local
+    // authentication (PULSE_COOKIE), the runtime directory (which names the
+    // local socket) and HOME stay: the explicit local server overrides
+    // client.conf, and proxy variables are never read by the audio client.
+    for (const name of LINUX_DICTATION.audioServerVariables) {
+      deleteEnvironmentVariable(env, platform, name)
+    }
   }
   return env
 }

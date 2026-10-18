@@ -18,6 +18,9 @@ import process from 'node:process'
 import { Writable } from 'node:stream'
 import type { SignInMethod } from '../acp/agent'
 import { runtimeQuestionsLoader } from './questions/questionRegistryBundle'
+import { voiceCompanionLoader } from './companion/voiceLoader'
+import type { VoiceCompanionContext } from './companion/voiceEntry'
+import { COMPANION_VOICE_RELEASE } from '../shared/companionVoice'
 import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
@@ -697,17 +700,16 @@ async function openUsageBrowser(input: string): Promise<void> {
   }
 }
 
-async function serve(
-  options: ServeOptions,
+function runtimeRecording(
   log: Logger,
-  loadAccounts: () => RuntimeAccountServices,
-): Promise<number> {
-  let clientName = 'ACP'
-  const recording = createUsageRecording({
-    client: () => clientName,
+  client: () => string,
+  isEnabled: () => boolean,
+): UsageRecording {
+  return createUsageRecording({
+    client,
     now: Date.now,
     newId: randomUUID,
-    isEnabled: () => options.usageHistory ?? true,
+    isEnabled,
     log,
     writer: async (onWriteError) => {
       const bundle = requireFile(path.join(distDir, 'usageService.js'))
@@ -720,11 +722,24 @@ async function serve(
         }),
         writerId: randomUUID(),
         now: Date.now,
-        isEnabled: () => options.usageHistory ?? true,
+        isEnabled,
         onWriteError,
       })
     },
   })
+}
+
+async function serve(
+  options: ServeOptions,
+  log: Logger,
+  loadAccounts: () => RuntimeAccountServices,
+): Promise<number> {
+  let clientName = 'ACP'
+  const recording = runtimeRecording(
+    log,
+    () => clientName,
+    () => options.usageHistory ?? true,
+  )
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
   const restoreRecording = engine.installUsageRecording(recording)
@@ -785,6 +800,7 @@ async function serve(
         log.warn(`ACP accounts unavailable: ${failureForLog(error)}`)
       }
     }
+    const dictationLifetime = new AbortController()
     const agent = engine.createAcpAgent({
       schedules: {
         isAvailable: false,
@@ -900,6 +916,19 @@ async function serve(
       },
       log,
       usage,
+      ...(COMPANION_VOICE_RELEASE.isReady && {
+        dictation: async (context: VoiceCompanionContext) =>
+          await runtimeDictation(
+            log,
+            options.companionVoice === true,
+            options.trustWorkspace,
+            recording,
+          )({
+            ...context,
+            signal: AbortSignal.any([context.signal, dictationLifetime.signal]),
+            isCurrent: () => !dictationLifetime.signal.aborted && context.isCurrent(),
+          }),
+      }),
       resources,
       reportError: (fact) => {
         void journal.record(fact)
@@ -916,6 +945,7 @@ async function serve(
     try {
       await connection.closed
     } finally {
+      dictationLifetime.abort()
       await Promise.allSettled(
         registries.map((registry) => {
           registry.dispose()
@@ -954,6 +984,36 @@ function sharingDeps(): SharingPortsDeps {
     credentialValues: sharingCredentials.map(({ value }) => value),
     readModelApiKey: () => secrets.get(SECRET_KEYS.modelApiKey),
   }
+}
+
+function runtimeDictation(
+  log: Logger,
+  isOn: boolean,
+  isWorkspaceTrusted: boolean,
+  recording?: UsageRecording,
+) {
+  return voiceCompanionLoader({
+    packageRoot,
+    dataFolder: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    temporaryRoot: tmpdir(),
+    platform: process.platform,
+    systemRoot: process.env['SystemRoot'],
+    programFiles: process.env['ProgramFiles'],
+    isVoiceOn: () => isOn,
+    canRemember: () => isWorkspaceTrusted,
+    getKey: async () => await secrets.get(SECRET_KEYS.modelApiKey),
+    fetch: globalThis.fetch.bind(globalThis),
+    sleep: (ms) =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, ms)
+      }),
+    log,
+    ...(recording !== undefined && { recording }),
+  })
 }
 
 function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
@@ -1185,6 +1245,47 @@ async function main(): Promise<number> {
   })
   setProviderPolicyText(UI_TEXT, uiLocale())
   switch (command.command) {
+    case 'dictate': {
+      const recording = runtimeRecording(
+        log,
+        () => 'CLI',
+        () => true,
+      )
+      const openPage = runtimeDictation(log, command.paid, command.trustWorkspace, recording)
+      let complete!: () => void
+      // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Host type project targets Node 20; the resolver is assigned synchronously (PLAN.md §8).
+      const sent = new Promise<void>((resolve) => {
+        complete = resolve
+      })
+      const outcome = { hasSent: false }
+      const server = await openPage({
+        cwd: process.cwd(),
+        signal: new AbortController().signal,
+        isCurrent: () => !outcome.hasSent,
+        send: async (text, signal) => {
+          signal.throwIfAborted()
+          await new Promise<void>((resolve, reject) => {
+            process.stdout.write(`${text}\n`, (error) => {
+              if (error == null) resolve()
+              else reject(error)
+            })
+          })
+          outcome.hasSent = true
+          setImmediate(complete)
+        },
+      })
+      try {
+        writeLine(process.stderr, `${UI_TEXT.companionVoiceOpen}: ${server.launchUrl()}`)
+        await Promise.race([sent, server.closed])
+        return outcome.hasSent ? 0 : EXIT_FAILED
+      } finally {
+        try {
+          await server.close()
+        } finally {
+          await recording.flush()
+        }
+      }
+    }
     case 'resources': {
       const resources = resourcesFor(log)
       try {

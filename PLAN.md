@@ -1,5 +1,41 @@
+**CM352R2 review repair (2026-10-11, macbook; continuation).** Finish all
+five RVCM352 findings and their sibling paths. Bind each paid recording's
+helper, socket callbacks and cap to its identity; serialize capture restart
+until stop acknowledgement or forced termination. Read the Meta key and
+complete both reservations before recording. Await voice admission/settlement
+on backend stop and extension shutdown. Give Meta voice its own key-bound
+journal scope regardless of the conversation provider. Announce Linux
+listening only after admitted spawn succeeds. Preserve reported-duration
+flooring and uncertain liability. Add regression tests and byte-exact red
+drills in `docs/certification/cm352.md`; certify dependent suites at repository
+timeouts. Attribute the two reviewer-red suites against `dbdb55a0e`.
+No browser, real microphone, loopback listener, paid/live call, merge, push,
+subagents, dependency, guard relaxation or Model API bundle growth.
+
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**CM352 bounded realtime dictation (2026-10-11, macmini).** Restore the
+Model API microphone through the existing production voice bundle, controller
+and Windows/macOS/Linux capture adapters. Linux start failures are explicit;
+closed adapters never restart or forward stale recorder callbacks. Use C-M35-1's five captured sessions
+(`~/lanes/_captures/CM352/s1..s5.json`, lead-provided capture artifacts;
+five model attempts, 246 audio seconds) for `audioProcessedMs` and `errorType`.
+Cap each recording at 180 seconds by accepted PCM bytes and elapsed time;
+reframe every recorder's PCM into 80 ms messages, with at most one short tail.
+Reserve the cap plus an 80 ms tail allowance at the published list tariff
+before opening the socket, in both D78's daily journal and M82's owned session
+journal when present. Recheck each send. Settle final reported milliseconds,
+rounded down to whole seconds; without a final duration tally local seconds
+and retain uncertain reserved liability. Idle with no sent audio settles zero.
+Ask once per window before spending, retaining workspace Always and revocation.
+Show the duration and estimated price; state that the provider invoice cannot
+be read back. Restore truth-pass publication wording and all translations.
+No paid/live calls, microphone access, merge, push, subagents or new dependency.
+Scoped rig gates replace aggregate quality per the binding lane brief.
+Certification: `docs/certification/cm352.md`; Grok review and physical mic
+receipts on all three OSes remain lead-owned C-M35-3 work. Existing microphone
+surfaces are the VS Code family sidebar and tabs. Companion/native-plugin mic
+surfaces await C-M9-1; ACP/headless have no realtime microphone surface.
 **PRTH165 review repair (2026-10-15, Windows).** Merge `d842cad5d`
 with hooks, retaining main's deleted fake-driven tests. Resolve threads T1–T6
 in the existing ACP permission-answer cache, agent lifecycle and translated
@@ -1429,6 +1465,13 @@ properties, and retain all existing caps. No new artifact or dependency.
 
 **`dist/tab.js` budget rationale.** (M94: first request/menu; status/provider registration stays eager)
 
+**CMICCOMP first-use bundle budgets (2026-10-10).** New independent entries:
+`dist/voiceCompanion.js` ≤125 KiB (100.3 KiB measured),
+`dist/webview/voiceCompanion.js` ≤100 KiB (67.4 KiB), and
+`dist/webview/voiceCompanion.css` ≤25 KiB (16.5 KiB).
+Each uses measured bytes +15%, rounded up to 25 KiB. Existing startup,
+deferred-aggregate and individual caps are unchanged.
+
 **`dist/extension.js` budget rationale.** (the M7 Model API client fit without raising it; the activation bundle since M57)
 
 **`dist/modelApi.js` budget rationale.** (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)
@@ -2091,6 +2134,10 @@ Reports share the existing 50 KiB mini-parser; every runtime API read is guarded
 **`dist/codeIntel.js` budget rationale.** (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)
 
 **`dist/voice.js` budget rationale.** (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/voiceLinux.js` budget rationale.** (MSM9M35: Linux's offline voice driver, its helper/model acquisition and pins, loaded on the first Linux recording; split out of `dist/voice.js`, which the combined drivers pushed 1.1 KiB over its unchanged 50 KiB cap; measured 35,907 B plus 15%, rounded up to the next 25 KiB multiple = 50 KiB; no existing cap changes)
+
+**`dist/dictation.js` budget rationale.** (RVMSM9M35FIX: the window's dictation and Muse Voice setups with the helper probes, required at their existing construction points so the microphone's availability keeps its timing; moved off activation to bring the lane-K growth (7,214 B) inside the 3,072 B cap; measured 13,032 B plus 15%, rounded up to the next 25 KiB multiple = 25 KiB; no existing cap changes)
 
 **`dist/museCodeReviewer.js` budget rationale.** (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)
 
@@ -2980,18 +3027,60 @@ media with a plain explanation. Full record:
 
 ### D48 — A popup before every paid use (M58, 2026-09-27)
 
-Every paid use asks through one popup: `PaidUseConsent.allows` asks through
-`askPaidUse`, a native modal naming what is about to be billed and its price,
-with Allow once, Allow always in this workspace and Deny; closing it is Deny.
-It asks in every permission mode, Bypass included, and a paid call never gets
-an approval card or a session rule. It asks before an image is bought, a child
-task's grant, a scheduled run's turn and a Muse Voice recording, and once per
-prompt for web search. "Always" is honoured only in a trusted workspace with a
-folder open, and every change to a feature's price acceptance voids it. A
-hook's `allow` never answers the popup. An ordinary Model API turn is not
-asked. Headless images use the explicit flag, `acceptEdits`, a hard cap and
-per-use admission. Full record:
-[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+**CM352 owner update (2026-10-11).** Extension Muse Voice asks once before the
+first charge with its hourly list price and the shared daily budget. Allow once
+covers this window; Always covers the workspace until revoked. Each recording
+still passes the paid gate and budget/account/context admission and shows a
+loud duration/cost estimate. This replaces the per-recording popup policy for
+the extension microphone; ACP/headless availability and consent stay unchanged.
+
+The owner (2026-09-27): "anything requiring extra payment should promt you
+with a popup that asks allow once allow always in this workspace or deny".
+Until then the paid features asked in four different ways: an in-chat card
+with Allow once and Reject for a Model API image or child task, a native
+dialog for an image on Muse Code, a scheduled run and a child task started
+from the Agent map, and nothing per use for web search and Muse Voice (D34:
+the price accepted once, then only the row, the badge and the tally).
+
+- **One popup, three answers.** `PaidUseConsent.allows`
+  (`src/core/paid/paidConsent.ts`) asks through `askPaidUse`
+  (`src/host/paid/paidHost.ts`), a native modal naming what is about to be
+  billed and its price, with **Allow once**, **Allow always in this
+  workspace** and **Deny**; closing it is Deny. It asks in every permission
+  mode, Bypass included. A paid call never gets an approval card or a
+  session rule any more: `paidChoices`, the `paidTool` subject and the
+  card's price line are gone.
+- **What asks, and when.** An image, before it is bought (after every check
+  that can refuse it for free, as before). A child task, before its grant;
+  Plan still refuses it. A scheduled run, before its turn. A Muse Voice
+  recording, before the recorder starts; a stop pressed while the popup is
+  open cancels the start. Web search, once per prompt before its first
+  request: Meta runs the searches inside the response and the model decides
+  whether to search, so no popup can come before each search; Deny sends
+  that prompt without the `web_search` tool. A child task searches only
+  when its parent's prompt was allowed to (its grant carries the answer), or,
+  for a task the user starts from the Agent map, when web search is allowed
+  always here. A child never asks for itself.
+- **"Always" is per workspace, and revocable.** It is kept in the
+  workspace's own state (feature names with a grant generation, no content),
+  offered and honoured only in a trusted workspace with a folder open. Every
+  change to a feature's price acceptance (turned off, or a new price
+  accepted) counts its generation up in global state, which voids every
+  workspace's "always" for it. **Ask again every time** in Account & usage
+  clears them for this workspace.
+- **Still loud when silent.** A use that no longer asks keeps its paid row,
+  the badge (whose tooltip names the features allowed always), and the tally;
+  Account & usage marks each such feature "on, allowed always in this
+  workspace". A hook's `allow` never answers the popup; a hook that demands
+  a question, and a paid image aimed at a protected path (D24), ask even when
+  the feature is allowed always.
+- **Not asked:** an ordinary Model API turn the user types. Choosing the
+  Model API backend with a pay-as-you-go key is that consent (D1, D37); the
+  popup covers what costs extra beyond it.
+
+**M80 headless amendment (D65):** interactive consent above is unchanged.
+Headless images use the explicit flag, `acceptEdits`, hard cap and per-use
+admission/tally; no remembered grant is accessed. Hosted search is refused.
 
 ### D49 — Coding quality first: what to build next (2026-09-27)
 
@@ -14528,7 +14617,7 @@ CONTRIBUTING.md, "The capacity repository (D122)"; proofs:
 `docs/certification/ciflow.md` (D122). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
-### D140 — Claimed-shipped milestones: an `@unwired` tag is resolved by the user-visible promise (MSM58M69, 2026-10-17)
+### D204 — Claimed-shipped milestones: an `@unwired` tag is resolved by the user-visible promise (MSM58M69, 2026-10-17)
 
 A verification scan found `@unwired` tags carrying shipped milestone ids
 (M58, M69). The tag alone does not mean the promise is broken: TESTCUT
@@ -14627,6 +14716,59 @@ the agent uderstood the task or whatever properly."
   can only come from memory.
 - Record: `docs/certification/playback.md`.
 
+### D140 — Linux dictation helper downloads on consent; the VSIX carries no helper binaries (2026-10-10, lead decision closing Q67; numbered D106 on its branch until 2026-10-17, when that number was found shared with the MCP connector draft)
+
+**Lead decision (2026-10-10, CM9LNX2 brief).** The native recogniser helper
+is NOT packaged in the VSIX. The VSIX size and its 3,700 KiB cap stay
+unchanged. Instead the helper (x64 and arm64, twelve files each:
+`muse-dictate`, three libraries and the eight CPU backend variants the
+`GGML_CPU_ALL_VARIANTS` build emits, so the runtime selects the machine's
+optimized backend) is built by the release workflow, attested, and
+published as same-tag release assets; the build embeds each asset's
+SHA-256 in the extension, generated at build time from the built helpers.
+
+**Mechanism (this lane).** `src/shared/linuxHelperPins.ts` carries the
+twenty-four pins (stable asset names under `releases/latest/download`,
+exact bytes and SHA-256); it is read only by `dist/voiceLinux.js` on the
+first Linux
+recording, never at activation. The release workflow regenerates it with
+`node scripts/build-linux-helper-pins.mjs` from both built architectures
+before packaging; committed values are UNSET (bytes 0, empty digest), and an
+unset build refuses every helper download before any consent card, instead
+of trusting anything. `node scripts/check-linux-helper-pins.mjs` guards the
+shape always, `--require-values` in the packages job, and
+`--bundle dist/voice.js --assets <uploaded>` in the build and release jobs,
+so a VSIX whose pinned digests do not match the uploaded assets fails. The
+staging guard (`scripts/package-vsix.mjs`), `.vscodeignore` and the hosted
+VSIX content check now refuse any helper binary in the package instead of
+requiring it; only the licence notices stay packed.
+
+**Acquisition.** The existing Whisper-model consent card covers both
+downloads with their sizes, asked once per press (the first answer covers
+helper and model). Every helper file travels the model's hardened path
+(`PinnedFileDownload`: HTTPS-only redirects, identity encoding, validated
+ranges/lengths, bounded streaming writes, fsync, exact size and full SHA-256
+before publication, atomic lock with live/dead owner rules, symlinked
+storage refusal, resumable partials). Installed files are re-hashed before
+every start; the binary keeps owner-only execute permissions
+(`helperMode: 0o755`), libraries owner-only data (`fileMode: 0o600`). A
+digest mismatch, a partial file or a swapped file refuses loudly through the
+existing integrity errors and offers retry/remove; OFF removes helper and
+model with their partials. Manual install (offline users): download the
+twenty-four assets plus the model file into the folder the card names;
+digests are checked the same way.
+
+**Known approximations (lead to confirm).** The card shows the measured
+first-download size (~7.6 MB five-file x64 inventory) rather than the
+brief's ~3 MB; the eight CPU backend variants per architecture are not in
+that number yet: re-measure it from the staged release helpers before
+publishing.
+which was the ZIP-compressed inventory: the download is the uncompressed
+files. A swapped helper binary between verification and spawn (TOCTOU) is
+not closed; the window is one spawn and is recorded here. The
+`latest/download` asset URL resolves to the newest release: an older
+extension against newer assets refuses by digest (fail closed).
+
 ## 3. Open questions (need the owner)
 
 **CM952R2 qualification receipt, updated by R3 (2026-10-11).** The
@@ -14655,6 +14797,14 @@ the repository's reviewed baseline update, every curated README recapture,
 freshness records, the full zero-changed-scene replay and the SHA-256
 old-baseline drill. Evidence remains in `docs/certification/cifix017.md`,
 "0.17.1 visual refresh". Stop only for an incorrect frame.
+**Q-CMICCOMP-RELEASE (2026-10-10, linuxlt).** New companion mic entry points
+remain hidden until the lead supplies Windows/macOS fake-device Chrome and
+actual free-helper recognition receipts (including macOS compilation/signing/TCC).
+The existing ACP protocol cannot mutate an editor's draft: the implementation
+reviews in the browser and submits only on explicit Send through its owning
+ACP session. CLI emits reviewed text on stdout. Native MHP editor-owner binding
+and real editor receipts remain C-M104-1 / C-M63-1; no new host row is claimed
+complete. See `docs/certification/m35-companion.md`.
 
 **Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
 change and Highlight while tightening only that release's wording below
@@ -14948,7 +15098,7 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
 | Q1  | **Resolved 2026-09-22:** owner authorised installing anything needed; Muse Code CLI 1.3.0 installed via the official installer. The owner reported Muse Code CLI device sign-in and a pay-as-you-go Model API key; M7 keeps them apart (D1 amendment). A separate current Muse Code paid entitlement or tier is unverified; the personal Muse Power/Maximum screenshot is not CLI entitlement proof.                                                                                                                                                                                                                                                                                                                                                                                             | Closed.                                                                                 |
 | Q2  | **Resolved 2026-09-22:** publisher `RandyNorthrup` read from the signed-in marketplace management page. Display name stays "Muse Spark Code (Unofficial)" unless the owner asks otherwise.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Closed.                                                                                 |
 | Q3  | **Resolved 2026-09-22:** owner wants both the CLI (MSP) backend and the Model API backend in the first release. M7 is required for v0.1.0.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | M7 required; see §10.                                                                   |
-| Q4  | **Resolved 2026-09-22 (M9, superseding the M8 answer):** voice dictation ships through the operating system's own recogniser, at no API cost and with no third-party code (owner's constraints): Windows PowerShell 5.1 + `System.Speech` on Windows, a Swift helper on Apple's Speech framework on macOS (owner chose this over an `osascript` bridge), and a dimmed button with the reason on Linux (no distribution ships a recogniser; the owner may revisit). The M8 finding stands for the webview itself: Electron's Web Speech recogniser is dead, so recognition runs in a helper process.                                                                                                                                                                                              | Closed; see M9.                                                                         |
+| Q4  | **Resolved 2026-09-22 (M9, superseding the M8 answer):** voice dictation ships through the operating system's own recogniser, at no API cost and with no third-party code (owner's constraints): Windows PowerShell 5.1 + `System.Speech` on Windows, a Swift helper on Apple's Speech framework on macOS (owner chose this over an `osascript` bridge), and originally a dimmed button on Linux. **Superseded for Linux by owner approval 2026-10-10 (CM9LNX):** bundle a permissive offline CPU recognizer, chosen from measured whisper.cpp/Vosk evidence, with consented pinned model acquisition. Windows/macOS retain their OS engines. The M8 finding stands for the webview itself: Electron's Web Speech recogniser is dead, so recognition runs in a helper process.                   | Closed; see M9.                                                                         |
 | Q5  | **Resolved (M4):** `highlight.js` 11.12.0 core with a fixed language set, in the webview bundle; `shiki` was not taken (grammar weight).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Closed.                                                                                 |
 | Q6  | **Partly answered (M55):** Meta's Muse Code overview (checked 2026-09-25) documents `curl -fsSL https://dev.meta.ai/install.sh \| sh` for macOS and Linux, and the panel offers it; `muse` itself has not been run on Linux.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Offer the installer; the Model API key remains the fallback if `muse` is absent.        |
 | Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Closed.                                                                                 |
@@ -14963,6 +15113,7 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
 | Q64 | **Resolved 2026-09-26:** "the top editors come first but i want them all or as close to all as possible": the order is D62's.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Q65 | **Answered 2026-09-26:** after npm held the owner's account for suspicious activity, the owner set `NPM_TOKEN` in the `marketplace` environment. The name `muse-spark-code-acp` was free that day; the next tag publishes it, and each GitHub Release still carries the package.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Q66 | **Resolved 2026-09-27: loud, not re-routed.** The ACP agent's own requests (the Model API backend) use Node's `fetch`, which ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` (Node 22.21+ or 24+; measured on seven releases). The owner: the agent does not re-route by itself or add undici. It warns once at start, in its log, when a proxy variable is set for the Model API backend and Node's switch is off or missing (`src/runtime/proxyWarning.ts`), and a request that never reaches Meta gets advice naming the agent's environment variables instead of VS Code's `http.*` settings (M56's classifier, told by the runtime which host it serves: `networkAdvice: 'agent'`).                                                                                                     | Closed; `docs/acp.md` "Networks and proxies", `docs/certification/pr32-integration.md`. |
+| Q67 | **Answered 2026-10-10 (lead decision, D140):** the native helper is NOT packaged in the VSIX; the 3,700 KiB cap stays unchanged. The helper (x64 and arm64) ships as same-tag release assets with build-embedded SHA-256 pins, acquired after the existing consent card (now naming both downloads). Decided against bundling: the x64 payload alone is 3,111,639 B with ZIP deflate; the unchanged whole-VSIX cap is 3,700 KiB. The final universal artifact also needs the arm64 payload. No cap is raised in this lane and no Linux-enabled VSIX is published.                                                                                                                                                                                                                                | Closed; D140. The feature stays off until review passes and hosted receipts land.       |
 | Q12 | Should a shell tool session rule ("Always allow in this session" for a shell command) lapse when the model edits a file the command names or that decides what it runs, as the verify loop's rules do since M68? Today the shell tool keeps its pre-M68 behaviour: its rules are keyed on the exact command line and answer whatever the model edited. The verify loop's grants are kept apart from it (PR #54).                                                                                                                                                                                                                                                                                                                                                                                 | The shell tool's rules keep answering; only the verify loop's lapse.                    |
 
 ### D116 — A chat surface takes the keyboard only while it holds it (panel-focus, 2026-10-12; numbered D108 until 2026-10-15, when that number was found shared with the test overhaul)
@@ -14979,7 +15130,7 @@ the webview records and lands an ask only within the 1000 ms delivery window
 (`docs/certification/panel-focus.md`). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
-### D140 — The panel lists exactly what the transport admits (M95, 2026-10-17)
+### D205 — The panel lists exactly what the transport admits (M95, 2026-10-17)
 
 Rule 13 keeps uncaptured presets out of the Models & Agents panel, and the
 transport refuses them with no dispatch even when keyless (C-M95-4 R2). The
@@ -17658,6 +17809,51 @@ sessions:
 
 **Status 2026-09-22: built.**
 
+**Status 2026-10-17 (MSM9M35): complete.** Free dictation is connected on
+Windows/macOS (OS engine) and local Linux x64/arm64 (offline Whisper tiny.en
+after one consent card, D140; `linuxDictationModel=false` removes helper,
+model and partials). Linux's driver ships as `dist/voiceLinux.js` on the
+first Linux recording (D6; `voice.js` back inside its unchanged 50 KiB cap).
+ACP/CLI dictation exists as the held companion page only
+(`COMPANION_VOICE_RELEASE` still closed; mic receipts on Mac/Windows owed).
+Full record: `docs/certification/msm9m35.md`.
+
+**CM9LNX scope accepted 2026-10-10:** the owner supersedes Q4's Linux-only
+third-party prohibition and authorizes a bundled permissive, offline CPU
+recognizer. Compare whisper.cpp tiny.en/base.en and Vosk small English on
+three generated speech fixtures before choosing; record measured accuracy,
+10-second latency, sizes and both engine/model licences. Build Linux x64 and
+arm64 helpers in CI, preserving the existing admitted helper protocol and
+Windows/macOS engines. Acquire pinned SHA-256 model weights only after a
+size-bearing consent prompt; keep resumable downloads in global storage,
+refuse corrupt weights and offer removal. No model belongs in the VSIX.
+Capture PulseAudio/PipeWire audio inside the helper without persistent audio.
+Require fake-engine protocol, real-helper fixture, refusal/resume/hash tests
+and byte-exact red drills, localization, notices, reference and documentation.
+The Linux surface remains hidden until this entire scope is certified.
+Native editor composer bindings (JetBrains, Visual Studio, Eclipse, companion)
+remain C-M9-1/C-M104-1; terminal ACP, Zed, Xcode, Neovim, Emacs and Sublime
+need the composer/microphone bridge or their recorded C-M9-1 exception.
+Certification: `docs/certification/m9-linux.md`.
+
+**CM9LNX implementation 2026-10-10:** whisper.cpp 1.7.6/tiny.en chosen
+from measured Vosk/tiny/base receipts; CPU baseline and runtime-selected
+variants preserve older x64/arm64 compatibility. Source and model hashes
+are pinned. Capture and inference hold bounded PCM only; download ownership,
+resumption, integrity, cancellation and removal live in the lazy voice bundle.
+The host uses the existing admitted helper, installed-language text and native
+size/storage consent. Package staging requires both architectures, baseline
+libraries and notices, and excludes weights and source. Full local receipts
+and deliberate SHA-256-restored failures are recorded in the certification.
+
+- [x] Engine/model licence and synthetic accuracy/latency/size comparison.
+- [x] Helper protocol, pre-use consent, pinned resumable download, removal,
+      lifecycle and real CPU fixture recognition implemented and locally checked.
+- [x] Fourteen tables, manifest/reference, privacy and developer/user docs.
+- [ ] Hosted x64/arm64 native/package receipts and universal VSIX budget
+      decision (Q67); the existing cap remains unchanged, and publication
+      remains held. Full aggregate quality is the lead's gate per rig brief.
+
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M10 — Workspace context: rules, skills and memory on both backends
@@ -17812,7 +18008,72 @@ sessions:
 
 ### M35 — Muse Voice dictation, paid and opt-in (D30)
 
-**Status 2026-09-25: built.**
+**Status 2026-10-11: built.**
+
+**Status 2026-10-17 (MSM9M35): complete.** Paid realtime dictation stays
+connected on the Model API backend with the CM352 bounds (one owner per
+recording, 3-minute bound, admission before capture, settle from reported
+duration). The companion's paid route stays behind the release hold with it.
+Full record: `docs/certification/msm9m35.md`.
+
+- RVCM352 repair: recording-owned helpers/callbacks and serialized restarts;
+  no microphone before both admissions; awaited shutdown and closed-tab drains;
+  independent Meta-key scope; Linux readiness follows successful OS spawn.
+- Cap: three minutes plus 80 ms reservation headroom; reported-duration tariff
+  settlement and window consent. See [CM352 certification](docs/certification/cm352.md).
+- Physical microphone/editor receipts and external Grok review remain with
+  C-M35-3/the lead; no live calls in this lane, and no captured-frame
+  replay suite is in this tree (candidate fake suites stayed out under the
+  owner's testing rules; RVMSM9M35).
+
+**CMICCOMP completion lane, 2026-10-10 (implemented; Linux-certified; hidden).** Extend M9/M35
+to the authenticated loopback companion for ACP and terminal users. D34's
+stored-key Muse Code support supersedes the archive's original backend limit.
+Use U18's captured mono PCM WAV batch endpoint, not unbounded realtime billing.
+The browser captures at most 60 seconds / 1,920,044 WAV bytes; the server
+independently validates origin, bearer, byte count, WAV geometry, ticket age,
+single-use ownership and concurrency. Stereo channels are mixed in float
+precision before one clip/round to PCM16, preventing positive full-scale wrap.
+Audio is memory-only on the paid path;
+free OS recognition uses an owner-only temporary WAV deleted in finally.
+Windows reuses `dictate.ps1 -InputWav`; macOS adds file recognition to the
+same signed helper, without opening the host microphone. No free Linux engine.
+Paid voice is explicitly chosen, uses PaidUseConsent once per companion
+window, the runtime's shared durable daily ledger, and PaidUsage's tally.
+Keys remain in the runtime; no child receives one. No automatic retry.
+ACP paid consent uses the editor's permission request; CLI uses the browser
+dialog. Dropping the voice flag revokes remembered voice grants on either
+backend, and opening the free-only CLI route does the same before recognition.
+
+ACP has no client-draft mutation method. The companion therefore inserts
+transcripts into its reviewable prompt; an explicit Send submits that prompt
+through the owning ACP session. CLI writes reviewed text to stdout for the
+calling terminal, with paid calls recorded through the existing lazy usage
+journal and flushed before process exit. Neither transcription nor opening the page starts a turn. A capture ticket
+blocks Send on the host, and recording disables Send in the browser, including
+a second recording after an earlier transcript. Cancel releases that ticket
+before a reviewed prior prompt can be sent.
+
+Lane plan (keep current):
+
+- [x] Guarded WAV protocol and authenticated capture lifecycle, refusal tests.
+- [x] Captured batch adapter, consent, durable budget and tally, failure tests.
+- [x] Free Windows/macOS file engines and bounded child lifecycle (the
+      candidate lanes' fake cleanup suites are not in this tree; RVMSM9M35).
+      Native macOS compilation and actual OS recognition remain in the release hold.
+- [x] Accessible/responsive companion, explicit ACP/CLI prompt handoff.
+- [ ] Browser microphone e2e on a real rig (the candidate lanes' fake-mic
+      drills are records only, not suites in this tree; RVMSM9M35).
+- [x] Localization, Help/docs and focused gates; local hooked commit at handoff.
+- [ ] Windows/macOS browser and native-helper receipts on lead rigs.
+
+Release hold: new command/control entry points remain off and unannounced
+until all lane acceptance rows are certified, including the other OS rigs.
+Existing M9/M35 behaviour is unchanged. No paid/live calls are authorized
+in this lane. Full quality is the lead's four-machine gate; the shared lane
+rules require focused checks here instead.
+
+First-use bundle measurements and separate budgets are recorded in §2 D6.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -23737,7 +23998,7 @@ is deferred; all five fix drills fired and restored SHA-256-exact source.
 
 **Status 2026-10-10 (first parts shipped in 0.15.0; M95b sign-ins/plan keys and M95c Bedrock/chat exposure remain): building.**
 
-**Status 2026-10-17 (lane MSM95, macmini): lane MSM95 complete on ms/msm95; lead certification pending.** Merged the most-complete candidate (C-M95-4: llama.cpp/LM Studio captures, local context windows, read-at-use-time resolver) and `main-now` through `3d30a7321`. Every listed behaviour is connected on every named surface — panel (Providers/Models sections, wizard, quick pick, scan), terminal (`providers add --context-window`, `connect openrouter`, `usage`, `exec --provider`), editor protocol (configured registry, output-cap minimum, windowed refusal) and ACP/CLI (`auth set --provider`, `providers`, `exec --provider`) — with Help reference and README entries. Panel lists exactly what the transport admits (D140); uncaptured presets refuse with no dispatch. M95b sign-ins/plan keys and M95c Bedrock/chat exposure remain separate milestones. Evidence: `docs/certification/msm95.md`.
+**Status 2026-10-17 (lane MSM95, macmini): lane MSM95 complete on ms/msm95; lead certification pending.** Merged the most-complete candidate (C-M95-4: llama.cpp/LM Studio captures, local context windows, read-at-use-time resolver) and `main-now` through `3d30a7321`. Every listed behaviour is connected on every named surface — panel (Providers/Models sections, wizard, quick pick, scan), terminal (`providers add --context-window`, `connect openrouter`, `usage`, `exec --provider`), editor protocol (configured registry, output-cap minimum, windowed refusal) and ACP/CLI (`auth set --provider`, `providers`, `exec --provider`) — with Help reference and README entries. Panel lists exactly what the transport admits (D205); uncaptured presets refuse with no dispatch. M95b sign-ins/plan keys and M95c Bedrock/chat exposure remain separate milestones. Evidence: `docs/certification/msm95.md`.
 
 Status detail retained: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
@@ -33819,6 +34080,16 @@ roadmap and production build without weakening any limit. Record per-path
 SHA-256 restoration drills and the full configured-provider loopback receipt
 in `docs/certification/min-output-cap.md`. Hooks stay installed and enabled;
 local commits only, no merge, push or paid/live request.
+**CM9LNX publication hold (2026-10-10, Kubuntu).** The lane's explicit
+rig/common brief forbids aggregate quality and delegates hosted platform
+qualification to the lead. Keep every existing bundle/VSIX cap. The approved
+Linux dictation engine adds a measured 3,111,639-byte x64 ZIP payload before
+arm64, against the unchanged 3,700-KiB whole-VSIX cap; Q67 needs a lead/owner
+budget decision or a separately reviewed payload reduction. Package staging
+and CI now refuse missing recognizers, baseline libraries and notices; no
+partial Linux-enabled VSIX has been produced or published. Local fake/real
+recognition, guarded acquisition, licence and focused gate receipts are in
+`docs/certification/m9-linux.md`. Native editor bindings stay C-M9-1/C-M104-1.
 
 **CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
 round 4's macOS target-size deadline and palette failure-render ordering
@@ -35570,6 +35841,7 @@ remain available.
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
 **MSM95 models-section budget 13 → 14 KiB (2026-10-17, macmini).** CM954 R4's required saved-model editor UI (the validated per-model context-window field, `src/webview/models/components/ContextWindow.tsx`) grew the deferred models-section chunk from 12,074 B to 13,448 B, 136 bytes over the row's 13 KiB. The field cannot shrink: every byte is required behaviour or its accessible label, hint and alert. The row is re-measured at 14 KiB (14,336 B; 888 B headroom), following the MODELSPLIT row-setting precedent. No other budget moves. Detail: `docs/certification/msm95.md`.
+**MSM9M35 lane-K activation budget (2026-10-17, macmini; open, lead-owned).** `test/unit/modelsActivationBudget.test.ts` (at most 3 KiB over the immutable pre-K production bundle) fails on the lane tree: baseline 561,352 B, current 568,566 B, growth 7,214 B against the 3,072 B cap. `main-now` 3d30a7321 alone measures 561,352 B to 564,215 B = 2,863 B (the test passes there with 209 B headroom), so the lane's specified behaviour adds 4,351 B and no behaviour-adding milestone can fit the remainder. Diet already applied, none of it a gate change: the Linux driver ships in the new `dist/voiceLinux.js` (50 KiB budget by the measured-plus-15% rule, actual 35,907 B) instead of raising `dist/voice.js`'s 50 KiB cap; companion tunables moved out of `src/shared/constants.ts`; moving the download-consent card into `dist/voiceLinux.js` was tried and reverted because deferred bundles keep no `vscode` import by build design (a stray import fails `npm run build`) and consent arrives as a parameter, the M93 precedent. What remains in activation is specified behaviour: the M9 Linux availability probe (`src/core/voice/helperLocation.ts`), the disabled-model cleanup with its honest pending/removed states (`src/host/voice/dictationHost.ts`, RVCM9LNX P3), the Linux bundle loader (`src/host/voice/voiceBundle.ts`), the M35 paid scope identity and reserve wiring (`src/extension.ts`, D30), and the `LINUX_DICTATION` pins and paths (`src/shared/constants.ts`, D140). No threshold, rule level or ignore is changed and the test is not skipped. **Fixed 2026-10-17 (linuxlt, RVMSM9M35FIX), no cap change:** the setups moved off the activation path into the new `dist/dictation.js` (13,032 B measured, 25 KiB budget by the measured-plus-15% rule), required at their existing construction points with the installed table, so timing and behaviour are unchanged; `dictationHost.ts` takes its host capabilities as parameters (the M93 precedent) because deferred bundles keep no `vscode` import; `LINUX_DICTATION` moved to `src/shared/linuxDictationConstants.ts` (re-exported, the browser-check precedent) so activation no longer carries it. Growth is now 2,577 B of the 3,072 B cap (495 B headroom). The split gate refuses the four moved modules back in activation, and its fire drill is recorded with the real-use proof in `docs/certification/msm9m35.md`. No threshold, rule level or ignore changed; the deferral is closed.
 
 ## 8. Escape hatches register
 
@@ -35581,6 +35853,9 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 | ------------------------------------------------------------------ | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/runtime/panel/pullRequests/records.ts`, `claim`               | `error.results as readonly Claimed[]`       | This catch surrounds only its own `mutate<Claimed>`; `make` errors are captured in `outcome`, and `mutate` constructs the error with its own `T[]` of attempted results. `instanceof` cannot retain that generic correlation. The unknown-claim regression verifies every potentially owned fence and cleanup. |
 | `src/runtime/panel/pullRequests/checkout.ts`, `reserveAndCheckout` | `error.results as readonly ReserveResult[]` | Only `reserve` and `supersede` mutations run in this try; the record store constructs this error from those methods' `ReserveResult` attempts. `instanceof` erases the generic payload type. The uncertain-write interleavings verify cleanup after either reservation operation lands and fails.              |
+
+| `src/acp/agent.ts`, `src/runtime/main.ts`, `src/runtime/companion/voiceSystem.ts` (CMICCOMP) | `unicorn/prefer-promise-with-resolvers` disables with inline reasons | The host type project has the Node 20 library shape, which lacks `Promise.withResolvers`; synchronous resolver capture preserves the supported runtime without adding a shim. Remove when the type baseline supplies it. |
+| `src/runtime/companion/voiceLoader.ts` (CMICCOMP) | Same-build exported-function type predicate | Runtime checks the module and function property; a packaged TypeScript function signature cannot be checked by JavaScript. The factory is from this same build and installs the caller's language table. |
 
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -35835,24 +36110,25 @@ before a repaired one loads (2026-09-30).
 | `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`                                                    | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                                  | 2026-09-30 |
 | `src/host/git/conversationGitBundle.ts`         | `value is ConversationGitBundle`                                           | MG78: checks the packaged factory is a function; its signature is trusted only across one source/build/package. The shipped-bundle test verifies installed language, trust refusal, loader repair and activation's error identities.                                                                                                                                                                                                                                                              | 2026-10-02 |
 
-| File                                      | Construct                                                                | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
-| ----------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/resources/resourceJobHolder.ts` | `nosemgrep` on `spawn` (`detect-child-process`)                          | M107 C1's absolute Windows PowerShell runs only the verified packaged job DLL's fixed Hold entry and a fresh generated job name, in the projected helper environment. No model/workspace command or credential; it holds a query handle until owned job membership is empty. It is sampling infrastructure outside the governed job, and never sets limits or kills work.                                                                                                                                                                                                              | 2026-10-05 |
-| `src/host/backend/toolIo.ts`              | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`)       | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                         | 2026-09-22 |
-| `src/host/backend/searchWorker.ts`        | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)       | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
-| `src/host/voice/voiceProcesses.ts`        | `nosemgrep` on the shared admitted `spawn` call (`detect-child-process`) | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
-| `native/darwin/Dictation.swift`           | `unsafeBitCast(symbol, to: SetDisclaim.self)`                            | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
-| `src/host/backend/shellJob.ts`            | `catch { }` in the join statement each Windows command starts with       | An unconfigured command whose job cannot be joined (the assembly removed since the self-test, a policy change) runs as it would without one; governed C1 commands instead exit before their payload; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                               | 2026-09-23 |
-| `test/unit/App.test.tsx`                  | `as unknown as Selection` (four stubs)                                   | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-23 |
-| `scripts/capture-themes.mjs`              | `nosemgrep` on `spawn` (`detect-child-process`)                          | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                              | 2026-09-24 |
-| `scripts/sast.mjs`                        | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)            | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                | 2026-09-25 |
-| `src/host/backend/mcpProcess.ts`          | `nosemgrep` on `spawn` (`detect-child-process`)                          | A stdio MCP server the user configured in Muse Code's own settings file (M50, D42), started only in a trusted workspace: its command found by absolute path (D24), its arguments passed as an array. A `.cmd`/`.bat` launcher goes through `cmd.exe /d /v:off /s /c` with every part quoted and `"`, `%` and line breaks refused. Nothing the model writes reaches the command line.                                                                                                                                                                                                   | 2026-09-25 |
-| `src/host/backend/mcpJobLaunch.ts`        | `nosemgrep` on `spawn` (`detect-child-process`)                          | On Windows M50 starts only its compiled C# executable in extension storage, with no arguments. The configured command, arguments and allowlisted environment are in a private encoded environment value; C# removes it and builds the server's exact environment before `CreateProcessW`. The server is assigned to its job before its first instruction. Since M56 the launcher's C# ships as `native/windows/MuseSparkMcpLauncher.cs` and the shared `MuseSparkMcpJob.cs`, is read by `jobSourceReader`, and compiles to an executable named by its source's digest (`jobBuild.ts`). | 2026-09-26 |
-| `test/unit/helpers/fakeMcpOrphan.mjs`     | `nosemgrep` on `spawn` (`detect-child-process`)                          | The M50 Windows regression fixture starts only this Node with its own fixed file to test an MCP server whose child outlives it. The child self-exits after 12 seconds; no model or workspace input reaches its command line, and the fixture never ships.                                                                                                                                                                                                                                                                                                                              | 2026-09-25 |
-| `src/host/backend/modelApiBundle.ts`      | `value is KeyClientBundle` (`isKeyClientBundle`)                         | Checks the stored-key factory function from the same source/build/package; its parameter and result signature is trusted like the existing host factory. The real built module is tested for lazy loading, retry and language handoff in modelApiBundle.test.ts.                                                                                                                                                                                                                                                                                                                       | 2026-10-05 |
-| `src/host/backend/modelApiBundle.ts`      | `value is ModelApiBundle` (`isModelApiBundle`, a type predicate)         | `require` of `dist/modelApi.js` returns `unknown`; the guard checks that `createModelApiHost` is a function, but not its parameter and result types, which no run-time check can see. Both bundles come from one source tree in one `npm run build` and ship in one package, this module types the factory on both sides, and `modelApiBundle.test.ts` builds the real bundle and runs a turn through it (M57).                                                                                                                                                                        | 2026-09-27 |
-| `src/host/codeIntel/languageServices.ts`  | `Reflect.get(edit, '_allEntries')`, an undocumented member               | VS Code's `WorkspaceEdit` API lists only text edits (`entries()`, and `size` counts them), so a rename that also moves or creates files looks plain. The internal `_allEntries()` (1.99.0 to 1.139.0) lists every entry with its `_type`; it is read as `unknown` and parsed with zod, and a missing member or a changed shape answers `unknown`, which refuses the rename rather than applying half of it (M67). `languageServices.test.ts` and the integration suite cover both.                                                                                                     | 2026-09-28 |
-| `src/runtime/main.ts`                     | `nosemgrep` on `spawn` (`detect-child-process`)                          | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                         | 2026-09-27 |
+| File                                      | Construct                                                                     | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Added      |
+| ----------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/resources/resourceJobHolder.ts` | `nosemgrep` on `spawn` (`detect-child-process`)                               | M107 C1's absolute Windows PowerShell runs only the verified packaged job DLL's fixed Hold entry and a fresh generated job name, in the projected helper environment. No model/workspace command or credential; it holds a query handle until owned job membership is empty. It is sampling infrastructure outside the governed job, and never sets limits or kills work.                                                                                                                                                                                                                                                         | 2026-10-05 |
+| `src/host/backend/toolIo.ts`              | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`)            | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                                                                    | 2026-09-22 |
+| `src/host/backend/searchWorker.ts`        | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)            | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                                                                        | 2026-09-22 |
+| `knip.jsonc`                              | Named system-binary declarations for `cmake`, `strip`, `readelf`, `cc`, `c++` | CM9LNX builds precompiled native helpers with installed CMake/strip and compiles fake-engine/hostile-plugin fixtures with the system compiler; readelf verifies each produced ELF loader path. None is an npm dependency. Dead-code rules and thresholds remain unchanged.                                                                                                                                                                                                                                                                                                                                                        | 2026-10-10 |
+| `src/host/voice/voiceProcesses.ts`        | `nosemgrep` on the shared admitted `spawn` call (`detect-child-process`)      | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); CM9LNX's Linux recognizer is the bundled x64/arm64 `muse-dictate` with a fixed global-storage model path (verified before spawn); its dynamic backend lookup is confined to the helper directory and GGML_BACKEND_PATH is cleared. M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them. | 2026-09-25 |
+| `native/darwin/Dictation.swift`           | `unsafeBitCast(symbol, to: SetDisclaim.self)`                                 | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                                                           | 2026-09-23 |
+| `src/host/backend/shellJob.ts`            | `catch { }` in the join statement each Windows command starts with            | An unconfigured command whose job cannot be joined (the assembly removed since the self-test, a policy change) runs as it would without one; governed C1 commands instead exit before their payload; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                                                                          | 2026-09-23 |
+| `test/unit/App.test.tsx`                  | `as unknown as Selection` (four stubs)                                        | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                                                                    | 2026-09-23 |
+| `scripts/capture-themes.mjs`              | `nosemgrep` on `spawn` (`detect-child-process`)                               | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-24 |
+| `scripts/sast.mjs`                        | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)                 | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                                                           | 2026-09-25 |
+| `src/host/backend/mcpProcess.ts`          | `nosemgrep` on `spawn` (`detect-child-process`)                               | A stdio MCP server the user configured in Muse Code's own settings file (M50, D42), started only in a trusted workspace: its command found by absolute path (D24), its arguments passed as an array. A `.cmd`/`.bat` launcher goes through `cmd.exe /d /v:off /s /c` with every part quoted and `"`, `%` and line breaks refused. Nothing the model writes reaches the command line.                                                                                                                                                                                                                                              | 2026-09-25 |
+| `src/host/backend/mcpJobLaunch.ts`        | `nosemgrep` on `spawn` (`detect-child-process`)                               | On Windows M50 starts only its compiled C# executable in extension storage, with no arguments. The configured command, arguments and allowlisted environment are in a private encoded environment value; C# removes it and builds the server's exact environment before `CreateProcessW`. The server is assigned to its job before its first instruction. Since M56 the launcher's C# ships as `native/windows/MuseSparkMcpLauncher.cs` and the shared `MuseSparkMcpJob.cs`, is read by `jobSourceReader`, and compiles to an executable named by its source's digest (`jobBuild.ts`).                                            | 2026-09-26 |
+| `test/unit/helpers/fakeMcpOrphan.mjs`     | `nosemgrep` on `spawn` (`detect-child-process`)                               | The M50 Windows regression fixture starts only this Node with its own fixed file to test an MCP server whose child outlives it. The child self-exits after 12 seconds; no model or workspace input reaches its command line, and the fixture never ships.                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-25 |
+| `src/host/backend/modelApiBundle.ts`      | `value is KeyClientBundle` (`isKeyClientBundle`)                              | Checks the stored-key factory function from the same source/build/package; its parameter and result signature is trusted like the existing host factory. The real built module is tested for lazy loading, retry and language handoff in modelApiBundle.test.ts.                                                                                                                                                                                                                                                                                                                                                                  | 2026-10-05 |
+| `src/host/backend/modelApiBundle.ts`      | `value is ModelApiBundle` (`isModelApiBundle`, a type predicate)              | `require` of `dist/modelApi.js` returns `unknown`; the guard checks that `createModelApiHost` is a function, but not its parameter and result types, which no run-time check can see. Both bundles come from one source tree in one `npm run build` and ship in one package, this module types the factory on both sides, and `modelApiBundle.test.ts` builds the real bundle and runs a turn through it (M57).                                                                                                                                                                                                                   | 2026-09-27 |
+| `src/host/codeIntel/languageServices.ts`  | `Reflect.get(edit, '_allEntries')`, an undocumented member                    | VS Code's `WorkspaceEdit` API lists only text edits (`entries()`, and `size` counts them), so a rename that also moves or creates files looks plain. The internal `_allEntries()` (1.99.0 to 1.139.0) lists every entry with its `_type`; it is read as `unknown` and parsed with zod, and a missing member or a changed shape answers `unknown`, which refuses the rename rather than applying half of it (M67). `languageServices.test.ts` and the integration suite cover both.                                                                                                                                                | 2026-09-28 |
+| `src/runtime/main.ts`                     | `nosemgrep` on `spawn` (`detect-child-process`)                               | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                                                                    | 2026-09-27 |
 
 | `src/webview/components/HeartbeatTrace.tsx` | `eslint-disable-next-line unicorn/prefer-path2d` on the tick segment path    | The beam draws a new 0.5 px segment at its current position every 6 ms tick; a reused `Path2D` would freeze the beam at its first segment. The suppression covers only this `beginPath`, with the reason inline.                                                                                                                                                                                                                                                                                                                   | 2026-10-04 |
 | ------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -39223,6 +39499,15 @@ PR #221 (`ms/playback`) merged onto the release as `Merge PR #221
 `[0.19.0]`'s Added; `src/acp/agent.ts` keeps the release's sandbox-note tail
 on ordinary turns with PR #221's memory-only playback branch; the reference
 registry regenerated.
+PR #224 (`ms/msm9m35`) merged onto the release as `Merge PR #224
+(ms/msm9m35) into release/0.19.0`, its CHANGELOG entries under `[0.19.0]`;
+`createMuseVoiceSetup` takes the window names and the live network posture;
+`scripts/build.mjs` keeps the bounded pool with PR #224's `voiceLinux`,
+`dictation`, `voiceCompanion` and `voiceCompanionWebview` bundles as thunks;
+D-number collision resolved: the Linux helper keeps D140 (lead decision
+2026-10-10), claimed-shipped milestones move to D204 and the M95
+panel-transport rule to D205; generated files (ROADMAP, host-api, reference,
+lazy registry, production-built) regenerated.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
 Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from

@@ -63,6 +63,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly usageHistory: boolean
   readonly usageHistoryDays: number
   readonly paidDailyBudgetUsd: UsdAmount
+  readonly linuxDictationModel: boolean
   readonly dictationEngine: 'system' | 'museVoice'
   /** Absolute path to the `muse` executable; empty means "discover". */
   readonly museBinaryPath: string
@@ -301,6 +302,7 @@ const settingSchemas = {
         Usd.from(value).compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) <= 0,
     ),
   ),
+  linuxDictationModel: z.boolean(),
   dictationEngine: z.enum(['system', 'museVoice']),
   modelApiSessionBudgetUsd: legacyUsdSchema,
   legalRegistryLookups: z.boolean(),
@@ -433,6 +435,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     paidDailyBudgetUsd: readSetting(config, 'paidDailyBudgetUsd', log),
     usageHistory: readSetting(config, 'usageHistory', log),
     usageHistoryDays: readSetting(config, 'usageHistoryDays', log),
+    linuxDictationModel: readSetting(config, 'linuxDictationModel', log),
     dictationEngine: readSetting(config, 'dictationEngine', log),
     modelApiSessionBudgetUsd: readSetting(config, 'modelApiSessionBudgetUsd', log),
     modelApiCommandRules: readSetting(config, 'modelApiCommandRules', log),

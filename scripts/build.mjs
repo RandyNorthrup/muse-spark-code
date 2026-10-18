@@ -198,6 +198,10 @@ const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
 const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
 const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
 const VOICE_OUTFILE = 'dist/voice.js'
+const VOICE_LINUX_ENTRY = 'src/host/voice/voiceLinuxEntry.ts'
+const VOICE_LINUX_OUTFILE = 'dist/voiceLinux.js'
+const DICTATION_ENTRY = 'src/host/voice/dictationEntry.ts'
+const DICTATION_OUTFILE = 'dist/dictation.js'
 const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
@@ -639,6 +643,23 @@ const voiceOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const voiceLinuxOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [VOICE_LINUX_ENTRY],
+  outfile: VOICE_LINUX_OUTFILE,
+}
+
+// Voice dictation's setups (M9, M35): the window's dictation and Muse Voice
+// setups with the helper probes, required at their existing construction
+// points. It reads no `vscode`, so a stray import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const dictationOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [DICTATION_ENTRY],
+  outfile: DICTATION_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const webFetchOptions = {
   ...planMarkdownOptions,
   entryPoints: [WEB_FETCH_ENTRY],
@@ -690,6 +711,20 @@ const usageCompanionOptions = {
   ...modelApiOptions,
   entryPoints: [USAGE_COMPANION_ENTRY],
   outfile: 'dist/usageCompanion.js',
+}
+const voiceCompanionOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/runtime/companion/voiceEntry.ts'],
+  outfile: 'dist/voiceCompanion.js',
+}
+const voiceCompanionWebviewOptions = {
+  ...common,
+  plugins: isProduction ? [compactBrowserUiText] : [],
+  entryPoints: ['src/webview/voice/companion.ts'],
+  outfile: 'dist/webview/voiceCompanion.js',
+  platform: 'browser',
+  format: 'esm',
+  target: BROWSER_TARGET,
 }
 const usagePanelOptions = {
   ...hostOptions,
@@ -1300,6 +1335,8 @@ if (isWatch) {
     esbuild.context(legalScanOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
+    esbuild.context(voiceLinuxOptions),
+    esbuild.context(dictationOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(mcpVaultOptions),
     esbuild.context(museCodeReviewerOptions),
@@ -1308,6 +1345,8 @@ if (isWatch) {
     esbuild.context(usageServiceOptions),
     esbuild.context(headlessOptions),
     esbuild.context(usageCompanionOptions),
+    esbuild.context(voiceCompanionOptions),
+    esbuild.context(voiceCompanionWebviewOptions),
     esbuild.context(usagePanelOptions),
     esbuild.context(extensionHooksOptions),
     esbuild.context(vaultOptions),
@@ -1431,6 +1470,8 @@ if (isWatch) {
     legalScan: () => esbuild.build(legalScanOptions),
     codeIntel: () => esbuild.build(codeIntelOptions),
     voice: () => esbuild.build(voiceOptions),
+    voiceLinux: () => esbuild.build(voiceLinuxOptions),
+    dictation: () => esbuild.build(dictationOptions),
     webFetch: () => esbuild.build(webFetchOptions),
     mcpVault: () => esbuild.build(mcpVaultOptions),
     museCodeReviewer: () => esbuild.build(museCodeReviewerOptions),
@@ -1438,6 +1479,8 @@ if (isWatch) {
     modelsSubscriptions: () => esbuild.build(modelsSubscriptionsOptions),
     usageService: () => esbuild.build(usageServiceOptions),
     usageCompanion: () => esbuild.build(usageCompanionOptions),
+    voiceCompanion: () => esbuild.build(voiceCompanionOptions),
+    voiceCompanionWebview: () => esbuild.build(voiceCompanionWebviewOptions),
     usagePanel: () => esbuild.build(usagePanelOptions),
     extensionHooks: () => esbuild.build(extensionHooksOptions),
     vault: () => esbuild.build(vaultOptions),
@@ -1578,6 +1621,8 @@ if (isWatch) {
   reportSize(LEGAL_SCAN_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
+  reportSize(VOICE_LINUX_OUTFILE)
+  reportSize(DICTATION_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)

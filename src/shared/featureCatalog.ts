@@ -2,6 +2,7 @@ import { PAID_USE_REGISTRY } from './paid'
 // HELPREF: reviewed feature relationships. The generator validates every id
 // against the manifest and reuses its translated text and the palette's tips.
 import { COMMAND_IDS, type SETTING_DEFAULTS, PROMPT_COMMAND_IDS, UI_TEXT } from './constants'
+import { COMPANION_VOICE_RELEASE } from './companionVoice'
 import type { UiText } from './l10n/en'
 
 type PlainReferenceText =
@@ -698,12 +699,27 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'dictationLabel' },
       { ui: 'referenceDictation' },
       [],
-      [],
+      ['linuxDictationModel'],
       'voice-dictation',
       undefined,
       false,
       ['vscode'],
     ),
+    ...(COMPANION_VOICE_RELEASE.isReady
+      ? [
+          feature(
+            'companion-dictation',
+            { ui: 'companionVoiceTitle' },
+            { ui: 'companionVoiceReference' },
+            [],
+            [],
+            'voice-dictation',
+            undefined,
+            false,
+            ['acp'],
+          ),
+        ]
+      : []),
     feature(
       'chat',
       { ui: 'transcriptLabel' },
@@ -928,9 +944,9 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'paidVoiceName' },
       { ui: 'referenceVoice' },
       [],
-      ['dictationEngine', 'modelApiVoice'],
+      ['dictationEngine', 'modelApiVoice', 'modelApiSessionBudgetUsd', 'paidDailyBudgetUsd'],
       'voice-dictation',
-      ['museCode'],
+      ['museCode', 'modelApi'],
       true,
       ['vscode'],
     ),

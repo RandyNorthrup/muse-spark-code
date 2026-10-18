@@ -479,9 +479,10 @@ jobs:
             native/darwin/muse-dictate-screen.tgz
           if-no-files-found: error
 
-  # The .vsix with both helpers: what release.yml publishes.
+  # The Linux dictation helper release assets (D140): built here for both
+  # architectures, published by release.yml, never packed in the .vsix.
   linux-native-build:
-    name: compile created-path helper (linux ${{ matrix.arch }})
+    name: compile native helpers (linux ${{ matrix.arch }})
     if: ${{ inputs.part != 'org' && !inputs.fast }}
     strategy:
       matrix:
@@ -499,12 +500,17 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-      - run: sudo apt-get update && sudo apt-get install -y libssl-dev
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y libssl-dev libpulse-dev cmake g++-14
       - run: node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; buildLinuxHelper()"
+      - run: CC=gcc-14 CXX=g++-14 node scripts/build-linux-dictation.mjs
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-created-linux-${{ matrix.arch }}
-          path: native/linux/${{ matrix.arch }}/muse-created
+          path: |
+            native/linux/${{ matrix.arch }}/muse-created
+            native/linux/${{ matrix.arch }}/muse-dictate
+            native/linux/${{ matrix.arch }}/*.so*
           if-no-files-found: error
 
   packages:
@@ -537,17 +543,43 @@ jobs:
         with:
           name: muse-vault-darwin
           path: dist/native/darwin
-      - run: chmod +x native/linux/x64/muse-created native/linux/arm64/muse-created
+      - run: chmod +x native/linux/x64/muse-created native/linux/arm64/muse-created native/linux/x64/muse-dictate native/linux/arm64/muse-dictate
       - run: chmod +x dist/native/darwin/muse-vault
       - run: chmod +x native/darwin/muse-dictate
       - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
+      # Dependencies first: the pin checker imports esbuild to load the
+      # pins module, so it cannot run before `npm ci`.
       - run: npm ci
+      # D140: the Linux dictation helper ships as same-tag release assets,
+      # never in the VSIX. Regenerate its pins from these built helpers so
+      # the packaged extension embeds their exact digests; unset pins fail.
+      - run: node scripts/build-linux-helper-pins.mjs native/linux/x64 native/linux/arm64
+      - run: node scripts/check-linux-helper-pins.mjs --require-values
       - run: npm run package
         env:
           # The packaged-README badge check lists public main (GitHub API).
           GITHUB_TOKEN: ${{ github.token }}
       - name: the universal VSIX stays within its measured budget
         run: node scripts/check-vsix-size.mjs ./*.vsix
+      # D140: prove the VSIX embeds the pins of exactly these helper files;
+      # a VSIX whose digests do not match the uploaded assets fails here.
+      - name: the VSIX pins match the helper release assets
+        run: |
+          mkdir -p helper-assets
+          for spec in x64:muse-dictate x64:libwhisper.so.1 x64:libggml.so x64:libggml-base.so \
+              x64:libggml-cpu-x64.so x64:libggml-cpu-sse42.so x64:libggml-cpu-sandybridge.so \
+              x64:libggml-cpu-haswell.so x64:libggml-cpu-skylakex.so x64:libggml-cpu-icelake.so \
+              x64:libggml-cpu-alderlake.so x64:libggml-cpu-sapphirerapids.so \
+              arm64:muse-dictate arm64:libwhisper.so.1 arm64:libggml.so \
+              arm64:libggml-base.so arm64:libggml-cpu-armv8.0_1.so arm64:libggml-cpu-armv8.2_1.so \
+              arm64:libggml-cpu-armv8.2_2.so arm64:libggml-cpu-armv8.2_3.so arm64:libggml-cpu-armv8.6_1.so \
+              arm64:libggml-cpu-armv8.6_2.so arm64:libggml-cpu-armv9.2_1.so arm64:libggml-cpu-armv9.2_2.so; do
+            arch="${spec%%:*}"
+            file="${spec#*:}"
+            cp "native/linux/$arch/$file" "helper-assets/linux-$arch-$file"
+          done
+          unzip -p ./*.vsix extension/dist/voiceLinux.js > "$RUNNER_TEMP/voiceLinux.js"
+          node scripts/check-linux-helper-pins.mjs --bundle "$RUNNER_TEMP/voiceLinux.js" --assets helper-assets
       # What must be inside the package: the licence, the third-party
       # notices, the native helpers and every runtime bundle (the webview
       # loads main.css beside main.js; the extension requires modelApi.js
@@ -559,6 +591,7 @@ jobs:
           listing="$(unzip -Z1 ./*.vsix)"
           for entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json \
             extension/native/linux/x64/muse-created extension/native/linux/arm64/muse-created \
+            extension/native/dictation-linux/whisper-LICENSE.txt extension/native/dictation-linux/model-LICENSE.txt \
             extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \
             extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
             extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
@@ -585,6 +618,25 @@ jobs:
             extension/dist/webview/whatsNew.js extension/dist/webview/whatsNew.css; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the .vsix" >&2
+              exit 1
+            fi
+          done
+          # D140: the Linux dictation helper ships as release assets, never
+          # in the VSIX; any bundled binary fails the package.
+          for entry in extension/native/linux/x64/muse-dictate extension/native/linux/arm64/muse-dictate \
+            extension/native/linux/x64/libwhisper.so.1 extension/native/linux/arm64/libwhisper.so.1 \
+            extension/native/linux/x64/libggml.so extension/native/linux/arm64/libggml.so \
+            extension/native/linux/x64/libggml-base.so extension/native/linux/arm64/libggml-base.so \
+            extension/native/linux/x64/libggml-cpu-x64.so extension/native/linux/x64/libggml-cpu-sse42.so \
+            extension/native/linux/x64/libggml-cpu-sandybridge.so extension/native/linux/x64/libggml-cpu-haswell.so \
+            extension/native/linux/x64/libggml-cpu-skylakex.so extension/native/linux/x64/libggml-cpu-icelake.so \
+            extension/native/linux/x64/libggml-cpu-alderlake.so extension/native/linux/x64/libggml-cpu-sapphirerapids.so \
+            extension/native/linux/arm64/libggml-cpu-armv8.0_1.so extension/native/linux/arm64/libggml-cpu-armv8.2_1.so \
+            extension/native/linux/arm64/libggml-cpu-armv8.2_2.so extension/native/linux/arm64/libggml-cpu-armv8.2_3.so \
+            extension/native/linux/arm64/libggml-cpu-armv8.6_1.so extension/native/linux/arm64/libggml-cpu-armv8.6_2.so \
+            extension/native/linux/arm64/libggml-cpu-armv9.2_1.so extension/native/linux/arm64/libggml-cpu-armv9.2_2.so; do
+            if grep -Fxq -- "$entry" <<< "$listing"; then
+              echo "::error::$entry must not ship in the .vsix" >&2
               exit 1
             fi
           done

@@ -65,7 +65,8 @@
     {
       "id": "M9",
       "title": "Voice dictation",
-      "summary": "Dictate into the prompt box with a microphone button (tap or hold, or Ctrl+D) on Windows and macOS, using the operating system's own speech recogniser at no cost.",
+      "summary": "Dictate at no cost with tap, hold or Ctrl+D on Windows and macOS, with an offline Linux helper downloading on consent as same-tag release assets (never in the package).",
+
       "area": "voice-media",
       "release": "0.1.0"
     },
@@ -252,7 +253,8 @@
     {
       "id": "M35",
       "title": "Muse Voice dictation",
-      "summary": "Optional paid dictation with Meta's Muse Voice Transcribe, while your computer's free speech recogniser stays the default; the Model API backend currently refuses it, because its billed audio length has no verified limit.",
+      "summary": "Optional dictation billed to your Meta key on either backend and conversation model, with isolated three-minute recordings admitted before capture, drained on restart or shutdown, and settled from reported duration; free system dictation remains the default.",
+
       "area": "voice-media",
       "release": "0.9.0"
     },

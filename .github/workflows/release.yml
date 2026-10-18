@@ -133,11 +133,33 @@ jobs:
           run-id: ${{ steps.lookup.outputs.run-id }}
           github-token: ${{ github.token }}
           path: reused
+      # D140: the Linux dictation helper builds for the release assets.
+      # Tags predating helper assets (legacy recovery) reuse without them.
+      - name: download the CI Linux helper x64 build
+        id: helpers-x64
+        if: steps.lookup.outputs.run-id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-created-linux-x64
+          run-id: ${{ steps.lookup.outputs.run-id }}
+          github-token: ${{ github.token }}
+          path: reused-helpers/x64
+      - name: download the CI Linux helper arm64 build
+        id: helpers-arm64
+        if: steps.lookup.outputs.run-id != ''
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-created-linux-arm64
+          run-id: ${{ steps.lookup.outputs.run-id }}
+          github-token: ${{ github.token }}
+          path: reused-helpers/arm64
       - name: verify tree, asset hashes and both package versions
         id: check
         if: steps.lookup.outputs.run-id != ''
         env:
-          DOWNLOADS_OK: ${{ (steps.receipt.outcome == 'success' || steps.lookup.outputs.legacy-recovery == 'true') && steps.vsix.outcome == 'success' && steps.acp.outcome == 'success' && steps.sboms.outcome == 'success' }}
+          DOWNLOADS_OK: ${{ (steps.receipt.outcome == 'success' || steps.lookup.outputs.legacy-recovery == 'true') && steps.vsix.outcome == 'success' && steps.acp.outcome == 'success' && steps.sboms.outcome == 'success' && (steps.helpers-x64.outcome == 'success' || steps.lookup.outputs.legacy-recovery == 'true') && (steps.helpers-arm64.outcome == 'success' || steps.lookup.outputs.legacy-recovery == 'true') }}
           RECOVERY_RUN_ID: ${{ inputs.artifacts_run_id }}
           LEGACY_RECOVERY: ${{ steps.lookup.outputs.legacy-recovery }}
           SOURCE_TREE: ${{ steps.lookup.outputs.tree }}
@@ -171,6 +193,20 @@ jobs:
         with:
           name: muse-spark-code-sboms
           path: reused/*.cdx.json
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.check.outputs.reused == 'true' && hashFiles('reused-helpers/x64/**') != ''
+        with:
+          name: muse-created-linux-x64
+          path: reused-helpers/x64
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.check.outputs.reused == 'true' && hashFiles('reused-helpers/arm64/**') != ''
+        with:
+          name: muse-created-linux-arm64
+          path: reused-helpers/arm64
           if-no-files-found: error
           retention-days: 30
 
@@ -225,6 +261,25 @@ jobs:
           github-token: ${{ github.token }}
           name: muse-spark-code-sboms
           path: release
+      # D140: the helper builds for the same-tag release assets. Absent on
+      # legacy recoveries only; the staging step refuses a modern VSIX
+      # without them.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        id: helpers-x64
+        continue-on-error: true
+        with:
+          run-id: ${{ github.run_id }}
+          github-token: ${{ github.token }}
+          name: muse-created-linux-x64
+          path: helpers/x64
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        id: helpers-arm64
+        continue-on-error: true
+        with:
+          run-id: ${{ github.run_id }}
+          github-token: ${{ github.token }}
+          name: muse-created-linux-arm64
+          path: helpers/arm64
       - run: npm ci --ignore-scripts --no-audit
       # M80 hook: inert until its schemas exist. They ship as assets beside
       # the packages, listed in SHA256SUMS and attested like them.
@@ -238,12 +293,58 @@ jobs:
             cp "${schemas[@]}" release/
             printf '%s\n' "${schemas[@]##*/}" > release/.schemas
           fi
+      # D140: stage the helper files as stable-named release assets and
+      # prove the VSIX embeds exactly their digests. A VSIX from the
+      # download-on-consent era without staged helpers fails instead of
+      # publishing an unusable release; legacy tags (bundled helpers, no
+      # asset names in the bundle) release without them.
+      - name: stage the Linux helper release assets when present
+        shell: bash
+        run: |
+          mkdir -p release/helpers
+          staged=0
+          for spec in x64:muse-dictate x64:libwhisper.so.1 x64:libggml.so x64:libggml-base.so \
+              x64:libggml-cpu-x64.so x64:libggml-cpu-sse42.so x64:libggml-cpu-sandybridge.so \
+              x64:libggml-cpu-haswell.so x64:libggml-cpu-skylakex.so x64:libggml-cpu-icelake.so \
+              x64:libggml-cpu-alderlake.so x64:libggml-cpu-sapphirerapids.so \
+              arm64:muse-dictate arm64:libwhisper.so.1 arm64:libggml.so \
+              arm64:libggml-base.so arm64:libggml-cpu-armv8.0_1.so arm64:libggml-cpu-armv8.2_1.so \
+              arm64:libggml-cpu-armv8.2_2.so arm64:libggml-cpu-armv8.2_3.so arm64:libggml-cpu-armv8.6_1.so \
+              arm64:libggml-cpu-armv8.6_2.so arm64:libggml-cpu-armv9.2_1.so arm64:libggml-cpu-armv9.2_2.so; do
+            arch="${spec%%:*}"
+            file="${spec#*:}"
+            if [ -f "helpers/$arch/$file" ]; then
+              cp "helpers/$arch/$file" "release/helpers/linux-$arch-$file"
+              staged=1
+            fi
+          done
+          if [ "$staged" = 1 ]; then
+            # The tagged source carries unset pins by design; measure the
+            # staged helpers (and this tag) into the checker's own copy so
+            # it verifies the VSIX against real bytes, not empty pins.
+            node scripts/build-linux-helper-pins.mjs helpers/x64 helpers/arm64
+            unzip -p release/*.vsix extension/dist/voiceLinux.js > release/voiceLinux.js
+            node scripts/check-linux-helper-pins.mjs --bundle release/voiceLinux.js --assets release/helpers
+            rm release/voiceLinux.js
+          elif unzip -p release/*.vsix extension/dist/voiceLinux.js | grep -q 'linux-x64-muse-dictate'; then
+            echo '::error::this VSIX pins helper assets but none were staged' >&2
+            exit 1
+          else
+            rmdir release/helpers
+          fi
       - name: checksums for every release asset
         shell: bash
         working-directory: release
         run: |
           mapfile -t schemas < .schemas
+          shopt -s nullglob
+          helper_assets=(helpers/linux-*)
           sha256sum ./*.vsix ./*.tgz ./*.cdx.json "${schemas[@]/#/./}" > SHA256SUMS
+          # Helpers upload under their basenames, so SHA256SUMS must name
+          # them that way or `sha256sum -c` fails on a downloaded asset.
+          if ((${#helper_assets[@]})); then
+            (cd helpers && sha256sum linux-*) >> SHA256SUMS
+          fi
       - name: attest every asset SHA256SUMS lists
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
@@ -258,7 +359,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mapfile -t schemas < release/.schemas
-          node scripts/github-release.mjs "$GITHUB_REF_NAME" release/notes.md release/*.vsix release/*.tgz release/*.cdx.json "${schemas[@]/#/release/}" release/SHA256SUMS
+          shopt -s nullglob
+          helper_assets=(release/helpers/linux-*)
+          node scripts/github-release.mjs "$GITHUB_REF_NAME" release/notes.md release/*.vsix release/*.tgz release/*.cdx.json "${schemas[@]/#/release/}" "${helper_assets[@]}" release/SHA256SUMS
       - id: outcome
         run: echo 'outcome=published' >> "$GITHUB_OUTPUT"
 

@@ -711,6 +711,7 @@ export const SETTING_DEFAULTS = {
   paidDailyBudgetUsd: 5,
   usageHistory: true,
   usageHistoryDays: 365,
+  linuxDictationModel: true,
   dictationEngine: 'system' as 'system' | 'museVoice',
   // A session budget cap in US dollars for each Model API conversation
   // (M82): 0 is no cap. Kept by reservation (sessionBudget.ts); machine
@@ -839,6 +840,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'paidDailyBudgetUsd',
   'usageHistory',
   'usageHistoryDays',
+  'linuxDictationModel',
   'dictationEngine',
   'museCodeAutoReviewer',
   'showWhatsNewOnUpdate',
@@ -2764,6 +2766,13 @@ export const NAT64_DISCOVERY_TRIES = 2
 // (dist/browserRuntime.js) do not carry the rest of this file; every other
 // module reads them from here.
 export * from './browserCheckConstants'
+// --- Linux offline dictation (M9, PLAN.md D140) ---
+//
+// Its tunables live in linuxDictationConstants.ts, a module with no imports,
+// so the dictation bundle (dist/dictation.js) and Linux's driver bundle
+// (dist/voiceLinux.js) read them without the rest of this file; every other
+// module reads them from here.
+export * from './linuxDictationConstants'
 // The image tools the extension's `ide` session server offers Muse Code
 // while paid image generation is on and a Model API key is stored (M44):
 // billed to the key, never to the subscription (D1, D30).
@@ -3954,9 +3963,16 @@ export const CHECKPOINT_STORE_BUNDLE_FILE = 'checkpointStore.js'
 // Code intelligence's answers for Muse Code's `ide` server (M67, D6), loaded
 // on the first call; the tool list stays in dist/extension.js.
 export const CODE_INTEL_BUNDLE_FILE = 'codeIntel.js'
+// Voice dictation's setups (M9, M35, D6): the window's dictation and Muse
+// Voice setups with the helper probes, required at their existing
+// construction points so the microphone's availability keeps its timing.
+export const DICTATION_BUNDLE_FILE = 'dictation.js'
 // Voice's drivers (M9, M35, D6): the dictation driver, Muse Voice's stream,
 // the helper process and the socket, loaded on the first recording.
 export const VOICE_BUNDLE_FILE = 'voice.js'
+// Linux's offline voice driver (M9, D6, D140): the offline driver's glue and
+// its helper/model acquisition, loaded on the first Linux recording.
+export const VOICE_LINUX_BUNDLE_FILE = 'voiceLinux.js'
 // The window's web fetch (M69, D6 2026-10-04): resolving, checking and
 // pinning each hop, the pinned transport and the failures' words, loaded on
 // the first fetch or the first URL Muse Code's `webFetch` checks.
@@ -5272,8 +5288,6 @@ export const DICTATION_HOLD_MS = 300
 export const DICTATION_KEY = 'd'
 /** After "stop", the helper has this long to deliver the phrase in flight. */
 export const DICTATION_STOP_GRACE_MS = 4000
-/** How long an unused helper stays warm before it is told to quit. */
-export const DICTATION_IDLE_EXIT_MS = 5 * 60 * 1000
 /** After "quit", the helper has this long to exit before it is killed. */
 export const DICTATION_QUIT_GRACE_MS = 2000
 export const DICTATION_STDERR_TAIL_CHARS = 400
@@ -5298,6 +5312,17 @@ export const MUSE_VOICE_MODE = 'PUSH_TO_TALK'
 export const MUSE_VOICE_PARTIAL_MODE = 'CUMULATIVE'
 export const MUSE_VOICE_SAMPLE_RATE = 16_000
 export const MUSE_VOICE_BYTES_PER_SECOND = MUSE_VOICE_SAMPLE_RATE * 2
+// CM352 capture: 80 ms messages and at most one short tail, on every recorder.
+export const MUSE_VOICE_FRAME_MS = 80
+export const MUSE_VOICE_FRAME_BYTES =
+  (MUSE_VOICE_BYTES_PER_SECOND * MUSE_VOICE_FRAME_MS) / MILLISECONDS_PER_SECOND
+export const MUSE_VOICE_MAX_SECONDS = 180
+export const MUSE_VOICE_MAX_BYTES = MUSE_VOICE_MAX_SECONDS * MUSE_VOICE_BYTES_PER_SECOND
+export const MUSE_VOICE_RESERVED_MS =
+  MUSE_VOICE_MAX_SECONDS * MILLISECONDS_PER_SECOND + MUSE_VOICE_FRAME_MS
+export const MUSE_VOICE_IDLE_ERROR = 'Ingress audio slower than real-time'
+export const MUSE_VOICE_IDLE_CLOSE = 'Ingress below real-time'
+
 // Meta closes a stream whose handshake is not sent within 10 s; the answer
 // is waited for as long. After `endStream`, the final text has this long.
 export const MUSE_VOICE_HANDSHAKE_TIMEOUT_MS = 10_000
@@ -6022,6 +6047,8 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/checkpointStore.js',
   'dist/codeIntel.js',
   'dist/voice.js',
+  'dist/voiceLinux.js',
+  'dist/dictation.js',
   'dist/webFetch.js',
   'dist/museCodeReviewer.js',
   'dist/searchWorker.js',
