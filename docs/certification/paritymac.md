@@ -164,6 +164,62 @@ live run: {"confined":true,"abi":1,"excluded":0} then sandbox-exec EPERM
   Linux + bun), `inspectNative` 10 skipped here (see item 1),
   `inspectGrammar` 62/62.
 
+## Item 1b — PARITYMAC2: lead's unsandboxed rerun (macmini, 5 passed / 5 failed) — causes
+
+One line per failure (read 2026-10-18 from the helper's exit codes and
+refusal kinds; nothing below loosens what must be refused):
+
+- `refuses protected and noncanonical operands` (`home` where
+  `privateOperand` was wanted): the test reuses one fixture — one `home`
+  dir — for four raw helper runs. The Mac helper consumes `home` on the
+  first run (`check_home` demands it empty, `open_profile` creates
+  `profile.sb` in it with `O_EXCL`), so runs 2–4 refuse `home` before the
+  operand check. The Linux helper never writes into `home`, so reuse works
+  there. The product contract is fresh-home-per-run (`InspectRunner`
+  mints `b1-home-*` per run): the shared-home loop is the test
+  assumption that does not hold on a Mac. Fix in the test (fresh fixture
+  per operand), not the helper.
+- `captures ABI 1 …` (exit 125): `probe_child` accepts only `EACCES` as a
+  Seatbelt denial, but Seatbelt denials surface as `EPERM` (`Operation not
+permitted`). The `late`/`denied` post-walk reads are correctly denied,
+  yet `errno != EACCES` fires `refuse("postWalkRead")`. Fix in the helper:
+  accept `EPERM` alongside `EACCES` there (write/fork/connect already do).
+- `runs verified cat, ls, grep and find` (exit 71 with the protocol line
+  already on stderr): the profile is `(deny default)` plus `file-read*`
+  literals only. Under deny-default `sandbox-exec` cannot exec the
+  verified target without `(allow process-exec …)`, and dyld cannot map
+  it without system `file-read*` rules — so `sandbox-exec` fails with
+  `EX_OSERR` 71 after the helper's line is printed. The record's
+  assumption above ("the nine BSD tools need nothing beyond the file
+  rules") was wrong. Fix in the helper: emit `(allow process-exec
+(literal target))` plus `(allow file-read* (subpath "/bin") (subpath
+"/sbin") (subpath "/usr") (subpath "/System"))` in both the run and the
+  probe profiles. Deny-default still covers writes, network, fork and
+  everything the walk did not see.
+- `withholds protected contents …` (`refused` where `output` was wanted)
+  and `runs session self-tests …` (`{refused, selfTest}` on the first
+  run): both go through `InspectRunner`, whose one-time `selfTest()` runs
+  `probe`; with the probe broken (previous two causes) the runner latches
+  off and every later run refuses. No separate cause; fixed by the two
+  helper fixes above.
+
+Checked and not a cause: nothing in the helper compares against `$HOME`
+or assumes the worktree outside the home folder (the `home` dir is
+caller-provided and identity-bound), and `/bin`, `/usr/bin` realpaths
+stay under their `/bin/` `/usr/` prefixes, so `system_file` holds.
+
+What the lead's unsandboxed rerun must show after the fix (`npm ci
+--ignore-scripts`, `npm run build:confine`, `npx vitest run
+test/unit/inspectNative.test.ts`): 10/10 green — probe exits 0 with
+exactly `{"abi":1,"confined":true}` on stdout; cat/ls/grep/find each exit
+0 with stderr starting `{"confined":true,` and `cat` printing
+`ALLOWED_CANARY`; find lists `.git/config` without its contents and grep
+reports `excluded > 0`; the swapped leaf still fails nonzero with empty
+stdout; the first session run outputs and the rewritten secret run
+refuses with `secret`. The generated `profile.sb` is now the six-rule set
+(version, deny-default, system file-reads, root literal, process-exec +
+file-read literals for the verified target, walked literals).
+
 ## Drills
 
 - Item 3 and item 2 drills ran live on this Mac (above).
