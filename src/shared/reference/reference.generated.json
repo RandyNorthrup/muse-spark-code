@@ -1656,7 +1656,7 @@
         "trigger": "onInvoke",
         "key": "SecretStorage",
         "ledger": "tabDailyBudgetUsd",
-        "budgetUsd": 1,
+        "budgetUsd": 0,
         "rates": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
           "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
@@ -3400,7 +3400,7 @@
     {
       "id": "museSpark.modelApiTab",
       "name": "museSpark.modelApiTab",
-      "description": "Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.\nHard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.\nAllow once / Allow always in this workspace.",
+      "description": "Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.\nOptional daily budget in US dollars for Tab completion requests across every window on this machine (museSpark.tabDailyBudgetUsd, 0 is no budget); a set budget refuses a request whose worst case would pass it.\nAllow once / Allow always in this workspace.",
       "descriptionKey": "config.modelApiTab.description",
       "type": "boolean",
       "default": true,
@@ -3436,13 +3436,13 @@
     {
       "id": "museSpark.tabDailyBudgetUsd",
       "name": "museSpark.tabDailyBudgetUsd",
-      "description": "Hard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.",
+      "description": "Daily budget in US dollars for Tab completion requests across every window on this machine; 0 is no budget. A set budget refuses a request whose worst case would pass it. A set budget starts at $0.05, with no maximum.",
       "descriptionKey": "config.tabDailyBudgetUsd.description",
       "type": "number",
-      "default": 1,
+      "default": 0,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "minimum": 0.05, "maximum": 50, "default": 1 }
+      "schema": { "type": "number", "minimum": 0, "default": 0 }
     },
     {
       "text": { "conditions": [{ "when": "language", "text": { "setting": "tabLanguages" } }] },
@@ -6329,12 +6329,11 @@
     {
       "route": "exec",
       "name": "exec: --max-requests <value>",
-      "description": "Set the maximum number of model requests.",
+      "description": "Set the maximum number of model requests; without it, there is no request limit.",
       "text": { "cli": "max-requests" },
       "contract": {
         "type": "string",
         "repeatable": false,
-        "default": 30,
         "minimum": 1,
         "maximum": 500,
         "purpose": "maxRequests"
