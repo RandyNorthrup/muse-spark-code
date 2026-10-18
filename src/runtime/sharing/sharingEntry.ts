@@ -180,14 +180,19 @@ export function isAffirmativeAnswer(answer: string | undefined): boolean {
   return normalized === 'y' || normalized === 'yes'
 }
 
-function terminalUi(scripted?: {
-  readonly vars: ReadonlyMap<string, string>
-  readonly confirmed: boolean
-}): SharingUi {
+function terminalUi(
+  scripted?: {
+    readonly vars: ReadonlyMap<string, string>
+    readonly confirmed: boolean
+  },
+  isSilent = false,
+): SharingUi {
   return {
     showPreview: (preview, signal) => {
       signal.throwIfAborted()
-      process.stdout.write(`${preview.content}\n`)
+      // JSON mode keeps stdout to the single result value: the structured
+      // result already carries the preview (Codex on PR #213).
+      if (!isSilent) process.stdout.write(`${preview.content}\n`)
       return Promise.resolve()
     },
     ...(process.stdin.isTTY && {
@@ -200,10 +205,12 @@ function terminalUi(scripted?: {
       // Only an imported prompt is untrusted; a prompt the person saved
       // themselves must not be called imported. The single confirmation
       // happens after the variables, at the review below.
-      if (prompt.untrusted) process.stdout.write(`${UI_TEXT.promptUntrusted}\n`)
-      process.stdout.write(
-        `${prompt.body}\n${UI_TEXT.promptVariables}: ${prompt.variables.map((variable) => variable.name).join(', ')}\n`,
-      )
+      if (!isSilent) {
+        if (prompt.untrusted) process.stdout.write(`${UI_TEXT.promptUntrusted}\n`)
+        process.stdout.write(
+          `${prompt.body}\n${UI_TEXT.promptVariables}: ${prompt.variables.map((variable) => variable.name).join(', ')}\n`,
+        )
+      }
       let prepared: string | undefined
       await usePrompt(prompt, {
         valueFor: (variable) => {
@@ -217,7 +224,7 @@ function terminalUi(scripted?: {
         },
         review: async (text) => {
           signal.throwIfAborted()
-          process.stdout.write(`${text}\n`)
+          if (!isSilent) process.stdout.write(`${text}\n`)
           // The terminal prints the prepared text: nothing is inserted
           // into an editor, so the review says print, not insert. A
           // script confirms explicitly with --confirm after previewing
@@ -264,6 +271,9 @@ export async function runRuntimeSharing(
         command.command === 'prompts' && command.action === 'use'
           ? { vars: command.vars, confirmed: command.confirmed }
           : undefined,
+        // JSON mode keeps stdout to the single result value; interactive
+        // questions ask on stderr (Codex on PR #213).
+        command.json,
       ),
       readBody: async () => {
         controller.signal.addEventListener('abort', cancelRead, { once: true })

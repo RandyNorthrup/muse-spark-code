@@ -942,15 +942,13 @@ function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
 }
 
 async function main(): Promise<number> {
-  // All parser refusals, including the early usage exit, read this locale.
-  await loadUiTable({
-    language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
-    readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
-    surface: 'terminal',
-    log: stderrLogger((line) => {
-      writeLine(process.stderr, line)
-    }, 'warn'),
-  })
+  // Parse first, on the bundled English table: a stalled package
+  // filesystem must not hang argument parsing past exec --timeout or the
+  // fixed scan/legal deadlines. Parser refusals read English until the
+  // loads below install the display language. Localization runs under the
+  // headless lifecycle further down (unbounded for the interactive
+  // commands after it), and scan-secrets does no localization work at all
+  // (Codex on PR #213).
   const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
   const servicesInput: RuntimeAccountServicesInput = {
     dataDir: agentDataFolder({
