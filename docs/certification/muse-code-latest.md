@@ -339,3 +339,49 @@ fixed below at its cause.
 - T6 (P1, empty captures): OPEN — `task/list` and `plugin/list` fixtures
   are still empty arrays and the computer-use fixture an error frame;
   fix captures nonempty/success frames live with Muse Code 1.4.10.
+
+### Resolutions (lane PR206FIX, commits on `feat/muse-code-latest-fix`)
+
+- T1: `acquireHookProcessSlot` takes the caller's cap
+  (`hooks.ts`), `runPluginHandler` takes the dispatch's cap, and the VS
+  Code runner (`toolIo runHook`) reads `museSpark.hooksMaxRunningCommands`
+  per hook process through a new `ToolIoDeps` getter wired at all three
+  `createToolIo` sites (panel setting; defaults elsewhere). Absent keeps
+  the fallback 4. Proven in `museCodeLatest.test.ts` (process gate under
+  0/1/default) and `pluginDispatch.test.ts` (plugin path at cap 2).
+- T2: the abort path reruns the eligible-waiter drain after removing the
+  entry (`wakeEligibleWaiters`, shared with release). The new test watched
+  failing pre-fix (`expected false to be true`, 29 ms) and green post-fix.
+- T3: every wrapper now sits on the backend contract — the `list*` trio
+  plus `importForeignSkills`/`resumeWorkflowRun` as `AgentSession`
+  optionals, `requestSessionRecap`/`cancelSessionRecap`/
+  `checkComputerUseSetup` as `AgentHost` optionals (`agentBackend.ts`);
+  the row/receipt types moved there with them. Panels stay owner design
+  work (CHANGELOG says so). Enforced by typecheck through the
+  `startSession` return-site assignability.
+- T4: all three settings in the README settings table (defaults, bounds,
+  behavior) plus a Hooks-section paragraph and the Subagents-block
+  mention; CHANGELOG `[Unreleased] → Fixed` records the behavior fixes.
+- T5: the three non-Stop sites compare against `HOOK_MAX_TASK_REFUSALS`
+  and `TEAMMATE_MAX_IDLE_KEEPS` (both 8, the measured pre-`6a14dc657`
+  bound); the setting governs only the Stop site, as documented.
+- T6, live with Muse Code 1.4.10 on 2026-10-18 (real SDK client,
+  `muse serve --provider echo --no-session-log`; driver in `temp/`,
+  fixtures committed):
+  - `plugin/list` nonempty recorded (`plugin-list-1.4.10.json`): a
+    locally installed Agent Plugins bundle serves `source:
+"foreignImport"`; the parser already matched exactly.
+  - The binary's own schema export (`muse schema generate-json-schema`,
+    fingerprint `sha256:5d3b…` — identical to 1.4.9) confirms every
+    required row field the parsers read (task, plugin, hook, import
+    receipt, workflow resume, recap, computer-use success) and caught one
+    real bug: quarantine entries are `{id, reasons[]}`, not the shared
+    `{id, reason?}` — fixed (parser, types, mapper, tests).
+  - `task/list` gains the wire's additive-optionals `tool` and
+    `backgroundInitiator` on the parser, summary and mapper.
+  - Measured negatives: a running `session/userShell` is not listed
+    (nonempty `task/list` needs a model-driven background task — no
+    provider calls in this lane); `computerUseSetup/check` answers
+    `computerUseUnavailable` even on this Mac (no grants for a headless
+    CLI); `skill/import` receipts stay empty because foreign sources
+    resolve outside this sandbox (`/Users/randy` reads denied).
