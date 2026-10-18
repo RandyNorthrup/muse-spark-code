@@ -42,6 +42,27 @@ Designed baselines with reasons (accepted, not forgotten):
 - `src/host/auth/authService.ts` sign-in restart, `src/core/developer`
   multi-account start/enable, `src/runtime/chatGptProviderCommands.ts`
   setup: fixed in PR161FIN (named closers, kind words, cause slots).
+- `src/core/schedules/delivery.ts` lease catch: a lease the target never
+  granted settles the occurrence as failed under the fixed
+  `scheduleCommandFailed` sentence; the fire record carries no cause slot
+  (shared schema), and the person reads the true outcome.
+- `src/core/schedules/reportAction.ts` run + tool catches: a throwing
+  provider or admission settles as failed / refused under fixed sentences
+  because the failure may carry paths, recipients or credentials; proven
+  by `test/unit/scheduleReportSecrecy.test.ts` (no provider text reaches
+  the settled record).
+- `src/core/team/roles.ts` catalogue + file catches: an unreadable root
+  or role file fails closed into an `unreadable` refusal; the refusal in
+  the unknowns record is what the person reads. Only the read can throw
+  there (parses return their failures), so the label is true.
+- `src/core/schedules/unattended.ts` root catch: an unreadable workspace
+  root fails closed into the protected refusal below, retried on the next
+  decision; the refusal is the record.
+- `src/core/schedules/journal.ts` retire catch, `src/core/schedules/store.ts`
+  prune catch, applied-marker catch and the three claim-retirement
+  catches: retirement and pruning are debt, not the committed
+  transaction; a failed entry waits for the next maintain instead of
+  failing the pass, and the entry is kept (never deleted around).
 - Everything else below: pre-existing, grouped for area-by-area lanes.
 
 | Folder                 | GENERIC | SWALLOW |
@@ -69,15 +90,15 @@ Designed baselines with reasons (accepted, not forgotten):
 | src/core/orchestration | 10      | 2       |
 | src/core/plans         | 2       | 0       |
 | src/core/prompts       | 2       | 1       |
-| src/core/providers     | 15      | 2       |
+| src/core/providers     | 15      | 3       |
 | src/core/questions     | 1       | 0       |
 | src/core/reporting     | 31      | 6       |
 | src/core/resources     | 41      | 25      |
 | src/core/review        | 4       | 2       |
-| src/core/schedules     | 9       | 10      |
+| src/core/schedules     | 4       | 0       |
 | src/core/support       | 0       | 2       |
 | src/core/tab           | 5       | 0       |
-| src/core/team          | 19      | 6       |
+| src/core/team          | 13      | 1       |
 | src/core/usage         | 4       | 8       |
 | src/core/vault         | 37      | 36      |
 | src/core/voice         | 3       | 3       |
