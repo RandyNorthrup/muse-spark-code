@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: %displayName
 Bundle-SymbolicName: io.musespark.eclipse;singleton:=true
-Bundle-Version: 0.17.1.qualifier
+Bundle-Version: 0.18.2.qualifier
 Bundle-Activator: io.musespark.eclipse.MusePlugin
 Bundle-Vendor: RandyNorthrup
 Bundle-RequiredExecutionEnvironment: JavaSE-21

@@ -2,7 +2,7 @@
 <feature
       id="io.musespark.eclipse.feature"
       label="Muse Spark Code (Unofficial)"
-      version="0.17.1.qualifier"
+      version="0.18.2.qualifier"
       provider-name="RandyNorthrup">
    <description url="https://github.com/RandyNorthrup/muse-spark-code">
       Muse Spark Code (Unofficial) puts Meta's Muse Spark model to work as a coding agent inside Eclipse: a chat panel in a view, file changes shown as diffs, and an approval before commands and edits. Independent and open source (MIT); not affiliated with or endorsed by Meta or the Eclipse Foundation. Requires Java 21, Node.js 22 or later and the muse-spark-code-acp runtime (npm install -g muse-spark-code-acp). You bring your own Muse subscription or Meta Model API key.
