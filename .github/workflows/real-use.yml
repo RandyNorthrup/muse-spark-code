@@ -202,7 +202,7 @@ jobs:
             transcript="$RUNNER_TEMP/ru-out/transcript.json"
             if [ -f "$transcript" ]; then
               jq -r '"| actual calls, dollars | \(.actual.calls), \(.actual.costUsd) |",
-                (.steps[] | "| \(.id) | \(.verdict) | status \(.status // "none"), exit \(.exitCode // "none"), \(.requests) requests, $\(.costUsd) \(.reason) |")' "$transcript"
+                (.steps[] | "| \(.id) | \(.verdict) | status \(.status // "none"), exit \(.exitCode // "none"), \(.requests // 0) requests, $\(.costUsd // "0") \(.reason) |")' "$transcript"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
       - name: check RU (every step PASS, within the stated calls and cap, no trap, sentinel or key shape in the outputs)
