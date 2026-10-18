@@ -108,7 +108,7 @@ export interface ReportOptions {
   readonly includeEvents: boolean
 }
 
-/** `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]` (D117). */
+/** `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]` (D119). */
 export interface ProvidersModelsOptions {
   /** The provider entry id whose model list changes. */
   readonly entry: string
@@ -271,7 +271,7 @@ function refused(reason: string): Extract<RuntimeCommand, { command: 'invalid' }
 }
 
 /**
- * A strict-parser throw as a usage refusal (D117): a wrong option names the
+ * A strict-parser throw as a usage refusal (D119): a wrong option names the
  * option, the topic's accepted options, and the nearest valid option when
  * the name is close. Anything else keeps the parser's reason, still exit 2.
  */
@@ -421,7 +421,7 @@ export function parseCommandLine<T>(
     if (error instanceof Error && /unknown option/i.test(error.message)) {
       // The strict grammar is the serve family: a bare wrong option belongs
       // to serve, a named one to its command. The raw parser message is
-      // never the answer: it repeats the typed name (D117 secret rule).
+      // never the answer: it repeats the typed name (D119 secret rule).
       const named = argv.find((argument) => helpTopicNamed(argument) !== undefined) ?? 'serve'
       const topic = helpTopicNamed(named)
       if (topic !== undefined)
@@ -597,7 +597,7 @@ interface ProvidersModelsFlags {
   readonly force?: string
 }
 
-/** `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]` (D117). */
+/** `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]` (D119). */
 function parseProvidersModels(argv: readonly string[]): RuntimeCommand {
   try {
     const strict = parseArgs({

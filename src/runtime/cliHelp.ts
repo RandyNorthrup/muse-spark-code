@@ -1,4 +1,4 @@
-// The terminal agent's command table (PLAN.md D117): one topic per
+// The terminal agent's command table (PLAN.md D119): one topic per
 // command with its positional syntax, its parser routes, two real examples
 // and its exit codes. The option rows render from CLI_OPTION_REGISTRY (the
 // exact tables parseArgs receives) with their referenceCliOptions meaning
@@ -673,7 +673,7 @@ export function renderTopicHelp(table: UiText, command: string, topic: CliHelpTo
 export function renderTopHelp(table: UiText, command: string): string {
   const lines: string[] = [formatAcpUsage(table, command), table.cliHelp.commands]
   for (const topic of CLI_HELP_TOPICS) lines.push(`  ${topic.name}  ${topic.purpose(table)}`)
-  // Serve-only options the global list does not name (D117: --max-budget-usd).
+  // Serve-only options the global list does not name (D119: --max-budget-usd).
   // Dormant flags (the schedule-v2 admission flag, automatic compaction until
   // its evaluation passes) stay out of every help and refusal.
   const serveOnly = Object.keys(CLI_OPTION_REGISTRY.serve.options).filter(

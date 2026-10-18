@@ -2363,8 +2363,11 @@ export const BOUNDED_FILE_READ_CHUNK_BYTES = 64 * 1024
 export const HTTP_UNAUTHORIZED = 401
 // Refused before any work was done: the one status a per-call-billed request retries (M34).
 export const HTTP_TOO_MANY_REQUESTS = 429
+// The code a configured provider's failure carries when its connection was
+// lost after it answered 200 (lane PROVERRORS): the reply is incomplete and
+// the request may have been charged, and before any content it is resent.
+export const PROVIDER_CONNECTION_LOST_CODE = 'connection_lost'
 // Shared per-format retry policy (M101 BYO 5).
-export const PROVIDER_RETRY_AFTER_CAP_MS = 60_000
 export const PROVIDER_RETRY_HTTP_STATUS = {
   paymentRequired: 402,
   requestTimeout: 408,
@@ -5126,6 +5129,8 @@ export const HTTP_STATUS = {
   forbidden: 403,
   notFound: 404,
   methodNotAllowed: 405,
+  requestTooLarge: 413,
+  unprocessable: 422,
   internalServerError: 500,
 } as const
 
@@ -7282,6 +7287,12 @@ export const PROVIDER_STREAM_FRAME_MAX_BYTES = 16_777_216
 export const PROVIDER_STREAM_MAX_BYTES = 134_217_728
 export const PROVIDER_STREAM_MAX_FRAMES = 100_000
 export const PROVIDER_HTTP_BODY_MAX_BYTES = 16_777_216
+// Lane PROVERR: a provider's own refusal words are quoted in the sentence
+// the person reads, bounded so a hostile answer cannot flood the transcript.
+export const PROVIDER_REFUSAL_MESSAGE_MAX_CHARS = 500
+// Lane PROVERR: a provider's request id is carried on the refusal for the
+// log, bounded like any other wire text.
+export const PROVIDER_REQUEST_ID_MAX_CHARS = 200
 // The suggestion engine's fallback session (D74: "a stated assumption when
 // there is no history"): the default model's price for a reference session
 // of this size.

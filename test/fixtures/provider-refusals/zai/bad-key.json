@@ -1,0 +1,16 @@
+{
+  "id": "models-list-made-up-key",
+  "provider": "zai",
+  "sentAt": "2026-10-13T01:27:22.737Z",
+  "method": "GET",
+  "url": "https://api.z.ai/api/paas/v4/models",
+  "requestHeaders": {},
+  "status": 401,
+  "responseHeaders": {},
+  "response": {
+    "error": {
+      "code": "401",
+      "message": "token expired or incorrect"
+    }
+  }
+}
