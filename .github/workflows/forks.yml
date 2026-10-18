@@ -8,6 +8,11 @@
 # pinned ones, and their feeds can change without notice: every Monday, by
 # hand, and on pull requests that change this check. Every job has a
 # timeout and leaves no token in the git config; none pushes.
+# Capacity (D122, CISHARDS2): like hosts.yml, the whole workflow moves — a
+# routed same-repository pull request run skips every job here, and the
+# capacity repository's `ci/pr-<number>` push run runs every job there. The
+# `relay` job below waits for that run and takes its result, so a failure
+# there fails this run too. Any other event runs everything here, as now.
 name: Forks
 
 on:
@@ -17,6 +22,18 @@ on:
       - 'test/hosts/installed.vscode-test.mjs'
       - 'test/hosts/run-fork.sh'
       - '.github/workflows/forks.yml'
+  # Only the capacity repository ever sees this branch (build.yml's `org`
+  # job pushes it there); nothing pushes it here. There is deliberately no
+  # `paths:` filter here although the `pull_request` trigger above has one:
+  # GitHub evaluates a push filter against the push's own incremental diff,
+  # while the `pull_request` filter sees the pull request's cumulative
+  # paths, so filtering here would skip the capacity run whenever the latest
+  # force-push touches only an unrelated file — and the `relay` job below
+  # would then pass with no fork run anywhere (PR218FIX3). Every capacity
+  # push starts this workflow; the `route` job's `touches` output re-applies
+  # the path list to the cumulative merge diff instead.
+  push:
+    branches: [ci/pr-*]
   schedule:
     - cron: '41 6 * * 1'
   workflow_dispatch:
@@ -29,8 +46,121 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Where this run's jobs belong (D122, CISHARDS2): the same split as
+  # hosts.yml's `route`, fast tier included. A push outside `ci/pr-*` is
+  # `all`, not an error.
+  route:
+    name: route
+    if: ${{ github.event_name != 'push' || github.repository == 'scnetsolutions/muse-spark-code-ci' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      part: ${{ steps.pick.outputs.part }}
+      touches: ${{ steps.touches.outputs.touches }}
+    steps:
+      - id: pick
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          ORG_CI: ${{ vars.ORG_CI }}
+          FAST: ${{ github.event_name == 'pull_request' && vars.CI_MERGE_QUEUE == 'on' }}
+          # GitHub passes no Actions secret to a fork's or Dependabot's run,
+          # so this is false there whatever ORG_CI says.
+          HAS_KEY: ${{ secrets.ORG_CI_APP_PRIVATE_KEY != '' }}
+          REF: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            if [[ "$REF" =~ ^ci/pr-[0-9]+$ ]]; then
+              part=org
+              why="the merge commit of pull request #${REF#ci/pr-}"
+            else
+              part=all
+              why="a push outside ci/pr-<number> keeps every job here"
+            fi
+          elif [ "$EVENT" != pull_request ]; then
+            part=all
+            why="a $EVENT run keeps every job here"
+          elif [ "$ORG_CI" != on ]; then
+            part=all
+            why="ORG_CI is not on"
+          elif [ "$FAST" = true ]; then
+            part=all
+            why="the fast tier runs Ubuntu only and pushes no capacity branch, so every job stays here"
+          elif [ "$SAME_REPO" != true ] || [ "$HAS_KEY" != true ]; then
+            part=all
+            why="no capacity app key reaches this run: a fork, Dependabot, or ORG_CI_APP_PRIVATE_KEY unset"
+          else
+            part=home
+            why="every job runs in scnetsolutions/muse-spark-code-ci"
+          fi
+          echo "part=$part" >> "$GITHUB_OUTPUT"
+          echo "This run's part: $part ($why)"
+      # The path gate for capacity pushes (see the `push` trigger above):
+      # `part == 'org'` diffs the pushed merge commit against its first
+      # parent (main as the merge saw it — the same `$GITHUB_SHA^1`
+      # build.yml's `org` job pushes as `ci/base`), which is the pull
+      # request's cumulative paths however small the force-push diff was.
+      # The pattern list mirrors the `pull_request` `paths:` above; keep
+      # them in sync. Any other run keeps `touches` true: its own trigger
+      # already decided. A non-merge tip, a missing parent or a diff error
+      # fails closed to true (run the jobs) with a warning, never to a
+      # skipped gate. Depth 2 is the tip plus its parents, all this diff
+      # reads.
+      - name: history for the path gate
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - id: touches
+        shell: bash
+        env:
+          PART: ${{ steps.pick.outputs.part }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$PART" = org ] && [ "$EVENT" = push ]; then
+            if git rev-parse --verify --quiet HEAD^2 >/dev/null; then
+              code=0
+              git diff --quiet HEAD^1 HEAD -- \
+                'test/hosts/fork-release.mjs' \
+                'test/hosts/installed.vscode-test.mjs' \
+                'test/hosts/run-fork.sh' \
+                '.github/workflows/forks.yml' || code=$?
+              if [ "$code" -eq 0 ]; then
+                touches=false
+                why='the cumulative merge diff touches none of these paths'
+              elif [ "$code" -eq 1 ]; then
+                touches=true
+                why='the cumulative merge diff touches these paths'
+              else
+                echo "::warning::the cumulative diff failed (exit $code), running the jobs"
+                touches=true
+                why='the cumulative diff errored'
+              fi
+            else
+              echo '::warning::the capacity tip is not a merge commit, running the jobs'
+              touches=true
+              why='HEAD^2 is missing'
+            fi
+          else
+            touches=true
+            why="this event's own trigger already decided"
+          fi
+          echo "touches=$touches" >> "$GITHUB_OUTPUT"
+          echo "Touches these paths: $touches ($why)"
+
   native-helpers:
     name: package helper (${{ matrix.platform }})
+    # The whole workflow moves at once (see above): skipped only in `home`.
+    # When `route` itself is skipped, `part` is empty and the job runs here:
+    # `!cancelled()` keeps GitHub from adding its implicit `success()` over
+    # `needs`, which a skipped `route` would fail. `touches != 'false'`
+    # (not `== 'true'`) keeps that fallback: an `org` run whose cumulative
+    # diff misses these paths skips the jobs, while a skipped `route`
+    # leaves it empty, which still runs.
+    needs: route
+    if: ${{ !cancelled() && needs.route.outputs.part != 'home' && needs.route.outputs.touches != 'false' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -90,7 +220,10 @@ jobs:
 
   vsix:
     name: vsix
-    needs: native-helpers
+    needs: [native-helpers, route]
+    # `!cancelled()` drops the implicit `success()` (see native-helpers), so
+    # the predecessor's success is required explicitly.
+    if: ${{ !cancelled() && needs.native-helpers.result == 'success' && needs.route.outputs.part != 'home' && needs.route.outputs.touches != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -141,7 +274,8 @@ jobs:
 
   fork:
     name: ${{ matrix.fork }}
-    needs: vsix
+    needs: [vsix, route]
+    if: ${{ !cancelled() && needs.vsix.result == 'success' && needs.route.outputs.part != 'home' && needs.route.outputs.touches != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -167,3 +301,69 @@ jobs:
           # Positron's latest release is read from the GitHub API.
           GH_TOKEN: ${{ github.token }}
         run: xvfb-run -a sh test/hosts/run-fork.sh "${{ matrix.fork }}" forks-vsix/*.vsix "$RUNNER_TEMP/fork"
+
+  # D122, CISHARDS2: in a `home` run every job above is skipped here and runs
+  # in the capacity repository, so this job waits for that repository's run
+  # of this same workflow on the pushed merge commit and takes its result: a
+  # failure or cancellation there fails this run. It polls the public runs on
+  # this commit, at most ten minutes to appear. Every `ci/pr-*` push starts
+  # a capacity run now (the `push` trigger above has no path filter;
+  # PR218FIX3), so no run appearing means the push or Actions there failed,
+  # and the job fails closed. 120 bounds the queue plus the offloaded suite
+  # (each job carries its own 10–25 minute bound), under the platform's
+  # 6-hour ceiling.
+  relay:
+    name: capacity Forks result
+    needs: route
+    if: ${{ !cancelled() && needs.route.outputs.part == 'home' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CAPACITY: scnetsolutions/muse-spark-code-ci
+      WORKFLOW: .github/workflows/forks.yml
+    steps:
+      - name: wait for the capacity run and take its result
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          query="repos/$CAPACITY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=100"
+          select='[.workflow_runs[] | select(.path == env.WORKFLOW)][0] // empty | "\(.id) \(.status) \(.conclusion) \(.html_url)"'
+          errors="$RUNNER_TEMP/capacity-read.err"
+          appear_by=$((SECONDS + 600))
+          id=''
+          while :; do
+            if found=$(gh api "$query" --jq "$select" 2> "$errors"); then
+              if [ -n "$found" ]; then
+                read -r id status conclusion url <<< "$found"
+                [ "$status" = completed ] && break
+                echo "$url: $status"
+              fi
+            else
+              echo "::warning::reading $CAPACITY's runs failed: $(cat "$errors")"
+            fi
+            if [ -z "$id" ] && [ "$SECONDS" -ge "$appear_by" ]; then
+              echo "::error::no $WORKFLOW run on $GITHUB_SHA appeared in $CAPACITY within ten minutes of the push"
+              {
+                echo "### Capacity Forks: no run"
+                echo
+                echo "No $WORKFLOW run on this commit appeared in $CAPACITY:"
+                echo "the push or Actions there failed."
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+            sleep 60
+          done
+          {
+            echo "### Capacity Forks: $conclusion"
+            echo
+            echo "[$CAPACITY run $id]($url)"
+            echo
+            echo '| job | result |'
+            echo '| --- | --- |'
+            gh api "repos/$CAPACITY/actions/runs/$id/jobs?filter=latest&per_page=100" \
+              --jq '.jobs[] | "| [\(.name)](\(.html_url)) | \(.conclusion) |"' 2> "$errors" ||
+              echo "| the job list could not be read: $(cat "$errors") | |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "$url concluded $conclusion"
+          test "$conclusion" = success
