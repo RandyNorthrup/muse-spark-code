@@ -2,7 +2,7 @@
 // each process writes only its own file after a call, the day's total is the
 // sum of every file, and nothing is written before a call ends.
 import { fork } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
@@ -103,6 +103,94 @@ describe('daily running total', () => {
       spentUsd: '0.25',
       unknownChargeCalls: 1,
     })
+  })
+
+  // The pre-D121 journal's records, transcribed field for field from the
+  // writer this replaces (`src/host/backend/sessionBudgetJournal.ts` at
+  // `b6ba93884^`): a v1 seed with a number total, a settled v1 claim and an
+  // open one whose reservation the old total counted as spent.
+  const legacyAccount = '0000000000000000000000000000000000000000000000000000000000000000'
+  function seedLegacyDay(directory: string, scope: string, seed: unknown): void {
+    const day = path.join(directory, 'budget-journal', legacyAccount, scope)
+    mkdirSync(path.join(day, 'claims', 'c1'), { recursive: true })
+    writeFileSync(path.join(day, 'seed.json'), JSON.stringify(seed))
+    writeFileSync(
+      path.join(day, 'claims', 'c1', 'claim.json'),
+      JSON.stringify({
+        version: 1,
+        claimId: 'c1',
+        ownerId: 'o1',
+        sessionId: scope,
+        accountId: legacyAccount,
+        reservedUsd: 0.5,
+      }),
+    )
+    mkdirSync(path.join(day, 'claims', 'c2'), { recursive: true })
+    writeFileSync(
+      path.join(day, 'claims', 'c2', 'claim.json'),
+      JSON.stringify({
+        version: 1,
+        claimId: 'c2',
+        ownerId: 'o1',
+        sessionId: scope,
+        accountId: legacyAccount,
+        reservedUsd: 1.5,
+        settledUsd: 1.25,
+      }),
+    )
+  }
+
+  it('keeps the legacy current-day total instead of granting another allowance', async () => {
+    const directory = path.join(root, 'legacy')
+    const scope = '2026-10-18'
+    seedLegacyDay(directory, scope, {
+      version: 1,
+      sessionId: scope,
+      accountId: legacyAccount,
+      spentUsd: 2.5,
+      hasUnknownHistoricalFees: false,
+    })
+    // 2.5 settled before, 1.25 settled and 0.5 still open since: the first
+    // request after upgrading sees 4.25, not zero.
+    const spend = createDailySpend({ directory, sleep })
+    expect(spend.read(scope)).toEqual({ spentUsd: '4.25', unknownChargeCalls: 0 })
+    expect(await spend.add(scope, Usd.from('0.75').toAmount())).toEqual({
+      spentUsd: '5',
+      unknownChargeCalls: 0,
+    })
+  })
+
+  it('ignores a legacy journal of another day and refuses a damaged one', () => {
+    const directory = path.join(root, 'legacy-other')
+    seedLegacyDay(directory, '2026-10-19', {
+      version: 1,
+      sessionId: '2026-10-19',
+      accountId: legacyAccount,
+      spentUsd: 9,
+      hasUnknownHistoricalFees: false,
+    })
+    const spend = createDailySpend({ directory, sleep })
+    expect(spend.read('2026-10-18')).toEqual({ spentUsd: '0', unknownChargeCalls: 0 })
+    // A seed naming another scope is never mixed into this one's total.
+    const day = path.join(directory, 'budget-journal', legacyAccount, '2026-10-18')
+    mkdirSync(path.join(day, 'claims'), { recursive: true })
+    writeFileSync(
+      path.join(day, 'seed.json'),
+      JSON.stringify({
+        version: 1,
+        sessionId: '2026-10-19',
+        accountId: legacyAccount,
+        spentUsd: 9,
+        hasUnknownHistoricalFees: false,
+      }),
+    )
+    let identityError: unknown
+    try {
+      spend.read('2026-10-18')
+    } catch (error: unknown) {
+      identityError = error
+    }
+    expect(isSpendLedgerError(identityError) && identityError.kind).toBe('damaged')
   })
 
   it('refuses a scope that is not a day name and a negative amount', async () => {
