@@ -14,6 +14,7 @@ import {
   type HelperInvocation,
 } from '../../core/voice/dictation'
 import type { CaptureLocation } from '../../core/voice/helperLocation'
+import { realpathSync } from 'node:fs'
 import { MuseVoiceDictation } from '../../core/voice/museVoice'
 import { recorderHelper } from '../../core/voice/recorderHelper'
 import { MUSE_VOICE_REALTIME_URL } from '../../shared/constants'
@@ -61,7 +62,13 @@ export function createMuseVoice(
   const spawnCapture =
     capture.kind === 'helper'
       ? spawnHelper
-      : () => recorderHelper(capture.name, () => startRecorder(capture.command, capture.args))
+      : () =>
+          recorderHelper(capture.name, () =>
+            startRecorder(capture.command, capture.args, {
+              workspaceRoot: capture.workspaceRoot,
+              realpath: realpathSync,
+            }),
+          )
   return new MuseVoiceDictation(
     {
       createCapture: (captureListener) =>

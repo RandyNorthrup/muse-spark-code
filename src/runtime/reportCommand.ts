@@ -15,6 +15,7 @@ import {
   credentialFileVerdict,
   isSignedInByStructure,
 } from '../core/backends/musecode/credentialFile'
+import { realpathSync } from 'node:fs'
 import { credentialFilePath, resolveMuseLaunch } from '../core/backends/musecode/launch'
 import {
   buildVaultProblemReportDraft,
@@ -90,6 +91,10 @@ export function collectReportFacts(deps: ReportFactsDeps): ProblemReportFacts {
     readTextFile: deps.readTextFile,
     listDirectory: deps.listDirectory,
     serveArgs: [],
+    // The standalone report discovers but never starts the CLI: entries
+    // inside its own working directory are never probed, so a planted
+    // `muse` there is never reported as present.
+    scope: { workspaceRoot: process.cwd(), realpath: realpathSync },
   })
   const credentialText = deps.readTextFile(
     credentialFilePath({

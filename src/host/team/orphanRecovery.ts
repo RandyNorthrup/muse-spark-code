@@ -1,7 +1,9 @@
 import type { LaunchConfirmation, TeamLaunchRecord } from './processLifetime'
+import { realpathSync } from 'node:fs'
 import { readFile, readdir, readlink } from 'node:fs/promises'
 import process from 'node:process'
 import * as z from 'zod/mini'
+import { noWorkspaceChildEnvironment } from '../../core/executables'
 import { runProgram } from '../processTree'
 import {
   createProcessOwnership,
@@ -146,7 +148,8 @@ export function createNativeOrphanDriver(): OrphanRecoveryDriver {
         const text = await runProgram(
           '/usr/bin/python3',
           ['-I', '-c', DARWIN_OBSERVE, 'observe', String(pid)],
-          {},
+          // Fixed `/usr/bin/python3` with an empty environment: no workspace PATH entries.
+          noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
         )
         const value = z.nullable(darwinObservationSchema).parse(JSON.parse(text))
         return value === null ? undefined : projectDarwin(value)
@@ -164,7 +167,12 @@ export function createNativeOrphanDriver(): OrphanRecoveryDriver {
         const entries = await readdir('/proc')
         pids = entries.filter((name) => /^\d+$/.test(name)).map(Number)
       } else if (process.platform === 'darwin') {
-        const text = await runProgram('/usr/bin/python3', ['-I', '-c', DARWIN_OBSERVE, 'scan'], {})
+        const text = await runProgram(
+          '/usr/bin/python3',
+          ['-I', '-c', DARWIN_OBSERVE, 'scan'],
+          // Fixed `/usr/bin/python3` with an empty environment: no workspace PATH entries.
+          noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
+        )
         const entries = z.array(z.unknown()).parse(JSON.parse(text))
         const found: OrphanObservation[] = []
         for (const entry of entries) {

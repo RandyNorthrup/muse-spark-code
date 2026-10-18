@@ -26,6 +26,7 @@ import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
+import { NO_WORKSPACE } from '../core/executables'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
 import {
   buildChildEnvironment,
@@ -170,7 +171,10 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
           extraVariables: [],
           systemRoot: environmentValue(env, deps.platform, 'SystemRoot'),
           programFiles: environmentValue(env, deps.platform, 'ProgramFiles'),
-          ...(workspaceRoot !== undefined && { workspaceRoot, realpath: realpathSync }),
+          scope:
+            workspaceRoot === undefined
+              ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+              : { workspaceRoot, realpath: realpathSync },
         }),
         deps.platform,
       )

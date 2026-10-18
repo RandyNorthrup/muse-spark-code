@@ -37,7 +37,7 @@ import type { TeamJournal } from './teamJournal'
 import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
 import { loadJobAssembly, runProgram, windowsPowerShell } from '../processTree'
 import {
-  absolutePathEntries,
+  noWorkspaceChildEnvironment,
   resolveExecutable,
   workspaceChildEnvironment,
 } from '../../core/executables'
@@ -454,26 +454,21 @@ export async function createNativeTeamProcessDriver(options: {
     throw new Error('TEAM_PLATFORM_UNSUPPORTED')
   const probeEnv = { PATH: process.env['PATH'], XDG_RUNTIME_DIR: process.env['XDG_RUNTIME_DIR'] }
   /**
-   * A probe tool resolved on the absolute PATH entries only: a probe never
-   * executes a relative or empty entry (the process working directory), and
-   * the probe runs the resolved absolute path. Entries inside a later
-   * launch's working directory are excluded again at launch, where the
-   * directory is known.
+   * The pre-launch probe never searches PATH: it runs only the fixed system
+   * paths with an absolute `true`, so a program planted on a workspace PATH
+   * entry never runs before any launch directory is known. The launch itself
+   * re-resolves each tool outside its own working directory (links followed)
+   * and fails closed when that directory shadows the probe. The probe child
+   * gets the explicit no-workspace guarded environment (absolute entries
+   * only, links followed).
    */
-  const probeTool = (name: string): string | undefined =>
-    resolveExecutable(name, {
-      platform: process.platform,
-      pathVariable: probeEnv.PATH,
-      fileExists: existsSync,
-    })
+  const fixedTool = (file: string): string | undefined => (existsSync(file) ? file : undefined)
+  const absoluteTrue = fixedTool('/bin/true') ?? fixedTool('/usr/bin/true')
+  const probeChildEnv = ((): ReturnType<typeof noWorkspaceChildEnvironment> =>
+    noWorkspaceChildEnvironment(process.platform, probeEnv, realpathSync))()
   const canRun = async (file: string, args: readonly string[]) => {
     try {
-      await runProgram(file, [...args], {
-        ...probeEnv,
-        PATH: absolutePathEntries(process.platform, probeEnv.PATH).join(
-          process.platform === 'win32' ? ';' : ':',
-        ),
-      })
+      await runProgram(file, [...args], probeChildEnv)
       return true
     } catch {
       return false
@@ -481,16 +476,23 @@ export async function createNativeTeamProcessDriver(options: {
   }
   let hasScope = false
   let hasSetpriv = false
-  if (process.platform === 'linux') {
-    const setpriv = probeTool('setpriv')
+  if (absoluteTrue !== undefined && process.platform === 'linux') {
+    const setpriv = fixedTool('/usr/bin/setpriv')
     hasSetpriv =
-      setpriv !== undefined && (await canRun(setpriv, ['--pdeathsig', 'KILL', '--', 'true']))
+      setpriv !== undefined && (await canRun(setpriv, ['--pdeathsig', 'KILL', '--', absoluteTrue]))
     try {
       await readFile('/sys/fs/cgroup/cgroup.controllers', 'utf8')
-      const systemdRun = probeTool('systemd-run')
+      const systemdRun = fixedTool('/usr/bin/systemd-run')
       hasScope =
         systemdRun !== undefined &&
-        (await canRun(systemdRun, ['--user', '--scope', '--collect', '--quiet', '--', 'true']))
+        (await canRun(systemdRun, [
+          '--user',
+          '--scope',
+          '--collect',
+          '--quiet',
+          '--',
+          absoluteTrue,
+        ]))
     } catch {
       /* No delegated cgroup v2 user scope: use the specified process-group path. */
     }
@@ -509,8 +511,7 @@ export async function createNativeTeamProcessDriver(options: {
           platform: process.platform,
           pathVariable: probeEnv.PATH,
           fileExists: existsSync,
-          workspaceRoot: request.cwd,
-          realpath: realpathSync,
+          scope: { workspaceRoot: request.cwd, realpath: realpathSync },
         })
       const requireLaunchTool = (name: string): string => {
         const resolved = launchTool(name)

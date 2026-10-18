@@ -285,19 +285,28 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
   }
 }
 
-const exec = (file: string, args: readonly string[], options: ExecFileOptionsWithStringEncoding) =>
-  execResourceFile('probe', file, args, options)
+const exec = (
+  file: string,
+  args: readonly string[],
+  options: ExecFileOptionsWithStringEncoding & { readonly workspaceRoot?: string | undefined },
+) => execResourceFile('probe', file, args, options)
 const commandResultSchema = z.object({ stdout: z.string(), stderr: z.string() })
 export interface ReportGhOptions {
   readonly environment: NodeJS.ProcessEnv
   readonly maxBytes: number
+  /**
+   * The workspace the report reads for: `gh` never resolves to a file
+   * inside it (resolved through links), and the probe's scope must exclude
+   * this same root. REQUIRED.
+   */
+  readonly workspaceRoot: string
   /** Host file probe; the existing D24 resolver excludes workspace PATH entries. */
   readonly probe: ExecutableProbe
   /** Tests inject the actual child-process boundary, not an authentication fake. */
   readonly run?: (
     file: string,
     args: readonly string[],
-    options: ExecFileOptionsWithStringEncoding,
+    options: ExecFileOptionsWithStringEncoding & { readonly workspaceRoot?: string | undefined },
   ) => Promise<{ stdout: string; stderr: string }>
 }
 
@@ -341,6 +350,7 @@ export function ghReportTransport(options: ReportGhOptions): ReportNetworkTransp
         timeout: REPORT_SOURCE_TIMEOUT_MS,
         maxBuffer: options.maxBytes,
         windowsHide: true,
+        workspaceRoot: options.workspaceRoot,
       })
     } catch (error: unknown) {
       raw = error

@@ -22,6 +22,7 @@
 // session) holds their children, and `dispose` ends them with the session.
 
 import { Buffer } from 'node:buffer'
+import { realpathSync } from 'node:fs'
 import path from 'node:path'
 import {
   HOOK_CURSOR_DEFAULT_LOOP_LIMIT,
@@ -313,6 +314,7 @@ class ForeignHooks implements ForeignHookAdapter {
           env: host.env,
           platform: this.deps.platform,
           workspaceRoot: this.deps.workspaceRoot,
+          realpath: realpathSync,
           processTree: tree,
           warn: host.warn,
         })

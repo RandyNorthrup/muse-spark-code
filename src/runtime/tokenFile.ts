@@ -1,10 +1,11 @@
 import { Buffer } from 'node:buffer'
 import { randomBytes } from 'node:crypto'
-import { constants, rmSync, rmdirSync } from 'node:fs'
+import { constants, realpathSync, rmSync, rmdirSync } from 'node:fs'
 import { chmod, lstat, mkdtemp, open, realpath, rm, rmdir } from 'node:fs/promises'
 import path from 'node:path'
 import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 import { runProgram, windowsPowerShell } from '../host/processTree'
+import { noWorkspaceChildEnvironment } from '../core/executables'
 import * as z from 'zod/mini'
 import { IDE_MCP_TOKEN_BYTES, UI_TEXT } from '../shared/constants'
 
@@ -133,11 +134,19 @@ async function secure(
   if (process.platform === 'darwin') {
     // chmod does not remove macOS allow ACEs. Accept only a single mode
     // receipt with no '+' marker or ACL entries; even owner/deny ACLs refuse.
-    // The fixed system binary receives a path and a credential-free env only.
-    const output = await runProgram('/bin/ls', ['-ledn', file], {
-      ...withoutKeyringRoutes(withoutCredentials(process.env)),
-      LC_ALL: 'C',
-    })
+    // The fixed system binary receives a path and a credential-free guarded env only.
+    const output = await runProgram(
+      '/bin/ls',
+      ['-ledn', file],
+      noWorkspaceChildEnvironment(
+        process.platform,
+        {
+          ...withoutKeyringRoutes(withoutCredentials(process.env)),
+          LC_ALL: 'C',
+        },
+        realpathSync,
+      ),
+    )
     const lines = output.trimEnd().split('\n')
     const expected = isDirectory ? 'drwx------' : '-rw-------'
     const modeReceipt = /^([d-][rwx-]{9})@?[ \t]/.exec(lines[0] ?? '')

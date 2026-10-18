@@ -1,7 +1,7 @@
 import type { ExecFileOptionsWithStringEncoding } from 'node:child_process'
 import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
-import { resolveExecutable, workspaceChildEnvironment } from '../executables'
+import { isWorkspacePath, resolveExecutable, workspaceChildEnvironment } from '../executables'
 import { environmentValue } from '../backends/musecode/launch'
 import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
 import { spawnResourceProcess } from './process'
@@ -25,15 +25,22 @@ function resolveCommand(
   env: NodeJS.ProcessEnv,
   workspace: GovernedWorkspace,
 ): string {
-  const file = path.isAbsolute(command)
-    ? command
-    : resolveExecutable(command, {
-        platform: process.platform,
-        pathVariable: environmentValue(env, process.platform, 'PATH'),
-        fileExists: existsSync,
-        workspaceRoot: workspace.workspaceRoot,
-        realpath: realpathSync,
-      })
+  const scope = { workspaceRoot: workspace.workspaceRoot, realpath: realpathSync }
+  if (path.isAbsolute(command)) {
+    // An absolute configured path inside the workspace is refused like a
+    // bare name there: a planted absolute `gh` must not run with the
+    // person's login when a report reads GitHub.
+    if (isWorkspacePath(process.platform, scope, command))
+      throw new Error('Governed command unavailable')
+    if (!existsSync(command)) throw new Error('Governed command unavailable')
+    return command
+  }
+  const file = resolveExecutable(command, {
+    platform: process.platform,
+    pathVariable: environmentValue(env, process.platform, 'PATH'),
+    fileExists: existsSync,
+    scope,
+  })
   if (file === undefined || !existsSync(file)) throw new Error('Governed command unavailable')
   return file
 }

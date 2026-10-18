@@ -1,4 +1,6 @@
+import { realpathSync } from 'node:fs'
 import * as z from 'zod/mini'
+import { noWorkspaceChildEnvironment } from '../../core/executables'
 import { runProgram } from '../processTree'
 
 export interface ProcessIdentity {
@@ -141,7 +143,8 @@ export async function didSignalLinuxProcess(
   const text = await runProgram(
     '/usr/bin/python3',
     ['-I', '-c', PIDFD_SIGNAL, JSON.stringify(identity), signal],
-    {},
+    // Fixed `/usr/bin/python3` with an empty environment: no workspace PATH entries.
+    noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
   )
   const result = signalResultSchema.parse(JSON.parse(text))
   if (result.kind === 'failed') throw new Error(`TEAM_SIGNAL_FAILED:${result.code}`)

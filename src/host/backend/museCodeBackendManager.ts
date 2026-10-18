@@ -72,6 +72,7 @@ import {
   spawnResourceMuseConnection,
   spawnResourceAccountConnection,
 } from '../resources/museResourceLaunch'
+import { NO_WORKSPACE } from '../../core/executables'
 import { vaultFenceEnvironment, type VaultFenceOptions } from '../../core/vault/exec/fence'
 
 /** VS Code's proxy settings (`http.proxy`, `http.noProxy`), handed to the CLI when its environment has none. */
@@ -191,6 +192,13 @@ export class MuseCodeBackendManager {
       extraVariables: this.deps.getEnvironmentVariables(),
       systemRoot: process.env['SystemRoot'],
       programFiles: process.env['ProgramFiles'],
+      scope:
+        this.deps.workspaceRoot === undefined
+          ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+          : {
+              workspaceRoot: this.deps.workspaceRoot,
+              realpath: realpathSync,
+            },
     })
     return names.some((name) => (environmentValue(own, process.platform, name) ?? '') !== '')
   }
@@ -452,10 +460,13 @@ export class MuseCodeBackendManager {
         systemRoot: process.env['SystemRoot'],
         programFiles: process.env['ProgramFiles'],
         ...(this.deps.accountHome !== undefined && { accountHome: this.deps.accountHome }),
-        ...(this.deps.workspaceRoot !== undefined && {
-          workspaceRoot: this.deps.workspaceRoot,
-          realpath: realpathSync,
-        }),
+        scope:
+          this.deps.workspaceRoot === undefined
+            ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+            : {
+                workspaceRoot: this.deps.workspaceRoot,
+                realpath: realpathSync,
+              },
       }),
       process.platform,
     )
@@ -528,10 +539,13 @@ export class MuseCodeBackendManager {
       readTextFile: (filePath) => readTextFileOrUndefined(this.deps.log, filePath),
       listDirectory: (directory) => listDirectoryOrEmpty(this.deps.log, directory),
       serveArgs,
-      ...(this.deps.workspaceRoot !== undefined && {
-        workspaceRoot: this.deps.workspaceRoot,
-        realpath: realpathSync,
-      }),
+      scope:
+        this.deps.workspaceRoot === undefined
+          ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+          : {
+              workspaceRoot: this.deps.workspaceRoot,
+              realpath: realpathSync,
+            },
     })
     this.launchCache = { key, resolution }
     return resolution

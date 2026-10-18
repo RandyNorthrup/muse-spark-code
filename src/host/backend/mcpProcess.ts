@@ -25,7 +25,11 @@ import { environmentValue, setEnvironmentVariable } from '../../core/backends/mu
 import type { McpStdioLaunch } from '../../core/backends/modelapi/mcp/servers'
 import type { McpChildProcess } from '../../core/backends/modelapi/mcp/stdio'
 import { mcpSecretReferences } from '../../core/vault/mcpReferences'
-import { absolutePathEntries, workspaceChildEnvironment } from '../../core/executables'
+import {
+  absolutePathEntries,
+  workspaceChildEnvironment,
+  type ExecutableScope,
+} from '../../core/executables'
 import { redactSecrets } from '../../core/redact'
 import { MCP_STDIO_ENV_ALLOWLIST, TREE_EXIT_WAIT_MS, UI_TEXT } from '../../shared/constants'
 import { killTree, sweepExitedTree, type TreeRoot, treeSpawnOptions } from '../processTree'
@@ -146,10 +150,7 @@ export function resolveServerCommand(
   cwd: string,
   env: NodeJS.ProcessEnv,
   deps: Pick<McpSpawnDeps, 'platform' | 'isExistingFile'>,
-  workspace?: {
-    readonly workspaceRoot: string
-    readonly realpath?: ((filePath: string) => string) | undefined
-  },
+  scope: ExecutableScope,
 ): string {
   const p = deps.platform === 'win32' ? path.win32 : path.posix
   const name = p.basename(command)
@@ -157,10 +158,7 @@ export function resolveServerCommand(
     command.includes('/') || (deps.platform === 'win32' && command.includes('\\'))
   const directories = hasDirectory
     ? [p.dirname(p.resolve(cwd, command))]
-    : absolutePathEntries(deps.platform, environmentValue(env, deps.platform, PATH_VARIABLE), {
-        workspaceRoot: workspace?.workspaceRoot ?? cwd,
-        realpath: workspace?.realpath ?? realpathSync,
-      })
+    : absolutePathEntries(deps.platform, environmentValue(env, deps.platform, PATH_VARIABLE), scope)
   for (const directory of directories) {
     for (const candidate of candidatesFor(name, deps.platform, env)) {
       const full = p.join(directory, candidate)
@@ -184,7 +182,10 @@ export function resolveMcpVaultCommand(
 ): ReturnType<typeof vaultCommandSchema.parse> {
   mcpSecretReferences(launch)
   const env = mcpServerEnvironment(deps.env(), launch.env, deps.platform)
-  const file = resolveServerCommand(launch.command, cwd, env, deps)
+  const file = resolveServerCommand(launch.command, cwd, env, deps, {
+    workspaceRoot: cwd,
+    realpath: realpathSync,
+  })
   return { executable: realpathSync(file), argv: [...launch.args], cwd: realpathSync(cwd) }
 }
 
@@ -413,7 +414,10 @@ export function mcpServerSpawner(
       ),
       resource,
     )
-    const file = resolveServerCommand(launch.command, cwd, env, deps)
+    const file = resolveServerCommand(launch.command, cwd, env, deps, {
+      workspaceRoot: cwd,
+      realpath: realpathSync,
+    })
     const line = spawnLine(file, launch.args, deps)
     const startedAt = Date.now()
     if (deps.platform === 'win32') {

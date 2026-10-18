@@ -183,6 +183,8 @@ export type CaptureLocation =
       readonly name: string
       readonly command: string
       readonly args: readonly string[]
+      /** The workspace the lookup excluded: the recorder child runs guarded for it. */
+      readonly workspaceRoot: string
     }
   | { readonly isAvailable: false; readonly reason: string }
 
@@ -191,14 +193,14 @@ export interface CaptureProbe extends HelperProbe {
   readonly pathVariable: string | undefined
   /**
    * The workspace a recording runs in: `arecord`/`parec` never resolve to
-   * a file inside it. Absent leaves every absolute entry probed, as before.
+   * a file inside it (resolved through links). REQUIRED.
    */
-  readonly workspaceRoot?: string | undefined
+  readonly workspaceRoot: string
   /**
-   * Resolves links for the workspace comparison. Absent means lexical
-   * comparison only.
+   * Resolves links for the workspace comparison. REQUIRED: a lexical-only
+   * comparison keeps a symlink into the workspace on PATH.
    */
-  readonly realpath?: ((filePath: string) => string) | undefined
+  readonly realpath: (filePath: string) => string
 }
 
 /**
@@ -221,8 +223,7 @@ export function locateCaptureHelper(probe: CaptureProbe): CaptureLocation {
       platform: probe.platform,
       pathVariable: probe.pathVariable,
       fileExists: probe.fileExists,
-      ...(probe.workspaceRoot !== undefined && { workspaceRoot: probe.workspaceRoot }),
-      ...(probe.realpath !== undefined && { realpath: probe.realpath }),
+      scope: { workspaceRoot: probe.workspaceRoot, realpath: probe.realpath },
     })
     if (command !== undefined) {
       return {
@@ -231,6 +232,7 @@ export function locateCaptureHelper(probe: CaptureProbe): CaptureLocation {
         name: recorder.command,
         command,
         args: recorder.args,
+        workspaceRoot: probe.workspaceRoot,
       }
     }
   }

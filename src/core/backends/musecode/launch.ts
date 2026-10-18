@@ -15,9 +15,11 @@
 
 import path from 'node:path'
 import {
+  absolutePathEntries,
   isFullyQualifiedWindowsPath,
   isWorkspacePath,
   sanitizePathForWorkspace,
+  type ExecutableScope,
 } from '../../executables'
 import type { MuseCodeAccountHome } from './accountHomes'
 import type { EnvironmentVariable } from '../../../shared/constants'
@@ -58,16 +60,10 @@ export interface LaunchProbe {
   readonly serveArgs: readonly string[]
   /**
    * The workspace the child runs in: PATH entries inside it are never
-   * probed, so a planted `muse` on an absolute workspace PATH entry never
-   * resolves. Absent probes every fully qualified entry, as before.
+   * probed (resolved through links), so a planted `muse` on an absolute
+   * workspace PATH entry never resolves. REQUIRED.
    */
-  readonly workspaceRoot?: string
-  /**
-   * Resolves links for the workspace comparison; injected so the Windows,
-   * macOS and Linux branches are all unit-tested on any OS. Absent means
-   * lexical comparison only.
-   */
-  readonly realpath?: ((filePath: string) => string) | undefined
+  readonly scope: ExecutableScope
 }
 
 export interface MuseLaunch {
@@ -96,10 +92,7 @@ function pathModule(platform: NodeJS.Platform): path.PlatformPath {
  * working directory's drive, so only fully qualified entries are probed.
  */
 function absoluteEntries(probe: LaunchProbe, p: path.PlatformPath): readonly string[] {
-  const workspace =
-    probe.workspaceRoot === undefined
-      ? undefined
-      : { workspaceRoot: probe.workspaceRoot, realpath: probe.realpath }
+  const workspace = 'workspaceRoot' in probe.scope ? probe.scope : undefined
   return probe.pathEntries
     .map((entry) => entry.trim())
     .filter(
@@ -245,18 +238,14 @@ export interface ChildEnvironmentInput {
   /** Supplied only by the capture-gated account owner, never settings or a page. */
   readonly accountHome?: MuseCodeAccountHome
   /**
-   * The workspace the child runs in. When defined, PATH entries that are
-   * relative, empty, or inside it (resolved through links) are dropped, so
-   * no workspace program runs from PATH when Muse Code starts
-   * (docs/certification/pathguard.md). Undefined leaves PATH untouched.
+   * The workspace the child runs in: PATH entries that are relative, empty,
+   * or inside it (resolved through links) are dropped, so no workspace
+   * program runs from PATH when Muse Code starts
+   * (docs/certification/pathguard.md). REQUIRED: with no folder open the
+   * caller passes the explicit no-workspace scope (absolute entries only,
+   * links followed).
    */
-  readonly workspaceRoot?: string
-  /**
-   * Resolves links for the PATH guard; injected so the Windows, macOS and
-   * Linux branches are all unit-tested on any OS. Absent means lexical
-   * comparison only (relative, empty and lexically-inside entries still go).
-   */
-  readonly realpath?: ((filePath: string) => string) | undefined
+  readonly scope: ExecutableScope
 }
 
 /**
@@ -351,21 +340,25 @@ export function windowsPowerShellModulePath(
  * does not close that lookup.
  */
 function guardWorkspacePath(env: NodeJS.ProcessEnv, input: ChildEnvironmentInput): void {
-  if (input.workspaceRoot === undefined) {
-    return
-  }
-  const realpath = input.realpath ?? ((filePath: string): string => filePath)
   const names =
     input.platform === 'win32'
       ? Object.keys(env).filter((name) => name.toLowerCase() === 'path')
       : Object.keys(env).filter((name) => name === 'PATH')
   for (const name of names) {
-    const sanitized = sanitizePathForWorkspace({
-      platform: input.platform,
-      pathVariable: env[name],
-      workspaceRoot: input.workspaceRoot,
-      realpath,
-    })
+    // With a workspace, entries inside it (resolved through links) go too;
+    // with the explicit no-workspace scope, relative, empty and
+    // drive-relative entries still go.
+    const sanitized =
+      'workspaceRoot' in input.scope
+        ? sanitizePathForWorkspace({
+            platform: input.platform,
+            pathVariable: env[name],
+            workspaceRoot: input.scope.workspaceRoot,
+            realpath: input.scope.realpath,
+          })
+        : absolutePathEntries(input.platform, env[name], input.scope).join(
+            input.platform === 'win32' ? ';' : ':',
+          )
     if (sanitized === '') {
       Reflect.deleteProperty(env, name)
     } else {

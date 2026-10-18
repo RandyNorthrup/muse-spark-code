@@ -40,7 +40,11 @@ import {
   PLUGIN_RESPONSE_MAX_BYTES,
   PLUGIN_RUNTIME_PROBE_TIMEOUT_MS,
 } from '../../../shared/constants'
-import { resolveExecutable, workspaceChildEnvironment } from '../../executables'
+import {
+  resolveExecutable,
+  workspaceChildEnvironment,
+  type GuardedChildEnv,
+} from '../../executables'
 import { environmentValue } from '../musecode/launch'
 import type { ForeignHookAnswer } from './hookFormats/contract'
 import { pluginChildSource } from './pluginChild'
@@ -62,8 +66,12 @@ export interface PluginCall {
 
 export interface PluginSpawnOptions {
   readonly resource?: ResourceLease | undefined
-  /** The child's whole environment: already allowlisted by the caller. */
-  readonly env: NodeJS.ProcessEnv
+  /**
+   * The child's whole environment: already allowlisted and guarded for the
+   * workspace by the caller (only `workspaceChildEnvironment` can produce
+   * one), so a raw environment does not type-check here.
+   */
+  readonly env: GuardedChildEnv
   readonly cwd: string
 }
 
@@ -101,16 +109,16 @@ export interface PluginRunDeps {
   readonly env: NodeJS.ProcessEnv
   /**
    * The workspace the plugin runs for: `node`, `bun` and `prlimit` are
-   * never resolved to a file inside it, and the child's PATH carries the
-   * guarded child environment for it. Absent leaves every absolute entry
-   * probed, as before.
+   * never resolved to a file inside it (resolved through links), and the
+   * child's PATH carries the guarded child environment for it. REQUIRED:
+   * the production session passes the workspace with `realpathSync`.
    */
-  readonly workspaceRoot?: string | undefined
+  readonly workspaceRoot: string
   /**
-   * Resolves links for the workspace comparison. Absent means lexical
-   * comparison only.
+   * Resolves links for the workspace comparison. REQUIRED: a lexical-only
+   * comparison keeps a symlink into the workspace on PATH.
    */
-  readonly realpath?: ((filePath: string) => string) | undefined
+  readonly realpath: (filePath: string) => string
   readonly platform?: NodeJS.Platform | undefined
   /** `node --version` / `bun --version` output for an absolute command. */
   readonly runVersion?: ((command: string, env: NodeJS.ProcessEnv) => Promise<string>) | undefined
@@ -148,7 +156,13 @@ async function defaultRunVersion(
   try {
     if (signal?.aborted === true) throw new Error('Plugin runtime probe cancelled')
     child = await tree.spawn(command, ['--version'], {
-      env: resourceEnvironment(env, resource),
+      env: resourceEnvironment(
+        workspaceChildEnvironment(deps.platform ?? process.platform, env, {
+          workspaceRoot: deps.workspaceRoot,
+          realpath: deps.realpath,
+        }),
+        resource,
+      ),
       cwd: path.dirname(command),
       ...(resource !== undefined && { resource }),
     })
@@ -240,8 +254,7 @@ function probeRuntime(
     platform,
     pathVariable: environmentValue(env, platform, 'PATH'),
     fileExists: deps.fileExists ?? isExistingFile,
-    ...(deps.workspaceRoot !== undefined && { workspaceRoot: deps.workspaceRoot }),
-    ...(deps.realpath !== undefined && { realpath: deps.realpath }),
+    scope: { workspaceRoot: deps.workspaceRoot, realpath: deps.realpath },
   })
 }
 
@@ -635,16 +648,15 @@ async function runInScope(
   let child: PluginChildHandle
   try {
     // The child runs an absolute runtime, never a workspace file, with the
-    // guarded child PATH for the workspace, so nothing it starts by bare
-    // name resolves to a program planted there.
+    // guarded child PATH for the workspace (links followed), so nothing it
+    // starts by bare name resolves to a program planted there.
     const pluginDir = path.dirname(call.pluginPath)
-    const workspaceRoot = deps.workspaceRoot ?? pluginDir
     child = await tree.spawn(runtime.command, [...runtime.args, source], {
       env: resourceEnvironment(
         withoutCredentials(
           workspaceChildEnvironment(platform, deps.env, {
-            workspaceRoot,
-            ...(deps.realpath !== undefined && { realpath: deps.realpath }),
+            workspaceRoot: deps.workspaceRoot,
+            realpath: deps.realpath,
           }),
         ),
         resource,
