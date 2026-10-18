@@ -182,3 +182,162 @@ No FAILs: everything the packed product could do in this environment
 behaved as the 8 pull requests describe; the rest is recorded above as
 gated, not passed. No code was changed, so no fix-and-repeat cycle and no
 post-change gates were needed. Only this record is committed.
+
+---
+
+# Round 2 (2026-10-18, rig `linuxlt`, lane RUTRUTHL2)
+
+Branch `realuse/0190-truth-l2` at `6c90dadd8f` (round 1's record above).
+Environment as briefed: HOME/XDG untouched (the sandbox mirrors the
+owner's sign-in at its own XDG paths — structure only was inspected:
+schema 1, `meta` present; no value read), workspaces fresh under the
+worktree's gitignored `temp/rutruthl2/`. Product: production `dist/`
+from `npm run build` (exit 0, budgets hold).
+
+## Packaging (still red, premise mismatch, no code touched)
+
+- Linux x64 helper built exactly the way CI does it
+  (`node --input-type=module -e "import { buildLinuxHelper } from
+'./scripts/build-linux-helper.mjs'; buildLinuxHelper()"`, cc +
+  system OpenSSL present) → `native/linux/x64/muse-created`.
+- `npm run package`: exit 1,
+  `Required Linux created-path helper excluded from VSIX: arm64`.
+  No aarch64 toolchain on this rig, so the arm64 helper cannot be built
+  here; it arrives as a CI artifact on the release job.
+- `npm run package:acp`: exit 1 (exec schemas match),
+  `Required Darwin created-path helper is missing:
+native/darwin/muse-dictate`. A macOS build product, unbuildable here.
+- The brief's step 3 assumes PR #246 (per-platform `.vsix`,
+  upstream `8212bed320` on `release/0.19.0`) is in this branch. It is
+  not (`git merge-base --is-ancestor 8212bed320 HEAD` fails; this
+  tree's `scripts/package-vsix.mjs` has no target option and still
+  demands every platform's helpers). Merging is not listed as a step
+  and is forbidden by the rig note, and re-implementing per-platform
+  packaging here would collide with the staffed VSIX lane at the join —
+  so no packaging code was changed. The per-platform fix belongs to
+  that lane/join, not to this group.
+- The VS Code panel below therefore runs from the built `dist/` via
+  `--extensionDevelopmentPath` (same built bytes, no `.vsix`), stated
+  as such, not as a packed install.
+
+## Terminal drills (packed `dist/acp.js`, real sign-in, all PASS)
+
+- `providers accounts list --provider meta` → the default-account row,
+  exit 0. Garbage runtime `providers.json` → the refused-file sentence,
+  exit 1. `providers.json` as a directory → `Accounts are unavailable
+(EISDIR: illegal operation on a directory, read).`, exit 1 (file
+  restored/absent afterwards). `list --provider ghost` → the fixed
+  connection sentence, exit 1. (#235)
+- `providers list` with `{not json` user file → `Test failed:
+<path>`; with `{"v":0,"providers":[]}` → `Test failed: Invalid
+input`; both exit 1, file removed after. `providers status chatgpt`
+  → the credential-store-unavailable sentence, exit 1 (no Secret
+  Service headless; sign-in-past-store stays gated). `exec --help`
+  carries the Fast-tier line. (#180)
+- `playbook status` → full table, exit 0. `settings offload off`
+  with reason → persisted with owner stamp, exit 0. Corrupt journal
+  (garbage appended, backup restored) → `The playbook is unavailable
+in this session.`, exit 1. Read-only journal dir, reason-less
+  `settings offload on` → `The playbook command could not be
+completed.`, exit 1 (permissions restored). (#238)
+- `exec --max-budget-usd 0.01 "say ok"` → `These options require the
+Model API backend.`, exit 2. `--max-output-tokens banana` → names
+  the flag, exit 2. Model-API unknown `meta/does-not-exist` →
+  `Unknown provider: meta.`, exit 2. No `*spend*`/`*ledger*`/
+  `*budget*`/`*claim*` file appeared under the data dir after any
+  refusal. `estimate --help` and `help reference` carry the route's
+  own words. (#217)
+- `legal` (standalone) → full scan report naming the missing license
+  as advice, exit 0. README sandbox row and CHANGELOG stand-in notes
+  re-read as round 1 describes. (#233, #223: nothing to drive.)
+
+## Live ACP sessions (packed `dist/acp.js`, scripted SDK client, PASS)
+
+Driver `temp/rutruthl2/acp-drive.mjs` (gitignored scratch, kept for
+re-runs): the SDK's own `client()` over the agent's stdio,
+`initialize` → `session/new` → `session/prompt`; permission policy
+allow-once only inside the drill workspace, everything else
+cancelled; every server update logged.
+
+- Two-turn conversation in one session: turn 1 answered with the exact
+  line (behind the honest bubblewrap notice, also seen live — #233);
+  turn 2 created `hello-truth.txt` with exactly `hello truth\n`
+  (12 bytes, `xxd`-verified) and answered `DONE`. Both `end_turn`,
+  no permission gate fired (backend wrote directly).
+- In-session error paths: `/agents` → `No subagents in this
+conversation.`; `/agents retry no-such-agent` → `Invalid params:
+Continue is unavailable for this agent or its current state.`
+  (pre-existing, unchanged); `/accounts current` → `Internal error:
+Accounts are unavailable until this runtime is connected to the
+shared account service.` — the ACP fixed sentence, raw cause
+  suppressed — identical with a garbage runtime `providers.json`
+  (PR235W1 thread 1 live); `/playbook status` → full table with owner
+  stamps; `/legal --offline` → the full scan report, `end_turn`.
+- Single non-reproducing observation: one `/legal --offline` turn
+  answered `end_turn` with empty text; the identical sequence passed
+  twice after (full report), so it reads as a driver-side update race
+  (the driver kills the agent the instant the response lands), not a
+  product defect. Recorded, not chased.
+- Backend model turns behind the above are counted below from the
+  product's own usage ledger. Slash-only sessions recorded no turns.
+
+## The real editor (VS Code 1.139.0 under xvfb, CDP text reads, PASS)
+
+- Editor needs `--no-sandbox` here (the SUID helper is not configured
+  for this user; container-standard flag, product untouched) and the
+  panel opens from the palette (`Muse Spark: Open in Sidebar`). The
+  first launch's `muse serve` starts on the first send, not on panel
+  open (the `Starting Muse Code…` pill is the pre-first-send state);
+  the serving backend was `muse-bin-1.4.10 serve --trust-workspace`,
+  spawned by the extension at send time (observed in `ps`).
+- Panel prompt → real answer: the exact `panel-round2-ok` line, the
+  sandbox notice, and a skills question answered `Not Now`. Pill now
+  reads the session model; `Resources: Normal`; context meter live —
+  the usage bridge in words (#161 editor surface, observed).
+- Subagent turn wrote `panel-agent.txt` byte-exact (`panel-agent-ok`
+  - newline, `xxd`-verified); Agent Map opened (`1 Agent`), agent
+    details read (receipt, changed files, result text).
+- Retry/Continue (#242): correctly ABSENT for every completed agent
+  and every completed task in this panel (matches `controlsFor`: a
+  completed museCode agent offers only Close). Three engineered
+  failure attempts (shell `exit 3`, missing-dir listing, missing-file
+  read) all ended as completed-with-cause — the shell cannot run here
+  (user namespaces unavailable, exit 125, said in words both sessions)
+  and the CLI records that outcome on the task rather than failing it
+  — so no failed/incomplete row arose to offer Retry. The `agentGone`
+  sentence itself (`That agent is no longer in this conversation.`)
+  fires only when the row is already absent at confirm time (task-id
+  retry or a vanish under the dialog); that race did not arise in
+  honest use. The sentence stays proven by
+  `test/unit/panelRetryTruth.test.ts` and its gate record
+  (`docs/certification/truthpanel.md`).
+- No screenshots were taken; every word above was read from the page
+  over CDP (`temp/rutruthl2/cdp.mjs` plus one-shot expressions).
+  Editor and both Xvfb servers were stopped afterwards (ports closed,
+  no processes remain).
+
+## Model calls (product's own ledger)
+
+- Round 1: 1 (`exec "say ok"`, `muse-wonder-1.0`).
+- Round 2: 4 ACP turns on `muse-wonder-1.0` + 15 panel turns on
+  `muse-spark-1.3`, all `museCode` backend, all cost certainty `plan`
+  ($0 metered). Slash-only ACP sessions recorded no turns.
+- Total 20 of 40 calls, `$0.00` of `$2.00`. No API key needed or read.
+
+## Gates on the final tree (no `src/` changed)
+
+- `npm run build`: exit 0 (budgets hold).
+- `npx vitest run` (repo default timeout, `--maxWorkers=3`):
+  `panelRetryTruth` + `accountErrorTruth` + `accountsCommand` → 3
+  files passed; `accounts` + `playbookSurface` + `providerRefusals` →
+  3 files passed.
+- `npm run package` / `package:acp`: exit 1 each, recorded above
+  (missing other-OS helpers; #246 absent from this branch).
+- `check:catches` untouched per the brief (join + catch lanes' work).
+
+## Result
+
+No FAILs. No code changed: the panel behaves as the 8 pull requests
+describe, the ACP boundary suppresses raw causes as designed, and the
+two packaging failures plus the absent #246 are recorded with exact
+errors instead of worked around. Only this record is committed.
