@@ -481,3 +481,91 @@ No provider call, no stand-in, no limit or gate changed.
   turn stopped because the same tool call kept returning an unchanged
   result…". That sentence names a tool call; whether a continuation needs
   its own translated sentence is the lead's call.
+
+## LIMITSINT2 lane record (macbook rig, 2026-10-17, branch `fix/limits-int2`)
+
+Merged `main-now` `3d30a7321` as `e6b5c5a7b`; generated files regenerated
+(`node scripts/gen-reference.mjs`, the lazy registry, the host-API record).
+No model call, no stand-in, no budget or baseline raised. Commits
+`5c6e82e94`, `fcb02c04b`, `cd60abdd4`, `d0a2f174e`, `9bf88b0f4`,
+`26e936ebb`, `4050afb7d`, `edc828c1b`, `7041bd8c0` (each with the engine
+trailer, hooks on).
+
+- **Build budget (item 1).** `dist/modelApi.js` was 539,515 bytes against
+  525 KiB: `readFileWindow`/`editFileRange` moved to `fileRangeTools.ts`
+  behind the existing `dist/modelApiTools.js` boundary, shared shapes to
+  neutral `src/core/toolEdit.ts`. Final: `dist/modelApi.js` 521.4 KiB /
+  525, `dist/modelApiTools.js` 48.8 KiB / 50, `npm run build` exit 0.
+- **Invariants (item 2).** The 2 failures were deliberate A9 schema
+  (`byteOffset`/`byteLength`) under D86: goldens re-baselined
+  (`01-plain-turn.json` plain+strict, tools + derived `prompt_cache_key`
+  only), test untouched. 25/25 pass.
+- **Output-final groups (item 3).** `fileRange` load flakes fixed test-side
+  (250 KB fixture, 3432 ms to 45 ms); the lazy-registry row for
+  `dist/modelApiTools.js` names both loaders (`7041bd8c0`); the activation
+  budget below is output-final's fourth failure, fixed as far as code can.
+- **Made-up-data tests (item 4).** Deleted `harnessInit.test.ts` (whole,
+  hand-written harness only) and the invented-result `repeatGuard` cases,
+  keeping the 2 pure `toolRepeatKey` canonicalization cases; the earlier
+  continuation cases were already deleted at `189ae8ae4` for the same
+  reason. Continuation proof (3rd/4th warn, 5th stops) needs the real-model
+  runs listed below.
+- **Continuation sentence (item 5).** The continuation stop emits new
+  `modelApiContinuationStuck` ("the continued answer kept repeating the
+  same text"), translated for real into all 14 tables at the matching
+  position; `modelApiToolStuck` still fires only for true tool repeats
+  (verified at its sole emitter). `check:l10n` 0 problems.
+- **Etc (item 6).** Verified gone from code and all 15 tables:
+  `modelApiContinuationLimit`, `uncappedOutputTokens`,
+  `MODEL_API_MAX_TOOL_ROUNDS`, `MODEL_API_CONTINUATIONS_MAX`;
+  `shouldContinueOutput` has no round cap. The remaining
+  `TOOL_REPEAT_LIMIT` 3 / `TOOL_REPEAT_STOP_LIMIT` 5 are the kept one
+  repeat policy itself.
+- **Activation budget (the open item).** `modelsActivationBudget` still
+  fails: 568,388 bytes against the 564,424 cap (baseline 561,352 + 3 KiB),
+  growth +7,036. Measured per merge stage with the gate's own build:
+  main `3d30a7321` 564,215 (+2,863, 209 headroom), +invariants −220,
+  +limits-final +1,179, +output-final +4,732, +drops-final +486, +main
+  merge +220, lane fixes +0. Per-module bundled bytes: `toolIo.ts` +3,001
+  (the only D6-movable part), `diagnostics.ts` +1,401 (paging entangled
+  with the activation-registered tool and verify loop), settings UI +
+  toggle-turn-limit command +1,179/+486 (the person's own settings, must
+  stay). The range move (`toolRangeIo.ts` → new `dist/toolRange.js`,
+  8.6 KiB / 25 KiB D6 budget, guard/rename/unsaved/sleep injected so no
+  logic is duplicated, fail-closed `toolRangeUnavailable` + retry) saves
+  2,224 net (570,612 → 568,388); 3,964 remain and no legitimate move
+  covers them. The cap cannot hold four branches on 209 headroom: moving
+  it is the owner's word (8 KiB covers the measured +7,036 with margin).
+- **Gates (final tree, real exits):** format 0; eslint main/unit/tests/css
+  0, ps skipped (darwin); typecheck all 5 projects 0; knip 0; cycles 0;
+  duplication 0; check:l10n 0; check:reference 0; check:host-api 0;
+  check:plan 0; `npm run build` 0; security:audit 0; SAST NOT RUN
+  (semgrep not installed on this rig); lazy-registry check 0 (in build).
+- **Tests:** touched suites green — invariants 25/25, fileRange trio
+  32/32 (twice, through the new chunk path), repeatGuard 2 + searchWorker
+  9, codecs+loop 150, lazyBundleFiles 13/13, packagedBundles 8/8,
+  vsixPackaging 95/95 and usagePackaging 12/12 on retry. Full suite:
+  9,217 passed, 33 failed across 18 files — every failure dispositioned:
+  the budget cap above; e2e-live (3, real api.meta.ai calls, budget
+  exceeded, need provider+budget); sandbox-blocked `ps`/`spawn`/native
+  toolchain (fileLease 4, treesMacNative, treesLifecycleNative, exact
+  errors recorded); 5 s-cliff timeouts under full-suite load, each
+  passing alone or on retry and two proven on clean main too
+  (browserUiText base 4,846 pass / 6,046 fail, mine 5,240 fail;
+  checkSlots base 3 fails vs mine 1; legalLocalization passes alone;
+  usage/vsix/lintStaged/ResourcesSection/teamLanding/records pass alone
+  or on retry); runtimeChatGptPackage 60 s packaging hook times out
+  identically on clean main (302 s run). No `--testTimeout` anywhere.
+- **Real-use steps (as far as without a model call).** Suites above prove
+  the range tools over real files through the real `createToolIo` and the
+  dynamic chunk load, both sentences in all tables, and every packaging
+  closure. Needs a real model run for the lead: (a) a turn cut by the
+  output limit repeating identical text 5 times — warns at 3rd/4th,
+  stops at 5th with the new continuation sentence (also in a non-English
+  locale); (b) the same for an unchanged tool result — old tool sentence;
+  (c) a first byte-addressed `read_file` loads `dist/toolRange.js`
+  (watch the load; whole-file turns must not); (d) with
+  `dist/toolRange.js` removed from a packed install, a range call is
+  refused with `toolRangeUnavailable` and retries next call; (e) hosted
+  CI gates (SAST, `ps` suites, e2e-live with budget, Windows lint:ps);
+  (f) `test/packaging/moduleExports.test.mjs` during vsix/acp packing.
