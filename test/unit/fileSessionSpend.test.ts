@@ -74,6 +74,26 @@ describe('one session open in two windows', () => {
     expect(merged?.budgetSpentUsd).toBe(Usd.from('7').toAmount())
   })
 
+  it('keeps a window second increment after the merge instead of dropping it', async () => {
+    const directory = path.join(root, 'two-windows-second')
+    const first = storeIn(directory)
+    const second = storeIn(directory)
+    await first.save(session('1'))
+    // Each window opens the session at the same total, then spends apart.
+    const beforeFirst = await first.load('s1')
+    const beforeSecond = await second.load('s1')
+    if (beforeFirst === undefined || beforeSecond === undefined)
+      throw new Error('the session was not saved')
+    // 1 + 2 in the first window, 1 + 4 in the second: the file holds 7.
+    await first.save({ ...beforeFirst, budgetSpentUsd: Usd.from('3').toAmount() })
+    await second.save({ ...beforeSecond, budgetSpentUsd: Usd.from('5').toAmount() })
+    // The second window spends $1 more from its own unmerged total of 5:
+    // the file holds 8, not 7.
+    await second.save({ ...beforeSecond, budgetSpentUsd: Usd.from('6').toAmount() })
+    const kept = await first.load('s1')
+    expect(kept?.budgetSpentUsd).toBe(Usd.from('8').toAmount())
+  })
+
   it('a snapshot older than the file never lowers it', async () => {
     const directory = path.join(root, 'stale')
     const window = storeIn(directory)
