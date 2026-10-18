@@ -400,6 +400,7 @@ export class Dictation {
   private async finishStop(helper: RunningHelper): Promise<void> {
     this.forget(helper)
     this.reaping = helper
+    let isRetained = false
     try {
       // The waiter goes in before the quit: a quit answered with no
       // process running resolves it synchronously.
@@ -411,6 +412,13 @@ export class Dictation {
           `Dictation helper did not exit after its stop${helper.stopRefused ? ' (its stop was refused)' : ''}; killed it`,
         )
         this.deps.listener.onError('The dictation helper stopped responding')
+        // The process may still hold the microphone: keep the reaping,
+        // queue presses behind its observed exit, and retry the kill until
+        // that exit arrives. No fresh recorder starts meanwhile, and the
+        // retired recording is ended only then.
+        isRetained = true
+        void this.retainUntilExit(helper, () => this.deps.listener.onStopped?.())
+        return
       }
       const hasPending = helper.isStartPending && !this.isDisposed
       helper.isStartPending = false
@@ -427,7 +435,7 @@ export class Dictation {
       }
       this.deps.listener.onStopped?.()
     } finally {
-      if (this.reaping === helper) {
+      if (!isRetained && this.reaping === helper) {
         this.reaping = undefined
       }
     }
@@ -476,9 +484,10 @@ export class Dictation {
    * A refused kill's aftermath: the kill is retried until the helper's
    * process is observed gone (or the driver is disposed). Only then is
    * the reaping released, idle reported, and a queued press spawned, so
-   * at most one recorder process ever exists.
+   * at most one recorder process ever exists. The optional end reports a
+   * retired recording's stop once its process is gone.
    */
-  private async retainUntilExit(helper: RunningHelper): Promise<void> {
+  private async retainUntilExit(helper: RunningHelper, then?: () => void): Promise<void> {
     for (;;) {
       this.killHelper(helper)
       if ((await this.awaitHelperExit(helper, true)) || this.isDisposed) break
@@ -489,6 +498,7 @@ export class Dictation {
       this.reaping = undefined
     }
     this.setStatus('idle')
+    then?.()
     if (hasPending) {
       this.spawnNext()
     }
