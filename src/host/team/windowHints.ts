@@ -356,6 +356,7 @@ export function createWindowHints(options: {
           await rm(temporary, { force: true })
         }
       } catch {
+        // A publish that fails disables hints rather than retrying blindly.
         disable()
       }
     })()
@@ -450,6 +451,7 @@ export function createWindowHints(options: {
           try {
             void publish(state())
           } catch {
+            // A scheduled publish that fails disables the schedule.
             disable()
           }
         }, options.writeMs)
@@ -468,6 +470,7 @@ export function createWindowHints(options: {
         await assertHintPath(file)
         await rm(file, { force: true })
       } catch {
+        // A dispose that cannot remove the hint file still disables hints.
         disable()
       }
     },

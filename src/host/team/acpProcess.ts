@@ -485,6 +485,8 @@ export function connectAcpAgent(input: {
                 await handlers.onPermissionRequest(toolCall, options, grantOf(params.sessionId)),
               )
             } catch {
+              // A permission handler that throws answers nothing: the request
+              // stays denied, and no grant is ever produced from a failure.
               settle(undefined)
             }
           })()

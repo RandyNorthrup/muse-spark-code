@@ -23,6 +23,7 @@ import { Usd, legacyUsdSchema, usdAmountSchema, type UsdAmount } from '../../sha
 import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { ATOMIC_TEMPORARY_SUFFIX } from '../../shared/constants'
 import { writeFileAtomically } from '../fsAtomic'
 import type { Logger } from '../logger'
@@ -162,12 +163,14 @@ export function createTabLedger(
         return { reservedUsd: Usd.from(0).toAmount(), reportedUsd: Usd.from(0).toAmount() }
       }
       // This window's own unreadable file: fail closed, and say which.
+      deps.log.warn(`Tab ledger ${fileName} unreadable: ${failureForLog(error)}`)
       return undefined
     }
     let parsed: unknown
     try {
       parsed = JSON.parse(raw) as unknown
-    } catch {
+    } catch (error: unknown) {
+      deps.log.warn(`Tab ledger ${fileName} unparseable: ${failureForLog(error)}`)
       return undefined
     }
     const file = ledgerFileSchema.safeParse(parsed)
@@ -189,7 +192,8 @@ export function createTabLedger(
         { sleep: deps.sleep },
       )
       return true
-    } catch {
+    } catch (error: unknown) {
+      deps.log.warn(`Tab ledger ${fileName} unwritable: ${failureForLog(error)}`)
       return false
     }
   }
@@ -208,18 +212,18 @@ export function createTabLedger(
       }
     } catch (error: unknown) {
       // No folder yet means no window spent today; anything else refuses.
-      return isMissing(error)
-        ? { ok: true, totalUsd: Usd.from(0).toAmount() }
-        : { ok: false, detail: date }
+      if (isMissing(error)) return { ok: true, totalUsd: Usd.from(0).toAmount() }
+      deps.log.warn(`Tab ledger day unreadable: ${failureForLog(error)}`)
+      return { ok: false, detail: date }
     }
     let names: string[]
     try {
       names = await readdir(dayDirectory(date))
     } catch (error: unknown) {
       // No folder yet means no window spent today; anything else refuses.
-      return isMissing(error)
-        ? { ok: true, totalUsd: Usd.from(0).toAmount() }
-        : { ok: false, detail: date }
+      if (isMissing(error)) return { ok: true, totalUsd: Usd.from(0).toAmount() }
+      deps.log.warn(`Tab ledger day unreadable: ${failureForLog(error)}`)
+      return { ok: false, detail: date }
     }
     let totalUsd = Usd.from(0).toAmount()
     let uncertainUsd = Usd.from(0).toAmount()
@@ -231,13 +235,15 @@ export function createTabLedger(
       let raw: string
       try {
         raw = await readFile(path.join(dayDirectory(date), name), 'utf8')
-      } catch {
+      } catch (error: unknown) {
+        deps.log.warn(`Tab ledger ${name} unreadable: ${failureForLog(error)}`)
         return { ok: false, detail: name }
       }
       let parsed: unknown
       try {
         parsed = JSON.parse(raw) as unknown
-      } catch {
+      } catch (error: unknown) {
+        deps.log.warn(`Tab ledger ${name} unparseable: ${failureForLog(error)}`)
         return { ok: false, detail: name }
       }
       const file = ledgerFileSchema.safeParse(parsed)
