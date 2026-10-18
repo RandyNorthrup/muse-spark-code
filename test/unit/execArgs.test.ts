@@ -86,6 +86,12 @@ describe('M80 args (A1–A10, F1)', () => {
     if (!parsed.ok) throw new Error(parsed.reason)
     expect(parsed.options.maxRequests).toBe(501)
     expect(parsed.options.budgetUsd).toBe(Usd.from('25').toAmount())
+    // PR229FIX T3: a budget past 9007199254.740991 USD parses too — the
+    // ledger (not the parser) used to refuse it.
+    const large = parseExec({ backend: 'modelApi', 'max-budget-usd': '9007199255' }, ['hi'])
+    expect(large.ok).toBe(true)
+    if (!large.ok) throw new Error(large.reason)
+    expect(large.options.budgetUsd).toBe(Usd.from('9007199255').toAmount())
   })
   it.each([
     '0',
