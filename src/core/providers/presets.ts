@@ -273,9 +273,20 @@ export interface ProviderPreset {
   readonly wireCapture: boolean
 }
 
-/** A preset's effective quirks: its format's defaults plus its overrides. */
+/**
+ * A preset's effective quirks: its format's defaults plus its overrides.
+ * `retryLimits` merges field by field (review RVRETRYLIMITS): a preset
+ * that documents only its own count must keep its format's documented
+ * backoff bounds, the way the OpenAI preset already spreads the format's
+ * retry table before adding its own `errorKinds`.
+ */
 export function quirksOf(preset: ProviderPreset): FormatQuirks {
-  return { ...FORMAT_QUIRKS[preset.format], ...preset.quirks }
+  const format = FORMAT_QUIRKS[preset.format]
+  return {
+    ...format,
+    ...preset.quirks,
+    retryLimits: { ...format.retryLimits, ...preset.quirks.retryLimits },
+  }
 }
 
 /**
