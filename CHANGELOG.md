@@ -24,6 +24,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **The terminal report usage names every kind and its required argument**
+  (RVMSM113). `report milestone`, `report release` and `report estimate`
+  without their scope printed a usage text that never said what was missing,
+  and `report --help` printed the whole help reference. The usage now lists
+  the thirteen working kinds (`milestone <id>`, `release <version|latest>`,
+  `estimate <milestone>`, …) in all fourteen languages, and `report --help`
+  shows the report command's own usage.
+
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

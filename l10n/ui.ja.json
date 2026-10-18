@@ -1958,6 +1958,7 @@
     "other": "ほか {count} 件の問題"
   },
   "reportCliUsage": "名前付きのデータソースから、モデルを呼び出さずに決定的なレポートを生成します。\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+  "reportCliKinds": "種類: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
   "reportIssue": "問題を報告…",
   "reportCrashOffer": "Muse Spark Code は前回予期せず終了しました — 報告しますか?",
   "reportCrashAction": "問題を報告",
