@@ -1,4 +1,4 @@
-![The panel after a turn: the reply, the tool rows and the composer](welcome.png)
+![The panel after a turn: the reply, the tool rows and the composer](welcome.webp)
 
 **Muse Spark reads your code, edits it and runs commands, under the permission mode you choose.**
 

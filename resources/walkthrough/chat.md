@@ -1,4 +1,4 @@
-![The slash palette over the composer](chat.png)
+![The slash palette over the composer](chat.webp)
 
 **Type a message and press Enter.**
 
