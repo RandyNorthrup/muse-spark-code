@@ -16,7 +16,7 @@
 
 import * as vscode from 'vscode'
 import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry } from '../../core/diagnostics'
-import { redactSecrets } from '../../core/redact'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { isCodeLoading } from '../../core/verify/codeFiles'
 import type { EditedFile, FileDiagnostics } from '../../core/verify/diagnosticsReport'
 import { bytesFingerprint } from '../../core/verify/fingerprint'
@@ -105,10 +105,6 @@ const INSERT_SPACES = 'insertSpaces'
 const NEVER_STOPPED = new AbortController().signal
 // What a diagnostics tool call that stopped while it waited its turn read.
 const NOTHING_READ = (): readonly DiagnosticEntry[] | undefined => undefined
-
-function describe(error: unknown): string {
-  return redactSecrets(error instanceof Error ? error.message : String(error))
-}
 
 /** A URI as one key: case-folded where the file system is (Windows). */
 function uriKey(uri: vscode.Uri, platform: NodeJS.Platform): string {
@@ -278,7 +274,7 @@ async function show(
     document = await vscode.workspace.openTextDocument(vscode.Uri.file(file.absolute))
   } catch (error: unknown) {
     deps.log.warn(
-      `Verify: ${file.relative} could not be opened for diagnostics: ${describe(error)}`,
+      `Verify: ${file.relative} could not be opened for diagnostics: ${failureForLog(error)}`,
     )
     return { ok: false, reason: 'notShown' }
   }
@@ -302,7 +298,9 @@ async function show(
       preserveFocus: true,
     })
   } catch (error: unknown) {
-    deps.log.warn(`Verify: ${file.relative} could not be shown for diagnostics: ${describe(error)}`)
+    deps.log.warn(
+      `Verify: ${file.relative} could not be shown for diagnostics: ${failureForLog(error)}`,
+    )
     return { ok: false, reason: 'notShown' }
   }
   for (const tab of tabsOf(key, deps.platform)) {
@@ -384,7 +382,7 @@ async function isStillAsConfined(
     const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(file.absolute))
     return isAllowed?.() !== false && bytesFingerprint(bytes) === file.fingerprint
   } catch (error: unknown) {
-    deps.log.warn(`Verify: ${file.relative} could not be checked again: ${describe(error)}`)
+    deps.log.warn(`Verify: ${file.relative} could not be checked again: ${failureForLog(error)}`)
     return false
   }
 }
@@ -441,7 +439,7 @@ async function restoreActiveTabs(
         preserveFocus: true,
       })
     } catch (error: unknown) {
-      deps.log.warn(`Verify: ${still.label} could not be brought back: ${describe(error)}`)
+      deps.log.warn(`Verify: ${still.label} could not be brought back: ${failureForLog(error)}`)
     }
   }
 }
@@ -457,7 +455,9 @@ async function closeOpened(deps: VerifyEditorDeps, opened: readonly OpenedTab[])
   try {
     await vscode.window.tabGroups.close([...tabs], true)
   } catch (error: unknown) {
-    deps.log.warn(`Verify: the files shown for diagnostics could not be closed: ${describe(error)}`)
+    deps.log.warn(
+      `Verify: the files shown for diagnostics could not be closed: ${failureForLog(error)}`,
+    )
   }
 }
 

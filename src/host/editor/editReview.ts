@@ -7,6 +7,7 @@
 
 import path from 'node:path'
 import type { ConditionalWrite } from '../../core/backends/modelapi/tools'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { revertHunks } from '../../core/patchApply'
 import { isSamePath } from '../../core/paths'
 import { fingerprint } from '../../core/verify/fingerprint'
@@ -217,7 +218,7 @@ export class EditReview implements EditReviewActions {
       canonicalRelativePath = this.paths.relative(realRoot, realTarget).replaceAll('\\', '/')
     } catch (error: unknown) {
       check?.()
-      this.deps.log.warn(`Edit review could not resolve ${relative}: ${String(error)}`)
+      this.deps.log.warn(`Edit review could not resolve ${relative}: ${failureForLog(error)}`)
       return undefined
     }
     return {
@@ -390,7 +391,7 @@ export class EditReview implements EditReviewActions {
         throw error
       }
       this.deps.log.warn(
-        `Reverted ${resolved.relativePath}, but its checkpoint admission was not released: ${String(error)}`,
+        `Reverted ${resolved.relativePath}, but its checkpoint admission was not released: ${failureForLog(error)}`,
       )
       return outcome.committed
     } finally {
