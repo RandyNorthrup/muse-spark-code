@@ -138,6 +138,19 @@ function invalid(reason: string): { readonly ok: false; readonly reason: string 
   return { ok: false, reason }
 }
 
+/** The refused flag in words, with its value when one was given. */
+function flagArgument(key: string, value: unknown): string {
+  return typeof value === 'string' && value !== '' ? `--${key} ${value}` : `--${key}`
+}
+
+/** A refused flag value owns the usage refusal and names the flag. */
+function invalidFlagValue(
+  key: string,
+  value: unknown,
+): { readonly ok: false; readonly reason: string } {
+  return invalid(fill(UI_TEXT.acpUnknownArgument, { argument: flagArgument(key, value) }))
+}
+
 /**
  * The model for a provider run: a bare id (no slash) qualifies to
  * `<provider>/<model>`; a ref must name this provider in full
@@ -198,7 +211,10 @@ export function parseExec(
   if (values['vault'] === true && values['key-stdin'] === true)
     return invalid(`${UI_TEXT.vault.noAccess}: --vault / --key-stdin`)
   const mode = enumValue(EXEC_MODES, values['permission-mode'] ?? EXEC_DEFAULT_MODE)
-  if (mode === undefined) return invalid(UI_TEXT.execModeRefused)
+  if (mode === undefined)
+    return invalid(
+      `${fill(UI_TEXT.acpUnknownArgument, { argument: flagArgument('permission-mode', values['permission-mode']) })}: ${UI_TEXT.execModeRefused}`,
+    )
   const backend = enumValue(ACP_BACKENDS, values['backend'] ?? ACP_DEFAULT_BACKEND)
   const output = enumValue(EXEC_OUTPUTS, values['output'] ?? EXEC_DEFAULT_OUTPUT)
   const shellSandbox = enumValue(
@@ -212,13 +228,11 @@ export function parseExec(
       (values['account'] !== undefined && values['account'] !== ACCOUNT_DEFAULT_ID))
   )
     return invalid(UI_TEXT.accounts.museCodeUnavailable)
-  if (
-    backend === undefined ||
-    output === undefined ||
-    shellSandbox === undefined ||
-    (effort === undefined && values['effort'] !== undefined)
-  )
-    return invalid(UI_TEXT.execUsage)
+  if (backend === undefined) return invalidFlagValue('backend', values['backend'])
+  if (output === undefined) return invalidFlagValue('output', values['output'])
+  if (shellSandbox === undefined) return invalidFlagValue('shell-sandbox', values['shell-sandbox'])
+  if (effort === undefined && values['effort'] !== undefined)
+    return invalidFlagValue('effort', values['effort'])
   const timeout = integer(
     values['timeout'],
     EXEC_DEFAULT_TIMEOUT_SECONDS,
@@ -232,18 +246,17 @@ export function parseExec(
     EXEC_MAX_REQUESTS,
   )
   const budgetUsd = budgetUnits(values['max-budget-usd'])
-  if (
-    timeout === undefined ||
-    maxRequests === undefined ||
-    (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
-  )
-    return invalid(UI_TEXT.execNumberInvalid)
+  if (timeout === undefined) return invalidFlagValue('timeout', values['timeout'])
+  if (maxRequests === undefined) return invalidFlagValue('max-requests', values['max-requests'])
+  if (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
+    return invalid(
+      `${fill(UI_TEXT.acpUnknownArgument, { argument: flagArgument('max-budget-usd', values['max-budget-usd']) })}: ${UI_TEXT.execNumberInvalid}`,
+    )
   if (backend === 'modelApi' && budgetUsd === undefined) return invalid(UI_TEXT.execBudgetRequired)
-  if (
-    values['output-schema'] === '' ||
-    (values['output-schema-outside'] === true && values['output-schema'] === undefined)
-  )
-    return invalid(UI_TEXT.execUsage)
+  if (values['output-schema'] === '')
+    return invalidFlagValue('output-schema', values['output-schema'])
+  if (values['output-schema-outside'] === true && values['output-schema'] === undefined)
+    return invalidFlagValue('output-schema-outside', values['output-schema-outside'])
   if (
     backend === 'museCode' &&
     [

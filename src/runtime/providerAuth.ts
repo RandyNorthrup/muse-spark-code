@@ -5,6 +5,8 @@
 // entry's static bundle is untouched.
 import { openRouterDiscardedKeyNotice } from '../host/backend/providersEntry'
 import { UI_TEXT } from '../shared/constants'
+import { fill } from '../shared/l10n/text'
+import { describeError } from '../shared/redact'
 import type { ProvidersFileRead } from '../core/providers/providersFile'
 import {
   authClearProvider,
@@ -74,8 +76,14 @@ async function recoverAccountJournal(
     // The lease's bundle loads on a recovery, never with the command's own bundle.
     const { recoverCredentialJournal } = await import('../core/credentialLeaseEntry')
     recovery = await recoverCredentialJournal(store, account, `${account}.connect`)
-  } catch {
-    return { notices: [], committed: false, failed: true }
+  } catch (error: unknown) {
+    // A recovery that cannot even read names its cause: callers exit on
+    // `failed`, and an empty notice would fail silently (AUDITCLI).
+    return {
+      notices: [fill(UI_TEXT.acpStoreUnavailable, { reason: describeError(error) })],
+      committed: false,
+      failed: true,
+    }
   }
   if (recovery.decision.kind === 'discarded' || recovery.decision.kind === 'legacy') {
     return {
