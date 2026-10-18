@@ -434,3 +434,43 @@ One line per new Codex thread; fixes follow in this lane. No hosted CI failures 
 - `CHANGELOG.md:60` (`auth set --provider` routing): ALREADY FIXED by `a23e8c149` — re-prove packed here.
 - `PLAN.md:14521` (stale open-shape claim): ACCEPTED, open — D123 still says every preset carries `{ kind: 'any' }`; this lane rewrites it to the fieldless behavior.
 - `authCommands.ts:150` (silent affirmative): ACCEPTED, open — on a TTY the notice question gets a real y/N answer with a re-prompt on "no" (panel parity); on a pipe the certified continue stands (stdin cannot answer, D123 never dead-ends).
+
+### PR159W2 outcomes (2026-10-18, linuxlt rig, lane PR159W2)
+
+- T-plan (`PLAN.md:14521`): FIXED — D123 no longer claims a `{ kind: 'any'
+}` shape per preset; it says no preset carries a key-shape field at all,
+  the provider judges every key, and the question waits for an answer
+  where one can be given (panel modal, terminal prompt) while a pipe
+  continues. Archive untouched; `check:plan` 0 drift.
+- T-confirm (`authCommands.ts:150`): FIXED in the three CLI key readers
+  (`authSetProvider`, `providersAdd`, `runAccountAuthSet`): a
+  suspicious-looking value now goes through a `confirmKeyUse` dependency
+  (named like the host's modal port). Production wiring (`main.ts`
+  `authDeps`): a pipe prints the notice and proceeds — byte-identical to
+  the certified runs; a TTY asks `notice (y/N)` on stderr and waits, and a
+  "no" re-prompts for the key, like the panel's password box. Proven by
+  `test/unit/providerKeyConfirm.test.ts` (4 passed, repo default timeout):
+  decline re-prompts and never stores (nothing printed, exit 1), accept
+  continues to the store. The per-account tests run the real
+  `AccountStore` over a real metadata file whose row is composed only of
+  production tables (the openai preset's origin/auth, the offered
+  openai/api policy); the vault refuses any call, so reaching it fails.
+  The TTY-interactive branch itself is for the lead's real-life run (no
+  TTY exists on this headless rig): on a terminal, run `auth set
+--provider <id>`, type a URL at the hidden prompt, answer `n` and see
+  the prompt return, answer `y` and see the key stored.
+- Already-fixed threads re-verified on this tree: `providerKeyInspect`
+  (8), `execKeyInput` (19), `providersPresets` (16), `planKeyPresets` (3),
+  `accountsCommand` (23), `execProviderNotice` (4) — all green at the repo
+  default timeout; `isKeyShape`/`KeyShape`/`keyShape` absent repo-wide
+  (`keyShapeOk` is unrelated wizard flow state).
+- Packed re-proof, same build (`npm run build` green), scratch homes only
+  (no real keys, `work` row only in scratch): bare `auth set` piped the
+  URL answers the Meta sentence (exit 1); `auth set --provider groq`
+  piped the same URL prints the web-address notice first, then the
+  store-unavailable truth (exit 1); the same form piped non-UTF-8 bytes
+  answers the not-text sentence (exit 1); `providers add --preset custom
+... --key-stdin` piped the URL prints the notice, then the connection
+  truth (exit 1) — every line byte-identical to the PR159FIX2 record.
+  Per-account meta intact: `accounts add` exit 0, non-UTF-8 auth set
+  answers not-text (exit 1), `list` shows both rows.
