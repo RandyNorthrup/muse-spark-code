@@ -2334,13 +2334,15 @@ memory only:`, so you can compare it with what you asked and correct it in
 your next message. It takes no arguments: `/playback` with anything after it
 answers with its usage instead.
 
-It runs on every surface (the panel, the terminal, ACP editors) and every
-backend. On the Model API backend the turn is offered no tools, and any tool
-call is refused in code and answered to the model. On Muse Code the turn runs
-in Plan mode and your permission mode comes back when it ends; Plan mode is
-not strictly tool-free there, so the turn is stopped at the first tool use
-and says why. A message you send while a playback is starting waits for it,
-and only one playback starts at a time.
+It runs on the Model API backend, on every surface (the panel, the
+terminal, ACP editors): the turn is offered no tools, and any tool call is
+refused in code and answered to the model. On Muse Code it is refused
+instead of run: no approval mode denies reads there, let alone the file
+tools' edits in Plan mode, so a playback cannot start without tools. A
+message you send while a playback is starting waits for it, and only one
+playback starts at a time. A playback cannot use structured output
+(`--output-schema`): its reply must open with the marker line, which a JSON
+schema cannot hold.
 
 ## Scheduled prompts (Model API)
 
