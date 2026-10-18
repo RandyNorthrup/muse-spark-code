@@ -4,24 +4,17 @@ import * as assert from 'node:assert/strict'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as vscode from 'vscode'
-import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import { loadGitApi, repositoryAt } from '../../src/host/git/gitExtension'
 import { processGitRunner } from '../../src/host/git'
-import type { Logger } from '../../src/host/logger'
 import { planMarkdownLoader } from '../../src/host/planMarkdownBundle'
-import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
   CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
   COMMAND_IDS,
   EXTENSION_QUALIFIED_ID,
-  MODEL_API_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
-  SETTING_DEFAULTS,
   SETTINGS_SECTION,
 } from '../../src/shared/constants'
-import { fakeModelApi } from '../unit/helpers/fakeModelApi'
-import { fakeManagerDeps } from '../unit/helpers/modelApiManager'
 
 const TAB_WAIT_TIMEOUT_MS = 5000
 // test/fixtures/workspace/.vscode/settings.json sets this window-scoped key
@@ -29,9 +22,26 @@ const TAB_WAIT_TIMEOUT_MS = 5000
 const FIXTURE_OVERRIDE = 'hideOnboarding'
 const RULES_HEADER = 'Muse Code reads this file as project rules when it runs in this directory.'
 const TAB_POLL_INTERVAL_MS = 50
+// The measured panel-focus steal landed 0.4 to 0.8 s late; the watch outlasts it.
+const FOCUS_WATCH_MS = 3000
 
 // Tab groups update asynchronously after a webview panel is created, so a
 // direct read right after executeCommand races the UI.
+function describeTab(tab: vscode.Tab): string {
+  // A label alone cannot name the F74 thief: every chat panel is labelled
+  // 'Untitled', same as an untitled document. The kind tells them apart.
+  const { input, label } = tab
+  if (input instanceof vscode.TabInputWebview) {
+    const kind = `webview:${input.viewType}`
+    return `${label}(${kind})`
+  }
+  if (input instanceof vscode.TabInputText) {
+    const kind = `text:${input.uri.fsPath}`
+    return `${label}(${kind})`
+  }
+  return `${label}(other)`
+}
+
 async function waitForTab(isMatch: (tab: vscode.Tab) => boolean): Promise<vscode.Tab> {
   const deadline = Date.now() + TAB_WAIT_TIMEOUT_MS
   while (Date.now() < deadline) {
@@ -43,10 +53,26 @@ async function waitForTab(isMatch: (tab: vscode.Tab) => boolean): Promise<vscode
     }
     await new Promise((resolve) => setTimeout(resolve, TAB_POLL_INTERVAL_MS))
   }
-  const labels = vscode.window.tabGroups.all.flatMap((group) => group.tabs.map((tab) => tab.label))
-  throw new Error(
-    `no matching tab appeared within ${String(TAB_WAIT_TIMEOUT_MS)} ms; open: ${labels.join(', ')}`,
+  const open = vscode.window.tabGroups.all.flatMap((group) =>
+    group.tabs.map((tab) => describeTab(tab)),
   )
+  throw new Error(
+    `no matching tab appeared within ${String(TAB_WAIT_TIMEOUT_MS)} ms; open: ${open.join(', ')}; active editor: ${activeTextEditorFsPath() ?? 'none'}`,
+  )
+}
+
+// Read fresh on every poll: an earlier assert's narrowing of the editor
+// chain does not survive the awaits between polls, so the read lives in its
+// own function where the optional chain is genuinely needed.
+function activeTextEditorFsPath(): string | undefined {
+  return vscode.window.activeTextEditor?.document.uri.fsPath
+}
+
+// The active tab's file, when the active tab is a text file: same fresh-read
+// reason as above, for the tab group instead of the editor.
+function activeTextTabFsPath(): string | undefined {
+  const activeTab = vscode.window.tabGroups.activeTabGroup.activeTab
+  return activeTab?.input instanceof vscode.TabInputText ? activeTab.input.uri.fsPath : undefined
 }
 
 suite('activation', () => {
@@ -63,15 +89,6 @@ suite('activation', () => {
       assert.ok(commands.includes(id), `missing command ${id}`)
     }
     assert.ok(commands.includes(`${CHAT_VIEW_ID}.focus`), 'chat view focus command missing')
-  })
-
-  test('exposes every setting with its documented default', () => {
-    const configuration = vscode.workspace.getConfiguration(SETTINGS_SECTION)
-    // The fixture workspace overrides one window-scoped setting (next test).
-    const defaults = Object.entries(SETTING_DEFAULTS).filter(([key]) => key !== FIXTURE_OVERRIDE)
-    for (const [key, value] of defaults) {
-      assert.deepEqual(configuration.get(key), value, `default for ${key}`)
-    }
   })
 
   test('opens an Untitled chat panel in a new tab', async () => {
@@ -118,8 +135,93 @@ suite('activation', () => {
           vscode.window.activeTextEditor?.document.uri.fsPath === target.fsPath,
       )
       assert.equal(vscode.window.activeTextEditor?.document.uri.fsPath, target.fsPath)
+      // A chat panel finishing loading behind the new file must not take the
+      // keyboard back: the measured steal landed 0.4 to 0.8 s after
+      // showTextDocument resolved, so AGENTS.md stays the active editor and
+      // the active tab for 3 s of polling.
+      const watchUntil = Date.now() + FOCUS_WATCH_MS
+      while (Date.now() < watchUntil) {
+        assert.equal(
+          activeTextEditorFsPath(),
+          target.fsPath,
+          'the chat panel took the keyboard from the file just opened',
+        )
+        assert.equal(
+          activeTextTabFsPath(),
+          target.fsPath,
+          'the chat panel took the active tab from the file just opened',
+        )
+        await new Promise((resolve) => setTimeout(resolve, TAB_POLL_INTERVAL_MS))
+      }
     } finally {
       await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      await vscode.workspace.fs.delete(target)
+    }
+  })
+
+  test('Focus Input from a file brings the chat panel forward (panel-focus)', async () => {
+    const folder = vscode.workspace.workspaceFolders?.[0]
+    assert.ok(folder, 'no workspace folder')
+    const target = vscode.Uri.joinPath(folder.uri, 'AGENTS.md')
+    const isChatTab = (tab: vscode.Tab | undefined) =>
+      tab?.input instanceof vscode.TabInputWebview &&
+      tab.input.viewType.includes(CHAT_PANEL_VIEW_TYPE)
+    try {
+      // This case owns its panel, so an earlier case's cleanup cannot leave
+      // Focus Input with no surface and no tab to bring forward.
+      await vscode.commands.executeCommand(COMMAND_IDS.openInNewTab)
+      await waitForTab(isChatTab)
+      await vscode.commands.executeCommand(COMMAND_IDS.createRulesFile)
+      await waitForTab(
+        (tab) =>
+          tab.input instanceof vscode.TabInputText &&
+          tab.input.uri.fsPath === target.fsPath &&
+          vscode.window.activeTextEditor?.document.uri.fsPath === target.fsPath,
+      )
+      // The person acting on the chat: Focus Input moves the keyboard there,
+      // and the composer's owned request lands because the panel is active.
+      await vscode.commands.executeCommand(COMMAND_IDS.focusInput)
+      const deadline = Date.now() + TAB_WAIT_TIMEOUT_MS
+      while (Date.now() < deadline) {
+        if (isChatTab(vscode.window.tabGroups.activeTabGroup.activeTab)) {
+          break
+        }
+        await new Promise((resolve) => setTimeout(resolve, TAB_POLL_INTERVAL_MS))
+      }
+      assert.ok(
+        isChatTab(vscode.window.tabGroups.activeTabGroup.activeTab),
+        'Focus Input did not bring the chat panel forward',
+      )
+      // Input ownership, not just panel visibility: the composer's landing
+      // effect focuses the textarea, the webview reports it back, and the
+      // next Focus Input — a toggle — hands the keyboard to the file. A panel
+      // that merely revealed, without the composer ever taking focus, would
+      // re-post focusInput here instead, and the file would never go active.
+      // A waitForTab red in this file names every open tab's kind through
+      // describeTab, so the next F74 names its thief instead of 'Untitled'.
+      const toggleDeadline = Date.now() + TAB_WAIT_TIMEOUT_MS
+      let hasEditorBack = false
+      while (Date.now() < toggleDeadline) {
+        await vscode.commands.executeCommand(COMMAND_IDS.focusInput)
+        await new Promise((resolve) => setTimeout(resolve, TAB_POLL_INTERVAL_MS))
+        if (activeTextEditorFsPath() === target.fsPath) {
+          hasEditorBack = true
+          break
+        }
+      }
+      assert.ok(hasEditorBack, 'Focus Input did not hand the keyboard back to the file')
+    } finally {
+      // Close the file tab wherever it is; the chat panels stay for the
+      // later cases that count them.
+      const textTab = vscode.window.tabGroups.all
+        .flatMap((group) => group.tabs)
+        .find(
+          (tab) =>
+            tab.input instanceof vscode.TabInputText && tab.input.uri.fsPath === target.fsPath,
+        )
+      if (textTab !== undefined) {
+        await vscode.window.tabGroups.close(textTab)
+      }
       await vscode.workspace.fs.delete(target)
     }
   })
@@ -150,69 +252,6 @@ suite('activation', () => {
     await waitForTab(
       (candidate) => candidate.label === 'Welcome' || candidate.label.includes('Muse Spark'),
     )
-  })
-})
-
-// The extension builds its Model API host only for a conversation on that
-// backend, which needs a key in its SecretStorage and a message from its
-// panel; this harness can give neither. So the test builds a manager of its
-// own over the fake Model API, handed the path activate hands its manager,
-// and proves that the dev build's dist/modelApi.js sits beside
-// dist/extension.js and loads and runs in VS Code's extension host (M57).
-suite('the Model API bundle', () => {
-  test('loads from the installed extension and runs a turn', async () => {
-    const extension = vscode.extensions.getExtension(EXTENSION_QUALIFIED_ID)
-    assert.ok(extension, `extension ${EXTENSION_QUALIFIED_ID} not found`)
-    const folder = vscode.workspace.workspaceFolders?.[0]
-    assert.ok(folder, 'no workspace folder')
-    const api = fakeModelApi()
-    const errors: string[] = []
-    const log: Logger = {
-      trace: () => undefined,
-      info: () => undefined,
-      warn: () => undefined,
-      error: (message) => {
-        errors.push(message)
-      },
-    }
-    let ids = 0
-    const manager = new ModelApiBackendManager(
-      fakeManagerDeps(api, log, {
-        workspaceRoot: folder.uri.fsPath,
-        newId: () => {
-          ids += 1
-          return `id-${String(ids)}`
-        },
-        bundlePath: vscode.Uri.joinPath(extension.extensionUri, 'dist', MODEL_API_BUNDLE_FILE)
-          .fsPath,
-      }),
-    )
-    try {
-      const host = await manager.ensureHost()
-      const session = await host.startSession({
-        workspaceRoot: folder.uri.fsPath,
-        modelId: 'muse-spark-1.3',
-        approvalMode: 'promptUnmatched',
-      })
-      const replies: string[] = []
-      const completed = new Promise<void>((resolve) => {
-        session.onEvent((event: AgentEvent) => {
-          if (event.type === 'itemCompleted' && event.item.kind === 'agentMessage') {
-            replies.push(event.item.text ?? '')
-          }
-          if (event.type === 'turnCompleted') {
-            resolve()
-          }
-        })
-      })
-      api.script({ text: 'Hello from the bundle' })
-      await session.sendTurn([{ type: 'text', text: 'Say hello' }])
-      await completed
-      assert.deepEqual(replies, ['Hello from the bundle'])
-      assert.deepEqual(errors, [])
-    } finally {
-      await manager.dispose()
-    }
   })
 })
 

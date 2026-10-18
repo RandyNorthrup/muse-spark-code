@@ -1,16 +1,10 @@
-import { randomBytes } from 'node:crypto'
 import {
-  type VaultApprovalRequest,
-  type VaultAuditRecord,
   type VaultBinding,
   type VaultGrant,
-  type VaultItem,
   type VaultItemMetadata,
   type VaultRequester,
-  type VaultTicket,
   type VaultUse,
 } from '../../../../src/shared/vault'
-import { type VaultPanelState } from '../../../../src/shared/modelsPanel'
 
 export function requester(): VaultRequester {
   return {
@@ -44,43 +38,11 @@ export function metadata(): VaultItemMetadata {
     fingerprint: null,
   }
 }
-export function item(): VaultItem {
-  return { metadata: metadata(), material: { kind: 'secret', value: randomBytes(32) } }
-}
 export function use(): Extract<VaultUse, { kind: 'environment' }> {
   return {
     kind: 'environment',
     command: { executable: '/usr/bin/tool', argv: ['--check'], cwd: '/workspace' },
     names: ['SERVICE_TOKEN'],
-  }
-}
-export function approval(): VaultApprovalRequest {
-  return {
-    id: 'a'.repeat(32),
-    requester: requester(),
-    item: metadata(),
-    use: use(),
-    digest: 'b'.repeat(64),
-    nonce: 'c'.repeat(32),
-    createdAt: 0,
-    expiresAt: 120_000,
-    lockEpoch: 0,
-    taint: { tainted: false, reasons: [] },
-  }
-}
-export function ticket(): VaultTicket {
-  const request = approval()
-  return {
-    id: 'e'.repeat(32),
-    requestId: request.id,
-    requesterId: request.requester.id,
-    itemId: request.item.id,
-    digest: request.digest,
-    nonce: request.nonce,
-    issuedAt: request.createdAt,
-    expiresAt: request.expiresAt,
-    lockEpoch: request.lockEpoch,
-    maxUses: 1,
   }
 }
 export function grant(): VaultGrant {
@@ -105,54 +67,5 @@ export function grant(): VaultGrant {
     ceiling: 'ask',
     createdAt: 0,
     createdBy: 'vaultPanel',
-  }
-}
-export function audit(): VaultAuditRecord {
-  return {
-    v: 1,
-    id: 'f'.repeat(32),
-    generation: 1,
-    time: 0,
-    requester: requester(),
-    handle: metadata().handle,
-    kind: 'environment',
-    target: 'redacted target',
-    digest: 'a'.repeat(64),
-    decision: 'ask',
-    authority: 'user',
-    grantId: null,
-    outcome: 'pending',
-    previousHash: '0'.repeat(64),
-    hash: '1'.repeat(64),
-    mac: '2'.repeat(64),
-  }
-}
-/** A slot's C-supplied identity and generation metadata; the epoch varies per case. */
-export function slotContext(createdAt = 0) {
-  return {
-    id: randomBytes(16).toString('hex'),
-    vaultId: randomBytes(16).toString('hex'),
-    lastGeneration: 0,
-    auditGeneration: 0,
-    auditHead: '0'.repeat(64),
-    createdAt,
-  }
-}
-export function panel(): VaultPanelState {
-  return {
-    status: {
-      state: 'unlocked',
-      lockEpoch: 0,
-      tier: 'osStore',
-      provider: 'test-only',
-      silentUnlock: true,
-      itemCount: 1,
-      reason: null,
-    },
-    items: [metadata()],
-    grants: [grant()],
-    audit: [audit()],
-    pending: [],
-    ambientFiles: [],
   }
 }

@@ -1,8 +1,4 @@
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { MONEY_PLAN_CITATIONS } from './helpers/moneyPlanCitations'
 import {
   PLAN_CITATION_MIN_PHRASE,
   planCitationChecker,
@@ -13,9 +9,6 @@ import {
 // (`./helpers/planCitation`). These cases hold both halves of that promise:
 // a citation survives edits around its passage, and it fails when the passage
 // itself is deleted, reworded, duplicated or moved.
-
-const ROOT = fileURLToPath(new URL('../../', import.meta.url))
-const PLAN = readFileSync(path.join(ROOT, 'PLAN.md'), 'utf8')
 
 const SMALL = `# Plan
 
@@ -145,59 +138,6 @@ describe('PLAN.md citations by heading and phrase', () => {
     const short = 'x'.repeat(PLAN_CITATION_MIN_PHRASE - 1)
     expect(problem(`${SMALL}\n${short}\n`, { heading: FIRST.heading, phrase: short })).toBe(
       `the phrase is shorter than ${String(PLAN_CITATION_MIN_PHRASE)} characters`,
-    )
-  })
-})
-
-describe("the exact-money guard's PLAN.md citations", () => {
-  it('cites four different clauses', () => {
-    expect(new Set(MONEY_PLAN_CITATIONS.map((citation) => citation.phrase)).size).toBe(4)
-  })
-
-  it.each(MONEY_PLAN_CITATIONS)('resolves in the real PLAN.md: $phrase', (citation) => {
-    expect(problem(PLAN, citation)).toBeUndefined()
-  })
-
-  it('stay resolved when lines are inserted above the cited passage', () => {
-    const lines = PLAN.split('\n')
-    const [first] = MONEY_PLAN_CITATIONS
-    const heading = lines.indexOf(first?.heading ?? '')
-    const clause = lines.findIndex((line) => line.startsWith('**Sanctioned numeric money'))
-    expect(heading).toBeGreaterThan(0)
-    expect(clause).toBeGreaterThan(heading)
-    const added = Array.from({ length: 700 }, (_, index) => `Inserted line ${String(index)}.`)
-    // At the top of the file, straight above the heading and straight above the paragraph.
-    const shifted = [
-      ...added,
-      ...lines.slice(0, heading),
-      ...added,
-      '',
-      ...lines.slice(heading, clause),
-      ...added,
-      '',
-      ...lines.slice(clause),
-    ].join('\n')
-    const check = planCitationChecker(shifted)
-    expect(MONEY_PLAN_CITATIONS.map((citation) => check(citation))).toEqual([
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-    ])
-  })
-
-  it.each(MONEY_PLAN_CITATIONS)('fails once its clause is gone: $phrase', (citation) => {
-    // The clause as PLAN.md has it, however its lines are wrapped.
-    const clause = new RegExp(
-      citation.phrase
-        .split(' ')
-        .map((word) => word.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`))
-        .join(String.raw`\s+`),
-      'g',
-    )
-    expect(PLAN.match(clause)).toHaveLength(1)
-    expect(problem(PLAN.replace(clause, ''), citation)).toBe(
-      `the phrase "${citation.phrase}" is not in PLAN.md`,
     )
   })
 })

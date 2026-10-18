@@ -231,7 +231,9 @@ export function LegalReport({
 
   // The preview and the outcome arrive after their request: move keyboard
   // focus to their heading once each, so keyboard and screen-reader users
-  // land on what changed (the Modal keeps Tab inside the dialog).
+  // land on what changed (the Modal keeps Tab inside the dialog) — but only
+  // while this surface holds the keyboard (D116): an arrival behind a file
+  // must not take the panel forward, and it is still spent, never retried.
   const focusedPreview = useRef<string | undefined>(undefined)
   const focusedResult = useRef<string | undefined>(undefined)
   useEffect(() => {
@@ -243,14 +245,14 @@ export function LegalReport({
       return
     }
     focusedPreview.current = preview.previewId
-    previewHeading.current?.focus()
+    if (document.hasFocus()) previewHeading.current?.focus()
   }, [preview, flow])
   useEffect(() => {
     if (fixResult === undefined || focusedResult.current === fixResult.previewId) {
       return
     }
     focusedResult.current = fixResult.previewId
-    resultHeading.current?.focus()
+    if (document.hasFocus()) resultHeading.current?.focus()
   }, [fixResult])
 
   const toggle = (id: string, isChecked: boolean) => {

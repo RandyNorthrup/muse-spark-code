@@ -1,4 +1,4 @@
-// The three universal checks on a pasted provider key (PLAN.md D108):
+// The three universal checks on a pasted provider key (PLAN.md D123):
 // blank is refused (nothing can be sent); inner whitespace, a URL, a
 // file path or placeholder text each raises a question the person
 // answers ("use it anyway?"), never a dead end. No per-provider prefix

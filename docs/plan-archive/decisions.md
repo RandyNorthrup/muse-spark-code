@@ -6676,7 +6676,112 @@ prompts into a chat in any workspace".
 
 <!-- plan-archive:end id="2-D76-01" -->
 
-## D108 — The provider judges a key; no key is refused for its shape (lane PROVKEYS, 2026-10-12)
+## D116 — A chat surface takes the keyboard only while it holds it (panel-focus, 2026-10-12; numbered D108 until 2026-10-15)
+
+<!-- plan-archive:begin id="decisions-6409d5aad-14637" lines="14637-14673" at="6409d5aad" bytes="2388" sha256="5e93bad2d134d71cbd13ac74eea7a8087b3db7d711d960cf97f6cb91896d7568" -->
+
+**Decision.** Focus is taken only as the direct effect of something the
+person just did on that surface, and only if that surface still holds the
+keyboard when the focus would land. A webview never focuses its composer
+merely because it finished loading; a focus request checked while its
+surface is unowned is not spent — it lands only on that surface's own
+focus event, which a load finishing behind a file never gets. The host
+owns the ask (every `focusInput` it posts answers a person's command);
+the webview confirms ownership with `document.hasFocus()` at the single
+landing effect (`landFocusRequest` in `src/webview/state/uiState.ts`,
+called only from the composer's focus effect) and never overrides the
+host. Async arrivals that focus on their own (an approval or question
+card, a report's arriving headings) take the keyboard only under the
+same ownership. Measured
+release defect: a panel loading behind a just-opened file took the keyboard
+0.4–0.8 s later in 14 of 20 hosted runs
+(`docs/certification/panel-focus.md`). The watching integration case
+(`creates AGENTS.md in the workspace root and opens it (D15)`) polls 3 s
+after `showTextDocument`; the mirror case proves Focus Input from a file
+still brings the chat forward. Same rule in the sidebar view and the panel,
+same extension code on every editor; no per-editor branch was read in any
+focus path.
+
+**Follow-up 2026-10-14 (the review's F3): a request that cannot land at
+once is dropped, not held.** The pending hold above had no bound: a stale
+request landed on whatever later focus the surface got. Now the host owns
+each request — the single gate in `surface.post`
+(`src/host/views/webviewSetup.ts`, decided by `shouldDeliverFocusInput` in
+`src/host/views/focusGate.ts`) mints a `token`/`issuedAt` and drops the
+ask when its panel is not the active one (`panel.active`, the sidebar's
+`visible`) and no fresh reveal armed it. The webview records only a
+tokened ask delivered within `FOCUS_REQUEST_WINDOW_MS` (1000 ms, covering
+the slowest measured 766 ms arrival) and lands it only while its surface
+holds the keyboard within that window; afterwards it is gone. Every sender
+(Focus Input, the deferred mention flush, mention inserts, the report
+attach, draft restore, load-time `init`) passes the same gate; acting on
+the chat still focuses the input exactly as before
+(`docs/certification/panel-focus.md`).
+
+<!-- plan-archive:end id="decisions-6409d5aad-14637" -->
+
+## D122 — CI capacity from a second account; the project stays here (owner, 2026-10-16; redesigned 2026-10-17)
+
+<!-- plan-archive:begin id="decisions-a9720961e-14396" lines="14396-14449" at="a9720961e" bytes="3534" sha256="86987020f92891e7a1ff5fd00e99cba0d4432fdfa5fba9c237cece2fb873503f" -->
+
+**Why.** GitHub runs at most five macOS jobs at a time per account (40 jobs
+in all on Pro, 20 on a free organization; docs `actions/reference/limits`),
+and a full run of ours has twelve macOS jobs, so pull requests queued behind
+each other. The owner opened the free organization `scnetsolutions` only for
+capacity: "we are only using the org account to remove the bottleneck",
+"these should still merge to my personal account main", and "yes for ci in
+the org do what you need".
+
+**The first design (2026-10-16), replaced.** A relay on the maintainer's
+computer (`scripts/ci-org-relay.mjs`, his `gh` sign-in) pushed the merge
+commit to the capacity repository and posted an eighth status,
+`build / org part`. The review of 2026-10-17 found four faults. The main
+ruleset requires the seven names, not the eighth, while a `home` run's
+`quality (windows-latest)` and `quality (macos-latest)` passed with no
+Windows or macOS unit shard run, so a pull request could merge with them
+failing. Every home pull request waited whenever the relay was not running.
+Dependabot's branches live in this repository, so its pull requests went
+`home`. A home run counted as a successful CI run for release reuse without
+the shards.
+
+**The design in force.** `route` picks part `home` only for a
+same-repository pull request on the full tier while `ORG_CI` is `on` and
+`secrets.ORG_CI_APP_PRIVATE_KEY` is not empty (GitHub leaves it empty for
+forks and Dependabot). build.yml's `org` job mints an installation token of
+the organization's GitHub App with `actions/create-github-app-token` (v3.3.0)
+for `scnetsolutions/muse-spark-code-ci` alone, `contents: write` and
+`workflows: write` (GitHub refuses a push that carries `.github/workflows`
+files without it). It pushes `+<merge>^1:refs/heads/ci/base` and
+`+<merge>:refs/heads/ci/pr-<number>`, with git reading the token from the
+step's environment. It then reads the capacity repository's runs with its own
+job token until the `ci.yml` push run on that exact commit completes, writes
+each shard's result to the step summary and takes the run's conclusion. A run
+that has not appeared ten minutes after the push fails the job, and the job's
+limit is 180 minutes. The `required` aggregate needs `org` and, in a `home`
+run, its success: the seven names keep their meaning, the ruleset does not
+change, and the run's own conclusion (what release reuse reads) includes the
+shards. In the capacity repository `route` accepts only `ci/pr-<number>`,
+part `org` runs the sixteen shards and nothing else, `ci.yml`'s concurrency
+cancels the run of a replaced branch, and no secret is kept. It stays public:
+standard runners are free there, and the job token reads its runs.
+
+**Weighed and not taken.** The capacity repository posting a status back: a
+second key, kept in the repository that runs every pull request's code, an
+eighth required name, and a status any writer can set. `repository_dispatch`:
+it runs the capacity repository's default-branch workflow, not the pull
+request's own build.yml, and needs the same credential. A fine-grained
+personal token: tied to the owner's account and expiring. An OIDC token
+exchange through a third party: that party holds a key to the capacity
+repository. Self-hosted runners: a machine to keep running and patched,
+which on a public repository would run fork pull requests' code. Moving the
+repository: refused in the owner's words above. Sources, owner steps and
+proofs:
+`docs/certification/ciflow.md` (D122) and CONTRIBUTING.md, "The capacity
+repository (D122)".
+
+<!-- plan-archive:end id="decisions-a9720961e-14396" -->
+
+## D123 — The provider judges a key; no key is refused for its shape (lane PROVKEYS, 2026-10-12; numbered D108 until the 2026-10-17 merge with main)
 
 <!-- plan-archive:begin id="decisions-a64aebd4a-14315" lines="14315-14336" at="a64aebd4a" bytes="1420" sha256="04385ca919235e6aea41a6ba2fb179aa3a925a792ef99a07cfd37c0741652958" -->
 

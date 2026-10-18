@@ -1,5 +1,29 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**PRTH165 review repair (2026-10-15, Windows).** Merge `d842cad5d`
+with hooks, retaining main's deleted fake-driven tests. Resolve threads T1–T6
+in the existing ACP permission-answer cache, agent lifecycle and translated
+manifest tables; no new abstraction or provider calls. T1 compares persistent
+rule identity and never falls back to a reused choice id; T2 remembers consent
+before dispatch; T4 awaits the queued mode notice; T5 retains mode across close;
+T6 aligns all fourteen manifest translations. T3 records the merged deletion
+and real-life replacement steps, never restores a stand-in. Pure-module proof
+and a byte-exact red drill cover rule identity; integration ordering and mode
+lifecycle require the lead's real signed-in run. Run scoped static gates,
+all five typechecks, dependent/list-consuming unit suites, build and permitted
+packed-product commands. Evidence and postable replies: `.lane/PRTH165.report.md`
+and `docs/certification/muse-code-permissions.md`.
+**PRTH166 review repairs (2026-10-15).** Reuse the controller's opening
+and resumed-handle ownership checks and ACP's existing choice state. After
+merging main `d842cad5d`, address T1 stale attachment, T2 verification cleanup,
+T3 Model API no-switch loads, T4 backend-event choice updates, and T5 honest
+restart proof. No new abstraction, wire shape, dependency or UI. The owner's
+2026-10-12 rule forbids a replay CLI or any stand-in: pure resolver checks
+are not product-wiring proof. Real-provider restart, mismatch, concurrent
+clear and hook/event checks remain explicit lead-run scenarios in
+`docs/certification/muse-restart-model.md`; lane gates and provider-free
+packed-product commands are measured separately.
+
 **VISFIX: release notes move no screenshot (2026-10-11, host with the Mac
 mini and linuxlt; before 0.17.2).** Lead's ruling after REL0171C's finding
 that a `CHANGELOG.md` entry or a version bump moved 108 What's New frames and
@@ -773,6 +797,11 @@ quality`) and as a CI job.
 
 ### D5 — Testing strategy
 
+**Superseded 2026-10-12 by D108** (owner's test-overhaul ruling) for the
+fake-transport unit pattern, the `vscode` mock in unit tests, and the
+coverage-threshold gate. What stays: unit tests over `src/**`, webview
+component tests, and the real-editor integration run.
+
 - **Unit (vitest, node env)**: everything in `src/core/**` (protocol types,
   backends with fake transports, the host ⇄ webview protocol, settings
   mapping, path guards). The `vscode` module is aliased to
@@ -790,6 +819,20 @@ quality`) and as a CI job.
   certification checklist).
 
 ### D6 — Bundle budgets (Phase 6)
+
+**PANELBUDGET (2026-10-14, wslpc).** The Models & Agents panel bundle had
+1,645 B of headroom (126,355 B against the 128,000 B cap) with the money and
+key-text lanes plus two mode switches landing in it. The subscriptions half
+(`subscriptionFeatures.ts` with the ChatGPT and Copilot sign-in flows,
+`chatgptSignIn.ts` and `copilotClient.ts`) now loads as
+**`dist/modelsSubscriptions.js`** (22,917 B; new 50 KiB budget: 22,917 ×
+1.15 = 26,354.55 B, rounded up to the next 25 KiB multiple), required by
+activation on the first subscription action through
+`modelsSubscriptionsLoader`; the panel never loads it. `dist/modelsPanel.js`
+is 109,327 B (106.8 KiB), 18,673 B under its unchanged 125 KiB cap. The
+split check fails an activation or panel bundle that carries any of the four
+moved modules again. No existing cap changes. Evidence:
+`docs/certification/models-panel-budget.md`.
 
 **INT0170 (2026-10-08, kubuntu).** Three lane merges broke the Node bundles
 under unchanged caps; each is fixed at the root and held by the split check.
@@ -2032,6 +2075,8 @@ Reports share the existing 50 KiB mini-parser; every runtime API read is guarded
 
 **`dist/museCodeReviewer.js` budget rationale.** (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)
 
+**`dist/modelsSubscriptions.js` budget rationale.** (PANELBUDGET: the subscriptions half of the Models panel host, the ChatGPT and Copilot sign-in flows, loaded on the first subscription action; measured 22,917 B plus 15%, rounded up to the next 25 KiB multiple = 50 KiB)
+
 ### D7 — Permission modes map onto MSP approval modes; prompting modes wait for M4
 
 `muse --help` (1.3.0) names the CLI's own modes `untrusted | on-request |
@@ -2161,7 +2206,7 @@ reason. Limits: 10 MiB per image, 20 per message.
 on, the index runs `git ls-files --cached --others --exclude-standard -z` in
 the workspace root (git's own ignore semantics), falls back to `findFiles`
 with a logged warning when git is missing or the folder is not a repository,
-and is capped at 20 000 paths, cached for 15 s and invalidated by a
+with no path count of ours, cached for 15 s and invalidated by a
 create/delete file watcher. Ranking is a deterministic fuzzy scorer
 (`src/core/fuzzy.ts`), file-name matches winning over folder matches.
 
@@ -2821,7 +2866,7 @@ model at once, and what it printed is added to the replay as a user note that
 waits for the next request, because this backend makes no model call nobody
 asked for. `!` commands run as typed, outside any turn, with no approval card
 in any permission mode, and never in Restricted Mode; on the Model API backend
-they run for at most ten minutes. Explain instead sends up to 500 characters.
+they run until they finish or the person stops them. Explain sends the whole selection.
 Full record: [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D41 — One memory for both backends (M49, 2026-09-25)
@@ -3300,7 +3345,7 @@ Existing explicit false settings remain false. Observation packing, hooks and
 reply usage default on, and web search, images, Muse Voice availability, Auto
 reviewer, subagents, schedules and best-of-N default on for Model API; free OS
 dictation remains the selected engine. Interactive extras share
-`museSpark.paidDailyBudgetUsd`, machine scoped and USD 5 by default;
+`museSpark.paidDailyBudgetUsd`, machine scoped, a budget the person sets (none by default);
 unreadable or incomplete storage refuses spending. Hosted search and Muse
 Voice transports remain refused pending verified bounds. After the FIXDEF
 review, a committed daily Stop must survive every pending raise. Full record:
@@ -3626,9 +3671,10 @@ and all of it stays here in place. Full record:
   - `report`: `summary`, `review` or `qa` (the shapes below).
   - `delegates`: the roles this role may delegate to.
     - Without the key it may delegate to none, so the depth is 1.
-    - With it, the depth is at most 2. The roles named may not include the
+    - With it, the roles named may delegate in turn as their own `delegates`
+      allow, with no depth limit of ours. The roles named may not include the
       role itself or its delegator, and their tasks count under the same
-      limits.
+      limits the person set.
   - `permission-mode`: M76's key, the role's approval ceiling.
   - `model` and `effort`: M76's keys.
     - For a team task, `effort` applies where the worker's model serves
@@ -4017,7 +4063,7 @@ and all of it stays here in place. Full record:
       or device servers, M92's gadgets among them), matched by command and
       package name.
     - **Shared:** unknown servers, with a per-role limit that the user
-      sets (default 2).
+      sets (none by default).
     - **Where it is set:** in the Models & Agents panel's Roles section,
       under **Tools and devices**, at user level only. A repository cannot
       declare a resource free or raise a limit.
@@ -4065,21 +4111,19 @@ and all of it stays here in place. Full record:
     It is set automatically to that agent's computed ceiling (Team
     intensity, below), because a plan's or key's limit is shared by every
     entry that uses it. The user may lower it.
-  - **Per role:** tasks per orchestrator turn (default 6); minutes per task
-    (default 30); the exhausted policy; and `continue on next` (below).
+  - **Per role, each set by the person (none by default):** tasks per
+    orchestrator turn; minutes per task; the exhausted policy; and
+    `continue on next` (below).
   - **Global, machine-scoped settings** (with the ceilings under Team
     intensity). The worker and command caps bound each window; their sum
     across windows is shown as an advisory figure (Scheduler and traffic,
     below). The budget is shared across windows through the paid ledger:
-    - `museSpark.teamMaxWorkers`: by default the lower of 20 and twice the
-      logical CPUs;
+    - `museSpark.teamMaxWorkers`: set by the person, none by default;
     - `museSpark.teamMaxProcessWorkers`, for Muse Code and external
-      workers, which are processes or sessions with memory of their own.
-      Its default is the lowest of 4, the logical CPUs less 2, and the free
-      memory at activation less 4 GiB divided by 1.5 GiB, and never below
-      1;
+      workers, which are processes or sessions with memory of their own:
+      set by the person, none by default;
     - the machine's daily team budget, `museSpark.teamDailyBudgetUsd` and
-      `museSpark.teamDailyBudgetTokens` ($50.00 and 25,000,000 by default).
+      `museSpark.teamDailyBudgetTokens`: set by the person, none by default.
       It bounds the sum across every window of this editor, as a scope of
       D78's shared paid ledger, and no workspace's own budget passes it.
       The intensity level sets each workspace's own budget beneath it;
@@ -4185,19 +4229,18 @@ model-profile show`, read without a model call);
       headers at run time (OpenAI's `x-ratelimit-*`, Anthropic's
       `anthropic-ratelimit-*`, OpenRouter's key limit). Where a provider
       documents none (Gemini), 429s decide.
-    - **External agents**: 2, until their own limits show in refusals.
-  - **Our hard ceiling:** 20 on the Model API and M95's engines (the
-    owner's figure), 4 per host for Muse Code, 4 per external agent.
+    - **External agents**: their own documented limits, then their
+      refusals; no number of ours.
+  - **The ceiling is the provider's:** the limit each provider documents
+    for that model (its capability record, with source and date), read
+    live from its headers where it reports them. There is no ceiling of
+    ours.
   - **The machine's ceiling:**
-    - `museSpark.teamMaxWorkers`: by default the lower of 20 and twice
-      the logical CPUs;
-    - `museSpark.teamMaxProcessWorkers`: for Muse Code and external
-      workers, as before;
-    - `TEAM_MAX_CONCURRENT_COMMANDS`: half the logical CPUs, at least 1.
-      This is the number of engine workers' shell commands that run at
-      once; the rest wait for a slot. Muse Code and external workers run
-      their own commands, so `museSpark.teamMaxProcessWorkers` bounds
-      them instead.
+    - `museSpark.teamMaxWorkers` and `museSpark.teamMaxProcessWorkers`:
+      set by the person, none by default;
+    - engine workers' shell commands run as they come, with no
+      command-slot count of ours; the person's resource limits (M107)
+      apply when set.
 - **Live adaptation.**
   - A 429, or a remaining-requests or remaining-tokens header under 10%,
     halves that entry's running cap, down to 1.
@@ -4226,8 +4269,9 @@ model-profile show`, read without a model call);
     - A 429, or a provider's `Retry-After`, marks the agent rate-limited
       until then.
     - A subscription's usage-limit refusal marks it until the reset time
-      the provider names, or `TEAM_USAGE_LIMIT_COOLDOWN_MS` (30 minutes)
-      when it names none. Each wire shape comes from step 1's captures and
+      the provider names. When it names none, the mark stays until the
+      provider accepts a request again or the person clears it; no waiting
+      period of ours. Each wire shape comes from step 1's captures and
       M88's pending usage-limit capture (AGENTS rule 13).
     - Both marks are per agent, because a plan or a key is shared by all
       its entries.
@@ -4286,9 +4330,9 @@ model-profile show`, read without a model call);
       note.
     - **`queue`**. The task waits for headroom, but only for a reason that
       recovers: room under `concurrent`, a rate limit, a usage-limit
-      cooldown, or a day cap at midnight. It waits at most
-      `TEAM_QUEUE_MAX_WAIT_MS` (60 minutes), in a queue of at most
-      `TEAM_QUEUE_MAX` (16) tasks, and then asks. A spent `lifetime` cap
+      cooldown, or a day cap at midnight. It waits, with no
+      time or queue-length limit of ours, shown on the board, where the
+      person can stop it. A spent `lifetime` cap
       never recovers, so it asks.
     - **`self`**. The task is refused, with the reason, and the guidance
       tells the orchestrator to do the work itself.
@@ -4593,8 +4637,7 @@ brief, reason, files?, entry?, continue? }`.
     2. the role's body (the user's guidance; stable);
     3. the workspace's rules and skills, as its backend loads them: the
        Model API's (M10), Muse Code's own, or an external agent's own;
-    4. the task: its id, its branch and folder, the brief (at most
-       `TEAM_BRIEF_MAX_CHARS`, 8,000), and the files named, as paths. Small
+    4. the task: its id, its branch and folder, the whole brief, and the files named, as paths. Small
        text files are inlined up to `TEAM_BRIEF_FILES_MAX_BYTES` (64 KiB),
        under M54's private-path and protected-path checks.
 
@@ -4737,10 +4780,9 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       a key entry.
     - Each `delegate` call that starts key tasks asks the D48 popup once
       for all of them, in every mode, Bypass included. The popup names each
-      model's prices and each task's ceiling. The ceiling is the tightest
-      of the entry's `task` caps at list price and the request ceiling
-      (`TEAM_TASK_MAX_REQUESTS`: 40 for `engineering` and `qa`, 20 for the
-      others).
+      model's prices and each task's ceiling. The ceiling is the entry's
+      `task` caps the person set, at list price; with none set, there is no
+      ceiling of ours.
     - "Always in this workspace" holds per model, as M76 holds it.
     - A switch to a key entry that this call's popup did not name asks
       again.
@@ -5295,8 +5337,8 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       team's tasks and the edges between them. It is kept in the window's
       own journal (below), and its rows in the team ledger, D75's one
       durable record, so it survives a reload.
-      - It holds at most `TEAM_BOARD_MAX` (64) open tasks per workspace,
-        M48's per-conversation figure.
+      - It holds every open task of the workspace, with no count limit
+        of ours.
       - **After a reload or a crash** the board is kept but paused. Running
         attempts become interrupted (D75), and nothing queued starts until
         the user clicks **Resume queue** once. Key tasks then ask the D48
@@ -5381,9 +5423,8 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
     - **Waiting for a lane is not exhaustion** (the amendment above).
       - A task waits `ready` or `queued`, and starts when it can without
         asking, when all it lacks is one of: `concurrent`, the running caps,
-        per-agent, window or process slots, a rate limit that
-        resets within `TEAM_STALL_RATE_LIMIT_MS` (2 minutes), a lease, or a
-        dependency.
+        per-agent, window or process slots, a rate limit whose
+        reset time the provider gave, a lease, or a dependency.
       - D75's policy (`ask`, `queue`, `self`) applies only when every entry
         is out for a reason that waiting will not fix soon: a spent cap, the
         team's daily budget in the shared paid ledger, a usage limit
@@ -5540,8 +5581,8 @@ serve` and every worker session in it, after a confirmation that
         `continue on next`, off by default, because a cap is the user's own
         budget line.
       - **Bounds.**
-        - At most `TEAM_MAX_REASSIGNMENTS` (2) per task. A third stall turns
-          the task `blocked`, with its history, for the orchestrator.
+        - No reassignment count of ours. Every stall is recorded in the
+          task's history, and the orchestrator decides each reassignment.
         - A switch to a key entry that the `delegate` call's popup did not
           name asks the D48 popup again.
         - A reassignment is a switch: one transcript row, and
@@ -7239,8 +7280,8 @@ Inline completions (Tab) use the Model API only, never the subscription, and
 run only on a stored key. A Tab request never carries, reads or changes a
 session's input, history, goal or memory. Tab's setting is on by default on
 the Model API backend, but the first request in a window asks D48's question
-and nothing is sent before an allowing answer; a hard daily budget, $1.00 by
-default, then caps the spend. Once a request is sent it runs to its end, even
+and nothing is sent before an allowing answer; a daily budget the person
+sets (none by default) caps the spend. Once a request is sent it runs to its end, even
 when the token is cancelled. Everything sent goes through `redactSecrets`
 first. Under `museSpark.tabWithCopilot: "yield"`, the default, Tab sends no
 automatic request for a language while Copilot is installed, enabled for that
@@ -7295,8 +7336,9 @@ and the two hook points.
     and its confirmation name the model's rates and the estimated cost per
     hour of typing (research §7). The confirmation also says that Copilot, if
     on, is yielded to.
-  - **A hard daily budget**, `museSpark.tabDailyBudgetUsd` (machine-scoped;
-    default $1.00, decided 2026-10-04 (Q-M94c); from $0.05 to $50).
+  - **A daily budget the person sets**, `museSpark.tabDailyBudgetUsd`
+    (machine-scoped; none by default, owner 2026-10-17, superseding
+    Q-M94c's $1.00).
     - It is kept for each local calendar day, across every window on the
       machine, in a ledger of its own under the extension's global storage:
       one file per window per day (`tab-spend/<date>/<window>.json`),
@@ -7318,7 +7360,7 @@ and the two hook points.
   - **The D48 popup, once per window, not per keystroke** (Q-M94a, decided
     2026-10-04). A popup before each request is impossible. The first request
     in a window asks D48's question, naming Tab, the model's rates and today's
-    budget (default $1.00/day). Nothing is sent before an allowing answer;
+    budget, if the person set one. Nothing is sent before an allowing answer;
     closing the modal denies. No separate enable-price modal at activation:
     - **Allow once** allows Tab in this window until it closes;
     - **Allow always in this workspace** is D48's revocable grant;
@@ -7433,8 +7475,7 @@ and the two hook points.
       invalid JSON, an answer that fails the schema, a crash, a timeout, or no
       answer all refuse the read; for Tab every failure fails closed, which
       is stricter than Cursor's default and allowed by D70's "never weaker".
-    - Each hook's timeout is capped at `TAB_HOOK_TIMEOUT_MS` (1,500 ms), since
-      a suggestion waits for it.
+    - A suggestion waits for each hook to finish; no timeout of ours.
     - Answers are cached per path and content digest
       (`TAB_HOOK_VERDICT_CACHE` entries). The cache is cleared when the hook
       configuration changes, and a `deny` holds until then.
@@ -7770,8 +7811,9 @@ changes nothing (U14).
      exec result schema gets an additive field under M80's versioning rule.
 
 4. **Hosted tools are bounded per response.**
-   - Every request that carries `web_search` sets `max_tool_calls`
-     (`museSpark.webSearchMaxPerRequest`, 5 by default, 1–20). Capture U8
+   - A request that carries `web_search` sets `max_tool_calls` only when
+     the person sets `museSpark.webSearchMaxPerRequest` (none by default),
+     within the provider's documented bound. Capture U8
      showed `max_tool_calls: 1` bounds `web_search_call` to exactly one.
    - D78's reservation becomes the tokens plus the bound times the search
      price. Settlement counts the `web_search_call` items actually returned;
@@ -7809,12 +7851,10 @@ changes nothing (U14).
      - `museSpark.modelApiParallelReads` (default on) turns it off.
    - **Output cap per model.** It comes from the record's `output.maxTokens`;
      Meta's models in VS Code and interactive ACP get the recommended 131,072
-     (from 32,768). Headless exec requests at most 32,768 output tokens, or
-     the record's smaller maximum: its worst-case run-ledger reservation
-     makes a larger ceiling a separate money decision. The reservation
-     clamps it to what the budget allows. One continuation follows an
-     `incomplete` reply for `max_output_tokens`
-     (`MODEL_API_CONTINUATIONS_MAX` = 1), then a notice. Tool calls in a
+     (from 32,768). Headless exec requests the record's maximum, as every surface does;
+     a budget the person set clamps it. A reply cut off at
+     `max_output_tokens` is continued under the one repeat policy, with no
+     continuation count of ours. Tool calls in a
      cut-short reply keep M101 item 8's rule: answered with an error, never
      run.
    - **The repeat guard.** The same tool with the same canonical arguments
@@ -7929,13 +7969,14 @@ one governor for everything the harness starts.
 3. **The thresholds are the user's, per machine.** Machine-scoped settings
    (D15); a workspace cannot change them. The ACP agent and the CLI read the
    same values from the runtime's settings store, and headless takes flags.
-   - `museSpark.resourceGovernor`: on by default (D78).
-   - `museSpark.resourceCpuMaxPercent`: 85 (30–100), sustained for
-     `RESOURCE_CPU_WINDOW_MS` (30 seconds), M96's figures.
-   - `museSpark.resourceMemoryMaxPercent`: 90 (40–98), memory in use.
-   - `museSpark.resourceMemoryMinFreeGiB`: 2 (0.5–64), available memory; on
-     a small machine the floor is at most `RESOURCE_MEMORY_FLOOR_MAX_FRACTION`
-     (15%) of the RAM, so an 8 GB laptop trips at 1.2 GB.
+   - `museSpark.resourceGovernor`: off by default (owner 2026-10-17: the
+     person sets resource limits to prevent overconsumption; none is ours).
+   - `museSpark.resourceCpuMaxPercent`: set by the person, none by default;
+     it acts once held for `RESOURCE_CPU_WINDOW_MS` (30 seconds).
+   - `museSpark.resourceMemoryMaxPercent`: set by the person, none by
+     default, memory in use.
+   - `museSpark.resourceMemoryMinFreeGiB`: set by the person, none by
+     default, available memory.
    - `museSpark.resourceGpuMaxPercent` and
      `museSpark.resourceDiskBusyMaxPercent`: unset, and not sampled, until
      the user sets them.
@@ -8018,8 +8059,8 @@ one governor for everything the harness starts.
      first in first out per kind under M96c's priorities, shown as "waiting:
      machine busy". Running work keeps running.
    - **Foreground** is never deferred at throttle. At pause, a new
-     foreground spawn waits at most `RESOURCE_FOREGROUND_WAIT_MS` (20
-     seconds) behind a visible row with **Run now**, then runs anyway.
+     foreground spawn waits behind a visible row with **Run now** until the
+     level drops or the person runs it; no wait limit of ours.
 
 7. **Relocate: only where M100 or M96c already allow it, never silently.**
    - **Targets.**
@@ -8108,7 +8149,8 @@ one governor for everything the harness starts.
     registers when the governor first loads. Each spawning bundle gains only
     its admission call, and no cap rises (D6).
 
-14. **Free disk space is governed too, on by default** (added 2026-10-06).
+14. **Free disk space is governed too, when the person sets a floor**
+    (added 2026-10-06; off by default, owner 2026-10-17).
     - **Why.** On 2026-10-06 the Mac mini's data volume filled while seven
       agent lanes ran their tests. Every one of them died with "No space
       left on device" in the middle of its work. Most of the space was the
@@ -8127,12 +8169,11 @@ one governor for everything the harness starts.
         5 seconds once the volume is below twice the floor.
       - A failed read is "unknown", as in item 4.
     - **The thresholds,** machine-scoped like item 3:
-      - `museSpark.resourceDiskMinFreeGiB` is the floor. By default it is
-        10 GiB, or 10% of the volume when that is smaller, but never below
-        2 GiB.
+      - `museSpark.resourceDiskMinFreeGiB` is the floor, set by the
+        person; none by default.
       - Throttle starts at the floor.
       - Pause starts at half the floor.
-      - Critical is 1 GiB or 1% of the volume, whichever is larger.
+      - Critical: a level the person sets, none by default.
       - The trend also counts: when the last five minutes' rate of filling
         would reach the floor within `RESOURCE_DISK_ETA_MS` (10 minutes),
         the level steps up early.
@@ -9306,9 +9347,10 @@ user's own nodes only (decision 10), and adds one D89.2 keyslot kind
      limited per sandbox, because hosting providers forbid scanning other
      networks (Hetzner, DigitalOcean; research §4.9) and an agent's `nmap`
      could get the user's server locked.
-   - **Quotas and cleanup.** Each workspace has a disk quota and a retention
-     period after its last use; caches and stale sandboxes are cleaned; below
-     the disk-free floor the node takes no new work (decision 19).
+   - **Quotas and cleanup.** A workspace's disk quota, its retention period
+     after its last use and the node's disk-free floor are set by the person,
+     none by default; caches and stale sandboxes are cleaned; below a floor
+     the person set, the node takes no new work (decision 19).
 
 6. **Workspaces come from git, with brokered credentials.**
    - **Clone and pull** go through M109's broker. SSH remotes use the broker's
@@ -10215,7 +10257,7 @@ restore` checks versions and replays migrations. A schedule writes to a
       - The firewall allows only the node's port, and SSH when a key was
         added.
       - Every unit passes the `systemd-analyze security` threshold (M110's
-        gates); journald and every log are capped (decision 19).
+        gates); journald and every log keep the retention the person sets (decision 19).
     - **Disk encryption** for `/var` (state and workspaces), with LUKS2 and
       systemd-cryptenroll:
       - **With a TPM 2.0:** sealed to it, so the machine unlocks by itself.
@@ -10278,7 +10320,7 @@ restore` checks versions and replays migrations. A schedule writes to a
         says "not yet reproducible". The check becomes blocking once lane OS6
         shows two builds matching; it is never loosened afterwards.
       - **Release assets** carry checksums and signatures, and every artifact
-        has a retention limit (decision 19).
+        keeps the retention the person sets (decision 19).
     - **Licences.** The images carry GPL software, so each release publishes
       the exact Debian source packages it was built from beside the images,
       and the notices gate lists every package's licence. Software that is
@@ -10629,7 +10671,7 @@ D38B 4796`, "Google, Inc. (Linux Package Signing Authority)"), and
         its licence on the device, by the user's click, as Chrome does.
       - **Sizes before install, and an offline cache.** The download and disk
         size are shown before **Install**. Installed layers stay in a cache on
-        the state volume under its quota (decision 19), so a re-install or a
+        the state volume under the quota the person sets (decision 19), so a re-install or a
         new workspace works offline.
       - **Bounded and visible.** An install is governed background work, kind
         `packInstall` (D87.2): it waits at throttle and pause, and shows
@@ -10843,8 +10885,9 @@ D38B 4796`, "Google, Inc. (Linux Package Signing Authority)"), and
   be trusted to erase; destroying the keys first can be.
 - **Clock checks** (decision 19). _Reason:_ certificates, TOTP and journal
   ordering all fail quietly with a wrong clock.
-- **Caps and retention on everything** (decision 19). _Reason:_ the GitHub
-  Actions storage incident; a node that fills its disk stops working.
+- **Retention and disk floors the person sets** (decision 19; none by
+  default, no cap of ours). _Reason:_ the GitHub Actions storage incident; a
+  node that fills its disk stops working.
 - **A native node on macOS** (decision 4). _Reason:_ Apple's GPU cannot reach
   a Linux container.
 - **Remote actuation only from a surface within sight** (decision 14).
@@ -10865,8 +10908,10 @@ D38B 4796`, "Google, Inc. (Linux Package Signing Authority)"), and
 - **Other agents' sign-in tokens never enter the vault** (decision 7).
   _Reason:_ Anthropic, Google and OpenAI each forbid or warn against a third
   party holding them; only API keys are brokered.
-- **Outbound connection limits per sandbox** (decision 5). _Reason:_ rented
-  servers' providers lock servers that scan other networks.
+- **Outbound connection limits per sandbox, as the hosting provider's rules
+  require** (decision 5; the person sets the numbers from those rules, none of
+  ours). _Reason:_ rented servers' providers lock servers that scan other
+  networks.
 - **The browser pairing installs the node's own certificate** (decision 23).
   _Reason:_ browsers refuse passkeys behind a clicked-through warning, and a
   self-signed, non-CA certificate can vouch for nothing but the node.
@@ -12021,11 +12066,14 @@ The owner, 2026-10-05:
     (`mapNotification.ts:362–367`), admitted once by the prompt ledger
     (`promptLedger.ts:191–197`). The answers are `userInput/answer`,
     `userInput/cancel` and `userInput/clarify` (`MuseCodeHost.ts:1088–1117`);
-    a clarification holds at most `CLARIFICATION_MAX_CHARS` (500) characters
-    (`constants.ts:3172–3176`).
-  - Only an MCP form has a deadline: `MCP_ELICITATION_TIMEOUT_MS`, 300
-    seconds (`constants.ts:717`), after which it is cancelled
-    (`ModelApiHost.ts:4982`, `mcp/connection.ts:274`).
+    a clarification was capped at `CLARIFICATION_MAX_CHARS` (500)
+    characters (`constants.ts:3172–3176`); the cap is removed (owner
+    2026-10-17: no limit of ours).
+  - An MCP form had a deadline, `MCP_ELICITATION_TIMEOUT_MS`, 300 seconds
+    (`constants.ts:717`), after which it was cancelled
+    (`ModelApiHost.ts:4982`, `mcp/connection.ts:274`). It is removed (owner
+    2026-10-17): a form waits until it is answered or cancelled, unless the
+    MCP server itself sets a deadline.
 - **A settled question can no longer be answered.** The outcomes are
   answered, cancelled and clarified (`ModelApiHost.ts:4851–4855`), and the
   settled row drops the card (`uiState.ts:2075–2093`).
@@ -12075,8 +12123,8 @@ The owner, 2026-10-05:
      (D15), so a repository can make questions neither block nor vanish:
      - 60 by default (`QUESTION_DEFER_DEFAULT_SECONDS`);
      - 0 means never;
-     - otherwise 10 to 3,600 (`QUESTION_DEFER_MIN_SECONDS`,
-       `QUESTION_DEFER_MAX_SECONDS`), and a value from 1 to 9 is read as 10.
+     - otherwise the seconds the person sets, with no maximum of ours
+       (`QUESTION_DEFER_MIN_SECONDS`: a value from 1 to 9 is read as 10).
    - **The clock** starts when the question arrives, in the process that
      holds the session: the extension host in VS Code; the runtime for the
      companion page, the native plugins, the TUI, Muse Desktop and ACP
@@ -12122,8 +12170,8 @@ The owner, 2026-10-05:
      - Owner-only files, zod-validated, deleted with their session.
      - Never exported or logged (ids only), and sent nowhere but to the model
        inside the answer.
-   - **Bounded.** At most `OPEN_QUESTIONS_MAX` (20) are open per session.
-     Past it the oldest becomes `expired`, and its row says so.
+   - **Unbounded.** Every question stays open until it is answered or
+     cancelled; no count limit of ours.
    - **They survive** a reload, a resume and another editor. The host posts
      the open set when a surface attaches. A row found by its item id shows
      its card; one whose row is not in the loaded history shows in the dock
@@ -12170,8 +12218,8 @@ The owner, 2026-10-05:
      turn, under the existing setting and only while the window is
      unfocused (`BackgroundNotifier`'s rule).
 
-   Each question is expanded again at most `QUESTION_REMINDERS_MAX` (2)
-   times in all, and at most one question per turn end. The model is never
+   Each unanswered question is expanded again at turn ends until it is
+   answered, at most one question per turn end. The model is never
    asked to ask again.
 
 7. **Easy to pick out in the transcript.**
@@ -12304,8 +12352,8 @@ The owner, 2026-10-05:
      turn, under the existing setting and only while the window is
      unfocused (`BackgroundNotifier`'s rule).
 
-   Each question is expanded again at most `QUESTION_REMINDERS_MAX` (2)
-   times in all, and at most one question per turn end. The model is never
+   Each unanswered question is expanded again at turn ends until it is
+   answered, at most one question per turn end. The model is never
    asked to ask again.
 
 4. **Runs nobody watches keep what they do.** Headless `exec`, best-of-N
@@ -12560,14 +12608,14 @@ Needs: <items>.`).
    loop's check runs (M68) and, once merged, M96c's check slots append
    `{check, outcome, durationMs, commit, at}` (never the command line or its
    output) to `<agentDataFolder>/reports/v1/checks/<workspaceKey>.jsonl`,
-   at most `REPORT_CHECK_RUNS_MAX` (500) per workspace. The `quality` kind
+   every run kept, unless the person sets a retention. The `quality` kind
    reads it beside CI's runs.
 
 10. **History and diff.**
     - **Kept.** `museSpark.reports.keepHistory` (on) keeps each generated
       report's JSON under
-      `<agentDataFolder>/reports/v1/history/<workspaceKey>/<kind>/`, the
-      newest `REPORT_HISTORY_MAX_PER_KIND` (50) per kind. It is listed in the
+      `<agentDataFolder>/reports/v1/history/<workspaceKey>/<kind>/`, every
+      report kept, unless the person sets a retention per kind. It is listed in the
       report tab, by `report history` and by ACP's `/report history`.
     - **Diff with the previous report** is pure, over two `report-v1`
       documents by section and row key: added, removed, changed (field by
@@ -12650,7 +12698,7 @@ Needs: <items>.`).
          UI). A name template (`{kind}`, `{scope}`, `{date}`, `{time}`,
          `{hash8}`, `{ext}`; `{kind}-{date}-{time}.{ext}` by default, with
          milliseconds preserved so each occurrence has its own name) and a
-         retention of the newest N (`REPORT_SAVE_RETENTION_DEFAULT`, 30),
+         retention of the newest N that the person sets (none by default),
          which deletes only files that destination wrote (a manifest keyed
          by both schedule and destination).
          Paths are canonicalised and confined to the allowed root (no link
@@ -14310,7 +14358,156 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
-### D108 — The provider judges a key; no key is refused for its shape (lane PROVKEYS, 2026-10-12)
+### D117 — A provider's refusal reads as the provider's refusal (lane PROVERR, 2026-10-12; numbered D108 until 2026-10-17, when that number was found shared with the test overhaul)
+
+**Rule in force.** A provider's answered refusal is one typed value
+(`ProviderRefusal`: HTTP status, closed kind, the provider's bounded words,
+its request id and its wait), parsed per wire format, never replaced by a
+product sentence. The person reads one sentence built from the kind in every
+host and language, naming the provider with its own words after it.
+`modelsPanelUnavailable` is raised only where a part of the build is truly
+missing (the models-panel bundle loader). A refusal answered with a 4xx
+status before processing (`isDefiniteRefusal`: 400, 401, 402, 403, 404, 413,
+422, 429) releases its reservation in full — settled 0, uncertain 0;
+anything else (5xx, 408/409, unanswered) keeps its uncertain liability.
+Never retried: credit, authentication, permission, notFound, invalidRequest,
+tooLarge; rateLimited and overloaded follow the retry tables that exist.
+A failure before anything was written is "could not reach \<provider\>";
+after a write belongs to the transmission branch
+(`fix/stream-limits-class-r5`). The ledger branch (`fix/spend-ledger`) owns
+everything past the definite-refusal decision. Full record:
+`docs/certification/provider-refusals.md`.
+
+**Cause.** On 2026-10-12 an Anthropic account ran out of credit; Anthropic
+answered HTTP 400 with `invalid_request_error` "Your credit balance is too
+low …", and the product ended the turn with "Internal error: Models &
+Agents is not available in this build", requests 1, settled 0, uncertain
+2.262144. The raise site was `src/core/providers/configured.ts`
+`streamResponse`'s catch (`return fail()`, base `:106`, called at base
+`:800`), measured by stack on base. The fix replaces the catch's tail with
+the refusal sentence, keeps status/kind/code/request id/wait, and releases
+definite 4xx reservations. Nine answers, the raise-site table, the
+providers' documentation quotes for "not billed" (with what they do not say
+marked), and five red drills are in the certification record.
+
+### D118 — Refusals read by shape, retried by code, stored without leaks (lanes PROVERR round 2 + PROVERRR2, 2026-10-13; numbered D109 until 2026-10-17, renumbered with D117)
+
+**Rule in force.** One extractor reads an error body by what it IS (an
+`error` object with a message; an `error` string; a top-level `message`; a
+`detail` string; Google's `status` and `details[].reason` alongside),
+whatever the wire format; a shape none matches is unparsed with the status
+and the first bounded line, classified by that status like any other answer.
+The status and the provider's documented type, code or reason decide the
+kind; a phrase is used only where a recorded answer shows the provider gives
+nothing else (a table with its source in `providerRefusal.ts`). Parity: a
+bad key reads `authentication` at all eleven recorded providers, an unknown
+model reads `notFound` at all twelve. Reason and error-code signals ride the
+refusal into the classifier even when a parser did not promote them into
+`code`. Retry follows the preset's own table with the envelope code, so a
+quota 429 never retries while a bare one does. Anthropic `max_tokens` maps
+to the host's `max_output_tokens`, so a cut-off reply continues under the
+one rule every provider shares. Azure `content_filter` blocks read as their
+own kind (the route is another lane's). A provider's words keep their key
+remnants and account ids out of the log file, usage history, report bundles
+and telemetry by one scrub tested on the recorded answers; usage records
+carry the outcome and the request id only. Closed gap ids: XAI-G10,
+OPENAI-G20, GAPANTH-G20, GAPANTH-G11, AZURE-G06. UNVERIFIED until the lead's
+captures return: real 429 bodies, the spend-cap header set, a cut-off reply
+with partial tools, an Azure block, the xAI unsupported-parameter 400.
+Records: `docs/certification/proverr-round2.md`,
+`docs/certification/proverrr2.md`, `docs/certification/proverrr2-capture-plan.json`.
+
+**Amended 2026-10-17 (lane PROVERRORS, from the provider research of PR
+#202).** A provider's wait is honoured as given in every form it uses
+(`retry-after-ms`, then `Retry-After` seconds or date): no cap of ours
+refuses it and the backoff never shortens it. Each preset retries by its
+provider's own rule (OpenRouter: 429, 503 and the in-flight-budget 402;
+Gemini adds 408), and a retryable error a stream ends with before any
+content is sent again as its status would be. A provider's own codes decide
+the kind: Z.ai's 1308-1321, OpenRouter's budget limit sources and Gemini's
+`quota_exceeded` are usage limits, never retried, with the provider's words
+(and the reset they name) quoted. Our own refusals (a budget or ledger
+stop, a lapsed confirmation, a codec refusal) pass through the provider
+path unchanged and are never retried; only a failure with a connection
+code in its causes is a send failure, retried as one and reported with
+Node's codes and the send's unknown fate; a connection lost after the 200
+says so. Every refusal sentence carries the provider's request id. The
+retry count, the backoff bounds and the idle timeout stay as they are
+pending the owner's decision (evidence in
+`docs/certification/provider-refusals.md`, "Lane PROVERRORS").
+
+**Cause.** Round 1 classified 11 of 23 recorded real answers wrong (the red
+table): typeless 401s read as "unrecognised", xAI/Mistral/Gemini shapes
+unread, quota-worded limits retried, spend caps retried, cut-off Anthropic
+replies ending the turn. The scans then showed the same defect from the
+other side: error bodies replaced by one fixed sentence on the configured
+path. Full record: the round-2 certification and the gap certifications.
+
+### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
+
+The owner, verbatim: "get the useless tests get it streamlined and
+meaningful with nothing testing fake code no exceptions. no more ci
+screenshot runs. if we change the ui is gets a small local verification
+and thats it." A thousand-test suite kept shipping broken code as
+"completed", so the suite is overhauled, not extended.
+
+- **A test stays only if it runs real code** (no `vi.mock`, fake timers,
+  stand-ins for our modules, providers, the CLI, GitHub, MCP, the editor
+  or stores, no hand-answering servers), checks behaviour a person or a
+  caller depends on, and is not an end-to-end run against a stand-in.
+  Live-provider `*.live.e2e.test.ts` files move under the real-life run.
+- **No screenshot runs in CI.** The pixel pipeline (`check:visual`, the
+  goldens, the visual matrix and audit, the visual workflow jobs) is
+  deleted. A UI change gets one small local look: `npm run ui:look --
+<scene> [--theme light|dark]`, pictures to `temp/ui-look/`, no
+  baseline, no comparison.
+- **No coverage gate.** `test:unit` runs without `--coverage`; the
+  thresholds and the merge job are gone.
+- **The short gate** (`quality:gates`): format, lint, typecheck, badges,
+  tokens, l10n, reference, host-api, plan, roadmap, deadcode, cycles,
+  duplication, the unit run, build and pack, audit. Accessibility runs
+  on merge groups, manual runs and releases, never on pull requests.
+- **The product's test is the real-life run**: the packed product used
+  for real against real providers on the cheapest models. The release
+  workflow reserves the `check:claims` step for it (branch
+  feat/claims-gate).
+- **This supersedes** D5's fake-transport unit pattern, its `vscode`
+  mock in unit tests and its coverage gate, and the M114 visual-CI jobs.
+  D32's accessibility gate stands, relocated. The golden request bytes,
+  the SoL-Pi invariants and the money-arithmetic suites stay: they run
+  real code over recorded data.
+- Record: `docs/testing/test-overhaul-2026-10-12.md` (before/after
+  1,321 → 524 files, 27,650 → 8,988 tests, ~26 → ~5.5 wall minutes).
+- Invariants lane: `test/unit/invariants.test.ts` re-guards the SoL-Pi
+  request-shape and savings invariants with real modules only (certification:
+  `docs/certification/invariants.md`); the full loopback golden stays listed
+  for the lead until recorded exchanges exist per golden scenario.
+- PR184FIX (review findings): quotes name real priced models at the listed
+  tariff, packing drives the recorded 04 output, every golden scenario's
+  tools/instructions/keys reproduce through the real builders with
+  byte-exact 01 turns, and the eval pins a digest of the complete task
+  definitions. Unit-test residual: the host's scalar assembly (a new body
+  field would still pass); the lead's loopback run covers it.
+
+### D122 — CI capacity from a second account; the project stays here (owner, 2026-10-16; redesigned 2026-10-17)
+
+**D122 — The capacity repository runs the Windows and macOS unit shards; the
+project, its pull requests and main stay on the owner's account.** While
+`ORG_CI` is `on` and the organization GitHub App's key
+(`ORG_CI_APP_PRIVATE_KEY`, which GitHub never gives a fork's or Dependabot's
+run) reaches a same-repository pull request's full-tier run, that run is part
+`home`: build.yml's `org` job pushes the merge commit to
+`scnetsolutions/muse-spark-code-ci` as `ci/pr-<number>` with a one-hour token
+for that repository alone (contents and workflows write), the same `ci.yml`
+runs the sixteen Windows and macOS unit shards there (part `org`), and `org`
+succeeds only if that run did. The seven required names fold in its result, so
+the ruleset is unchanged; every other run keeps every job here (part `all`).
+The capacity repository stays public and holds no secret. Owner setup:
+CONTRIBUTING.md, "The capacity repository (D122)"; proofs:
+`docs/certification/ciflow.md` (D122). Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
+### D123 — The provider judges a key; no key is refused for its shape (lane PROVKEYS, 2026-10-12; numbered D108 until the 2026-10-17 merge with main, where D108 is the test overhaul)
 
 No key is ever refused for its looks, on any surface. What decides is the
 provider's own answer to the first authenticated request the product already
@@ -14326,6 +14523,13 @@ policy, log redaction and the product's own Meta-key format are unchanged.
 Full record: [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ## 3. Open questions (need the owner)
+
+**Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13).** GAPANTH-G11's scan row
+notes that an Anthropic reply stopped with `refusal` offers no fallback
+model. No model-fallback mechanism exists in the product; building one (when
+to offer, which model, whose money) is a product decision. Until the owner
+answers, a refused or paused turn ends with its true sentence and its tool
+calls answered, never continued. Record: `docs/certification/proverrr2.md`.
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
 explicitly approves the 116 Title Case scenes, `models-errors` with the
@@ -14646,6 +14850,20 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
 | Q65 | **Answered 2026-09-26:** after npm held the owner's account for suspicious activity, the owner set `NPM_TOKEN` in the `marketplace` environment. The name `muse-spark-code-acp` was free that day; the next tag publishes it, and each GitHub Release still carries the package.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Q66 | **Resolved 2026-09-27: loud, not re-routed.** The ACP agent's own requests (the Model API backend) use Node's `fetch`, which ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` (Node 22.21+ or 24+; measured on seven releases). The owner: the agent does not re-route by itself or add undici. It warns once at start, in its log, when a proxy variable is set for the Model API backend and Node's switch is off or missing (`src/runtime/proxyWarning.ts`), and a request that never reaches Meta gets advice naming the agent's environment variables instead of VS Code's `http.*` settings (M56's classifier, told by the runtime which host it serves: `networkAdvice: 'agent'`).                                                                                                     | Closed; `docs/acp.md` "Networks and proxies", `docs/certification/pr32-integration.md`. |
 | Q12 | Should a shell tool session rule ("Always allow in this session" for a shell command) lapse when the model edits a file the command names or that decides what it runs, as the verify loop's rules do since M68? Today the shell tool keeps its pre-M68 behaviour: its rules are keyed on the exact command line and answer whatever the model edited. The verify loop's grants are kept apart from it (PR #54).                                                                                                                                                                                                                                                                                                                                                                                 | The shell tool's rules keep answering; only the verify loop's lapse.                    |
+
+### D116 — A chat surface takes the keyboard only while it holds it (panel-focus, 2026-10-12; numbered D108 until 2026-10-15, when that number was found shared with the test overhaul)
+
+**D116 — A chat surface takes the keyboard only while it holds it.** Focus
+moves only as the direct effect of something the person just did on that
+surface, and only while that surface still holds the keyboard when the focus
+would land. A webview never focuses its composer merely because it finished
+loading; async arrivals (an approval or question card, a report's arriving
+headings) take the keyboard only under the same ownership. A focus request
+that cannot land at once is dropped, not held: the host mints a tokened ask at
+its single post gate and drops it while its panel is not the active one, and
+the webview records and lands an ask only within the 1000 ms delivery window
+(`docs/certification/panel-focus.md`). Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)
 
@@ -15406,248 +15624,49 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Repair both RVPROVWIZ9C P2 findings on `00df4f872`. Edit snapshots and save
-preflight compare the same host-only credential record, including an old key
-refused at the saved origin. Reopening after an address/key-write partial save
-must accept a newly tested replacement while a concurrent credential change
-still conflicts. Confirmed quick-pick limit retries carry completed provider,
-key and default receipts into every later partial outcome, using existing
-translations in all 14 languages. Keep validation before writes, ordered saves,
-no rollback and origin-bound transport security.
-
-Add production/shared-form recovery and conflict regressions and a production
-store/facade/settings retry regression. Revert each fix, observe its complete
-test file fail, restore SHA-256 bytes exactly, then rerun all owning files,
-request goldens, one unit tsc, formatting, ESLint and localization. Inspect the
-inherited surface-English overage; shorten duplicated or verbose existing
-strings if possible without new keys or a cap change. Update certification and
-planning status. Aggregate quality/release gates remain lead-owned under the
-rig brief; no merge, rebase, push, subagents or paid/live calls.
-
-Completed: both P2 repairs and the existing-string surface-English cap fix.
-Macbook passes 46 complete owning files / 833 tests, 152 request goldens and
-141 Help/browser-English tests at repository deadlines, both SHA-256-exact
-reversion drills, one unit tsc, changed-file lint/format, localization/reference/
-host API, plain Knip and the production build. Surface English is 25595 / 25600
-bytes after shortening `referenceQuestionsDeferral` in English and all 14
-translations, with no new keys or cap change. English/German production visuals
-pass at 690/320 px. Plain jscpd retains the inherited 21 clones / 287 lines /
-1970 tokens; no new clone remains. Next slice: lead review and cross-rig release
-gates, including the inherited duplication hold, then PROVSTORE-LOCKLIB after
-M123 for accepted cross-window last-writer-wins. See certification for receipts.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PROVWIZ9 — Ordered save, honest partial outcomes, no rollback (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Replace PROVWIZ8 recovery after RVPROVWIZ8C's three P2 findings. Validate
-address policy, private consent, provider schema/token limits, credential/default
-snapshots and an edited spending limit before any write. Save changed provider
-fields in one atomic provider-file mutation, then an explicitly entered key
-bound to its origin, an explicitly chosen default, the edited spending limit,
-and finally the current conversation model when requested. Stop on a failed
-step; keep completed writes and name completed, failed and skipped steps in
-all 14 UI languages. Delete rollback and inverse machinery. Every Save outcome
-attempts panel refresh; refresh failure appends information without erasing the
-original outcome. Other partial or stale persisted drafts reopen to finish;
-budget-only partial drafts keep a freshly read comparison baseline for retry.
-
-Prove every failure boundary, same-window snapshot conflicts, the invalid
-inverse and absent-routing review scenarios, and address-change/key-failure
-origin rejection through the production store/shared form. Run complete
-provider/models/capability suites and request goldens at repository deadlines,
-byte-exact red/restored drills, changed-file format/lint, one unit-project tsc,
-localization/reference/host API, static gates, build budgets and visual checks.
-Record receipts in `docs/certification/provcat.md`. Aggregate quality, coverage,
-packages, hosted multi-OS/editor and live qualification remain lead-owned under
-the rig/common brief; inherited duplication hold remains. Schema/default
-preflight stays in the existing lazy provider-store port, keeping provider
-schemas out of the Models host bundle. The unchanged base and this lane both
-produce a 25651-byte surface-English chunk on macbook, over its 25600-byte cap;
-record this inherited build hold without changing the cap. No dependency, gate,
-hook, paid/live call, merge, rebase, push or subagent changes. Shared editor
-bridges receive the same form; ACP's persisted provider schema stays unchanged.
-
-The accepted cross-window residual remains: Two editor windows saving the same
-provider at the same moment: last writer wins for fields both changed; no secret
-is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation
-onto the shared lease after M123 lands on main.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PROVWIZ8 — Save recovery and refresh honesty (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Repair RVPROVWIZ7C P2-4 and P2-3 on `5f09bc0e2`: a successful provider
-save followed by a snapshot-refresh failure says “Provider saved; the panel
-could not refresh — reopen it” in all 14 languages. Retire the saved draft so
-it cannot retry against an obsolete baseline; still apply a submitted spending
-limit and report its own partial outcome. Rollback applies only the inverse of
-this save's changed fields inside the existing store mutation, preserving
-unrelated providers and later field changes. Prove credential-write and composer
-refusal interleavings through the production store/shared form, with byte-exact
-red drills and complete provider/models suites at repository deadlines.
-
-The lead accepts RVPROVWIZ7C P2-1/P2-2 as a 0.17.1 residual; keep the current
-in-window comparison and add no second lock implementation. Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
-
-Run changed-file Prettier/ESLint, one tsc and localization; record receipts in
-`docs/certification/provcat.md`. Shared editor bridges receive the same form;
-ACP's provider schema is unchanged. No subagents, merge, rebase, push, live/paid
-calls, dependency, hook or gate changes. Full quality remains lead-owned under
-the explicit rig/common brief.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PROVWIZ7 — Save compares changed fields with the edit snapshot (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Repair RVPROVWIZ6C's two P2 findings on `d32349de1`. A saved-provider draft
-records its opening provider/default/credential on the host. Only an explicitly
-entered credential may be written; untouched credentials retain later rotations
-or removals. Apply changed provider fields to the current entry inside the
-production store's protected mutation, after private-network consent. Compare
-each edited field (including individual token limits, routing, default and key)
-with its opening value; a competing change stops Save without overwriting it and offers
-Reload, retaining typed values until the user chooses it.
-
-Prove newer/cleared stored credentials survive limit-only Save, untouched fields
-changed during the consent wait survive, and both-changed fields conflict with
-no overwrite. Keep existing edit/key-change, validation, rollback and partial
-budget-save behavior. Run complete provider/models suites in batches of at most
-three at repository deadlines, changed-file prettier/ESLint, one host typecheck,
-localization/reference and individual static/build checks. Record byte-exact
-guard drills in `docs/certification/provcat.md`. Shared React and editor bridges
-use the same contract; ACP's persisted provider schema is unchanged. No subagents,
-merge, rebase, push, credential access, live/paid calls or gate changes. Aggregate
-quality and inherited duplication cleanup remain lead-owned under the rig brief.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PROVWIZ6 — Provider wizard/wiring integration and RVPROVWIZ5G (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Use one host-owned full snapshot factory for Edit, Change key and Change key →
-Edit, including routing, models/limits, format, pinned/compat/prices, the saved
-file default and private-network consent. Save overlays only changed draft
-fields on the current entry; an untouched default, secret or optional field is
-never synthesized or rewritten. Keep credential/connection validation and the
-production store transaction. Admit one queued Save per draft and disable both
-shared Save controls until it settles; failures retain the draft for retry.
-Declined private-network consent uses the existing confirmation sentence.
-
-Qualify the merged provider lanes with real host/store and captured transport
-regressions, including the reviewer's unchanged ZDR Edit → Save, second/other/
-absent defaults, duplicate Save and private consent refusal. Supply the wizard
-lane's required spending-limit port in the older capture-backed wiring fixture;
-retain every existing assertion. Run complete named models/provider suites in
-batches of at most three at repository deadlines, changed-file lint/format,
-five typechecks, localization/reference and individual static/build gates.
-Append byte-exact red/restored receipts to `docs/certification/provcat.md`.
-No subagents, merge, push, live/paid call, dependency or gate change. Aggregate
-quality and hosted/editor qualification remain with the lead per the rig brief.
-Shared webview/editor bridges and ACP's stored provider contract remain intact.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PROVWIZ2R5 — PROVWIZ2 round 5: RVPROVWIZ4G repairs (2026-10-09, macmini)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Save a saved provider's limits without requiring a fresh credential test when
-its connection is unchanged. Address, format and key changes
-still require Test. Keep the real Edit form open until the host removes its
-draft after success; failed saves retain typed values and display the specific
-failure with credential redaction. Report successful saves in the panel.
-Prove Edit → host Save → production provider file → re-open Edit, plus failure
-and retry, through the rendered shared form. Correct the round-3 certification
-text to provider-first persistence and explicit partial success on limit failure.
-Run Models suites at repository deadlines, byte-exact red/restored drills,
-five typechecks, changed-file lint/format and the prescribed individual gates.
-Full quality belongs to the lead per the rig brief; no merge, push, live/paid
-call, dependency or gate change. Existing editor bridges and ACP's provider-file
-reader retain the same limits contract. Record receipts in
-`docs/certification/provcat.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PROVWIZ2R4 — PROVWIZ2 round 4: RVPROVWIZ2 repairs (2026-10-09, macmini)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Owner decisions: an untouched spending-limit field writes nothing; an edited
-value writes only while the setting still equals its prefill. A concurrent
-change is shown with a request to confirm the typed value. Save the provider
-first; a subsequent limit failure must say the provider was saved and the
-limit was not changed, with its reason. Keep saved custom model limits in
-edit/key-change drafts, expose their fields, and persist edits. Back from an
-incomplete Models step keeps entered limits and allows returning to Models.
-The native setting stores a number; refuse exact-decimal input that cannot
-round-trip through its non-negative numeric schema without loss.
-
-Use the production provider store and settings writer in regressions, with
-fake VS Code interactions and no service calls. Run complete Models suites
-in batches of at most three at repository deadlines, five typechecks,
-changed-file lint/format, localization/reference and prescribed individual
-static/build gates. Record deliberate failures and byte-exact restores in
-`docs/certification/provcat.md`; commit finished pieces with installed hooks.
-These shared webview/host repairs retain the existing editor bridge; ACP's
-provider file reads the same stored custom limits. No runtime command changes.
-No merge, push, live/paid call or dependency change is authorized in this lane.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PROVWIRE — Provider setup through the real transport and panel (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
 
-Close RVWIRING F2–F7 for 0.17.1 with the production panel catalogue,
-configured-provider service and checked-in M95 captures; fake only pinned
-dispatch, DNS and host storage/UI. Resolve format as `entry.format ??
-preset.format` without changing the persisted schema: ordinary presets retain
-their canonical format and custom servers retain their explicit override.
-Preserve captured prices/free flags and stable price fingerprints, share the
-preset key-test contract between CLI and panel, default OpenRouter to ZDR,
-retain replacement keys in edit drafts, and settle failed scans with a safe
-localized reason and retry. Keep panel changes small for PROVWIZ2; leave F10's
-logging to its owning lane. No live/paid calls, dependencies, merges or pushes.
-Run failing-first tests and byte-exact red/restored drills, scoped lint/format,
-five typechecks, provider/models suites, localization and reference checks.
-The lane rules reserve aggregate quality for the lead. Receipts:
-`docs/certification/provcat.md`, PROVWIRE section.
-
-Completed: F2–F7 are capture-backed through the real facade, with 14
-byte-exact red/restored drills. Final macmini verification passes 44 complete
-provider/models files (739 tests at repository deadlines), five typechecks,
-changed-file ESLint/formatting, localization (0), reference, host API, plain
-knip, zero-clone duplication and the production build within all existing caps.
-The optional persisted format remains unchanged. Full quality, hosted CI and
-installed-editor/live certification remain with the lead under the lane brief.
-
-Round 2 (RVPROVWIREG finding 1, P2): seed every saved-provider edit draft,
-including Change key and Change key followed by Edit, with the saved routing's
-privacy, provider order and fallback choice. Save uses that seeded draft;
-new OpenRouter providers still default to ZDR. Regressions replay the saved
-`any`/ordered/fallback-enabled row through replacement key, Edit, Test and
-Save, and cover plain Edit and direct Change key, including `no-training`
-and disabled fallbacks. Record failing-first and byte-exact routing drills
-in the PROVWIRE certification, then run provider/models suites at repository
-deadlines, changed-file lint/format and all five typechecks before a normal-hook
-local commit. No new feature, wire shape, dependency or live/paid call.
-
-Round 2 completed: saved routing and the replacement key survive every edit
-flow; new providers remain ZDR. Macmini passes 44 complete provider/models
-files (746 tests, default deadlines), all five typechecks, changed-file
-ESLint/formatting, localization/reference/host-API checks, plain Knip,
-zero-clone duplication and the production build within unchanged caps.
-Four deliberate routing breaks fail and restore SHA-256-exact bytes; see
-the round-2 PROVWIRE certification. Aggregate quality and hosted/editor/live
-qualification remain lead-owned under the lane rules.
-
-**CX1R3 removal pass (RVCX1B, 2026-10-10; ships in 0.17.1).** Remove dormant
-feature claims and usage from current README, Help, What's New and editor
-records; retain historical changelog text with dated corrections. Put dormant
-work in roadmap In progress without capability or shipped claims. Keep complete
-reference coverage validation before filtering its user-facing publication;
-archive corrected release bullets from What's New rather than qualifying them.
-The compact CLI help is also a current Help surface: remove its v2 schedule
-grammar and inactive automatic-compaction option without altering parsers.
-No feature implementation, dependency, gate widening, merge, push or live call.
-
-Plan: [x] current surfaces and roadmap; [x] regression tests and byte-exact red
-drills for every finding and sibling class; [x] scoped rig gates; [x] hooked
-commits, committed-diff review and certification in `docs/certification/cx1.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M125 — The Judge: our own Jev, for speed and accuracy (D107)
 
@@ -16165,7 +16184,8 @@ github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
   Linux may reuse. A cleanup refused by trust leaves git's worktree
   registration for `git worktree prune`. Liveness: a live lock owner holds
   at most its 30 s lease, watched across attempts; a pending checkout
-  waits at most the hour; a busy store fails loudly after 10 s; a writer
+  waits until the lock frees or the person cancels it; a busy store is
+  reported at once and waits the same way; a writer
   stuck in a system call that never returns keeps its record pending; a
   file system without hard links fails closed. Windows whole-tree
   retirement of the batch stays lane G's.
@@ -16678,17 +16698,7 @@ trees stay conservative), distinguish spelling/storage/unknown refusals,
 translate new text in every table, and remove guessed `C:` system roots and
 the `C:\Users` wording.
 
-- [x] Regressions and native probes: C:/D:/Z:, real 8.3 names, UNC/WSL,
-      admin-share availability, relocated junction roots and storage
-      (directory symbolic links need privilege this host lacks).
-- [x] One red/restored drill per decision; replay new regressions on the base.
-- [x] Fresh npm-ci CI clone: prescribed suites (real-git stores three times),
-      five typechecks, lint/format, knip, duplication, localization, host API,
-      reference and production build; normal hooks, no merge/push/live calls.
-
-The shared rules delegate aggregate quality to the lead (§7); scoped gate
-results and hosted-admin-share qualification status are recorded in
-`docs/certification/sec-win-path-aliases2.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### SECWINPATH — Windows path alias security repair (2026-10-08, win11)
 
@@ -16703,17 +16713,7 @@ Share the native identity walker through the existing Node boundary bundle;
 the unchanged sharing-runtime cap must accommodate the refusal at admission.
 Its Node entry stays in core, outside the browser project's shared sources.
 
-- [x] Capture native Win32 normalization and loopback SMB identity in owned temp folders.
-- [x] Run new regressions against the unchanged base, then repair the owning boundaries.
-- [x] Fire stream, trailing-dot and storage-identity guards deliberately and restore bytes.
-- [x] Commit validated pieces with hooks; qualify a fresh `npm ci`, `CI=true` clone
-      with owning suites three times at repository deadlines, five typechecks,
-      changed-file lint/format, plain knip, duplication, cycles, localization,
-      reference and capped production build.
-
-The rig brief overrides common.md's stale merge step: no merges, push, paid/live
-calls or aggregate quality. Full aggregate quality remains with the lead under
-the shared lane rules (§7). Receipts: `docs/certification/sec-win-path-aliases.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### FIXCYCLES2 — Share the build's integration-test roots (2026-10-08, Kubuntu)
 
@@ -16739,31 +16739,7 @@ coverage lesson; receipts are in `docs/certification/fixcycles.md`.
 
 **Status 2026-10-08: built.**
 
-- [x] Explain the hosted Windows pseudo-locale merge-card timeout from CI
-      durations and phase measurements under CPU starvation.
-- [x] Mark the scene played in the harness (`data-scenario-played`) once its
-      steps, waits and events have run; never after a failed step.
-- [x] Start the merge-card and tree deadline there; navigation and playback
-      share the existing bounded wait. No deadline, retry, skip or assertion
-      changes; same targets at 320 px in the pseudo-locale.
-- [x] Prove the new unit and browser regressions fail on purpose; record
-      repro rates before and after (at least 20 runs after) in
-      docs/certification/flake-team-merge-wait.md; commit with hooks.
-- [x] Review RVTEAMFLAKE P2: count awaited native events (`whenEvent`) and
-      awaited promises (`track`); jump-scroll regressions and a red drill.
-- [x] Review RVTEAMFLAKE2 (third round, redesigned): scenes schedule all
-      work through the counted helpers and call `scenarioDone()` from their
-      final continuation; counted scene work after it fails the scene; a
-      counted failure clears the mark for good and is recorded. The static
-      async guard is replaced by browser coverage of every `PLAYED_SCENARIOS`
-      scene, and the extracted `track` is checked at runtime.
-- [x] Review RVTEAMFLAKE3 (final): the coverage test verifies ordering, a
-      quiet window for logged moves and the absence of page errors (now
-      collected; raw-timer-throw probe). Work started outside the helpers
-      (raw timers, detached promises) is not detected: a code-review rule for
-      scene authors, not something the harness proves.
-
-Scope is the browser harness and its owning tests. No push; the lead pushes.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### FIX0160X — Repair release CI composition (2026-10-07, macmini)
 
@@ -16793,59 +16769,7 @@ Scope is the browser harness and its owning tests. No push; the lead pushes.
 
 **Status 2026-10-08: merged.** Merged to main as batch PR #144 (`67099ce1b`); records in `docs/certification/deps-0150.md`.
 
-Replace Dependabot PR #138 from release base `a715a834` with exact reviewed
-development-tool pins. Preserve all rule levels, files, coverage thresholds,
-test deadlines and production bundle caps. Diagnose lint memory before choosing
-a structural configuration repair; hold only an offending package if no safe
-repair exists, and register a measured heap flag only as the last resort.
-
-- [x] Read all six upstream changelogs, check exact peers and baseline audit.
-- [x] Measure baseline lint and isolate update-induced memory growth with CI's
-      Node 22; compare immutable parser programs before selecting a remedy.
-- [x] Install the reviewed exact versions, repair the cause and prove any new
-      regression guards fail under a deliberate restored mutation.
-      Add fake-only ACP transport checks for the SDK's new byte cap: exact
-      UTF-8/CRLF admission, split-frame refusal and upstream cancellation.
-- [x] Verify a fresh `npm ci` clone of `d3fff81f` with `CI=true`: five
-      typechecks, JavaScript/CSS lint, formatting, plain knip, duplication,
-      localization/reference/host API, cycles, unchanged production caps,
-      audit, secret scan and SAST. Lint peaks at 5,495,896 KiB, exit 0;
-      PowerShell analysis is an explicit Linux skip.
-- [x] Certify legal accessibility: 96 native keyboard/zoom checks and English
-      plus pseudo WCAG scans pass on Linux.
-- [x] Reproduce the changelog-version guard's 5 s timeout on the release base
-      and accepted pins with V8 coverage (7.026 s / 7.505 s).
-- [x] Scope that guard's real Markdown fixture to the manifest release; keep
-      its existing date/Highlights assertions and complete-history validation
-      in the real-parser tests and production build. Both missing-Highlights
-      and invalid-Try-it drills fail (one failed, one passed), exact bytes are
-      restored, and 23 focused tests pass with V8 coverage. Changed-file lint,
-      unit typecheck and unchanged production caps pass. No deadline changes.
-      Superseded at the 0.16.0 join (batch PR, 2026-10-08): main already
-      parses the full history once in `beforeAll`, outside the test deadline,
-      so the batch keeps main's guard and drops this rescoping.
-- [x] PR #144 review: SDK 1.5.1's option-free `ndJsonStream` refuses lines
-      over 32 MiB, below a valid prompt with three near-10 MiB images. Both
-      production streams (stdio agent, team host's ACP children) now open
-      through `src/shared/acpStream.ts` with `ACP_MAX_MESSAGE_BYTES`
-      (`MAX_ENCODED_MEDIA_CHARS` + 16 MiB). Tests read a three-image prompt
-      through the real SDK, refuse a line past the bound, and fail if any
-      other production file calls `ndJsonStream(` directly.
-- [x] Assign the full coverage and accessibility gates: hosted CI on the pull
-      request is the full gate (coverage, accessibility; §7 "DEP138 rig
-      verification"). The rig's three-file coverage batches were not completed.
-      The first full accessibility run had zero violations but four `long`
-      readiness timeouts; it stays recorded as a failure. All 119 browser
-      JS/CSS bundles match baseline exactly, none of the bumped packages takes
-      part in the harness, and main's PR #139 (merged into this branch) fixed
-      harness readiness.
-- [x] Record receipts in `docs/certification/deps-0150.md` and CHANGELOG;
-      merge main (`18dc7365`) and commit locally with hooks and explicit
-      paths. No push, rebase, credential disclosure or paid/live model call.
-
-Re-measure point: typescript-eslint 8.71.1 (PR #12957, fixing issue #12956)
-clears `.npmrc`'s seven-day release age on 2026-10-12. Measure its lint peak
-before accepting it (D3, "DEP138 selection").
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### FLAKETH20 — Explain and repair the Windows team harness hang (2026-10-07)
 
@@ -16987,50 +16911,13 @@ train, and those waiting on outside events, keep their own status lines.
 `fix/muse-1.4.3` (`1285eb6f4`, never merged): 0.17.0 still showed the plain
 ledger notice on every version (port note in `docs/certification/muse143.md`).
 
-Scoped maintenance on `fix/muse-1.4.3`: use the owner's signed-in
-1.4.3-R5018.1 CLI, an empty temporary workspace and at most six short
-contributor-model turns to capture #29 approval settlement, #30 rename,
-#31 fork and #26 sandbox working-directory evidence. Never touch credentials.
-Lift a workaround only for a version proven fixed; retain fault detection
-and older-version behavior. A successful sandbox command on this already
-prepared host does not prove the fresh-setup failure fixed (D12).
-
-- [x] Capture scrubbed MSP evidence, count turns/model attempts, stop the
-      owned server and remove the temporary workspace.
-- [x] Apply only evidence-backed compatibility changes in the existing
-      shared core and localized notices; test both version sides and fire
-      the affected guards with byte-exact restoration.
-- [x] Update README, changelog, certification and the upstream research
-      note. Update the feature catalog only if present on this base.
-- [x] Merge the current release candidate, run scoped gates on the rigs,
-      and commit explicit paths with existing hooks enabled.
-
-Evidence and remaining upstream limitations belong in
-`docs/certification/muse143.md` and `docs/research/muse-1.4.3-upstream.md`.
-Mac mini: 676 scoped tests passed, all five typechecks, scoped lint/format,
-deadcode, zero duplication, l10n, host API and production caps passed.
-Both before-fix failures and the version-boundary mutation fired; the
-mutated file was restored byte-exact. Existing commit hooks stay on.
-Shared MSP compatibility serves every extension host; the ACP runtime uses
-the same core. No editor-specific control or new UI is planned. Full
-aggregate quality remains the lead's gate, per the lane's common rules.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M26 follow-up — Refresh README badges after publication (BADGES)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/badges.md`.
 
-The 0.13.0 release exposed stale badge-service and GitHub image-proxy caches.
-Extend the existing release workflow and scripts without changing publication:
-BADGES-A waits at most 15 minutes, polling every 30 seconds, for all four public
-channel versions; BADGES-B requests README badge URLs and retries older version
-answers with a cache-busting query; BADGES-C purges the repository page's camo
-images and logs statuses. Every failure warns only, with no credential required.
-The final job requires the summary's successful, all-published outcome.
-Fake-fetch tests and red drills cover parsing, version ordering, retries,
-polling bounds and warning-only failures; hosted public-service proof remains
-the lead's next release check. Implemented: 40 focused tests and 14 red drills
-passed, with typecheck and required focused gates green on the worktree merged
-with `8c894b60a`. Evidence: [BADGES](docs/certification/badges.md).
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M43–M56 — Parity with everything Muse Code and the Model API offer (D36)
 
@@ -17049,32 +16936,7 @@ translations. The order is D36's table:
 run. Certification record:
 `docs/certification/m53-usage-timing.md`.
 
-- Use Muse Code's `usage/read` and `usage/changed` account percentages and
-  absolute reset timestamps as reported. Its SDK has one account-level usage
-  payload, not model-specific quota or plan-name fields. Meta's public Muse
-  Code subscription page publishes an Everyday five-hour allowance, with
-  High 5× and Power 20× capacity, but no per-model conversion or weekly reset
-  rule. The owner's personal Muse Power/Maximum Upgrade screen is separate
-  from Muse Code CLI usage; its weekly token grants do not establish the CLI's
-  `usage/read` entitlement. Do not derive countdowns or usage weights from
-  either plan table, selected model or opaque MSP tier.
-- Recompute visible countdowns while Account & usage stays open, at least
-  once per minute. When a reported reset has passed without a newer frame,
-  label that row as awaiting fresh usage and hide its old percentage and
-  countdown. Retain the observation's age so the user can see why.
-- Drop the global last-usage fallback and attempt to erase its legacy stored
-  value on activation. Cleanup failure does not block activation because no
-  code reads the old value. It has no account identity, so a new sign-in must not inherit
-  another account's plan, percentages or reset time. Clear the webview's
-  report on authentication changes. An empty `usage/read` also clears a
-  same-host observation because the account may have changed. Within one
-  live host, prefer the newest `observedAtMs`; an older or empty read begun
-  before a newer `usage/changed` must not overwrite that event. Discard
-  results from a host stopped or replaced.
-- The timer, expired row, authentication boundary and out-of-order delivery
-  red drills failed before correction and passed after. Exact integrated
-  quality and hosted gates passed before PR #41 merged; the isolated
-  checkpoint alone was never used as certification.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M67–M85 — Coding quality first (D49, D50)
 
@@ -17521,11 +17383,7 @@ separate from Linux rig receipts.
 
 **Status 2026-10-05: certified.** Status evidence: `docs/certification/train-0.13.0.md`.
 
-- [x] Confirm both checkpoint test files pass in the cleared normal temporary directory.
-- [x] Defer Account & usage, Agent map, best-of-N, board, history and review UI until opened, with accessible loading/cancellation, ESM chunks and startup-transitive size/split/packaging guards. Keep the 900 KiB startup cap and at least 20 KiB headroom.
-- [x] Share the Node bundles’ used zod/mini exports in one guarded runtime beside uiText; browser and integration builds retain their inline parser. Ship that runtime in the VSIX and both ACP packages. Keep every existing cap; give only the new measured artifact its D6 measured-plus-15%-rounded-to-25-KiB cap.
-- [x] Stage the VSIX in the worktree, minify its JSON without changing source tables, check shipped localization bytes, and use a concise marketplace README linking the complete repository guide. Ship Unreleased and the newest two released changelog sections with a full-history link; retain the complete source changelog. Preserve privacy, skills, helpers and every runtime feature. Test exclusions against actual package collection.
-- [x] Measure with the real universal helper extracted from the 0.12.1 release asset (119,342 compressed bytes), then run full quality and the unchanged VSIX gate. Drill new guards, restore byte-exact, update train certification/result and the reviewable PR description. Local hook-on commits only; no merge, push, paid or live model call. The specific brief authorizes full quality and read-only release-asset retrieval despite common.md’s ordinary lane limits.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### DEFAULTS — Available enhancements and interactive daily paid admission (D78)
 
@@ -18302,8 +18160,8 @@ created for: empty, `.` or `..` segments, any `.git` form (case-insensitive,
 trailing dots/spaces, `GIT~1`, HFS-ignorable characters), backslashes,
 undecodable names, Windows-illegal names on Windows, folded collisions
 (case and NFC on Windows/macOS; file-versus-folder and duplicates
-everywhere), unknown modes, and more than `HELD_CHECKOUT_MAX_ENTRIES`
-(20,000) entries or `HELD_CHECKOUT_MAX_BYTES` (250 MB). Mode 100755 sets the
+everywhere), and unknown modes. The former entry and size caps
+(`HELD_CHECKOUT_MAX_ENTRIES`, `HELD_CHECKOUT_MAX_BYTES`) are removed: no limit of ours. Mode 100755 sets the
 execute bit on POSIX, 120000 becomes a file holding the link text, 160000
 an empty folder. A failure after the add removes the worktree with
 `worktree remove --force` (no status, so no filter), when trust still holds.
@@ -20392,21 +20250,21 @@ Each finding gets a named regression and byte-exact red drill in `m96-r.md`.
       change applies from the next conversation.
   - `museSpark.modelApiTeamWorkers` (boolean, default `false`; paid): the
     paid feature `teamWorkers`, for tasks billed to a key.
-  - `museSpark.teamMaxWorkers` (number, default the lower of 20 and twice
-    the logical CPUs, from 1 to 32), per window. The sum across windows is
-    shown as an advisory figure.
-  - `museSpark.teamMaxProcessWorkers` (number, default computed as D75
-    says, from 1 to 16), per window, likewise.
-  - `museSpark.teamDailyBudgetUsd` (number, default $50.00, from $0 to
-    $500; at 0, key tasks never start): the daily team budget.
+  - `museSpark.teamMaxWorkers` (number, set by the person, none by
+    default), per window. The sum across windows is shown as an advisory
+    figure.
+  - `museSpark.teamMaxProcessWorkers` (number, set by the person, none by
+    default), per window, likewise.
+  - `museSpark.teamDailyBudgetUsd` (number, set by the person, none by
+    default; at 0, key tasks never start): the daily team budget.
     - It bounds the sum across every window of this editor, as a scope of
       D78's shared paid ledger (per workspace until D78 is on main).
     - The intensity level sets each workspace's own budget beneath it
       (**Balanced**: $10.00), and no level or edit passes it.
-  - `museSpark.teamDailyBudgetTokens` (number, default 25,000,000): the same
-    budget in tokens, for what M95 cannot price (**Balanced**: 5,000,000).
-  - `museSpark.teamHeavyCommandSlots` (number, default one per eight logical
-    CPUs and at least 1, from 1 to 8): heavy commands at once in a window
+  - `museSpark.teamDailyBudgetTokens` (number, set by the person, none by
+    default): the same budget in tokens, for what M95 cannot price (**Balanced**: 5,000,000).
+  - `museSpark.teamHeavyCommandSlots` (number, set by the person, none by
+    default): heavy commands at once in a window
     (lane K; check slots in M96c).
   - `museSpark.teamWorkerPriority` (`belowNormal`, the default, or
     `normal`): the priority of every process the team starts (lane K).
@@ -22288,7 +22146,7 @@ it process lifetime, the journal, hints and the load guard. The research is
 
 | Lane                              | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0c Strings, constants and schemas | M96c's keys in `src/shared/l10n/en.ts`, the 14 tables and `package.nls*.json`; the scheduler block of the Team region of `src/shared/constants.ts` (`TEAM_BOARD_MAX` (64), `TEAM_PRIORITY_WEIGHTS`, `TEAM_SIZE_MINUTES`, `TEAM_AGING_MS`, `TEAM_STARVATION_MS`, `TEAM_SCHED_TICK_MS`, `TEAM_STALL_MS`, `TEAM_STALL_RATE_LIMIT_MS`, `TEAM_RETIRE_WAIT_MS` (30,000), `TEAM_HANDOFF_TOOL_CALLS`, `TEAM_MAX_REASSIGNMENTS`, `TEAM_DIVERGE_REPEATS`, `TEAM_DIVERGE_SIZE_FACTOR`, `TEAM_START_STAGGER_MS`, `TEAM_DIFF_POLL_MS`, `TEAM_MERGE_BATCH_MAX`, `TEAM_MERGE_BATCH_SMALL_LINES`, `TEAM_MERGE_FLAKE_RETRIES`, `TEAM_BLAST_WEIGHTS`, `TEAM_HEAVY_COMMAND_SECONDS`, `RUNNER_CONNECT_TIMEOUT_MS` (10,000), `RUNNER_HEALTH_MS` (60,000), `RUNNER_SELFTEST_TIMEOUT_MS` (10,000)); the scheduler text of `TEAM_MODEL_TEXT`; the board, task fields, attempts, write-sets, states, events, metrics and runners in `src/shared/team.ts`                                                                                                                                                                                                                                                                                            |
+| 0c Strings, constants and schemas | M96c's keys in `src/shared/l10n/en.ts`, the 14 tables and `package.nls*.json`; the scheduler block of the Team region of `src/shared/constants.ts` (`TEAM_PRIORITY_WEIGHTS`, `TEAM_SIZE_MINUTES`, `TEAM_AGING_MS`, `TEAM_STARVATION_MS`, `TEAM_SCHED_TICK_MS`, `TEAM_STALL_MS`, `TEAM_RETIRE_WAIT_MS` (30,000), `TEAM_HANDOFF_TOOL_CALLS`, `TEAM_DIVERGE_REPEATS`, `TEAM_DIVERGE_SIZE_FACTOR`, `TEAM_START_STAGGER_MS`, `TEAM_DIFF_POLL_MS`, `TEAM_MERGE_BATCH_MAX`, `TEAM_MERGE_BATCH_SMALL_LINES`, `TEAM_MERGE_FLAKE_RETRIES`, `TEAM_BLAST_WEIGHTS`, `TEAM_HEAVY_COMMAND_SECONDS`, `RUNNER_CONNECT_TIMEOUT_MS` (10,000), `RUNNER_HEALTH_MS` (60,000), `RUNNER_SELFTEST_TIMEOUT_MS` (10,000)); the scheduler text of `TEAM_MODEL_TEXT`; the board, task fields, attempts, write-sets, states, events, metrics and runners in `src/shared/team.ts`                                                                                                                                                                                                                                                                                                                                                                         |
 | S Scheduler                       | the new `src/core/team/scheduler/`: `board.ts` (the DAG, states, cycle and edge refusals, the two dependency kinds, attempt numbers and stale-event refusal, the reload pause), `criticalPath.ts`, `pick.ts` (the score, aging, the starvation bound, priority inheritance, fair share between conversations, work-stealing within a role, preemption only between tasks, staggered starts), `retire.ts` (retirement per worker kind, exits seen inside the window, descendants proved by the job or the user scope, the bounded escalation, attempts that have not stopped, **Restart the team host**, **Continue anyway**, **Hand off anyway** only with a free slot, and quarantine), `slots.ts` (a delegating worker's child slots reserved at `delegate`, or the refusal), `stalls.ts` (detection, the checkpoint after retirement, the handoff, where it goes, bounds, divergence), `reviewFlow.ts` (the integration flow, the automatic review, class reviews and their merge, full re-review after a change, rework rounds, `redesign`, claim checks); the scheduler region of `teamPool.ts`                                                                                                                       |
 | C Collisions                      | `src/core/team/writeSets.ts` (glob expansion, per-file overlap, attempt leases in the window, inheritance, growth, clipping, exclusive writers, the hint question for files another window names), `src/core/team/waitFor.ts` (the wait-for graph over leases, dependencies, children and slots, and cycle refusal), `src/core/team/conflictPredict.ts` (diff polling, prediction through lane Q's merge routine, the integration state), `src/core/team/sharedFiles.ts` (the list and the built-in entries), `src/core/team/merge/changelog.ts` (bullet identity, the authorized delta, released sections, the kept check, fragments), `src/core/team/merge/jsonTable.ts` (the strict parse that keeps raw key order, decodes escapes and refuses duplicates at any depth; the three-way merge by key for flat and nested objects; same-key and type conflicts; the refusal on input that does not parse, with no text fallback; key order; the file's own style, byte-order mark and line endings; the two-way kept check after the formatter) and the staging copy's formatter step for merged JSON files, through M68's `formatAfterEdit` (with lane Q); the `sharedFiles` key in `teamConfig.ts`'s `team.json` region |
 | Q Merge queue and hygiene         | `src/core/team/mergeQueue.ts` (the order, batches closed under dependency, the flaky rerun, serial cumulative admission, `on_conflict`), `src/core/team/mergeRoutine.ts` (the one merge routine landing and prediction share), `src/host/team/stagingCopy.ts` (the whole snapshot through a temporary index, its tree hash, the check identity, the staging clone), `src/host/team/landingJournal.ts` (the write-ahead journal in the window's journal, and **Recover** by M86's rule), `src/host/team/gitIndexLock.ts` (the known-holder check: an `index.lock`, another window's fresh hint on the tree, a git operation in progress; the landing branch `agents/landing/<id>` and **Apply**; taking and releasing the working tree's `index.lock` by exclusive create, its content; never removing a lock it did not take; the read-back after the last file), `src/host/team/teamCleanup.ts` (link-safe removal, `\\?\` paths, the orphan sweep, quarantined copies, disk use), the checkout guard in `teamWorkspaces.ts`'s region, the landing region of `teamMerge.ts` (the in-process exclusion, the lock, the snapshot and blob comparison)                                                                        |
@@ -22991,7 +22849,7 @@ it process lifetime, the journal, hints and the load guard. The research is
 | T24 | Two landings, a landing and a git command, or a landing and another known holder write one working tree at once | One landing at a time in the window; no write to the tree or index while an `index.lock`, another window's fresh hint on the tree, or a git operation in progress holds the repository, but a commit to a landing branch the user applies later; otherwise git's own `index.lock` from before the first file to after the last, never removed by the extension; per-file byte checks and a read-back after the last file that reports writers ignoring the lock (`git checkout-index`, `git clean`, ref-only moves, other linked worktrees) as changed during landing, detected and not prevented |
 | T25 | Cleanup deletes outside a working copy                                                                          | Links and junctions are unlinked, never recursed; canonical paths checked against the storage folder; nothing unmerged is deleted without the user                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | T26 | A worker escapes into the user's checkout                                                                       | The checkout guard at start and at every command; only `in-place`, set by the user, may run there                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| T27 | The board floods: endless tasks, reassignments or reviews                                                       | `TEAM_BOARD_MAX`; tasks per turn; two reassignments per task; three review rounds; every attempt counted under D75's caps and budgets                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| T27 | The board floods: endless tasks, reassignments or reviews                                                       | the limits the person set (tasks per turn, budgets; none by default); the provider's rate limits; every attempt counted and shown, so the person can stop a flood                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | T28 | A scheduler event or report steers the orchestrator                                                             | Events are structured fields in tool answers and the state-change note, never instructions; reports and handoff text are data (T1)                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | T29 | A stalled worker, or its detached descendant, keeps writing after its replacement starts                        | Retirement only when every descendant has ended: proved by Windows' job or a Linux user scope, otherwise the user's **Continue anyway**; an uncertain attempt blocks the handoff, keeps its process slots, and its copy is never reused; **Hand off anyway** only with a free slot; stale events refused by attempt number                                                                                                                                                                                                                                                                        |
 
@@ -23213,61 +23071,7 @@ process that owns the work.
 **Status 2026-10-05: integrated on `feature/m91-hooks-parity`; pull request
 next, in the 0.14.0 batch.**
 
-- The step 1 captures are recorded (`docs/certification/m91.md`,
-  `docs/certification/m91-captures/`).
-- Lane 0 is built: 88 strings in all 14 tables, and the hook region's four
-  constants.
-- Every lane is merged on the branch: G, R, P, I, S, X, H, M and E, with
-  the fix rounds of R (RVM91R), P (RVM91P3) and I (FIXM91I3). Lane H's
-  branch brought main with it. Lane W's wiring is built
-  (`docs/certification/m91.md`, "Lane W"):
-  - imported hooks on Muse Code's events run through lane P's adapters;
-  - the Hooks picker lists both files per scope;
-  - the panel marks a MessageDisplay rewrite.
-- **M91b** (below) is merged: Amp and OpenCode plugin dispatch
-  (`m91/w-plugins` at `797e31fc`), in the same 0.14.0 batch. Imported hooks
-  on extension events stay planned there; the importer refuses them.
-- **Main 0.13.0** (`928a9200`) is merged. Lane G's golden hooks-off fixtures
-  were regenerated on main itself, with M91's test, and M91 matches them
-  byte for byte (`m91.md`, "After main and M91b").
-- **Size (D6).** M91 took `dist/modelApi.js` to 486.1 KiB of its 475. Lanes
-  E, H and M's runtime moved into `dist/hookRuntime.js` and the imported
-  records' reader into `dist/foreignHooks.js`, both loaded on first use, and
-  the cap held: 467.6 KiB with main and M91b. `dist/extension.js` is
-  596.9 KiB of 600 and the webview 896.3 of 900.
-- **Integration fixes:** semgrep's prototype-pollution finding in lane P's
-  engine (own keys only, prototype segments refused); a duplicate-key check
-  in `check-l10n`; lane S's unused setting-name constant is gone. knip is
-  still blind to `constants.ts` for a reason not yet found (`m91.md`, drill
-  W22).
-- **Lane I round 3 (FIXM91I3, RVM91I2):** repair all eleven findings
-  within the importer: unknown source switches refuse hooks; Cline executable
-  references are rechecked after awaits and during planning, quoted as
-  literal paths and retain their source 30-second bound; strict Copilot inline blocks refuse together; nonexact
-  matcher translations refuse; Gemini lifecycle filters stay exact and
-  sequential policy spans merged settings; Cursor records match adapter
-  source-event selection at `d8e609aa` and require version 1. Each finding
-  gets a regression and a SHA-256-restored red drill in `m91-i.md`.
-  The lane also removes its six duplication-gate clones using existing
-  scanner/converter functions and replaces the heavy Model API name-builder
-  import with bounded canonical-name checks against the pinned 20/64 contract,
-  verified by tests against the real builder; the import bundle keeps its
-  existing 125 KiB cap. No new layer or dependency.
-
-**Lane P review corrections (RVM91P3, 2026-10-04).** Keep the declarative
-contracts and public entry points. Translate Gemini tool inputs only where the
-saved captures or examples establish the fields; an unsupported blocking call
-returns `refused` with `blockOperation: true`, which the dispatcher must enforce
-before execution. Preserve tool whitelists while refusing forced selection,
-validate captured model request/response shapes, merge argument patches against
-the original execution input, retain advisory observations beside ignored
-controls, and carry Notification details. Replay the vendor's own data-dependent
-scripts and narrow certification claims to the checks actually performed.
-Each finding gets a failing regression and a byte-exact restored red drill in
-`docs/certification/m91-p.md`. No live call or new dependency is authorized.
-
-The early protected-paths fix is its own pull request,
-`fix/protect-agent-folders`.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 - **Goal.** A hook written for any of these agents runs on the Model API
   backend at the same point, and with no more power, wherever this extension
@@ -23308,50 +23112,6 @@ The early protected-paths fix is its own pull request,
   [#31](https://github.com/meta-models/muse-code-sdk/issues/31)
   (`session/fork` refused on Windows) is still open on 1.4.2.
 
-- **Internal helper turns.** Today the Model API runtime fires hooks for a
-  call it makes for itself only where M51 documents it.
-  - Compaction's summary request runs PreLLMCall and PostLLMCall, between
-    PreCompact and PostCompact.
-  - These run no hooks at all: the Auto reviewer's calls (M78), side chats
-    (M51), and Best-of-N attempt hosts (M77: `isHooksEnabled` is off in
-    `modelApiBackendManager.ts`).
-
-  M91 keeps it so. A `prompt` or `agent` handler's own model call fires no
-  hook, so a hook cannot recurse. Neither do M74's hidden follow-up and
-  memory flush, once built (SoL-Pi rule 5). So TeammateIdle for a Best-of-N
-  attempt fires from the parent session's snapshot in the coordinator, never
-  inside the attempt, which still runs no hooks.
-
-- **Event behaviour.** The Muse Code events first, then the 21 extension
-  events.
-
-  | Event                                  | Fires at                                                                                       | Behaviour                                                                                                                              | Backends                      |
-  | -------------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-  | Interrupt                              | A running turn or compaction is cancelled: Stop, a UserPromptSubmit block, the session closing | Async only; observation; never when an idle session closes (captured)                                                                  | Both                          |
-  | SessionFork                            | Accepted, not run: 1.4.2 never runs it (captured)                                              | Sync only. When a capture shows it running: before forkSession copies anything; a refusal ends the fork; side chats still run no hooks | Both                          |
-  | PostToolUseFailure with `updatedInput` | A failed tool call                                                                             | The same tool only, as a new call through PreToolUse, policy, path confinement and approval; bounded by `HOOK_ON_FAILURE_MAX_DEPTH`    | Model API (Muse runs its own) |
-  | InstructionsLoaded                     | Rules or a skill read into the context (`instructionsFor`, the touched path's rules)           | Observation; a workspace-relative path and a reason, never content                                                                     | Model API                     |
-  | UserPromptExpansion                    | A slash command or a skill expands                                                             | Can refuse, with a visible reason                                                                                                      | Model API                     |
-  | PermissionDenied                       | The Auto reviewer, a refusal or a mode refuses a call                                          | Observation; no `retry`                                                                                                                | Model API                     |
-  | PreModelSwitch                         | `setModel`                                                                                     | Can refuse only; model ids only                                                                                                        | Model API                     |
-  | PostModelSwitch                        | After `setModel`                                                                               | Observation                                                                                                                            | Model API                     |
-  | TaskCreated                            | `todo_write` adds an item                                                                      | Can refuse, with a visible reason; counts toward `HOOK_MAX_STOP_CONTINUATIONS`; the subject and description bounded                    | Model API                     |
-  | TaskCompleted                          | `todo_write` completes an item                                                                 | As TaskCreated; runs before M74's compaction check                                                                                     | Model API                     |
-  | FileChanged                            | A file changed outside the agent (`noteExternalEdit`, the watcher)                             | Observation; matcher required; debounced per path; capped per minute; never starts a model request; path and reason only               | Both                          |
-  | ConfigChange                           | A settings or hook file changes                                                                | Observation                                                                                                                            | Both                          |
-  | WorktreeCreate                         | After Best-of-N creates its worktree                                                           | A non-zero exit fails that attempt; cannot choose a path                                                                               | Model API                     |
-  | WorktreeRemove                         | Before Best-of-N removes it                                                                    | Observation                                                                                                                            | Model API                     |
-  | Setup                                  | **Run Setup Hooks**; the ACP agent's `setup` (`--maintenance` for that matcher)                | Observation; matcher `init` or `maintenance`                                                                                           | Both                          |
-  | DirectoryAdded                         | A trusted workspace activates; a folder is added to the window                                 | Observation                                                                                                                            | Both                          |
-  | CwdChanged                             | The kept shell directory changes                                                               | Observation; old and new directory, workspace-relative                                                                                 | Model API                     |
-  | Elicitation                            | An MCP server sends `elicitation/create`                                                       | A project hook may decline or cancel; a user hook may answer, validated against the server's schema                                    | Model API                     |
-  | ElicitationResult                      | The user answered                                                                              | Observation; a project hook sees field names and the action only                                                                       | Model API                     |
-  | TeammateIdle                           | A Best-of-N attempt or a background subagent is about to stop while siblings run               | A block keeps it working inside its consented run; counts toward `HOOK_MAX_STOP_CONTINUATIONS` and the budget                          | Model API                     |
-  | MessageDisplay                         | An assistant message is about to show                                                          | A display-only rewrite with a marker the hook cannot remove and a one-click original                                                   | Both                          |
-  | BeforeToolSelection                    | Before each model request                                                                      | Narrow only, enforced at call admission; the declared tool list never changes                                                          | Model API                     |
-  | AfterAgentThought                      | A reasoning block finished                                                                     | Observation; bounded; through the M54 preview scrubber                                                                                 | Model API                     |
-  | Manual                                 | **Run Hook…** or `/hook run <name>`                                                            | The user starts it; observation; output shown                                                                                          | Both                          |
-
 - **Lanes.** One branch, `feature/m91-hooks-parity`.
   - Lane 0 goes first. Then R, E, I, P, S, M, H and X run in parallel, and
     W goes last.
@@ -23390,354 +23150,6 @@ The early protected-paths fix is its own pull request,
   | H Handler types         | `hooks.ts`'s handler fields; the new `src/core/backends/modelapi/hookHandlers.ts` (`http`, `mcp_tool`, `prompt`, `agent`); the paid gate's new feature and its tally; the Muse Code side session for `prompt` and `agent`; tests                                                                                                                                                                                                                                                           |
   | X Plugin host           | the new `src/core/backends/modelapi/pluginHost.ts` and its child entry (its own bundle if D6 needs it; M91b if the budget does); the Amp and OpenCode shims; tests                                                                                                                                                                                                                                                                                                                         |
   | W Wiring                | the Hooks picker (`museConfigCommands.ts`); the MessageDisplay marker in the panel; README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN, `docs/certification/m91.md`; the full gate                                                                                                                                                                                                                                                                                                  |
-
-- **Steps.**
-  1. **Capture first: done 2026-10-04** (`docs/certification/m91.md`). The
-     echo provider, empty folders, an isolated home, 0 model calls. The
-     findings are in D70. Nothing uncaptured is wired: SessionFork's veto
-     waits for a release that runs it.
-  2. **Lane R.**
-     - Interrupt is async only. It fires when a running turn or compaction
-       is cancelled: by Stop, by a UserPromptSubmit block, or by the session
-       closing while the turn runs. That is when Muse Code fires it
-       (captured). It never fires when an idle session closes.
-     - SessionFork must be sync and is accepted. It runs nothing until
-       upstream #84 is answered and a capture shows it running.
-     - The PostToolUseFailure `updatedInput` correction takes the same tool
-       only, as a new call through PreToolUse, policy, path confinement and
-       approval, bounded by `HOOK_ON_FAILURE_MAX_DEPTH`.
-  3. **Lane E.**
-     - spark-hooks.json loads together with Muse Code's sources: in the same
-       per-session snapshot, behind the same trust gate and
-       `museSpark.modelApiHooks` opt-in.
-     - The 21 events fire at their operations, with the behaviour in the
-       table above.
-     - BeforeToolSelection narrows at admission and leaves the declared tool
-       list as it was.
-  4. **Lane S.** The shell keeps its directory between calls.
-     - The shell tool's declared description and schema stay byte-stable
-       (SoL-Pi rule 1). The kept directory is reported at the tail of a
-       result whose directory is not the root, and in the tool row.
-     - A machine-scoped setting turns it off; M75 records it.
-     - `then_run` and `run_checks` still run at the root.
-  5. **Lane M.** MCP elicitation's form mode on the Model API backend's
-     client.
-     - The form shows in the panel, and in the ACP agent through its form
-       path.
-     - The answer is accept, decline or cancel, validated against the
-       requested schema.
-     - Elicitation and ElicitationResult follow the event table.
-  6. **Lane P.** One adapter per format, translating stdin and mapping each
-     answer onto `HookAnswer`.
-     - Each source's fail-closed rules are kept: Cursor's invalid JSON on
-       permission hooks and its `failClosed`; Copilot's preToolUse errors.
-     - An adapter parse failure counts as a failure, never as allow.
-     - A foreign `allow` never skips an approval card.
-  7. **Lane I.** Readers and converters, per the research's importer table.
-     - Codex hooks go into Muse Code's files (TOML read with smol-toml).
-     - The other formats go into spark-hooks.json with their format tag.
-     - Concepts this milestone adopts are no longer refused.
-     - A source event that can block where ours cannot is still refused, so
-       an imported guard is never weaker: Claude's WorktreeCreate (it
-       chooses the path) and ConfigChange (it can block), and Cursor's
-       subagentStart.
-     - Every refusal is listed with its reason; the preview shows metadata
-       only.
-     - M83's rules apply: unsaved edits that the user saves, D64 exposure,
-       project sources only when trusted.
-  8. **Lane H.** The four handler types, as D70 says. A `prompt` or `agent`
-     handler is a paid use on the Model API, and a side-session turn on Muse
-     Code. None of them widens.
-     Lane H's receipt is `docs/certification/m91-h.md`. The shared daily
-     budget setting is absent in this lane's base; its owner must wire
-     `ModelApiPaidHooks.hookModelDailyBudget` (reserve/check/settle) and the
-     popup cap. Lane R must consume the Muse Code helper factory. Until
-     those integrations are proved, handler acceptance 11 stays open.
-  9. **Lane X.** The plugin child and its shims for Amp and OpenCode, and
-     Cline's scripts through the `cline` adapter. The plugins' events map
-     onto the event list above, and lane X records the mapping in this plan
-     before its code.
-- **Lane X event mapping (recorded 2026-10-05, before lane X code).**
-  Sources are the saved research under `hooks-parity/` (cited per row);
-  nothing here is captured live. A plugin answer can only refuse, narrow or
-  add context — never grant; a crash or timeout follows the event's
-  fail-closed rule; the child is killed with the session and bounded in
-  memory and time. The shim offers no shell helper, no client and no model
-  access: a call to one fails that hook.
-  - **Amp** (in-process `amp.on` plugins; `hooks-parity/raw/amp_plugin-api.md`).
-    Runtimes: the user's system `node` ≥ 22.18, plain JS or TS through
-    Node's built-in type stripping; never the extension host's Node.
-
-    | Amp event                                    | Muse event       | Answer mapping                                                                                                                                                                                                                                                                        |
-    | -------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-    | `session.start` (`amp_plugin-api.md:1929`)   | SessionStart     | Observation; the thread id only                                                                                                                                                                                                                                                       |
-    | `tool.call` (`:1953`, results `:1962`)       | PreToolUse       | `allow` → completed; `reject-and-continue{message}` → blocked with the message; `modify{input}` → completed with `updatedInput` (same tool only); `synthesize{result}` → completed with a tool-result replacement; `error{message}` → failed (blocked where the event is fail-closed) |
-    | `tool.result` (`:2044`, replacement `:2052`) | PostToolUse      | `void` → completed; a returned `{status, output?, error?}` → completed with a tool-result replacement                                                                                                                                                                                 |
-    | `agent.start` (`:2074`, result `:2097`)      | UserPromptSubmit | `void` → completed; `{message:{content}}` → completed with context                                                                                                                                                                                                                    |
-    | `agent.end` (`:2109`, result `:2130`)        | Stop             | `void` → completed; `{action:'continue', userMessage}` → blocked with the user message as the reason (the turn continues); `maxContinuations` is capped by `HOOK_MAX_STOP_CONTINUATIONS`                                                                                              |
-    | `changes.prompt` (`:2148`)                   | Refused          | No Ship/Push workflow here; refused with a reason                                                                                                                                                                                                                                     |
-    | (no `session.end`; `:29`)                    | SessionEnd       | Refused: Amp has no matching event                                                                                                                                                                                                                                                    |
-
-  - **OpenCode typed hooks** (`hooks-parity/raw/oc_plugin_index.ts`; the docs
-    list at `hooks-parity/raw/oc_plugins.mdx`). OpenCode is Bun-native, so
-    its plugins run under the user's installed `bun`; when `bun` is absent
-    the hook is refused with a reason. Handler order across plugins is
-    undefined upstream (`raw-kiro-amp-opencode-continue.md:29`); each
-    registered handler runs in load order and one's block ends the chain.
-
-    | OpenCode hook (`oc_plugin_index.ts`)                                                                                      | Muse event          | Answer mapping                                                                                           |
-    | ------------------------------------------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------- |
-    | `tool.execute.before` (`:266`, throw blocks, mutate `output.args`)                                                        | PreToolUse          | Throw → blocked with the thrown message; mutated `args` → completed with `updatedInput` (same tool only) |
-    | `tool.execute.after` (`:274`, mutate `output.output`)                                                                     | PostToolUse         | Throw → failed; mutated `output` → completed with a tool-result replacement                              |
-    | `permission.ask` (`:261`, `output.status`)                                                                                | PermissionRequest   | `deny` → deny; `ask` → ask; `allow` is never applied (completed without a grant)                         |
-    | `command.execute.before` (`:262`)                                                                                         | UserPromptExpansion | Throw → blocked with the reason; otherwise completed                                                     |
-    | `chat.message` (`:234`)                                                                                                   | UserPromptSubmit    | Observation only; a mutated message is not applied                                                       |
-    | `experimental.session.compacting` (`:305`, `context`/`prompt`)                                                            | PreCompact          | `context` entries → context; a full `prompt` replacement is not applied (the prefix stays byte-stable)   |
-    | `chat.params` (`:242`), `chat.headers` (`:258`), `experimental.provider.small_model` (`:297`), `tool.definition` (`:332`) | Refused             | They choose a model, headers, params or the tool list; refused with a reason                             |
-    | `experimental.chat.messages.transform` (`:282`), `experimental.chat.system.transform` (`:291`)                            | Refused             | They rewrite earlier request bytes (SoL-Pi rule 1); refused with a reason                                |
-    | `experimental.compaction.autocontinue` (`:316`), `experimental.text.complete` (`:327`)                                    | Refused             | No equivalent operation (auto-continue control, display rewrite); refused with a reason                  |
-    | `shell.env` (`:270`)                                                                                                      | Refused             | Environment edits are a secret risk (as Copilot `env`); refused with a reason                            |
-    | `config`, `tool`, `auth`, `provider`, `dispose` (`:223`)                                                                  | Refused             | Registration, not hook points; refused with a reason                                                     |
-
-  - **OpenCode event-bus subset** (bus list `raw-kiro-amp-opencode-continue.md:36;
-the `event`hook at`oc_plugin_index.ts:224`). The `event`handler
-returns`void`, so every bus mapping is observation only; a throw fails
-    the hook, never blocks it.
-
-    | Bus event                                                                                                                                                                                               | Muse event                                                                          |
-    | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-    | `session.created`                                                                                                                                                                                       | SessionStart (observation)                                                          |
-    | `session.deleted`                                                                                                                                                                                       | SessionEnd (observation)                                                            |
-    | `session.compacted`                                                                                                                                                                                     | PostCompact (observation)                                                           |
-    | `todo.updated`                                                                                                                                                                                          | TaskCreated/TaskCompleted (by the item's status; observation, refusals not applied) |
-    | `permission.asked`                                                                                                                                                                                      | PermissionRequest (observation only)                                                |
-    | `permission.replied` denied                                                                                                                                                                             | PermissionDenied (observation only)                                                 |
-    | `file.watcher.updated`                                                                                                                                                                                  | FileChanged (observation; path only)                                                |
-    | `file.edited`                                                                                                                                                                                           | PostToolUse for Edit\|Write (observation)                                           |
-    | `message.updated`                                                                                                                                                                                       | MessageDisplay (observation; a rewrite is not applied)                              |
-    | `session.error`                                                                                                                                                                                         | StopFailure (observation)                                                           |
-    | `tool.execute.before` / `tool.execute.after` on the bus                                                                                                                                                 | As the typed hooks above (a plugin subscribed to both fires twice, as upstream)     |
-    | `tui.*`, `lsp.*`, `server.connected`, `installation.updated`, `message.part.*`, `message.removed`, `session.diff`, `session.status`, `session.updated`, `command.executed`, `session.idle`, `shell.env` | Refused: TUI/display internals, no equivalent operation, or covered by a typed hook |
-
-  - **Cline v1 scripts** (per-event scripts in `.clinerules/hooks/` and
-    `~/Documents/Cline/Hooks/`; `hooks-parity/raw-copilot-cline.md:13-15,24-26`;
-    the full `cline-hooks-901d1b5c97.mdx` and `cline/src_*` copies named there
-    are not on this rig, so field shapes below stay conservative and every
-    gap is labelled). They run as command hooks through the `cline` contract
-    table, interpreted by the shared engine; no hand-written per-event
-    translator. The newer SDK/CLI file-hook contract
-    (`raw-copilot-cline.md:26`: `tool_call`/`tool_result`/`agent_start` with
-    `cancel`/`review`/`overrideInput`) is a different contract and is
-    refused with a reason. Discovery follows the source platform rules:
-    Windows runs `<HookName>.ps1` only, Unix runs the extensionless
-    `<HookName>` only and it must be executable; anything else is ignored,
-    never converted. Timeout 30 s; a `contextModification` over 50,000 chars
-    is capped; a non-zero exit without JSON does not block
-    (`raw-copilot-cline.md:25`).
-
-    | Cline script                                                                  | Muse event       | Notes                                                                                                                                                     |
-    | ----------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-    | TaskStart                                                                     | SessionStart     | `cancel` → blocked; `contextModification` → context (see #13554, `raw-copilot-cline.md:27`: upstream may drop it for non-cancelling hooks; ours keeps it) |
-    | TaskResume                                                                    | SessionStart     | As TaskStart (a resumed task starts the session)                                                                                                          |
-    | TaskCancel                                                                    | SessionEnd       | Observation; `cancel` has nothing left to block                                                                                                           |
-    | TaskComplete                                                                  | Stop             | `cancel` → blocked with the reason (the turn continues); context kept                                                                                     |
-    | PreToolUse                                                                    | PreToolUse       | JSON `cancel` → blocked; a non-zero exit without JSON does not block (`raw-copilot-cline.md:25`)                                                          |
-    | PostToolUse                                                                   | PostToolUse      | Observation; context kept                                                                                                                                 |
-    | UserPromptSubmit                                                              | UserPromptSubmit | As TaskStart                                                                                                                                              |
-    | PreCompact                                                                    | PreCompact       | `cancel` → blocked (the optional compaction stops; the hard-limit compaction still runs)                                                                  |
-    | Notification (in `VALID_HOOK_TYPES`, `raw-copilot-cline.md:24`, undocumented) | Notification     | Observation; context kept                                                                                                                                 |
-  10. **Lane W.**
-      - The Hooks picker lists both files per scope and says which backend
-        runs each.
-      - The MessageDisplay marker and the original.
-      - Then the docs, the certification and the full gate.
-
-- **Acceptance.**
-  1. **Interrupt and SessionFork.** One `.muse/hooks.json` with Interrupt
-     and SessionFork behaves the same on both backends:
-     - Interrupt fires on Stop during a turn or a compaction, on a
-       UserPromptSubmit block, and on a close with a turn running. It never
-       fires on an idle close.
-     - A sync Interrupt is refused.
-     - SessionFork is accepted only as sync, and runs nothing, as on Muse
-       Code 1.4.2.
-  2. **The correction.** The PostToolUseFailure correction re-runs the same
-     tool once per chain step, through the full path. A correction to
-     another tool, to a path outside the workspace, or past the depth bound
-     is refused.
-  3. **Extension events.** Each extension event fires once at its
-     operation, with its documented fields, and never when the operation did
-     not happen. Blocking events refuse with a visible reason; observation
-     events cannot block.
-  4. **The two files.** A Muse Code name in spark-hooks.json is refused with
-     a warning. An extension name in `.muse/hooks.json` is skipped with Muse
-     Code's warning.
-  5. **Import.** Each source imports per the research's importer table, as
-     amended by D70. Every refusal is listed, and nothing is written until
-     the user saves.
-  6. **Guards.** For each format, a PreToolUse-type guard that denies,
-     returns an invalid answer or crashes blocks exactly when its source
-     agent would.
-  7. **Protected folders.** Writes to other agents' configuration folders
-     ask in every mode except Bypass. This ships early, in
-     `fix/protect-agent-folders`.
-  8. **The Hooks picker** lists both files for each scope, and the backend
-     that runs each.
-  9. **The kept shell directory.**
-     - It survives between shell calls and is shown in the tool row.
-     - It resets to the root, with a note to the model, when it would leave
-       the workspace or follow a link out of it.
-     - CwdChanged fires once per change.
-     - `then_run` and `run_checks` run at the root.
-  10. **Elicitation.**
-      - A server's elicitation shows as a form.
-      - Accept, decline and cancel reach the server, and an answer outside
-        the requested schema is refused.
-      - A project hook can only decline or cancel; a user hook can answer.
-      - ElicitationResult never gives a project hook what the user typed.
-  11. **Handler types.**
-      - `http` reaches only allowlisted hosts over HTTPS, follows no
-        redirect, and is refused in project files.
-      - `mcp_tool` goes through the tool's own approval.
-      - `prompt` and `agent` are refused while their paid feature is off.
-        When it is on, they ask in the paid-use popup, are tallied on their
-        own line and stop at the budget. On Muse Code they run in a side
-        session.
-      - None of them widens.
-  12. **Plugins.**
-      - Amp's and OpenCode's plugins run in the plugin child, never in the
-        extension host, under the hook limits.
-      - A shim call they are not offered fails that hook.
-      - Cline's scripts run through the `cline` adapter.
-  13. **The ten new operations.**
-      - Setup, DirectoryAdded and Manual fire only at their operations.
-      - TeammateIdle keeps an attempt working within its bound.
-      - MessageDisplay's marker cannot be removed, and the history, copy and
-        export keep the original.
-      - BeforeToolSelection can only narrow: a call to a removed tool is
-        refused.
-      - AfterAgentThought sends bounded, scrubbed text.
-  14. **The SoL-Pi rules hold** (D70):
-      - a. With hooks active, request N+1 begins with request N's whole
-        bytes, and the `prompt_cache_key` does not change.
-      - b. A packed output after a hook's rewrite recalls exactly the bytes
-        the model saw, and a hook's stdin holds only the bounded preview.
-      - c. `prompt` and `agent` handlers never bypass the paid gate or the
-        hard budget, and are tallied apart from the reducer.
-      - d. An imported shell guard blocks a `then_run` command.
-      - e. M74's compaction cases, once M74's automatic compaction lands.
-      - f. The M75 evaluation records the hook set or runs with hooks off,
-        and the ledger keeps "added by hooks" separate.
-      - g. With hooks off, the request bytes and tool list equal the
-        pre-M91 fixture.
-  15. **Cursor's Tab hooks.** They import and are listed as waiting for
-      inline completions, until M94's lane K gives them their operation
-      (§3, resolved 2026-10-04).
-- **Tests.** Every one must be able to fail, with a red drill recorded in
-  `m91.md`.
-  - Interrupt fires on cancel, on a UserPromptSubmit block and on a close
-    with a turn running, and not on an idle close. Drill: fire it from an
-    idle dispose.
-  - A sync Interrupt is refused. Drill: remove the async check.
-  - An async SessionFork is refused, and a sync one runs nothing. Drill:
-    remove the sync check.
-  - A correction to another tool is refused. Drill: remove the same-tool
-    check.
-  - The correction depth bound holds. Drill: raise it.
-  - One test per extension event, on fake I/O.
-  - A Muse Code name in spark-hooks.json is refused. Drill: remove the
-    check; the hook runs twice.
-  - The FileChanged debounce and per-minute cap hold. Drill: remove the
-    debounce.
-  - FileChanged never queues a turn.
-  - An untrusted workspace, or the opt-in off, loads nothing.
-  - Format adapters:
-    - recorded stdin and stdout pairs;
-    - the fail-closed cases (drill: make Cursor's invalid JSON fail open);
-    - a foreign `allow` still shows the card.
-  - Importer:
-    - each mapping row and each refusal reason;
-    - TOML `[hooks]`; Gemini ms → s; Copilot camelCase and PascalCase;
-      Windsurf powershell; Kiro v1;
-    - the preview carries no command text.
-  - Shell directory:
-    - it is kept;
-    - it resets outside the workspace (drill: drop the confinement);
-    - CwdChanged fires once per change;
-    - `then_run` runs at the root after a `cd`.
-  - Elicitation:
-    - an answer outside the schema is refused (drill: skip the
-      validation);
-    - a project hook's answer is refused;
-    - ElicitationResult's project payload has no values.
-  - Handlers:
-    - `http` off-list host, plain HTTP and redirect refused (drill: allow
-      redirects);
-    - `prompt` refused with the paid feature off (drill: skip the gate).
-  - Plugins: a plugin's shell or client call fails its hook, and the
-    plugin's process is not the extension host's.
-  - The ten new operations, one test each. BeforeToolSelection's drill:
-    filter the declared list instead, and SoL-Pi test (a) fails.
-  - SoL-Pi tests:
-    - (a) the byte-prefix comparison across a turn with SessionStart,
-      UserPromptSubmit and PostToolUse context and a BeforeToolSelection
-      narrowing (drill: put the context into the instructions);
-    - (b) a pack after a hook rewrite (drill: archive the pre-hook output);
-    - (c) the paid gate and the separate tally;
-    - (d) a `then_run` command blocked by an imported Cursor
-      beforeShellExecution guard (drill: skip the adapter for `then_run`);
-    - (f) the evaluation's hook record and the ledger line;
-    - (g) the golden request comparison against a fixture recorded on main
-      before M91 (drill: change one byte of the tool list with hooks off).
-  - Protected paths: one test per folder. Drill: remove a segment.
-  - One live check on the contributor model, in an empty workspace. State
-    the expected number of model calls first, and count them from the trace
-    afterwards.
-    - A Codex PreToolUse deny guard and a Cursor one each stop one bash
-      call.
-    - On Muse Code, one turn with a tool call captures PostToolBatch.
-- **Gates.**
-  - The full quality gate.
-  - The Model API bundle within its D6 budget: the adapters and the plugin
-    host load lazily if needed, and X moves to M91b if they cannot fit.
-  - check-l10n.
-  - host-API.
-- **Security.**
-  - **Trust** as in M51: a trusted workspace, the `museSpark.modelApiHooks`
-    opt-in, a per-session snapshot, and nothing in Restricted Mode.
-  - **Environment and limits** as in M51:
-    - an allowlisted environment (`HOOK_FORBIDDEN_ENV_NAMES`);
-    - 256 KiB stdin, and 16 KiB stdout and stderr;
-    - a 600 s timeout cap;
-    - four running commands at most;
-    - cancel kills the process tree;
-    - a closed output schema per event.
-
-    The plugin child, `http` and `mcp_tool` take the same caps.
-
-  - **Payload privacy** as in M51 and M54: bounded previews, and no media
-    bytes or credentials.
-    - FileChanged, InstructionsLoaded, CwdChanged and DirectoryAdded send a
-      workspace-relative path and a reason, never content.
-    - PreModelSwitch sends model ids only.
-    - TaskCreated sends the subject and description, bounded.
-    - ElicitationResult sends values to user hooks only.
-  - **No new power.** Adapters keep each source's fail-closed rules and none
-    of its grants.
-    - `http` is user scope only, HTTPS to allowlisted hosts.
-    - `prompt` and `agent` are paid uses under D30 and D48.
-    - MessageDisplay cannot touch a card, a tool row or a notice.
-- **Certification checklist.**
-  - [x] Step 1 captures recorded (2026-10-04, 0 model calls).
-  - [x] Lane 0's keys in all 14 tables, and its constants (2026-10-04,
-        `check-l10n` 0 problems).
-  - [ ] Acceptance 1–14, each with its test and drill; 14e waits on Q-M74.
-  - [ ] SessionFork's veto: waits on meta-models/muse-code-sdk#84 (Meta-blocked).
-  - [x] Acceptance 15: the owner's answer (2026-10-04: M94 builds Tab
-        completions; the hooks wait for its lane K).
-  - [ ] Live check and its call count.
-  - [ ] Docs: README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN,
-        m91.md.
 
 ### M91b — Amp and OpenCode plugin dispatch (D70)
 
@@ -24817,7 +24229,7 @@ the exact redacted prompt reservation before the engine receives it.
   what Tab spends):
   - `museSpark.modelApiTab` (boolean, default `true`; paid, asks once first);
   - `museSpark.tabModel` (`muse-spark-1.3` | `muse-spark-1.3-contributor`);
-  - `museSpark.tabDailyBudgetUsd` (number, $1.00, from $0.05 to $50);
+  - `museSpark.tabDailyBudgetUsd` (number, set by the person, none by default);
   - `museSpark.tabLanguages` (object, Copilot's default shape);
   - `museSpark.tabMultiline` (`auto` | `onInvoke` | `never`);
   - `museSpark.tabTrigger` (`automatic` | `onInvoke`; the default is set by
@@ -24864,9 +24276,9 @@ the exact redacted prompt reservation before the engine receives it.
        total time, input, cached, output and reasoning tokens, the status, and
        whether the reply stayed inside the tags.
      - **What it sets** (from the medians and the 95th percentiles):
-       `TAB_DEBOUNCE_MS`, `TAB_FAST_MAX_OUTPUT_TOKENS` and
-       `TAB_MULTILINE_MAX_OUTPUT_TOKENS` (the p99 reasoning plus the mode's
-       completion allowance), and `TAB_REQUEST_TIMEOUT_MS`. It also replaces
+       `TAB_DEBOUNCE_MS` (pacing, not a limit). Output tokens are the provider's
+       maximum for the model unless the person sets lower ones, and there is
+       no request timeout of ours (owner 2026-10-17). It also replaces
        research §7's estimate with measured cost per request and the cache hit
        rate (U1–U3).
      - **The latency gate.** If the median time to the first text of a fast
@@ -24942,8 +24354,8 @@ the exact redacted prompt reservation before the engine receives it.
   8. **Typing through and partial accept.** After a suggestion, typing its
      first characters shows the rest with no request. After VS Code's Accept
      Word, the rest is served from the cache.
-  9. **Caps.** At most 2 open requests. The 21st trigger in a minute sends
-     nothing.
+  9. **Pacing.** Requests follow the provider's rate limits for the model
+     (its capability record and live headers); no count of ours.
   10. **The daily budget.**
       - A request whose worst case would pass the budget is not sent.
       - Two windows, two ledger writers on one folder, never pass it together.
@@ -25079,9 +24491,9 @@ the exact redacted prompt reservation before the engine receives it.
   - The setting is on by default; the first request asks the price before dispatch.
   - The D48 question comes once per window (Q-M94a).
   - The model choice says which tier trains on the code (Q-M94b).
-  - The hard daily budget is reserved before every request across windows
-    (Q-M94c).
-  - At most 2 requests are open, and at most 20 start per minute.
+  - The daily budget, when the person set one, is reserved before every
+    request across windows.
+  - Requests follow the provider's rate limits for the model; no count of ours.
   - A sent request is never aborted, so its usage is always counted.
   - The typing-through cache, and yielding to Copilot, avoid requests whose
     answer nobody would see.
@@ -25413,7 +24825,7 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   write resolve the same path. 12. `edit_file` falls back to a normalised unique match (NFKC, trailing
   whitespace, quotes, dashes, Unicode spaces) and copies untouched lines
   from the original; `find` equal to `replace` is refused. 13. `read_file` truncation names the next offset; an offset past the end is
-  an error. 14. One search hit is capped at about 500 characters with a note. 15. Shell output elided in the middle stays recoverable through
+  an error. 14. Search hits are returned whole; the model's context window (its capability record) is the only bound. 15. Shell output elided in the middle stays recoverable through
   `recall_output` when packing is on (or an owner-only temp file). 18. A single long line packs to about a 1k excerpt and packing is skipped
   when it saves under half; a non-string `then_run` reports "not run";
   `clip` and `clipOutput` never split a surrogate pair. 20. `edit_file` takes `edits[]`, all or nothing, overlaps refused (one tool
@@ -25763,7 +25175,7 @@ receipts remain the lead's checks under the rig brief.
   write resolve the same path. 12. `edit_file` falls back to a normalised unique match (NFKC, trailing
   whitespace, quotes, dashes, Unicode spaces) and copies untouched lines
   from the original; `find` equal to `replace` is refused. 13. `read_file` truncation names the next offset; an offset past the end is
-  an error. 14. One search hit is capped at about 500 characters with a note. 15. Shell output elided in the middle stays recoverable through
+  an error. 14. Search hits are returned whole; the model's context window (its capability record) is the only bound. 15. Shell output elided in the middle stays recoverable through
   `recall_output` when packing is on (or an owner-only temp file). 18. A single long line packs to about a 1k excerpt and packing is skipped
   when it saves under half; a non-string `then_run` reports "not run";
   `clip` and `clipOutput` never split a surrogate pair. 20. `edit_file` takes `edits[]`, all or nothing, overlaps refused (one tool
@@ -26861,9 +26273,12 @@ every Model API user in every editor.
   matrix), PRIVACY, SECURITY, CHANGELOG, `docs/acp.md`, `docs/ci.md`,
   `docs/ide-compatibility/**` rows, M104's registry rows, certification.
 - **Settings** (machine-scoped where they run or bill, D15):
-  - `museSpark.mediaUploadExpiryDays`: 7 (1–30);
-  - `museSpark.mediaMaxUploadMiB`: 200 (up to 1,024);
-  - `museSpark.screenRecordingMaxSeconds`: 120 (10–600);
+  - `museSpark.mediaUploadExpiryDays`: the provider's documented expiry for
+    the model's uploads (capability record), unless the person sets one;
+  - `museSpark.mediaMaxUploadMiB`: the provider's documented upload limit
+    for the model (capability record); the person may set a lower one;
+  - `museSpark.screenRecordingMaxSeconds`: set by the person, none by
+    default; the provider's documented video limit for the model applies;
   - `museSpark.mediaAudioAction`: `transcribe` (the default where the
     model's audio is degraded) or `sendAudio`.
 - **Commands.** **Attach file…** gains the media filter; **Attach screen
@@ -28112,7 +27527,7 @@ cumulative minute snapshots merge idempotently by their segment timestamp,
 including final tree accounting against the same cached machine sample.
 Reject non-finite or unrepresentable history timestamps and override deadlines
 before formatting, using one shared history date helper for page and text.
-Keep at most seven days/10,080 minute segments and 1,000 recent events, evicting
+Keep every minute segment and event unless the person sets a retention, evicting
 oldest first while preserving exact retained-input work/event totals. Page
 charts, bands and detail tables in batches of 60 entries. Add before-fix
 regressions and byte-exact red drills for every guard in J's certification.
@@ -28456,7 +27871,7 @@ Each joins when its dependency merges, and none blocks the others.
      - The defaults hold on a new install, with the governor on.
      - A workspace setting changes nothing (a red drill reads the workspace
        value, and the test fails).
-     - Each range is enforced. The memory floor caps at 15% of RAM.
+     - Each value the person sets is validated; none is set by default.
      - The runtime and headless read the same values, and their flags.
   2. **The sampler.**
      - Scripted readings give the expected CPU, memory and pressure figures.
@@ -33217,25 +32632,7 @@ Final evidence is recorded in `docs/certification/macslow.md`.
 
 **Status 2026-10-07: released.** Shipped in 0.16.0 (§10).
 
-Implementation evidence: Model API children previously could not write their own
-task list. Offer child-local `todo_write` (never forwarded to the parent list)
-as a structured unfinished-item declaration; absent a declaration, normal ends
-remain unverified. Parent conversation terminal behavior stays unchanged.
-Native ended-child Continue refuses until a capture proves preserved-session
-recovery; interrupted Resume remains the captured control.
-
-- [x] Record backend evidence and recovery limits before implementation.
-- [x] Portable structured outcome/activity mapping and bounded receipt evidence.
-- [x] Live Agent map, workflow and background task activity/outcomes; lazy receipts.
-- [x] Owner-confirmed Continue and Retry with honest unsupported refusals,
-      preserved original objective/session/edits and numbered attempt history.
-- [x] ACP /agents inspection, receipt and recovery parity for all editors.
-- [x] Fourteen translations, Help & Reference/feature catalog, README screenshots.
-- [x] Owning unit tests at default timeouts, intentional mapping failure with
-      byte-exact restoration, five typechecks, lint, prettier, plain knip,
-      duplication, localization/reference/host gates and unchanged production caps.
-- [x] Four-theme zero-violation harness scenes, CHANGELOG and certification record
-      in docs/certification/agent-outcomes.md with completed/blocked evidence.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### FIXAGENTOUT — Independent M119 review repairs (2026-10-07)
 
@@ -33910,6 +33307,28 @@ lane A's first step.
 
 ## 7. Gates
 
+**M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
+job 115017063279: "loads the real lazy menu independently of the secret
+modal focus owner" (`test/unit/m114Panel.test.mjs:241`) exceeded Vitest's
+5,000 ms default; the other 70 cases passed, with no step times logged.
+Probe `b45c7592b` passed 14/14 in 1.2–3.9 s on hosted macOS: the case's
+run time is close to its 5 s budget under load; which step overran in the
+failing run is not measured. Disposition: open; the case's fate belongs to
+`chore/test-overhaul`, in review, not merged. Detail:
+`docs/certification/release-0182.md`.
+
+**0.18.2 released-commit Hosts red (open).** Hosts 38329749606 on
+`898a26c5e`, job 115076562053, "VSCodium latest" (1.135.06055): "creates
+AGENTS.md in the workspace root and opens it (D15)" failed with "no matching
+tab appeared within 5000 ms; open: Untitled, Untitled, AGENTS.md"; the same
+case passed in PR-head Hosts 38311021363. Measured cause: a chat panel whose
+webview finishes loading focuses its composer and takes the active editor
+from a document opened in the meantime, a product defect since `fb1166ec6f`
+(`docs/certification/release-0182.md`, probe runs 38335980951, 38336295689,
+38336506352). Disposition: product fix is open work (panel focus fix,
+`fix/panel-focus-steal`, in review; not merged). Hosts 38340629307,
+workflow_dispatch on the same commit, ended cancelled.
+
 **TRAINACT scoped qualification.** The explicit rig/common brief reserves
 aggregate `npm run quality` for the lead and forbids it in this lane.
 Run production build and all unchanged caps/split checks; complete owning
@@ -34414,46 +33833,7 @@ in their original order. The records that remain in this section are later
 ones, records an open branch touches with their neighbours, and records of
 milestones that have nothing in a release yet.
 
-**FIX0160X scoped release repair (2026-10-07).** The shared lane brief
-prohibits aggregate quality and reserves it for the lead. This lane runs
-every named owning file at repository deadlines and all prescribed individual
-compiler/static/build/package checks. No threshold, deadline, assertion or
-package refusal is waived. Hosted cross-platform qualification remains with
-the joined release; receipts are in `docs/certification/fix0160x.md`.
-
-**DEP138 rig verification.** The lane's rig note limits each test invocation
-to three files. Certify every configured unit/process-e2e file in batches of
-at most three, with `CI=true`, V8 coverage and repository deadlines. Partial
-blob reports use the repository's existing shard handling; merge every report
-with the original global thresholds enabled. Run every other locally runnable
-quality gate separately in the same fresh `npm ci` clone. The monolithic
-`npm run quality` is deferred only because its test command exceeds the rig's
-explicit file cap; no gate, assertion, file, threshold or timeout is removed.
-The certification record must name every actual exit and any unavailable
-platform/hosted checks rather than claim an aggregate-command pass.
-Amended 2026-10-07 (lead): the rig's batched coverage run was not completed.
-Hosted CI on the pull request is the full gate for coverage and the
-accessibility harness (merged coverage on three OSes with the original
-thresholds and deadlines, accessibility on Ubuntu, static gates with lint at
-the unchanged 6144 MiB heap on three OSes; pull requests run the full tier
-while `CI_MERGE_QUEUE` is not `on`). None of the bumped packages takes part in
-the harness, and main's PR #139, merged into this branch, fixed harness
-readiness.
-The rig's failed first full accessibility run stays in the record.
-
-**MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared
-rules prohibit aggregate quality and delegate it to the lead. Run complete
-owned files directly, at default timeouts, three times after the explicitly
-authorized clean; run each requested compiler/static/build gate separately.
-The unit gate retains all 1,864 configured roots and strict options across five
-sequential programs, sharing ambient declarations and matcher setup. Measured
-peak RSS falls from 2,767,564,800 to 1,688,055,808 bytes (39%); no heap override,
-timeout, retry, skip or other gate changes. Initial compiler probes exposed
-ambient-type resolution and cross-file matcher/declaration scope; preserve
-both through repository-local temporary configs and the shared support roots.
-Final evidence is recorded in `docs/certification/macslow.md`.
-
-**INT0170B final Linux certification (2026-10-08).** Source `2617dc15988655edb43f289db90d8e3d99f1ff68` completes 80 serial command receipts, including every requested Linux workflow phase. Static, accessibility, SAST and both secret scans pass. Coverage thresholds pass at 92.38/87.43/93.39/93.21; 15 failed tests and two hook-failed files remain, 80 reported skips/unrun, and all six visual jobs fail missing reviewed component coverage. Both actual VS Code versions pass 39 cases and fail only command registration; schedule defaults now pass. The three usage cases and all 49 plan-reader cases pass in full coverage at unchanged deadlines. Required checks remain red. The independently executed ACP registry command, unreachable after the package shell's prior assertion failure, passes against the actual installed final package; it does not change the failed package job.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **FIXM112A (2026-10-06, RVM112A).** Repair all six ACP findings in lane A:
 Stop dispatches cancellation without waiting on question storage; late forms
@@ -34467,98 +33847,11 @@ drill in `docs/certification/m112-a.md`. The rig/shared rules delegate full
 quality and Q/U integration to the lead; this lane runs its focused suites
 and required static/build checks without merging, pushing or paid calls.
 
-**DIET1 bounded rig certification (2026-10-06).** The user-provided lane brief
-and shared rules prohibit aggregate quality and public network, merges and
-pushes. The local commit uses scoped typecheck, lint/format, Knip, duplication,
-localization, reference, host API, webview suites, production/split/size,
-accessibility matrix, real-browser fake-host smoke and VSIX packaging. Local
-packaging uses the existing named badge-network skip; CI rejects it. The lead
-must run integrated `npm run quality` and hosted checks before integration.
-See `docs/certification/diet1.md` for measurements and byte-exact red drills.
-The initial second accessibility scan reported zero violations/undecided rules
-across 628 pages but exited 1 when light/usage-install missed the unchanged
-10-second readiness deadline. FIXDIET1's final complete matrix supersedes that
-outstanding receipt: 628 pages (157 scenarios × four themes), exit 0, zero
-violations, zero undecided rules, zero exemptions and zero missing results.
-No timeout, exemption, worker policy or accessibility rule changed. The lead
-still owns integrated aggregate quality and actual host/release certification.
-**RVM116P lane certification (2026-10-06).** The rig brief prohibits full
-quality and all merges/pushes/rebases in P; the lead runs integrated quality.
-P runs default-timeout owning tests, typecheck, scoped lint/format, deadcode,
-duplication, localization, host API and production budgets. The generated host API
-inventory was refreshed for the new Node imports; editor bindings remain an
-integration handoff. REDM116P removes the
-shell-quote imports and the dependency-declaration handoff: the small advisory
-warning needs no shell interpreter. The help catalog and generated reference
-are checked by `check:reference`, included in `quality:gates`. Results are in `m116-p.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**REDM116P outcome redesign (2026-10-06).** The rig brief again prohibits
-aggregate quality, pushes and unlisted merges. The lane runs all owning tests
-at default timeout, scoped lint/format, all five typecheck projects, deadcode,
-duplication, localization, host API, the new help-reference check and production
-budgets directly on macmini. It removes the shell-quote dependency handoff,
-refreshes the generated Node import inventory, and records deliberate
-receipt/generation/merge and round-2 mutation failures with byte-exact restores
-in `docs/certification/m116-p.md`. Full joined-tree quality and trusted
-editor/planner bindings remain the lead/I/U/W integration work; no gate is
-weakened and no round-2 finding is accepted as a residual.
-**M116-U repair certification (RVM116U/RVM116U2).** The rig brief reserves the full
-quality run for the lead and requires scoped local checks with default test
-timeouts. U does not change the inherited failing bundle/knip registration
-gates: W must register the three lazy playbook entries and the two harness
-entrypoints before integration can go green. This is the existing named
-integration deferral, not a cap, ignore or rule change. Repair regressions,
-disk-mutated red drills and their byte-exact restores are recorded in
-`docs/certification/m116-u.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**FIXHELPREF4 bounded certification (2026-10-06).** The explicit rig brief
-prohibits aggregate quality and reserves release integration for the lead.
-Run all owning reference/budget tests, exact-restoration red drills and the
-existing scoped static/build checks directly on Kubuntu before the local
-hook-on commit. The original predicates, schemas and bundle caps remain gates;
-no threshold, ignore, rule level, timeout or dependency is relaxed.
-
-**FIXHELPREF bounded truth certification (2026-10-05).** Kubuntu runs the
-owning reference/ACP regressions, source and guard failure drills with exact
-SHA-256 restoration, five-project typecheck and the existing static/build
-gates. The lane brief forbids aggregate quality, merge, push and rebase;
-full integrated quality and the second truth audit remain with the lead.
-No threshold or size cap changes. Evidence: `docs/certification/help-reference.md`.
-
-**HELPREF bounded rig certification.** The explicit rig/shared rules prohibit
-aggregate `npm run quality`, merge, rebase and push in this lane. Hook-on local
-commits use scoped owning tests, deliberate red drills and available static/build
-checks. The lead retains the integrated quality/coverage/release gate. No gate
-or budget is weakened; the exact evidence is recorded in
-`docs/certification/help-reference.md`.
-**REDM106H bounded rig certification (2026-10-06).** The explicit rig brief
-prohibits aggregate quality, full-suite runs and branch integration here. Run
-touched/owned whole files with default timeouts, scoped lint/format, all five
-typechecks, deadcode, duplication, localization, host API, cycles and production
-build. The lead retains integrated quality and the multi-OS matrix. No gate is
-weakened. The v2 headless money contract remains private/unsupported pending
-M80’s hosted/live receipts; this lane uses fake transports only.
-**C-M106-1 bounded capture certification (2026-10-10).** The explicit rig
-brief forbids aggregate quality, full-suite runs and branch integration.
-Run whole owning files at repository timeouts, all five typechecks and the
-existing scoped lint, format, deadcode, duplication, localization, reference,
-host API, roadmap and production build gates. The lead retains integrated
-quality, Windows/Linux execution and live Meta/provider receipts because no
-key is supplied here. The CLI probes use ephemeral empty workspaces and no
-model turn; only the explicitly scoped synthetic note is uploaded, with
-both disclosures off. No guard, hook, timeout, cap or dependency is changed.
-Evidence: `docs/certification/m106-completion-captures.md`.
-**C-M106-2 R10 bounded dependent certification (2026-10-11).** The rig
-brief explicitly adds every dependent suite for the whole branch's source
-diff against 82d50d5e4, including all shared host/runtime and English-table
-consumers. Discover the full graph with Vitest's related selector, then run
-`npx vitest related --run` in complete three-file batches preserving the
-repository's configuration and deadlines. Keep Vitest's public runner open
-between batches if repeated cold setup threatens the time box; use the same
-related selector, three-file bound, ordinary project setup and deadlines. Aggregate quality, independent
-review and the multi-OS release matrix remain lead-owned. No gate or cap is
-weakened; record every outcome and compare any red with the clean base.
-Evidence: `docs/certification/m106-capability-binding.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **R10 time-box deferral (2026-10-11).** The whole-branch related graph has
 1,135 files. The owner's 75-minute rig limit permits 875 complete files here;
@@ -34607,265 +33900,13 @@ and live certification remain with the lead. No gate, timeout, hook, cap or
 paid-call fence is weakened. Final scoped gate results are recorded in
 `docs/certification/m106-r.md`.
 
-**FIXM105E3 gate scope (Kubuntu, 2026-10-07).** The rig brief/common rules
-forbid aggregate quality and full unit commands; run owning files in batches of
-at most three, followed by the five typecheck projects, lint, changed-file
-formatting, plain knip, duplication, unchanged-cap production build, reference
-and localization. Run final verification from a fresh clone of the committed
-repair with npm ci and CI=true. Hooks remain active; no external network except
-npm ci.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**M105 W final gate scope (linuxlt, 2026-10-07).** The rig brief overrides
-bounded lane test scope with all configured files in batches of at most three,
-repository timeouts and three workers. Shared rules still forbid the aggregate
-quality command and external network. Run requested static/build/test/browser
-gates separately and serially. Local VSIX/ACP packaging uses the badge gate's
-existing named network deferral, only in those commands (never in hooks):
-`BADGE_CHECK_SKIP_NETWORK='M105W lane forbids external network; badge fetch
-remains lead-owned' npm run package` (and `npm run package:acp`). Validate
-staged text/version/l10n/listing and size; do not claim HTTP badge verification.
-Fresh audit, Semgrep auto-registry, downloaded VS Code integration, native
-OS, universal macOS-artifact packaging and hosted coverage remain lead-owned.
-Browser gates are attempted unchanged, with exact failures recorded if this
-rig cannot launch Chrome. No cap, threshold, hook or test is weakened.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**M105-M1 second follow-up gate scope (RVM105M12, 2026-10-06).** The
-same rig override applies to these two P2 corrections: direct focused suites
-at default timeouts, no full quality/full unit run or branch merge. The eight
-resource/structure red drills restore source byte-exact. W's existing host
-record, browser-size and split-classification failures remain enforced and
-are reported in the lane certification; the lead owns the integrated gates.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**M105-E1 bounded-lane gate scope (2026-10-06).** The rig brief forbids a
-full quality/full unit run and reserves manifest, generated reference/host
-records and bundle registration for W. Run owning files at the repository's
-default timeout, scoped lint/format, typecheck, dead-code, duplication,
-localization and production build directly on linuxlt. Keep inherited size
-and split gates enforced. Hook-on commits remain unmerged lane work; full
-quality is required on the integrated tree. Record receipts and handoffs in
-`docs/certification/m105-e1-vs-code-(a).md`. E1 also leaves a measured
-59-byte browser-startup excess (900.1/900 KiB) for W's lazy build integration
-after two failed local reductions, and the new preview's generated host-API
-inventory update. These are failures, not gate exemptions; the integrated
-quality gate must pass before proposing a product commit.
-
-**M105-E2 gate scope (2026-10-06).** The rig brief forbids aggregate quality
-and full-unit runs, merges and browser runs on this Chrome-free MacBook.
-E2 runs complete focused files with the repository default timeout, plus
-typecheck, scoped lint/format, localization, deadcode, duplication, host API
-and production build checks. W retains the enforced inherited bundle/split
-and generated importer-record failures and the full integrated gate. No cap,
-ignore, timeout or rule is weakened. Receipts and required bindings are in
-[E2 certification](<docs/certification/m105-e2-acp,-headless-and-`read_file`-(a).md>).
-The broader IO batch on Node 26 additionally exposed the unchanged reservation
-handle left open by the existing retargeted-fill test. Lead/IO-write owner
-must close that path and rerun the complete file; E2 does not edit reservation
-regions outside its media-read ownership. Production compilation succeeds:
-ACP 844.8/850 KiB, Model API 454.9/475 KiB; deferred browser stays 51.1/50 KiB.
-
-**M105-E3 gate scope (2026-10-06).** The rig brief forbids full quality
-and full unit runs, and reserves integration for the lead. Run focused tests
-with repository-default timeouts and all named lane checks directly on linuxlt.
-Keep inherited W-owned bundle/split/host-record failures enforced; add no cap,
-ignore or weakened rule. New lazy browser/runtime entries await W binding.
-Scoped E3 and existing regressions pass (113 + 143 tests); 63 guards have
-named red failures and byte-exact restoration. Production compilation passes,
-but the deferred-browser gate remains 51.1/50 KiB, `files.ts` and
-`codecs/responses.ts` still lack split classifications, and the generated host
-importer/style inventory is stale. E3's standalone split media graph measures
-194.5 KiB including shared dependencies; W must bind its own companion-page
-budget and include R3, without raising a cap. Full quality and installed-editor,
-Windows private-ACL and real browser-capture receipts remain lead handoffs.
-Receipts and doc/reference handoffs:
-`docs/certification/m105-e3-companion,-native-plugins,-muse-code-(a,-d).md`.
-
-**M105-M2 follow-up gate scope (RVM105M2, 2026-10-06).** The rig brief
-reserves full quality/full-unit and integrated cross-platform certification
-for the lead. Scoped regression files, typecheck, lint/format, dead-code,
-duplication, cycles, localization and production compilation run directly on
-Kubuntu. The enforced W handoffs remain red: deferred browser JS 51.1/50 KiB;
-`files.ts` and `codecs/responses.ts` missing from the backend split lists; and
-the generated host importer inventory (buffer 39→45, crypto 46→49, plus the
-inherited child_process/fs/fs-promises/os/path drift). W must repair them
-before integration. No cap, ignore, timeout or rule is weakened. The Model
-API bundle is 453.9/475 KiB. All three review findings are fixed; §9 records
-the named integration handoffs and why the unbound ports remain safe.
-Receipts: `docs/certification/m105-m2-wire,-gate-and-replay-(a).md`.
-
-**M105-M1 follow-up gate scope (RVM105M1, 2026-10-06).** The rig brief
-requires direct focused suites and forbids full quality/full unit runs and
-merging another branch. Full quality and cross-platform gates remain the
-lead's integrated-tree responsibility. Keep the existing W-owned host-record,
-deferred-browser-size and `files.ts` split blockers enforced; this lane fixes
-the three media-core findings with regressions and red drills, without
-changing a gate or cap. Results and exact commands are in
-`docs/certification/m105-m1-media-core-(a).md`.
-
-**M105-F gate deferral (RVM105F corrections, 2026-10-05).** The lane brief
-reserves full quality and integration for the lead. Required local checks are
-recorded in `docs/certification/m105-f.md`; the unchanged lane W blockers
-remain red: deferred browser JS 51.1/50 KiB, Files backend classification in
-the bundle-split check, and the generated Node crypto importer count 46 → 48.
-No gate, ignore or budget is changed. W must close these before integration;
-§9 records the named residuals and why this unmerged lane remains safe.
-
-**FIXM105C rig lane (2026-10-06).** The fix brief/common rules reserve the
-full quality/coverage/accessibility run for the lead; this lane runs all
-five typecheck projects, changed-file lint/format checks, owned whole-file
-tests at default timeouts, localization/host-API/deadcode/duplication and a
-production build. The pre-existing W-owned deferred-webview size and
-unlisted lazy chip split failures remain explicit integration deferrals;
-no cap, check, ignore or timeout is weakened. Exact money also introduces
-the shared USD helper used by M106H/M108T. The final production build reports
-903.1/900 KiB browser startup and 50.6/50 KiB deferred JS; the helper adds
-about 3.8 KiB to startup on this pre-diet base. W's existing diet and lazy
-surface registration are required before release. Final sizes, gate results and red
-drills are in `docs/certification/m105-c-cost-(b).md`.
-
-**FIXM105R1 gate ownership (2026-10-06).** The rig brief/common rules
-reserve full `npm run quality`, coverage and integration/package certification
-for the integrating lead and prohibit running that aggregate in this lane.
-R1 runs the five typecheck projects, changed-file lint/format, its entire
-owned unit file at the repository timeout, native permission-free suites,
-localization, deadcode, duplication, host API and the production build.
-The pre-existing generated host API record drift from R1's four Node imports
-remains W-owned; refresh it at integration, without weakening the gate.
-See `docs/certification/m105-r1-macos-recorder-(c).md` for exact receipts.
-
-**M105 R2 review-fix gate delegation (2026-10-06).** The lane brief and
-shared common rules prohibit aggregate `npm run quality` on this shared rig.
-Run the complete owned test files at the repository timeout, changed-file
-lint/format, typecheck, localization, deadcode, duplication, host API and
-production build directly on Win11. The lead owes full quality/coverage and
-the hosted matrix before integration; no gate or cap is weakened.
-The unchanged W-owned host API record still fails its previously recorded
-`node:path` importer count (84 → 85); portable-boundary checks pass. W must
-regenerate/review that record with the integrated recorder factory.
-
-**FIXM105R3 bounded repair certification (2026-10-06).** The rig brief and
-shared lane rules prohibit aggregate `npm run quality` and the full test
-suite. The repair runs all four owned test files with the default timeout,
-the 11 byte-exact restored red drills, all-project typecheck, changed-file
-lint/format, dead-code, duplication, localization and production build here.
-The lead retains integrated full quality/coverage/native/editor gates.
-No gate, threshold, test filter, timeout or hook is changed.
-
-**FIXM105R3B final repair certification (2026-10-06).** The same bounded
-gate scope applies. The remaining encoder-exit P2 has regressions for
-spontaneous, Stop and duration-limit exits, including failed automatic Stop,
-and two byte-exact restored red drills. Existing genuine cancellation
-assertions now check the exact reason. The existing failure message is used
-at runtime and retains its translations in all 14 tables. No review finding
-is deferred; the two named integration/gate residuals below remain.
-
-**M105-R3-host-api-count deferral.** `npm run check:host-api` exits 1 on
-the same pre-existing generated count as the original R3 receipt:
-`node:path` importers 84 → 85. The repair adds no imports or host API calls.
-W owns `docs/ide-compatibility/host-api.md`, outside the repair's scope, and
-must regenerate/review that row on the integrated source. The check is not
-weakened or claimed green; see §9 and the R3 certification.
-
-**FIXM106S scoped review certification (2026-10-06).** The rig repair
-brief requires all three RVM106S P2 findings fixed, no residuals, default
-test timeouts, and three-file/three-worker batches. The shared rules
-explicitly prohibit aggregate `npm run quality`; the lead retains that
-integrated gate. Local scoped regressions, byte-exact red drills, static
-checks and a production build precede hook-on commits. No timeout,
-threshold, rule, ignore, cap or hook is changed. Evidence is recorded in
-`docs/certification/m106-s.md`.
-
-**CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
-tarball passes the unchanged strict English fallback check and 382 distinct
-scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
-deadcode, duplication, host API and production build gates pass. Shared rules
-prohibit aggregate `npm run quality` and replacing the existing dependency tree;
-fresh tarball installs use an offline scratch prefix. Kubuntu runs Node 24.18.0,
-not CI's requested Node 22, and lacks CI's downloaded compiled macOS helper.
-The exact universal VSIX listing therefore fails only that helper entry; hosted
-artifact operations and full integrated quality remain with the lead. No check
-is weakened. Receipts and deliberate failures are in
-`docs/certification/cifix14-acp-usage.md`.
-
-**M106T-MODELAPI-BUDGET (2026-10-05, Kubuntu; lane W binding).** The
-required merge baseline `33ef31aa2`, before T's changes, builds
-`dist/modelApi.js` at 486,485 bytes, 85 bytes above the unchanged 475 KiB
-(486,400-byte) cap. T's final bundle is 486,935 bytes: 450 bytes added and 535 bytes over the
-cap. The failing gate is recorded in `docs/certification/m106-t.md`.
-Baseline comparison restored all four owned source files byte-exact. No
-threshold is raised and no full build/quality pass is claimed. W owns the
-bundle layout and must reduce/split it before integration is certified.
-The base also lacks the feature catalog/reference generator and the
-`check:reference` script; **M106T-HELP-REFERENCE** records the integration
-entry instead of claiming a nonexistent gate passed.
-
-**FIXM108U bounded-lane certification (2026-10-06).** The explicit rig brief
-and shared rules prohibit aggregate quality/full unit runs, merges and
-network calls. Run complete owning files with repository timeouts and at
-most three workers/files, scoped static/build checks and hook-on commits.
-The lead retains integrated quality, coverage and installed editor/live
-certification. No gate is weakened; receipts are in
-`docs/certification/m108-u-panel-and-vs-code.md`.
-The FIXM108U2 continuation's final scoped tests pass 690/690 (U 256, K 434),
-including 32 browser axe scenes; direct static, localization and production
-build gates pass. `check:host-api` still requires
-W's generated record update: `node:crypto` imports 46 → 48 and Accounts CSS
-in the theme-source list. The API/theme totals are unchanged. Keep that
-named integration handoff rather than editing W's owned file in this lane.
-
-**FIXM108H bounded-lane certification (2026-10-06).** The explicit rig
-brief and shared lane rules prohibit the full quality run and merges here;
-W/the lead runs the full gate before integration. H runs the named complete
-owned test files with repository-default timeouts, typecheck, changed-file
-lint/format, deadcode, duplication, l10n, host-API and build checks directly
-on Kubuntu. Per-finding regressions and deliberate mutations are recorded in
-`docs/certification/m108-h-runtime,-acp,-headless,-companion.md`.
-
-**M108-X bounded-lane certification.** The rig brief prohibits aggregate
-quality/full-unit runs, merges and network calls. Complete owning test files
-run directly on Kubuntu with repository timeouts and at most three files and
-workers. Scoped static/build checks and normal hooks certify local commits;
-W retains full integrated quality, coverage, installed editor and packaging
-checks. No threshold or gate is weakened.
-
-**FIXM108P / FIXM108P2 bounded-lane certification (2026-10-06).** The rig brief and
-shared rules prohibit aggregate quality/full unit runs, merges and network
-calls. Run complete owning test files with repository timeouts and at most
-three workers/files, scoped static/build checks and hook-on local commits.
-The lead retains integrated quality, coverage and installed editor/live gates;
-no gate is weakened. Receipts: `docs/certification/m108-p-pool-and-policy.md`.
-Existing `P-W-HOST-API-RECORD` deferral: the generated Node crypto import
-count is 46 rather than 47, from P's earlier confirmation digest; W owns
-regenerating that record and rerunning the host API gate during integration.
-FIXM108P2 adds no host API and leaves this generated file with its owner.
-
-**FIXM108T bounded-lane certification (2026-10-06).** The rig brief and
-shared rules prohibit full quality/full unit runs, merges and network calls.
-Run complete owning test files with the default timeout, at most three files
-and workers per run, plus scoped static/build gates and hook-on commits.
-The lead retains integrated quality, coverage and editor/live certification.
-No gate is weakened; receipts are in `docs/certification/m108-t-thresholds.md`.
-
-**FIXM108K bounded-lane certification.** The explicit rig brief and shared
-rules prohibit aggregate quality/full test runs, merges and network calls.
-Hook-on local commits use complete owning test files, mutation/restoration
-drills and scoped static/build checks. The lead retains integrated quality,
-coverage and editor/live certification; no gate is weakened.
-**FIXM109C2 review repair (2026-10-06, Mac mini).** The remaining RVM109C2
-P2 is fixed: exact-anchor backups repair damaged/unreadable destination
-documents without authenticating them, retaining owner-only diagnostic
-ciphertext before atomic replacement. Backup authentication, complete-state
-history admission, destination identity and single-advance pending recovery
-remain enforced. All five owned suites pass 71 tests, including the existing
-RFC/NIST KATs; focused coverage meets unchanged thresholds. Eight distinct
-red mutations fail their named regressions and restore the source byte-exact.
-All 79 prior drill receipts remain, with eight appended in the C record.
-Test-only fixture consolidation fixes two new duplication-gate findings;
-the zero-clone threshold stays unchanged. Records: `docs/certification/m109-c.md`
-and `m109-c-drills.json`. Aggregate quality stays lead-owned under the rig
-brief; the existing W-owned generated host-API count deferral is unchanged
-(crypto 46 → 50, fs 33 → 34, fs/promises 47 → 48, path 84 → 85). The mandatory
-native quarantine/diagnostic integration binding is named in §9. No review
-finding, gate threshold or file-security guard is deferred or weakened.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **FIXM109C review repair (2026-10-05, Mac mini).** All five RVM109C findings
 are fixed: exact committed-state/hash-chain anchoring, explicitly confirmed
@@ -35056,47 +34097,7 @@ that file; lane 0 leaves it untouched and records the regeneration command
 in its certification. The full M109 checklist remains open until those
 lanes and captures pass.
 
-**CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
-tarball passes the unchanged strict English fallback check and 382 distinct
-scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
-deadcode, duplication, host API and production build gates pass. Shared rules
-prohibit aggregate `npm run quality` and replacing the existing dependency tree;
-fresh tarball installs use an offline scratch prefix. Kubuntu runs Node 24.18.0,
-not CI's requested Node 22, and lacks CI's downloaded compiled macOS helper.
-The exact universal VSIX listing therefore fails only that helper entry; hosted
-artifact operations and full integrated quality remain with the lead. No check
-is weakened. Receipts and deliberate failures are in
-`docs/certification/cifix14-acp-usage.md`.
-
-**CIFIX14W2 short-path certification (2026-10-05).** The explicit rig brief
-requires complete directory-tracking and shell files with default CLI timeouts,
-three workers and a real 8.3 fixture. Shared lane rules prohibit aggregate
-`npm run quality`; focused regressions, static checks and the production build
-run locally with hooks on. The lead retains the integrated full quality gate.
-No threshold, timeout, retry, skip policy or gate is changed; evidence is in
-`docs/certification/cifix14-shortpath.md`.
-
-**FIXVSIX2 scoped certification (2026-10-05).** RVMVSIX2 P1 and P2 are
-fixed. All 78 owning unit tests and 49 native packaged-module tests pass,
-with declared-export, private-reader and absent-dist red drills restored
-byte-exact. Typecheck, scoped lint/format, Knip, duplication, localization,
-host API, cycles, production caps and both package commands exit 0.
-Universal VSIX is 2,033,170 bytes, with 219,630 bytes headroom; activation
-is byte-identical. The rig brief reserves aggregate quality/coverage and
-installed-editor/platform certification for the lead. No gate is weakened.
-Receipts: `docs/certification/vsix-diet-2.md`.
-
-**TRAIN14B Judge activation fixture stop (2026-10-05).** Full quality is
-explicitly authorized by this rig brief. Its aggregate unit run exposes a
-legacy Judge activation fixture that omits D78’s default callback. The field
-extraction fix resolves the undefined-variable error; a backend-availability
-fixture fix still leaves three subscription-default assertions failing.
-Common.md requires stopping after two different fixes to the same test, so
-this path is paused pending the requested explicit override for one targeted
-`isDefaultOn` fixture correction. No gate, test, timeout or paid policy is
-weakened. Until the unchanged full gate exits zero, this train is not ready
-for merge/release; all other authorized checks continue and their exact
-receipts are in `docs/certification/train-0.14.0.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 Round-two cause fixes use a fixed Z.ai key pattern and localized plain-text
 OAuth callbacks instead of dynamic regex compilation/manual HTML escaping.
@@ -35452,34 +34453,7 @@ which also rechecks Together's leaked `final` word.
       failure is not supplied and has not reproduced in 200 original-file runs.
       Evidence: `docs/certification/deflake3.md`.
 
-**DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
-complete Windows unit inventory in batches of at most three files and
-300 consecutive checkpoint-copy file passes. It explicitly requires full
-`npm run quality` only for a product change; this lane changes tests and
-documentation only. Shared static/build checks still apply. Aggregate
-coverage/full quality and hosted confirmation remain the lead's gates; no
-rule, timeout or coverage threshold is weakened. The exact original hosted
-failure is not supplied and has not reproduced in 200 original-file runs.
-Evidence: `docs/certification/deflake3.md`.
-
-**DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
-and the required static/build gates passed; two deliberate regressions
-failed and were restored byte-exact. The rig brief prohibits integration
-merges/pushes, and `common.md` forbids aggregate quality/full-unit runs in
-this shared lane. Full quality, aggregate coverage, accessibility and the
-hosted Windows recheck remain the lead's gates. No gate or deadline was
-weakened. Evidence: `docs/certification/mcp-job-flake.md`.
-**M94W size boundary (2026-10-05).** The Windows production build passes
-activation at 578.0/600 KiB and Tab at 62.4/75 KiB. W adds 3,378 bytes
-(3.299 KiB) against the integrated pre-W source control, within the brief's
-added-startup allowance. The whole Tab shim is 7.393 KiB, inherited from a
-4.431 KiB H shim: D73's stricter whole-shim 4 KiB target and acceptance 19
-are not certified. Reducing the whole shim needs the existing service/provider
-orchestration moved into the lazy entry while preserving loader retry,
-cleanup and startup status; that broader follow-up is deferred to the lead
-under W's bounded scope. The hard 600 KiB cap and every existing gate remain
-unchanged. The exact control and bundle measurements are in
-`docs/certification/m94.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Golden requests**: one per codec per scenario (first turn, tool loop
   with reasoning, image, packed output, compaction), checked-in bytes;
@@ -35713,23 +34687,7 @@ second wrapper, network install, global write or analyzer-pin change is
 attempted. Exact final gate receipts belong in docs/certification/m95-r3.md. No
 assertion, coverage threshold, ignore, deadline or rule is relaxed.
 
-**DEFLAKE5 unit/coverage acceptance (2026-10-05, kubuntu).** On committed
-code `8d31e73a`, three consecutive complete three-worker V8 runs return 0:
-404 files and 8,093 tests pass each, with four files / 57 existing skips.
-A complete ten-worker run plus four owned CPU-load processes also returns
-0 on that exact code. Every coverage threshold passes: 93.75% statements,
-89.01% branches, 94.70% functions and 93.89% lines in all four final runs.
-Typecheck (five projects), full lint, format, plain knip and duplication
-return 0. The scoped rig brief authorizes this unit-only acceptance instead
-of a whole quality wrapper. It closes the unit/coverage deferral below;
-the historical failed wrapper and unrelated release/helper prerequisites
-remain recorded. Two actual causes are fixed: shared build artifacts and
-repeated expensive checks of identical restored bytes. Red drills reproduce
-all five historical files' defects and the new shared-metafile regression,
-with byte-exact restoration. See `docs/certification/deflake5.md` for commands,
-errors, hashes, worker/load settings and all successful and failed receipts.
-
-Never drill against a user's repository.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Phase 2 sections.** Planned, not dropped. Each starts after its
   dependency and the evidence it names.
@@ -35811,99 +34769,9 @@ Never drill against a user's repository.
 
 ### QPIN lane verification (2026-10-07)
 
-The rig brief scopes this repair to fresh-clone owning suites three times at
-default deadlines, five typechecks, lint, formatting, plain knip, duplication,
-unchanged build caps, reference and localization, plus question screenshots
-and four-theme accessibility. All passed; receipts are in
-`docs/certification/question-pinned.md`. Full `npm run quality`, unrelated
-repository coverage and native/installed-editor/live certification remain
-with release integration. This is a scoped run, not a gate relaxation: no
-rule, ignore, threshold, budget or deadline changed.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**CI0150M round 3 aggregate status (2026-10-07).** The attempted unmodified
-`npm run quality` passes static gates, then fails whole-repository tests in
-unowned clean-artifact/localization suites and load-sensitive cases. The common
-OS brief assigns cross-platform failures to the Linux lane. Certify this lane
-with every exact macOS workflow command in fresh committed clones; record all
-remaining failures rather than weaken gates or edit another lane's suites.
-Aggregate release quality remains deferred to joined integration. Standalone
-secret scanning passes; the inherited SAST wrapper supplies duplicate `--jobs`
-options and is a shared failure, also deferred without changing its invocation.
-See this lane's round 3 section in `docs/certification/train-0.15.0.md`.
-
-**CI0150W round 3 certification.** Whole-shard and whole-job reproductions
-are explicitly required by `CI0150-os-common.md`; they run with unchanged
-default deadlines in fresh clones of local hooked commits. Targeted runs
-retain the three-file cap. Early scoped commits can precede aggregate
-`npm run quality` while the cross-platform failures assigned to the Linux
-lane remain; every failure and final Windows job result is recorded without
-weakening gates, assertions or deadlines. A complete quality claim requires
-the actual aggregate to exit zero.
-
-The final implementation run at `2548f459` passes the static CI job and all
-scoped test files in four complete shards. Aggregate quality stays deferred:
-clean/package fixtures remain red, integration has an external release-lookup
-timeout, and dedicated browser/credential-store checks have the exact residuals
-listed in §3 and the train record. Original coverage thresholds are exceeded;
-the merge command still fails because it replays failed package suite setup.
-No gate, refusal, assertion, timeout, retry or skip is weakened to claim green.
-
-**CI0150L rolling verification.** The round-3 rig brief explicitly requires
-committing finished pieces after owning tests pass, then verifying committed
-work in fresh clones. Full quality and Linux CI jobs remain pending until that
-fresh-clone run and are not claimed green by an intermediate commit. Record
-any external hosted dependency that cannot run on this rig in the Linux round-3
-certification section; no threshold, ignore, timeout or assertion changes.
-
-**FIX0150R scoped certification.** The rig brief requires complete owning test
-files in batches of at most three, with three clean `CI=true` repetitions and
-individual static/build gates. Shared lane rules reserve aggregate
-`npm run quality` for the lead; its whole-repository coverage invocation exceeds
-this lane's test-file limit. Defer that aggregate to release integration without
-changing any threshold or gate. Receipts are in `docs/certification/fix0150r.md`.
-
-**FIX0150P scoped release-review verification (2026-10-07, linuxlt).**
-The rig/common briefs prohibit a full quality run in this lane. Full quality
-and cross-platform release certification remain with the lead; this lane
-runs the prescribed complete owning suites and scoped static/build gates
-without weakening thresholds, timeouts, isolation or hooks. Detailed red/base
-and restored-green receipts belong in `docs/certification/fix0150p.md`.
-
-**CI0150A scoped certification.** CI0150-common.md requires three clean
-repetitions of complete owning files and individual static gates; the rig note
-caps each test run at three files. Aggregate `npm run quality` includes an
-unbounded whole-repository test/coverage run, so it is deferred to integration
-under this scoped repair. Hosted OS/release checks also include CI0150B/C work
-and are not certified here. This justified deferral changes no gate or threshold.
-
-**TRAIN15B raw-cap deferral (2026-10-05).** The resumed integration recovers
-the VSIX, with universal 2,213,704 and helperless 2,132,213 bytes, both under
-the unchanged 2,252,800 cap. The shared graph's original deferred cohort starts
-at 51,452 bytes; the first usage reduction still prints 50.1 KiB over 50 KiB,
-and the second leaves an exact 51,226 bytes (26 over). common.md requires
-stopping a path after two failed fixes, and the integration brief requires
-all caps to hold. Record the candidate with hooks and defer `m96/int3d`,
-`m96/ifix-win4` and `m97/sr`; no further raw-cap optimization or merge is tried.
-The source build completes and all other caps pass, but `npm run package`
-exits 1 before its packager. Running the actual packager separately measures
-exact archives and exercises strict staging, badges and native exports; that
-successful measurement does not certify the failing package command. All
-scoped checks and eight restored red drills are recorded in the train receipt.
-No full quality, cap increase, ignore, skip, feature removal or dependency change.
-This supersedes the first run's VSIX blocker below, preserving its history.
-
-**TRAIN15A budget stop (2026-10-05).** The integration brief explicitly
-forbids full quality and requires stopping after M101 if its unchanged universal
-VSIX cap cannot be met without a product decision. The first M101 candidate is
-2,368,627 bytes, 115,827 over. An existing-ESM shared-entry experiment preserves
-startup and model-text readership but leaves the original deferred cohort over
-its hard cap after two bounded fixes (57 bytes, then 10); common.md requires
-stopping that path. Restore the separate Models graph and retain every shipped
-feature and cap. Finish scoped checks, record the fresh artifact and exact largest
-twenty base deltas in `docs/certification/train-0.15.0.md`, commit the blocked
-integration locally with hooks, and do not merge steps 3–5. This is a justified
-review-candidate deferral under rule 2, never a green release claim. The lead
-owns a further size-recovery decision and the later continuation/full gate.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 ### M95 K repair residuals (2026-10-05)
 
@@ -36172,45 +35040,11 @@ owns a further size-recovery decision and the later continuation/full gate.
 **M95INT round-one whole-chain receipt — historical 120-minute rig brief.**
 The browser and SAST failures below are historical and repaired in round two.
 
-**CIFIX14T verified local result (2026-10-05).** The five owning suites
-pass 113 tests (six existing Windows-only skips); the exact restored monitor
-file passes 30/30 loaded runs, 210 tests. Removing the wait fails 3/3 loaded
-drills; all seven drills restore SHA-256-exact source. All five compiler
-projects, final unit compile, scoped ESLint/Prettier, plain knip, duplication,
-localization, host API and production build pass. Extension 437.4 / 600 KiB,
-Model API 446.6 / 475 KiB, ACP 817.5 / 850 KiB; every budget is unchanged.
-Native Mac proof and complete receipts are in `docs/certification/cifix14-monitor.md`.
-Hosted Node 22 and native Linux/Windows certification remain with the lead.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**CIFIX14T bounded-lane gate delegation (2026-10-05).** The requested Mac
-mini reproduction and red drills run directly here with hooks enabled.
-`common.md` prohibits aggregate quality/full unit runs; collect the owned
-shell tests and required static/build checks, leaving full quality, merged
-coverage and hosted cross-platform certification to the lead. No gate is
-weakened and no integrated-green claim is made by this lane.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**M101INT aggregate receipt (2026-10-06).** The brief authorizes exactly one
-`VITEST_MAX_WORKERS=3 npm run quality`. It exits 1 at unit tests: 541 passing
-files, 9 failing, 7 pre-existing opt-in skipped; 12,014 passing tests, 32 failing,
-72 skipped. Formatting, lint, all five compiler projects, l10n, host API,
-deadcode, cycles and duplication pass before that failure. Repairs are verified
-by whole owning files and remaining gates separately. This records a justified
-local review-commit deferral under rule 2, not an aggregate pass or release
-certification; the lead must rerun full quality/coverage on the final integrated
-tree. No rule, threshold, test filter or timeout is relaxed.
-
-**FIXM96B (2026-10-05, macmini).** RVM96A findings 9–11 and 23–26 are
-fixed with full-file regression runs and byte-exact red drills. All five
-TypeScript projects, focused lint/format, localization (0 problems), knip,
-duplication (0 clones), dpdm and the production build pass; 96 relevant
-tests pass. The host API record gate fails identically on the starting
-`006edd40` source and the fixed source: its recorded Node import counts
-omit lane B's existing bridge/loopback imports. Justified scope deferral
-`M96B-HOST-API-RECORD` (§9): the lead regenerates the shared record after
-parallel integration. Full quality remains the lead's gate under the
-explicit lane prohibition. No gate, ignore, threshold or deadline changes.
-See `docs/certification/m96-b.md` for exact evidence and the late-answer
-liveness residual.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **Resolved in integration (lane W, 2026-10-04, accepted by the lead).** The import bundle's cap is 175 KiB under the D6 rule (147.7 KiB measured, plus 15%, rounded up to 25 KiB); see the D6 table.
 **KNIPC bounded lane (2026-10-05).** The rig brief and shared rules prohibit
@@ -36237,42 +35071,7 @@ lane does not run it or weaken any gate. The generic delivery validator's
 ledger-format check remains deferred for this established plan format.
 Current receipts: `docs/certification/star-line.md`.
 
-**TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
-failures and running the complete quality gate directly on Kubuntu within
-120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
-The earlier TRAIN13 budget stop is historical; current receipts go in the
-same train certification record.
-
-**TRAIN13 release train (2026-10-04, Kubuntu).** Merge the six reviewed
-branches in the owner's order with two-parent commits, preserving all PR
-heads. Resolve only integration breakage; retain D78, D79 and D71 with all
-existing decisions and milestones. Consolidate Unreleased into one Highlights
-list of at most five bullets and the Added/Changed/Fixed/Security sections;
-released sections remain byte-identical to `main-sync`. Regenerate notices,
-the host API inventory and exec schemas. Verify the shared M92 detection table
-still feeds #116's host-to-webview diagnostics and confidential admission,
-then run full `npm run quality` once and the unchanged 2200 KiB VSIX gate.
-A size-budget failure stops this lane and is reported without changing a cap.
-The first combined gate exposed the missing M99 palette tip and stale eager-recall/request-order assertions after D78. Add the tip in every language; bind the concurrency test to parent/child identity and assert recall is absent until packing. Match the monitor probe to the existing MCP Linux zombie check and retain proof that it recognizes a live process. The corrected full run passes static gates and 7,758 tests, but two unchanged checkpoint tests fail under the shared `/tmp` quota (`EDQUOT`); coverage and downstream gates are unverified. The separate build gate fails on webview main (928,507 bytes against 921,600); a private Linux VSIX measurement also fails (2,330,538 against 2,252,800 bytes), without the universal macOS helper. Stop implementation at those budget failures as the brief requires. No cap, timeout, test skip or gate is changed. Quota recovery, full certification and package reduction remain deferred to the lead. Hooks stay on; no push, rebase, live model or paid call. Current evidence and any outstanding gate are in `docs/certification/train-0.13.0.md`.
-
-**MG87c merge (2026-10-04): main's activation diet into M81.** The browser
-check's model text sits by reader under D6's 2026-10-03 rule: `MODEL_TEXT`
-for what activation reads, `MODEL_API_MODEL_TEXT` for the three words only
-the Model API backend says; the refusal table reads them by name. Activation
-is 572.6 of 600 KiB. The shipped-bundle text test allows words a bundle's own
-blocks share with `MODEL_TEXT`, with four red drills. See
-`docs/certification/mg87c.md`.
-
-**MG87b merge (2026-10-04), source proof and explicit deferrals.** Merge `origin/main`
-into M81 while retaining all main bundles, budgets, translations and
-permission behavior. Browser results join M78's live policy fence; best-of-N
-attempts receive no window browser check. The lane runs targeted static
-gates and Kubuntu tests, with hooks on and no origin push; full quality
-remains the lead's gate. Kubuntu passes 7,105 tests; final integration and
-fixture runs pass 672 and 19 tests. Activation is 610.2 KiB against 600: the
-brief assigns its correction to the activation-diet lane. Focused accessibility
-has two missing Chrome results, so no complete browser pass is claimed.
-See `docs/certification/mg87b.md` for resolutions, drills and gate evidence.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **M100 planning lane (2026-10-04).** The rig brief restricts changes to
 PLAN and `docs/certification/m100-research.md`, forbids full quality/unit
@@ -36312,34 +35111,7 @@ renumbering nothing. Only changed-document formatting/Markdown checks and
 normal commit hooks run here; full quality remains the lead's joined-tree
 gate. The research record separates these receipts from runtime certification.
 
-**DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
-complete Windows unit inventory in batches of at most three files and
-300 consecutive checkpoint-copy file passes. It explicitly requires full
-`npm run quality` only for a product change; this lane changes tests and
-documentation only. Shared static/build checks still apply. Aggregate
-coverage/full quality and hosted confirmation remain the lead's gates; no
-rule, timeout or coverage threshold is weakened. The exact original hosted
-failure is not supplied and has not reproduced in 200 original-file runs.
-Evidence: `docs/certification/deflake3.md`.
-
-**DEFLAKE2 bounded-lane result (2026-10-04).** Direct Win11 owning tests
-and the required static/build gates passed; two deliberate regressions
-failed and were restored byte-exact. The rig brief prohibits integration
-merges/pushes, and `common.md` forbids aggregate quality/full-unit runs in
-this shared lane. Full quality, aggregate coverage, accessibility and the
-hosted Windows recheck remain the lead's gates. No gate or deadline was
-weakened. Evidence: `docs/certification/mcp-job-flake.md`.
-**M94W size boundary (2026-10-05).** The Windows production build passes
-activation at 578.0/600 KiB and Tab at 62.4/75 KiB. W adds 3,378 bytes
-(3.299 KiB) against the integrated pre-W source control, within the brief's
-added-startup allowance. The whole Tab shim is 7.393 KiB, inherited from a
-4.431 KiB H shim: D73's stricter whole-shim 4 KiB target and acceptance 19
-are not certified. Reducing the whole shim needs the existing service/provider
-orchestration moved into the lazy entry while preserving loader retry,
-cleanup and startup status; that broader follow-up is deferred to the lead
-under W's bounded scope. The hard 600 KiB cap and every existing gate remain
-unchanged. The exact control and bundle measurements are in
-`docs/certification/m94.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 W's final `npm run quality` exits 0 on Windows (2026-10-05), and integration
 passes 34 tests each at VS Code 1.99.0 and stable 1.140.0. The local VSIX
@@ -36367,20 +35139,7 @@ PowerShell files are unchanged by this merge; no global install, network
 fetch, version downgrade or skip is permitted under the shared rig rules.
 The lead retains the pinned PowerShell check on a provisioned machine.
 
-**MRG78 browser size blocker (2026-10-04; resolved by FIX78W).** The merged production
-build emits `dist/webview/main.js` at 935,470 bytes (913.5 KiB), over its
-unchanged 900 KiB cap. A build of `main-sync` `244d5905` using the same
-browser options emits 910,023 bytes (888.7 KiB). Every Node bundle fits;
-the M71 model text block is registered with main's split gate and its
-positive/negative controls pass. The rig brief permits merge repairs only;
-an unrelated browser refactor or a new loading architecture is deferred
-to the lead. No cap, threshold, hook or feature has been weakened. This
-merge is not aggregate-green or ready to release while that gate fails.
-Bounded receipts: `docs/certification/mrg78.md`. FIX78W closes the size
-blocker with the unchanged 900 KiB cap applied to the entry and all static
-imports (898.4 KiB); its production build and bundle checks pass on Kubuntu.
-Full quality and native/hosted certification remain lead-owned. See
-`docs/certification/fix78w.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **MRG78 native identity integration.** Main's R1 lint gate rejects M71's
 direct `dev`/`ino` reads in `gitExtension.ts`. Reuse the existing
@@ -36421,70 +35180,11 @@ unavailable because SSH refused its host key and WSL is not installed. No
 gate was weakened or case deadline changed; no retries, skips, dependencies
 or product source changes were introduced.
 
-**TRAIN15E release preparation gate scope (2026-10-06, win11).** The
-continuation brief explicitly requires the entire Vitest suite in batches of
-at most three files, at the repository's default deadline, the full accessibility
-harness, reviewed README screenshots, live HTTPS badge verification, and the
-listed compiler, lint, inventory, dependency, cycle, build and package gates.
-These override common.md's scoped-test and network-only limits for those exact
-commands. The shared rule still forbids the aggregate `npm run quality`
-wrapper; merged coverage, integration hosts, audit/SAST and hosted cross-platform
-quality remain with the lead. This lane records each requested gate separately
-in docs/certification/train-0.15.0.md and its release receipt, without claiming
-aggregate quality or new model-service certification. No gate is weakened.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**TRAIN15E final continuation (2026-10-06, win11; before repair).** The new
-90-minute brief resumes the staged release and explicitly reopens the nine
-Windows failures. First restructure the harness inventory as fixture state
-and commit the authorized merge with hooks. Preserve D75's closed stdin,
-remote slot and native retirement contract: the real PowerShell self-test
-fails with DETACHED_PROCESS and succeeds with CREATE_NO_WINDOW, retaining
-breakaway and the exact inherited-handle list. Export the fake SSH host's
-metric functions into its helper shell and use its discovered Bash for marker
-polling. Prepare the four ordinary landing cases' real Git staging in a
-shared beforeEach rather than spending their unchanged five-second body
-deadline on setup. Keep every assertion, timeout, cap and existing skip.
-Run all test files in batches of at most three at the repository defaults;
-finish lint, inventories, knip, duplication, cycles and both actual packages.
-Reuse the 952-page accessibility receipt if browser sources remain unchanged.
-Record root causes, red/restored drills, final totals and package bytes in the
-train certification; no push or model call.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-The final sweep exposes a separate fake SSH canary race: Git Bash can finish
-the command's two-second sleep before its independently scheduled one-second
-timer gets CPU, so an early write is mistaken for a post-retirement escape.
-Bind the writer to the fixture's explicit release file, release it only after
-the unchanged timeout result has returned, and retain the canary-absence
-assertion and observation interval. This tests D75's retirement guarantee
-without assuming relative scheduling of two real processes. Re-run the whole
-SSH file at the default deadline and retain the original failing receipt.
-
-**TESTWARM bounded-lane certification (2026-10-06).** The rig/shared brief
-forbids aggregate quality and full-suite runs. Collect owning suites with default
-timeouts, the drift drill, scoped lint/format, five compiler projects, plain
-Knip, duplication, localization, host API and production build on this rig.
-Integrated full quality, coverage and hosted cross-platform checks remain with
-the lead; no gate, timeout or budget is weakened.
-
-**PROMPTMENU2 inherited duplication deferral (2026-10-06).** The unchanged
-zero-clone `npm run duplication` gate exits 1 on three clones between
-`test/e2e/acpRegistryAuth.e2e.test.ts` and `test/e2e/acpStdio.e2e.test.ts`
-(8/18/8 lines, 50/94/52 tokens). Both files are byte-identical to the lane's
-`4ca230efc` base; the prompt-menu changes introduce no clone. The shared lane
-rules prohibit unrelated refactoring, so ACPREG's existing fixture duplication
-remains a named release-integration repair for the lead. No threshold, ignore,
-rule, timeout or test is changed. Full quality cannot be claimed green until
-that repair passes the unchanged gate. Evidence and all other requested rig
-receipts: `docs/certification/promptmenu-hosts.md`.
-**M108W final rig certification (2026-10-07).** The W brief authorizes the
-complete configured test suite in sequential batches of at most three files
-and workers, using repository-default timeouts, all listed individual static/
-build/package gates, full axe harness and README previews. Shared rules still
-prohibit the aggregate `npm run quality` and public network; aggregate coverage,
-network audit/SAST, hosted/native/editor/live receipts remain lead-owned.
-Run local hook-on commits only after their scoped proofs, then certify the
-final joined tree without loosening any gate. Every named integration handoff
-and unavailable check is explicitly disposed in `docs/certification/m108.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief
 forbids aggregate quality and full-suite runs; full integrated quality remains
@@ -36540,19 +35240,7 @@ S/lead retain the host-API inventory, public docs, real editor captures and
 the full integrated quality/visual/accessibility gates. No gate is weakened
 and internal-port fakes do not certify unavailable native engines.
 
-**CIFIX14T bounded-lane gate delegation (2026-10-05).** The requested Mac
-mini reproduction and red drills run directly here with hooks enabled.
-`common.md` prohibits aggregate quality/full unit runs; collect the owned
-shell tests and required static/build checks, leaving full quality, merged
-coverage and hosted cross-platform certification to the lead. No gate is
-weakened and no integrated-green claim is made by this lane.
-**FIXM109PW3 bounded-lane verification (2026-10-06).** The rig brief reserves
-full quality/coverage for the lead. Direct Win11 checks pass typecheck, changed
-file ESLint/Prettier, deadcode, zero-clone duplication, localization, production
-build and the 96 owned tests at repository default deadlines. The host-API
-mismatch remains exactly W's five import-count changes recorded below; no
-new VS Code API or generated snapshot change belongs to this repair. Sixteen
-byte-exact red controls are in `docs/certification/m109-pw3-drills.json`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **M109 P Windows bounded-lane gates and capture deferral (2026-10-06).**
 The Windows rig brief and shared lane rules prohibit full quality and the
@@ -36599,92 +35287,7 @@ then rerun the check. API policy is unchanged; the snapshot gate is neither
 weakened nor claimed green. This is a documentation gate deferral, not an
 unfixed RVM98J finding.
 
-**RELFAST3 bounded-lane result (2026-10-04).** Fresh Windows compilers,
-dead-code, duplication, localization, host API, production build, actionlint
-and scoped formatting pass; the fixture's two ESLint style findings are fixed
-without suppression and its generated workflow shell is byte-identical.
-Kubuntu passes all 128 owning tests and six added byte-exact guard drills;
-RELFAST2's 36 controls remain historical receipts. A contended Windows Bash
-fixture timed out at the unchanged five-second limit and is not green proof.
-The live Model API size gate is 475 KiB, not common.md's 400 KiB figure: the
-430.1 KiB bundle passes the existing gate without a cap change, but 400 KiB
-compliance is not claimed. Full quality/hosted/CIFLOW/admin-tag verification
-and the skill's unsupported ledger-format validator remain deferred to the
-lead; no required gate was weakened. See `docs/certification/relfast.md`,
-`relfast3-drills.json` and `relfast3-shell-equivalence.json` beside it.
-
-**RELFAST2 bounded-lane deferral (2026-10-04).** The hard 60-minute brief
-requires scoped eslint/Prettier, owning release tests, available actionlint and
-hook-on commit. All 19 carried controls plus 17 new controls are proved locally.
-Fresh common.md aggregate typecheck, dead-code, duplication, localization,
-host-API and production-build runs are deferred to the lead: this change touches
-release tooling/workflows and owning tests, with no production bundle changes.
-This is a deferral, not current aggregate-green evidence; full quality, hosted
-reuse/recovery/fallback and CIFLOW integration remain required. Evidence:
-`docs/certification/relfast.md` and `docs/certification/relfast2-drills.json`.
-
-**M96CINT round-1 partial merged-source proof (historical, 2026-10-05).** Macmini passes all
-239 S/Q/T2/V tests plus 29 shared schema/text tests, in 21 complete files
-and invocations of at most three files. All five compiler projects, the
-harness compiler, full lint/Prettier, deadcode, duplication (0 clones),
-localization (0 problems), production and merged-team cycle checks, build,
-and all 17 unchanged bundle caps pass. A cumulative-admission mutation fails
-three real-repository cases, including interaction; SHA-256-exact restoration
-passes all four. The Mac fixture correction retains every assertion.
-See `docs/certification/m96c-int.md` and `m96c-int-drills.json`.
-The extra host API check fails on the X2-owned generated inventory's five
-Node import counts and Traffic stylesheet source; its regeneration remains
-with X2 under the brief's explicit docs/wiring exclusion. Full quality,
-native/editor/live acceptance, C/O and X2 remain with the lead. These scoped
-receipts certify this partial integration, not production team wiring.
-
-**FIXM96CT2 scoped proof (2026-10-05).** Both `RVM96CT2` findings are
-fixed within T2. Kubuntu passes all five compiler projects, 21 focused tests,
-changed-file ESLint/Prettier, localization, host API, deadcode, duplication
-(0 clones), and production build with unchanged budgets. Four guard mutations
-fail their named regressions and restore SHA-256-exact source bytes; see
-`docs/certification/m96c-t2.md`. The rig/shared rules prohibit this lane from
-running full quality, merging, rebasing or pushing. Full quality and the
-existing runtime/integration/live handoff remain the lead's work; no gate was
-weakened and neither reviewed finding remains as a residual.
-
-**FIXM96CC lane gate scope (2026-10-05).** The owner's rig brief explicitly
-forbids a full `npm run quality`, merges, rebases and pushes in this lane.
-Focused Vitest, all compiler projects, changed-file lint/format, dead-code,
-duplication, localization, host API and production-build checks run directly
-on macmini. Hooked local commits are checkpoints for the lead; full quality
-and assembled S/K/Q/T2/X2 certification remain the lead's required gates.
-Review-repair receipts are in `docs/certification/m96c-c.md`. Final focused
-checks pass on macmini: 52/52 owned cases (including real Git under the
-unchanged default deadline), all listed static/build gates, and 25 distinct
-byte-exact restored guard drills. No RVM96CC finding is deferred.
-
-**FIXM96CO rig validation (2026-10-05).** The lane brief forbids full
-`quality` and full test suites on the shared rig; the lead runs those after
-integration. Owned files are checked directly on macmini in batches of at
-most three Vitest files, plus typecheck, lint, formatting, knip, duplication,
-localization and build gates. The host API record still fails only on the
-six base Node import-count changes already assigned to X2 (buffer 27→28,
-crypto 32→34, fs 24→25, fs/promises 34→36, path 65→68, zlib 1→2).
-Its gate is unchanged; X2 must regenerate and review its owned record before
-full quality. Native Windows parser/runtime certification is explicitly
-pending in §9 and `docs/certification/m96c-o.md`.
-**M97 integration gate blockers (earlier 2026-10-05, lane I; superseded by M97FIN receipts).** Full quality did not
-exit 0. Source coverage and every production cap pass, but the 456-page a11y
-run was stopped within the lane time box after very slow Chrome progress.
-Gitleaks reports five historical `authSource.test.ts` findings; only redacted
-metadata was inspected. SAST reports five non-literal RegExp findings in the
-legal ecosystem readers and rule timeouts. No history, ignore, threshold or
-rule was changed. These are release blockers, not waivers; exact receipts are
-in `docs/certification/m97.md`. Installed-host certification remains pending.
-
-**Resolved 2026-09-27: the bundle budget after M48–M56 joined M60–M63.**
-The joined tree's build failed its size check (`dist/extension.js` 600.5
-KiB against 600, `dist/acp.js` 874.1 KiB against 800) and no budget was
-raised. Main's M57 took the Model API backend out of both: the extension is
-432.5 KiB under its unchanged 600 KiB, and the agent, which loads the same
-`dist/modelApi.js`, 713.2 KiB, whose budget is now 850 KiB (D6 amendments;
-`docs/certification/pr32-integration.md`).
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **Deferred 2026-10-02, until 2026-11-01: GHSA-vfj7-8cjw-p6xm (`braces`,
 high).** The advisory turned the dependency audit red on every branch.
@@ -36715,35 +35318,6 @@ Pause local browser gates while that extension is enabled. Hosted CI runs
 remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
-
-**FIXM101C2 current check scope (2026-10-05, kubuntu).** The five inherited
-test repairs from `3e04f6f5` are carried unchanged after their failures are
-reproduced here. Their old C2 baseline deferral below is historical, superseded
-by this repair lane's complete-file receipts in `docs/certification/m101-c2.md`.
-The shared rig common rules expressly prohibit `npm run quality` and the full
-test wrapper here; run the required scoped static/build gates and complete
-owning suites, with the integrator responsible for full quality and the
-platform matrix before release. No threshold, ignore or timeout is weakened.
-
-**FIXM101P1 lane verification (2026-10-05).** The rig brief expressly
-forbids the full `npm run quality` wrapper and full unit suite because the
-rig is shared; the lead runs the combined four-machine quality gate.
-This lane runs focused complete test files (at most three per invocation),
-all project typechecks, changed-file lint/format, deadcode, duplication,
-localization, host API and production build directly on Kubuntu. The final
-receipts and twelve red drills are in `docs/certification/m101-p1.md`: 330
-focused tests and all listed lane checks pass, including the unchanged
-production bundle-split gate. This defers only the full-tree/full-platform
-quality receipt; no gate is weakened.
-
-**FIXM101P2 aggregate gate deferral (2026-10-05).** The explicit lane brief
-and its shared `codex/common.md` forbid the full `npm run quality` wrapper
-on this shared rig. Run the required scoped suites (at most three files per
-run), all five TypeScript projects, lint/format over the complete P2 range,
-knip, duplication, localization, host API and production build here; record
-actual receipts in `docs/certification/m101-p2.md`. The lead must run the
-aggregate quality/coverage/platform matrix before integration/release. No
-threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
 
@@ -36785,9 +35359,11 @@ threshold, ignore or rule is changed.
 | `test/unit/legalScan.test.ts` (scan cap), `test/unit/checkBadges.test.mjs` (CLI wiring)                                                                                                        | `LEGAL_CAP_SCAN_TIMEOUT_MS`, `COLD_CLI_TIMEOUT_MS` (15 s) per-case deadlines                                                                                                 | The cap case scans one file past the scan limit and the wiring case starts the badge CLI cold under Node; hosted runners with coverage took 3.5 s and 3.1 s.                                                                                                                                                                                                                                     | Lower the cap in a test-only scanner option; check the CI override in-process instead of a cold CLI.                                                      |
 | `test/unit/ollamaCodec.test.ts` (stream cap), `test/unit/vsixPackaging.test.mjs` (oversized archive), `test/unit/refreshBadges.test.mjs` (README badges), `test/unit/companionBrowser.test.ts` | `OLLAMA_STREAM_CAP_TIMEOUT_MS`, `REAL_OVERSIZED_PACKAGE_TIMEOUT_MS` (30 s), `README_BADGE_PARSE_TIMEOUT_MS` (15 s) per-case; `REAL_BROWSER_CASE_TIMEOUT_MS` (20 s) per-suite | A second sweep at 2 s over two full CI runs: the stream-cap case took 5.2 s and the companion browser case passed 5 s on hosted runners; the others took 3.4 to 4.0 s. The same run showed hosted macOS (3 vCPUs) oversubscribed by four workers plus coverage; `vitest.config.ts` now uses cores minus one there, capped at the measured four.                                                  | Read the stream cap from a test-sized option; share one browser context per file; drop each deadline once a hosted run measures the case under 2.5 s.     |
 
-| Location                                               | Escape hatch                  | Reason                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ------------------------------------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `native/darwin/MuseSparkCreated.c` (Linux branch only) | `OPENSSL_SUPPRESS_DEPRECATED` | OpenSSL 3 marks the stable low-level SHA-256 primitives deprecated, while they remain supported. Static primitive linkage keeps the required helper small and removes runtime OpenSSL/provider acquisition. Only the three SHA calls use this declaration-level suppression; `-Wall -Wextra -Werror`, identity and cleanup guards stay active. Native/provider migration remains a future qualification, not a warning-level change. |
+| Location                                                     | Escape hatch                                                                                              | Reason                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `native/darwin/MuseSparkCreated.c` (Linux branch only)       | `OPENSSL_SUPPRESS_DEPRECATED`                                                                             | OpenSSL 3 marks the stable low-level SHA-256 primitives deprecated, while they remain supported. Static primitive linkage keeps the required helper small and removes runtime OpenSSL/provider acquisition. Only the three SHA calls use this declaration-level suppression; `-Wall -Wextra -Werror`, identity and cleanup guards stay active. Native/provider migration remains a future qualification, not a warning-level change. |
+| `src/core/providers/configured.ts` (`parseError`)            | `eslint-disable-next-line @typescript-eslint/no-unnecessary-condition` on the `parse === undefined` guard | The parser table is total over the closed `ProviderFormat`, so the throw is unreachable; the index type still carries `undefined` for                                                                                                                                                                                                                                                                                                |
+| `src/core/backends/modelapi/providerRefusal.ts` (`recordOf`) | `as Record<string, unknown>` on an `unknown` JSON body after the object/non-null/non-array checks         | The checks rule out every non-record shape, but the compiler cannot narrow `unknown` to a record from them; the extractor reads every envelope through it                                                                                                                                                                                                                                                                            | No removal: provider bodies arrive as `unknown`, and the three checks are the narrowest the compiler verifies | tsc under `noUncheckedIndexedAccess` (TS2722 without the guard), while the linter reads the table as total. One line, lane PROVERR. |
 
 INT0170B, 2026-10-07: `ENGINE_LOAD_TIMEOUT_MS` = 20,000 ms in `test/unit/modelApiHost.test.ts` covers only the 64-child conversation-limit workload and the two 50-tool-round promotion workloads. Real engine execution under coverage measured 13.443/6.532/8.588 s; the service is fake and no paid request is made. The unchanged default still applies to ordinary tests; no workload count, assertion, coverage threshold or byte cap changes. Authorized heavy-real-work exception in the rig brief.
 
@@ -40359,21 +38935,30 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
-**0.18.2 preparation (2026-10-12, release branch).** `release/0.18.2` is
-cut from `int/train-0182` at `5bc38fbe0` and merges main at `e763f4938`
-(0.18.1 as released). One change for a person: the chat panel's empty screen
-shows the product's own mark instead of Meta's logo
-(`docs/certification/panelmark.md`; review RVPANELMARKC without a finding).
-Six pictures that showed the old logo were taken again, two of them shipped
-in the extension's walkthrough. By the owner's order of 1:30 PM PT no
+**0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
+Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from
+`int/train-0182` at `5bc38fbe0` and merged with main at `e763f4938`) merged at
+5:56 PM PT as `898a26c5e`; the annotated tag was pushed at 5:57 PM PT. The
+Release run succeeded on its first attempt and ended at 6:06 PM PT, from the
+verified CI artifacts without a second build; `verify-release.sh 0.18.2` ended
+"ALL CHANNELS PUBLISHED 0.18.2". One change for a person: the chat panel's
+empty screen shows the product's own mark instead of Meta's logo
+(`docs/certification/panelmark.md`), and the eight pictures that showed the
+old logo or an older panel were taken again. By the owner's order no
 screenshot comparison runs in CI or in `quality:gates` any more; a change to
-the interface is looked at locally. No test was added. Record:
-`docs/certification/release-0182.md`. Not in 0.18.2: the spend ledger and
-the false error sentences (0.18.3), the contributor-price fix (0.18.4), and
-what the 0.18.1 record below leaves to "the next release" and "the
-follow-up". This is preparation, not publication; the public roadmap (M122)
-lists 0.18.2 as the next release until a `0.18.2 released (…)` record
-follows here.
+the interface is looked at locally. No test was added. Hosted CI on the head
+was not green on a first attempt: one macOS test shard was red (one case
+exceeded its 5 s limit; the step that overran is not measured), was run again on the same commit and
+passed, and the merge went in on that, against `AGENTS.md` rule 2; the Hosts
+run on the merged commit (38329749606) is red in "VSCodium latest", one case:
+a loading chat panel takes the focus from the file just opened (the product's
+defect since 2026-09-21, measured afterwards). Real runs through the packed product, which is the
+published file byte for byte: three routes before the merge (12 requests,
+$0.018245) and after publication (11 requests, $0.018101), keys removed. Not
+in 0.18.2: the spend ledger and the false error sentences (0.18.3), the
+contributor-price fix (0.18.4), and what the 0.18.1 record below leaves to
+"the next release" and "the follow-up". Record:
+`docs/certification/release-0182.md`.
 
 **0.18.1 released (2026-10-12, tag `v0.18.1` on main's release merge `38ef148f1`, PR #151, release run 38298298094).**
 Pull request 151 (`hotfix/0.18.1-nopin`, head `e90f0140c`) merged at 12:29 PM

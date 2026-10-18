@@ -1,5 +1,5 @@
 // A piped provider key that looks like the wrong thing is named on the
-// exec surface too (PLAN.md D108): assembly returns the question beside
+// exec surface too (PLAN.md D123): assembly returns the question beside
 // the run, and the key still reaches the in-memory store for the provider
 // to judge. Pure: the real assembly with values passed in as data; the
 // network seam is a guard that fails a test that ever calls it.

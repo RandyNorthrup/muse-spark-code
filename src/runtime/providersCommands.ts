@@ -375,11 +375,17 @@ export async function probeProvider(
   shared.setUiText(UI_TEXT, uiLocale())
   auth.setUiText(UI_TEXT, uiLocale())
   const pinned = pinProviderFetch(fetch, provider, allowedProviderPaths(provider), resolveHost)
+  // Lane PROVERRORS: an answer reads with the provider's own format parser
+  // and refusal sentence, a send with no answer with the network codes and
+  // its unknown fate — the configured path's one reader, never a bare status.
+  const reader = auth.providerFailureReader(provider.entry, provider.preset)
   let failureReason = 'unreachable'
   const get = async (
     url: string,
     transport: typeof fetch = pinned,
-  ): Promise<{ readonly status: number; readonly body: unknown } | undefined> => {
+  ): Promise<
+    { readonly status: number; readonly body: unknown; readonly refusal?: string } | undefined
+  > => {
     const origin = new URL(url).origin
     const source =
       key === undefined
@@ -402,6 +408,8 @@ export async function probeProvider(
         await source.headers(requestUrl)
       },
       fetch: transport,
+      parseError: reader.parseError,
+      sendFailure: reader.sendFailure,
       now: Date.now,
       random: Math.random,
       sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
@@ -414,6 +422,7 @@ export async function probeProvider(
       },
     })
     let result: Awaited<ReturnType<typeof client.request>>
+    const signal = AbortSignal.timeout(PROVIDER_PROBE_TIMEOUT_MS)
     try {
       result = await client.request(
         url.slice(origin.length),
@@ -423,14 +432,17 @@ export async function probeProvider(
           accept: 'application/json',
           retries: 'rateLimitOnly',
         },
-        AbortSignal.timeout(PROVIDER_PROBE_TIMEOUT_MS),
+        signal,
       )
     } catch (error: unknown) {
-      if (error instanceof shared.ModelApiError && error.status !== 0) {
-        return { status: error.status, body: undefined }
+      if (shared.isModelApiError(error) && error.status !== 0) {
+        return { status: error.status, body: undefined, refusal: reader.refusal(error) }
       }
-      failureReason =
-        error instanceof Error && error.message === 'rebinding' ? 'rebinding' : 'unreachable'
+      if (error instanceof Error && error.message === 'rebinding') failureReason = 'rebinding'
+      // A send with no answer says what failed; the probe's own time running
+      // out, or a pin refusal before sending, keeps the fixed sentence.
+      else if (shared.isModelApiError(error) && !signal.aborted) failureReason = error.message
+      else failureReason = 'unreachable'
       return undefined
     }
     try {
@@ -459,13 +471,21 @@ export async function probeProvider(
       if (checked === undefined) return { ok: false, paid: false, reason: failureReason }
       return checked.status === HTTP_STATUS.ok
         ? { ok: true, modelCount: undefined }
-        : { ok: false, paid: false, reason: `HTTP ${String(checked.status)}` }
+        : {
+            ok: false,
+            paid: false,
+            reason: checked.refusal ?? `HTTP ${String(checked.status)}`,
+          }
     },
     async () => {
       const listed = await get(`${provider.origin}${providerModelsPath(provider)}`)
       if (listed === undefined) return { ok: false, paid: false, reason: failureReason }
       if (listed.status !== HTTP_STATUS.ok)
-        return { ok: false, paid: false, reason: `HTTP ${String(listed.status)}` }
+        return {
+          ok: false,
+          paid: false,
+          reason: listed.refusal ?? `HTTP ${String(listed.status)}`,
+        }
       const ids = listModelIds(listed.body, provider.preset)
       return ids === undefined
         ? { ok: false, paid: false, reason: 'unparseable' }
