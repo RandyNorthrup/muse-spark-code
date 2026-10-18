@@ -58,7 +58,7 @@ import {
   type AuthCommandDeps,
   authSet,
   authSetProvider,
-  authStatus,
+  authStatusAll,
   authStatusProvider,
   login,
 } from './authCommands'
@@ -74,7 +74,7 @@ import { defaultServeOptions, sharingPorts, type SharingPortsDeps } from './shar
 import { acpSharingCommands } from '../acp/sharing'
 import { boundedAcpStream } from '../shared/acpStream'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
-import { formatAcpUsage } from './cliOptions'
+import { formatCommandHelp, formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
 import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
@@ -391,11 +391,15 @@ async function userProvidersFile() {
 /** The `providers …` commands' dependencies: the user's own file, the OS store, stdin. */
 async function providersDeps(): Promise<ProvidersDeps> {
   const { resolveEndpointHost } = await import('./providersCommands')
+  const { readFile } = await import('node:fs/promises')
   return {
     ...authDeps(),
     ...(await userProvidersFile()),
     resolveHost: resolveEndpointHost,
     fetch: globalThis.fetch.bind(globalThis),
+    // D4: runnable-model warnings read the priced catalogue beside the bundle.
+    readCatalog: async (): Promise<unknown> =>
+      JSON.parse(await readFile(path.join(__dirname, 'providerCatalog.json'), 'utf8')),
   }
 }
 
@@ -460,6 +464,12 @@ function resourcesFor(
     log,
     onError: () => {
       log.warn(UI_TEXT.resourceUnavailable)
+    },
+    // A damaged usage-history choice on stderr once, with what is damaged,
+    // what the product does, and what to do (the noter announces once per
+    // distinct damage).
+    onDamagedChoice: (text) => {
+      log.error(text)
     },
     ...(overrides !== undefined && { overrides }),
     ...(isRecordingHistory !== undefined && { isRecordingHistory }),
@@ -685,6 +695,11 @@ async function serve(
         now: Date.now,
         isEnabled: () => options.usageHistory ?? true,
         onWriteError,
+        onInvalidSettings: () => {
+          log.warn(
+            'Usage history settings are invalid, so usage history is paused. Delete usage-settings.json in the agent data folder or turn usage history off and on again to record history again.',
+          )
+        },
       })
     },
   })
@@ -812,6 +827,7 @@ async function serve(
         canBypass: options.canBypass,
         allowsContributorModels: options.allowsContributorModels,
         initialMode: SETTING_DEFAULTS.initialPermissionMode,
+        ...(options.initialModelId !== undefined && { initialModelId: options.initialModelId }),
         scheduleAuthorization: {
           scheduledPrompts: options.scheduledPrompts === true,
           ...(options.maxBudgetUsd !== undefined && { maxBudgetUsd: options.maxBudgetUsd }),
@@ -1398,9 +1414,12 @@ async function main(): Promise<number> {
       return result.exitCode
     }
     case 'authStatus': {
+      // D6: bare status answers every credential; the exit code names
+      // whether anything is stored, not only the Meta key.
+      const { readUserFile } = await userProvidersFile()
       return command.provider === undefined
-        ? await authStatus(authDeps())
-        : await authStatusProvider(authDeps(), command.provider)
+        ? await authStatusAll(authDeps(), readUserFile)
+        : await authStatusProvider(authDeps(), command.provider, readUserFile)
     }
     case 'authClear': {
       return command.provider === undefined
@@ -1563,7 +1582,12 @@ async function main(): Promise<number> {
         const nls: unknown = JSON.parse(await readUiTableFile(packageRoot, [file]))
         writeLine(process.stdout, reference.all(nls))
       } else {
-        writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+        writeLine(
+          process.stdout,
+          command.route === undefined
+            ? formatAcpUsage(UI_TEXT, ACP_AGENT_NAME)
+            : formatCommandHelp(UI_TEXT, ACP_AGENT_NAME, command.route),
+        )
       }
       return 0
     }

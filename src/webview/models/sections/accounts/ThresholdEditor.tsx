@@ -32,64 +32,85 @@ export function ThresholdEditor({
   }
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
-    try {
-      const data = new FormData(event.currentTarget)
-      const field = (name: string) => {
-        const value = data.get(name)
-        if (value === null) return ''
-        if (typeof value !== 'string') throw new Error(UI_TEXT.accounts.invalidAccount)
-        return value.trim()
+    const data = new FormData(event.currentTarget)
+    // Invalid input never reaches the save: it reads failed below, while a
+    // save that throws reads failed and reaches the host's record.
+    let isInvalid = false
+    const field = (name: string) => {
+      const value = data.get(name)
+      if (value === null) return ''
+      if (typeof value !== 'string') {
+        isInvalid = true
+        return ''
       }
-      // Preserve thresholds for unavailable live capabilities; never invent windows.
-      const next: AccountThresholds = structuredClone(value)
-      for (const metric of metrics) {
-        if (metric === 'spendUsd') {
-          const amounts: Partial<Record<(typeof periods)[number], UsdAmount>> = {}
-          for (const period of periods) {
-            const raw = field(`${metric}.${period}`)
-            if (raw === '') continue
-            // Exact decimal input: a stored sub-nano cap saves unchanged, and
-            // no binary number round trip can reject or reshape it.
-            amounts[period] = usdInputSchema.parse(raw)
-          }
-          next.spendUsd = Object.keys(amounts).length === 0 ? undefined : amounts
-          continue
-        }
-        const amounts: Partial<Record<(typeof periods)[number], number>> = {}
+      return value.trim()
+    }
+    // Preserve thresholds for unavailable live capabilities; never invent windows.
+    const next: AccountThresholds = structuredClone(value)
+    for (const metric of metrics) {
+      if (metric === 'spendUsd') {
+        const amounts: Partial<Record<(typeof periods)[number], UsdAmount>> = {}
         for (const period of periods) {
           const raw = field(`${metric}.${period}`)
           if (raw === '') continue
-          if (!/^\d+$/.test(raw)) throw new Error(UI_TEXT.accounts.invalidAccount)
-          amounts[period] = Number(raw)
+          // Exact decimal input: a stored sub-nano cap saves unchanged, and
+          // no binary number round trip can reject or reshape it.
+          const amount = usdInputSchema.safeParse(raw)
+          if (!amount.success) {
+            isInvalid = true
+            continue
+          }
+          amounts[period] = amount.data
         }
-        next[metric] = Object.keys(amounts).length === 0 ? undefined : amounts
+        next.spendUsd = Object.keys(amounts).length === 0 ? undefined : amounts
+        continue
       }
-      if (capabilities.planWindows.length > 0) {
-        const windows = Object.fromEntries(
-          Object.entries(next.planWindowPercent ?? {}).filter(
-            ([window]) => !capabilities.planWindows.includes(window),
-          ),
-        )
-        for (const window of capabilities.planWindows) {
-          const raw = field(`window.${window}`)
-          if (raw !== '') windows[window] = Number(raw)
+      const amounts: Partial<Record<(typeof periods)[number], number>> = {}
+      for (const period of periods) {
+        const raw = field(`${metric}.${period}`)
+        if (raw === '') continue
+        if (!/^\d+$/.test(raw)) {
+          isInvalid = true
+          continue
         }
-        next.planWindowPercent = windows
+        amounts[period] = Number(raw)
       }
-      if (capabilities.hasRateHeadroom) {
-        const headroom: NonNullable<AccountThresholds['rateLimitHeadroomPercent']> = {}
-        for (const metric of ['requests', 'tokens'] as const) {
-          const raw = field(`headroom.${metric}`)
-          if (raw !== '') headroom[metric] = Number(raw)
-        }
-        next.rateLimitHeadroomPercent = headroom
+      next[metric] = Object.keys(amounts).length === 0 ? undefined : amounts
+    }
+    if (capabilities.planWindows.length > 0) {
+      const windows = Object.fromEntries(
+        Object.entries(next.planWindowPercent ?? {}).filter(
+          ([window]) => !capabilities.planWindows.includes(window),
+        ),
+      )
+      for (const window of capabilities.planWindows) {
+        const raw = field(`window.${window}`)
+        if (raw !== '') windows[window] = Number(raw)
       }
-      const parsed = accountThresholdsSchema.safeParse(next)
-      if (!parsed.success) throw new Error(UI_TEXT.accounts.invalidAccount)
-      setError(false)
-      onSave(parsed.data)
-    } catch {
+      next.planWindowPercent = windows
+    }
+    if (capabilities.hasRateHeadroom) {
+      const headroom: NonNullable<AccountThresholds['rateLimitHeadroomPercent']> = {}
+      for (const metric of ['requests', 'tokens'] as const) {
+        const raw = field(`headroom.${metric}`)
+        if (raw !== '') headroom[metric] = Number(raw)
+      }
+      next.rateLimitHeadroomPercent = headroom
+    }
+    const parsed = accountThresholdsSchema.safeParse(next)
+    if (isInvalid || !parsed.success) {
       setError(true)
+      return
+    }
+    setError(false)
+    try {
+      onSave(parsed.data)
+    } catch (error: unknown) {
+      // A save that throws reads failed: only a non-error keeps its kind
+      // past the editor. The failure reaches the host's record.
+      if (!(error instanceof Error)) throw error
+      setError(true)
+      throw error
     }
   }
   return (

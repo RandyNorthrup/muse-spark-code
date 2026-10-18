@@ -43,10 +43,13 @@ import type { ScanOutcome } from '../providers/modelScans'
 import { OPENROUTER_ORIGIN } from '../providers/openRouter'
 import { Usd } from '../../shared/usd'
 import { redactSecrets } from '../../shared/redact'
+import { wireWordForLog } from '../../core/logging'
 import { type SessionBudgetConfig } from './sessionBudget'
+import { ChatGptSignInError, chatGptFailureText } from '../backend/subscriptionsEntry'
 
 export interface ModelsPanelDeps {
-  readonly connectChatGpt?: (() => Promise<void>) | undefined
+  /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */
+  readonly connectChatGpt?: ((isNewAccount: boolean) => Promise<void>) | undefined
   readonly connectCopilot?: (() => Promise<void>) | undefined
   readonly removeSubscription?: ((id: string) => Promise<void>) | undefined
   readonly isConfidential?: (() => boolean) | undefined
@@ -202,16 +205,22 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     // Exception text can contain a bare key even before it is retained.
     log.warn('Models panel operation failed')
     if (draft === undefined) {
-      state.notice = UI_TEXT.actionFailed
+      // Only our validated error code/reason may leave sign-in. Never show
+      // arbitrary exception text here: it can contain a credential or path.
+      state.notice =
+        error instanceof ChatGptSignInError
+          ? chatGptFailureText(error.code, error.reason)
+          : UI_TEXT.actionFailed
     } else {
-      // Save failures name their cause with every retained key redacted.
+      // Save failures name their cause with every retained key redacted. A
+      // foreign failure (or none at all) names no cause: the sentence says
+      // only that it did not work, never a write conflict it was not (P3-1).
       state.notice = undefined
       draft.saveConflict = error instanceof Error && error.message === UI_TEXT.providerEditConflict
+      const cause = error instanceof Error ? error.message : ''
       draft.errors = [
         redactSecrets(
-          error instanceof Error && error.message !== '' && error.message !== UI_TEXT.actionFailed
-            ? error.message
-            : UI_TEXT.providerSaveWriteConflict,
+          cause !== '' && cause !== UI_TEXT.actionFailed ? cause : UI_TEXT.actionFailed,
           Array.from(credentials.values(), (record) => record.secret),
         ),
       ]
@@ -237,14 +246,20 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     let credential: CredentialRecord | undefined
     try {
       credential = await providers.credentialSnapshot(entry.id)
-      if (entry.auth !== 'none' && entry.auth !== 'subscription') {
-        if (credential !== undefined && !isOriginBound(credential, entry.address)) {
-          throw new Error(UI_TEXT.importNeedsKey)
-        }
+    } catch (error: unknown) {
+      // A credential the store cannot produce is not a missing key: the row
+      // says the store failed, and only the failure's kind reaches the log.
+      // Anything that is not an error keeps its kind.
+      if (!(error instanceof Error)) throw error
+      log.warn(`Models panel could not read a credential snapshot (${wireWordForLog(error.name)})`)
+      draft.errors = [UI_TEXT.providerSaveSecretFailed]
+    }
+    if (entry.auth !== 'none' && entry.auth !== 'subscription') {
+      if (credential !== undefined && !isOriginBound(credential, entry.address)) {
+        draft.errors = [UI_TEXT.importNeedsKey]
+      } else {
         secret = credential?.secret
       }
-    } catch {
-      draft.errors = [UI_TEXT.importNeedsKey]
     }
     editSnapshots.set(draft, { entry, fields: structuredClone(draft), credential })
     if (secret !== undefined) {
@@ -385,6 +400,16 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     return id === 'copilot' && deps.connectCopilot === undefined
       ? UI_TEXT.signInNotOffered
       : undefined
+  }
+  /** One subscription sign-in; only ChatGPT can register a different account. */
+  const connectSubscription = async (id: string, isNewAccount: boolean): Promise<void> => {
+    if (id === 'chatgpt') {
+      if (deps.connectChatGpt === undefined) throw new Error(UI_TEXT.actionFailed)
+      await deps.connectChatGpt(isNewAccount)
+      return
+    }
+    if (deps.connectCopilot === undefined) throw new Error(UI_TEXT.actionFailed)
+    await deps.connectCopilot()
   }
   const draftSecret = (entry: ProviderEntry, id?: string): string | undefined => {
     const record = credentials.get(id ?? 'wizard')
@@ -711,9 +736,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           state.notice = refusal
           break
         }
-        const connect = message.providerId === 'chatgpt' ? deps.connectChatGpt : deps.connectCopilot
-        if (connect === undefined) throw new Error(UI_TEXT.actionFailed)
-        await connect()
+        await connectSubscription(message.providerId, message.isNewAccount === true)
         await scan(await entryOf(message.providerId))
         break
       }
@@ -730,9 +753,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             state.notice = refusal
             break
           }
-          const connect = preset.id === 'chatgpt' ? deps.connectChatGpt : deps.connectCopilot
-          if (connect === undefined) throw new Error(UI_TEXT.actionFailed)
-          await connect()
+          await connectSubscription(preset.id, false)
           await scan(await entryOf(preset.id))
           break
         }
@@ -895,9 +916,14 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         const finish = async (isSaved: boolean): Promise<void> => {
           try {
             await refresh()
-          } catch {
+          } catch (error: unknown) {
+            // A failed refresh still acknowledges the save; anything that is
+            // not an error keeps its kind past the queue.
+            if (!(error instanceof Error)) throw error
             hasRefreshFailed = true
-            log.warn('Models panel could not refresh after provider save')
+            log.warn(
+              `Models panel could not refresh after provider save (${wireWordForLog(error.name)})`,
+            )
             if (isSaved) {
               state.notice =
                 state.notice === undefined
@@ -959,7 +985,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             },
             { config: deps.sessionBudget, expectedUsd: draft.sessionBudgetExpectedUsd },
           )
-        } catch (error) {
+        } catch (error: unknown) {
+          // A failed save reaches its draft through fail(); anything that is
+          // not an error keeps its kind past the queue. The kind reaches the
+          // record; the words carry nothing raw.
+          if (!(error instanceof Error)) throw error
+          log.warn(`Models panel save failed (${wireWordForLog(error.name)})`)
           fail(draft, error)
           await finish(false)
           return
@@ -975,9 +1006,15 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             snapshot.credential = await providers.credentialSnapshot(snapshot.entry.id)
             snapshot.fields = structuredClone(draft)
             enteredCredentials.delete(draft)
-          } catch {
+          } catch (error: unknown) {
+            // A saved provider whose snapshot cannot be refreshed keeps its
+            // save; the notice stays fixed and only the kind reaches the log.
+            // Anything that is not an error keeps its kind.
+            if (!(error instanceof Error)) throw error
             hasRefreshFailed = true
-            log.warn('Models panel saved provider but could not refresh its snapshot')
+            log.warn(
+              `Models panel saved provider but could not refresh its snapshot (${wireWordForLog(error.name)})`,
+            )
           }
         }
         state.notice = outcome.notice
@@ -989,13 +1026,18 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (outcome.composerSet) {
           try {
             deps.onWizardSaved(outcome)
-          } catch {
+          } catch (error: unknown) {
+            // A host that cannot be told still keeps the save; anything that
+            // is not an error keeps its kind past the queue.
+            if (!(error instanceof Error)) throw error
             hasRefreshFailed = true
             state.notice =
               state.notice === undefined
                 ? UI_TEXT.providerSavedRefreshFailed
                 : [state.notice, UI_TEXT.providerRefreshFailed].join(' ')
-            log.warn('Models panel saved provider but could not notify its host')
+            log.warn(
+              `Models panel saved provider but could not notify its host (${wireWordForLog(error.name)})`,
+            )
           }
         }
         await finish(true)
@@ -1198,20 +1240,30 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       publish()
     }
     const previous = operations
-    operations = (async () => {
-      await previous
+    const failedDraft =
+      message.type === 'providers/save' && message.providerId !== undefined
+        ? savingDraft
+        : undefined
+    const current = (async () => {
+      try {
+        await previous
+      } catch {
+        // A prior message owned its failure: the queue tail below recorded
+        // it on that message's draft, so this message runs instead of the
+        // failure poisoning every later message.
+      }
       if (isDisposed) {
         return
       }
       try {
         await handle(message)
-      } catch (error) {
-        fail(
-          message.type === 'providers/save' && message.providerId !== undefined
-            ? savingDraft
-            : undefined,
-          error,
-        )
+      } catch (error: unknown) {
+        // A failed panel message reaches its draft through fail(); anything
+        // that is not an error keeps its kind past the queue. The kind
+        // reaches the record; the words carry nothing raw.
+        if (!(error instanceof Error)) throw error
+        log.warn(`Models panel message failed (${wireWordForLog(error.name)})`)
+        fail(failedDraft, error)
       } finally {
         if (savingDraft !== undefined) {
           savingDraft.saving = false
@@ -1219,6 +1271,14 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         }
       }
     })()
+    operations = current
+    void current.catch(() => {
+      // A foreign failure from the handler reached no draft above: record it
+      // on this message's draft with the fixed sentence. The next message
+      // observes this tail and continues, so the queue survives it and no
+      // rejection escapes the pump.
+      fail(failedDraft, new Error(UI_TEXT.actionFailed))
+    })
   }
   const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
     const parsed = parsePanelToHostMessage(raw)

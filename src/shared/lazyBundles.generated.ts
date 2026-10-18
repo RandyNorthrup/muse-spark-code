@@ -52,6 +52,23 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'auth.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/host/auth/credentialStore.ts',
+        symbol: 'CredentialStore.getApiKey',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/host/auth/credentialStore.ts',
+        symbol: 'CredentialStore.readModelApiCredential',
+        side: ['acp', 'vscode'],
+      },
+      { importer: 'src/shared/constants.ts', symbol: 'AUTH_BUNDLE_FILE', side: ['vscode'] },
+    ],
+  },
+  {
     file: 'browserCheck.js',
     side: 'vscode',
     requestedBy: [
@@ -122,6 +139,8 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'runtimeSubscriptionClient',
         side: ['acp', 'vscode'],
       },
+      { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
+      { importer: 'src/runtime/exec/runExec.ts', symbol: 'runWithProvider', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'probeProvider', side: ['acp'] },
     ],
   },
@@ -401,6 +420,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'paid.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'PAID_BUNDLE_FILE', side: ['vscode'] },
+    ],
+  },
+  {
     file: 'planMarkdown.js',
     side: 'vscode',
     requestedBy: [
@@ -441,7 +467,14 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         side: ['acp', 'vscode'],
       },
       { importer: 'src/runtime/authCommands.ts', symbol: 'authSetProvider', side: ['acp'] },
-      { importer: 'src/runtime/exec/keyInput.ts', symbol: 'readProviderKeyLine', side: ['acp'] },
+      { importer: 'src/runtime/authCommands.ts', symbol: 'providerLabel', side: ['acp'] },
+      {
+        importer: 'src/runtime/exec/keyInput.ts',
+        symbol: 'readProviderKeyLine',
+        side: ['acp', 'vscode'],
+      },
+      { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
+      { importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] },
     ],
   },
   {

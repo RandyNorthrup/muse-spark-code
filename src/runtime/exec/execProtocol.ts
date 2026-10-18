@@ -30,6 +30,7 @@ export type ExecStatus =
   | 'cancelled'
   | 'timeout'
   | 'budget_exceeded'
+  | 'unpriced'
   | 'request_cap'
   | 'denied'
   | 'auth_required'
@@ -83,6 +84,23 @@ export interface LedgerTotals {
   refusal: Refusal | null
   lastResponse: LastResponse | null
 }
+/**
+ * EXECPROV round 6: a run-cap budget refusal in typed numbers, so a harness
+ * can act without parsing a sentence. `neededUsd` is what the refused request
+ * had to reserve; `remainingUsd` is what the cap holds; `admitCapUsd` is the
+ * cap that admits it, rounded up to the cent; `maxOutputTokens` is the
+ * largest output limit that fits, or null when no output limit alone makes it
+ * fit; `inputAloneExceeds` says the input alone already costs more than is
+ * left; `inputCostUsd` is that input-alone cost.
+ */
+export interface ExecBudgetRefusal {
+  neededUsd: UsdAmount
+  remainingUsd: UsdAmount
+  admitCapUsd: UsdAmount | null
+  maxOutputTokens: number | null
+  inputAloneExceeds: boolean
+  inputCostUsd: UsdAmount
+}
 export interface ExecLimits {
   budgetUsd: UsdAmount | null
   maxRequests: number | null
@@ -113,7 +131,9 @@ export interface ExecResult {
   model: string | null
   sessionId: string | null
   ephemeral: boolean
+  usageHistory?: 'omitted_ephemeral' | undefined
   finalMessage: string
+  finalMessageComplete?: boolean | undefined
   output?: { value: z.core.util.JSONType; validation: 'provider' | 'local' } | undefined
   filesChanged: string[]
   denials: ExecDenial[]
@@ -135,9 +155,15 @@ export interface ExecResult {
     refusal: Refusal | null
     lastResponse: LastResponse | null
   } | null
+  /** Present when a run-cap budget refusal stopped the run. */
+  budget?: ExecBudgetRefusal | undefined
   limits: ExecLimits
   durationMs: number
-  error: { kind: string; message: string } | null
+  error: {
+    kind: string
+    message: string
+    facts?: { scope: string; file?: string | undefined; errno?: string | undefined } | undefined
+  } | null
 }
 export type ExecEventBody =
   | {
@@ -211,6 +237,7 @@ const STATUSES = [
   'cancelled',
   'timeout',
   'budget_exceeded',
+  'unpriced',
   'request_cap',
   'denied',
   'auth_required',
@@ -293,12 +320,19 @@ const lastResponseSchema = z
   })
   .check(
     z.refine(
+      // A billed response need not have completed: with valid usage a
+      // terminal `incomplete` or `failed` response settled as priced, and
+      // the ledger prices every settled terminal alike (runLedger
+      // `settleResponse` prices unless the terminal is missing, queued or
+      // still in progress).
       (value) =>
         value.settlement !== 'priced' ||
-        (value.terminal === 'completed' &&
-          value.usage === 'valid' &&
+        (value.usage === 'valid' &&
           !value.endedWithoutTerminal &&
-          value.transportError === null),
+          value.transportError === null &&
+          value.terminal !== null &&
+          value.terminal !== 'in_progress' &&
+          value.terminal !== 'queued'),
     ),
   )
 const limitsSchema = z.strictObject({
@@ -312,6 +346,14 @@ const ledgerSchema = z.strictObject({
   breach: z.boolean(),
   refusal: z.nullable(z.enum(REFUSALS)),
   lastResponse: z.nullable(lastResponseSchema),
+})
+const budgetSchema = z.strictObject({
+  neededUsd: amount,
+  remainingUsd: amount,
+  admitCapUsd: z.nullable(amount),
+  maxOutputTokens: z.nullable(counter),
+  inputAloneExceeds: z.boolean(),
+  inputCostUsd: amount,
 })
 const totalsSchema = z
   .strictObject({
@@ -328,14 +370,12 @@ const totalsSchema = z
     lastResponse: z.nullable(lastResponseSchema),
   })
   .check(
-    z.refine((value) =>
-      isSumEqual(value.capUsd, [
-        value.settledUsd,
-        value.uncertainUsd,
-        value.reservedUsd,
-        value.remainingUsd,
-      ]),
-    ),
+    z.refine((value) => {
+      const used = sumUsd(value.settledUsd, value.uncertainUsd, value.reservedUsd)
+      return Usd.from(used).compare(Usd.from(value.capUsd)) > 0
+        ? value.breach && value.remainingUsd === '0'
+        : isSumEqual(value.capUsd, [used, value.remainingUsd])
+    }),
   )
 
 /** Fixed-unit boundaries refuse a decimal that cannot be represented exactly. */
@@ -410,7 +450,7 @@ function isBackendAccountingValid(value: ExecResult): boolean {
     cap !== undefined &&
     total !== undefined &&
     cap === microUsd(value.limits.budgetUsd) &&
-    total <= cap
+    (total <= cap || (ledger.breach && value.status === 'budget_exceeded'))
   )
 }
 
@@ -439,6 +479,9 @@ export function exitCodeFor(
     case 'budget_exceeded':
     case 'request_cap': {
       return EXEC_EXIT.limit
+    }
+    case 'unpriced': {
+      return EXEC_EXIT.failed
     }
     case 'timeout': {
       return EXEC_EXIT.timeout
@@ -472,7 +515,9 @@ export const execResultSchema: z.ZodMiniType<ExecResult> = z
     model: nullableText,
     sessionId: nullableText,
     ephemeral: z.boolean(),
+    usageHistory: z.optional(z.literal('omitted_ephemeral')),
     finalMessage: z.string(),
+    finalMessageComplete: z.optional(z.boolean()),
     output: z.optional(
       z.strictObject({ value: outputJsonSchema, validation: z.enum(['provider', 'local']) }),
     ),
@@ -502,9 +547,22 @@ export const execResultSchema: z.ZodMiniType<ExecResult> = z
       paid: paidSchema,
     }),
     ledger: z.nullable(ledgerSchema),
+    budget: z.optional(budgetSchema),
     limits: limitsSchema,
     durationMs: z.number().check(z.gte(0)),
-    error: z.nullable(z.strictObject({ kind: z.string(), message: z.string() })),
+    error: z.nullable(
+      z.strictObject({
+        kind: z.string(),
+        message: z.string(),
+        facts: z.optional(
+          z.strictObject({
+            scope: z.string(),
+            file: z.optional(z.string()),
+            errno: z.optional(z.string()),
+          }),
+        ),
+      }),
+    ),
   })
   .check(
     z.refine(

@@ -118,11 +118,17 @@
   "certaintyReported": "Informado",
   "certaintyComputed": "Calculado",
   "certaintyUncertain": "Incerto",
+  "reservedLabel": "Reservado",
   "certaintyPlan": "Plano",
   "certaintyLocal": "Local",
   "certaintyUnpriced": "Sem preço",
   "certaintyEstimated": "Estimado",
   "uncertainNote": "A solicitação foi enviada sem retorno de uso. Seu custo continua vigente.",
+  "unknownCalls": {
+    "one": "{count} solicitação com custo desconhecido",
+    "many": "{count} solicitações com custo desconhecido",
+    "other": "{count} solicitações com custo desconhecido"
+  },
   "unpricedNote": "Sem tabela de preços disponível. Custo desconhecido não é zero.",
   "estimatedNote": "As contagens de tokens são estimativas.",
   "localNote": "Modelo local: sem cobrança de API.",

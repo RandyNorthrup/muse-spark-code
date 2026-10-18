@@ -68,8 +68,9 @@ type AccountConnection = AccountSession['connection']
 
 /** An account method's `AccountState` answer; undefined when it failed or came in another shape. */
 async function requestAccount(
-  connection: AccountConnection,
+  connection: Pick<AccountConnection, 'request'>,
   method: string,
+  log: Logger,
 ): Promise<AccountState | undefined> {
   try {
     const result = accountStateSchema.safeParse(
@@ -80,7 +81,14 @@ async function requestAccount(
       ),
     )
     return result.success ? result.data : undefined
-  } catch {
+  } catch (error: unknown) {
+    // The host failed or did not answer in time: it said nothing, which is
+    // not a state. Anything that is not an error keeps its kind.
+    // read-state: cert TBL-03. "Cannot say" reads as unsigned-in here; the
+    // sign-in gate re-asks rather than releasing anything on it. The kind
+    // reaches the record; the words carry nothing raw.
+    if (!(error instanceof Error)) throw error
+    log.warn(`Muse Code did not answer ${method}: ${wireWordForLog(errorName(error))}`)
     return undefined
   }
 }
@@ -88,8 +96,9 @@ async function requestAccount(
 /** `account/read` on an open host; undefined when the host cannot say. */
 export async function readAccountState(
   connection: AccountConnection,
+  log: Logger,
 ): Promise<AccountState | undefined> {
-  return await requestAccount(connection, MUSE_ACCOUNT_READ)
+  return await requestAccount(connection, MUSE_ACCOUNT_READ, log)
 }
 
 /**
@@ -108,7 +117,10 @@ async function onAccountHost<T>(
   try {
     session = await connect(ended)
   } catch (error: unknown) {
-    log.warn(`The Muse Code account host could not start: ${errorName(error)}`)
+    // A host that cannot start answers with the fallback. Anything that is
+    // not an error keeps its kind.
+    if (!(error instanceof Error)) throw error
+    log.warn(`The Muse Code account host could not start: ${wireWordForLog(errorName(error))}`)
     return fallback
   }
   try {
@@ -128,7 +140,9 @@ export async function probeAccount(
   log: Logger,
   ended: AbortSignal,
 ): Promise<AccountState | undefined> {
-  return await onAccountHost(connect, log, ended, undefined, readAccountState)
+  return await onAccountHost(connect, log, ended, undefined, (connection) =>
+    readAccountState(connection, log),
+  )
 }
 
 /**
@@ -149,8 +163,8 @@ export async function logOutAccount(
     ended,
     'unconfirmed',
     async (connection) => {
-      const answer = await requestAccount(connection, MUSE_ACCOUNT_LOGOUT)
-      const after = answer === undefined ? undefined : await readAccountState(connection)
+      const answer = await requestAccount(connection, MUSE_ACCOUNT_LOGOUT, log)
+      const after = answer === undefined ? undefined : await readAccountState(connection, log)
       // The state word only, and only in the shape of one: its vocabulary
       // is open (the review of PR #49).
       if (after === undefined || !isCapturedSignedOut(after)) {

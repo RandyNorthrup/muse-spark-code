@@ -15,6 +15,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  isDefiniteRefusal,
   isRefusalRetryable,
   parseRefusalError,
   refusalOf,
@@ -176,5 +177,27 @@ describe('the stored form carries no key remnant or account id', () => {
     // The request id is the provider support handle and is kept.
     expect(scrubRefusalLeak(parsed.message)).toBe(scrubbed)
     expect(scrubRefusalLeak(parsed.message)).not.toMatch(/\*{2,}/)
+  })
+})
+
+// Lane TRUTHACP: the definite-nothing-billed set is the final design (PLAN.md
+// D117; grounding in `docs/certification/provider-refusals.md`). The eight
+// statuses the providers document as rejections before processing release
+// the reservation; 408 can describe interrupted processing, 409 is ambiguous
+// (Anthropic `conflict_error`), and 5xx and 0 stay uncertain, so all stay out
+// and keep their uncertain liability instead of releasing it.
+describe('the definite-nothing-billed set', () => {
+  it.each([400, 401, 402, 403, 404, 413, 422, 429])('status %i is definite', (status) => {
+    expect(isDefiniteRefusal(status)).toBe(true)
+  })
+
+  // Every uncertain status here is grounded, never chosen: 0 is the
+  // close-before-headers drill (unanswered send); 408 is Gemini's documented
+  // transient; 409 is Anthropic's ambiguous `conflict_error`; 500 stands for
+  // every 5xx (the HTML-502-proxy drill); 529 is the drilled overloaded row
+  // that keeps uncertain liability. 418/425/499 have no recorded exchange
+  // and no provider-doc grounding, so they are not claimed here.
+  it.each([0, 408, 409, 500, 529])('status %i stays uncertain', (status) => {
+    expect(isDefiniteRefusal(status)).toBe(false)
   })
 })

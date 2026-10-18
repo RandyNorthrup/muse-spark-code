@@ -1,3 +1,4 @@
+import { UserRefusalError } from '../shared/refusal'
 import { resolveExecOutputCap } from './exec/runLedger'
 import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
@@ -241,7 +242,8 @@ function modelApiManager(
         fetch: deps.fetch,
         catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
         configFile: providerConfigFile,
-        openBrowser: () => Promise.reject(new Error(UI_TEXT.acpChatGpt.failure)),
+        // A session never signs in: the terminal command does (`providers add chatgpt`).
+        openBrowser: () => Promise.reject(new Error(UI_TEXT.acpChatGpt.browserUnavailable)),
         callbackText: () => UI_TEXT.acpChatGpt.callback,
       })
     })())
@@ -428,6 +430,7 @@ function modelApiManager(
         client,
         await dailyBudget(),
         deps.exec?.responseAccounting,
+        deps.exec?.providerRun?.dispatch,
         deps.exec?.outputCap,
       )
     },
@@ -439,7 +442,7 @@ function modelApiManager(
     ) => {
       if ('input' in body) return
       const budget = await dailyBudget()
-      return await budget.reserve(PAID_PRICES_USD.imageGeneration, signal)
+      return budget.admit(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount(), signal)
     },
     ...(deps.exec === undefined && {
       getProviderAccountId: async () => {
@@ -449,7 +452,8 @@ function modelApiManager(
     }),
     ...(deps.exec?.providerRun !== undefined && {
       getProviderAccountId: async () => {
-        if (headlessProviders === undefined) throw new Error(UI_TEXT.execModelUnpriced)
+        if (headlessProviders === undefined)
+          throw new UserRefusalError(UI_TEXT.execModelUnpriced, 'unpriced')
         return await headlessProviders.accountId()
       },
     }),
@@ -518,7 +522,7 @@ function modelApiManager(
     isAutoCompactionOn: () =>
       deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
-    // The wrapped runtime transport owns one daily claim per HTTP attempt.
+    // The wrapped runtime transport checks a person-set daily limit per HTTP attempt.
     autoCompactionAccounting: 'transport',
     paidDailyBudgetUsd: async () => {
       const budget = await dailyBudget()
@@ -576,6 +580,12 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       sleep: deps.sleep,
     }),
     log: deps.log,
+    // The terminal operator's console is the runtime log: an "always" that
+    // could not be kept is said there at once. A served session's person
+    // hears it in the session instead (the agent attaches its notifier).
+    notify: (text) => {
+      deps.log.warn(text)
+    },
     ...(deps.exec !== undefined && { headless: deps.exec.headlessPaid }),
   })
   const museEnvironment = museCode.childEnvironment()
@@ -637,6 +647,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   }
 
   const modelApiReadiness = async (): Promise<BackendReadiness> => {
+    if (deps.exec?.providerRun !== undefined) return { state: 'ready' }
     let key: string | undefined
     try {
       key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
@@ -651,30 +662,43 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
       }
     }
-    if (deps.exec?.providerRun !== undefined) return { state: 'ready' }
     if (deps.exec === undefined && (key === undefined || key === '')) {
       try {
         if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)
           return { state: 'ready' }
-        const configFile = path.join(
-          deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
-          PROVIDERS_CONFIG_DIR_NAME,
-          PROVIDERS_FILE_NAME,
-        )
-        if (existsSync(configFile)) {
-          const entry = await import('./chatGptProviderCommands')
-          const factory = entry.runtimeSubscriptionClient({
-            secrets: deps.secrets,
-            fetch: deps.fetch,
-            configFile,
-            catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
-            openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
-            callbackText: () => UI_TEXT.acpChatGpt.callback,
-          })
-          if ((await factory.accountId()) !== undefined) return { state: 'ready' }
-        }
       } catch {
         return { state: 'unavailable', message: UI_TEXT.acpChatGpt.storeUnavailable }
+      }
+      const configFile = path.join(
+        deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
+        PROVIDERS_CONFIG_DIR_NAME,
+        PROVIDERS_FILE_NAME,
+      )
+      if (existsSync(configFile)) {
+        const entry = await import('./chatGptProviderCommands')
+        const factory = entry.runtimeSubscriptionClient({
+          secrets: deps.secrets,
+          fetch: deps.fetch,
+          configFile,
+          catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+          openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
+          callbackText: () => UI_TEXT.acpChatGpt.callback,
+        })
+        try {
+          if ((await factory.accountId()) !== undefined) return { state: 'ready' }
+        } catch (error: unknown) {
+          // The providers file, a stored ChatGPT grant or the store: each in
+          // its own words, never all of them as the store. The file's refusal
+          // carries its own sentence (unparseable or invalid).
+          if (isInvalidProvidersFileError(error))
+            return { state: 'unavailable', message: error.message }
+          return {
+            state: 'unavailable',
+            message:
+              entry.chatGptFailureOf(error) ??
+              fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
+          }
+        }
       }
     }
     return key === undefined || key === ''

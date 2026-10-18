@@ -1,6 +1,7 @@
+import { SpendLedgerError } from '../core/paid/spendLedgerError'
 // Exact nano-USD arithmetic. Legacy numbers are converted at the boundary,
 // before calculation; liabilities round up and caps explicitly round down.
-import { UI_TEXT, uiLocale } from './l10n/text'
+import { uiLocale } from './l10n/text'
 
 const ZERO = 0n
 const ONE = 1n
@@ -16,7 +17,7 @@ export type Usd = bigint
 type Rounding = 'ceil' | 'floor'
 
 function unavailable(): never {
-  throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+  throw new SpendLedgerError('integrity', { scope: 'account', file: 'accountUsd' })
 }
 
 function divide(value: bigint, divisor: bigint, rounding: Rounding): bigint {

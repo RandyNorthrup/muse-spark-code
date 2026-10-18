@@ -1,66 +1,56 @@
-// An exclusive loopback listener serializes OS-store grant mutations across
-// processes. The OS releases it on exit, including a crash: no stale lease
-// can authorize a second refresh. Port contention fails closed at the deadline.
-import { createServer, type Server } from 'node:net'
-import { setTimeout as delay } from 'node:timers/promises'
+// One person-scoped grant lock serializes OS-store grant mutations across
+// processes: the named lock of namedLock.ts, on the grant's own name. A
+// contention timeout is `lock-busy`, a caller's abort `cancelled`, and a local
+// failure to open the lock reports its OS code: none reads as "temporarily
+// unavailable". An untyped failure of the protected work is `request-failed`
+// with its own codes.
 import {
-  CHATGPT_REFRESH_LOCK_PORT,
-  CHATGPT_REFRESH_LOCK_RETRY_MS,
+  CHATGPT_GRANT_LOCK_DIR,
+  CHATGPT_GRANT_LOCK_FILE,
+  CHATGPT_GRANT_LOCK_PIPE,
   OAUTH_CODE_TTL_MS,
-  OAUTH_LOOPBACK_HOST,
 } from '../shared/constants'
+import { failureCodeNames } from '../core/networkFailure'
 import { ChatGptSignInError } from '../core/providers/subscriptions/chatgpt'
 import { StoreUnavailableError } from './keyStore'
+import { NamedLockError, personScope, withNamedLock, type NamedLockOptions } from './namedLock'
 
-export interface ChatGptLockOptions {
-  readonly port?: number
-  readonly timeoutMs?: number
-  readonly signal?: AbortSignal
-}
+export type ChatGptLockOptions = NamedLockOptions
 
-async function listen(port: number): Promise<Server | undefined> {
-  const server = createServer((socket) => socket.destroy())
-  return await new Promise((resolve, reject) => {
-    server.once('error', (error: NodeJS.ErrnoException) => {
-      server.close()
-      if (error.code === 'EADDRINUSE') resolve(undefined)
-      else reject(new ChatGptSignInError('request-failed'))
-    })
-    server.listen({ port, host: OAUTH_LOOPBACK_HOST, exclusive: true }, () => {
-      resolve(server)
-    })
-  })
-}
+/**
+ * The contention deadline production waits: a suspended process holding the
+ * grant lock reports `lock-busy` after this instead of hanging every CLI/ACP
+ * account operation forever. A caller-supplied `timeoutMs` still wins.
+ */
+export const CHATGPT_REFRESH_LOCK_TIMEOUT_MS = OAUTH_CODE_TTL_MS
 
-/** One machine-wide grant lock; no token, identity, file or child is involved. */
+/** One person-scoped grant lock; no token, identity, file or child is involved. */
 export async function withChatGptRefreshLock<T>(
   work: () => Promise<T>,
   options: ChatGptLockOptions = {},
 ): Promise<T> {
-  const deadline = AbortSignal.timeout(options.timeoutMs ?? OAUTH_CODE_TTL_MS)
-  const signal =
-    options.signal === undefined ? deadline : AbortSignal.any([deadline, options.signal])
+  const scope = personScope()
   try {
-    for (;;) {
-      signal.throwIfAborted()
-      const server = await listen(options.port ?? CHATGPT_REFRESH_LOCK_PORT)
-      if (server !== undefined) {
-        try {
-          signal.throwIfAborted()
-          return await work()
-        } finally {
-          await new Promise<void>((resolve) =>
-            server.close(() => {
-              resolve()
-            }),
-          )
-        }
-      }
-      await delay(CHATGPT_REFRESH_LOCK_RETRY_MS, undefined, { signal })
-    }
+    return await withNamedLock(
+      work,
+      {
+        pipe: `${CHATGPT_GRANT_LOCK_PIPE}-${scope}`,
+        folder: `${CHATGPT_GRANT_LOCK_DIR}-${scope}`,
+        file: CHATGPT_GRANT_LOCK_FILE,
+      },
+      { ...options, timeoutMs: options.timeoutMs ?? CHATGPT_REFRESH_LOCK_TIMEOUT_MS },
+    )
   } catch (error) {
     if (error instanceof ChatGptSignInError) throw error
+    if (error instanceof NamedLockError) {
+      if (error.kind === 'busy') throw new ChatGptSignInError('lock-busy')
+      if (error.kind === 'cancelled') throw new ChatGptSignInError('cancelled')
+      throw new ChatGptSignInError('lock-unavailable', error.reason)
+    }
     if (error instanceof StoreUnavailableError) throw new ChatGptSignInError('store-unavailable')
-    throw new ChatGptSignInError('request-failed')
+    // An untyped failure of the protected work can be the network as well as this
+    // machine: the known local causes are typed where they happen (store, lock,
+    // browser, providers file), and what is left is named by its own codes.
+    throw new ChatGptSignInError('request-failed', failureCodeNames(error))
   }
 }

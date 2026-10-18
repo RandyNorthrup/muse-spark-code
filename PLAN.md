@@ -1,5 +1,14 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**PRTH161 review closure (2026-10-15, Windows).** Merge main `d842cad5d`,
+retain its real-code-only test overhaul, then address threads T1–T5 in
+`.lane/PR161.threads.md`. Reuse the catch classifier and baseline: prove
+all handler paths, then ratchet individual sites rather than area totals.
+Recheck durable damage markers across windows; defer paid not-kept notices
+until the currentness fence; settle HTTP bridge failures without poisoning
+its queue. Pure-module tests and real temporary files only; consent/editor
+composition goes to the lead's real-life steps, never a stand-in. Receipts:
+`docs/certification/catch-money.md` and `.lane/PRTH161.report.md`.
 **PRTH165 review repair (2026-10-15, Windows).** Merge `d842cad5d`
 with hooks, retaining main's deleted fake-driven tests. Resolve threads T1–T6
 in the existing ACP permission-answer cache, agent lifecycle and translated
@@ -1424,6 +1433,8 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/exec.js`                           | ≤ 950 KiB                           |
 | Webview estimator import closure         | ≤ 25 KiB                            |
 | `dist/reference.js`                      | ≤ 125 KiB                           |
+| `dist/auth.js`                           | ≤ 75 KiB                            |
+| `dist/paid.js`                           | ≤ 75 KiB                            |
 
 **`dist/conversation.js` budget rationale.** (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)
 
@@ -1537,9 +1548,13 @@ properties, and retain all existing caps. No new artifact or dependency.
 
 **FIXM106L1 (2026-10-06):** the complete argument-preview UI entry is independently bounded at 25 KiB: 648 bytes measured, plus 15%, rounded to 25 KiB. Only its new entry moves out of the deferred group; shared/static dependencies retain their existing startup and deferred caps.
 
-**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB on 2026-10-06 by the same rule; separate from the unchanged unclassified deferred group)
+**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB on 2026-10-06 by the same rule; separate from the unchanged unclassified deferred group; D119 re-baseline 2026-10-17: 26,410 bytes measured with the worded refusal in the closure, plus 15%, rounded up to 30 KiB; re-measured 26,418 on 2026-10-18 after the port `report` channel, same 30 KiB row)
 
 **`dist/reference.js` budget rationale.** (M117: the generated help reference; the estimator feature, command and settings rows bring it to 100.7 KiB on 2026-10-07, plus 15%, rounded up to 25 KiB)
+
+**`dist/auth.js` budget rationale.** (CIFIX161B: the sign-in gate, AuthService and the three-valued credential read, loaded on the first credential, money or consent read; measured 64.8 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/paid.js` budget rationale.** (CIFIX161B: the paid gate, consent, usage and quote authority, loaded on the first paid consent, gate or usage read; measured 62.7 KiB plus 15%, rounded up to 25 KiB)
 
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
@@ -3298,12 +3313,27 @@ policy decisions apply. Hosted search, voice, subagents and schedules stay off;
 the subscription pays none of these Model API calls. D48/D62's interactive
 popup policy remains in force for interactive sessions.
 
-Admission reserves the documented context-window liability for each attempt,
-including retries, using integer micro-USD and upward rounding (F1).
-Contributor minimum is $0.108135 ($0.118135 with images); standard minimum is
-$1.409024 ($1.419024 with images). Lost or unverified receipts keep their full
-reservation. The conditional billing theorem and provider assumptions are in
-[docs/ci.md](docs/ci.md); no M82 prerequisite or token-count estimator exists.
+Admission reserves conservative request input and the resolved output cap for
+each attempt, including retries, with integer micro-USD upward rounding (EXECPROV,
+2026-10-11). There is no fixed full-context startup minimum. Each request is
+capped at the model's own output limit (0.18.0 policy cap, kept at the merge
+2026-10-12); the cap feeds the body, request schema, ledger shape check and
+first real reservation. Lost receipts keep their request reservation. Configured
+price cards include their captured cache-write premiums and long-context tier.
+Request admission uses the canonical-body UTF-8 bound where no verified exact
+count is available; Anthropic reserves its estimate plus 25%, capped by that
+size bound. Only the final estimate error can exceed the cap: the full actual
+cost is retained and another request stops (LEDGER, 2026-10-12). Initial HTTP
+refusals before generation settle at zero; cancellation without final usage
+retains unresolved liability separately from confirmed spend. See
+`docs/certification/exec-provider.md`; full aggregate quality and installed/live
+certification remain lead-owned.
+Configured defaults are authoritative in exec and ACP; no missing default selects
+another model. Ephemeral exec omits durable usage history and reports
+usageHistory=omitted_ephemeral. Command --help stays local; help reference opens
+the complete catalogue (EXECPROV, 2026-10-11). The usage panel shares the portable
+journal through runtimeAccounting, installing the caller’s language before use,
+to retain its existing size cap.
 
 Proposals, secret-free tests and reviewer-approved push run in separate jobs.
 Text patches publish only after exact staged-byte scanning. Any binary/image
@@ -14464,6 +14494,16 @@ replies ending the turn. The scans then showed the same defect from the
 other side: error bodies replaced by one fixed sentence on the configured
 path. Full record: the round-2 certification and the gap certifications.
 
+### D119 — Reads that guard money, consent or credentials are three-valued (2026-10-12; numbered D109 until 2026-10-17, when that number was found shared)
+
+A read that guards money, consent or a credential answers found, absent,
+or could-not-read with a closed kind — never a boolean that collapses the
+third state into absence. Guards fail closed on could-not-read (a billing
+hold is never released, a sign-in never lifts one, "can recover" is never
+true, no key is asked for as if none existed) and tell the person once per
+distinct damage through a notice, not only the log. Full record:
+`docs/certification/catch-money.md` (round 3).
+
 ### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
 
 The owner, verbatim: "get the useless tests get it streamlined and
@@ -14575,7 +14615,51 @@ resolved against the plan's user-visible promise, not against the tag:
   both backends) must pass the role's answer through. MSM58M69 shipped
   no behaviour change for it.
 
+### D121 — No spending check without a limit the person set (spend-simple, owner 2026-10-17)
+
+The owner, verbatim: "why are there spending checks each call this seems
+like not the right way to do it make sure you research properly. whatever
+get the app to pruduction faster with no bugs. i dont care about the
+credits if the app is proven working." With the standing rule of the same
+day (only the providers' limits are hard-coded; every other limit is the
+person's, none by default), this supersedes the LEDGER design (§3, §6, §7):
+the atomic claim journal, its cross-process admission lock, the 100 ms
+admission bound and its benchmark.
+
+- **No limit set, no check.** With no session budget, no editor
+  `museSpark.paidDailyBudgetUsd` and no agent `paidDailyBudgetUsd` (all
+  none by default, no maximum of ours), nothing is reserved, locked or
+  written, and no spend record is read, before a send; only the settings
+  that would hold a limit are read. Each reply's own usage line still shows
+  its cost.
+- **A limit the person set keeps a running total.** The session budget's
+  total lives in the session that owns it, grows after each call from the
+  usage the provider reported, and is saved with the session, so a resume
+  continues from it. A daily budget's total is lock-free: each process adds
+  to its own file in the day's folder, and a read sums the files.
+- **Stop before, in plain words.** A request whose estimate (its input plus
+  the model's floor output, search fees included) would pass the limit is
+  not sent; the stop names the estimate, the limit and what was used, and
+  the daily stop names the setting. One warning comes when what is left no
+  longer fits a request like the last one. A reply may cost more than its
+  estimate; the next request is then the one stopped.
+- **A reservation is never spend.** A response that ended without its usage
+  counts as cost unknown, with what is known, and adds nothing to the total.
+- **A refusal books nothing.** A request the provider refused before
+  generating anything (`NON_BILLABLE_HTTP_REJECTIONS`) is withdrawn from the
+  run ledger with its request count and adds nothing to any total, even when
+  a provider adapter rethrows the error without its status: the transport
+  tells the attempt guard first (`onRefused`).
+- **Kept as they were:** the exec run ledger's own rules otherwise
+  (`--max-budget-usd`, its published v2 schema), the Tab ledger, the team
+  meter and account thresholds. Record, the $120.00 origin and every removal:
+  `docs/certification/spend-simple.md`.
+
 ## 3. Open questions (need the owner)
+
+**LEDGER cancellation billing (2026-10-12). Resolved 2026-10-17 by D121:**
+the owner chose not to count an unresolved reservation at all; a response
+without its usage is cost unknown. The original question follows. The requested received-output cancellation bound is not provable: Anthropic explicitly bills client disconnects, and OpenAI counts non-visible generated tokens. Keep the full unresolved reservation as liability, never display it as spend; settle a provider-reported final usage even on an incomplete/cancelled response. A received-output estimate must not release unknown provider liability. Billing research and real-use steps: `docs/certification/spend-ledger.md`.
 
 **Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13).** GAPANTH-G11's scan row
 notes that an Anthropic reply stopped with `refusal` offers no fallback
@@ -15673,6 +15757,11 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+**LEDGER (2026-10-12, Kubuntu and macmini; M80/M82/M95 repair). Superseded
+2026-10-17 by D121:** the versioned ledger, its atomic admission and its
+journal files are removed; spending is checked only against a limit the
+person set. The original scope follows. Replace directory-per-claim budgeting with one versioned spend ledger and atomic admission for session, editor daily and terminal daily scopes; retain every sent attempt at its full liability, recover only from process identity evidence, and certify real-process races, crashes, migration and packed-product refusals. Design and ruling R9 compatibility limits: `docs/certification/spend-ledger.md`. Shared daily input reserves the byte/context bound even when terminal admission uses a provider estimate. One flushed transaction inode supplies atomic snapshot and audit/history aliases; process owner notes are cached per scope. Portable ledger errors stay in each caller's language state. Runtime settlement uses typed HTTP observations, never retry-message text, and only refunds initial rejections before response frames. Removing inherited stand-in suites also removes their unused production-only exports (unbound account-home factory, account admission wrapper and schedule paid-scope factories); their live interfaces remain. Provider endpoint/path utilities move to a leaf module to break the measured configured-bundle command cycle. Keyless configured runs bind an empty in-memory secret store and skip Meta readiness lookup; a real ECONNREFUSED before connection releases the hold. No provider calls, cap changes, merges or pushes.
+
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
@@ -15725,7 +15814,9 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 **Status 2026-10-10: building.** F1a builds the internal B1 runner and
 native confinement boundary; it stays off and has no command, setting or
-panel entry until its platform receipts and fresh reviews pass. Q-D107 is
+panel entry until its platform receipts and fresh reviews pass. On main the
+B1 runner (`src/core/judge/fast/inspectExec.ts`) refuses every platform but
+Linux, so macOS, which D107 plans for B1, is not yet supported. Q-D107 is
 answered by the owner (B), so lane F is underway. Design:
 `docs/design/judge-fast-path.md`, revised
 after the third, fourth and fifth reviews (`RVJUDGEFAST3` to
@@ -23224,6 +23315,26 @@ OpenCode plugin hooks").
 
 ### M95 — Bring-your-own model providers (D74)
 
+**EXECPROV (2026-10-11, kubuntu; M80/M95 repair).** Follow the corrected
+rig brief: A1 refunds every unsent daily/run claim and recovers demonstrably
+dead owners of new unsent daily claims; sent or legacy unknown liability stays
+reserved. A3 preserves user refusals through the shared provider wrappers. A2
+quotes the actual conservative input plus one resolved output cap, using the
+selected model price card. B keeps configured defaults in exec/ACP; C updates
+only documented catalogue evidence; D uses terminal instructions in every
+language; E repairs usage persistence; F confines help to its command; G updates
+ACP/README/reference. Fake providers only, existing caps/hooks/timeouts intact.
+Round 2 completes the interruption/recovery matrix with real journals, resolves
+slash-containing native IDs against configured models, covers every deep command's
+help, diagnoses persistent usage history, and binds model-specific effort to ACP
+and exec. Sign-in methods exclude maintenance actions; JSON progress uses stderr;
+stopped runs retain validated, redacted partial text and accounting. STREAMCLASS
+owns helper/transport idle marks, Copilot silence and upload progress limits;
+TOOLROUNDS owns the tool-loop ceiling. Run every dependent suite in three-file
+batches and record base failures separately. No live calls or new caps.
+Certification: `docs/certification/exec-provider.md`. Full aggregate quality
+belongs to the lead under this lane's explicit scoped-gate instruction.
+
 **Provider panel, 0.17.1 residual (PROVWIZ9, lead decision 2026-10-09).**
 Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
 
@@ -24080,6 +24191,26 @@ release acceptance are still pending.
 
 ### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
 
+**PROVPLAN provider research fixes (2026-10-17).** Follow OpenAI's Sign in
+with ChatGPT pages for the plan route (`docs/research/providers/chatgpt-codex.md`,
+PR #202): keep the account's registration (issued client, hashed account, no
+token) across sign-out and reuse it, with "Use a Different ChatGPT Account" as
+the one way to register anew; ride the documented 503 answers on the turn's
+bounded retry and route a pre-stream usage limit to the plan-limit answer;
+send and enforce no output or size cap of ours. Usage windows, reset times,
+`earliest_refresh_at`, input modalities and Ultrafast stay open until a capture
+shows them (`docs/certification/plan-catalogue.md`, PROVPLAN).
+
+**RVHOSTID review fixes (2026-10-14, Windows).** Reuse the canonical Responses
+codec and callback adapters. Reject invalid or repeated stream output indices
+before terminal adoption, preserve typed authorize refusals through both
+callbacks and local host-id validation failures through the runtime boundary.
+Fast tier reset remains an open review finding. Verify with real-module boundary
+tests and recorded captures; no provider
+requests or access to the owner's live grant. Credential-part reclamation and
+POSIX stale-socket recovery require a coordinated lifecycle redesign: keep their
+proven races open in `.lane/RVHOSTID.report.md`, not a partial safety claim.
+
 **Status 2026-10-10 (corrects 2026-10-05: acceptance 1–10 still open, so not built; first parts shipped in the 0.15.0 preview, live plan inference, installed-editor receipts and full quality remain): building.**
 
 - **Goal.** A user with a ChatGPT Plus or Pro plan, or a Copilot plan, runs
@@ -24615,6 +24746,12 @@ Until then nothing is built for it.
 
 ### M100 — Paired devices as lane pools (D80, planned)
 
+**Status 2026-10-17: building.** On main, only the receiving device's
+admission check is written (`src/host/devices/deviceReceiver.ts`, with the
+request contract in `src/core/team/remotePool.ts`), and nothing uses it:
+`knip.jsonc` lists both as built ahead of their wiring. Phase 2 is not
+merged, so no pairing, listener, discovery or remote execution is on main.
+
 **Status 2026-10-09: built.** Phase 2 accepted, not yet merged.
 
 **Status 2026-10-05: documentation only on `feature/m100-multi-device`.**
@@ -24752,7 +24889,10 @@ are no longer blocked by it.
 
 **Status 2026-09-26: M62a built and certified**
 (`docs/certification/m62.md`); the other forks and the first Open VSX
-listing are M62b.
+listing are M62b. Eclipse Theia and code-server ran the extension only
+against the fake Muse Code CLI, by hand (`docs/certification/m62.md`) and
+in `hosts.yml` jobs deleted on 2026-10-17 (`docs/real-life/unproven.md`),
+so they are not yet tried for real.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -24762,7 +24902,10 @@ listing are M62b.
 (`docs/certification/m63.md`); M63b run in Emacs, Neovim, Zed and
 JupyterLab, and in CI (below); M63c's MCP servers and paid features built,
 joined with M57, M58 and PR #49's sign-in
-(`docs/certification/pr32-integration.md`).
+(`docs/certification/pr32-integration.md`). Every M63b run drove the same
+fake Muse Code CLI (`docs/certification/m63.md`): Zed by hand only, and
+Emacs, Neovim and JupyterLab by hand and in `hosts.yml` jobs deleted on
+2026-10-17. None of these editors has yet held a real conversation.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -33375,6 +33518,65 @@ lane A's first step.
 
 ## 7. Gates
 
+**LEDGER local qualification deferral (2026-10-12). Superseded 2026-10-17 by
+D121:** the 100 ms admission bound, its benchmark and the ledger it measured
+are removed, so R3/R4 below no longer apply. The original record follows. The owner's latest
+no-stand-in/no-screenshot testing rule replaces full `quality` and fake provider
+proofs for this lane. Static gates and real core/packed commands are recorded in
+`docs/certification/spend-ledger.md`. The unchanged 100 ms admission bound failed
+on macOS at 10 closed claims (1,106.692 ms before the single-inode correction);
+two earlier post-correction core tests exceeded the default 5 s (5.184 / 6.842 s); the current core/migration/typed-refusal batch passed all 35 without changing a timeout. Their earlier cause is UNMEASURED.
+The final indexed-history fixture measured admission maxima 782.652 / 440.347 /
+380.090 ms at 10 / 1,000 / 10,000 entries, hold maximum 856.212 ms; the 2 s
+wait has no certified eightfold margin on those results. R3/R4 remain open.
+No cap, timeout, ignore or assertion is weakened. ACP packaging is blocked by missing required Darwin/Linux native artifacts;
+the keyless local product run stopped before connection at model availability,
+so packed transport refund remains uncertified. The redacted full-history
+secret scan found two entries among 4,731 commits; locations/cause are
+UNMEASURED and history is not rewritten. Final static exits are in the
+certification's named receipts. Preliminary duplication returned 10 clones, including inherited fake suites
+that the owner forbids this lane to repair; no ignore or threshold is changed.
+The final receipt lists every remaining clone. The history-size fixture expands
+real-writer transaction data and is distinct from 10,000 actual admissions. Final macOS matrix, Windows
+rename/hard-link takeover, editor interactions and provider billing outcomes
+remain uncertified until their named real-use/platform runs. This is not a
+release certification and the change must not be described as fully green.
+
+**EXECPROV round 4 scoped qualification (2026-10-12, kubuntu).** The
+explicit lane brief reserves aggregate `npm run quality` for the lead.
+This lane merges `snap/hotfix-0181` (0.18.0 + 0.18.1) into
+`fix/exec-provider`, keeps the D1-D6 fixes on the release (paid-stop and
+stale-confirmation pass-throughs; policy output cap; cross-bundle refusal
+classifier and provider assembly behind the lazy provider entry, proved
+by the split gate), runs all five typechecks, the production build with
+its budgets, the round-3 and hotfix owning suites at the repository
+timeout, three byte-restored red drills (D1/D2/D3) and the l10n,
+reference, roadmap and host-api checks. FINDING, not a deferral: the
+Model API exact-byte pin (`deferredBundles`, 532,827 B) reads 533,327 B
+(+500 B); every byte is attributed to pinned hot-path behavior
+(transport paid/rotation branches and classifier read, client refusal
+catch, host default-model hunk) in `docs/certification/exec-provider.md`.
+The pin is not moved; the lead disposes (re-measure with owner decision,
+as the hotfix did at +290 B, or direct further diet). Loopback suites are
+sandbox-blocked here (direct probe: `fetch` to 127.0.0.1 throws), named
+for the lead's unsandboxed run.
+
+**Estimator panel bundle budget (closed 2026-10-17, corrected).** The earlier
+version of this item wrongly called the 25 KiB row owner-set; it is M117's
+split rule (measured size plus 15%, rounded), not an owner-set cap, and the
+row is re-baselined by that same rule, not by owner word. `npm run build` on
+`fix/catch-money-final` reported `OVER dist/webview estimator panel: 25.8 KiB
+(budget 25 KiB)`: the lazy closure measures 26,410 bytes, against 25,479 on
+`main-now`. The D119 worded-refusal matcher (`isEstimateRefusal` /
+`estimateRefusalDetail` plus the panel's and composer's catch sites) adds the
+~931 bytes; the matcher must run synchronously in those catch handlers (lead
+decision 2026-10-16: money/consent failures reach the person in words), and
+any module it lives in lands in the same lazy closure (verified minified in
+`dist/webview/chunks/RN4TH3UY.js`), so no behaviour-preserving move recovers
+the 810 bytes. Re-baselined by the documented rule: 26,410 x 1.15 =
+30,371.5 bytes = 29.66 KiB, so 30 KiB (`scripts/lib/webviewBundles.mjs`).
+Disposition: closed; `npm run build` is green on the re-baselined tree.
+
 **M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
 job 115017063279: "loads the real lazy menu independently of the secret
 modal focus owner" (`test/unit/m114Panel.test.mjs:241`) exceeded Vitest's
@@ -35387,6 +35589,44 @@ remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
+**FIXM101C2 current check scope (2026-10-05, kubuntu).** The five inherited
+test repairs from `3e04f6f5` are carried unchanged after their failures are
+reproduced here. Their old C2 baseline deferral below is historical, superseded
+by this repair lane's complete-file receipts in `docs/certification/m101-c2.md`.
+The shared rig common rules expressly prohibit `npm run quality` and the full
+test wrapper here; run the required scoped static/build gates and complete
+owning suites, with the integrator responsible for full quality and the
+platform matrix before release. No threshold, ignore or timeout is weakened.
+
+**FIXM101P1 lane verification (2026-10-05).** The rig brief expressly
+forbids the full `npm run quality` wrapper and full unit suite because the
+rig is shared; the lead runs the combined four-machine quality gate.
+This lane runs focused complete test files (at most three per invocation),
+all project typechecks, changed-file lint/format, deadcode, duplication,
+localization, host API and production build directly on Kubuntu. The final
+receipts and twelve red drills are in `docs/certification/m101-p1.md`: 330
+focused tests and all listed lane checks pass, including the unchanged
+production bundle-split gate. This defers only the full-tree/full-platform
+quality receipt; no gate is weakened.
+
+**FIXM101P2 aggregate gate deferral (2026-10-05).** The explicit lane brief
+and its shared `codex/common.md` forbid the full `npm run quality` wrapper
+on this shared rig. Run the required scoped suites (at most three files per
+run), all five TypeScript projects, lint/format over the complete P2 range,
+knip, duplication, localization, host API and production build here; record
+actual receipts in `docs/certification/m101-p2.md`. The lead must run the
+aggregate quality/coverage/platform matrix before integration/release. No
+threshold, ignore or rule is changed.
+
+**CATCHMONEY round 3 qualification (2026-10-12; review 2026-10-14).**
+Scoped runs and receipts: `docs/certification/catch-money.md`; the lead runs
+the aggregate suite before integration. Two deferrals stand. The stricter
+catch classifier reclassifies 94 raw-error logs from REPORTED to GENERIC;
+the baseline was regenerated after that intentional fix and the gate still
+fails on any new rise. `dist/modelsPanel.js` is 128,289 bytes against its
+128,000-byte budget on the merged tree (the required three-valued read);
+no threshold is changed: the lead rebases the budget or directs a trim.
+
 ## 8. Escape hatches register
 
 | Location                                            | Residual / follow-up                                | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
@@ -35477,15 +35717,13 @@ INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/uni
 | The inline reason documents this narrowing. No cast, `any` or lint suppression                                      |
 | is introduced.                                                                                                      |
 
-| Location                                                           | Escape hatch                                                          | Reason                                                                                                                                                                                                                                                                        |
-| ------------------------------------------------------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET)                                | `as UiText` on the descriptor clone                                   | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                            |
-| `native/windows/MuseSparkVault.cs` (FIXM109PW3, supervisor job)    | Job handle deliberately retained until OS process exit                | Joining the supervisor before CreateProcess makes child job membership atomic. The non-inheritable kill-on-close handle stays in its OS handle table for this one-launch process; closing it at Launch return would terminate the supervisor before it reports its exit code. |
-| `native/windows/MuseSparkVault.cs` (FIXM109PW3)                    | `unchecked((uint)ace.AccessMask)` and checked OS exit-code conversion | CommonAce stores native unsigned masks in signed integers; preserving all bits is required for GENERIC_WRITE/ALL. The checked exit conversion refuses values outside the managed entry's int range.                                                                           |
-| `test/unit/helpers/vault/windowsVaultGuardCapture.cs` (FIXM109PW3) | `unchecked((int)mask)`                                                | Test-only CommonAce fixtures preserve the native generic-rights bit patterns in their signed storage, with an inline reason.                                                                                                                                                  |
-| `test/unit/helpers/vault/windowsVaultGuardCapture.cs` (FIXM109PW)  | `(int)` on the reflected native entry result                          | The test-only protocol entry invokes the declared `int Main(string[])`; no wire value is coerced. Its valid baseline and invalid DPAPI text regressions execute that entry.                                                                                                   |
-| `src/runtime/vault/vaultRuntime.ts` (M109 H)                       | `as Partial<RuntimeVaultModule>`                                      | The installed `dist/vault.js` factory is W/H's typed build contract. Runtime checks refuse absent exports and malformed binding methods; fake module tests prove fail-closed loading. No caller-supplied path or private wire format.                                         |
-| `test/unit/vault/vaultPanelBundle.test.ts` (M109 W)                | `as unknown as` the bundle factory's return type (two fakes)          | The factory is the same-build `dist/vault.js` contract, shape-checked by `isVaultBundle` before use. The tests observe only loader identity and refusal, never the panel, so no real host is built. Each cast carries its inline reason.                                      |
+| Location                                                        | Escape hatch                                                          | Reason                                                                                                                                                                                                                                                                        |
+| --------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET)                             | `as UiText` on the descriptor clone                                   | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                            |
+| `native/windows/MuseSparkVault.cs` (FIXM109PW3, supervisor job) | Job handle deliberately retained until OS process exit                | Joining the supervisor before CreateProcess makes child job membership atomic. The non-inheritable kill-on-close handle stays in its OS handle table for this one-launch process; closing it at Launch return would terminate the supervisor before it reports its exit code. |
+| `native/windows/MuseSparkVault.cs` (FIXM109PW3)                 | `unchecked((uint)ace.AccessMask)` and checked OS exit-code conversion | CommonAce stores native unsigned masks in signed integers; preserving all bits is required for GENERIC_WRITE/ALL. The checked exit conversion refuses values outside the managed entry's int range.                                                                           |
+| `src/runtime/vault/vaultRuntime.ts` (M109 H)                    | `as Partial<RuntimeVaultModule>`                                      | The installed `dist/vault.js` factory is W/H's typed build contract. Runtime checks refuse absent exports and malformed binding methods; fake module tests prove fail-closed loading. No caller-supplied path or private wire format.                                         |
+| `test/unit/vault/vaultPanelBundle.test.ts` (M109 W)             | `as unknown as` the bundle factory's return type (two fakes)          | The factory is the same-build `dist/vault.js` contract, shape-checked by `isVaultBundle` before use. The tests observe only loader identity and refusal, never the panel, so no real host is built. Each cast carries its inline reason.                                      |
 
 | File                                | Construct                                                                 | Reason                                                                                                                                                                                                              | Added      |
 | ----------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -35748,6 +35986,12 @@ before a repaired one loads (2026-09-30).
 | TRAINDIET location                                                                  | Escape hatch                                                                                          | Reason                                                                                                                                                                                                                                                   | Date       |
 | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/shared/constants.ts` (5 lines), `src/shared/browserCheckConstants.ts` (1 line) | `eslint-disable-next-line unicorn/prefer-string-raw` on plain-string Windows paths and one git regexp | `String.raw` is a call and pins the whole initialiser into every bundle importing the module; the plain strings are byte-identical (verified with node) and drop when unused. `test/unit/bundleDiet.test.ts` fails on any new non-droppable initialiser. | 2026-10-11 |
+
+(2026-10-17, lane PR223FIX: the STANDINS loader row for
+`test/packaging/moduleExports.test.mjs` is withdrawn — the `Module._load`
+trap, the `vscode` Proxy and both suppressions are deleted; VS Code-bound
+bundles compare as identical bare-Node refusals and worker entries boot as
+real threads. No escape hatch remains from that lane.)
 
 ## 9. Security assumptions and accepted residual risk
 
@@ -39027,8 +39271,42 @@ a five-bullet Highlights list, plus PR #230's Packaging entry under
 tree: format, eslint zero warnings, typecheck, check:plan, check:roadmap,
 check:l10n, check:reference, knip, build with bundle budgets, and the unit
 suites of the files the revert touched, all green; the full .vsix is packed by hosted
-CI. The `0.19.0 released (…)` line is written by the lead after the tag's
-release run.
+CI. PR #223 (`chore/no-standins`) merged: the stand-in test deletions and the
+real `ResourceRegistry.wait` re-arm fix, its CHANGELOG entry under `[0.19.0]`
+Fixed. PR #233 (`docs/claims-truth`) merged: roadmap, CHANGELOG, README and
+plan claims made to match main (M100 status, M62/M63 and M125 support limits,
+the no-stand-ins rule stated as a rule with the remaining stand-ins named,
+Retry-After honoured as given), its corrections standing on the entries they
+correct, including `[0.19.0]`'s Release infrastructure. PR #217
+(`fix/spend-simple`) merged: D121 (no spending check without a limit the
+person set; the atomic claim ledger gone), its CHANGELOG Added and Fixed
+entries and the D121 README settings rows under `[0.19.0]`; the README
+`shellSandbox` row keeps PR #233's wording, the two D121 spend rows keep PR
+#217's wording, and ROADMAP.md and the host-API record were regenerated. PR
+#161 (`fix/catch-money`) merged: D119 worded failures, the catch inventory
+and ratchet tooling, deferred paid/auth bundles and the port-reported panel
+failures, its user-facing entries under `[0.19.0]` Pending (its catch-tooling
+entry stands under `[0.18.0]` Added, where the pull request records it); the
+spend-error sites both sides changed keep PR #217's later shape, and the
+host-API record was regenerated. PR #180 (`fix/plan-review`) merged: every
+ChatGPT plan-route failure names its cause, its CHANGELOG entry under
+`[0.19.0]` Fixed; the sign-in error class moves to `chatgptHostId.ts` and the
+account-store error to `accountStoreError.ts` (their inline duplicates go),
+the ACP effort design keeps the catalogue levels, defaults and chosen level,
+the provider-commands keep the four sign-in actions with the grant-state
+machine, and the exec model request keeps the provider override with the
+refreshed options; the reference, host-API and roadmap records were
+regenerated. PR #235 (`fix/accounts-error-truth`) merged: account errors name
+their real cause, its CHANGELOG entry under `[0.19.0]` Fixed; the
+revocation-refusal passthrough joins the cause-carrying store failure, and
+the duplicate inline error class goes (the leaf module already carries it).
+PR #238 (`fix/acp-error-truth`) merged: ACP failures say their real cause
+(the legal-scan load sentence only for load, `/agents retry` names the real
+refusal, a loaded playbook's command failure is not unavailability), its
+CHANGELOG entries under `[0.19.0]` Fixed. PR #242 (`fix/panel-retry-truth`)
+merged: the panel's Agent-map retry pre-flight says gone/stale in its own
+words, its CHANGELOG entry under `[0.19.0]` Fixed. The `0.19.0 released (…)`
+line is written by the lead after the tag's release run.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
 Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from

@@ -228,7 +228,7 @@ export interface ImageRunDeps {
   /** Whether the feature is still on: checked after the question, before anything is bought. */
   readonly isStillOn: () => boolean
   /** Called once an image was returned: Meta bills it whether or not it can be saved. */
-  readonly onBilled: () => void
+  readonly onBilled: (images: number) => void
   /** Rechecked with the key read for each paid image attempt and retry. */
   readonly admitAttempt?: ResponseAttemptGuard
 }
@@ -303,13 +303,13 @@ async function buy(
   deps: ImageRunDeps,
 ): Promise<ToolOutcome> {
   const response = await request(plan, deps)
+  if (response.data.length > 0) deps.onBilled(response.data.length)
   const [image] = response.data
   const encoded = image?.b64_json ?? undefined
   if (encoded === undefined) {
     await reservation.release()
     return failure('the image service returned no image')
   }
-  deps.onBilled()
   const bytes = Buffer.from(encoded, 'base64')
   if (!isPng(bytes)) {
     await reservation.release()

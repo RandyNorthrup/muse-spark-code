@@ -7,10 +7,6 @@ import { chromium } from 'playwright-core'
 import { findChrome } from '../../../scripts/lib/chrome.mjs'
 import { serveRepo } from '../../../scripts/lib/harnessServer.mjs'
 import { sharedUiText } from '../../../scripts/lib/deferredBundles.mjs'
-import { createRequire } from 'node:module'
-import { webcrypto } from 'node:crypto'
-import vm from 'node:vm'
-import { Buffer } from 'node:buffer'
 
 const classify = (findings) =>
   sortIncomplete(
@@ -31,9 +27,12 @@ const scratch = path.join(root, 'temp/m113-v')
 mkdirSync(scratch, { recursive: true })
 await build({
   stdin: {
-    contents: `export * from './test/unit/reportRenderFixtures';
-      export { EN } from './src/shared/l10n/en';
-      export { verifyReport } from './src/core/reporting/render/canonical';`,
+    contents: `export { EN } from './src/shared/l10n/en';
+      export { verifyReport } from './src/core/reporting/render/canonical';
+      export { createReportRenderers } from './src/core/reporting/render';
+      export { default as reportThemes } from './design/tokens/generated/report-themes.json';
+      export { buildWebviewHtml, createNonce } from './src/host/html';
+      export { reportDocumentHtml } from './src/host/reporting/reportDocumentHtml';`,
     resolveDir: root,
     loader: 'ts',
   },
@@ -43,11 +42,24 @@ await build({
   format: 'esm',
   target: 'node20.18',
 })
-const { renderFixture, RENDERERS, REPORT_THEMES, EN, verifyReport } = await import(
-  pathToFileURL(path.join(scratch, 'fixtures.mjs')).href
-)
+const {
+  EN,
+  verifyReport,
+  createReportRenderers,
+  reportThemes,
+  buildWebviewHtml,
+  createNonce,
+  reportDocumentHtml,
+} = await import(pathToFileURL(path.join(scratch, 'fixtures.mjs')).href)
 rmSync(path.join(scratch, 'fixtures.mjs'))
-const fixtureDocument = renderFixture()
+// The production renderers and report themes, over the project report as the
+// renderer goldens record it (test/fixtures/reports), read back through the
+// production verifier.
+const RENDERERS = createReportRenderers({ textForLocale: () => EN })
+const REPORT_THEMES = ['light', 'dark', 'hc-dark', 'hc-light'].map((name) => reportThemes[name])
+const fixtureDocument = verifyReport(
+  JSON.parse(readFileSync(path.join(root, 'test/fixtures/reports/project.json.golden'), 'utf8')),
+)
 const scenes = {}
 for (const [index, name] of ['light', 'dark', 'hc-dark', 'hc-light'].entries()) {
   scenes[name] = {
@@ -125,81 +137,33 @@ if (shipping) {
 }
 process.stdout.write(`${JSON.stringify(sizes)}\n`)
 const { server, port } = await serveRepo(path.resolve(root))
-// Exercise the compiled host adapter, including its HTML builder and iframe
-// nonce authorization. The browser loads the exact production shell it emits.
-const panels = { current: undefined }
-const require = createRequire(
-  shipping ? pathToFileURL(path.join(root, 'dist/reportingPanel.js')) : import.meta.url,
-)
-const exported = { exports: {} }
-const fakeVscode = {
-  ViewColumn: { Beside: 2 },
-  Uri: { joinPath: (_base, ...parts) => parts.join('/') },
-  window: {
-    createWebviewPanel: () => {
-      const webview = {
-        cspSource: `http://127.0.0.1:${port}`,
-        asWebviewUri: (file) => ({
-          toString: () =>
-            `http://127.0.0.1:${port}/${shipping ? 'dist/webview' : 'temp/m113-v'}/${path.basename(file)}`,
-        }),
-        onDidReceiveMessage: (receive) => {
-          webview.receive = receive
-          return { dispose: () => false }
-        },
-        postMessage: (state) => {
-          webview.state = state
-        },
-      }
-      panels.current = { webview, onDidDispose: () => ({ dispose: () => false }) }
-      return panels.current
-    },
-  },
-}
-vm.runInNewContext(
-  readFileSync(
-    shipping ? path.join(root, 'dist/reportingPanel.js') : path.join(scratch, 'reportingPanel.cjs'),
-    'utf8',
-  ),
-  {
-    module: exported,
-    exports: exported.exports,
-    Buffer,
-    crypto: webcrypto,
-    require: (name) => {
-      const provided = { vscode: fakeVscode, './uiText.js': { EN } }
-      return provided[name] ?? require(name)
-    },
-  },
-)
+// The production shell and document, with no editor in between: the report
+// tab's own HTML builder and iframe nonce authorization over the real
+// renderer's verified document. The browser loads the page bundle it names.
 const productionShells = {}
+const bundleDirectory = shipping ? 'dist/webview' : 'temp/m113-v'
 for (const [index, theme] of ['light', 'dark', 'hc-dark', 'hc-light'].entries()) {
-  const tab = exported.exports.createReportPanel(
-    {
-      context: { extensionUri: '', l10n: { locale: 'en', table: EN }, log: { warn: () => false } },
-      workspaceKey: 'fixture',
-      engine: () => ({
-        reports: { run: async () => ({ status: 'generated', document: fixtureDocument }) },
-        verify: verifyReport,
-        render: RENDERERS,
-      }),
-      now: () => fixtureDocument.header.asOf,
-      theme: () => REPORT_THEMES[index],
-    },
-    EN,
-    'en',
-  )
-  await tab.open('project')
-  panels.current.webview.receive({ type: 'reportingReady' })
-  scenes[theme] = panels.current.webview.state
-  const nonce = /style-src [^;]+ 'nonce-([^']+)'/.exec(panels.current.webview.html)?.[1]
+  const nonce = createNonce()
+  const verified = verifyReport(fixtureDocument)
+  scenes[theme] = {
+    ...scenes[theme],
+    header: verified.header,
+    html: reportDocumentHtml(RENDERERS.html(verified, 'en', REPORT_THEMES[index]), nonce),
+  }
+  const shell = buildWebviewHtml({
+    scriptUri: `http://127.0.0.1:${port}/${bundleDirectory}/reportingPage.js`,
+    styleUri: `http://127.0.0.1:${port}/${bundleDirectory}/reportingPage.css`,
+    cspSource: `http://127.0.0.1:${port}`,
+    nonce,
+    l10n: { locale: 'en', table: EN },
+  })
   const palette = JSON.parse(
     readFileSync(path.join(root, `test/harness/themes/${theme}.json`), 'utf8'),
   )
   const variables = Object.entries(palette.variables)
     .map(([name, value]) => `${name}:${value}`)
     .join(';')
-  productionShells[theme] = panels.current.webview.html
+  productionShells[theme] = shell
     .replace('</head>', () => `<style nonce="${nonce}">:root{${variables}}</style></head>`)
     .replace('<body>', () => `<body class="${palette.bodyClass}">`)
   writeFileSync(path.join(scratch, `production-${theme}.html`), productionShells[theme])

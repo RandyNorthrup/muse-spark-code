@@ -49,6 +49,14 @@ describe('installEmbeddedTable (M40)', () => {
     expectEnglish()
   })
 
+  it('carries the parse failure as the refusal’s cause', () => {
+    embed('{ locale: de')
+    const refusal = installEmbeddedTable(document)
+    expect(refusal?.message).toMatch(/stays English/)
+    expect(refusal?.cause).toBeInstanceOf(SyntaxError)
+    expectEnglish()
+  })
+
   it('keeps English when the language tag is not one Intl accepts', () => {
     embed(JSON.stringify({ locale: 'not a tag!', table: EN }))
     expect(installEmbeddedTable(document)?.message).toMatch(/"not a tag!" is not a language tag/)

@@ -447,7 +447,7 @@
     {
       "id": "M62",
       "title": "VS Code-based editors and Open VSX",
-      "summary": "The extension installs and runs in editors built on VS Code 1.99 or later, such as VSCodium, Cursor, Positron, Eclipse Theia and code-server, and is published on Open VSX.",
+      "summary": "The extension installs and runs in editors built on VS Code 1.99 or later, such as VSCodium, Cursor and Positron, and is published on Open VSX; Eclipse Theia and code-server ran it only against a stand-in for Muse Code, so they are not yet tried for real.",
       "area": "editors",
       "release": "0.10.0",
       "labels": ["preview"]
@@ -455,7 +455,7 @@
     {
       "id": "M63",
       "title": "Muse Spark in ACP editors",
-      "summary": "A standalone agent brings chat, tool calls, approvals, modes and sessions to editors that speak the Agent Client Protocol, so far tried in Zed, Neovim, Emacs and JupyterLab.",
+      "summary": "A standalone agent brings chat, tool calls, approvals, modes and sessions to editors that speak the Agent Client Protocol; Zed, Neovim, Emacs and JupyterLab have run it only against a stand-in for Muse Code, so none is yet tried for real.",
       "area": "editors",
       "release": "0.10.0",
       "labels": ["preview"]
@@ -558,7 +558,7 @@
     {
       "id": "M80",
       "title": "Headless runs and a GitHub Action",
-      "summary": "Run one agent turn without an editor through the ACP agent's exec command, or let a GitHub Action review or propose a fix for a same-repository pull request, each under a hard dollar budget; both can be tried but are not certified or supported yet.",
+      "summary": "Headless runs use atomic reservations, show unresolved liability separately from spend, and stop after recorded overages while certification and GitHub Action support remain pending.",
       "area": "platform",
       "release": "0.12.0"
     },
@@ -572,7 +572,7 @@
     {
       "id": "M82",
       "title": "Awareness and budgets",
-      "summary": "A notification tells you when a long turn ends or waits while the window is unfocused, replies can show their token and dollar estimate, and a per-conversation budget caps Model API spend, though child tasks you approve separately can take it past the cap.",
+      "summary": "Conversation and daily budgets share atomic admission, separate unresolved liability from spend, and recover unsent holds by process identity, alongside completion notifications and token and dollar estimates.",
       "area": "usage-billing",
       "release": "0.12.0"
     },
@@ -678,7 +678,7 @@
     {
       "id": "M95",
       "title": "Bring your own models",
-      "summary": "Use cloud or local models with keys bound to their provider's address and features matched to each model's capabilities; the panel keeps its section visible while loading, and an output cap below a provider's known minimum is refused before sending.",
+      "summary": "Cloud or local models with address-bound keys, captured prices, saved selections, slash model ids and reasoning levels in ACP and headless runs; the panel stays visible while loading, and a low output cap is refused before sending.",
       "area": "models-providers",
       "release": "0.15.0"
     },
@@ -744,7 +744,7 @@
     {
       "id": "M100",
       "title": "Paired devices",
-      "summary": "Link your own devices on the local network so they can take independent agent lanes and checks and hand back reviewable Git branches, without moving credentials.",
+      "summary": "Link your own devices on the local network so they can take independent agent lanes and checks and hand back reviewable Git branches, without moving credentials; so far only the receiving device's admission check is written, and nothing uses it yet.",
       "area": "devices"
     },
     {
@@ -892,7 +892,7 @@
     {
       "id": "M125",
       "title": "A faster, more accurate agent through a fast judge",
-      "summary": "A fast judge checks the agent's work and small decisions, with setup and command confinement, including protected paths and cancellation, being certified internally for Linux and macOS before reviewer skips are enabled; Windows keeps its existing reviewer.",
+      "summary": "A fast judge checks the agent's work and small decisions, with setup and command confinement, including protected paths and cancellation, being certified internally on Linux only before reviewer skips are enabled; macOS and Windows are not yet supported.",
       "area": "agents"
     },
     {

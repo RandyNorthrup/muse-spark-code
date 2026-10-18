@@ -53,7 +53,7 @@ async function isPlainFile(home: string, relativePath: string): Promise<boolean>
     } catch (error: unknown) {
       if (error !== null && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
         return false
-      throw new VaultMigrationFault('storage')
+      throw new VaultMigrationFault('storage', { cause: error })
     }
   }
   return true
@@ -79,7 +79,7 @@ export async function discoverAmbientFiles(home: string): Promise<readonly Ambie
       'code' in error &&
       error.code === 'ENOENT'
     ))
-      throw new VaultMigrationFault('storage')
+      throw new VaultMigrationFault('storage', { cause: error })
   }
   const found: AmbientFile[] = []
   for (const relative of names) {

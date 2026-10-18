@@ -113,6 +113,7 @@ import {
   isAccountSwitchRefusedError,
   type AccountsSessionPort,
 } from './accounts'
+import { isInvalidProvidersFileError } from './accountText'
 import {
   acpQuestionClock,
   questionDeferralLoader,
@@ -166,6 +167,7 @@ export interface AcpAgentOptions {
   /** Contributor-tier models are listed (`--allow-contributor-models`). */
   readonly allowsContributorModels: boolean
   readonly initialMode: PermissionMode
+  readonly initialModelId?: string
   readonly questionsDeferAfterSeconds?: number
   readonly scheduleAuthorization?: {
     readonly scheduledPrompts: boolean
@@ -317,19 +319,68 @@ function accountRequestError(error: unknown): RequestError {
     : RequestError.internalError(undefined, text)
 }
 
-/** The model a new session starts on: the backend's default, else the first listed. */
-function startingModel(models: readonly ModelSummary[]): string {
-  const model = models.find((candidate) => candidate.isDefault) ?? models[0]
-  if (model === undefined) {
-    throw RequestError.internalError(undefined, UI_TEXT.acpNoModels)
+/** Configured provider defaults never fall through to another model. */
+function startingModel(
+  models: readonly ModelSummary[],
+  requested?: string,
+  isStrict = false,
+): string {
+  if (requested !== undefined) {
+    const matches = models.filter(
+      (model) =>
+        model.modelId === requested ||
+        model.modelId.slice(model.modelId.indexOf('/') + 1) === requested,
+    )
+    if (matches.length === 1 && matches[0] !== undefined) return matches[0].modelId
+    // D4: an unknown model names what runs instead of one generic sentence.
+    // The provider-aware sentences live in runExec's pre-session check; the
+    // session backstop names this backend's models for any unmatched ref.
+    throw RequestError.invalidParams(
+      undefined,
+      fill(UI_TEXT.execModelAvailable, {
+        model: requested,
+        available: models.map((model) => model.modelId).join(', '),
+      }),
+    )
   }
+  const model =
+    models.find((candidate) => candidate.isDefault && candidate.modelId.includes('/')) ??
+    models.find((candidate) => candidate.isDefault) ??
+    (isStrict ? undefined : models[0])
+  if (model === undefined)
+    throw RequestError.invalidParams(
+      undefined,
+      `${UI_TEXT.execProviderModelRequired}: ${models.map((candidate) => candidate.modelId).join(', ')}`,
+    )
   return model.modelId
 }
 
-/** The default effort where the model serves it, else the nearest tier it has. */
-function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
-  const levels = effortLevelsFor(modelId)
-  return levels.includes(wanted) ? wanted : (levels.at(-1) ?? DEFAULT_EFFORT)
+/** The tiers a model serves: its own list where the backend knows it. */
+export function modelEffortLevels(
+  models: readonly ModelSummary[],
+  modelId: string,
+): readonly EffortLevel[] {
+  return effortLevelsFor(modelId, models.find((model) => model.modelId === modelId)?.effortLevels)
+}
+
+/**
+ * The level a new session selects: the model's own default where the
+ * backend knows it and serves it, else the standing default (a chosen
+ * level still wins: applyEffort keeps every tier the model serves).
+ */
+export function defaultEffortFor(
+  models: readonly ModelSummary[],
+  modelId: string,
+  chosen?: EffortLevel,
+): EffortLevel {
+  const summary = models.find((model) => model.modelId === modelId)
+  const levels = effortLevelsFor(modelId, summary?.effortLevels)
+  if (chosen !== undefined && levels.includes(chosen)) return chosen
+  const fallback = summary?.defaultEffort
+  return fallback !== undefined &&
+    effortLevelsFor(modelId, summary?.effortLevels).includes(fallback)
+    ? fallback
+    : DEFAULT_EFFORT
 }
 
 /** One ACP session over one AgentSession. */
@@ -365,6 +416,9 @@ class AcpSession {
   private releaseSchedules: (() => Promise<void>) | undefined
   private isScheduleHostAvailable = true
   private effort: EffortLevel = DEFAULT_EFFORT
+  private isEffortChosen = false
+  /** The conversation's Fast switch; off by default, reset on model change. */
+  private fast = false
   private modelChangeRevision = 0
   private effortChangeRevision = 0
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
@@ -876,8 +930,11 @@ class AcpSession {
       try {
         await this.questionRegistry?.commitQueued(lease.token)
         if (!this.isDisposed) this.getQuestions().sentQueued()
-      } catch {
+      } catch (error: unknown) {
         // The model is still running: retain pending so another prompt is busy.
+        this.deps.log.warn(
+          `ACP session ${this.sessionId}: queued commit failed, retaining pending: ${failureForLog(error)}`,
+        )
         pending.reject(RequestError.internalError(undefined, UI_TEXT.questionQueueCommitFailed))
       }
     })()
@@ -1073,9 +1130,12 @@ class AcpSession {
               kind: 'accepted',
               values: { ...parsed.content },
             })
-          } catch {
+          } catch (error: unknown) {
             // The session refused the content: cancel instead of hanging
             // on a form nobody else will answer.
+            this.deps.log.warn(
+              `ACP session ${this.sessionId}: elicitation ${event.elicitationId} not accepted: ${failureForLog(error)}`,
+            )
             if (this.isCurrentPrompt(pending)) {
               await settle.call(this.session, event.elicitationId, { kind: 'cancelled' })
             }
@@ -1206,8 +1266,9 @@ class AcpSession {
     const preparing: PreparingPrompt = { isCancelled: false, abort: stop }
     this.legalStop = stop
     this.preparing = preparing
+    let text: string
     try {
-      const text = await scan(this.cwd, stop.signal, isRegistryOn, async (hosts) => {
+      text = await scan(this.cwd, stop.signal, isRegistryOn, async (hosts) => {
         const response = permissionResponse(
           await unlessAborted(
             this.client.request('session/request_permission', {
@@ -1233,17 +1294,23 @@ class AcpSession {
           response.outcome.optionId === 'legal-registry-allow'
         )
       })
-      if (stop.signal.aborted || preparing.isCancelled || this.isDisposed) return 'cancelled'
-      this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
-      await this.outbox
-      return 'end_turn'
-    } catch {
+    } catch (error: unknown) {
       if (stop.signal.aborted) return 'cancelled'
-      throw RequestError.internalError(undefined, UI_TEXT.legalScanUnavailable)
+      // Only the scanner failing to load says it could not be loaded: the
+      // bundle loader's contract throws exactly `legalScanUnavailable` (the
+      // log has the cause). A failing scan, a refused permission prompt or a
+      // lost update carries its own cause instead.
+      if (error instanceof Error && error.message === UI_TEXT.legalScanUnavailable)
+        throw RequestError.internalError(undefined, UI_TEXT.legalScanUnavailable)
+      throw error
     } finally {
       if (this.legalStop === stop) this.legalStop = undefined
       if (this.preparing === preparing) this.preparing = undefined
     }
+    if (stop.signal.aborted || preparing.isCancelled || this.isDisposed) return 'cancelled'
+    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+    await this.outbox
+    return 'end_turn'
   }
 
   private async usageReply(
@@ -1362,12 +1429,20 @@ class AcpSession {
     if (isCancelled()) return UI_TEXT.paidDeny
     if (current === undefined || recoveryStamp(current) !== recoveryStamp(agent))
       return UI_TEXT.agentContinueUnavailable
+    // A listed entry with no subagent behind it (a background tool call, a
+    // workflow child) is not a missing backend checkpoint: it has nothing to retry.
     if (agent.subagentId === undefined)
-      return action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable
+      return action === 'retry' ? UI_TEXT.agentRetryNoSubagent : UI_TEXT.agentContinueUnavailable
     try {
       await this.session.controlSubagent(id, action === 'continue' ? 'continue' : 'retry')
-    } catch {
-      return action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable
+    } catch (error: unknown) {
+      if (action === 'continue') return UI_TEXT.agentContinueUnavailable
+      // Only the backend with no isolated worktree checkpoint says so (Muse
+      // Code refuses every retry). Any other backend's refusal carries its
+      // own cause: an unknown subagent, or this agent's missing checkpoint.
+      return this.host.info.kind !== 'museCode' && error instanceof Error && error.message !== ''
+        ? error.message
+        : UI_TEXT.agentRetryUnavailable
     }
     const latest = await this.host.readSession(this.sessionId)
     return agentListingText(latest.items, Date.now())
@@ -1382,6 +1457,40 @@ class AcpSession {
     preparing.abort.abort()
     this.preparing = undefined
     return true
+  }
+
+  /**
+   * The conversation's Fast switch: the model's priority tier where the
+   * catalogue lists one. Off by default; the description says so and names
+   * the tier's own words.
+   */
+  private fastOption(): SessionConfigOption[] {
+    const tier = this.models.find((model) => model.modelId === this.modelId)?.fastTier
+    if (tier === undefined) return []
+    return [
+      {
+        id: ACP_CONFIG_IDS.fast,
+        name: tier.name,
+        description: fill(UI_TEXT.planUi.fastDetail, { description: tier.description }),
+        category: 'thought_level',
+        type: 'boolean',
+        currentValue: this.fast,
+      },
+    ]
+  }
+
+  /**
+   * The effort the model runs: the wanted tier where it serves it, else
+   * the model's own default, else the highest tier it serves.
+   */
+  private servedEffort(wanted: EffortLevel): EffortLevel {
+    const levels = modelEffortLevels(this.models, this.modelId)
+    if (levels.includes(wanted)) return wanted
+    const fallback = this.models.find((model) => model.modelId === this.modelId)?.defaultEffort
+    return (
+      (fallback !== undefined && levels.includes(fallback) ? fallback : levels.at(-1)) ??
+      DEFAULT_EFFORT
+    )
   }
 
   public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
@@ -1427,6 +1536,14 @@ class AcpSession {
       status: answer === 'deny' ? 'failed' : 'completed',
     })
     return answer
+  }
+
+  /**
+   * An "always" the session's answer gave but the store could not keep: said
+   * in the session, after the allowed use, so being asked again is expected.
+   */
+  public notePaidNotKept(text: string): void {
+    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
   }
 
   public async startAccounts(): Promise<void> {
@@ -1512,8 +1629,12 @@ class AcpSession {
         ])
         if (isCurrent()) answer = vaultPermissionAnswer(request, permissionResponse(response))
       }
-    } catch {
-      /* A lost editor or malformed permission response is Deny, with no remote text logged. */
+    } catch (error: unknown) {
+      // A lost editor or malformed permission response is Deny: the kind is
+      // recorded redacted, never remote text.
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: vault permission fell back to deny: ${failureForLog(error)}`,
+      )
     } finally {
       clearTimeout(timer)
       controller.abort()
@@ -1555,11 +1676,12 @@ class AcpSession {
         category: 'thought_level',
         type: 'select',
         currentValue: this.effort,
-        options: effortLevelsFor(this.modelId).map((level) => ({
+        options: modelEffortLevels(this.models, this.modelId).map((level) => ({
           value: level,
           name: effortLabel(level),
         })),
       },
+      ...this.fastOption(),
     ]
   }
 
@@ -1580,7 +1702,11 @@ class AcpSession {
     if (active !== undefined && this.models.some((model) => model.modelId === active.modelId)) {
       this.modelId = active.modelId
     } else {
-      const listed = startingModel(this.models)
+      const listed = startingModel(
+        this.models,
+        this.deps.backend.kind === 'modelApi' ? this.modelId : undefined,
+        this.deps.backend.kind === 'modelApi',
+      )
       this.ensureHeld()
       await this.session.setModel(listed)
       this.modelId = listed
@@ -1590,18 +1716,28 @@ class AcpSession {
 
   /** The session's standing effort, as the panel sets it on a new session. */
   public async applyEffort(effort: EffortLevel): Promise<void> {
-    const served = servedEffort(this.modelId, effort)
+    const served = this.servedEffort(effort)
     this.ensureHeld()
     const revision = this.effortChangeRevision
-    await this.session.setReasoningEffort(effortForThinking(served, true))
+    if (
+      effortLevelsFor(
+        this.modelId,
+        this.models.find((model) => model.modelId === this.modelId)?.effortLevels,
+      ).length > 0
+    )
+      await this.session.setReasoningEffort(effortForThinking(served, true))
     if (this.effortChangeRevision === revision) {
       this.effort = served
     }
   }
 
   /** The model and effort the editor chose for this session, for a later load. */
-  public currentChoice(): { readonly modelId: string; readonly effort: EffortLevel } {
-    return { modelId: this.modelId, effort: this.effort }
+  public currentChoice(): {
+    readonly modelId: string
+    readonly effort: EffortLevel
+    readonly isEffortChosen: boolean
+  } {
+    return { modelId: this.modelId, effort: this.effort, isEffortChosen: this.isEffortChosen }
   }
 
   /**
@@ -1612,7 +1748,11 @@ class AcpSession {
    * answer: on a mismatch the load fails instead, so nothing runs on a
    * model the editor was not told.
    */
-  public async restoreChoice(modelId: string, effort: EffortLevel): Promise<void> {
+  public async restoreChoice(
+    modelId: string,
+    effort: EffortLevel,
+    isEffortChosen: boolean,
+  ): Promise<void> {
     this.ensureHeld()
     await this.session.setApprovalMode(approvalModeFor(this.mode, true))
     this.ensureHeld()
@@ -1636,6 +1776,7 @@ class AcpSession {
       )
     }
     this.modelId = outcome.modelId
+    this.isEffortChosen = isEffortChosen
     await this.applyEffort(effort)
   }
 
@@ -1661,6 +1802,17 @@ class AcpSession {
   }
 
   public async setConfigOption(configId: string, value: unknown): Promise<void> {
+    if (configId === ACP_CONFIG_IDS.fast) {
+      if (typeof value !== 'boolean') throw RequestError.invalidParams(undefined, configId)
+      const tier = this.models.find((model) => model.modelId === this.modelId)?.fastTier
+      if (value && tier === undefined) throw RequestError.invalidParams(undefined, configId)
+      if (this.session.setServiceTier === undefined)
+        throw RequestError.internalError(undefined, UI_TEXT.actionFailed)
+      this.ensureHeld()
+      await this.session.setServiceTier(value ? tier?.id : undefined)
+      this.fast = value
+      return
+    }
     if (typeof value !== 'string') {
       throw RequestError.invalidParams(undefined, configId)
     }
@@ -1691,16 +1843,30 @@ class AcpSession {
       if (this.modelChangeRevision === revision) {
         this.modelId = value
       }
-      await this.applyEffort(this.effort)
+      // Fast never survives a model change: it is off by default, and the
+      // new model may list no priority tier at all.
+      this.fast = false
+      await this.session.setServiceTier?.(undefined)
+      const model = this.models.find((entry) => entry.modelId === this.modelId)
+      await this.applyEffort(
+        model?.defaultEffort === undefined
+          ? this.effort
+          : defaultEffortFor(
+              this.models,
+              this.modelId,
+              this.isEffortChosen ? this.effort : undefined,
+            ),
+      )
       return
     }
     if (configId !== ACP_CONFIG_IDS.effort) {
       throw RequestError.invalidParams(undefined, configId)
     }
-    if (!isEffortLevel(value) || !effortLevelsFor(this.modelId).includes(value)) {
+    if (!isEffortLevel(value) || !modelEffortLevels(this.models, this.modelId).includes(value)) {
       throw RequestError.invalidParams(undefined, value)
     }
     await this.applyEffort(value)
+    this.isEffortChosen = true
   }
 
   /** A loaded session's history, as the updates a live one would have sent. */
@@ -1826,7 +1992,10 @@ class AcpSession {
         this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
         await this.outbox
         return 'end_turn'
-      } catch {
+      } catch (error: unknown) {
+        this.deps.log.warn(
+          `ACP session ${this.sessionId}: vault command failed: ${failureForLog(error)}`,
+        )
         throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
       } finally {
         if (preparing !== undefined && this.preparing === preparing) this.preparing = undefined
@@ -1915,7 +2084,10 @@ class AcpSession {
           this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
           await this.outbox
           return 'end_turn'
-        } catch {
+        } catch (error: unknown) {
+          this.deps.log.warn(
+            `ACP session ${this.sessionId}: estimate failed: ${failureForLog(error)}`,
+          )
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
           if ('error' in preparing) throw preparing.error
           this.send({
@@ -2325,7 +2497,7 @@ class AgentState {
    * backend restarted re-applies them and reads them back, so the session
    * keeps running on the chosen model instead of the CLI's default.
    */
-  private readonly choices = new Map<string, { modelId: string; effort: EffortLevel }>()
+  private readonly choices = new Map<string, ReturnType<AcpSession['currentChoice']>>()
   /** Sessions being set up (`adopt`), by id: a newer load or a close lets them go too. */
   private readonly adopting = new Map<string, AcpSession>()
   private readonly claims = new Map<string, SessionClaim>()
@@ -2374,9 +2546,20 @@ class AgentState {
       throw RequestError.invalidParams(undefined, cwd)
     }
     await this.requireReady()
-    const host = await this.deps.backend.hostFor(cwd)
-    this.watch(host)
-    const listed = await host.listModels()
+    let host: AgentHost
+    let listed: readonly ModelSummary[]
+    try {
+      host = await this.deps.backend.hostFor(cwd)
+      this.watch(host)
+      listed = await host.listModels()
+    } catch (error: unknown) {
+      // A providers file that cannot be read is the person's to fix: its own
+      // sentence is the message the editor shows, as the readiness check's
+      // is, never a bare "Internal error" with the sentence only in its data.
+      if (isInvalidProvidersFileError(error))
+        throw RequestError.internalError(undefined, error.message)
+      throw error
+    }
     const models = this.deps.options.allowsContributorModels
       ? listed
       : listed.filter((model) => !isContributorModel(model.modelId))
@@ -2597,7 +2780,11 @@ class AgentState {
     client: AgentContext,
   ) {
     const { host, models } = await this.openHost(cwd)
-    const modelId = startingModel(models)
+    const modelId = startingModel(
+      models,
+      this.deps.options.initialModelId,
+      this.deps.backend.kind === 'modelApi',
+    )
     const mcpServers = this.forwardedMcp(host, requestedMcp)
     const session = await host.startSession({
       workspaceRoot: cwd,
@@ -2605,10 +2792,11 @@ class AgentState {
       approvalMode: approvalModeFor(this.deps.options.initialMode, true),
       ...(mcpServers !== undefined && { mcpServers }),
     })
-    // The mode and model went with the start; the effort is set here.
+    // The mode and model went with the start; the effort is set here. A
+    // plan model starts on its catalogue default unless the person chose one.
     const claim = this.claimSession(session.sessionId)
     const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
-      started.applyEffort(DEFAULT_EFFORT),
+      started.applyEffort(defaultEffortFor(models, modelId)),
     )
     // Keep what the editor is shown, including backend events during setup.
     this.choices.set(session.sessionId, acp.currentChoice())
@@ -2630,7 +2818,11 @@ class AgentState {
       this.ensureClaim(claim, host)
       const loaded = await host.resumeSession(
         sessionId,
-        startingModel(models),
+        startingModel(
+          models,
+          this.deps.options.initialModelId,
+          this.deps.backend.kind === 'modelApi',
+        ),
         this.forwardedMcp(host, requestedMcp),
       )
       // A session resumes on the approval mode, model and effort it last had,
@@ -2652,7 +2844,11 @@ class AgentState {
           if (remembered === undefined) {
             await resumed.matchAdvertised()
           } else {
-            await resumed.restoreChoice(remembered.modelId, remembered.effort)
+            await resumed.restoreChoice(
+              remembered.modelId,
+              remembered.effort,
+              remembered.isEffortChosen,
+            )
           }
           if (!isReplayed) {
             return
@@ -2750,6 +2946,18 @@ class AgentState {
     return await acp.askPaidUse(request, canRemember)
   }
 
+  /** An "always" the session's answer gave but the store could not keep. */
+  public notePaidNotKept(sessionId: string, text: string): void {
+    const acp = this.sessions.get(sessionId)
+    if (acp === undefined) {
+      this.deps.log.warn(
+        `ACP session ${sessionId} is gone, so its not-kept paid choice stays only in the log`,
+      )
+      return
+    }
+    acp.notePaidNotKept(text)
+  }
+
   public async askVaultUse(
     sessionId: string,
     request: VaultApprovalRequest,
@@ -2768,6 +2976,9 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
   deps.paid.attach((sessionId, request, canRemember) =>
     state.askPaidUse(sessionId, request, canRemember),
   )
+  deps.paid.attachNotify((sessionId, text) => {
+    state.notePaidNotKept(sessionId, text)
+  })
   return acpAgent({ name: ACP_AGENT_NAME })
     .onRequest('initialize', (context) => {
       deps.onClientName?.(context.params.clientInfo?.name ?? 'ACP')

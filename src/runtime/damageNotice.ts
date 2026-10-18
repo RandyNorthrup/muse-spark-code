@@ -1,0 +1,136 @@
+// One place that decides how often a person is told about a damaged file
+// (CATCHMONEY R3, Part 2.1; review P2-4, P2-6): history settings, quote
+// choices and schedule consent all report through a `DamageNoter`. The rule
+// is the same everywhere: once per distinct damage, again when the damage
+// changes, and again when it recurs after the file was healthy. Never on
+// every sample. The once-marker is written atomically and cleared when the
+// file reads valid again, so a recurrence after a repair is reported again.
+
+import { linkSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+
+/** Durable once-marker storage; every method is best-effort and never throws. */
+export interface DamageMarkerStore {
+  /** The marked damage identity, or undefined when no marker (or no valid one) exists. */
+  readMarker(): string | undefined
+  /**
+   * Records the damage identity and claims its announcement: true when this
+   * call won it. A concurrent winner of the same identity makes this call
+   * lose (no duplicate announcement); a changed damage still wins and
+   * replaces the marker. A claim that cannot be taken still records, so a
+   * failure repeats an announcement but never hides one.
+   */
+  writeMarker(identity: string): boolean
+  /** Clears the marker: the next damage, even an identical one, announces again. */
+  clearMarker(): void
+}
+
+/**
+ * Announces a damaged read once per distinct identity. `announce` runs at
+ * most once per identity until the damage changes or the file reads healthy
+ * in between; `noteHealthy` clears the marker so a recurrence announces
+ * again. All storage failures only repeat an announcement, never hide one.
+ */
+export class DamageNoter {
+  private isDirty = false
+  private healthyMarkerChecked = false
+
+  public constructor(
+    private readonly store: DamageMarkerStore,
+    private readonly announce: (identity: string) => void,
+  ) {}
+
+  /** A read that failed: `identity` names the distinct damage (content hash, or `kind:code`). */
+  public noteDamaged(identity: string): void {
+    this.isDirty = true
+    this.healthyMarkerChecked = false
+    if (this.store.readMarker() === identity) {
+      return
+    }
+    // The claim is atomic across windows: concurrent observers of the same
+    // new damage read no marker alike, but only the winner announces.
+    if (this.store.writeMarker(identity)) {
+      this.announce(identity)
+    }
+  }
+
+  /** A read that succeeded: a later recurrence of any damage announces again. */
+  public noteHealthy(): void {
+    if (!this.healthyMarkerChecked || this.store.readMarker() !== undefined) {
+      // A marker left by an earlier process — or written by another reader
+      // after this reader's last check — must not hide a recurrence: the
+      // file reads healthy now, so any marker still present is stale.
+      this.healthyMarkerChecked = true
+      this.store.clearMarker()
+    }
+    if (!this.isDirty) {
+      return
+    }
+    this.isDirty = false
+    this.store.clearMarker()
+  }
+}
+
+/**
+ * A file-backed marker store: `<file>.reported` holds `{ identity }`,
+ * written through a temporary file and rename so a crash cannot leave a
+ * torn marker. A torn marker only repeats an announcement, never hides one.
+ */
+export function fileDamageMarkers(file: string): DamageMarkerStore {
+  const markerFile = `${file}.reported`
+  const temporaryFile = `${file}.reported.tmp`
+  const readMarker = (): string | undefined => {
+    // read-state: cert TBL-11. A missing or damaged marker reads as no
+    // marker, and no marker announces: the marker only ever suppresses a
+    // DUPLICATE announcement, so its absence can never hide damage.
+    try {
+      const marker: unknown = JSON.parse(readFileSync(markerFile, 'utf8'))
+      return typeof marker === 'object' &&
+        marker !== null &&
+        'identity' in marker &&
+        typeof marker.identity === 'string'
+        ? marker.identity
+        : undefined
+    } catch {
+      // A missing or damaged marker announces, never hides.
+      return
+    }
+  }
+  return {
+    readMarker,
+    writeMarker: (identity) => {
+      let hasClaimed = false
+      try {
+        writeFileSync(temporaryFile, JSON.stringify({ identity }))
+        try {
+          // The exclusive link is the cross-window claim: concurrent
+          // observers of the same new damage race here, and only the
+          // winner's marker stands to announce. The rename below stays
+          // crash-safe; the link only decides who announces.
+          linkSync(temporaryFile, markerFile)
+          rmSync(temporaryFile, { force: true })
+          hasClaimed = true
+        } catch {
+          // A standing marker decides: when it names this same damage,
+          // its window announces and this call loses; a changed damage
+          // (or no atomic claim on this filesystem) replaces the marker
+          // through the crash-safe rename and wins.
+          if (readMarker() === identity) rmSync(temporaryFile, { force: true })
+          else {
+            renameSync(temporaryFile, markerFile)
+            hasClaimed = true
+          }
+        }
+      } catch {
+        // Best effort: an unwritten marker only repeats the announcement.
+      }
+      return hasClaimed
+    },
+    clearMarker: () => {
+      try {
+        rmSync(markerFile, { force: true })
+      } catch {
+        // Best effort: a leftover marker only repeats an announcement.
+      }
+    },
+  }
+}

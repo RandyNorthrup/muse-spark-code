@@ -125,7 +125,7 @@ export interface AgentScheduleToolsDeps {
     signal: AbortSignal,
   ): Promise<'allow' | 'never' | { readonly alwaysPaidCapUsd: UsdAmount }>
   /** U uses D48, price/shared budget and schedule scope; no popup unattended.
-   * commit revalidates model/account/tier and reserves against D78 as well. */
+   * commit revalidates model/account/tier and checks a D78 daily limit as well. */
   paidConsent(
     draft: ScheduleDraft,
     authority: AgentScheduleAuthority,
