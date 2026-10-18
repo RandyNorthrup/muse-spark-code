@@ -87,15 +87,17 @@ describe('template defaults through the launcher’s own grammar', () => {
     // The group (with its branch-control check) is defined outside the
     // repository, so YAML pushed by a change under test cannot rebind the
     // key; the job condition is only a second layer.
-    const document = yamlOf('azure')
-    const job = record((document['jobs'] as unknown[])[0])
-    const variables = job['variables'] as unknown[]
+    const jobs = record(yamlOf('azure'))['jobs']
+    if (!Array.isArray(jobs)) throw new Error('expected a jobs list')
+    const variables = record(jobs[0])['variables']
+    if (!Array.isArray(variables)) throw new Error('expected a variables list')
     expect(
       variables.some(
         (entry) =>
           typeof entry === 'object' &&
           entry !== null &&
-          (entry as Yaml)['group'] === 'muse-spark-secrets',
+          !Array.isArray(entry) &&
+          record(entry)['group'] === 'muse-spark-secrets',
       ),
     ).toBe(true)
   })
@@ -133,8 +135,9 @@ describe('result transport out of external temp', () => {
 
   it('Bitbucket declares the five published files as step artifacts', () => {
     const definitions = record(record(yamlOf('bitbucket'))['definitions'])
-    const steps = record((definitions['steps'] as unknown[])[0])['step']
-    expect(record(steps)['artifacts']).toEqual(published)
+    const steps = definitions['steps']
+    if (!Array.isArray(steps)) throw new Error('expected a steps list')
+    expect(record(record(steps[0])['step'])['artifacts']).toEqual(published)
   })
 })
 
