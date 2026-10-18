@@ -780,15 +780,8 @@ export class UploadLedger implements SessionUploadLifecycle {
     await this.deps.storage.withLock(async () => {
       const state = await this.read()
       let hasChanged = await this.reapDeadOwners(state)
-      const birth = await processBirth()
-      const pins = pinsOf(state)
-      for (const fileId of fileIds) {
-        if (pins.some((pin) => pin.fileId === fileId && pin.owner === owner)) continue
-        pins.push({ fileId, owner, ...birth })
-        hasChanged = true
-      }
+      if (this.pinLocked(state, fileIds, owner, await processBirth())) hasChanged = true
       if (!hasChanged) return
-      state.pinned = pins
       await this.deps.storage.write(state)
     })
   }
