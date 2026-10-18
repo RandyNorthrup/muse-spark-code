@@ -272,6 +272,20 @@ function checkTables(l10n, untranslatedFor, problems, family, repoRoot) {
     }
     const table = readJson(file, problems, repoRoot)
     if (table === undefined) continue
+    // Archives restore the canonical English key order; source tables must
+    // already have that order so package-time equality cannot fail later.
+    function checkOrder(reference, translated, where = '') {
+      // Packaging preserves a locale's plural forms verbatim. English owns
+      // insertion order for every other object, including nested label groups.
+      if (!isRecord(reference) || l10n.isPluralForms(reference) || !isRecord(translated)) return
+      if (JSON.stringify(Object.keys(translated)) !== JSON.stringify(Object.keys(reference)))
+        problems.push(
+          `${file}: key order differs from English${where === '' ? '' : ` at ${where}`}`,
+        )
+      for (const [key, value] of Object.entries(reference))
+        checkOrder(value, translated[key], where === '' ? key : `${where}.${key}`)
+    }
+    if (family === 'ui') checkOrder(english, table)
     const untranslated = untranslatedFor(family, locale)
     const found = tableProblems(english, table, { locale, isStrict: true, untranslated })
     problems.push(...found.map((problem) => `${file}: ${problem}`))

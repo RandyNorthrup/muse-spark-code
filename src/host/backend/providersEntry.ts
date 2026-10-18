@@ -24,5 +24,16 @@ export { setUiText } from '../../shared/l10n/text'
 export { createProviderRegistry } from '../../core/providers/providerRegistry'
 export { createModelsPanelSeam } from '../../core/providers/panelSeam'
 export { recordPlanUsage } from '../../core/providers/subscriptions/planUsage'
+export {
+  connectOpenRouterAccount,
+  createOpenRouterPanelUsage,
+  clearOpenRouterPanelUsage,
+  createOpenRouterDraftDiscard,
+  createOpenRouterUsageReader,
+  openRouterDiscardedKeyNotice,
+  promptOpenRouterCode,
+  OPENROUTER_ORIGIN,
+} from '../providers/openRouter'
+export { startOAuthLoopback } from '../providers/oauthLoopback'
 export { metaResolvedModel } from '../../core/backends/modelapi/modelPolicy'
 export { isPkceState, pkceRandom } from '../../core/providers/pkce'

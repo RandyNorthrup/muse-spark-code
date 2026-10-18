@@ -741,6 +741,16 @@ export const ON_FIRST_USE = [
       'src/core/support/journalEvents.ts',
     ],
   },
+  // The credential lease (M95 D74, PLAN.md D6): activation and the CLIs
+  // keep only the callers; the lease and its journal load on the first
+  // guarded credential write or Connect recovery.
+  {
+    output: 'dist/credentialLease.js',
+    metafile: 'dist/meta/credentialLease.json',
+    use: 'the first guarded credential write or Connect recovery',
+    parents: [BUNDLES.activation, BUNDLES.acp],
+    files: ['src/core/credentialLeaseEntry.ts', 'src/core/credentialLease.ts'],
+  },
   // What's New (M99, D79): activation keeps the update check, the claim and
   // the loader; the page is required on the first page or notice.
   {
@@ -1039,6 +1049,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/runtime/schedules/backgroundEntry.ts'), 'dist/scheduleBackground.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
+  [path.resolve('src/core/credentialLeaseEntry.ts'), 'dist/credentialLease.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
   [path.resolve('src/core/team/teamEntry.ts'), 'dist/team.js'],
   [path.resolve('src/core/team/teamSchedulerEntry.ts'), 'dist/teamScheduler.js'],
@@ -1078,7 +1089,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

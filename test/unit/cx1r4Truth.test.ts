@@ -19,6 +19,16 @@ function repoFile(name: string): string {
   return readFileSync(new URL(`../../${name}`, import.meta.url), 'utf8')
 }
 
+function tableOf(language: string): Record<string, unknown> {
+  return JSON.parse(repoFile(`l10n/ui.${language}.json`)) as Record<string, unknown>
+}
+
+function at(table: Record<string, unknown>, path: string): string {
+  let value: unknown = table
+  for (const part of path.split('.')) value = (value as Record<string, unknown>)[part]
+  return value as string
+}
+
 const changelog = repoFile('CHANGELOG.md')
 const releases = parseChangelog(
   repoFile('CHANGELOG.md'),
@@ -126,4 +136,46 @@ describe('CX1R4 F3: live Help and pickers list only the five working kinds', () 
     }
     expect(parseReportRequest('', '2026-10-10T12:00:00Z')).toEqual({ action: 'pick' })
   })
+})
+describe('CX1R4 F5: corrected English keys ship fresh translations', () => {
+  const corrected: Readonly<Record<string, string>> = {
+    resourceRelocationNoRoute:
+      'Relocation requires a paired device or runner route. Work stays on this machine.',
+    resourceRelocateDescription:
+      'Relocation requires a paired device or runner route. Work stays on this machine.',
+    'reportUi.unsupportedKind': 'Report kind {kind} is unavailable.',
+    'reportSourceReasons.unbound': 'This source integration is unavailable.',
+    providerOpenRouterServices:
+      'Connect your OpenRouter account and view the key’s usage, limit and remaining balance.',
+  }
+  // Stale markers from the superseded translations: any table value still
+  // matching its language marker keeps the old translation for that key.
+  const stale: Readonly<Record<string, RegExp>> = {
+    cs: /zatím/,
+    de: /noch nicht verfügbar/,
+    es: /aún no están? disponible/,
+    fr: /pas encore disponibles?/,
+    hu: /még nem/,
+    it: /ancora/,
+    ja: /まだ/,
+    ko: /아직/,
+    pl: /jeszcze/,
+    'pt-br': /ainda/,
+    ru: /пока/,
+    tr: /henüz/,
+    'zh-cn': /尚不可用|暂不可用/,
+    'zh-tw': /尚無法使用|尚未/,
+  }
+
+  it('English holds the corrected wording', () => {
+    for (const [path, text] of Object.entries(corrected)) expect(at(EN, path)).toBe(text)
+  })
+
+  it.each(Object.entries(stale))(
+    'the %s table carries no stale wording for a corrected key',
+    (language, marker) => {
+      const table = tableOf(language)
+      for (const path of Object.keys(corrected)) expect(at(table, path)).not.toMatch(marker)
+    },
+  )
 })

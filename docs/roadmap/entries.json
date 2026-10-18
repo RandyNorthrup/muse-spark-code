@@ -678,7 +678,7 @@
     {
       "id": "M95",
       "title": "Bring your own models",
-      "summary": "Use cloud or local models with keys bound to their provider's address and features matched to each model's capabilities; the panel keeps its section visible while loading, and an output cap below a provider's known minimum is refused before sending.",
+      "summary": "Use cloud or local models with keys bound to their provider's address; connect OpenRouter in the browser, view exact key usage and limits, use scanned or manual local context windows, and refuse output caps below a provider's minimum before sending.",
       "area": "models-providers",
       "release": "0.15.0"
     },

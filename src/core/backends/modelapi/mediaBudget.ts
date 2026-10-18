@@ -49,6 +49,36 @@ function pdfWeight(part: InputFilePart): number {
 
 type OmissionReason = 'support' | 'mime' | 'limit' | 'budget'
 
+/**
+ * Fresh media must fit whole: required parts above the resolved record's
+ * image count or PDF page cap are refused here, before the protection in
+ * `fit` exempts them from the record-driven replay checks. Only the caps
+ * the record states are enforced; support, MIME and byte caps stay the
+ * attach path's job, and a record without caps (or no record) refuses
+ * nothing.
+ */
+function assertRequiredFitsRecord(
+  required: readonly InputContentPart[],
+  record: ModelCapabilityRecord,
+): void {
+  const image = record.modalities.image
+  if (image.state === 'yes' && image.value.maxCount !== undefined) {
+    let count = 0
+    for (const part of required) if (part.type === 'input_image') count += 1
+    if (count > image.value.maxCount) throw new Error(UI_TEXT.modelAttachmentOverLimit)
+  }
+  const pdf = record.modalities.pdf
+  if (pdf.state === 'yes' && pdf.value.maxPages !== undefined) {
+    for (const part of required) {
+      if (part.type !== 'input_file') continue
+      const payload = part.file_data.slice(part.file_data.indexOf(DATA_URL_SEPARATOR) + 1)
+      const pages = pdfPageCount(Buffer.from(payload, 'base64'))
+      if (pages === undefined || pages > pdf.value.maxPages)
+        throw new Error(UI_TEXT.modelAttachmentOverLimit)
+    }
+  }
+}
+
 function leftOut(part: InputContentPart, reason: OmissionReason) {
   const reasons = {
     support: MODEL_API_MODEL_TEXT.mediaSupportRefused,
@@ -138,9 +168,18 @@ export class MediaBudget {
   public assertMessageFits(
     content: readonly InputContentPart[],
     queued?: { readonly chars: number; readonly slots: number },
+    provider?: string,
   ): void {
     const usage = this.usage(content)
-    if (usage.slots + (queued?.slots ?? 0) > MODEL_API_MEDIA_PER_REQUEST)
+    // The 50-slot budget is Meta's own (MODEL_API_MEDIA_PER_REQUEST): a
+    // configured provider answers for its own counts, so its fresh media
+    // never meets Meta's number here. Replay elision in fit() still honors
+    // the model's recorded maxCount. The aggregate byte bound below is the
+    // pipeline's own and applies to every request.
+    if (
+      (provider === undefined || provider === 'meta') &&
+      usage.slots + (queued?.slots ?? 0) > MODEL_API_MEDIA_PER_REQUEST
+    )
       throw new Error(UI_TEXT.documentsOverBudget)
     if (usage.chars + (queued?.chars ?? 0) > this.maxEncodedMediaChars)
       throw new Error(UI_TEXT.mediaTotalTooLarge)
@@ -166,12 +205,24 @@ export class MediaBudget {
     input: readonly InputItem[],
     record?: ModelCapabilityRecord,
     required: readonly InputContentPart[] = [],
+    provider?: string,
   ): readonly InputItem[] {
-    this.assertMessageFits(required)
+    // The send path holds the resolved model's provider identity even
+    // where it holds no capability record: Meta's slot budget must not
+    // meet a configured provider's media on the strength of the missing
+    // record alone (RVPROVM95).
+    const providerId = record?.identity.provider ?? provider
+    this.assertMessageFits(required, undefined, providerId)
+    if (record !== undefined && record.identity.provider !== 'meta')
+      assertRequiredFitsRecord(required, record)
     const reserved = this.usage(required)
     const protectedParts = new Set(required)
     let left = MODEL_API_MEDIA_PER_REQUEST - reserved.slots
+    // Required parts passed the record's caps above and still consume them:
+    // replay fits into what the protected fresh media leaves.
     let imageCount = 0
+    if (record !== undefined && record.identity.provider !== 'meta')
+      for (const part of required) if (part.type === 'input_image') imageCount += 1
     let encodedLeft = this.maxEncodedMediaChars - reserved.chars
     const refusal = (part: InputContentPart): OmissionReason | undefined => {
       if (protectedParts.has(part)) return undefined
@@ -215,6 +266,13 @@ export class MediaBudget {
         }
         if (encodedChars > encodedLeft) return 'budget'
         if (isImage) imageCount++
+        encodedLeft -= encodedChars
+        return undefined
+      }
+      if (providerId !== undefined && providerId !== 'meta') {
+        // No record, but a configured provider: it answers for its own
+        // counts and sizes, so only the pipeline's byte bound elides.
+        if (encodedChars > encodedLeft) return 'budget'
         encodedLeft -= encodedChars
         return undefined
       }

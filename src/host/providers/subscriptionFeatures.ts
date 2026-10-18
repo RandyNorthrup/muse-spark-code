@@ -10,6 +10,7 @@ import {
   setUiText,
   providersFile,
   recordPlanUsage,
+  OPENROUTER_ORIGIN,
 } from '../backend/providersEntry'
 import {
   createSubscriptionClient,
@@ -22,8 +23,12 @@ import type { CoreLogger } from '../../core/logging'
 import type { SecretStore } from '../auth/credentialStore'
 import type { UiTable } from '../l10n'
 import { PROVIDER_SECRET_PREFIX, SECRET_KEYS, UI_TEXT } from '../../shared/constants'
-import { planUsageReportSchema } from '../../shared/usage'
-import { setUiText as setHostUiText } from '../../shared/l10n/text'
+import {
+  planUsageReportSchema,
+  providerUsageRowSchema,
+  type ProviderUsageRow,
+} from '../../shared/usage'
+import { fill, setUiText as setHostUiText } from '../../shared/l10n/text'
 
 export function createSubscriptionFeatures(options: {
   readonly log: CoreLogger
@@ -117,6 +122,41 @@ export function createSubscriptionFeatures(options: {
   }
   const panelSeam = {
     ...seam,
+    catalog: {
+      ...seam.catalog,
+      get: (id: string) => {
+        const preset = seam.catalog.get(id)
+        return preset?.id === 'openrouter'
+          ? { ...preset, connectLabel: fill(UI_TEXT.providerConnect, { provider: preset.name }) }
+          : preset
+      },
+    },
+    exchanger: {
+      exchange: async (request: {
+        readonly code: string
+        readonly verifier: string
+        readonly signal?: AbortSignal
+      }) => {
+        const services = await configured()
+        return await services.openRouterExchange(request.code, request.verifier, request.signal)
+      },
+    },
+    usage: {
+      read: async (key: string, signal?: AbortSignal) => {
+        const services = await configured()
+        return await services.openRouterUsage(
+          {
+            id: 'openrouter',
+            preset: 'openrouter',
+            address: OPENROUTER_ORIGIN,
+            auth: 'apiKey',
+            models: [],
+          },
+          key,
+          signal,
+        )
+      },
+    },
     fetcher: { fetchModels },
     tester: {
       test: async (provider: Parameters<typeof fetchModels>[0], key: string) => {
@@ -147,6 +187,51 @@ export function createSubscriptionFeatures(options: {
   }
   return {
     seam: panelSeam,
+    readKeyUsage: async (): Promise<ProviderUsageRow[]> => {
+      const services = await configured()
+      const rows: ProviderUsageRow[] = []
+      const entries = await seam.store.list()
+      for (const entry of entries) {
+        if (entry.preset !== 'openrouter') continue
+        try {
+          const stored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}${entry.id}`)
+          if (stored === undefined) throw new Error(UI_TEXT.providerUsageFailed)
+          const snapshot = await services.openRouterUsage(
+            providersFile.providerEntrySchema.parse(entry),
+          )
+          if ((await options.secrets.get(`${PROVIDER_SECRET_PREFIX}${entry.id}`)) !== stored)
+            throw new Error(UI_TEXT.providerUsageFailed)
+          rows.push(
+            providerUsageRowSchema.parse({
+              providerId: entry.id,
+              providerLabel: seam.catalog.get(entry.preset)?.name ?? entry.id,
+              pricing: 'priced',
+              inputTokens: 0,
+              outputTokens: 0,
+              keyUsage: {
+                totalUsd: snapshot.usedTotal,
+                unlimited: snapshot.unlimited,
+                todayUsd: snapshot.usedToday,
+                weekUsd: snapshot.usedThisWeek,
+                monthUsd: snapshot.usedThisMonth,
+                limitUsd: snapshot.limit,
+                remainingUsd: snapshot.remaining,
+              },
+            }),
+          )
+        } catch {
+          rows.push({
+            providerId: entry.id,
+            providerLabel: 'OpenRouter',
+            pricing: 'priced',
+            inputTokens: 0,
+            outputTokens: 0,
+            keyUsageError: UI_TEXT.providerUsageFailed,
+          })
+        }
+      }
+      return rows
+    },
     hasCopilotAccess: () => copilot.size > 0 && !options.isConfidential(),
     accountId,
     planAccount: async () => {

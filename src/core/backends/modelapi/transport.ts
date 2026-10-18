@@ -369,8 +369,9 @@ export function retryAfterMs(header: string | null, now: number): number | undef
 
 /**
  * The wait an answer names, in every form a provider uses: `retry-after-ms`
- * (milliseconds; Azure OpenAI), then `Retry-After` (seconds or an HTTP
- * date). Honoured as given: no wait of ours shortens or refuses it.
+ * (milliseconds; Azure OpenAI, read before `Retry-After` per research
+ * azure-openai.md ZB2), then `Retry-After` (seconds or an HTTP date).
+ * Honoured as given: no wait of ours shortens or refuses it.
  */
 export function providerWaitMs(headers: Headers, now: number): number | undefined {
   const milliseconds = headers.get(RETRY_AFTER_MS_HEADER)
@@ -379,6 +380,21 @@ export function providerWaitMs(headers: Headers, now: number): number | undefine
     if (Number.isFinite(value) && value >= 0) return value
   }
   return retryAfterMs(headers.get(RETRY_AFTER_HEADER), now)
+}
+
+/**
+ * Which requests join the pacing bucket. Meta governs only its inference
+ * path with a model id; a configured provider's inference travels a native
+ * path (never `/responses`) with the codec-supplied model id, so any of its
+ * model-carrying requests joins the same bucket its rate-limit observations
+ * feed. Count and list calls carry no model id and stay observation-only.
+ */
+export function isPacingGoverned(
+  path: string,
+  modelId: string | undefined,
+  provider: string,
+): boolean {
+  return modelId !== undefined && (path === '/responses' || provider !== 'meta')
 }
 
 /** One retry the client is about to make, for the transcript's notice. */
@@ -886,8 +902,12 @@ export class RequestTransport {
       identity: { provider: 'meta' },
       readLimits: metaPacingLimits,
     }
-    const isGoverned = path === '/responses' && init.modelId !== undefined
-    const shouldObserveLimits = isGoverned || path === '/responses/input_tokens'
+    const isGoverned = isPacingGoverned(path, init.modelId, provider.identity.provider)
+    // Meta observes only its governed paths; a configured provider observes
+    // every answer through its own header reader (undefined where the
+    // provider sends no limit headers, so only a 429 pause applies).
+    const shouldObserveLimits =
+      isGoverned || path === '/responses/input_tokens' || provider.identity.provider !== 'meta'
     const isRateLimitOnly =
       init.retries === 'rateLimitOnly' ||
       init.paid !== undefined ||

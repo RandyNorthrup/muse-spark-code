@@ -14577,6 +14577,15 @@ resolved against the plan's user-visible promise, not against the tag:
 
 ## 3. Open questions (need the owner)
 
+**CM952R2 qualification receipt, updated by R3 (2026-10-11).** The
+unchanged M102 `usageIntegration.test.ts` authenticated-page suite now passes
+on macmini at the repository timeout in the R3 dependent run. The earlier
+R2 failure is retained in its certification as historical evidence, not
+reported as green. Direct release packaging still needs the lead's native
+artifacts and owner-account receipts; this review lane runs the required
+fake-backed packaging suites without real sign-in or vendor calls.
+Evidence: `docs/certification/cm952.md`.
+
 **Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13).** GAPANTH-G11's scan row
 notes that an Anthropic reply stopped with `refusal` offers no fallback
 model. No model-fallback mechanism exists in the product; building one (when
@@ -14917,6 +14926,20 @@ its single post gate and drops it while its panel is not the active one, and
 the webview records and lands an ask only within the 1000 ms delivery window
 (`docs/certification/panel-focus.md`). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
+### D140 — The panel lists exactly what the transport admits (M95, 2026-10-17)
+
+Rule 13 keeps uncaptured presets out of the Models & Agents panel, and the
+transport refuses them with no dispatch even when keyless (C-M95-4 R2). The
+`custom` preset is the exception on both sides: it is the user's own server,
+which the transport admits without a capture, so the panel lists it — the
+milestone Goal's "a compatible server of their own". Main's union also
+listed uncaptured local presets the transport refuses; the candidate's
+exclusion also dropped `custom`, closing the Goal's custom-server path.
+`listedPresets()` plus `custom` is the whole catalogue; the local scan
+probes only listed presets. Per-attempt pool enrichment for headless exec
+has no consumer (one run pins one account; `--account-pool` refuses loudly
+under D88.5), so the unwired helper is removed rather than connected.
 
 ### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)
 
@@ -23224,8 +23247,101 @@ OpenCode plugin hooks").
 
 ### M95 — Bring-your-own model providers (D74)
 
+**CM952R3 review repair (2026-10-11, macmini).** Close all seven
+RVCM952B findings and their siblings. Preserve previous terminal credentials
+through interrupted replacement and ask before replacing an existing key.
+Admit usage observations only after credential freshness validation, identify
+the credential in recorder slots, share in-flight reads, and read only on
+panel open, Save and Refresh. Preserve all six wire decimals, check source
+key order recursively with packaging's plural normalization, ignore unrelated
+loopback callbacks, and name any created key discarded after exchange with
+its removal page (management-key-only deletion is unavailable). Keep existing
+caps, dependencies and Connect protections; certify each red drill and run
+all dependent suites at default timeouts. No merge, push or live call.
+
+**CM952R2 review repair (2026-10-11, macmini).** Close all six RVCM952
+findings and their lane siblings: enforce canonical source localization key
+order, reject credentials changed during provider-add probes, cancel OAuth
+exchange with the wizard/session lifetime, discard stale or unavailable key
+usage, carry new total/week amounts through the existing exact-money boundary,
+and certify explicit missing-service refusal. First commit the packaging/order
+repair; then the lifecycle table and regressions with byte-exact red drills
+in `docs/certification/cm952.md`. Preserve caps, gates and dependencies; no
+merge, push, credentials or live/paid requests. Aggregate quality remains
+lead-owned under the rig brief.
+
+**C-M95-2 implementation (2026-10-11, CM952, macmini).** Complete the
+production OpenRouter PKCE Connect and remote password-box code route,
+parse key usage from the 2026-10-04 `/api/v1/key` capture, and show total,
+daily/weekly/monthly usage, limit and remainder in Models & Agents and
+Account & usage. Add terminal `providers connect openrouter` and
+`providers usage <id>` with ACP terminal authentication entries, using the
+same origin-bound OS credential path. ZDR stays the existing default.
+OAuth exchange follows the public OpenRouter PKCE documentation; the lead
+must capture the real exchange and browser callback after fake-backed
+certification. No account, credential, live request or model attempt is
+available/authorized in this lane. Scope, review, red drills, editor rows
+and capture instructions: `docs/certification/cm952.md`. Shared native
+Models panels wait for C-M104-1; installed editor/OS receipts wait for
+C-M95-7. The lane brief delegates aggregate quality to the lead; scoped
+rig gates run here without altered timeouts or gates.
+Portable OAuth helpers ship in the existing lazy `dist/providers.js`:
+the first composed build exceeded Models & Agents' unchanged 125 KiB cap,
+and the shared provider bundle has room for those reusable helpers.
+
 **Provider panel, 0.17.1 residual (PROVWIZ9, lead decision 2026-10-09).**
 Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
+**CM954 R4 (2026-10-10, linuxlt; RVCM954B).** Finish every P2/P3
+finding and its siblings. Preserve R3's scanned-window persistence and
+localized refusals; prove the production entry actually sizes manual and
+automatic compaction from the selected local model. The committed LM Studio
+captures contain only `/v1/models`, without a window; no native model endpoint
+shape is captured, so do not invent or probe one. Add validated per-model
+manual context windows to the quick pick, shared panel wizard and saved-model
+editor, and `providers add --context-window` in the CLI. ACP reads the same
+validated `providers.json` modelLimits; all ACP editors use that command or
+configuration, with no VS Code-only logic. Manual limits win over scan values
+and survive edits, rescans and reloads. Missing/invalid windows remain refused.
+Update all 14 translations, reference, README, roadmap and certification.
+Keep browser window validation in the shared panel contract, so importing
+provider-file options and their English fallback cannot overflow Models budgets.
+Load the Models table on first navigation through the existing accessible
+deferred boundary, with failure/retry and its own measured cap; retain every
+existing startup, Models-body and deferred-aggregate cap.
+Run scoped gates and default-timeout tests directly on this rig; drill each
+guard and restore byte-exact. No model server, live/paid call, dependency,
+merge, push or gate change. Full quality belongs to the lead per lane brief.
+Plan: implementation, 24 byte-exact red/restored drills and 290 tests across
+17 complete files pass. Scoped static/build gates pass within unchanged caps.
+Fields commit on blur/Enter, preserving output caps while typing.
+Reviewed full visual baseline capture, all 72 affected-table comparisons and
+scoped accessibility pass. Lane fixes and certification are complete with
+hooks enabled. Full quality and installed-editor qualification remain the
+lead's integration gates; no reviewed finding is deferred.
+
+**CM954 R5 (2026-10-11, linuxlt; RVCM954C, third review of this lane).**
+LEAD REDESIGN: ONE RESOLVER FOR A MODEL'S LIMITS, READ AT USE TIME. Fix
+every P2/P3 finding and its class, no residuals. (1) A model's context
+window and output limit come from its saved provider record through one
+resolver every consumer calls at the moment of use: the request body, the
+output cap, manual and automatic compaction, the windowless refusal, the
+panel. No consumer keeps its own copy: the per-host output-cap cache is
+deleted, and peek reads through to providers.json at call time (the file
+is tiny; catalogue fallback is static). Registry resolve/list re-read the
+file on every call, so no snapshot survives a read and no write needs a
+separate invalidation. (2) Manual compact resolves the model first and
+sizes its summary from that same resolution; automatic compaction prefers
+the turn's fresh resolution for registry models and keeps the seam for
+Meta models (a stored Meta resolution's static window must never shadow
+the seam). (3) Limits exist only for ticked models: wizard untick drops
+the limit, saves (wizard, import) keep limits for listed models only, and
+loads prune the rest for every reader. (4) The R3 changelog note is
+corrected to point at the R4 manual-entry UI. Regressions: edit the
+window after a warm listing, then compact and send (cap and summary follow
+the new window up and down); wizard tick, set window, untick, save (no
+resurrection on re-tick). Fakes only; no model server. Touch ModelApiHost
+only at the output-cap and compact call sites. Record drills in
+docs/certification/m95-c4.md.
 
 **MODELSPLIT4 redesign (2026-10-11, kubuntu).** Fix every RVMODELSPLIT3
 finding in the shared Models webview, without new dependencies or higher caps.
@@ -23569,6 +23685,8 @@ is deferred; all five fix drills fired and restored SHA-256-exact source.
 
 **Status 2026-10-10 (first parts shipped in 0.15.0; M95b sign-ins/plan keys and M95c Bedrock/chat exposure remain): building.**
 
+**Status 2026-10-17 (lane MSM95, macmini): lane MSM95 complete on ms/msm95; lead certification pending.** Merged the most-complete candidate (C-M95-4: llama.cpp/LM Studio captures, local context windows, read-at-use-time resolver) and `main-now` through `3d30a7321`. Every listed behaviour is connected on every named surface — panel (Providers/Models sections, wizard, quick pick, scan), terminal (`providers add --context-window`, `connect openrouter`, `usage`, `exec --provider`), editor protocol (configured registry, output-cap minimum, windowed refusal) and ACP/CLI (`auth set --provider`, `providers`, `exec --provider`) — with Help reference and README entries. Panel lists exactly what the transport admits (D140); uncaptured presets refuse with no dispatch. M95b sign-ins/plan keys and M95c Bedrock/chat exposure remain separate milestones. Evidence: `docs/certification/msm95.md`.
+
 Status detail retained: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
 wire captures were recorded 2026-10-04 for the twelve cloud presets the
@@ -23632,23 +23750,24 @@ release acceptance are still pending.
   its own capture is recorded (AGENTS.md rule 13). The captured frames are
   in `docs/certification/m95-captures/<provider>/`:
 
-  | Codec       | Preset                                     | Wire capture                                                                                             |
-  | ----------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-  | `responses` | OpenAI                                     | captured 2026-10-04 (`gpt-5.6-luna`)                                                                     |
-  | `responses` | Azure OpenAI (v1 API)                      | not yet: needs the owner's resource and deployment                                                       |
-  | `responses` | xAI                                        | captured 2026-10-04 (`grok-4.3`)                                                                         |
-  | `chat`      | OpenRouter                                 | captured 2026-10-04 (`openai/gpt-oss-20b` with ZDR; cache pass-through on `anthropic/claude-sonnet-5.5`) |
-  | `chat`      | Groq                                       | captured 2026-10-04 (`openai/gpt-oss-20b`)                                                               |
-  | `chat`      | DeepSeek                                   | captured 2026-10-04 (`deepseek-flash`)                                                                   |
-  | `chat`      | Mistral                                    | captured 2026-10-04 (`ministral-3b-latest`)                                                              |
-  | `chat`      | Together                                   | captured 2026-10-04 (`openai/gpt-oss-120b`)                                                              |
-  | `chat`      | Fireworks                                  | captured 2026-10-04 (`gpt-oss-120b`)                                                                     |
-  | `chat`      | Hugging Face (token, router)               | captured 2026-10-04 (`openai/gpt-oss-20b`, routed to Groq)                                               |
-  | `chat`      | Z.ai (pay-as-you-go; moved from M95c)      | captured 2026-10-04 (`glm-5.3-flash`, `tool_stream`; Anthropic route compared, not used)                 |
-  | `chat`      | LM Studio, vLLM, llama.cpp server          | not yet: step 1 on the rigs                                                                              |
-  | `anthropic` | Anthropic                                  | captured 2026-10-04 (Haiku 4.5, Sonnet 5.5 with thinking and a breakpoint, Opus 5.5)                     |
-  | `gemini`    | Google Gemini (API key, `generateContent`) | captured 2026-10-04 (`gemini-3.5-flash-lite`)                                                            |
-  | `ollama`    | Ollama (local)                             | not yet: step 1 on the rigs                                                                              |
+  | Codec       | Preset                                     | Wire capture                                                                                                                   |
+  | ----------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+  | `responses` | OpenAI                                     | captured 2026-10-04 (`gpt-5.6-luna`)                                                                                           |
+  | `responses` | Azure OpenAI (v1 API)                      | not yet: needs the owner's resource and deployment                                                                             |
+  | `responses` | xAI                                        | captured 2026-10-04 (`grok-4.3`)                                                                                               |
+  | `chat`      | OpenRouter                                 | captured 2026-10-04 (`openai/gpt-oss-20b` with ZDR; cache pass-through on `anthropic/claude-sonnet-5.5`)                       |
+  | `chat`      | Groq                                       | captured 2026-10-04 (`openai/gpt-oss-20b`)                                                                                     |
+  | `chat`      | DeepSeek                                   | captured 2026-10-04 (`deepseek-flash`)                                                                                         |
+  | `chat`      | Mistral                                    | captured 2026-10-04 (`ministral-3b-latest`)                                                                                    |
+  | `chat`      | Together                                   | captured 2026-10-04 (`openai/gpt-oss-120b`)                                                                                    |
+  | `chat`      | Fireworks                                  | captured 2026-10-04 (`gpt-oss-120b`)                                                                                           |
+  | `chat`      | Hugging Face (token, router)               | captured 2026-10-04 (`openai/gpt-oss-20b`, routed to Groq)                                                                     |
+  | `chat`      | Z.ai (pay-as-you-go; moved from M95c)      | captured 2026-10-04 (`glm-5.3-flash`, `tool_stream`; Anthropic route compared, not used)                                       |
+  | `chat`      | LM Studio, llama.cpp server                | captured 2026-10-10 on `linuxlt` (C-M95-4: llmster 0.0.25-1 with Qwen3-0.6B; llama.cpp b11541 with Qwen3-0.6B-Q8_0)            |
+  | `chat`      | vLLM                                       | not yet: blocked on `linuxlt` (C-M95-4: the 0.31 engine's ZMQ IPC needs AF_UNIX, denied by the rig sandbox; retry off-sandbox) |
+  | `anthropic` | Anthropic                                  | captured 2026-10-04 (Haiku 4.5, Sonnet 5.5 with thinking and a breakpoint, Opus 5.5)                                           |
+  | `gemini`    | Google Gemini (API key, `generateContent`) | captured 2026-10-04 (`gemini-3.5-flash-lite`)                                                                                  |
+  | `ollama`    | Ollama (local)                             | not yet: step 1 on the rigs                                                                                                    |
 
   The **Custom server** preset speaks any of the `chat`, `responses` and
   `anthropic` formats. M95b adds the subscription sign-ins and plan keys;
@@ -33375,6 +33494,17 @@ lane A's first step.
 
 ## 7. Gates
 
+**CM952 scoped gate boundary (2026-10-11).** The C-M95-2 rig brief and
+shared lane rules expressly forbid the aggregate `npm run quality` here:
+the lead owns that run and the hosted Windows/macOS/Linux matrix. CM952
+runs changed-file lint/format, all typecheck projects, relevant full test
+files at repository timeouts, l10n/reference/roadmap/host-API checks,
+deadcode/duplication/build, real loopback/Chrome drills, and supported visual
+shards. The full 9,792-image-per-revision visual matrix belongs to the lead
+with aggregate quality: measured serial rendering exceeds this lane time box.
+No threshold, ignore, rule level or timeout is changed. Owner-account OAuth captures
+and installed editor/OS receipts are the lead's external actions;
+exact evidence is in `docs/certification/cm952.md`.
 **M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
 job 115017063279: "loads the real lazy menu independently of the secret
 modal focus owner" (`test/unit/m114Panel.test.mjs:241`) exceeded Vitest's
@@ -35386,6 +35516,8 @@ Pause local browser gates while that extension is enabled. Hosted CI runs
 remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
+
+**MSM95 models-section budget 13 → 14 KiB (2026-10-17, macmini).** CM954 R4's required saved-model editor UI (the validated per-model context-window field, `src/webview/models/components/ContextWindow.tsx`) grew the deferred models-section chunk from 12,074 B to 13,448 B, 136 bytes over the row's 13 KiB. The field cannot shrink: every byte is required behaviour or its accessible label, hint and alert. The row is re-measured at 14 KiB (14,336 B; 888 B headroom), following the MODELSPLIT row-setting precedent. No other budget moves. Detail: `docs/certification/msm95.md`.
 
 ## 8. Escape hatches register
 
@@ -39029,6 +39161,11 @@ check:l10n, check:reference, knip, build with bundle budgets, and the unit
 suites of the files the revert touched, all green; the full .vsix is packed by hosted
 CI. The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
+CMBFEATURES group (2026-10-18): PR #219 (`ms/provm95`) merged onto the
+release as `Merge PR #219 (ms/provm95) into release/0.19.0`, CHANGELOG entries
+under `[0.19.0]` from its merge; `scripts/build.mjs` keeps the release's
+bounded pool of 8 with PR #219's `credentialLease` bundle added as a thunk;
+ROADMAP.md and `docs/ide-compatibility/host-api.md` regenerated.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
 Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from

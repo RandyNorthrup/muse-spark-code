@@ -22,6 +22,7 @@
 !dist/legal-data/**
 !dist/subscriptions.js
 !dist/configuredProviders.js
+!dist/credentialLease.js
 !dist/sessionBoard.js
 !dist/reviewer.js
 !dist/team.js

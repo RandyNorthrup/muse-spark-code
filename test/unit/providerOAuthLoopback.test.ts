@@ -3,6 +3,7 @@
 // code once, and closes in every path.
 
 import { Agent, get } from 'node:http'
+import { connect } from 'node:net'
 import { describe, expect, it } from 'vitest'
 import { startOAuthLoopback } from '../../src/host/providers/oauthLoopback'
 import { EN } from '../../src/shared/l10n/en'
@@ -15,6 +16,34 @@ async function callback(
   query: string,
 ): Promise<Response> {
   return await fetch(`${loopback.redirectUri}${query}`)
+}
+
+/** One raw request line over a fresh socket, resolved with its status. */
+function rawStatus(port: number, line: string): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    const socket = connect(port, '127.0.0.1', () => {
+      socket.write(`${line}\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n`)
+    })
+    let text = ''
+    const timer = setTimeout(() => {
+      socket.destroy()
+      reject(new Error(`no answer for ${JSON.stringify(line)}`))
+    }, 2000)
+    socket.on('data', (chunk) => {
+      text += chunk.toString('latin1')
+    })
+    socket.on('close', () => {
+      clearTimeout(timer)
+      const status = /^HTTP\/\d(?:\.\d)? (\d{3})/.exec(text)
+      if (status === null)
+        reject(new Error(`no status for ${JSON.stringify(line)}: ${JSON.stringify(text)}`))
+      else resolve(Number(status[1]))
+    })
+    socket.on('error', (error) => {
+      clearTimeout(timer)
+      reject(error)
+    })
+  })
 }
 
 /** One request over a caller-held socket, resolved with its status. */
@@ -31,6 +60,58 @@ function getWith(agent: Agent, url: string): Promise<number> {
 }
 
 describe('the OAuth loopback server', () => {
+  it('retains a callback arriving before its waiter is claimed', async () => {
+    const loopback = await startOAuthLoopback(STATE, 1000)
+    try {
+      const response = await callback(loopback, `?code=early&state=${STATE}`)
+      expect(response.status).toBe(200)
+      await expect(loopback.waitForCode()).resolves.toMatchObject({ code: 'early' })
+    } finally {
+      loopback.close()
+    }
+  })
+  it('refuses a second waiter without replacing the first', async () => {
+    const loopback = await startOAuthLoopback(STATE, 1000)
+    try {
+      const waited = loopback.waitForCode()
+      await expect(loopback.waitForCode()).rejects.toThrow('already settled')
+      await callback(loopback, `?code=first&state=${STATE}`)
+      await expect(waited).resolves.toMatchObject({ code: 'first' })
+    } finally {
+      loopback.close()
+    }
+  })
+  it.each([
+    '?code=a&code=b&state=test-state-value',
+    '?code=a&state=test-state-value&scope=a&scope=b',
+    '?error=synthetic-secret&error_description=synthetic-account',
+    '?code=auth-code&state=forged',
+    '?error=access_denied&state=forged',
+  ])(
+    'ignores an unrelated or duplicate callback and still accepts the right one: %s',
+    async (query) => {
+      const loopback = await startOAuthLoopback(STATE, 1000)
+      try {
+        const waited = loopback.waitForCode()
+        let isSettled = false
+        void waited
+          .then(() => {
+            isSettled = true
+          })
+          .catch(() => {
+            isSettled = true
+          })
+        const invalid = await callback(loopback, query)
+        expect(invalid.status).toBe(400)
+        expect(await invalid.text()).not.toContain('synthetic-secret')
+        expect(isSettled).toBe(false)
+        await callback(loopback, `?code=right&state=${STATE}`)
+        await expect(waited).resolves.toMatchObject({ code: 'right' })
+      } finally {
+        loopback.close()
+      }
+    },
+  )
   it('serves localized callback text as plain text, including HTML metacharacters', async () => {
     const text = '<script>alert("synthetic")</script> & "done"'
     setUiText({ ...EN, oauthCallbackDone: text }, 'en')
@@ -68,15 +149,6 @@ describe('the OAuth loopback server', () => {
     await expect(fetch(loopback.redirectUri)).rejects.toThrow()
   })
 
-  it('rejects a callback with the wrong state', async () => {
-    const loopback = await startOAuthLoopback(STATE, 1000)
-    const waited = loopback.waitForCode()
-    const rejected = expect(waited).rejects.toThrow('state')
-    const response = await callback(loopback, '?code=auth-code&state=forged')
-    expect(response.status).toBe(400)
-    await rejected
-  })
-
   it('rejects a callback with no code', async () => {
     const loopback = await startOAuthLoopback(STATE, 1000)
     const waited = loopback.waitForCode()
@@ -89,10 +161,49 @@ describe('the OAuth loopback server', () => {
     const loopback = await startOAuthLoopback(STATE, 1000)
     const waited = loopback.waitForCode()
     const rejected = expect(waited).rejects.toThrow('refused')
-    await callback(loopback, '?error=access_denied&error_description=nope')
+    await callback(loopback, `?error=access_denied&error_description=nope&state=${STATE}`)
     await rejected
   })
 
+  it('answers any malformed request line or URL with 400 and stays alive', async () => {
+    const loopback = await startOAuthLoopback(STATE, 10_000)
+    try {
+      const waited = loopback.waitForCode()
+      let isSettled = false
+      void waited
+        .then(() => {
+          isSettled = true
+        })
+        .catch(() => {
+          isSettled = true
+        })
+      const port = Number(new URL(loopback.redirectUri).port)
+      // The reviewer's case first, then ten more malformed lines and URLs.
+      // Each is answered and ignored; the waiter never settles for one.
+      const malformed: { readonly line: string; readonly status: number }[] = [
+        { line: 'GET //[/ HTTP/1.1', status: 400 },
+        { line: 'GET http://127.0.0.1:badport/callback?state=x HTTP/1.1', status: 400 },
+        { line: 'GET /call\u{0}back?state=x HTTP/1.1', status: 400 },
+        { line: 'GET  HTTP/1.1', status: 400 },
+        { line: 'NOTHTTP', status: 400 },
+        { line: 'GET http://[::1/callback?state=x HTTP/1.1', status: 400 },
+        { line: `GET /callback?state=${STATE}%zz HTTP/1.1`, status: 400 },
+        { line: 'GET /callback?state=wrong&code=x HTTP/1.1', status: 400 },
+        { line: 'GET /callback HTTP/1.1', status: 400 },
+        { line: 'GET /callback#only-a-fragment HTTP/1.1', status: 400 },
+        { line: 'DELETE /callback?state=x HTTP/1.1', status: 405 },
+      ]
+      for (const { line, status } of malformed)
+        expect(await rawStatus(port, line), JSON.stringify(line)).toBe(status)
+      expect(isSettled).toBe(false)
+      // The listener still serves the real callback after the fuzz.
+      const response = await callback(loopback, `?code=after-fuzz&state=${STATE}`)
+      expect(response.status).toBe(200)
+      await expect(waited).resolves.toMatchObject({ code: 'after-fuzz' })
+    } finally {
+      loopback.close()
+    }
+  })
   it('ignores other paths and methods without settling', async () => {
     const loopback = await startOAuthLoopback(STATE, 1000)
     try {

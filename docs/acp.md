@@ -192,6 +192,27 @@ captured plan-key preset is marked **plan**, links its limits, and records
 request/token tallies outside USD caps. No Meta key is needed for its
 inference. General `providers list|add|test|remove` commands and
 `auth set|status|clear --provider <id>` use the same origin-bound records.
+
+`muse-spark-code-acp providers connect openrouter` prints OpenRouter’s
+PKCE authorization URL. Open it, authorize, then paste the displayed
+single-use code at the hidden prompt; the returned key is never printed.
+If a key is already stored, the terminal asks you to type `yes` before
+replacement. Interrupting Connect preserves that record. A created key that
+cannot be kept is named with its removal page; removing it needs your
+OpenRouter account because inference keys cannot use the management API.
+Usage prints all six exact decimal amounts from the response.
+The same route is offered in ACP’s terminal authentication UI alongside
+pasting an OpenRouter key and viewing its usage. It works in remote editors
+without a loopback listener. After connecting, `providers add --preset
+openrouter --model <native-model-id>` uses the stored key, with ZDR routing
+by default. `muse-spark-code-acp providers usage openrouter` shows total,
+daily, weekly and monthly key usage, limit and remaining balance; a saved
+OpenRouter alias can replace `openrouter`. Usage reads cost no credits and
+make no model call. Cancellation discards late exchanged keys, and adding a
+model refuses if the connected credential changed during its probes. A reused
+credential is read-only, including when saving the provider fails. Failure
+text contains no service response or secret.
+
 Free probes use the shared request transport. `exec --provider` validates its
 configuration and key, but refuses before dispatch: its production runner
 still needs provider-aware budget admission and settlement. No supported
@@ -205,6 +226,27 @@ names the minimum; Meta requires 16 tokens. Custom provider entries declare a
 minimum with `modelCapabilities.<model>.output.minTokens`; their capability cap
 and custom output limit must meet it. ACP config options and CLI/exec flags
 currently expose no separate output-token cap.
+
+Local provider configuration requires the actual loaded context window.
+Use `providers add --preset lmstudio --model qwen3-0.6b --context-window 8192`
+to save a validated window for every selected model. Existing entries may
+set per-model limits in the user-level `providers.json` (never in a workspace):
+
+```json
+{
+  "modelLimits": {
+    "qwen3-0.6b": { "contextTokens": 8192, "outputTokens": 8192 }
+  }
+}
+```
+
+Both counts must be positive integers and output cannot exceed context.
+The shared provider reader validates them before use, and the shared host
+uses the same window for context pressure and compaction in every ACP editor.
+LM Studio's committed capture reports no window; no uncaptured native endpoint
+is queried. Missing windows refuse inference with instructions to enter one.
+
+> > > > > > > cand/MSM95/4
 
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,
