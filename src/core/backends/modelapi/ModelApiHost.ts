@@ -317,6 +317,7 @@ import {
   type RetryNotice,
   type ResponseAttemptGuard,
 } from './client'
+import { scrubRefusalLeak } from './providerRefusal'
 import {
   applyGoalCommand,
   type GoalContext,
@@ -4113,6 +4114,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (open !== undefined && isRequestNotSent(error)) {
       open.isSent = false
     }
+    // D121: a request the provider refused before generating anything
+    // (`NON_BILLABLE_HTTP_REJECTIONS`, a superset of lane PROVERR's definite
+    // set) books nothing; a local refusal that never sent counts the same.
     const isRefused =
       isRequestNotSent(error) ||
       (isModelApiError(error) && NON_BILLABLE_HTTP_REJECTIONS.has(error.status))
@@ -4144,8 +4148,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       await work
     } catch (error: unknown) {
       // A turn reports its own failures, so one that reaches here is a fault.
+      // The words can carry a masked-key remnant or an account id (round 2,
+      // finding 5): the log file keeps the scrubbed form only.
       if (!isFailureCallers) {
-        this.deps.log.error(`A Model API turn failed unexpectedly: ${describe(error)}`)
+        this.deps.log.error(
+          `A Model API turn failed unexpectedly: ${scrubRefusalLeak(describe(error))}`,
+        )
       }
     } finally {
       this.unsettled.delete(id)
@@ -6697,6 +6705,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.responseAttemptGuard(body, resolved, budget),
       isCountedUsage,
       abortError: () => new AbortedError(),
+      // D121: a refused request books nothing; a local refusal that never
+      // sent counts the same (superset of lane PROVERR's definite set).
       isRefused: (error: unknown) =>
         isRequestNotSent(error) ||
         (isModelApiError(error) && NON_BILLABLE_HTTP_REJECTIONS.has(error.status)),
@@ -6812,6 +6822,8 @@ export class ModelApiSession implements ScheduledAgentSession {
           guard: (body, budget) => this.responseAttemptGuard(body, resolved, budget),
           isCountedUsage,
           abortError: () => new AbortedError(),
+          // D121: a refused request books nothing; a local refusal that never
+          // sent counts the same (superset of lane PROVERR's definite set).
           isRefused: (error) =>
             isRequestNotSent(error) ||
             (isModelApiError(error) && NON_BILLABLE_HTTP_REJECTIONS.has(error.status)),
@@ -7922,6 +7934,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (egressRefusal !== undefined) {
         return egressRefusal
       }
+      // D121: a refused request books nothing; a local refusal that never
+      // sent counts the same (superset of lane PROVERR's definite set).
       isRefused =
         isRequestNotSent(error) ||
         (isModelApiError(error) && NON_BILLABLE_HTTP_REJECTIONS.has(error.status))

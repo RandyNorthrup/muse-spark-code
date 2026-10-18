@@ -44,6 +44,20 @@ export {
 } from '../../core/backends/modelapi/transport'
 export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
 export { parseNdjson } from '../../core/backends/modelapi/ndjson'
+// Lane PROVERR: the typed refusal other bundles require from this bundle
+// (deferredCohort), so a name they import exists here or it is `undefined`
+// in the built product (HOTFIX0181).
+export {
+  boundProviderMessage,
+  firstBodyLine,
+  isDefiniteRefusal,
+  isRefusalRetryable,
+  isRetryableStreamFailure,
+  parseRefusalError,
+  refusalOf,
+  refusalSentence,
+  scrubRefusalLeak,
+} from '../../core/backends/modelapi/providerRefusal'
 export { streamEventSchema, usageSchema } from '../../core/backends/modelapi/schemas'
 export { pinnedHttpsRequest, pinnedPostRequest } from '../web/pinnedRequest'
 import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'
@@ -180,7 +194,7 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
         }
   let providers: ReturnType<NonNullable<typeof deps.createProviders>> | undefined
   const resolveProviders = async () => {
-    if (deps.createProviders === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+    if (deps.createProviders === undefined) throw new Error(UI_TEXT.modelApiProvidersMissing)
     providers ??= deps.createProviders()
     try {
       return await providers
@@ -243,7 +257,7 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
           list: async () => {
             if (clientModels?.list !== undefined) return await clientModels.list()
             const { list } = await resolveProviders()
-            if (list === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+            if (list === undefined) throw new Error(UI_TEXT.modelApiProvidersMissing)
             return await list()
           },
         }),
