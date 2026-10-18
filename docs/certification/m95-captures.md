@@ -93,7 +93,7 @@ here as always.
 | Cache              | Implicit, with the write reported. Tool loop: 1,444 written, then 1,444 read and 50 written. Cache pair (prefix in `instructions`): 1,574 written, then 1,574 read                                                                                                                        |
 | Error              | 404 `{"error": {"message", "type": "invalid_request_error", "param": null, "code": "model_not_found"}}`                                                                                                                                                                                   |
 | Rate-limit headers | `x-ratelimit-{limit,remaining,reset}-{requests,tokens}`; `openai-organization` and `openai-project` headers (redacted)                                                                                                                                                                    |
-| Calls / cost       | 4 billed, 2 free; ≈ $0.0009 (`$0.20`in,`$0.02` cached, `$0.25`write,`$1.20` out per million)                                                                                                                                                                                              |
+| Calls / cost       | 4 billed, 2 free; ≈ $0.0009 (`$0.20` in, `$0.02` cached, `$0.25` write, `$1.20` out per million)                                                                                                                                                                                          |
 
 ## xAI (`responses`)
 
@@ -137,7 +137,7 @@ here as always.
 | Cache              | Implicit caching **was not observed**: two back-to-back calls with a 5,514-token prompt returned no `cachedContentTokenCount`                                                                                                                                                                                               |
 | Error              | HTTP 404 sent as **`content-type: text/event-stream` with a pretty-printed JSON body** (not SSE): `{"error": {"code": 404, "message", "status": "NOT_FOUND"}}`                                                                                                                                                              |
 | Rate-limit headers | None                                                                                                                                                                                                                                                                                                                        |
-| Calls / cost       | 4 billed, 3 free (the error probe was redone once, after the capture script learned to read a JSON body under `text/event-stream`); ≈ $0.005 at the paid rate (`$0.30`in,`$2.50` out), $0 if the key is on the free tier                                                                                                    |
+| Calls / cost       | 4 billed, 3 free (the error probe was redone once, after the capture script learned to read a JSON body under `text/event-stream`); ≈ $0.005 at the paid rate (`$0.30` in, `$2.50` out), $0 if the key is on the free tier                                                                                                  |
 
 ## OpenRouter (`chat`)
 

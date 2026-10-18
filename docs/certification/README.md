@@ -96,7 +96,7 @@ The PNGs beside the records are that day's harness renders.
 - [MG78b](mg78b.md): current-main integration of M71, conflict resolutions and bounded merge evidence (2026-10-04)
 - [MRG78](mrg78.md): Win11 merge of main's activation diet, CI and panel polish into M71, with bounded checks and the open browser-size gate (2026-10-04)
 - [M71](m71.md): git and pull requests: commit, push that always asks and never forces, pull requests on GitHub linked to their conversation, and someone else's pull request held in its own worktree until trusted (PLAN.md D49)
-- [M82](m82.md): awareness and budgets: background-turn notifications, per-reply tokens and cost, a session budget cap kept by reservation, cache savings (PLAN.md D49); lane record [MSM82](msm82.md)
+- [M82](m82.md): awareness and budgets: background-turn notifications, per-reply tokens and cost, a session budget cap kept by reservation, cache savings (PLAN.md D49)
 - [M75](m75.md): paired efficiency evaluation on the extension's own Model API harness, behavioural verifiers, attempts counted from the requests sent, capability floors, and the live baseline, 10/10 in 39 model calls for $0.0041 (PLAN.md D49; the report is [m75-baseline.md](m75-baseline.md))
 - [M70m2 reconciliation](m70m2.md): focused review, packing and handoff merge proof; full certification remains the lead's gate.
 - [MG69 reconciliation](mg69.md): preserve review, session transfer and agent import while merging main; focused rig proof, with full certification left to the lead.
