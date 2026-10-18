@@ -355,7 +355,11 @@ async function createWindowsVaultBrokerBindings(
       anchor ??= new KeyringVaultAnchor(keyring)
     } catch {
       keyring = unavailableKeyring()
-      anchor ??= new FileVaultAnchor(vaultAnchorFile(context.dataDir))
+      // Modes set no DACL on Windows: the pipe-helper guard protects the
+      // anchor directory and file after each write, like the vault files.
+      anchor ??= new FileVaultAnchor(vaultAnchorFile(context.dataDir), (file, kind) =>
+        platform.guard.protect(file, kind),
+      )
     }
   }
   const isHost = async (pid: number, hostId: string, hostSession?: string) => {

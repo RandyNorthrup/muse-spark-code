@@ -12,14 +12,19 @@ import { KeyringVaultAnchor } from './keyringAnchor'
  * on what history is valid. The OS store stays preferred wherever its
  * binding is installed; a vault anchored in one place never silently adopts
  * the other's state, and switching places without carrying the record fails
- * closed as a rollback, never as fresh.
+ * closed as a rollback, never as fresh. Owner-only means modes on POSIX;
+ * on Windows the bindings pass the pipe-helper guard, which sets the
+ * owner-only DACL on the directory and the file after each write.
  */
 export function vaultAnchorFile(dataDir: string): string {
   return path.join(dataDir, 'anchor', 'anchor.v1.json')
 }
 
 export class FileVaultAnchor extends KeyringVaultAnchor {
-  constructor(private readonly file: string) {
+  constructor(
+    private readonly file: string,
+    private readonly protect?: (file: string, kind: 'directory' | 'file') => Promise<void>,
+  ) {
     // Never called: every storage primitive below is overridden, so the OS
     // store is never consulted through this anchor.
     super(() => {
@@ -43,11 +48,15 @@ export class FileVaultAnchor extends KeyringVaultAnchor {
   protected override async writeRaw(raw: string): Promise<void> {
     try {
       await mkdir(path.dirname(this.file), { recursive: true, mode: 0o700 })
+      // Modes are POSIX only: on Windows the caller supplies the
+      // pipe-helper guard, which sets the owner-only DACL after the write.
+      await this.protect?.(path.dirname(this.file), 'directory')
       // One writer at a time (the caller holds the exclusive writer lock);
       // the rename keeps a crashed write from leaving a half record.
       const pending = `${this.file}.tmp`
       await writeFile(pending, raw, { mode: 0o600 })
       await rename(pending, this.file)
+      await this.protect?.(this.file, 'file')
     } catch {
       throw new VaultStoreUnavailableError()
     }
