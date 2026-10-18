@@ -15333,6 +15333,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         } else if (error instanceof ContextOverflowError) {
           // TOOLCAP recovery (c): the true last word. With the provider's
           // own numbers, by how much and what the person can do; otherwise
+          // the error's message, which every construction site fills with
           // the host's text or the short sentence. The conversation is
           // intact: cuts kept spills, so /compact, a larger window or a new
           // conversation all proceed from usable history.
@@ -15343,7 +15344,7 @@ export class ModelApiSession implements ScheduledAgentSession {
                   maximum: formatNumber(error.promptMaximum),
                   over: formatNumber(Math.max(0, error.promptTokens - error.promptMaximum)),
                 })
-              : (this.deps.contextWindowFullText ?? UI_TEXT.contextWindowFull)
+              : error.message
           errorKind = 'context_overflow'
           this.deps.onContextOverflow?.({
             sessionId: this.sessionId,
