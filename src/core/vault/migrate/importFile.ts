@@ -236,6 +236,22 @@ export class VaultFileImporter {
     }
   }
 
+  /**
+   * The cross-process Keep/Delete claim: atomically removes the receipt, so
+   * exactly one side wins. A concurrent winner's claim reads as `invalid`.
+   */
+  private async claimReceipt(receipt: string, lease: MigrationLease): Promise<void> {
+    try {
+      await this.vault.takeReceipt(receipt, () => {
+        this.assertActive(lease)
+      })
+    } catch (error: unknown) {
+      if (error instanceof VaultError && error.code === 'invalid')
+        throw new VaultMigrationFault('invalid')
+      throw error
+    }
+  }
+
   async import(
     file: AmbientFile,
     prepare: (kind: AmbientFile['kind'], bytes: Uint8Array) => Promise<readonly VaultItem[]>,
@@ -320,17 +336,9 @@ export class VaultFileImporter {
       this.assertActive(lease)
       if (!receiptSchema.safeParse(await this.vault.readReceipt(receipt)).success)
         throw new VaultMigrationFault('invalid')
-      // Claim the receipt across processes: a concurrent Delete that already
-      // claimed it makes this throw instead of reporting a false Keep.
-      try {
-        await this.vault.takeReceipt(receipt, () => {
-          this.assertActive(lease)
-        })
-      } catch (error: unknown) {
-        if (error instanceof VaultError && error.code === 'invalid')
-          throw new VaultMigrationFault('invalid')
-        throw error
-      }
+      // A concurrent Delete that already claimed the receipt makes this
+      // throw instead of reporting a false Keep.
+      await this.claimReceipt(receipt, lease)
     })
   }
   /**
@@ -456,15 +464,7 @@ export class VaultFileImporter {
         // Claim the receipt across processes before removing the source: a
         // concurrent Keep that already claimed it makes this throw, so the
         // source is never unlinked after Keep succeeded.
-        try {
-          await this.vault.takeReceipt(receipt, () => {
-            this.assertActive(lease)
-          })
-        } catch (error: unknown) {
-          if (error instanceof VaultError && error.code === 'invalid')
-            throw new VaultMigrationFault('invalid')
-          throw error
-        }
+        await this.claimReceipt(receipt, lease)
         unlinkSync(saved.path)
         assertReceipt()
         try {
