@@ -631,3 +631,31 @@ changed code, so Windows separators are unaffected.
   `check:plan` (0 drift), `check:l10n` (0 problems), `npm run build`
   (budgets hold), `deadcode`, `cycles`, `duplication` (0 clones),
   `security:audit` (2 advisories, 1 exception, exit 0).
+
+## Lane PR244W2 — first result (macbook rig, 2026-10-18, head `eaf7a0330`)
+
+Rule site: `budget()` in `native/confine/MuseSparkConfineMac.c:118-123`
+(and the mirrored `native/confine/MuseSparkConfine.c:121-126`) refuses
+`walkBudget` when `visited > JUDGE_FAST_B1_WALK_MAX_ENTRIES` (20,000,
+deterministic) **or** the wall-clock walk time exceeds
+`JUDGE_FAST_B1_WALK_MAX_MS` (100 ms, `src/shared/constants.ts:4040`).
+The clock arm measures `CLOCK_MONOTONIC` from the run's start, so any
+descheduling over 100 ms — eight other jobs on macmini, a cold start on
+PARITYMAC6 — refuses a walk of a five-file fixture. The failure is a
+security refusal caused by machine load, not by anything the walk saw:
+`runs session self-tests once …` got `{"kind":"refused",
+"reason":"walkBudget"}` where it expects `output`, and the earlier
+loaded run failed 5 with several at the 5,000 ms test timeout.
+
+Deterministic replacement (this lane): drop the wall-clock arm
+entirely. `budget()` refuses only past 20,000 visited entries — a count
+that caps the walk's work and the generated profile's size however slow
+the machine is — and the depth arm (`> 128`) is untouched, as are the
+path-length `walkBudget` refusals (over-long relative/absolute paths,
+deterministic). `JUDGE_FAST_B1_WALK_MAX_MS`, the `started` timestamp,
+the per-entry `clock_gettime` call and the `clock` refusal go away in
+both helpers, the TS refusal enum and the `Time` test variant; the
+`Budget` (entries = 2) and `Depth` (depth = 0) variants keep proving the
+remaining bounds fire. No widening: every denial, exclusion and
+same-device check is untouched; a slow walk now completes slowly
+instead of refusing.
