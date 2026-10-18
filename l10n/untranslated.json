@@ -97,7 +97,8 @@
       "referenceCliOptions.share-to",
       "referenceCliOptions.share-out",
       "referenceCliOptions.sharing-json",
-      "paletteTips.paid:autoCompaction"
+      "paletteTips.paid:autoCompaction",
+      "whatsNewAttachmentsRefused"
     ],
     "cs": [
       "groupModel",

@@ -12,7 +12,20 @@
 import type { Block, Highlight, Inline, ReleaseNotes, WhatsNewContent } from './whatsNewContent'
 import { releasesToShow } from './whatsNewVersions'
 import { UI_TEXT, WHATS_NEW_CHANGELOG_URL } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { BASE_LOCALE, fill, uiLocale } from '../../shared/l10n/text'
+
+/**
+ * Literal release-note text as Markdown source: every character that can
+ * reshape the rendering carries a backslash, so an ACP client that renders
+ * Markdown shows the characters (an escaped `\*`, a raw `<script>`) instead
+ * of reinterpreting them (Codex on PR #212). The rest — `, ; : /` and kin —
+ * stays bare, so terminal clients reading the raw text see it unchanged.
+ */
+const MARKDOWN_SIGNIFICANT = /[\\`*_()[\]#+\-.!<>|~=]/gu
+
+function escapeText(value: string): string {
+  return value.replaceAll(MARKDOWN_SIGNIFICANT, (character) => `\\${character}`)
+}
 
 export interface WhatsNewTextOptions {
   /** Newest first, as `releasesToShow` picked them. */
@@ -31,10 +44,20 @@ function inlines(nodes: readonly Inline[]): string {
 function inline(node: Inline): string {
   switch (node.t) {
     case 'text': {
-      return node.v
+      return escapeText(node.v)
     }
     case 'code': {
-      return `\`${node.v}\``
+      // A value holding backticks gets a longer fence, padded where the
+      // value itself starts or ends with one, so the span cannot break
+      // open (Codex on PR #212).
+      let longest = 0
+      const runs = node.v.match(/`+/gu) ?? []
+      for (const run of runs) {
+        if (run.length > longest) longest = run.length
+      }
+      const fence = '`'.repeat(longest + 1)
+      const pad = node.v.startsWith('`') || node.v.endsWith('`') ? ' ' : ''
+      return `${fence}${pad}${node.v}${pad}${fence}`
     }
     case 'br': {
       return '\n'
@@ -120,7 +143,7 @@ function release(release: ReleaseNotes): string[] {
     for (const entry of release.highlights) lines.push(...highlight(entry))
   }
   for (const section of release.sections) {
-    if (section.heading !== '') lines.push(`### ${section.heading}`, '')
+    if (section.heading !== '') lines.push(`### ${escapeText(section.heading)}`, '')
     lines.push(...blocks(section.blocks, ''), '')
   }
   return lines
@@ -135,6 +158,11 @@ export function formatWhatsNewText(options: WhatsNewTextOptions): string {
       : fill(UI_TEXT.whatsNewUpdatedFrom, { from: options.from, to: options.current }),
     '',
   ]
+  // The notes stay English while the wrapping words are the display
+  // language's: say so where the page says so (Codex on PR #212).
+  if (!uiLocale().startsWith(BASE_LOCALE)) {
+    lines.push(UI_TEXT.whatsNewNotesInEnglish, '')
+  }
   if (options.releases.length === 0) {
     lines.push(fill(UI_TEXT.whatsNewNoNotes, { version: options.current }), '')
   }
