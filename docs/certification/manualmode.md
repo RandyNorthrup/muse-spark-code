@@ -136,3 +136,51 @@ Floor: Muse Code older than 1.4.7 ignores `session/start.permissionProfile`
 (unknown keys ignored) and answers `session/setPermissionProfile` with
 `methodNotFound` (tolerated, one info log per session); Manual there behaves
 as before. The Modes menu words hold on 1.4.7 and later.
+
+## 2026-10-18 — three review corrections (lane PR251FIX)
+
+Grok's review of PR #251 found three paths the fix above got wrong. Each is
+fixed at its cause and proven below against the pinned 1.4.7 binary through
+the REAL `MuseCodeHost`/`MuseSession` code (esbuild bundle of the changed
+sources, worktree `temp/probe-pr251.ts`, `serve --provider echo`, zero model
+calls; the probe reads `session/read` `approvalMode.mode` and
+`permissionState.profileId` over its own connection). Every check failed on
+the unfixed code first (scratch clone at `347c989ed0`, since removed) and
+passes after.
+
+1. Headless `acceptEdits` kept the old reviewer. The ACP agent sent
+   `permissionProfile: ':ask-me'` for every interactive-looking mode,
+   including headless exec (which rejects every approval). Now
+   `mspStartPermissionProfile` (`src/shared/permissionModes.ts`) returns
+   `undefined` when `isHeadless` is true, and `newSession`
+   (`src/acp/agent.ts`) carries that: a headless `promptUnmatched` start
+   commits `:auto-review`/`autoReview`, exactly the omitted-profile default
+   an explicit `:ask-me` start does not. Unit test:
+   `test/unit/permissionModes.test.ts` `mspStartPermissionProfile` — 2
+   failed on the unfixed tree (`mspStartPermissionProfile is not a
+function`), all 13 pass after.
+2. A failed profile sync left the host in the new mode. `setApprovalMode`
+   (`src/core/backends/musecode/MuseCodeHost.ts`) committed
+   `session/setApprovalMode` and then threw on any other
+   `session/setPermissionProfile` refusal, so the panel's and ACP's "the
+   mode did not change" was false. Now it puts the previous mode (new
+   `SessionOwner.currentMode`, `src/core/schedules/sessionOwner.ts`) back
+   before throwing. Proven on a handshake WITHOUT `experimentalApi`: the
+   Manual switch throws and `session/read` still says `onRequest`; on the
+   unfixed code it said `promptUnmatched`.
+3. A schedule on a Manual conversation kept `:ask-me`. Admission changed
+   the mode but never the reviewer, so unmatched commands became refusals
+   instead of judge allows. Now `admitScheduled` selects `:auto-review`
+   while the unattended run is in charge and `restoreScheduleMode` puts the
+   conversation's profile back with the mode, both in the same place as the
+   mode change. Proven on a `:ask-me` `promptUnmatched` session with a real
+   `UnattendedRun`: during admission `onRequest`/`:auto-review`, after the
+   turn completes `promptUnmatched`/`:ask-me`; on the unfixed code the
+   admission stayed `:ask-me`.
+
+Files: `src/shared/permissionModes.ts` (`mspStartPermissionProfile`),
+`src/acp/agent.ts` (headless start), `src/core/schedules/sessionOwner.ts`
+(`currentMode`), `src/core/backends/musecode/MuseCodeHost.ts`
+(`setPermissionProfile` split, `setApprovalMode` rollback, admission and
+restore reviewer), `test/unit/permissionModes.test.ts`, `CHANGELOG.md`,
+PLAN.md D123.
