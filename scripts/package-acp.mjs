@@ -53,7 +53,9 @@ const NLS_FILES = readdirSync('.').filter((file) => /^package\.nls(?:\.[\w-]+)?\
 
 /** The keyring binding's version, as this repository locks it. */
 function lockedVersion(manifest) {
-  const version = manifest.devDependencies?.[NATIVE_DEPENDENCY]
+  // A runtime dependency (the vault's OS store loads it in every product);
+  // never a devDependency.
+  const version = manifest.dependencies?.[NATIVE_DEPENDENCY]
   if (typeof version !== 'string') {
     throw new TypeError(`package.json does not lock ${NATIVE_DEPENDENCY}`)
   }

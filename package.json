@@ -1858,7 +1858,6 @@
     "@agentclientprotocol/sdk": "1.7.0",
     "@eslint/js": "10.0.1",
     "@muse-code/sdk": "1.4.4",
-    "@napi-rs/keyring": "2.1.0",
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
@@ -1904,6 +1903,7 @@
     "source-map-js": "1.2.2"
   },
   "dependencies": {
+    "@napi-rs/keyring": "2.1.0",
     "highlight.js": "11.12.0",
     "html-encoding-sniffer": "7.0.0",
     "jpeg-js": "0.4.4",
