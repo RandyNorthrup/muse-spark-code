@@ -2610,13 +2610,14 @@ export const WEB_FETCH_TIMEOUT_MS = 30_000
 // The https-only, no-credentials and public-hosts refusals stay: they are
 // safety rules, not size limits.)
 // Safety, not a size limit (SECURITY.md, the trusted policy): at most this
-// much decompressed body is ever buffered, on every product call, even when
-// the caller named no smaller ingress cap (M118 raw files do). Past it the
-// page is refused as too large, before conversion. NOLIMITS A17 removed the
-// old 5 MiB page refusal along with the redirect count; this restores the
-// buffered-bytes bound as a decompression-bomb guard, not a page limit.
-export const WEB_FETCH_MAX_BODY_MIB = 5
-export const WEB_FETCH_MAX_BODY_BYTES = WEB_FETCH_MAX_BODY_MIB * BYTES_PER_MIB
+// much decompressed body is ever buffered for one page, on every product
+// call, even when the caller named no smaller ingress cap (M118 raw files
+// name one and keep their refusal). Past it the stream stops and the page
+// converts truncated-with-notice, never refused: a gzip/Brotli bomb or a
+// fast text stream costs no more than this of host memory, and a valid page
+// past it still reads.
+export const WEB_FETCH_BUFFER_WINDOW_MIB = 5
+export const WEB_FETCH_BUFFER_WINDOW_BYTES = WEB_FETCH_BUFFER_WINDOW_MIB * BYTES_PER_MIB
 // What the model receives of the converted text, within TOOL_OUTPUT_MAX_CHARS.
 export const WEB_FETCH_MAX_CONTENT_CHARS = 50_000
 // The HTML converter stops past this much Markdown (room for the text it
