@@ -46,8 +46,10 @@ export class DamageNoter {
 
   /** A read that succeeded: a later recurrence of any damage announces again. */
   public noteHealthy(): void {
-    if (!this.healthyMarkerChecked) {
-      // A marker left by an earlier process must not hide a recurrence.
+    if (!this.healthyMarkerChecked || this.store.readMarker() !== undefined) {
+      // A marker left by an earlier process — or written by another reader
+      // after this reader's last check — must not hide a recurrence: the
+      // file reads healthy now, so any marker still present is stale.
       this.healthyMarkerChecked = true
       this.store.clearMarker()
     }

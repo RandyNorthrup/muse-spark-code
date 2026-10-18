@@ -26,6 +26,28 @@ describe('durable damage announcements', () => {
       windowB.noteDamaged('corrupt-b')
       windowA.noteDamaged('corrupt-a')
       expect(announced).toEqual(['corrupt-a', 'corrupt-a', 'corrupt-b', 'corrupt-a'])
+      // A reader healthy before another window's damage still clears after
+      // the repair, so the recurrence announces instead of meeting the
+      // other window's stale marker.
+      const windowC = new DamageNoter(fileDamageMarkers(file), (identity) => {
+        announced.push(identity)
+      })
+      const windowD = new DamageNoter(fileDamageMarkers(file), (identity) => {
+        announced.push(identity)
+      })
+      windowC.noteHealthy()
+      windowD.noteDamaged('corrupt-c')
+      expect(announced).toEqual(['corrupt-a', 'corrupt-a', 'corrupt-b', 'corrupt-a', 'corrupt-c'])
+      windowC.noteHealthy()
+      windowC.noteDamaged('corrupt-c')
+      expect(announced).toEqual([
+        'corrupt-a',
+        'corrupt-a',
+        'corrupt-b',
+        'corrupt-a',
+        'corrupt-c',
+        'corrupt-c',
+      ])
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }
