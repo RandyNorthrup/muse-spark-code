@@ -12,7 +12,7 @@ import type { SecretStore } from '../host/auth/credentialStore'
 import { CHATGPT_REGISTRATION_SECRET_KEY, PROVIDER_SECRET_PREFIX } from '../shared/constants'
 import { startChatGptCallback } from './chatGptCallback'
 import { withChatGptRefreshLock, type ChatGptLockOptions } from './chatGptRefreshLock'
-import { storeOperation } from './keyStore'
+import { StoreUnavailableError, storeOperation } from './keyStore'
 
 const RECORD_ACCOUNT = `${PROVIDER_SECRET_PREFIX}chatgpt`
 const HOST_ACCOUNT = `${RECORD_ACCOUNT}.host-id`
@@ -26,8 +26,11 @@ const HOST_ACCOUNT = `${RECORD_ACCOUNT}.host-id`
 async function grantStore<T>(work: () => Promise<T>): Promise<T> {
   try {
     return await storeOperation(work)
-  } catch {
-    throw new ChatGptSignInError('store-unavailable')
+  } catch (error) {
+    // A store failure reads as the store's refusal. Anything else is a
+    // caller bug, not the store, and stays what it is.
+    if (error instanceof StoreUnavailableError) throw new ChatGptSignInError('store-unavailable')
+    throw error
   }
 }
 
@@ -61,8 +64,12 @@ export async function createRuntimeChatGptHost(
       const parsed = schema.safeParse(value)
       if (!parsed.success) throw new ChatGptSignInError(code)
       return parsed.data
-    } catch {
-      throw new ChatGptSignInError(code)
+    } catch (error) {
+      // Only malformed text fails here: a typed failure is already named,
+      // and anything else is not this entry's answer to give.
+      if (error instanceof ChatGptSignInError) throw error
+      if (error instanceof SyntaxError) throw new ChatGptSignInError(code)
+      throw error
     }
   }
   const writeStored = async <T>(
