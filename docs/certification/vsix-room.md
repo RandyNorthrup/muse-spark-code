@@ -102,9 +102,66 @@ No `*.map`, no test/spec files, no fonts, no `media/social-preview.png`
    reads WebP) points at the new names; no test names the PNG files. Nothing
    the person sees changes by a single pixel.
 
-## Result so far
+## Result
 
 Partial pack (same method, same absent CI-only binaries): 3,345,023 ->
-**3,275,124 bytes** (**69,899 saved**). Mapped onto main's universal
-3,783,387: about 3,713,488, i.e. about 75 KB of headroom. The 150 KB target
-needs about 80 KB more; the hunt continues on this branch.
+**3,275,124 bytes** (**69,899 saved**; per-member deflate makes the delta
+transfer to the universal VSIX within ~100 bytes). Mapped onto main's
+universal 3,783,387: about 3,713,488, i.e. about **75 KB of headroom**.
+The 150 KB target (at or below 3,635,200) needs about **78 KB more**.
+
+## Why the remaining ~78 KB is not taken (negative results, all measured)
+
+Every other byte was checked and is load-bearing; removing any of it cuts
+a feature, a locale, or a deliberate resilience property:
+
+- **Archives are optimal.** `runtime.bundles.json.br` (5.57 MB raw) at
+  brotli-11 with a 24-bit window saves only 4,824 bytes over the current
+  22-bit window; dropping JSON escaping for an index+concat container saves
+  only 5,452 bytes (brotli already sees through the escaping). Both were
+  measured, not implemented: too little for surgery on the digest-checked
+  loader. `ui.tables.json.br` (4.09 MB raw, 14 real translations) gains
+  nothing from a larger window (measured: 0 bytes).
+- **No dead code.** knip clean; lazy registry has zero `unreached` bundles;
+  no module is embedded twice in one bundle (checked every node metafile);
+  webview React ships once, code-split, minified.
+- **213 unread `UI_TEXT` keys exist but are staged, not dead.** Whole-`src/`
+  word search plus built-bundle grep plus `git grep` on the team branches
+  plus ruling out concatenated/template key construction (only map-based
+  `UI_TEXT[map[k]]` reads, whose literal values the search covers). Every
+  cluster traces to a strings-first lane commit for work still in flight:
+  `estimate*` (45, M117, wires on `c/m117-6`), `team*` (130, M96 lane 0,
+  Oct 4), `playbook*` (M116), `resource*` (M107), `reference*`,
+  `provider*`/`suggest*`/`acpProvidersNone`/`signOutRemoveProviders` (M95),
+  `hook*`/`hooks*`/`plugin*`/`agentImportKindPlugin` (M91),
+  `legal*` (M97), `anthropicCodec*`, `execProvider*`, `promptImportConfirm`
+  (M118), `sessionBudgetWriteFailed`. Deleting them destroys in-flight
+  translations and risks tonight's own integration. Removing `en.ts` keys
+  would fail loud (typecheck), never silent — but the churn is not taken.
+- **Rejected:** EAGER-file stubbing (~14 KB, buys into ACP cold-start and
+  no-archive resilience), `uiText*` region archiving (~15 KB, removes the
+  damaged-archive English fallback the design requires), parse5 replacement
+  (~30 KB, loses the most robust HTML parser), lossy image compression
+  (pixel change), locale cuts (gate + users), C# prebuilding (deliberate
+  first-use-compile decision), chunk consolidation (first-paint budgets).
+
+## Gates and drills (final tree)
+
+- `npm run format:check`: exit 0. eslint: no lint-covered file changed
+  (hook lint-staged green on both commits).
+- `npm run typecheck` (all five projects): exit 0. `npm run deadcode`:
+  exit 0. `node scripts/check-bundle-size.mjs`: exit 0.
+  `node scripts/check-l10n.mjs`: 0 problems.
+- `npx vitest run test/unit/packagedBundles.test.mjs
+test/unit/vsixCompression.test.mjs --maxWorkers=3`: 10/10 pass.
+- `node test/packaging/moduleExports.test.mjs vsix temp/vsix-stage`:
+  78/78 pass (staged lazy loader healthy).
+- Partial-pack `node scripts/check-vsix-size.mjs` on the branch result:
+  3,275,124 < 3,788,800, pass.
+- Drills: every walkthrough markdown image ref resolves to a staged file;
+  all four WebPs decode pixel-identical in two independent decoders
+  (cwebp/dwebp 1.5.0 and PIL); walkthrough steps use `media.markdown`,
+  rendered by VS Code's Chromium webview. Live walkthrough open NOT RUN:
+  no editor on this rig — for the lead.
+- Production `npm run build` ran green on this tree's sources before the
+  (sourceless) packaging changes; `dist/` is unchanged since.
