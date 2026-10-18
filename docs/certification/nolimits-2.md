@@ -271,3 +271,86 @@ One line per thread, each verified against this tree just now:
   — the schema still validates `maxAttempts` but the shared `turnRetry`
   event has no such field and the notice renders "Attempt N" only; fix
   follows in this lane.
+
+## PR214FIX2 fixes (2026-10-17, branch `fix/nolimits-2-fix2`)
+
+All five confirmed threads fixed at cause in this lane (the brief lists
+14; the thread list it carries has these 13, all covered):
+
+- `mapNotification.ts:279` (`e5a578cd08`): the shared `turnRetry` event
+  carries optional `maxAttempts` (absent on unbounded Model API retries;
+  the boundary schema still requires it of Muse Code) and the notice
+  renders "Attempt N of M" through the new translated
+  `turnRetryingKnownTotal` template (all 14 tables; author's own
+  translations, unreviewed by native speakers, as in PR214FIX).
+  `turnRetryCeiling.test.ts` drives the real reducer both ways (2
+  passed); `mapNotification.test.ts` now expects the ceiling through
+  (39 passed).
+- `webFetch.ts:552` (`03ce1ed0f5`, `9984561b10`): every product call
+  buffers at most `WEB_FETCH_MAX_BODY_BYTES` (5 MiB post-decompression,
+  the trusted policy in SECURITY.md) unless the caller named a smaller
+  ingress cap; a smaller cap still wins and HTML still converts past the
+  raw path. NOLIMITS A17's removal went too far: the page refusal is
+  back as a buffered-bytes bomb guard (a safety rule, like the
+  https-only and public-host refusals that stayed), not a page limit.
+  `webFetchBomb.test.ts` drives the real `fetchWebPage` with real gzip:
+  a 6 MiB bomb is refused `tooLarge` (seen to fail with the bound
+  removed), a small body still reads, the connection is still released
+  (3 passed).
+- `files.ts:233` (`0ad2057188`): `upload()`'s receipt `delete()` uses
+  the operation's own signal; `list`, `delete`, `accountFiles`,
+  `cleanup`, `syncSession`, `releaseSession` and `accountReport` take an
+  optional signal (unnamed where the caller has none, as today).
+  Measured: `UploadLedger` is only ever imported as a type in this
+  tree, so its cleanup/list paths have no live caller today — the
+  plumbing keeps the kill path for when they are wired, and the live
+  receipt cleanup is covered end to end. `filesCancel.test.ts` drives
+  the real `FilesApi` and `UploadLedger` at the injected seams: each
+  internal call sees the exact signal (the receipt case seen to fail
+  without it; 3 passed).
+- `registry.ts:292` + `configured.ts` (`8ae6b2142c`): the ChatGPT branch
+  restarts `providerAnswer`/`modelReply` notices while an unnamed wait
+  lasts (`silentWaitNotices`, stopped with the stream; silent when a
+  named idle ends silence itself or no log was named), and the
+  configured transport routes notices and scrubbed retry sentences to
+  the host log when one is named — per-request timing (trace) never
+  does, named or not. Wired where a logger exists (extension host,
+  headless `backends.ts`); the runtime ChatGPT commands name none, so
+  that path still ends only at Stop, as before.
+  `silentWaitNotices.test.ts` drives the real helper and routing with
+  real timers (the routing case seen to fail; 5 passed). The ChatGPT
+  branch itself has no dedicated test: reaching it needs a
+  `ChatGptSignIn`, a concrete class a test cannot stub without a
+  stand-in (forbidden); its notice lifecycle is the tested helper, and
+  placement mirrors the transport's proven pattern.
+- `legal/entry.ts:22` (`5ec90de177`): `createLegalSnapshot` and
+  `scanLegal` are async and yield every `LEGAL_SCAN_YIELD_EVERY` (64)
+  entries, so Stop lands mid-walk and mid-scan; every bound and check
+  stands, `entry.ts` awaits both, existing scan suites awaited (70
+  passed across the seven legal suites). `legalCancel.test.ts` aborts
+  a real 2560-file walk and a real in-memory scan mid-run (both reject
+  `Legal scan cancelled`; both seen to fail with the yields removed).
+  Honest remainder: a syscall stuck inside the kernel still blocks its
+  slice; only moving the walk off-thread would end that.
+
+No stand-ins in any test added or changed on this lane: no `vi.*`, no
+mock library, no hand-written fakes for our modules (eslint `test/`
+clean); the new tests use real timers, real gzip, real git-ignored
+scratch trees under `temp/`, and the injected transport/storage seams
+with real platform objects (`Response.json`, `AbortController`).
+
+Gates on the final tree: prettier `--check` on all 42 lane files
+clean; eslint `--max-warnings=0` on all lane sources and tests clean;
+`npm run typecheck` (all projects) clean — one error of ours found and
+fixed (`HtmlConverter` imported from its own module); `check:plan` 0
+drift; `check:l10n` 0 problems; `npm run build` green. Suites, each run
+directly with the repo default timeout and at most 3 files per run, all
+green: turnRetryCeiling (2), mapNotification (39), webFetchBomb (3),
+filesCancel (3), silentWaitNotices (5), legalCancel (4), legalScan,
+legalSwRegression, legalGuards, legalCoverage, legalEvidence,
+legalLocalization (66 across the six pre-existing legal suites), plus
+the uiState consumers questionUiState, snapshot, gitState (30) and
+workflowDetails, reportCommandAck, composerFocusOwnership (21). No
+`--testTimeout` anywhere in a final run. No CHANGELOG lines: like the
+other PR214FIX commits, these fix unreleased PR #214 content whose
+changelog lines already landed on the branch.
