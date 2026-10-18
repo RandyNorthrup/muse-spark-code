@@ -4287,6 +4287,8 @@ export const SCHEDULE_MAX_JOBS_PER_SESSION = 100
 // M115's editor-independent schedule contracts. M52's limits above remain
 // intact for reading and migrating its v1 jobs.
 export const SCHEDULE_MAX_PER_WORKSPACE = 200
+/** Background session titles kept per workspace; its own bound, not the schedule count. */
+export const SCHEDULE_BACKGROUND_TITLES_KEPT = 200
 export const SCHEDULE_JOURNAL_MAX_OPS = 64
 export const SCHEDULE_JOURNAL_MAX_BYTES = 256 * 1024
 export const SCHEDULE_JOURNAL_SEAL_MAX_BYTES = 256
