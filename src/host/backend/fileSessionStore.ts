@@ -1,5 +1,5 @@
 import { SpendLedgerError } from '../../core/paid/spendLedgerError'
-import { Usd, type UsdAmount } from '../../shared/usd'
+import { Usd, legacyUsdSchema, type UsdAmount } from '../../shared/usd'
 // The Model API session store on disk (PLAN.md D14): one JSON file per
 // session under the workspace storage directory VS Code gives the
 // extension (`context.storageUri`: per user, per workspace, outside the
@@ -64,6 +64,28 @@ function fileRefsOf(session: StoredSession): readonly UploadedMediaRef[] {
 
 const FILE_EXTENSION = '.json'
 const ENOENT = 'ENOENT'
+// The pre-D121 session journal (removed by the spend-simple lane): settled
+// charges lived in `budget-journal/<account>/<sessionId>/seed.json` plus
+// `claims/<id>/claim.json` beside the session files, in this same
+// directory. A file saved while a request reservation was open holds that
+// reservation in its total; the rebuild counts settled charges only.
+const LEGACY_JOURNAL_DIRECTORY = 'budget-journal'
+const LEGACY_CLAIMS_DIRECTORY = 'claims'
+const LEGACY_SEED_FILE = 'seed.json'
+const LEGACY_CLAIM_FILE = 'claim.json'
+const LEGACY_ACCOUNT_PATTERN = /^[a-f0-9]{64}$/
+const legacyVersionSchema = z.union([z.literal(1), z.literal(2)])
+const legacySeedSchema = z.object({
+  version: legacyVersionSchema,
+  sessionId: z.string(),
+  accountId: z.string(),
+  spentUsd: legacyUsdSchema,
+})
+const legacyClaimSchema = z.object({
+  version: legacyVersionSchema,
+  reservedUsd: legacyUsdSchema,
+  settledUsd: z.optional(legacyUsdSchema),
+})
 // A session id names a file; only the UUID alphabet is allowed into a path.
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]+$/
 const UPLOAD_INTENT_SUFFIX = '.uploads'
@@ -211,6 +233,88 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       return undefined
     }
     return parsed.session
+  }
+
+  /**
+   * A file saved before the D121 legacy migration may hold an open
+   * reservation in its total (the old snapshot added it); rebuild the
+   * settled-only total from the legacy journal's seed plus settled claims
+   * (D121: a reservation is never spend). Runs once per file: new snapshots
+   * carry `spendSettledOnly`, so later loads skip the journal, and the
+   * save below lands the rebuild instead of merging onto the old total.
+   * Anything unreadable keeps the stored total with a log line — a resume
+   * never fails for a best-effort migration — and a session without a
+   * journal keeps what its file holds.
+   */
+  const migrateLegacySpend = async (session: StoredSession): Promise<StoredSession> => {
+    if (session.budgetSpentUsd === undefined || session.spendSettledOnly === true) return session
+    try {
+      const journalRoot = path.join(deps.directory, LEGACY_JOURNAL_DIRECTORY)
+      let accounts: string[]
+      try {
+        accounts = await readdir(journalRoot)
+      } catch (error: unknown) {
+        if (storeErrorCode(error) === ENOENT) return session
+        throw error
+      }
+      const wanted =
+        session.accountId !== undefined && LEGACY_ACCOUNT_PATTERN.test(session.accountId)
+          ? [session.accountId]
+          : accounts.filter((name) => LEGACY_ACCOUNT_PATTERN.test(name))
+      const seeds: { accountId: string; spentUsd: number | string }[] = []
+      for (const accountId of wanted) {
+        let text: string
+        try {
+          text = await readFile(
+            path.join(journalRoot, accountId, session.sessionId, LEGACY_SEED_FILE),
+            'utf8',
+          )
+        } catch (error: unknown) {
+          if (storeErrorCode(error) === ENOENT) continue
+          throw error
+        }
+        const seed = legacySeedSchema.parse(JSON.parse(text))
+        if (seed.sessionId !== session.sessionId || seed.accountId !== accountId) continue
+        if (typeof seed.spentUsd === 'number' && !Number.isFinite(seed.spentUsd))
+          throw new Error('legacy seed spend is not finite')
+        seeds.push({ accountId, spentUsd: seed.spentUsd })
+      }
+      // One conversation bills one account; two journals for it is evidence
+      // this migration cannot read, so the stored total stands.
+      if (seeds.length !== 1 || seeds[0] === undefined) return session
+      const { accountId } = seeds[0]
+      let spent = Usd.from(seeds[0].spentUsd)
+      const claimsDir = path.join(
+        journalRoot,
+        accountId,
+        session.sessionId,
+        LEGACY_CLAIMS_DIRECTORY,
+      )
+      const names = await readdir(claimsDir)
+      for (const name of names) {
+        if (path.basename(name) !== name) continue
+        let text: string
+        try {
+          text = await readFile(path.join(claimsDir, name, LEGACY_CLAIM_FILE), 'utf8')
+        } catch (error: unknown) {
+          // An unsettled claim (a dead process's, for example) holds its
+          // reservation but never spent it, so it stays out (D121).
+          if (storeErrorCode(error) === ENOENT) continue
+          throw error
+        }
+        const claim = legacyClaimSchema.parse(JSON.parse(text))
+        if (claim.settledUsd === undefined) continue
+        if (typeof claim.settledUsd === 'number' && !Number.isFinite(claim.settledUsd))
+          throw new Error('legacy settled spend is not finite')
+        spent = spent.add(Usd.from(claim.settledUsd))
+      }
+      return { ...session, budgetSpentUsd: spent.toAmount(), spendSettledOnly: true }
+    } catch (error: unknown) {
+      deps.log.warn(
+        `Session ${session.sessionId} keeps its saved spend total: the legacy journal does not read (${describeStoreError(error)})`,
+      )
+      return session
+    }
   }
 
   /**
@@ -470,10 +574,14 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     async load(sessionId) {
       assertSessionId(sessionId)
       const session = await readOne(`${sessionId}${FILE_EXTENSION}`)
+      // A file saved before the legacy migration may hold an open
+      // reservation in its total; the rebuilt settled total is this
+      // window's base, so its next save merges from settled spend.
+      const current = session === undefined ? undefined : await migrateLegacySpend(session)
       // This snapshot is the window's base for its next save's delta.
-      if (session?.budgetSpentUsd === undefined) spendBases.delete(sessionId)
-      else spendBases.set(sessionId, session.budgetSpentUsd)
-      return session
+      if (current?.budgetSpentUsd === undefined) spendBases.delete(sessionId)
+      else spendBases.set(sessionId, current.budgetSpentUsd)
+      return current
     },
     async save(session) {
       assertSessionId(session.sessionId)
@@ -503,8 +611,16 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
           const previousSpend = previous?.budgetSpentUsd
           const incomingSpend = session.budgetSpentUsd
           const base = spendBases.get(session.sessionId)
+          // A one-time D121 rebuild replaces its legacy file: the file's
+          // total was written while an open reservation counted as spend,
+          // so merging the window's delta onto it would keep the phantom.
+          // Later saves merge as before.
+          const shouldReplaceLegacyTotal =
+            previous?.spendSettledOnly !== true &&
+            session.spendSettledOnly === true &&
+            incomingSpend !== undefined
           let projected = session
-          if (previousSpend !== undefined) {
+          if (!shouldReplaceLegacyTotal && previousSpend !== undefined) {
             if (
               incomingSpend !== undefined &&
               base !== undefined &&

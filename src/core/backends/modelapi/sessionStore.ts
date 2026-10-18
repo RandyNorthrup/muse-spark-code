@@ -144,6 +144,18 @@ export interface StoredSession {
   /** The conversation's running total (M82, D121): what its calls reported, saved after each; absent when none. */
   readonly budgetSpentUsd?: UsdAmount
   /**
+   * The spend total counts settled spend only (D121): the file was written
+   * reservation-free, so a resume adopts its total whole. Absent on files
+   * saved before the legacy migration, whose totals may hold an open
+   * reservation the store rebuilds from settled claims on load.
+   */
+  readonly spendSettledOnly?: true
+  /**
+   * Calls that went out and reported no usage: their cost is unknown and
+   * not in `budgetSpentUsd`. Absent where the session had none.
+   */
+  readonly unknownChargeCalls?: number
+  /**
    * Observation packing's ledger (M73): the estimated tokens packed sends
    * left out. Absent where the session never packed, and in a file saved
    * before the ledger was kept, which resumes at zero.
@@ -348,6 +360,12 @@ const storedSessionFields = {
   // Optional, so a session saved before M82 still reads; never below zero,
   // which would give the cap room it does not have.
   budgetSpentUsd: z.optional(legacyUsdSchema),
+  // Optional, so a file saved before the D121 legacy migration still
+  // reads; only new snapshots carry it.
+  spendSettledOnly: z.optional(z.literal(true)),
+  // Optional, so a file saved before unknown calls were counted still
+  // reads; absent means none.
+  unknownChargeCalls: z.optional(z.int().check(z.nonnegative())),
   // Optional, so a session saved before M73 kept its ledger still reads; a
   // corrupt value is dropped before validation (withoutCorruptEstimate).
   packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
@@ -455,6 +473,8 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     teamRoster,
     teamCommands,
     budgetSpentUsd,
+    spendSettledOnly,
+    unknownChargeCalls,
     agent,
     packedTokensAvoided,
     hookTokensAdded,
@@ -503,6 +523,8 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(compactedThroughTurnId !== undefined && { compactedThroughTurnId }),
       ...(goal !== undefined && { goal }),
       ...(budgetSpentUsd !== undefined && { budgetSpentUsd }),
+      ...(spendSettledOnly === true && { spendSettledOnly: true }),
+      ...(unknownChargeCalls !== undefined && { unknownChargeCalls }),
       ...(sideChat === true && { sideChat: true }),
       ...(imported === true && { imported: true }),
       ...(children !== undefined && { children: restoredChildren }),

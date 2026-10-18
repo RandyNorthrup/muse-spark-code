@@ -2707,6 +2707,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   private usageCostUsd = Usd.from(0).toAmount()
   /** Some call of the conversation went out and reported no usage: its cost is unknown. */
   private hasUnknownBudgetCost = false
+  /** How many calls went out and reported no usage: unknown, never counted as spent. */
+  private unknownChargeCalls = 0
   /** The near-limit warning was said for what is left now; said again after a raise. */
   private hasWarnedNearLimit = false
   /**
@@ -4025,6 +4027,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   private addSpend(costUsd: UsdAmount | undefined, estimateUsd: UsdAmount | undefined): void {
     if (costUsd === undefined) {
       this.hasUnknownBudgetCost = true
+      this.unknownChargeCalls += 1
     } else if (isPositiveUsd(costUsd)) {
       this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, costUsd)
     }
@@ -16395,6 +16398,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         kind: 'conversation',
         capUsd: Usd.from(capUsd).toAmount(),
         spentUsd: this.budgetSpentUsd,
+        // Calls that went out and reported no usage: the provider may
+        // still bill them, so the remaining allowance is not fully
+        // accounted. Admission still counts reported costs only.
+        ...(this.unknownChargeCalls > 0 && { unknownChargeCalls: this.unknownChargeCalls }),
         stopped:
           isPositiveUsd(capUsd) && Usd.from(this.budgetSpentUsd).compare(Usd.from(capUsd)) >= 0,
       },
@@ -16498,6 +16505,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       outputs: Object.fromEntries(this.outputs),
       usage: { ...this.usage },
       ...(isPositiveUsd(budgetSpentUsd) && { budgetSpentUsd }),
+      // New snapshots never count held money (D121): the total is settled
+      // spend only, so a resume adopts it whole.
+      spendSettledOnly: true,
+      ...(this.unknownChargeCalls > 0 && { unknownChargeCalls: this.unknownChargeCalls }),
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
       ...(this.hookTokensAdded > 0 && { hookTokensAdded: this.hookTokensAdded }),
       ...(packedCallIds !== undefined && { packedCallIds }),
@@ -16600,7 +16611,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.turnCount = stored.turnIds.length
     this.usage = { ...stored.usage }
     // A resume continues the running total its last save wrote (D121).
+    // A file saved before the legacy migration may hold an open
+    // reservation in its total; the store rebuilds settled-only totals
+    // from the legacy journal before this runs, so the value lands whole.
     this.budgetSpentUsd = Usd.from(stored.budgetSpentUsd ?? 0).toAmount()
+    this.unknownChargeCalls = stored.unknownChargeCalls ?? 0
     this.conversationAccountId = stored.accountId
     // The packing ledger is a session total like the token counts: a
     // session saved before it was kept carries none, so it starts at zero.
