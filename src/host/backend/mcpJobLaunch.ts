@@ -11,6 +11,7 @@ import { once } from 'node:events'
 import { createServer, type Socket } from 'node:net'
 import * as z from 'zod/mini'
 import { environmentValue, setEnvironmentVariable } from '../../core/backends/musecode/launch'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { redactSecrets } from '../../core/redact'
 import {
   resourceEnvironment,
@@ -116,8 +117,12 @@ function attestedChannel() {
       const parsed = jobRecordSchema.safeParse(JSON.parse(text.slice('RESULT '.length)))
       if (parsed.success) answer('record', parsed.data)
       return parsed.success
-    } catch {
-      return false
+    } catch (error: unknown) {
+      // Malformed text is no record; anything else is not this parse's.
+      if (error instanceof SyntaxError) {
+        return false
+      }
+      throw error
     }
   }
   return {
@@ -240,8 +245,8 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
     try {
       launch.authorize?.()
       return true
-    } catch {
-      launch.log('the payload was not authorized at its launch')
+    } catch (error: unknown) {
+      launch.log(`the payload was not authorized at its launch (${failureForLog(error)})`)
       return false
     }
   }

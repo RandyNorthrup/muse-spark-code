@@ -11,6 +11,7 @@ import {
 } from '../../shared/constants'
 import { runProgram } from '../processTree'
 import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
+import { describeStoreError, isStoreErrorCode } from './storeErrors'
 import type { ShellJobDeps } from './shellJob'
 import { isResourceHelperChanged, sealHelper, wasHelperChanged } from './helperIntegrity'
 
@@ -31,8 +32,12 @@ async function isPresent(file: string): Promise<boolean> {
   try {
     const fileInfo = await stat(file)
     return fileInfo.isFile()
-  } catch {
-    return false
+  } catch (error: unknown) {
+    // Anything but a missing file is not this probe's to swallow.
+    if (isStoreErrorCode(error, 'ENOENT')) {
+      return false
+    }
+    throw error
   }
 }
 
@@ -97,7 +102,7 @@ export function sealedMcpJobExecutable(
         },
       }
     } catch (error: unknown) {
-      deps.log(`Windows MCP job executable is unavailable (${String(error)})`)
+      deps.log(`Windows MCP job executable is unavailable (${describeStoreError(error)})`)
       // Fail closed for this binding, as before; only a changed helper is rebuilt.
       if (isResourceHelperChanged(error)) ready = undefined
       return
@@ -115,7 +120,7 @@ export function mcpJobExecutable(deps: McpJobExecutableDeps): () => Promise<stri
     try {
       await helper.verify()
     } catch (error: unknown) {
-      deps.log(`Windows MCP job executable changed and is refused (${String(error)})`)
+      deps.log(`Windows MCP job executable changed and is refused (${describeStoreError(error)})`)
       return
     }
     return helper.path
