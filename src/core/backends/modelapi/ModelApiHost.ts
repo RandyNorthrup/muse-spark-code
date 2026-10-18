@@ -408,6 +408,12 @@ import {
   reviewerInstructionsFor,
   reviewerToolRefusal,
 } from './reviewer'
+import {
+  checkPlaybackMarker,
+  ensurePlaybackMarker,
+  playbackInstructionsFor,
+  playbackToolRefusal,
+} from './playback'
 import { MediaBudget } from './mediaBudget'
 import { classifyContextOverflow } from '../../context/overflow'
 import {
@@ -1101,6 +1107,8 @@ interface QueuedTurn {
   readonly goalCommandRevision?: number
   /** A `/review` (M70): the turn runs as the Reviewer, its prompt and read-only tools. */
   readonly isReview?: boolean
+  /** A `/playback` (D203): the turn answers from working memory, with no tools. */
+  readonly isPlayback?: boolean
 }
 
 // MSP's words for a goal refusal (captured live 2026-09-25), in the error's text.
@@ -1151,6 +1159,14 @@ export interface ActiveTurn {
   isWebSearchAllowed: boolean
   /** Run as the Reviewer (M70): its prompt, and only the tools that read. */
   readonly isReview: boolean
+  /** A playback turn (D203): its prompt, and no tools at all. */
+  readonly isPlayback: boolean
+  /**
+   * The playback marker is ensured on the turn's first text (D203): set once
+   * the streamed or stored reply is known to open with it, so later messages
+   * of the turn flow untouched.
+   */
+  playbackMarkerEnsured?: boolean
   /** Whether it is recorded (M86), and what its tools then write through; set once admitted. */
   checkpoint?: TurnCheckpoint | undefined
   /** It started a process, or one of the conversation's ran in the background (M86, spec 8). */
@@ -3579,6 +3595,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
   ): Promise<void> {
     await this.selectToolsForTurn(turnId, body, signal)
+    // A playback answers from working memory only (D203): no PreLLMCall
+    // dispatch on its requests — a hook handler can start processes, call
+    // HTTP or MCP handlers, and append fetched context. (A tool-less request
+    // has nothing to narrow, so the selection above already stays quiet.)
+    if (this.isPlaybackTurn()) {
+      return
+    }
     const fields = await this.hookCallFields()
     const pre = await this.runHooks(
       'PreLLMCall',
@@ -3831,6 +3854,11 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private isReviewing(): boolean {
     return (this.isReviewerChild && this.agent === undefined) || this.active?.isReview === true
+  }
+
+  /** A playback turn (D203): its prompt, and no tools at all. */
+  private isPlaybackTurn(): boolean {
+    return this.active?.isPlayback === true
   }
 
   /**
@@ -4307,7 +4335,32 @@ export class ModelApiSession implements ScheduledAgentSession {
     return this.teamRosterStable
   }
 
-  /** The agent's own instructions and tools, or the Reviewer's. */
+  /**
+   * The instructions that shape every turn of the conversation beyond the
+   * workspace's rules: the goal, the agent's role and the team's roster,
+   * each recorded as read where it is sent. A playback (D203) reports them
+   * as an ordinary turn sends them.
+   */
+  private standingInstructions(
+    read: (value: unknown, bytes: string, source: ContentSource) => void,
+  ): {
+    readonly goalSection: string | undefined
+    readonly role: AgentRuntime | undefined
+    readonly teamRoster: string | undefined
+  } {
+    const goalSection = goalInstructions(this.goal)
+    if (goalSection !== undefined)
+      read(goalSection, goalSection, { kind: 'harness', operation: 'goal-context' })
+    const role = this.agentRole()
+    if (role !== undefined)
+      read(role, JSON.stringify({ id: role.id, prompt: role.prompt }), {
+        kind: 'harness',
+        operation: 'agent-role',
+      })
+    return { goalSection, role, teamRoster: this.teamRosterForRequest() }
+  }
+
+  /** The agent's own instructions and tools, the Reviewer's, or a playback's (no tools). */
   private promptAndTools(
     today: string,
     resolved: ResolvedModel,
@@ -4345,11 +4398,15 @@ export class ModelApiSession implements ScheduledAgentSession {
       inputs.push({ bytes, source, ...(isFullyShown !== undefined && { isFullyShown }) })
     }
     const isReview = this.isReviewing()
+    const isPlayback = this.isPlaybackTurn()
+    // Neither restricted turn invites tool use: no agent catalogue, no
+    // memory tools, no skills.
+    const isUntooled = isReview || isPlayback
     const context = this.context.sections(
       inputs,
-      !isReview && this.isAgentCatalogueOffered(),
-      !isReview && this.toolFlags().hasMemory,
-      !isReview,
+      !isUntooled && this.isAgentCatalogueOffered(),
+      !isUntooled && this.toolFlags().hasMemory,
+      !isUntooled,
     )
     const environment = this.environment ?? NO_ENVIRONMENT
     if (environment.git !== undefined)
@@ -4357,6 +4414,25 @@ export class ModelApiSession implements ScheduledAgentSession {
         kind: 'harness',
         operation: 'git-facts',
       })
+    // A playback answers from working memory, with no tools at all: the
+    // goal, the rules, the agent's role and the team's instructions stay
+    // (they are what it reports), and every tool call is refused in code
+    // where the turn runs.
+    if (isPlayback) {
+      const standing = this.standingInstructions(read)
+      return {
+        instructions: playbackInstructionsFor({
+          workspaceRoot: this.deps.workspaceRoot,
+          platform: this.deps.platform,
+          today,
+          goalSection: standing.goalSection,
+          rules: context.rules,
+          teamRoster: standing.teamRoster,
+          agent: standing.role,
+        }),
+        tools: [],
+      }
+    }
     if (this.isReviewing()) {
       const tools = resolved.policy.tools.calling.state === 'yes' ? this.reviewerTools() : []
       return {
@@ -4378,22 +4454,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     const shell = shellToolFor(this.deps.platform)
     const flags = this.toolFlags()
     const { hasShell, hasMemory } = flags
-    const goalSection = goalInstructions(this.goal)
-    if (goalSection !== undefined)
-      read(goalSection, goalSection, { kind: 'harness', operation: 'goal-context' })
+    const { goalSection, role, teamRoster } = this.standingInstructions(read)
     const repoMap = this.promptRepoMap()
     if (repoMap !== undefined) read(repoMap, repoMap, { kind: 'harness', operation: 'repo-map' })
-    const role = this.agentRole()
     // M96 lane T: a team conversation declares the team's five tools and none
     // of M48's six; every other conversation declares exactly what it declares
     // today. The declared set is fixed for the conversation.
     const teamMode = this.teamModeForRequest()
-    const teamRoster = this.teamRosterForRequest()
-    if (role !== undefined)
-      read(role, JSON.stringify({ id: role.id, prompt: role.prompt }), {
-        kind: 'harness',
-        operation: 'agent-role',
-      })
     const checks = this.canRunVerifyCommands() ? this.checkCommands() : []
     if (checks.length > 0)
       read(checks, JSON.stringify(checks), { kind: 'harness', operation: 'verify-settings' }, false)
@@ -4498,8 +4565,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         )
         // Packing projects per request only: the replay keeps the originals, so
         // a later request (or a restore) packs from the full outputs again.
-        // Reviewer tools cannot recall packed output: retain the full observations.
-        return this.isReviewing() || !this.canPack()
+        // Reviewer tools cannot recall packed output, and a playback reports
+        // it: retain the full observations.
+        return this.isReviewing() || this.isPlaybackTurn() || !this.canPack()
           ? fitted
           : (this.packing?.project(fitted) ?? fitted)
       },
@@ -4884,7 +4952,7 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private async prepareMcp(signal: AbortSignal): Promise<void> {
     const servers = this.deps.mcpServers
-    if (servers === undefined || this.isReviewing()) {
+    if (servers === undefined || this.isReviewing() || this.isPlaybackTurn()) {
       return
     }
     await unlessStopped(servers.start(), signal)
@@ -4903,8 +4971,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private requiredMcpFailure(snapshot: McpPoolSnapshot | undefined): Error | undefined {
-    // The Reviewer deliberately offers no external MCP tool (M70).
-    if (this.isReviewing()) {
+    // The Reviewer deliberately offers no external MCP tool (M70), and a playback offers none at all.
+    if (this.isReviewing() || this.isPlaybackTurn()) {
       return undefined
     }
     const required = snapshot?.servers.find(
@@ -5761,6 +5829,21 @@ export class ModelApiSession implements ScheduledAgentSession {
   ): void {
     // A reply's time is the moment it completed, as Muse Code records one (M87).
     if (entry.kind === 'agentMessage') {
+      // A playback reply opens with the verbatim marker line (D203): the
+      // model is asked, and the stream injects it, but a reply that arrived
+      // whole (or past a retried stream) is prefixed here instead, so the
+      // stored transcript keeps the contract whatever the model emitted. An
+      // empty message stays empty; the turn's first text carries the marker.
+      const turn = this.active
+      if (
+        turn?.turnId === turnId &&
+        turn.isPlayback &&
+        turn.playbackMarkerEnsured !== true &&
+        entry.text.trim() !== ''
+      ) {
+        entry.text = ensurePlaybackMarker(entry.text)
+        turn.playbackMarkerEnsured = true
+      }
       entry.recordedAt ??= this.recordedNow()
     }
     const item = this.completedSnapshot(entry, turnId)
@@ -5850,6 +5933,30 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       case 'response.output_text.delta': {
         const entry = this.openItem(open, event.item_id, 'agentMessage', turnId)
+        // A playback reply opens with the verbatim marker line (D203): the
+        // host prefixes it before the diverging delta when the model does
+        // not emit it, so the streamed reply keeps the contract. A marker
+        // prefix still in progress flows untouched; later messages of the
+        // turn do too, once the flag is set.
+        const turn = this.active
+        if (
+          turn?.turnId === turnId &&
+          turn.isPlayback &&
+          turn.playbackMarkerEnsured !== true &&
+          entry.text === ''
+        ) {
+          const marker = checkPlaybackMarker(entry.text, event.delta)
+          if (marker.inject !== '') {
+            entry.text = marker.inject
+            this.emit({
+              type: 'textDelta',
+              itemId: entry.ourId,
+              field: TEXT_FIELD,
+              delta: marker.inject,
+            })
+          }
+          if (marker.ensured) turn.playbackMarkerEnsured = true
+        }
         entry.text += event.delta
         this.emit({ type: 'textDelta', itemId: entry.ourId, field: TEXT_FIELD, delta: event.delta })
         return undefined
@@ -6315,17 +6422,31 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     // The finished reasoning blocks observe first: they completed before the
     // response did (M91 lane E). Their context joins the tail ahead of the
-    // post-call context, oldest operation first.
-    const thoughtContexts = await this.noteThoughts(turnId, open, signal)
+    // post-call context, oldest operation first. A playback answers from
+    // working memory only (D203): no AfterAgentThought fan-out for its
+    // reasoning and no PostLLMCall dispatch on its responses — the model's
+    // own text still flows to the turn, but no hook handler runs for it.
+    const isPlaybackResponse = this.isPlaybackTurn()
+    const thoughtContexts = isPlaybackResponse ? [] : await this.noteThoughts(turnId, open, signal)
     const callFields = await this.hookCallFields()
-    const post = await this.runHooks(
-      'PostLLMCall',
-      turnId,
-      callFields.postModelCallFields(body, final, requestId, attempt, step, this.sessionId),
-      replayProducer(body.model).provider,
-      signal,
-      false,
-    )
+    const post: HookDispatch = isPlaybackResponse
+      ? {
+          blockedReason: undefined,
+          contexts: [],
+          messages: [],
+          updatedInput: undefined,
+          forceApproval: false,
+          stopReason: undefined,
+          approvalDecision: undefined,
+        }
+      : await this.runHooks(
+          'PostLLMCall',
+          turnId,
+          callFields.postModelCallFields(body, final, requestId, attempt, step, this.sessionId),
+          replayProducer(body.model).provider,
+          signal,
+          false,
+        )
     const requiredAfterPostHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
     if (requiredAfterPostHook !== undefined) {
       this.skipCalls(turnId, calls, MODEL_API_MODEL_TEXT.mcpRequiredUnavailable)
@@ -11870,6 +11991,14 @@ export class ModelApiSession implements ScheduledAgentSession {
         isRejected: false,
       }
     }
+    // A playback names no tool (D203): every call is refused, offered or
+    // not, in every mode, Bypass included, and answered to the model.
+    if (this.isPlaybackTurn()) {
+      return {
+        outcome: toolFailure(playbackToolRefusal(call.name)),
+        isRejected: true,
+      }
+    }
     // The Reviewer only reads (M70): a tool it names that is not one of its
     // own is refused, offered or not, in every mode, Bypass included.
     if (this.isReviewing() && !isReviewerTool(call.name)) {
@@ -12654,8 +12783,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       selection === undefined || isToolAllowedBySelection(call.name, selection)
         ? undefined
         : `${call.name}: ${UI_TEXT.hookToolRemoved}`
+    // A playback names no tool (D203): a call it refuses in code below runs
+    // no PreToolUse dispatch — a hook handler must neither observe nor shape
+    // a call the turn refuses. The refusal itself still answers the model.
+    const isPlaybackRefusal = this.isPlaybackTurn()
     const pre: HookDispatch =
-      selectionReason === undefined
+      selectionReason === undefined && !isPlaybackRefusal
         ? await this.runHooks(
             'PreToolUse',
             turnId,
@@ -12669,7 +12802,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             false,
           )
         : {
-            blockedReason: selectionReason,
+            blockedReason: isPlaybackRefusal ? undefined : selectionReason,
             contexts: [],
             messages: [],
             updatedInput: undefined,
@@ -13008,30 +13141,43 @@ export class ModelApiSession implements ScheduledAgentSession {
     } catch {
       // A failed proof leaves this call eligible to run again.
     }
-    const post = await this.runHooks(
-      outcome.failureReason === undefined ? 'PostToolUse' : 'PostToolUseFailure',
-      turnId,
-      outcome.failureReason === undefined
-        ? {
-            tool_name: effectiveCall.name,
-            tool_input: toolHookInput(argumentsOf(effectiveCall)),
-            tool_use_id: itemId,
-            tool_response: toolHookOutput(outcome.output),
-          }
-        : {
-            tool_name: effectiveCall.name,
-            tool_input: toolHookInput(argumentsOf(effectiveCall)),
-            tool_use_id: itemId,
-            error: toolHookOutput(outcome.failureReason),
-            is_interrupt: false,
-            duration_ms: this.deps.now() - startedAt,
-          },
-      toolMatcherNames(effectiveCall.name),
-      signal,
-      true,
-      true,
-      { fileOperation: fileOperationOf(outcome) },
-    )
+    // A playback names no tool (D203): its refused calls settle with no
+    // PostToolUse dispatch, as they ran with no PreToolUse one — the refusal
+    // outcome itself still reaches the model.
+    const post: HookDispatch = this.isPlaybackTurn()
+      ? {
+          blockedReason: undefined,
+          contexts: [],
+          messages: [],
+          updatedInput: undefined,
+          forceApproval: false,
+          stopReason: undefined,
+          approvalDecision: undefined,
+        }
+      : await this.runHooks(
+          outcome.failureReason === undefined ? 'PostToolUse' : 'PostToolUseFailure',
+          turnId,
+          outcome.failureReason === undefined
+            ? {
+                tool_name: effectiveCall.name,
+                tool_input: toolHookInput(argumentsOf(effectiveCall)),
+                tool_use_id: itemId,
+                tool_response: toolHookOutput(outcome.output),
+              }
+            : {
+                tool_name: effectiveCall.name,
+                tool_input: toolHookInput(argumentsOf(effectiveCall)),
+                tool_use_id: itemId,
+                error: toolHookOutput(outcome.failureReason),
+                is_interrupt: false,
+                duration_ms: this.deps.now() - startedAt,
+              },
+          toolMatcherNames(effectiveCall.name),
+          signal,
+          true,
+          true,
+          { fileOperation: fileOperationOf(outcome) },
+        )
     checkStopped()
     if (executed.value.isParallelExecution) commit()
     if (
@@ -14008,6 +14154,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       goalWakePending: false,
       isWebSearchAllowed: false,
       isReview: queued.isReview === true,
+      isPlayback: queued.isPlayback === true,
       ...(queued.draft !== undefined && { draft: queued.draft }),
       ranProcesses: this.hasLiveCommands(),
       ...(queued.confirmedRequest !== undefined && {
@@ -14029,10 +14176,19 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.emit({ type: 'turnStarted', turnId: turn.turnId })
     this.emit({ type: 'sessionStatus', status: RUNNING })
     // The context comes first so a skill invocation can be expanded (D13);
-    // it never throws, so the user message always follows.
-    await this.context.load()
-    this.environment ??= await this.loadEnvironment()
-    await this.loadRepoMap(turn.abort.signal)
+    // it never throws, so the user message always follows. A playback
+    // reports only what the session already holds (D203): loading here
+    // would read the root rules and scan the skill and agent roots for a
+    // first-turn playback, and the fresh rules would enter its answer.
+    if (queued.isPlayback !== true) {
+      await this.context.load()
+    }
+    // A playback reports working memory only (D203): no git describe and no
+    // repo-map scan on its path; neither result is in its prompt.
+    if (queued.isPlayback !== true) {
+      this.environment ??= await this.loadEnvironment()
+      await this.loadRepoMap(turn.abort.signal)
+    }
     // Pending background output and user shell commands precede this turn.
     this.settleNotes(turn.turnId)
     this.touch()
@@ -14070,10 +14226,15 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       turn.abort.signal.throwIfAborted()
       await this.startHooks()
-      for (const message of this.pendingHookMessages.splice(0)) {
-        this.emit({ type: 'backendNotice', level: 'info', text: message })
+      // A playback answers from working memory only (D203): hook contexts
+      // and messages stay pending for the next ordinary turn instead of
+      // entering its turn, so nothing a hook fetched shapes its answer.
+      if (queued.isPlayback !== true) {
+        for (const message of this.pendingHookMessages.splice(0)) {
+          this.emit({ type: 'backendNotice', level: 'info', text: message })
+        }
+        this.appendHookContexts(turn.turnId, this.pendingHookContexts.splice(0))
       }
-      this.appendHookContexts(turn.turnId, this.pendingHookContexts.splice(0))
       if (this.hookStartStopReason !== undefined) {
         const stopReason = this.hookStartStopReason
         this.hookStartStopReason = undefined
@@ -14097,6 +14258,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         !queued.isGoalWake &&
         queued.isHookContinuation !== true &&
         queued.isReview !== true &&
+        queued.isPlayback !== true &&
         queued.confirmedRequest === undefined &&
         !this.isSubagent &&
         this.deps.prepareAudioMessage !== undefined
@@ -14142,41 +14304,53 @@ export class ModelApiSession implements ScheduledAgentSession {
       } else {
         const replayStart = this.replay.length
         await this.appendUserMessage(turn.turnId, parts, queued.displayText, queued.userMessageId)
-        await this.expandSkillsForHooks(
-          turn.turnId,
-          parts,
-          replayStart,
-          turn.abort.signal,
-          queued.displayText,
-        )
+        // A playback carries no skill and expands none (D203): its fixed
+        // turn text names no invocation, and expansion would run extension
+        // hooks for a turn that answers from working memory only.
+        if (queued.isPlayback !== true) {
+          await this.expandSkillsForHooks(
+            turn.turnId,
+            parts,
+            replayStart,
+            turn.abort.signal,
+            queued.displayText,
+          )
+        }
       }
       if (!queued.isGoalWake && queued.isHookContinuation !== true) {
-        await this.noteLoadedRules(turn.turnId, 'rules', turn.abort.signal)
-        const replayBeforeSubmit = this.replay.length
-        const submitted = await this.runHooks(
-          'UserPromptSubmit',
-          turn.turnId,
-          { prompt: typedText(parts) },
-          undefined,
-          turn.abort.signal,
-        )
-        if (submitted.blockedReason !== undefined) {
-          // A rejected prompt stays visible in History, but never reaches a
-          // later model request through the replay (M51). On Muse Code the
-          // turn ends cancelled with the hook's reason and Interrupt fires
-          // (M91 capture run 5), so this turn does the same.
-          this.replay.splice(replayBeforeSubmit)
-          const userIndex = this.replay.findLastIndex(
-            (entry) =>
-              entry.turnId === turn.turnId &&
-              entry.item.type === 'message' &&
-              entry.item.role === 'user',
+        // A playback runs no turn hooks at all (D203): no
+        // InstructionsLoaded fan-out for its rules, and no UserPromptSubmit
+        // dispatch — a hook handler can start processes, call HTTP or MCP
+        // handlers, and append fetched context, which a memory-only turn
+        // must neither cause nor report.
+        if (queued.isPlayback !== true) {
+          await this.noteLoadedRules(turn.turnId, 'rules', turn.abort.signal)
+          const replayBeforeSubmit = this.replay.length
+          const submitted = await this.runHooks(
+            'UserPromptSubmit',
+            turn.turnId,
+            { prompt: typedText(parts) },
+            undefined,
+            turn.abort.signal,
           )
-          if (userIndex !== -1) {
-            this.replay.splice(userIndex, 1)
+          if (submitted.blockedReason !== undefined) {
+            // A rejected prompt stays visible in History, but never reaches a
+            // later model request through the replay (M51). On Muse Code the
+            // turn ends cancelled with the hook's reason and Interrupt fires
+            // (M91 capture run 5), so this turn does the same.
+            this.replay.splice(replayBeforeSubmit)
+            const userIndex = this.replay.findLastIndex(
+              (entry) =>
+                entry.turnId === turn.turnId &&
+                entry.item.type === 'message' &&
+                entry.item.role === 'user',
+            )
+            if (userIndex !== -1) {
+              this.replay.splice(userIndex, 1)
+            }
+            this.fireInterrupt()
+            throw new HookCancelledError(submitted.blockedReason)
           }
-          this.fireInterrupt()
-          throw new HookCancelledError(submitted.blockedReason)
         }
         // Admitted: a user's message starts the verify loop afresh (M68). A
         // goal's wake carries on, and a parent model's message to a subagent
@@ -14189,7 +14363,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       // The Reviewer never searches (M70): nothing to ask about.
       if (this.modelId.includes('/')) await this.resolveModel()
       turn.isWebSearchAllowed =
-        !this.isReviewing() && (await this.webSearchConsent(turn.abort.signal))
+        !this.isReviewing() &&
+        !this.isPlaybackTurn() &&
+        (await this.webSearchConsent(turn.abort.signal))
       if (
         this.deps.autoCompaction?.() === true &&
         !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED) &&
@@ -14248,7 +14424,14 @@ export class ModelApiSession implements ScheduledAgentSession {
             ? `Model API turn ${turn.turnId} stopped by a hook`
             : `Model API turn ${turn.turnId} failed: ${reason}`,
         )
-        if (turn.modelFailure !== undefined && !(error instanceof ChildTaskRefusedError)) {
+        // A failed playback runs no StopFailure dispatch either (D203): a
+        // hook handler must not run for a turn that answers from working
+        // memory only, even to observe its failure.
+        if (
+          turn.modelFailure !== undefined &&
+          !turn.isPlayback &&
+          !(error instanceof ChildTaskRefusedError)
+        ) {
           const lastAssistantMessage = this.transcript.findLast(
             (entry) => entry.item.turnId === turn.turnId && entry.item.kind === 'agentMessage',
           )?.item.text
@@ -14793,6 +14976,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED) ||
       this.active !== turn ||
       this.isReviewing() ||
+      this.isPlaybackTurn() ||
       this.isSubagent ||
       isAbortRequested(turn.abort.signal) ||
       !this.hasCompactableHistory()
@@ -15377,6 +15561,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     isHookContinuation = false,
     draft?: PreparedGitDraft,
     scheduleRun?: UnattendedRun,
+    isPlayback = false,
   ): Promise<TurnSubmission> {
     if (this.isDisposed) {
       return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
@@ -15419,6 +15604,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(draft !== undefined && { draft }),
       ...(isHookContinuation && { isHookContinuation: true }),
       ...(isReview && { isReview }),
+      ...(isPlayback && { isPlayback }),
       ...(confirmedRequest !== undefined && { confirmedRequest }),
     }
     // A compaction is a turn too (D26): a message sent during one waits for it.
@@ -15950,6 +16136,21 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   public review(parts: readonly TurnPart[], displayText: string): Promise<TurnSubmission> {
     return this.submitTurn(parts, displayText, true)
+  }
+
+  /**
+   * A `/playback` the user asked for (D203): a turn of this conversation
+   * that answers from working memory only, with no tools at all. Every
+   * tool call is refused in code, answered to the model. It is part of the
+   * user's own turn, so it asks for no payment. A headless output schema
+   * is refused here, before dispatch: a schema-compliant JSON reply cannot
+   * open with the playback's verbatim marker line, so the combination is
+   * rejected rather than sent half-held under either constraint.
+   */
+  public playback(parts: readonly TurnPart[], displayText: string): Promise<TurnSubmission> {
+    return this.outputFormat === undefined
+      ? this.submitTurn(parts, displayText, false, undefined, false, undefined, undefined, true)
+      : Promise.reject(new Error(UI_TEXT.playbackOutputSchemaRefused))
   }
 
   /**

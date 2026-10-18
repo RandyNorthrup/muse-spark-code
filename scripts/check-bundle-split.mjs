@@ -206,6 +206,8 @@ const LAZY_ONLY = [
   'promptCache.ts',
   // The built-in Reviewer's prompt and tool list (M70).
   'reviewer.ts',
+  // A playback's instructions and refusal (D203): the Model API backend's no-tools turn.
+  'playback.ts',
   'sessionBudget.ts',
   'subagentTools.ts',
   'toolHookPayload.ts',
@@ -1176,6 +1178,14 @@ const TEXT_BLOCKS = [
     block: 'REVIEW_MODEL_TEXT',
     sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
     readers: [REVIEW.output, BUNDLES.modelApi.output],
+  },
+  // The playback turn's text (D203): the review bundle builds it for the
+  // panel, the Model API's built-in no-tools turn reads it, and the runtime
+  // engine's ACP agent (editors and headless runs) sends it.
+  {
+    block: 'PLAYBACK_MODEL_TEXT',
+    sentinels: ['playbackRole', 'playbackNoTools'],
+    readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/runtimeEngine.js'],
   },
   // M116 K's charter is read through the existing lazy skills bundle only.
   {
