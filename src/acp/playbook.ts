@@ -25,14 +25,17 @@ export async function acpPlaybook(
   const first = blocks[0]
   if (first?.type !== 'text' || !/^\s*\/playbook(?:\s|$)/u.test(first.text)) return undefined
   if (blocks.length !== 1) return { ok: false, text: UI_TEXT.playbookCommandUsage }
+  // Only a bundle that cannot be loaded is unavailable. A playbook that
+  // loaded but whose command fails carries the command's own failure.
+  let bundle: AcpPlaybookBundle
   try {
-    const bundle = loadBundle()
-    const text = first.text.trim().replace(/^\/playbook\s*/u, '')
-    const command = bundle.parsePlaybookCommand(text === '' ? [] : text.split(/\s+/u))
-    return command === undefined
-      ? { ok: false, text: UI_TEXT.playbookCommandUsage }
-      : await bundle.runPlaybookCommand(command, port())
+    bundle = loadBundle()
   } catch {
     return { ok: false, text: UI_TEXT.playbookUnavailable }
   }
+  const text = first.text.trim().replace(/^\/playbook\s*/u, '')
+  const command = bundle.parsePlaybookCommand(text === '' ? [] : text.split(/\s+/u))
+  return command === undefined
+    ? { ok: false, text: UI_TEXT.playbookCommandUsage }
+    : await bundle.runPlaybookCommand(command, port())
 }

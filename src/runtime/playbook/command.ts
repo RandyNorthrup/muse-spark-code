@@ -106,7 +106,9 @@ export function parsePlaybookCommand(argv: readonly string[]): PlaybookCommand |
 }
 
 /** Exit failure is explicit; no empty result stands in for an unavailable
- * policy/journal. Output contains validated data only, never exception text. */
+ * policy/journal. Output contains validated data only, never exception text.
+ * A missing surface is unavailable; a loaded playbook whose command fails
+ * says the command could not be completed, never that it is unavailable. */
 export async function runPlaybookCommand(
   command: PlaybookCommand,
   port: PlaybookSurfacePort | undefined,
@@ -120,7 +122,7 @@ export async function runPlaybookCommand(
     const snapshot = playbookSnapshotSchema.parse(raw)
     return { ok: true, text: playbookText(command.view, snapshot) }
   } catch {
-    return { ok: false, text: UI_TEXT.playbookUnavailable }
+    return { ok: false, text: UI_TEXT.playbookCommandFailed }
   }
 }
 

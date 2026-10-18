@@ -9,6 +9,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- In the ACP agent, only a legal scanner that fails to load says "The legal
+  scanner could not be loaded". A scan that fails, a refused registry
+  permission prompt, or a lost update now carries its own cause instead of
+  blaming the scanner installation.
+- In the ACP agent, `/agents retry` no longer blames the backend's missing
+  checkpoint for everything. An agent entry with no subagent behind it says
+  it has nothing to retry; a refusal from a backend that has checkpoints
+  names the agent's own missing checkpoint or the real refusal. Only the
+  Muse Code backend, which provides no isolated worktree checkpoint, says
+  that.
+- `/playbook` no longer says the playbook is unavailable when a loaded
+  playbook's command fails. A command that cannot be completed says so; only
+  a missing playbook bundle or surface says it is unavailable in the
+  session.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

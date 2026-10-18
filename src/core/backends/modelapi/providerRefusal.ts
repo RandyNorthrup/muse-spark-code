@@ -298,18 +298,24 @@ export function classifyRefusalKind(signals: RefusalSignals): ProviderRefusalKin
 }
 
 /**
- * TEMPORARY (round 2, finding 4): whether an answered refusal is known to
- * have cost nothing. The spend-ledger branch (`fix/spend-ledger`) owns this
- * fact: its design note A already decides "an initial HTTP rejection before
- * any response/output is a known zero-cost outcome for
- * validation/authentication/authorization/quota refusals (4xx except 408 and
- * 499)". That branch has the decision but no code predicate yet (measured
- * 2026-10-13: no `isDefiniteRefusal` in its tree), so this predicate stays
- * until the ledger takes over these four `ModelApiHost.ts` call sites:
- * `noteRequestRefusal` (:4193), the `paidModelObservers` `isRefused`
- * (:6833), the auto-review observers' `isRefused` (:6953), and the image
- * generation catch (:8088). The ledger must receive the typed refusal
- * (status, kind, whether any output had begun) instead of this boolean.
+ * Whether an answered refusal is known to have cost nothing: an initial
+ * HTTP rejection before any response or output for a validation,
+ * authentication, authorization, quota or rate-limit refusal (PLAN.md D117,
+ * the rule in force). The eight statuses are the ones the providers
+ * document as rejections before processing (Anthropic's error page,
+ * OpenAI's error codes, Gemini's troubleshooting guide; fetched 2026-10-13
+ * and recorded with the red drills in
+ * `docs/certification/provider-refusals.md`, "Why these statuses are
+ * definite nothing billed"). 408 and 499 can describe interrupted
+ * processing, 409 is ambiguous (Anthropic `conflict_error`), and every 5xx
+ * and status 0 stay uncertain: the narrower set keeps uncertain liability
+ * visible instead of releasing it. The `fix/spend-ledger` branch holds no
+ * such predicate (measured 2026-10-18: still no `isDefiniteRefusal` in its
+ * tree, last commit 2026-10-12) and owns everything past this decision, so
+ * this predicate is the final design, not a placeholder. Every consumer
+ * additionally requires that no response had begun (`noteRequestRefusal`
+ * checks `hasStarted`; the helper and image settlements bill
+ * provider-reported usage when it exists).
  */
 const DEFINITE_NOTHING_BILLED: ReadonlySet<number> = new Set([
   HTTP_STATUS.badRequest,
