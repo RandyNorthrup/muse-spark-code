@@ -219,10 +219,14 @@ export function probeLinuxSandboxShell(workspaceRoot?: string): Promise<LinuxSan
     return Promise.resolve({
       canStart: false,
       reason: 'bwrapFailed',
+      // Fixed words only: the detail reaches the Diagnostics report (and
+      // the log that carries it), which may be pasted into a public issue,
+      // so it never carries the resolved path — a workspace path under the
+      // person's profile (AGENTS.md rule 8).
       detail:
         command === undefined
           ? `${LINUX_SANDBOX_PROBE_COMMAND}: not found on absolute PATH entries`
-          : `${command}: inside the workspace, refused`,
+          : `${LINUX_SANDBOX_PROBE_COMMAND}: inside the workspace, refused`,
     })
   }
   return new Promise((resolve) => {
@@ -243,7 +247,9 @@ export function probeLinuxSandboxShell(workspaceRoot?: string): Promise<LinuxSan
         resolve({
           canStart: false,
           reason: 'bwrapFailed',
-          detail: `${LINUX_SANDBOX_PROBE_COMMAND}: ${typeof code === 'string' ? code : error.message}`,
+          // The spawn error's message embeds the resolved absolute path;
+          // only its code word may reach the detail (see above).
+          detail: `${LINUX_SANDBOX_PROBE_COMMAND}: ${typeof code === 'string' ? code : 'the probe could not be started'}`,
         })
       },
     )

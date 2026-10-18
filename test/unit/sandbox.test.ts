@@ -388,5 +388,14 @@ describe('probeLinuxSandboxShell', () => {
     )
     expect(readiness.canStart).toBe(false)
     expect(readiness.reason).toBe('bwrapFailed')
+    // The detail reaches the Diagnostics report, which a person may paste
+    // into a public issue: it must never carry the resolved path (a
+    // workspace path under their profile), only fixed words.
+    if (resolved === undefined) {
+      return
+    }
+
+    expect(readiness.detail).not.toContain(resolved)
+    expect(readiness.detail).not.toContain(path.dirname(resolved))
   })
 })
