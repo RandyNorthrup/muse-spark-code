@@ -14,15 +14,15 @@ export type VoiceNetworkRefusal = 'noSocket' | 'proxy'
 
 /**
  * The refusal for this editor's socket and proxy, or undefined when the
- * socket can go. A set proxy refuses only an unrouted socket; without one
- * the socket goes direct, as it always did.
+ * socket can go (`absent` routing is hostRouting's word for no socket). A
+ * set proxy refuses only an unrouted socket; without one the socket goes
+ * direct, as it always did.
  */
 export function voiceNetworkRefusal(
-  hasWebSocket: boolean,
   webSocketRouting: HostRouting,
   isProxySet: boolean,
 ): VoiceNetworkRefusal | undefined {
-  if (!hasWebSocket) {
+  if (webSocketRouting === 'absent') {
     return 'noSocket'
   }
   return webSocketRouting !== 'routed' && isProxySet ? 'proxy' : undefined
