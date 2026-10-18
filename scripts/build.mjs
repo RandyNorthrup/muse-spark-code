@@ -85,6 +85,7 @@ import {
   sharedRedaction,
   sharedVaultStore,
   sharedVaultPosix,
+  sharedVaultWindows,
 } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -755,6 +756,7 @@ const vaultOptions = {
     sharedResourceAdmission,
     sharedVaultStore,
     sharedVaultPosix,
+    sharedVaultWindows,
   ],
   entryPoints: [VAULT_ENTRY],
   outfile: VAULT_OUTFILE,
@@ -1034,7 +1036,7 @@ const runtimeAccountsOptions = {
 }
 const vaultRuntimeOptions = {
   ...acpQuestionsOptions,
-  plugins: [...acpQuestionsOptions.plugins, sharedVaultStore, sharedVaultPosix],
+  plugins: [...acpQuestionsOptions.plugins, sharedVaultStore, sharedVaultPosix, sharedVaultWindows],
   entryPoints: [VAULT_RUNTIME_ENTRY],
   outfile: VAULT_RUNTIME_OUTFILE,
 }
@@ -1085,6 +1087,13 @@ const vaultPosixOptions = {
   plugins: [...modelApiOptions.plugins, sharedVaultStore],
   entryPoints: ['src/runtime/vault/posixEntry.ts'],
   outfile: 'dist/vaultPosix.js',
+}
+
+const vaultWindowsOptions = {
+  ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, sharedVaultStore],
+  entryPoints: ['src/runtime/vault/windowsEntry.ts'],
+  outfile: 'dist/vaultWindows.js',
 }
 
 const vaultStoreOptions = {
@@ -1359,6 +1368,7 @@ if (isWatch) {
     esbuild.context(vaultBrokerOptions),
     esbuild.context(vaultStoreOptions),
     esbuild.context(vaultPosixOptions),
+    esbuild.context(vaultWindowsOptions),
     esbuild.context(vaultBrokerBindingsOptions),
     esbuild.context(vaultActionsOptions),
     esbuild.context(reportOptions),
@@ -1480,6 +1490,7 @@ if (isWatch) {
     vaultBroker: esbuild.build(vaultBrokerOptions),
     vaultStore: esbuild.build(vaultStoreOptions),
     vaultPosix: esbuild.build(vaultPosixOptions),
+    vaultWindows: esbuild.build(vaultWindowsOptions),
     vaultBrokerBindings: esbuild.build(vaultBrokerBindingsOptions),
     vaultActions: esbuild.build(vaultActionsOptions),
     report: esbuild.build(reportOptions),

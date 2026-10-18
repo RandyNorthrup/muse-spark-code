@@ -6016,6 +6016,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/vaultBroker.js',
   'dist/vaultStore.js',
   'dist/vaultPosix.js',
+  'dist/vaultWindows.js',
   'dist/vaultRuntime.js',
   'dist/vaultBrokerBindings.js',
   'dist/vaultActions.js',

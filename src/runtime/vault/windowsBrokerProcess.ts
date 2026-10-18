@@ -103,6 +103,9 @@ async function clearStaleWindowsBroker(
   }
 }
 
+/** One serve helper's live pipe, shared by the starter that owns it. */
+export type WindowsVaultBrokerServe = Awaited<ReturnType<typeof startWindowsPipeServe>>
+
 /**
  * Start (or adopt) the vault broker on Windows: one serve helper owns the
  * pipe and the owner-only files; the claim publishes the pipe name where
@@ -121,9 +124,46 @@ export async function startWindowsVaultBrokerProcess(
     throw new Error(UI_TEXT.vault.noAccess)
   const pipe = windowsVaultPipeName()
   const serve = await startWindowsPipeServe(options.pipeHelper, pipe)
-  const relay = serve.relay
   try {
-    const platform = windowsBrokerPlatform(relay, serve.ownerSid, options.pipeHelper.file)
+    return await startWindowsVaultBrokerOnServe(options, serve)
+  } catch (error: unknown) {
+    try {
+      await serve.stop()
+    } catch {
+      /* Startup already failed; the stop is best-effort. */
+    }
+    throw error
+  }
+}
+
+/**
+ * The broker on an already-serving pipe: the installed entry builds the
+ * serve relay first (its platform feeds the bindings), then starts the
+ * broker on it instead of serving twice.
+ */
+export async function startWindowsVaultBrokerOnServe(
+  options: WindowsVaultBrokerProcessOptions & {
+    /** The serve helper's own file: the files port verifies integrity against it. */
+    readonly helperFile?: string
+  },
+  serve: WindowsVaultBrokerServe,
+): Promise<{
+  readonly location: VaultBrokerLocation
+  close(): Promise<void>
+  closed: Promise<void>
+}> {
+  if (process.platform !== 'win32') throw new Error(UI_TEXT.vault.noAccess)
+  if (!path.isAbsolute(options.runDirectory) || !path.isAbsolute(options.dataDir))
+    throw new Error(UI_TEXT.vault.noAccess)
+  const pipe = serve.relay.pipe
+  if (pipe === null) throw new Error(UI_TEXT.vault.noAccess)
+  const relay = serve.relay
+  {
+    const platform = windowsBrokerPlatform(
+      relay,
+      serve.ownerSid,
+      options.helperFile ?? options.pipeHelper.file,
+    )
     const privateFiles = platform.files
     const guard = platform.guard
     const discovery = new VaultBrokerDiscovery(options.runDirectory, options.userSession, {
@@ -228,13 +268,9 @@ export async function startWindowsVaultBrokerProcess(
     }
     // The claim publishes the pipe name where POSIX publishes the socket
     // path: clients read the broker record either way.
+    // The serve relay belongs to the starter: a failed broker never stops
+    // another owner's pipe (close() above still stops a started broker's
+    // own serve). The starter stops what it started.
     return { location: claim.location, close, closed }
-  } catch (error: unknown) {
-    try {
-      await serve.stop()
-    } catch {
-      /* Startup already failed; the stop is best-effort. */
-    }
-    throw error
   }
 }
