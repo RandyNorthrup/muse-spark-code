@@ -141,3 +141,19 @@ rounds through the packed product on the Model API backend:
   `text` sizes `SLOT_STDOUT_LIMIT` (`runtime/vault/slots/slotChild.ts:9`).
   The vault commands still refuse closed on main (AGENTS.md layout), so no
   person meets these caps today.
+
+## PR234W2 final verification (lane PR234W2, macmini rig, 2026-10-18)
+
+All three threads verified fixed at their cause on this tree, with the
+repository's own gates green; no new code was needed beyond commits
+`47822d5ea` and `780632599`. The repeat-guard wording was checked against
+the code: `RepeatGuard.before()` returns `stuck` (`repeatGuard.ts:58-67`),
+the call site sets `isRepeatStopped` (`ModelApiHost.ts:12791`), and
+`settlePreparedCall` turns it into the turn-ending `stopReason`
+(`ModelApiHost.ts:13090-13091`). Gates: prettier on the changed files,
+eslint `--max-warnings=0` on `ModelApiHost.ts`, `typecheck`, `check:plan`
+(0 drift), `check:l10n` (0 problems), `check:roadmap` (current),
+`check:reference` (current), `build`, and vitest `invariants`,
+`lazyBundleFiles`, `paidMoneyStructure`, `sideCallSchemas` (108 passed).
+The 50-round packed-product run stays with the lead: this lane may make no
+provider call, and no stand-in may stand in.
