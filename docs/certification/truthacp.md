@@ -136,6 +136,39 @@ or its current state."` — the unknown-agent pre-check, unchanged by
   eslint, and the unit truth-table instead. Exact person steps for the
   lead are listed under "Real-use drills" above.
 
+## PR238W1 first result (linuxlt, 2026-10-18): one line per thread
+
+- `src/acp/playbook.ts:40` (P2): confirmed — `port()` is evaluated outside the
+  load-only `try`, so a factory throw (corrupt journal: `policy.refresh` →
+  `journal.read` throws; unresolvable workspace: `workspaceIdentity` throws)
+  escapes into `prompt()`'s `try` and is rethrown at the transport level.
+  Fix in `acpPlaybook`: catch surface-construction failure → unavailable,
+  `runPlaybookCommand`'s own failure untouched.
+- `test/unit/playbookSurface.test.ts:110` (P1): confirmed — `neverAround`
+  cannot come out of `parsePlaybookCommand` (zod enum over
+  `PLAYBOOK_CONFIGURABLE_RULES`). Rewrite onto a parsed
+  `settings offload off` command against a read-only journal dir, the drilled
+  write-failure case from "Real-use drills" above.
+- `test/unit/providerRefusals.test.ts:195` (P1): confirmed — 418/425 have no
+  recorded exchange and no provider-doc grounding (`provider-refusals.md`
+  never mentions them; neither does any fetched doc). Narrow the uncertain
+  set to the grounded 0/408/409/500/529 with per-status grounding; 499
+  (undocumented nginx convention) goes with them.
+- `CHANGELOG.md:15` (P1): confirmed — denial takes the
+  `if (!(await deps.notice(unseen))) return offline()` branch in
+  `enrichInteractiveLegalScan`, never reaching `runLegalScan`'s catch. Drop
+  the denial clause from the shipped claim; denial still returns the scan
+  with the registry marked offline, as before. The "Real-use drills" person
+  step expecting "the denial's own cause" is corrected with it.
+- `test/unit/playbookSurface.test.ts:132` (P1): confirmed — hand-built bundle
+  object. Rewire through the real `src/runtime/playbook/playbookEntry.ts`
+  with production's adapter shape from `src/runtime/main.ts`
+  (`runPlaybookCommand(command, port, UI_TEXT, uiLocale())`); bundle-load
+  failure stays covered by the real-`requireFile` missing-file test.
+- Hosted CI failures: none are listed after the threads, so there is nothing
+  to fix there; the lane's gates run locally (format, eslint zero warnings on
+  changed files, typecheck, check:plan, check:l10n, build, changed suites).
+
 ## Gate exit codes (final tree, macmini)
 
 - `npm run typecheck` (all five projects): 0.
