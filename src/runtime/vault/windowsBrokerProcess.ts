@@ -223,15 +223,12 @@ export async function startWindowsVaultBrokerOnServe(
     // The empty-socket shutdown is an idle, never the startup budget:
     // the same 30 s the POSIX broker waits, so an unlocked broker never
     // drops seconds after listen on Windows while macOS and Linux wait.
+    // The interval only decides when an empty broker shuts down: the
+    // lock callback runs once, from close() below (as the POSIX broker
+    // runs its own from process shutdown), so a connected or unlocked
+    // broker is never locked from under itself on a tick.
     const idleMs = options.idleMs ?? VAULT_BROKER_EMPTY_IDLE_MS
     const interval = setInterval(() => {
-      void (async () => {
-        try {
-          await options.lock(lifecycle)
-        } catch {
-          /* A lock check never fails startup; the next round retries. */
-        }
-      })()
       if (lifecycle.isClosing || sockets.size > 0) lifecycle.emptySince = null
       else {
         if (lifecycle.emptySince === null) lifecycle.emptySince = Date.now()
@@ -256,15 +253,22 @@ export async function startWindowsVaultBrokerOnServe(
       const settlement = settlements[0]
       if (!settlement) throw new Error(UI_TEXT.vault.noAccess)
       try {
-        for (const socket of sockets) socket.destroy()
-        await channel.close()
+        // The lock-before-exit cleanup runs once, here: it cancels an
+        // in-progress setup and drops the in-memory unlock, the way the
+        // POSIX broker locks on process shutdown.
         try {
-          await claim.release()
-        } catch {
-          /* The claim is already gone; disposal still runs. */
+          await options.lock(lifecycle)
+        } finally {
+          for (const socket of sockets) socket.destroy()
+          await channel.close()
+          try {
+            await claim.release()
+          } catch {
+            /* The claim is already gone; disposal still runs. */
+          }
+          await options.dispose()
+          await serve.stop()
         }
-        await options.dispose()
-        await serve.stop()
       } finally {
         settlement.resolve()
       }
