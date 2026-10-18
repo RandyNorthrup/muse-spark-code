@@ -29,3 +29,17 @@ withdrawn), rewritten to drive the real code, or already gone on #223.
 - Reporting harness: the `<style>` nonce replacement removed from `reportDocumentHtml`; `node test/harness/reporting/verify.mjs` failed (exit 1, all 32 checks report the CSP's inline-style refusal); restored, exit 0.
 - pluginDispatch: in the Linux copy, `resolvePluginRuntime` made to look for an absent `nodejs-absent` instead of `node` for Amp (`src/core/backends/modelapi/pluginHost.ts`); `npx vitest run test/unit/pluginDispatch.test.ts -t reject-and-continue` failed (1 failed, `expected undefined to be 'no rm: Bash'`: the real runtime resolution refused the hook); the source copied back, byte-identical to the worktree.
 - pluginDispatch runs: Windows 11 (`npx vitest run test/unit/pluginDispatch.test.ts`, 14 passed, 14 skipped: real children are off Windows) and Linux (WSL archlinux, node 26.9.0, a copy of this tree in the worktree's ignored `temp/linux`: 21 passed, 7 skipped, the bun and macOS groups).
+
+# No stand-ins, third pass (lane no-standins-3, 2026-10-18)
+
+Branch `chore/no-standins-3`, started at PR #223's head (8f3c7be115). The
+last three stand-ins, one line per item.
+
+## Items
+
+- `test/unit/windowsScreenRecorderNative.test.ts` (`verifyTrustedPath: () => Promise.resolve(true)`) — rewritten to real code: `screenRecordExecutable` now gets the production `windowsTrustedPathVerifier`, its PowerShell probes run as real processes through `runProgram` and `windowsPowerShell` (a probe that exits non-zero refuses). The inbox compiler is checked in its real folder; the helper is built into a real folder under the run's temporary root whose DACL is this user, SYSTEM and Administrators only (`icacls /inheritance:r`), because this rig's `%TEMP%` lets two other local accounts modify it and the real check refuses a helper there. New case: the same build copied into a folder Everyone may write is refused by the check and `screenRecordExecutable` returns undefined without running it. 33 of 33 pass on this Windows 11 rig. No claim withdrawn.
+
+## Red drills
+
+- Recorder trust gate: `if (!(await deps.verifyTrustedPath(target))) return` removed from `screenRecordExecutable` (`src/host/backend/jobBuild.ts`); `npx vitest run test/unit/windowsScreenRecorderNative.test.ts -t "never runs a built helper"` failed (exit 1, `expected 'C:\Users\Randy\AppData\Local\Temp\MUF…' to be undefined`: the helper in the writable folder ran its self-test); reverted, byte-identical.
+- Trust check owner rule: TrustedInstaller dropped from `WINDOWS_TRUSTED_ACL_SCRIPT`'s trusted owners (`src/runtime/windowsTrustedPath.ts`); `npx vitest run test/unit/windowsScreenRecorderNative.test.ts -t "keeps native bounds"` failed (exit 1, `inbox recorder/check fixture failed to compile or self-test`: the real check refused the compiler's TrustedInstaller-owned folder); reverted, byte-identical.
