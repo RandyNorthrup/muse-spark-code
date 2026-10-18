@@ -22,9 +22,16 @@ on:
       - 'test/hosts/run-fork.sh'
       - '.github/workflows/forks.yml'
   # Only the capacity repository ever sees this branch (build.yml's `org`
-  # job pushes it there); nothing pushes it here.
+  # job pushes it there); nothing pushes it here. The paths mirror the
+  # pull_request trigger, so a capacity push runs this workflow only for
+  # the pull requests whose own run it replaces.
   push:
     branches: [ci/pr-*]
+    paths:
+      - 'test/hosts/fork-release.mjs'
+      - 'test/hosts/installed.vscode-test.mjs'
+      - 'test/hosts/run-fork.sh'
+      - '.github/workflows/forks.yml'
   schedule:
     - cron: '41 6 * * 1'
   workflow_dispatch:
