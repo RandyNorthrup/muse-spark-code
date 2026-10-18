@@ -4,6 +4,7 @@ import { constants, rmSync, rmdirSync } from 'node:fs'
 import { chmod, lstat, mkdtemp, open, realpath, rm, rmdir } from 'node:fs/promises'
 import path from 'node:path'
 import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
+import { isStoreErrorCode } from '../host/backend/storeErrors'
 import { runProgram, windowsPowerShell } from '../host/processTree'
 import * as z from 'zod/mini'
 import { IDE_MCP_TOKEN_BYTES, UI_TEXT } from '../shared/constants'
@@ -147,11 +148,6 @@ async function secure(
   return { platform: process.platform, ownerOnly: true, mode }
 }
 
-function refuseUnlessMissing(error: unknown): void {
-  if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return
-  throw error
-}
-
 /** One private directory and one exclusive write per start; no reusable token. */
 export async function createTokenFile(parent: string, acl?: TokenWindowsAcl) {
   const directory = await mkdtemp(path.join(await realpath(parent), 'muse-token-'))
@@ -160,11 +156,12 @@ export async function createTokenFile(parent: string, acl?: TokenWindowsAcl) {
   async function remove() {
     if (isRemoved) return
     await rm(file, { force: true })
-    // A synchronous exit may have removed the directory during the await.
+    // A synchronous exit may have removed the directory during the await:
+    // moot when it is already gone, rethrown otherwise.
     try {
       await rmdir(directory)
     } catch (error) {
-      refuseUnlessMissing(error)
+      if (!isStoreErrorCode(error, 'ENOENT')) throw error
     }
     isRemoved = true
     process.off('exit', removeSync)
@@ -175,7 +172,7 @@ export async function createTokenFile(parent: string, acl?: TokenWindowsAcl) {
     try {
       rmdirSync(directory)
     } catch (error) {
-      refuseUnlessMissing(error)
+      if (!isStoreErrorCode(error, 'ENOENT')) throw error
     }
     isRemoved = true
     process.off('exit', removeSync)
@@ -204,8 +201,8 @@ export async function createTokenFile(parent: string, acl?: TokenWindowsAcl) {
     } finally {
       await handle.close()
     }
-  } catch {
+  } catch (error) {
     await remove()
-    throw new Error('ETOKEN_ACL')
+    throw new Error('ETOKEN_ACL', { cause: error })
   }
 }
