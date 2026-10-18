@@ -296,3 +296,13 @@ Gates on `8bdf2e82da`: `prettier --check .` 0; ESLint product code with
 `npm run build` 0; `check:host-api` 0; knip 0; cycles 0; jscpd 0 (no
 clones); `fileLease.test.ts` + `runtimePullRequestRecords.test.ts` 0
 (53 passed, 1 skipped).
+
+Twenty runs of `test/unit/fileLease.test.ts` on `8bdf2e82da` (same command
+and folders as before; runs 1 to 10 each with a fresh data folder, 11 to 20
+sharing one, every process building its own reader): every run exited 0
+with 31 passed and 1 skipped, the two new Windows tests included. "Reads
+this process's birth from the system" took 287 287 273 281 235 318 272 311
+361 303 and 262 255 245 290 314 382 327 307 277 268 ms. Hosted CI on the
+review head `b869ce02aa` reported every Windows check green, the
+organization's Windows and macOS test job included (`gh pr checks 220`; that
+job's log is not readable from this rig).
