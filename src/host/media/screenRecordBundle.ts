@@ -1,11 +1,20 @@
 // Activation carries this loader, never recorder/preview code. W builds
 // previewPanel.ts with R1–R3 into dist/screenRecord.js and budgets that chunk.
-import type { ScreenRecordingDriver, ScreenRecordingPreview } from '../../core/media/record/driver'
+import type {
+  ScreenRecordingDriver,
+  ScreenRecordingPreview,
+  ScreenRecordingResult,
+} from '../../core/media/record/driver'
+import type { LatestRecordingPort } from '../../core/media/record/linux'
 import type { UiTable } from '../l10n'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import { UI_TEXT } from '../../shared/constants'
-import type * as Entry from './screenRecordEntry'
+import type {
+  LatestRecordingPlatformHost,
+  WindowsPrivateDirectoryDeps,
+  WindowsVideosDeps,
+} from './recordingLatest'
 
 export const RECORDING_COMMAND_IDS = {
   attach: 'museSpark.attachScreenRecording',
@@ -66,16 +75,30 @@ export async function resolveLatestRecording(
 }
 
 interface ScreenRecordBundle {
-  readonly runScreenRecordingCommand: typeof Entry.runScreenRecordingCommand
+  readonly runScreenRecordingCommand: (
+    deps: RecordingCommandDeps,
+    isLatest: boolean,
+  ) => Promise<void>
   /**
    * Latest-file discovery lives in the bundle so activation never carries
    * the scanner (activation budget): the port factories and the find call
-   * the latest command resolves on first use.
+   * the latest command resolves on first use. Written out (not `typeof
+   * Entry.*`) so this loader never reaches the entry's vscode side.
    */
-  readonly createLatestRecordingPort: typeof Entry.createLatestRecordingPort
-  readonly findLatestRecording: typeof Entry.findLatestRecording
-  readonly resolveWindowsVideosDir: typeof Entry.resolveWindowsVideosDir
-  readonly createWindowsPrivateDirectory: typeof Entry.createWindowsPrivateDirectory
+  readonly createLatestRecordingPort: (host: LatestRecordingPlatformHost) => LatestRecordingPort
+  readonly findLatestRecording: (
+    port: LatestRecordingPort,
+    now?: number,
+  ) => Promise<ScreenRecordingResult>
+  readonly resolveWindowsVideosDir: (
+    deps?: WindowsVideosDeps,
+    platform?: NodeJS.Platform,
+  ) => Promise<string | undefined>
+  readonly createWindowsPrivateDirectory: (
+    tempRoot: string,
+    deps?: WindowsPrivateDirectoryDeps,
+    platform?: NodeJS.Platform,
+  ) => Promise<string>
 }
 
 // Same shipped source/build; only these exports' function signatures are

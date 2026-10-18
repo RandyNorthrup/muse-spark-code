@@ -199,13 +199,33 @@ export function parseWindowsVideosDir(output: string): string | undefined {
   return dir !== '' && path.win32.isAbsolute(dir) ? dir : undefined
 }
 
+/** The system folder the environment names (never an assumed drive). */
+function windowsSystemRoot(override?: string): string | undefined {
+  return override ?? process.env['SystemRoot'] ?? process.env['windir']
+}
+
+/** A bounded system query: absolute path, no shell, hidden window. */
+function runSystemCommand(executable: string, args: readonly string[]): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    execFile(
+      executable,
+      [...args],
+      { timeout: PROCESS_START_QUERY_TIMEOUT_MS, windowsHide: true },
+      (error, stdout) => {
+        if (error === null) resolve(stdout)
+        else reject(error instanceof Error ? error : new Error('The command failed'))
+      },
+    )
+  })
+}
+
 export async function resolveWindowsVideosDir(
   deps: WindowsVideosDeps = {},
   platform: NodeJS.Platform = process.platform,
 ): Promise<string | undefined> {
   if (platform !== 'win32') return undefined
   try {
-    const systemRoot = deps.systemRoot ?? process.env['SystemRoot'] ?? process.env['windir']
+    const systemRoot = windowsSystemRoot(deps.systemRoot)
     if (systemRoot === undefined) return undefined
     const powershell = path.win32.join(
       systemRoot,
@@ -214,20 +234,7 @@ export async function resolveWindowsVideosDir(
       'v1.0',
       'powershell.exe',
     )
-    const run =
-      deps.run ??
-      ((executable: string, args: readonly string[]) =>
-        new Promise<string>((resolve, reject) => {
-          execFile(
-            executable,
-            [...args],
-            { timeout: PROCESS_START_QUERY_TIMEOUT_MS, windowsHide: true },
-            (error, stdout) => {
-              if (error === null) resolve(stdout)
-              else reject(error instanceof Error ? error : new Error('The command failed'))
-            },
-          )
-        }))
+    const run = deps.run ?? runSystemCommand
     return parseWindowsVideosDir(
       await run(powershell, [
         '-NoLogo',
@@ -261,22 +268,9 @@ export async function createWindowsPrivateDirectory(
   platform: NodeJS.Platform = process.platform,
 ): Promise<string> {
   if (platform !== 'win32') throw new Error('Windows private directories need Windows')
-  const systemRoot = deps.systemRoot ?? process.env['SystemRoot'] ?? process.env['windir']
+  const systemRoot = windowsSystemRoot(deps.systemRoot)
   if (systemRoot === undefined) throw new Error('Windows private directories need a system root')
-  const run =
-    deps.run ??
-    ((executable: string, args: readonly string[]) =>
-      new Promise<string>((resolve, reject) => {
-        execFile(
-          executable,
-          [...args],
-          { timeout: PROCESS_START_QUERY_TIMEOUT_MS, windowsHide: true },
-          (error, stdout) => {
-            if (error === null) resolve(stdout)
-            else reject(error instanceof Error ? error : new Error('The command failed'))
-          },
-        )
-      }))
+  const run = deps.run ?? runSystemCommand
   await mkdir(tempRoot, { recursive: true })
   const dir = await mkdtemp(path.join(tempRoot, 'latest-'))
   try {
