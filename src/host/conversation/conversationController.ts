@@ -7019,6 +7019,40 @@ export class ConversationController {
   }
 
   /**
+   * A restricted turn's submission stands (a review's, a playback's): it
+   * takes over the running mark and answers its own card.
+   */
+  private acceptRestrictedSubmission(
+    localId: string,
+    text: string,
+    checkpoint: PendingMark | undefined,
+    submission: TurnSubmission,
+  ): void {
+    this.checkpoints.accepted(
+      checkpoint,
+      submission.turnId,
+      submission.disposition !== QUEUED_DISPOSITION &&
+        submission.disposition !== STEERED_DISPOSITION,
+    )
+    this.acceptSubmission(localId, text, submission)
+  }
+
+  /**
+   * A restricted turn failed to start (a review's, a playback's): its card
+   * says why; the log keeps the kind, never text a backend chose.
+   */
+  private refuseRestrictedStart(
+    localId: string,
+    checkpoint: PendingMark | undefined,
+    error: unknown,
+    label: string,
+  ): void {
+    this.checkpoints.dropPending(checkpoint)
+    this.deps.log.error(`${label} failed: ${errorKind(error)}`)
+    this.post({ type: 'sendFailed', localId, reason: describe(error) })
+  }
+
+  /**
    * `/review` (M70, PLAN.md D49). Git's changes need a trusted workspace
    * (Restricted Mode runs no git); custom instructions do not. The material
    * goes between markers that call it untrusted. On the Model API the turn
@@ -7159,19 +7193,9 @@ export class ConversationController {
       if (material !== undefined) {
         this.noteReviewMaterial(material)
       }
-      this.checkpoints.accepted(
-        checkpoint,
-        submission.turnId,
-        submission.disposition !== QUEUED_DISPOSITION &&
-          submission.disposition !== STEERED_DISPOSITION,
-      )
-      this.acceptSubmission(localId, text, submission)
+      this.acceptRestrictedSubmission(localId, text, checkpoint, submission)
     } catch (error: unknown) {
-      this.checkpoints.dropPending(checkpoint)
-      const reason = describe(error)
-      // The user's card says why; the log keeps the kind, never text a backend chose.
-      this.deps.log.error(`startReview failed: ${errorKind(error)}`)
-      refuse(reason)
+      this.refuseRestrictedStart(localId, checkpoint, error, 'startReview')
     }
   }
 
@@ -7613,19 +7637,9 @@ export class ConversationController {
       if (!this.isCurrentSessionAction(submittedSession, generation)) {
         throw new Error(UI_TEXT.turnStoppedByRestart)
       }
-      this.checkpoints.accepted(
-        checkpoint,
-        submission.turnId,
-        submission.disposition !== QUEUED_DISPOSITION &&
-          submission.disposition !== STEERED_DISPOSITION,
-      )
-      this.acceptSubmission(localId, text, submission)
+      this.acceptRestrictedSubmission(localId, text, checkpoint, submission)
     } catch (error: unknown) {
-      this.checkpoints.dropPending(checkpoint)
-      const reason = describe(error)
-      // The user's card says why; the log keeps the kind, never text a backend chose.
-      this.deps.log.error(`startPlayback failed: ${errorKind(error)}`)
-      refuse(reason)
+      this.refuseRestrictedStart(localId, checkpoint, error, 'startPlayback')
     }
   }
 

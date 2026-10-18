@@ -500,6 +500,23 @@ class AcpSession {
   }
 
   /**
+   * `/playback` answered as usage (D203): with anything after it, or
+   * anything beside it — a playback takes no arguments, and nothing it
+   * came with may run as an ordinary turn with tools.
+   */
+  private async answerPlaybackUsage(preparing: PreparingPrompt): Promise<'cancelled' | 'end_turn'> {
+    await this.announceCommands()
+    if ('error' in preparing) throw preparing.error
+    if (!preparing.isCancelled)
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: UI_TEXT.playbackUsage },
+      })
+    await this.outbox
+    return preparing.isCancelled ? 'cancelled' : 'end_turn'
+  }
+
+  /**
    * A `/playback` turn (D203): the backend's own no-tools turn, which
    * refuses every call in code. A backend with none (Muse Code: MSP is
    * select-never-create, and no approval mode denies reads, let alone the
@@ -1876,15 +1893,7 @@ class AcpSession {
           ),
         ) !== undefined
       ) {
-        await this.announceCommands()
-        if ('error' in preparing) throw preparing.error
-        if (!preparing.isCancelled)
-          this.send({
-            sessionUpdate: 'agent_message_chunk',
-            content: { type: 'text', text: UI_TEXT.playbackUsage },
-          })
-        await this.outbox
-        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+        return await this.answerPlaybackUsage(preparing)
       }
       // Only media links need the port: ordinary links stay mentions even
       // when the factory binds (M105 E2 review).
@@ -1991,15 +2000,7 @@ class AcpSession {
         (playbackCommand !== undefined &&
           (blocks.length !== 1 || parsed.parts.length !== 1 || part?.type !== 'text'))
       ) {
-        await this.announceCommands()
-        if ('error' in preparing) throw preparing.error
-        if (!preparing.isCancelled)
-          this.send({
-            sessionUpdate: 'agent_message_chunk',
-            content: { type: 'text', text: UI_TEXT.playbackUsage },
-          })
-        await this.outbox
-        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+        return await this.answerPlaybackUsage(preparing)
       }
       isPlayback = playbackCommand?.kind === 'run'
       local = await acpPlaybook(
