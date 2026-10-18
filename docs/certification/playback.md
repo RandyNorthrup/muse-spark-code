@@ -133,6 +133,50 @@ updates on every playback turn, vs 2 on the ordinary turn before it).
 8. `playbackPrompt.ts:16` (P2, marker enforced outside the model): new — fix in code this lane: the host ensures the marker on the turn's first playback text, stream and stored alike.
    CI failures: none listed in the brief.
 
+## PR #221 third round — fixes (2026-10-18, lane PR221W1)
+
+Threads 1, 2, 4, 5 are answered with the earlier commits named above (each
+re-verified in current code); thread 3's claim is already narrowed, its live
+runs still lead-side. Threads 6–8 are fixed in code here (`05ef0219d`,
+`587943297`):
+
+- Thread 6 (`14068`, context load): `runTurn` skips `context.load()` for a
+  playback turn. `context.sections()` and `standingInstructions()` read only
+  held session state (goal, role, team, already-loaded rules), so a
+  first-turn playback performs no rules read and no skill/agent scan, and
+  reports only what the session holds. Verified by inspection (`sections()`
+  reads in-memory arrays; safe unloaded); no host harness exists in tests
+  and stand-ins are banned, so no new test.
+- Thread 7 (`14136`, hooks): a playback turn runs no hook handler and takes
+  no hook context. Skipped: `UserPromptSubmit` + `noteLoadedRules`,
+  `UserPromptExpansion`, `PreLLMCall`, `PostLLMCall` (+ `AfterAgentThought`
+  fan-out), `PreToolUse`/`PostToolUse` around refused calls (a model-named
+  tool ran `PreToolUse` before the in-code refusal — found while fixing),
+  `StopFailure` on a failed turn, and pending hook contexts/messages stay
+  queued for the next ordinary turn. The refusal outcome itself still answers
+  the model. Deliberately unchanged: `SessionStart`/`SubagentStart`
+  once-per-session lifecycle events (their contexts never enter the playback
+  turn), cancel-driven `Interrupt`, message display, and tool-execution paths
+  a refused call never reaches (`prepareMcp`, MCP pools, auto-compaction,
+  web-search consent were already playback-gated). Verified by inspection +
+  green suites; no new test (same harness reason).
+- Thread 8 (`playbackPrompt.ts:16`, marker): new pure helpers
+  `ensurePlaybackMarker`/`checkPlaybackMarker` (`playback.ts`) with 9 real
+  unit tests (`playbackPrompt.test.ts`: compliant, blank-prefixed, omitted,
+  paraphrased, empty, streaming prefix/divergence cases). The host injects
+  the marker before the first diverging delta of the turn's first text and
+  prefixes stored replies that arrived whole, via a per-turn
+  `playbackMarkerEnsured` flag; later messages flow untouched. Gate-fire
+  drilled: helper forced to return text unmarked fails 2 tests, reverted
+  byte-exact, 11/11 green.
+
+Gates on the final tree: typecheck clean (all projects), eslint zero
+warnings on changed files, prettier clean, `check:l10n` 0 problems,
+`check:plan` 0 drift, `npm run build` green with budgets,
+`playbackPrompt`+`playbackCommand` 14/14 and `modelCallHooks` green, repo
+default timeout throughout. Post-commit-hook `--fix` outputs re-read: no
+logic changes.
+
 ## Left undone (for the lead)
 
 - Panel live run: no browser and no display on this rig (`ui:look`:
@@ -146,6 +190,11 @@ updates on every playback turn, vs 2 on the ordinary turn before it).
   and the brief forbids paid calls. The branch mirrors the proven
   reviewer gate line for line and is unit-covered (refusal names any tool,
   instructions keep goal+rules); it needs one stored-key run by the lead.
+  That run should also cover this lane's new behavior: a first-turn
+  playback (no context load), a playback with hooks configured (no hook
+  runs, nothing appended), a noncompliant model prefix (host injects the
+  marker), and the two refusals (`playbackNeedsModelApi` on Muse Code,
+  `playbackOutputSchemaRefused` with `--output-schema`).
 - Contributor-tier model run: same blocker (needs a stored Model API key
   with explicit opt-in; minimum $0.108135). Not run.
 - SAST: `security:sast` exit 0, 0 findings (533 rules, 3241 files), plus a
