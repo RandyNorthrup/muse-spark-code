@@ -2,12 +2,13 @@
 // The adapter is VS Code's Language Model API
 // (src/host/providers/copilotClient.ts), injected only by editor hosts, so
 // the terminal and headless hosts never have one. Real registry, real file,
-// real refusal text; the Meta client is never reached on this path.
+// real Meta client, real refusal text; the Meta client is never reached on
+// this path (Codex on PR #213: no stand-in for the provider).
 import { describe, expect, it } from 'vitest'
+import { ModelApiClient, type ProviderClient } from '../../src/core/backends/modelapi/client'
 import { createSubscriptionClient } from '../../src/core/providers/subscriptions/registry'
 import { providersFileSchema } from '../../src/core/providers/providersFile'
-import type { ProviderClient } from '../../src/core/backends/modelapi/client'
-import { UI_TEXT } from '../../src/shared/constants'
+import { MODEL_API_BASE_URL, UI_TEXT } from '../../src/shared/constants'
 
 const MODEL = 'copilot/gpt-4o'
 
@@ -30,9 +31,24 @@ function client(): ProviderClient {
       },
     ],
   })
-  // Structural only: the Copilot branch throws before any Meta member runs,
-  // so an invoked member fails this test instead of answering.
-  const meta = {} as ProviderClient
+  // The production Meta client (src/host/backend/modelApiEntry.ts), built
+  // with no key: the Copilot branch throws before any Meta member runs, so
+  // a regression that reaches it fails here instead of answering. The log
+  // is a tripwire for the same reason, like unreachable below.
+  const meta: ProviderClient = new ModelApiClient({
+    fetch: globalThis.fetch,
+    baseUrl: MODEL_API_BASE_URL,
+    apiKey: () => Promise.resolve(undefined),
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    now: () => Date.now(),
+    random: () => Math.random(),
+    log: {
+      trace: () => unreachable('the Meta log'),
+      info: () => unreachable('the Meta log'),
+      warn: () => unreachable('the Meta log'),
+      error: () => unreachable('the Meta log'),
+    },
+  })
   return createSubscriptionClient(meta, {
     fetch: globalThis.fetch,
     providers: () => Promise.resolve(file),
