@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- A key read from stdin with malformed bytes inside a key-shaped line is
+  refused as invalid again instead of being accepted: the replacement
+  character decodes to non-whitespace, which the key shape would match.
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights
