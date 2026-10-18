@@ -22,7 +22,7 @@ import {
   MILLISECONDS_PER_SECOND,
 } from '../../../../shared/constants'
 import { clipForLog, type CoreLogger } from '../../../logging'
-import { startStillWaiting, stillWaitingText } from '../../../timeouts'
+import { setLongTimeout, startStillWaiting, stillWaitingText } from '../../../timeouts'
 import type { ElicitationOutcome, McpElicitationHandler } from './elicitation'
 import {
   type CallToolResult,
@@ -425,12 +425,13 @@ export class McpConnection {
     // The entry's own deadline ends the wait; without one the answer is
     // waited on until the server answers, the connection closes or a Stop
     // aborts, saying so out loud on the log (owner 2026-10-16: no silent
-    // hangs, no arbitrary limits).
+    // hangs, no arbitrary limits). The entry's number is honoured whole,
+    // past one timer's range too.
     const timeoutMs = options.timeoutMs
-    const timer =
+    const cancelTimer =
       timeoutMs === undefined
         ? undefined
-        : setTimeout(() => {
+        : setLongTimeout(() => {
             controller.abort(
               new McpTimeoutError(`${method} timed out after ${seconds(timeoutMs)} s`),
             )
@@ -468,7 +469,7 @@ export class McpConnection {
       }
       throw error
     } finally {
-      clearTimeout(timer)
+      cancelTimer?.()
       stopNoticing?.()
       options.signal?.removeEventListener('abort', onStop)
       this.waiting.delete(id)

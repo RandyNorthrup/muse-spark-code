@@ -2,6 +2,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { TIMER_MAX_DELAY_MS } from '../../src/shared/constants'
 import { shellOutcome } from '../../src/core/backends/modelapi/tools'
 import { runCommand } from '../../src/host/backend/toolIo'
 
@@ -51,6 +52,22 @@ describe('shell runs without invented ceilings (NOLIMITS2 A20)', () => {
     expect(result.stdout).toContain('done')
     // No minute passed: the wait said nothing, it just waited.
     expect(notices).toEqual([])
+  })
+
+  it('a named timeout past one timer range does not kill the run at once', async () => {
+    const result = await runCommand({
+      file: process.execPath,
+      args: ['-e', 'setTimeout(() => { console.log("done") }, 300)'],
+      cwd: scratch(),
+      env: process.env,
+      timeoutMs: TIMER_MAX_DELAY_MS + 1,
+      signal: undefined,
+      tree: tree(),
+    })
+    // One timer given the whole timeout would have killed the tree after 1 ms.
+    expect(result.isTimedOut).toBe(false)
+    expect(result.exitCode).toBe(0)
+    expect(result.stdout).toContain('done')
   })
 
   it('shellOutcome reads an unnamed run and a named timeout', () => {

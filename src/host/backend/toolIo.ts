@@ -41,7 +41,7 @@ import type {
 } from '../../core/backends/modelapi/tools'
 import { contentHash, type ContentSource } from '../../core/schedules/provenance'
 import { refusedShellEntry, unstartedShell } from '../../core/shellResult'
-import { startStillWaiting, stillWaitingText } from '../../core/timeouts'
+import { setLongTimeout, startStillWaiting, stillWaitingText } from '../../core/timeouts'
 import { resolveExecutable } from '../../core/executables'
 import { isPdf } from '../../core/pdf'
 import type { ToolImageIo } from '../../core/toolImages'
@@ -1276,12 +1276,13 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       isCancelled = true
       stop()
     }
-    // A named deadline kills the tree past it; unnamed, the process runs
-    // until it exits or the signal aborts, saying so out loud on the log.
-    const timer =
+    // A named deadline kills the tree past it, however long it is (past
+    // one timer's range too); unnamed, the process runs until it exits or
+    // the signal aborts, saying so out loud on the log.
+    const cancelTimer =
       run.hasExternalTimeout || run.timeoutMs === undefined
         ? undefined
-        : setTimeout(() => {
+        : setLongTimeout(() => {
             isTimedOut = true
             stop()
           }, run.timeoutMs)
@@ -1292,7 +1293,7 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
           })
         : undefined
     run.limit?.bind(() => {
-      clearTimeout(timer)
+      cancelTimer?.()
       run.resource?.background()
     })
     const settle = (exitCode: number | null, failure = '', isUnstarted = false) => {
@@ -1300,7 +1301,7 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
         return
       }
       isSettled = true
-      clearTimeout(timer)
+      cancelTimer?.()
       clearTimeout(drain)
       stopNoticing?.()
       run.signal?.removeEventListener('abort', onAbort)

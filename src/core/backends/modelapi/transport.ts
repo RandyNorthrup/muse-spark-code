@@ -21,6 +21,7 @@ import {
   UI_TEXT,
   PROVIDER_HTTP_BODY_MAX_BYTES,
   PROVIDER_REQUEST_ID_MAX_CHARS,
+  TIMER_MAX_DELAY_MS,
   type PaidFeature,
 } from '../../../shared/constants'
 // M95-T: the existing retry/admission loop, shared by Meta and injected codecs.
@@ -602,6 +603,22 @@ export class RequestTransport {
     }
   }
 
+  private async pausePiece(ms: number, signal: AbortSignal | undefined): Promise<void> {
+    if (signal === undefined) {
+      await this.deps.sleep(ms)
+      return
+    }
+    if (signal.aborted) {
+      throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
+    }
+    const aborted = whenAborted(signal)
+    try {
+      await Promise.race([this.deps.sleep(ms), aborted.promise])
+    } finally {
+      aborted.dispose()
+    }
+  }
+
   /**
    * Headers and every body read, without timing local admission, backoff or
    * consumers. A provider-named idle (`streamIdleMs`) still ends silence at
@@ -743,20 +760,19 @@ export class RequestTransport {
     return response
   }
 
+  /**
+   * Waits `ms`, or until `signal` aborts. A provider's wait is honoured
+   * whole however long (owner 2026-10-16), and one timer cannot hold more
+   * than `TIMER_MAX_DELAY_MS` (a longer delay fires after 1 ms), so the
+   * wait sleeps in timer-sized pieces, each one stoppable.
+   */
   public async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
-    if (signal === undefined) {
-      await this.deps.sleep(ms)
-      return
-    }
-    if (signal.aborted) {
-      throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
-    }
-    const aborted = whenAborted(signal)
-    try {
-      await Promise.race([this.deps.sleep(ms), aborted.promise])
-    } finally {
-      aborted.dispose()
-    }
+    let leftMs = ms
+    do {
+      const pieceMs = Math.min(leftMs, TIMER_MAX_DELAY_MS)
+      await this.pausePiece(pieceMs, signal)
+      leftMs -= pieceMs
+    } while (leftMs > 0)
   }
 
   public async currentKeyDigest(): Promise<string> {

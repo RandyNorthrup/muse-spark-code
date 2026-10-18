@@ -4,6 +4,7 @@ import {
   RequestTransport,
   type TransportDeps,
 } from '../../src/core/backends/modelapi/transport'
+import { TIMER_MAX_DELAY_MS } from '../../src/shared/constants'
 import { transportTestDeps } from './helpers/modelApiTransport'
 
 function deps(
@@ -37,5 +38,24 @@ describe('model API retries without a count of their own (NOLIMITS2 C1)', () => 
     expect(canRetryWithinBudget({ retriesUsed: 0, maxRetries: 0 }, 0)).toBe(false)
     expect(canRetryWithinBudget({ retriesUsed: 0, maxRetries: 2 }, 1)).toBe(true)
     expect(canRetryWithinBudget({ retriesUsed: 0, maxRetries: 2 }, 2)).toBe(false)
+  })
+
+  it('waits out a provider wait past one timer range instead of resending at once', async () => {
+    const transport = new RequestTransport(
+      deps({
+        fetch: globalThis.fetch,
+        sleep: (ms) =>
+          new Promise<void>((resolve) => {
+            setTimeout(resolve, ms)
+          }),
+      }),
+    )
+    const controller = new AbortController()
+    const waited = transport.pause(TIMER_MAX_DELAY_MS + 1000, controller.signal)
+    // One timer given the whole wait would have ended after 1 ms; then the
+    // pause resolves before the stop below and nothing rejects.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    controller.abort()
+    await expect(waited).rejects.toThrow('cancelled')
   })
 })
