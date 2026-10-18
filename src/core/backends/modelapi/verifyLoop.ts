@@ -90,9 +90,9 @@ const OUTCOME_LINES: Readonly<Record<FinishedOutcome, string>> = {
 }
 
 /**
- * A check that ran: its line, the command, and what it printed with how it
- * ended, the output within `maxChars` (its share of the note's budget).
- */
+A check that ran: its line, the command, and what it printed with how it
+ended, the output within `maxChars` (its share of the note's budget).
+*/
 export function finishedCheck(
   check: CheckCommandSetting,
   line: string,
@@ -138,14 +138,14 @@ export interface Refusal {
 }
 
 /**
- * A verify command's permission, then its guard (then_run's: the file still
- * holds what the edit left), before it runs. A file that decides what the
- * command runs may be edited while this waits (a subagent's edit during the
- * guard's read): a session rule that answered then no longer holds, so the
- * command is authorized again, and guarded again (Grok's review of PR #54's
- * fourth round). The second time the rule no longer answers. Undefined when
- * the command may run, else why not.
- */
+A verify command's permission, then its guard (then_run's: the file still
+holds what the edit left), before it runs. A file that decides what the
+command runs may be edited while this waits (a subagent's edit during the
+guard's read): a session rule that answered then no longer holds, so the
+command is authorized again, and guarded again (Grok's review of PR #54's
+fourth round). The second time the rule no longer answers. Undefined when
+the command may run, else why not.
+*/
 export async function authorizeThenGuard(steps: {
   /** Whether a file that decides what the command runs was edited since the user's message. */
   readonly isRuleLapsed: () => boolean

@@ -406,10 +406,10 @@ function bashShape(text: string): CommandShape {
 }
 
 /**
- * A quoted PowerShell string from `start` (its opening quote): its text and
- * where it ends. A doubled quote is one quote; a double-quoted string that
- * would expand (`$`) or escape (backtick) is refused.
- */
+A quoted PowerShell string from `start` (its opening quote): its text and
+where it ends. A doubled quote is one quote; a double-quoted string that
+would expand (`$`) or escape (backtick) is refused.
+*/
 function powerShellQuoted(
   text: string,
   start: number,
@@ -496,9 +496,9 @@ function powerShellNameProblem(token: { readonly word: string; readonly isQuoted
 }
 
 /**
- * Why a PowerShell argument is refused: the verbatim marker, a parameter
- * left without its value, or a number whose value is not its text.
- */
+Why a PowerShell argument is refused: the verbatim marker, a parameter
+left without its value, or a number whose value is not its text.
+*/
 function powerShellArgumentProblem(token: {
   readonly word: string
   readonly isQuoted: boolean
@@ -575,9 +575,9 @@ function powerShellShape(text: string): CommandShape {
 }
 
 /**
- * The command line's shape in its shell: its plain commands, each one's
- * words as the shell hands them to the command, or why it has none.
- */
+The command line's shape in its shell: its plain commands, each one's
+words as the shell hands them to the command, or why it has none.
+*/
 export function commandShape(command: string, dialect: ShellDialect): CommandShape {
   if (LINE_BREAKS.test(command)) {
     return complex('newline')
@@ -616,13 +616,13 @@ const LOOSE_DROPPED: Readonly<Record<ShellDialect, RegExp>> = {
 const WHITESPACE = /\s+/
 
 /**
- * Every word of the command line, in runs between separators, for the
- * rules that match anywhere (forbid and ask). Quoted text is split too, so
- * a command handed to another shell as a string (`bash -c "rm -rf /"`) or
- * nested (`$(rm -rf /)`) is seen, and a word spelled with quotes or
- * escapes (`r"m"`, `r\m`) is read as the shell reads it. This reading is
- * wider than any shell's: it can only make a rule that tightens match more.
- */
+Every word of the command line, in runs between separators, for the
+rules that match anywhere (forbid and ask). Quoted text is split too, so
+a command handed to another shell as a string (`bash -c "rm -rf /"`) or
+nested (`$(rm -rf /)`) is seen, and a word spelled with quotes or
+escapes (`r"m"`, `r\m`) is read as the shell reads it. This reading is
+wider than any shell's: it can only make a rule that tightens match more.
+*/
 export function looseWords(command: string, dialect: ShellDialect): readonly (readonly string[])[] {
   const runs: string[][] = []
   const segments = command.split(LOOSE_SEPARATORS[dialect])

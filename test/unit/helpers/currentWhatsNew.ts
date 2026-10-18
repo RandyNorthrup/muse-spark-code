@@ -5,11 +5,11 @@ import {
 } from '../../../src/core/whatsNew/whatsNewContent'
 
 /**
- * The two newest releases as the build encodes them. The build publishes
- * smaller notes when these do not fit (`selectWhatsNewReleases`); a regression
- * that reads the published text must then follow that selection, so this
- * throws rather than read notes nobody ships.
- */
+The two newest releases as the build encodes them. The build publishes
+smaller notes when these do not fit (`selectWhatsNewReleases`); a regression
+that reads the published text must then follow that selection, so this
+throws rather than read notes nobody ships.
+*/
 export function currentWhatsNewEncoding(releases: readonly ReleaseNotes[]): string {
   const encoded = encodeWhatsNewContent(
     JSON.stringify({ schema: 1, releases: releases.slice(0, 2) }),

@@ -7,12 +7,12 @@
 import { FOCUS_REQUEST_WINDOW_MS } from '../../shared/constants'
 
 /**
- * Whether the host delivers a `focusInput` now instead of dropping it. True
- * while the target panel is the active one, or while the reveal the person
- * just asked for still propagates (its focus arrives within the delivery
- * window after `reveal()`). Anything else is dropped, never held: a stale
- * request must not land on a much later click.
- */
+Whether the host delivers a `focusInput` now instead of dropping it. True
+while the target panel is the active one, or while the reveal the person
+just asked for still propagates (its focus arrives within the delivery
+window after `reveal()`). Anything else is dropped, never held: a stale
+request must not land on a much later click.
+*/
 export function shouldDeliverFocusInput(
   isActive: boolean,
   revealedAt: number | undefined,

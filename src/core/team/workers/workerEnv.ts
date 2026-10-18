@@ -31,12 +31,12 @@ const WORKER_ENV_ALLOWLIST = new Set([
 const WORKER_ENV_BLOCKED = /^(?:GIT_|SSH_|LD_|DYLD_|NODE_|BASH_ENV$|ENV$|.*ASKPASS$)/i
 
 /**
- * The environment a worker process starts with: no git credentials (no
- * helper, no prompt, no askpass, no agent socket, an `ssh` that refuses, no
- * user or system configuration that could name credentials), and no
- * credential variable except the names the agent's profile passes through.
- * Returns a fresh object; the input is never mutated.
- */
+The environment a worker process starts with: no git credentials (no
+helper, no prompt, no askpass, no agent socket, an `ssh` that refuses, no
+user or system configuration that could name credentials), and no
+credential variable except the names the agent's profile passes through.
+Returns a fresh object; the input is never mutated.
+*/
 export function workerEnvironment(
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,

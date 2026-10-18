@@ -35,9 +35,9 @@ export function isFileSessionStoreBundle(value: unknown): value is FileSessionSt
 }
 
 /**
- * The window's one session store, made in the bundle the first time it is
- * asked for and kept from then on.
- */
+The window's one session store, made in the bundle the first time it is
+asked for and kept from then on.
+*/
 export function lazyFileSessionStore(deps: {
   readonly bundlePath: string
   readonly log: Logger

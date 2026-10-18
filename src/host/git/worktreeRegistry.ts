@@ -110,9 +110,9 @@ export class WorktreeRegistry {
 }
 
 /**
- * This window's hold, decided at activation (`holdFor`) and let go only by
- * the user's confirmation in the held-worktree card.
- */
+This window's hold, decided at activation (`holdFor`) and let go only by
+the user's confirmation in the held-worktree card.
+*/
 export class WindowHold {
   private hold: WorktreeHold | undefined
 
@@ -129,11 +129,11 @@ export class WindowHold {
   }
 
   /**
-   * Whether the project's own configuration may load: its rules, skills,
-   * hooks and MCP servers, Muse Code's `--trust-workspace`, the backends'
-   * workspace shell. VS Code must trust the folder, and the window must not
-   * be held: a held window stays without them whatever VS Code says (M71).
-   */
+  Whether the project's own configuration may load: its rules, skills,
+  hooks and MCP servers, Muse Code's `--trust-workspace`, the backends'
+  workspace shell. VS Code must trust the folder, and the window must not
+  be held: a held window stays without them whatever VS Code says (M71).
+  */
   public allowsProjectConfiguration(isVsCodeTrusted: boolean): boolean {
     return isVsCodeTrusted && !this.isHeld
   }

@@ -60,10 +60,10 @@ export interface MemoryIo {
   /** Whether the path is open with unsaved changes, which a replacement must not clobber. */
   hasUnsavedChanges(absolutePath: string): boolean
   /**
-   * Replaces the file whole (a temporary file renamed into place), folders
-   * created. With `checkedPath` (its canonical path as `locate` checked it),
-   * a path that leads elsewhere by the time it is written is refused.
-   */
+  Replaces the file whole (a temporary file renamed into place), folders
+  created. With `checkedPath` (its canonical path as `locate` checked it),
+  a path that leads elsewhere by the time it is written is refused.
+  */
   writeFile(
     absolutePath: string,
     content: string,
@@ -71,11 +71,11 @@ export interface MemoryIo {
     assertCanWrite?: () => void,
   ): Promise<void>
   /**
-   * Atomically publishes a complete new note only if absent; never replaces
-   * another writer. With `checkedPath` (the note's canonical path as `locate`
-   * checked it), a folder that leads elsewhere by the time the note is
-   * written is refused.
-   */
+  Atomically publishes a complete new note only if absent; never replaces
+  another writer. With `checkedPath` (the note's canonical path as `locate`
+  checked it), a folder that leads elsewhere by the time the note is
+  written is refused.
+  */
   createFile(
     absolutePath: string,
     content: string,
@@ -89,10 +89,10 @@ export interface MemoryIo {
 }
 
 /**
- * The writes of one memory call. The store is the window's, so a turn's
- * model hands in its own, which record each write for a restore (M86); the
- * store's own io records nothing.
- */
+The writes of one memory call. The store is the window's, so a turn's
+model hands in its own, which record each write for a restore (M86); the
+store's own io records nothing.
+*/
 export type MemoryWrites = Pick<MemoryIo, 'writeFile' | 'createFile'>
 
 export interface MemoryStoreDeps {
@@ -103,9 +103,9 @@ export interface MemoryStoreDeps {
   /** Undefined without a workspace folder. */
   readonly workspaceRoot: string | undefined
   /**
-   * A path as the operating system spells it, links resolved and each name
-   * in its own letter case: the workspace root Muse Code hashes.
-   */
+  A path as the operating system spells it, links resolved and each name
+  in its own letter case: the workspace root Muse Code hashes.
+  */
   readonly systemPath: (absolutePath: string) => Promise<string>
   /** Something that went wrong beside the call itself (an index line, an unreadable scope). */
   readonly warn: (message: string) => void
@@ -188,11 +188,11 @@ function failed(reason: string): { readonly ok: false; readonly reason: string }
 }
 
 /**
- * What `add` throws when its owner's assertion stopped a new note's index
- * line (M78, the RV78g review): the note is published already, `written` is
- * the tool's answer for it, and `stopped` is what the owner threw, for the
- * owner to tell its Stop from a refusal of the line alone.
- */
+What `add` throws when its owner's assertion stopped a new note's index
+line (M78, the RV78g review): the note is published already, `written` is
+the tool's answer for it, and `stopped` is what the owner threw, for the
+owner to tell its Stop from a refusal of the line alone.
+*/
 export class IndexLineStoppedError extends Error {
   public readonly stopped: Error
 
@@ -207,12 +207,12 @@ export class IndexLineStoppedError extends Error {
 }
 
 /**
- * After a write failed: the caller's assertion asked once more (M78, the
- * RV78f and RV78g reviews). It keeps throwing once it has thrown (a Stop, a
- * refusal, a revoked guard), so a failure it caused is thrown on as the
- * caller's, never reported as a file error; the I/O is handed the very
- * assertion it was given.
- */
+After a write failed: the caller's assertion asked once more (M78, the
+RV78f and RV78g reviews). It keeps throwing once it has thrown (a Stop, a
+refusal, a revoked guard), so a failure it caused is thrown on as the
+caller's, never reported as a file error; the I/O is handed the very
+assertion it was given.
+*/
 function rethrowOwner(assertCurrent: (() => void) | undefined): void {
   assertCurrent?.()
 }
@@ -341,10 +341,10 @@ export class MemoryStore {
   }
 
   /**
-   * The note's text (undefined when there is none), or why it cannot be read.
-   * The caller's assertion throws on: a Stop is never a file error (the
-   * RV78f review).
-   */
+  The note's text (undefined when there is none), or why it cannot be read.
+  The caller's assertion throws on: a Stop is never a file error (the
+  RV78f review).
+  */
   private async readNote(
     place: MemoryNotePlace,
     assertCurrent?: () => void,
@@ -379,11 +379,11 @@ export class MemoryStore {
   }
 
   /**
-   * A new note's line in its scope's `MEMORY.md`, unless one already links to
-   * it (D41). A line that cannot be written is logged and the note stays; what
-   * the owner's assertion threw (its Stop, its refusal) is thrown on after the
-   * log, as the note's own writes throw it (M78, the RV78g review).
-   */
+  A new note's line in its scope's `MEMORY.md`, unless one already links to
+  it (D41). A line that cannot be written is logged and the note stays; what
+  the owner's assertion threw (its Stop, its refusal) is thrown on after the
+  log, as the note's own writes throw it (M78, the RV78g review).
+  */
   private async addIndexLine(
     place: MemoryNotePlace,
     hook: string,
@@ -444,9 +444,9 @@ export class MemoryStore {
   }
 
   /**
-   * The notes of a scope as places, the index first; none when the scope is
-   * unavailable. The walk never enters a link, so no place is behind one.
-   */
+  The notes of a scope as places, the index first; none when the scope is
+  unavailable. The walk never enters a link, so no place is behind one.
+  */
   private async notePlaces(scope: MemoryScope): Promise<readonly MemoryNotePlace[]> {
     const root = await this.root(scope)
     if (!root.ok) {
@@ -531,10 +531,10 @@ export class MemoryStore {
   }
 
   /**
-   * A note path checked as Muse Code checks it and placed under its scope,
-   * or the refusal: a path that climbs out, a hidden part, not Markdown, or a
-   * link anywhere between the scope's root and the note.
-   */
+  A note path checked as Muse Code checks it and placed under its scope,
+  or the refusal: a path that climbs out, a hidden part, not Markdown, or a
+  link anywhere between the scope's root and the note.
+  */
   public async locate(scope: MemoryScope, given: string): Promise<Located<MemoryNotePlace>> {
     const problem = memoryPathProblem(given)
     if (problem !== undefined) {
@@ -719,10 +719,10 @@ export class MemoryStore {
   }
 
   /**
-   * A new, empty note from the Memory view (its description as front
-   * matter when given), with its line in the scope's index. Throws with the
-   * reason when the path is refused or taken.
-   */
+  A new, empty note from the Memory view (its description as front
+  matter when given), with its line in the scope's index. Throws with the
+  reason when the path is refused or taken.
+  */
   public async create(
     scope: MemoryScope,
     notePath: string,
@@ -785,10 +785,10 @@ export class MemoryStore {
   }
 
   /**
-   * What the model is given at the start of a session, as Muse Code gives
-   * it: each scope's `MEMORY.md` and the paths of its other notes. A scope
-   * that cannot be read is a warning, never a failed turn.
-   */
+  What the model is given at the start of a session, as Muse Code gives
+  it: each scope's `MEMORY.md` and the paths of its other notes. A scope
+  that cannot be read is a warning, never a failed turn.
+  */
   public async snapshot(): Promise<readonly MemoryScopeSnapshot[]> {
     const snapshots: MemoryScopeSnapshot[] = []
     for (const scope of MEMORY_SCOPES) {

@@ -48,21 +48,21 @@ export function geminiStreamPath(nativeModelId: string): string {
 export const GEMINI_MODELS_PATH = '/v1beta/models?pageSize=1000'
 
 /**
- * The documented value that skips thought-signature validation for foreign
- * or injected history (research §1.6 [G-ts]): a replayed call the harness
- * never saw a signature for (another provider's turn kept across a model
- * switch, PLAN.md M95 acceptance 12) carries this instead of a signature,
- * since Gemini 3 answers an unsigned first call with a 400.
- */
+The documented value that skips thought-signature validation for foreign
+or injected history (research §1.6 [G-ts]): a replayed call the harness
+never saw a signature for (another provider's turn kept across a model
+switch, PLAN.md M95 acceptance 12) carries this instead of a signature,
+since Gemini 3 answers an unsigned first call with a 400.
+*/
 export const GEMINI_SKIP_THOUGHT_SIGNATURE = 'skip_thought_signature_validator'
 
 /** `thinkingConfig.thinkingLevel` on 3.x models (research §1.6). */
 export const GEMINI_THINKING_LEVELS = ['minimal', 'low', 'medium', 'high'] as const
 
 /**
- * M101 lane P1 (BYO item 11): the first generation with images in tool
- * results and full tool schemas (Pi `google-shared.ts`).
- */
+M101 lane P1 (BYO item 11): the first generation with images in tool
+results and full tool schemas (Pi `google-shared.ts`).
+*/
 const GEMINI_FULL_SCHEMA_GENERATION = 3
 export type GeminiThinkingLevel = (typeof GEMINI_THINKING_LEVELS)[number]
 
@@ -71,11 +71,11 @@ function isThinkingLevel(value: string): value is GeminiThinkingLevel {
 }
 
 /**
- * The harness effort tier to Gemini's thinking level. Tiers above `high`
- * clamp to it; `none` (Thinking off) and anything unknown send no level,
- * which is always valid, and leave how much the model thinks to it: lane I
- * owns per-model effort validity from the registry.
- */
+The harness effort tier to Gemini's thinking level. Tiers above `high`
+clamp to it; `none` (Thinking off) and anything unknown send no level,
+which is always valid, and leave how much the model thinks to it: lane I
+owns per-model effort validity from the registry.
+*/
 export function geminiThinkingLevelForEffort(effort: string): GeminiThinkingLevel | undefined {
   if (isThinkingLevel(effort)) {
     return effort
@@ -84,26 +84,26 @@ export function geminiThinkingLevelForEffort(effort: string): GeminiThinkingLeve
 }
 
 /**
- * M101 lane P1 (BYO item 11): per-request encode options. Lane P fills
- * these from the model record; lane N will own the normalized catalog
- * fields (`capabilities.vision`, a generation marker). Absent means
- * today's behavior.
- */
+M101 lane P1 (BYO item 11): per-request encode options. Lane P fills
+these from the model record; lane N will own the normalized catalog
+fields (`capabilities.vision`, a generation marker). Absent means
+today's behavior.
+*/
 export interface GeminiEncodeOptions {
   /** The model's image input; `false` sends the image-omitted placeholder (BYO item 1). */
   readonly capabilities?: { readonly vision: boolean } | undefined
   /**
-   * The model's Gemini generation, overriding the id heuristic below.
-   * Generation 3 and later sends tool-result images and full tool schemas.
-   */
+  The model's Gemini generation, overriding the id heuristic below.
+  Generation 3 and later sends tool-result images and full tool schemas.
+  */
   readonly generation?: number | undefined
 }
 
 /**
- * M101 lane P1 (BYO item 11): the Gemini generation of a native model id
- * (`gemini-3.5-flash-lite` → 3), or undefined when the id names none. The
- * item-11 capabilities ride on this until the catalog carries them.
- */
+M101 lane P1 (BYO item 11): the Gemini generation of a native model id
+(`gemini-3.5-flash-lite` → 3), or undefined when the id names none. The
+item-11 capabilities ride on this until the catalog carries them.
+*/
 export function geminiGeneration(nativeModelId: string): number | undefined {
   const match = /(?:^|\/)gemini-(\d+)/.exec(nativeModelId)
   if (match?.[1] === undefined) {
@@ -176,15 +176,15 @@ const geminiModelsListSchema = z.object({
 // --- the tool-parameters schema subset ----------------------------------------
 
 /**
- * The `functionDeclarations.parameters` keys the codec sends: the OpenAPI
- * 3.0 subset field set. Everything else the harness or an MCP server may
- * put in a JSON schema (`$schema`, `additionalProperties`, `strict`,
- * composition keywords outside `anyOf`, …) has no representation here and is
- * dropped; the host's own zod parsing of the model's arguments stays the
- * backstop for a loosened schema. `$ref` is resolved against the parameters
- * root instead: external or unresolvable references throw, since silently
- * dropping a whole subschema would not be a schema at all.
- */
+The `functionDeclarations.parameters` keys the codec sends: the OpenAPI
+3.0 subset field set. Everything else the harness or an MCP server may
+put in a JSON schema (`$schema`, `additionalProperties`, `strict`,
+composition keywords outside `anyOf`, …) has no representation here and is
+dropped; the host's own zod parsing of the model's arguments stays the
+backstop for a loosened schema. `$ref` is resolved against the parameters
+root instead: external or unresolvable references throw, since silently
+dropping a whole subschema would not be a schema at all.
+*/
 const GEMINI_SCHEMA_KEYS = new Set([
   'anyOf',
   'default',
@@ -239,12 +239,12 @@ function resolvePointer(root: unknown, pointer: string): unknown {
 }
 
 /**
- * Follow local `$ref`s to the node a schema walker copies: a `$ref`
- * continues with its target (external and circular references throw),
- * while arrays, scalars and ref-less objects are returned as found, with
- * the chain of refs already resolved. Shared by the subset walker below
- * and the full-schema walker (BYO item 11).
- */
+Follow local `$ref`s to the node a schema walker copies: a `$ref`
+continues with its target (external and circular references throw),
+while arrays, scalars and ref-less objects are returned as found, with
+the chain of refs already resolved. Shared by the subset walker below
+and the full-schema walker (BYO item 11).
+*/
 function resolveSchemaNode(
   node: unknown,
   root: unknown,
@@ -309,10 +309,10 @@ function rewriteSchemaNode(node: unknown, root: unknown, resolving: readonly str
 }
 
 /**
- * Rewrites a tool's `parameters` to Gemini's OpenAPI 3.0 subset, key order
- * and values otherwise untouched so the same canonical body always encodes
- * to the same bytes.
- */
+Rewrites a tool's `parameters` to Gemini's OpenAPI 3.0 subset, key order
+and values otherwise untouched so the same canonical body always encodes
+to the same bytes.
+*/
 export function toGeminiSchemaSubset(parameters: Record<string, unknown>): Record<string, unknown> {
   const rewritten = rewriteSchemaNode(parameters, parameters, [])
   if (!isRecord(rewritten)) {
@@ -356,12 +356,12 @@ function rewriteFullSchemaNode(
 }
 
 /**
- * M101 lane P1 (BYO item 11): a tool's `parameters` for Gemini 3 and later,
- * which take the full JSON Schema (Pi `google-shared.ts`). Local `$ref`s
- * still resolve inline (a reference has no Gemini form); external and
- * circular references throw, as in the subset. Key order and values are
- * otherwise untouched.
- */
+M101 lane P1 (BYO item 11): a tool's `parameters` for Gemini 3 and later,
+which take the full JSON Schema (Pi `google-shared.ts`). Local `$ref`s
+still resolve inline (a reference has no Gemini form); external and
+circular references throw, as in the subset. Key order and values are
+otherwise untouched.
+*/
 export function toGeminiFullSchema(parameters: Record<string, unknown>): Record<string, unknown> {
   const rewritten = rewriteFullSchemaNode(parameters, parameters, [])
   if (!isRecord(rewritten)) {
@@ -405,12 +405,12 @@ function toInlineData(part: InputContentPart): unknown {
 }
 
 /**
- * A message's content parts as native parts (`output_text` is replayed
- * assistant text). M101 lane P1 (BYO items 1, 4, 13): blank text is
- * dropped, lone surrogates are removed, media rides as the image-omitted
- * placeholder where the model takes no images, and a replayed text part
- * carries back its thought signature, empty parts included (Pi #7356).
- */
+A message's content parts as native parts (`output_text` is replayed
+assistant text). M101 lane P1 (BYO items 1, 4, 13): blank text is
+dropped, lone surrogates are removed, media rides as the image-omitted
+placeholder where the model takes no images, and a replayed text part
+carries back its thought signature, empty parts included (Pi #7356).
+*/
 function toNativeParts(content: readonly InputContentPart[], build: ContentsBuild): unknown[] {
   const parts: unknown[] = []
   for (const part of content) {
@@ -432,15 +432,15 @@ function toNativeParts(content: readonly InputContentPart[], build: ContentsBuil
 }
 
 /**
- * A tool result as the `functionResponse.response` object (research §1.6):
- * a JSON-object string goes back as that object (the capture replays
- * `{"timezone": …, "time": …}` verbatim); anything else, including text
- * joined from content parts, as `{result}`. M101 lane P1 (BYO items 1,
- * 11, 13): blank results ride as the empty-output marker, and on Gemini 3
- * and later the result's images ride inside `functionResponse.parts`
- * (Google's multimodal function-response contract); older models keep the
- * named refusal instead of a silently text-only representation.
- */
+A tool result as the `functionResponse.response` object (research §1.6):
+a JSON-object string goes back as that object (the capture replays
+`{"timezone": …, "time": …}` verbatim); anything else, including text
+joined from content parts, as `{result}`. M101 lane P1 (BYO items 1,
+11, 13): blank results ride as the empty-output marker, and on Gemini 3
+and later the result's images ride inside `functionResponse.parts`
+(Google's multimodal function-response contract); older models keep the
+named refusal instead of a silently text-only representation.
+*/
 function toFunctionResponseParts(
   output: FunctionCallOutputItem['output'],
   build: ContentsBuild,
@@ -487,14 +487,14 @@ function toFunctionResponseParts(
 }
 
 /**
- * The canonical input as native `contents`, consecutive same-role items one
- * content: the harness replays assistant text, calls and results as separate
- * items, while Gemini groups a turn's parts under one `user` or `model`
- * content (the captured replay's shape). A reasoning item carrying a thought
- * signature arms the next call; signature-less reasoning (another provider's,
- * kept across a switch) and `web_search_call` items (never declared to a
- * BYO model, M95 acceptance 11) have no native form and stay out.
- */
+The canonical input as native `contents`, consecutive same-role items one
+content: the harness replays assistant text, calls and results as separate
+items, while Gemini groups a turn's parts under one `user` or `model`
+content (the captured replay's shape). A reasoning item carrying a thought
+signature arms the next call; signature-less reasoning (another provider's,
+kept across a switch) and `web_search_call` items (never declared to a
+BYO model, M95 acceptance 11) have no native form and stay out.
+*/
 interface ContentsBuild {
   readonly contents: { role: 'user' | 'model'; parts: unknown[] }[]
   readonly callNames: Map<string, string>
@@ -606,12 +606,12 @@ function toContents(
 }
 
 /**
- * The native request for one canonical body: `systemInstruction` from the
- * instructions (text only, research §1.6), `functionDeclarations` in the
- * schema subset with `AUTO` calling, and the output cap plus thinking level
- * in `generationConfig`. Meta-only fields (`store`, `prompt_cache_key`,
- * `include`, `tool_choice`) are never sent.
- */
+The native request for one canonical body: `systemInstruction` from the
+instructions (text only, research §1.6), `functionDeclarations` in the
+schema subset with `AUTO` calling, and the output cap plus thinking level
+in `generationConfig`. Meta-only fields (`store`, `prompt_cache_key`,
+`include`, `tool_choice`) are never sent.
+*/
 export function encodeGeminiRequest(
   body: CreateResponseBody,
   nativeModelId: string,
@@ -699,10 +699,10 @@ export function encodeGeminiRequest(
 const SSE_DONE_SENTINEL = '[DONE]'
 
 /**
- * One SSE frame's JSON. A malformed frame ends the turn with an error: the
- * reply can no longer be trusted. The error carries the frame's length, not
- * its text, since the frame is model output.
- */
+One SSE frame's JSON. A malformed frame ends the turn with an error: the
+reply can no longer be trusted. The error carries the frame's length, not
+its text, since the frame is model output.
+*/
 function parseFrameJson(data: string): unknown {
   try {
     return JSON.parse(data)
@@ -745,11 +745,11 @@ function* openingCallEvents(call: DecodedCall): Generator<StreamEvent> {
 }
 
 /**
- * `usageMetadata` to canonical usage. M101 lane P1 (BYO item 7): Gemini
- * omits zero counts, so an absent count is zero, not unknown (Pi
- * `google-generative-ai.ts`). An all-absent `usageMetadata` carries no
- * information and keeps the previous chunk's usage instead of zeroing it.
- */
+`usageMetadata` to canonical usage. M101 lane P1 (BYO item 7): Gemini
+omits zero counts, so an absent count is zero, not unknown (Pi
+`google-generative-ai.ts`). An all-absent `usageMetadata` carries no
+information and keeps the previous chunk's usage instead of zeroing it.
+*/
 function toUsage(usage: z.infer<typeof geminiUsageSchema>): Usage | undefined {
   const { promptTokenCount, candidatesTokenCount, cachedContentTokenCount, thoughtsTokenCount } =
     usage
@@ -822,10 +822,10 @@ function textPartsOf(segments: readonly TextSegment[]): {
 }
 
 /**
- * Only `STOP` completes a turn (including calls, capture 02). A missing
- * terminal reason is an interrupted stream; calls never override a cut or
- * failed finish reason.
- */
+Only `STOP` completes a turn (including calls, capture 02). A missing
+terminal reason is an interrupted stream; calls never override a cut or
+failed finish reason.
+*/
 function terminalEvent(
   responseId: string,
   model: string,
@@ -908,15 +908,15 @@ function terminalEvent(
 }
 
 /**
- * One native SSE stream as canonical events ending in a canonical response,
- * for the qualified model reference `model`. Chunks stream whole candidates
- * (unsigned text accumulates across them); only the last `usageMetadata`
- * counts. M101 lane P1 (BYO item 4): a `thoughtSignature` on a text part
- * is kept on that part, empty parts included, so the replay validates the
- * next request (Pi #7356; capture 03's trailing empty part).
- * An empty stream, or one with no response id, throws: there
- * is no canonical response to end in.
- */
+One native SSE stream as canonical events ending in a canonical response,
+for the qualified model reference `model`. Chunks stream whole candidates
+(unsigned text accumulates across them); only the last `usageMetadata`
+counts. M101 lane P1 (BYO item 4): a `thoughtSignature` on a text part
+is kept on that part, empty parts included, so the replay validates the
+next request (Pi #7356; capture 03's trailing empty part).
+An empty stream, or one with no response id, throws: there
+is no canonical response to end in.
+*/
 export async function* decodeGeminiStream(
   chunks: AsyncIterable<Uint8Array>,
   model: string,
@@ -1099,12 +1099,12 @@ export async function* decodeGeminiStream(
 // --- errors and the models list --------------------------------------------------
 
 /**
- * The `{"error": {"code", "message", "status"}}` envelope to `ModelApiError`.
- * The transport reads a 4xx/5xx body by its content, not its content type: a
- * Gemini error arrives as JSON under `text/event-stream` (captures § Gemini).
- * 429 and 402 both mean `RESOURCE_EXHAUSTED` (research §1.6); the status and
- * message keep the host's `HTTP 429:` retry legible.
- */
+The `{"error": {"code", "message", "status"}}` envelope to `ModelApiError`.
+The transport reads a 4xx/5xx body by its content, not its content type: a
+Gemini error arrives as JSON under `text/event-stream` (captures § Gemini).
+429 and 402 both mean `RESOURCE_EXHAUSTED` (research §1.6); the status and
+message keep the host's `HTTP 429:` retry legible.
+*/
 export function parseGeminiError(status: number, body: unknown): ModelApiError {
   const parsed = geminiErrorSchema.safeParse(body)
   if (!parsed.success) {
@@ -1128,11 +1128,11 @@ export interface GeminiListedModel {
 }
 
 /**
- * The models list to keepable entries: only methods that serve
- * `generateContent` (the capture lists `generateContent`, `countTokens`,
- * `createCachedContent` and `batchGenerateContent` per model), ids without
- * the `models/` prefix.
- */
+The models list to keepable entries: only methods that serve
+`generateContent` (the capture lists `generateContent`, `countTokens`,
+`createCachedContent` and `batchGenerateContent` per model), ids without
+the `models/` prefix.
+*/
 export function parseGeminiModelsList(body: unknown): readonly GeminiListedModel[] {
   const parsed = geminiModelsListSchema.safeParse(body)
   if (!parsed.success) {

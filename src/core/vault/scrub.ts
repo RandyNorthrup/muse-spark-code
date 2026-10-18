@@ -27,9 +27,9 @@ function jsonEscape(char: string): string {
 }
 
 /**
- * A `\uXXXX` escape with upper-case hex; producers disagree on the hex case,
- * but the `u` itself stays lower case.
- */
+A `\uXXXX` escape with upper-case hex; producers disagree on the hex case,
+but the `u` itself stays lower case.
+*/
 function upperJsonEscapes(form: string): string {
   return form.replaceAll(
     /\\u[0-9a-f]{4}/g,

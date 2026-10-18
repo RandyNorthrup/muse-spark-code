@@ -17,18 +17,18 @@ export type SchedulePromptAction =
   | { readonly kind: 'refused'; readonly reason: string }
 
 /**
- * Why `/schedule` is refused while its runtime is unbound (C-X-1). Chat reads
- * the words here, in the module it loads on a first `/schedule`, so startup
- * carries none of the schedule surfaces' English (STARTUP017).
- * @unwired M115 schedule refused reason
- */
+Why `/schedule` is refused while its runtime is unbound (C-X-1). Chat reads
+the words here, in the module it loads on a first `/schedule`, so startup
+carries none of the schedule surfaces' English (STARTUP017).
+@unwired M115 schedule refused reason
+*/
 export function scheduleUnavailableReason(): string {
   return UI_TEXT.scheduleV2.runtime.unavailable
 }
 
 /** W calls this before an ordinary submit on either backend. The loop parser
- * @unwired M115 schedule prompt action
- * is injected from T: its grammar is retained, rather than duplicated here. */
+@unwired M115 schedule prompt action
+is injected from T: its grammar is retained, rather than duplicated here. */
 export function schedulePromptAction(
   text: string,
   workspaceKey: string,

@@ -11,9 +11,9 @@ import {
 import { UI_TEXT } from '../shared/l10n/text'
 
 /** The lazy team/panel adapters own mutation, retirement and permission cards.
- * Dispatch must repeat admission after every asynchronous wait. Confirmation
- * runs in the existing host approval UI and never implies paid consent.
- */
+Dispatch must repeat admission after every asynchronous wait. Confirmation
+runs in the existing host approval UI and never implies paid consent.
+*/
 export interface TrafficPanelDependencies {
   traffic(): Promise<TrafficSlice>
   runners(): Promise<RunnersSlice>

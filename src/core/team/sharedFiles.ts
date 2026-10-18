@@ -14,7 +14,7 @@ const builtins: readonly SharedFile[] = [
 ]
 
 /** Lexical identity before matching or leasing. The host can supply the
- * volume's case policy; Windows/macOS default to conservative folding. */
+volume's case policy; Windows/macOS default to conservative folding. */
 export function canonicalTeamPath(
   path: string,
   isCaseInsensitive = process.platform === 'win32' || process.platform === 'darwin',
@@ -38,7 +38,7 @@ export function canonicalTeamPath(
 }
 
 /** Reuse the bounded glob compiler, rooted so a root literal never matches
- * another directory's file of the same name. */
+another directory's file of the same name. */
 export function teamPathMatcher(
   pattern: string,
   isCaseInsensitive?: boolean,
@@ -48,7 +48,7 @@ export function teamPathMatcher(
 }
 
 /** A conservative containment proof for fixed prefix/suffix wildcard rules.
- * The caller's bounded compiler caps brace expansion before this proof. */
+The caller's bounded compiler caps brace expansion before this proof. */
 function isPatternContained(rule: string, pattern: string): boolean {
   if (rule === pattern) return true
   // Simple classes can coexist with alternatives. Literal class braces,
@@ -140,7 +140,7 @@ export class SharedFiles {
   }
 
   /** Bypass a lease only when a merge rule covers every possible file and
-   * no higher-priority text override can intersect the declaration. */
+  no higher-priority text override can intersect the declaration. */
   shouldSerializePattern(pattern: string): boolean {
     const normalized = canonicalTeamPath(pattern, this.isCaseInsensitive)
     if (!/[*?{[]/.test(normalized)) return this.shouldSerialize(normalized)

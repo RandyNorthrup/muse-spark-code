@@ -92,12 +92,12 @@ export interface SessionBudgetClaim {
 }
 
 /** P binds the selected account and M102's owned-claim exclusion once.
- * The returned guard rereads thresholds/limits synchronously at every send.
- * The caller refunds this claim when initial admission throws. */
+The returned guard rereads thresholds/limits synchronously at every send.
+The caller refunds this claim when initial admission throws. */
 export type AccountBudgetAdmission = (claim: SessionBudgetClaim) => () => void
 
 /** Account admission supplements the existing conversation/daily cap.
- * @unwired M102 read only by tests deleted 2026-10-17 (no fakes) */
+@unwired M102 read only by tests deleted 2026-10-17 (no fakes) */
 export function withAccountBudgetAdmission(
   claim: SessionBudgetClaim,
   admission: AccountBudgetAdmission | undefined,
@@ -170,10 +170,10 @@ export function requestParts(
 }
 
 /**
- * The request's input estimated high from the base (see the file comment):
- * with no base, every part counts; with one, the base's tokens plus the
- * parts it did not carry.
- */
+The request's input estimated high from the base (see the file comment):
+with no base, every part counts; with one, the base's tokens plus the
+parts it did not carry.
+*/
 export function estimateInput(
   parts: readonly (string | BudgetMediaPart)[],
   base: BudgetBase | undefined,
@@ -221,14 +221,14 @@ export function estimateInput(
 }
 
 /**
- * The reservation for a request whose input is estimated at
- * `estimatedInputTokens`, at the model's list price with no cache discount
- * assumed. Throws when the model has no verified price (the cap could not
- * be kept) or when the provider's minimum output (`minOutputTokens`, 1 when
- * no minimum was captured) does not fit on top of the input: the request is
- * not sent, and the turn stops with the budget reason instead of a provider
- * rejection. The cap is never rounded up past what the budget affords.
- */
+The reservation for a request whose input is estimated at
+`estimatedInputTokens`, at the model's list price with no cache discount
+assumed. Throws when the model has no verified price (the cap could not
+be kept) or when the provider's minimum output (`minOutputTokens`, 1 when
+no minimum was captured) does not fit on top of the input: the request is
+not sent, and the turn stops with the budget reason instead of a provider
+rejection. The cap is never rounded up past what the budget affords.
+*/
 export function reserveRequest(request: {
   readonly capUsd: UsdAmount
   readonly spentUsd: UsdAmount

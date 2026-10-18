@@ -25,9 +25,9 @@ export class CredentialStore {
     /** The store's name in that report: the ACP agent's is the OS store (D61). */
     private readonly storeName = "VS Code's secret storage",
     /**
-     * The configured provider ids (lane P's providers file). Absent until
-     * that lane merges: only the Meta key counts meanwhile.
-     */
+    The configured provider ids (lane P's providers file). Absent until
+    that lane merges: only the Meta key counts meanwhile.
+    */
     private readonly providerIds?: () => PromiseLike<
       readonly (
         string | { readonly id: string; readonly auth: string; readonly models?: readonly string[] }
@@ -36,10 +36,10 @@ export class CredentialStore {
   ) {}
 
   /**
-   * The stored key; undefined when there is none or the store cannot be
-   * read (PLAN.md D25): on Linux without a keyring VS Code's secret storage
-   * throws, and that must not block the Muse Code backend, which needs no key.
-   */
+  The stored key; undefined when there is none or the store cannot be
+  read (PLAN.md D25): on Linux without a keyring VS Code's secret storage
+  throws, and that must not block the Muse Code backend, which needs no key.
+  */
   public async getApiKey(): Promise<string | undefined> {
     let stored: string | undefined
     try {
@@ -70,10 +70,10 @@ export class CredentialStore {
   }
 
   /**
-   * Whether any configured provider holds a credential. A damaged record
-   * counts: something is stored for that provider, and the panel asks for
-   * the credential again rather than treating it as absent.
-   */
+  Whether any configured provider holds a credential. A damaged record
+  counts: something is stored for that provider, and the panel asks for
+  the credential again rather than treating it as absent.
+  */
   public async hasProviderCredential(): Promise<boolean> {
     const ids = await this.providerIds?.()
     if (ids === undefined) {
@@ -103,10 +103,10 @@ export class CredentialStore {
   }
 
   /**
-   * A Model API credential of either kind (M95, PLAN.md D74): the Meta key
-   * or any provider's secret. Backend selection and the sign-in gate read
-   * this, never the key alone.
-   */
+  A Model API credential of either kind (M95, PLAN.md D74): the Meta key
+  or any provider's secret. Backend selection and the sign-in gate read
+  this, never the key alone.
+  */
   public async hasModelApiCredential(): Promise<boolean> {
     return (await this.getApiKey()) !== undefined || (await this.hasProviderCredential())
   }

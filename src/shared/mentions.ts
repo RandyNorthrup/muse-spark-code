@@ -145,11 +145,11 @@ export function applyMention(
 }
 
 /**
- * The slash command a draft is typing, when the whole draft is one `/token`:
- * `''` for a bare `/` (the composer shows the palette), else the name so far
- * (the composer's "/" list, M38). `/compact args` is a command with
- * arguments, not a filter, so it returns undefined.
- */
+The slash command a draft is typing, when the whole draft is one `/token`:
+`''` for a bare `/` (the composer shows the palette), else the name so far
+(the composer's "/" list, M38). `/compact args` is a command with
+arguments, not a filter, so it returns undefined.
+*/
 export function slashFilterOf(text: string): string | undefined {
   const match = /^\/(\S*)$/.exec(text)
   return match?.[1]
@@ -161,19 +161,19 @@ export interface SkillInvocation {
 }
 
 /**
- * The text a slash command is recognised in: the whitespace around what was
- * typed is not part of it. The skill parser below and every local command
- * that must be decided before it read this one text, so a spelling cannot
- * pass a command's refusal and still name a skill (RVCX1F F1).
- */
+The text a slash command is recognised in: the whitespace around what was
+typed is not part of it. The skill parser below and every local command
+that must be decided before it read this one text, so a spelling cannot
+pass a command's refusal and still name a skill (RVCX1F F1).
+*/
 export function slashCommandText(text: string): string {
   return text.trim()
 }
 
 /**
- * Splits `/selector rest of text` into a skill invocation when `selector` is
- * one the host listed; any other leading slash is ordinary prompt text.
- */
+Splits `/selector rest of text` into a skill invocation when `selector` is
+one the host listed; any other leading slash is ordinary prompt text.
+*/
 export function parseSkillInvocation(
   text: string,
   knownSelectors: ReadonlySet<string>,

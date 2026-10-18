@@ -131,10 +131,10 @@ export const confirmedShareSchema = z
   .check(z.refine((release) => LOCAL_DESTINATIONS.has(release.request.destination)))
 
 /**
- * Reuse ConversationDeps.isConfidentialWorkspace/the native host's same
- * setting. Read at preview and again immediately before the outbound sink.
- * Unknown/unavailable policy must refuse. A preview is in memory only.
- */
+Reuse ConversationDeps.isConfidentialWorkspace/the native host's same
+setting. Read at preview and again immediately before the outbound sink.
+Unknown/unavailable policy must refuse. A preview is in memory only.
+*/
 export function admitShareRelease(
   input: unknown,
   isConfidentialWorkspace: () => boolean | undefined,
@@ -147,10 +147,10 @@ export interface SharePrivacyPort {
   /** Current registered values, applied in memory; never persisted/logged. */
   redactRegisteredSecrets(text: string): string
   /**
-   * Absolute workspace paths -> forward-slash workspace-relative paths;
-   * home/user prefixes -> [home]/[user]; other absolutes -> [path]. Handle
-   * POSIX, drive/UNC, file URIs, escaped separators and roots with spaces.
-   */
+  Absolute workspace paths -> forward-slash workspace-relative paths;
+  home/user prefixes -> [home]/[user]; other absolutes -> [path]. Handle
+  POSIX, drive/UNC, file URIs, escaped separators and roots with spaces.
+  */
   normalisePaths(text: string): string
 }
 

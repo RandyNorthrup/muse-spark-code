@@ -46,9 +46,9 @@ export type ReportExportOutcome =
     }
 
 /**
- * A broken seal: the draft changed after its preview. The caller rebuilds
- * from the preview on screen instead of exporting stale words.
- */
+A broken seal: the draft changed after its preview. The caller rebuilds
+from the preview on screen instead of exporting stale words.
+*/
 const STALE_DRAFT: ReportExportOutcome = { ok: false, reason: 'stale' }
 
 /** Opens `url` in the user's browser; a refusal or a throw reads as not opened. */
@@ -77,12 +77,12 @@ export async function copyProblemReport(
 }
 
 /**
- * Opens the prefilled new-issue page for a short draft. Past the encoded-URL
- * cap it copies the same draft and opens the unfilled form with the paste
- * instruction instead (`isIssueFallback`). A failed copy opens nothing and
- * says so, never pretending the draft was copied; a browser that would not
- * open says so too.
- */
+Opens the prefilled new-issue page for a short draft. Past the encoded-URL
+cap it copies the same draft and opens the unfilled form with the paste
+instruction instead (`isIssueFallback`). A failed copy opens nothing and
+says so, never pretending the draft was copied; a browser that would not
+open says so too.
+*/
 export async function openProblemReportIssue(
   draft: SealedReportDraft,
   io: ReportEditorIo,
@@ -107,9 +107,9 @@ export async function openProblemReportIssue(
 }
 
 /**
- * Saves the sealed draft to a file the user picks. A dismissed picker ends
- * quietly; a picker or write that failed names the failure.
- */
+Saves the sealed draft to a file the user picks. A dismissed picker ends
+quietly; a picker or write that failed names the failure.
+*/
 export async function saveProblemReport(
   draft: SealedReportDraft,
   io: ReportEditorIo,

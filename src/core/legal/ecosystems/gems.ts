@@ -139,9 +139,9 @@ function readGemfileLock(text: string): { readonly name: string; readonly versio
 }
 
 /**
- * Read gem evidence from the snapshot. Gemspec code never runs: static
- * assignments are read and executable content becomes a coverage gap.
- */
+Read gem evidence from the snapshot. Gemspec code never runs: static
+assignments are read and executable content becomes a coverage gap.
+*/
 export function readGems(snapshot: LegalFileSnapshot): EcosystemResult {
   const incomplete: string[] = []
   const projectLicenses: ManifestLicenseDeclaration[] = []

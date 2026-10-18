@@ -31,10 +31,10 @@ export interface ModelsPanelSeam {
 }
 
 /**
- * Lane K's view of one configured provider: the non-secret entry D74 keeps
- * in `providers.json` (ids, presets, addresses, chosen models, the default
- * model). Lane P's `providersFile.ts` owns the schema and must satisfy this.
- */
+Lane K's view of one configured provider: the non-secret entry D74 keeps
+in `providers.json` (ids, presets, addresses, chosen models, the default
+model). Lane P's `providersFile.ts` owns the schema and must satisfy this.
+*/
 export interface ProviderEntry {
   readonly id: string
   readonly preset: string
@@ -76,10 +76,10 @@ export interface ProviderEntry {
 }
 
 /**
- * The configured providers, without their credentials (D74: written only by
- * the panel, the quick pick and `muse-spark-code-acp providers`). Lane P's
- * `providersFile.ts` implements this with its zod schema and atomic write.
- */
+The configured providers, without their credentials (D74: written only by
+the panel, the quick pick and `muse-spark-code-acp providers`). Lane P's
+`providersFile.ts` implements this with its zod schema and atomic write.
+*/
 export interface ProvidersStore {
   /** Validate a draft with the provider bundle's canonical schemas before writing. */
   validate(entry: ProviderEntry, defaultModel: string | undefined): void
@@ -117,10 +117,10 @@ export interface LocalProbeTarget {
 }
 
 /**
- * What the panel prefills from a preset (D74): address, wire format, auth
- * mode, the key's shape as a hint, the docs and data-use links, the privacy
- * note, Get a key, the free key test, and the local probe targets.
- */
+What the panel prefills from a preset (D74): address, wire format, auth
+mode, the key's shape as a hint, the docs and data-use links, the privacy
+note, Get a key, the free key test, and the local probe targets.
+*/
 export interface PresetInfo {
   readonly id: string
   readonly name: string
@@ -139,9 +139,9 @@ export interface PresetInfo {
   /** Whether a free check exists, or a one-token request must be asked first. */
   readonly freeTest: 'modelsList' | 'oneToken' | 'none'
   /**
-   * The account-connect choice (OpenRouter's "Connect {provider} account",
-   * filled) offered beside pasting a key; undefined for key-only presets.
-   */
+  The account-connect choice (OpenRouter's "Connect {provider} account",
+  filled) offered beside pasting a key; undefined for key-only presets.
+  */
   readonly connectLabel?: string | undefined
   /** Where Scan this computer looks for this preset; empty for non-local ones. */
   readonly localProbes: readonly LocalProbeTarget[]
@@ -157,11 +157,11 @@ export interface PresetCatalog {
 }
 
 /**
- * One scanned model row: what the Models table, badges, filters and
- * suggestions read. Prices stay behind `priceFingerprint` (lane P's price
- * card computes it): a changed fingerprint is a repriced model, and lane K
- * never prices.
- */
+One scanned model row: what the Models table, badges, filters and
+suggestions read. Prices stay behind `priceFingerprint` (lane P's price
+card computes it): a changed fingerprint is a repriced model, and lane K
+never prices.
+*/
 export interface ProviderModelRow {
   readonly id: string
   readonly label: string
@@ -181,9 +181,9 @@ export interface ProviderModelRow {
 }
 
 /**
- * Lists a provider's models (lane P's models-list parser over lane T's
- * transport, from the captures). Lane K caches, diffs and reuses the rows.
- */
+Lists a provider's models (lane P's models-list parser over lane T's
+transport, from the captures). Lane K caches, diffs and reuses the rows.
+*/
 export interface ModelFetcher {
   fetchModels(
     entry: ProviderEntry,
@@ -201,10 +201,10 @@ export type KeyTestResult =
   | { readonly kind: 'paid'; readonly cost: string }
 
 /**
- * Tests a credential (lane P's key test over lane T's transport). With
- * `isPaidAllowed` false a provider without a free check answers `paid` and
- * sends nothing; with true it sends the one-token request the user confirmed.
- */
+Tests a credential (lane P's key test over lane T's transport). With
+`isPaidAllowed` false a provider without a free check answers `paid` and
+sends nothing; with true it sends the one-token request the user confirmed.
+*/
 export interface KeyTester {
   test(entry: ProviderEntry, credential: string, isPaidAllowed: boolean): Promise<KeyTestResult>
 }
@@ -234,14 +234,14 @@ export interface PkceSource {
 }
 
 /**
- * Exchanges an OAuth code for a key (lane T's transport, from the capture).
- * The key is returned, never stored here: the caller binds it to its origin.
- */
+Exchanges an OAuth code for a key (lane T's transport, from the capture).
+The key is returned, never stored here: the caller binds it to its origin.
+*/
 export interface CodeExchanger {
   /**
-   * Exchanges one code once. `redirectUri` repeats the callback the code
-   * was authorized with ('' when none was: a remote window).
-   */
+  Exchanges one code once. `redirectUri` repeats the callback the code
+  was authorized with ('' when none was: a remote window).
+  */
   exchange(request: {
     readonly code: string
     readonly verifier: string
@@ -250,11 +250,11 @@ export interface CodeExchanger {
 }
 
 /**
- * What Account & usage shows for an OpenRouter key (`GET /api/v1/key`: D74,
- * `limit`, `limit_remaining` and `usage` with its daily, weekly and monthly
- * parts; research §1.8). Lane T parses the body from the capture; lane K
- * validates the numbers (finite, non-negative) before they are shown.
- */
+What Account & usage shows for an OpenRouter key (`GET /api/v1/key`: D74,
+`limit`, `limit_remaining` and `usage` with its daily, weekly and monthly
+parts; research §1.8). Lane T parses the body from the capture; lane K
+validates the numbers (finite, non-negative) before they are shown.
+*/
 export interface KeyUsageSnapshot {
   readonly usedToday: number
   readonly usedThisWeek: number

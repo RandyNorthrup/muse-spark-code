@@ -45,9 +45,9 @@ export interface WhatsNewPages {
   /** What an update from `from` brings, newest first (the palette's set when undefined). */
   readonly releases: (from: string | undefined) => readonly ReleaseNotes[]
   /**
-   * Opens the tab, or brings the open one up to date. In the background
-   * (after an update) it keeps the keyboard where it is.
-   */
+  Opens the tab, or brings the open one up to date. In the background
+  (after an update) it keeps the keyboard where it is.
+  */
   readonly open: (from: string | undefined, isBackground: boolean) => void
   readonly dispose: () => void
 }

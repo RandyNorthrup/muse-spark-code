@@ -138,10 +138,10 @@ export function visibilityDelay(attempt) {
 const MISMATCH_ERROR = /differs from the release|must use HTTPS/
 
 /**
- * Poll verify() until the published artifact is visible with matching
- * integrity. Resolves true when visible, false on timeout; an integrity
- * mismatch rejects. The clock and sleep are injectable for tests.
- */
+Poll verify() until the published artifact is visible with matching
+integrity. Resolves true when visible, false on timeout; an integrity
+mismatch rejects. The clock and sleep are injectable for tests.
+*/
 export async function pollVisible(verify, deps = {}) {
   const sleep = deps.sleep ?? setTimeout
   const now = deps.now ?? Date.now

@@ -150,10 +150,10 @@ export function addressFamily(address: string): AddressFamily | undefined {
 }
 
 /**
- * A NAT64 prefix a DNS64 network synthesizes IPv6 answers under (RFC 6052):
- * its first `length` bits, as a number. An answer inside it reaches the IPv4
- * address it carries, so it is judged by that address.
- */
+A NAT64 prefix a DNS64 network synthesizes IPv6 answers under (RFC 6052):
+its first `length` bits, as a number. An answer inside it reaches the IPv4
+address it carries, so it is judged by that address.
+*/
 export interface Nat64Prefix {
   readonly prefix: bigint
   readonly length: number
@@ -165,10 +165,10 @@ function octetOf(value: bigint, index: number): bigint {
 }
 
 /**
- * The IPv4 address an address under a NAT64 prefix of `length` bits
- * carries, per RFC 6052 §2.2: after the prefix, skipping octet 8 (the `u`
- * octet, always zero), or in the last 32 bits under a /96.
- */
+The IPv4 address an address under a NAT64 prefix of `length` bits
+carries, per RFC 6052 §2.2: after the prefix, skipping octet 8 (the `u`
+octet, always zero), or in the last 32 bits under a /96.
+*/
 function embeddedIpv4(value: bigint, length: number): bigint {
   const first = length / Number(OCTET_BITS)
   const indexes =
@@ -189,10 +189,10 @@ function isUnderPrefix(value: bigint, nat64: Nat64Prefix): boolean {
 }
 
 /**
- * The NAT64 prefixes the answers for `ipv4only.arpa` reveal (RFC 7050): each
- * synthesized answer carries one of that name's two IPv4 addresses, and the
- * prefix length is the RFC 6052 layout that finds it.
- */
+The NAT64 prefixes the answers for `ipv4only.arpa` reveal (RFC 7050): each
+synthesized answer carries one of that name's two IPv4 addresses, and the
+prefix length is the RFC 6052 layout that finds it.
+*/
 export function nat64PrefixesOf(answers: readonly string[]): readonly Nat64Prefix[] {
   const known = new Set(NAT64_DISCOVERY_ADDRESSES.map((address) => ipv4Value(address)))
   const found: Nat64Prefix[] = []
@@ -211,11 +211,11 @@ export function nat64PrefixesOf(answers: readonly string[]): readonly Nat64Prefi
 }
 
 /**
- * Whether the address is a public internet address. Anything that is not an
- * address at all, and any IPv6 address with a zone, is not. An address under
- * one of the network's NAT64 prefixes is judged by the IPv4 address it
- * carries.
- */
+Whether the address is a public internet address. Anything that is not an
+address at all, and any IPv6 address with a zone, is not. An address under
+one of the network's NAT64 prefixes is judged by the IPv4 address it
+carries.
+*/
 export function isPublicAddress(address: string, nat64: readonly Nat64Prefix[] = []): boolean {
   const v4 = ipv4Value(address)
   if (v4 !== undefined) {

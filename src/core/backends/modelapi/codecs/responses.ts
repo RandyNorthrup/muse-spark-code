@@ -51,13 +51,13 @@ export type ResponsesCodecQuirks =
       readonly toolNamespaceDescription?: string
     }
 /**
- * M101 lane P1 (BYO item 2): per-request replay provenance. Replayed call
- * ids resolve only against the model that produced them (Pi
- * `openai-responses-shared.ts`): `replayOrigins` names that model per
- * `call_id`, defaulting to the request's own model. Lane I fills it from
- * each replay entry's provider and model; until it does, every replay reads
- * as same-model.
- */
+M101 lane P1 (BYO item 2): per-request replay provenance. Replayed call
+ids resolve only against the model that produced them (Pi
+`openai-responses-shared.ts`): `replayOrigins` names that model per
+`call_id`, defaulting to the request's own model. Lane I fills it from
+each replay entry's provider and model; until it does, every replay reads
+as same-model.
+*/
 export interface ResponsesEncodeOptions {
   /** Fixed session choice; false preserves canonical non-strict declarations. */
   readonly shouldUseStrictTools?: boolean | undefined
@@ -105,10 +105,10 @@ export class ResponsesOutputCapError extends Error {
 export interface ResponsesOutputCap {
   readonly maxOutputTokens: number
   /**
-   * Cumulative tokens after this validated event, including tool arguments
-   * and whole final items without double-counting earlier deltas. The host
-   * supplies its model's counter; the codec never guesses chars per token.
-   */
+  Cumulative tokens after this validated event, including tool arguments
+  and whole final items without double-counting earlier deltas. The host
+  supplies its model's counter; the codec never guesses chars per token.
+  */
   readonly countOutputTokens: (event: StreamEvent) => number
   /** Abort only this request's active transport when the cap is crossed. */
   readonly abort: () => void
@@ -146,11 +146,11 @@ export interface ResponsesWireCodec {
 const RESPONSES_CALL_ID_PREFIX = 'fc_'
 
 /**
- * M101 lane P1 (BYO item 2): whether a replayed `function_call` keeps its
- * `id`. Only a server-minted `fc_…` id from the request's own model replays;
- * a foreign id (another format's, a synthetic one) or another model's id is
- * dropped while `call_id` still pairs the result (Pi #886).
- */
+M101 lane P1 (BYO item 2): whether a replayed `function_call` keeps its
+`id`. Only a server-minted `fc_…` id from the request's own model replays;
+a foreign id (another format's, a synthetic one) or another model's id is
+dropped while `call_id` still pairs the result (Pi #886).
+*/
 function shouldKeepReplayCallId(
   item: FunctionCallItem,
   model: string,
@@ -167,11 +167,11 @@ function replayTextPart(text: string): { readonly text: string } | undefined {
 }
 
 /**
- * One message content part replayed (BYO items 1, 13): blank text drops
- * (as `undefined`), images ride as the image-omitted placeholder where the
- * model takes no images, and files ride with a cleaned name. Inputs
- * without any of these map back byte-identical.
- */
+One message content part replayed (BYO items 1, 13): blank text drops
+(as `undefined`), images ride as the image-omitted placeholder where the
+model takes no images, and files ride with a cleaned name. Inputs
+without any of these map back byte-identical.
+*/
 function replayContentPart(
   part: InputContentPart,
   quirks: ResponsesCodecQuirks,
@@ -194,13 +194,13 @@ function replayContentPart(
 }
 
 /**
- * M101 lane P1 (BYO items 1, 13): the replay-safe input. Blank text is
- * dropped (an item left with no content is dropped with it), empty results
- * ride as an explicit marker, lone surrogates are removed, and images ride
- * as the image-omitted placeholder where the model takes no images. Inputs
- * without any of these map back byte-identical (the copies below keep every
- * key in order).
- */
+M101 lane P1 (BYO items 1, 13): the replay-safe input. Blank text is
+dropped (an item left with no content is dropped with it), empty results
+ride as an explicit marker, lone surrogates are removed, and images ride
+as the image-omitted placeholder where the model takes no images. Inputs
+without any of these map back byte-identical (the copies below keep every
+key in order).
+*/
 function replayInput(
   input: readonly InputItem[],
   quirks: ResponsesCodecQuirks,

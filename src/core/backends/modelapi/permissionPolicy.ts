@@ -45,10 +45,10 @@ export interface FileRules {
   /** Absolute, normalized. */
   readonly extraRoots: readonly string[]
   /**
-   * Whether a path, relative to the workspace or to an extra root (forward
-   * slashes; its textual and canonical forms both), is refused: a glob
-   * matches it or a folder above it. Case is ignored.
-   */
+  Whether a path, relative to the workspace or to an extra root (forward
+  slashes; its textual and canonical forms both), is refused: a glob
+  matches it or a folder above it. Case is ignored.
+  */
   isDenied(relativePaths: readonly string[]): boolean
 }
 
@@ -278,10 +278,10 @@ export function describePolicyProblem(problem: PolicyProblem): string {
 }
 
 /**
- * The policy for the settings as they stand, compiled once for each value
- * of them; `fresh` holds the problems of a value not seen before, to be
- * reported once.
- */
+The policy for the settings as they stand, compiled once for each value
+of them; `fresh` holds the problems of a value not seen before, to be
+reported once.
+*/
 export class PolicyCache {
   private key: string | undefined
   private policy: PermissionPolicy | undefined

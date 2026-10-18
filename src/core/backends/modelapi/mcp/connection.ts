@@ -40,10 +40,10 @@ import {
 /** How messages travel to and from one server. */
 export interface McpTransport {
   /**
-   * Sends one message. Over HTTP a request's answer comes back in the reply
-   * to this send, and reaches `onMessage` before the promise resolves.
-   * Rejects with `McpSessionExpiredError` when the server forgot the session.
-   */
+  Sends one message. Over HTTP a request's answer comes back in the reply
+  to this send, and reaches `onMessage` before the promise resolves.
+  Rejects with `McpSessionExpiredError` when the server forgot the session.
+  */
   send(message: OutgoingMessage, signal: AbortSignal): Promise<void>
   /** The revision `initialize` agreed on (HTTP sends it with every request). */
   setProtocolVersion(version: string): void
@@ -67,10 +67,10 @@ export interface McpConnectionOptions {
   readonly clientVersion: string
   readonly log: CoreLogger
   /**
-   * Answers a server's `elicitation/create` (M91, form mode only). When set,
-   * the handshake declares the `elicitation` capability; when absent, such a
-   * request is refused as an unoffered method, as before.
-   */
+  Answers a server's `elicitation/create` (M91, form mode only). When set,
+  the handshake declares the `elicitation` capability; when absent, such a
+  request is refused as an unoffered method, as before.
+  */
   readonly elicitation?: McpElicitationHandler
 }
 
@@ -205,9 +205,9 @@ export class McpConnection {
   }
 
   /**
-   * A signal for one elicitation: it ends when the connection closes, or
-   * when a tool call still waiting stops (a Stop ends the form as a cancel).
-   */
+  A signal for one elicitation: it ends when the connection closes, or
+  when a tool call still waiting stops (a Stop ends the form as a cancel).
+  */
   private elicitationSignal(): {
     readonly signal: AbortSignal
     readonly cancel: () => void

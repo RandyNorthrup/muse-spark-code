@@ -52,10 +52,10 @@ const workRowSchema = /* @__PURE__ */ z.strictObject({
 })
 
 /**
- * D87.11 under D82's rollups: one row per completed UTC day, kept for the
- * usage-history days. Averages are over the minutes that had a reading; a day
- * with none stays null, never 0.
- */
+D87.11 under D82's rollups: one row per completed UTC day, kept for the
+usage-history days. Averages are over the minutes that had a reading; a day
+with none stays null, never 0.
+*/
 export const resourceHistoryDaySchema = /* @__PURE__ */ z.strictObject({
   day: z.iso.date(),
   minutes: count,

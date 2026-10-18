@@ -12,11 +12,11 @@ export function requireFile(file: string): unknown {
 }
 
 /**
- * Forgets a file Node loaded but that is not the bundle, so the next load
- * reads it again: a module that ran without throwing stays in Node's cache,
- * and a file repaired in place would otherwise never be seen (the review of
- * PR #47). One that threw while loading is never cached.
- */
+Forgets a file Node loaded but that is not the bundle, so the next load
+reads it again: a module that ran without throwing stays in Node's cache,
+and a file repaired in place would otherwise never be seen (the review of
+PR #47). One that threw while loading is never cached.
+*/
 export function forgetFile(file: string): void {
   const nodeRequire = createRequire(file)
   Reflect.deleteProperty(nodeRequire.cache, nodeRequire.resolve(file))
@@ -29,10 +29,10 @@ export interface LazyBundleLoaderOptions<T> {
   /** How the bundle is loaded: Node's `require` unless a test hands in the module. */
   readonly loadBundle?: ((file: string) => unknown) | undefined
   /**
-   * Whether a required module is the bundle. Signatures are taken on trust
-   * (PLAN.md §8): entry, loader and package come from one source tree, one
-   * `npm run build` and one package.
-   */
+  Whether a required module is the bundle. Signatures are taken on trust
+  (PLAN.md §8): entry, loader and package come from one source tree, one
+  `npm run build` and one package.
+  */
   readonly isBundle: (value: unknown) => value is T
   /** What the bundle is, for the log. */
   readonly label: string
@@ -49,11 +49,11 @@ export interface FixedMessageLogDeps {
 }
 
 /**
- * A log that forwards trace/info/warn and keeps only fixed words for errors,
- * so bundle paths and error text never reach the log. The `does not export`
- * marker is lazyBundleLoader's own shape failure; anything else is a load
- * failure.
- */
+A log that forwards trace/info/warn and keeps only fixed words for errors,
+so bundle paths and error text never reach the log. The `does not export`
+marker is lazyBundleLoader's own shape failure; anything else is a load
+failure.
+*/
 export function fixedMessageLog(deps: FixedMessageLogDeps): Logger {
   return {
     trace: (message) => {
@@ -72,10 +72,10 @@ export function fixedMessageLog(deps: FixedMessageLogDeps): Logger {
 }
 
 /**
- * The bundle, required the first time it is asked for and kept from then on.
- * A missing or corrupt bundle throws `unavailable` and is tried again on the
- * next call.
- */
+The bundle, required the first time it is asked for and kept from then on.
+A missing or corrupt bundle throws `unavailable` and is tried again on the
+next call.
+*/
 export function lazyBundleLoader<T>(options: LazyBundleLoaderOptions<T>): () => T {
   const { bundlePath, log, loadBundle = requireFile, isBundle, label, unavailable } = options
   let bundle: T | undefined

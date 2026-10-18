@@ -8,12 +8,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Declared top-level string fields of an offered external (IDE/MCP) tool,
- * for the same declared-fields-only preview text host tools get: only a
- * completed string under one of these names enters text. Anything else
- * (unknown shapes, no string fields, tool absent) renders no text, as
- * before. String-typed array members (`['string', 'null']`) count.
- */
+Declared top-level string fields of an offered external (IDE/MCP) tool,
+for the same declared-fields-only preview text host tools get: only a
+completed string under one of these names enters text. Anything else
+(unknown shapes, no string fields, tool absent) renders no text, as
+before. String-typed array members (`['string', 'null']`) count.
+*/
 export function declaredPreviewFields(
   tool: { readonly parameters: Record<string, unknown> } | undefined,
 ): readonly string[] | undefined {

@@ -118,9 +118,9 @@ export const CAPTURED_PULL_OWN = {
 }
 
 /**
- * `GET /repos/…/pulls?head=RandyNorthrup:docs/how-its-built&state=open`:
- * the list form, which has no `merged` field.
- */
+`GET /repos/…/pulls?head=RandyNorthrup:docs/how-its-built&state=open`:
+the list form, which has no `merged` field.
+*/
 export const CAPTURED_PULL_LIST = [
   (({ merged: _merged, mergeable: _mergeable, mergeable_state: _state, ...listed }) => listed)(
     CAPTURED_PULL_OWN,

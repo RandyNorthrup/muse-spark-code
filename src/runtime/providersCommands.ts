@@ -131,9 +131,9 @@ export function userFileIo(filePath: string): {
 }
 
 /**
- * The user file, or why it cannot be used. A missing file is the first-run
- * state (an empty file); anything else is reported, never defaulted.
- */
+The user file, or why it cannot be used. A missing file is the first-run
+state (an empty file); anything else is reported, never defaulted.
+*/
 function fileOrError(
   read: ProvidersFileRead,
 ): { readonly file: ProvidersFile } | { readonly reason: string } {
@@ -338,11 +338,11 @@ function ignoreProbeLog(): void {
 }
 
 /**
- * The free check that proves a key works (D74): the preset's models list,
- * or its provider-key path where the list is public. Nothing is billed.
- * Azure's `paid-token` test has no free check and stays in the panel, where
- * its cost is asked first.
- */
+The free check that proves a key works (D74): the preset's models list,
+or its provider-key path where the list is public. Nothing is billed.
+Azure's `paid-token` test has no free check and stays in the panel, where
+its cost is asked first.
+*/
 export async function probeProvider(
   fetch: typeof globalThis.fetch,
   provider: ResolvedProvider,

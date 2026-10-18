@@ -25,9 +25,9 @@ export interface CatalogRoot<Source extends string = string> {
   readonly directory: string
   readonly source: Source
   /**
-   * The workspace root for project catalogs: a file whose canonical path
-   * leaves it is skipped. Undefined for the personal root.
-   */
+  The workspace root for project catalogs: a file whose canonical path
+  leaves it is skipped. Undefined for the personal root.
+  */
   readonly confineTo: string | undefined
 }
 
@@ -81,10 +81,10 @@ export type FrontMatterSplit =
       readonly fields: ReadonlyMap<string, string>
       readonly body: string
       /**
-       * What the line reader could not take as `key: value` (a list item, an
-       * indented continuation) and what it saw a second time: a format that
-       * narrows something must refuse such a file, not guess its meaning.
-       */
+      What the line reader could not take as `key: value` (a list item, an
+      indented continuation) and what it saw a second time: a format that
+      narrows something must refuse such a file, not guess its meaning.
+      */
       readonly ignoredLines: readonly string[]
       readonly duplicateKeys: readonly string[]
     }

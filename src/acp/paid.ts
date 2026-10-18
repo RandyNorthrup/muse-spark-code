@@ -85,9 +85,9 @@ export function paidUseOptions(canRemember: boolean): PermissionOption[] {
 }
 
 /**
- * The client's answer. A cancel, or an option the prompt did not offer, is
- * Deny: nothing is billed by a translation default (D62).
- */
+The client's answer. A cancel, or an option the prompt did not offer, is
+Deny: nothing is billed by a translation default (D62).
+*/
 export function paidUseAnswer(
   response: RequestPermissionResponse,
   canRemember: boolean,
@@ -131,10 +131,10 @@ export class AcpPaidUse {
   }
 
   /**
-   * "Allow always" for the folder: only what this answer adds, merged into
-   * the file as it is when written, so a set read before another agent's
-   * change is never written back over it.
-   */
+  "Allow always" for the folder: only what this answer adds, merged into
+  the file as it is when written, so a set read before another agent's
+  change is never written back over it.
+  */
   private async keep(workspaceRoot: string, grants: ReadonlySet<PaidFeature>): Promise<void> {
     const held = this.deps.grants.read(workspaceRoot)
     await this.deps.grants.add(
@@ -230,10 +230,10 @@ export class AcpPaidUse {
   }
 
   /**
-   * At start: a feature without its flag loses "always" in every folder, so
-   * turning the flag on again asks again. A file that cannot be written is
-   * logged; the grant is still never honoured while the flag is off.
-   */
+  At start: a feature without its flag loses "always" in every folder, so
+  turning the flag on again asks again. A file that cannot be written is
+  logged; the grant is still never honoured while the flag is off.
+  */
   public async forgetUnflagged(): Promise<void> {
     if (this.deps.headless !== undefined) return
     const unflagged = ACP_PAID_FEATURES.filter((feature) => !this.deps.flagged.includes(feature))

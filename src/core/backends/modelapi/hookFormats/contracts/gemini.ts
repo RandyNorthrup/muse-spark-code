@@ -51,13 +51,13 @@ const VETO: readonly ResultRule[] = [
 ]
 
 /**
- * GR:62-75 common output. Exit codes as CAPTURED (manifest outputContract):
- * exit 2 AND exit 3 blocked BeforeTool, reason = stdout || stderr; exit-0
- * plain text was allowed with a system message. GR:10-15 says "Other" only
- * warns; the run and hookRunner say exit >= 2 denies, so >= 2 blocks here.
- * Exit 1 warns (failed). Request/response modifiers are in no schema, so they
- * are refused; a simultaneous veto still wins (engine pre-scan).
- */
+GR:62-75 common output. Exit codes as CAPTURED (manifest outputContract):
+exit 2 AND exit 3 blocked BeforeTool, reason = stdout || stderr; exit-0
+plain text was allowed with a system message. GR:10-15 says "Other" only
+warns; the run and hookRunner say exit >= 2 denies, so >= 2 blocks here.
+Exit 1 warns (failed). Request/response modifiers are in no schema, so they
+are refused; a simultaneous veto still wins (engine pre-scan).
+*/
 function gemini(
   event: string,
   isBlocking: boolean,
@@ -94,12 +94,12 @@ function gemini(
 }
 
 /**
- * R:64 BeforeToolSelection: toolConfig mode AUTO/ANY/NONE and
- * allowedFunctionNames. Vendor code: it returns an admission restriction in
- * Gemini names (NONE admits nothing); ANY never forces a call here. Its
- * whitelist still narrows admission; without one, veto the operation. The
- * declared tool list is never changed (SoL-Pi invariant).
- */
+R:64 BeforeToolSelection: toolConfig mode AUTO/ANY/NONE and
+allowedFunctionNames. Vendor code: it returns an admission restriction in
+Gemini names (NONE admits nothing); ANY never forces a call here. Its
+whitelist still narrows admission; without one, veto the operation. The
+declared tool list is never changed (SoL-Pi invariant).
+*/
 function toolSelection(output: Readonly<Record<string, unknown>>): CustomResult {
   const specific = output['hookSpecificOutput']
   const config = isRecord(specific) ? specific['toolConfig'] : undefined

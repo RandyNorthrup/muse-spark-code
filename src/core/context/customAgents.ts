@@ -90,11 +90,11 @@ export type AgentFileSource = 'project' | 'user'
 export type AgentRoot = CatalogRoot<AgentFileSource>
 
 /**
- * A definition a root may hold that did not load (M76 review, RV70x): the
- * whole root when it could not be listed (`id` undefined), else one file
- * that was unreadable, over its cap, refused or past the limit. `path` is
- * workspace-relative for the project root, as the user would look for it.
- */
+A definition a root may hold that did not load (M76 review, RV70x): the
+whole root when it could not be listed (`id` undefined), else one file
+that was unreadable, over its cap, refused or past the limit. `path` is
+workspace-relative for the project root, as the user would look for it.
+*/
 export interface AgentHole {
   readonly source: AgentFileSource
   readonly id: string | undefined
@@ -139,12 +139,12 @@ export type AgentFileParse =
   | { readonly ok: false; readonly reason: string }
 
 /**
- * A custom agent's narrowed run (M76): the resolved agent id and where its
- * file came from, its prompt, the offered tools the child keeps (undefined
- * keeps the session's own set), the effort it runs at, and the most it may
- * do (undefined keeps the session's approval mode). Plain data, so a stored
- * or forked child keeps the narrowing it was spawned with.
- */
+A custom agent's narrowed run (M76): the resolved agent id and where its
+file came from, its prompt, the offered tools the child keeps (undefined
+keeps the session's own set), the effort it runs at, and the most it may
+do (undefined keeps the session's approval mode). Plain data, so a stored
+or forked child keeps the narrowing it was spawned with.
+*/
 export interface AgentRuntime {
   readonly id: string
   readonly source: AgentSource
@@ -190,10 +190,10 @@ const agentFrontMatter = z.object({
 })
 
 /**
- * The allowlist a `tools` line names: each entry a function name, at most
- * AGENT_TOOLS_MAX, none empty. A list that is not a list of names (YAML
- * brackets, a sentence) is refused, never read as "all tools".
- */
+The allowlist a `tools` line names: each entry a function name, at most
+AGENT_TOOLS_MAX, none empty. A list that is not a list of names (YAML
+brackets, a sentence) is refused, never read as "all tools".
+*/
 function toolsOf(value: string | undefined): readonly string[] | 'invalid' | undefined {
   if (value === undefined) {
     return undefined
@@ -254,11 +254,11 @@ export function parseAgentFile(text: string): AgentFileParse {
 }
 
 /**
- * An M76 agent file read for lane R (M96, PLAN.md D75): the base parse
- * unchanged, plus the role keys' raw values handed over for the role
- * parser, and the keys that are neither M76's nor a role key. M76 itself
- * keeps ignoring unknown keys; roles refuse them.
- */
+An M76 agent file read for lane R (M96, PLAN.md D75): the base parse
+unchanged, plus the role keys' raw values handed over for the role
+parser, and the keys that are neither M76's nor a role key. M76 itself
+keeps ignoring unknown keys; roles refuse them.
+*/
 export type AgentRoleFileParse =
   | {
       readonly ok: true
@@ -385,11 +385,11 @@ export function agentHoles(
 }
 
 /**
- * Every valid agent: the built-ins first, then the files in root order with
- * ids sorted within a root. A file agent shadows a built-in or personal one
- * with the same id. A root that cannot be listed leaves the others loaded
- * and is a hole, as is each file a root holds but did not yield (RV70x).
- */
+Every valid agent: the built-ins first, then the files in root order with
+ids sorted within a root. A file agent shadows a built-in or personal one
+with the same id. A root that cannot be listed leaves the others loaded
+and is a hole, as is each file a root holds but did not yield (RV70x).
+*/
 export async function loadAgents(
   deps: AgentsLoaderDeps,
   roots: readonly AgentRoot[],
@@ -420,11 +420,11 @@ export async function loadAgents(
 }
 
 /**
- * The agent a name runs (M76 review, RV70x): walking the sources from the
- * highest, a hole that may hold the name refuses it before any lower
- * definition can stand in, so a project file that did not load never turns
- * into a broader personal or built-in agent.
- */
+The agent a name runs (M76 review, RV70x): walking the sources from the
+highest, a hole that may hold the name refuses it before any lower
+definition can stand in, so a project file that did not load never turns
+into a broader personal or built-in agent.
+*/
 export function resolveAgent(catalogue: AgentCatalogue, id: string): AgentResolution {
   for (const source of AGENT_PRECEDENCE) {
     const hole = catalogue.holes.find(
@@ -458,12 +458,12 @@ export function resolveAgentModel(sessionModel: string, agentModel: string | und
 }
 
 /**
- * The approval mode a spawn with this agent runs under: the agent's when it
- * narrows the session's, else the session's. A repository's file can never
- * widen what the session already has. Least to most permissive: reads only,
- * reads with edits and commands asking, edits running with commands asking,
- * everything running.
- */
+The approval mode a spawn with this agent runs under: the agent's when it
+narrows the session's, else the session's. A repository's file can never
+widen what the session already has. Least to most permissive: reads only,
+reads with edits and commands asking, edits running with commands asking,
+everything running.
+*/
 const APPROVAL_NARROWING: readonly ApprovalMode[] = [
   'denyUnmatched',
   'promptUnmatched',
@@ -484,9 +484,9 @@ export function narrowApprovalMode(
 }
 
 /**
- * The tools a spawn with this agent is offered: the agent's allowlist met
- * with what the session offers. Undefined runs with the session's own set.
- */
+The tools a spawn with this agent is offered: the agent's allowlist met
+with what the session offers. Undefined runs with the session's own set.
+*/
 export function narrowTools(
   sessionTools: readonly string[],
   agentTools: readonly string[] | undefined,
@@ -499,10 +499,10 @@ export function narrowTools(
 }
 
 /**
- * The effort a spawn with this agent runs at: the agent's when the model
- * serves it, else the highest tier it serves; without one the session
- * default, dropped the same way when the model does not serve it (D10).
- */
+The effort a spawn with this agent runs at: the agent's when the model
+serves it, else the highest tier it serves; without one the session
+default, dropped the same way when the model does not serve it (D10).
+*/
 export function resolveAgentEffort(
   modelId: string,
   agentEffort: EffortLevel | undefined,

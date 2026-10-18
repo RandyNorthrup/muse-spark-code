@@ -221,15 +221,15 @@ export interface AcpAgentDeps {
   /** W's lazy runtime binding; absent media entry points refuse before dispatch. */
   readonly media?: AcpMediaFactory
   /**
-   * Report a problem (M93 lane A, PLAN.md D72): facts-only error observation
-   * for the standalone report's journal. The runtime wires this to its local
-   * recorder adapter in ACP mode; the report subcommand reads it back. The
-   * observer receives a fixed event kind and a fixed short code per failure
-   * site — never a message, stack, path, prompt or session id — so observing
-   * cannot leak what the scrub would remove. It runs after the log call,
-   * never touches ACP stdout, and a throwing observer never breaks the
-   * session. Absent, the agent behaves exactly as before.
-   */
+  Report a problem (M93 lane A, PLAN.md D72): facts-only error observation
+  for the standalone report's journal. The runtime wires this to its local
+  recorder adapter in ACP mode; the report subcommand reads it back. The
+  observer receives a fixed event kind and a fixed short code per failure
+  site — never a message, stack, path, prompt or session id — so observing
+  cannot leak what the scrub would remove. It runs after the log call,
+  never touches ACP stdout, and a throwing observer never breaks the
+  session. Absent, the agent behaves exactly as before.
+  */
   readonly reportError?: (fact: AcpErrorFact) => void
   /** M113's lazy deterministic engine, scoped to this session's workspace. */
   readonly reports?: AcpReportsPort
@@ -340,9 +340,9 @@ class AcpSession {
   private outbox: Promise<void> = Promise.resolve()
   private pending: PendingPrompt | undefined
   /**
-   * A prompt before its turn starts, while the session's skills are first
-   * announced: the session is busy, and a cancel ends the prompt there.
-   */
+  A prompt before its turn starts, while the session's skills are first
+  announced: the session is busy, and a cancel ends the prompt there.
+  */
   private legalStop: AbortController | undefined
   private preparing: PreparingPrompt | undefined
   private skills: readonly SkillSummary[] = []
@@ -1023,12 +1023,12 @@ class AcpSession {
   }
 
   /**
-   * An MCP server's elicitation form (M91 lane M) through the client's own
-   * form path: the client's answer settles the session's form, validated
-   * against the server's schema there. Without forms the turn carries on
-   * and the request is cancelled; a failed form cancels it too, never
-   * answering by a guess.
-   */
+  An MCP server's elicitation form (M91 lane M) through the client's own
+  form path: the client's answer settles the session's form, validated
+  against the server's schema there. Without forms the turn carries on
+  and the request is cancelled; a failed form cancels it too, never
+  answering by a guess.
+  */
   private async askElicitation(event: ElicitationRequest): Promise<void> {
     const pending = this.pending
     const settle = this.session.settleElicitation
@@ -1129,9 +1129,9 @@ class AcpSession {
   }
 
   /**
-   * A session let go changes nothing more on the backend, which a newer
-   * load may now hold, and replays nothing: the request fails instead.
-   */
+  A session let go changes nothing more on the backend, which a newer
+  load may now hold, and replays nothing: the request fails instead.
+  */
   private ensureHeld(): void {
     if (this.isDisposed) {
       throw RequestError.resourceNotFound(this.sessionId)
@@ -1251,10 +1251,10 @@ class AcpSession {
   }
 
   /**
-   * The question before a paid use (M58, PLAN.md D48): a row naming what is
-   * about to be billed and its price, and a permission prompt on it with the
-   * popup's answers. Anything but Allow once or Allow always is Deny.
-   */
+  The question before a paid use (M58, PLAN.md D48): a row naming what is
+  about to be billed and its price, and a permission prompt on it with the
+  popup's answers. Anything but Allow once or Allow always is Deny.
+  */
   private async agentCommand(line: string, preparing: PreparingPrompt): Promise<string> {
     const isCancelled = () => preparing.isCancelled
     const [, action, id, ...extra] = line.split(/\s+/)
@@ -1528,14 +1528,14 @@ class AcpSession {
   }
 
   /**
-   * A loaded or resumed session made to run as the agent advertises it.
-   * Everything shown comes from the backend's answer or an explicit set,
-   * never from what the handle holds: Muse Code's resumed handle holds the
-   * model the agent asked for, while the CLI keeps the one the session last
-   * ran on. The permission mode shown is set; the model is the one the
-   * backend reports active where the agent lists it, else the default, set
-   * (a contributor model the agent hides is left); the effort shown is set.
-   */
+  A loaded or resumed session made to run as the agent advertises it.
+  Everything shown comes from the backend's answer or an explicit set,
+  never from what the handle holds: Muse Code's resumed handle holds the
+  model the agent asked for, while the CLI keeps the one the session last
+  ran on. The permission mode shown is set; the model is the one the
+  backend reports active where the agent lists it, else the default, set
+  (a contributor model the agent hides is left); the effort shown is set.
+  */
   public async matchAdvertised(): Promise<void> {
     this.ensureHeld()
     await this.session.setApprovalMode(approvalModeFor(this.mode, true))
@@ -1569,13 +1569,13 @@ class AcpSession {
   }
 
   /**
-   * A loaded session made to run on the remembered choice (restart
-   * recovery): `session/resume` takes no model, so the choice is applied
-   * with `session/setModel` and read back with `model/list` before anything
-   * is replayed or run. What the editor is shown comes from the backend's
-   * answer: on a mismatch the load fails instead, so nothing runs on a
-   * model the editor was not told.
-   */
+  A loaded session made to run on the remembered choice (restart
+  recovery): `session/resume` takes no model, so the choice is applied
+  with `session/setModel` and read back with `model/list` before anything
+  is replayed or run. What the editor is shown comes from the backend's
+  answer: on a mismatch the load fails instead, so nothing runs on a
+  model the editor was not told.
+  */
   public async restoreChoice(modelId: string, effort: EffortLevel): Promise<void> {
     this.ensureHeld()
     await this.session.setApprovalMode(approvalModeFor(this.mode, true))
@@ -2169,14 +2169,14 @@ class AcpSession {
   }
 
   /**
-   * Let go (closed, loaded again, or never set up). At once it stops
-   * following the backend, the editor's late answers decide nothing, and a
-   * prompt it was running ends cancelled. That turn is then stopped on the
-   * backend too, once it has started, as the editor was told; a turn left
-   * running would go on editing and billing with no one watching, and a
-   * session loaded again shares the backend session, so nothing else would
-   * stop it. Then the backend session is let go.
-   */
+  Let go (closed, loaded again, or never set up). At once it stops
+  following the backend, the editor's late answers decide nothing, and a
+  prompt it was running ends cancelled. That turn is then stopped on the
+  backend too, once it has started, as the editor was told; a turn left
+  running would go on editing and billing with no one watching, and a
+  session loaded again shares the backend session, so nothing else would
+  stop it. Then the backend session is let go.
+  */
   public async release(): Promise<void> {
     if (this.isDisposed) {
       return
@@ -2244,10 +2244,10 @@ class AcpSession {
 class AgentState {
   private readonly sessions = new Map<string, AcpSession>()
   /**
-   * The model and effort the editor chose per session: a load after the
-   * backend restarted re-applies them and reads them back, so the session
-   * keeps running on the chosen model instead of the CLI's default.
-   */
+  The model and effort the editor chose per session: a load after the
+  backend restarted re-applies them and reads them back, so the session
+  keeps running on the chosen model instead of the CLI's default.
+  */
   private readonly choices = new Map<string, { modelId: string; effort: EffortLevel }>()
   /** Sessions being set up (`adopt`), by id: a newer load or a close lets them go too. */
   private readonly adopting = new Map<string, AcpSession>()
@@ -2263,10 +2263,10 @@ class AgentState {
   public constructor(private readonly deps: AcpAgentDeps) {}
 
   /**
-   * The sign-in: run by the client in a terminal where it can (the spec
-   * allows a terminal method only then), otherwise by the user, whose
-   * `authenticate` this checks.
-   */
+  The sign-in: run by the client in a terminal where it can (the spec
+  allows a terminal method only then), otherwise by the user, whose
+  `authenticate` this checks.
+  */
   private authMethod(method: SignInMethod): AuthMethod {
     const { id, name, description, args, command } = method
     // Registry clients may announce terminal support with the older `_meta`
@@ -2307,11 +2307,11 @@ class AgentState {
   }
 
   /**
-   * A backend session the agent now owns (new, loaded or resumed), held only
-   * once `prepare` has set what the editor is shown: until then no request
-   * finds it, and if anything fails the backend session is let go and the
-   * request fails, so no session outlives a request that returned no id.
-   */
+  A backend session the agent now owns (new, loaded or resumed), held only
+  once `prepare` has set what the editor is shown: until then no request
+  finds it, and if anything fails the backend session is let go and the
+  request fails, so no session outlives a request that returned no id.
+  */
   private async adopt(
     host: AgentHost,
     session: AgentSession,
@@ -2400,10 +2400,10 @@ class AgentState {
   }
 
   /**
-   * Lets go of the session held for `sessionId` and one being set up, so no
-   * request finds either; resolves once each has stopped its turn and let
-   * its backend session go. False when there was neither.
-   */
+  Lets go of the session held for `sessionId` and one being set up, so no
+  request finds either; resolves once each has stopped its turn and let
+  its backend session go. False when there was neither.
+  */
   private async releaseAll(sessionId: string): Promise<boolean> {
     const found = [this.sessions.get(sessionId), this.adopting.get(sessionId)].filter(
       (acp) => acp !== undefined,
@@ -2446,10 +2446,10 @@ class AgentState {
   }
 
   /**
-   * The editor's MCP servers for a session (M63c): passed to Muse Code when
-   * it granted `sessionMcp`; the Model API backend runs none. Only their
-   * names are logged, as headers and environments can hold secrets.
-   */
+  The editor's MCP servers for a session (M63c): passed to Muse Code when
+  it granted `sessionMcp`; the Model API backend runs none. Only their
+  names are logged, as headers and environments can hold secrets.
+  */
   private forwardedMcp(
     host: AgentHost,
     requested: readonly McpServer[] | undefined,

@@ -33,9 +33,9 @@ export interface ApprovalCardProps {
   readonly approval: PendingApproval
   readonly toolName: string
   /**
-   * A worker's own approval (M96 lane U2): the panel labels the card with
-   * the role, the agent and the task, never with worker text (threat T8).
-   */
+  A worker's own approval (M96 lane U2): the panel labels the card with
+  the role, the agent and the task, never with worker text (threat T8).
+  */
   readonly worker?: TeamWorkerLabel | undefined
   readonly onDecide: (decision: ApprovalDecisionInput) => void
 }
@@ -57,9 +57,9 @@ function subjectText(approval: PendingApproval, toolName: string): string {
 }
 
 /**
- * A subagent spawn's objective (M18, M48), shown so the user knows what
- * approving the call will do.
- */
+A subagent spawn's objective (M18, M48), shown so the user knows what
+approving the call will do.
+*/
 function spawnObjective(rawArgs: string): string | undefined {
   let parsed: unknown
   try {

@@ -36,7 +36,7 @@ export const playbookResponseSchema = z.discriminatedUnion('type', [
 ])
 
 /** The caller owns the transport deadline (its normal host-request timeout).
- * Dispose rejects in-flight reads/changes and removes its only listener. */
+Dispose rejects in-flight reads/changes and removes its only listener. */
 export function createPlaybookBridge(
   messages: MessageSource,
   postMessage: (message: PlaybookRequest) => void,

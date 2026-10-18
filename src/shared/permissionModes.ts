@@ -38,10 +38,10 @@ import { PERMISSION_MODES, type PermissionMode, UI_TEXT } from './constants'
 import type { BackendKind } from './protocol'
 
 /**
- * Which Auto reviewer is on: Muse Code's (M90, its setting) and the Model
- * API's paid one (M78, its setting on and its price accepted). Each words
- * Auto on its own backend only; the ACP agent has neither.
- */
+Which Auto reviewer is on: Muse Code's (M90, its setting) and the Model
+API's paid one (M78, its setting on and its price accepted). Each words
+Auto on its own backend only; the ACP agent has neither.
+*/
 export interface AutoReviewers {
   readonly museCode: boolean
   readonly modelApi: boolean
@@ -89,10 +89,10 @@ export function mspApprovalMode(mode: PermissionMode): ApprovalMode {
 const PROMPTING_MODES: ReadonlySet<ApprovalMode> = new Set(['promptUnmatched', 'onRequest'])
 
 /**
- * The MSP mode to select for a UI permission mode. `hasApprovalUi` is false
- * until M4 renders `approval/requested`; while it is false a prompting mode
- * would hang the turn, so it degrades to `denyUnmatched`.
- */
+The MSP mode to select for a UI permission mode. `hasApprovalUi` is false
+until M4 renders `approval/requested`; while it is false a prompting mode
+would hang the turn, so it degrades to `denyUnmatched`.
+*/
 export function approvalModeFor(mode: PermissionMode, hasApprovalUi: boolean): ApprovalMode {
   const mapped = mspApprovalMode(mode)
   return !hasApprovalUi && PROMPTING_MODES.has(mapped) ? 'denyUnmatched' : mapped
@@ -109,10 +109,10 @@ export function availablePermissionModes(
 }
 
 /**
- * Shift+Tab: the next available mode in the Claude Code order. A current mode
- * that is no longer available (Bypass after the setting was turned off)
- * cycles to the first one.
- */
+Shift+Tab: the next available mode in the Claude Code order. A current mode
+that is no longer available (Bypass after the setting was turned off)
+cycles to the first one.
+*/
 export function nextPermissionMode(mode: PermissionMode, canBypass: boolean): PermissionMode {
   const modes = availablePermissionModes(canBypass)
   // Past the last mode, or a mode no longer listed (indexOf -1), the cycle
@@ -128,11 +128,11 @@ export function isPermissionMode(value: string): value is PermissionMode {
 const ASKING_MODES: ReadonlySet<PermissionMode> = new Set(['manual', 'plan'])
 
 /**
- * The mode a conversation built on untrusted content opens in (PLAN.md D49,
- * M84): the current mode when it already asks, else Manual, or Plan when
- * `museSpark.initialPermissionMode` is Plan, whatever else that setting
- * says. Only the user's own mode change relaxes it.
- */
+The mode a conversation built on untrusted content opens in (PLAN.md D49,
+M84): the current mode when it already asks, else Manual, or Plan when
+`museSpark.initialPermissionMode` is Plan, whatever else that setting
+says. Only the user's own mode change relaxes it.
+*/
 export function untrustedStartMode(
   current: PermissionMode,
   initial: PermissionMode,

@@ -15,11 +15,11 @@ export interface BackgroundJudgeOptions {
 }
 
 /**
- * Run one judge call in the background and return at once: the caller never
- * waits on it. The call is aborted past the timeout; a throw out of the call
- * is reported and never escapes, so a pending judge neither holds the process
- * open nor surfaces an unhandled rejection.
- */
+Run one judge call in the background and return at once: the caller never
+waits on it. The call is aborted past the timeout; a throw out of the call
+is reported and never escapes, so a pending judge neither holds the process
+open nor surfaces an unhandled rejection.
+*/
 export function runJudgeInBackground(
   call: (signal: AbortSignal) => Promise<void>,
   options: BackgroundJudgeOptions,

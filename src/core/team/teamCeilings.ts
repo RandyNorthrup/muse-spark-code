@@ -45,11 +45,11 @@ export interface TeamCeilingSource {
 }
 
 /**
- * The ceiling for one agent: the lowest of the provider's limit, our hard
- * ceiling and the machine's, including zero. Where the provider documents
- * none (Gemini), 429s decide: the provider side drops out until throttling
- * halves the entry below it.
- */
+The ceiling for one agent: the lowest of the provider's limit, our hard
+ceiling and the machine's, including zero. Where the provider documents
+none (Gemini), 429s decide: the provider side drops out until throttling
+halves the entry below it.
+*/
 export function computeTeamCeiling(source: TeamCeilingSource): number {
   return Math.max(
     0,
@@ -101,9 +101,9 @@ function hardCeilingSide(kind: TeamAgentKind): number {
 }
 
 /**
- * Whether a remaining header is low enough to throttle: under 10% of the
- * limit it names (D75).
- */
+Whether a remaining header is low enough to throttle: under 10% of the
+limit it names (D75).
+*/
 export function isLowRemainingHeader(remaining: number, limit: number): boolean {
   return (
     Number.isFinite(remaining) &&
@@ -114,19 +114,19 @@ export function isLowRemainingHeader(remaining: number, limit: number): boolean 
 }
 
 /**
- * The live running cap per entry: the configured cap, halved on every
- * throttle signal down to 1, recovering one step per quiet interval.
- * Throttling is per entry; the rate-limit mark that skips an agent is
- * teamPool's (a plan or key is shared, a running cap is not).
- */
+The live running cap per entry: the configured cap, halved on every
+throttle signal down to 1, recovering one step per quiet interval.
+Throttling is per entry; the rate-limit mark that skips an agent is
+teamPool's (a plan or key is shared, a running cap is not).
+*/
 export class TeamThrottleTracker {
   private readonly state = new Map<string, { current: number; changedMs: number }>()
 
   /**
-   * @param configuredCap The entry's running cap: the level's, or a custom value.
-   * @param recoverMs Quiet time per step back (TEAM_THROTTLE_RECOVER_MS).
-   * @param now The clock, injectable so tests skip the wait.
-   */
+  @param configuredCap The entry's running cap: the level's, or a custom value.
+  @param recoverMs Quiet time per step back (TEAM_THROTTLE_RECOVER_MS).
+  @param now The clock, injectable so tests skip the wait.
+  */
   public constructor(
     private readonly configuredCap: (entryId: string) => number,
     private readonly recoverMs: number,

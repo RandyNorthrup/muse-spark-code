@@ -44,11 +44,11 @@ function matchingChoice(
 }
 
 /**
- * The choice the client's answer settles on the latest stage: the picked
- * answer's meaning where the latest stage still offers it. Undefined when
- * the client cancelled or the meaning is gone there; the caller then falls
- * back to the denial default (`decidedChoice`), never to a guess.
- */
+The choice the client's answer settles on the latest stage: the picked
+answer's meaning where the latest stage still offers it. Undefined when
+the client cancelled or the meaning is gone there; the caller then falls
+back to the denial default (`decidedChoice`), never to a guess.
+*/
 export function answerChoice(
   response: RequestPermissionResponse | undefined,
   asked: readonly ApprovalChoice[],
@@ -64,12 +64,12 @@ export function answerChoice(
 }
 
 /**
- * The mode a loaded or resumed session runs under. An ordinary session keeps
- * the mode the client set before (`session/set_mode` survives a later load),
- * else it starts in the initial mode. Untrusted content always re-opens in
- * an asking mode (D49, M84): only the current asking mode survives, and a
- * user's own later `set_mode` relaxes that load alone.
- */
+The mode a loaded or resumed session runs under. An ordinary session keeps
+the mode the client set before (`session/set_mode` survives a later load),
+else it starts in the initial mode. Untrusted content always re-opens in
+an asking mode (D49, M84): only the current asking mode survives, and a
+user's own later `set_mode` relaxes that load alone.
+*/
 export function adoptedMode(
   remembered: PermissionMode | undefined,
   initial: PermissionMode,
@@ -93,10 +93,10 @@ export class ApprovalAnswers {
   }
 
   /**
-   * Take the single ask turn for an approval; false while one is already
-   * open for it. Synchronous, so two events racing for one approval still
-   * send one client request.
-   */
+  Take the single ask turn for an approval; false while one is already
+  open for it. Synchronous, so two events racing for one approval still
+  send one client request.
+  */
   public claim(approvalId: string): boolean {
     if (this.claimed.has(approvalId)) {
       return false

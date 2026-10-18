@@ -111,9 +111,9 @@ export function worktreeAddDetachedArgs(folder: string, commit: string): readonl
 }
 
 /**
- * The same with nothing checked out (M71: someone else's pull request, whose
- * files the extension writes itself, so no checkout filter or hook runs).
- */
+The same with nothing checked out (M71: someone else's pull request, whose
+files the extension writes itself, so no checkout filter or hook runs).
+*/
 export function worktreeAddHeldArgs(folder: string, commit: string): readonly string[] {
   return ['worktree', 'add', '--no-checkout', '--detach', folder, commit]
 }
@@ -123,11 +123,11 @@ export function worktreeRemoveArgs(folder: string, isForced: boolean): readonly 
 }
 
 /**
- * The path a WorktreeCreate/Remove hook sees (M91 lane E): the worktree
- * relative to the repository, with forward slashes, so matchers stay
- * portable. Best-of-N worktrees live beside the repository, which reads as
- * a `..` path; a workspace-rooted watcher resolves it from there.
- */
+The path a WorktreeCreate/Remove hook sees (M91 lane E): the worktree
+relative to the repository, with forward slashes, so matchers stay
+portable. Best-of-N worktrees live beside the repository, which reads as
+a `..` path; a workspace-rooted watcher resolves it from there.
+*/
 export function worktreeHookPath(
   repositoryRoot: string,
   worktreePath: string,

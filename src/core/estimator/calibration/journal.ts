@@ -46,9 +46,9 @@ function hasCode(error: unknown, code: string): boolean {
 }
 
 /** Durable immutable files, one per lane/basis. Readers never observe a partial publication.
- * A no-clobber hard link makes independent windows/processes safe without a clock or stale lock.
- * The caller supplies private application storage, never a workspace or a credential directory.
- */
+A no-clobber hard link makes independent windows/processes safe without a clock or stale lock.
+The caller supplies private application storage, never a workspace or a credential directory.
+*/
 export class EstimateHistoryJournal implements EstimateHistoryPort {
   private skipped: { recordId: string; code: string }[] = []
 

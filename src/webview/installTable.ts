@@ -33,10 +33,10 @@ function refused(reason: string): Error {
 }
 
 /**
- * Installs the table embedded in `page`, if there is one. Returns why an
- * embedded table was refused, for the log; undefined when it was installed
- * or the page has none.
- */
+Installs the table embedded in `page`, if there is one. Returns why an
+embedded table was refused, for the log; undefined when it was installed
+or the page has none.
+*/
 export function installEmbeddedTable(page: ParentNode): Error | undefined {
   const element = page.querySelector(`#${WEBVIEW_L10N_ELEMENT_ID}`)
   if (element === null) {

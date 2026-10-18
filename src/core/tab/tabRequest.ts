@@ -38,12 +38,12 @@ export type TabUserInput = Omit<TabRequestInput, 'model' | 'mode'>
 const TEMPLATE_SLOT = /\{(\w+)\}/gu
 
 /**
- * The one user message: the file's path and language, the prefix, the fixed
- * hole marker, the suffix and any context snippets, each fenced as data.
- * The template is read once and every slot is filled in that one pass, so
- * an inserted value (code, a path, a snippet) is never read for slots
- * itself: code holding `{suffix}` or `{prefix}` passes through literally.
- */
+The one user message: the file's path and language, the prefix, the fixed
+hole marker, the suffix and any context snippets, each fenced as data.
+The template is read once and every slot is filled in that one pass, so
+an inserted value (code, a path, a snippet) is never read for slots
+itself: code holding `{suffix}` or `{prefix}` passes through literally.
+*/
 export function tabUserText(input: TabUserInput): string {
   const slots = new Map<string, string>([
     ['path', input.path],
@@ -60,10 +60,10 @@ export function tabUserText(input: TabUserInput): string {
 }
 
 /**
- * Tab's own cache key: its prefix is never a conversation's (SoL-Pi), and
- * the digest names only the model and the Tab instructions, so consecutive
- * requests while typing share it.
- */
+Tab's own cache key: its prefix is never a conversation's (SoL-Pi), and
+the digest names only the model and the Tab instructions, so consecutive
+requests while typing share it.
+*/
 export function tabPromptCacheKey(model: string): string {
   const digest = createHash(PROMPT_CACHE_KEY_HASH)
     .update(JSON.stringify([model, TAB_MODEL_TEXT.tabSystem]))
@@ -73,11 +73,11 @@ export function tabPromptCacheKey(model: string): string {
 }
 
 /**
- * The body: streamed, unstored, no tools, no `previous_response_id`,
- * `minimal` effort (`none` is a 400, A3; `MODEL_API_EFFORT_OFF` is that
- * floor) with no reasoning summary, and the mode's output cap. The
- * retention stays Meta's default: Tab bursts are sub-minute typing.
- */
+The body: streamed, unstored, no tools, no `previous_response_id`,
+`minimal` effort (`none` is a 400, A3; `MODEL_API_EFFORT_OFF` is that
+floor) with no reasoning summary, and the mode's output cap. The
+retention stays Meta's default: Tab bursts are sub-minute typing.
+*/
 export function buildTabRequest(input: TabRequestInput): CreateResponseBody {
   return {
     model: input.model,

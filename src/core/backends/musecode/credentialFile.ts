@@ -38,23 +38,23 @@ import {
 } from '../../../shared/constants'
 
 /**
- * - `empty`: a version-1 file naming no provider; the file a sign-out leaves.
- * - `inline`: holds the credential itself, in a captured shape (off macOS).
- * - `keychain`: points to the macOS Keychain (on macOS).
- * - `unsupportedHere`: a macOS file on Windows or Linux (version 2, or the
- *   Keychain lane), where `muse serve` cannot start with it.
- * - `unrecognized`: anything the structure cannot settle here; only the CLI
- *   can say.
- */
+- `empty`: a version-1 file naming no provider; the file a sign-out leaves.
+- `inline`: holds the credential itself, in a captured shape (off macOS).
+- `keychain`: points to the macOS Keychain (on macOS).
+- `unsupportedHere`: a macOS file on Windows or Linux (version 2, or the
+  Keychain lane), where `muse serve` cannot start with it.
+- `unrecognized`: anything the structure cannot settle here; only the CLI
+  can say.
+*/
 export type CredentialFileVerdict =
   'empty' | 'inline' | 'keychain' | 'unsupportedHere' | 'unrecognized'
 
 /**
- * The CLI's own sign-in as the extension sees it: `unknown` when only the
- * CLI could say and it has not (the estimate counts it as signed in, and a
- * turn's `authRequired` corrects it); `unsupportedHere` when the file stops
- * `muse serve` from starting.
- */
+The CLI's own sign-in as the extension sees it: `unknown` when only the
+CLI could say and it has not (the estimate counts it as signed in, and a
+turn's `authRequired` corrects it); `unsupportedHere` when the file stops
+`muse serve` from starting.
+*/
 export type CliSignIn = 'signedIn' | 'signedOut' | 'unknown' | 'unsupportedHere'
 
 /** Whether the macOS Keychain holds the CLI's item, by attribute lookup only. */
@@ -81,10 +81,10 @@ const credentialFileSchema = z.object({
 type ProviderEntry = z.infer<typeof credentialFileSchema>['providers'][string]
 
 /**
- * The shapes captured holding the sign-in in the file (the review of PR #49):
- * no `storage` lane, and `api_key` (`muse auth set`) or `access_token` (a
- * browser sign-in). Any other `meta` entry is the CLI's to place.
- */
+The shapes captured holding the sign-in in the file (the review of PR #49):
+no `storage` lane, and `api_key` (`muse auth set`) or `access_token` (a
+browser sign-in). Any other `meta` entry is the CLI's to place.
+*/
 function isCapturedInlineEntry(entry: ProviderEntry): boolean {
   return entry.storage === undefined && (entry.api_key === true || entry.access_token === true)
 }
@@ -138,10 +138,10 @@ export function credentialFileVerdict(
 }
 
 /**
- * Whether the file's structure alone says the CLI is signed in (M93, D72):
- * a captured inline credential, or the macOS Keychain lane. The problem
- * report asks nothing more: it starts no `account/read` and reads no value.
- */
+Whether the file's structure alone says the CLI is signed in (M93, D72):
+a captured inline credential, or the macOS Keychain lane. The problem
+report asks nothing more: it starts no `account/read` and reads no value.
+*/
 export function isSignedInByStructure(verdict: CredentialFileVerdict | undefined): boolean {
   return verdict === 'inline' || verdict === 'keychain'
 }

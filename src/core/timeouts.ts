@@ -10,10 +10,10 @@ export class DeadlineError extends Error {
 }
 
 /**
- * `promise`, or a `DeadlineError` with `message` once `timeoutMs` has passed.
- * The timer is always cleared; the promise itself keeps running (the caller
- * decides whether to kill what it was waiting on).
- */
+`promise`, or a `DeadlineError` with `message` once `timeoutMs` has passed.
+The timer is always cleared; the promise itself keeps running (the caller
+decides whether to kill what it was waiting on).
+*/
 export async function withDeadline<T>(
   promise: Promise<T>,
   timeoutMs: number,
@@ -46,12 +46,12 @@ interface SlowDeadline {
 }
 
 /**
- * `promise` within `firstMs`; past that, while the work still goes on,
- * within `totalMs` in all: one longer wait, so a slow start on a starved
- * machine is not taken for a stuck one, and a stuck one still ends. Work
- * that stopped fails at the first deadline, and a rejection of `promise`
- * (the process died) ends the wait at once.
- */
+`promise` within `firstMs`; past that, while the work still goes on,
+within `totalMs` in all: one longer wait, so a slow start on a starved
+machine is not taken for a stuck one, and a stuck one still ends. Work
+that stopped fails at the first deadline, and a rejection of `promise`
+(the process died) ends the wait at once.
+*/
 export async function withSlowDeadline<T>(promise: Promise<T>, deadline: SlowDeadline): Promise<T> {
   try {
     return await withDeadline(promise, deadline.firstMs, deadline.message(deadline.firstMs))
@@ -76,10 +76,10 @@ export async function withSlowDeadline<T>(promise: Promise<T>, deadline: SlowDea
 const IGNORE = (): void => undefined
 
 /**
- * `work`'s value, or undefined as soon as `signal` aborts. `work` runs on
- * (a probe's answer is still cached); its failure after the abort is
- * handled by the race.
- */
+`work`'s value, or undefined as soon as `signal` aborts. `work` runs on
+(a probe's answer is still cached); its failure after the abort is
+handled by the race.
+*/
 export async function unlessAborted<T>(
   work: Promise<T>,
   signal: AbortSignal,

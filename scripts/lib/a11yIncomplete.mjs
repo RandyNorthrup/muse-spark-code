@@ -6,14 +6,14 @@ const UNSEEN_REASONS = new Set(['elmPartiallyObscured', 'elmPartiallyObscuring',
 const GLYPH_ONLY_REASON = 'nonBmp'
 
 /**
- * axe's undecided ("incomplete") results, sorted (the review of PR #18).
- * Two kinds of contrast result are counted, not failed, because no tool
- * decides them here: text axe could not see where it looked (covered by a
- * menu or dialog the user opened, or scrolled out of the transcript's
- * view; the same rows are checked where a scenario shows them), and
- * glyph-only content. Everything else axe could not decide fails, as a
- * violation does.
- */
+axe's undecided ("incomplete") results, sorted (the review of PR #18).
+Two kinds of contrast result are counted, not failed, because no tool
+decides them here: text axe could not see where it looked (covered by a
+menu or dialog the user opened, or scrolled out of the transcript's
+view; the same rows are checked where a scenario shows them), and
+glyph-only content. Everything else axe could not decide fails, as a
+violation does.
+*/
 export function sortIncomplete(findings) {
   const undecided = []
   let unseen = 0

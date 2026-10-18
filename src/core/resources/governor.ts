@@ -51,10 +51,10 @@ export interface ResourceGovernorOptions {
   settings: ResourceSettings
   events: ResourceEvents
   /**
-   * R binds approved paired-device/runner availability; off never calls it.
-   * null declares that this host has no relocation route at all: pressure goes
-   * from throttle to pause and status reports `noRoute` for the UI to explain.
-   */
+  R binds approved paired-device/runner availability; off never calls it.
+  null declares that this host has no relocation route at all: pressure goes
+  from throttle to pause and status reports `noRoute` for the UI to explain.
+  */
   hasRelocationTarget: (() => boolean) | null
   onError: (error: unknown) => void
 }
@@ -421,10 +421,10 @@ export class ResourceGovernor {
   }
 
   /**
-   * The caller's signal ends only the caller's wait. The sample is shared and
-   * bounded by RESOURCE_SAMPLE_MS; aborting it would record an all-unknown
-   * reading for every waiter.
-   */
+  The caller's signal ends only the caller's wait. The sample is shared and
+  bounded by RESOURCE_SAMPLE_MS; aborting it would record an all-unknown
+  reading for every waiter.
+  */
   refresh(signal?: AbortSignal): Promise<void> {
     if (this.disposed) return Promise.reject(new Error('Resource governor disposed'))
     const reason = () =>

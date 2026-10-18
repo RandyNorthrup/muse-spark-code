@@ -84,10 +84,10 @@ export function raceRequested(sessionId: string, sourceIndex = 0): Record<string
 }
 
 /**
- * `approval/updated` after stage `resolved - 1` was decided: 1.4.2 moves the
- * card to `resolved`, the stage after it, even when an "Always allow" just
- * made would allow it (stage 4 after stage 0's `git show` rule).
- */
+`approval/updated` after stage `resolved - 1` was decided: 1.4.2 moves the
+card to `resolved`, the stage after it, even when an "Always allow" just
+made would allow it (stage 4 after stage 0's `git show` rule).
+*/
 export function raceUpdated(sessionId: string, waiting: number): Record<string, unknown> {
   return {
     approvalId: RACE_APPROVAL_ID,

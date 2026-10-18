@@ -62,10 +62,10 @@ export type TeamTemplateId = 'solo' | 'pair' | 'full' | 'custom'
 export const TEAM_TEMPLATES: readonly TeamTemplateId[] = ['solo', 'pair', 'full', 'custom']
 
 /**
- * An agent or model the user has, offered as a pool entry (M95's picker
- * rows reduced to what the templates need: the reference, its vendor and
- * which backend pays for it).
- */
+An agent or model the user has, offered as a pool entry (M95's picker
+rows reduced to what the templates need: the reference, its vendor and
+which backend pays for it).
+*/
 export interface TeamAgentOffer {
   readonly modelRef: string
   readonly vendor: string
@@ -74,10 +74,10 @@ export interface TeamAgentOffer {
 }
 
 /**
- * Typical use per role in tokens per task (D75). The starting value before
- * the local record has five tasks here; autofill (lane F) follows the
- * record after that.
- */
+Typical use per role in tokens per task (D75). The starting value before
+the local record has five tasks here; autofill (lane F) follows the
+record after that.
+*/
 /** A template's name in the display language. */
 export function templateName(template: TeamTemplateId): string {
   switch (template) {
@@ -115,9 +115,9 @@ export function templateRoles(template: TeamTemplateId): readonly TeamRoleKey[] 
 }
 
 /**
- * The workspace mode a fresh role starts in. Writers share clones on
- * branches; reviewers and readers start read-only.
- */
+The workspace mode a fresh role starts in. Writers share clones on
+branches; reviewers and readers start read-only.
+*/
 export function defaultModeFor(role: TeamRoleKey): TeamWorkspaceMode {
   switch (role) {
     case 'research':
@@ -149,12 +149,12 @@ export function prefilledTaskCap(role: TeamRoleKey): TeamCapDraft {
 }
 
 /**
- * Builds the draft for a template from the agents the user has. Entries
- * come from the offers in order: the first offer staffs the first role,
- * and Pair puts `code-review` on another vendor where one is offered
- * (the owner's own split: Muse codes, Codex reviews). Roles the offers
- * cannot staff resolve to Default downstream (lanes A and T).
- */
+Builds the draft for a template from the agents the user has. Entries
+come from the offers in order: the first offer staffs the first role,
+and Pair puts `code-review` on another vendor where one is offered
+(the owner's own split: Muse codes, Codex reviews). Roles the offers
+cannot staff resolve to Default downstream (lanes A and T).
+*/
 export function buildTemplateDraft(
   template: TeamTemplateId,
   offers: readonly TeamAgentOffer[],

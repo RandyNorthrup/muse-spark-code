@@ -74,11 +74,11 @@ export function decodeHtml(bytes: Uint8Array, headerCharset: string | undefined)
 }
 
 /**
- * The encoding a `<meta>` met while parsing changes a tentative one to (the
- * standard's "change the encoding"), or undefined when it stays: a UTF-16
- * page, or a declaration of the same encoding, changes nothing; UTF-16 is
- * read as UTF-8, and x-user-defined as windows-1252.
- */
+The encoding a `<meta>` met while parsing changes a tentative one to (the
+standard's "change the encoding"), or undefined when it stays: a UTF-16
+page, or a declaration of the same encoding, changes nothing; UTF-16 is
+read as UTF-8, and x-user-defined as windows-1252.
+*/
 export function changedEncoding(current: string, declaredLabel: string): string | undefined {
   const declared = encodingOf(declaredLabel)
   if (declared === undefined || UTF_16.has(current)) {
@@ -94,9 +94,9 @@ export function changedEncoding(current: string, declaredLabel: string): string 
 }
 
 /**
- * The charset a `<meta http-equiv="content-type">`'s content names (the
- * standard's "extracting a character encoding from a meta element").
- */
+The charset a `<meta http-equiv="content-type">`'s content names (the
+standard's "extracting a character encoding from a meta element").
+*/
 export function charsetInMetaContent(content: string): string | undefined {
   const lower = content.toLowerCase()
   let from = 0

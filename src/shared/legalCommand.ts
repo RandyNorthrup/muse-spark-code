@@ -23,10 +23,10 @@ export function isLegalPrompt(text: string): boolean {
 }
 
 /**
- * The scan a prompt asks for, or undefined for any other text. The result
- * always satisfies lane 0's input schema: bounds are checked here, so the
- * host is never sent more than the schema allows.
- */
+The scan a prompt asks for, or undefined for any other text. The result
+always satisfies lane 0's input schema: bounds are checked here, so the
+host is never sent more than the schema allows.
+*/
 export function parseLegalPrompt(text: string): LegalScanInput | undefined {
   const match = PROMPT.exec(text.trim())
   if (match === null) {

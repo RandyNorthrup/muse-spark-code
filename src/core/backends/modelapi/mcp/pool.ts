@@ -83,10 +83,10 @@ export interface BridgeToolRef extends McpToolRef {
 }
 
 /**
- * One offered function with its server's raw MCP tool (M96 lane B): the team
- * bridge's `tools/list` serves the server's own description, not the Model
- * API's fitted definition.
- */
+One offered function with its server's raw MCP tool (M96 lane B): the team
+bridge's `tools/list` serves the server's own description, not the Model
+API's fitted definition.
+*/
 export interface BridgeOfferedTool {
   readonly functionName: string
   readonly server: string
@@ -115,10 +115,10 @@ export interface McpToolSource {
   definitions(): readonly FunctionToolDefinition[]
   find(functionName: string): McpToolRef | undefined
   /**
-   * Calls the tool; rejects on a Stop, a deadline, a JSON-RPC error or a
-   * lost server. `onElicitation` answers that call's `elicitation/create`
-   * with its session; without it the pool's default handler answers.
-   */
+  Calls the tool; rejects on a Stop, a deadline, a JSON-RPC error or a
+  lost server. `onElicitation` answers that call's `elicitation/create`
+  with its session; without it the pool's default handler answers.
+  */
   call(
     functionName: string,
     argsJson: string,
@@ -127,10 +127,10 @@ export interface McpToolSource {
   ): Promise<McpCallOutcome>
   close(): Promise<void>
   /**
-   * Answers `elicitation/create` for servers connected afterwards (M91):
-   * the capability is declared at each connection's init, so it stays
-   * stable within the session. Absent, the client offers nothing.
-   */
+  Answers `elicitation/create` for servers connected afterwards (M91):
+  the capability is declared at each connection's init, so it stays
+  stable within the session. Absent, the client offers nothing.
+  */
   setElicitationHandler?(handler: McpElicitationHandler | undefined): void
 }
 
@@ -203,10 +203,10 @@ export class McpServerPool implements McpToolSource {
   private isClosed = false
   private elicitationHandler: McpElicitationHandler | undefined
   /**
-   * Sessions waiting on each server. The negotiated request names no tool
-   * call, so ambiguous overlapping routes are cancelled rather than sent
-   * to a different session.
-   */
+  Sessions waiting on each server. The negotiated request names no tool
+  call, so ambiguous overlapping routes are cancelled rather than sent
+  to a different session.
+  */
   private readonly elicitationRoutes = new Map<string, McpElicitationHandler[]>()
   /** A server that exited by itself can still have a Windows child to reap. */
   private readonly closing = new Set<Promise<void>>()
@@ -552,10 +552,10 @@ export class McpServerPool implements McpToolSource {
   }
 
   /**
-   * The raw `tools/call` result (M96 lane B): the team bridge proxies it to
-   * MCP clients, which need the server's own content blocks rather than the
-   * model's outcome. Throws the same `McpError` as `call`.
-   */
+  The raw `tools/call` result (M96 lane B): the team bridge proxies it to
+  MCP clients, which need the server's own content blocks rather than the
+  model's outcome. Throws the same `McpError` as `call`.
+  */
   public async callRaw(
     functionName: string,
     argsJson: string,
@@ -597,9 +597,9 @@ export class McpServerPool implements McpToolSource {
   }
 
   /**
-   * Every offered function with its raw tool (M96 lane B): the team bridge's
-   * `tools/list`, filtered per caller there.
-   */
+  Every offered function with its raw tool (M96 lane B): the team bridge's
+  `tools/list`, filtered per caller there.
+  */
   public bridgeTools(): readonly BridgeOfferedTool[] {
     return Array.from(this.byFunction, ([functionName, { server, offered }]) => ({
       functionName,

@@ -19,11 +19,11 @@ export interface AgentImportHostDeps {
   readonly workspaceRoot: string | undefined
   readonly isActive: () => boolean
   /**
-   * Whether the project's own configuration may load (M71): VS Code trusts
-   * the folder and the window is not held on someone else's pull request.
-   * Carried as the import's workspace trust so every project-scope read and
-   * editor copy respects the hold; user-scope imports never consult it.
-   */
+  Whether the project's own configuration may load (M71): VS Code trusts
+  the folder and the window is not held on someone else's pull request.
+  Carried as the import's workspace trust so every project-scope read and
+  editor copy respects the hold; user-scope imports never consult it.
+  */
   readonly isProjectTrusted: () => boolean
   /** Whether this window is held on someone else's pull request (M71). */
   readonly isProjectHeld?: () => boolean

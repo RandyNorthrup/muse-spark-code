@@ -32,10 +32,10 @@ export async function readEvent(file, signal) {
 }
 
 /**
- * The gate under its own bounded owner: one API read of the pull request the
- * event names, then the pure decision. Returns the decision; writes the
- * allowed decision's private task file and every output.
- */
+The gate under its own bounded owner: one API read of the pull request the
+event names, then the pure decision. Returns the decision; writes the
+allowed decision's private task file and every output.
+*/
 export async function runGate({ env, fetch, owner }) {
   const paths = actionPaths(invocationFromEnv(env), '')
   const inputs = await readActionInputs(paths)

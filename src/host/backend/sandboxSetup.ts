@@ -133,9 +133,9 @@ export class SandboxSetup {
   }
 
   /**
-   * The sandbox report, or undefined off Windows or without the CLI. Never
-   * throws: a check that cannot run is logged and reported as `unknown`.
-   */
+  The sandbox report, or undefined off Windows or without the CLI. Never
+  throws: a check that cannot run is logged and reported as `unknown`.
+  */
   public async check(): Promise<SandboxCheck | undefined> {
     if (!this.isWindows) {
       return undefined
@@ -166,10 +166,10 @@ export class SandboxSetup {
   }
 
   /**
-   * Offers the setup when it is needed. `startup` asks at most once per
-   * extension host and honours "Don't Ask Again"; `failure` (a shell tool just
-   * reported the sandbox missing) asks again even after "Not Now".
-   */
+  Offers the setup when it is needed. `startup` asks at most once per
+  extension host and honours "Don't Ask Again"; `failure` (a shell tool just
+  reported the sandbox missing) asks again even after "Not Now".
+  */
   public offerIfNeeded(trigger: SandboxOfferTrigger): Promise<void> {
     if (!this.isWindows) {
       return Promise.resolve()

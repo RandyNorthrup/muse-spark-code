@@ -34,10 +34,10 @@ export type CharterTools = ResolvedTeamToolset
 
 export interface TeamCharter {
   /**
-   * The generated parts, in the plan's order (who, purpose, workspace, you
-   * may, you must never, done, hand back): the same bytes for every task of
-   * one role and entry.
-   */
+  The generated parts, in the plan's order (who, purpose, workspace, you
+  may, you must never, done, hand back): the same bytes for every task of
+  one role and entry.
+  */
   readonly generated: string
   readonly body: string
   readonly charter: string

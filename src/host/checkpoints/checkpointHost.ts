@@ -42,10 +42,10 @@ import type {
 } from './checkpointStore'
 
 /**
- * A refused spelling or an unverifiable storage identity, in each reader's
- * words: the model keeps its fixed English reason, the row keeps the display
- * language. Storage itself stays a plain English error, as before.
- */
+A refused spelling or an unverifiable storage identity, in each reader's
+words: the model keeps its fixed English reason, the row keeps the display
+language. Storage itself stays a plain English error, as before.
+*/
 function localizedRefusal(problem: 'spelling' | 'uncertain'): StorageRefusalError {
   return problem === 'spelling'
     ? new StorageRefusalError(MODEL_TEXT.checkpointWindowsPathRefused, UI_TEXT.windowsPathRefused)
@@ -62,16 +62,16 @@ export interface CheckpointPort {
   markUnprovenProcess(): Promise<void>
   availability(): CheckpointAvailability
   /**
-   * A turn (or a message about to start one) begins or stops running in the
-   * window, published at once with no lock or git: no restore runs meanwhile,
-   * here or in another current window in the canonical-root storage namespace.
-   */
+  A turn (or a message about to start one) begins or stops running in the
+  window, published at once with no lock or git: no restore runs meanwhile,
+  here or in another current window in the canonical-root storage namespace.
+  */
   markTurn(key: string, isRunning: boolean): Promise<void>
   /**
-   * A turn's unit starts: its record is made before any of its writes. The
-   * owner its writes are recorded under; undefined while checkpoints are not
-   * on, unless `isInherited` (a child turn whose top turn records).
-   */
+  A turn's unit starts: its record is made before any of its writes. The
+  owner its writes are recorded under; undefined while checkpoints are not
+  on, unless `isInherited` (a child turn whose top turn records).
+  */
   startTurnUnit(sessionId: string, turnId: string, isInherited: boolean): Promise<Owner | undefined>
   /** A unit ended (its owner io drained): folded and sealed, whatever the setting. */
   endUnit(owner: Owner, end: { readonly ranProcesses: boolean }): Promise<void>
@@ -85,10 +85,10 @@ export interface CheckpointPort {
   /** The window opened or was trusted: recovery, cleanup and retention, whatever the setting. */
   maintain(): Promise<void>
   /**
-   * Refuses a tool's write into the checkpoint storage of any namespace,
-   * whatever the setting: a filter planted in the repository's configuration
-   * would run as the user. It records nothing (M86): a turn's own io does.
-   */
+  Refuses a tool's write into the checkpoint storage of any namespace,
+  whatever the setting: a filter planted in the repository's configuration
+  would run as the user. It records nothing (M86): a turn's own io does.
+  */
   refuseStorageWrite(absolutePath: string): void
 }
 
@@ -268,14 +268,14 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
 type TurnRecorderApi = Pick<TurnRecorder, 'start' | 'end'>
 
 /**
- * A Model API turn (or child turn) is about to run: it is published as
- * running, then its unit's record is made, before hooks or edits (queued and
- * scheduled turns included), and its tools get their own writes, recorded
- * until it ends. A child turn inherits its top turn's decision (spec 3.2): it
- * records even if the setting went off meanwhile, and not at all when its top
- * turn does not; one whose record cannot be made does not run (a rejection).
- * With no recorder nothing is recorded.
- */
+A Model API turn (or child turn) is about to run: it is published as
+running, then its unit's record is made, before hooks or edits (queued and
+scheduled turns included), and its tools get their own writes, recorded
+until it ends. A child turn inherits its top turn's decision (spec 3.2): it
+records even if the setting went off meanwhile, and not at all when its top
+turn does not; one whose record cannot be made does not run (a rejection).
+With no recorder nothing is recorded.
+*/
 export async function prepareCheckpointTurn(
   port: CheckpointPort,
   recorder: TurnRecorderApi | undefined,
@@ -315,11 +315,11 @@ export async function prepareCheckpointTurn(
 }
 
 /**
- * A Model API turn ended (Stop and cancellation alike): its writes settle
- * first (no new one is admitted, those under way finish), then its unit is
- * folded and sealed when it recorded, and only then is its running mark
- * withdrawn. A unit that could not be sealed keeps the mark until it is.
- */
+A Model API turn ended (Stop and cancellation alike): its writes settle
+first (no new one is admitted, those under way finish), then its unit is
+folded and sealed when it recorded, and only then is its running mark
+withdrawn. A unit that could not be sealed keeps the mark until it is.
+*/
 export async function finishCheckpointTurn(
   port: CheckpointPort,
   recorder: TurnRecorderApi | undefined,
@@ -336,10 +336,10 @@ export async function finishCheckpointTurn(
 }
 
 /**
- * An explicit local file edit owns admission until its actual I/O settles.
- * A lease that cannot be let go is logged, never the edit's failure: the
- * edit is done, and the mark left behind keeps restores closed (CC-M9c).
- */
+An explicit local file edit owns admission until its actual I/O settles.
+A lease that cannot be let go is logged, never the edit's failure: the
+edit is done, and the mark left behind keeps restores closed (CC-M9c).
+*/
 export async function withCheckpointEdit<T>(
   checkpoints: CheckpointPort,
   log: Pick<Logger, 'warn'>,
@@ -365,20 +365,20 @@ export async function withCheckpointEdit<T>(
 export interface EditWorkspace {
   readonly root: string | undefined
   /**
-   * The folder as VS Code spells it, when that differs from the canonical root
-   * (a link, a junction, a mapped drive). The store accepts both spellings, so
-   * a path a save dialog returns in either one is inside.
-   */
+  The folder as VS Code spells it, when that differs from the canonical root
+  (a link, a junction, a mapped drive). The store accepts both spellings, so
+  a path a save dialog returns in either one is inside.
+  */
   readonly displayRoot?: string | undefined
   readonly platform: NodeJS.Platform
 }
 
 /**
- * An explicit edit of `absolutePath`, which may lie outside the workspace
- * folder: inside it the pure lease is held until `work` settles; outside it
- * (a personal data folder, a file the user exports elsewhere) or with no
- * path no restore writes, so only the guard speaks, before the work starts.
- */
+An explicit edit of `absolutePath`, which may lie outside the workspace
+folder: inside it the pure lease is held until `work` settles; outside it
+(a personal data folder, a file the user exports elsewhere) or with no
+path no restore writes, so only the guard speaks, before the work starts.
+*/
 export async function withCheckpointEditAt<T>(
   checkpoints: CheckpointPort,
   log: Pick<Logger, 'warn'>,
@@ -401,12 +401,12 @@ export async function withCheckpointEditAt<T>(
 }
 
 /**
- * The window's tool io (M86): every tool write refused in the checkpoint
- * storage, and every command and hook marked as workspace activity, so no
- * restore runs meanwhile. It records nothing: a turn's own io records its
- * writes (`writeRecorder`), and what else writes through this one (Muse
- * Code's image tools, the extension for the user) is never recorded.
- */
+The window's tool io (M86): every tool write refused in the checkpoint
+storage, and every command and hook marked as workspace activity, so no
+restore runs meanwhile. It records nothing: a turn's own io records its
+writes (`writeRecorder`), and what else writes through this one (Muse
+Code's image tools, the extension for the user) is never recorded.
+*/
 export function withCheckpointStorageGuard(io: ToolIo, checkpoints: CheckpointPort): ToolIo {
   const finishActivity = async (key: string, isProven: boolean): Promise<void> => {
     try {

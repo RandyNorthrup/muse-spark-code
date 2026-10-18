@@ -34,8 +34,8 @@ const ruleSetting = z.discriminatedUnion('enabled', [
 const override = z.strictObject({ actor: z.enum(['lead', 'owner']), reason, at: timestamp })
 
 /** G20: the user's pre-named reviewer for classifier-blocked reviews. Setting
- * or clearing it needs a real user decision through authorizeOverride; an
- * agent-supplied actor never grants it. Shown in settings and in every use. */
+or clearing it needs a real user decision through authorizeOverride; an
+agent-supplied actor never grants it. Shown in settings and in every use. */
 export const playbookFallbackReviewerSchema = z.strictObject({
   reviewerId: id,
   ...override.shape,
@@ -65,10 +65,10 @@ export function knownFindingClass(value: string | undefined): PlaybookFindingCla
 }
 
 /** P assigns id once and journals each snapshot. A rename keeps that id;
- * splits/merges inherit the maximum predecessor round, per class and aggregate.
- * Any changed key/file set for existing code requires lineage. P refuses files
- * overlapping a struck module's last file set without lineage unless a recorded
- * lead/owner override exists. New lanes/branches cannot reset these counters. */
+splits/merges inherit the maximum predecessor round, per class and aggregate.
+Any changed key/file set for existing code requires lineage. P refuses files
+overlapping a struck module's last file set without lineage unless a recorded
+lead/owner override exists. New lanes/branches cannot reset these counters. */
 export const playbookModuleSchema = z.strictObject({
   id,
   key: file,
@@ -93,13 +93,13 @@ const reviewAgents = z.strictObject({
   reviewerSessionId: id,
 })
 /** Supplied by the harness from its lane registry, never from model metadata.
- * P refuses equal agent ids or shared sessions before consuming the review. */
+P refuses equal agent ids or shared sessions before consuming the review. */
 export type PlaybookReviewAgents = z.infer<typeof reviewAgents>
 
 const briefSection = z.string().check(z.trim(), z.minLength(1))
 /** G3: the dispatch brief envelope. Rendered structurally (never by text
- * substitution), checked for required sections and placeholders, and hashed
- * before dispatch. M96's planner renders through the same envelope. */
+substitution), checked for required sections and placeholders, and hashed
+before dispatch. M96's planner renders through the same envelope. */
 export const playbookBriefSchema = z.strictObject({
   objective: briefSection,
   scope: z.array(briefSection).check(z.minLength(1)),
@@ -109,8 +109,8 @@ export const playbookBriefSchema = z.strictObject({
 export type PlaybookBrief = z.infer<typeof playbookBriefSchema>
 
 /** G17: what the orchestrator saw of the shared repository configuration
- * before a job: the effective hooks directory source and its file list.
- * Compared after the job; any difference is reported as config drift. */
+before a job: the effective hooks directory source and its file list.
+Compared after the job; any difference is reported as config drift. */
 export const playbookConfigSnapshotSchema = z.strictObject({
   hooksPath: z.string().check(z.maxLength(REVIEW_FINDING_PATH_MAX_CHARS)),
   files: z.array(file).check(z.maxLength(REVIEW_FINDINGS_MAX)),
@@ -143,9 +143,9 @@ const answer = z.discriminatedUnion('status', [
 ])
 
 /** P requires every prior id's disposition: fix P1, fix P2 unless redesign is
- * needed; residuals must be named. A dispute grants no exception; an override
- * names lead/owner, reason and time. The adapter maps critical/high/other known
- * severities to P1/P2/P3; absent/unknown severity stays P1 until clarified. */
+needed; residuals must be named. A dispute grants no exception; an override
+names lead/owner, reason and time. The adapter maps critical/high/other known
+severities to P1/P2/P3; absent/unknown severity stays P1 until clarified. */
 export const playbookRoundSchema = z.strictObject({
   module: playbookModuleSchema,
   ...reviewAgents.shape,
@@ -390,8 +390,8 @@ export interface PlaybookReportItem {
 }
 
 /** Synchronous admission: adapters must check immediately before the effect.
- * No authorization is granted by this port; existing tool/paid gates still run.
- * Incomplete coverage is refused without incrementing any round. */
+No authorization is granted by this port; existing tool/paid gates still run.
+Incomplete coverage is refused without incrementing any round. */
 export interface PlaybookPolicy {
   beginWork(module: PlaybookModule, refs: readonly string[]): string
   verifyWork(
@@ -444,9 +444,9 @@ export interface PlaybookPolicy {
   /** G3: render and record the dispatch brief before any effect. */
   recordBrief(module: PlaybookModule, brief: PlaybookBrief): PlaybookDecision
   /** G20: the user's pre-named fallback reviewer for the classifier-blocked
-   * action, or the suggested agents unchanged (with no note) when no recorded
-   * block, no named fallback, or a reviewer conflict applies. The blocked
-   * action itself is never retried or rerouted; rule 9 stands. */
+  action, or the suggested agents unchanged (with no note) when no recorded
+  block, no named fallback, or a reviewer conflict applies. The blocked
+  action itself is never retried or rerouted; rule 9 stands. */
   applyFallbackReviewer(
     module: PlaybookModule,
     agents: PlaybookReviewAgents,
@@ -460,6 +460,6 @@ export interface PlaybookPolicy {
     lanes: readonly PlaybookLane[],
   ): PlaybookDecision
   /** G24: refuse while the milestone's residual register has open entries.
-   * Lanes carry the module-to-milestone facts; the register derives the rest. */
+  Lanes carry the module-to-milestone facts; the register derives the rest. */
   releaseReady(milestoneId: string, lanes: readonly PlaybookLane[]): PlaybookDecision
 }

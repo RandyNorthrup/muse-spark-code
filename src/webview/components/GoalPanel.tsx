@@ -37,10 +37,10 @@ const STOPPED_STATUSES: ReadonlySet<string> = new Set([
 ])
 
 /**
- * The dot beside the status, as a tool row's: working, done or stopped; a
- * paused goal, or a status Muse Code adds later, keeps the plain dot. The
- * status is always in words beside it.
- */
+The dot beside the status, as a tool row's: working, done or stopped; a
+paused goal, or a status Muse Code adds later, keeps the plain dot. The
+status is always in words beside it.
+*/
 function dotClass(status: string): string {
   if (status === GOAL_STATUS.active) {
     return 'tool-dot tool-dot-running'

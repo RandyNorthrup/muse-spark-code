@@ -50,7 +50,7 @@ export function isValidDrill(drill: PlaybookDrill): boolean {
 }
 
 /** Kahn's algorithm picks the smallest currently ready lane, rather than
- * sorting a topological result after the fact and breaking dependencies. */
+sorting a topological result after the fact and breaking dependencies. */
 export function orderedLanes(
   queue: readonly PlaybookLane[],
 ): { queue: PlaybookLane[] } | { missing: string[] } {

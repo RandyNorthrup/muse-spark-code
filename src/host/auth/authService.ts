@@ -33,20 +33,20 @@ export interface AuthBackendFacts {
     | { readonly ok: true; readonly cliPath: string }
     | { readonly ok: false; readonly reason: string }
   /**
-   * The CLI's own sign-in: its credential file's structure, and the CLI's
-   * `account/read` when that cannot say. With `isUserAction` macOS may ask
-   * too (its host reads the Keychain); otherwise it does not.
-   */
+  The CLI's own sign-in: its credential file's structure, and the CLI's
+  `account/read` when that cannot say. With `isUserAction` macOS may ask
+  too (its host reads the Keychain); otherwise it does not.
+  */
   readonly cliSignIn: (isUserAction: boolean) => Promise<CliSignIn>
   /**
-   * Leaves an unanswered probe behind (Cancel): the next question asks
-   * afresh, and a remembered answer stands.
-   */
+  Leaves an unanswered probe behind (Cancel): the next question asks
+  afresh, and a remembered answer stands.
+  */
   readonly abandonCliProbe: () => void
   /**
-   * Drops everything the CLI said, the remembered answer too (a sign-out, a
-   * new sign-in, Check again): the next question asks afresh.
-   */
+  Drops everything the CLI said, the remembered answer too (a sign-out, a
+  new sign-in, Check again): the next question asks afresh.
+  */
   readonly forgetCliAnswers: () => void
   /** Where the CLI keeps its sign-in, named when the file stops it starting. */
   readonly credentialFilePath: () => string
@@ -56,17 +56,17 @@ export interface AuthBackendFacts {
   /** `museSpark.backend`. */
   readonly getBackendMode: () => BackendMode
   /**
-   * Stop the running hosts so the next turn spawns the right one afresh;
-   * with `isConversationEnding` (sign-out) the conversations are not resumed.
-   */
+  Stop the running hosts so the next turn spawns the right one afresh;
+  with `isConversationEnding` (sign-out) the conversations are not resumed.
+  */
   readonly restartBackend: (isConversationEnding: boolean) => Promise<void>
   /**
-   * The CLI's own sign-out, MSP `account/logout` on a short-lived host: true
-   * only when `account/read` then gives the captured signed-out answer. A
-   * host that could not start or refused, `envKey` (META_API_KEY hides the
-   * stored lane), a stored credential or a state never captured is false.
-   * Never rejects.
-   */
+  The CLI's own sign-out, MSP `account/logout` on a short-lived host: true
+  only when `account/read` then gives the captured signed-out answer. A
+  host that could not start or refused, `envKey` (META_API_KEY hides the
+  stored lane), a stored credential or a state never captured is false.
+  Never rejects.
+  */
   readonly logOutCli: () => Promise<boolean>
 }
 
@@ -92,10 +92,10 @@ export interface AuthServiceDeps {
   /** Returns the pasted key, or undefined when the user dismissed the box. */
   readonly promptForApiKey: () => Promise<string | undefined>
   /**
-   * Removes every provider's secret (M95 acceptance 15: sign-out with "Also
-   * remove model providers and subscriptions" ticked). Absent until the
-   * providers file lands: sign-out then keeps provider secrets.
-   */
+  Removes every provider's secret (M95 acceptance 15: sign-out with "Also
+  remove model providers and subscriptions" ticked). Absent until the
+  providers file lands: sign-out then keeps provider secrets.
+  */
   readonly removeAllProviderCredentials?: (() => Promise<void>) | undefined
   readonly broadcast: (message: HostToWebviewMessage) => void
   readonly sleep: (ms: number) => Promise<void>
@@ -125,9 +125,9 @@ export interface AuthSnapshot {
 }
 
 /**
- * What a conversation needs from the service: the controller's dependency
- * type, so a test hands it a plain object with exactly these members.
- */
+What a conversation needs from the service: the controller's dependency
+type, so a test hands it a plain object with exactly these members.
+*/
 export type AuthPort = Pick<
   AuthService,
   | 'current'
@@ -145,10 +145,10 @@ export type AuthPort = Pick<
 >
 
 /**
- * The sign-in story for the log (M39): the state, the backend it chose and,
- * for an error, why (`loggedDetail`, which may stand in for a detail that
- * names a path). Written when the state or the backend changes.
- */
+The sign-in story for the log (M39): the state, the backend it chose and,
+for an error, why (`loggedDetail`, which may stand in for a detail that
+names a path). Written when the state or the backend changes.
+*/
 function signInLine(snapshot: AuthSnapshot, loggedDetail: string | undefined): string {
   const backend = snapshot.backend === undefined ? '' : ` on the ${snapshot.backend} backend`
   const why = loggedDetail !== undefined && snapshot.status === 'error' ? `: ${loggedDetail}` : ''
@@ -165,10 +165,10 @@ const UNSUPPORTED_FILE_LOGGED =
 const UNSUPPORTED_FILE = Symbol('unsupported credential file')
 
 /**
- * Why a device sign-in the host ended did not sign in (read when shown, D33):
- * each captured ending in its own words, any other as Muse Code named it
- * (AGENTS.md rule 13).
- */
+Why a device sign-in the host ended did not sign in (read when shown, D33):
+each captured ending in its own words, any other as Muse Code named it
+(AGENTS.md rule 13).
+*/
 function endedSignInText(
   ending: Exclude<CapturedSignInEnding, 'cancelled'> | DeviceSignInEnded,
 ): string {
@@ -213,9 +213,9 @@ export class AuthService {
   private signOutPromise: Promise<AuthSnapshot> | undefined
   private deviceAbort: AbortController | undefined
   /**
-   * A sign-out invalidates key prompts already open in any surface, and
-   * refreshes begun before it ended (it moves on as it starts and ends).
-   */
+  A sign-out invalidates key prompts already open in any surface, and
+  refreshes begun before it ended (it moves on as it starts and ends).
+  */
   private signOutEpoch = 0
   /** Aborted as a sign-out starts: a finishing sign-in stops waiting on the CLI. */
   private signOutStarts = new AbortController()
@@ -231,20 +231,20 @@ export class AuthService {
   /** The window is closing: no browser sign-in starts any more. */
   private isStopped = false
   /**
-   * Every publication's place in time (the review of PR #49): a refresh
-   * takes a ticket as it starts and publishes only if nothing that started
-   * or was published after it has published first.
-   */
+  Every publication's place in time (the review of PR #49): a refresh
+  takes a ticket as it starts and publishes only if nothing that started
+  or was published after it has published first.
+  */
   private tickets = 0
   private publishedTicket = 0
   /** The browser sign-in's code is on screen: a refresh leaves the panel to that flow. */
   private isDeviceFlowWaiting = false
   /**
-   * The backend conversations were last admitted on: the backend of the
-   * last signed-in state published, until a restart ends its conversations.
-   * The panel may show another state meanwhile (a sign-in's code) while a
-   * conversation still runs there.
-   */
+  The backend conversations were last admitted on: the backend of the
+  last signed-in state published, until a restart ends its conversations.
+  The panel may show another state meanwhile (a sign-in's code) while a
+  conversation still runs there.
+  */
   private liveBackend: BackendKind | undefined
   /** Moves each time `liveBackend` is recorded: a restart clears only what it ended. */
   private liveVersion = 0
@@ -282,18 +282,18 @@ export class AuthService {
   }
 
   /**
-   * Whether a sign-out runs now: read afresh after an await, which the
-   * compiler's narrowing of `isSigningOut` does not see.
-   */
+  Whether a sign-out runs now: read afresh after an await, which the
+  compiler's narrowing of `isSigningOut` does not see.
+  */
   private isSignOutRunning(): boolean {
     return this.isSigningOut
   }
 
   /**
-   * Stops the running hosts; with `isConversationEnding` their conversations
-   * end too, so none runs on any backend any more. Rejects as the restart
-   * does.
-   */
+  Stops the running hosts; with `isConversationEnding` their conversations
+  end too, so none runs on any backend any more. Rejects as the restart
+  does.
+  */
   private async restartHosts(isConversationEnding: boolean): Promise<void> {
     // Cleared after the restart, so a failed one leaves the record of the
     // conversations still running; and only if no signed-in state was
@@ -326,12 +326,12 @@ export class AuthService {
   }
 
   /**
-   * The one way a state is published that may sign in on another backend
-   * than conversations run on (the review of PR #49): new hosts are gated
-   * and that backend's conversations end first, as a device sign-in's
-   * success does, then `next` is published if it still may be (`isCurrent`,
-   * and no newer publication meanwhile).
-   */
+  The one way a state is published that may sign in on another backend
+  than conversations run on (the review of PR #49): new hosts are gated
+  and that backend's conversations end first, as a device sign-in's
+  success does, then `next` is published if it still may be (`isCurrent`,
+  and no newer publication meanwhile).
+  */
   private async publishSelection(
     next: AuthSnapshot,
     ticket: number = this.nextTicket(),
@@ -383,10 +383,10 @@ export class AuthService {
   }
 
   /**
-   * A refresh's answer, unless something newer was published while it was
-   * asked, or a browser sign-in's code is on screen: its facts may be older
-   * than what the panel shows (the review of PR #49).
-   */
+  A refresh's answer, unless something newer was published while it was
+  asked, or a browser sign-in's code is on screen: its facts may be older
+  than what the panel shows (the review of PR #49).
+  */
   private async publishRefresh(
     ticket: number,
     epoch: number,
@@ -417,12 +417,12 @@ export class AuthService {
   }
 
   /**
-   * The CLI's own credential as the gate counts it: `META_API_KEY` in its
-   * environment, or its sign-in, including one only the CLI could confirm.
-   * With the key set no file is looked at: `muse serve` then starts even
-   * with a version-2 file it refuses otherwise, and uses the key (captured
-   * 2026-09-27, docs/certification/sign-in-detection.md).
-   */
+  The CLI's own credential as the gate counts it: `META_API_KEY` in its
+  environment, or its sign-in, including one only the CLI could confirm.
+  With the key set no file is looked at: `muse serve` then starts even
+  with a version-2 file it refuses otherwise, and uses the key (captured
+  2026-09-27, docs/certification/sign-in-detection.md).
+  */
   private async cliCredential(
     isUserAction: boolean,
   ): Promise<{ readonly hasCliSession: boolean; readonly isUnsupportedFile: boolean }> {
@@ -442,9 +442,9 @@ export class AuthService {
   }
 
   /**
-   * The backend selection from the current facts. With the backend forced
-   * to the Model API the CLI is not asked at all (Codex on 328efb52).
-   */
+  The backend selection from the current facts. With the backend forced
+  to the Model API the CLI is not asked at all (Codex on 328efb52).
+  */
   private async choose(isUserAction: boolean) {
     const cli = this.deps.backend.resolveCli()
     const setting = this.deps.backend.getBackendMode()
@@ -491,10 +491,10 @@ export class AuthService {
   }
 
   /**
-   * The flow's pre-check and the device runner, while the flow owns the
-   * panel: a refresh meanwhile does not publish over its code (the review of
-   * PR #49).
-   */
+  The flow's pre-check and the device runner, while the flow owns the
+  panel: a refresh meanwhile does not publish over its code (the review of
+  PR #49).
+  */
   private async awaitDeviceRunner(
     flow: CliSignInFlow,
   ): Promise<DeviceSignInOutcome | typeof UNSUPPORTED_FILE> {
@@ -588,10 +588,10 @@ export class AuthService {
   }
 
   /**
-   * The device runner saw the sign-in land. Every question to the CLI here
-   * yields to the flow's signal, so a sign-out (or Cancel) never waits on
-   * one (the review of PR #49).
-   */
+  The device runner saw the sign-in land. Every question to the CLI here
+  yields to the flow's signal, so a sign-out (or Cancel) never waits on
+  one (the review of PR #49).
+  */
   private async confirmCliSignIn(flow: CliSignInFlow): Promise<AuthSnapshot> {
     const { abort } = flow
     // After a sign-out, only the CLI's own confirmation of the new sign-in
@@ -647,14 +647,14 @@ export class AuthService {
   }
 
   /**
-   * Cancel decides the flow, but not against what the CLI saved (the review
-   * of PR #49). When the credential file changed since the flow began (the
-   * browser approved as Cancel was pressed), the CLI's sign-in is read
-   * afresh, a Cancel being a click that may ask it. When the code was shown
-   * and the file did not change, the CLI is asked afresh too: on macOS an
-   * approval may land in the Keychain alone, the pointer file as it was
-   * (Codex on 55b9e24c).
-   */
+  Cancel decides the flow, but not against what the CLI saved (the review
+  of PR #49). When the credential file changed since the flow began (the
+  browser approved as Cancel was pressed), the CLI's sign-in is read
+  afresh, a Cancel being a click that may ask it. When the code was shown
+  and the file did not change, the CLI is asked afresh too: on macOS an
+  approval may land in the Keychain alone, the pointer file as it was
+  (Codex on 55b9e24c).
+  */
   private async finishCancelledCliSignIn(flow: CliSignInFlow): Promise<AuthSnapshot> {
     if (this.isSigningOut) {
       return this.snapshot
@@ -676,12 +676,12 @@ export class AuthService {
   }
 
   /**
-   * A flow that did not sign in: its state is published at once, then, with
-   * the hold on, a Model API session, or `isAskingAfresh` (a Cancel after
-   * the code was shown), a refresh reads the CLI's sign-in and publishes
-   * what it finds through `publishSelection`'s guards, with the ending as a
-   * notice.
-   */
+  A flow that did not sign in: its state is published at once, then, with
+  the hold on, a Model API session, or `isAskingAfresh` (a Cancel after
+  the code was shown), a refresh reads the CLI's sign-in and publishes
+  what it finds through `publishSelection`'s guards, with the ending as a
+  notice.
+  */
   private async finishFailedCliSignIn(
     flow: CliSignInFlow,
     status: 'noCli' | 'signedOut' | 'error',
@@ -873,10 +873,10 @@ export class AuthService {
   }
 
   /**
-   * The CLI's own sign-out: `account/logout` on a short-lived host, else
-   * `muse logout` in a terminal (confirmed later, by the file or the CLI).
-   * Returns false when that terminal could not open.
-   */
+  The CLI's own sign-out: `account/logout` on a short-lived host, else
+  `muse logout` in a terminal (confirmed later, by the file or the CLI).
+  Returns false when that terminal could not open.
+  */
   private async logOutCli(cliPath: string): Promise<boolean> {
     const isConfirmed = await this.deps.backend.logOutCli()
     // What the CLI said before the logout no longer holds, even when the
@@ -1018,14 +1018,14 @@ export class AuthService {
   }
 
   /**
-   * The window is closing: the browser sign-in is cancelled and waited
-   * for, so its host is closed before the backends stop, and none starts
-   * afterwards, not even from a click still in its pre-flight questions (the
-   * review of PR #49). A flag rather than the window's signal joined to the
-   * flow's connect: a stopped click then never publishes `signingIn`, asks
-   * its pre-check or opens a key prompt, where a signal would reach it only
-   * at the connect.
-   */
+  The window is closing: the browser sign-in is cancelled and waited
+  for, so its host is closed before the backends stop, and none starts
+  afterwards, not even from a click still in its pre-flight questions (the
+  review of PR #49). A flag rather than the window's signal joined to the
+  flow's connect: a stopped click then never publishes `signingIn`, asks
+  its pre-check or opens a key prompt, where a signal would reach it only
+  at the connect.
+  */
   public async stopSignIn(): Promise<void> {
     this.isStopped = true
     this.cancelSignIn()
@@ -1036,11 +1036,11 @@ export class AuthService {
   }
 
   /**
-   * Check again: the CLI is asked afresh, even about a sign-in it confirmed
-   * before (a Keychain sign-in or sign-out leaves the file as it was; the
-   * review of PR #49). Presses while one runs join it, so a second press does
-   * not forget the probe the first started and start another host.
-   */
+  Check again: the CLI is asked afresh, even about a sign-in it confirmed
+  before (a Keychain sign-in or sign-out leaves the file as it was; the
+  review of PR #49). Presses while one runs join it, so a second press does
+  not forget the probe the first started and start another host.
+  */
   public async checkAgain(): Promise<AuthSnapshot> {
     if (this.checkingAgain !== undefined) {
       return await this.checkingAgain
@@ -1114,10 +1114,10 @@ export class AuthService {
   }
 
   /**
-   * Re-derive the status from the CLI, credential and setting facts, then
-   * broadcast. `isUserAction` (Check again, a sign-in or sign-out) lets
-   * macOS ask the CLI about a Keychain sign-in; opening a panel does not.
-   */
+  Re-derive the status from the CLI, credential and setting facts, then
+  broadcast. `isUserAction` (Check again, a sign-in or sign-out) lets
+  macOS ask the CLI about a Keychain sign-in; opening a panel does not.
+  */
   public async refresh(isUserAction = false): Promise<AuthSnapshot> {
     const epoch = this.signOutEpoch
     // Publications are ordered by when their questions began: a slower,

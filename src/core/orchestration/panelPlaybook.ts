@@ -30,13 +30,13 @@ export interface PanelPlaybookRegistry {
     prior: PlaybookRound | undefined,
   ): readonly TurnPart[]
   /** A dispatch acknowledgement/agent summary is not a completion receipt. Await the
-   * actual runner's job tree, tests and result channel, stopping it on signal abort. */
+  actual runner's job tree, tests and result channel, stopping it on signal abort. */
   waitForCompletion(work: PlaybookWork, submission: unknown, signal: AbortSignal): Promise<void>
   stopReview(context: PlaybookReviewContext): void
   /** Persist dispatch evidence in the board/job record before a worker starts (G3/G4). */
   recordDispatch(workId: string, brief: RenderedPlaybookBrief): void
   /** G17: snapshot the shared repository configuration read-only through the trusted
-   * Git runner; drift is a durable owner item, never a job's own success claim. */
+  Git runner; drift is a durable owner item, never a job's own success claim. */
   snapshotRepositoryConfig(): string
   recordRepositoryDrift(workId: string, before: string, after: string): void
 }

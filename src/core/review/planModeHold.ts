@@ -16,9 +16,9 @@ export interface PlanModeSession {
 }
 
 /**
- * The mode put back, or why not. `isAfterTurn` is false when the review turn
- * never started (its send failed after Plan mode was set).
- */
+The mode put back, or why not. `isAfterTurn` is false when the review turn
+never started (its send failed after Plan mode was set).
+*/
 export type PlanModeRestore =
   | { readonly ok: true; readonly isAfterTurn: boolean }
   | { readonly ok: false; readonly isAfterTurn: boolean; readonly error: unknown }
@@ -111,12 +111,12 @@ export class PlanModeHold {
   }
 
   /**
-   * Plan mode while `work` runs instead of a turn (a deterministic scan,
-   * M97): the mode the session had comes back after, but only while this
-   * hold still owns it — a release meanwhile (the user chose a mode, the
-   * session went) leaves the user's choice alone. A `work` that throws
-   * still restores first. `isAfterTurn` is false: no turn ran.
-   */
+  Plan mode while `work` runs instead of a turn (a deterministic scan,
+  M97): the mode the session had comes back after, but only while this
+  hold still owns it — a release meanwhile (the user chose a mode, the
+  session went) leaves the user's choice alone. A `work` that throws
+  still restores first. `isAfterTurn` is false: no turn ran.
+  */
   public async holding<T>(
     session: PlanModeSession,
     work: () => Promise<T>,
@@ -135,10 +135,10 @@ export class PlanModeHold {
   }
 
   /**
-   * Plan mode, then the review turn. A send that fails puts the mode back
-   * before it rethrows; `isCurrent` false after the mode change stops the
-   * send (the session went meanwhile).
-   */
+  Plan mode, then the review turn. A send that fails puts the mode back
+  before it rethrows; `isCurrent` false after the mode change stops the
+  send (the session went meanwhile).
+  */
   public async send(
     session: PlanModeSession,
     parts: readonly TurnPart[],

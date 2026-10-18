@@ -53,9 +53,9 @@ async function readOne(file: string): Promise<TraceLogFacts | undefined> {
 }
 
 /**
- * Reads and summarises the logs on demand, at most once per TTL: the usage
- * modal asks on every open and on every `usage/changed`.
- */
+Reads and summarises the logs on demand, at most once per TTL: the usage
+modal asks on every open and on every `usage/changed`.
+*/
 export function createInsightsReader(deps: InsightsReaderDeps): InsightsReader {
   let cached:
     { readonly atMs: number; readonly report: UsageInsightsReport | undefined } | undefined

@@ -234,10 +234,10 @@ function browserTableContract(value) {
 }
 
 /**
- * Collect every literal text reader in the shipped static and dynamic source graph.
- * `excluded` are roots that install their own deferred English when loaded
- * (the independent resource entries); a graph that reaches one stops there.
- */
+Collect every literal text reader in the shipped static and dynamic source graph.
+`excluded` are roots that install their own deferred English when loaded
+(the independent resource entries); a graph that reaches one stops there.
+*/
 export function browserTextKeys(entries, english, eagerSources = new Set(), excluded = new Set()) {
   const seen = new Set()
   const keys = new Set()

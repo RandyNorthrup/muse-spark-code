@@ -57,12 +57,12 @@ export const accountFactsSchema = z.object({
 export type AccountFacts = z.infer<typeof accountFactsSchema>
 
 /**
- * One BYO provider's row in Account & usage (M95, PLAN.md D74): this
- * window's tokens with their settled cost (absent while unpriced), and an
- * account-connected key's own usage, limit and remainder where the provider
- * reports them (OpenRouter's `/key`, in USD). The host fills it (lane I
- * tallies per reference); the dialog only renders it.
- */
+One BYO provider's row in Account & usage (M95, PLAN.md D74): this
+window's tokens with their settled cost (absent while unpriced), and an
+account-connected key's own usage, limit and remainder where the provider
+reports them (OpenRouter's `/key`, in USD). The host fills it (lane I
+tallies per reference); the dialog only renders it.
+*/
 export const providerUsageRowSchema = z.object({
   providerId: z.string(),
   providerLabel: z.string(),
@@ -124,9 +124,9 @@ function unitPair(
 }
 
 /**
- * "2h 5m", "3d 4h", "1m" in the display language's short units (PLAN.md
- * D33); its word for "now" once the moment has passed.
- */
+"2h 5m", "3d 4h", "1m" in the display language's short units (PLAN.md
+D33); its word for "now" once the moment has passed.
+*/
 export function formatDuration(untilMs: number, nowMs: number): string {
   if (untilMs <= nowMs) {
     return UI_TEXT.durationNow
@@ -144,10 +144,10 @@ export function formatDuration(untilMs: number, nowMs: number): string {
 const OPAQUE_TIER = /^[\d-]+$/
 
 /**
- * The plan line: the tier id verbatim when it reads as a name, or a generic
- * label when Meta sends an opaque numeric id (verified live 2026-09-22:
- * `tier: "27681393394859588"`).
- */
+The plan line: the tier id verbatim when it reads as a name, or a generic
+label when Meta sends an opaque numeric id (verified live 2026-09-22:
+`tier: "27681393394859588"`).
+*/
 export function planLabel(tier: string): string {
   return tier === '' || OPAQUE_TIER.test(tier) ? UI_TEXT.usagePlanSubscription : tier
 }

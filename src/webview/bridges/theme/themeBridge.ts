@@ -11,10 +11,10 @@ export interface ThemePort {
 /** Page-controlled options for the internal consumer. */
 export interface ThemeBridgeOptions {
   /**
-   * The page's style nonce. Host values ride in a bridge-owned `<style>`
-   * element carrying it, which a strict `style-src` policy admits. Inline
-   * `style` writes would be refused there: a nonce never covers them.
-   */
+  The page's style nonce. Host values ride in a bridge-owned `<style>`
+  element carrying it, which a strict `style-src` policy admits. Inline
+  `style` writes would be refused there: a nonce never covers them.
+  */
   readonly nonce?: string
 }
 

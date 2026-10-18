@@ -29,11 +29,11 @@ export function keepGitCredentialRoutes(taken: readonly EnvironmentVariable[]): 
 }
 
 /**
- * The user's Git environment for the confirmed push and the pull request
- * fetch: the runtime's current environment with the Git routes it took at
- * start put back. Never for any other process.
- * @unwired M71 confirmed-push and PR-fetch environment
- */
+The user's Git environment for the confirmed push and the pull request
+fetch: the runtime's current environment with the Git routes it took at
+start put back. Never for any other process.
+@unwired M71 confirmed-push and PR-fetch environment
+*/
 export function runtimeGitUserEnvironment(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   return { ...env, ...Object.fromEntries(kept.routes.map(({ name, value }) => [name, value])) }
 }

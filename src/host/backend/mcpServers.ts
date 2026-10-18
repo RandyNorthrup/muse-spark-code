@@ -26,10 +26,10 @@ import { admitResource } from '../../core/resources/admission'
 import type { McpVaultBroker, McpVaultStartDeps } from './mcpVault'
 
 /**
- * POSTSPAWN: the route checks stay here (the pool's fetchFor is synchronous);
- * the vault launch itself (scrubber, leases, governed start) loads as
- * dist/mcpVault.js on the first vault-backed server, never at activation.
- */
+POSTSPAWN: the route checks stay here (the pool's fetchFor is synchronous);
+the vault launch itself (scrubber, leases, governed start) loads as
+dist/mcpVault.js on the first vault-backed server, never at activation.
+*/
 function deferredMcpVaultRoutes(deps: McpVaultStartDeps, broker: McpVaultBroker): McpVaultPoolPort {
   let loading: Promise<McpVaultRoutePorts['start']> | undefined
   const load = async () => {

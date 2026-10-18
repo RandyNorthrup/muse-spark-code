@@ -40,9 +40,9 @@ const responseSchema = z.discriminatedUnion('status', [
 ])
 export interface EstimatePricePort {
   /** M113 N owns persistence and public-address/redirect-safe transport.
-   * fetchPublic returns a parsed application projection from a captured
-   * catalog adapter, never a provider's raw wire response or credentials.
-   */
+  fetchPublic returns a parsed application projection from a captured
+  catalog adapter, never a provider's raw wire response or credentials.
+  */
   cached(catalogUrl: string): Promise<unknown>
   store(catalogUrl: string, document: z.infer<typeof documentSchema>): Promise<void>
   fetchPublic(catalogUrl: string, etag?: string): Promise<unknown>
@@ -101,10 +101,10 @@ function isConsistent(
 }
 
 /** Optional no-account catalogs. Dates come only from injected asOf and the
- * adapter's dated catalog evidence, never the clock or a guessed price.
- * Offline stale evidence is retained and labelled; a failed refresh cannot
- * overwrite a previously validated cache entry.
- */
+adapter's dated catalog evidence, never the clock or a guessed price.
+Offline stale evidence is retained and labelled; a failed refresh cannot
+overwrite a previously validated cache entry.
+*/
 export async function lookupEstimatePrices(
   options: EstimatePriceLookup,
   port: EstimatePricePort,

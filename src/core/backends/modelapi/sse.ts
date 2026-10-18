@@ -79,9 +79,9 @@ function isBlockCompleteAfter(pending: PendingEvent, line: string): boolean {
 }
 
 /**
- * Yields one event per blank-line-terminated block. A final block without
- * a trailing blank line is still delivered when the source ends.
- */
+Yields one event per blank-line-terminated block. A final block without
+a trailing blank line is still delivered when the source ends.
+*/
 export async function* parseSse(
   chunks: AsyncIterable<Uint8Array>,
   limits: StreamLimits = {},

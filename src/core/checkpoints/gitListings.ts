@@ -21,9 +21,9 @@ export interface BlobRef {
 }
 
 /**
- * `git cat-file --batch-check`: `<oid> <type> <size>` per object asked, or
- * `<name> missing`. Object name to size; a missing object is absent.
- */
+`git cat-file --batch-check`: `<oid> <type> <size>` per object asked, or
+`<name> missing`. Object name to size; a missing object is absent.
+*/
 export function parseBatchCheck(output: string): ReadonlyMap<string, number> {
   const sizes = new Map<string, number>()
   for (const line of output.split('\n')) {
@@ -37,10 +37,10 @@ export function parseBatchCheck(output: string): ReadonlyMap<string, number> {
 }
 
 /**
- * The object name git gives these bytes as a blob (SHA-1 of `blob <size>`,
- * NUL and the bytes): the shadow repository's object format, so a file can
- * be compared with what a capture holds without running git.
- */
+The object name git gives these bytes as a blob (SHA-1 of `blob <size>`,
+NUL and the bytes): the shadow repository's object format, so a file can
+be compared with what a capture holds without running git.
+*/
 export function gitBlobOid(bytes: Uint8Array): string {
   return gitBlobHash(bytes.length).update(bytes).digest('hex')
 }
@@ -57,9 +57,9 @@ export interface CatFileEntry {
 }
 
 /**
- * `git cat-file --batch`: for each object asked, `<oid> <type> <size>` LF,
- * the bytes and LF; or `<name> missing` LF. The answers in the order asked.
- */
+`git cat-file --batch`: for each object asked, `<oid> <type> <size>` LF,
+the bytes and LF; or `<name> missing` LF. The answers in the order asked.
+*/
 export function parseCatFileEntries(output: Buffer): readonly CatFileEntry[] {
   const entries: CatFileEntry[] = []
   let offset = 0

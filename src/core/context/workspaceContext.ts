@@ -48,16 +48,16 @@ export interface WorkspaceContextDeps {
   /** Muse Code's personal skill root; undefined when the host has no home. */
   readonly personalSkillsRoot: string | undefined
   /**
-   * The skills that ship with the extension (M89, PLAN.md D68), the lowest
-   * source; undefined where none ship (the ACP agent, the evaluation).
-   */
+  The skills that ship with the extension (M89, PLAN.md D68), the lowest
+  source; undefined where none ship (the ACP agent, the evaluation).
+  */
   readonly bundledSkills?: BundledSkillsSource | undefined
   /** The managed personal agent root (M76); undefined when the host has no home. */
   readonly personalAgentsRoot: string | undefined
   /**
-   * Whether the agents are loaded (M76): a parent conversation lists them
-   * and spawns them; a child cannot spawn, so it reads none.
-   */
+  Whether the agents are loaded (M76): a parent conversation lists them
+  and spawns them; a child cannot spawn, so it reads none.
+  */
   readonly hasAgents: boolean
   readonly isWorkspaceTrusted: () => boolean
   /** The memory snapshot (M49); undefined when the backend has no memory. */
@@ -73,9 +73,9 @@ export interface ContextSections {
   readonly rules: string | undefined
   readonly skills: readonly SkillDefinition[]
   /**
-   * The custom agents the model may run through `subagent_spawn` (M76):
-   * only those a spawn of the name would run (RV70x).
-   */
+  The custom agents the model may run through `subagent_spawn` (M76):
+  only those a spawn of the name would run (RV70x).
+  */
   readonly agents: readonly AgentDefinition[]
   /** The scopes that keep notes, as the session began; empty without any. */
   readonly memory: readonly MemoryScopeSnapshot[]
@@ -239,11 +239,11 @@ export class WorkspaceContext {
   }
 
   /**
-   * Agents load once per session with the rest of the context (M76): a
-   * repository's files only in a trusted workspace, like the skills. Each
-   * root loads on its own; one that fails is a hole the others' precedence
-   * respects (RV70x).
-   */
+  Agents load once per session with the rest of the context (M76): a
+  repository's files only in a trusted workspace, like the skills. Each
+  root loads on its own; one that fails is a hole the others' precedence
+  respects (RV70x).
+  */
   private async loadAgentCatalogue(): Promise<void> {
     // Rules and skills awaited first; trust can change before agent loading.
     if (!this.isTrusted) return
@@ -293,10 +293,10 @@ export class WorkspaceContext {
   }
 
   /**
-   * Loads the rules files of the directories above a touched path that have
-   * not been checked yet, deeper files after shallower ones (Muse Code: the
-   * deeper file wins). True when the rules changed.
-   */
+  Loads the rules files of the directories above a touched path that have
+  not been checked yet, deeper files after shallower ones (Muse Code: the
+  deeper file wins). True when the rules changed.
+  */
   public async touch(relativePath: string): Promise<boolean> {
     if (!this.isTrusted) {
       return false

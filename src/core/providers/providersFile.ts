@@ -213,10 +213,10 @@ export type ProvidersFileRead =
     }
 
 /**
- * Read and validate the file. A missing file is the first-run state, not
- * an error. An invalid file is reported, never repaired or defaulted: the
- * panel shows the failure and the user's providers stay untouched.
- */
+Read and validate the file. A missing file is the first-run state, not
+an error. An invalid file is reported, never repaired or defaulted: the
+panel shows the failure and the user's providers stay untouched.
+*/
 /** The `code` of a filesystem error, or undefined for anything else. */
 function errorCode(error: unknown): string | undefined {
   return typeof error === 'object' && error !== null && 'code' in error
@@ -257,11 +257,11 @@ export type ProvidersFileWrite =
   | { readonly ok: false; readonly reason: 'invalid' | 'io-error'; readonly detail: string }
 
 /**
- * Validate and write the file atomically: encoded once, written to a
- * unique temporary file beside the destination, then renamed over the
- * target, so a crash never leaves half a file. An invalid value is refused
- * before anything is written.
- */
+Validate and write the file atomically: encoded once, written to a
+unique temporary file beside the destination, then renamed over the
+target, so a crash never leaves half a file. An invalid value is refused
+before anything is written.
+*/
 export async function writeProvidersFileAtomic(
   filePath: string,
   file: unknown,

@@ -39,9 +39,9 @@ export interface IdeWebFetchDeps {
   /** A trusted workspace whose sandbox network setting allows the network. */
   readonly isOffered: () => boolean
   /**
-   * The URL's first checks (pageUrl.ts), from the web fetch bundle
-   * (webFetchBundle.ts, PLAN.md D6); throws when it cannot be loaded.
-   */
+  The URL's first checks (pageUrl.ts), from the web fetch bundle
+  (webFetchBundle.ts, PLAN.md D6); throws when it cannot be loaded.
+  */
   readonly checkUrl: (raw: string) => PageUrlCheck
   readonly fetchPage: WebFetcher
   /** The modal before every fetch: true only when the user allowed this one. */
@@ -57,9 +57,9 @@ function noop(): void {
 }
 
 /**
- * Whether Muse Code is offered the fetch: a trusted workspace, and
- * `museSpark.sandboxNetwork` not set to deny its commands the network.
- */
+Whether Muse Code is offered the fetch: a trusted workspace, and
+`museSpark.sandboxNetwork` not set to deny its commands the network.
+*/
 export function isIdeWebFetchOffered(
   isTrusted: boolean,
   sandboxNetwork: SandboxNetworkMode,
@@ -68,13 +68,13 @@ export function isIdeWebFetchOffered(
 }
 
 /**
- * The modal, asked once per URL at a time: VS Code cannot close a modal a
- * caller stopped waiting for, so a retry of the same URL while it is still
- * open waits for that same answer instead of queueing a second modal. The
- * browser check (M81) asks its own modal through it too, keyed by the URL
- * and what the modal shows (`keyOf`), so only a call it equally covers
- * shares an answer.
- */
+The modal, asked once per URL at a time: VS Code cannot close a modal a
+caller stopped waiting for, so a retry of the same URL while it is still
+open waits for that same answer instead of queueing a second modal. The
+browser check (M81) asks its own modal through it too, keyed by the URL
+and what the modal shows (`keyOf`), so only a call it equally covers
+shares an answer.
+*/
 export function oneQuestionPerUrl<T>(
   isAllowedByUser: (url: string, about: T) => Promise<boolean>,
   keyOf: (url: string, about: T) => string = (url) => url,
@@ -100,10 +100,10 @@ export function oneQuestionPerUrl<T>(
 }
 
 /**
- * `start()`'s answer, or a refusal with `reason` as soon as the caller stops
- * waiting; a caller that already stopped starts nothing (no modal for
- * nobody). The browser check (M81) waits for its modal through it too.
- */
+`start()`'s answer, or a refusal with `reason` as soon as the caller stops
+waiting; a caller that already stopped starts nothing (no modal for
+nobody). The browser check (M81) waits for its modal through it too.
+*/
 export async function unlessCancelled<T>(
   start: () => Promise<T>,
   signal: AbortSignal,

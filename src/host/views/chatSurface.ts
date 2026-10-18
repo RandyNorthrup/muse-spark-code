@@ -20,10 +20,10 @@ export interface ChatSurface {
   /** A side chat's surface (M53): opens in Plan and keeps its conversation apart. */
   readonly isSideChat?: boolean
   /**
-   * The id the host wrote into the current document's HTML (M107). Each build
-   * (the first, and every `reload`) issues a new one and retires the old one at
-   * once; a message naming any other id is not from this document.
-   */
+  The id the host wrote into the current document's HTML (M107). Each build
+  (the first, and every `reload`) issues a new one and retires the old one at
+  once; a message naming any other id is not from this document.
+  */
   readonly documentId: string
   post(message: HostToWebviewMessage): void
   /** Bring the surface into view and give it keyboard focus. */
@@ -35,11 +35,11 @@ export interface ChatSurface {
   /** Rebuild the document with a fresh nonce (the error boundary's Reload, M11). */
   reload(): void
   /**
-   * The session a panel held before the window reloaded (D15), until it is
-   * live here (its history went to the webview, or another session started)
-   * or the user clears the conversation (M25): every `ready` until then may
-   * try the resume again, so a failed one is not the end of the conversation.
-   */
+  The session a panel held before the window reloaded (D15), until it is
+  live here (its history went to the webview, or another session started)
+  or the user clears the conversation (M25): every `ready` until then may
+  try the resume again, so a failed one is not the end of the conversation.
+  */
   takeRestoredSessionId(): string | undefined
   /** Stop handling the surface's messages. */
   dispose(): void

@@ -76,11 +76,11 @@ export type RuntimeManifest = z.infer<typeof manifestSchema>
 export type PlatformRecord = z.infer<typeof platformSchema>
 
 /**
- * The manifest, or undefined when it is not one: the schema, and the
- * records agreeing with each other (the version everywhere, the earliest
- * desktop date as the pin's, its ISO rendering, the executable among the
- * executable entries, every URL under the pinned storage path).
- */
+The manifest, or undefined when it is not one: the schema, and the
+records agreeing with each other (the version everywhere, the earliest
+desktop date as the pin's, its ISO rendering, the executable among the
+executable entries, every URL under the pinned storage path).
+*/
 export function parseRuntimeManifest(raw: unknown): RuntimeManifest | undefined {
   const parsed = manifestSchema.safeParse(raw)
   if (!parsed.success) {
@@ -126,11 +126,11 @@ export function runtimePlatform(
 }
 
 /**
- * Whether a check may use the pin at `nowMs`: from its publication until
- * just before publication + 45 days. A date in the future (the local clock
- * earlier than the publication) or a value that is not a whole number of
- * milliseconds refuses rather than extends freshness.
- */
+Whether a check may use the pin at `nowMs`: from its publication until
+just before publication + 45 days. A date in the future (the local clock
+earlier than the publication) or a value that is not a whole number of
+milliseconds refuses rather than extends freshness.
+*/
 export function isPinFresh(publishedAtMs: number, nowMs: number): boolean {
   return (
     Number.isSafeInteger(publishedAtMs) &&
@@ -141,10 +141,10 @@ export function isPinFresh(publishedAtMs: number, nowMs: number): boolean {
 }
 
 /**
- * Release and weekly CI: whether the pin still lags the newest Stable by at
- * most 14 days (exactly 14 passes; one millisecond more fails). An older or
- * equal newest version never fails; an unknown date always does.
- */
+Release and weekly CI: whether the pin still lags the newest Stable by at
+most 14 days (exactly 14 passes; one millisecond more fails). An older or
+equal newest version never fails; an unknown date always does.
+*/
 export function isPinCurrent(pinPublishedAtMs: number, newestPublishedAtMs: number): boolean {
   return (
     Number.isSafeInteger(pinPublishedAtMs) &&

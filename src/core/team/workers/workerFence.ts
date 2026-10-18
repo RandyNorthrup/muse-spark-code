@@ -475,13 +475,13 @@ const LIST_ONLY_FLAGS = new Set([
 const LIST_ONLY_SHORT = new Set(['-l', '-a', '-r', '-v', '-n'])
 
 /**
- * A worker's `git` argument list, refused at call admission. Every git
- * command that commits, merges, rebases, resets, checks out or switches,
- * moves or deletes a branch or tag, edits a ref, adds or removes a
- * worktree, stashes, reaches another repository, or smuggles configuration
- * (`-c credential.helper=…`, `--git-dir`, `-C <elsewhere>`) is refused.
- * Unknown subcommands are refused too: the guard is fail-closed.
- */
+A worker's `git` argument list, refused at call admission. Every git
+command that commits, merges, rebases, resets, checks out or switches,
+moves or deletes a branch or tag, edits a ref, adds or removes a
+worktree, stashes, reaches another repository, or smuggles configuration
+(`-c credential.helper=…`, `--git-dir`, `-C <elsewhere>`) is refused.
+Unknown subcommands are refused too: the guard is fail-closed.
+*/
 export function classifyWorkerGitCommand(args: readonly string[]): RefFenceVerdict {
   const words = [...args]
   const command = words.join(' ')
@@ -619,7 +619,7 @@ function isGitExecutable(word: string): boolean {
 }
 
 /** The tokenizer supplies only argv after the executable. Unknown Git
- * commands and program-running options refuse through this one classifier. */
+commands and program-running options refuse through this one classifier. */
 export function isRefMovingGitCommand(words: readonly string[]): boolean {
   const index = words.findIndex((word) => isGitExecutable(word))
   return index !== -1 && !classifyWorkerGitCommand(words.slice(index + 1)).allowed
@@ -752,9 +752,9 @@ export async function isWorkerCommandAllowed(
 }
 
 /**
- * Whether any run of the command line moves a ref: `looseWords` reads
- * wider than the shell, so a nested `$(git push)` is seen too.
- */
+Whether any run of the command line moves a ref: `looseWords` reads
+wider than the shell, so a nested `$(git push)` is seen too.
+*/
 export function hasRefMove(command: string, dialect: ShellDialect): boolean {
   const hasRefMoves = (text: string, depth: number): boolean =>
     looseWords(text, dialect).some(
@@ -767,14 +767,14 @@ export function hasRefMove(command: string, dialect: ShellDialect): boolean {
 
 const ACP_WRITE_KINDS: ReadonlySet<string> = new Set(['edit', 'delete', 'move'])
 /**
- * Answers a `session/request_permission` by the role's policy. Rejected
- * without asking: paths outside the working copy (links followed), an edit
- * outside `write-paths`, an `execute` for a role without the shell, a git
- * command the ref guard refuses, a `fetch` for a role without the network,
- * and for a `read-only` role any edit and any command off the read-only
- * list. Everything else becomes the user's card.
- * @unwired M96 ACP permission answer
- */
+Answers a `session/request_permission` by the role's policy. Rejected
+without asking: paths outside the working copy (links followed), an edit
+outside `write-paths`, an `execute` for a role without the shell, a git
+command the ref guard refuses, a `fetch` for a role without the network,
+and for a `read-only` role any edit and any command off the read-only
+list. Everything else becomes the user's card.
+@unwired M96 ACP permission answer
+*/
 export async function answerAcpPermission(
   input: AcpPermissionInput,
 ): Promise<AcpPermissionVerdict> {
@@ -883,11 +883,11 @@ export class MuseWorkerCapturePendingError extends Error {
 }
 
 /**
- * Switches a user's exclusive servers off for one session. Step 1 captures
- * whether `config.mcpServers` can override or switch off a user-configured
- * server of the same name; until it does, this throws rather than running
- * the worker beside a second copy of a singleton server.
- */
+Switches a user's exclusive servers off for one session. Step 1 captures
+whether `config.mcpServers` can override or switch off a user-configured
+server of the same name; until it does, this throws rather than running
+the worker beside a second copy of a singleton server.
+*/
 export function userServerExclusion(names: readonly string[]): void {
   if (names.length > 0) {
     throw new MuseWorkerCapturePendingError()

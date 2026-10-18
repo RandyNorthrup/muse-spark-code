@@ -46,10 +46,10 @@ function rangeOf(match: RegExpExecArray | null): LineRange | undefined {
 }
 
 /**
- * The href react-markdown puts on a link: its own filter (which blanks
- * `javascript:` and every scheme it does not know), except that a
- * `name:line` file link is let through rather than read as a scheme.
- */
+The href react-markdown puts on a link: its own filter (which blanks
+`javascript:` and every scheme it does not know), except that a
+`name:line` file link is let through rather than read as a scheme.
+*/
 export function linkHref(url: string): string {
   return NAME_WITH_LINES.test(url) ? url : defaultUrlTransform(url)
 }

@@ -41,10 +41,10 @@ function itemKey(item: ReportDraftItem): string {
 }
 
 /**
- * What the dialog's status line reads: the updating state while a rebuilt
- * preview is on its way, otherwise the last export's answer in fixed words.
- * Nothing to say (no answer yet, a quiet cancellation) reads as silence.
- */
+What the dialog's status line reads: the updating state while a rebuilt
+preview is on its way, otherwise the last export's answer in fixed words.
+Nothing to say (no answer yet, a quiet cancellation) reads as silence.
+*/
 export function reportDialogStatusText(
   exportStatus: ReportExportStatus | undefined,
   isUpdating: boolean,
@@ -228,14 +228,14 @@ interface ReportUpdate {
 }
 
 /**
- * The dialog above the panel (M93 lane W): posts the user's choices for the
- * host to rebuild the sealed draft, and exports with the seal of the draft on
- * screen. Each choice carries the dialog's own count (its revision); the
- * preview counts as updating until the host's draft answers the newest one,
- * so an older reply never settles a newer choice or unlocks the exports.
- * Mounted while `report` is defined (in the app, or over the crash screen),
- * once per host session; closing returns focus to whatever opened it.
- */
+The dialog above the panel (M93 lane W): posts the user's choices for the
+host to rebuild the sealed draft, and exports with the seal of the draft on
+screen. Each choice carries the dialog's own count (its revision); the
+preview counts as updating until the host's draft answers the newest one,
+so an older reply never settles a newer choice or unlocks the exports.
+Mounted while `report` is defined (in the app, or over the crash screen),
+once per host session; closing returns focus to whatever opened it.
+*/
 export function ReportDialogHost({
   report,
   postMessage,

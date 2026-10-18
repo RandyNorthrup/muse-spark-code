@@ -8,7 +8,7 @@ import type { DeveloperOptions } from '../../core/developer/developerOptions'
 import { UI_TEXT } from '../../shared/constants'
 
 /** H calls this before its ordinary CLI parser; only identifiers are accepted.
- * Credentials still enter through auth's standard input, never these args. */
+Credentials still enter through auth's standard input, never these args. */
 export function parseDeveloperCommand(args: readonly string[]): DeveloperRequest | undefined {
   const [command, action, first, second, extra] = args
   if (command !== 'developer') return undefined

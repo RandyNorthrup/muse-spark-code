@@ -12,11 +12,11 @@ export interface ExecAccountSelection {
 }
 
 /** H-M95-EXEC: create the runtime with the shared profile owner and supplied
- * bounded transport. Every model attempt, retry and paid call must use that
- * transport, P's request-boundary admission, and the original run budget.
- * No machine confirmation is minted here; P reads existing grants only.
- * CAPS017: the caller passes the engine's backend factory it already loaded,
- * so dist/runtimeAccounts.js never bundles the backends (PLAN.md D6). */
+bounded transport. Every model attempt, retry and paid call must use that
+transport, P's request-boundary admission, and the original run budget.
+No machine confirmation is minted here; P reads existing grants only.
+CAPS017: the caller passes the engine's backend factory it already loaded,
+so dist/runtimeAccounts.js never bundles the backends (PLAN.md D6). */
 export interface ExecAccountsPort {
   create(
     deps: RuntimeBackendDeps,
@@ -38,8 +38,8 @@ export function execAccountSelection(
 }
 
 /** The adapter calls this for every attempt. Parent identities, exact USD
- * @unwired M95 headless exec account selection
- * estimates and recovery state survive unchanged; headless can never ask. */
+@unwired M95 headless exec account selection
+estimates and recovery state survive unchanged; headless can never ask. */
 export function execAccountRequest(
   options: Pick<ExecOptions, 'account' | 'accountPool' | 'keyFromStdin'>,
   request: AccountPoolRequest,

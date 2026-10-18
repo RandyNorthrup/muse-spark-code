@@ -310,11 +310,11 @@ async function readBoundedFile(
 }
 
 /**
- * This agent process's flight recorder (M93, PLAN.md D72): the extension's
- * own ReportJournal, with the same policy, under the agent's data folder
- * (no workspace needed). Each process writes only its own journal; `report`
- * reads them all.
- */
+This agent process's flight recorder (M93, PLAN.md D72): the extension's
+own ReportJournal, with the same policy, under the agent's data folder
+(no workspace needed). Each process writes only its own journal; `report`
+reads them all.
+*/
 async function reportJournal(log: Logger): Promise<ReportJournal> {
   const { ReportJournal } = await import('../host/support/recorderEntry')
   return new ReportJournal({

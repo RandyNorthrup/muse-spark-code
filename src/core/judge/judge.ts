@@ -15,9 +15,9 @@ export interface JudgeQuestion {
   readonly kind: JudgeQuestionKind
   readonly text: string
   /**
-   * Choice option labels (2–26) or score level labels (2–10). Absent for
-   * noul, whose alternatives are yes and no.
-   */
+  Choice option labels (2–26) or score level labels (2–10). Absent for
+  noul, whose alternatives are yes and no.
+  */
   readonly options?: readonly string[] | undefined
 }
 
@@ -25,9 +25,9 @@ export interface JudgeQuestion {
 export type JudgeTechnique = 'logprob' | 'top1' | 'stated'
 
 /**
- * The plan-named result labels. Phase 1 emits only "uncalibrated" and
- * "approximate (top-1)"; the calibrated labels wait for phase-2b profiles.
- */
+The plan-named result labels. Phase 1 emits only "uncalibrated" and
+"approximate (top-1)"; the calibrated labels wait for phase-2b profiles.
+*/
 export type JudgeLabel =
   'calibrated (logprob)' | 'calibrated (stated)' | 'uncalibrated' | 'approximate (top-1)'
 
@@ -35,22 +35,22 @@ export type JudgeLabel =
 export type JudgeSource = 'same'
 
 /**
- * What a technique hands to assembly: one probability per alternative of
- * the question, in alternative order, summing to 1.
- */
+What a technique hands to assembly: one probability per alternative of
+the question, in alternative order, summing to 1.
+*/
 export interface AnswerMaterial {
   readonly probabilities: readonly number[]
   /** The backend's own value, kept as-is and never mixed with ours. */
   readonly vendorConfidence?: number | undefined
   /**
-   * Fewer distinct semantic alternatives were seen than the question
-   * offers (case and leading-space variants count as one).
-   */
+  Fewer distinct semantic alternatives were seen than the question
+  offers (case and leading-space variants count as one).
+  */
   readonly partial: boolean
   /**
-   * 1 minus the total answer-token mass. 0 for stated confidence, which
-   * distributes over every alternative by construction.
-   */
+  1 minus the total answer-token mass. 0 for stated confidence, which
+  distributes over every alternative by construction.
+  */
   readonly residualMass: number
   readonly technique: JudgeTechnique
 }
@@ -98,10 +98,10 @@ export interface JudgeScoreAnswer extends JudgeAnswerBase {
 export type JudgeAnswer = JudgeNoulAnswer | JudgeChoiceAnswer | JudgeScoreAnswer
 
 /**
- * Phase-1 label for a technique: binary-from-top-1 is "approximate
- * (top-1)"; logprobs and stated confidence are "uncalibrated" until a
- * phase-2b profile exists (D77).
- */
+Phase-1 label for a technique: binary-from-top-1 is "approximate
+(top-1)"; logprobs and stated confidence are "uncalibrated" until a
+phase-2b profile exists (D77).
+*/
 export function labelForTechnique(technique: JudgeTechnique): JudgeLabel {
   return technique === 'top1' ? 'approximate (top-1)' : 'uncalibrated'
 }
@@ -144,10 +144,10 @@ export interface AssembleAnswerInputs {
 }
 
 /**
- * Assemble one labelled answer from a technique result. Our confidence is
- * always the entropy formula over the material's distribution; the
- * backend's own value rides along untouched as `vendorConfidence`.
- */
+Assemble one labelled answer from a technique result. Our confidence is
+always the entropy formula over the material's distribution; the
+backend's own value rides along untouched as `vendorConfidence`.
+*/
 export function assembleAnswer(inputs: AssembleAnswerInputs): JudgeAnswer {
   const { question, material, model } = inputs
   const muse: JudgeMuseMeta = {

@@ -50,9 +50,9 @@ async function quietly(work: () => Promise<unknown>): Promise<void> {
 const ENDED = Symbol('ended')
 
 /**
- * A lifetime of `ms` from now, ended early by any of `signals`. Cleanups get
- * `cleanupMs` in all; one that hangs is left behind, not waited for.
- */
+A lifetime of `ms` from now, ended early by any of `signals`. Cleanups get
+`cleanupMs` in all; one that hangs is left behind, not waited for.
+*/
 export function createLifetime(
   ms: number,
   signals: readonly AbortSignal[],

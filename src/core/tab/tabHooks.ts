@@ -19,12 +19,12 @@ import type { ShellResult } from '../shellResult'
 export type TabHookEvent = 'beforeTabFileRead' | 'afterTabFileEdit'
 
 /**
- * What the hook configuration in force says about one event (RVM94KR 1): no
- * Tab hook, a configured one, or a hook file present that did not load
- * whole. Only `absent` reads without a guard; `invalid` refuses every read,
- * and so does `reloading`: a change was detected and its reload has not
- * finished (RVM94KR2 3).
- */
+What the hook configuration in force says about one event (RVM94KR 1): no
+Tab hook, a configured one, or a hook file present that did not load
+whole. Only `absent` reads without a guard; `invalid` refuses every read,
+and so does `reloading`: a change was detected and its reload has not
+finished (RVM94KR2 3).
+*/
 export type TabHookState = 'absent' | 'present' | 'invalid' | 'reloading'
 
 /** The hook policy a Tab request binds to at its start (RVM94KR 2). */
@@ -61,13 +61,13 @@ export interface TabHookEdit {
 }
 
 /**
- * M91 selects the snapshot's hooks with this fixed matcher, adapts Cursor
- * stdin, and runs under its shared process cap, scrubbed environment, output
- * bounds and tree kill. It caps EACH command's timeout at maxTimeoutMs.
- * [] means no matching hook; undefined means dispatch could not run. A
- * configured guard must return a result, including crashes and cancellations.
- * Results are raw command results, before any fail-open mapping or onFailure.
- */
+M91 selects the snapshot's hooks with this fixed matcher, adapts Cursor
+stdin, and runs under its shared process cap, scrubbed environment, output
+bounds and tree kill. It caps EACH command's timeout at maxTimeoutMs.
+[] means no matching hook; undefined means dispatch could not run. A
+configured guard must return a result, including crashes and cancellations.
+Results are raw command results, before any fail-open mapping or onFailure.
+*/
 export interface TabHookRun {
   readonly event: TabHookEvent
   readonly matcherValue: 'TabRead' | 'TabWrite'
@@ -79,17 +79,17 @@ export interface TabHooksDeps {
   readonly isWorkspaceTrusted: () => boolean
   readonly isHooksEnabled: () => boolean
   /**
-   * The policy epoch: moves the moment a hook file or setting change is
-   * detected, before any observer runs, and again when its reload starts.
-   */
+  The policy epoch: moves the moment a hook file or setting change is
+  detected, before any observer runs, and again when its reload starts.
+  */
   readonly configurationVersion: () => string
   /** True from a change's detection until its reload has published (RVM94KR2 3). */
   readonly isReloading?: (() => boolean) | undefined
   /**
-   * Production loads the snapshot lazily and waits for a pending reload:
-   * `absent` preserves the old read, `invalid` refuses it, and a rejection
-   * (no dispatch) refuses it too.
-   */
+  Production loads the snapshot lazily and waits for a pending reload:
+  `absent` preserves the old read, `invalid` refuses it, and a rejection
+  (no dispatch) refuses it too.
+  */
   readonly hookState?: ((event: TabHookEvent) => Promise<TabHookState>) | undefined
   readonly run: (request: TabHookRun) => Promise<readonly ShellResult[] | undefined>
   /** Counts and fixed status words only: no payload, output, reason or path. */

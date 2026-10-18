@@ -107,19 +107,19 @@ function isOverTls(socket: Socket | null): boolean {
 }
 
 /**
- * Whether a TLS socket has finished its handshake: its Finished message is
- * there only then (`getProtocol` may name a version before it is done).
- */
+Whether a TLS socket has finished its handshake: its Finished message is
+there only then (`getProtocol` may name a version before it is done).
+*/
 function isHandshakeDone(socket: TLSSocket): boolean {
   return socket.getFinished() !== undefined
 }
 
 /**
- * Calls `onConnected` once the request's connection is up: its TLS handshake
- * done (to the pinned address, or through the proxy's tunnel to it), or for
- * the tests' plain server its TCP connection. A socket kept alive from an
- * earlier request is up already.
- */
+Calls `onConnected` once the request's connection is up: its TLS handshake
+done (to the pinned address, or through the proxy's tunnel to it), or for
+the tests' plain server its TCP connection. A socket kept alive from an
+earlier request is up already.
+*/
 function watchConnection(
   outgoing: ClientRequest,
   isTlsRequired: boolean,
@@ -156,11 +156,11 @@ function notOverTls(status: number, address: string): Error {
 }
 
 /**
- * One pinned GET; `onConnected` once its connection is up. Rejects when it
- * cannot be made, when a proxy answered instead of the server, or when the
- * signal aborts. `isTlsRequired` is off only for the tests' plain loopback
- * server.
- */
+One pinned GET; `onConnected` once its connection is up. Rejects when it
+cannot be made, when a proxy answered instead of the server, or when the
+signal aborts. `isTlsRequired` is off only for the tests' plain loopback
+server.
+*/
 export function pinnedHttpsRequest(
   target: PinnedTarget,
   signal: AbortSignal,
@@ -179,10 +179,10 @@ export function pinnedHttpsRequest(
 }
 
 /**
- * One pinned POST; `onConnected` once its connection is up. Follows no
- * redirect: the first response is the answer. Rejects as the GET does.
- * `isTlsRequired` is off only for the tests' plain loopback server.
- */
+One pinned POST; `onConnected` once its connection is up. Follows no
+redirect: the first response is the answer. Rejects as the GET does.
+`isTlsRequired` is off only for the tests' plain loopback server.
+*/
 export function pinnedPostRequest(
   target: PinnedTarget,
   body: string,

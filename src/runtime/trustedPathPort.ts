@@ -5,10 +5,10 @@ export interface TrustedPathVerifier {
     options: {
       readonly leafKind: 'file' | 'directory'
       /**
-       * The folder the caller owns (Windows: links at or above it are normal and
-       * it is trusted by resolved identity; nothing below it may be a link).
-       * Omitted: the leaf's own folder for a file, the leaf for a directory.
-       */
+      The folder the caller owns (Windows: links at or above it are normal and
+      it is trusted by resolved identity; nothing below it may be a link).
+      Omitted: the leaf's own folder for a file, the leaf for a directory.
+      */
       readonly root?: string | undefined
     },
   ): Promise<

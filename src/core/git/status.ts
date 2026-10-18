@@ -27,11 +27,11 @@ export function nativeRemoteNamesArgs(): readonly string[] {
 }
 
 /**
- * Whether a remote's URLs may be read: a plain config section name, so the
- * `remote.<name>.url` key built from it cannot surprise the allowlist. An
- * exotic name keeps its remote (push still judges the name itself) but no
- * URL is read for it.
- */
+Whether a remote's URLs may be read: a plain config section name, so the
+`remote.<name>.url` key built from it cannot surprise the allowlist. An
+exotic name keeps its remote (push still judges the name itself) but no
+URL is read for it.
+*/
 export function isReadableRemoteName(name: string): boolean {
   // `!` through `~` without a leading dash: no space, control, DEL or
   // non-ASCII name (its URL stays unread, the remote itself still pushes).
@@ -50,12 +50,12 @@ export function remotePushUrlArgs(name: string): readonly string[] {
 }
 
 /**
- * Fixed shape: every URL a push to `name` goes to, as git itself resolves
- * it (`pushurl` or `url`, every value, `insteadOf` and `pushInsteadOf`
- * applied). A push's confirmation shows these, so a rewrite in a
- * repository's configuration cannot send it somewhere the user did not see
- * (RVM123G2). The pull request's repository keeps M71's raw read below.
- */
+Fixed shape: every URL a push to `name` goes to, as git itself resolves
+it (`pushurl` or `url`, every value, `insteadOf` and `pushInsteadOf`
+applied). A push's confirmation shows these, so a rewrite in a
+repository's configuration cannot send it somewhere the user did not see
+(RVM123G2). The pull request's repository keeps M71's raw read below.
+*/
 export function remotePushUrlsArgs(name: string): readonly string[] {
   return ['remote', 'get-url', '--push', '--all', name]
 }
@@ -66,10 +66,10 @@ export function configOriginsArgs(): readonly string[] {
 }
 
 /**
- * The configuration files git read, from `configOriginsArgs`' output:
- * `file:` origins only, resolved against `cwd` (git names the
- * repository's own relative to it), each once, in git's order.
- */
+The configuration files git read, from `configOriginsArgs`' output:
+`file:` origins only, resolved against `cwd` (git names the
+repository's own relative to it), each once, in git's order.
+*/
 function parseConfigOrigins(output: string, cwd: string): string[] {
   const fields = output.split('\0')
   const files: string[] = []
@@ -107,11 +107,11 @@ export interface NativeStatusSnapshot {
   readonly unstaged: readonly string[]
   readonly untracked: readonly string[]
   /**
-   * Every change record as git wrote it: the modes and the HEAD and index
-   * object names beside each path, so a form's stamp changes when different
-   * bytes are staged under the same name (the working tree's bytes are
-   * fingerprinted by the service, which reads them confined).
-   */
+  Every change record as git wrote it: the modes and the HEAD and index
+  object names beside each path, so a form's stamp changes when different
+  bytes are staged under the same name (the working tree's bytes are
+  fingerprinted by the service, which reads them confined).
+  */
   readonly records: readonly string[]
   /** The changed paths that are submodules (`S…` records): their own content stays theirs. */
   readonly submodules: readonly string[]
@@ -127,9 +127,9 @@ const ORDINARY_PATH_FIELD = 8
 /** Leading fields before the path in a renamed (`2`) status record. */
 const RENAMED_PATH_FIELD = 9
 /**
- * Leading fields before the path in an unmerged (`u`) status record:
- * `u XY sub m1 m2 m3 mW h1 h2 h3 path` (git-status(1), porcelain v2).
- */
+Leading fields before the path in an unmerged (`u`) status record:
+`u XY sub m1 m2 m3 mW h1 h2 h3 path` (git-status(1), porcelain v2).
+*/
 const UNMERGED_PATH_FIELD = 10
 
 function branchOf(head: string): string | undefined {
@@ -159,14 +159,14 @@ function trackedChange(
 }
 
 /**
- * `git status --porcelain=v2 -z`: NUL-separated records, `?` for a new
- * file, `1`/`2`/`u` for a tracked change (staged when the first status
- * letter moves, unstaged when the second does). A `u` record (a merge
- * conflict) has ten fields before its path, the three stages' object
- * names among them. A `2` record's renamed path follows as its own record
- * and is skipped there. Anything else is refused: the caller runs a fixed
- * command, so an unknown record means git's words changed, not user text.
- */
+`git status --porcelain=v2 -z`: NUL-separated records, `?` for a new
+file, `1`/`2`/`u` for a tracked change (staged when the first status
+letter moves, unstaged when the second does). A `u` record (a merge
+conflict) has ten fields before its path, the three stages' object
+names among them. A `2` record's renamed path follows as its own record
+and is skipped there. Anything else is refused: the caller runs a fixed
+command, so an unknown record means git's words changed, not user text.
+*/
 export function parseStatusV2(output: string): NativeStatusSnapshot {
   let branch: string | undefined
   let upstream: string | undefined
@@ -241,19 +241,19 @@ export function parseStatusV2(output: string): NativeStatusSnapshot {
 }
 
 /**
- * `git remote`: one name per line, in git's order. Names are data for an
- * exact-membership check before any URL is read under them.
- */
+`git remote`: one name per line, in git's order. Names are data for an
+exact-membership check before any URL is read under them.
+*/
 export function parseRemoteNames(output: string): string[] {
   return output.split('\n').filter((line) => line !== '')
 }
 
 /**
- * One configuration value: the trimmed text, or undefined when git has no
- * such value (exit 1). Anything else is git failing to answer, and is
- * rethrown. The key comes from `nativeRemoteNamesArgs`' own list or the
- * fixed signing keys; the allowlist rechecks its shape at spawn.
- */
+One configuration value: the trimmed text, or undefined when git has no
+such value (exit 1). Anything else is git failing to answer, and is
+rethrown. The key comes from `nativeRemoteNamesArgs`' own list or the
+fixed signing keys; the allowlist rechecks its shape at spawn.
+*/
 export async function readConfigValue(
   run: GitProcess,
   context: NativeGitContext,
@@ -277,11 +277,11 @@ export async function readConfigValue(
 }
 
 /**
- * The remotes git knows, with the URLs from the configuration itself (as
- * M71 reads them): `git remote -v` and `get-url` apply `insteadOf`
- * rewrites, which would name the wrong repository for a pull request.
- * URLs stay whole; the caller masks them for display.
- */
+The remotes git knows, with the URLs from the configuration itself (as
+M71 reads them): `git remote -v` and `get-url` apply `insteadOf`
+rewrites, which would name the wrong repository for a pull request.
+URLs stay whole; the caller masks them for display.
+*/
 export async function readNativeRemotes(
   run: GitProcess,
   context: NativeGitContext,
@@ -317,11 +317,11 @@ export type NativeHead =
   | { readonly ok: false; readonly reason: 'unmatchedUpstream' }
 
 /**
- * The push plan's head facts: the upstream split into the longest remote
- * name git knows (a remote's name may itself hold a `/`) and the branch
- * there. An upstream no remote answers is refused rather than guessed:
- * pushing it elsewhere would send the commits to the wrong place.
- */
+The push plan's head facts: the upstream split into the longest remote
+name git knows (a remote's name may itself hold a `/`) and the branch
+there. An upstream no remote answers is refused rather than guessed:
+pushing it elsewhere would send the commits to the wrong place.
+*/
 export function toPushHead(
   snapshot: Pick<NativeStatusSnapshot, 'branch' | 'upstream' | 'ahead' | 'behind'>,
   remotes: readonly RemoteFacts[],

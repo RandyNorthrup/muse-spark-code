@@ -157,11 +157,11 @@ export class MediaBudget {
   }
 
   /**
-   * The input with its images and PDFs, newest first, kept while they fit
-   * the budget and named in a line past it. The same array when all fit.
-   * A changed item keeps retained content-part identities so the caller can
-   * tell which pending tool-read media actually reached that request.
-   */
+  The input with its images and PDFs, newest first, kept while they fit
+  the budget and named in a line past it. The same array when all fit.
+  A changed item keeps retained content-part identities so the caller can
+  tell which pending tool-read media actually reached that request.
+  */
   public fit(
     input: readonly InputItem[],
     record?: ModelCapabilityRecord,

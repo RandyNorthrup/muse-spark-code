@@ -17,10 +17,10 @@ import { isMissingPath } from '../canonicalPath'
 import { createFileExclusively } from '../fsAtomic'
 
 /**
- * A folder's entries by kind, a link or junction reported as neither file
- * nor folder; rejects as `readdir` does (plans, M79, tell a missing folder
- * from one that is a file).
- */
+A folder's entries by kind, a link or junction reported as neither file
+nor folder; rejects as `readdir` does (plans, M79, tell a missing folder
+from one that is a file).
+*/
 export async function entriesByKind(
   absolutePath: string,
 ): Promise<readonly MemoryDirectoryEntry[]> {
@@ -62,11 +62,11 @@ export function createMemoryIo(
     /** Runtime owners fence publication after asynchronous staging. */
     readonly assertCanWrite?: () => void
     /**
-     * Exclusive creation has no ToolIo write call: what the tool io does
-     * around a write runs here instead, the checkpoint storage refused and,
-     * through a turn's recording io (M86), its intent journaled before
-     * `publish` runs.
-     */
+    Exclusive creation has no ToolIo write call: what the tool io does
+    around a write runs here instead, the checkpoint storage refused and,
+    through a turn's recording io (M86), its intent journaled before
+    `publish` runs.
+    */
     readonly aroundCreate?: (
       absolutePath: string,
       content: string,
@@ -124,8 +124,8 @@ export function createMemoryIo(
 }
 
 /**
- * The folder as the operating system names it: links resolved and each
- * name in its own letter case (VS Code lowers a Windows drive letter; Muse
- * Code's `canonicalize` does not).
- */
+The folder as the operating system names it: links resolved and each
+name in its own letter case (VS Code lowers a Windows drive letter; Muse
+Code's `canonicalize` does not).
+*/
 export const systemPath: (absolutePath: string) => Promise<string> = promisify(realpath.native)

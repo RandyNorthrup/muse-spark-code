@@ -4,10 +4,10 @@ import { sealedMcpJobExecutable } from '../../host/backend/mcpJobExecutable'
 import { runBootstrap } from '../../core/bootstrapCommand'
 
 /**
- * Compile only on first Windows process use, under bootstrap admission.
- * Ships with the runtime (dist/acp.js), which already carries the job
- * builders: it launches through the lazy launcher, so it is not part of it.
- */
+Compile only on first Windows process use, under bootstrap admission.
+Ships with the runtime (dist/acp.js), which already carries the job
+builders: it launches through the lazy launcher, so it is not part of it.
+*/
 export async function runtimeResourceJobs(storageDir: string, packageRoot: string) {
   const systemRoot = process.env['SystemRoot']
   if (systemRoot === undefined || process.platform !== 'win32') return

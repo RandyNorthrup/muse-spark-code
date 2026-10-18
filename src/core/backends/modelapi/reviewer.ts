@@ -19,10 +19,10 @@ const PARAGRAPH = '\n\n'
 const LIST_SEPARATOR = ', '
 
 /**
- * Every tool the Reviewer may call. None writes, runs a command or reaches
- * the network: the workspace readers and VS Code's Problems panel. A tool
- * added to either list later is not the Reviewer's until it is named here.
- */
+Every tool the Reviewer may call. None writes, runs a command or reaches
+the network: the workspace readers and VS Code's Problems panel. A tool
+added to either list later is not the Reviewer's until it is named here.
+*/
 const REVIEWER_TOOL_NAMES: ReadonlySet<string> = new Set([
   MODEL_API_TOOLS.readFile,
   MODEL_API_TOOLS.search,

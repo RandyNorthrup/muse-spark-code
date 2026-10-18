@@ -36,9 +36,9 @@ type Coverage =
   | { readonly kind: 'files'; readonly versions: ReadonlyMap<string, number> }
 
 /**
- * The state a check starts on: taken before the command runs, so an edit
- * made while it runs (a subagent's) leaves the run behind (Grok's review).
- */
+The state a check starts on: taken before the command runs, so an edit
+made while it runs (a subagent's) leaves the run behind (Grok's review).
+*/
 export interface RunSnapshot {
   /** The check and what it covers: a later run with the same key supersedes this one. */
   readonly key: string
@@ -131,13 +131,13 @@ export class VerifyLedger {
   }
 
   /**
-   * A user's steered message, admitted mid-turn: the fix loop, the user's
-   * rejections and the recorded runs start afresh. What the conversation
-   * wrote stays until the next message, so a steer (even "stop") never lets
-   * a session rule answer again for a check whose script the model rewrote,
-   * nor the editor show or format again after the model wrote a config it
-   * runs (the review of e4b035a3).
-   */
+  A user's steered message, admitted mid-turn: the fix loop, the user's
+  rejections and the recorded runs start afresh. What the conversation
+  wrote stays until the next message, so a steer (even "stop") never lets
+  a session rule answer again for a check whose script the model rewrote,
+  nor the editor show or format again after the model wrote a config it
+  runs (the review of e4b035a3).
+  */
   public resetForSteer(): void {
     this.failedRounds = 0
     this.stopped = false
@@ -153,9 +153,9 @@ export class VerifyLedger {
   }
 
   /**
-   * A file this session's edit tools wrote, with the names it was written
-   * under (as given and after links): a new version of it and of the project.
-   */
+  A file this session's edit tools wrote, with the names it was written
+  under (as given and after links): a new version of it and of the project.
+  */
   public noteEdit(file: EditedFile, names: readonly string[]): void {
     this.noteOutsideEdit(file, names)
     this.files.set(file.absolute, file)
@@ -163,10 +163,10 @@ export class VerifyLedger {
   }
 
   /**
-   * A workspace write about to start. Pending names survive user-input resets;
-   * runs taken before or during the write cannot certify its completed state.
-   * Even a failed write remains conservatively known until the next message.
-   */
+  A workspace write about to start. Pending names survive user-input resets;
+  runs taken before or during the write cannot certify its completed state.
+  Even a failed write remains conservatively known until the next message.
+  */
   public beginEdit(file: EditedFile, names: readonly string[]): () => void {
     const edit: PendingEdit = { file, names }
     this.pendingEdits.add(edit)
@@ -178,13 +178,13 @@ export class VerifyLedger {
   }
 
   /**
-   * A file written in this workspace by another live session, with the names
-   * it was written under: runs over it, and over
-   * the whole project, are no longer on the latest state, and what it
-   * decides (a check's script, code the editor runs) counts as this
-   * session's own (Grok's review). It is not this session's to check, so
-   * it is not among its edited files.
-   */
+  A file written in this workspace by another live session, with the names
+  it was written under: runs over it, and over
+  the whole project, are no longer on the latest state, and what it
+  decides (a check's script, code the editor runs) counts as this
+  session's own (Grok's review). It is not this session's to check, so
+  it is not among its edited files.
+  */
   public noteOutsideEdit(file: EditedFile, names: readonly string[]): void {
     this.projectVersion += 1
     this.versions.set(file.absolute, this.projectVersion)
@@ -272,13 +272,13 @@ export class VerifyLedger {
   }
 
   /**
-   * The round's verdict, when a run since the previous one is still on the
-   * latest state: passed only when no current run of any check failed or
-   * timed out (the latest run of each check over the same files counts, so a
-   * failure no edit has touched still counts), else failed; nothing when no
-   * such run. The fix loop advances on a failed verdict and resets on a
-   * passed one; true when this verdict stopped the checks.
-   */
+  The round's verdict, when a run since the previous one is still on the
+  latest state: passed only when no current run of any check failed or
+  timed out (the latest run of each check over the same files counts, so a
+  failure no edit has touched still counts), else failed; nothing when no
+  such run. The fix loop advances on a failed verdict and resets on a
+  passed one; true when this verdict stopped the checks.
+  */
   public judgeRound(): boolean {
     const isFresh = this.runs.slice(this.judgedUpTo).some((run) => this.isCurrent(run))
     this.judgedUpTo = this.runs.length

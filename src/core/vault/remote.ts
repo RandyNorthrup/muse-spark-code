@@ -97,12 +97,12 @@ export interface VaultRemotePorts {
   /** Local selection only. Offers/status never enumerate owner-side items. */
   select(request: RemoteRequest, identity: Identity, signal: AbortSignal): Promise<unknown>
   /** S/L resolve the verified SSH exchange, or the receiver's command-bound code sink.
-   * Resolution must prove the exact sessionDigest/origin, not a caller-supplied command. */
+  Resolution must prove the exact sessionDigest/origin, not a caller-supplied command. */
   resolve(request: RemoteRequest, identity: Identity, signal: AbortSignal): Promise<VaultUse>
   /** Authenticated owner-side UI, with both remote origin/session and broker's exact use shown. */
   approve(card: VaultRemoteApprovalCard, signal: AbortSignal): Promise<unknown>
   /** Runs IN the broker. Redeems the ticket against current policy and returns only signature/code bytes.
-   * It keeps the admission alive through canRelease, never returns an item or seed. */
+  It keeps the admission alive through canRelease, never returns an item or seed. */
   execute(
     ticket: VaultTicket,
     use: VaultUse,
@@ -119,7 +119,7 @@ export interface VaultRemoteConsumerPorts {
   subscribeClose(listener: () => void): () => void
   exchange(request: RemoteRequest, signal: AbortSignal): Promise<unknown>
   /** S/X/L consume in the pinned SSH exchange, private stdin or fill only, never a model/tool result.
-   * They call canDeliver at the physical delivery and retain no byte reference afterwards. */
+  They call canDeliver at the physical delivery and retain no byte reference afterwards. */
   deliver(
     kind: 'ssh' | 'totp',
     bytes: Uint8Array,

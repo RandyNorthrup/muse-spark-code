@@ -102,18 +102,18 @@ const evalReportFields = {
   generatedAt: z.string(),
   floors: z.array(evalFloorResultSchema),
   /**
-   * `incomplete`: every floor that ran held, but a split did not run.
-   * `fail`: a floor fell, or a mechanism's own acceptance failed (M73's
-   * packing engagement, below).
-   */
+  `incomplete`: every floor that ran held, but a split did not run.
+  `fail`: a floor fell, or a mechanism's own acceptance failed (M73's
+  packing engagement, below).
+  */
   verdict: z.enum(EVAL_VERDICTS),
 }
 
 /**
- * M73's acceptance beside the floors: the packing arm sent a packed
- * placeholder on every long-output task it ran. A run that holds the floors
- * without packing proves nothing about packing, so it fails the run.
- */
+M73's acceptance beside the floors: the packing arm sent a packed
+placeholder on every long-output task it ran. A run that holds the floors
+without packing proves nothing about packing, so it fails the run.
+*/
 const evalPackingEngagementSchema = z.object({
   arm: z.string(),
   /** The long-output tasks the run selected. */

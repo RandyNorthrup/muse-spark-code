@@ -159,10 +159,10 @@ function executablePath(folder: string, record: PlatformRecord): string {
 }
 
 /**
- * A published (or winning) runtime, verified against the pin: 'absent' when
- * there is none, the runtime when it passes, a Stop otherwise. `isHashed`
- * hashes the executable even when its metadata matches the receipt.
- */
+A published (or winning) runtime, verified against the pin: 'absent' when
+there is none, the runtime when it passes, a Stop otherwise. `isHashed`
+hashes the executable even when its metadata matches the receipt.
+*/
 async function verifyPublished(
   folder: string,
   pin: {
@@ -235,9 +235,9 @@ async function verifyPublished(
 }
 
 /**
- * `run` within `ms` and the lifetime: its own signal ends at whichever comes
- * first. `onTimeout` names the reason when the stage's own bound passes.
- */
+`run` within `ms` and the lifetime: its own signal ends at whichever comes
+first. `onTimeout` names the reason when the stage's own bound passes.
+*/
 async function within<T>(
   request: RuntimePrepareRequest,
   ms: number,
@@ -492,9 +492,9 @@ async function install(
 }
 
 /**
- * A runtime ready to return, if the pin is still fresh now: verifying,
- * asking or downloading can carry a preparation past the pin's cutoff.
- */
+A runtime ready to return, if the pin is still fresh now: verifying,
+asking or downloading can carry a preparation past the pin's cutoff.
+*/
 function ready(
   manifest: RuntimeManifest,
   deps: RuntimeStoreDeps,

@@ -10,10 +10,10 @@ export interface VaultFenceOptions {
   /** Muse Code keeps its own credentials (D1); its tools still lose ambient SSH/git. */
   readonly museCode?: boolean
   /**
-   * D89.5 pass-through names, honored only for an explicitly interactive
-   * shell entry. Only the credential strip honours them: sockets, git routes
-   * and askpass entries stay fenced.
-   */
+  D89.5 pass-through names, honored only for an explicitly interactive
+  shell entry. Only the credential strip honours them: sockets, git routes
+  and askpass entries stay fenced.
+  */
   readonly passNames?: readonly string[] | undefined
   /** Normalises pass-through matching the way the credential rule does. */
   readonly platform?: NodeJS.Platform | undefined

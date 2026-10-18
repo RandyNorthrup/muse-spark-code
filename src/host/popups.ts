@@ -10,10 +10,10 @@ export interface LoggedPopups {
   readonly showWarning: (message: string) => void
   readonly showError: (message: string) => void
   /**
-   * An error whose `detail` is text another program chose (git's stderr,
-   * GitHub's words): it is shown after `message`, and only `message` is
-   * logged, since such text can name a path in the user's profile (M71).
-   */
+  An error whose `detail` is text another program chose (git's stderr,
+  GitHub's words): it is shown after `message`, and only `message` is
+  logged, since such text can name a path in the user's profile (M71).
+  */
   readonly showFailure: (message: string, detail: string) => void
 }
 

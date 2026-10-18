@@ -57,14 +57,14 @@ export interface LinuxRecordingPort {
   /** Absolute gst-launch-1.0 path, with pipewiresrc/H.264/mp4/AAC plugins probed. */
   readonly findEncoder: () => Promise<string | undefined>
   /** A user/OS permission refusal rejects with an Error named NotAllowedError;
-   * transport, compositor and other portal failures keep their own identity. */
+  transport, compositor and other portal failures keep their own identity. */
   readonly openPortal: (
     options: ScreenRecordingOptions,
     signal: AbortSignal,
   ) => Promise<PortalSession>
   readonly createPrivateRecording: () => Promise<PrivateRecording>
   /** Verify trusted path at launch; no shell or credentials. Inherit exactly
-   * these fds, enforce hard output size and lifetime, and kill on parent exit. */
+  these fds, enforce hard output size and lifetime, and kill on parent exit. */
   readonly launchVerified: (request: {
     readonly command: string
     readonly args: readonly string[]
@@ -400,7 +400,7 @@ export interface LinuxLatestRecordingPort {
     root: string,
   ) => Promise<readonly { readonly path: string; readonly modifiedAt: number }[]>
   /** Copy privately under a hard byte cap, then sniff; source is never deleted.
-   * WebM is retained as WebM for M1's explicit conversion offer. */
+  WebM is retained as WebM for M1's explicit conversion offer. */
   readonly copyForPreview: (source: string, maxBytes: number) => Promise<ScreenRecordingPreview>
 }
 

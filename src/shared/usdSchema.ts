@@ -16,9 +16,9 @@ export const nonnegativeUsdSchema = /* @__PURE__ */ (() =>
 export type UsdAmount = z.infer<typeof usdAmountSchema>
 
 /**
- * Exact order of two canonical amounts, for boundary schemas that compare caps
- * (scheduleV2 in chat startup) without loading the arithmetic module (INT0170).
- */
+Exact order of two canonical amounts, for boundary schemas that compare caps
+(scheduleV2 in chat startup) without loading the arithmetic module (INT0170).
+*/
 export function compareUsdAmounts(left: UsdAmount, right: UsdAmount): number {
   const [leftWhole = '0', leftFraction = ''] = left.split('.', 2)
   const [rightWhole = '0', rightFraction = ''] = right.split('.', 2)

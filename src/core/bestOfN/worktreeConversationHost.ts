@@ -113,11 +113,11 @@ export class WorktreeCeilingError extends Error {
 const noListener = (): void => undefined
 
 /**
- * A conversation confined to its worktree. `requireTrusted` throws in
- * Restricted Mode before anything runs; `run` sends the prompt, declines
- * every approval and question (counted), and cancels the turn once the
- * ceiling's requests have completed.
- */
+A conversation confined to its worktree. `requireTrusted` throws in
+Restricted Mode before anything runs; `run` sends the prompt, declines
+every approval and question (counted), and cancels the turn once the
+ceiling's requests have completed.
+*/
 export class WorktreeConversationHost {
   public constructor(private readonly deps: WorktreeConversationDeps) {}
 

@@ -60,11 +60,11 @@ export function isCodeLoading(relativePath: string): boolean {
 }
 
 /**
- * The command's words as paths (a leading `./` dropped, a trailing `/`
- * dropped, `.` for the current folder, an option's value after `=` taken
- * apart), or undefined when a shell could read them otherwise and they
- * cannot be told with certainty.
- */
+The command's words as paths (a leading `./` dropped, a trailing `/`
+dropped, `.` for the current folder, an option's value after `=` taken
+apart), or undefined when a shell could read them otherwise and they
+cannot be told with certainty.
+*/
 function commandPaths(command: string): readonly string[] | undefined {
   const words = command.split(WHITESPACE).filter((word) => word !== '')
   return words.some((word) => !PLAIN_WORD.test(word))
@@ -79,13 +79,13 @@ function commandPaths(command: string): readonly string[] | undefined {
 }
 
 /**
- * Whether a word of a command names this file (both lower case, forward
- * slashes): by its path or its name; by its path without the extension
- * (`node scripts/check`, PowerShell's `./scripts/check`); as a dotted
- * module (`python -m tools.check`); or as the folder whose entry file it is
- * (`node .`, `go run ./cmd/check`, `python -m tools` for
- * `tools/__main__.py`) (the review of PR #54's fourth round).
- */
+Whether a word of a command names this file (both lower case, forward
+slashes): by its path or its name; by its path without the extension
+(`node scripts/check`, PowerShell's `./scripts/check`); as a dotted
+module (`python -m tools.check`); or as the folder whose entry file it is
+(`node .`, `go run ./cmd/check`, `python -m tools` for
+`tools/__main__.py`) (the review of PR #54's fourth round).
+*/
 function isNamedBy(word: string, path: string): boolean {
   const name = baseName(path)
   const bare = path.replace(EXTENSION, '')
@@ -103,12 +103,12 @@ function isNamedBy(word: string, path: string): boolean {
 }
 
 /**
- * Whether editing this file may change what `command` runs: a file that
- * loads code, one that defines commands, one whose path (either slash form)
- * occurs in the command's text, one a word of the command names (see
- * `isNamedBy`), or any file when the command's words cannot be told with
- * certainty. Compared without case, so it errs towards asking.
- */
+Whether editing this file may change what `command` runs: a file that
+loads code, one that defines commands, one whose path (either slash form)
+occurs in the command's text, one a word of the command names (see
+`isNamedBy`), or any file when the command's words cannot be told with
+certainty. Compared without case, so it errs towards asking.
+*/
 export function canChangeWhatRuns(relativePath: string, command: string): boolean {
   const path = relativePath.replaceAll(BACKSLASH, () => SEGMENT_SEPARATOR).toLowerCase()
   const name = baseName(path)

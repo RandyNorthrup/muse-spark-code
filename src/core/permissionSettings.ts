@@ -26,10 +26,10 @@ import {
 const exampleSchema = z.string().check(z.minLength(1), z.maxLength(COMMAND_RULE_EXAMPLE_MAX_CHARS))
 
 /**
- * One prefix rule (Codex's `prefix_rule`): the words a command starts with,
- * what to do with it, and the command lines it must and must not match,
- * checked whenever the rules are read (the tests kept beside the rule).
- */
+One prefix rule (Codex's `prefix_rule`): the words a command starts with,
+what to do with it, and the command lines it must and must not match,
+checked whenever the rules are read (the tests kept beside the rule).
+*/
 export const commandRuleSchema = z.object({
   pattern: z
     .array(z.string().check(z.minLength(1), z.maxLength(COMMAND_RULE_WORD_MAX_CHARS)))
@@ -44,10 +44,10 @@ export const commandRuleSchema = z.object({
 })
 
 /**
- * A named permission profile: the files the file tools must not touch
- * (globs over workspace-relative paths) and folders outside the workspace
- * `read_file` may read (absolute paths).
- */
+A named permission profile: the files the file tools must not touch
+(globs over workspace-relative paths) and folders outside the workspace
+`read_file` may read (absolute paths).
+*/
 export const permissionProfileSchema = z.strictObject({
   denyRead: z.optional(z.array(z.string()).check(z.maxLength(PERMISSION_PROFILE_MAX_GLOBS))),
   extraRoots: z.optional(z.array(z.string()).check(z.maxLength(PERMISSION_PROFILE_MAX_ROOTS))),

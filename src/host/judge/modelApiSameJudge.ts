@@ -46,10 +46,10 @@ export interface ModelApiJudgeDeps extends SameJudgeRunnerDeps, StructuredOutput
   /** Secret redaction (redactSecrets): redaction runs before anything remote. */
   readonly redact: (text: string) => string
   /**
-   * The model's captured capability (D77). Uncaptured models get stated
-   * confidence until they are: the default refuses logprobs, so phase 1
-   * always states (Muse Spark refuses while reasoning; lane 2e captures).
-   */
+  The model's captured capability (D77). Uncaptured models get stated
+  confidence until they are: the default refuses logprobs, so phase 1
+  always states (Muse Spark refuses while reasoning; lane 2e captures).
+  */
   readonly capability?: ModelJudgeCapability | undefined
   readonly minPrefixTokens?: number | undefined
 }
@@ -223,10 +223,10 @@ export class ModelApiSameJudge {
   }
 
   /**
-   * Judge one held action: settle from the cache when judged before, else
-   * send each kind's batch in the background and return at once. Never
-   * rejects, never waits on the caller.
-   */
+  Judge one held action: settle from the cache when judged before, else
+  send each kind's batch in the background and return at once. Never
+  rejects, never waits on the caller.
+  */
   public judge(job: ModelApiJudgeJob): void {
     judgeHeldAction({
       runner: this.deps,

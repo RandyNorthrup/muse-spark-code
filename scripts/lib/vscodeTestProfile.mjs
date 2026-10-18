@@ -20,11 +20,11 @@ const SOCKET_NAME_ALLOWANCE = 24
 const CHECKOUT_HASH_LENGTH = 8
 
 /**
- * The launch arguments for one integration run. A default that fits keeps
- * `base` as it is; one that does not gets a short, per-checkout, per-label
- * directory under the system temporary folder. A folder that still cannot fit
- * is an error naming both lengths, never a silent fallback.
- */
+The launch arguments for one integration run. A default that fits keeps
+`base` as it is; one that does not gets a short, per-checkout, per-label
+directory under the system temporary folder. A folder that still cannot fit
+is an error naming both lengths, never a silent fallback.
+*/
 export function launchArgsFor({ base, label, checkout, platform, tmp }) {
   const limit = SOCKET_PATH_LIMITS[platform]
   if (limit === undefined) {

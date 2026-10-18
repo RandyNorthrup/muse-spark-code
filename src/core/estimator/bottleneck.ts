@@ -4,10 +4,10 @@ import { type EstimateDurationEvidence } from './dag'
 import { UI_TEXT, fill } from '../../shared/l10n/text'
 
 /** Remove one resource class at a time, using the same duration samples.
- * Unbounded machines means identical compatible replicas with their same
- * per-machine caps/roles; account and CI limits remain shared. Unbounded slots
- * retain the machine's governor caps. Ties prefer the smaller slot expansion.
- */
+Unbounded machines means identical compatible replicas with their same
+per-machine caps/roles; account and CI limits remain shared. Unbounded slots
+retain the machine's governor caps. Ties prefer the smaller slot expansion.
+*/
 export function findEstimateBottleneck(
   lanes: readonly EstimateLane[],
   fleet: FleetSnapshot,

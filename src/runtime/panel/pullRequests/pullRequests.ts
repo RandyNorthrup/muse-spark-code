@@ -51,9 +51,9 @@ export interface RuntimePullRequestDeps extends RuntimeGitDeps {
   readonly platform: NodeJS.Platform
   readonly now: () => number
   /**
-   * An explicit confirmation; true only for an explicit yes. Creating a
-   * pull request always asks, showing what goes out; nothing posts without it.
-   */
+  An explicit confirmation; true only for an explicit yes. Creating a
+  pull request always asks, showing what goes out; nothing posts without it.
+  */
   readonly confirm: (message: string, detail: string, action: string) => Promise<boolean>
   /** The REST client's base URL; api.github.com unless a test points it elsewhere. */
   readonly baseUrl?: string
@@ -176,10 +176,10 @@ export class RuntimePullRequests {
   }
 
   /**
-   * Where the pull request opens: the remote's repository, or for a fork
-   * the repository it came from, with the branch named `owner:branch`
-   * there. Reuses the REST client's repository facts, never a guess.
-   */
+  Where the pull request opens: the remote's repository, or for a fork
+  the repository it came from, with the branch named `owner:branch`
+  there. Reuses the REST client's repository facts, never a guess.
+  */
   private async destinationOf(
     client: GitHubClient,
     bearer: string,
@@ -238,10 +238,10 @@ export class RuntimePullRequests {
   }
 
   /**
-   * The pull request form's facts: where it would open, and the open pull
-   * request for the branch when one already exists (linked instead of a
-   * second one). Reads only; posts nothing.
-   */
+  The pull request form's facts: where it would open, and the open pull
+  request for the branch when one already exists (linked instead of a
+  second one). Reads only; posts nothing.
+  */
   public async prepare(input: PreparePullRequestInput): Promise<PreparePullRequestResult> {
     try {
       this.checkTrust()
@@ -301,10 +301,10 @@ export class RuntimePullRequests {
   }
 
   /**
-   * Open the pull request, as a draft or ready, after the user confirms
-   * what goes out. The confirmation is the form here: it shows the title,
-   * the description, the repository, the branches and the draft state.
-   */
+  Open the pull request, as a draft or ready, after the user confirms
+  what goes out. The confirmation is the form here: it shows the title,
+  the description, the repository, the branches and the draft state.
+  */
   public async create(input: CreatePullRequestInput): Promise<CreatePullRequestResult> {
     try {
       this.checkTrust()
@@ -385,9 +385,9 @@ export class RuntimePullRequests {
   }
 
   /**
-   * The linked pull request's state and checks from GitHub; `ask` may show
-   * the source's own sign-in. Reads only.
-   */
+  The linked pull request's state and checks from GitHub; `ask` may show
+  the source's own sign-in. Reads only.
+  */
   public async status(
     link: {
       readonly repository: string

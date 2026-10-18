@@ -34,10 +34,10 @@ interface PendingOpen {
 }
 
 /**
- * One Show resources run. A newer Show, its target's removal and the window's
- * disposal abort it; after every await it stops if aborted, before any reveal,
- * open or offer.
- */
+One Show resources run. A newer Show, its target's removal and the window's
+disposal abort it; after every await it stops if aborted, before any reveal,
+open or offer.
+*/
 interface ShowOperation {
   readonly seq: number
   readonly controller: AbortController
@@ -71,9 +71,9 @@ export interface ResourceWindowDeps<Alignment> {
     onRemoved(listener: (surface: ResourceSurface) => void): { dispose(): unknown }
   }
   /**
-   * No surface in view: open a conversation. `surfaceId` names the surface it
-   * opens in, returned synchronously, before that surface can ask for anything.
-   */
+  No surface in view: open a conversation. `surfaceId` names the surface it
+  opens in, returned synchronously, before that surface can ask for anything.
+  */
   readonly openConversation: () => {
     readonly surfaceId: string
     readonly opened: PromiseLike<unknown>

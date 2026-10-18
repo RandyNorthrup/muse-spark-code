@@ -33,8 +33,8 @@ export interface ExecVaultPort {
 }
 
 /** B/X inject the authenticated headless registration and bind this authorizer to engine uses.
- * @unwired M109 headless vault session
- */
+@unwired M109 headless vault session
+*/
 export class HeadlessVaultSession implements ExecVaultSession {
   private closed = false
   private readonly requester: VaultRequester

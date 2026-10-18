@@ -62,12 +62,12 @@ function calledName(expression, aliases, source) {
 }
 
 /**
- * Syntax only, file by file (a type-checked program is too slow for a unit
- * test), parsed lazily. Every site needs one of these words in its file's
- * text, so skipping files without any cannot miss a site. A bare `exec` counts
- * only when no `.` precedes it: `x.exec(` is a site only for a child_process
- * namespace, and that file names child_process.
- */
+Syntax only, file by file (a type-checked program is too slow for a unit
+test), parsed lazily. Every site needs one of these words in its file's
+text, so skipping files without any cannot miss a site. A bare `exec` counts
+only when no `.` precedes it: `x.exec(` is a site only for a child_process
+namespace, and that file names child_process.
+*/
 // Plain substrings first (cheap); a word-bounded check only for the short words.
 const CANDIDATE_WORDS = [
   'child_process',
@@ -127,10 +127,10 @@ const testFiles = (root) =>
     .map((file) => path.join(root, 'test', file))
 
 /**
- * The source corpus, read with bounded concurrency. A first read of thousands of
- * files is slow on a fresh Windows checkout; a test reads it here, in its hook.
- * Test files are not prefetched: a proof reads them lazily, likeliest first.
- */
+The source corpus, read with bounded concurrency. A first read of thousands of
+files is slow on a fresh Windows checkout; a test reads it here, in its hook.
+Test files are not prefetched: a proof reads them lazily, likeliest first.
+*/
 export async function readCorpus(root) {
   return { sources: await readAll(sourceFiles(root)) }
 }
@@ -453,9 +453,9 @@ export function scanSpawnSites(root, corpus) {
 }
 
 /**
- * A function expression that may run where it is written: called at once
- * (an IIFE) or handed to a call, which can call it before returning.
- */
+A function expression that may run where it is written: called at once
+(an IIFE) or handed to a call, which can call it before returning.
+*/
 function runsInPlace(node) {
   let current = node
   while (ts.isParenthesizedExpression(current.parent)) current = current.parent
@@ -467,12 +467,12 @@ function runsInPlace(node) {
 }
 
 /**
- * A call that runs when the module loads: written outside any deferred
- * function, or inside code evaluated with its class (static fields and blocks,
- * decorators, `extends`, computed names) or with its enclosing call (IIFEs,
- * callbacks handed to a load-time call). Only an uncalled function or method
- * body, or an instance member, defers it.
- */
+A call that runs when the module loads: written outside any deferred
+function, or inside code evaluated with its class (static fields and blocks,
+decorators, `extends`, computed names) or with its enclosing call (IIFEs,
+callbacks handed to a load-time call). Only an uncalled function or method
+body, or an instance member, defers it.
+*/
 function runsAtLoad(node) {
   const parent = node.parent
   const isCallee =
@@ -523,10 +523,10 @@ const words = (text) =>
 
 const indexes = new WeakMap()
 /**
- * Every use of every name in one file, once: its top-level owner, or the
- * local alias an import or destructuring gives it. Declaration names and plain
- * import bindings are not uses (the uses of a plain import are its name).
- */
+Every use of every name in one file, once: its top-level owner, or the
+local alias an import or destructuring gives it. Declaration names and plain
+import bindings are not uses (the uses of a plain import are its name).
+*/
 function referenceIndex(source) {
   let index = indexes.get(source)
   if (index !== undefined) return index
@@ -559,12 +559,12 @@ function referenceIndex(source) {
 }
 
 /**
- * A test-only claim is proved, not asserted: every production use of the
- * owning top-level symbol must sit inside another symbol that is itself only
- * reachable that way, transitively. A use at module level (a call, an export,
- * a re-export, a string naming it) is production. Import bindings are not
- * uses. At least one symbol in the chain must be called by a test.
- */
+A test-only claim is proved, not asserted: every production use of the
+owning top-level symbol must sit inside another symbol that is itself only
+reachable that way, transitively. A use at module level (a call, an export,
+a re-export, a string naming it) is production. Import bindings are not
+uses. At least one symbol in the chain must be called by a test.
+*/
 export function proveTestOnly(program, symbol, root) {
   const relativeTo = (file) => path.relative(root, file).replaceAll('\\', '/')
   const references = []

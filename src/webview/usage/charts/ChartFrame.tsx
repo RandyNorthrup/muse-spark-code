@@ -16,10 +16,10 @@ export interface ChartPoint {
   /** Plotted geometry; cost labels below never rebuild dollars from it. */
   readonly values: readonly (number | undefined)[]
   /**
-   * Exact label per value, shown instead of `format` when present. Cost
-   * charts set it from the original amounts (M121 P2-2); other metrics
-   * already format exactly from their values.
-   */
+  Exact label per value, shown instead of `format` when present. Cost
+  charts set it from the original amounts (M121 P2-2); other metrics
+  already format exactly from their values.
+  */
   readonly texts?: readonly (string | undefined)[]
 }
 export function ColumnBucket({

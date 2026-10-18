@@ -7,17 +7,17 @@
 import type { JudgeQuestion } from './judge'
 
 /**
- * Model-facing wording for one batch. Injected by the caller (lane S):
- * text the model reads lives in MODEL_TEXT, never as literals here.
- */
+Model-facing wording for one batch. Injected by the caller (lane S):
+text the model reads lives in MODEL_TEXT, never as literals here.
+*/
 export interface JudgePromptWording {
   readonly systemInstruction: string
   readonly stateLabel: string
   readonly questionLabel: string
   /**
-   * Render one answerable alternative: an option letter (choice), a level
-   * digit (score), or null for a noul, which answers yes or no.
-   */
+  Render one answerable alternative: an option letter (choice), a level
+  digit (score), or null for a noul, which answers yes or no.
+  */
   readonly formatAlternative: (letter: string | undefined, label: string) => string
 }
 
@@ -25,9 +25,9 @@ export interface JudgePromptBatch {
   readonly system: string
   readonly user: string
   /**
-   * The batch's question ids in order, for aligning responses. Never sent
-   * to the model (as Jev).
-   */
+  The batch's question ids in order, for aligning responses. Never sent
+  to the model (as Jev).
+  */
   readonly questionIds: readonly string[]
 }
 
@@ -45,10 +45,10 @@ export interface PlanJudgeBatchesInputs {
   /** Questions per request; the state is never split. */
   readonly maxQuestionsPerBatch: number
   /**
-   * The model's loaded context window in tokens (a ceiling only, D77).
-   * The token joystick is injected: lane S measures with the model's own
-   * counter.
-   */
+  The model's loaded context window in tokens (a ceiling only, D77).
+  The token joystick is injected: lane S measures with the model's own
+  counter.
+  */
   readonly contextTokenLimit: number
   readonly measureTokens: (text: string) => number
 }
@@ -97,12 +97,12 @@ function measuredTokens(measure: (text: string) => number, text: string): number
 }
 
 /**
- * Plan the requests for one state and its pending questions. Every batch
- * carries the full state; only questions split. Admission measures every
- * complete system/user request, including labels and separators. If even
- * one question cannot fit with the state and overhead, refuse the whole
- * plan (`over-context`) instead of trimming or splitting the state.
- */
+Plan the requests for one state and its pending questions. Every batch
+carries the full state; only questions split. Admission measures every
+complete system/user request, including labels and separators. If even
+one question cannot fit with the state and overhead, refuse the whole
+plan (`over-context`) instead of trimming or splitting the state.
+*/
 export function planJudgeBatches(inputs: PlanJudgeBatchesInputs): JudgeBatchPlan {
   if (inputs.questions.length === 0) {
     throw new RangeError('judge batch planning needs at least one question')

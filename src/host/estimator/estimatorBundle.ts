@@ -41,10 +41,10 @@ function describe(error: unknown): string {
 }
 
 /**
- * The estimator's run, the bundle required the first time any of it is used
- * and kept from then on. A missing or corrupt bundle throws
- * `estimateUnavailable` and is tried again on the next use.
- */
+The estimator's run, the bundle required the first time any of it is used
+and kept from then on. A missing or corrupt bundle throws
+`estimateUnavailable` and is tried again on the next use.
+*/
 export function lazyEstimator(deps: LazyEstimatorDeps): EstimatorRun {
   let run: EstimatorRun | undefined
   const loaded = (): EstimatorRun => {

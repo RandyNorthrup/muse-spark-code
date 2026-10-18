@@ -32,10 +32,10 @@ const INLINE_IMAGE_FORMATS = ['image/png', 'image/jpeg', 'image/gif', 'image/web
 const INLINE_DOCUMENT_FORMATS = ['application/pdf']
 
 /**
- * Project the selected model from established behavior, never a guess: image
- * and document formats are what the request builder encodes today; video and
- * audio stay unknown until lane V verifies them against live captures.
- */
+Project the selected model from established behavior, never a guess: image
+and document formats are what the request builder encodes today; video and
+audio stay unknown until lane V verifies them against live captures.
+*/
 export function projectMediaCapabilities(modelId: string): MediaModelCapabilities {
   return {
     modelId,
@@ -60,10 +60,10 @@ export function projectMediaCapabilities(modelId: string): MediaModelCapabilitie
 }
 
 /**
- * E1-picker-filter-binding (M105 W): the picker's media filters as the
- * native dialog takes them. Mutable copies because the dialog owns its
- * options; undefined stays undefined so the no-filter call keeps its shape.
- */
+E1-picker-filter-binding (M105 W): the picker's media filters as the
+native dialog takes them. Mutable copies because the dialog owns its
+options; undefined stays undefined so the no-filter call keeps its shape.
+*/
 export function dialogFiltersOption(
   filters: Readonly<Record<string, readonly string[]>> | undefined,
 ): Readonly<Record<string, string[]>> | undefined {
@@ -79,13 +79,13 @@ export interface MediaHostOpen {
 }
 
 /**
- * Wire the attach port from the host settings. The open hook (confinement,
- * approval, identity) stays with the caller because it owns the dialogs and
- * the session; capabilities project established behavior and limits read the
- * settings. Images and documents keep their established pipeline; this port
- * sniffs video and audio only, and binding them is U6c's upload work, so
- * bind refuses with the named reason until then.
- */
+Wire the attach port from the host settings. The open hook (confinement,
+approval, identity) stays with the caller because it owns the dialogs and
+the session; capabilities project established behavior and limits read the
+settings. Images and documents keep their established pipeline; this port
+sniffs video and audio only, and binding them is U6c's upload work, so
+bind refuses with the named reason until then.
+*/
 export function createMediaAttachDeps(
   settings: () => MediaHostSettings,
   open: MediaHostOpen['open'],
@@ -107,18 +107,18 @@ export interface MediaSourceOpenDeps {
     fsPath: string,
   ) => Promise<{ readonly canonical: string; readonly checkedAbsolute: string } | undefined>
   /**
-   * The host's recording temp root. Recorder-produced files under it skip
-   * workspace confinement (the driver made them); everything else is
-   * confined. Windows separators normalize before the prefix check.
-   */
+  The host's recording temp root. Recorder-produced files under it skip
+  workspace confinement (the driver made them); everything else is
+  confined. Windows separators normalize before the prefix check.
+  */
   readonly recordingTempRoot: string
 }
 
 /**
- * The attach port's source opener: confinement, protected/private recheck
- * and file identity on every open. No handle is a refusal; an IO failure
- * throws the read failure. The fd pins the file between the sniff reads.
- */
+The attach port's source opener: confinement, protected/private recheck
+and file identity on every open. No handle is a refusal; an IO failure
+throws the read failure. The fd pins the file between the sniff reads.
+*/
 export function createMediaSourceOpen(deps: MediaSourceOpenDeps): MediaAttachDeps['open'] {
   return async (file) => {
     let absolute: string

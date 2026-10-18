@@ -69,7 +69,7 @@ function refuse(detail: string): never {
 }
 
 /** One candidate cannot be placed: R records it as infeasible and ranks the
- * rest, instead of aborting the whole estimate. Corrupt inputs stay `refuse`. */
+rest, instead of aborting the whole estimate. Corrupt inputs stay `refuse`. */
 function schedulingRefusal(detail: string): never {
   throw new EstimateSchedulingError(detail)
 }
@@ -106,9 +106,9 @@ function localStamp(instant: number, formatter: Intl.DateTimeFormat): number {
 }
 
 /** Recurrence stays anchored to the original civil day/time (Jan 31 -> Feb
- * end -> Mar 31). DST folds choose the earlier instant; gaps shift forward.
- * This is a scheduling assumption, not a claim about a provider's behavior.
- */
+end -> Mar 31). DST folds choose the earlier instant; gaps shift forward.
+This is a scheduling assumption, not a claim about a provider's behavior.
+*/
 function renewals(window: Window, until: number): number[] {
   const anchor = Date.parse(window.resetsAt)
   const formatter = new Intl.DateTimeFormat('en', {
@@ -197,10 +197,10 @@ function diskLoad(
 }
 
 /** Validate once; Monte Carlo and R's setup search reuse this prepared engine.
- * Rates are constant over a nonpreemptive lane; multiple accounts split its
- * total demand in proportion to their allocated slots. CI jobs are held for
- * the lane, reported minutes are charged once, disk steady demand is retained.
- */
+Rates are constant over a nonpreemptive lane; multiple accounts split its
+total demand in proportion to their allocated slots. CI jobs are held for
+the lane, reported minutes are charged once, disk steady demand is retained.
+*/
 export function prepareEstimateSchedule(
   input: readonly EstimateLane[],
   fleetInput: FleetSnapshot,

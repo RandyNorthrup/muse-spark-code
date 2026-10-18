@@ -32,10 +32,10 @@ export interface PluginRoute {
   /** A fixed tool matcher for the record (OpenCode `file.edited`: edits only). */
   readonly matcher?: string
   /**
-   * Whether any failure blocks: OpenCode's `tool.execute.before` blocks on a
-   * throw (OI:266), so this child crashing counts as one. Amp logs a
-   * handler's failure (the lead's rule, M91b), so its hooks fail open.
-   */
+  Whether any failure blocks: OpenCode's `tool.execute.before` blocks on a
+  throw (OI:266), so this child crashing counts as one. Amp logs a
+  handler's failure (the lead's rule, M91b), so its hooks fail open.
+  */
   readonly failClosed: boolean
 }
 
@@ -98,12 +98,12 @@ export function pluginRoute(format: PluginFormat, sourceEvent: string): PluginRo
 }
 
 /**
- * Our tools by each source's name. Amp: the CLI's tool list (AS:51), `Bash`
- * also named `shell_command` by A:2275. OpenCode: its permission keys
- * (OS:117-160) and tools (OC:352, OC:520), `bash` and `read` as its plugins
- * test them (OP:94, OP:251). A tool not here keeps its runtime name (an MCP
- * tool is `mcp__<server>__<tool>` in both, A:903).
- */
+Our tools by each source's name. Amp: the CLI's tool list (AS:51), `Bash`
+also named `shell_command` by A:2275. OpenCode: its permission keys
+(OS:117-160) and tools (OC:352, OC:520), `bash` and `read` as its plugins
+test them (OP:94, OP:251). A tool not here keeps its runtime name (an MCP
+tool is `mcp__<server>__<tool>` in both, A:903).
+*/
 const TOOL_NAMES: Readonly<Record<PluginFormat, Readonly<Record<string, string>>>> = {
   amp: {
     [MODEL_API_TOOLS.bash]: 'Bash',
@@ -130,11 +130,11 @@ const TOOL_NAMES: Readonly<Record<PluginFormat, Readonly<Record<string, string>>
 }
 
 /**
- * Argument names that differ, ours → theirs, per tool. Only what a source
- * shows: OpenCode's `read` takes `filePath` (OP:251) and `bash` takes
- * `command` (OP:94, the same as ours); Amp's `Read` takes `path` (AS:63, the
- * same as ours). Every other argument keeps the runtime's name.
- */
+Argument names that differ, ours → theirs, per tool. Only what a source
+shows: OpenCode's `read` takes `filePath` (OP:251) and `bash` takes
+`command` (OP:94, the same as ours); Amp's `Read` takes `path` (AS:63, the
+same as ours). Every other argument keeps the runtime's name.
+*/
 const ARGUMENT_NAMES: Readonly<
   Record<PluginFormat, Readonly<Record<string, Readonly<Record<string, string>>>>>
 > = {
@@ -410,12 +410,12 @@ function replacementText(value: string | Readonly<Record<string, unknown>>): str
 }
 
 /**
- * The plugin's answer by its source's rules, for the dispatcher: a narrowed
- * input under our argument names, for the same tool only; a replaced result
- * as text; Amp's `synthesize` (A:1974) as a refusal carrying its output,
- * since the tool must not run and a PreToolUse answer has no result of its
- * own here.
- */
+The plugin's answer by its source's rules, for the dispatcher: a narrowed
+input under our argument names, for the same tool only; a replaced result
+as text; Amp's `synthesize` (A:1974) as a refusal carrying its output,
+since the tool must not run and a PreToolUse answer has no result of its
+own here.
+*/
 export function pluginAnswer(
   format: PluginFormat,
   event: HookEvent,

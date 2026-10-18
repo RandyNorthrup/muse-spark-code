@@ -50,12 +50,12 @@ import type {
 } from '../backends/modelapi/sessionStore'
 
 /**
- * The transcript fields a portable file keeps: what the panel, the share
- * view and the model need to read the conversation. Ids of live state
- * (`outputRef`, `patchRef`, `subagentId`, `childSessionId`, the workflow
- * handles, `background`) and opaque lists (`children`,
- * `modelVisibleContent`) stay behind; a file that holds one is refused.
- */
+The transcript fields a portable file keeps: what the panel, the share
+view and the model need to read the conversation. Ids of live state
+(`outputRef`, `patchRef`, `subagentId`, `childSessionId`, the workflow
+handles, `background`) and opaque lists (`children`,
+`modelVisibleContent`) stay behind; a file that holds one is refused.
+*/
 const portableItemFields = {
   itemId: itemSnapshotFields.itemId,
   kind: itemSnapshotFields.kind,
@@ -88,9 +88,9 @@ export const sessionExportSchema = z.object({
   exportedAt: z.iso.datetime(),
   sourceBackend: z.enum(BACKEND_KINDS),
   /**
-   * Whether paths and account ids were redacted when the file was written:
-   * the writer's claim, which a reader cannot check.
-   */
+  Whether paths and account ids were redacted when the file was written:
+  the writer's claim, which a reader cannot check.
+  */
   redacted: z.boolean(),
   name: z.optional(z.string()),
   /** The model the conversation ran on; informational, an import never takes it. */
@@ -125,10 +125,10 @@ const CONTROL_CHARACTERS = /\p{Cc}/gu
 const ELLIPSIS = '…'
 
 /**
- * A path into a refused file as a notice and the log may carry it: its keys
- * are the file's own text, so control characters are replaced and the whole
- * is cut short.
- */
+A path into a refused file as a notice and the log may carry it: its keys
+are the file's own text, so control characters are replaced and the whole
+is cut short.
+*/
 function safePath(path: string): string {
   const scrubbed = scrubText(path, { redact: true, localRoots: [] }, [], {
     secrets: 0,
@@ -142,10 +142,10 @@ function safePath(path: string): string {
 }
 
 /**
- * The first field of `raw` the schema did not keep, as a path
- * (`transcript[2].outputRef`). zod drops unknown keys while parsing, so the
- * parse is compared against what was read.
- */
+The first field of `raw` the schema did not keep, as a path
+(`transcript[2].outputRef`). zod drops unknown keys while parsing, so the
+parse is compared against what was read.
+*/
 function firstUnknownField(raw: unknown, parsed: unknown, path: string): string | undefined {
   if (Array.isArray(raw) && Array.isArray(parsed)) {
     for (const [index, entry] of raw.entries()) {
@@ -173,10 +173,10 @@ function firstUnknownField(raw: unknown, parsed: unknown, path: string): string 
 }
 
 /**
- * Validates one parsed JSON document: format, version, schema and caps, then
- * unknown fields. A refusal names one problem in a bounded line: the file's
- * own text never reaches a notice or the log as it was written.
- */
+Validates one parsed JSON document: format, version, schema and caps, then
+unknown fields. A refusal names one problem in a bounded line: the file's
+own text never reaches a notice or the log as it was written.
+*/
 export function parseSessionExport(raw: unknown): SessionExportParse {
   const header = headerSchema.safeParse(raw)
   if (!header.success || header.data.format !== SESSION_EXPORT_FORMAT) {
@@ -258,10 +258,10 @@ export interface ExportRedaction {
   /** Redact account ids and paths; false only after the preview asked for the full file. */
   readonly redact: boolean
   /**
-   * This machine's own folders (the workspace folders, the home folder),
-   * replaced wherever they appear, spaces and all: the patterns stop at a
-   * space, and a user name in a home path is what matters most.
-   */
+  This machine's own folders (the workspace folders, the home folder),
+  replaced wherever they appear, spaces and all: the patterns stop at a
+  space, and a user name in a home path is what matters most.
+  */
   readonly localRoots: readonly string[]
 }
 
@@ -279,12 +279,12 @@ export function scrubTransferIdentifiers(text: string): string {
 }
 
 /**
- * Text as local roots are looked up in it: lower case, and every run of
- * separators one `/`, so `C:\Users`, `c:/users` and the JSON-escaped
- * `C:\\Users` all read `c:/users`. `offsets[i]` is where the folded
- * character `i` starts in the original, and `offsets[folded.length]` is the
- * original's length.
- */
+Text as local roots are looked up in it: lower case, and every run of
+separators one `/`, so `C:\Users`, `c:/users` and the JSON-escaped
+`C:\\Users` all read `c:/users`. `offsets[i]` is where the folded
+character `i` starts in the original, and `offsets[folded.length]` is the
+original's length.
+*/
 interface FoldedText {
   readonly text: string
   readonly offsets: readonly number[]
@@ -321,9 +321,9 @@ function foldText(text: string): FoldedText {
 }
 
 /**
- * The local roots worth looking for, folded, longest first. A root of fewer
- * than two segments is left out.
- */
+The local roots worth looking for, folded, longest first. A root of fewer
+than two segments is left out.
+*/
 function foldedRoots(localRoots: readonly string[]): readonly string[] {
   return localRoots
     .map((root) => foldText(root.replace(TRAILING_SEPARATORS, '')).text)
@@ -336,10 +336,10 @@ function foldedRoots(localRoots: readonly string[]): readonly string[] {
 }
 
 /**
- * Every path that starts at a local root, in either separator, doubled or
- * not, and any letter case, replaced to its end. A text that does not name
- * the root's last folder is not folded at all.
- */
+Every path that starts at a local root, in either separator, doubled or
+not, and any letter case, replaced to its end. A text that does not name
+the root's last folder is not folded at all.
+*/
 function redactLocalRoots(text: string, roots: readonly string[], counts: ScrubCounts): string {
   let result = text
   for (const root of roots) {
@@ -422,15 +422,15 @@ interface ScrubPace {
 }
 
 /**
- * Lets the event loop run once a slice of text has been scrubbed: the scrub
- * runs on the extension host, and a long conversation scrubbed in one go held
- * every extension in the window for seconds (RV84 #9). A long string is cut
- * only just after a line break that nothing redacted goes on past, so each
- * pattern sees whole what it would see in the whole string; a single line
- * longer than a slice is still scrubbed in one go. `setImmediate`, not a
- * timer: on Windows a zero timer waits for the next ~15 ms clock tick, which
- * made a 4 MiB export spend a second waiting.
- */
+Lets the event loop run once a slice of text has been scrubbed: the scrub
+runs on the extension host, and a long conversation scrubbed in one go held
+every extension in the window for seconds (RV84 #9). A long string is cut
+only just after a line break that nothing redacted goes on past, so each
+pattern sees whole what it would see in the whole string; a single line
+longer than a slice is still scrubbed in one go. `setImmediate`, not a
+timer: on Windows a zero timer waits for the next ~15 ms clock tick, which
+made a 4 MiB export spend a second waiting.
+*/
 async function pace(scrubbed: ScrubPace, length: number): Promise<void> {
   scrubbed.sinceYield += length
   if (scrubbed.sinceYield < SESSION_EXPORT_SCRUB_SLICE_CHARS) {
@@ -502,12 +502,12 @@ function portableItem(item: ItemSnapshot): Record<string, unknown> {
 }
 
 /**
- * The portable document for a conversation: credentials and the key digest
- * scrubbed from every string, account ids and paths too unless `redact` is
- * false. The result is parsed with the import's own schema, so a file this
- * writes is one an import reads. The event loop runs between slices of the
- * scrub (`pace`).
- */
+The portable document for a conversation: credentials and the key digest
+scrubbed from every string, account ids and paths too unless `redact` is
+false. The result is parsed with the import's own schema, so a file this
+writes is one an import reads. The event loop runs between slices of the
+scrub (`pace`).
+*/
 export async function buildSessionExport(
   source: SessionExportSource,
   redaction: ExportRedaction,
@@ -671,12 +671,12 @@ function oversizeReason(bytes: number): string | undefined {
 }
 
 /**
- * Why `doc` cannot be resumed on the Model API, or undefined (RV84 #10): the
- * text it hands the model, counted high as one token per UTF-8 byte, must
- * fit `MODEL_API_IMPORT_MAX_REPLAY_BYTES`. Accepted, a larger one would
- * fail every later message past the model's window; it can still be read as
- * a share file.
- */
+Why `doc` cannot be resumed on the Model API, or undefined (RV84 #10): the
+text it hands the model, counted high as one token per UTF-8 byte, must
+fit `MODEL_API_IMPORT_MAX_REPLAY_BYTES`. Accepted, a larger one would
+fail every later message past the model's window; it can still be read as
+a share file.
+*/
 export function importRefusal(doc: SessionExport): string | undefined {
   return oversizeReason(
     replayBytes(importedReplay(importedTurns(doc.transcript), CONVERSATION_MODEL_TEXT)),
@@ -684,16 +684,16 @@ export function importRefusal(doc: SessionExport): string | undefined {
 }
 
 /**
- * A parsed export as a stored session that resumes safely. The transcript
- * keeps what the panel shows, under fresh ids. The model is handed each turn
- * as untrusted data in a user-role message, so nothing in the file speaks as
- * the model, a tool or the developer. The permission mode and model are the
- * caller's; goals, todos, outputs, patches, children and usage start empty;
- * session rules live in a fresh session's own engine, so none carry over.
- * `imported` stays with the session, its forks and its restarts, so it
- * starts asking every time it is opened (PLAN.md D49). Throws, naming the
- * sizes, when its turns do not fit the model (`importRefusal`).
- */
+A parsed export as a stored session that resumes safely. The transcript
+keeps what the panel shows, under fresh ids. The model is handed each turn
+as untrusted data in a user-role message, so nothing in the file speaks as
+the model, a tool or the developer. The permission mode and model are the
+caller's; goals, todos, outputs, patches, children and usage start empty;
+session rules live in a fresh session's own engine, so none carry over.
+`imported` stays with the session, its forks and its restarts, so it
+starts asking every time it is opened (PLAN.md D49). Throws, naming the
+sizes, when its turns do not fit the model (`importRefusal`).
+*/
 export function sanitizeImportedSession(
   doc: SessionExport,
   options: SanitizeImportOptions,

@@ -61,9 +61,9 @@ const CONTRIBUTED_COMMANDS: ReadonlySet<string> = new Set(Object.values(COMMAND_
 const SETTING_PREFIX = `${SETTINGS_SECTION}.`
 
 /**
- * Whether a Try it names a command the extension registers or a setting it
- * declares. Anything else is never rendered and never run.
- */
+Whether a Try it names a command the extension registers or a setting it
+declares. Anything else is never rendered and never run.
+*/
 export function isAllowedTry(entry: TryIt): boolean {
   return entry.kind === 'command'
     ? CONTRIBUTED_COMMANDS.has(entry.id)

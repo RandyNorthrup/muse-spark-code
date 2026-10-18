@@ -32,10 +32,10 @@ export const JUDGE_TECHNIQUES = ['logprob', 'top1', 'stated'] as const
 export type JudgeTechnique = (typeof JUDGE_TECHNIQUES)[number]
 
 /**
- * What a verdict is labelled. Our confidence is always `1 − H(p)/ln N` and
- * computed by us; the backend's own value is kept as `vendorConfidence` and
- * never mixed with ours (PLAN.md D77).
- */
+What a verdict is labelled. Our confidence is always `1 − H(p)/ln N` and
+computed by us; the backend's own value is kept as `vendorConfidence` and
+never mixed with ours (PLAN.md D77).
+*/
 export const JUDGE_LABELS = [
   'calibrated (logprob)',
   'calibrated (stated)',
@@ -96,11 +96,11 @@ export const judgeQuestionSchema = z.discriminatedUnion('type', [
 export type JudgeQuestion = z.infer<typeof judgeQuestionSchema>
 
 /**
- * One judge request: the judged state (data, never split) and 1–64 pending
- * questions, each carrying the full state. The serialized body stays within
- * 64 KiB; an over-context state is refused with an explicit no-answer by
- * lane J against JUDGE_MAX_STATE_TOKENS.
- */
+One judge request: the judged state (data, never split) and 1–64 pending
+questions, each carrying the full state. The serialized body stays within
+64 KiB; an over-context state is refused with an explicit no-answer by
+lane J against JUDGE_MAX_STATE_TOKENS.
+*/
 export const judgeRequestSchema = z
   .object({
     state: z.union([z.string(), z.array(z.unknown()), z.record(z.string(), z.unknown())]),
@@ -154,9 +154,9 @@ export const jevChoiceAnswerSchema = z.looseObject({
 })
 
 /**
- * A `score` gives the expected level, the legend (level numbers as string
- * keys), the probabilities and a confidence.
- */
+A `score` gives the expected level, the legend (level numbers as string
+keys), the probabilities and a confidence.
+*/
 export const jevScoreAnswerSchema = z.looseObject({
   type: z.literal('score'),
   score: z.number(),
@@ -173,12 +173,12 @@ export const jevAnswerSchema = z.discriminatedUnion('type', [
 export type JevAnswer = z.infer<typeof jevAnswerSchema>
 
 /**
- * Our additions, in the sibling `muse` object keyed by the same question
- * ids: the source, technique and model that answered, the label, our
- * confidence, `partial` when fewer distinct semantic alternatives were seen
- * than there are options (case and leading-space variants count as one), and
- * the reserved and the settled cost.
- */
+Our additions, in the sibling `muse` object keyed by the same question
+ids: the source, technique and model that answered, the label, our
+confidence, `partial` when fewer distinct semantic alternatives were seen
+than there are options (case and leading-space variants count as one), and
+the reserved and the settled cost.
+*/
 export const judgeMuseSchema = z.object({
   source: z.enum(JUDGE_SOURCES),
   technique: z.enum(JUDGE_TECHNIQUES),
@@ -193,11 +193,11 @@ export const judgeMuseSchema = z.object({
 export type JudgeMuse = z.infer<typeof judgeMuseSchema>
 
 /**
- * One answered call: the serving model, the byte-compatible `answers`, our
- * sibling `muse` (every answered id has one, and every one answers an id),
- * and the token usage. Top-level vendor additions (a reported cost, a goal
- * status) are kept, not dropped.
- */
+One answered call: the serving model, the byte-compatible `answers`, our
+sibling `muse` (every answered id has one, and every one answers an id),
+and the token usage. Top-level vendor additions (a reported cost, a goal
+status) are kept, not dropped.
+*/
 export const judgeResultSchema = z
   .looseObject({
     model: z.string().check(z.minLength(1)),
@@ -218,16 +218,16 @@ export const judgeResultSchema = z
 export type JudgeResult = z.infer<typeof judgeResultSchema>
 
 /**
- * The choice alphabet: one letter per option, A–Z, so
- * JUDGE_CHOICE_OPTION_MAX options is all of it. Lane J reads answers through
- * judgeOptionIndex and writes prompts through judgeOptionLetter.
- */
+The choice alphabet: one letter per option, A–Z, so
+JUDGE_CHOICE_OPTION_MAX options is all of it. Lane J reads answers through
+judgeOptionIndex and writes prompts through judgeOptionLetter.
+*/
 const JUDGE_OPTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 /**
- * The 0-based option's letter: 0 is A, 25 is Z. Anything else is a caller
- * bug, refused loudly rather than lettered past Z.
- */
+The 0-based option's letter: 0 is A, 25 is Z. Anything else is a caller
+bug, refused loudly rather than lettered past Z.
+*/
 export function judgeOptionLetter(index: number): string {
   const letter =
     Number.isSafeInteger(index) && index >= 0 ? JUDGE_OPTION_LETTERS.at(index) : undefined
@@ -265,13 +265,13 @@ export interface JudgeLogSummary {
 }
 
 /**
- * What a judge result may put in the log: ids, source, technique, model,
- * timing and cost only (PLAN.md D77). Never the state, a question, an
- * answer or a probability key: those can carry workspace or user content,
- * and the CLI's own words in them are redacted like any pasted key's
- * surroundings. Timing rides beside this summary at the call site; there is
- * nothing to carry here.
- */
+What a judge result may put in the log: ids, source, technique, model,
+timing and cost only (PLAN.md D77). Never the state, a question, an
+answer or a probability key: those can carry workspace or user content,
+and the CLI's own words in them are redacted like any pasted key's
+surroundings. Timing rides beside this summary at the call site; there is
+nothing to carry here.
+*/
 export function judgeLogSummary(result: JudgeResult): JudgeLogSummary {
   const muse: Record<string, JudgeLogMuse> = {}
   for (const [id, meta] of Object.entries(result.muse)) {

@@ -6,9 +6,9 @@ import type * as Governor from './resourceGovernorEntry'
 type ResourceHostSettings = Governor.ResourceHostSettings
 
 /**
- * U–C1: what a window reads from its loaded governor host, plus the status
- * adapter delivered in the same lazy bundle (never at activation).
- */
+U–C1: what a window reads from its loaded governor host, plus the status
+adapter delivered in the same lazy bundle (never at activation).
+*/
 export interface ResourceWindowHost {
   readonly port: Pick<
     ResourceLaunchHost,
@@ -91,10 +91,10 @@ async function load(): Promise<ResourceLaunchHost | undefined> {
 }
 
 /**
- * U–C1: `attach` runs once the window's governor host loads, at the first
- * governed spawn or an explicit Show/Resume, or at once if it already has.
- * Registering imports nothing.
- */
+U–C1: `attach` runs once the window's governor host loads, at the first
+governed spawn or an explicit Show/Resume, or at once if it already has.
+Registering imports nothing.
+*/
 export function onResourceWindow(attach: (window: ResourceWindowHost) => void): () => void {
   if (state.window === undefined) state.attachers.add(attach)
   else attach(state.window)

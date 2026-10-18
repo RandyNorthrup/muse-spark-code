@@ -24,9 +24,9 @@ export interface HeaderProps {
   /** Background tasks still running (M46): they show the pill too. */
   readonly runningTaskCount?: number
   /**
-   * Team tasks in the Agent map's tree (M96 lane U2): they show the pill
-   * too. Zero (and absent) is today's pill: the single-model invariant.
-   */
+  Team tasks in the Agent map's tree (M96 lane U2): they show the pill
+  too. Zero (and absent) is today's pill: the single-model invariant.
+  */
   readonly teamTaskCount?: number
   readonly runningTeamTaskCount?: number
   readonly onOpenAgents?: (() => void) | undefined

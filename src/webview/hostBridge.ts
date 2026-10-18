@@ -15,9 +15,9 @@ export type MessageSource = Pick<Window, 'addEventListener' | 'removeEventListen
 
 export interface HostBridge {
   /**
-   * Posts to the host. The chat panel's messages and the Models & Agents
-   * panel's (M95) share this bridge; each side validates what it receives.
-   */
+  Posts to the host. The chat panel's messages and the Models & Agents
+  panel's (M95) share this bridge; each side validates what it receives.
+  */
   post(message: WebviewToHostMessage | PanelToHostMessage | UsagePageToServiceMessage): void
   /** The state saved before the document last went away, unvalidated (`restoredUiState` checks it). */
   savedState(): unknown

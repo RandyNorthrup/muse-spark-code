@@ -39,8 +39,8 @@ function providerOf(value: unknown): AccountProvider | undefined {
 }
 
 /** A stored row counts only when it is whole: the entry id matches its map
- * key and the complete pool (not just each row) validates, so duplicate ids
- * refuse here instead of throwing a raw schema error from the store later. */
+key and the complete pool (not just each row) validates, so duplicate ids
+refuse here instead of throwing a raw schema error from the store later. */
 function storedProviderOf(key: string, value: unknown): AccountProvider | undefined {
   const entry = providerOf(value)
   if (entry?.id !== key) return undefined
@@ -50,9 +50,9 @@ function storedProviderOf(key: string, value: unknown): AccountProvider | undefi
 }
 
 /** The built-in entry: every field is already pinned in-repo (the key names
- * in accountCredentialRecord.ts, the origin in MODEL_API_BASE_URL, the
- * meta/model-api policy row). An absent accounts field migrates the default
- * account in the store, so the pre-existing key keeps working. */
+in accountCredentialRecord.ts, the origin in MODEL_API_BASE_URL, the
+meta/model-api policy row). An absent accounts field migrates the default
+account in the store, so the pre-existing key keeps working. */
 function builtInProvider(id: string): AccountProvider | undefined {
   if (id !== 'meta') return undefined
   return {

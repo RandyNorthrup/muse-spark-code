@@ -29,9 +29,9 @@ export interface SameJudgeRunnerDeps {
   readonly timeoutMs?: number | undefined
   readonly advisoryThreshold?: number | undefined
   /**
-   * The token joystick lane J's over-context backstop reads: the model's own
-   * counter, provided by the wiring.
-   */
+  The token joystick lane J's over-context backstop reads: the model's own
+  counter, provided by the wiring.
+  */
   readonly measureTokens: (text: string) => number
   readonly contextTokenLimit?: number | undefined
   readonly onError: (error: unknown) => void
@@ -82,11 +82,11 @@ export interface PlanKindBatchesInputs {
 }
 
 /**
- * Plan one batch per question kind over the full state: each batch carries
- * the whole state, only questions split, and an over-context state refuses
- * loudly instead of trimming. Throws on a refusal or a planner bug: the
- * caller settles `failed`.
- */
+Plan one batch per question kind over the full state: each batch carries
+the whole state, only questions split, and an over-context state refuses
+loudly instead of trimming. Throws on a refusal or a planner bug: the
+caller settles `failed`.
+*/
 export function planKindBatches(inputs: PlanKindBatchesInputs): PlannedJudgeBatch[] {
   const wording = judgePromptWording()
   const planned: PlannedJudgeBatch[] = []
@@ -117,10 +117,10 @@ export function planKindBatches(inputs: PlanKindBatchesInputs): PlannedJudgeBatc
 }
 
 /**
- * Plan one held action's batches over its full state: each batch carries the
- * whole state, only questions split. A refusal throws: the caller settles
- * `failed`.
- */
+Plan one held action's batches over its full state: each batch carries the
+whole state, only questions split. A refusal throws: the caller settles
+`failed`.
+*/
 export function planJobBatches(
   job: { readonly stateText: string; readonly questions: readonly JudgeQuestion[] },
   measureTokens: (text: string) => number,
@@ -135,9 +135,9 @@ export function planJobBatches(
 }
 
 /**
- * Launch one batch's background run: never awaited on a user path, reported
- * once through `onError`, aborted past the timeout.
- */
+Launch one batch's background run: never awaited on a user path, reported
+once through `onError`, aborted past the timeout.
+*/
 export function launchJudgeBatch(
   run: (signal: AbortSignal) => Promise<void>,
   tuning: { readonly timeoutMs: number },
@@ -157,9 +157,9 @@ export interface CommitSettledInputs {
 }
 
 /**
- * Commit one answered batch: a reply that did not parse settles `failed`;
- * answers commit to the latch and, only while the entry stands, the cache.
- */
+Commit one answered batch: a reply that did not parse settles `failed`;
+answers commit to the latch and, only while the entry stands, the cache.
+*/
 export function commitSettledAnswers(inputs: CommitSettledInputs): void {
   if (inputs.settled.status !== 'answered') {
     inputs.onFailure(inputs.settled.failure)
@@ -189,10 +189,10 @@ export interface JudgeHeldActionInputs {
 }
 
 /**
- * Judge one held action: settle from the cache when judged before, else plan
- * each kind's batch and launch it in the background. Never rejects, never
- * waits on the caller.
- */
+Judge one held action: settle from the cache when judged before, else plan
+each kind's batch and launch it in the background. Never rejects, never
+waits on the caller.
+*/
 export function judgeHeldAction(inputs: JudgeHeldActionInputs): void {
   const tuning = resolveRunnerTuning(inputs.runner)
   beginJudgeBatches({
@@ -235,10 +235,10 @@ export interface BeginJudgeBatchesInputs {
 }
 
 /**
- * Begin one held action's batches: settle from the cache when judged before,
- * else plan each kind's batch and launch it in the background. Never rejects,
- * never waits on the caller.
- */
+Begin one held action's batches: settle from the cache when judged before,
+else plan each kind's batch and launch it in the background. Never rejects,
+never waits on the caller.
+*/
 export function beginJudgeBatches(inputs: BeginJudgeBatchesInputs): void {
   const cached = inputs.cache.get(inputs.entryKey.key)
   if (cached !== undefined) {
@@ -269,10 +269,10 @@ export interface CommitOutcomeInputs {
 }
 
 /**
- * Commit one settled outcome: settle the latch, and cache the answers only
- * while the entry stands. A consumed or discarded key commits nothing, so a
- * late result is dropped, never cached.
- */
+Commit one settled outcome: settle the latch, and cache the answers only
+while the entry stands. A consumed or discarded key commits nothing, so a
+late result is dropped, never cached.
+*/
 export function commitOutcome(inputs: CommitOutcomeInputs): void {
   const wasApplied = inputs.entries.settle(inputs.entryKey, inputs.outcome)
   if (wasApplied) {

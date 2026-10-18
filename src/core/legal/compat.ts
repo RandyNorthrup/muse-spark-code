@@ -139,11 +139,11 @@ function describeVersion(dep: EvaluatedDependency): string {
 }
 
 /**
- * Review evaluated dependencies against the project's licenses. Only
- * known-shipped dependencies can be blockers; anything else is advice or
- * a conditional should-fix, and a clean `OR` branch always softens the
- * finding to a confirmation note.
- */
+Review evaluated dependencies against the project's licenses. Only
+known-shipped dependencies can be blockers; anything else is advice or
+a conditional should-fix, and a clean `OR` branch always softens the
+finding to a confirmation note.
+*/
 export function evaluateCompatibility(
   evaluated: readonly EvaluatedDependency[],
   projectLicenses: readonly string[],

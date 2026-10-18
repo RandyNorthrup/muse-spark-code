@@ -125,11 +125,11 @@ function isBounded(value: unknown): boolean {
 }
 
 /**
- * A conservative strict subset, never a rewrite: closed objects with every key
- * required, homogeneous arrays, scalar enums, nullable types, nested anyOf and
- * local references. Constraints we cannot enforce are refused, never discarded.
- * Uses the existing strict JSON grammar's resource limits (MCP_SCHEMA_LIMITS).
- */
+A conservative strict subset, never a rewrite: closed objects with every key
+required, homogeneous arrays, scalar enums, nullable types, nested anyOf and
+local references. Constraints we cannot enforce are refused, never discarded.
+Uses the existing strict JSON grammar's resource limits (MCP_SCHEMA_LIMITS).
+*/
 export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
   if (bytes.byteLength > EXEC_PROMPT_MAX_BYTES) invalid('bytes')
   let decoded: unknown

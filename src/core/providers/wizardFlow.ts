@@ -210,11 +210,11 @@ function stepBefore(step: WizardStep, draft: WizardDraft): WizardStep {
 }
 
 /**
- * The blocking problems for **Save** (empty means saving is allowed):
- * a preset, a valid address, a credential where one is needed, a passed
- * test, at least one ticked model, and the private-network question
- * answered where one was asked.
- */
+The blocking problems for **Save** (empty means saving is allowed):
+a preset, a valid address, a credential where one is needed, a passed
+test, at least one ticked model, and the private-network question
+answered where one was asked.
+*/
 export function wizardBlockers(state: WizardState): readonly string[] {
   if (state.cancelled || state.step === 'done') {
     return state.step === 'done' ? [] : [UI_TEXT.providerText.wizard.cancelled]

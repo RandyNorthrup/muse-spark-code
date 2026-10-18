@@ -119,20 +119,20 @@ export async function waitUntil(
 }
 
 /**
- * The check's own network service: a child, with the service type, of a
- * process naming the check's profile folder (the browser). Chrome does not
- * hand the folder to that helper on every OS.
- */
+The check's own network service: a child, with the service type, of a
+process naming the check's profile folder (the browser). Chrome does not
+hand the folder to that helper on every OS.
+*/
 export async function networkService(root: string): Promise<number | undefined> {
   const owned = await childrenNaming(await processesNaming(root), NETWORK_SERVICE)
   return owned.length === 1 ? owned[0] : undefined
 }
 
 /**
- * Kills the check's own network service and waits for the browser to start
- * another. `beforeKill` runs once the service is found, just before the kill,
- * so a control counts only what the page sends from then on.
- */
+Kills the check's own network service and waits for the browser to start
+another. `beforeKill` runs once the service is found, just before the kill,
+so a control counts only what the page sends from then on.
+*/
 export async function restartNetworkService(root: string, beforeKill: () => void): Promise<void> {
   const service = await networkService(root)
   expect(service).toBeDefined()

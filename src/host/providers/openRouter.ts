@@ -40,11 +40,11 @@ export function openRouterAuthorizeUrl(request: OpenRouterAuthorizeRequest): str
 }
 
 /**
- * The key's own spend-limit page, deep-linked by the key's SHA-256
- * (research §1.8, [OR2-oauth]): a key's limit is set on OpenRouter's site,
- * never here. The hash names the page; only the key's owner can open it.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes)
- */
+The key's own spend-limit page, deep-linked by the key's SHA-256
+(research §1.8, [OR2-oauth]): a key's limit is set on OpenRouter's site,
+never here. The hash names the page; only the key's owner can open it.
+@unwired unassigned read only by tests deleted 2026-10-17 (no fakes)
+*/
 export function openRouterSpendPage(key: string): string {
   const hash = createHash('sha256').update(key, 'utf8').digest('hex')
   return `https://openrouter.ai/keys/${hash}`
@@ -70,12 +70,12 @@ export interface OpenRouterConnection {
 }
 
 /**
- * Connects the OpenRouter account: browser approval, one code exchange.
- * The connected key and its record, or undefined when the user cancelled
- * (dismissed the pasted-code box). A wrong `state`, a refused or missing
- * code, and a failed exchange all reject, and the loopback is closed in
- * every path.
- */
+Connects the OpenRouter account: browser approval, one code exchange.
+The connected key and its record, or undefined when the user cancelled
+(dismissed the pasted-code box). A wrong `state`, a refused or missing
+code, and a failed exchange all reject, and the loopback is closed in
+every path.
+*/
 export async function connectOpenRouterAccount(
   deps: OpenRouterConnectDeps,
 ): Promise<OpenRouterConnection | undefined> {
@@ -122,10 +122,10 @@ function isValidUsage(value: number): boolean {
 }
 
 /**
- * The key's usage and limit for Account & usage (D74). Throws on numbers
- * that are not finite and non-negative: invalid usage never reaches a
- * budget or a tally.
- */
+The key's usage and limit for Account & usage (D74). Throws on numbers
+that are not finite and non-negative: invalid usage never reaches a
+budget or a tally.
+*/
 export async function readOpenRouterKeyUsage(
   reader: KeyUsageReader,
   credential: string,

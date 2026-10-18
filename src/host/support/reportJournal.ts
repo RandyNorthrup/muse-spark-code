@@ -243,10 +243,10 @@ export interface MergedJournal {
 }
 
 /**
- * One failure to record: the kind, code, backend, count and frames. The
- * extension and host versions come from the adapter itself, so every record
- * a window writes carries that window's versions.
- */
+One failure to record: the kind, code, backend, count and frames. The
+extension and host versions come from the adapter itself, so every record
+a window writes carries that window's versions.
+*/
 export type ReportEventInput = Omit<FlightEventInput, 'ext' | 'host'>
 
 /** A journal's bytes as written and its oldest record's time. */
@@ -275,12 +275,12 @@ function errorCodeForLog(error: unknown): string {
 }
 
 /**
- * This window's flight recorder. All file work runs through one queue, so an
- * append never interleaves with a prune rewrite, and no window corrupts
- * another window's file: every window writes only its own journal and
- * marker. Every method is total: storage failures disable recording with one
- * warning instead of throwing.
- */
+This window's flight recorder. All file work runs through one queue, so an
+append never interleaves with a prune rewrite, and no window corrupts
+another window's file: every window writes only its own journal and
+marker. Every method is total: storage failures disable recording with one
+warning instead of throwing.
+*/
 export class ReportJournal {
   private readonly dir: string
   private readonly ownJournal: string
@@ -299,10 +299,10 @@ export class ReportJournal {
   private warned = false
   private stopped = false
   /**
-   * This window's own journal as last measured: its bytes and its oldest
-   * record's time, kept as appends land so an append reads the whole file
-   * again only when it crosses a bound. Undefined until measured.
-   */
+  This window's own journal as last measured: its bytes and its oldest
+  record's time, kept as appends land so an append reads the whole file
+  again only when it crosses a bound. Undefined until measured.
+  */
   private own: { readonly bytes: number; readonly oldestAt: number | undefined } | undefined
 
   public constructor(options: ReportJournalOptions) {
@@ -395,12 +395,12 @@ export class ReportJournal {
   }
 
   /**
-   * Prune every journal at startup, sweep crash-left stages, set this
-   * activation's marker, and consume stale markers. Returns whether the next
-   * start should offer a crash report: true only when a consumed marker
-   * belonged to an instance whose process is gone. Dismissal is remembered
-   * because the marker is consumed; a new abnormal exit leaves a new one.
-   */
+  Prune every journal at startup, sweep crash-left stages, set this
+  activation's marker, and consume stale markers. Returns whether the next
+  start should offer a crash report: true only when a consumed marker
+  belonged to an instance whose process is gone. Dismissal is remembered
+  because the marker is consumed; a new abnormal exit leaves a new one.
+  */
   /** False after a storage failure: callers can disclose unavailable evidence. */
   public get isAvailable(): boolean {
     return !this.disabled
@@ -476,10 +476,10 @@ export class ReportJournal {
   }
 
   /**
-   * Record one failure as it happens, without relying on deactivate. Refused
-   * records (untrusted versions, oversize entries) never reach the file, and
-   * a dead store disables recording with one warning instead of throwing.
-   */
+  Record one failure as it happens, without relying on deactivate. Refused
+  records (untrusted versions, oversize entries) never reach the file, and
+  a dead store disables recording with one warning instead of throwing.
+  */
   public async record(input: ReportEventInput): Promise<void> {
     try {
       await this.enqueue(async () => {
@@ -540,11 +540,11 @@ export class ReportJournal {
   }
 
   /**
-   * Merge every window's journal, newest last, pruned to the retention caps:
-   * report reads prune too, so a closed editor's files still expire on next
-   * use. Truncated and tampered records are skipped and counted, never
-   * trusted, and no window's file is corrupted by another's.
-   */
+  Merge every window's journal, newest last, pruned to the retention caps:
+  report reads prune too, so a closed editor's files still expire on next
+  use. Truncated and tampered records are skipped and counted, never
+  trusted, and no window's file is corrupted by another's.
+  */
   public readMerged(limit: number = REPORT_RECENT_EVENT_COUNT): Promise<MergedJournal> {
     return this.enqueue(async (): Promise<MergedJournal> => {
       const empty: MergedJournal = { entries: [], total: 0, skipped: 0 }

@@ -45,18 +45,18 @@ import { unlessCancelled } from './webFetchTool'
 
 export interface IdeBrowserCheckDeps {
   /**
-   * A trusted workspace whose sandbox network setting allows the network,
-   * with `museSpark.browserCheckRuntime` not `off`.
-   */
+  A trusted workspace whose sandbox network setting allows the network,
+  with `museSpark.browserCheckRuntime` not `off`.
+  */
   readonly isOffered: () => boolean
   /** `museSpark.browserCheckExtraHosts`, read at each use. */
   readonly extraHosts: () => readonly string[]
   /**
-   * The modal before every check: true only when the user allowed this one.
-   * `scope.widenedHost` is the URL's host when it is beyond loopback and the
-   * setting; a modal already open is shared only by a call of the same URL
-   * and scope (`browserScopeKey`).
-   */
+  The modal before every check: true only when the user allowed this one.
+  `scope.widenedHost` is the URL's host when it is beyond loopback and the
+  setting; a modal already open is shared only by a call of the same URL
+  and scope (`browserScopeKey`).
+  */
   readonly confirm: (url: string, scope: BrowserCheckScope) => Promise<boolean>
   readonly check: BrowserChecker
   readonly log: Logger

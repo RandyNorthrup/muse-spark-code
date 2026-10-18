@@ -99,15 +99,15 @@ function decodeStatement(bundle) {
 }
 
 /**
- * The provenance chain for one package version, from the JSON of one
- * verifying `npm audit signatures --json --include-attestations` run: no
- * invalid or missing entry; exactly one verified record for the package;
- * from that record's own bundles, exactly one SLSA provenance whose subject,
- * SHA-512 digest, workflow repository/path/ref and signing certificate URI
- * SAN all match. Throws a ProvenanceError naming the first failed check.
- * The identity defaults to this project's release workflow at the version's
- * tag; tests pass another publisher's identity to check a real capture.
- */
+The provenance chain for one package version, from the JSON of one
+verifying `npm audit signatures --json --include-attestations` run: no
+invalid or missing entry; exactly one verified record for the package;
+from that record's own bundles, exactly one SLSA provenance whose subject,
+SHA-512 digest, workflow repository/path/ref and signing certificate URI
+SAN all match. Throws a ProvenanceError naming the first failed check.
+The identity defaults to this project's release workflow at the version's
+tag; tests pass another publisher's identity to check a real capture.
+*/
 export function verifyProvenance(audit, { name, version, integrity, identity }) {
   const expected = identity ?? releaseIdentity(version)
   const report = record(audit)

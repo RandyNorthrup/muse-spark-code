@@ -53,7 +53,7 @@ export interface PullRequestText {
 }
 
 /** M95/host binding: submit owns the prepared user's turn; request continues
- * that same held turn with its live admission, consent and budget guards. */
+that same held turn with its live admission, consent and budget guards. */
 export interface GitDraftOutputPort {
   readonly submit?: (parts: readonly TurnPart[], displayText?: string) => Promise<TurnSubmission>
   readonly formats: () => SideCallFormats | undefined
@@ -156,9 +156,9 @@ function listed(items: readonly string[], max: number): string {
 }
 
 /**
- * A new file as `git diff` shows one, for the commit prompt: `bytes` are
- * its start, `size` its length, and a file cut short or binary says so.
- */
+A new file as `git diff` shows one, for the commit prompt: `bytes` are
+its start, `size` its length, and a file cut short or binary says so.
+*/
 export function newFileDiff(label: string, bytes: Uint8Array, size: number): string {
   const header = `diff --git a/${label} b/${label}\nnew file\n--- /dev/null\n+++ b/${label}`
   if (bytes.includes(0)) {

@@ -24,10 +24,10 @@ const CODE_FENCE = '```'
 const BLOCK_OPENERS: readonly string[] = ['{', '(', '[', ':']
 
 /**
- * A first line that is a new line's body: it starts with indentation (a
- * tab, or two spaces or more) and holds code. A lone space is not: `x:`
- * followed by ` number` continues the cursor's line.
- */
+A first line that is a new line's body: it starts with indentation (a
+tab, or two spaces or more) and holds code. A lone space is not: `x:`
+followed by ` number` continues the cursor's line.
+*/
 const BODY_LINE = /^(?:\t| {2})\s*\S/u
 
 /** Each closing bracket and the opening one it needs. */
@@ -52,11 +52,11 @@ export function stripReplyWrapper(reply: string): string {
 }
 
 /**
- * The text between the first complete tag pair, whitespace and all. A
- * lead-in sentence before the tags and anything after them are not read.
- * Missing, unterminated, or stray tags (a close with no open before it)
- * mean no suggestion; of duplicate pairs the first wins.
- */
+The text between the first complete tag pair, whitespace and all. A
+lead-in sentence before the tags and anything after them are not read.
+Missing, unterminated, or stray tags (a close with no open before it)
+mean no suggestion; of duplicate pairs the first wins.
+*/
 export function extractCompletion(reply: string): string | undefined {
   const stripped = stripReplyWrapper(reply)
   const open = stripped.indexOf(TAB_REPLY_OPEN_TAG)
@@ -68,12 +68,12 @@ export function extractCompletion(reply: string): string | undefined {
 }
 
 /**
- * The completion as shown: it ends at the first blank line after the first
- * line, then at the mode's line cap, then at `TAB_MAX_COMPLETION_CHARS`
- * (at a line boundary when one fits). Ending at a blank line also drops a
- * stray trailing line break and a whitespace-only last line; spaces at the
- * end of a line with code stay.
- */
+The completion as shown: it ends at the first blank line after the first
+line, then at the mode's line cap, then at `TAB_MAX_COMPLETION_CHARS`
+(at a line boundary when one fits). Ending at a blank line also drops a
+stray trailing line break and a whitespace-only last line; spaces at the
+end of a line with code stay.
+*/
 export function cutCompletion(completion: string, mode: TabMode): string {
   const maxLines = mode === 'fast' ? TAB_FAST_MAX_LINES : TAB_MULTILINE_MAX_LINES
   const kept: string[] = []
@@ -180,13 +180,13 @@ function firstLineOf(text: string): string {
 }
 
 /**
- * The completion placed against the cursor, its code whitespace otherwise
- * kept (a body's indentation, a line break the model supplied):
- * - after a block opener with nothing left on the cursor's line, a body
- *   that starts on the cursor's line gets the line break the model left out;
- * - on a line holding only indentation, the first line drops that same
- *   indentation, which the user already typed.
- */
+The completion placed against the cursor, its code whitespace otherwise
+kept (a body's indentation, a line break the model supplied):
+- after a block opener with nothing left on the cursor's line, a body
+  that starts on the cursor's line gets the line break the model left out;
+- on a line holding only indentation, the first line drops that same
+  indentation, which the user already typed.
+*/
 function placeAtCursor(completion: string, context: TabFilterContext): string {
   const before = context.cursorLineBefore
   const opened = before.trimEnd()
@@ -202,12 +202,12 @@ function placeAtCursor(completion: string, context: TabFilterContext): string {
 }
 
 /**
- * The reply's suggestion, or why there is none. The pipeline is extract,
- * place against the cursor, cut, then refuse: what is cut away cannot
- * refuse, and the kept text has the suffix overlap trimmed first, so
- * accepting it never duplicates the suffix. What the overlap trim leaves
- * (a space or a line break before the suffix) stays: it separates the two.
- */
+The reply's suggestion, or why there is none. The pipeline is extract,
+place against the cursor, cut, then refuse: what is cut away cannot
+refuse, and the kept text has the suffix overlap trimmed first, so
+accepting it never duplicates the suffix. What the overlap trim leaves
+(a space or a line break before the suffix) stays: it separates the two.
+*/
 export function suggestFromReply(reply: string, context: TabFilterContext): TabSuggestion {
   if (reply.trim() === '') {
     return { drop: 'empty' }

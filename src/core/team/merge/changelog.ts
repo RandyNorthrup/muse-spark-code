@@ -143,7 +143,7 @@ function isKept(
 }
 
 /** Also used to prove that a staging formatter has kept every authorized
- * edit/removal and every untouched integration bullet. */
+edit/removal and every untouched integration bullet. */
 export function isChangelogKept(
   base: string,
   ours: string,

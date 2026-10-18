@@ -91,10 +91,10 @@ export interface HookDefinition {
   readonly isAsync: boolean
   readonly onFailure?: HookDefinition
   /**
-   * A hook imported in another agent's format (M91 lane W, PLAN.md D70): it
-   * never runs natively. Its stdin and answer go through lane P's adapter,
-   * which `dispatchHooks` takes from the caller; without one it is skipped.
-   */
+  A hook imported in another agent's format (M91 lane W, PLAN.md D70): it
+  never runs natively. Its stdin and answer go through lane P's adapter,
+  which `dispatchHooks` takes from the caller; without one it is skipped.
+  */
   readonly foreign?: ForeignHookSpec
 }
 
@@ -141,11 +141,11 @@ export type ForeignRunResult =
   /** Could not start, or its output went past the cap. */
   | { readonly kind: 'crash' }
   /**
-   * Never started: its stdin could not be translated, or its directory left
-   * the workspace. `blockOperation`: lane P's rule for a blocking source event
-   * whose input cannot be built: the guarded operation is refused, never let
-   * through as a failed hook.
-   */
+  Never started: its stdin could not be translated, or its directory left
+  the workspace. `blockOperation`: lane P's rule for a blocking source event
+  whose input cannot be built: the guarded operation is refused, never let
+  through as a failed hook.
+  */
   | { readonly kind: 'refused'; readonly reason: string; readonly blockOperation?: true }
 
 export type ForeignPreparation =
@@ -157,9 +157,9 @@ export type ForeignPreparation =
       readonly command?: string | undefined
     }
   /**
-   * An Amp or OpenCode plugin (M91b): the adapter runs it in its own child
-   * and answers by the source's rules; hooks.ts gives it the host-wide cap.
-   */
+  An Amp or OpenCode plugin (M91b): the adapter runs it in its own child
+  and answers by the source's rules; hooks.ts gives it the host-wide cap.
+  */
   | {
       readonly outcome: 'plugin'
       readonly run: (signal: AbortSignal | undefined) => Promise<HookAnswer>
@@ -312,11 +312,11 @@ async function readHookText(
 }
 
 /**
- * Sources stay in Muse Code's managed, user, project order for one session.
- * An untrusted workspace loads none of them: a user or managed hook commonly
- * runs the workspace's own tools (a formatter, `npm test`), and Restricted
- * Mode promises that no shell command runs.
- */
+Sources stay in Muse Code's managed, user, project order for one session.
+An untrusted workspace loads none of them: a user or managed hook commonly
+runs the workspace's own tools (a formatter, `npm test`), and Restricted
+Mode promises that no shell command runs.
+*/
 export async function loadHookDefinitions(deps: HookLoadDeps): Promise<readonly HookDefinition[]> {
   if (!deps.isWorkspaceTrusted()) {
     return []
@@ -935,10 +935,10 @@ function pluginPath(value: unknown, platform: NodeJS.Platform): string | undefin
 }
 
 /**
- * An Amp or OpenCode plugin group (M91b): one `{ type: 'plugin' }` handler
- * and the plugin's absolute path. Built here, not by `handler()`, which
- * takes commands only; its timeout and matcher follow the native rules.
- */
+An Amp or OpenCode plugin group (M91b): one `{ type: 'plugin' }` handler
+and the plugin's absolute path. Built here, not by `handler()`, which
+takes commands only; its timeout and matcher follow the native rules.
+*/
 function pluginGroup(
   group: HookRecord,
   spec: ForeignHookSpec,
@@ -1056,10 +1056,10 @@ function foreignGroup(
 }
 
 /**
- * The imported hooks of one spark-hooks.json: its groups that carry a
- * `format` tag, on Muse Code's events. Everything else in the file is lane
- * E's (the extension events and the native groups) and is passed over here.
- */
+The imported hooks of one spark-hooks.json: its groups that carry a
+`format` tag, on Muse Code's events. Everything else in the file is lane
+E's (the extension events and the native groups) and is passed over here.
+*/
 export function parseForeignHooks(
   text: string | undefined,
   source: Extract<HookSource, 'user' | 'project'>,
@@ -1093,10 +1093,10 @@ export function parseForeignHooks(
 }
 
 /**
- * The imported hooks of both spark-hooks.json files, under M51's gates: an
- * untrusted workspace loads none, the project's file is confined to the
- * workspace, and the caller keeps the per-session snapshot.
- */
+The imported hooks of both spark-hooks.json files, under M51's gates: an
+untrusted workspace loads none, the project's file is confined to the
+workspace, and the caller keeps the per-session snapshot.
+*/
 export async function loadForeignHookDefinitions(
   deps: HookLoadDeps,
 ): Promise<readonly HookDefinition[]> {
@@ -1124,11 +1124,11 @@ export async function loadForeignHookDefinitions(
 }
 
 /**
- * Matcher grammar is from Muse Code 1.3.0; tool aliases are resolved by
- * caller. `timeoutMs` bounds one regular-expression match; only tests pass
- * another value, so a loaded rig cannot lapse a deadline the test does not
- * measure.
- */
+Matcher grammar is from Muse Code 1.3.0; tool aliases are resolved by
+caller. `timeoutMs` bounds one regular-expression match; only tests pass
+another value, so a loaded rig cannot lapse a deadline the test does not
+measure.
+*/
 export function matchingHooks(
   hooks: readonly HookDefinition[],
   event: HookEvent,
@@ -1392,10 +1392,10 @@ function withoutGrant(answer: HookAnswer): HookAnswer {
 }
 
 /**
- * A plugin hook (M91b) under the same host-wide cap as every hook process;
- * its answer goes through the same judge, so no grant survives and a
- * failure never becomes feedback. A cancelled call answers nothing.
- */
+A plugin hook (M91b) under the same host-wide cap as every hook process;
+its answer goes through the same judge, so no grant survives and a
+failure never becomes feedback. A cancelled call answers nothing.
+*/
 async function runPluginHandler(
   run: (signal: AbortSignal | undefined) => Promise<HookAnswer>,
   signal: AbortSignal | undefined,
@@ -1423,13 +1423,13 @@ async function runPluginHandler(
 }
 
 /**
- * One imported hook (M91 lane W): its adapter builds the stdin its source
- * agent would send, the process runs under the same cap, environment and
- * kill as a native hook, and the adapter reads the ending by that source's
- * rules. A timeout is told apart from a crash, since Copilot lets a timed-out
- * guard through and Cursor's failClosed blocks on either. A failure never
- * becomes feedback, and an answer is never a grant.
- */
+One imported hook (M91 lane W): its adapter builds the stdin its source
+agent would send, the process runs under the same cap, environment and
+kill as a native hook, and the adapter reads the ending by that source's
+rules. A timeout is told apart from a crash, since Copilot lets a timed-out
+guard through and Cursor's failClosed blocks on either. A failure never
+becomes feedback, and an answer is never a grant.
+*/
 async function runForeignHandler(
   hook: HookDefinition,
   spec: ForeignHookSpec,
@@ -1511,9 +1511,9 @@ async function runForeignHandler(
 }
 
 /**
- * Execute matching handlers. No hook can grant a tool permission or paid use.
- * Imported hooks run only through `adapter`; without one they are skipped.
- */
+Execute matching handlers. No hook can grant a tool permission or paid use.
+Imported hooks run only through `adapter`; without one they are skipped.
+*/
 export async function dispatchHooks(
   hooks: readonly HookDefinition[],
   event: HookEvent,

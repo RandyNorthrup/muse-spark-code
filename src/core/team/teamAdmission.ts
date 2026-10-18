@@ -46,9 +46,9 @@ export function teamShellCommandSlots(cpuCount: number): number {
 }
 
 /**
- * The window's slot counters. Selection checks headroom first; admission is
- * the atomic gate at start: one synchronous check-and-increment per task.
- */
+The window's slot counters. Selection checks headroom first; admission is
+the atomic gate at start: one synchronous check-and-increment per task.
+*/
 export class TeamAdmission {
   private static take(counts: Map<string, number>, key: string): void {
     counts.set(key, (counts.get(key) ?? 0) + 1)
@@ -91,9 +91,9 @@ export class TeamAdmission {
   }
 
   /**
-   * Starts a task's slot, or refuses with the first slot that has no room.
-   * Synchronous: nothing interleaves between the check and the increment.
-   */
+  Starts a task's slot, or refuses with the first slot that has no room.
+  Synchronous: nothing interleaves between the check and the increment.
+  */
   public admitTask(task: {
     readonly entryId: string
     readonly agentKey: string
@@ -152,9 +152,9 @@ export class TeamAdmission {
   }
 
   /**
-   * One engine shell command's slot. Commands past the limit wait for a
-   * slot (lane K); admission here only says whether one is free now.
-   */
+  One engine shell command's slot. Commands past the limit wait for a
+  slot (lane K); admission here only says whether one is free now.
+  */
   public acquireShell(): TeamAdmissionResult {
     if (this.shellRunning >= this.limits.shellLimit) {
       return { admitted: false, reason: 'shell' }

@@ -538,10 +538,10 @@ function writeFile(file: string, text: string): string {
 }
 
 /**
- * The prefix window: from the earliest line that is a multiple of
- * TAB_PREFIX_ANCHOR_LINES and still fits `maxChars`, to the cursor (D73), so
- * its start stays put while the user types.
- */
+The prefix window: from the earliest line that is a multiple of
+TAB_PREFIX_ANCHOR_LINES and still fits `maxChars`, to the cursor (D73), so
+its start stays put while the user types.
+*/
 function prefixWindow(
   lines: readonly string[],
   line: number,
@@ -622,11 +622,11 @@ function fastPair(root: string, pair: number): readonly ProbeRequest[] {
 }
 
 /**
- * One multi-line request: a function's body is the hole. Even ones put the
- * cursor after the block opener, odd ones on the blank indented line below
- * it (D73's two multi-line cases). The type's definition and a recently
- * edited helper are the context snippets, sorted by path.
- */
+One multi-line request: a function's body is the hole. Even ones put the
+cursor after the block opener, odd ones on the blank indented line below
+it (D73's two multi-line cases). The type's definition and a recently
+edited helper are the context snippets, sorted by path.
+*/
 function multilineRequest(root: string, index: number): ProbeRequest {
   const languageId = languageOf(index)
   const domain = domainOf(index + PAIRS / 2)
@@ -1059,11 +1059,11 @@ function outputCap(spreads: ReturnType<typeof modeSpreads>, maxLines: number): n
 }
 
 /**
- * The debounce is shortened only when that brings the median fast suggestion
- * (debounce plus first text) under the ceiling without going below the floor.
- * Otherwise the planned value stays: a shorter wait would add billed
- * requests, which are never aborted, and buy nothing the user would notice.
- */
+The debounce is shortened only when that brings the median fast suggestion
+(debounce plus first text) under the ceiling without going below the floor.
+Otherwise the planned value stays: a shorter wait would add billed
+requests, which are never aborted, and buy nothing the user would notice.
+*/
 function debounceFor(medianFirstTextMs: number): number {
   const room = TAB_AUTOMATIC_LATENCY_CEILING_MS - medianFirstTextMs
   return room >= PLANNED_DEBOUNCE_MS || room < DEBOUNCE_FLOOR_MS

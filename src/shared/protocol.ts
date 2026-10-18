@@ -156,10 +156,10 @@ const rewindConversationSchema = z.object({
 const indexSchema = z.int().check(z.gte(0))
 
 /**
- * One file of one edit as the review pane lists it (M70): the edit's item
- * and patch, the file's place in the patch, its workspace-relative path and
- * its hunks. `refusal` says why its hunks cannot be reverted here.
- */
+One file of one edit as the review pane lists it (M70): the edit's item
+and patch, the file's place in the patch, its workspace-relative path and
+its hunks. `refusal` says why its hunks cannot be reverted here.
+*/
 const reviewFileSchema = z.object({
   itemId: stringSchema,
   outputRef: stringSchema,
@@ -206,10 +206,10 @@ export type BackendKind = (typeof BACKEND_KINDS)[number]
 
 // Things the webview asks the host to do outside the conversation itself.
 /**
- * What a message replies to or quotes from the chat (M17): `reply` from an
- * output's actions menu, `question` or `comment` from a highlighted passage.
- * `role` names who wrote the passage (assistant, user, tool).
- */
+What a message replies to or quotes from the chat (M17): `reply` from an
+output's actions menu, `question` or `comment` from a highlighted passage.
+`role` names who wrote the passage (assistant, user, tool).
+*/
 export const chatReferenceSchema = z.object({
   intent: z.enum(CHAT_REFERENCE_INTENTS),
   role: stringSchema,
@@ -255,10 +255,10 @@ export const HOST_ACTIONS = [
   'restartMuseCode',
   'openModelApiStatus',
   /**
-   * The task list's "Open in a Tab" (M87, PLAN.md D66): an editor tab that
-   * mirrors this conversation's list, which the user can move into a window
-   * of its own. The conversation controller answers it itself.
-   */
+  The task list's "Open in a Tab" (M87, PLAN.md D66): an editor tab that
+  mirrors this conversation's list, which the user can move into a window
+  of its own. The conversation controller answers it itself.
+  */
   'openTasksTab',
   /** M102: the shared Usage & cost page. */
   'openUsagePage',
@@ -278,10 +278,10 @@ export type HostAction = (typeof HOST_ACTIONS)[number]
 
 export const NOTICE_LEVELS = ['info', 'warning', 'error'] as const
 /**
- * The way on a notice offers (D26): the panel's own New conversation, or a
- * host action: `restartMuseCode`, or the bundled skills' Install, Update
- * and Not now (M89).
- */
+The way on a notice offers (D26): the panel's own New conversation, or a
+host action: `restartMuseCode`, or the bundled skills' Install, Update
+and Not now (M89).
+*/
 export const NOTICE_ACTIONS = [
   'restartMuseCode',
   'openModelApiStatus',
@@ -376,10 +376,10 @@ export const reportEventRefSchema = z.strictObject({
   /** Which recorded event this handoff names. */
   kind: z.enum(REPORT_EVENT_KINDS),
   /**
-   * The event's place in this window's recording order (its sequence
-   * number, from 0): which failure the row means, never its text. The
-   * report itself always reads the whole retained journal.
-   */
+  The event's place in this window's recording order (its sequence
+  number, from 0): which failure the row means, never its text. The
+  report itself always reads the whole retained journal.
+  */
   entryIndex: z.int().check(z.gte(0)),
 })
 export type ReportEventRef = z.infer<typeof reportEventRefSchema>
@@ -392,10 +392,10 @@ const reportFrameSchema = z.strictObject({
 })
 
 /**
- * What the webview posts for window.onerror, unhandledrejection and React
- * boundary failures: the scrubbed shape only. `code` is a known short code
- * or REPORT_UNKNOWN_ERROR_CODE; `frames` are bounded verified frames.
- */
+What the webview posts for window.onerror, unhandledrejection and React
+boundary failures: the scrubbed shape only. `code` is a known short code
+or REPORT_UNKNOWN_ERROR_CODE; `frames` are bounded verified frames.
+*/
 export const reportWebviewErrorSchema = z.strictObject({
   kind: z.enum(REPORT_WEBVIEW_ERROR_KINDS),
   source: z.enum(WEBVIEW_ERROR_SOURCES),
@@ -485,14 +485,14 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     /** The message replies to an output or quotes a passage (M17). */
     reference: z.optional(chatReferenceSchema),
     /**
-     * M92e (PLAN.md D71): the user saw the secret prompt for this text and
-     * chose Send anyway. The host skips the secret hold for this send only.
-     */
+    M92e (PLAN.md D71): the user saw the secret prompt for this text and
+    chose Send anyway. The host skips the secret hold for this send only.
+    */
     secretAccepted: z.optional(z.boolean()),
     /**
-     * The user asked the model for a commit message or a pull request's
-     * text (M71): the host adds what the model needs, and the reply fills the form.
-     */
+    The user asked the model for a commit message or a pull request's
+    text (M71): the host adds what the model needs, and the reply fills the form.
+    */
     gitDraft: z.optional(z.enum(GIT_DRAFT_KINDS)),
     /** The PR form's edited base, so its draft describes the same comparison. */
     gitDraftBase: z.optional(z.string()),
@@ -1414,10 +1414,10 @@ const teamSchemas: {
 } = { action: undefined, update: undefined }
 
 /**
- * The team activation factory installs its lazy validators into each
- * receiving bundle through this port. Until then team messages refuse;
- * single-model activation carries only their types, never team.ts.
- */
+The team activation factory installs its lazy validators into each
+receiving bundle through this port. Until then team messages refuse;
+single-model activation carries only their types, never team.ts.
+*/
 export function installTeamProtocolSchemas(schemas: {
   readonly action: z.ZodMiniType<TeamTreeAction>
   readonly update: z.ZodMiniType<TeamTreeUpdate>

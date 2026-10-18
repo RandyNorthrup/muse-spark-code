@@ -58,9 +58,9 @@ function switchName(arg: string): string | undefined {
 }
 
 /**
- * The browser's own report of its command line (`arguments`, the executable
- * first) against what was launched. Only counts leave this function.
- */
+The browser's own report of its command line (`arguments`, the executable
+first) against what was launched. Only counts leave this function.
+*/
 export function commandLineVerdict(
   reported: readonly string[],
   launched: readonly string[],

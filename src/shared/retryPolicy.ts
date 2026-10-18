@@ -37,13 +37,13 @@ const QUOTA_ERROR_KINDS: readonly string[] = [
 ]
 
 /**
- * Per-format tables. `responses` is Meta's documented set (429 and the
- * server errors; dev.meta.ai/docs/error-handling), unchanged from the
- * constants this replaces; `chat` adds the compatible APIs' documented
- * timeout/conflict retries; `anthropic` adds its 529 overload and 504
- * gateway with `overloaded_error`; `gemini` and `ollama` keep the
- * conservative base set, nothing priced locally retries billing.
- */
+Per-format tables. `responses` is Meta's documented set (429 and the
+server errors; dev.meta.ai/docs/error-handling), unchanged from the
+constants this replaces; `chat` adds the compatible APIs' documented
+timeout/conflict retries; `anthropic` adds its 529 overload and 504
+gateway with `overloaded_error`; `gemini` and `ollama` keep the
+conservative base set, nothing priced locally retries billing.
+*/
 export const RETRY_TABLES: Record<RetryFormat, RetryTables> = {
   responses: {
     statuses: [
@@ -140,11 +140,11 @@ function isMatchingKind(kinds: readonly string[], value: string | undefined): bo
 }
 
 /**
- * Whether to try again after `failure` under `tables`. Quota (402, a quota
- * kind or code, quota wording) never retries; a `Retry-After` past the cap
- * fails at once; otherwise a listed status, or a listed error kind where
- * the status is not listed, retries.
- */
+Whether to try again after `failure` under `tables`. Quota (402, a quota
+kind or code, quota wording) never retries; a `Retry-After` past the cap
+fails at once; otherwise a listed status, or a listed error kind where
+the status is not listed, retries.
+*/
 export function classifyRetry(tables: RetryTables, failure: RetryFailure): RetryDecision {
   if (failure.status === HTTP_PAYMENT_REQUIRED) {
     return { retry: false, reason: 'quota' }

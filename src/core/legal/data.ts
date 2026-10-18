@@ -43,10 +43,10 @@ for (const id of SPDX_DEPRECATED_EXCEPTIONS) {
 }
 
 /**
- * The list's own spelling of a license id, matched case-insensitively
- * (manifests commonly write `mit`): `undefined` when the id is neither
- * current nor deprecated.
- */
+The list's own spelling of a license id, matched case-insensitively
+(manifests commonly write `mit`): `undefined` when the id is neither
+current nor deprecated.
+*/
 export function canonicalLicenseId(id: string): string | undefined {
   return canonicalByLowerId.get(id.toLowerCase())
 }
@@ -57,9 +57,9 @@ export function isDeprecatedLicenseId(id: string): boolean {
 }
 
 /**
- * The exception list's own spelling of a `WITH` exception id, or
- * `undefined` when unrecognized.
- */
+The exception list's own spelling of a `WITH` exception id, or
+`undefined` when unrecognized.
+*/
 export function canonicalExceptionId(id: string): string | undefined {
   return canonicalExceptionByLowerId.get(id.toLowerCase())
 }

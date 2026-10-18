@@ -35,10 +35,10 @@ export type KeyShape =
   | { readonly kind: 'any'; readonly minLength: number }
 
 /**
- * Whether a pasted key is shaped like the preset's. A shape check never
- * proves a key works: the free key test does. Unknown shapes (`any`) accept
- * any non-blank key of the minimum length.
- */
+Whether a pasted key is shaped like the preset's. A shape check never
+proves a key works: the free key test does. Unknown shapes (`any`) accept
+any non-blank key of the minimum length.
+*/
 export function isKeyShape(shape: KeyShape, key: string): boolean {
   const trimmed = key.trim()
   if (trimmed === '') {
@@ -117,9 +117,9 @@ export interface FormatQuirks {
     | 'content-list'
     | 'none'
   /**
-   * Reasoning goes back only to its own provider, in its own form, to the
-   * same model; any other provider's turn drops it.
-   */
+  Reasoning goes back only to its own provider, in its own form, to the
+  same model; any other provider's turn drops it.
+  */
   readonly reasoningReplay: 'same-model' | 'none'
   /** Usage may share the finish chunk (read deltas and usage from every chunk). */
   readonly usageOnFinishChunk: boolean
@@ -132,24 +132,24 @@ export interface FormatQuirks {
   /** Compaction keeps the turn's tools with `tool_choice: auto`. */
   readonly keepToolsWithHistory: true
   /**
-   * Retry classification per format (M101 BYO 5): the shared retry tables,
-   * so every provider retries its own failures and never its quota.
-   */
+  Retry classification per format (M101 BYO 5): the shared retry tables,
+  so every provider retries its own failures and never its quota.
+  */
   readonly retry: RetryTables
   /**
-   * The server takes `strict: true` tool schemas (M101 item 24): OpenAI
-   * and Azure's constrained decoding. The selected model record overrides
-   * this preset default, including explicit false. Meta's host binds its
-   * owner-confirmed strict capability; unknown/custom/local records stay off.
-   */
+  The server takes `strict: true` tool schemas (M101 item 24): OpenAI
+  and Azure's constrained decoding. The selected model record overrides
+  this preset default, including explicit false. Meta's host binds its
+  owner-confirmed strict capability; unknown/custom/local records stay off.
+  */
   readonly supportsStrictTools: boolean
   /**
-   * How the preset expresses reasoning effort `none` (Thinking off) on
-   * the wire. DeepSeek's thinking-mode switch (`thinking: {type:
-   * "disabled"}`, research D2 `guides/thinking_mode` and the lead's
-   * L98P2 live capture) is the only declared form. Absent keeps the
-   * preset's existing bytes.
-   */
+  How the preset expresses reasoning effort `none` (Thinking off) on
+  the wire. DeepSeek's thinking-mode switch (`thinking: {type:
+  "disabled"}`, research D2 `guides/thinking_mode` and the lead's
+  L98P2 live capture) is the only declared form. Absent keeps the
+  preset's existing bytes.
+  */
   readonly thinkingOff?: 'thinking-switch' | undefined
 }
 
@@ -262,12 +262,12 @@ export function quirksOf(preset: ProviderPreset): FormatQuirks {
 }
 
 /**
- * A custom server's effective quirks (M101 BYO 14): its chosen format's
- * defaults plus its stored compatibility overrides. Presets keep their own
- * quirks; overrides ride only on `custom` entries. Each override applies
- * only when set: the schema types an absent override as undefined, and an
- * undefined must never blank a required quirk.
- */
+A custom server's effective quirks (M101 BYO 14): its chosen format's
+defaults plus its stored compatibility overrides. Presets keep their own
+quirks; overrides ride only on `custom` entries. Each override applies
+only when set: the schema types an absent override as undefined, and an
+undefined must never blank a required quirk.
+*/
 export function customQuirksFor(
   format: ProviderFormat,
   compat: CustomCompat | undefined,
@@ -937,10 +937,10 @@ export function openRouterRoutingRequest(
 }
 
 /**
- * The browser URL **Connect OpenRouter account** opens: `callback_url`
- * (a loopback address on any port, or absent for the paste flow),
- * `code_challenge` (S256), `code_challenge_method` and `state`.
- */
+The browser URL **Connect OpenRouter account** opens: `callback_url`
+(a loopback address on any port, or absent for the paste flow),
+`code_challenge` (S256), `code_challenge_method` and `state`.
+*/
 export function buildOpenRouterAuthUrl(options: {
   readonly challenge: string
   readonly state: string

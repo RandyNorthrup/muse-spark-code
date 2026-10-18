@@ -15,18 +15,18 @@ export interface WorkspaceIdentity {
   /** `device:inode`, to compare one identity with another. */
   readonly key: string
   /**
-   * Whether the path the folder was given by, and its canonical path, still
-   * lead to the directory that was captured. Reads the file system afresh
-   * each time and answers false for anything it cannot read.
-   */
+  Whether the path the folder was given by, and its canonical path, still
+  lead to the directory that was captured. Reads the file system afresh
+  each time and answers false for anything it cannot read.
+  */
   readonly isCurrent: () => boolean
 }
 
 /**
- * The identity of the directory `root` leads to now; undefined when it leads
- * to no directory or one with no usable identity. Rejects when the path
- * cannot be resolved or read at all (a permission error, a link loop).
- */
+The identity of the directory `root` leads to now; undefined when it leads
+to no directory or one with no usable identity. Rejects when the path
+cannot be resolved or read at all (a permission error, a link loop).
+*/
 export async function captureWorkspaceIdentity(
   root: string,
 ): Promise<WorkspaceIdentity | undefined> {

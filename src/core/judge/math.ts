@@ -7,11 +7,11 @@ export function canonicalAnswerToken(token: string): string {
 }
 
 /**
- * Our confidence for a distribution: `1 − H(p)/ln N` (D77). 0 for uniform,
- * approaching 1 for peaked. A single outcome carries no uncertainty, so its
- * confidence is 1. Throws for an empty or non-finite distribution rather
- * than returning a tuned-looking number.
- */
+Our confidence for a distribution: `1 − H(p)/ln N` (D77). 0 for uniform,
+approaching 1 for peaked. A single outcome carries no uncertainty, so its
+confidence is 1. Throws for an empty or non-finite distribution rather
+than returning a tuned-looking number.
+*/
 export function entropyConfidence(probabilities: readonly number[]): number {
   if (probabilities.length === 0) {
     throw new RangeError('entropyConfidence needs at least one probability')
@@ -39,27 +39,27 @@ export interface LogprobAlternative {
 }
 
 /**
- * One distribution renormalized over the distinct answer alternatives seen
- * in the top-k. Probabilities sum to 1 when at least one answer token was
- * seen, and are empty otherwise (never read as certainty).
- */
+One distribution renormalized over the distinct answer alternatives seen
+in the top-k. Probabilities sum to 1 when at least one answer token was
+seen, and are empty otherwise (never read as certainty).
+*/
 export interface RenormalizedAlternatives {
   /** Per distinct answer key, in first-seen order; sums to 1 when non-empty. */
   readonly probabilities: ReadonlyMap<string, number>
   /**
-   * 1 minus the total answer-token mass: the non-answer top-k tokens plus
-   * everything outside the top-k.
-   */
+  1 minus the total answer-token mass: the non-answer top-k tokens plus
+  everything outside the top-k.
+  */
   readonly residualMass: number
   readonly seenKeys: readonly string[]
 }
 
 /**
- * Renormalize the top-k over the distinct answer alternatives. `keyOf` maps
- * a canonical token to its answer key, or undefined for a non-answer token;
- * variants of one answer share a key, so they are counted once. Throws on a
- * non-finite logprob rather than leaking NaN into a confidence.
- */
+Renormalize the top-k over the distinct answer alternatives. `keyOf` maps
+a canonical token to its answer key, or undefined for a non-answer token;
+variants of one answer share a key, so they are counted once. Throws on a
+non-finite logprob rather than leaking NaN into a confidence.
+*/
 export function renormalizeAlternatives(
   candidates: readonly LogprobAlternative[],
   keyOf: (canonicalToken: string) => string | undefined,

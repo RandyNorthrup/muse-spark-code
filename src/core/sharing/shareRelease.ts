@@ -42,11 +42,11 @@ export interface ChatShareReleasePort {
   readonly isConfidentialWorkspace: () => boolean | undefined
   readonly newPreviewId: () => string
   /**
-   * Prepare a destination (e.g. the save picker), without writing or opening.
-   * Return the sink to invoke immediately after the final policy check.
-   * A sink with further asynchronous side effects calls `admit` again immediately
-   * before each write/open; a browser adapter uses this after creating its file.
-   */
+  Prepare a destination (e.g. the save picker), without writing or opening.
+  Return the sink to invoke immediately after the final policy check.
+  A sink with further asynchronous side effects calls `admit` again immediately
+  before each write/open; a browser adapter uses this after creating its file.
+  */
   readonly prepare: (
     preview: ChatSharePreview,
   ) => Promise<((admit: () => void) => Promise<void>) | undefined>

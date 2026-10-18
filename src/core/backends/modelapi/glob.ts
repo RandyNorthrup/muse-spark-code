@@ -206,9 +206,9 @@ function isSingleMatch(token: Token, char: string): boolean {
 }
 
 /**
- * One row of the match table: `row[j]` says whether this token and the ones
- * after it match `path[j…]`, given `next`, the row of the token after it.
- */
+One row of the match table: `row[j]` says whether this token and the ones
+after it match `path[j…]`, given `next`, the row of the token after it.
+*/
 function rowFor(token: Token, path: string, next: Uint8Array): Uint8Array {
   const row = new Uint8Array(path.length + 1)
   switch (token.kind) {
@@ -248,9 +248,9 @@ function rowFor(token: Token, path: string, next: Uint8Array): Uint8Array {
 }
 
 /**
- * The table match, filled from the last token and the end of the path
- * backwards: whether `tokens` match the whole of `path`.
- */
+The table match, filled from the last token and the end of the path
+backwards: whether `tokens` match the whole of `path`.
+*/
 function isTokenMatch(tokens: readonly Token[], path: string): boolean {
   let next: Uint8Array = new Uint8Array(path.length + 1)
   next[path.length] = 1
@@ -261,9 +261,9 @@ function isTokenMatch(tokens: readonly Token[], path: string): boolean {
 }
 
 /**
- * Compiles a glob into a matcher. Throws on a glob longer than the limit or
- * one whose braces expand past it; the tools report either as a failure.
- */
+Compiles a glob into a matcher. Throws on a glob longer than the limit or
+one whose braces expand past it; the tools report either as a failure.
+*/
 export function compileGlobWithin(
   pattern: string,
   limits: GlobLimits,
@@ -289,10 +289,10 @@ function selfAndAncestors(relative: string): string[] {
 }
 
 /**
- * The permission settings' deny-read globs as one matcher (M78): a path is
- * covered when a glob matches it or a folder above it, case ignored (the
- * globs come lower case). Throws on a glob the limits refuse.
- */
+The permission settings' deny-read globs as one matcher (M78): a path is
+covered when a glob matches it or a folder above it, case ignored (the
+globs come lower case). Throws on a glob the limits refuse.
+*/
 export function compileDenyGlobsWithin(
   lowerCaseGlobs: readonly string[],
   limits: GlobLimits,

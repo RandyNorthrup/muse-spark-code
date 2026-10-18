@@ -85,11 +85,11 @@ export class CdpConnection {
   }
 
   /**
-   * A chunk off the pipe: each message it ends routed, the rest kept for the
-   * next. A message's whole length (what earlier chunks held and this one
-   * adds) is checked against the bound before it is joined or parsed,
-   * whether it ends in this chunk or not.
-   */
+  A chunk off the pipe: each message it ends routed, the rest kept for the
+  next. A message's whole length (what earlier chunks held and this one
+  adds) is checked against the bound before it is joined or parsed,
+  whether it ends in this chunk or not.
+  */
   #receive(chunk: Buffer): void {
     let rest = chunk
     let end = rest.indexOf(NUL)

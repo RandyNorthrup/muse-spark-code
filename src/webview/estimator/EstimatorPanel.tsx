@@ -19,9 +19,9 @@ import { useFormatUsd } from '../money'
 import './estimator.css'
 
 /**
- * A machine's hourly price (STARTUP017): the port's fake in tests, otherwise
- * the lazy money chunk's exact display. Nothing renders until one is known.
- */
+A machine's hourly price (STARTUP017): the port's fake in tests, otherwise
+the lazy money chunk's exact display. Nothing renders until one is known.
+*/
 function MachinePrice({
   port,
   price,

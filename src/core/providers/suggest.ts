@@ -58,11 +58,11 @@ export function isDefaultCapable(model: SuggestModel): boolean {
 }
 
 /**
- * The default model: the cheapest capable one (tools, the harness's
- * minimum context, priced, runnable), the recommended one winning ties.
- * Undefined when nothing qualifies: the panel then says so instead of
- * suggesting an unpriced or tool-less model.
- */
+The default model: the cheapest capable one (tools, the harness's
+minimum context, priced, runnable), the recommended one winning ties.
+Undefined when nothing qualifies: the panel then says so instead of
+suggesting an unpriced or tool-less model.
+*/
 export function suggestDefaultModel(context: SuggestContext): Suggestion<string> | undefined {
   const capable = context.models.filter((model) => isDefaultCapable(model))
   if (capable.length === 0) {
@@ -98,10 +98,10 @@ export interface SessionBudgetSuggestion {
 }
 
 /**
- * A session budget from the default model's price card and the median of
- * the user's own recent sessions. With no history, the stated assumption:
- * the default model's price for a reference session.
- */
+A session budget from the default model's price card and the median of
+the user's own recent sessions. With no history, the stated assumption:
+the default model's price for a reference session.
+*/
 export function suggestSessionBudget(
   defaultCard: PriceCard | undefined,
   historyMedianUsd: UsdAmount | undefined,

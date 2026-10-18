@@ -60,11 +60,11 @@ export async function buildThemeFixture() {
 }
 
 /**
- * The served page. Every emitted stylesheet is linked — the lazy theme
- * sheets ride the dynamic-import chunk, which esbuild extracts to CSS files
- * nothing requests unless the page links them — and the policy admits only
- * the bridge's nonce for inline styles.
- */
+The served page. Every emitted stylesheet is linked — the lazy theme
+sheets ride the dynamic-import chunk, which esbuild extracts to CSS files
+nothing requests unless the page links them — and the policy admits only
+the bridge's nonce for inline styles.
+*/
 export function themeFixtureHtml(assets, nonce) {
   const sheets = assets
     .keys()

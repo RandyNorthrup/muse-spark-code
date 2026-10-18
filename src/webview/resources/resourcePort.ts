@@ -9,9 +9,9 @@ export interface ResourceSurfacePort {
   settings(): void
   show(): void
   /**
-   * Window hosts (M107 pull model): the latest Show resources open the host
-   * offered, naming one document's nonce, and the way back for a pull or ack.
-   */
+  Window hosts (M107 pull model): the latest Show resources open the host
+  offered, naming one document's nonce, and the way back for a pull or ack.
+  */
   readonly opens?: {
     offered(): { readonly seq: number; readonly nonce: string } | undefined
     send(
@@ -28,11 +28,11 @@ export interface ResourceSurfaceProps {
 }
 
 /**
- * A separately delivered lazy surface, sharing the panel's React and language
- * state. Its View is the deferred-surface helper's: an accessible loading row,
- * and its own boundary, so a failed chunk says so in place and offers Try
- * again while the conversation and composer stay mounted.
- */
+A separately delivered lazy surface, sharing the panel's React and language
+state. Its View is the deferred-surface helper's: an accessible loading row,
+and its own boundary, so a failed chunk says so in place and offers Try
+again while the conversation and composer stay mounted.
+*/
 export interface ResourceSurfaceLoader {
   readonly port: ResourceSurfacePort
   readonly View: ComponentType<

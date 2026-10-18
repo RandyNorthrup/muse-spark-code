@@ -1,7 +1,7 @@
 /** House concurrency pattern: claim the tail synchronously, await the
- * previous operation inside an IIFE, and return the actual outcome to its
- * caller. A rejected operation must not poison future cleanup/admission.
- */
+previous operation inside an IIFE, and return the actual outcome to its
+caller. A rejected operation must not poison future cleanup/admission.
+*/
 export class EstimateSerialOwner {
   private tail: Promise<void> = Promise.resolve()
 

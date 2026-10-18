@@ -17,10 +17,10 @@ import type { SessionHistoryOutcome } from '../../agent/agentBackend'
 import { readTextFileDisplay } from '../../../shared/textFileDisplay'
 
 /**
- * MSP's `Goal` block (M45, PLAN.md D38) as `session/goalChanged` and a
- * snapshot's `state.goal` carry it (captured live 2026-09-25: the work
- * fields are absent until reported). A `null` work field is read as absent.
- */
+MSP's `Goal` block (M45, PLAN.md D38) as `session/goalChanged` and a
+snapshot's `state.goal` carry it (captured live 2026-09-25: the work
+fields are absent until reported). A `null` work field is read as absent.
+*/
 export const wireGoalSchema = z.object({
   objective: z.string(),
   status: z.string(),
@@ -41,10 +41,10 @@ export function toSessionGoal(goal: WireGoal): SessionGoal {
 }
 
 /**
- * A snapshot's goal, read on its own (the review of PR #29's rule): a goal
- * that is not the captured shape costs the strip, never the resume. `null`
- * is "no goal"; anything unreadable is "cannot say".
- */
+A snapshot's goal, read on its own (the review of PR #29's rule): a goal
+that is not the captured shape costs the strip, never the resume. `null`
+is "no goal"; anything unreadable is "cannot say".
+*/
 function snapshotGoal(raw: unknown): SessionGoal | null | undefined {
   if (raw === null) {
     return null
@@ -77,10 +77,10 @@ export const wireItemSchema = z.object({
 export type WireItem = z.infer<typeof wireItemSchema>
 
 /**
- * Drops the `null` turn (userShell) so the snapshot's `turnId` stays a
- * string; a user message's `displayText` replaces its model-visible text
- * (the M5 editor context is never shown as typed text).
- */
+Drops the `null` turn (userShell) so the snapshot's `turnId` stays a
+string; a user message's `displayText` replaces its model-visible text
+(the M5 editor context is never shown as typed text).
+*/
 export function toSnapshot(item: WireItem): ItemSnapshot {
   const { turnId, displayText, ...rest } = item
   const marked =

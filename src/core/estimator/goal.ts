@@ -68,10 +68,10 @@ const snapshotSchema = z
 export type EstimateGoalSnapshot = z.infer<typeof snapshotSchema>
 
 /** M117-G-M113-snapshot: scrubbed application projections, not wire frames.
- * The adapter reads one bounded snapshot at asOf, including prerequisites.
- * Missing sources/estimates reject the read; no empty fallback is supplied.
- * Rig facts, board agent time and calibrated minima are projected upstream.
- */
+The adapter reads one bounded snapshot at asOf, including prerequisites.
+Missing sources/estimates reject the read; no empty fallback is supplied.
+Rig facts, board agent time and calibrated minima are projected upstream.
+*/
 export interface EstimateGoalSourcesPort {
   snapshot(goal: EstimateGoal, asOf: string): Promise<unknown>
 }
@@ -147,9 +147,9 @@ function affinityFor(lane: EstimateLane, rig: EstimateLane['affinity'] | undefin
 }
 
 /** Implements EstimateSourcesPort.lanes when bound to the real M113 adapter.
- * All lists use code-unit ordering; selection includes transitive unfinished
- * prerequisites. Merged records remain evidence, with satisfied edges removed.
- */
+All lists use code-unit ordering; selection includes transitive unfinished
+prerequisites. Merged records remain evidence, with satisfied edges removed.
+*/
 export async function resolveEstimateGoal(
   goalInput: unknown,
   asOf: string,

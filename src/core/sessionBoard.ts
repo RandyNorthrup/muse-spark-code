@@ -20,9 +20,9 @@ export interface BoardSession {
   /** The git branch the backend names for the conversation, when it does. */
   readonly branch?: string | undefined
   /**
-   * Where the conversation runs: an attempt's worktree, or the window's own
-   * checkout. Matches a worktree entry by folder first, then by branch.
-   */
+  Where the conversation runs: an attempt's worktree, or the window's own
+  checkout. Matches a worktree entry by folder first, then by branch.
+  */
   readonly workspaceRoot?: string | undefined
 }
 
@@ -62,12 +62,12 @@ function worktreeOf(
 }
 
 /**
- * Approvals and questions waiting on the user, window-wide (M77): every
- * surface's controller tracks its own session's prompts here, so the board
- * marks a conversation awaiting approval whatever surface raised its card.
- * Entries are prompt ids, so a replayed card never counts twice; a closed
- * session drops its entry, and a dropped host clears them all.
- */
+Approvals and questions waiting on the user, window-wide (M77): every
+surface's controller tracks its own session's prompts here, so the board
+marks a conversation awaiting approval whatever surface raised its card.
+Entries are prompt ids, so a replayed card never counts twice; a closed
+session drops its entry, and a dropped host clears them all.
+*/
 export class PendingPrompts {
   private readonly pending = new Map<string, Set<string>>()
 

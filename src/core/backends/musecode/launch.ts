@@ -73,9 +73,9 @@ function pathModule(platform: NodeJS.Platform): path.PlatformPath {
 }
 
 /**
- * The PATH entries worth probing: an empty or relative entry means the
- * current directory, which for `muse serve` is the workspace (PLAN.md D24).
- */
+The PATH entries worth probing: an empty or relative entry means the
+current directory, which for `muse serve` is the workspace (PLAN.md D24).
+*/
 function absoluteEntries(probe: LaunchProbe, p: path.PlatformPath): readonly string[] {
   return probe.pathEntries.filter((entry) => entry !== '' && p.isAbsolute(entry))
 }
@@ -135,10 +135,10 @@ function resolveWindows(probe: LaunchProbe): LaunchResolution {
 }
 
 /**
- * The `muse-bin-<version>.exe` of an install folder: the version
- * `.muse-version` names, else the newest one present (version order, so
- * 1.10 beats 1.9); undefined when there is none.
- */
+The `muse-bin-<version>.exe` of an install folder: the version
+`.muse-version` names, else the newest one present (version order, so
+1.10 beats 1.9); undefined when there is none.
+*/
 function windowsExecutableIn(
   probe: LaunchProbe,
   p: path.PlatformPath,
@@ -216,11 +216,11 @@ export interface ChildEnvironmentInput {
 }
 
 /**
- * Sets `name` in a copied environment. Windows names are case-insensitive
- * and Node passes the first of several spellings in sort order, so an
- * inherited `PSMODULEPATH` would beat a new `PSModulePath`: every other
- * spelling goes first.
- */
+Sets `name` in a copied environment. Windows names are case-insensitive
+and Node passes the first of several spellings in sort order, so an
+inherited `PSMODULEPATH` would beat a new `PSModulePath`: every other
+spelling goes first.
+*/
 export function setEnvironmentVariable(
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,
@@ -267,10 +267,10 @@ export function environmentValue(
 }
 
 /**
- * Windows PowerShell 5.1's own module directories. A pwsh 7 `PSModulePath`
- * inherited by powershell.exe makes it load 7.x modules it cannot use
- * (verified failure: `Get-FileHash` not recognised).
- */
+Windows PowerShell 5.1's own module directories. A pwsh 7 `PSModulePath`
+inherited by powershell.exe makes it load 7.x modules it cannot use
+(verified failure: `Get-FileHash` not recognised).
+*/
 export function windowsPowerShellModulePath(
   systemRoot: string,
   programFiles: string | undefined,
@@ -283,16 +283,16 @@ export function windowsPowerShellModulePath(
 }
 
 /**
- * The environment for `muse serve`. On Windows `PSModulePath` is reset to the
- * Windows PowerShell module directories: the CLI's launcher runs under
- * powershell.exe 5.1, which cannot load its own modules when a pwsh 7 module
- * path is inherited (verified failure: `Get-FileHash` not recognised).
- *
- * The Model API key from secret storage is deliberately NOT injected: the
- * CLI prefers `META_API_KEY` over its browser session, which would bill the
- * subscription's work to the key (PLAN.md D1, M7). A key already in the
- * user's own environment is inherited untouched, as the CLI documents.
- */
+The environment for `muse serve`. On Windows `PSModulePath` is reset to the
+Windows PowerShell module directories: the CLI's launcher runs under
+powershell.exe 5.1, which cannot load its own modules when a pwsh 7 module
+path is inherited (verified failure: `Get-FileHash` not recognised).
+
+The Model API key from secret storage is deliberately NOT injected: the
+CLI prefers `META_API_KEY` over its browser session, which would bill the
+subscription's work to the key (PLAN.md D1, M7). A key already in the
+user's own environment is inherited untouched, as the CLI documents.
+*/
 export function buildChildEnvironment(input: ChildEnvironmentInput): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...input.baseEnv }
   if (input.platform === 'win32' && input.systemRoot !== undefined) {
@@ -327,12 +327,12 @@ export function buildChildEnvironment(input: ChildEnvironmentInput): NodeJS.Proc
 }
 
 /**
- * `museSpark.environmentVariables` for a terminal that runs the CLI (`muse
- * logout`, `muse mcp login`, Open in Terminal). VS Code adds them to the
- * terminal's own environment, so the CLI there reads the same config home
- * as `muse serve` (the review of PR #49). On Windows one spelling per name,
- * the last one given winning, as for `muse serve`.
- */
+`museSpark.environmentVariables` for a terminal that runs the CLI (`muse
+logout`, `muse mcp login`, Open in Terminal). VS Code adds them to the
+terminal's own environment, so the CLI there reads the same config home
+as `muse serve` (the review of PR #49). On Windows one spelling per name,
+the last one given winning, as for `muse serve`.
+*/
 export function terminalEnvironment(
   variables: readonly EnvironmentVariable[],
   platform: NodeJS.Platform,
@@ -345,15 +345,15 @@ export function terminalEnvironment(
 }
 
 /**
- * Keeps loopback off the proxy (M56, PLAN.md D43). Muse Code sends every
- * HTTP request through the proxy its environment names, including its
- * connection to the extension's `ide` server on 127.0.0.1, which a corporate
- * proxy cannot reach (captured 2026-09-25: `POST http://127.0.0.1:<port>/mcp`
- * arrived at the proxy until NO_PROXY listed the address). So wherever a
- * proxy is set, from VS Code or the user's own environment, the loopback
- * names are added to each NO_PROXY spelling already there, or to a new
- * NO_PROXY; entries already listed stay as they are.
- */
+Keeps loopback off the proxy (M56, PLAN.md D43). Muse Code sends every
+HTTP request through the proxy its environment names, including its
+connection to the extension's `ide` server on 127.0.0.1, which a corporate
+proxy cannot reach (captured 2026-09-25: `POST http://127.0.0.1:<port>/mcp`
+arrived at the proxy until NO_PROXY listed the address). So wherever a
+proxy is set, from VS Code or the user's own environment, the loopback
+names are added to each NO_PROXY spelling already there, or to a new
+NO_PROXY; entries already listed stay as they are.
+*/
 export function withLoopbackBypass(
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,
@@ -393,11 +393,11 @@ export interface CredentialPathInput {
 }
 
 /**
- * Where the CLI stores its browser-login credential. The binary honours
- * `XDG_CONFIG_HOME` on every platform (Windows included) and otherwise uses
- * `~/.config`; `MUSE_AUTH_PATH` is honoured only by the POSIX launcher, so it
- * is deliberately not consulted here.
- */
+Where the CLI stores its browser-login credential. The binary honours
+`XDG_CONFIG_HOME` on every platform (Windows included) and otherwise uses
+`~/.config`; `MUSE_AUTH_PATH` is honoured only by the POSIX launcher, so it
+is deliberately not consulted here.
+*/
 export function credentialFilePath(input: CredentialPathInput): string {
   const p = pathModule(input.platform)
   const configHome = input.xdgConfigHome ?? p.join(input.homeDir, '.config')

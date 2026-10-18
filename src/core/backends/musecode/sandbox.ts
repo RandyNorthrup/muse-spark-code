@@ -102,10 +102,10 @@ export function parseSandboxCheck(output: string): SandboxCheck {
 }
 
 /**
- * The CLI the backend spawns, running `args` instead of its `serve …`
- * arguments. Keeps the PowerShell-launcher prefix when the resolver fell
- * back to it.
- */
+The CLI the backend spawns, running `args` instead of its `serve …`
+arguments. Keeps the PowerShell-launcher prefix when the resolver fell
+back to it.
+*/
 export function museCliInvocation(launch: MuseLaunch, args: readonly string[]): CliInvocation {
   const prefixLength = launch.args.length - launch.serveArgs.length
   const suffix = launch.args.slice(prefixLength)
@@ -130,15 +130,15 @@ function isInsideDirectory(directory: string, candidate: string): boolean {
 }
 
 /**
- * A Windows workspace under `C:\Users\<user>`, where Muse Code's sandbox does
- * not reliably run shell commands (meta-models/muse-code-sdk#26). 1.3.0 and
- * 1.4.0 started them in PowerShell's own folder (verified live on 2026-09-22
- * and 2026-09-27). 1.4.2-R4684.1 ran them in place on the owner's machine,
- * but on a freshly set-up Windows 11 rig its sandboxed command never
- * finished, even after Muse Code's read-access worker had run (2026-10-04,
- * docs/certification/musecode-write-asks.md). So this holds for every
- * version until one is verified on a fresh setup.
- */
+A Windows workspace under `C:\Users\<user>`, where Muse Code's sandbox does
+not reliably run shell commands (meta-models/muse-code-sdk#26). 1.3.0 and
+1.4.0 started them in PowerShell's own folder (verified live on 2026-09-22
+and 2026-09-27). 1.4.2-R4684.1 ran them in place on the owner's machine,
+but on a freshly set-up Windows 11 rig its sandboxed command never
+finished, even after Muse Code's read-access worker had run (2026-10-04,
+docs/certification/musecode-write-asks.md). So this holds for every
+version until one is verified on a fresh setup.
+*/
 export function isProfileWorkspace(
   platform: NodeJS.Platform,
   workspaceRoot: string,
@@ -160,19 +160,19 @@ export interface ShellSandboxProbe {
 }
 
 /**
- * Why the sandbox is on or off: the setting said so, `auto` turned it off
- * for a Windows profile workspace, or nothing spoke and the CLI default
- * (sandbox on) stands.
- */
+Why the sandbox is on or off: the setting said so, `auto` turned it off
+for a Windows profile workspace, or nothing spoke and the CLI default
+(sandbox on) stands.
+*/
 export type ShellSandboxReason = 'setting' | 'profileWorkspace' | 'default'
 
 export interface ShellSandboxPosture {
   readonly isSandboxed: boolean
   readonly reason: ShellSandboxReason
   /**
-   * A Windows profile workspace (#26): the sandbox, when the setting forces
-   * it on, may start commands in PowerShell's folder here or never finish them.
-   */
+  A Windows profile workspace (#26): the sandbox, when the setting forces
+  it on, may start commands in PowerShell's folder here or never finish them.
+  */
   readonly isUnsupportedWorkspace: boolean
 }
 
@@ -193,12 +193,12 @@ export function resolveShellSandbox(probe: ShellSandboxProbe): ShellSandboxPostu
 }
 
 /**
- * Whether `museSpark.sandboxNetwork` reaches the host (M56, PLAN.md D43):
- * a mode other than `default`, while the shell sandbox is on. Without the
- * sandbox Muse Code ignores the flag ("--disable-sandbox turns the sandbox
- * off entirely, so no sandbox network policy applies", captured 2026-09-25)
- * and commands have the network the user has.
- */
+Whether `museSpark.sandboxNetwork` reaches the host (M56, PLAN.md D43):
+a mode other than `default`, while the shell sandbox is on. Without the
+sandbox Muse Code ignores the flag ("--disable-sandbox turns the sandbox
+off entirely, so no sandbox network policy applies", captured 2026-09-25)
+and commands have the network the user has.
+*/
 export function isSandboxNetworkApplied(
   mode: SandboxNetworkMode,
   posture: ShellSandboxPosture,
@@ -207,12 +207,12 @@ export function isSandboxNetworkApplied(
 }
 
 /**
- * The `serve` arguments that install `posture`, the sandbox's network and
- * the workspace's trust on the host. A trusted workspace loads its rules and
- * skills (Muse Code's `--trust-workspace`); an untrusted one gets no rules,
- * no skills and no workspace shell, VS Code's Restricted Mode contract
- * (PLAN.md D13).
- */
+The `serve` arguments that install `posture`, the sandbox's network and
+the workspace's trust on the host. A trusted workspace loads its rules and
+skills (Muse Code's `--trust-workspace`); an untrusted one gets no rules,
+no skills and no workspace shell, VS Code's Restricted Mode contract
+(PLAN.md D13).
+*/
 export function serveArguments(
   posture: ShellSandboxPosture,
   isWorkspaceTrusted: boolean,
@@ -232,12 +232,12 @@ function powerShellLiteral(value: string): string {
 }
 
 /**
- * Runs `target` through Windows PowerShell's `Start-Process -Verb RunAs`, the
- * UAC prompt, and waits for it. The elevated process's exit code becomes the
- * PowerShell exit code; a declined prompt makes `Start-Process` throw, which
- * `-NonInteractive` turns into exit code 1. Its output is not capturable
- * across the elevation boundary, so the caller re-runs the check afterwards.
- */
+Runs `target` through Windows PowerShell's `Start-Process -Verb RunAs`, the
+UAC prompt, and waits for it. The elevated process's exit code becomes the
+PowerShell exit code; a declined prompt makes `Start-Process` throw, which
+`-NonInteractive` turns into exit code 1. Its output is not capturable
+across the elevation boundary, so the caller re-runs the check afterwards.
+*/
 export function elevatedInvocation(systemRoot: string, target: CliInvocation): CliInvocation {
   const argumentList = target.args.map((argument) => powerShellLiteral(argument)).join(',')
   const script = [

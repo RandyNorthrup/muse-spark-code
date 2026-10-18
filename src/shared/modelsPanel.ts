@@ -56,10 +56,10 @@ export const openRouterPrivacySchema = z.enum(['zdr', 'no-training', 'any'])
 export type ModelsPrivacy = z.infer<typeof openRouterPrivacySchema>
 
 /**
- * One preset as the panel shows it: display fields only. The key's shape
- * stays host-side (the password box checks it as it is typed); the key
- * itself never crosses this boundary.
- */
+One preset as the panel shows it: display fields only. The key's shape
+stays host-side (the password box checks it as it is typed); the key
+itself never crosses this boundary.
+*/
 export const presetCardSchema = z.strictObject({
   id: z.string(),
   /** The provider's own label, always shown beside its models. */
@@ -67,9 +67,9 @@ export const presetCardSchema = z.strictObject({
   /** One line for the searchable provider dropdown. */
   description: z.string(),
   /**
-   * The dropdown's filter chip (D74). The host's `PresetKind` is this list
-   * without `custom`, so a new host kind fails the type check, not the panel.
-   */
+  The dropdown's filter chip (D74). The host's `PresetKind` is this list
+  without `custom`, so a new host kind fails the type check, not the panel.
+  */
   category: z.enum(['cloud', 'local', 'subscription', 'aggregator', 'custom']),
   format: z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama']),
   /** Where the endpoint comes from; `fixed` names it in `originDisplay`. */
@@ -148,9 +148,9 @@ export const modelPriceNoteSchema = z.enum(['priced', 'unpriced', 'local', 'plan
 export type ModelPriceNote = z.infer<typeof modelPriceNoteSchema>
 
 /**
- * One Models-table row: the host's filtered, sorted rows with their badges
- * (lane P's `filterModels`, `sortModels` and `badgesFor` run host-side).
- */
+One Models-table row: the host's filtered, sorted rows with their badges
+(lane P's `filterModels`, `sortModels` and `badgesFor` run host-side).
+*/
 export const modelRowSchema = z.strictObject({
   /** The qualified reference (`<providerId>/<modelId>`). */
   ref: z.string(),
@@ -248,16 +248,16 @@ export const suggestionSchema = z.discriminatedUnion('kind', [
 export type PanelSuggestion = z.infer<typeof suggestionSchema>
 
 /**
- * The unsaved form: the wizard's in-memory draft or one provider's edit.
- * The host holds it; the panel renders its fields, errors and blockers.
- * `errors` and `blockers` arrive in plain words (**Save** stays disabled
- * while `blockers` is non-empty).
- */
+The unsaved form: the wizard's in-memory draft or one provider's edit.
+The host holds it; the panel renders its fields, errors and blockers.
+`errors` and `blockers` arrive in plain words (**Save** stays disabled
+while `blockers` is non-empty).
+*/
 /**
- * The endpoint fields a preset's origin allows: a fixed origin names it,
- * Azure takes a resource and deployment, loopback a port, a custom server
- * an address and format. Shared by the draft and the prefill message.
- */
+The endpoint fields a preset's origin allows: a fixed origin names it,
+Azure takes a resource and deployment, loopback a port, a custom server
+an address and format. Shared by the draft and the prefill message.
+*/
 const endpointFields = {
   presetId: z.optional(z.string()),
   address: z.optional(z.string()),
@@ -268,10 +268,10 @@ const endpointFields = {
 }
 
 /**
- * A custom server's per-model limits as the draft holds them: either number
- * may still be empty while the wizard asks. The host requires both before
- * saving (the production entry schema rejects an incomplete set).
- */
+A custom server's per-model limits as the draft holds them: either number
+may still be empty while the wizard asks. The host requires both before
+saving (the production entry schema rejects an incomplete set).
+*/
 export const draftModelLimitsSchema = z.record(
   z.string(),
   z.strictObject({
@@ -316,10 +316,10 @@ export const panelDraftSchema = z.strictObject({
 export type PanelDraft = z.infer<typeof panelDraftSchema>
 
 /**
- * What **Scan this computer** found: every local preset that answered, and
- * every local preset that was checked with its usual port. Both lists carry
- * the preset's own label and port, so the panel never hard-codes either.
- */
+What **Scan this computer** found: every local preset that answered, and
+every local preset that was checked with its usual port. Both lists carry
+the preset's own label and port, so the panel never hard-codes either.
+*/
 export const localScanHitSchema = z.strictObject({
   presetId: z.string(),
   label: z.string(),
@@ -372,14 +372,14 @@ export const modelsPanelStateSchema = z.strictObject({
   scans: z.record(z.string(), scanStateSchema),
   suggestions: z.array(suggestionSchema),
   /**
-   * The conversation spending limit the wizard edits: the effective
-   * `museSpark.modelApiSessionBudgetUsd` value enforcement reads today
-   * (the suggestions step prefills its field with this; a changed number
-   * is written back at the scope it is effective from), and the one line
-   * naming that value and scope, worded by the host like any other error.
-   * The line is formatted host-side so the lazy webview bundle does not
-   * carry the template and scope words for it.
-   */
+  The conversation spending limit the wizard edits: the effective
+  `museSpark.modelApiSessionBudgetUsd` value enforcement reads today
+  (the suggestions step prefills its field with this; a changed number
+  is written back at the scope it is effective from), and the one line
+  naming that value and scope, worded by the host like any other error.
+  The line is formatted host-side so the lazy webview bundle does not
+  carry the template and scope words for it.
+  */
   sessionBudget: z.strictObject({
     effectiveUsd: legacyUsdSchema,
     nowLine: z.string(),

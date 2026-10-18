@@ -34,12 +34,12 @@ export interface TeamConversationDecision {
 }
 
 /**
- * Decides a conversation's mode when it starts, from the latest probe
- * results already known. An entry counts only when it is both a different
- * model from the orchestrator slot's (after `sameModel` dedupe) and
- * observably loaded in this window. Key-billed entries need `teamWorkers`
- * on; unavailable or unready entries never count.
- */
+Decides a conversation's mode when it starts, from the latest probe
+results already known. An entry counts only when it is both a different
+model from the orchestrator slot's (after `sameModel` dedupe) and
+observably loaded in this window. Key-billed entries need `teamWorkers`
+on; unavailable or unready entries never count.
+*/
 export function decideTeamConversationMode(source: TeamDecisionSource): TeamConversationDecision {
   if (!source.teamSwitchOn) {
     return { mode: 'single-model', reason: 'team-off' }
@@ -86,11 +86,11 @@ export interface TeamWorkspaceStateReader {
 }
 
 /**
- * Whether the workspace's stored team alone rules the team out, before any
- * probe result is consulted. Anything stored that is not a visible Solo
- * template or an absent team leaves the decision to the probes: this reader
- * never turns the team on by itself.
- */
+Whether the workspace's stored team alone rules the team out, before any
+probe result is consulted. Anything stored that is not a visible Solo
+template or an absent team leaves the decision to the probes: this reader
+never turns the team on by itself.
+*/
 export function readTeamWorkspaceHint(state: TeamWorkspaceStateReader): {
   readonly soloTemplate: boolean
   readonly hasStoredTeam: boolean

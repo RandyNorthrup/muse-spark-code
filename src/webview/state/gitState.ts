@@ -50,11 +50,11 @@ export function withGitState(git: GitUiState, state: GitState): GitUiState {
 }
 
 /**
- * The host opened the commit form: a form already open keeps what was
- * typed, but not a draft it was waiting for. Opening again started a new
- * form on the host, which never fills it with the earlier form's draft, so
- * Write with Muse is free again.
- */
+The host opened the commit form: a form already open keeps what was
+typed, but not a draft it was waiting for. Opening again started a new
+form on the host, which never fills it with the earlier form's draft, so
+Write with Muse is free again.
+*/
 export function withCommitForm(git: GitUiState, facts: CommitFormFacts): GitUiState {
   const open = git.form?.kind === 'commit' ? git.form : undefined
   return {

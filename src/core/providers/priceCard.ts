@@ -30,11 +30,11 @@ export interface PriceCard {
   /** A flat USD price per image where one exists (OpenRouter). */
   readonly image?: number | undefined
   /**
-   * The long-context tier (xAI bills every token at it from 200k;
-   * OpenAI's starts at 272k and reprices cached reads and writes too).
-   * A tier cache rate the list does not give falls back to the card's own
-   * cache rate, then to the tier's input rate; nothing is guessed.
-   */
+  The long-context tier (xAI bills every token at it from 200k;
+  OpenAI's starts at 272k and reprices cached reads and writes too).
+  A tier cache rate the list does not give falls back to the card's own
+  cache rate, then to the tier's input rate; nothing is guessed.
+  */
   readonly longContextTier?:
     | {
         readonly fromTokens: number
@@ -65,24 +65,24 @@ export interface PricedUsage {
   /** Cached input tokens, counted inside `inputTokens`. */
   readonly cachedTokens?: number | undefined
   /**
-   * Cache-write tokens counted inside inputTokens, disjoint from cachedTokens.
-   * Canonical input is fresh + read + written (OpenAI captures 02-tool-call/03-tool-result-stream).
-   * Codecs whose native input excludes read/write must normalize to this total.
-   */
+  Cache-write tokens counted inside inputTokens, disjoint from cachedTokens.
+  Canonical input is fresh + read + written (OpenAI captures 02-tool-call/03-tool-result-stream).
+  Codecs whose native input excludes read/write must normalize to this total.
+  */
   readonly cacheWriteTokens?: number | undefined
   /**
-   * The 1-hour-written subset of `cacheWriteTokens` (Anthropic's 1-hour
-   * cache, OpenRouter's 1 h write): settled at the 1 h write rate, disjoint
-   * from the 5-minute remainder. Absent where the provider reports none.
-   */
+  The 1-hour-written subset of `cacheWriteTokens` (Anthropic's 1-hour
+  cache, OpenRouter's 1 h write): settled at the 1 h write rate, disjoint
+  from the 5-minute remainder. Absent where the provider reports none.
+  */
   readonly cacheWriteTokens1h?: number | undefined
   readonly outputTokens: number
 }
 
 /**
- * Whether every count is a finite, non-negative number, with read plus
- * written at most the total and the 1-hour-written at most the written.
- */
+Whether every count is a finite, non-negative number, with read plus
+written at most the total and the 1-hour-written at most the written.
+*/
 export function isValidUsage(usage: PricedUsage): boolean {
   const counts = [
     usage.inputTokens,
@@ -99,10 +99,10 @@ export function isValidUsage(usage: PricedUsage): boolean {
 }
 
 /**
- * Written tokens split into the 5-minute remainder and the 1-hour subset,
- * for a host that prices or stores the two TTLs apart (M101 lane P2; lane I
- * wires the consumers).
- */
+Written tokens split into the 5-minute remainder and the 1-hour subset,
+for a host that prices or stores the two TTLs apart (M101 lane P2; lane I
+wires the consumers).
+*/
 export function splitCacheWrites(usage: PricedUsage): {
   readonly standard: number
   readonly oneHour: number
@@ -140,9 +140,9 @@ export function isValidPriceCard(card: PriceCard): boolean {
 }
 
 /**
- * The card to price with: the first valid card in D74's source order
- * (list, catalogue, user). Undefined when none applies.
- */
+The card to price with: the first valid card in D74's source order
+(list, catalogue, user). Undefined when none applies.
+*/
 export function resolvePriceCard(cards: readonly PriceCard[]): PriceCard | undefined {
   const rank: Record<PriceSource, number> = { list: 0, catalogue: 1, user: 2 }
   return cards
@@ -285,10 +285,10 @@ export function ticksAmount(ticks: number): UsdAmount | undefined {
 }
 
 /**
- * The card's input/output rates for this usage: the long-context tier past
- * its threshold, else the card's own rates. The tier itself is returned so
- * callers can reach its cache rates.
- */
+The card's input/output rates for this usage: the long-context tier past
+its threshold, else the card's own rates. The tier itself is returned so
+callers can reach its cache rates.
+*/
 function longContextRates(
   card: PriceCard,
   usage: PricedUsage,
@@ -309,11 +309,11 @@ function longContextRates(
 }
 
 /**
- * The reservation for a request: the worst case. Input at the full input
- * price (the long-context tier when the estimate reaches it), regardless of
- * estimated cache hits. Known write premiums are reserved in addition;
- * output and a per-request flat price are reserved too.
- */
+The reservation for a request: the worst case. Input at the full input
+price (the long-context tier when the estimate reaches it), regardless of
+estimated cache hits. Known write premiums are reserved in addition;
+output and a per-request flat price are reserved too.
+*/
 export function reserveRequestAmount(card: PriceCard, usage: PricedUsage): UsdAmount {
   const { tier, isLongContext, inputRate, outputRate } = longContextRates(card, usage)
   // Cold writes are bounded at the dearest applicable write price: the
@@ -340,10 +340,10 @@ export function reserveRequestAmount(card: PriceCard, usage: PricedUsage): UsdAm
 }
 
 /**
- * The worst-case reservation across upstream cards (OpenRouter and
- * Hugging Face's router may route to the dearest upstream). Undefined for
- * no valid card.
- */
+The worst-case reservation across upstream cards (OpenRouter and
+Hugging Face's router may route to the dearest upstream). Undefined for
+no valid card.
+*/
 export function reserveWorstCaseUsd(
   cards: readonly PriceCard[],
   usage: PricedUsage,
@@ -355,11 +355,11 @@ export function reserveWorstCaseUsd(
 }
 
 /**
- * What a request cost: the provider's reported cost where there is one
- * (OpenRouter's `cost`, xAI's `cost_in_usd_ticks`), otherwise the card's
- * rates over the usage. Invalid usage leaves the cost unknown (the session
- * budget then closes) rather than guessing zero.
- */
+What a request cost: the provider's reported cost where there is one
+(OpenRouter's `cost`, xAI's `cost_in_usd_ticks`), otherwise the card's
+rates over the usage. Invalid usage leaves the cost unknown (the session
+budget then closes) rather than guessing zero.
+*/
 export function settleUsageAmount(
   card: PriceCard,
   usage: PricedUsage,

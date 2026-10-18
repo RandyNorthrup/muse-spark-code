@@ -34,12 +34,12 @@ export function parseCredentialRecord(value: unknown): CredentialRecord | undefi
 }
 
 /**
- * Whether the credential may be sent to `requestUrl`: the request's origin
- * equals the record's, exactly (scheme, name and port — comparing hosts
- * alone would let an edited file move a key from HTTPS to HTTP or to
- * another port). A `none` record holds no secret but still binds the
- * address it was saved for.
- */
+Whether the credential may be sent to `requestUrl`: the request's origin
+equals the record's, exactly (scheme, name and port — comparing hosts
+alone would let an edited file move a key from HTTPS to HTTP or to
+another port). A `none` record holds no secret but still binds the
+address it was saved for.
+*/
 export function isCredentialBound(record: CredentialRecord, requestUrl: string): boolean {
   const recordOrigin = originOf(record.origin)
   const requestOrigin = originOf(requestUrl)

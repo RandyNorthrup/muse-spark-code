@@ -15,10 +15,10 @@ import {
 } from '../git'
 
 /**
- * Every git a held pull request's checkout runs (heldCheckout.ts) runs with
- * these: no hooks, no fsmonitor, no replacement objects, no automatic
- * maintenance or garbage collection.
- */
+Every git a held pull request's checkout runs (heldCheckout.ts) runs with
+these: no hooks, no fsmonitor, no replacement objects, no automatic
+maintenance or garbage collection.
+*/
 export const UNTRUSTED_CHECKOUT_OPTIONS: readonly string[] = [
   '--no-replace-objects',
   '-c',
@@ -55,12 +55,12 @@ async function requireCheckoutSafeGit(
 }
 
 /**
- * The options that keep the untrusted lane's git from running programs: the
- * fixed ones above, and every named hook the configuration where it runs
- * defines switched off (hook commands are never read). The lane never
- * checks a tree out (heldCheckout.ts writes the files), so no filter needs
- * switching off.
- */
+The options that keep the untrusted lane's git from running programs: the
+fixed ones above, and every named hook the configuration where it runs
+defines switched off (hook commands are never read). The lane never
+checks a tree out (heldCheckout.ts writes the files), so no filter needs
+switching off.
+*/
 async function checkoutOverrides(
   execFile: GitExecFile,
   git: string,

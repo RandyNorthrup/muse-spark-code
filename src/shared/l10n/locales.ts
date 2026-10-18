@@ -29,10 +29,10 @@ export function tableFileName(locale: string): string {
 }
 
 /**
- * The table for VS Code's display language: the exact id (`pt-br`, `zh-tw`),
- * else its primary language when that has a table of its own (`de-ch` reads
- * `de`); undefined means English.
- */
+The table for VS Code's display language: the exact id (`pt-br`, `zh-tw`),
+else its primary language when that has a table of its own (`de-ch` reads
+`de`); undefined means English.
+*/
 export function tableLocaleFor(
   language: string,
   locales: readonly string[] = TABLE_LOCALES,

@@ -19,12 +19,12 @@ function isMissing(error: unknown): boolean {
 }
 
 /**
- * The native long name of an absolute path: the nearest existing ancestor
- * resolved by `realpath.native` (8.3 names, junctions, links and `subst`
- * letters become the real path), the missing leaves appended as given.
- * Undefined when a missing leaf still has an 8.3 shape (nothing can resolve
- * it yet) or when no ancestor can be read.
- */
+The native long name of an absolute path: the nearest existing ancestor
+resolved by `realpath.native` (8.3 names, junctions, links and `subst`
+letters become the real path), the missing leaves appended as given.
+Undefined when a missing leaf still has an 8.3 shape (nothing can resolve
+it yet) or when no ancestor can be read.
+*/
 export function resolvedLongPath(given: string): string | undefined {
   if (!path.isAbsolute(given)) return undefined
   const tail: string[] = []
@@ -57,19 +57,19 @@ function isResolvedAncestor(identity: FileIdentity, folder: string, p: path.Plat
 }
 
 /**
- * Compare native identities (volume serial plus a non-zero file ID): a path
- * is inside `folder` exactly when it or one of its existing ancestors has the
- * folder's identity. The nearest existing ancestor is resolved once, so a
- * junction, symbolic link, `subst` letter or 8.3 name above it is judged by
- * the real folder it reaches, and a link above a trusted root is ordinary.
- * A target on another volume (another device id, WSL's device 0 included)
- * is outside. On the folder's own volume the walk must reach the volume's
- * root, or a share root that is one of the folder's resolved ancestors
- * (`\\localhost\C$`, a `\\localhost\Users` share above it): a share rooted
- * elsewhere on that volume, or a missing file ID below the root, cannot
- * establish exclusion. A missing folder (the held-worktrees folder before the
- * first checkout) is its nearest existing ancestor plus the names below it.
- */
+Compare native identities (volume serial plus a non-zero file ID): a path
+is inside `folder` exactly when it or one of its existing ancestors has the
+folder's identity. The nearest existing ancestor is resolved once, so a
+junction, symbolic link, `subst` letter or 8.3 name above it is judged by
+the real folder it reaches, and a link above a trusted root is ordinary.
+A target on another volume (another device id, WSL's device 0 included)
+is outside. On the folder's own volume the walk must reach the volume's
+root, or a share root that is one of the folder's resolved ancestors
+(`\\localhost\C$`, a `\\localhost\Users` share above it): a share rooted
+elsewhere on that volume, or a missing file ID below the root, cannot
+establish exclusion. A missing folder (the held-worktrees folder before the
+first checkout) is its nearest existing ancestor plus the names below it.
+*/
 export function pathIdentityRelation(
   candidate: string,
   folder: string,

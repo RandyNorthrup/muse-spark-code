@@ -25,12 +25,12 @@ export interface ReviewPick {
 }
 
 /**
- * The first entry with headroom whose model differs from every author, or
- * — when every reviewer with headroom shares an author's model — the first
- * entry with headroom, marked `sameModel`. No reviewer with headroom (or
- * none staffed) is `undefined`: the merge then goes ahead marked "not
- * reviewed" (reviewGate.ts).
- */
+The first entry with headroom whose model differs from every author, or
+— when every reviewer with headroom shares an author's model — the first
+entry with headroom, marked `sameModel`. No reviewer with headroom (or
+none staffed) is `undefined`: the merge then goes ahead marked "not
+reviewed" (reviewGate.ts).
+*/
 export function pickReviewer(
   authors: readonly string[],
   candidates: readonly ReviewCandidate[],

@@ -16,10 +16,10 @@ export interface CheckOptions {
   /** The table's language: its plural categories come from `Intl.PluralRules`. */
   readonly locale: string
   /**
-   * The gate's checks on top of the shape: exactly the language's plural
-   * categories, the same code spans and bold markers, and no value left in
-   * English unless its key is in `untranslated`.
-   */
+  The gate's checks on top of the shape: exactly the language's plural
+  categories, the same code spans and bold markers, and no value left in
+  English unless its key is in `untranslated`.
+  */
   readonly isStrict: boolean
   /** Dotted keys whose value may equal the English (names, commands, …). */
   readonly untranslated?: ReadonlySet<string>

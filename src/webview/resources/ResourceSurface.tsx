@@ -27,10 +27,10 @@ const noSubscription = () => {
 }
 
 /**
- * Shared by the panel and companion. No status yet, or a governor switched off,
- * renders nothing; a refused or invalid status shows the chip as unavailable,
- * with no readings, rather than an old reading or nothing.
- */
+Shared by the panel and companion. No status yet, or a governor switched off,
+renders nothing; a refused or invalid status shows the chip as unavailable,
+with no readings, rather than an old reading or nothing.
+*/
 export function ResourceSurface({ port, isInert = false }: ResourceSurfaceProps) {
   const subscribe = useCallback((changed: () => void) => port.subscribe(changed), [port])
   const read = useCallback(() => port.getSnapshot(), [port])

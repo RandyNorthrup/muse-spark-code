@@ -106,10 +106,10 @@ export class ReportRecorder {
   }
 
   /**
-   * Records one failure as facts and answers its sanitized reference, or
-   * undefined when this minute's budget is spent (nothing is written then).
-   * The journal scrubs and validates again before anything reaches the disk.
-   */
+  Records one failure as facts and answers its sanitized reference, or
+  undefined when this minute's budget is spent (nothing is written then).
+  The journal scrubs and validates again before anything reaches the disk.
+  */
   public record(
     kind: ReportEventKind,
     code: string,

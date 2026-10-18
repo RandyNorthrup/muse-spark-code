@@ -434,10 +434,10 @@ function buildNodes(tree: TeamTreeData, actions: TeamTreeActions | undefined): F
 }
 
 /**
- * The team tree: one tab stop, arrow keys, Home, End and type-ahead (D75,
- * WAI-ARIA's tree pattern). It is not a live region; the panel's one polite
- * region announces a finished worker once (D75).
- */
+The team tree: one tab stop, arrow keys, Home, End and type-ahead (D75,
+WAI-ARIA's tree pattern). It is not a live region; the panel's one polite
+region announces a finished worker once (D75).
+*/
 export function TeamTree({ tree, actions }: TeamTreeProps) {
   const nodes = buildNodes(tree, actions)
   const byId = new Map(nodes.map((node) => [node.id, node]))

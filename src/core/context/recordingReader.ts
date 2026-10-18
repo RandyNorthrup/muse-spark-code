@@ -44,8 +44,8 @@ export async function recordOperation<T>(reader: RecordingScope<T>): Promise<Rea
 }
 
 /** Fixed function identities; there is no caller-controlled registration API.
- * @unwired M115 schedule recording builder identities
- */
+@unwired M115 schedule recording builder identities
+*/
 export const RECORDING_BUILDERS = Object.freeze([recordProjection, recordOperation])
 
 /** Only allowlisted builders can close a scope; open scopes confer no authority. */

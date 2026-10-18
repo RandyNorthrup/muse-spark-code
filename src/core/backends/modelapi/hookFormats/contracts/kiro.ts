@@ -108,10 +108,10 @@ const FILE_TRIGGERS = ['PostFileCreate', 'PostFileSave', 'PostFileDelete'].map((
 )
 
 /**
- * Kiro applies a file trigger's path regex before the hook runs (lead decision
- * I). Vendor code: it reuses M51's bounded V8 matcher, so an untrusted pattern
- * never runs as a raw RegExp here; misses skip, errors refuse.
- */
+Kiro applies a file trigger's path regex before the hook runs (lead decision
+I). Vendor code: it reuses M51's bounded V8 matcher, so an untrusted pattern
+never runs as a raw RegExp here; misses skip, errors refuse.
+*/
 function pathScope(
   payload: Readonly<Record<string, unknown>>,
   options: AdapterOptions | undefined,

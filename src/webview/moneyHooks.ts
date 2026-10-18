@@ -8,9 +8,9 @@ import type { UsdAmount } from '../shared/usdSchema'
 import { type MoneyImporter, useMoneyDisplay } from './money'
 
 /**
- * An exact feature price, or undefined while the money chunk loads or fails.
- * No feature (nothing priced on show) loads nothing.
- */
+An exact feature price, or undefined while the money chunk loads or fails.
+No feature (nothing priced on show) loads nothing.
+*/
 export function usePaidFeaturePrice(
   feature: PaidFeature | undefined,
   importer?: MoneyImporter,

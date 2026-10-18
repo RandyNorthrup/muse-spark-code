@@ -14,10 +14,10 @@ export function memorySecretStore(key: string): MemorySecretStore {
 }
 
 /**
- * Headless secrets held only in memory: each account's key, cleared when
- * the run ends. The map is exactly what the caller gave: a provider run
- * holds its provider's account, never the Meta key's alongside it.
- */
+Headless secrets held only in memory: each account's key, cleared when
+the run ends. The map is exactly what the caller gave: a provider run
+holds its provider's account, never the Meta key's alongside it.
+*/
 export function memorySecretStoreFor(entries: Readonly<Record<string, string>>): MemorySecretStore {
   const held = new Map(Object.entries(entries))
   return {

@@ -38,12 +38,12 @@ function endedMessage(terminal: string): string {
 }
 
 /**
- * The notice this session's event deserves, or undefined: none for a short
- * turn's end (it answered before the user looked away), a cancelled turn
- * (stopping it took the window), or a pending card shown again to a later
- * surface (it began waiting before that surface arrived). A turn whose
- * length the backend did not report may have been long, so it notifies.
- */
+The notice this session's event deserves, or undefined: none for a short
+turn's end (it answered before the user looked away), a cancelled turn
+(stopping it took the window), or a pending card shown again to a later
+surface (it began waiting before that surface arrived). A turn whose
+length the backend did not report may have been long, so it notifies.
+*/
 export function attentionNotice(sessionId: string, event: AgentEvent): AttentionNotice | undefined {
   switch (event.type) {
     case 'turnCompleted': {

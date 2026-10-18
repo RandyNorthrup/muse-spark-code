@@ -8,10 +8,10 @@ import {
 } from '../../shared/team'
 
 /** Final ledger rows, including every attempt and review charged to a change.
- * Ledger adapters deduplicate append-only updates by task/attempt before use.
- * Entry/agent filters attribute a multi-author task to every matching participant;
- * only that participant's usage is summed, never another entry's usage.
- */
+Ledger adapters deduplicate append-only updates by task/attempt before use.
+Entry/agent filters attribute a multi-author task to every matching participant;
+only that participant's usage is summed, never another entry's usage.
+*/
 export interface TrafficLedgerTask {
   id: string
   roleId: string
@@ -20,15 +20,15 @@ export interface TrafficLedgerTask {
   mergedAt?: number
   attempts: readonly TeamAttempt[]
   /** Review charges stay separate when their reported/estimated lane differs.
-   * The adapter deduplicates them and attributes each to its owning attempt.
-   */
+  The adapter deduplicates them and attributes each to its owning attempt.
+  */
   reviews?: readonly { attempt: number; usage: TeamAttempt['usage'] }[]
 }
 
 /** Piecewise-constant slot observations from the scheduler's durable events.
- * `slots` is the capacity at that time, including idle slots. A change closes
- * the preceding interval. Groups must be disjoint within each selected scope.
- */
+`slots` is the capacity at that time, including idle slots. A change closes
+the preceding interval. Groups must be disjoint within each selected scope.
+*/
 export interface TrafficSlotSample {
   at: number
   groupId: string

@@ -20,7 +20,7 @@ export type LoopTimeParseResult =
     }
 
 /** V/X bind this adapter when replacing M52. Keep its grammar, seven-day
- * default and exact elapsed cadence for all m/h/d units, including precision. */
+default and exact elapsed cadence for all m/h/d units, including precision. */
 export function parseScheduleLoop(
   text: string,
   nowMs: number,

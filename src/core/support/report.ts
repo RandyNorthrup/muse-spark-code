@@ -21,18 +21,18 @@ import type {
 } from '../backends/musecode/credentialFile'
 
 /**
- * Whether the editor's extension host installed its proxy-aware version of a
- * global (M62): `absent` when the host has no such global at all, as Node 20
- * (VS Code 1.99 and 1.100) has no WebSocket.
- */
+Whether the editor's extension host installed its proxy-aware version of a
+global (M62): `absent` when the host has no such global at all, as Node 20
+(VS Code 1.99 and 1.100) has no WebSocket.
+*/
 export type HostRouting = 'routed' | 'notRouted' | 'absent'
 
 /**
- * The network the extension's own requests and Muse Code's run under (M56).
- * The extension's `fetch` and WebSocket go through VS Code's proxy support
- * and system certificates where the editor routes them and VS Code's
- * settings allow it.
- */
+The network the extension's own requests and Muse Code's run under (M56).
+The extension's `fetch` and WebSocket go through VS Code's proxy support
+and system certificates where the editor routes them and VS Code's
+settings allow it.
+*/
 export interface NetworkFacts {
   /** `http.proxy` is set; its value is not shown. */
   readonly isProxySet: boolean
@@ -83,11 +83,11 @@ export interface SupportFacts {
     | { readonly ok: true; readonly installDir: string; readonly version: string | undefined }
     | { readonly ok: false; readonly reason: string }
   /**
-   * What the CLI's credential file's structure says, never a value from it:
-   * `absent`, `empty` (no sign-in), `inline` (holds one), `keychain` (a macOS
-   * pointer), `unsupportedHere` (a macOS file where `muse serve` cannot
-   * start with it) or `unrecognized`.
-   */
+  What the CLI's credential file's structure says, never a value from it:
+  `absent`, `empty` (no sign-in), `inline` (holds one), `keychain` (a macOS
+  pointer), `unsupportedHere` (a macOS file where `muse serve` cannot
+  start with it) or `unrecognized`.
+  */
   readonly cliCredentialFile: CredentialFileVerdict | 'absent'
   /** The CLI's sign-in as the gate counts it (`unknown` counts as signed in). */
   readonly cliSignIn: CliSignIn
@@ -150,9 +150,9 @@ function yesNo(isTrue: boolean): string {
 }
 
 /**
- * A global's route: its setting where the editor routes it, and otherwise
- * why not, so the report never claims a proxy the request does not use (M62).
- */
+A global's route: its setting where the editor routes it, and otherwise
+why not, so the report never claims a proxy the request does not use (M62).
+*/
 function routeState(isSettingOn: boolean, routing: HostRouting, notRouted: string): string {
   switch (routing) {
     case 'routed': {

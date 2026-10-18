@@ -71,11 +71,11 @@ export interface WhatsNewContent {
   readonly schema: typeof WHATS_NEW_CONTENT_SCHEMA_VERSION
   readonly releases: readonly ReleaseNotes[]
   /**
-   * Present and true when the writer shortened an older release to its
-   * Highlights or left one out to stay within the decoded bound (absent
-   * otherwise, so unchanged builds write byte-identical content). The page
-   * then points at the full changelog for the earlier notes.
-   */
+  Present and true when the writer shortened an older release to its
+  Highlights or left one out to stay within the decoded bound (absent
+  otherwise, so unchanged builds write byte-identical content). The page
+  then points at the full changelog for the earlier notes.
+  */
   readonly shortened?: boolean | undefined
 }
 

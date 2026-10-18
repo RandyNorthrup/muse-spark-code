@@ -62,10 +62,10 @@ function networkFailureText(error) {
 }
 
 /**
- * One request and `read`'s use of its reply, under one deadline per attempt
- * (reading a body can time out as well). Whatever `read` throws about an
- * answer ends the check; only a network failure is tried again.
- */
+One request and `read`'s use of its reply, under one deadline per attempt
+(reading a body can time out as well). Whatever `read` throws about an
+answer ends the check; only a network failure is tried again.
+*/
 async function request(fetcher, url, headers, read) {
   const started = Date.now()
   for (let attempt = 1; ; attempt += 1) {
