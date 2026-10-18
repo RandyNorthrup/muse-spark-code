@@ -1123,6 +1123,15 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             !(
               input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
             ) &&
+            // D89.14 lane M: the migration codecs parse the installed
+            // provider records, so the migration chunk carries their
+            // schemas beside the engine.
+            !(
+              output === VAULT_MIGRATION.output &&
+              ['modelRef.ts', 'accountCredentialRecord.ts'].some(
+                (file) => input === `src/core/providers/${file}`,
+              )
+            ) &&
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
             !(
               output === 'dist/runtimeAccounts.js' &&

@@ -861,6 +861,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  {
+    file: 'vaultMigration.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'VAULT_MIGRATION_BUNDLE_FILE',
+        side: ['vscode'],
+      },
+    ],
+  },
   { file: 'vaultPosix.js', side: 'both', requestedBy: [] },
   {
     file: 'vaultRuntime.js',
