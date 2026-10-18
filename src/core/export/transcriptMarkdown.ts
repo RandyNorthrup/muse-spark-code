@@ -60,8 +60,11 @@ export function fenced(text: string, language = ''): string {
 function prettyArgs(args: string): { readonly text: string; readonly language: string } {
   try {
     return { text: JSON.stringify(JSON.parse(args), undefined, JSON_INDENT), language: 'json' }
-  } catch {
-    return { text: args, language: '' }
+  } catch (error) {
+    // Only malformed JSON keeps the raw text: anything else the parser
+    // cannot shape is raised, never quiet formatting.
+    if (error instanceof SyntaxError) return { text: args, language: '' }
+    throw error
   }
 }
 

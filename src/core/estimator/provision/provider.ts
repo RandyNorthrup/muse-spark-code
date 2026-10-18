@@ -93,8 +93,8 @@ function hasPaymentField(body: unknown): boolean {
   )
 }
 
-function refused(operation: string): never {
-  throw new Error(fill(UI_TEXT.estimateEndpointRefused, { operation }))
+function refused(operation: string, options?: { cause?: unknown }): never {
+  throw new Error(fill(UI_TEXT.estimateEndpointRefused, { operation }), options)
 }
 
 function isSafePath(endpoint: EstimateProviderEndpoint): boolean {
@@ -165,9 +165,10 @@ export function brokeredEstimateProvider(
       )
         refused(operation)
       return codec.decode(operation, receipt.body)
-    } catch {
-      // No raw broker/codec error, path, account detail or secret is rethrown.
-      return refused(operation)
+    } catch (error) {
+      // No raw broker/codec error, path, account detail or secret is
+      // rethrown: the fixed refusal carries the failure that proved it.
+      return refused(operation, { cause: error })
     }
   }
 
@@ -177,8 +178,9 @@ export function brokeredEstimateProvider(
   ): Promise<T> {
     try {
       return await action()
-    } catch {
-      return refused(operation)
+    } catch (error) {
+      // The fixed refusal carries the action's failure; nothing raw crosses.
+      return refused(operation, { cause: error })
     }
   }
 

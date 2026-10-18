@@ -54,12 +54,8 @@ function readManifest(
   if (text === undefined) {
     return { dependencies: [], projectLicense: undefined, ranges: 0, invalid: false }
   }
-  let parsed: unknown
-  try {
-    parsed = parseJson(text)
-  } catch {
-    return { dependencies: [], projectLicense: undefined, ranges: 0, invalid: true }
-  }
+  // parseJson is total (malformed bytes read undefined), so no failure escapes here.
+  const parsed: unknown = parseJson(text)
   const manifest = recordOf(parsed)
   if (manifest === undefined) {
     return { dependencies: [], projectLicense: undefined, ranges: 0, invalid: true }

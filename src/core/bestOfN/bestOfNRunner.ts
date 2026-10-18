@@ -767,6 +767,29 @@ export class BestOfNRunner {
     }
   }
 
+  /**
+   * Failed setup tears down only what it made: the empty worktrees from
+   * before launch, never a force-delete after a host could have written to
+   * an attempt. Every attempt left behind reads cancelled.
+   */
+  private async cancelSetup(
+    run: LiveRun,
+    created: readonly RunningAttempt[],
+    repositoryRoot: string,
+  ): Promise<void> {
+    if (run.running.every((entry) => entry.attempt.status === 'queued')) {
+      await this.removeWorktrees(run, created, repositoryRoot)
+    }
+    for (const entry of run.running) {
+      if (isTerminal(entry.attempt.status)) {
+        continue
+      }
+
+      entry.attempt = { ...entry.attempt, status: 'cancelled' }
+      this.disposeOf(entry)
+    }
+  }
+
   private async removeWorktrees(
     run: LiveRun,
     entries: readonly RunningAttempt[],
@@ -944,25 +967,15 @@ export class BestOfNRunner {
         await this.launch(run, entry, start)
       }
     } catch (error: unknown) {
-      // Never force-delete an attempt after a host could have written to
-      // it. Failed setup removes only the empty worktrees made before launch.
-      if (run.running.every((entry) => entry.attempt.status === 'queued')) {
-        await this.removeWorktrees(run, created, repositoryRoot)
-      }
-      for (const entry of run.running) {
-        if (isTerminal(entry.attempt.status)) {
-          continue
-        }
-
-        entry.attempt = { ...entry.attempt, status: 'cancelled' }
-        this.disposeOf(entry)
-      }
+      // Failed setup tears down only what it made and aborts the run; a
+      // refusal keeps its kind, anything else refuses worktreeFailed with
+      // the failure as its cause instead of its text.
+      await this.cancelSetup(run, created, repositoryRoot)
       run.controller.abort()
       if (isBestOfNError(error)) {
         throw error
       }
-      const detail = error instanceof Error ? error.message : String(error)
-      throw new BestOfNError('worktreeFailed', detail)
+      throw new BestOfNError('worktreeFailed', undefined, { cause: error })
     } finally {
       run.isStarting = false
       this.publish(run)
@@ -1047,8 +1060,9 @@ export class BestOfNRunner {
       if (isBestOfNError(error)) {
         throw error
       }
-      const detail = error instanceof Error ? error.message : String(error)
-      throw new BestOfNError('worktreeFailed', detail)
+      // A foreign take failure refuses in fixed words, carrying the
+      // failure that proved it instead of its text.
+      throw new BestOfNError('worktreeFailed', undefined, { cause: error })
     } finally {
       try {
         completeEdit?.(wasWritten)

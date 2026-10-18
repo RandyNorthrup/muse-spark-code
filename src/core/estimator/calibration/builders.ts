@@ -82,8 +82,10 @@ export async function buildHistory(
         ports.playbook?.review(lane.laneId, asOf),
         ports.ci?.duration(lane.laneId, asOf),
       ])
-    } catch {
-      throw calibrationFailure('historySourceUnavailable')
+    } catch (error) {
+      // A history source that cannot be read fails the calibration in
+      // fixed words, carrying the read failure that proved it.
+      throw calibrationFailure('historySourceUnavailable', error)
     }
     if (board === undefined && git === undefined) {
       excluded.push({ laneId: lane.laneId, reason: 'missingDuration' })

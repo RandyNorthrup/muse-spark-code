@@ -86,7 +86,10 @@ export function parseJson(text: string): unknown {
   try {
     const parsed: unknown = JSON.parse(text)
     return parsed
-  } catch {
-    return undefined
+  } catch (error) {
+    // Only malformed bytes stay unknown: the parser raises SyntaxError
+    // for exactly those, so anything else is raised, never unknown.
+    if (error instanceof SyntaxError) return undefined
+    throw error
   }
 }
