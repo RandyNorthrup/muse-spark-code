@@ -2849,3 +2849,25 @@ These tests drove real code but through stand-ins (`vi.fn` and mock return value
 - denial, changed preview and live admission loss each prevent publication
 - rechecks admission between patches and reports per-file failures
 - refuses evidence changes during ownership approval
+
+## Withdrawn on lane PR161FIX (2026-10-18)
+
+PR #161's own stand-in tests went the same way as the sweep above: they drove real code through hand-written ports (`connection()`, dispatch `{allowEndpoint, fetch}` literals, the `meta` catalogue double) that the owner's rule refuses. Each behaviour below waits for proof by real use of the packed product. (The merge with current main had already withdrawn `fileSessionStore`, `moneyDisplay`, `sessionBudget` and `companionMediaTransport`; their entries stand above.)
+
+### test/unit/accountReadFailures.test.ts
+
+- `account read failures > reads a host failure as unsigned-in, with the kind in words`
+- `account read failures > stays silent when the answer comes in another shape`
+- `account read failures > keeps a foreign failure past the boundary`
+
+### test/unit/subscriptionStreamFailures.test.ts
+
+- `subscription stream failures > keeps an unknown failure’s kind past the boundary`
+- `subscription stream failures > keeps a foreign failure past the boundary`
+- `subscription stream failures > still yields a lapsed sign-in as its words`
+- `subscription stream failures > still yields a Copilot failure as its message`
+
+### test/unit/mcpOAuthDenied.test.ts (two tests; the port-free denial test stays)
+
+- `mcp oauth denial > maps a dispatch failure onto the denial with its cause`
+- `mcp oauth denial > keeps a foreign dispatch failure past the boundary`
