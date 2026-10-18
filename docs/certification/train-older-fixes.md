@@ -113,15 +113,37 @@ bundle overage below, which is cumulative (no single PR at fault).
   providersPresets (93), sessionStore/providerRegistry (23). All green on
   the repository's own timeouts.
 - `npm run build`: FAILS on one gate — `dist/modelApi.js` is 530.7 KiB
-  against the 525 KiB budget (OVER by 5.7 KiB). Measured honestly: the same
-  build of the start commit (81dacaf5a, exported to temp/, since removed)
-  is 514.6 KiB, so the train adds 16.1 KiB. Metafile attribution (source
-  bytes): ModelApiHost.ts +49,417, toolResultBound.ts +16,558 (new),
-  modelPolicy.ts +5,831, constants.ts +4,126, sessionStore.ts +2,593,
-  observationPack.ts +2,399. The growth is inline session/request-path
-  logic from all six PRs combined — no single PR breaks it, and no
-  first-use-only chunk of the needed size separates plainly (the choke and
-  the turn loop must stay; spill paging is ~1.5 KiB). Per AGENTS.md this
-  needs a lazily loaded bundle or a lead decision: NOT fixed here, no
-  budget raised, no revert (nothing to single out). All other 157 bundle
-  lines report ok.
+  against the 525 KiB budget (OVER by 5,859 bytes). Measured honestly: the
+  same build of the start commit (81dacaf5a, exported to temp/, since
+  removed) is 514.6 KiB, so the train adds 16.1 KiB. True attribution
+  (`dist/meta/modelApi.json`, bytes actually in the bundle, total 543,459):
+  ModelApiHost.ts 269,692, constants.ts 40,558, tools.ts 24,285 (all three
+  hot session/request path). The growth is inline logic from all six PRs
+  combined — no single PR breaks it. All other 157 bundle lines report ok.
+  Two train-added gates pass: `check:usable-reply`, `check:wrap-up-request`.
+- Bundle overage, elimination record (follow-up lane, 2026-10-18): the full
+  `bytesInOutput` table was audited file by file against the D6 split
+  rules (file granularity, first-use only, honest failure modes). Verdicts:
+  imageGeneration.ts 3,566 — first-use (image calls only) but covers 61%
+  of the gap alone; imageDimensions/imageResize are shared attach-path
+  utils (tools, mcp, attachments, translate, upload all import them);
+  imageToolDefinitions rides every request via tools.ts. sessionOwner.ts
+  4,308 and MediaBudget are constructed in every session constructor.
+  memoryTools, mcp/functions, subagentTools, goals, hooks, paidAuthority,
+  instructions, observationPack, sessionStore, shellSyntax, permissions,
+  workspaceContext, customAgents are hot per-turn/per-request, shared
+  across bundles, consent-critical, or owned by other lanes. pdf.ts,
+  browserTool.ts, sessionOwner are shared across bundles. Method-level
+  extraction (spill paging ~1.5 KiB source, hook-note helpers) violates
+  the file-granularity split rule and rewires hot paths with new failure
+  modes. `npm run duplication`: 0 clones. knip: exit 0, no dead exports.
+  Largest honest single move (imageGeneration, 3,566 bytes) cannot reach
+  5,859; no pair of coherent same-purpose moves reaches it either. NOT
+  fixed here: no budget raised (forbidden), no revert (combinational, and
+  all six fixes are wanted tonight), no speculative split (a new lazy
+  chunk's success path needs a live packed-product drill this lane cannot
+  run — no paid/live model calls). Pointers for the lead's split design:
+  constants.ts rides at ~40 KiB minified in BOTH modelApi.js and
+  modelApiSessions.js (self-contained outfiles duplicate shared code by
+  architecture); imageGeneration.ts is the largest honest first piece of
+  any future media split.
