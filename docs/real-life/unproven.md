@@ -2879,3 +2879,14 @@ The Codex review of PR #161 found the warn-once case below fed an invented keyri
 ### test/unit/credentialReadFailures.test.ts (one test; the rest of the file stays)
 
 - `credential read failures > warns once per owner while the store stays unreadable, re-armed by a healthy read`
+
+## Withdrawn on lane PR161W1 (2026-10-18)
+
+The Codex re-review of PR #161 found the remaining cases in the file below still fed invented keyring failures through a hand-written port. No real keyring or store exists in unit, so the whole file is deleted rather than repaired with another fake; the guarded-scan warn-once-per-kind behaviour waits for proof by real use of the packed product (the lead's scenario in `docs/certification/catch-money.md`, PR161W1: on Linux without a usable keyring, trigger repeated operational key reads and guarded scans and observe one warning per kind in the runtime log; restore the keyring for one healthy scan and observe the warnings re-arm).
+
+### test/unit/credentialReadFailures.test.ts (whole file)
+
+- `credential read failures > reads a store failure as no key, with the kind in words`
+- `credential read failures > reads a denied store as unreadable with its kind`
+- `credential read failures > stays silent when the store answers`
+- `credential read failures > scans past an unreadable provider entry instead of calling it absent`

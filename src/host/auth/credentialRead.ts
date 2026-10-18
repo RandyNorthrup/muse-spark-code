@@ -121,8 +121,9 @@ export type CredentialProviderId =
  * window's once-per-store notice in `hasStoredKey` below and the once-only
  * `getApiKey` warning beside it; every bundle that loads this file agrees on
  * one store's state because the bundle is loaded once per process. A
- * store-read failure warns once per owner with its kind (TBL-02), re-armed
- * by a healthy read, so one persistent failure cannot flood the log.
+ * store-read failure warns once per owner with its kind (TBL-02), and a
+ * guarded scan warns once per owner and read kind, both re-armed by a
+ * healthy read, so one persistent failure cannot flood the log.
  */
 export interface CredentialReadPort {
   readonly owner: object
@@ -137,6 +138,27 @@ const selectionWarningsShown = new WeakSet<object>()
 
 /** Stores whose unreadable key warning `getApiKey` already logged, once each. */
 const apiKeyWarningsShown = new WeakSet<object>()
+
+/**
+ * Guarded-scan warnings already logged per owner, by read kind (`key`,
+ * `list`, or `provider:<id>`): one persistent keyring failure warns once
+ * per kind instead of on every backend selection, refresh, hold release
+ * and sign-in scan. A scan with no failures clears the entry, so a
+ * recurrence after a repair warns again.
+ */
+const scanWarningsShown = new WeakMap<object, Set<string>>()
+
+/** Warns once per owner and kind; repeats stay silent until a healthy scan re-arms. */
+function scanWarn(port: CredentialReadPort, kind: string, message: string): void {
+  let shown = scanWarningsShown.get(port.owner)
+  if (shown?.has(kind) === true) return
+  if (shown === undefined) {
+    shown = new Set()
+    scanWarningsShown.set(port.owner, shown)
+  }
+  shown.add(kind)
+  port.warn(message)
+}
 
 /**
  * The stored key for operational use (backend key reads); undefined when
@@ -189,9 +211,11 @@ function unreadableKey(port: CredentialReadPort, error: unknown): string | undef
  */
 export async function readModelApiCredential(port: CredentialReadPort): Promise<CredentialRead> {
   let unreadable: CredentialUnreadableKind | undefined
+  let isFailed = false
   try {
     const stored = await port.secrets.get(SECRET_KEYS.modelApiKey)
     if (stored !== undefined && stored !== '') {
+      scanWarningsShown.delete(port.owner)
       return { outcome: 'found' }
     }
   } catch (error: unknown) {
@@ -199,9 +223,12 @@ export async function readModelApiCredential(port: CredentialReadPort): Promise<
     // onto the closed kind (a non-Error keeps its code, else `other`):
     // this read answers in the three states and never throws a foreign
     // value at a guard that has no handler for it. Every failure warns
-    // with its kind, never the raw error.
+    // once per kind with its kind, never the raw error.
+    isFailed = true
     unreadable = unreadableKindFor(error)
-    port.warn(
+    scanWarn(
+      port,
+      'key',
       `${port.storeName} could not be read, so the Model API key's presence is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
     )
   }
@@ -211,8 +238,11 @@ export async function readModelApiCredential(port: CredentialReadPort): Promise<
   } catch (error: unknown) {
     // A provider list that cannot be read cannot prove no provider holds
     // a credential either. Every throw maps onto the closed kind.
+    isFailed = true
     unreadable ??= unreadableKindFor(error)
-    port.warn(
+    scanWarn(
+      port,
+      'list',
       `Provider credentials could not be listed, so their presence is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
     )
   }
@@ -240,15 +270,19 @@ export async function readModelApiCredential(port: CredentialReadPort): Promise<
         }
       } catch (error: unknown) {
         // An entry that cannot be read says nothing about presence, so the
-        // scan continues past it; every failure warns with its kind, never
-        // as absence. Every throw maps onto the closed kind.
+        // scan continues past it; every failure warns once per kind with
+        // its kind, never as absence. Every throw maps onto the closed kind.
+        isFailed = true
         unreadable ??= unreadableKindFor(error)
-        port.warn(
+        scanWarn(
+          port,
+          `provider:${id}`,
           `${port.storeName} could not be read for provider ${id}, so its credential is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
         )
       }
     }
   }
+  if (!isFailed) scanWarningsShown.delete(port.owner)
   if (isFound) {
     return { outcome: 'found' }
   }

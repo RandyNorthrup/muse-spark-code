@@ -52,4 +52,44 @@ describe('durable damage announcements', () => {
       rmSync(directory, { recursive: true, force: true })
     }
   })
+
+  it('lets only one concurrent winner announce the same damage', () => {
+    const directory = mkdtempSync(path.join(os.tmpdir(), 'muse-damage-'))
+    try {
+      const file = path.join(directory, 'choice.json')
+      const store = fileDamageMarkers(file)
+      // The first observer claims the new damage and announces.
+      expect(store.writeMarker('corrupt-a')).toBe(true)
+      expect(store.readMarker()).toBe('corrupt-a')
+      // A concurrent observer that lost the race on the same damage does
+      // not claim it again: no duplicate announcement, marker untouched.
+      expect(store.writeMarker('corrupt-a')).toBe(false)
+      expect(store.readMarker()).toBe('corrupt-a')
+      // A changed damage still replaces the marker and announces.
+      expect(store.writeMarker('corrupt-b')).toBe(true)
+      expect(store.readMarker()).toBe('corrupt-b')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it('lets only one concurrent winner announce the same damage', () => {
+    const directory = mkdtempSync(path.join(os.tmpdir(), 'muse-damage-'))
+    try {
+      const file = path.join(directory, 'choice.json')
+      const store = fileDamageMarkers(file)
+      // The first observer claims the new damage and announces.
+      expect(store.writeMarker('corrupt-a')).toBe(true)
+      expect(store.readMarker()).toBe('corrupt-a')
+      // A concurrent observer that lost the race on the same damage does
+      // not claim it again: no duplicate announcement, marker untouched.
+      expect(store.writeMarker('corrupt-a')).toBe(false)
+      expect(store.readMarker()).toBe('corrupt-a')
+      // A changed damage still replaces the marker and announces.
+      expect(store.writeMarker('corrupt-b')).toBe(true)
+      expect(store.readMarker()).toBe('corrupt-b')
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
 })
