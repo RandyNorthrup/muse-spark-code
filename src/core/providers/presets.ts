@@ -10,7 +10,7 @@
 // capture is recorded (`wireCapture`, AGENTS.md rule 13); the captures are
 // in `docs/certification/m95-captures.md`. Pure data plus pure helpers.
 
-import { ZAI_KEY_PATTERN } from '../../shared/constants'
+import { PROVIDER_RETRY_HTTP_STATUS, ZAI_KEY_PATTERN } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
 import { RETRY_TABLES, type RetryTables } from '../../shared/retryPolicy'
 import type { CustomCompat, ProviderFormat } from './providersFile'
@@ -454,6 +454,18 @@ const OPENROUTER_PRESET: ProviderPreset = {
       'prompt_tokens_details.cached_tokens',
       'prompt_tokens_details.cache_write_tokens',
     ],
+    // OpenRouter's own retry rule (https://openrouter.ai/docs/api-reference/errors,
+    // read 2026-10-17; research openrouter.md ORB2): wait out `Retry-After`
+    // on 429, 503 and the in-flight-budget 402; never retry other 402s, 400,
+    // 401 or 403, and not 502 (the chosen model is down) or 408.
+    retry: {
+      ...RETRY_TABLES.chat,
+      statuses: [
+        PROVIDER_RETRY_HTTP_STATUS.tooManyRequests,
+        PROVIDER_RETRY_HTTP_STATUS.serviceUnavailable,
+      ],
+      errorKinds: ['openrouter_in_flight_budget'],
+    },
   },
   wireCapture: true,
 }

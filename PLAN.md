@@ -14358,6 +14358,91 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
+### D117 — A provider's refusal reads as the provider's refusal (lane PROVERR, 2026-10-12; numbered D108 until 2026-10-17, when that number was found shared with the test overhaul)
+
+**Rule in force.** A provider's answered refusal is one typed value
+(`ProviderRefusal`: HTTP status, closed kind, the provider's bounded words,
+its request id and its wait), parsed per wire format, never replaced by a
+product sentence. The person reads one sentence built from the kind in every
+host and language, naming the provider with its own words after it.
+`modelsPanelUnavailable` is raised only where a part of the build is truly
+missing (the models-panel bundle loader). A refusal answered with a 4xx
+status before processing (`isDefiniteRefusal`: 400, 401, 402, 403, 404, 413,
+422, 429) releases its reservation in full — settled 0, uncertain 0;
+anything else (5xx, 408/409, unanswered) keeps its uncertain liability.
+Never retried: credit, authentication, permission, notFound, invalidRequest,
+tooLarge; rateLimited and overloaded follow the retry tables that exist.
+A failure before anything was written is "could not reach \<provider\>";
+after a write belongs to the transmission branch
+(`fix/stream-limits-class-r5`). The ledger branch (`fix/spend-ledger`) owns
+everything past the definite-refusal decision. Full record:
+`docs/certification/provider-refusals.md`.
+
+**Cause.** On 2026-10-12 an Anthropic account ran out of credit; Anthropic
+answered HTTP 400 with `invalid_request_error` "Your credit balance is too
+low …", and the product ended the turn with "Internal error: Models &
+Agents is not available in this build", requests 1, settled 0, uncertain
+2.262144. The raise site was `src/core/providers/configured.ts`
+`streamResponse`'s catch (`return fail()`, base `:106`, called at base
+`:800`), measured by stack on base. The fix replaces the catch's tail with
+the refusal sentence, keeps status/kind/code/request id/wait, and releases
+definite 4xx reservations. Nine answers, the raise-site table, the
+providers' documentation quotes for "not billed" (with what they do not say
+marked), and five red drills are in the certification record.
+
+### D118 — Refusals read by shape, retried by code, stored without leaks (lanes PROVERR round 2 + PROVERRR2, 2026-10-13; numbered D109 until 2026-10-17, renumbered with D117)
+
+**Rule in force.** One extractor reads an error body by what it IS (an
+`error` object with a message; an `error` string; a top-level `message`; a
+`detail` string; Google's `status` and `details[].reason` alongside),
+whatever the wire format; a shape none matches is unparsed with the status
+and the first bounded line, classified by that status like any other answer.
+The status and the provider's documented type, code or reason decide the
+kind; a phrase is used only where a recorded answer shows the provider gives
+nothing else (a table with its source in `providerRefusal.ts`). Parity: a
+bad key reads `authentication` at all eleven recorded providers, an unknown
+model reads `notFound` at all twelve. Reason and error-code signals ride the
+refusal into the classifier even when a parser did not promote them into
+`code`. Retry follows the preset's own table with the envelope code, so a
+quota 429 never retries while a bare one does. Anthropic `max_tokens` maps
+to the host's `max_output_tokens`, so a cut-off reply continues under the
+one rule every provider shares. Azure `content_filter` blocks read as their
+own kind (the route is another lane's). A provider's words keep their key
+remnants and account ids out of the log file, usage history, report bundles
+and telemetry by one scrub tested on the recorded answers; usage records
+carry the outcome and the request id only. Closed gap ids: XAI-G10,
+OPENAI-G20, GAPANTH-G20, GAPANTH-G11, AZURE-G06. UNVERIFIED until the lead's
+captures return: real 429 bodies, the spend-cap header set, a cut-off reply
+with partial tools, an Azure block, the xAI unsupported-parameter 400.
+Records: `docs/certification/proverr-round2.md`,
+`docs/certification/proverrr2.md`, `docs/certification/proverrr2-capture-plan.json`.
+
+**Amended 2026-10-17 (lane PROVERRORS, from the provider research of PR
+#202).** A provider's wait is honoured as given in every form it uses
+(`retry-after-ms`, then `Retry-After` seconds or date): no cap of ours
+refuses it and the backoff never shortens it. Each preset retries by its
+provider's own rule (OpenRouter: 429, 503 and the in-flight-budget 402;
+Gemini adds 408), and a retryable error a stream ends with before any
+content is sent again as its status would be. A provider's own codes decide
+the kind: Z.ai's 1308-1321, OpenRouter's budget limit sources and Gemini's
+`quota_exceeded` are usage limits, never retried, with the provider's words
+(and the reset they name) quoted. Our own refusals (a budget or ledger
+stop, a lapsed confirmation, a codec refusal) pass through the provider
+path unchanged and are never retried; only a failure with a connection
+code in its causes is a send failure, retried as one and reported with
+Node's codes and the send's unknown fate; a connection lost after the 200
+says so. Every refusal sentence carries the provider's request id. The
+retry count, the backoff bounds and the idle timeout stay as they are
+pending the owner's decision (evidence in
+`docs/certification/provider-refusals.md`, "Lane PROVERRORS").
+
+**Cause.** Round 1 classified 11 of 23 recorded real answers wrong (the red
+table): typeless 401s read as "unrecognised", xAI/Mistral/Gemini shapes
+unread, quota-worded limits retried, spend caps retried, cut-off Anthropic
+replies ending the turn. The scans then showed the same defect from the
+other side: error bodies replaced by one fixed sentence on the configured
+path. Full record: the round-2 certification and the gap certifications.
+
 ### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
 
 The owner, verbatim: "get the useless tests get it streamlined and
@@ -14393,6 +14478,16 @@ and thats it." A thousand-test suite kept shipping broken code as
   real code over recorded data.
 - Record: `docs/testing/test-overhaul-2026-10-12.md` (before/after
   1,321 → 524 files, 27,650 → 8,988 tests, ~26 → ~5.5 wall minutes).
+- Invariants lane: `test/unit/invariants.test.ts` re-guards the SoL-Pi
+  request-shape and savings invariants with real modules only (certification:
+  `docs/certification/invariants.md`); the full loopback golden stays listed
+  for the lead until recorded exchanges exist per golden scenario.
+- PR184FIX (review findings): quotes name real priced models at the listed
+  tariff, packing drives the recorded 04 output, every golden scenario's
+  tools/instructions/keys reproduce through the real builders with
+  byte-exact 01 turns, and the eval pins a digest of the complete task
+  definitions. Unit-test residual: the host's scalar assembly (a new body
+  field would still pass); the lead's loopback run covers it.
 
 ### D122 — CI capacity from a second account; the project stays here (owner, 2026-10-16; redesigned 2026-10-17)
 
@@ -14413,6 +14508,13 @@ CONTRIBUTING.md, "The capacity repository (D122)"; proofs:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ## 3. Open questions (need the owner)
+
+**Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13).** GAPANTH-G11's scan row
+notes that an Anthropic reply stopped with `refusal` offers no fallback
+model. No model-fallback mechanism exists in the product; building one (when
+to offer, which model, whose money) is a product decision. Until the owner
+answers, a refused or paused turn ends with its true sentence and its tool
+calls answered, never continued. Record: `docs/certification/proverrr2.md`.
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
 explicitly approves the 116 Title Case scenes, `models-errors` with the
@@ -35244,9 +35346,11 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 | `test/unit/legalScan.test.ts` (scan cap), `test/unit/checkBadges.test.mjs` (CLI wiring)                                                                                                        | `LEGAL_CAP_SCAN_TIMEOUT_MS`, `COLD_CLI_TIMEOUT_MS` (15 s) per-case deadlines                                                                                                 | The cap case scans one file past the scan limit and the wiring case starts the badge CLI cold under Node; hosted runners with coverage took 3.5 s and 3.1 s.                                                                                                                                                                                                                                     | Lower the cap in a test-only scanner option; check the CI override in-process instead of a cold CLI.                                                      |
 | `test/unit/ollamaCodec.test.ts` (stream cap), `test/unit/vsixPackaging.test.mjs` (oversized archive), `test/unit/refreshBadges.test.mjs` (README badges), `test/unit/companionBrowser.test.ts` | `OLLAMA_STREAM_CAP_TIMEOUT_MS`, `REAL_OVERSIZED_PACKAGE_TIMEOUT_MS` (30 s), `README_BADGE_PARSE_TIMEOUT_MS` (15 s) per-case; `REAL_BROWSER_CASE_TIMEOUT_MS` (20 s) per-suite | A second sweep at 2 s over two full CI runs: the stream-cap case took 5.2 s and the companion browser case passed 5 s on hosted runners; the others took 3.4 to 4.0 s. The same run showed hosted macOS (3 vCPUs) oversubscribed by four workers plus coverage; `vitest.config.ts` now uses cores minus one there, capped at the measured four.                                                  | Read the stream cap from a test-sized option; share one browser context per file; drop each deadline once a hosted run measures the case under 2.5 s.     |
 
-| Location                                               | Escape hatch                  | Reason                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ------------------------------------------------------ | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `native/darwin/MuseSparkCreated.c` (Linux branch only) | `OPENSSL_SUPPRESS_DEPRECATED` | OpenSSL 3 marks the stable low-level SHA-256 primitives deprecated, while they remain supported. Static primitive linkage keeps the required helper small and removes runtime OpenSSL/provider acquisition. Only the three SHA calls use this declaration-level suppression; `-Wall -Wextra -Werror`, identity and cleanup guards stay active. Native/provider migration remains a future qualification, not a warning-level change. |
+| Location                                                     | Escape hatch                                                                                              | Reason                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `native/darwin/MuseSparkCreated.c` (Linux branch only)       | `OPENSSL_SUPPRESS_DEPRECATED`                                                                             | OpenSSL 3 marks the stable low-level SHA-256 primitives deprecated, while they remain supported. Static primitive linkage keeps the required helper small and removes runtime OpenSSL/provider acquisition. Only the three SHA calls use this declaration-level suppression; `-Wall -Wextra -Werror`, identity and cleanup guards stay active. Native/provider migration remains a future qualification, not a warning-level change. |
+| `src/core/providers/configured.ts` (`parseError`)            | `eslint-disable-next-line @typescript-eslint/no-unnecessary-condition` on the `parse === undefined` guard | The parser table is total over the closed `ProviderFormat`, so the throw is unreachable; the index type still carries `undefined` for                                                                                                                                                                                                                                                                                                |
+| `src/core/backends/modelapi/providerRefusal.ts` (`recordOf`) | `as Record<string, unknown>` on an `unknown` JSON body after the object/non-null/non-array checks         | The checks rule out every non-record shape, but the compiler cannot narrow `unknown` to a record from them; the extractor reads every envelope through it                                                                                                                                                                                                                                                                            | No removal: provider bodies arrive as `unknown`, and the three checks are the narrowest the compiler verifies | tsc under `noUncheckedIndexedAccess` (TS2722 without the guard), while the linter reads the table as total. One line, lane PROVERR. |
 
 INT0170B, 2026-10-07: `ENGINE_LOAD_TIMEOUT_MS` = 20,000 ms in `test/unit/modelApiHost.test.ts` covers only the 64-child conversation-limit workload and the two 50-tool-round promotion workloads. Real engine execution under coverage measured 13.443/6.532/8.588 s; the service is fake and no paid request is made. The unchanged default still applies to ordinary tests; no workload count, assertion, coverage threshold or byte cap changes. Authorized heavy-real-work exception in the rig brief.
 
