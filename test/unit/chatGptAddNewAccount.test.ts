@@ -6,9 +6,13 @@
 // a writable in-memory store: the abstract command is never run here, only
 // the stored-grant states it leaves behind (refused = unchanged,
 // succeeded = a different account's grant).
+import { setTimeout as delay } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import type { SignInMethod } from '../../src/acp/agent'
-import type { ChatGptHostPort } from '../../src/core/providers/subscriptions/chatgpt'
+import {
+  ChatGptSignInError,
+  type ChatGptHostPort,
+} from '../../src/core/providers/subscriptions/chatgpt'
 import { createRuntimeChatGptHost } from '../../src/runtime/chatGptHost'
 import {
   chatGptAuthenticationMethods,
@@ -16,8 +20,8 @@ import {
 } from '../../src/runtime/chatGptProviderCommands'
 import { testGrantRecord, testSecretStore } from './helpers/chatGptGrant'
 
-const ACCOUNT_A = 'a'.repeat(64)
-const ACCOUNT_B = 'b'.repeat(64)
+const ACCOUNT_A = 'add-new-account-a'
+const ACCOUNT_B = 'add-new-account-b'
 
 /**
  * The real host, signalling when its first `readRecord` resolves. The
@@ -62,10 +66,10 @@ function method(methods: SignInMethod[], id: string): () => Promise<string | und
 /** Store one account's grant through a fresh host, the way sign-in leaves it. */
 async function storeGrant(
   rawHost: () => Promise<ChatGptHostPort>,
-  accountIdHash: string,
+  accountSubject: string,
 ): Promise<void> {
   const host = await rawHost()
-  await host.writeRecord(testGrantRecord(accountIdHash))
+  await host.writeRecord(testGrantRecord(accountSubject))
 }
 
 describe('chatgpt add-new-account verification', () => {
@@ -103,6 +107,36 @@ describe('chatgpt add-new-account verification', () => {
     await baseline.promise
     await storeGrant(rawHost, ACCOUNT_B)
     await expect(method(methods, 'chatgpt-add-new-account')()).resolves.toBeUndefined()
+  })
+
+  it('surfaces a startup host failure through verify, never as an unhandled rejection', async () => {
+    const unhandled: unknown[] = []
+    const onUnhandled = (reason: unknown): void => {
+      unhandled.push(reason)
+    }
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      const methods = chatGptAuthenticationMethods(() =>
+        Promise.reject(new ChatGptSignInError('request-failed')),
+      )
+      // Let the captured baseline settle with no verifier attached yet: a
+      // bare baseline promise rejects here, outside any `await`.
+      await delay(25)
+      for (const id of [
+        'chatgpt-add',
+        'chatgpt-add-new-account',
+        'chatgpt-remove',
+        'chatgpt-status',
+      ]) {
+        await expect(method(methods, id)()).resolves.toBe(
+          chatGptCommandText().failure('request-failed'),
+        )
+      }
+      await delay(25)
+      expect(unhandled).toEqual([])
+    } finally {
+      process.removeListener('unhandledRejection', onUnhandled)
+    }
   })
 
   it('leaves the other methods as they were', async () => {

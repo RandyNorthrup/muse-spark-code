@@ -285,6 +285,13 @@ export function chatGptAuthenticationMethods(
     const host = await createHost()
     return await host.withRefreshLock(async () => await host.readRecord())
   })()
+  // A startup host, lock or store failure must surface through `verify`,
+  // never as an unhandled rejection that ends the standalone agent before
+  // any verifier runs: this marks the rejection handled while each `await`
+  // below still observes it.
+  void baselineRecord.then(undefined, () => {
+    /* Marked handled; `verify` observes the rejection through `await`. */
+  })
   return actions.map((action) => {
     const isAdd = action === 'add' || action === 'add-new-account'
     const args =

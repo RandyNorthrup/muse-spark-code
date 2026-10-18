@@ -392,6 +392,20 @@ describe('chatgpt Responses stream profile', () => {
     ).rejects.toThrow(ResponsesDecodeError)
   })
 
+  it('refuses a gap in the streamed output indices instead of compacting the order', async () => {
+    await expect(
+      Array.fromAsync(
+        decode(
+          stream(
+            frame({ type: 'response.output_item.done', output_index: 0, item: reply }),
+            frame({ type: 'response.output_item.done', output_index: 2, item: readCall }),
+            frame(completed([])),
+          ),
+        ),
+      ),
+    ).rejects.toThrow(ResponsesDecodeError)
+  })
+
   it('refuses a terminal frame whose items differ in number from the streamed ones', async () => {
     await expect(
       Array.fromAsync(

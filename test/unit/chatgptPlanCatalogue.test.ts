@@ -75,7 +75,7 @@ describe('chatgpt catalogue listing', () => {
     }
     const fetcher: typeof fetch = () =>
       Promise.resolve(Response.json({ models: [capturedEntry(), future] }))
-    const catalog = await chatGptCatalog(signInWith(testGrantRecord('a'.repeat(64))), fetcher)
+    const catalog = await chatGptCatalog(signInWith(testGrantRecord('catalogue-account')), fetcher)
     expect(catalog.slugs).toEqual([SLUG, `${SLUG}-future`])
     expect(catalog.facts.get(SLUG)).toBeDefined()
     expect(catalog.facts.has(`${SLUG}-future`)).toBe(false)
@@ -84,7 +84,7 @@ describe('chatgpt catalogue listing', () => {
 
 describe('chatgpt stalled plan error body', () => {
   it('ends the turn under the stream-idle deadline instead of hanging', async () => {
-    const signIn = signInWith(testGrantRecord('b'.repeat(64)))
+    const signIn = signInWith(testGrantRecord('stall-account'))
     // Headers arrive, the JSON error body never does.
     const stalled = new Response(new ReadableStream<Uint8Array>({}), { status: 500 })
     const fetchPlan: typeof fetch = (input) => {
