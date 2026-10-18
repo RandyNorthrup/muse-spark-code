@@ -227,6 +227,12 @@ manifest.test.ts, usagePackaging.test.mjs, vsixPackaging.test.mjs}`
   worktree); SHA256SUMS helper basenames (`c91bb467e`, drilled with
   real `sha256sum -c`); recorder ownership after a refused kill
   (`479bcb2a5`); idle after a failed voice stream (`c7a80a94c`).
+- PR #224 new Codex threads (lane PR224FIX, in progress): dictation
+  double-refused kill must keep the reaping and queue starts until the
+  exit is observed; Linux cleanup must remove the now-empty dictation
+  directory; the ggml CPU variants the build emits must be pinned and
+  published; an empty download lock must be reclaimed, not busy
+  forever. Fixes with real-use proof land below as each completes.
 - Gates on the merged tree (exit codes): typecheck 0; ESLint 0 and
   Prettier 0 on every review-changed file plus the three surviving
   lane test files; check-l10n 0; check:reference 0 (after regenerate);
