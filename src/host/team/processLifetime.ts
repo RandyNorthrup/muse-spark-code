@@ -25,7 +25,7 @@ export function prepareTeamProcess(
 
 import { randomBytes, randomUUID } from 'node:crypto'
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { realpathSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import os from 'node:os'
@@ -36,7 +36,11 @@ import { Connection, checkServedFingerprint } from '@muse-code/sdk'
 import type { TeamJournal } from './teamJournal'
 import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
 import { loadJobAssembly, runProgram, windowsPowerShell } from '../processTree'
-import { workspaceChildEnvironment } from '../../core/executables'
+import {
+  absolutePathEntries,
+  resolveExecutable,
+  workspaceChildEnvironment,
+} from '../../core/executables'
 import { powerShellQuoted } from '../../core/shellQuote'
 import {
   MCP_JOB_HANDSHAKE_MAX_CHARS,
@@ -449,9 +453,27 @@ export async function createNativeTeamProcessDriver(options: {
   if (process.platform !== 'linux' && process.platform !== 'darwin')
     throw new Error('TEAM_PLATFORM_UNSUPPORTED')
   const probeEnv = { PATH: process.env['PATH'], XDG_RUNTIME_DIR: process.env['XDG_RUNTIME_DIR'] }
+  /**
+   * A probe tool resolved on the absolute PATH entries only: a probe never
+   * executes a relative or empty entry (the process working directory), and
+   * the probe runs the resolved absolute path. Entries inside a later
+   * launch's working directory are excluded again at launch, where the
+   * directory is known.
+   */
+  const probeTool = (name: string): string | undefined =>
+    resolveExecutable(name, {
+      platform: process.platform,
+      pathVariable: probeEnv.PATH,
+      fileExists: existsSync,
+    })
   const canRun = async (file: string, args: readonly string[]) => {
     try {
-      await runProgram(file, [...args], probeEnv)
+      await runProgram(file, [...args], {
+        ...probeEnv,
+        PATH: absolutePathEntries(process.platform, probeEnv.PATH).join(
+          process.platform === 'win32' ? ';' : ':',
+        ),
+      })
       return true
     } catch {
       return false
@@ -460,17 +482,15 @@ export async function createNativeTeamProcessDriver(options: {
   let hasScope = false
   let hasSetpriv = false
   if (process.platform === 'linux') {
-    hasSetpriv = await canRun('setpriv', ['--pdeathsig', 'KILL', '--', 'true'])
+    const setpriv = probeTool('setpriv')
+    hasSetpriv =
+      setpriv !== undefined && (await canRun(setpriv, ['--pdeathsig', 'KILL', '--', 'true']))
     try {
       await readFile('/sys/fs/cgroup/cgroup.controllers', 'utf8')
-      hasScope = await canRun('systemd-run', [
-        '--user',
-        '--scope',
-        '--collect',
-        '--quiet',
-        '--',
-        'true',
-      ])
+      const systemdRun = probeTool('systemd-run')
+      hasScope =
+        systemdRun !== undefined &&
+        (await canRun(systemdRun, ['--user', '--scope', '--collect', '--quiet', '--', 'true']))
     } catch {
       /* No delegated cgroup v2 user scope: use the specified process-group path. */
     }
@@ -479,6 +499,37 @@ export async function createNativeTeamProcessDriver(options: {
   return {
     launch(request, launchId, lifecycle = new TeamLaunchLifecycle()) {
       const unit = `muse-spark-${launchId}.scope`
+      // The probes proved each tool runs; the launch resolves it outside
+      // this launch's own working directory (links followed), so a planted
+      // name in the worker's directory never runs. A tool the probe saw but
+      // this directory shadows fails the launch closed instead of running
+      // the planting or silently losing its containment.
+      const launchTool = (name: string): string | undefined =>
+        resolveExecutable(name, {
+          platform: process.platform,
+          pathVariable: probeEnv.PATH,
+          fileExists: existsSync,
+          workspaceRoot: request.cwd,
+          realpath: realpathSync,
+        })
+      const requireLaunchTool = (name: string): string => {
+        const resolved = launchTool(name)
+        if (resolved === undefined) throw new Error('TEAM_TOOL_UNAVAILABLE')
+        return resolved
+      }
+      const setpriv = hasSetpriv ? requireLaunchTool('setpriv') : undefined
+      const scope = hasScope
+        ? {
+            systemdRun: requireLaunchTool('systemd-run'),
+            systemctl: requireLaunchTool('systemctl'),
+          }
+        : undefined
+      // The scope queries below run with the guarded child PATH for the
+      // launch directory, never the raw process PATH.
+      const scopeEnv = workspaceChildEnvironment(process.platform, probeEnv, {
+        workspaceRoot: request.cwd,
+        realpath: realpathSync,
+      })
       // The shell remains the group leader until exec, preserving PID and start identity.
       // Its private fd is closed before the command runs; stdin remains the command's pipe.
       let command = '/bin/sh'
@@ -489,11 +540,11 @@ export async function createNativeTeamProcessDriver(options: {
         request.command,
         ...request.args,
       ]
-      if (hasSetpriv) {
+      if (setpriv !== undefined) {
         args = ['--pdeathsig', 'KILL', '--', command, ...args]
-        command = 'setpriv'
+        command = setpriv
       }
-      if (hasScope) {
+      if (scope !== undefined) {
         args = [
           '--user',
           '--scope',
@@ -505,10 +556,10 @@ export async function createNativeTeamProcessDriver(options: {
           command,
           ...args,
         ]
-        command = 'systemd-run'
-        if (hasSetpriv) {
+        command = scope.systemdRun
+        if (setpriv !== undefined) {
           args = ['--pdeathsig', 'KILL', '--', command, ...args]
-          command = 'setpriv'
+          command = setpriv
         }
       }
       // The person's configured command runs with the guarded child PATH
@@ -560,11 +611,11 @@ export async function createNativeTeamProcessDriver(options: {
           }
           const observed = await observer.observe(child.pid)
           if (observed !== undefined) {
-            if (hasScope) {
+            if (scope !== undefined) {
               const rawGroup = await runProgram(
-                'systemctl',
+                scope.systemctl,
                 ['--user', 'show', unit, '--property=ControlGroup', '--value'],
-                probeEnv,
+                scopeEnv,
               )
               const group = rawGroup.trim()
               if (group === '' && !state.isExited) {
@@ -577,11 +628,11 @@ export async function createNativeTeamProcessDriver(options: {
             }
             return confirmationSchema.parse({
               pid: child.pid,
-              group: hasScope ? unit : observed.group,
+              group: scope === undefined ? observed.group : unit,
               startTime: observed.startTime,
               executable: observed.executable,
               uid: observed.uid,
-              container: hasScope ? 'linuxScope' : 'processGroup',
+              container: scope === undefined ? 'processGroup' : 'linuxScope',
               cgroup:
                 process.platform === 'linux'
                   ? await readFile(`/proc/${String(child.pid)}/cgroup`, 'utf8')
@@ -595,7 +646,7 @@ export async function createNativeTeamProcessDriver(options: {
       })()
       const isEmpty = async () => {
         if (state.hasEmptyProof) return true
-        if (!hasScope || state.cgroup === '') return false
+        if (scope === undefined || state.cgroup === '') return false
         try {
           state.hasEmptyProof = /^populated 0$/m.test(await readFile(state.cgroup, 'utf8'))
           return state.hasEmptyProof
@@ -621,18 +672,18 @@ export async function createNativeTeamProcessDriver(options: {
       })
       const didSignal = async (name: 'SIGTERM' | 'SIGKILL'): Promise<boolean> => {
         if (recorded === undefined) return false
-        let canSignalScope = hasScope
+        let canSignalScope = scope !== undefined
         try {
-          if (hasScope && process.platform === 'linux') {
+          if (scope !== undefined && process.platform === 'linux') {
             if (
               recorded.cgroup === undefined ||
               (await readFile(`/proc/${String(recorded.pid)}/cgroup`, 'utf8')) !== recorded.cgroup
             )
               canSignalScope = false
             const rawGroup = await runProgram(
-              'systemctl',
+              scope.systemctl,
               ['--user', 'show', unit, '--property=ControlGroup', '--value'],
-              probeEnv,
+              scopeEnv,
             )
             const group = rawGroup.trim()
             if (
@@ -647,13 +698,14 @@ export async function createNativeTeamProcessDriver(options: {
         }
         if (
           canSignalScope &&
+          scope !== undefined &&
           (await ownership.isOwned({ ...recorded, group: String(recorded.pid), launchId }))
         ) {
           try {
             await runProgram(
-              'systemctl',
+              scope.systemctl,
               ['--user', 'kill', '--kill-whom=all', `--signal=${name}`, unit],
-              probeEnv,
+              scopeEnv,
             )
           } catch (error: unknown) {
             // --collect can remove the scope before a second signal. An
@@ -670,7 +722,7 @@ export async function createNativeTeamProcessDriver(options: {
           const result = await ownership.signalLaunch(
             {
               ...recorded,
-              group: hasScope ? String(recorded.pid) : recorded.group,
+              group: scope === undefined ? recorded.group : String(recorded.pid),
               launchId,
             },
             name,
@@ -699,7 +751,7 @@ export async function createNativeTeamProcessDriver(options: {
           (notOwned.has(recorded.pid) ||
             !(await ownership.isOwned({
               ...recorded,
-              group: hasScope ? String(recorded.pid) : recorded.group,
+              group: scope === undefined ? recorded.group : String(recorded.pid),
               launchId,
             })))
         ) {

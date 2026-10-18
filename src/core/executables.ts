@@ -120,9 +120,11 @@ export interface WorkspacePathSanitizeProbe {
  * prefixes are stripped, `\\.\UNC\` like `\\?\UNC\` maps to its plain share,
  * and a loopback admin share (`//localhost/C$/…`, `//127.0.0.1/C$/…`) maps
  * to its drive path, so every local spelling of the workspace compares as
- * the workspace itself. `.` and `..` collapse lexically and a trailing dot
- * on a segment is stripped, the way `GetFullPathName` does, so `..\…` and
- * `repo.\…` spellings of the workspace compare as the workspace too. A
+ * the workspace itself. `.` and `..` collapse lexically and trailing
+ * spaces and dots strip the way `GetFullPathName` strips them, so `..\…`,
+ * `repo.\…` and `repo .` spellings of the workspace compare as the
+ * workspace too (a run of two or more dots on a non-final segment stays a
+ * distinct name). A
  * remote UNC name that cannot be proven local stays as it is: only the
  * local spellings above are mapped.
  */
@@ -140,12 +142,37 @@ function isSameOrInsideDirectory(
   return target === root || target.startsWith(`${root}/`)
 }
 
-/** A Windows path with every local spelling collapsed to one comparison
+/**
+ * A Windows path with every local spelling collapsed to one comparison
  * form: lower-cased, device/verbatim prefixes stripped, loopback admin
- * shares mapped to their drive, `.`/`..` collapsed and trailing dots on
- * segments stripped (`..` above the root clamps, as `GetFullPathName`
- * does). drive-relative and UNC roots keep their prefix; `..` never climbs
- * past it. */
+ * shares mapped to their drive, `.`/`..` collapsed and trailing spaces and
+ * dots stripped the way `GetFullPathName` strips them (`..` above the root
+ * clamps). The final segment loses every trailing space and dot, so
+ * `repo .` and `repo...` are `repo`. A non-final `name.` or `name .` names
+ * `name` too, but a run of two or more dots on a non-final segment is a
+ * distinct legal name (`repo...` is not `repo..`) and is kept. Drive-relative
+ * and UNC roots keep their prefix; `..` never climbs past it.
+ */
+function withoutTrailingSpaces(value: string): string {
+  return value.replace(/ +$/u, '')
+}
+
+/**
+ * A final segment with every trailing space and dot stripped, so `repo .`
+ * and `repo...` are both `repo`. Dots reveal spaces and spaces reveal dots
+ * (`repo. ` strips to `repo`), so both are stripped until nothing moves.
+ */
+function stripFinalSegment(raw: string): string {
+  let segment = raw
+  for (;;) {
+    const fewer = withoutTrailingSpaces(segment.replace(/\.+$/u, ''))
+    if (fewer === segment) {
+      return segment
+    }
+    segment = fewer
+  }
+}
+
 function normalizeWindowsSpelling(slashed: string): string {
   let rest = slashed.toLowerCase()
   if (rest.startsWith('//./unc/')) {
@@ -165,7 +192,11 @@ function normalizeWindowsSpelling(slashed: string): string {
   const unc = /^\/\/[^/]+\/[^/]+/u.exec(rest)
   const prefix = drive?.[0] ?? unc?.[0] ?? ''
   const kept: string[] = []
-  for (const segment of rest.slice(prefix.length).split('/')) {
+  const segments = rest.slice(prefix.length).split('/')
+  for (let index = 0; index < segments.length; index += 1) {
+    const isFinal = index === segments.length - 1
+    // A `..` with trailing spaces still climbs.
+    let segment = withoutTrailingSpaces(segments[index] ?? '')
     if (segment === '' || segment === '.') {
       continue
     }
@@ -173,12 +204,21 @@ function normalizeWindowsSpelling(slashed: string): string {
       kept.pop()
       continue
     }
-    // A trailing dot (or run of them) is not part of the name on Windows:
-    // `C:\Foo\.` is `C:\Foo`, `repo.` is `repo`.
-    const stripped = segment.replace(/\.+$/u, '')
-    if (stripped !== '') {
-      kept.push(stripped)
+    if (isFinal) {
+      segment = stripFinalSegment(segment)
+    } else if (segment.endsWith('.') && !segment.endsWith('..')) {
+      // One trailing dot, the space-then-dot mix included (`repo .` is
+      // `repo`); a run of two or more dots stays a distinct name.
+      segment = withoutTrailingSpaces(segment.slice(0, -1))
     }
+    if (segment === '' || segment === '.') {
+      continue
+    }
+    if (segment === '..') {
+      kept.pop()
+      continue
+    }
+    kept.push(segment)
   }
   return kept.length === 0 ? prefix : `${prefix}/${kept.join('/')}`
 }

@@ -1,5 +1,6 @@
 // PATHGUARD spawn inventory (Grok re-review of PR #249): every direct
-// child-process start and every raw governed launch in src/ is enumerated
+// child-process start, every wrapper that ends in one, every embedded
+// supervisor script, and every raw governed launch in src/ is enumerated
 // from the source itself and must either route through the guarded lookup +
 // child environment or stand on the short reviewed lists below with its
 // reason. Add an unguarded spawn and this suite fails; remove a guard and
@@ -17,6 +18,15 @@ const SPAWN_NAMES = new Set(['spawn', 'spawnSync', 'execFile', 'execFileSync', '
 const SHELL_NAMES = new Set(['exec', 'execSync'])
 /** The raw governed launch: only `commands.ts` (guarded) may resolve bare names through it. */
 const LAUNCH_NAME = 'spawnResourceProcess'
+/**
+ * Wrappers that end in a process start, taking the program as their first
+ * argument: `runProgram` (`execFile` with a timeout), `runTreeSync`
+ * (`spawnSync` under the POSIX supervisor), `runResourceCommand` (the
+ * governed runner). A bare call with a literal or a variable command alike
+ * is a spawn the direct-start walk cannot see (round 5: the playbook's bare
+ * `git` variable and the team probes' bare names stayed green).
+ */
+const WRAPPER_NAMES = new Set(['runProgram', 'runTreeSync', 'runResourceCommand'])
 
 interface KnownSpawn {
   /** Guarded in this file, or reviewed with the reason below. */
@@ -108,7 +118,7 @@ const KNOWN: Record<string, KnownSpawn> = {
     kind: 'reviewed',
     anchor: '/bin/ps',
     reason:
-      'fixed /bin/ps and process.execPath supervisor; runProgram callers pass absolute system paths (systemctl probes run with the host cwd, never a workspace cwd)',
+      'fixed /bin/ps and process.execPath supervisor; the supervisor template itself is parsed by the embedded-script check, and runProgram callers pass absolute system paths (systemctl probes run with the host cwd, never a workspace cwd)',
   },
   'src/host/browser/browserProcess.ts': {
     kind: 'reviewed',
@@ -129,6 +139,54 @@ const KNOWN: Record<string, KnownSpawn> = {
     kind: 'guarded',
     anchor: 'fixedGitLocator',
     reason: 'hands spawn + links into createGitProcess with the bound-root-refusing locator',
+  },
+}
+
+const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
+  'src/core/orchestration/playbook/outcomes.ts': {
+    kind: 'guarded',
+    anchor: 'processGitPath',
+    reason: 'git resolved outside the workspace + guarded child env for every effect',
+  },
+  'src/core/orchestration/playbook/modules.ts': {
+    kind: 'guarded',
+    anchor: 'processGitPath',
+    reason: 'git resolved outside the workspace + guarded child env for rename reads',
+  },
+  'src/host/team/processLifetime.ts': {
+    kind: 'guarded',
+    anchor: 'resolveExecutable',
+    reason:
+      'setpriv/systemd-run/systemctl resolved outside the launch cwd + guarded child env (probes on absolute entries only)',
+  },
+  'src/host/team/processOwnership.ts': {
+    kind: 'reviewed',
+    anchor: '/usr/bin/python3',
+    reason: 'fixed /usr/bin/python3 only, empty env',
+  },
+  'src/host/team/windowHints.ts': {
+    kind: 'reviewed',
+    anchor: 'windowsPowerShell',
+    reason: 'absolute SystemRoot PowerShell only, no shell, no workspace cwd',
+  },
+  'src/host/team/orphanRecovery.ts': {
+    kind: 'reviewed',
+    anchor: '/usr/bin/python3',
+    reason: 'fixed /usr/bin/python3 on darwin (Linux reads /proc, no spawn)',
+  },
+  'src/runtime/tokenFile.ts': {
+    kind: 'reviewed',
+    anchor: 'windowsPowerShell',
+    reason: 'absolute SystemRoot PowerShell + fixed /bin/ls only',
+  },
+}
+
+const KNOWN_SCRIPT: Record<string, KnownSpawn> = {
+  'src/host/processTree.ts': {
+    kind: 'reviewed',
+    anchor: 'spec.command',
+    reason:
+      "the POSIX supervisor spawns only its caller's spec.command: every runTreeSync caller resolves that command outside the workspace (wrapper list above)",
   },
 }
 
@@ -331,35 +389,100 @@ function directSpawns(
   return { starts, launches }
 }
 
+/** Bare calls of the process-start wrappers, literal or variable command alike. */
+function wrapperSpawns(file: string, text: string): SpawnSite[] {
+  const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
+  const sites: SpawnSite[] = []
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      WRAPPER_NAMES.has(node.expression.text)
+    ) {
+      const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1
+      sites.push({ line, name: node.expression.text })
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  return sites
+}
+
+/**
+ * Template scripts that start a process of their own: a backtick literal
+ * containing a `spawn(`/`execFile` call (the POSIX tree supervisor keeps
+ * its child in `POSIX_TREE_SUPERVISOR`, where the import walk never sees
+ * it). Tagged templates (`String.raw`) count too.
+ */
+function embeddedScripts(file: string, text: string): SpawnSite[] {
+  const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
+  const sites: SpawnSite[] = []
+  const flag = (node: ts.Node, name: string): void => {
+    const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1
+    sites.push({ line, name })
+  }
+  const visit = (node: ts.Node): void => {
+    let literal: string | undefined
+    if (ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateExpression(node)) {
+      literal = node.getText()
+    } else if (ts.isTaggedTemplateExpression(node)) {
+      literal = node.template.getText()
+    }
+    if (literal !== undefined && (literal.includes('spawn(') || literal.includes('execFile'))) {
+      flag(node, 'embedded-spawn')
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  return sites
+}
+
 /**
  * The inventory, built once at import: walking and parsing the whole tree
  * takes seconds, far past a test's own budget, and the result cannot change
- * mid-suite. Every test reads these two maps.
+ * mid-suite. Every test reads these maps.
  */
 const inventory = ((): {
   readonly starts: Map<string, SpawnSite[]>
   readonly launches: Map<string, SpawnSite[]>
+  readonly wrappers: Map<string, SpawnSite[]>
+  readonly scripts: Map<string, SpawnSite[]>
 } => {
   const starts = new Map<string, SpawnSite[]>()
   const launches = new Map<string, SpawnSite[]>()
+  const wrappers = new Map<string, SpawnSite[]>()
+  const scripts = new Map<string, SpawnSite[]>()
   const root = path.join(__dirname, '..', '..')
   for (const file of walk(SRC)) {
-    // Cheap prefilter: only a file that mentions child_process or the
-    // governed launcher can start a process; only those pay for a parse.
+    // Cheap prefilter: only a file that mentions child_process, the
+    // governed launcher or a wrapper name can start a process; only those
+    // pay for a parse. Embedded scripts are found on the same parse.
     const text = readFileSync(file, 'utf8')
-    if (!text.includes('child_process') && !text.includes(LAUNCH_NAME)) {
+    if (
+      !text.includes('child_process') &&
+      !text.includes(LAUNCH_NAME) &&
+      [...WRAPPER_NAMES].every((name) => !text.includes(name))
+    ) {
       continue
     }
-    const sites = directSpawns(file, text)
     const relative = path.relative(root, file).replaceAll('\\', '/')
+    const sites = directSpawns(file, text)
     if (sites.starts.length > 0) {
       starts.set(relative, sites.starts)
     }
     if (sites.launches.length > 0) {
       launches.set(relative, sites.launches)
     }
+    const wrapperSites = wrapperSpawns(file, text)
+    if (wrapperSites.length > 0) {
+      wrappers.set(relative, wrapperSites)
+    }
+    const scriptSites = embeddedScripts(file, text)
+    if (scriptSites.length > 0) {
+      scripts.set(relative, scriptSites)
+    }
   }
-  return { starts, launches }
+  return { starts, launches, wrappers, scripts }
 })()
 
 function checkInventory(
@@ -417,8 +540,26 @@ describe('PATHGUARD spawn inventory', () => {
     )
   })
 
+  it('every wrapper start is guarded or reviewed', () => {
+    checkInventory(
+      inventory.wrappers,
+      KNOWN_WRAPPER,
+      'unguarded wrapper start: resolve outside the workspace + guarded child env, or review it into the record',
+    )
+  })
+
+  it('every embedded supervisor script is guarded or reviewed', () => {
+    checkInventory(
+      inventory.scripts,
+      KNOWN_SCRIPT,
+      'unguarded embedded spawn: spawn only a caller-resolved absolute command, or review it into the record',
+    )
+  })
+
   it('every listed mechanism is still wired', () => {
     checkAnchors(KNOWN)
     checkAnchors(KNOWN_LAUNCH)
+    checkAnchors(KNOWN_WRAPPER)
+    checkAnchors(KNOWN_SCRIPT)
   })
 })
