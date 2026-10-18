@@ -19,9 +19,9 @@ happened, not what was planned; superseded entries are kept.
   give up and read nothing: it started Windows PowerShell, whose first start
   on a fresh machine (a hosted CI runner) took more than the 10-second bound.
   It now asks Windows directly through a 4.5 KB reader that Windows' own C#
-  compiler builds
-  once into `%LOCALAPPDATA%\Muse Spark Code\native`: about 40 ms a read, and
-  120 to 170 ms the first time, against 340 to 430 ms through PowerShell on
+  compiler builds once into `%LOCALAPPDATA%\Muse Spark Code\native`: about
+  40 ms a read on the machine that measured it, and 120 to 170 ms the first
+  time (the build included), against 340 to 430 ms through PowerShell on
   the same machine.
 
 ### Release infrastructure
