@@ -9,9 +9,11 @@ import { createHash } from 'node:crypto'
 import { createReportCollector, type ReportDraft } from '../../../../src/core/reporting/collect'
 import type {
   PlanFacts,
+  SourceReadContext,
   SourceSnapshot,
   UsageFacts,
 } from '../../../../src/core/reporting/sources/types'
+import { EN } from '../../../../src/shared/l10n/en'
 import type {
   ReportDocument,
   ReportKind,
@@ -200,6 +202,19 @@ export function reportOptions(
     network: false,
     failOn: [],
     ...options,
+  }
+}
+
+/** The read context the kind suites feed a source: the English table on the
+ * fixture clock, in the fixture workspace. */
+export function contextFor(kind: ReportKind): SourceReadContext {
+  return {
+    reportText: EN,
+    locale: 'en',
+    asOf: REPORT_FIXTURE_AS_OF,
+    workspaceKey: 'workspace',
+    options: reportOptions(kind),
+    signal: new AbortController().signal,
   }
 }
 
