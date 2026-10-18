@@ -326,3 +326,37 @@ job's log is not readable from this rig).
   own: each is an earlier process's whose id Windows reused, or one this
   process refused); the test plants such a reader before a rebuild and
   expects only the new reader to remain, with the old sweep as its drill.
+
+## Codex re-review on PR #220 (done, `bdabb7ea1f`)
+
+- **fileLease.test.ts:126.** The exit-259 test now holds the ended
+  child's handle itself: a C# holder built by the inbox compiler starts
+  itself again with `end` (it returns 259), waits for it, prints its id
+  and exit code, and keeps its `Process` object open until the test ends
+  it. No Node exit listener is involved, so a libuv that closes the handle
+  before Node's callback (current v1.x source) cannot empty the test. Red
+  drill, the exit-code check put back in the reader: exit 1 under both
+  Node 24.20.0 ("expected 1792291563835 to be undefined") and Node 22.19.0
+  ("expected 1792291578277 to be undefined"), the 259 test the only
+  failure each time. Reverted byte for byte.
+- **fileLease.test.ts:343.** Fixed at the product's sweep: a build now
+  also removes readers named with this process's own id, so a leftover of
+  an earlier process whose id Windows reused cannot sit beside this
+  process's reader. The tamper test plants such a leftover (named
+  `MuseSparkBirth-<this pid>-<uuid>.exe`) before the rebuild and expects
+  it gone and exactly one reader for this id afterwards. Red drill, the
+  sweep keeping readers named with this process's id: exit 1, only that
+  test failed, at `expect(existsSync(leftover)).toBe(false)`. Reverted
+  byte for byte.
+
+Gates on `bdabb7ea1f`: `prettier --check .` 0; ESLint product code with
+`temp/**` excluded 0; `lint:js:unit` 0; `npm run typecheck` 0;
+`npm run build` 0; `check:host-api` 0; knip 0; cycles 0; jscpd 0 (no
+clones); `fileLease.test.ts` + `runtimePullRequestRecords.test.ts` 0
+(53 passed, 1 skipped).
+
+Ten runs of `test/unit/fileLease.test.ts` on `bdabb7ea1f` (runs 1 to 5
+each with a fresh data folder, 6 to 10 sharing one; `TEMP`, `TMP` and
+`LOCALAPPDATA` inside the worktree's `temp/`): every run exited 0 with 31
+passed and 1 skipped, both Windows tests included. "Reads this process's
+birth from the system" took 271 248 285 251 287 253 255 255 250 262 ms.
