@@ -617,6 +617,12 @@ happened, not what was planned; superseded entries are kept.
   the 10-second bound, so the read came back empty and a lease test failed.
   Not yet run in the packed product.
 
+- On Windows, a browser check could end at once with "unrecognized" although
+  nothing was wrong with the browser: the check read the browser's process
+  list before the browser had started its network service. It now waits for
+  that service, within the check's own time and Stop, before it reads it;
+  what it requires of the browser is unchanged.
+
 ### Packaging
 
 - The Get Started walkthrough's four screenshots ship as lossless WebP
