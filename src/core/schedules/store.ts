@@ -22,6 +22,7 @@ import { scheduleEventSchema } from '../../shared/scheduleEvents'
 import { createScheduleJournal, parseScheduleStoredJson, type ScheduleFsPort } from './journal'
 import { scheduleMigrationReceiptSchema, type ScheduleMigrationJournalPort } from './migrate'
 import { validateScheduleSettlement } from './fireRecord'
+import { isStoreErrorCode } from '../../host/backend/storeErrors'
 
 export interface ScheduleQueuePort {
   /** One dispatcher per target, held until final settlement. */
@@ -108,12 +109,24 @@ export interface ScheduleRunJournalPort {
   acknowledged(workspaceKey: string, runId: string): Promise<ScheduleFireRecord | undefined>
   maintain(workspaceKey: string, now: number): Promise<void>
 }
+/**
+ * The one expected answer for a process that cannot be: ESRCH or EINVAL
+ * reads as not alive, EPERM (alive but unsignallable) as alive. Anything
+ * else keeps its kind for the caller instead of guessing the process
+ * either way.
+ */
+function isAbsentProcess(error: unknown): boolean {
+  return isStoreErrorCode(error, 'ESRCH') || isStoreErrorCode(error, 'EINVAL')
+}
+
 export function isScheduleProcessAlive(pid: number): boolean {
   try {
     process.kill(pid, 0)
     return true
   } catch (error: unknown) {
-    return !(error instanceof Error && 'code' in error && error.code === 'ESRCH')
+    if (isAbsentProcess(error)) return false
+    if (!isStoreErrorCode(error, 'EPERM')) throw error
+    return true
   }
 }
 function ordered(a: ScheduleRunIntent, b: ScheduleRunIntent): number {
@@ -229,6 +242,8 @@ export function createScheduleStore(
         try {
           await fs.remove(`${workspaceKey}/fires/${scheduleStorageHash(entry.fire.runId)}.json`)
         } catch {
+          // Pruning is debt: a fire left behind is retried on the next
+          // maintain, so a failed entry waits instead of failing the prune.
           continue
         }
       }
@@ -630,6 +645,8 @@ export function createScheduleStore(
             await fs.publish(`${fenceFolder(runId)}.applied`, '')
             Reflect.deleteProperty(value.finalizations, runId)
           } catch {
+            // The applied marker is debt: an unpublished finalization stays
+            // queued for the next maintain instead of failing this one.
             continue
           }
         }
@@ -661,18 +678,22 @@ export function createScheduleStore(
               try {
                 await fs.remove(`${folder}/${segment}/${name}`, false)
               } catch {
+                // Retirement is debt: a claim left behind keeps the entry
+                // for the next maintain instead of deleting around it.
                 isRetired = false
               }
             }
             try {
               await fs.remove(`${folder}/${segment}`, false)
             } catch {
+              // As above: an undeleted segment keeps the entry for retry.
               isRetired = false
             }
           }
           try {
             await fs.remove(folder, false)
           } catch {
+            // As above: an undeleted folder keeps the entry for retry.
             isRetired = false
           }
           if (isRetired) Reflect.deleteProperty(value.retirements, id)
