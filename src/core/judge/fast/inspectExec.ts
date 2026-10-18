@@ -110,7 +110,10 @@ function json(line: string): unknown {
   try {
     const value: unknown = JSON.parse(line)
     return value
-  } catch {
+  } catch (error: unknown) {
+    // JSON.parse throws only SyntaxError for text input: a malformed
+    // protocol line decodes to nothing, and anything else surfaces.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }
@@ -128,7 +131,13 @@ export class InspectRunner {
     try {
       await launched.stop()
     } catch {
-      launched.child.kill('SIGKILL')
+      // A graceful stop that fails escalates to SIGKILL; the close handler
+      // settles the outcome however stopping ends.
+      try {
+        launched.child.kill('SIGKILL')
+      } catch {
+        // Already exited: nothing to stop.
+      }
     }
   }
 
@@ -344,7 +353,7 @@ export class InspectRunner {
         try {
           resolve(await readiness)
         } catch (error: unknown) {
-          reject(error instanceof Error ? error : new Error('confinement'))
+          reject(error instanceof Error ? error : new Error('confinement', { cause: error }))
         } finally {
           combined.removeEventListener('abort', aborted)
         }
