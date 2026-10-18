@@ -110,8 +110,9 @@ export function execArguments({ agentJs, paths, inputs }) {
     '--ephemeral',
     '--max-budget-usd',
     inputs.maxBudgetUsd,
-    '--max-requests',
-    String(inputs.maxRequests),
+    // No request limit unless the person set max-requests (null): only then
+    // is the flag forwarded, like --model and --effort below.
+    ...(inputs.maxRequests === null ? [] : ['--max-requests', String(inputs.maxRequests)]),
     '--timeout',
     String(inputs.timeoutMinutes * SECONDS_PER_MINUTE),
     '--prompt-file',
