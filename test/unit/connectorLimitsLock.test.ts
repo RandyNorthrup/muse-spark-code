@@ -2,9 +2,9 @@
 // the real ConnectorStore on a real folder. Two stores on one folder stand
 // for two server processes of one grant, and a planted lock file is a
 // crashed or foreign holder's leftover, given as data. (RVMSM124: the cases
-// that staged interleavings by holding real fs calls through a vi.mock, or
-// by replacing Date.now, are deleted under the owner's testing rules; the
-// takeover protocol they probed is exercised here only as far as real
+// that staged interleavings by holding real fs calls behind test doubles,
+// or by replacing Date.now, are deleted under the owner's testing rules;
+// the takeover protocol they probed is exercised here only as far as real
 // files and real processes can stage it.)
 import { spawnSync } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises'

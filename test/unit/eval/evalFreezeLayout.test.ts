@@ -40,12 +40,11 @@ function repoRoot(): string {
 }
 
 function trackedFiles(repo: string): string[] {
-  return (
-    execFileSync('git', ['-C', repo, 'ls-files', '-z'], { encoding: 'utf8' })
-      // eslint-disable-next-line unicorn/prefer-unicode-code-point-escapes -- the brief mandates \x00 text where the literal NUL stood
-      .split('\x00')
-      .filter((file) => file !== '')
-  )
+  // `git ls-files -z` separates entries with a NUL byte; split on the
+  // character itself so no escape spelling is needed.
+  return execFileSync('git', ['-C', repo, 'ls-files', '-z'], { encoding: 'utf8' })
+    .split(String.fromCodePoint(0))
+    .filter((file) => file !== '')
 }
 
 function gitNested(nested: string, args: readonly string[]): void {
