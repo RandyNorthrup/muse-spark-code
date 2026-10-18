@@ -242,6 +242,19 @@ found 9 failures; the 4 from this lane (lazy registry, packaged bundles,
 lazy bundle files, money guard) are fixed, the other 5 are the three above
 plus `test/e2e/reports.e2e.test.ts` (Windows symlink permission).
 
+## Codex threads on PR #217 (lane PR217FIX, 2026-10-17): disposition
+
+One line per thread; fixes land below, answers cite the measurement.
+
+- `dailySpend.ts:6` concurrent admission — ANSWER: D121 supersedes the cross-process admission lock ("the atomic claim journal, its cross-process admission lock …", PLAN.md D121); the daily total is lock-free by design, and the next request is the one stopped.
+- `paidDailyBudget.ts:106` unknown charge blocks — ANSWER: D121 ("a response without usage is cost unknown and adds nothing") plus the resolved LEDGER question in PLAN.md §3 (the owner chose not to count an unresolved reservation at all); blocking or bounded liability is the removed behaviour.
+- `runtimeAccountingEntry.ts:625` swallowed settle failure — FIX: preserve the rejection instead of the no-op retry.
+- `fileSessionStore.ts:497` concurrent session-spend increments — FIX: merge deltas instead of keeping the larger snapshot.
+- `execArgs.ts:248` output-token floor — FIX: parse at 1; the selected model's own policy minimum applies at admission (`runLedger.admitResponse` already floors qualified refs at 1).
+- `configured.ts:554` injected-transport dispatch state — FIX: an injected-send failure keeps ambiguous liability instead of `not_sent`.
+- `dailySpend.ts:43` legacy current-day journal — FIX: compatibility read of the legacy current-day total.
+- `paidDailyBudget.ts:306` unknown charges in Account & usage — FIX: surface the unknown-charge count in `readToday`.
+
 ## Left undone, named plainly
 
 - The `120` key in `C:\Users\Randy\AppData\Local\Muse Spark Code\settings.json`
