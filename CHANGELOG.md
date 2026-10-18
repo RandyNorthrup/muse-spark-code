@@ -15,6 +15,10 @@ happened, not what was planned; superseded entries are kept.
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
 
+- Report a Problem on agent-driven surfaces (including the companion panel)
+  now opens the dialog instead of failing to load it: the ACP package ships
+  the report bundle the agent-side conversation loads on a report request.
+
 ### Pending
 
 - All fourteen translated settings tables now say Muse Code asks before a

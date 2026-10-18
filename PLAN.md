@@ -34380,6 +34380,26 @@ and are not transferred or accepted as complete by these launcher repairs.
         count first, use an empty workspace, count from the trace log.
   - [ ] Codex review in one pass per lane class before push.
 
+**MSM104 finish (2026-10-17, lane MSM104 on macmini, branch `ms/msm104`).**
+Merged `cand/MSM104/2` (`7a5f50694`, JetBrains listing) and `cand/MSM104/3`
+(`a90f05df7`, VS listing); all fourteen `cand/MSM104/*` tips are contained
+by ancestry, and `main-now` (`3d30a7321`, 0.18.2) merged as `356690386`.
+Reconciled with main's test overhaul (its deletions stand): removed
+`test/m104`, seven unit suites and the companion e2e that named its deleted
+helpers, and the stale `typecheck:m104` scripts; `test/e2e/panelStdio` stays
+on kept fakes. `src/shared/browser/presentation.ts` was briefly removed and
+restored byte-exact once the failed build proved it is the portable
+presentation entry (manifest-loaded, hence no filename references).
+Connected: `dist/report.js` ships in the ACP package
+(`scripts/lib/acpBundles.mjs`; registry row now `both`), the authenticated
+browser module loader is a listed computed load, the portable graph stays
+out of filename matching so bare `main.js`/`whatsNew.js` resolve to the VS
+Code assets, and `bindAccountsPanelPort` (`src/acp/accounts.ts`) binds U's
+dispatcher to the companion skin with a focused seam test. The installed
+companion accounts route still awaits W's panel mount and P's admission
+binding (M108 handoffs, kept on the tags). Receipts:
+`docs/certification/msm104.md`. M104 stays experimental.
+
 ---
 
 ## 7. Gates
@@ -37423,6 +37443,11 @@ before a repaired one loads (2026-09-30).
 | TRAINDIET location                                                                  | Escape hatch                                                                                          | Reason                                                                                                                                                                                                                                                   | Date       |
 | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/shared/constants.ts` (5 lines), `src/shared/browserCheckConstants.ts` (1 line) | `eslint-disable-next-line unicorn/prefer-string-raw` on plain-string Windows paths and one git regexp | `String.raw` is a call and pins the whole initialiser into every bundle importing the module; the plain strings are byte-identical (verified with node) and drop when unused. `test/unit/bundleDiet.test.ts` fails on any new non-droppable initialiser. | 2026-10-11 |
+
+| MSM104 location                                       | Construct                                                           | Reason                                                                                                                                                                                    | Added      |
+| ----------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/accountsPanelBridge.test.ts` (`emit`)      | `reply as AccountsReply` on the notice publisher double             | Negative probes deliberately push malformed notices past the typed port so the skin's runtime mapping to `unavailable` still executes; no honest publisher can produce them. Test-only.   | 2026-10-17 |
+| `test/unit/accountsPanelBridge.test.ts` (`innerPort`) | `handle as AccountsPanelHandler['handle']` on the dispatcher double | Negative probes deliberately return throwing or malformed payloads past the typed port so the binding's failure mapping still executes; no honest dispatcher can produce them. Test-only. | 2026-10-17 |
 
 ## 9. Security assumptions and accepted residual risk
 
