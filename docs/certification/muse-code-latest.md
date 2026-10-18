@@ -311,3 +311,31 @@ bundle, size/split/globals gates inside). Real-use steps for the lead:
 - Measured on the merged tree (main `81dacaf5a` is an ancestor):
   `modelsActivationBudget` baseline 561,352 B, current 481,225 B,
   growth −80,127 B against the unchanged +3,072 B cap.
+
+## PR206FIX Codex threads (2026-10-18, rig macmini, lane PR206FIX)
+
+Codex review of 2026-10-17 21:10Z; each thread re-checked against this
+branch head (`3229ce356`): none was fixed by a later commit, so each is
+fixed below at its cause.
+
+- T1 (P2, `hooks.ts` process gate): OPEN — `acquireHookProcessSlot` still
+  takes no cap (fixed 4) and the plugin path still calls `acquireCommand`
+  with the default; fix threads `museSpark.hooksMaxRunningCommands`
+  through both gates.
+- T2 (P2, abort wake): OPEN — `onAbort` still splices the waiter without
+  draining; fix reruns the eligible-waiter drain after removing an aborted
+  queue entry.
+- T3 (P1, unreachable MSP wrappers): OPEN in part — the `list*` trio is on
+  the `AgentSession` contract (`agentBackend.ts`), but
+  `importForeignSkills`/`resumeWorkflowRun`/recap/computer-use have
+  neither contract nor production caller; fix wires each through the
+  backend contract, UI surfacing recorded as follow-up scope.
+- T4 (P1, README): OPEN — none of the three settings appears in
+  `README.md`; fix documents defaults, bounds and behavior there.
+- T5 (P2, Stop-setting scope): OPEN — one setting still governs all four
+  sites (one shared constant before `6a14dc657`); fix restores their own
+  limits to the three non-Stop loops so the setting governs only Stop
+  continuations, as documented.
+- T6 (P1, empty captures): OPEN — `task/list` and `plugin/list` fixtures
+  are still empty arrays and the computer-use fixture an error frame;
+  fix captures nonempty/success frames live with Muse Code 1.4.10.
