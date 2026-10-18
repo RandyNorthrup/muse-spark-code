@@ -39,7 +39,7 @@ import {
   TOKENS_PER_MILLION,
   UI_TEXT,
 } from '../shared/constants'
-import { storeErrorCode } from '../host/backend/storeErrors'
+import { isStoreErrorCode, storeErrorCode } from '../host/backend/storeErrors'
 import {
   type RunLedger,
   type ResponseInputBound,
@@ -112,7 +112,7 @@ export function createRuntimeDailyBudget(deps: {
     try {
       text = readFileSync(path.join(deps.dataFolder, RUNTIME_SETTINGS_FILE), 'utf8')
     } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT')
+      if (isStoreErrorCode(error, 'ENOENT'))
         return canonicalUsd(SETTING_DEFAULTS.paidDailyBudgetUsd)
       throw new SpendLedgerError(
         'unreadable',

@@ -1291,8 +1291,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               try {
                 await lifecycle.race(close())
               } catch (error_: unknown) {
+                // A close failure is recorded even when the run already
+                // latched its cause; only the latch stays first-cause-wins.
+                log.error(failureForLog(error_))
                 if (lifecycle.cause === null) {
-                  log.error(failureForLog(error_))
                   lifecycle.latch({ kind: 'internal' })
                 }
               }

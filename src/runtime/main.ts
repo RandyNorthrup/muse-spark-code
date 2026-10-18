@@ -263,8 +263,8 @@ async function loadSecrets(): Promise<SecretStore> {
   })()
   try {
     return await nativeStore.value
-  } catch {
-    throw new StoreUnavailableError()
+  } catch (error: unknown) {
+    throw new StoreUnavailableError({ cause: error })
   }
 }
 const secrets: SecretStore = {
@@ -1282,8 +1282,10 @@ async function main(): Promise<number> {
               else await waitForScheduleWake(dataDir)
             }
           } catch (error: unknown) {
-            const reason =
-              error instanceof Error ? error.message : UI_TEXT.scheduleV2.runtime.invalidRequest
+            const reason = redactWhole(
+              error instanceof Error ? error.message : UI_TEXT.scheduleV2.runtime.invalidRequest,
+              [],
+            )
             writeLine(
               command.options.isJson ? process.stdout : process.stderr,
               command.options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,

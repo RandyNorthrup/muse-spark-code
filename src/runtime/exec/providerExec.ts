@@ -429,8 +429,8 @@ export function pinProviderFetch(
           init?.signal ?? new AbortController().signal,
         )) ?? []
       if (init?.signal?.aborted === true) init.signal.throwIfAborted()
-    } catch {
-      throw new UserRefusalError(UI_TEXT.providerProbeUnreachable, 'not_sent')
+    } catch (error: unknown) {
+      throw new UserRefusalError(UI_TEXT.providerProbeUnreachable, 'not_sent', error)
     }
     if (!isEndpointBindingCurrent(provider, answers))
       throw new UserRefusalError(UI_TEXT.providerProbeRebinding, 'not_sent')
