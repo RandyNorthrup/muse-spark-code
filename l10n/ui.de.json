@@ -1326,6 +1326,7 @@
   "mcpRestartDetail": "Eine laufende Antwort wird abgebrochen; die Unterhaltung wird mit Ihrer nächsten Nachricht fortgesetzt",
   "mcpInvalidUrl": "eine ungültige URL",
   "mcpNoCommand": "kein Befehl",
+  "mcpInvalidJson": "die Datei ist kein gültiges JSON",
   "mcpRestarted": "Muse Code wurde neu gestartet; Ihre nächste Nachricht lädt die Einstellungen in ihrem jetzigen Stand.",
   "mcpDocs": "MCP-Server in Muse Code (Dokumentation)",
   "mcpSignIn": "Anmelden",

@@ -1326,6 +1326,7 @@
   "mcpRestartDetail": "Çalışmakta olan yanıt durur; konuşma sonraki mesajınızla devam eder",
   "mcpInvalidUrl": "geçersiz bir URL",
   "mcpNoCommand": "komut yok",
+  "mcpInvalidJson": "dosya geçerli bir JSON değil",
   "mcpRestarted": "Muse Code yeniden başlatıldı; sonraki mesajınız ayarları şimdiki haliyle yükler.",
   "mcpDocs": "Muse Code'da MCP sunucuları (belgeler)",
   "mcpSignIn": "Oturum aç",

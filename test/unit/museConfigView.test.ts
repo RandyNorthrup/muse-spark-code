@@ -98,7 +98,12 @@ describe('readMcpServers', () => {
 
   it('tells a missing file from an unreadable one and from an empty list', () => {
     expect(readMcpServers(undefined)).toEqual({ status: 'missing' })
-    expect(readMcpServers('{ nope').status).toBe('unreadable')
+    // Malformed text reads as invalid JSON in fixed words, never the
+    // parser's own message.
+    expect(readMcpServers('{ nope')).toEqual({
+      status: 'unreadable',
+      reason: 'the file is not valid JSON',
+    })
     expect(readMcpServers('[1, 2]')).toEqual({
       status: 'unreadable',
       reason: 'the file does not hold a JSON object',

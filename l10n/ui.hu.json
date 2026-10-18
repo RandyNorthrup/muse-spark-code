@@ -1326,6 +1326,7 @@
   "mcpRestartDetail": "Egy éppen futó válasz leáll; a beszélgetés a következő üzenetével folytatódik",
   "mcpInvalidUrl": "érvénytelen URL",
   "mcpNoCommand": "nincs parancs",
+  "mcpInvalidJson": "a fájl nem érvényes JSON",
   "mcpRestarted": "A Muse Code újraindult; a következő üzenete a beállításokat a jelenlegi állapotukban tölti be.",
   "mcpDocs": "MCP-kiszolgálók a Muse Code-ban (dokumentáció)",
   "mcpSignIn": "Bejelentkezés",
