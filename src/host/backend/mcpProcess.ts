@@ -29,6 +29,7 @@ import { absolutePathEntries } from '../../core/executables'
 import { redactSecrets } from '../../core/redact'
 import { MCP_STDIO_ENV_ALLOWLIST, TREE_EXIT_WAIT_MS, UI_TEXT } from '../../shared/constants'
 import { killTree, sweepExitedTree, type TreeRoot, treeSpawnOptions } from '../processTree'
+import { describeStoreError } from './storeErrors'
 import { spawnMcpJob } from './mcpJobLaunch'
 import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
 import { observeResourceProcess } from '../resources/resourceAdmission'
@@ -73,7 +74,9 @@ function queueExitedSweep(
       try {
         await sweepExitedTree(pid, startedAt, diedAt, deps)
       } catch (error: unknown) {
-        deps.log(`the children of an exited MCP server could not be ended: ${String(error)}`)
+        deps.log(
+          `the children of an exited MCP server could not be ended: ${describeStoreError(error)}`,
+        )
       }
     })()
   }
@@ -83,7 +86,9 @@ function queueExitedSweep(
     try {
       await sweepExitedTree(pid, startedAt, diedAt, deps)
     } catch (error: unknown) {
-      deps.log(`the children of an exited MCP server could not be swept: ${String(error)}`)
+      deps.log(
+        `the children of an exited MCP server could not be swept: ${describeStoreError(error)}`,
+      )
     }
   })()
   exitedSweepQueue.current = cleanup

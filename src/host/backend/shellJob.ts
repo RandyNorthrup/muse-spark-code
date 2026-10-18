@@ -32,6 +32,7 @@ import {
 } from '../processTree'
 import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import type { JobHelper } from './jobSource'
+import { describeStoreError, isStoreErrorCode } from './storeErrors'
 import { isResourcePaused } from '../../core/resources/launch'
 
 // The C# (C# 5, which Windows PowerShell 5.1's `Add-Type` compiles) is the
@@ -55,8 +56,12 @@ async function isPresent(file: string): Promise<boolean> {
   try {
     await access(file)
     return true
-  } catch {
-    return false
+  } catch (error: unknown) {
+    // Anything but a missing file is not this probe's to swallow.
+    if (isStoreErrorCode(error, 'ENOENT')) {
+      return false
+    }
+    throw error
   }
 }
 
@@ -104,7 +109,7 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
   } catch (error: unknown) {
     if (isResourcePaused(error)) throw error
     deps.log(
-      `Windows job objects are unavailable (${String(error)}); a stopped command is ended with taskkill and a sweep for its orphans`,
+      `Windows job objects are unavailable (${describeStoreError(error)}); a stopped command is ended with taskkill and a sweep for its orphans`,
     )
     return undefined
   }
