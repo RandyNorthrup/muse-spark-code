@@ -46,9 +46,9 @@ claims checked.
    `npm run build` failed its size gate with two MISS lines. Both bundles
    kept their watch contexts, size budgets, `.vscodeignore`, knip and ACP
    package entries; only the production pool lost them. Two lines restore
-   them beside `reportingPanel`; pool size stays 8. Proven with a
-   local-only What's New relief (finding 1, never committed): the MISS
-   lines are gone. No new unit test: a test asserting bundle-name parity
+   them beside `reportingPanel`; pool size stays 8. Proven by the production
+   `npm run build` size gate: the MISS lines are gone. No new unit test:
+   a test asserting bundle-name parity
    would be a text-existence test, which the repo refuses; the build gate
    itself is the check.
 
@@ -91,27 +91,81 @@ claims checked.
   docs/design/_, docs/testing/_, docs/research/_, judge.md's stated
   qualifications, ci-other-systems.md's stated non-certification.
 
-## Left open (blocking, for the lead)
+## Fixed in words, continued (uncommitted at record time)
 
-1. **`npm run build` fails on the What's New bound — release-blocking.**
-   CHANGELOG `[0.19.0]` alone decodes to 147,798 bytes over the 76,800
-   bound (`WHATS_NEW_CONTENT_DECODE_MAX_BYTES`), so selection throws
-   before any bundle check. 0.19.0's section is 1,908 lines / 254 bullets
-   with 23 `###` subsections (duplicate Added/Fixed/Changed/Pending
-   headers from keep-both merges) — 2.2× the previous largest (0.17.0,
-   865 lines). Per docs/RELEASING.md the fix is trimming the notes, but
-   that destroys shipped history the changelog header promises to keep;
-   raising the bound grows the shipped What's New artifact (40 KiB
-   budget). Either way a release-shape decision, not an audit call.
-2. **Three bundle budgets OVER after the pool fix** (measured with the
-   local-only relief): `dist/conversation.js` 254.9/250 KiB,
-   `dist/modelApi.js` 572.3/525 KiB, `dist/productionAudio.js` 141.2/75
-   KiB (grew 2.4× past its 58.4 KiB measurement as lane V's seams added
-   consent/ledger/budget code to the audio path). Budgets are never
-   raised; this needs diet work (further lazy splits) in its own lane.
-3. `dist/runtime.js` named in the brief does not exist in this tree; the
+8. `CHANGELOG.md` 0.19.0 Highlights 9 → 5 (the What's New cap is five);
+   duplicate/internal subsections removed (`### Documentation`,
+   `### Release infrastructure`, two `### Pending` merges, Other-CI
+   clusters, test-only detail); report-kind, provider, voice and Tab-hook
+   bullets condensed to user-visible behaviour.
+9. `CHANGELOG.md` 0.19.0 media cluster condensed: the lane-V feature
+   bullet (attaching video/audio, transcription ask-first, trusted
+   converter, one-use attachments), the RVMEDIAV byte-integrity fix, the
+   RVMEDIAV2–V4 ownership record, the media-accounting core and the
+   non-Meta video refusal — implementation detail (digest checks, refund
+   paths, bundle KiB trivia, per-surface failure-message enumerations)
+   removed, user outcomes kept.
+10. `CHANGELOG.md` 0.19.0 M123 Git/PR bullet condensed to its user truth
+    (lanes merged and switched off; nothing changes for users yet).
+11. `CHANGELOG.md` 0.19.0: three verbatim cross-release duplicates
+    deleted from the 0.19.0 section only (oldest sections keep the
+    record, verified byte-identical full blocks before removal):
+    the release-train bundle-diet note (states "no user-visible
+    change"), the What's New content-budget mechanism note, and the
+    exact-money Node-version fix round. Plus two small cuts (an
+    internal "Fakes only" line, a duplicated display-table perf line).
+    Two-release What's New plain now 75,956 bytes; 0.19.0 and 0.18.2
+    both ship full, unshortened.
+12. CLI `--help` screens (`node dist/acp.js <command> --help`, built):
+    top-level, `report`, `estimate`, `schedule`, `providers`, `auth`
+    claims checked against `src/runtime/cliArgs.ts` and the code they
+    name — no false claim found. `exec --help` and `scan-secrets --help`
+    print the generic reference text rather than command usage
+    (pre-existing routing, true as written, left alone).
+
+## Fixed in code, continued (uncommitted at record time)
+
+13. `scripts/build.mjs` + `scripts/lib/deferredBundles.mjs` —
+    `productionMediaEntry.ts` was missing from `DEFERRED_OUTFILES`, so it
+    inlined into `modelApi.js` (572.3 KiB) and `productionAudio.js`
+    (141.2 KiB). One mapping row restored: `modelApi.js` 514.9 KiB
+    (cap 525), `productionAudio.js` 66.8 KiB (cap 75).
+14. New `src/host/conversation/conversationTransferEntry.ts` →
+    `dist/conversationTransfer.js` (23.2 KiB, 50 KiB budget): the
+    export/import/share flows (`exportConversation.ts`,
+    `sessionImport.ts`, `sessionTransfer.ts`, `transcriptMarkdown.ts`)
+    lazy-load out of `dist/conversation.js` (254.9 → 241.6 KiB, cap
+    250), following the `conversationGit.js` precedent. Language table
+    installed by the caller (`setUiText(UI_TEXT, uiLocale())`).
+    `scripts/check-bundle-size.mjs` (new 50 KiB budget row),
+    `scripts/check-bundle-split.mjs`, `scripts/check-host-globals.mjs`,
+    `.vscodeignore`, `knip.jsonc` and
+    `src/shared/lazyBundles.generated.ts` updated for the new bundle.
+    An experimental `sandboxReadiness.ts` extraction that saved nothing
+    was fully reverted.
+15. `src/host/conversation/conversationController.ts` — the new
+    `loadTransfer()` call sites assigned the awaited bundle before member
+    access (`unicorn/no-await-expression-member`) and the memoized
+    `transferBundle` field sits with the other private fields beside
+    `reportHandler` (`unicorn/consistent-class-member-order`).
+
+## Limits-as-features report (brief item 3)
+
+No limit of ours is described as a feature in 0.19.0's person-facing
+words. Every bound a person reads is either a provider's published limit
+(the media/table rows verified against the repo's Meta records above)
+or a person-settable setting with its default named (hooks 1–8 default
+8, subagents 1–64 default 8, media expiry 1–30 default 7, Tab spend
+defaults). No code change was needed.
+
+## Left open (for the lead)
+
+1. `dist/runtime.js` named in the brief does not exist in this tree; the
    shipped binary is `dist/acp.js` (`scripts/package-acp.mjs` bin). Help
    screens were audited there.
-4. No en.ts string changed, so no pack regeneration was needed; `npm run
+2. No en.ts string changed, so no pack regeneration was needed; `npm run
 check:l10n` covers the walkthrough edit (walkthrough pages ship
    untranslated by design).
+3. Thin budget headroom after the diet: `productionAudio.js` 66.8/75
+   KiB, `modelApi.js` 514.9/525 KiB. Future merges may re-overflow;
+   budgets stay as committed.
