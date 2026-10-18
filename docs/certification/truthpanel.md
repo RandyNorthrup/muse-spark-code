@@ -65,3 +65,23 @@ this conversation.` — plus the same key in all 14 `l10n/ui.*.json`, each
 What the person sees now: Retry (or Continue) on a departed agent —
 `The agent command was refused: That agent is no longer in this conversation.`
 (in their display language).
+
+## Gate record (final tree, this rig)
+
+- prettier (changed files): clean.
+- eslint `--max-warnings=0` (4 changed source/test files): clean.
+- typecheck (all 5 projects): exit 0.
+- check:l10n: 0 problems. check:plan: 0 drift. check:reference: current.
+- build: exit 0, size caps hold.
+- deadcode (knip): exit 0. cycles: no circular dependency. duplication
+  (jscpd): 0 clones. check:host-api: 0 problems.
+- security:sast: 533 rules on 3265 files, 0 findings. security:audit:
+  exit 0 (2 advisories, both in `.github/audit-exceptions.json`).
+- `test/unit/panelRetryTruth.test.ts`: 3/3 pass (repo default timeout);
+  seen to fail on the planted checkpoint-blame (1 failed), reverted green.
+- `vitest related` over the three changed source files: 286 files pass,
+  5433 tests pass; the single failing file is
+  `test/unit/inspectNative.test.ts` (18 tests, native-helper boundary:
+  `cat` refused as `systemFile`, exit 125) — measured identical (18
+  failed / 4 passed) on the untouched base 81dacaf5a7 in a clean worktree,
+  so pre-existing and environmental to this rig.
