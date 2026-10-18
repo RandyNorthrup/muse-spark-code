@@ -95,7 +95,7 @@ export async function metadataGit(
     names = await runGit([...GIT_METADATA_OPTIONS, ...GIT_FILTER_NAMES_ARGS], cwd)
   } catch (error: unknown) {
     // `config --get-regexp` exits 1 when no filter is configured.
-    if (gitExitCode(error) !== 1) {
+    if (!isExitCode(error, 1)) {
       throw error
     }
     names = ''
@@ -337,6 +337,15 @@ export function gitExitCode(error: unknown): number | undefined {
     typeof error.code === 'number'
     ? error.code
     : undefined
+}
+
+/**
+ * Whether the failed call exited with `code` (1: `config --get-regexp`
+ * found no filter): the catch-gate-visible form of the one handled case,
+ * with exactly the same answer as `gitExitCode` on every input.
+ */
+function isExitCode(error: unknown, code: number): boolean {
+  return gitExitCode(error) === code
 }
 
 /** git ended with a non-zero exit code: the code and what it said (capped). */
