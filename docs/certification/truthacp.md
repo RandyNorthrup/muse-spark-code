@@ -180,6 +180,24 @@ or its current state."` — the unknown-agent pre-check, unchanged by
   to fix there; the lane's gates run locally (format, eslint zero warnings on
   changed files, typecheck, check:plan, check:l10n, build, changed suites).
 
+## PR238W1 gate record (final tree, linuxlt)
+
+- `npx vitest run test/unit/playbookSurface.test.ts
+test/unit/providerRefusals.test.ts --maxWorkers=3` (repo default timeout,
+  no flags): 2 files, 49 tests passed.
+- Fire proofs: the corrupt-bind test fails with the surface-construction
+  catch reverted (transport rejection instead of unavailable); the uncertain
+  tripwire fails with 400 added to its list.
+- `npm run typecheck` (all five projects): 0. eslint on changed files: 0
+  errors, 0 warnings. prettier check on changed files: clean.
+  `node scripts/check-l10n.mjs`: 0 problems. `npm run check:plan`: 0 drift.
+  `npm run build` (production + size/split budgets): 0.
+- Read-back rule: the committed diff of `63e2407e4b` matches the authored
+  edits; the hook's eslint --fix/prettier pass changed nothing.
+- Not run here: the packed-product person steps (registry denial → offline
+  report; retry messages) need the lead's live pass; `security:sast` stays
+  with the lead per the macmini record (semgrep crashes in sandboxes).
+
 ## Gate exit codes (final tree, macmini)
 
 - `npm run typecheck` (all five projects): 0.
