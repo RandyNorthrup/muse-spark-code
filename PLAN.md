@@ -1529,7 +1529,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 
 **FIXM106L1 (2026-10-06):** the complete argument-preview UI entry is independently bounded at 25 KiB: 648 bytes measured, plus 15%, rounded to 25 KiB. Only its new entry moves out of the deferred group; shared/static dependencies retain their existing startup and deferred caps.
 
-**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB on 2026-10-06 by the same rule; separate from the unchanged unclassified deferred group; D119 re-baseline 2026-10-17: 26,410 bytes measured with the worded refusal in the closure, plus 15%, rounded up to 30 KiB)
+**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB on 2026-10-06 by the same rule; separate from the unchanged unclassified deferred group; D119 re-baseline 2026-10-17: 26,410 bytes measured with the worded refusal in the closure, plus 15%, rounded up to 30 KiB; re-measured 26,418 on 2026-10-18 after the port `report` channel, same 30 KiB row)
 
 **`dist/reference.js` budget rationale.** (M117: the generated help reference; the estimator feature, command and settings rows bring it to 100.7 KiB on 2026-10-07, plus 15%, rounded up to 25 KiB)
 

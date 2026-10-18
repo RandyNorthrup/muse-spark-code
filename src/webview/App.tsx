@@ -1077,6 +1077,12 @@ export function App({
           estimateSubscribers.current.delete(listener)
         }
       },
+      // A foreign estimate failure the panel already said in words keeps its
+      // kind past the panel through the host log (D119), like any other
+      // rejected webview promise.
+      report: (error) => {
+        postMessage(webviewErrorReport('promise', error))
+      },
       startExisting: (_section, setup) =>
         new Promise<void>((resolve, reject) => {
           const requestId = `estimate-start-${String(++estimateSequence.current)}`

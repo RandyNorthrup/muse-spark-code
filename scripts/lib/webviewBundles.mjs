@@ -322,8 +322,10 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     // D119 (2026-10-17): the estimator's own worded refusal
     // (`isEstimateRefusal`/`estimateRefusalDetail` in `src/shared/estimate.ts`)
     // runs in the panel's and composer's catch handlers, so it stays in this
-    // closure: 26,410 bytes measured on `fix/catch-money-final` x 1.15 =
-    // 30,371.5 bytes = 29.66 KiB, so 30 KiB by the same rule.
+    // closure; the panel hands a foreign failure to the host log through the
+    // port's `report` (2026-10-18), which lands in the same closure:
+    // 26,418 bytes measured on `fix/catch-money-final` x 1.15 = 30,380.7
+    // bytes = 29.67 KiB, so 30 KiB by the same rule.
     name: 'estimator panel',
     entries: [
       'src/webview/estimator/EstimatorPanel.tsx',
