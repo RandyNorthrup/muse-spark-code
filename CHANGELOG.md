@@ -144,6 +144,11 @@ happened, not what was planned; superseded entries are kept.
   Linux sandbox probe into its record: `bwrap` resolves through absolute
   PATH entries only, a binary inside the workspace is refused, and the
   spawn itself carries the absolute path with no shell. No behaviour change.
+- A refused ACP `session/delete` no longer drops the open session: on a
+  backend whose CLI serves no `session/delete` (Muse Code 1.4.4 on), the
+  refusal used to release the held conversation first, so the next prompt
+  answered "Resource not found". The capability is now checked first and
+  the held session stays usable.
 
 ### Packaging
 
