@@ -619,3 +619,31 @@ by the same rule: 26,410 x 1.15 = 30,371.5 bytes = 29.66 KiB, so 30 KiB
 (`scripts/lib/webviewBundles.mjs`, rationale beside the row and PLAN.md
 §2). The gate fired red on the old row on this tree before the change and
 is green after; no source bytes changed, only the row.
+
+## PR161FIN estimator panel foreign-failure channel (2026-10-18, D119)
+
+`test/unit/estimatorPanel.test.tsx` failed deterministically: 2 passed with 1
+unhandled error, exit 1. The panel's run boundary rethrew a foreign failure
+past `void run()` so the document's ambient `unhandledrejection` hook would
+hand it to the host log; with no such hook in the vitest jsdom document the
+rejection floats (a window-level listener probe confirmed the harness never
+delivers test-realm rejections to `unhandledrejection`). The panel now hands
+a foreign failure to the host log through the port's `report` instead —
+`src/webview/App.tsx` implements it with the same `webviewErrorReport`
+`promise` post the question surface uses — following the codebase's own
+shape (`onShareSectionError`, `onQuestionAction`), so the kind no longer
+depends on an ambient hook. The spin-up boundary takes the same channel.
+`npm run check:catches` still exits 0 with the baseline byte-identical (both
+sites stay NARROW: the `report` call is an error-sink call carrying the
+cause). The panel test asserts both halves with real code: the refusal says
+its words and reports nothing; the foreign failure says failed and the
+reported error is the failure itself by identity. Closure re-measured at
+26,418 bytes (+8) with the repo's own grouping function: 26,418 x 1.15 =
+30,380.7 bytes = 29.67 KiB, so the 30 KiB row stands (4,302 bytes of
+headroom); the row comment and PLAN.md §2 carry the new measurement.
+
+Ratchet red drill on the final tree (2026-10-18): a scratch
+`src/__drill-scratch.ts` with one new `catch { return 'failed' }` makes
+`npm run check:catches` exit 1 with `src/__drill-scratch.ts:5: new GENERIC
+catch site; handle or report the failure`; removing the file restores exit
+0 with the baseline byte-identical.

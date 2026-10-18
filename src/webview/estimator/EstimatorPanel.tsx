@@ -40,6 +40,13 @@ export interface EstimatorPanelPort {
   estimate(request: EstimateRequest, signal: AbortSignal): Promise<unknown>
   /** Validated refreshed sections from U's view session, bound to M115 by W. */
   subscribe(listener: (section: unknown) => void): () => void
+  /**
+   * The host log's copy of a failure the panel already said in words: the
+   * run and spin-up boundaries hand a foreign failure here with its kind
+   * (D119). The host reports it through its webview-error channel, so the
+   * kind never depends on the document's ambient unhandled-rejection hook.
+   */
+  report(error: unknown): void
   startExisting?(section: EstimateSection, setup: EstimateSection['setups'][number]): Promise<void>
   price?(price: CatalogPrice): string
   readonly provision:
@@ -216,8 +223,8 @@ export default function EstimatorPanel({
     } catch (error: unknown) {
       // A cancelled run stays silent: a stillborn run reads failed. The
       // estimator's own refusal keeps its detail in words; anything else
-      // reads failed, and keeps its kind past the panel for the host log
-      // (D119).
+      // reads failed, and keeps its kind past the panel through the port's
+      // report for the host log (D119).
       if (controller.signal.aborted) return
       if (error instanceof DOMException && error.name === 'AbortError') return
       if (isEstimateRefusal(error)) {
@@ -226,7 +233,7 @@ export default function EstimatorPanel({
         return
       }
       setError(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
-      throw error
+      port.report(error)
     } finally {
       if (pending.current === controller && !controller.signal.aborted) setBusy(false)
     }
@@ -252,8 +259,8 @@ export default function EstimatorPanel({
       else if (port.provision.state === 'ready') await port.provision.spinUp(section, setup)
     } catch (error: unknown) {
       // An unstarted run reads failed in its own refusal's words; anything
-      // else reads failed, and keeps its kind past the panel for the host
-      // log (D119).
+      // else reads failed, and keeps its kind past the panel through the
+      // port's report for the host log (D119).
       if (isEstimateRefusal(error)) {
         const refusal = estimateRefusalDetail(error)
         if (cycle === spinCycle.current)
@@ -262,7 +269,7 @@ export default function EstimatorPanel({
       }
       if (cycle === spinCycle.current)
         setError(fill(UI_TEXT.estimateFailed, { detail: 'start-unavailable' }))
-      throw error
+      port.report(error)
     } finally {
       if (cycle === spinCycle.current) setSpinning(false)
     }
