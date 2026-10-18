@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { buildPalette } from '../../src/shared/paletteRegistry'
 import { render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import type { PaletteContext } from '../../src/shared/palette'
@@ -48,10 +48,10 @@ function propsFor(overrides: Partial<PaletteProps> = {}): PaletteProps {
     groups: buildPalette(context),
     models: context.models,
     currentModelId: 'muse-spark-1.3',
-    onAction: vi.fn(),
-    onSelectModel: vi.fn(),
-    onBack: vi.fn(),
-    onClose: vi.fn(),
+    onAction: () => undefined,
+    onSelectModel: () => undefined,
+    onBack: () => undefined,
+    onClose: () => undefined,
     ...overrides,
   }
 }
