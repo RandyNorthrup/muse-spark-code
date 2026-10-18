@@ -227,3 +227,15 @@ anywhere; no check weakened to pass; no stand-in kept.
   touched files; `prettier --check` clean on the touched TS files (no
   Prettier parser exists for `.cs`; the one-line C# edit follows the
   file's own style).
+- Pre-existing, not this lane: `npm run check:reference` fails with
+  `Catalogue asserts conditional state: museSpark.vault.enabled`, measured
+  identical on the pristine base (`f44f54120d`, separate worktree, same
+  command) and on this lane's tree — none of this lane's files feeds the
+  catalogue. Left red for the lead; weakening the gate is forbidden and a
+  catalogue fix is outside this lane's three findings.
+- Pre-existing, not this lane: `npm run duplication` reports 37 clones
+  (0.11%) over its 0.0% threshold, but no reported clone range intersects
+  any line this lane added or changed (relay-test hunks at 66-74 and
+  179-192 vs clones at 91-104, 122-156, 169-178; broker-process hunk at
+  220-229 vs clones at 116-185; no clones in the other touched files).
+  This lane adds zero clones; the red predates it.
