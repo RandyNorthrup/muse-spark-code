@@ -322,3 +322,32 @@ lock came back.
   background job and its files had been in the session scratchpad; the job
   was stopped, its files were already gone, and nothing was written there
   or in `muse-fleet\tmp` afterwards.
+
+## PR217FIX2 — Codex re-review threads (2026-10-18, lane PR217FIX2)
+
+One line per thread: the two-window spend base is each window's own unmerged
+total stored after the write lands; the upgrade-day legacy read counts only
+settled charges; a resolved provider policy replaces the cached pre-resolution
+output cap; a model present only under `catalog.unpriced` keeps its no-price
+warning. Red drills: each fix reverted alone, the new test fails as quoted,
+the fix restored, green rerun.
+
+| Thread                                  | Fix                                                                                                                                                                                                                                                                                                                                                                                                                      | Test                                                                                                                                                 | While broken                                                         |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `fileSessionStore.ts:526` (security P2) | The save stored the merged file total as the window's base, dropping that window's next increment. The base is now the window's own unmerged `incomingSpend`, stored only after `writeFileAtomically` lands (a failed save no longer advances the base either)                                                                                                                                                           | `fileSessionSpend.test.ts`: two windows load 1 and save 3/5 (file 7), then the second saves 6 — the file holds 8                                     | `expected '7' to be '8'`, the thread's own numbers                   |
+| `dailySpend.ts:152` (P1)                | The upgrade-day fallback added an open claim's `reservedUsd` to `spentUsd`. D121: a reservation is never spend (the old ledger's own stop text subtracted held), so only `settledUsd` enters the migrated total — a dead process's unsettled claim no longer stops paid requests until midnight                                                                                                                          | `dailySpend.test.ts`: legacy seed 2.5 + settled 1.25 reads 3.75 (was 4.25), a new 0.75 settles to 4.5; the open 0.5 stays out                        | `expected { spentUsd: '4.25' } to deeply equal { spentUsd: '3.75' }` |
+| `runExec.ts:1222` (P1)                  | The start line's no-arg `outputCap()` ran before model resolution and the `??=` cache pinned the global Model API cap; the model bind's resolved policy (`wrap` → `modelOutputMaxTokens`, plus every request body) could not replace it. New `createExecOutputCap` in `runLedger.ts` (used by `runExec`): a passed policy always recomputes and replaces the cache, so admission and bodies reserve the provider maximum | `runLedger.test.ts`: no-arg reads 32768, the resolved 16384-maximum policy reads 16384, later no-arg reads keep 16384; an explicit flag still floors | `expected 32768 to be 16384`                                         |
+| `providerExec.ts:199` (P2)              | `isModelUnpriced` treated an `unpriced` catalogue entry as price evidence. It is capability evidence only — configured resolution still leaves the model unpriced and an exec run refuses it — so only a priced record or a user-entered price suppresses the warning in `providers add`, `test` and `list`                                                                                                              | `providerUnpriced.test.ts`: unpriced-only warns; priced, user-priced, custom and keyless stay silent                                                 | `expected false to be true`                                          |
+
+Correction to the earlier row (`dailySpend.ts:43`): "open reservations as
+the old total counted them" was wrong — the pre-D121 ledger subtracted held
+from spend in its stop text, and D121 settled that a reservation is never
+spend. The migrated total is seed plus settled only.
+
+Gates on the final tree: typecheck (all projects) 0, eslint zero warnings on
+all nine changed files, prettier clean, `check:plan` 0 drift, `check:l10n` 0
+problems, `npm run build` green, suites `fileSessionSpend` (3),
+`dailySpend` (5), `runLedger` (47) and `providerUnpriced` (3) all pass with
+the repository's own timeout. Commits `11f98e72b` (threads 1–2) and
+`5b72b8607` (threads 3–4); the second commit's hook run of `eslint --fix`
+was re-read and changes nothing of logic.
