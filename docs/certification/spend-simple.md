@@ -351,3 +351,32 @@ problems, `npm run build` green, suites `fileSessionSpend` (3),
 the repository's own timeout. Commits `11f98e72b` (threads 1–2) and
 `5b72b8607` (threads 3–4); the second commit's hook run of `eslint --fix`
 was re-read and changes nothing of logic.
+
+## PR217FIX3 — triage, one line per thread (2026-10-18, lane PR217FIX3)
+
+The brief lists 8 `###` lines; one is the security-review section header,
+so there are 7 file threads. Threads 1–4 were fixed and red-drilled on this
+branch under PR217FIX2 (commits `11f98e72b`, `5b72b8607`); threads 5–7 are
+open and were re-verified against the current tree below.
+
+- `fileSessionStore.ts` (security P2, two-window base): already fixed by
+  `11f98e72b` — the base is each window's own unmerged `incomingSpend`,
+  stored only after the write lands.
+- `dailySpend.ts` (P1, open legacy reservations): already fixed by
+  `11f98e72b` — only `settledUsd` enters the migrated total.
+- `runExec.ts:1215` (P1, output cap caching): already fixed by `5b72b8607`
+  — a resolved provider policy replaces the cached cap.
+- `providerExec.ts` (P2, unpriced catalogue): already fixed by `5b72b8607`
+  — an `unpriced`-only entry no longer suppresses the no-price warning.
+- `providerExec.ts:205` (P2, plan presets): OPEN — `isModelUnpriced` returns
+  true for `mistral-plan` with an unpriced-only model while
+  `configured.ts:806` assigns `{ kind: 'plan' }`, so add/test/list warn for
+  a model the run never refuses as unpriced.
+- `ModelApiHost.ts:16603` (P1, legacy session totals): OPEN — pre-D121
+  `snapshot()` added the open reservation into the saved `budgetSpentUsd`
+  (`b6ba938849^:16708-16713`) and `adopt` takes the stored value whole, so
+  the phantom survives the upgrade.
+- `ModelApiHost.ts:16400` (P2, unknown charges row): OPEN — `usageBudget()`
+  returns only settled `budgetSpentUsd` while `addSpend` records only the
+  `hasUnknownBudgetCost` boolean; the schema (`usagePage.ts:91`) and both
+  renderers already carry `unknownChargeCalls` for the daily row.
