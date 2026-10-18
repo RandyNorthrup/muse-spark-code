@@ -162,6 +162,10 @@ export function createSubscriptionFeatures(options: {
         ? createSubscriptionClient(meta, {
             fetch: fetcher,
             hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
+            // Lane PR225W1: the plan routes answer the person's setting.
+            ...(options.personMaxRetries !== undefined && {
+              personMaxRetries: options.personMaxRetries,
+            }),
             chatgpt,
             accountId,
             providers: async () =>

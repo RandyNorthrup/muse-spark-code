@@ -348,8 +348,12 @@ export class ModelApiClient implements TransportProviderClient {
     return this.transport.backoffMs(attempt, undefined)
   }
 
-  /** This client's effective retry limit (see `ProviderClient.maxRetries`). */
-  public maxRetries(): number | undefined {
+  /**
+   * This client's effective retry limit (see `ProviderClient.maxRetries`).
+   * Meta serves its own models only, so the selected model does not change
+   * the answer; an aggregate client reads it instead (PR #225).
+   */
+  public maxRetries(_modelId?: string): number | undefined {
     return this.transport.maxRetries()
   }
 

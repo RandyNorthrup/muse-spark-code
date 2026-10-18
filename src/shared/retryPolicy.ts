@@ -168,15 +168,20 @@ export const PROVIDER_RETRY_LIMITS: Record<RetryFormat, RetryLimits> = {
 export const META_DOCUMENTED_RETRY_LIMITS: RetryLimits = { maxRetries: 4 }
 
 /**
- * The retries one call may use: the person's setting when set, else the
- * provider's documented maximum, else undefined (unbounded: the provider's
- * own Retry-After waits and stop answers govern the loop).
+ * The retries one call may use: the person's setting caps the provider's
+ * documented maximum (it reduces that provider-defined limit but never
+ * raises it), the person's value decides alone where the provider
+ * documents none, and undefined (unbounded: the provider's own Retry-After
+ * waits and stop answers govern the loop) where neither sets one.
  */
 export function effectiveMaxRetries(
   personMaxRetries: number | undefined,
   documented: RetryLimits | undefined,
 ): number | undefined {
-  return personMaxRetries ?? documented?.maxRetries
+  const providerMaxRetries = documented?.maxRetries
+  return personMaxRetries !== undefined && providerMaxRetries !== undefined
+    ? Math.min(personMaxRetries, providerMaxRetries)
+    : (personMaxRetries ?? providerMaxRetries)
 }
 
 /**

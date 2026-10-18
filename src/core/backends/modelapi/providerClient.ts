@@ -69,12 +69,14 @@ export interface ProviderClient {
   retryDelayMs(attempt: number): number
   waitBeforeRetry(ms: number, signal: AbortSignal): Promise<void>
   /**
-   * The retries one call may use (lane RETRYLIMITS): the person's
-   * `museSpark.modelApiMaxRetries` setting when set, else the provider's
-   * documented maximum, else undefined (unbounded: the provider's own
-   * Retry-After waits and stop answers govern the loop).
+   * The retries one call may use (lane RETRYLIMITS, PR #225): the person's
+   * `museSpark.modelApiMaxRetries` setting caps the provider's documented
+   * maximum (never raises it), decides alone where the provider documents
+   * none, else undefined (unbounded: the provider's own Retry-After waits
+   * and stop answers govern the loop). The selected model rides along so
+   * an aggregate client answers for the provider that handled the request.
    */
-  maxRetries(): number | undefined
+  maxRetries(modelId?: string): number | undefined
 }
 
 export interface ProviderModel {
