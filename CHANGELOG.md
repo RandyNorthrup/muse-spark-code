@@ -214,6 +214,17 @@ happened, not what was planned; superseded entries are kept.
   instead of a bare "Internal error", and `providers list`
   and `exec --provider` print the reason instead of "Test failed: {detail}".
 
+- Account errors now say their real cause instead of "Accounts are
+  unavailable until this runtime is connected to the shared account
+  service" while the runtime is connected: a refused providers file is
+  refused by name, a missing selection says no account is selected,
+  a change racing an update says to try again, removing a sign-in this
+  runtime cannot revoke says so, and the terminal names a retained store,
+  credential-store or disk failure. A refusal that kept no cause, and any
+  unenumerated failure over ACP, stays on the fixed unavailable sentence;
+  raw service text never crosses the ACP boundary. Only a runtime with no
+  account service bound still says it is not connected.
+
 ### Packaging
 
 - The Get Started walkthrough's four screenshots ship as lossless WebP

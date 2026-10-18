@@ -39296,8 +39296,12 @@ the ACP effort design keeps the catalogue levels, defaults and chosen level,
 the provider-commands keep the four sign-in actions with the grant-state
 machine, and the exec model request keeps the provider override with the
 refreshed options; the reference, host-API and roadmap records were
-regenerated. The `0.19.0 released (…)` line is written by the lead after the
-tag's release run.
+regenerated. PR #235 (`fix/accounts-error-truth`) merged: account errors name
+their real cause, its CHANGELOG entry under `[0.19.0]` Fixed; the
+revocation-refusal passthrough joins the cause-carrying store failure, and
+the duplicate inline error class goes (the leaf module already carries it).
+The `0.19.0 released (…)` line is written by the lead after the tag's
+release run.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
 Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from

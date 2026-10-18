@@ -5,6 +5,7 @@ import {
   AccountStoreError,
   accountBindingSchema,
 } from '../../core/providers/accountCredentialRecord'
+import { isRevokeUnsupportedError } from '../../acp/accountText'
 import { isValidModelApiKey } from '../../host/auth/credentialStore'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -20,7 +21,9 @@ export interface AccountsCommandDeps {
   readonly printError: (text: string) => void
 }
 
-function commandError(error: unknown): string {
+export function commandError(error: unknown): string {
+  // A refused revocation names its refusal: removing the sign-in never ran.
+  if (isRevokeUnsupportedError(error)) return UI_TEXT.accounts.revokeUnsupported
   if (error instanceof AccountStoreError) {
     if (error.code === 'notOffered') return UI_TEXT.accounts.notOffered
     if (error.code === 'invalidAccount' || error.code === 'invalidCredential')
@@ -28,8 +31,19 @@ function commandError(error: unknown): string {
     // A refused providers file is not a connection problem: the runtime is
     // already on the account service, and the file was left untouched.
     if (error.code === 'invalidProvidersFile') return UI_TEXT.accounts.providersInvalid
+    // Every other store refusal names the concrete cause it kept: an
+    // unreadable providers file keeps its disk failure. A refusal that
+    // kept none stays on the plain unavailable sentence instead of
+    // printing its code word. The terminal runs on the account service,
+    // so the connection sentence would lie.
+    return error.cause instanceof Error && error.cause.message !== ''
+      ? fill(UI_TEXT.accounts.unavailableReason, { reason: error.cause.message })
+      : UI_TEXT.accounts.unavailable
   }
-  return UI_TEXT.accounts.unavailable
+  // A credential-store or disk failure names itself for the same reason.
+  return error instanceof Error && error.message !== ''
+    ? fill(UI_TEXT.accounts.unavailableReason, { reason: error.message })
+    : UI_TEXT.accounts.unavailable
 }
 
 export async function runAccountsCommand(
