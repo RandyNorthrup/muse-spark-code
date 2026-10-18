@@ -191,7 +191,7 @@
   "config.suggestedProvider.description": "ワークスペースはモデルプロバイダーのプリセットを ID で 1 件だけ提案できます。パネルはそのプリセットで「モデルとエージェント」を開くことを提案します。空の場合は何も提案しません。ワークスペースはアドレスや資格情報を設定できません。",
   "walkthrough.gettingStarted.step.ownModel.title": "自分のモデルで始める",
   "walkthrough.gettingStarted.step.ownModel.description": "Muse サブスクリプションも Meta API キーもありませんか？自分のモデルプロバイダー (OpenRouter、Anthropic、OpenAI、ローカルサーバー) を追加してモデルを選んでください。\n[自分のモデルで始める](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "最初のターンで自動圧縮が評価待ちであることを通知します。自動圧縮は無効のままで、この設定をオフにすると通知が非表示になります。",
+  "config.modelApiAutoCompaction.description": "既定でオン。長い Model API の会話を安定したツール境界で圧縮します。各要約は有料のモデル呼び出しです。有料利用の同意通知には、初回請求の前に価格と日次予算が示されます。ACPエージェントはエディターの許可リクエストで一度だけ確認し、クライアントが確認できない場合は無効のままになります。ヘッドレスexecは --auto-compaction と --max-budget-usd の下でのみ実行します。",
   "config.modelApiStrictTools.description": "選択したモデルが対応している場合、厳密なツールスキーマを使用します。無効にすると従来のツール定義を維持します。",
   "config.modelApiParallelReads.description": "安全な読み取り専用のツール呼び出しを最大4件まで同時に実行します。その他の呼び出しは順番に実行します。",
   "config.webSearchMaxPerRequest.description": "回答あたりのサービス側ウェブ検索回数の上限（1～20、既定値5）。初回の課金前に料金と共有の1日予算が表示されます。",

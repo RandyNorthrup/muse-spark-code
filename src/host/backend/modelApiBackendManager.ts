@@ -185,6 +185,16 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly workspaceEdits?: WorkspaceEdits | undefined
   /** Runtime transport owns the daily debit; other hosts supply the reserve below. */
   readonly autoCompactionAccounting?: 'transport'
+  /**
+   * Whether automatic compaction may spend in this workspace, read at
+   * preparation and final send. Absent, workspace trust decides (the
+   * editor's Restricted Mode fence). The runtime supplies its own answer:
+   * its spending is authorized by the editor's per-use paid question or by
+   * exec's explicit flag under its run budget, and exec can never trust a
+   * workspace, so the trust fence would leave headless compaction
+   * unreachable (RVMSM101).
+   */
+  readonly autoCompactionTrusted?: (() => boolean) | undefined
   /** The current shared daily cap, quoted before the first charge. */
   readonly paidDailyBudgetUsd?: () => UsdAmount | Promise<UsdAmount>
   /** D78 claim per attempt; without either owner there is no automatic admission. */

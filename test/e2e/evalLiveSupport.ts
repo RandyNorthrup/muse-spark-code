@@ -2,6 +2,7 @@
 // this process. No key comes from arguments, environment or a fixture file.
 // Native entry access is deferred until the owner enables the live test.
 
+import { Usd } from '../../src/shared/usd'
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
@@ -132,6 +133,7 @@ export function liveToolIo(options: LiveToolIoOptions): ToolIo {
 const selectionSchema = z.object({
   MUSE_EVAL_TASKS: z.optional(z.string()),
   MUSE_EVAL_REPORT: z.optional(z.string()),
+  MUSE_EVAL_MAX_ATTEMPTS: z.optional(z.string()),
 })
 
 export interface LiveEvalSelection {
@@ -139,6 +141,8 @@ export interface LiveEvalSelection {
   readonly tasks: readonly EvalTask[]
   /** MUSE_EVAL_REPORT: a path without extension for the report's .json and .md. */
   readonly reportPath: string | undefined
+  /** MUSE_EVAL_MAX_ATTEMPTS: the run's hard call ceiling; budget-only when unset. */
+  readonly maxAttempts: number | undefined
 }
 
 /**
@@ -153,6 +157,7 @@ export function liveEvalSelection(env: NodeJS.ProcessEnv, isEnabled: boolean): L
   const selection = selectionSchema.parse({
     MUSE_EVAL_TASKS: env['MUSE_EVAL_TASKS'],
     MUSE_EVAL_REPORT: env['MUSE_EVAL_REPORT'],
+    MUSE_EVAL_MAX_ATTEMPTS: env['MUSE_EVAL_MAX_ATTEMPTS'],
   })
   const wanted = (selection.MUSE_EVAL_TASKS ?? '')
     .split(',')
@@ -162,9 +167,15 @@ export function liveEvalSelection(env: NodeJS.ProcessEnv, isEnabled: boolean): L
   if (unknown.length > 0) {
     throw new Error(`unknown eval tasks: ${unknown.join(', ')}`)
   }
+  const ceiling = selection.MUSE_EVAL_MAX_ATTEMPTS
+  const maxAttempts = ceiling === undefined ? undefined : Number(ceiling)
+  if (maxAttempts !== undefined && (!Number.isSafeInteger(maxAttempts) || maxAttempts < 1)) {
+    throw new Error('MUSE_EVAL_MAX_ATTEMPTS must be a positive integer.')
+  }
   return {
     tasks: wanted.length === 0 ? EVAL_TASKS : EVAL_TASKS.filter((task) => wanted.includes(task.id)),
     reportPath: selection.MUSE_EVAL_REPORT,
+    maxAttempts,
   }
 }
 
@@ -174,12 +185,17 @@ export function liveEvalSelection(env: NodeJS.ProcessEnv, isEnabled: boolean): L
  * nothing about packing, so its acceptance needs every one of them to have
  * packed. The arm missing from the report counts as never engaged.
  */
+/** One arm's saved results; an arm missing from the report counts as never engaged. */
+function armResults(report: EvalReport, armName: string) {
+  return report.arms.find((arm) => arm.name === armName)?.results ?? []
+}
+
 export function unengagedLongOutputTasks(
   report: EvalReport,
   armName: string,
   tasks: readonly EvalTask[],
 ): string[] {
-  const results = report.arms.find((arm) => arm.name === armName)?.results ?? []
+  const results = armResults(report, armName)
   return tasks
     .filter((task) => task.isLongOutput === true)
     .filter((task) => {
@@ -189,12 +205,23 @@ export function unengagedLongOutputTasks(
     .map((task) => task.id)
 }
 
+function engagementVerdict(
+  verdict: EvalReport['verdict'],
+  isHeld: boolean,
+  taskCount: number,
+): EvalReport['verdict'] {
+  if (isHeld || verdict === 'incomplete') return verdict
+  return taskCount === 0 ? 'incomplete' : 'fail'
+}
+
 /**
  * The report with M73's packing acceptance recorded in it (PLAN.md M73):
  * the arm's engagement on the run's long-output tasks, and the verdict
- * `fail` when it never packed on one, whatever the floors say. Applied
- * before the report is printed or written, so both artifacts say what the
- * run's acceptance decided.
+ * `fail` when it never packed on one, whatever the floors say. A selection
+ * with no long-output task holds nothing: a `pass` becomes `incomplete`,
+ * never stays a pass for want of evidence. Applied before the report is
+ * printed or written, so both artifacts say what the run's acceptance
+ * decided.
  */
 export function withPackingEngagement(
   report: EvalReport,
@@ -204,17 +231,154 @@ export function withPackingEngagement(
   if (report.version !== EVAL_REPORT_VERSION) {
     throw new Error('Packing engagement is recorded only in a current-version report.')
   }
+  const longTasks = tasks.filter((task) => task.isLongOutput === true).map((task) => task.id)
   const unengaged = unengagedLongOutputTasks(report, armName, tasks)
-  const isHeld = unengaged.length === 0
+  // An empty list is not held: nothing ran to engage on.
+  const isHeld = longTasks.length > 0 && unengaged.length === 0
   return {
     ...report,
     packingEngagement: {
       arm: armName,
-      longOutputTasks: tasks.filter((task) => task.isLongOutput === true).map((task) => task.id),
+      longOutputTasks: longTasks,
       unengaged,
       held: isHeld,
     },
-    verdict: isHeld ? report.verdict : 'fail',
+    verdict: engagementVerdict(report.verdict, isHeld, longTasks.length),
+  }
+}
+
+/**
+ * The long-context tasks on which the D78 admission settled no summary
+ * for the arm (M101 lane E R2): "compaction engaged" means the runner's
+ * accepted-history count reached at least one and its admission settled with no outstanding or unknown liability — more model
+ * calls than the baseline is not evidence, in either direction. A shorter
+ * continuation after a real summary still engaged; an extra tool round
+ * without one never did. A task from before the settled count (absent) or
+ * an arm missing from the report counts as never engaged. The baseline
+ * arm missing from the report counts as never engaged.
+ */
+export function unengagedCompactionTasks(
+  report: EvalReport,
+  armName: string,
+  baselineName: string,
+  tasks: readonly EvalTask[],
+): string[] {
+  const arm = report.arms.find((candidate) => candidate.name === armName)?.results ?? []
+  const baseline = report.arms.find((candidate) => candidate.name === baselineName)?.results ?? []
+  return tasks
+    .filter((task) => task.isLongContext === true)
+    .filter((task) => {
+      const result = arm.find((result) => result.taskId === task.id)
+      const settled = result?.compactionsSettled
+      const applied = result?.compactionsApplied
+      const money = result?.compactionLedger
+      const ran = baseline.find((result) => result.taskId === task.id)
+      return (
+        ran === undefined ||
+        settled === undefined ||
+        applied === undefined ||
+        applied < 1 ||
+        settled < applied ||
+        money === undefined ||
+        Usd.from(money.outstandingUsd).compare(Usd.from(0)) !== 0 ||
+        Usd.from(money.retainedUsd).compare(Usd.from(0)) !== 0
+      )
+    })
+    .map((task) => task.id)
+}
+
+/**
+ * The selected tasks on which the strict-tools arm never proved strict
+ * schemas (M101 lane E R6): a task engages only when it sent at least
+ * one model call and every recorded request carried strict function
+ * tools. A task with no recorded request, a request without strict
+ * tools (as when a host regression drops
+ * `modelFacts.supportsStrictTools`), or an arm missing from the report
+ * counts as never engaged.
+ */
+export function unengagedStrictToolsTasks(
+  report: EvalReport,
+  armName: string,
+  tasks: readonly EvalTask[],
+): string[] {
+  const results = armResults(report, armName)
+  return tasks
+    .filter((task) => {
+      const evidence = results.find((result) => result.taskId === task.id)?.requestEvidence ?? []
+      return evidence.length === 0 || evidence.some((request) => request.strictTools !== true)
+    })
+    .map((task) => task.id)
+}
+
+/**
+ * The report with lane E's strict-tools acceptance recorded in it
+ * (PLAN.md M101): the arm's engagement on the run's selected tasks.
+ * Unlike packing and compaction, an unengaged run is `incomplete`,
+ * never `fail` and never `pass`: without strict requests the run holds
+ * no evidence about strict tools in either direction, so a passing
+ * floor proves nothing and a failing floor keeps its own verdict.
+ * Applied before the report is printed or written, so both artifacts
+ * say what the run's acceptance decided.
+ */
+export function withStrictToolsEngagement(
+  report: EvalReport,
+  armName: string,
+  tasks: readonly EvalTask[],
+): EvalReport {
+  if (report.version !== EVAL_REPORT_VERSION) {
+    throw new Error('Strict-tools engagement is recorded only in a current-version report.')
+  }
+  const selected = tasks.map((task) => task.id)
+  const unengaged = unengagedStrictToolsTasks(report, armName, tasks)
+  // An empty list is not held: nothing ran to engage on.
+  const isHeld = selected.length > 0 && unengaged.length === 0
+  const verdict =
+    isHeld || report.verdict === 'fail' || report.verdict === 'incomplete'
+      ? report.verdict
+      : 'incomplete'
+  return {
+    ...report,
+    strictToolsEngagement: {
+      arm: armName,
+      tasks: selected,
+      unengaged,
+      held: isHeld,
+    },
+    verdict,
+  }
+}
+
+/**
+ * The report with lane E's compaction acceptance recorded in it (PLAN.md
+ * M101): the arm's engagement on the run's long-context tasks, and the
+ * verdict `fail` when it settled no compaction on one, whatever the
+ * floors say. A selection with no long-context task holds nothing: a
+ * `pass` becomes `incomplete`, never stays a pass for want of evidence.
+ * Applied before the report is printed or written, so both artifacts say
+ * what the run's acceptance decided.
+ */
+export function withCompactionEngagement(
+  report: EvalReport,
+  armName: string,
+  baselineName: string,
+  tasks: readonly EvalTask[],
+): EvalReport {
+  if (report.version !== EVAL_REPORT_VERSION) {
+    throw new Error('Compaction engagement is recorded only in a current-version report.')
+  }
+  const longTasks = tasks.filter((task) => task.isLongContext === true).map((task) => task.id)
+  const unengaged = unengagedCompactionTasks(report, armName, baselineName, tasks)
+  // An empty list is not held: nothing ran to engage on.
+  const isHeld = longTasks.length > 0 && unengaged.length === 0
+  return {
+    ...report,
+    compactionEngagement: {
+      arm: armName,
+      longContextTasks: longTasks,
+      unengaged,
+      held: isHeld,
+    },
+    verdict: engagementVerdict(report.verdict, isHeld, longTasks.length),
   }
 }
 

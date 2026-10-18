@@ -14,6 +14,7 @@ import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
 // it and does not retry. The request is read as `fetch` itself would read
 // it (a `Request` built from the arguments), so its shape cannot slip past.
 
+import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import { EVAL_BUDGET_USD, EVAL_MODEL_ID } from '../../shared/constants'
 import { parseSse } from '../backends/modelapi/sse'
@@ -43,6 +44,19 @@ export interface EvalWireCall {
   inputTokens: number
   cachedTokens: number
   outputTokens: number
+  readonly requestEvidence?: {
+    readonly sha256: string
+    readonly packageTypeModuleVisible: boolean
+    readonly responseTools: string[]
+    otherTools: number
+    /**
+     * The request offered at least one function tool and every one of
+     * them carried a strict schema (M101 strict-tools engagement). A
+     * request with no function tool proves nothing either way, so it
+     * reads false: the arm engages only through strict requests.
+     */
+    readonly strictTools: boolean
+  }
 }
 
 /** The run's spend so far, shared by every task's wire. */
@@ -50,16 +64,27 @@ export interface EvalBudget {
   spentUsd: UsdAmount
   /** A sent model call whose bill cannot be measured stops every remaining arm. */
   hasUnknownUsage?: boolean
+  /** Hard ceiling for model calls sent; the wire refuses past it. Absent means budget-only. */
+  maxAttempts?: number | undefined
+  /** Model calls sent so far; the wire owns the count. */
+  sentAttempts?: number | undefined
 }
+
+/** Why the run stopped before every selected task could send (R2). */
+export type EvalWireTruncation = 'call-ceiling' | 'budget-spent' | 'unknown-usage'
 
 export interface EvalWire {
   readonly fetch: typeof fetch
+  /** A local allowance refusal; this task fails while later tasks retain their budgets. */
+  readonly isOverBudget: boolean
   /** The requests sent, in order. */
   readonly calls: readonly EvalWireCall[]
   /** The requests refused before sending, by reason. */
   readonly refusals: readonly string[]
   /** What could not be read back: a reply whose usage never arrived. */
   readonly problems: readonly string[]
+  /** Why the run stopped early, in order, without repeats; empty on a full run. */
+  readonly truncated: readonly EvalWireTruncation[]
   /** Waits until the usage of every reply streamed so far has been read. */
   settle(): Promise<void>
 }
@@ -75,11 +100,27 @@ export interface EvalWireTotals {
   readonly costUsd: UsdAmount
 }
 
-const modelBodySchema = z.object({ model: z.optional(z.string()) })
+const modelBodySchema = z.object({
+  model: z.optional(z.string()),
+  instructions: z.optional(z.string()),
+  input: z.optional(z.array(z.json())),
+  tools: z.optional(
+    z.array(
+      z.object({
+        type: z.string(),
+        name: z.optional(z.string()),
+        strict: z.optional(z.boolean()),
+      }),
+    ),
+  ),
+})
 
 const terminalFrameSchema = z.object({
   type: z.enum(['response.completed', 'response.incomplete', 'response.failed']),
-  response: z.object({ usage: z.optional(z.nullable(usageSchema)) }),
+  response: z.object({
+    usage: z.optional(z.nullable(usageSchema)),
+    output: z.optional(z.array(z.object({ type: z.string(), name: z.optional(z.string()) }))),
+  }),
 })
 
 function parseJson(text: string): unknown {
@@ -94,6 +135,34 @@ function parseJson(text: string): unknown {
 function modelOf(body: string): string | undefined {
   const parsed = modelBodySchema.safeParse(parseJson(body))
   return parsed.success ? parsed.data.model : undefined
+}
+
+/**
+ * Whether a model-call request body offers function tools with strict
+ * schemas throughout (M101 strict-tools engagement): at least one
+ * function tool, and every function tool carries `strict: true`.
+ * Non-function tools (search) carry no strict flag and count neither
+ * way; a request with no function tool reads false.
+ */
+function hasStrictTools(body: string): boolean {
+  const parsed = modelBodySchema.safeParse(parseJson(body))
+  if (!parsed.success) return false
+  const functions = (parsed.data.tools ?? []).filter((tool) => tool.type === 'function')
+  return functions.length > 0 && functions.every((tool) => tool.strict === true)
+}
+
+/** Recognize the explicit package fact, including JSON-encoded tool results. */
+function isModuleFactVisible(value: unknown): boolean {
+  if (typeof value === 'string') {
+    if (/"type"\s*:\s*"module"/u.test(value)) return true
+    const decoded = parseJson(value)
+    return decoded !== undefined && decoded !== value && isModuleFactVisible(decoded)
+  }
+  return Array.isArray(value)
+    ? value.some((item: unknown) => isModuleFactVisible(item))
+    : typeof value === 'object' &&
+        value !== null &&
+        Object.values(value).some((item: unknown) => isModuleFactVisible(item))
 }
 
 function describe(error: unknown): string {
@@ -190,6 +259,7 @@ export interface EvalWireDeps {
   /** The network: the live `fetch`, or the fake Model API's. */
   readonly fetch: typeof fetch
   readonly baseUrl: string
+  readonly maxAttempts?: number | undefined
   readonly budget: EvalBudget
 }
 
@@ -199,28 +269,57 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
   const calls: EvalWireCall[] = []
   const refusals: string[] = []
   const problems: string[] = []
+  const truncated: EvalWireTruncation[] = []
   const reads: Promise<void>[] = []
+  let taskAttempts = 0
+  let isOverBudget = false
 
   const refuse = (reason: string): Response => {
     refusals.push(reason)
     return refusal(reason)
   }
 
+  const noteTruncated = (why: EvalWireTruncation): void => {
+    if (!truncated.includes(why)) {
+      truncated.push(why)
+    }
+  }
+
   const checkBudget = (): Response | undefined => {
     if (deps.budget.hasUnknownUsage === true) {
+      noteTruncated('unknown-usage')
       return refuse('the evaluation stopped because a sent model call has unknown usage')
     }
-    return Usd.from(deps.budget.spentUsd).compare(Usd.from(EVAL_BUDGET_USD)) >= 0
-      ? refuse(`the evaluation's budget of $${EVAL_BUDGET_USD.toFixed(2)} is spent`)
-      : undefined
+    if (Usd.from(deps.budget.spentUsd).compare(Usd.from(EVAL_BUDGET_USD)) >= 0) {
+      noteTruncated('budget-spent')
+      return refuse(`the evaluation's budget of $${EVAL_BUDGET_USD.toFixed(2)} is spent`)
+    }
+    return undefined
   }
 
   /** The usage of a streamed reply, read from its copy. */
-  const readUsage = async (stream: ReadableStream<Uint8Array>, call: EvalWireCall) => {
+  const readUsage = async (
+    stream: ReadableStream<Uint8Array>,
+    call: EvalWireCall,
+    offered: ReadonlySet<string>,
+  ) => {
     let hasUsage = false
     try {
       for await (const frame of parseSse(stream)) {
-        const usage = terminalFrameSchema.safeParse(parseJson(frame.data)).data?.response.usage
+        const response = terminalFrameSchema.safeParse(parseJson(frame.data)).data?.response
+        const usage = response?.usage
+        if (call.requestEvidence !== undefined) {
+          const output = response?.output ?? []
+          for (const item of output) {
+            if (item.type !== 'function_call') continue
+            if (item.name !== undefined && offered.has(item.name))
+              call.requestEvidence.responseTools.push(item.name)
+            else {
+              call.requestEvidence.responseTools.push('other')
+              call.requestEvidence.otherTools += 1
+            }
+          }
+        }
         if (usage == null) {
           continue
         }
@@ -267,15 +366,40 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
     if (!ALLOWED_REQUESTS.has(endpoint)) {
       return refuse(`the evaluation sends no ${endpoint}`)
     }
-    const model = request.method === 'GET' ? undefined : modelOf(await request.clone().text())
+    const body = request.method === 'GET' ? '' : await request.clone().text()
+    const model = request.method === 'GET' ? undefined : modelOf(body)
     const isModelCall = endpoint === MODEL_CALL
     if (model !== EVAL_MODEL_ID && (isModelCall || model !== undefined)) {
       return refuse(`the evaluation runs on ${EVAL_MODEL_ID} only, not ${String(model)}`)
+    }
+    if (isModelCall) {
+      if (deps.maxAttempts !== undefined && taskAttempts >= deps.maxAttempts) {
+        isOverBudget = true
+        return refuse(
+          `task over budget: its allowance of ${String(deps.maxAttempts)} model calls is reached`,
+        )
+      }
+      // The counted run's hard call ceiling (lane E): refusals never
+      // consume it, only validated sends.
+      const sent = deps.budget.sentAttempts ?? 0
+      if (deps.budget.maxAttempts !== undefined && sent >= deps.budget.maxAttempts) {
+        noteTruncated('call-ceiling')
+        return refuse(
+          `the evaluation's call ceiling of ${String(deps.budget.maxAttempts)} model calls is reached`,
+        )
+      }
     }
     // Reading a streamed request body can yield while the prior reply settles.
     const afterBody = checkBudget()
     if (afterBody !== undefined) {
       return afterBody
+    }
+    if (isModelCall) {
+      // Counted only once the send is certain: a refusal after the body
+      // read (R2: the budget spent while the body was held) consumes no
+      // ceiling slot, so the next real call is still allowed.
+      taskAttempts += 1
+      deps.budget.sentAttempts = (deps.budget.sentAttempts ?? 0) + 1
     }
     const call: EvalWireCall = {
       method: request.method,
@@ -286,6 +410,17 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
       inputTokens: 0,
       cachedTokens: 0,
       outputTokens: 0,
+      ...(isModelCall && {
+        requestEvidence: {
+          sha256: createHash('sha256').update(body, 'utf8').digest('hex'),
+          packageTypeModuleVisible: isModuleFactVisible(
+            modelBodySchema.safeParse(parseJson(body)).data,
+          ),
+          responseTools: [],
+          otherTools: 0,
+          strictTools: hasStrictTools(body),
+        },
+      }),
     }
     calls.push(call)
     // Send the validated snapshot, including a streamed body and copied headers.
@@ -316,7 +451,12 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
       return response
     }
     const [passed, copied] = metered(response.body)
-    reads.push(readUsage(copied, call))
+    const offered = new Set(
+      (modelBodySchema.safeParse(parseJson(body)).data?.tools ?? []).flatMap((tool) =>
+        tool.type === 'function' && tool.name !== undefined ? [tool.name] : [],
+      ),
+    )
+    reads.push(readUsage(copied, call, offered))
     return new Response(passed, {
       status: response.status,
       statusText: response.statusText,
@@ -326,9 +466,13 @@ export function createEvalWire(deps: EvalWireDeps): EvalWire {
 
   return {
     fetch: wiredFetch,
+    get isOverBudget() {
+      return isOverBudget
+    },
     calls,
     refusals,
     problems,
+    truncated,
     async settle() {
       await Promise.all(reads.splice(0))
     },

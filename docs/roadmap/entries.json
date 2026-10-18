@@ -750,7 +750,7 @@
     {
       "id": "M101",
       "title": "Long-task context upgrades",
-      "summary": "Prompts stay cache-stable, the model can search and recall packed tool output exactly, and manual compaction works in ACP editors; automatic compaction is in progress.",
+      "summary": "Ships cache-stable prompts, packed-output recall and manual ACP compaction; automatic compaction evaluated and on after the binding run passed, while remaining upstream ports are in progress.",
       "area": "agents",
       "release": "0.15.0"
     },

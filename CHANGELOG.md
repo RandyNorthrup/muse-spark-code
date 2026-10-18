@@ -78,6 +78,150 @@ happened, not what was planned; superseded entries are kept.
   commands in the README have not been run against a real client. See
   `docs/mcp.md`.
 
+- **Evaluated automatic compaction** (M101 CM1013R9, certified by the
+  second counted run in CM1013R10). The first binding run passed on
+  2026-10-12: verdict `pass` on the full frozen set (sixteen tasks across
+  all four arms, 274 attempts / 276 requests of the 588 ceiling, $0.06285), every arm above both
+  0.75 floors, packing engaged on both long-output tasks and a settled
+  D78 admission on both long-context tasks (receipts in
+  `docs/certification/m101-binding-report.json` and
+  `docs/certification/m101-binding-report.md`).
+  `IS_AUTO_COMPACTION_EVALUATED` is now `true`: automatic compaction is on
+  by default on the Model API backend (one setting turns it off) and is
+  published in Help, the ACP/CLI usage and the generated reference; its
+  first charge still asks once in the paid-use popup naming the price and
+  daily budget. `modelApiStrictTools` stays on: its arm held both floors in
+  the same run. The second counted run on the flipped head passed too
+  (265 attempts / 267 requests, $0.059742, all eight floors held; receipts in
+  `docs/certification/m101-binding-report-2026-10-12-28686235d.json`/`.md`
+  and the run log beside them), so the shipped digest `a59c8448…` is
+  certified: certified equals computed equals the frozen pin. In that run
+  the auto-compaction arm reached 7 of 9 on accept (one long-context task
+  completed after compaction but wrote no answer file) and 7 of 7 on
+  heldout. Every automatic attempt reserves its projected cost from the
+  daily ledger before dispatch, rechecks the claim at send, and settles
+  once per attempt at its exact cost; a refused or missing ledger sends
+  nothing. <!-- try: setting museSpark.modelApiAutoCompaction -->
+
+- **Execution-bound M75 freeze and private tool evidence** (CM1013R4,
+  RVCM1013C findings 2–3). The freeze binds the actual runner configuration,
+  setup/alias closure, compiler/package inputs and launch policy, including
+  source read as data by global setup. The live runner executes a freshly
+  frozen search worker instead of trusting a pre-existing build and refuses
+  mismatched task snapshots before sending. Unknown returned tool names are
+  counted as `other`; private text cannot enter tool-name evidence even when
+  the task recovers and passes. Production automatic compaction stays off.
+
+- **Completed M75 verifier assertions** (CM1013R4, RVCM1013C finding 1).
+  Every frozen task declares its assertion count. A verifier passes only
+  after its last assertion reports a fresh private-input token and that count
+  with a zero exit. Premature exits, fake completion output, caught failures
+  and timed-out solutions fail; all 64 bare-exit outputs fail the full paired
+  verdict. Production automatic compaction stays unevaluated.
+
+- **Evidence-first M75 harness repair** (CM1013B). Both compaction and packing
+  evidence tasks run before small tasks, each task/arm has an independent
+  measured allowance, and a local overrun cannot starve another task. Applied
+  history replacement and settled admission establish compaction engagement;
+  rejected attempts do not. Narrowed selections and global stops remain
+  incomplete through both verdict wrappers. The live launcher checks the
+  expanded source-graph freeze before credentials are opened; smoke mode
+  expects incomplete. Receipts retain exact ledger reservations, settlements
+  and unknown liability, plus request hashes and explicit module-fact visibility
+  for investigating the first run's CommonJS failures. Production automatic
+  compaction stays unevaluated.
+
+- **Frozen M75 evaluation arms and long-context tasks** (M101 C-M101-2).
+  The paired harness now freezes four arms (baseline, observation packing,
+  automatic compaction, strict tool schemas) and sixteen tasks: the twelve
+  previous fixtures plus, per split, one long-context compaction task whose
+  prompt-filled window compacts at the first settled boundary and one
+  two-defect multi-edit task. A SHA-256 digest pins the frozen bytes for the
+  counted run; fake baseline/mechanism pairs hold both 0.75 floors.
+  (The live evaluation has since passed twice; see the
+  evaluated-automatic-compaction entry above.)
+- **Repaired M75 evaluation freeze** (M101 CM1012R2, review RVCM1012).
+  Each arm now differs from its pair in one mechanism only: the context
+  window is harness condition shared by both arms (per task, resolved by the
+  runner), and a mechanism that moves the window, the memory store, the
+  client, the workspace or a paid-use hook does not run. The frozen digest
+  now covers each arm's implementation source, each task's resolved window,
+  the verifier prelude, the window rule, the held-deps list and the frozen
+  defaults. The memory evidence drives the real automatic flush through a
+  fake store — snapshot written when allowed, nothing written and the turn
+  still compacting when refused. No user-facing change; production stays
+  off.
+- **Frozen-digest source closure** (M101 CM1012R3, review RVCM1012B).
+  The frozen digest is now computed over the transitive static-import
+  closure of the arm modules instead of a hand-kept list: every
+  harness-owned file the arms reach contributes its bytes (covering arm
+  helpers such as the admission's `noop`), and every outside binding they
+  draw contributes its canonical value; anything uncoverable fails closed.
+  The held-deps list moved to its own module so the digest need not depend
+  on the driver that drives the production host. The two dependency-key
+  test assertions are recorded in PLAN.md §8. No user-facing change;
+  production stays off.
+- **Frozen-digest resolver redesign** (M101 CM1012R4, review RVCM1012C).
+  The frozen digest no longer walks imports with a pattern scanner or
+  hashes outside bindings by their current values: each arm root is
+  bundled by the real resolver (esbuild, already a build dependency) and
+  every input file it reports contributes its exact bytes, so accessor
+  implementations, comment-quoted edges, literal dynamic imports and
+  directory indexes are all covered exactly as the build resolves them.
+  A non-literal dynamic `import()` or `require()` fails the digest
+  instead of freezing around it, and canonical JSON keeps an own
+  `__proto__` field. No user-facing change; production stays off.
+- **Frozen-digest refusal parsing** (M101 CM1012R5, review RVCM1012D).
+  The remaining pattern-based refusal scanner is replaced with the
+  TypeScript compiler API: every file in the resolver's closure is
+  parsed, so interpolated and concatenated dynamic specifiers fail the
+  digest with file and line, as does every indirect loader spelling
+  (`module.require`, optional `require?.()`, require aliases,
+  `createRequire(…)(…)` and `require.call/apply/bind`) and every `new
+  Worker(…)` load, literal or not — none of which the bundler follows.
+  No user-facing change; production stays off.
+- **Frozen-digest load-closure rule** (M101 CM1012R6, review RVCM1012E).
+  The shape list becomes one rule: every runtime load the walk finds
+  (dynamic `import()` including `import.defer`, every `require`
+  spelling, every `new Worker(…)` spelling, two-argument `new URL`,
+  `import.meta.resolve`, module-relative file reads, dynamic
+  evaluation) is refused with file and line unless the bundler's own
+  metafile placed its target in the closure. Re-frozen digest
+  `9cfc4744…786278`. No user-facing change; production stays off.
+- **Frozen evaluation executes what it hashes** (M101 CM1012R7,
+  review RVCM1012F). Each arm is one self-contained esbuild Node bundle;
+  its emitted bytes and declared fixture snapshots determine the digest.
+  The runner executes that exact snapshot under Node's permission model,
+  granting reads only to its bundle and fixture files, with workers and
+  child processes denied. Undeclared loads and reads fail the task before
+  model dispatch, regardless of loader spelling. Validated declarative
+  options replace parent arm callbacks for frozen runs; their JSON reports
+  retain the receipt. The static scanner and resolver comparison are gone,
+  literal `.jsx` and absolute `.js` resolution work, and temporary paths are
+  canonical on macOS, Windows and Linux. No user-facing feature change;
+  production automatic compaction stays off.
+- **M75 evaluation with production compaction admission** (M101 C-M101-3,
+  part A, no user-facing change). The frozen auto-compaction arm now
+  admits through the real shared D78 gate and settles every extra attempt
+  against the run's own hard budget instead of a test double, and the
+  counted-run launcher prints its call plan (206 planned, 300 hard
+  ceiling) before anything sends. All four frozen arms run behind the
+  live switch with both mechanism engagements recorded. (The counted
+  live runs have since passed; see the evaluated-automatic-compaction
+  entry above.)
+- **M75 evaluation review repairs** (M101 CM1013AR2, review RVCM1013A, no
+  user-facing change). "Compaction engaged" now means the D78 admission
+  settled a summary: the report records the settled-admission count per
+  task and requires at least one on every long-context task of the
+  auto-compaction arm — more model calls than the baseline is not
+  evidence either way. A selection with no long-context (or long-output)
+  task is `incomplete`, never a pass, and the live test accepts only
+  `pass`. The printed plan (198) is exactly what runs with the hard
+  ceiling equal to it; a run that would exceed it stops `incomplete`.
+  The frozen receipt no longer calls admitted attempts uncharged, a
+  budget refusal after the body read consumes no ceiling slot, and the
+  missing-admission throw fails the turn instead of running uncompacted.
+  The counted live run is still ahead; production stays off.
 ### Changed
 
 - Legal scans recognize the literal affiliate and `et al.` notice suffixes,

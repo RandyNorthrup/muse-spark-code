@@ -149,7 +149,10 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          # The evaluation children need `--permission` (unflagged from
+          # 22.13.0, review RVCM1012H): pin the floor that has it instead of
+          # tracking 22, whose earlier patches lack the flag.
+          node-version: 22.13.0
           cache: npm
       - run: npm ci
       - name: unit tests

@@ -2267,7 +2267,11 @@ export const COMPACTION_TAIL_WINDOW_FRACTION = 0.08
 export const COMPACTION_SUMMARY_MAX_TOKENS = 8192
 export const COMPACTION_SUMMARY_WINDOW_FRACTION = 0.05
 // Lane E flips this only with a current passing M75 pair and D78 wiring.
-export const IS_AUTO_COMPACTION_EVALUATED = false
+// Flipped 2026-10-12 (CM1013R9): the binding run passed (verdict pass,
+// all four arms above both 0.75 floors, packing and compaction engaged,
+// settled D78 admission on both long-context tasks; receipts in
+// docs/certification/m101-binding-report.json/.md).
+export const IS_AUTO_COMPACTION_EVALUATED = true
 /** The single runtime reader for the latch, so every gate flips together. */
 export function isAutoCompactionEvaluated(): boolean {
   return IS_AUTO_COMPACTION_EVALUATED
@@ -4140,7 +4144,7 @@ export const EXEC_MODES = ['plan', 'acceptEdits'] as const
 export const EXEC_DEFAULT_MODE = 'plan'
 export const EXEC_OUTPUTS = ['text', 'json', 'jsonl'] as const
 export const EXEC_DEFAULT_OUTPUT = 'text'
-export const EXEC_PAID_FEATURES = ['imageGeneration'] as const
+export const EXEC_PAID_FEATURES = ['imageGeneration', 'autoCompaction'] as const
 // ACP updates exec never emits (message/thought chunks and every tool
 // variant), and raw tool fields refused at any depth of an update (SPEC §2.2).
 // The runtime schema, the generated JSON schema and the Action's mirror all
@@ -7201,8 +7205,9 @@ export const EVAL_REMOVE_RETRY_DELAY_MS = 200
 // the ten tasks is a few cents at most on the contributor tier.
 export const EVAL_BUDGET_USD = 0.5
 // Capability floors, fixed in advance: an arm whose pass rate falls below
-// either floor fails the run. At 0.75, 5 of 6 accept tasks and 3 of 4
-// held-out tasks must pass: losing more than one task per split fails.
+// either floor fails the run. At 0.75, 7 of 9 accept tasks and 6 of 7
+// held-out tasks must pass: losing three accept tasks, or more than one
+// held-out task, fails.
 export const EVAL_FLOOR_ACCEPT_PASS_RATE = 0.75
 export const EVAL_FLOOR_HELDOUT_PASS_RATE = 0.75
 // M73's long-output tasks: a numbered evidence file of this many records,
@@ -7214,11 +7219,46 @@ export const EVAL_LONG_EVIDENCE_LINES = 512
 export const EVAL_LONG_EVIDENCE_MIDDLE_LINE = 256
 export const EVAL_LONG_EVIDENCE_LINE_CHARS = 64
 export const EVAL_LONG_EVIDENCE_RECALL_OFFSET = 16_000
+// M101's long-context tasks: the prompt carries a build log of this many
+// records, each padded to one width, the needed value on one middle line.
+// The first request then lands between 90% of the window below and the
+// preflight limit, so the arm compacts at its first settled tool boundary
+// (a single file read can never trip it: reads are capped at half a window
+// in characters while near-window needs nine tenths in tokens).
+export const EVAL_COMPACT_WINDOW_TOKENS = 26_000
+export const EVAL_COMPACT_BULK_LINES = 2200
+export const EVAL_COMPACT_BULK_LINE_CHARS = 40
+export const EVAL_COMPACT_VALUE_LINE = 1100
 // The shape of the report the live run writes.
 export const EVAL_REPORT_VERSION = 2
 // Decimals for the report's dollar amounts: a task costs a few
 // ten-thousandths of a dollar on the contributor tier.
 export const EVAL_COST_DECIMALS = 4
+// How far above the working directory the frozen arm digest looks for the
+// repository root before failing closed (review RVCM1012B).
+export const EVAL_ARM_SOURCE_SEARCH_DEPTH = 12
+// A frozen arm computes configuration only; it never runs a model turn.
+export const EVAL_ARM_PROCESS_TIMEOUT_MS = 2000
+export const EVAL_ARM_OUTPUT_MAX_BYTES = 1_048_576
+// The frozen arm allowlist (reviews RVCM1012H finding 1, RVCM1012I): an arm
+// program may load only these Node built-in modules, with or without the
+// `node:` prefix. The freeze reads the bundler's own metafile and refuses
+// every other external load — an unknown built-in fails, so there is no
+// deny-list to fall out of date. `node:sqlite`, child processes, workers,
+// the network and the inspector are not on it because the child permission
+// grants do not confine them. This stops accidental undeclared inputs (a
+// stray import); a deliberately hostile arm is out of scope (PLAN.md M101
+// threat model: arms change only through review).
+export const EVAL_ARM_ALLOWED_BUILTINS = ['fs', 'path', 'url', 'util'] as const
+// The evaluation child needs the permission flags (`--permission`), which
+// Node carries unflagged from 22.13.0 and 23.5.0 (review RVCM1012I finding
+// 3: the 23.0–23.4 line still gates the flag behind `--experimental`). The
+// evaluation refuses to run below those floors; the product floor stays
+// `>=22`.
+export const EVAL_ARM_MIN_NODE_VERSION = '22.13.0'
+// The second floor the version gate enforces: the first 23.x with unflagged
+// `--permission` (review RVCM1012I finding 3).
+export const EVAL_ARM_MIN_NODE_VERSION_23 = '23.5.0'
 
 // --- Bring-your-own model providers (M95, PLAN.md D74) ---
 //
