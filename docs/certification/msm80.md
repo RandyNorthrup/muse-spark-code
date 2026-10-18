@@ -91,18 +91,17 @@ Intermediate (merged tree `5f940132b`, macmini, repo timeouts; every
 
 Tests (merged tree, `npx vitest run <files> --maxWorkers=3`, repo timeouts):
 
-| Files                                | Result                                                                 |
-| ------------------------------------ | ---------------------------------------------------------------------- |
-| execArgs/execOutput/execSchema       | 128/128 pass                                                           |
-| runLedger/scanSecrets/untrustedInput | 53/53 pass                                                             |
-| redact/execKeyInput                  | 167/167 pass                                                           |
-| ciTemplates                          | 31/31 pass                                                             |
-| ciReference (new)                    | 1/1 pass                                                               |
-| ciRun (runs 2–6 + solos, both fixes) | every test green across runs; full runs lose 1–9 to deadlines (see §5) |
-| ciTemplatesRun (final, both fixes)   | 43/43 pass, exit 0, 244 s (see §5)                                     |
+| Files                                | Result                                        |
+| ------------------------------------ | --------------------------------------------- |
+| execArgs/execOutput/execSchema       | 128/128 pass                                  |
+| runLedger/scanSecrets/untrustedInput | 53/53 pass                                    |
+| redact/execKeyInput                  | 167/167 pass                                  |
+| ciTemplates                          | 31/31 pass                                    |
+| ciReference (new)                    | 1/1 pass                                      |
+| ciRun (final, both fixes)            | 39/39 pass, exit 0, 66 s, one worker (see §5) |
+| ciTemplatesRun (final, both fixes)   | 43/43 pass, exit 0, 244 s (see §5)            |
 
-Residual: a single quiet full-green `ciRun` (nice-to-have; per-test coverage
-is complete) and the lead-owned SAST/package/live receipts above.
+Residual: the lead-owned SAST/package/live receipts above.
 The packed-product rehearsal is blocked on this rig: `npm run package:acp`
 refuses without the built Darwin dictation helper
 (`native/darwin/muse-dictate`, compiled from another milestone's Swift
@@ -139,13 +138,12 @@ launcher/rehearsal path; the W live/hosted receipts stay lead-owned.
    fixed in `2b757acf2`. Final full run with both fixes: **43/43 pass,
    exit 0 in 244 s** (the earlier 42/43 miss was the bitbucket key case's
    cleanup-deadline warning under load 18; it passes solo and in the
-   final run). `ciRun` post-fix runs 2–6 plus solos: **every one of the 39
-   tests passes** (best full runs 38/39 and 37/39; each full run loses a
-   rotating 1–9 to deadline timeouts — 60 s test / 5 s cleanup / 10 s hook
-   / 5 s-default on tight R4 cases — under load 5–30, and each straggler
-   passes on retry, including all four launcher e2e). No single quiet
-   full-green run was obtainable on this Saturday rig; the failures are
-   the load lottery, not code. The exec-to-plain change also
+   final run). `ciRun` final full run with both fixes: **39/39 pass, exit 0
+   in 66 s** (`--maxWorkers=1`, repo timeouts untouched). Earlier full runs
+   lost a rotating 1–9 to deadline timeouts (60 s test / 5 s cleanup /
+   10 s hook / 5 s-default on tight R4 cases) under load 5–30, and every
+   straggler passed on retry — the single green confirms it was the load
+   lottery, not code. The exec-to-plain change also
    needed its R4 static assertion updated to pin the plain launcher call
    and refuse `exec node` (drilled red ×4 on the exec form, green on the
    fix, in `a7eadc4e3`).
