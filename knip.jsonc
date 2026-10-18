@@ -171,15 +171,12 @@
     // Shipped deferred entry: path/receipt imports map to these native-runtime exports.
     "src/runtime/lsp/processAuthority.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
-    "test/m104/{runtime,engines,ui,windows}/**/*.test.{ts,tsx,mjs}",
-    // Windows receipt uses this configuration and builds the bootstrap entry by path.
-    "test/m104/windows/vitest.config.mjs",
-    "test/m104/windows/vscodeEntry.ts",
-    "test/m104/windows/bootstrapFixture.mjs",
-    // The native loader/budget suite is executed directly with node --test.
-    "test/m104/linux/nativeModules.test.mjs",
-    "test/m104/mac/nativeDrills.mjs",
-    "test/m104/ui/vitest.config.mjs",
+    // The Xcode host's generator bundles this table source by path
+    // (hosts/xcode/Scripts/generate.mjs), which knip does not trace.
+    "hosts/xcode/Scripts/nativeTables.ts",
+    // The native host harnesses start this fixture runtime by path
+    // (hosts/xcode/Scripts/prepare-tests.mjs), which knip does not trace.
+    "test/hosts/xcode/fake-runtime.ts",
     "test/harness/presentation.tsx",
     "test/harness/whatsNew.ts",
     // Built by the fallback accessibility suite and loaded by its real browser.

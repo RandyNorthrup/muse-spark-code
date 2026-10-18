@@ -22,7 +22,7 @@ import {
 import type { MuseCodeBackendManager } from '../backend/museCodeBackendManager'
 import type { Logger } from '../logger'
 import { accountStateSchema, isCapturedSignedOut, type AccountState } from './accountState'
-export { isStoredSignIn, type AccountState } from './accountState'
+export type { AccountState } from './accountState'
 
 export interface AccountSession {
   /** `closed` settles when the host's output ends: it exited or died. */

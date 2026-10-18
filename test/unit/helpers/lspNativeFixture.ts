@@ -1,9 +1,7 @@
 import { copyFile, mkdir, readFile } from 'node:fs/promises'
-import path from 'node:path'
 import { tmpdir } from 'node:os'
-import type * as privateDirectories from '../../../src/runtime/privateDirectory'
+import path from 'node:path'
 import { build } from 'esbuild'
-import { afterAll } from 'vitest'
 import { darwinProcessHelper } from './darwinProcessHelper'
 
 const state: { pending?: ReturnType<typeof darwinProcessHelper> } = {}
@@ -28,23 +26,6 @@ export async function installLspNativeFixture(packageRoot: string) {
     )
   }
   return native.remove
-}
-
-export async function privateDirectoryFixture(actual: typeof privateDirectories) {
-  const native = await lspNativeFixture()
-  afterAll(native.remove)
-  return {
-    ...actual,
-    trustedPrivateRoot: () => Promise.resolve(tmpdir()),
-    privateDirectory: (directory: string, shouldCreate = false, packageRoot = native.packageRoot) =>
-      actual.privateDirectory(directory, shouldCreate, packageRoot),
-    writeWindowsPrivateRecord: (file: string, text: string) =>
-      actual.writeWindowsPrivateRecord(file, text, native.packageRoot),
-    verifyPrivateHandle: (
-      handle: Parameters<typeof actual.verifyPrivateHandle>[0],
-      isDirectory: boolean,
-    ) => actual.verifyPrivateHandle(handle, isDirectory, native.packageRoot),
-  }
 }
 
 export async function buildLspProcess(entry: string, outfile: string) {
