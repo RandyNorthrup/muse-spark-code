@@ -13,7 +13,7 @@ import { resourceEnvironment, type ResourceLease } from '../../core/resources/la
 // location is resolved once per set of inputs instead of probing PATH on
 // every message.
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { type FingerprintWarning } from '@muse-code/sdk'
@@ -480,6 +480,10 @@ export class MuseCodeBackendManager {
         systemRoot: process.env['SystemRoot'],
         programFiles: process.env['ProgramFiles'],
         ...(this.deps.accountHome !== undefined && { accountHome: this.deps.accountHome }),
+        ...(this.deps.workspaceRoot !== undefined && {
+          workspaceRoot: this.deps.workspaceRoot,
+          realpath: realpathSync,
+        }),
       }),
       process.platform,
     )
@@ -572,6 +576,9 @@ export class MuseCodeBackendManager {
     ) {
       return cached.resolution
     }
+    // The workspace the child runs in: PATH entries inside it are never
+    // probed, so a planted `muse` on an absolute workspace PATH entry never
+    // resolves (docs/certification/pathguard.md).
     const resolution = resolveMuseLaunch({
       platform: process.platform,
       configuredPath,
@@ -582,6 +589,10 @@ export class MuseCodeBackendManager {
       readTextFile: (filePath) => readTextFileOrUndefined(this.deps.log, filePath),
       listDirectory: (directory) => listDirectoryOrEmpty(this.deps.log, directory),
       serveArgs,
+      ...(this.deps.workspaceRoot !== undefined && {
+        workspaceRoot: this.deps.workspaceRoot,
+        realpath: realpathSync,
+      }),
     })
     this.launchCache = { key, resolution }
     return resolution

@@ -298,7 +298,7 @@ function gitTerminalOpener(
  */
 function nativeGitDeps(deps: GitWindowDeps, window: GitWindow): RuntimeGitDeps | undefined {
   const root = deps.workspaceRoot
-  const gitPath = processGitPath()
+  const gitPath = processGitPath(root)
   if (root === undefined || gitPath === undefined) {
     return undefined
   }

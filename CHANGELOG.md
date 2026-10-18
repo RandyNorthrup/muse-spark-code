@@ -43,6 +43,60 @@ happened, not what was planned; superseded entries are kept.
   namespace here and says so once on every surface, naming the two ways
   out, without ever switching the sandbox off on its own.
 
+### Security
+
+- Starting Muse Code no longer lets a program planted in the workspace run
+  from PATH. Every child environment built for `muse serve` (the VS Code
+  backend, the ACP agent and the CLI exec path) drops PATH entries that are
+  relative, empty, or inside the workspace (resolved through links), on
+  Windows, macOS and Linux alike; nothing else in PATH changes. A PATH with
+  nothing left is removed rather than emptied, a PATH from
+  `museSpark.environmentVariables` is sanitized the same way, Windows
+  drive-relative entries are resolved on the workspace drive, and guarded
+  Windows children set `NoDefaultCurrentDirectoryInExePath` so the working
+  directory is not tried before PATH. Forward-slash UNC (`//server/share`),
+  verbatim (`\\?\`, `//?/`) and loopback admin-share (`//localhost/C$/…`)
+  spellings of the workspace compare as the workspace itself, and the entry
+  is always resolved as itself, never as a drive-rewritten path. The guard
+  also covers `muse login` and the runtime account host (scoped to the
+  directory the child runs in, which is also set as its working directory),
+  the Windows sandbox check and setup, and the `muse` and `git` lookups
+  themselves: directories inside the workspace are never probed, so a
+  planted program on an absolute workspace PATH entry never resolves.
+  Device (`\\.\`), trailing-dot (`repo.\…`) and dot-dot (`..\…`) spellings
+  of the workspace compare as the workspace itself before comparing, and
+  the same exclusion (resolved through links) now covers every other
+  product lookup: `git` (all runners, the M123 native route and the report
+  source), the plugin runtimes (`node`, `bun`, `prlimit`), MCP server
+  commands, the shell and hook interpreters (`bash`, `sh`, `cmd`), the
+  usage opener (`xdg-open`, `open`, `rundll32.exe`), the Linux voice
+  recorders (`arecord`, `parec`) and the team worker launcher. Every child
+  started with the workspace as its working directory also gets the
+  guarded PATH plus `NoDefaultCurrentDirectoryInExePath` on Windows, so a
+  planted helper (`ssh`, `git-remote-https`) never runs either. A new
+  inventory test enumerates every process start in `src/` from the source
+  itself and fails on any start outside the guarded routes or the short
+  reviewed list (fixed OS paths, the person's own terminal).
+  Real use showed Muse Code 1.4.9 running a planted `<workspace>/bin/bwrap`
+  twice at serve start, before any prompt or approval
+  (`docs/certification/pathguard.md`).
+
+- PATH lookups closed at their cause (round 5): the playbook resolves
+  `git` outside the workspace and admits and spawns it absolute with the
+  guarded child env, so the supervisor's command is never a bare name;
+  team `setpriv`/`systemd-run`/`systemctl` probe on the absolute PATH
+  entries only and resolve outside each launch's own directory with the
+  guarded child env (a tool the probe saw but that directory shadows
+  fails the launch closed); the ACP agent and setup hooks pass their
+  workspace into the shell lookup, so `bash`/`sh` resolve outside it; an
+  absolute `SHELL` inside the workspace is ignored for hooks and `sh`
+  resolves outside instead; Windows comparisons strip trailing spaces
+  and a single trailing dot the way `GetFullPathName` does (`repo .` is
+  the workspace, a non-final `repo...` stays a distinct name). The spawn
+  inventory now also enumerates wrapper starts (literal or variable
+  command) and embedded supervisor scripts, and fails on any start
+  outside the guarded routes or the reviewed lists.
+
 ### Fixed
 
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:

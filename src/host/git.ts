@@ -7,14 +7,14 @@ import { resourceEnvironment } from '../core/resources/launch'
 // index lock out from under the user's own git.
 
 import { type ExecFileOptions, spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { admitResource, resourceWindowsJob, stopResourceTree } from '../core/resources/admission'
 import { spawnMcpJob } from './backend/mcpJobLaunch'
 import { observeResourceProcess } from './resources/resourceAdmission'
 import { treeSpawnOptions } from './processTree'
 import { Buffer } from 'node:buffer'
 import * as z from 'zod/mini'
-import { resolveExecutable } from '../core/executables'
+import { resolveExecutable, workspaceChildEnvironment } from '../core/executables'
 import type { BestOfNGitGuard } from '../core/bestOfN/bestOfNRunner'
 import { environmentValue } from '../core/backends/musecode/launch'
 import {
@@ -127,36 +127,70 @@ function subcommandOf(args: readonly string[]): string {
 }
 
 /**
- * git's absolute path, found once per PATH value; a miss is not cached, so
- * git installed while the window is open is found on the next call.
+ * git's absolute path, found once per PATH value and workspace; a miss is
+ * not cached, so git installed while the window is open is found on the
+ * next call. The run's working directory is the workspace: entries inside
+ * it are never probed, so a planted git there never resolves
+ * (docs/certification/pathguard.md).
  */
 function gitLocator(
-  deps: Pick<GitRunnerDeps, 'platform' | 'env' | 'fileExists'>,
-): () => string | undefined {
-  let cache: { readonly pathValue: string | undefined; readonly git: string } | undefined
-  return () => {
+  deps: Pick<GitRunnerDeps, 'platform' | 'env' | 'fileExists' | 'realpath'>,
+): (workspaceRoot?: string) => string | undefined {
+  let cache: { readonly key: string; readonly git: string } | undefined
+  return (workspaceRoot) => {
     const pathValue = environmentValue(deps.env, deps.platform, PATH_VARIABLE)
-    if (cache === undefined || cache.pathValue !== pathValue) {
+    const key = JSON.stringify([pathValue, workspaceRoot])
+    if (cache?.key !== key) {
       const git = resolveExecutable(GIT, {
         platform: deps.platform,
         pathVariable: pathValue,
         fileExists: deps.fileExists,
+        ...(workspaceRoot !== undefined && { workspaceRoot }),
+        ...(deps.realpath !== undefined && { realpath: deps.realpath }),
       })
-      cache = git === undefined ? undefined : { pathValue, git }
+      cache = git === undefined ? undefined : { key, git }
     }
     return cache?.git
   }
 }
 
-/** The extension's git environment: no optional locks, and never a credential prompt. */
-export function quietGitEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return { ...withoutCredentials(env), GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' }
+/**
+ * The extension's git environment: no optional locks, and never a
+ * credential prompt. With the workspace the child runs in, its PATH is the
+ * guarded child PATH (workspace entries dropped, empty/relative entries
+ * dropped, `NoDefaultCurrentDirectoryInExePath=1` on Windows), so git's own
+ * bare-name lookups (`ssh`, `git-remote-https`) never run a helper planted
+ * in the repository.
+ */
+export function quietGitEnvironment(
+  env: NodeJS.ProcessEnv,
+  workspace?: {
+    readonly workspaceRoot: string
+    readonly platform: NodeJS.Platform
+    readonly realpath?: ((filePath: string) => string) | undefined
+  },
+): NodeJS.ProcessEnv {
+  const base = { ...withoutCredentials(env), GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' }
+  if (workspace === undefined) {
+    return base
+  }
+  return {
+    ...workspaceChildEnvironment(workspace.platform, base, workspace),
+    GIT_OPTIONAL_LOCKS: '0',
+    GIT_TERMINAL_PROMPT: '0',
+  }
 }
 
 export interface GitRunnerDeps {
   readonly platform: NodeJS.Platform
   readonly env: NodeJS.ProcessEnv
   readonly fileExists: (filePath: string) => boolean
+  /**
+   * Resolves links for the workspace comparison, so a PATH entry that is a
+   * symlink or junction into the run's working directory is excluded with
+   * it. Absent means lexical comparison only.
+   */
+  readonly realpath?: ((filePath: string) => string) | undefined
   /**
    * Arguments put before each command's own once the runner found git:
    * only the untrusted lane that lists, adds and indexes someone else's
@@ -213,17 +247,20 @@ export function createGitRunner(
   input?: string,
   beforeRun?: BestOfNGitGuard,
 ) => Promise<string> {
-  const env = quietGitEnvironment(deps.env)
   const gitPath = gitLocator(deps)
   let supportedVersion: { readonly git: string; readonly checked: Promise<void> } | undefined
   return async (args, cwd, timeoutMs = GIT_TIMEOUT_MS, input, beforeRun) => {
-    const git = gitPath()
+    const git = gitPath(cwd)
     if (git === undefined) {
       throw new GitMissingError()
     }
     const options: ExecFileOptions = {
       cwd,
-      env,
+      env: quietGitEnvironment(deps.env, {
+        workspaceRoot: cwd,
+        platform: deps.platform,
+        ...(deps.realpath !== undefined && { realpath: deps.realpath }),
+      }),
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
       timeout: timeoutMs,
       windowsHide: true,
@@ -295,6 +332,7 @@ export function processGitRunner(
     env: options.env ?? process.env,
     argsBefore: options.argsBefore,
     fileExists: existsSync,
+    realpath: realpathSync,
     isAutomatic: options.isAutomatic === true,
     execFile: async (_file, args, options, input, beforeRun) => {
       if (typeof options.cwd !== 'string' || options.env === undefined)
@@ -402,13 +440,20 @@ export interface GitProcessDeps {
   /** Where git is looked for: this environment's PATH, absolute entries only (D24). */
   readonly env: NodeJS.ProcessEnv
   readonly fileExists: (filePath: string) => boolean
+  /**
+   * Resolves links for the workspace comparison, so a PATH entry that is a
+   * symlink or junction into the run's working directory is excluded with
+   * it. Absent means lexical comparison only.
+   */
+  readonly realpath?: ((filePath: string) => string) | undefined
   readonly spawn: typeof spawn
   /**
    * The git to run instead of a PATH search (M123's native route: the git
    * the host resolved, absolute only, `fixedGitLocator`), or undefined
-   * when there is none, so the run fails as git missing (D24).
+   * when there is none, so the run fails as git missing (D24). The run's
+   * working directory is passed so a searching locator can exclude it.
    */
-  readonly locate?: (() => string | undefined) | undefined
+  readonly locate?: ((workspaceRoot?: string) => string | undefined) | undefined
 }
 
 /**
@@ -417,13 +462,22 @@ export interface GitProcessDeps {
  * (a confirmed push, a pull request fetch) only the Git routes
  * GIT_PUSH_CREDENTIAL_VARIABLES names, never a model or provider key.
  */
-function childGitEnvironment(options: GitProcessOptions): NodeJS.ProcessEnv {
-  return options.credentialRoutes === undefined
-    ? withoutCredentials(options.env)
-    : {
-        ...withoutCredentials(options.env, options.credentialRoutes),
-        GIT_TERMINAL_PROMPT: '0',
-      }
+function childGitEnvironment(
+  options: GitProcessOptions,
+  workspace: {
+    readonly workspaceRoot: string
+    readonly platform: NodeJS.Platform
+    readonly realpath?: ((filePath: string) => string) | undefined
+  },
+): NodeJS.ProcessEnv {
+  const base =
+    options.credentialRoutes === undefined
+      ? withoutCredentials(options.env)
+      : {
+          ...withoutCredentials(options.env, options.credentialRoutes),
+          GIT_TERMINAL_PROMPT: '0',
+        }
+  return workspaceChildEnvironment(workspace.platform, base, workspace)
 }
 
 /**
@@ -467,7 +521,7 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         resource === undefined || deps.platform !== 'win32' ? undefined : await resourceWindowsJob()
       options.beforeRun?.()
       return await new Promise<Buffer>((resolve, reject) => {
-        const git = gitPath()
+        const git = gitPath(options.cwd)
         if (git === undefined) {
           resource?.complete(true)
           reject(new GitMissingError())
@@ -481,7 +535,14 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         }
         // The same environment on both routes: the governed Windows job too
         // keeps D104's user environment for a push and a fetch (M123).
-        const childEnv = resourceEnvironment(childGitEnvironment(options), resource)
+        const childEnv = resourceEnvironment(
+          childGitEnvironment(options, {
+            workspaceRoot: options.cwd,
+            platform: deps.platform,
+            ...(deps.realpath !== undefined && { realpath: deps.realpath }),
+          }),
+          resource,
+        )
         // The Windows helper creates git only after GO: the caller's check
         // runs again at that authorization, after the helper's own start
         // (RVM123G2 R1), and its refusal is this command's.
@@ -644,9 +705,19 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
   }
 }
 
-/** git's absolute path on this process's PATH (D24), for M123's native route; undefined when absent. */
-export function processGitPath(): string | undefined {
-  return gitLocator({ platform: process.platform, env: process.env, fileExists: existsSync })()
+/**
+ * git's absolute path on this process's PATH (D24), for M123's native
+ * route; undefined when absent. With the workspace root, directories inside
+ * it (resolved through links) are never probed, so a planted git there
+ * never resolves.
+ */
+export function processGitPath(workspaceRoot?: string): string | undefined {
+  return gitLocator({
+    platform: process.platform,
+    env: process.env,
+    fileExists: existsSync,
+    realpath: realpathSync,
+  })(workspaceRoot)
 }
 
 /** Whether git is on the absolute entries of this process's PATH (M72's availability). */
@@ -665,6 +736,7 @@ export function processGitProcess(): GitProcess {
     platform: process.platform,
     env: process.env,
     fileExists: existsSync,
+    realpath: realpathSync,
     spawn,
   })
 }
