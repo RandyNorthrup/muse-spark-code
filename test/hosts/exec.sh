@@ -59,3 +59,22 @@ prints_help() {
 prints_help --help
 prints_help exec --help
 prints_help help --all
+
+# No bound of ours: a set value past every removed bound is honored, and no
+# value means no limit. Parsing reaches the missing prompt instead of
+# refusing the flag (exit 2 names the prompt, never the flag).
+past_bound() {
+  token=$1; shift
+  code=0
+  out=$(node "$agent" "$@" 2>&1) || code=$?
+  [ "$code" = 2 ] || fail "reaches the prompt check: $* (got $code)"
+  case "$out" in *'Provide one nonempty prompt.'*) ;; *) fail "prompt check: $*";; esac
+  if [ -n "$token" ]; then
+    case "$out" in *"$token"*) fail "still bounds [$token]: $*";; esac
+  fi
+  echo "ok   past bound [$*]"
+}
+past_bound '--max-requests' exec --backend modelApi --max-budget-usd 1 --max-requests 1000000
+past_bound '--timeout' exec --timeout 1000000
+past_bound '--max-budget-usd' exec --backend modelApi --max-budget-usd 250.5
+past_bound '' exec --backend modelApi --max-budget-usd 1
