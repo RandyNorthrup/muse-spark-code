@@ -2901,3 +2901,22 @@ unproven:
 ### Composition note (no unit proof was ever real)
 
 - the team preview composes with lane A's real selection strategy (the deleted helper was a reduced reimplementation, not the strategy; record: `docs/certification/m96-f.md`)
+
+## Lane no-standins-2 (2026-10-17, branch chore/no-standins-2)
+
+The stand-ins PR #223 left. Per-item record: `docs/certification/no-standins.md`. Rewritten-to-real cases (evalTasks environment, the screen recorder's random-access sink cap, Amp plugin dispatch, the reporting harness) keep their proofs and are not listed here.
+
+### test/unit/windowsScreenRecorderNative.test.ts (four cases over hand-written WinRT operations)
+
+- Stop cancels and closes a pending selection, file, open or prepare operation before recording starts
+- Cancel stays atomic when a concurrent normal Stop finishes later
+- an operation registered after Cancel was latched is cancelled
+- a normal Stop finalizes encoding while a later Cancel cancels it
+
+### test/unit/helpers/vault/windowsVault*.cs (test-only Hello, KSP and DPAPI stand-ins; no test compiled them)
+
+- the native Windows vault guard capture: Hello signing projection, KSP named-key lifecycle, DPAPI current-user scope
+
+### test/unit/pluginDispatch.test.ts (one case over a scripted containment answer)
+
+- without containment, a plugin hook fails by its rule and says why in the user's language
