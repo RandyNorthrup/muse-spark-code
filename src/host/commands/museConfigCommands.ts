@@ -29,6 +29,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
+import { isMissingPath } from '../canonicalPath'
 import type { PickItem, PickOne } from './pickItem'
 
 export type McpAction = 'login' | 'logout'
@@ -85,8 +86,20 @@ const STREAMABLE_HTTP = 'streamable-http'
 const LIST_SEPARATOR = ', '
 const DETAIL_SEPARATOR = ' · '
 
-function describe(error: unknown): string {
-  return redactSecrets(error instanceof Error ? error.message : String(error))
+/**
+ * A settings read's errno vocabulary: a permission or a path that is not a
+ * file reads as its code (the message can hold the file's path), so the
+ * reason shown stays closed. Anything else is not this read's to name.
+ */
+const SETTINGS_READ_CODES: ReadonlySet<string> = new Set(['EACCES', 'EPERM', 'EISDIR', 'ENOTDIR'])
+
+function isSettingsReadError(error: unknown): error is Error & { readonly code: string } {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    SETTINGS_READ_CODES.has(error.code)
+  )
 }
 
 /** The file's text, or why it could not be read (a permission, a directory). */
@@ -95,7 +108,10 @@ function settingsText(deps: MuseConfigDeps): { readonly text?: string; readonly 
     const text = deps.readSettings()
     return text === undefined ? {} : { text }
   } catch (error: unknown) {
-    return { error: describe(error) }
+    if (!isSettingsReadError(error)) {
+      throw error
+    }
+    return { error: error.code }
   }
 }
 
@@ -328,14 +344,19 @@ export async function showMcpServers(deps: MuseConfigDeps): Promise<void> {
 const EXTENSION_EVENTS: ReadonlySet<string> = new Set(EXTENSION_HOOK_EVENTS)
 type SparkScope = 'project' | 'user'
 
-/** A hooks file's view; undefined when there is no such file or it cannot be read. */
+/** A hooks file's view; undefined when there is no such file. */
 function hookFile(deps: MuseConfigDeps, fsPath: string | undefined): HookFileView | undefined {
   if (fsPath === undefined || deps.readTextFile === undefined || !deps.fileExists(fsPath)) {
     return undefined
   }
   try {
     return readHookFile(deps.readTextFile(fsPath))
-  } catch {
+  } catch (error: unknown) {
+    // The file vanished between the existence check and the read: there is
+    // no file to show. A file that cannot be read is not an absent one.
+    if (!isMissingPath(error)) {
+      throw error
+    }
     return undefined
   }
 }
