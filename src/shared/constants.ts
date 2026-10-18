@@ -2803,10 +2803,13 @@ export const IMAGE_REQUEST_TIMEOUT_MS = 180_000
 // 2026-09-25; error catalog dev.meta.ai/docs/image-generation, read
 // 2026-10-16: "an edit needs 1–10 items"): `POST /images/edits` with the
 // source images inline as data URLs, one PNG back, the same price as a
-// generated image. Meta requires at least one source; the capability record
-// carries no source maximum, so nothing is enforced locally (D121) and
-// Meta's own refusal reaches the person in words. Each source stays bounded
-// by MAX_IMAGE_BYTES.
+// generated image. Meta's own 1–10-item range is enforced in the runtime
+// schema and the tool definition (IMAGE_EDIT_SOURCE_MIN/MAX), before any
+// source is read or the paid-use question is asked. Each source stays
+// bounded by MAX_IMAGE_BYTES.
+/** Meta's own edit-item range: an edit needs 1–10 items. */
+export const IMAGE_EDIT_SOURCE_MIN = 1
+export const IMAGE_EDIT_SOURCE_MAX = 10
 // The source images an edit can send, by the media type their name gives.
 export const IMAGE_EDIT_SOURCE_TYPES: ReadonlySet<string> = new Set([
   'image/png',
