@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Setting an effort the model does not serve in an editor names the levels
+  it does serve again, the same refusal headless `exec` gives.
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights
