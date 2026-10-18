@@ -14600,15 +14600,17 @@ CONTRIBUTING.md, "The capacity repository (D122)"; proofs:
 
 **Lead decision (2026-10-10, CM9LNX2 brief).** The native recogniser helper
 is NOT packaged in the VSIX. The VSIX size and its 3,700 KiB cap stay
-unchanged. Instead the helper (x64 and arm64, five files each:
-`muse-dictate` plus four libraries) is built by the release workflow,
-attested, and published as same-tag release assets; the build embeds each
-asset's SHA-256 in the extension, generated at build time from the built
-helpers.
+unchanged. Instead the helper (x64 and arm64, twelve files each:
+`muse-dictate`, three libraries and the eight CPU backend variants the
+`GGML_CPU_ALL_VARIANTS` build emits, so the runtime selects the machine's
+optimized backend) is built by the release workflow, attested, and
+published as same-tag release assets; the build embeds each asset's
+SHA-256 in the extension, generated at build time from the built helpers.
 
-**Mechanism (this lane).** `src/shared/linuxHelperPins.ts` carries the ten
-pins (stable asset names under `releases/latest/download`, exact bytes and
-SHA-256); it is read only by `dist/voiceLinux.js` on the first Linux
+**Mechanism (this lane).** `src/shared/linuxHelperPins.ts` carries the
+twenty-four pins (stable asset names under `releases/latest/download`,
+exact bytes and SHA-256); it is read only by `dist/voiceLinux.js` on the
+first Linux
 recording, never at activation. The release workflow regenerates it with
 `node scripts/build-linux-helper-pins.mjs` from both built architectures
 before packaging; committed values are UNSET (bytes 0, empty digest), and an
@@ -14632,12 +14634,15 @@ every start; the binary keeps owner-only execute permissions
 (`helperMode: 0o755`), libraries owner-only data (`fileMode: 0o600`). A
 digest mismatch, a partial file or a swapped file refuses loudly through the
 existing integrity errors and offers retry/remove; OFF removes helper and
-model with their partials. Manual install (offline users): download the ten
-assets plus the model file into the folder the card names; digests are
-checked the same way.
+model with their partials. Manual install (offline users): download the
+twenty-four assets plus the model file into the folder the card names;
+digests are checked the same way.
 
 **Known approximations (lead to confirm).** The card shows the measured
-first-download size (~7.6 MB x64 inventory) rather than the brief's ~3 MB,
+first-download size (~7.6 MB five-file x64 inventory) rather than the
+brief's ~3 MB; the eight CPU backend variants per architecture are not in
+that number yet: re-measure it from the staged release helpers before
+publishing.
 which was the ZIP-compressed inventory: the download is the uncompressed
 files. A swapped helper binary between verification and spawn (TOCTOU) is
 not closed; the window is one spawn and is recorded here. The
