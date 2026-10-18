@@ -183,3 +183,34 @@ Seven unresolved threads (chatgpt-codex-connector), each fixed at its cause:
 7. `src/core/backends/modelapi/ModelApiHost.ts` (P1, role instructions):
    fix. The playback prompt keeps the active agent role's charter and the
    team's mode and roster instructions, still with no tools.
+
+## PR #221 thread fixes verified (2026-10-17, branch `ms/playback-fix`)
+
+The snapshot commit `d33813738` was undone (`git reset --soft HEAD~1`)
+and recommitted as five reviewable commits (`a1838e77e` the shared
+`PlaybackWatch`, `374fdca8d` the ACP fixes, `f1b1b79c3` the panel watch,
+`6a4c64d2d` the playback failure text with its 3 locale keys in all 15
+tables, `38e7c4578` the Model API instructions); the final tree is
+byte-identical to the snapshot. `main-now` was already an ancestor, so no
+merge was needed. Gate-fire proven: `PlaybackWatch.bind` forced to
+`false` fails `playbackWatch.test.ts` (1 failed, reverted byte-exact),
+and `playbackInstructionsFor` with the roster dropped fails
+`playbackPrompt.test.ts` (1 failed, reverted byte-exact).
+
+- `npm run typecheck` (all five projects): clean.
+- `npx eslint src/ test/ --max-warnings=0`: zero warnings.
+- `npx prettier --check` on every changed file: clean.
+- `node scripts/check-l10n.mjs`: 0 problems.
+- `node scripts/gen-reference.mjs --check`: current.
+- `node scripts/check-plan.mjs`: 0 drift.
+- `npm run build` (production + size budgets): green.
+- `npm run deadcode`, `npm run cycles`, `npm run duplication`: green
+  (0 clones, no circular dependencies).
+- `npx vitest run test/unit/playbackWatch.test.ts
+test/unit/playbackPrompt.test.ts --maxWorkers=3`: 4 passed, repo
+  default timeout, no `--testTimeout`.
+- Neighbouring suites `playbackCommand`, `paletteRegistry`,
+  `instructions`, `lazyBundleFiles`: all passed.
+- No stand-ins: the new and changed tests drive the real
+  `PlaybackWatch` and the real `playbackInstructionsFor` with realistic
+  input; no mock, fake timer, invented wire data, or text-exists check.
