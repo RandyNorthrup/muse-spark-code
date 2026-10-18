@@ -684,6 +684,11 @@ happened, not what was planned; superseded entries are kept.
   cumulative merge diff, so a follow-up push that touches only an unrelated
   file no longer passes with no Windows or macOS run anywhere; a capacity
   run that never appears now fails its relay instead.
+- The vault's terminal commands keep the broker's own sentence when the
+  broker cannot start ("The broker cannot start. ... Repair the broker
+  installation.") and when the build has the vault switched off, instead of
+  the bare "No access" a person cannot act on. An open failure that names no
+  cause still says the broker cannot start (RUPLATFORML).
 
 ### Pending
 
