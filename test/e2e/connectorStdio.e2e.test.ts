@@ -235,7 +235,11 @@ describe('M124 connector over real stdio', () => {
   // Split from the case above by RVMSM124: together they ran past the
   // repository's 5-second test timeout on a loaded rig (five agent
   // processes in one case). Each case keeps every assertion it had.
-  it('keeps Stop working under the kill switch and refuses widening without a terminal', async () => {
+  // Split again: four sequential agent boots in one case measured 2.7-5.5 s
+  // even unloaded, so the case flaked against the 5 s timeout on any rig.
+  // The terminal refusal below fires before the kill state is read, so the
+  // widening case needs no kill switch of its own.
+  it('keeps Stop working under the kill switch', async () => {
     await grant(['prompts:read', 'content:read', 'operations:read', 'control:stop'])
     const kill = spawnSync(process.execPath, [agent, 'mcp', 'kill'], { env, encoding: 'utf8' })
     expect(kill.status).toBe(0)
@@ -254,6 +258,9 @@ describe('M124 connector over real stdio', () => {
     const killed = byId(killedSession.lines)
     expect(structured(killed.get(1))).toMatchObject({ status: 'refused', reason: 'forbidden' })
     expect(structured(killed.get(2))).toMatchObject({ status: 'ok', data: { outcome: 'unknown' } })
+  })
+  it('refuses widening without a terminal', async () => {
+    await grant(['prompts:read', 'content:read', 'operations:read', 'control:stop'])
     // Widening authority again needs a terminal; a pipe cannot resume it.
     const resume = spawnSync(process.execPath, [agent, 'mcp', 'resume'], { env, encoding: 'utf8' })
     expect(resume.status).toBe(1)
