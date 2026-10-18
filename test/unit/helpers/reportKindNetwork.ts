@@ -1,11 +1,14 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { expect, vi, type Mock } from 'vitest'
+import { expect } from 'vitest'
 import {
   ReportNetworkReader,
   ReportResponseCache,
+  type ReportCacheStorage,
   type ReportNetworkDeps,
   type ReportNetworkPolicy,
+  type ReportNetworkRequest,
+  type ReportNetworkTransport,
 } from '../../../src/core/reporting/sources/cache'
 import { redactSecrets } from '../../../src/core/redact'
 import type { SourceReadContext } from '../../../src/core/reporting/sources/types'
@@ -43,37 +46,83 @@ export function networkContext(isNetworkEnabled = true): SourceReadContext {
   }
 }
 
+export interface TransportCall {
+  readonly request: ReportNetworkRequest
+  readonly etag: string | null
+}
+
+/**
+ * A transport over plain closures: every call is logged, and the case
+ * replaces the implementation by assignment. The reader, cache and sources
+ * under test stay the real modules; only the seam inputs come from here.
+ */
+export interface TransportRecorder {
+  readonly transport: ReportNetworkTransport
+  readonly calls: readonly TransportCall[]
+  setImplementation(implementation: ReportNetworkTransport): void
+}
+
+export function recordingTransport(
+  implementation: ReportNetworkTransport = () => Promise.resolve(Response.json({ value: 'ok' })),
+): TransportRecorder {
+  const calls: TransportCall[] = []
+  let current = implementation
+  return {
+    transport: (request, etag, signal) => {
+      calls.push({ request, etag })
+      return current(request, etag, signal)
+    },
+    calls,
+    setImplementation: (implementation) => {
+      current = implementation
+    },
+  }
+}
+
 export function networkRig(overrides: Partial<Omit<ReportNetworkDeps, 'cache'>> = {}) {
   let entries: unknown = undefined
-  const storage = {
-    read: vi.fn(() => Promise.resolve(entries)),
-    write: vi.fn((value: unknown) => {
+  // Plain reassignable seam inputs: cases replace a method to fault-inject,
+  // and the real cache reads the property at call time.
+  const storage: ReportCacheStorage = {
+    read: () => Promise.resolve(entries),
+    write: (value) => {
       entries = structuredClone(value)
       return Promise.resolve()
-    }),
+    },
   }
+  const { policy: policyOverride, transport: transportOverride, ...rest } = overrides
+  let egress: ReportNetworkPolicy['allowEgress'] =
+    policyOverride?.allowEgress ?? (() => Promise.resolve(true))
   const policy: ReportNetworkPolicy = {
     surface: 'editor',
     mode: 'always',
     githubSignedIn: true,
-    allowEgress: vi.fn(() => Promise.resolve(true)),
+    ...policyOverride,
+    allowEgress: (url, signal) => egress(url, signal),
   }
-  const transport = vi.fn(() => Promise.resolve(Response.json({ value: 'ok' })))
+  const recorder = recordingTransport(transportOverride)
   const deps: ReportNetworkDeps = {
-    policy,
-    transport,
     cache: new ReportResponseCache(storage, 4),
     now: () => REPORT_FIXTURE_AS_OF,
     scrub: redactSecrets,
     maxBytes: 16_384,
     maxPages: 8,
-    ...overrides,
+    ...rest,
+    policy,
+    transport: recorder.transport,
   }
   return {
     deps,
     reader: new ReportNetworkReader(deps),
     storage,
-    transport,
+    transport: recorder.transport,
+    calls: recorder.calls,
+    setTransport: (implementation: ReportNetworkTransport) => {
+      recorder.setImplementation(implementation)
+    },
+    setEgress: (implementation: ReportNetworkPolicy['allowEgress']) => {
+      egress = implementation
+    },
     entries: () => entries,
     replaceEntries: (value: unknown) => {
       entries = value
@@ -141,7 +190,7 @@ export function githubCaptureTransport(input: {
     if (input.onUnknown !== undefined) return input.onUnknown(request)
     throw new Error(`unexpected request ${request.url}`)
   }
-  return vi.fn((request: { readonly url: string }) => githubEmptyReads(request) ?? routes(request))
+  return recordingTransport((request) => githubEmptyReads(request) ?? routes(request))
 }
 
 /**
@@ -225,7 +274,7 @@ export function readStoresReport(input: {
 /** Both npm-adapter suites assert the same refused-package shape. */
 export function expectNpmPackageRequired(
   result: Awaited<ReturnType<typeof readStoresReport>>,
-  transport: Mock,
+  calls: readonly TransportCall[],
 ): void {
   expect(result.record.status).toBe('partial')
   expect(result.data?.find((row) => row.channel === 'npm')).toEqual({
@@ -235,7 +284,7 @@ export function expectNpmPackageRequired(
     status: 'unavailable',
     reason: 'npm-package-required',
   })
-  expect(transport).toHaveBeenCalledTimes(2)
+  expect(calls).toHaveLength(2)
 }
 
 /** The production store binding every storeProject case drives, up to its fake HTTP boundary. */
