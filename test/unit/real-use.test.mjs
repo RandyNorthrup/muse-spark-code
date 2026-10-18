@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   buildExecArgs,
   microUsdToString,
+  parseBudgetUsd,
   parseStepsFile,
   REAL_USE_MODEL,
   RealUseInputError,
@@ -75,6 +76,24 @@ describe('steps validation', () => {
     ]) {
       expect(() => resolveStepsFile(repoRoot, outside)).toThrow(RealUseInputError)
     }
+  })
+})
+
+describe('budget grammar', () => {
+  it('reads the CLI form, trailing zeros included', () => {
+    expect(parseBudgetUsd('1.00')).toBe(1_000_000n)
+    expect(parseBudgetUsd('0.01')).toBe(10_000n)
+    expect(parseBudgetUsd('20')).toBe(20_000_000n)
+    expect(parseBudgetUsd('abc')).toBeUndefined()
+    expect(parseBudgetUsd('1.0000001')).toBeUndefined()
+    expect(parseBudgetUsd('')).toBeUndefined()
+  })
+
+  it('accepts a trailing-zero step budget', () => {
+    const steps = parseStepsFile(
+      '{"version":1,"steps":[{"id":"a","mode":"plan","prompt":"x","maxBudgetUsd":"1.00"}]}',
+    )
+    expect(steps[0].maxBudgetUsd).toBe('1.00')
   })
 })
 

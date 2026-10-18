@@ -26,7 +26,9 @@ import { maskCommand, takeModelApiKey } from '../action/lib/run-exec.mjs'
 import {
   buildExecArgs,
   keepFinalMessage,
+  MAX_BUDGET_MICRO_USD,
   microUsdToString,
+  parseBudgetUsd,
   parseFlagArgs,
   parseStepsFile,
   REAL_USE_MODEL,
@@ -144,8 +146,8 @@ async function main() {
     usageError('expected-calls is an integer 1 to 500')
     return
   }
-  const cap = microUsd(options.maxBudgetUsd)
-  if (cap === undefined || cap <= 0n || cap > microUsd('20')) {
+  const cap = parseBudgetUsd(options.maxBudgetUsd)
+  if (cap === undefined || cap <= 0n || cap > MAX_BUDGET_MICRO_USD) {
     usageError('max-budget-usd is unsigned decimal over 0 through 20')
     return
   }
@@ -213,7 +215,7 @@ async function main() {
       const stepCap =
         step.maxBudgetUsd === undefined
           ? remainingBudget
-          : (microUsd(step.maxBudgetUsd) ?? remainingBudget)
+          : (parseBudgetUsd(step.maxBudgetUsd) ?? remainingBudget)
       const budget = microUsdToString(Math.min(stepCap, remainingBudget))
       const stepDir = path.join(options.outDir, step.id)
       mkdirSync(stepDir, { recursive: true })
