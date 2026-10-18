@@ -107,6 +107,35 @@ First result: what the person sees now → what they will see after this lane.
   no-subagent message) and one refused by the backend (expect the agent's
   own missing-checkpoint message, never the backend one).
 
+## Live ACP pass (packed `dist/acp.js`, NDJSON driver, scratch HOME/workspace)
+
+One continuous pass per phase through the public ACP interface
+(`initialize` → `session/new` → `session/prompt`; server permission
+requests answered cancelled). Session setup needed the repo's own
+`native/darwin/build.sh` (git-ignored helper, warnings only).
+
+- `/legal` with `dist/legalScan.js` set aside: `ERROR -32603 "Internal
+error: The legal scanner could not be loaded; reinstall the extension
+and reload the window. The log has the details."` (bundle restored
+  after; server stderr names the missing module). Only the load failure
+  says it.
+- `/legal` on a chmod-000 workspace: `ERROR -32603 "Internal error"`
+  with data `EACCES: permission denied, opendir` — the scan's own cause,
+  no scanner message. `/legal --offline` readable again: full scan
+  report, `end_turn`.
+- `/agents` on empty history: "No subagents in this conversation.",
+  `end_turn`.
+- `/agents retry no-such-agent` and `/agents continue no-such-agent`:
+  `ERROR -32602 "Invalid params: Continue is unavailable for this agent
+or its current state."` — the unknown-agent pre-check, unchanged by
+  this lane (pre-existing wording, not one of the named lines).
+- The three new retry messages need history entries (a listed entry with
+  no subagent; a backend `controlSubagent` refusal), and history entries
+  need a backend model turn, which this lane may not run (no live model
+  calls). Not reachable headless here; covered by code, typecheck,
+  eslint, and the unit truth-table instead. Exact person steps for the
+  lead are listed under "Real-use drills" above.
+
 ## Gate exit codes (final tree, macmini)
 
 - `npm run typecheck` (all five projects): 0.
