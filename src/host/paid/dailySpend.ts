@@ -95,52 +95,61 @@ export function createDailySpend(deps: {
     const damaged = (file: string, error: unknown): never => {
       throw new SpendLedgerError('damaged', { scope, file, errno: storeErrorCode(error) }, error)
     }
-    let text: string
-    try {
-      text = readFileSync(path.join(directory, LEGACY_SEED_FILE), 'utf8')
-    } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT') return NOTHING
-      throw new SpendLedgerError(
-        'unreadable',
-        { scope, file: LEGACY_JOURNAL_DIRECTORY, errno: storeErrorCode(error) },
-        error,
-      )
+    // A legacy amount the schema let through but exact decimals cannot hold.
+    const finite = (file: string, value: number | string): number | string => {
+      if (typeof value === 'number' && !Number.isFinite(value)) damaged(file, value)
+      return value
     }
-    let seed: z.infer<typeof legacySeedSchema>
-    try {
-      seed = legacySeedSchema.parse(JSON.parse(text))
-    } catch (error: unknown) {
-      damaged(LEGACY_SEED_FILE, error)
+    const readSeedText = (): string | undefined => {
+      try {
+        return readFileSync(path.join(directory, LEGACY_SEED_FILE), 'utf8')
+      } catch (error: unknown) {
+        if (storeErrorCode(error) === 'ENOENT') return undefined
+        throw new SpendLedgerError(
+          'unreadable',
+          { scope, file: LEGACY_JOURNAL_DIRECTORY, errno: storeErrorCode(error) },
+          error,
+        )
+      }
     }
+    const parseSeed = (text: string): z.infer<typeof legacySeedSchema> => {
+      try {
+        return legacySeedSchema.parse(JSON.parse(text))
+      } catch (error: unknown) {
+        return damaged(LEGACY_SEED_FILE, error)
+      }
+    }
+    const parseClaim = (file: string, text: string): z.infer<typeof legacyClaimSchema> => {
+      try {
+        return legacyClaimSchema.parse(JSON.parse(text))
+      } catch (error: unknown) {
+        return damaged(file, error)
+      }
+    }
+    const readClaimText = (file: string): string => {
+      try {
+        return readFileSync(path.join(directory, file), 'utf8')
+      } catch (error: unknown) {
+        return damaged(file, error)
+      }
+    }
+    const seedText = readSeedText()
+    if (seedText === undefined) return NOTHING
+    const seed = parseSeed(seedText)
     if (seed.sessionId !== scope || seed.accountId !== LEGACY_DAILY_ACCOUNT)
       damaged(LEGACY_SEED_FILE, undefined)
-    let spent = Usd.from(0)
-    try {
-      spent = spent.add(Usd.from(seed.spentUsd))
-    } catch (error: unknown) {
-      damaged(LEGACY_SEED_FILE, error)
-    }
-    let names: string[]
-    try {
-      names = readdirSync(path.join(directory, LEGACY_CLAIMS_DIRECTORY))
-    } catch (error: unknown) {
-      damaged(LEGACY_CLAIMS_DIRECTORY, error)
-    }
-    for (const name of names) {
+    let spent = Usd.from(finite(LEGACY_SEED_FILE, seed.spentUsd))
+    const claimNames = ((): string[] => {
+      try {
+        return readdirSync(path.join(directory, LEGACY_CLAIMS_DIRECTORY))
+      } catch (error: unknown) {
+        return damaged(LEGACY_CLAIMS_DIRECTORY, error)
+      }
+    })()
+    for (const name of claimNames) {
       const file = path.join(LEGACY_CLAIMS_DIRECTORY, name, LEGACY_CLAIM_FILE)
-      let claim: z.infer<typeof legacyClaimSchema>
-      try {
-        claim = legacyClaimSchema.parse(
-          JSON.parse(readFileSync(path.join(directory, file), 'utf8')),
-        )
-      } catch (error: unknown) {
-        damaged(file, error)
-      }
-      try {
-        spent = spent.add(Usd.from(claim.settledUsd ?? claim.reservedUsd))
-      } catch (error: unknown) {
-        damaged(file, error)
-      }
+      const claim = parseClaim(file, readClaimText(file))
+      spent = spent.add(Usd.from(finite(file, claim.settledUsd ?? claim.reservedUsd)))
     }
     return { spentUsd: spent.toAmount(), unknownChargeCalls: 0 }
   }
