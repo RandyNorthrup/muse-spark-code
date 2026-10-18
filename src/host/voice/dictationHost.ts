@@ -53,8 +53,10 @@ export function createDictationSetup(
   return {
     isAvailable: true,
     create: (listener) =>
-      deferredDriver(listener, () =>
-        voice().createDictation(location.invocation, listener, log, UI_TEXT, uiLocale()),
+      deferredDriver(
+        listener,
+        () => voice().createDictation(location.invocation, listener, log, UI_TEXT, uiLocale()),
+        log,
       ),
   }
 }
@@ -141,13 +143,16 @@ export function createMuseVoiceSetup(
   return {
     isAvailable: true,
     create: (listener) =>
-      deferredDriver(listener, () =>
-        voice().createMuseVoice(
-          { ...driverDeps, capture: location },
-          listener,
-          UI_TEXT,
-          uiLocale(),
-        ),
+      deferredDriver(
+        listener,
+        () =>
+          voice().createMuseVoice(
+            { ...driverDeps, capture: location },
+            listener,
+            UI_TEXT,
+            uiLocale(),
+          ),
+        deps.log,
       ),
   }
 }

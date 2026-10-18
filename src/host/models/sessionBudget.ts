@@ -38,6 +38,10 @@ export interface SessionBudgetState {
 
 export interface SessionBudgetConfig {
   read(): SessionBudgetState
+  /**
+   * Throws `SessionBudgetInvalidError` for an invalid value; anything else
+   * it throws is the store's failure and reaches the caller with its cause.
+   */
   write(value: UsdAmount, scope: SessionBudgetScope): Promise<void>
 }
 
@@ -84,7 +88,7 @@ export function createSessionBudgetConfig(
       const numeric = Number(value)
       const parsed = legacyUsdSchema.safeParse(numeric)
       if (!parsed.success || Usd.from(parsed.data).compare(Usd.from(value)) !== 0) {
-        throw new Error(UI_TEXT.wizardSessionBudgetInvalid)
+        throw new SessionBudgetInvalidError()
       }
       await source.update(SESSION_BUDGET_SETTING, numeric, scope)
     },
@@ -97,8 +101,16 @@ export type SessionBudgetApplyOutcome =
   | { readonly status: 'conflict'; readonly effectiveUsd: UsdAmount; readonly error: string }
   | { readonly status: 'failed'; readonly error: string }
 
-function failureDetail(error: unknown): string {
-  return error instanceof Error && error.message !== '' ? error.message : UI_TEXT.actionFailed
+/**
+ * The budget value itself is invalid (the setting's own schema refused
+ * it). Anything else a write throws is the store's failure, which still
+ * throws so the saver reports it with its cause.
+ */
+export class SessionBudgetInvalidError extends Error {
+  public constructor() {
+    super(UI_TEXT.wizardSessionBudgetInvalid)
+    this.name = 'SessionBudgetInvalidError'
+  }
 }
 
 /** Validate an edited setting before any provider or credential write. */
@@ -159,11 +171,11 @@ export async function applyWizardSessionBudget(
   }
   try {
     await config.write(parsed.data, current.scope)
-  } catch (error) {
-    return {
-      status: 'failed',
-      error: failureDetail(error),
+  } catch (error: unknown) {
+    if (error instanceof SessionBudgetInvalidError) {
+      return { status: 'failed', error: UI_TEXT.wizardSessionBudgetInvalid }
     }
+    throw error
   }
   // The write resolved but the setting still reads the old value (a more
   // specific scope still wins): say so instead of reporting success.

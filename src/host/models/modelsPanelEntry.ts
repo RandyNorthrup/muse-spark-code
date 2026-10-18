@@ -6,12 +6,7 @@
 // suggestions) arrives as parameters, read from `dist/providers.js`.
 
 import * as vscode from 'vscode'
-import {
-  GLOBAL_STATE_KEYS,
-  PROVIDER_IMPORT_MAX_BYTES,
-  SETTINGS_SECTION,
-  UI_TEXT,
-} from '../../shared/constants'
+import { GLOBAL_STATE_KEYS, SETTINGS_SECTION, UI_TEXT } from '../../shared/constants'
 import { providerSetupSchema } from '../../shared/providerSetup'
 import type { ChatSurface } from '../views/chatSurface'
 import { fill, setUiText } from '../../shared/l10n/text'
@@ -22,6 +17,7 @@ import type { Logger } from '../logger'
 import { showPickOne } from '../quickPick'
 import { startOAuthLoopback } from '../providers/oauthLoopback'
 import { createModelsPanel, type ModelsPanel, type ModelsPanelNavigate } from './modelsPanel'
+import { decodeImportFile } from './providerImportText'
 import { runAddProviderQuickPick, type ProviderQuickPickOutcome } from './modelsQuickPick'
 import { createSessionBudgetConfig } from './sessionBudget'
 import { createProvidersHost, type ProvidersHost } from '../providers/providersHost'
@@ -219,14 +215,7 @@ async function readImportFile(): Promise<string | undefined> {
     return undefined
   }
   const bytes = await vscode.workspace.fs.readFile(target)
-  if (bytes.length > PROVIDER_IMPORT_MAX_BYTES) {
-    throw new Error(UI_TEXT.textFileTooLarge)
-  }
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-  } catch {
-    throw new Error(UI_TEXT.textFileInvalid)
-  }
+  return decodeImportFile(bytes)
 }
 
 /**

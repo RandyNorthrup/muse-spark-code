@@ -1,6 +1,6 @@
 // M105 W: the host recording-temp gate and Linux latest-file discovery run
 // against real temp directories: no fake filesystem stands in for them.
-import { mkdtemp, mkdir, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readdir, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -135,6 +135,23 @@ describe('M105 W Linux latest-file discovery', () => {
     await writeFile(wav, wavFixture())
     await expect(port.copyForPreview(wav, 1_000_000)).rejects.toThrow('not a video')
   })
+
+  it('a failed copy crosses with the copy failure and leaves no preview behind', async () => {
+    const tempRoot = await temp()
+    const port = createLinuxLatestPort({ homeDir: await temp(), tempRoot })
+    const missing = path.join(tempRoot, 'gone.mp4')
+    let failure: unknown
+    try {
+      await port.copyForPreview(missing, 1000)
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(Error)
+    expect(failure instanceof Error && 'code' in failure ? String(failure.code) : undefined).toBe(
+      'ENOENT',
+    )
+    expect(await readdir(tempRoot)).toHaveLength(0)
+  })
 })
 
 describe('M105 W media source opener', () => {
@@ -173,6 +190,25 @@ describe('M105 W media source opener', () => {
     // Gone before any handle exists refuses; only a held handle reads unreadable.
     expect(
       await open({ name: 'gone.mp4', fsPath: path.join(ws, 'gone.mp4'), relativePath: 'gone.mp4' }),
+    ).toBeUndefined()
+  })
+
+  it('refuses when the path check itself fails, without a word', async () => {
+    const ws = await temp()
+    const tempRoot = await temp()
+    let refusal = new Error('the refusal did not refuse')
+    try {
+      await stat(path.join(ws, 'no-such-check'))
+    } catch (error: unknown) {
+      if (error instanceof Error) refusal = error
+    }
+    expect(refusal).toBeInstanceOf(Error)
+    const open = createMediaSourceOpen({
+      canonicalRelativePath: () => Promise.reject(refusal),
+      recordingTempRoot: tempRoot,
+    })
+    expect(
+      await open({ name: 'clip.mp4', fsPath: path.join(ws, 'clip.mp4'), relativePath: 'clip.mp4' }),
     ).toBeUndefined()
   })
 })
