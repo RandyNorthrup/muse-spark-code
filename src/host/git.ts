@@ -227,8 +227,9 @@ export function createGitRunner(
       cwd,
       env,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
-      // Node's execFile reads a timeout of 0 as none.
-      timeout: timeoutMs === Infinity ? 0 : timeoutMs,
+      // Infinity names no deadline: the spawn path waits for git's answer
+      // or the signal's abort (a 0 here would fire the timer at once).
+      ...(timeoutMs !== undefined && timeoutMs !== Infinity && { timeout: timeoutMs }),
       windowsHide: true,
       ...(beforeRun?.signal !== undefined && { signal: beforeRun.signal }),
     }
