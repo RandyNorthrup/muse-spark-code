@@ -1,4 +1,6 @@
-// M94 file eligibility shared by VS Code and the runtime LSP. Same ignore and hook policy.
+// M94 file eligibility shared by VS Code and the runtime LSP: same ignore
+// policy everywhere; the hook gate runs where the caller supplies a bridge
+// (the runtime LSP composes none yet, RVMSM104).
 import path from 'node:path'
 import { isGitExitError } from '../../host/git'
 import { compileGlob } from '../backends/modelapi/globLimits'
