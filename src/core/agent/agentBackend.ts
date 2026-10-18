@@ -299,6 +299,14 @@ export interface StartSessionOptions {
   readonly workspaceRoot: string
   readonly modelId: string
   readonly approvalMode: string
+  /**
+   * A native permission-profile id the host catalog admits (Muse Code 1.4.7
+   * `session/start.permissionProfile`): the interactive surfaces pass the
+   * profile their mode's words promise (`mspPermissionProfile`), so Manual
+   * asks the person instead of Muse Code's judge. Omitted means the host
+   * default; headless sessions omit it and behave as before.
+   */
+  readonly permissionProfile?: string
   /** Tool servers, keyed by name: the IDE's, or an ACP client's; needs the `sessionMcp` grant. */
   readonly mcpServers?: Readonly<Record<string, SessionMcpServer>>
   /** A new conversation kept in a side-chat surface (M53). */
