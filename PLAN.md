@@ -35627,6 +35627,22 @@ fails on any new rise. `dist/modelsPanel.js` is 128,289 bytes against its
 128,000-byte budget on the merged tree (the required three-valued read);
 no threshold is changed: the lead rebases the budget or directs a trim.
 
+**CATCHCONV2 conversation-bundle budget (2026-10-18, linuxlt).** `npm run
+build` on `catch/0190-conversation-controller` reports `OVER
+dist/conversation.js: 253.5 KiB (budget 250 KiB)`. The untouched base
+(`b7537ba6f3`, built on the same rig) is 254,414 bytes (248.5 KiB,
+green); the lane tree is 259,585 bytes (+5,171 B). Every added byte is
+attributed to the D119 per-handler kind-record lines in
+`src/host/conversation/conversationController.ts`: the catch gate's
+classifier counts a handler REPORTED only when the redacting
+`failureForLog` call stands textually inside that handler's own log
+call, so no shared helper recovers them (drill: removing one line
+returns that site to GENERIC; restoring returns it to REPORTED). No
+behaviour-preserving trim reaches the 3,585-byte gap without dropping
+the operation each record names. No threshold is changed: the lead
+rebases the budget by the repository's rule or directs a trim at
+integration.
+
 ## 8. Escape hatches register
 
 | Location                                            | Residual / follow-up                                | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
