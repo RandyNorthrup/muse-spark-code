@@ -45,6 +45,19 @@ goldens are fixed in this lane.
   tool definition, so the recorded golden bytes are stale; regenerate the
   affected goldens from the real builders (recorded input untouched).
 
+## Fixes W1 (lane PR229W1)
+
+- CI goldens: re-baselined `06-subagent-child.json` (3/3 requests),
+  `strict/06-subagent-child.json` (3/3) and `08-team-on.json` (1/1) from the
+  real builders with `temp/regen-goldens.ts` (esbuild-bundled, run once,
+  recorded input/instructions/model untouched). Byte diff, and nothing else:
+  (a) the `edit_image` tool gains `minItems: 1, maxItems: 10` and the "one
+  to ten" description (the T1 provider-limit fix `e0f4e8af4f`); (b) the
+  `delegate` tool drops "one to 6" and `maxItems: 6` (the A28 ceiling
+  removal `f345149261`); (c) the three `prompt_cache_key` digests that cover
+  those tool lists. `invariants.test.ts` 42/42 green on the repo default
+  timeout, no `--testTimeout`.
+
 ## Triage (committed first)
 
 - T1 `imageGeneration.ts:59` ten-source edit limit — FIX in this lane: enforce
