@@ -57,3 +57,35 @@ New, for the settings case (`webSocketAdditionalSupport` off):
 - New keys land in `src/shared/l10n/en.ts` and all 14 `l10n/ui.*.json`
   in English key order (`npm run check:l10n` clean), plus a
   CHANGELOG `[0.19.0]` line.
+
+## Proof (this rig, `macbook`)
+
+- Fix: `073a84ca3` (record: `6f45ee696`). 19 files, +127/−17.
+- `test/unit/voiceNetwork.test.ts`: 9 passed — both new refusals
+  driven from the real `voiceNetworkRefusal` with real settings
+  values, end to end through the real `readVoiceNetworkPosture`
+  (no stand-ins), repo's own timeout, no `--testTimeout`.
+- `test/unit/modelsActivationBudget.test.ts`: passed, activation
+  growth 2185 bytes (≤ 3 KiB).
+- Full static chain exit 0: `typecheck` (all 5 projects),
+  `check:badges`, `check:tokens`, `check:l10n` (0 problems),
+  `check:reference`, `check:host-api`, `check:plan`,
+  `check:roadmap`, `deadcode`, `cycles`, `duplication`, `build`
+  (with budgets), `security:audit` (2 advisories, 1 exception —
+  the checked-in exception list).
+- `prettier --check` on all changed files: clean. `eslint
+--max-warnings=0` on all changed src and test files: clean —
+  including the hook-caught `unicorn/no-nested-ternary` and
+  `unicorn/switch-case-braces`, fixed as a `switch` with braces
+  (the sentence lookup stays inside the setup call, never at
+  module load, so the installed language is the one shown).
+- Packaging: `museVoiceProxySupportOff` and
+  `museVoiceProxyWebSocketOff` are present in the built
+  `dist/extension.js`.
+- NOT RUN here: VS Code GUI real-use (this rig is the owner's
+  MacBook — no screen/microphone runs) and hosted CI. The lead
+  runs the release candidate behind a proxy on 1.142.0: with
+  `http.proxy` set and `http.proxySupport` off the microphone
+  shows the proxySupport sentence; with `webSocketAdditionalSupport`
+  off it shows the webSocket sentence; on a pre-1.112 build it
+  still shows the version sentence.
