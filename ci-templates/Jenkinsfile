@@ -2,9 +2,9 @@
 // Not endorsed by Meta. Guide: docs/ci-other-systems.md.
 //
 // Shared bootstrap: download/digest/unpack in a credential-free subshell;
-// the parent never reads/copies the key and execs Node with the original
-// vendor environment. Node takes the source, deletes names and value
-// copies, and sends the value only over trusted exec/scanner stdin.
+// the parent never reads/copies the key and runs Node (plain invocation,
+// not exec) with the original vendor environment. Node takes the
+// source, deletes names and value copies, and sends the value only over trusted exec/scanner stdin.
 // Extra secret bindings MUST be declared by name in MUSE_CI_KEY_ALIASES
 // (space-separated); never bind undeclared credential copies.
 // Output is created by Node outside the repository under job temp.

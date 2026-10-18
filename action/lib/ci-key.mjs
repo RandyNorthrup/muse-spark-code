@@ -23,7 +23,9 @@ export const CI_BOOTSTRAP_UNSET = Object.freeze([
   'muse_alias',
 ])
 
-// Same cap as the Action; parity asserted in ciRun tests before dispatch.
+// The Action's key cap (lifecycle.mjs ACTION_KEY_MAX_BYTES), restated so
+// intake stays dependency-free; takeCiKey re-validates every value through
+// the Action's own isValidModelApiKey, cap included.
 const ACTION_KEY_MAX_BYTES = 4096
 
 export function readCiKey(env) {
