@@ -9,21 +9,21 @@
   "moves": [
     {
       "to": "decisions",
-      "heading": "### D1a \u2014 Locating and spawning `muse` per platform (verified 2026-09-22, Muse Code 1.3.0)",
+      "heading": "### D1a — Locating and spawning `muse` per platform (verified 2026-09-22, Muse Code 1.3.0)",
       "firstLine": "| OS                    | Install dir (installer default)                                             | Entry                                                                                            | Beside it                                                                                       | Credential                                                                                   |",
       "summary": "Discovered per-OS launch entries are used in a fixed order (the `museSpark.museBinaryPath` setting, then `PATH`, then the per-OS default install dir); on Windows the direct versioned exe spawns by default with the PowerShell-shim replication as fallback, on Linux and macOS the bash launcher spawn is direct, and no shell string is ever built (D4).",
       "reason": "Shipped per-OS install-dir record (1.3.0 paths); the Constraints and decisions list stays as the rule."
     },
     {
       "to": "decisions",
-      "heading": "### D15 \u2014 Harness parity: what the Claude Code extension preconfigures that we did not (2026-09-22)",
+      "heading": "### D15 — Harness parity: what the Claude Code extension preconfigures that we did not (2026-09-22)",
       "firstLine": "| Area                       | Claude Code                                                                                                                                                                                                                                                                                                         | Muse Spark Code before M12                                                                                                                                                             | Decision                                                                                                                                                                                                                                                                                                                                                                                                                 |",
       "summary": "The owner asked whether the files the Claude Code extension ships preconfigured hold things this extension should have. Findings and the decision for each: everything marked M12 ships in 0.3.0.",
       "reason": "September harness-parity findings for M12 (shipped in 0.3.0); no test or script cites this table."
     },
     {
       "to": "decisions",
-      "heading": "### D16 \u2014 Production-readiness verification and its findings (2026-09-22)",
+      "heading": "### D16 — Production-readiness verification and its findings (2026-09-22)",
       "firstLine": "| Check                    | Finding                                                                                                                                                                                                                                                          | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |",
       "lastLine": "the defect it found are in `docs/certification/release-0.9.0.md`.",
       "summary": "The owner asked for proof of an enterprise production grade app fully working in a big proprietary repo. The tree was checked marker by marker: the findings table stands, and the M13 follow-ups it produced.",
@@ -31,21 +31,21 @@
     },
     {
       "to": "decisions",
-      "heading": "### D17 \u2014 Subagents, the Agent map, the Account & Usage modal, and the smaller parity gaps, in one milestone (2026-09-22)",
+      "heading": "### D17 — Subagents, the Agent map, the Account & Usage modal, and the smaller parity gaps, in one milestone (2026-09-22)",
       "firstLine": "| Area                    | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |",
       "summary": "The owner asked for four things in the same evening and then said stop: show subagents and Agent files in the panel, run them on a schedule, edit rules in a settings page, and skills. Findings for each; the M13 gaps the Agent work left.",
       "reason": "September subagent findings and the M13 gaps (all shipped); no live table."
     },
     {
       "to": "decisions",
-      "heading": "### D31 \u2014 Rewind finds a hunk that only moved (2026-09-24)",
+      "heading": "### D31 — Rewind finds a hunk that only moved (2026-09-24)",
       "firstLine": "- **First look:** the hunk's lines (context plus the edit's own) are looked",
       "summary": "A reader asked whether a hand edit in the same lines rewind misses; it does not. The owner's go-ahead (2026-09-24): yes, fix it. A moved hunk is matched exactly, never guessed.",
       "reason": "Shipped rewind matching rule (0.3.x); the question and the owner's go-ahead stay as the rule."
     },
     {
       "to": "decisions",
-      "heading": "### D35 \u2014 Replay as Meta validates it (2026-09-25)",
+      "heading": "### D35 — Replay as Meta validates it (2026-09-25)",
       "firstLine": "- **Commentary.** Text the model writes before a tool call comes back with",
       "lastLine": "and only the retried response is replayed.",
       "summary": "Replay as Meta validates it: a full read of the Model API documentation for the parity audit found two wrong items (code execution and web search): both are fixed, and two missing retry rules were added.",
@@ -53,14 +53,14 @@
     },
     {
       "to": "decisions",
-      "heading": "### D44 \u2014 Versions stay below 1.0 until the owner calls it (2026-09-25)",
+      "heading": "### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)",
       "firstLine": "- **Minor for a batch of features, patch for fixes.** The minor number keeps",
       "summary": "The owner (2026-09-25): no 1.0 until the app is ready; the minor counts past nine, patch counts fixes back in time, and releases bunch by four-day train windows.",
       "reason": "Shipped pre-1.0 versioning mechanics; the owner's ruling stays as the rule."
     },
     {
       "to": "decisions",
-      "heading": "### D64 \u2014 Exposure-preserving import, replacing credential detection (2026-10-02)",
+      "heading": "### D64 — Exposure-preserving import, replacing credential detection (2026-10-02)",
       "firstLine": "The preview lists kind, source item name, scope and target path, never",
       "lastLine": "`docs/certification/m83e.md`. Full quality and native UI remain lead-owned.",
       "summary": "Five independent review rounds found spellings that bypassed credential detection. M83 owns destinations instead of inspecting content: the preview lists kind, source item name, scope and target path, never values.",
@@ -68,7 +68,7 @@
     },
     {
       "to": "decisions",
-      "heading": "### D71 \u2014 Muse Gadgets: help build them, never become one (M92, 2026-10-04)",
+      "heading": "### D71 — Muse Gadgets: help build them, never become one (M92, 2026-10-04)",
       "firstLine": "**What the SDK is (checked 2026-10-04):**",
       "lastLine": "  cloud assistant run any command there; README and the skill say so.",
       "summary": "The owner asked whether Meta's Muse Gadgets belong in the extension to make programming and working with devices easier, and approved the scope on 2026-10-04: help build gadgets (bounded device commands, tokens kept as secrets, an optional skill, the phone ping as a recipe), never become one (no Linux gadget service on a dev machine, no prosthesis for Cursor).",
@@ -76,7 +76,7 @@
     },
     {
       "to": "decisions",
-      "heading": "### D101 \u2014 Evidence-backed agent activity, outcomes and recovery (M119, owner 2026-10-06)",
+      "heading": "### D101 — Evidence-backed agent activity, outcomes and recovery (M119, owner 2026-10-06)",
       "firstLine": "| Source                               | Available evidence                                                                                                                                   | Limits and recovery                                                                                                                                                                                                                                                                                                      |",
       "lastLine": "outcome changes have a polite announcement. Harness states run in four themes.",
       "summary": "The Agent map and ACP listing separate activity (Active, Waiting with a reason, Scheduled, Recent, Queued, Blocked-needs-action, Background, Dead) from evidence (owned conversations, handoffs, tool calls, verification, errors, cost): activity rows stay live, evidence rows stay inspectable.",
@@ -84,7 +84,7 @@
     },
     {
       "to": "decisions",
-      "heading": "### D105 \u2014 Windows trusted paths: a trusted root, links above it by identity (TRUSTROOT, 2026-10-09)",
+      "heading": "### D105 — Windows trusted paths: a trusted root, links above it by identity (TRUSTROOT, 2026-10-09)",
       "firstLine": "- At and above the root, links and redirection are accepted. The root is",
       "lastLine": "`docs/certification/trustroot.md`.",
       "summary": "Owner rule (2026-10-08, Windows paths: any drive): profile folders may be links; links at and above a trusted root are accepted by resolved identity, links inside that escape are refused. Lead decision (2026-10-09): the verifier checks against the owned root by identity, never string prefix.",
@@ -92,29 +92,30 @@
     },
     {
       "to": "decisions",
-      "heading": "### D108 \u2014 Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)",
+      "heading": "### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)",
       "firstLine": "- **A test stays only if it runs real code** (no `vi.mock`, fake timers,",
       "summary": "The owner, verbatim: get the useless tests, streamline it, and prove the gate short. A test stays only if it runs real code (no stand-ins, no fakes, no screenshot or frame comparison); no coverage gate; the short gate and the real-life run are the proof.",
       "reason": "Completed test-overhaul record (the current no-fakes rule); the owner's verbatim order stays."
     },
     {
       "to": "milestones",
-      "heading": "### M53 \u2014 Conversation rewind and side chat (D46)",
+      "heading": "### M53 — Conversation rewind and side chat (D46)",
       "firstLine": "- **C-M53-1 Windows retest (2026-10-10, probes complete).** Captured Muse Code",
       "pointer": true,
       "reason": "Closed probe records on a released milestone section (shipped 0.14.0); stub keeps heading, status, and a fresh pointer."
     },
     {
       "to": "milestones",
-      "heading": "### M56 \u2014 Enterprise network and posture (D43)",
+      "heading": "### M56 — Enterprise network and posture (D43)",
       "firstLine": "- **MSM56 finish (2026-10-17).** While `http.proxy` is set on an editor",
       "linked": true,
-      "reason": "Release lane MSM56 finished (PR #190, merged); the closed milestone section keeps its stub."
+      "reason": "Release lane MSM56 finished (PR #190, merged); the closed milestone section keeps its stub.",
+      "lastLine": "`museVoiceNoProxy`, `docs/certification/m56.md`)."
     },
     {
       "to": "milestones",
-      "heading": "### PROVWIRE \u2014 Provider setup through the real transport and panel (2026-10-09)",
-      "firstLine": "Completed: F2\u2013F7 are capture-backed through the real facade, with 14",
+      "heading": "### PROVWIRE — Provider setup through the real transport and panel (2026-10-09)",
+      "firstLine": "Completed: F2–F7 are capture-backed through the real facade, with 14",
       "lastLine": "commits, committed-diff review and certification in `docs/certification/cx1.md`.",
       "linked": true,
       "reason": "Closed provider-wiring rounds (shipped 0.17.1); all checklist items checked; stub keeps heading, status, and pointer."
@@ -237,7 +238,8 @@
       "heading": "CIFIXM macOS CI repair scope with CIFIXV hosted visual repair (2026-10-09)",
       "firstLine": "**CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting",
       "pointer": true,
-      "reason": "Closed macOS CI repair scope with its hosted visual repair record (one block); verified, PR merged, no longer worked on. (Round-1 entry 32 names the same block's second half and is folded here; the join archives the block once.)"
+      "reason": "Closed macOS CI repair scope with its hosted visual repair record (one block); verified, PR merged, no longer worked on. (Round-1 entry 32 names the same block's second half and is folded here; the join archives the block once.)",
+      "lastLine": "for the lead's integration gate. Receipt: `docs/certification/cifixv.md`."
     },
     {
       "to": "gates",
@@ -281,7 +283,8 @@
       "heading": "CM1133R4 bounded review gates with CM1134AR6 scoped qualification (2026-10-11/12)",
       "firstLine": "**CM1133R4 bounded review gates (2026-10-11, kubuntu).** The rig/common",
       "pointer": true,
-      "reason": "Closed M113 review rounds (MSM113 merged via PR #243); verified, no longer worked on."
+      "reason": "Closed M113 review rounds (MSM113 merged via PR #243); verified, no longer worked on.",
+      "lastLine": "integration in `docs/certification/m113-playbook-schedules-c-m113-4.md`."
     },
     {
       "to": "gates",
@@ -300,21 +303,21 @@
     },
     {
       "to": "decisions",
-      "heading": "### D74 \u2014 Bring-your-own model providers and subscription sign-in (M95, M95b, M95c, 2026-10-04)",
+      "heading": "### D74 — Bring-your-own model providers and subscription sign-in (M95, M95b, M95c, 2026-10-04)",
       "firstLine": "The owner, 2026-10-04: \"as an expansion to the byo agents i would like to",
       "summary": "Bring-your-own model providers use one canonical format, with adapters only at the wire: `ModelApiHost` keeps building one body and reading one stream, and every provider other than Meta is the shared transport plus a codec behind the `ProviderClient` interface. A BYO model is referenced as `<providerId>/<modelId>`; Meta's models stay bare, so every Meta request, stored session and hook payload keeps its bytes. Providers live in one user-level file, `providers.json`, which never holds a credential, and every credential is bound to the exact origin it was obtained for. Transport is HTTPS only, with plain HTTP only to a loopback address. Prices drive budgets and are never guessed. Subscription sign-in (M95b) uses official, provider-sanctioned flows only; another application's client or stored tokens are never read or reused.",
       "reason": "Shipped BYO-provider/subscription design record (M95/M95b); the rule paragraph stays. The union holds D74 twice (full record here, archived stub at the second occurrence); this move archives the record under the existing D74 archive heading and the join deletes the duplicate stub (see duplicates). No test or script cites these lines."
     },
     {
       "to": "decisions",
-      "heading": "### D49 \u2014 Coding quality first: what to build next (2026-09-27)",
+      "heading": "### D49 — Coding quality first: what to build next (2026-09-27)",
       "firstLine": "The owner (2026-09-27):",
-      "summary": "Coding quality first: the ranking rule (what most improves the code the user gets comes first \u2014 the model seeing its edits' effects, understanding the code, reading the pages it needs; then reviewing and shipping, fewer tokens on long tasks, more agents safely, connectivity; both-backends-first within a wave), the carried rules (model calls beyond the user's own turn are billed, opt in, priced and ask first; Restricted Mode runs no git or shell; token/quality trades ship only after M75's paired evaluation holds the floors; one-token ide-server tool constraints), and the M67\u2013M85 wave batch it ordered (all shipped).",
-      "reason": "Shipped 2026-09 batch-ordering record (M67\u2013M85 all shipped); the ranking rule and carried rules stay as the rule. No test or script cites these lines."
+      "summary": "Coding quality first: the ranking rule (what most improves the code the user gets comes first — the model seeing its edits' effects, understanding the code, reading the pages it needs; then reviewing and shipping, fewer tokens on long tasks, more agents safely, connectivity; both-backends-first within a wave), the carried rules (model calls beyond the user's own turn are billed, opt in, priced and ask first; Restricted Mode runs no git or shell; token/quality trades ship only after M75's paired evaluation holds the floors; one-token ide-server tool constraints), and the M67–M85 wave batch it ordered (all shipped).",
+      "reason": "Shipped 2026-09 batch-ordering record (M67–M85 all shipped); the ranking rule and carried rules stay as the rule. No test or script cites these lines."
     },
     {
       "to": "decisions",
-      "heading": "### D118 \u2014 Refusals read by shape, retried by code, stored without leaks (lanes PROVERR round 2 + PROVERRR2, 2026-10-13; numbered D109 until 2026-10-17, renumbered with D117)",
+      "heading": "### D118 — Refusals read by shape, retried by code, stored without leaks (lanes PROVERR round 2 + PROVERRR2, 2026-10-13; numbered D109 until 2026-10-17, renumbered with D117)",
       "firstLine": "**Rule in force.** One extractor reads an error body by what it IS (an",
       "summary": "One extractor reads an error body by what it IS, whatever the wire format; the status and the provider's documented type, code or reason decide the kind, a phrase only where a recorded answer shows the provider gives nothing else. Retry follows the preset's own table with the envelope code (a quota 429 never retries while a bare one does); Anthropic max_tokens maps as documented. Parity: a bad key reads authentication at all eleven recorded providers, an unknown model reads notFound at all twelve.",
       "reason": "Shipped refusal-shape design record (PROVERR lanes, merged); the Rule-in-force paragraph stays as the rule. A src comment cites D118 as authority; the heading and rule stay, so it keeps resolving. No test or script cites these lines."
@@ -353,7 +356,8 @@
       "heading": "FIXM102J scoped repair receipt (2026-10-05)",
       "firstLine": "**FIXM102J scoped repair receipt (2026-10-05).** The five owned test files",
       "pointer": true,
-      "reason": "71/71 tests with named lead-owned deferrals (also \u00a79). Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+      "reason": "71/71 tests with named lead-owned deferrals (also §9). Verified lane record (receipts in docs/certification), PR merged, no longer worked on.",
+      "lastLine": "are in §9 and exact commands, guard drills and limits in"
     },
     {
       "to": "gates",
@@ -542,7 +546,7 @@
     },
     {
       "to": "milestones",
-      "heading": "### BCSTART \u2014 The browser check's start on Windows (2026-10-18)",
+      "heading": "### BCSTART — The browser check's start on Windows (2026-10-18)",
       "firstLine": "- **Rule.** The browser check's contract read (M81) waits for the browser to",
       "pointer": true,
       "reason": "Released by this release: status built 2026-10-18, no checklist, no open items; PR #222 (fix/browser-check-route) merged in this release implements exactly this rule. Also listed under releasedByThisRelease with evidence.",
@@ -550,7 +554,7 @@
     },
     {
       "to": "milestones",
-      "heading": "### ENVFENCE \u2014 Shell credential fence (D89.5, security fix for 0.14.1)",
+      "heading": "### ENVFENCE — Shell credential fence (D89.5, security fix for 0.14.1)",
       "firstLine": "- [x] Shared credential matcher and fences at model process entry.",
       "lastLine": "      `docs/certification/envfence.md`; aggregate quality remains the lead's gate.",
       "linked": true,
@@ -558,7 +562,7 @@
     },
     {
       "to": "milestones",
-      "heading": "### TRAIN15H \u2014 Restore the inherited startup ratchet (2026-10-06, win11)",
+      "heading": "### TRAIN15H — Restore the inherited startup ratchet (2026-10-06, win11)",
       "firstLine": "- [x] Compare emitted startup input bytes against main `61d8647c2` and train",
       "lastLine": "      in `docs/certification/train-0.15.0.md` and its TRAIN15H receipt.",
       "linked": true,
@@ -566,7 +570,7 @@
     },
     {
       "to": "milestones",
-      "heading": "### CI0150A \u2014 Clean-shard artifacts and portable certification (2026-10-07)",
+      "heading": "### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)",
       "firstLine": "- [x] Reproduce clean `CI=true` failures for configured providers, headless BYO,",
       "lastLine": "      bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.",
       "linked": true,
@@ -574,7 +578,7 @@
     },
     {
       "to": "milestones",
-      "heading": "### FIXAGENTOUT \u2014 Independent M119 review repairs (2026-10-07)",
+      "heading": "### FIXAGENTOUT — Independent M119 review repairs (2026-10-07)",
       "firstLine": "- [x] Five regressions fail on the reviewed revision and pass after repair.",
       "lastLine": "- [x] CHANGELOG and `docs/certification/agent-outcomes.md` repair receipts.",
       "linked": true,
@@ -607,135 +611,279 @@
       "firstLine": "**FIXM105E3 gate scope (Kubuntu, 2026-10-07).** The rig brief/common rules",
       "pointer": true,
       "reason": "Remnant second copy of the M105 record archived 2026-10-14; M105 train merged as PR #226 (ms/msm105); verified, no longer worked on."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D30 — What we can build now, and Remote Control (2026-09-24)",
+      "firstLine": "The owner asked whether Muse's connectors could give Claude Code's Remote",
+      "lastLine": "| Remote Control (waits on Meta)",
+      "summary": "Remote Control waits for Meta: remote use happens inside Meta's own apps, with no phone or web app of ours. Paid features (M33–M35) are opt in and loud: off by default with the price in the setting, confirmed when turned on, visibly on with a badge, announced per use, and tallied in Account & usage.",
+      "reason": "Shipped 2026-09 capability/rulemaking record (Remote-Control wait, paid opt-in-and-loud with the five rules, per-item findings table); the rule paragraph stays as the summary. No test or script cites these lines."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D36 — Everything Muse Code and the Model API offer, on both backends (2026-09-25)",
+      "firstLine": "The owner (2026-09-25): \"we need to make sure we are covering all of the",
+      "lastLine": "command, not an MSP method.",
+      "summary": "Cover every capability Muse Code and the Model API offer on both backends at feature parity. The subscription never pays for a Model API call and the key is never handed to `muse serve`; a paid call is opt in and loud (D30). What Muse Code keeps to its TUI and unreachable over MSP is listed, not imitated, except where the panel has its own equivalent.",
+      "reason": "Shipped 2026-09 parity-audit record (inventories, capability table, rulings carried); the parity rule and rulings stay as the summary. Test and script mentions of D36 are authority-by-number (tool list, wire terminal) and keep resolving through the heading."
+    },
+    {
+      "to": "milestones",
+      "heading": "### M71 — Git and pull requests (D49)",
+      "firstLine": "**Every editor (2026-10-08):** D104 and M123 bring these features to every",
+      "lastLine": "regressions are drafted before the allocated gates and external red drills",
+      "pointer": true,
+      "reason": "M71 (with M123) shipped in PR #198 inside train #227: this release completes it. Section body (part 1) archives; the stub keeps the heading, the status row, the Goal fields and the pointer. Verified: no lane tables and no checklist in this section, and no test or script cites these lines."
+    },
+    {
+      "to": "milestones",
+      "heading": "### M71 — Git and pull requests (D49)",
+      "firstLine": "- **Where it lives.** `src/core/git/` (the push plan, the GitHub REST",
+      "lastLine": "goes beside the repository as `pr-<n>`, not held.",
+      "pointer": true,
+      "reason": "M71 design-notes body (part 2) archives with part 1; same release evidence. The Goal/Acceptance/Tests/Size fields stay with the stub."
+    },
+    {
+      "to": "gates",
+      "heading": "FIXM95G build deferral (2026-10-05)",
+      "firstLine": "**FIXM95G build deferral (2026-10-05).** The correction lane fixes all six",
+      "lastLine": "separately run later build checks; no successful full-build claim is made.",
+      "pointer": true,
+      "reason": "Lead decision: FIXM95G’s record moves (verified by the release gates; no longer worked on once the release PR merges). Join first re-blocks the glued §7 run with a blank line so this paragraph is its own block."
+    },
+    {
+      "to": "gates",
+      "heading": "MSM9M35 lane-K activation budget (2026-10-17; open, lead-owned)",
+      "firstLine": "**MSM9M35 lane-K activation budget (2026-10-17, macmini; open, lead-owned).**",
+      "lastLine": "No threshold, rule level or ignore changed; the deferral is closed.",
+      "pointer": true,
+      "reason": "Lead decision: open-labelled 0.19.0 lane round whose PR (#224, ms/msm9m35) is in the release; the record itself reports the fix with budget headroom, verified, no longer worked on. Single-line record."
+    },
+    {
+      "to": "gates",
+      "heading": "CATCHMONEY round 3 qualification (2026-10-12; review 2026-10-14)",
+      "firstLine": "**CATCHMONEY round 3 qualification (2026-10-12; review 2026-10-14).**",
+      "lastLine": "no threshold is changed: the lead rebases the budget or directs a trim.",
+      "pointer": true,
+      "reason": "CATCHMONEY lane whose PR (#161, fix/catch-money) merged in this release; closed round record, verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "TOOLROUNDS duplication, resolved (2026-10-17, review merge)",
+      "firstLine": "**TOOLROUNDS duplication, resolved (2026-10-17, review merge).**",
+      "lastLine": "so the deferral this paragraph carried is closed.",
+      "pointer": true,
+      "reason": "TOOLROUNDS lane covered by PR #241 (train/older-fixes: tool rounds); the record reports the deferral closed, verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "M123G4C local receipt (2026-10-09)",
+      "firstLine": "**M123G4C local receipt (2026-10-09, Kubuntu).** Own-renewal dispatch is",
+      "lastLine": "its rig. Receipt: `docs/certification/m123.md`, M123G4C.",
+      "pointer": true,
+      "reason": "M123 shipped with M71 in PR #198 inside train #227; scoped receipt verified, wider blockers lead-owned, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "M123G4 local receipt (2026-10-09)",
+      "firstLine": "**M123G4 local receipt (2026-10-09, Kubuntu).** Required Git/LOCKLIB suites:",
+      "lastLine": "M123G4; the Windows control pipe still needs the Windows rig.",
+      "pointer": true,
+      "reason": "M123 shipped with M71 in PR #198 inside train #227; scoped receipt verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "FIXM109PM review repair (2026-10-06)",
+      "firstLine": "**FIXM109PM review repair (2026-10-06, Mac mini).** The rig brief and common",
+      "lastLine": "See `docs/certification/m109-p.md` for results and byte-exact red drills.",
+      "pointer": true,
+      "reason": "M109 vault shipped via PRs #216/#247; lane receipt verified, lead owns aggregate quality, no longer worked on. Join re-blocks the glued M109 run with blanks."
+    },
+    {
+      "to": "gates",
+      "heading": "M109 lane T (2026-10-06)",
+      "firstLine": "**M109 lane T (2026-10-06, Mac mini).** Targeted default-timeout tests and",
+      "lastLine": "`docs/certification/m109-t-taint-and-scrub.md` and `m109-t-drills.json`.",
+      "pointer": true,
+      "reason": "M109 vault shipped via PRs #216/#247; lane receipt verified, no longer worked on. Join re-blocks the glued M109 run with blanks."
+    },
+    {
+      "to": "gates",
+      "heading": "M109 O (2026-10-06, MacBook rig)",
+      "firstLine": "**M109 O (2026-10-06, MacBook rig).** O's core and pool seams are certified",
+      "lastLine": "and integrated M109 acceptance stay lead-owned; no live/paid calls or dependency.",
+      "pointer": true,
+      "reason": "M109 vault shipped via PRs #216/#247; lane receipt verified, no longer worked on. Join re-blocks the glued M109 run with blanks."
+    },
+    {
+      "to": "gates",
+      "heading": "M109 M (2026-10-06, MacBook)",
+      "firstLine": "**M109 M (2026-10-06, MacBook).** The migration/import implementation uses",
+      "lastLine": "`docs/certification/m109-m-migration-and-import.md`.",
+      "pointer": true,
+      "reason": "M109 vault shipped via PRs #216/#247; lane receipt verified, no longer worked on. Join re-blocks the glued M109 run with blanks."
+    },
+    {
+      "to": "gates",
+      "heading": "M109 H gate handoffs (2026-10-06)",
+      "firstLine": "**M109 H gate handoffs (2026-10-06).** The rig brief assigns aggregate",
+      "lastLine": "changed; no release/full-quality claim is made by H.",
+      "pointer": true,
+      "reason": "M109 vault shipped via PRs #216/#247; handoff record verified, no longer worked on. Companion to the already-listed H verification deferral."
+    },
+    {
+      "to": "gates",
+      "heading": "M109 U bounded-lane receipt (2026-10-06)",
+      "firstLine": "**M109 U bounded-lane receipt (2026-10-06, Mac mini).** The rig brief",
+      "lastLine": "the lead/owning lanes. See `docs/certification/m109-u-panel-and-vs-code.md`.",
+      "pointer": true,
+      "reason": "M109 vault shipped via PRs #216/#247; lane receipt verified, no longer worked on. Join re-blocks the glued M109 run with a blank before it."
+    },
+    {
+      "to": "gates",
+      "heading": "Bundle-split reporting backend (fixed MSM113FIX2, 2026-10-18)",
+      "firstLine": "**Bundle-split reporting backend (fixed MSM113FIX2, 2026-10-18).**",
+      "lastLine": "`npm run build` exits 0; the lazy registry is regenerated from the build.",
+      "pointer": true,
+      "reason": "MSM113 train merged as PR #243 (ms/msm113); release-tree fix record with the build green, verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "CM1136R6 inherited duplication gate (2026-10-11)",
+      "firstLine": "**CM1136R6 inherited duplication gate (2026-10-11, Kubuntu).** Full",
+      "lastLine": "quality is not claimed green; the rig brief delegates it to the lead.",
+      "pointer": true,
+      "reason": "M113 lane round whose train merged as PR #243 (ms/msm113); bounded gate record with the inherited-clone deferral lead-owned, verified, no longer worked on. Same class as the already-listed M113-K and M124 round records."
     }
   ],
   "duplicates": [
     {
-      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "heading": "### M109 — A credential vault and broker for agents (D89)",
       "firstLine": "**C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every",
       "lastLine": "interface commit.",
       "kind": "byte-identical",
       "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
     },
     {
-      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "heading": "### M109 — A credential vault and broker for agents (D89)",
       "firstLine": "1. **Broker protocol v2** (`VAULT_PROTOCOL_VERSION` 2).",
       "lastLine": "    - Nothing blocks or waits on it. C-M109-11 states it as not offered.",
       "kind": "byte-identical",
       "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
     },
     {
-      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "heading": "### M109 — A credential vault and broker for agents (D89)",
       "firstLine": "The split:",
       "kind": "byte-identical",
       "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
     },
     {
-      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "heading": "### M109 — A credential vault and broker for agents (D89)",
       "firstLine": "- **(a)**, the host lane: the protocol, grants, anchor, setup flow,",
       "lastLine": "- **(c)**, Codex on the Win11 VM: the Windows natives.",
       "kind": "byte-identical",
       "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
     },
     {
-      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "heading": "### M109 — A credential vault and broker for agents (D89)",
       "firstLine": "**C-M109-1 (a) status (2026-10-10, branch `c/m109-1`).** Built on fakes and",
       "lastLine": "certified in `docs/certification/m109.md` (\"C-M109-1 part (a)\"):",
       "kind": "byte-identical",
       "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
     },
     {
-      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "heading": "### M109 — A credential vault and broker for agents (D89)",
       "firstLine": "- protocol v2 in the channel and the client (watch included);",
       "lastLine": "- strings in all 14 tables.",
       "kind": "byte-identical",
       "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
     },
     {
-      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "heading": "### M109 — A credential vault and broker for agents (D89)",
       "firstLine": "The vault still refuses every use with `vault.brokerBlocked`, as 0.17.0",
       "lastLine": "does. Three things are open, and the vault goes live when all three land:",
       "kind": "byte-identical",
       "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
     },
     {
-      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "heading": "### M109 — A credential vault and broker for agents (D89)",
       "firstLine": "1. `vaultClientPlatform` (`src/runtime/vault/clientPlatform.ts`) is bound by",
       "lastLine": "   page.",
       "kind": "near-duplicate-keep-newer",
-      "reason": "Older form (passage B: panel not mounted in 0.17.0); the same numbered list stands newer earlier in the section (mounted behind the broker gate, tested). Join keeps the newer one."
+      "reason": "Older form (passage B: panel not mounted in 0.17.0, union 31122–31127); the same numbered list stands newer earlier in the section (union 30930–, mounted behind the broker gate, tested). Join keeps the newer one and deletes passage B (302 bytes, COUNTED)."
     },
     {
-      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "heading": "### M109 — A credential vault and broker for agents (D89)",
       "firstLine": "No checklist item above is ticked by this step.",
       "kind": "byte-identical",
       "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
     },
     {
-      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "heading": "### M109 — A credential vault and broker for agents (D89)",
       "firstLine": "Review found and repaired missing commit-time Lock checks in first",
       "lastLine": "broker or panel checklist.",
       "kind": "byte-identical",
       "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
     },
     {
-      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "heading": "### M109 — A credential vault and broker for agents (D89)",
       "firstLine": "**C-M109-1 (a) additions (2026-10-10, lead decisions).**",
       "kind": "byte-identical",
       "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
     },
     {
-      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "heading": "### M109 — A credential vault and broker for agents (D89)",
       "firstLine": "**CM1091A4 review repair (2026-10-10, win11).** Close all nine",
       "lastLine": "pass alongside the complete panel-host and notification regressions.",
       "kind": "byte-identical",
       "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
     },
     {
-      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "heading": "### M109 — A credential vault and broker for agents (D89)",
       "firstLine": "- **Reset Vault.** It is offered only when this user's anchor names a vault",
       "lastLine": "    after registration.",
       "kind": "byte-identical",
       "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
     },
     {
-      "heading": "### D3 \u2014 Quality toolchain versions (verified against the npm registry 2026-09-21)",
+      "heading": "### D3 — Quality toolchain versions (verified against the npm registry 2026-09-21)",
       "firstLine": "DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,",
       "lastLine": "`docs/certification/deps-0150.md`; existing audit exceptions stay unchanged.",
       "kind": "byte-identical",
       "reason": "Second copy in the same D3 section; first copy stands earlier. Join deletes it; nothing is lost."
     },
     {
-      "heading": "### D3 \u2014 Quality toolchain versions (verified against the npm registry 2026-09-21)",
+      "heading": "### D3 — Quality toolchain versions (verified against the npm registry 2026-09-21)",
       "firstLine": "DEP138 selection: accept ACP SDK 1.5.1, Vitest/V8 coverage 5.0.3, jscpd",
       "lastLine": "The shipped lint configuration and 6144 MiB flag remain release-base values.",
       "kind": "byte-identical",
       "reason": "Second copy in the same D3 section; first copy stands earlier. Join deletes it; nothing is lost."
     },
     {
-      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "heading": "### M109 — A credential vault and broker for agents (D89)",
       "firstLine": "**CM1091A3 scoped rig qualification (2026-10-10, linuxlt).** The explicit",
       "lastLine": "separate lead step.",
       "kind": "byte-identical",
       "reason": "Standalone second copy; the identical record also stands embedded in the C-M109-1b block the moves list archives once. Join deletes the standalone copy; nothing is lost."
     },
     {
-      "heading": "### D140 \u2014 Claimed-shipped milestones: an `@unwired` tag is resolved by the user-visible promise (MSM58M69, 2026-10-17)",
+      "heading": "### D140 — Claimed-shipped milestones: an `@unwired` tag is resolved by the user-visible promise (MSM58M69, 2026-10-17)",
       "kind": "stale-collision-heading",
-      "reason": "Bare heading with no body; \u00a710 records the collision resolved (claimed-shipped milestones move to D204, whose full section stands next). Join deletes the leftover heading; nothing is lost."
+      "reason": "Bare heading with no body; §10 records the collision resolved (claimed-shipped milestones move to D204, whose full section stands next). Join deletes the leftover heading; nothing is lost."
     },
     {
-      "heading": "### D74 \u2014 Bring-your-own model providers and subscription sign-in (M95, M95b, M95c, 2026-10-04)",
+      "heading": "### D74 — Bring-your-own model providers and subscription sign-in (M95, M95b, M95c, 2026-10-04)",
       "firstLine": "Bring-your-own model providers use one canonical format, with adapters only at",
       "lastLine": "[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).",
       "kind": "duplicate-stub",
       "reason": "Second D74 stub; after the D74 record move above, the surviving stub at the record carries the same rule. Join deletes this copy; nothing is lost."
     },
     {
-      "heading": "### D6 \u2014 Bundle budgets (Phase 6)",
+      "heading": "### D6 — Bundle budgets (Phase 6)",
       "firstLine": "__D6_EXTRA_COPIES__",
       "kind": "byte-identical-list",
-      "reason": "The 23 rationale paragraphs below stand 3\u20134 times each in D6 (keep-both lists from the groups); the join keeps the first copy of each and deletes the rest (53 ranges, 8,212 bytes, enumerated in the proof). Separately the old `dist/modelApi.js` rationale form stands 3 times while the newer form stands once; the join keeps the newer form (strict prefix).",
+      "reason": "The 23 rationale paragraphs below stand 3–4 times each in D6 (keep-both lists from the groups); the join keeps the first copy of each and deletes the rest (53 ranges, 8,212 bytes, enumerated in the proof). Separately the old `dist/modelApi.js` rationale form stands 3 times while the newer form stands once; the join keeps the newer form (strict prefix).",
       "bodies": [
         "`dist/museCodeReviewer.js` budget rationale (M90)",
         "`dist/bundledSkills.js` budget rationale (M89)",
@@ -763,16 +911,16 @@
       ]
     },
     {
-      "heading": "### D92 \u2014 Questions that never block (M112, 2026-10-05)",
+      "heading": "### D92 — Questions that never block (M112, 2026-10-05)",
       "firstLine": "The owner, 2026-10-05:",
       "kind": "near-duplicate-for-review",
       "reason": "Second, older and shorter D92 design record (ends with ---; lacks the M112 integration amendments of the first). Only 583 of its 4,731 bytes stand in the newer copy, so it is NOT a safe byte-identical deletion: the join keeps the newer copy and the lead decides whether the older copy's unique detail is superseded (delete) or worth archiving with D92's record. Not counted in the byte proof."
     },
     {
-      "heading": "### M95 \u2014 Bring-your-own model providers (D74)",
+      "heading": "### M95 — Bring-your-own model providers (D74)",
       "firstLine": "The Providers section then lists each provider with its test state,",
       "kind": "near-duplicate-for-review",
-      "reason": "A ~290-line mangled copy of M95's \u00a76 lane list, Acceptance and Tests sits in \u00a77 (dedented, col-0 items 9\u201319); ~18 KB of it matches \u00a76 modulo whitespace, but the copy carries a unique DEFLAKE3 record and an archive pointer and the \u00a76 side stays open work. The join repairs it (keeps \u00a76, re-homes DEFLAKE3, deletes the rest); repairing it also unblocks the FIXM95G move whose block it currently glues. Not counted in the byte proof."
+      "reason": "A ~290-line mangled copy of M95's §6 lane list, Acceptance and Tests sits in §7 (dedented, col-0 items 9–19); ~18 KB of it matches §6 modulo whitespace, but the copy carries a unique DEFLAKE3 record and an archive pointer and the §6 side stays open work. The join repairs it (keeps §6, re-homes DEFLAKE3, deletes the rest); repairing it also unblocks the FIXM95G move whose block it currently glues. Not counted in the byte proof."
     },
     {
       "heading": "### Webview estimator import closure budget rationale (near-duplicate)",
@@ -784,65 +932,94 @@
       "heading": "## 7. Gates",
       "firstLine": "  The **Custom server** preset speaks any of the `chat`, `responses` and",
       "kind": "byte-identical",
-      "reason": "\u00a77 copy of a \u00a76 Preserved-integration-notes paragraph (5/5 lines at \u00a76 25463\u201325467); the \u00a76 copy stays; nothing is lost."
+      "reason": "§7 copy of a §6 Preserved-integration-notes paragraph (5/5 lines at §6 25463–25467); the §6 copy stays; nothing is lost."
     },
     {
       "heading": "## 7. Gates",
       "firstLine": "- **Lanes and file ownership.** One integration branch",
       "kind": "byte-identical",
-      "reason": "\u00a77 copy of a \u00a76 Preserved-integration-notes paragraph (5/5 lines at \u00a76 25469\u201325473); the \u00a76 copy stays; nothing is lost."
+      "reason": "§7 copy of a §6 Preserved-integration-notes paragraph (5/5 lines at §6 25469–25473); the §6 copy stays; nothing is lost."
     },
     {
       "heading": "## 7. Gates",
       "firstLine": "     The Providers section then lists each provider with its test state,",
       "kind": "byte-identical",
-      "reason": "\u00a77 copy of a \u00a76 Preserved-integration-notes paragraph (5/5 lines at \u00a76 25592\u201325596); the \u00a76 copy stays; nothing is lost."
+      "reason": "§7 copy of a §6 Preserved-integration-notes paragraph (5/5 lines at §6 25592–25596); the §6 copy stays; nothing is lost."
     },
     {
       "heading": "## 7. Gates",
       "firstLine": "Round-two cause fixes use a fixed Z.ai key pattern and localized plain-text",
       "kind": "byte-identical",
-      "reason": "\u00a77 copy; all 27 lines stand in \u00a76 Preserved notes (head at \u00a76 25219); the pending items stay tracked in \u00a76."
+      "reason": "§7 copy; all 27 lines stand in §6 Preserved notes (head at §6 25219); the pending items stay tracked in §6."
     },
     {
       "heading": "## 7. Gates",
       "firstLine": "- **Golden requests**: one per codec per scenario (first turn, tool loop",
       "kind": "byte-identical",
-      "reason": "\u00a77 copy; all 166 lines stand in \u00a76 Preserved notes modulo its two-space indent; the \u00a76 copy stays."
+      "reason": "§7 copy; all 166 lines stand in §6 Preserved notes modulo its two-space indent; the §6 copy stays."
     },
     {
       "heading": "## 7. Gates",
       "firstLine": "| Lane                             | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |",
       "kind": "near-duplicate-keep-newer",
-      "reason": "\u00a77 copy of the \u00a76 lanes table (25475\u201325492) modulo one drifted lane-I row; join keeps the newer row (\u00a77 37612 vs \u00a76 25486) and deletes this copy."
+      "reason": "§7 copy of the §6 lanes table (25475–25492) modulo one drifted lane-I row (union §6 25486 vs §7 37612: same 1,096 bytes; §7 adds “, window” and “compaction’s tools,” drops the delegated tail); join writes the §7 row into §6 (byte-neutral) and deletes the §7 copy (37601–37618: 19,721 bytes). COUNTED."
+    },
+    {
+      "heading": "## 3. Open questions (need the owner)",
+      "firstLine": "## 3. Open questions (need the owner)",
+      "kind": "drift-repair",
+      "reason": "The union holds three ## 3 headings (union 15145, 15246, 15357) from keep-both merges; the join keeps one and deletes the other two heading+blank lines (82 bytes, COUNTED). The fragments between them are unique release record (verified once-each in the union: Q-M124, CM971R4, D121 spend-simple, D123 vsix-per-platform, LEDGER, D203 playback, D140 dictation): the D-records re-home to the §2 tail (renumbering the D121/D123 collisions; D140 keeps its number per the 2026-10-10 lead decision) and the questions consolidate under the single §3 — byte-neutral, loses nothing."
+    },
+    {
+      "heading": "## 7. Gates",
+      "firstLine": "**Status 2026-10-04: planned on `feature/m95-byo-providers` from main",
+      "lastLine": "release acceptance are still pending.**",
+      "kind": "near-duplicate-keep-newer",
+      "reason": "Superseded M95 status snapshot heading the §7 paste (union 37527–37533, 479 bytes); its five middle lines stand verbatim in §6 as “Status detail retained” (union 25382–25386) under the current statuses, so the join deletes this block and loses nothing. COUNTED. Same merge-repair class as the lead-decided table/§3 repairs; enables the gate."
+    },
+    {
+      "heading": "## 7. Gates",
+      "firstLine": "- **Acceptance.**",
+      "lastLine": "provider in `providers.json` and no secret in SecretStorage.",
+      "kind": "byte-identical",
+      "reason": "§7 paste Acceptance list (union 37757–37832, 76 lines, 4,901 bytes) is byte-exact identical to the §6 Preserved-M95-notes Acceptance list (union 25624–25699, verified 76/76 lines in order); join deletes the §7 copy, nothing is lost. COUNTED. Same merge-repair class as the lead-decided table/§3 repairs; the Tests block, DEFLAKE3 record and lane tails stay for the join’s re-homing."
     }
   ],
   "releasedByThisRelease": [
     {
-      "heading": "### M56 \u2014 Enterprise network and posture (D43)",
+      "heading": "### M56 — Enterprise network and posture (D43)",
       "firstLine": "- **MSM56 finish (2026-10-17).** While `http.proxy` is set on an editor",
       "status": "**Status 2026-09-27: built.**",
-      "pr": "PR #190 (ms/msm56) merged in this release (\u00a710: 0.19.0 preparation record).",
+      "pr": "PR #190 (ms/msm56) merged in this release (§10: 0.19.0 preparation record).",
       "reason": "Status complete (no checklist, no open/waits/still/not-claimed words); the MSM56 record the move archives is this release's completion evidence."
     },
     {
-      "heading": "### BCSTART \u2014 The browser check's start on Windows (2026-10-18)",
+      "heading": "### BCSTART — The browser check's start on Windows (2026-10-18)",
       "firstLine": "- **Rule.** The browser check's contract read (M81) waits for the browser to",
       "status": "**Status 2026-10-18: built.** Status evidence: `docs/certification/bcstart.md`.",
-      "pr": "PR #222 (fix/browser-check-route) merged in this release (\u00a710 record); it implements exactly this Rule.",
+      "pr": "PR #222 (fix/browser-check-route) merged in this release (§10 record); it implements exactly this Rule.",
       "reason": "Status complete (no checklist, no open/waits/still/not-claimed words); the release PR is the completion. Its Rule+Why move is in the moves list."
+    },
+    {
+      "heading": "### M71 — Git and pull requests (D49)",
+      "firstLine": "**Every editor (2026-10-08):** D104 and M123 bring these features to every",
+      "status": "**Status 2026-09-29: resumed** (kept in the stub as the status row).",
+      "pr": "PR #198 (M71 with M123) inside train #227, merged in this release (§10: 0.19.0 preparation record).",
+      "reason": "No checklist and no lane tables in this section (verified); the M71 record the moves archive is this release’s completion evidence."
     }
   ],
   "notes": [
-    "Order for the join: (1) merge-repair deletions under duplicates (byte-identical kind), (2) fix the two pre-existing drift items (tripled '## 3' headings at the union's \u00a7\u00a73 lines; the M95 status-phrase at the MSM95 status line \u2014 the archive script refuses to write while drift > 0), (3) translate moves to line numbers on the repaired file, (4) run move --batch (with --allow-fact-change: the only fact changes are the four closed-milestone checklist moves), prove with the byte-for-byte rebuild and test/unit/planArchive.test.ts, then delete this file.",
+    "Order for the join: (1) merge-repair deletions under duplicates (byte-identical kind), (2) fix the two pre-existing drift items (tripled '## 3' headings at the union's §§3 lines; the M95 status-phrase at the MSM95 status line — the archive script refuses to write while drift > 0), (3) translate moves to line numbers on the repaired file, (4) run move --batch (with --allow-fact-change: the only fact changes are the four closed-milestone checklist moves), prove with the byte-for-byte rebuild and test/unit/planArchive.test.ts, then delete this file.",
     "Round-1 entry CIFIXV (32) is folded into CIFIXM (31): one block in the union; the join archives it once.",
     "MSM113's range is narrowed to its own paragraph: the wider run would take M113's Certification checklist (facts).",
     "M53's range takes its whole list block including the Archived line (one block); the pointer stub replaces it.",
-    "Not listed as moves (deliberately). Test- or fixture-cited anchors: NOLIMITS, MINOUT, M121A, LEDGER, CIFIX017W, MSM58M69, C-M106-2, D69, D70, D1, D36, TOOLROUNDS records, and FIXM94L0 (an e2e comment names the lane). Price tables: D30, D34. Open-work records: D65, D84, D80, D86, D87, D88, D89, D90, D91, D92, D93, D94, D96, D97, D100, D103, D104, D106, D107, and the M95c/M96/M100\u2013M118 lane records (D118's own record IS listed; only its rule paragraph stays). Contaminated blocks: CM952 and TOOLCAP (fresh 0.19.0-lane content glued into the same block, cannot split). FIXM95G (its block is glued to the M95 \u00a77 paste until that repair lands). Every 0.19.0-lane \u00a77 record (MSM112, MSM80, PROVM95, PLAYBACK, MSM9M35, NOSTANDINS, SPENDSIMPLE, CATCHMONEY, DEPS, ACTROOM, VSIXROOM, TRAINS, SHARDS, MACPARITY, WINBIRTH, BROWROUTE, VSIXPLATFORM, SANDBOXSAY and kin: merged but the release is still open, revert risk as PR #203 showed). D119/D121 number collisions and M95K same-heading sections (join renumbers/unions, not deletions).",
+    "Not listed as moves (deliberately). Test- or fixture-cited anchors: NOLIMITS, MINOUT, M121A, LEDGER, CIFIX017W, MSM58M69, C-M106-2, D69, D70, D1, D36, TOOLROUNDS records, and FIXM94L0 (an e2e comment names the lane). Price tables: D30, D34. Open-work records: D65, D84, D80, D86, D87, D88, D89, D90, D91, D92, D93, D94, D96, D97, D100, D103, D104, D106, D107, and the M95c/M96/M100–M118 lane records (D118's own record IS listed; only its rule paragraph stays). Contaminated blocks: CM952 and TOOLCAP (fresh 0.19.0-lane content glued into the same block, cannot split). FIXM95G (its block is glued to the M95 §7 paste until that repair lands). Every 0.19.0-lane §7 record (MSM112, MSM80, PROVM95, PLAYBACK, MSM9M35, NOSTANDINS, SPENDSIMPLE, CATCHMONEY, DEPS, ACTROOM, VSIXROOM, TRAINS, SHARDS, MACPARITY, WINBIRTH, BROWROUTE, VSIXPLATFORM, SANDBOXSAY and kin: merged but the release is still open, revert risk as PR #203 showed). D119/D121 number collisions and M95K same-heading sections (join renumbers/unions, not deletions).",
     "D118's src comment cites D118 as authority; the heading and rule stay, so it keeps resolving. LEFT017's harness-theme hit names LEFT017B, a different lane.",
-    "Measured on the scratch union (3,786,202 bytes, 90.3%, OVER by 221,044): duplicate deletions save 20,852 (3,765,350); the 79 moves move 154,360 more for a landing of 3,623,306 (86.4%, still OVER by 58,148). Reassembly is byte-identical, parsed facts change only in ENVFENCE/TRAIN15H/CI0150A/FIXAGENTOUT (closed checklists, --allow-fact-change), drift stays at the 3 pre-existing items. Target 3,524,198 (gate minus 40 KiB): shortfall 99,108 bytes. Named passages that would close it: the M95 \u00a77-paste repair (~18 KB) with FIXM95G unlocked (~2.9 KB); this release's \u00a77 lane records once the release tags (~20\u201330 KB post-tag, NOLIMITS excepted as test-cited); D30 (~11.5 KB) and D36 (~11.7 KB) on a lead call that their prices/rows are historical; M71 (~38 KB) only if its open items complete.",
+    "Measured on the scratch union (3,786,202 bytes, 90.3%, OVER by 221,044): duplicate deletions save 20,852 (3,765,350); the 79 moves move 154,360 more for a landing of 3,623,306 (86.4%, still OVER by 58,148). Reassembly is byte-identical, parsed facts change only in ENVFENCE/TRAIN15H/CI0150A/FIXAGENTOUT (closed checklists, --allow-fact-change), drift stays at the 3 pre-existing items. Target 3,524,198 (gate minus 40 KiB): shortfall 99,108 bytes. Named passages that would close it: the M95 §7-paste repair (~18 KB) with FIXM95G unlocked (~2.9 KB); this release's §7 lane records once the release tags (~20–30 KB post-tag, NOLIMITS excepted as test-cited); D30 (~11.5 KB) and D36 (~11.7 KB) on a lead call that their prices/rows are historical; M71 (~38 KB) only if its open items complete.",
     "The prescribed commit message below names test/unit/planArchive.test.ts; that file does not exist (the suite is test/unit/planArchiveTool.test.mjs). The join proves with the script's byte-for-byte rebuild and the planArchiveTool suite.",
-    "PLANPREP3 v3 delta (lead decisions 1\u20132): +4 \u00a77 gate-record moves with PR numbers (FIXM109B6, FIXM109B via PR #216; M124 round 6 via PR #227 superseded by round 7; FIXM105E3 remnant second copy via PR #226). CM1091A3 needs no move: its standalone copy is already listed under duplicates for deletion. +6 M95 \u00a77-paste duplicates entries with per-block \u00a76 evidence: five byte-identical (Custom/Lanes-head/Providers paragraphs, Round-two block, Golden block \u2014 every line stands in \u00a76 Preserved integration notes) and the lanes table as near-duplicate-keep-newer (one drifted lane-I row for the join to reconcile). These precise the paste region the existing near-duplicate-for-review entry flags; that entry stays for the re-homing remainder (DEFLAKE3 tail, archive pointer, STAR/FIXM95T and open-finding tails, Phase-2 future work). FIXM95G is NOT moved (open lead-owned follow-up) and MINOUT/M121A/LEDGER/CIFIX017W/C-M106-2/TOOLCAP/TOOLROUNDS/FIXM94L0/CATCHMONEY/REPORTJOIN/0.19.0-lane records stay per the standing exclusions; PR #203 needs no entry (no \u00a77 record stands for it; its \u00a710 record stays by the \u00a710 rule).",
-    "PLANPREP3 v3 proof (scratch union 3,786,202 + sim deletions 33,554 across 75 ranges incl. 5 new byte-identical paste blocks and all 20 pre-existing byte-identical deletions + D6 keep-first + stale D140 heading = sim 3,752,640): 83-move batch dry-run moves 131,365 bytes, landing 3,634,019 (86.6%, OVER the 3,565,158 gate by 68,861); reassembly byte-identical; parsed facts change only in ENVFENCE/TRAIN15H/CI0150A/FIXAGENTOUT (accepted closed checklists, join uses --allow-fact-change); drift stays 3 pre-existing. Target 3,525,198: shortfall 108,821. Join-time upside outside this list: lanes-table reconciliation (~19.7 KB), tripled-\u00a73 drift repair (up to ~13.8 KB), FIXM95G only on a verified call (~2.9 KB), 0.19.0-lane \u00a77 records post-tag (~20\u201330 KB), D30/D36 on a lead call (~23 KB), M71 (~38 KB)."
+    "PLANPREP3 v3 delta (lead decisions 1–2): +4 §7 gate-record moves with PR numbers (FIXM109B6, FIXM109B via PR #216; M124 round 6 via PR #227 superseded by round 7; FIXM105E3 remnant second copy via PR #226). CM1091A3 needs no move: its standalone copy is already listed under duplicates for deletion. +6 M95 §7-paste duplicates entries with per-block §6 evidence: five byte-identical (Custom/Lanes-head/Providers paragraphs, Round-two block, Golden block — every line stands in §6 Preserved integration notes) and the lanes table as near-duplicate-keep-newer (one drifted lane-I row for the join to reconcile). These precise the paste region the existing near-duplicate-for-review entry flags; that entry stays for the re-homing remainder (DEFLAKE3 tail, archive pointer, STAR/FIXM95T and open-finding tails, Phase-2 future work). FIXM95G is NOT moved (open lead-owned follow-up) and MINOUT/M121A/LEDGER/CIFIX017W/C-M106-2/TOOLCAP/TOOLROUNDS/FIXM94L0/CATCHMONEY/REPORTJOIN/0.19.0-lane records stay per the standing exclusions; PR #203 needs no entry (no §7 record stands for it; its §10 record stays by the §10 rule).",
+    "PLANPREP3 v3 proof (scratch union 3,786,202 + sim deletions 33,554 across 75 ranges incl. 5 new byte-identical paste blocks and all 20 pre-existing byte-identical deletions + D6 keep-first + stale D140 heading = sim 3,752,640): 83-move batch dry-run moves 131,365 bytes, landing 3,634,019 (86.6%, OVER the 3,565,158 gate by 68,861); reassembly byte-identical; parsed facts change only in ENVFENCE/TRAIN15H/CI0150A/FIXAGENTOUT (accepted closed checklists, join uses --allow-fact-change); drift stays 3 pre-existing. Target 3,525,198: shortfall 108,821. Join-time upside outside this list: lanes-table reconciliation (~19.7 KB), tripled-§3 drift repair (up to ~13.8 KB), FIXM95G only on a verified call (~2.9 KB), 0.19.0-lane §7 records post-tag (~20–30 KB), D30/D36 on a lead call (~23 KB), M71 (~38 KB).",
+    "PLANPREP4 v4 (lead decisions 2026-10-18): +2 decisions moves (D30 ~11.5 KB, D36 ~11.7 KB, rule paragraphs stay as summaries), +2 milestones moves (M71 ~38 KB in two pointer ranges, stub keeps heading/status/Goal/fields), +13 gates moves (FIXM95G ~2.9 KB, MSM9M35, CATCHMONEY r3, TOOLROUNDS, M123G4C/G4, M109 PM/T/O/M/H/U, bundle-split/MSM113FIX2 — every lane’s PR merged in this release per the §10 preparation record), +1 duplicates entry (tripled-§3: 82 counted bytes; fragments re-homed, not deleted), lanes-table entry upgraded to COUNTED (19,721 bytes + byte-neutral row swap), D74 stub deletion COUNTED (~1 KB), and lastLine precision on CIFIXM/CM1133R4 (whole-glued-block intents). Join mechanics: (1) merge-repair deletions per duplicates, (2) MSM95 status-phrase fix to sanctioned “complete” + 12 blank-line joints at glued §7 records (union coords listed in the proof), +D-record re-homing around §3, (3) translate moves to line numbers, (4) move --batch --allow-fact-change (fact changes: the four closed-milestone checklist moves; M71/D30/D36 change no parsed facts). 0.19.0 lanes with no §7 record standing (MSM112, MSM80, PROVM95, PLAYBACK, NOSTANDINS, SPENDSIMPLE, DEPS, ACTROOM, VSIXROOM, TRAINS, SHARDS, MACPARITY, WINBIRTH, BROWROUTE, VSIXPLATFORM, SANDBOXSAY and kin) move nothing: their verification stands in §6/§10/certification. Records of lanes whose PR is not in the release stay (M114/M115/M100/M101/M106/M98/MRG78/M95INT/KNIPC/DEFLAKE4/STAR/R10/CM952/PORTM105/CIFIX017W/MINOUT/C-M106-2/TOOLCAP/FIXM94L0/D92/estimator and kin).",
+    "PLANPREP4 proof (scratch union 3,786,202 bytes): merge-repair deletions 60,134 bytes across 82 ranges (all v3 byte-identical pairs incl. five paste blocks, D6 identical-only 53 ranges + modelApi-old, D74 stub, lanes-table §7 copy 19,721 with byte-neutral lane-I row swap, §3 extra headings, paste Status head, paste Acceptance 4,901) + MSM95 status-phrase fix (+10) + 17 joints (+17) = repaired 3,726,095; 101-move batch (218,623 bytes) dry-run: landing 3,522,763 (84.0%; 2,435 under the 3,525,198 target, 42,395 room under the 85% gate), reassembly byte-identical, facts changed only in the four closed checklists (ENVFENCE/TRAIN15H/CI0150A/FIXAGENTOUT via --allow-fact-change), drift 0, exit 0. M71/D30/D36 change no parsed facts. 17 blank-line joints (re-blocking glued §7 records so every move spans whole top-level blocks; each is “insert one blank line between A and B”): no budget moves || **CM1091A3 scoped rig qualification (2026-10-10, linuxlt).**; named in §9 || **FIXM109PM review repair (2026-10-06, Mac mini).**; byte-exact red drills || **M109 lane T (2026-10-06, Mac mini).**; m109-t-drills.json || **M109 O (2026-10-06, MacBook rig).**; no live/paid calls or dependency || **M109 M (2026-10-06, MacBook).**; m109-m-migration-and-import.md || **M109 H gate handoffs (2026-10-06).**; injected session fake || **M109 U bounded-lane receipt (2026-10-06, Mac mini).**; check-bundle-split.mjs || **FIXM102E / RVM102E scoped receipt (2026-10-05).**; no successful full-build claim is made || **FIXM95A gate delegation (2026-10-05).**; Archived pointer (Resolutions) || **KNIPC bounded lane (2026-10-05).**; No threshold, rule or ignore is changed || **M115-G bounded-lane gate delegation (2026-10-06).**; Aggregates: quality:gates || **M114 lane 0 scoped gate delegation (2026-10-06).**; the deferral is closed || **PR226W1 budget remainder (2026-10-18; reported as such || **Bundle-split reporting backend (fixed MSM113FIX2; stay C-M9-1/C || **CM1136R6 inherited duplication gate (2026-10-11, Kubuntu).**; timeout is weakened || **TOOLROUNDS duplication, resolved (2026-10-17; MSM95 models-section budget || **MSM9M35 lane-K activation budget (2026-10-17; open"
   ]
 }
