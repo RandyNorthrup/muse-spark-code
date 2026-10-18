@@ -24,7 +24,6 @@ const EFFORTS = new Set(['minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
 const USD_UNITS = 1_000_000n
 const MAX_BUDGET_UNITS = 20_000_000n
 const MAX_REQUESTS = 500
-const DEFAULT_MAX_REQUESTS = 30
 const MAX_TIMEOUT_MINUTES = 360
 const DEFAULT_TIMEOUT_MINUTES = 20
 const TRIGGER_MAX_CHARS = 100
@@ -299,13 +298,9 @@ export function parseActionInputs(env) {
     mode,
     maxBudgetUsd: budgetString(env.MUSE_INPUT_MAX_BUDGET_USD),
     imageGeneration: exactBoolean(env, 'MUSE_INPUT_IMAGE_GENERATION', false),
-    maxRequests: boundedInteger(
-      env,
-      'MUSE_INPUT_MAX_REQUESTS',
-      DEFAULT_MAX_REQUESTS,
-      1,
-      MAX_REQUESTS,
-    ),
+    // No default: an empty max-requests input sets no request limit (null).
+    // A set value stays within 1–MAX_REQUESTS, like the CLI's --max-requests.
+    maxRequests: boundedInteger(env, 'MUSE_INPUT_MAX_REQUESTS', null, 1, MAX_REQUESTS),
     timeoutMinutes: boundedInteger(
       env,
       'MUSE_INPUT_TIMEOUT_MINUTES',
