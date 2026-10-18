@@ -51,6 +51,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     private volatile boolean disposed;
     private final CompletableFuture<JsonElement> initialization;
     private static Process launch() throws Exception {
+        // nosemgrep: java.lang.security.audit.command-injection-process-builder.command-injection-process-builder -- panelCommand resolves the person's own configured runtime to a canonical absolute executable (real path, regular, executable, pinned file name and package identity) and returns a fixed argument list; no shell interprets it (PLAN.md §8).
         ProcessBuilder builder = new ProcessBuilder(RuntimeProcess.panelCommand(System.getenv("MUSE_SPARK_RUNTIME"), System.getenv("PATH")));
         Map<String, String> clean = Assets.environment(builder.environment()); builder.environment().clear(); builder.environment().putAll(clean);
         builder.directory(ResourcesPlugin.getWorkspace().getRoot().getLocation().toFile());

@@ -14,9 +14,11 @@ const project = readFileSync(path.join(pluginRoot, 'MuseSpark.VisualStudio.cspro
 const packageJson = JSON.parse(readFileSync(path.join(repoRoot, 'package.json'), 'utf8'))
 
 function tag(name) {
-  const match = manifest.match(new RegExp(String.raw`<${name}(?:\s[^>]*)?>([\s\S]*?)</${name}>`))
-  assert.ok(match, `manifest is missing <${name}>`)
-  return match[1].trim()
+  const open = manifest.indexOf(`<${name}`)
+  const contentStart = open === -1 ? -1 : manifest.indexOf('>', open)
+  const close = contentStart === -1 ? -1 : manifest.indexOf(`</${name}>`, contentStart)
+  assert.ok(close !== -1, `manifest is missing <${name}>`)
+  return manifest.slice(contentStart + 1, close).trim()
 }
 
 function listVsFilesRecursively(directory, into) {
