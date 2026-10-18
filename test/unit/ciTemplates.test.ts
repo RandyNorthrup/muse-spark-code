@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
-import { checkJobDeadline, parseCiInputs } from '../../action/lib/ci-run.mjs'
+import { checkJobDeadline, CI_PUBLISHED_FILES, parseCiInputs } from '../../action/lib/ci-run.mjs'
 import { bootstrapOf, bootstrapSource, templateText } from './helpers/ciTemplateText'
 
 const SYSTEMS = ['gitlab', 'azure', 'jenkins', 'bitbucket'] as const
@@ -83,6 +83,23 @@ describe('template defaults through the launcher’s own grammar', () => {
     })
   })
 
+  it('Azure: the key arrives only through a variable group the change cannot modify', () => {
+    // The group (with its branch-control check) is defined outside the
+    // repository, so YAML pushed by a change under test cannot rebind the
+    // key; the job condition is only a second layer.
+    const document = yamlOf('azure')
+    const job = record((document['jobs'] as unknown[])[0])
+    const variables = job['variables'] as unknown[]
+    expect(
+      variables.some(
+        (entry) =>
+          typeof entry === 'object' &&
+          entry !== null &&
+          (entry as Yaml)['group'] === 'muse-spark-secrets',
+      ),
+    ).toBe(true)
+  })
+
   it('Azure: the declared job timeout covers a 20-minute turn under checkJobDeadline', () => {
     const document = yamlOf('azure')
     const job = record((document['jobs'] as unknown[])[0])
@@ -100,6 +117,24 @@ describe('template defaults through the launcher’s own grammar', () => {
         now,
       )
     }).not.toThrow()
+  })
+})
+
+describe('result transport out of external temp', () => {
+  // GitLab and Bitbucket upload only paths inside the clone, so both
+  // templates declare exactly the publisher's fixed filenames (the real
+  // CI_PUBLISHED_FILES list), never a directory glob.
+  const published = [...CI_PUBLISHED_FILES].map((file) => `muse-spark-out/${file}`)
+
+  it('GitLab declares the five published files as always-uploaded artifacts', () => {
+    const job = record(record(yamlOf('gitlab'))['muse-spark'])
+    expect(record(job['artifacts'])['paths']).toEqual(published)
+  })
+
+  it('Bitbucket declares the five published files as step artifacts', () => {
+    const definitions = record(record(yamlOf('bitbucket'))['definitions'])
+    const steps = record((definitions['steps'] as unknown[])[0])['step']
+    expect(record(steps)['artifacts']).toEqual(published)
   })
 })
 

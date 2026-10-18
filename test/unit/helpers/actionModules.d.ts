@@ -285,6 +285,7 @@ declare module '*/action/lib/ci-run.mjs' {
     nowMs?: number,
   ): void
   export const CI_BOOTSTRAP_UNSET: readonly string[]
+  export const CI_PUBLISHED_FILES: readonly string[]
   export function privateTemp(
     value: string | undefined,
     workspace: string,
