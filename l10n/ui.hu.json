@@ -2499,6 +2499,7 @@
   "allowSessionPrefix": "Mindig engedélyezve ebben a munkamenetben:",
   "reject": "Elutasítás",
   "modelApiStalled": "A Model API {seconds} mp-ig semmit sem küldött, ezért a válasz lezárult; az újrapróbáláshoz küldje el ismét az üzenetet",
+  "modelApiRetryCapReached": "Újrapróbálkozási korlát elérve (museSpark.modelApiMaxRetries: {count}): a kérés nem lett újraküldve. Növeld a korlátot további újrapróbálkozásokhoz.",
   "queuedTurnDropped": "Nincs elküldve: a Leállítás törölte a sorba állított üzeneteket",
   "compactionStopped": "a tömörítés leállt",
   "compactionEmpty": "Az összefoglaló üres volt; a beszélgetés változatlan maradt.",
@@ -3650,8 +3651,8 @@
   "removeAttachmentNamed": "{name} eltávolítása",
   "announceApprovalFor": "Jóváhagyás szükséges: {tool}",
   "turnFailed": "A kör sikertelen volt.",
-  "turnRetrying": "{attempt}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva.",
-  "turnRetryingKnownTotal": "{attempt}. kísérlet ({total}-ból) sikertelen ({reason}); újrapróbálás {seconds} mp múlva.",
+  "turnRetrying": "{attempt}/{maxAttempts}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva.",
+  "turnRetryingUncapped": "{attempt}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva (nincs beállítva újrapróbálkozási korlát).",
   "usageWindowHours": {
     "one": "{count} órás időablak",
     "other": "{count} órás időablak"

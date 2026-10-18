@@ -143,10 +143,12 @@ describe('the preset table', () => {
   it('reads quirks from the preset over its format defaults', () => {
     // M101 BYO 5: OpenAI adds its documented server_error past the responses table.
     // M101 item 24: OpenAI takes strict tool schemas.
+    // Lane RETRYLIMITS (review RVRETRYLIMITS): OpenAI's SDK-documented 2 retries.
     expect(quirksOf(preset('openai'))).toEqual({
       ...FORMAT_QUIRKS.responses,
       retry: { ...FORMAT_QUIRKS.responses.retry, errorKinds: ['server_error'] },
       supportsStrictTools: true,
+      retryLimits: { maxRetries: 2 },
     })
     expect(quirksOf(preset('openrouter')).reasoningField).toBe('reasoning_details')
     expect(quirksOf(preset('deepseek')).reasoningField).toBe('reasoning_content')

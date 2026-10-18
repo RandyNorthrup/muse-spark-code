@@ -2607,6 +2607,7 @@
   "allowSessionPrefix": "Всегда разрешать в этом сеансе:",
   "reject": "Отклонить",
   "modelApiStalled": "Model API ничего не отправлял {seconds} с, поэтому ответ был завершен; отправьте сообщение еще раз, чтобы повторить попытку",
+  "modelApiRetryCapReached": "Достигнут предел повторов (museSpark.modelApiMaxRetries: {count}): запрос не был отправлен повторно. Увеличьте предел, чтобы разрешить повторные попытки.",
   "queuedTurnDropped": "Не отправлено: остановка очистила очередь сообщений",
   "compactionStopped": "сжатие было остановлено",
   "compactionEmpty": "Сводка оказалась пустой; беседа не изменилась.",
@@ -3810,8 +3811,8 @@
   "removeAttachmentNamed": "Удалить {name}",
   "announceApprovalFor": "Требуется подтверждение для {tool}",
   "turnFailed": "Не удалось выполнить ход.",
-  "turnRetrying": "Попытка {attempt} не удалась ({reason}); повтор через {seconds} с.",
-  "turnRetryingKnownTotal": "Попытка {attempt} из {total} не удалась ({reason}); повтор через {seconds} с.",
+  "turnRetrying": "Попытка {attempt}/{maxAttempts} не удалась ({reason}); повтор через {seconds} с.",
+  "turnRetryingUncapped": "Попытка {attempt} не удалась ({reason}); повтор через {seconds} с (лимит повторов не задан).",
   "usageWindowHours": {
     "one": "{count}-часовое окно",
     "other": "{count}-часовое окно",

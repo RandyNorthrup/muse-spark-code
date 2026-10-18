@@ -2553,6 +2553,7 @@
   "allowSessionPrefix": "Permitir siempre en esta sesión:",
   "reject": "Rechazar",
   "modelApiStalled": "Model API no envió nada durante {seconds} s, así que se terminó la respuesta; vuelva a enviar el mensaje para reintentarlo",
+  "modelApiRetryCapReached": "Límite de reintentos alcanzado (museSpark.modelApiMaxRetries: {count}): la solicitud no se volvió a enviar. Aumenta el límite para permitir más reintentos.",
   "queuedTurnDropped": "No enviado: Detener borró los mensajes en cola",
   "compactionStopped": "se detuvo la compactación",
   "compactionEmpty": "El resumen estaba vacío; la conversación no ha cambiado.",
@@ -3730,8 +3731,8 @@
   "removeAttachmentNamed": "Quitar {name}",
   "announceApprovalFor": "Se necesita aprobación para {tool}",
   "turnFailed": "El turno falló.",
-  "turnRetrying": "El intento {attempt} falló ({reason}); se reintentará en {seconds} s.",
-  "turnRetryingKnownTotal": "El intento {attempt} de {total} falló ({reason}); se reintentará en {seconds} s.",
+  "turnRetrying": "El intento {attempt}/{maxAttempts} falló ({reason}); se reintentará en {seconds} s.",
+  "turnRetryingUncapped": "El intento {attempt} falló ({reason}); se reintentará en {seconds} s (sin límite de reintentos).",
   "usageWindowHours": {
     "one": "ventana de {count} hora",
     "other": "ventana de {count} horas",

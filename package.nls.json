@@ -195,6 +195,7 @@
   "config.modelApiStrictTools.description": "Use strict tool schemas where the selected model supports them. Disable to keep the previous tool declarations.",
   "config.modelApiParallelReads.description": "Run safe read-only tool calls concurrently, up to four at a time. Other tool calls run in order.",
   "config.webSearchMaxPerRequest.description": "Maximum hosted web searches per response (1–20; default 5). The price and shared daily budget are shown before the first charge.",
+  "config.modelApiMaxRetries.description": "Retry limit for failed Model API requests, per try after the first (0 never retries). Unset by default: each provider's documented maximum governs (Anthropic 2, OpenAI 2, Gemini 4, Azure 10, xAI 4, Meta 4), and a provider that documents none retries until its own wait or stop answer ends it.",
   "config.modelApiTeamWorkers.description": "Stored for compatibility; no runtime effect.",
   "config.legalHeaderPolicy.description": "Copyright and SPDX header checks for the legal scan: required flags every project-owned source file without a matching header, optional flags only a header that contradicts the detected project style or its REUSE declarations, and off skips header checks. Default optional; generated files are always excluded.",
   "config.legalHeaderPolicy.enumDescriptions.required": "Every project-owned source file needs a matching copyright and SPDX header.",

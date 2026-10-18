@@ -31,6 +31,8 @@ export function createSubscriptionFeatures(options: {
   readonly globalStorageUri: vscode.Uri
   readonly catalogFile?: string
   readonly configFile: string
+  /** Lane RETRYLIMITS: the person's retry limit, read live per transport. */
+  readonly personCap?: () => number | undefined
   readonly l10n: UiTable
   readonly globalState: {
     get(key: string): unknown
@@ -88,6 +90,7 @@ export function createSubscriptionFeatures(options: {
       // The transport's still-waiting notices reach the product log
       // (PR #214 review); per-request timing still goes nowhere.
       log: options.log,
+      ...(options.personCap !== undefined && { personCap: options.personCap }),
       hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
       loadUsage: () => tallies.filter((row) => !['chatgpt', 'copilot'].includes(row.providerId)),
       saveUsage: (rows) => {
@@ -162,6 +165,10 @@ export function createSubscriptionFeatures(options: {
         ? createSubscriptionClient(meta, {
             fetch: fetcher,
             hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
+            // Lane PR225W1: the plan routes answer the person's setting.
+            ...(options.personCap !== undefined && {
+              personCap: options.personCap,
+            }),
             chatgpt,
             accountId,
             // Indefinite ChatGPT stream waits say so on the product log

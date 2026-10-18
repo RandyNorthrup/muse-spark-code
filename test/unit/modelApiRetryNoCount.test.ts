@@ -29,7 +29,9 @@ describe('model API retries without a count of their own (NOLIMITS2 C1)', () => 
   it('honours a provider-named wait whole instead of capping it at the fallback ceiling', () => {
     const transport = new RequestTransport(deps({ fetch: globalThis.fetch }))
     expect(transport.backoffMs(0, 300_000)).toBe(300_000)
-    expect(transport.backoffMs(10, undefined)).toBe(60_000)
+    // Lane RETRYLIMITS: no provider documents a maximum wait here, so the
+    // unnamed backoff grows unbounded (base 1 s, doubling, no jitter here).
+    expect(transport.backoffMs(10, undefined)).toBe(1000 * 2 ** 10)
   })
 
   it('an unnamed budget never counts a retry out; a named one stops at its count', () => {

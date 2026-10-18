@@ -146,7 +146,14 @@ export interface ModelApiClientDeps {
   readonly baseUrl: string
   /** Read per request so a key pasted later applies without a restart. */
   readonly apiKey: () => Promise<string | undefined>
-  readonly sleep: (ms: number) => Promise<void>
+  /**
+   * Lane RETRYLIMITS: the person's `museSpark.modelApiMaxRetries` setting,
+   * read live so a change applies without a restart; undefined (or absent)
+   * leaves Meta's documented 3–5 attempts in force.
+   */
+  readonly personCap?: (() => number | undefined) | undefined
+  /** Absent, the transport waits with `abortableSleep` (see `TransportDeps.sleep`). */
+  readonly sleep?: ((ms: number) => Promise<void>) | undefined
   /** Epoch ms, for a `Retry-After` given as a date. */
   readonly now: () => number
   /** 0 ≤ n < 1, for the retry jitter; injected so tests are deterministic. */
@@ -347,6 +354,20 @@ export class ModelApiClient implements TransportProviderClient {
   /** The wait before retry number `attempt` (0-based): the same backoff and jitter as a request's. */
   public retryDelayMs(attempt: number): number {
     return this.transport.backoffMs(attempt, undefined)
+  }
+
+  /**
+   * This client's effective retry limit (see `ProviderClient.maxRetries`).
+   * Meta serves its own models only, so the selected model does not change
+   * the answer; an aggregate client reads it instead (PR #225).
+   */
+  public maxRetries(_modelId?: string): number | undefined {
+    return this.transport.maxRetries()
+  }
+
+  /** The person's live retry limit, uncapped (see `RequestTransport.personCap`). */
+  public personCap(): number | undefined {
+    return this.transport.personCap()
   }
 
   /** Waits `ms`, or rejects as soon as the turn's Stop aborts `signal`. */

@@ -33,10 +33,10 @@ describe('turnRetry ceiling', () => {
       retryDelayMs: 5000,
       reason: 'rate limited',
     })
-    expect(noticeText(state)).toBe('Attempt 1 of 3 failed (rate limited); retrying in 5 s.')
+    expect(noticeText(state)).toBe('Attempt 1/3 failed (rate limited); retrying in 5 s.')
   })
 
-  it('keeps the old card when no ceiling was supplied', () => {
+  it('names the uncapped wait when no ceiling was supplied', () => {
     const state = retry({
       type: 'turnRetry',
       turnId: 't1',
@@ -44,6 +44,8 @@ describe('turnRetry ceiling', () => {
       retryDelayMs: 5000,
       reason: 'rate limited',
     })
-    expect(noticeText(state)).toBe('Attempt 2 failed (rate limited); retrying in 5 s.')
+    expect(noticeText(state)).toBe(
+      'Attempt 2 failed (rate limited); retrying in 5 s (no retry limit set).',
+    )
   })
 })

@@ -2607,6 +2607,7 @@
   "allowSessionPrefix": "Zawsze zezwalaj w tej sesji:",
   "reject": "Odrzuć",
   "modelApiStalled": "Model API nic nie wysłał przez {seconds} s, więc odpowiedź została zakończona; wyślij wiadomość ponownie, aby ponowić próbę",
+  "modelApiRetryCapReached": "Osiągnięto limit ponowień (museSpark.modelApiMaxRetries: {count}): żądanie nie zostało wysłane ponownie. Zwiększ limit, aby zezwolić na więcej ponowień.",
   "queuedTurnDropped": "Nie wysłano: zatrzymanie wyczyściło wiadomości w kolejce",
   "compactionStopped": "kompaktowanie zostało zatrzymane",
   "compactionEmpty": "Podsumowanie było puste; rozmowa pozostała bez zmian.",
@@ -3810,8 +3811,8 @@
   "removeAttachmentNamed": "Usuń {name}",
   "announceApprovalFor": "Wymagane zatwierdzenie dla {tool}",
   "turnFailed": "Tura nie powiodła się.",
-  "turnRetrying": "Próba {attempt} nie powiodła się ({reason}); ponowienie za {seconds} s.",
-  "turnRetryingKnownTotal": "Próba {attempt} z {total} nie powiodła się ({reason}); ponowienie za {seconds} s.",
+  "turnRetrying": "Próba {attempt}/{maxAttempts} nie powiodła się ({reason}); ponowienie za {seconds} s.",
+  "turnRetryingUncapped": "Próba {attempt} nie powiodła się ({reason}); ponowienie za {seconds} s (nie ustawiono limitu ponowień).",
   "usageWindowHours": {
     "one": "Okno {count}-godzinne",
     "other": "Okno {count}-godzinne",

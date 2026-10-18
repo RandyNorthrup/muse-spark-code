@@ -2445,6 +2445,7 @@
   "allowSessionPrefix": "在此工作階段中一律允許：",
   "reject": "拒絕",
   "modelApiStalled": "Model API 在 {seconds} 秒內沒有傳送任何內容，因此已結束回覆；請再次傳送訊息以重試",
+  "modelApiRetryCapReached": "已達到重試上限（museSpark.modelApiMaxRetries：{count}）：請求未再次傳送。若要允許更多重試，請提高上限。",
   "queuedTurnDropped": "未傳送：「停止」已清除排入佇列的訊息",
   "compactionStopped": "壓縮已停止",
   "compactionEmpty": "摘要為空；對話未變更。",
@@ -3570,8 +3571,8 @@
   "removeAttachmentNamed": "移除 {name}",
   "announceApprovalFor": "{tool} 需要核准",
   "turnFailed": "此回合失敗。",
-  "turnRetrying": "第 {attempt} 次嘗試失敗（{reason}）；{seconds} 秒後重試。",
-  "turnRetryingKnownTotal": "第 {attempt}/{total} 次嘗試失敗（{reason}）；{seconds} 秒後重試。",
+  "turnRetrying": "第 {attempt}/{maxAttempts} 次嘗試失敗（{reason}）；{seconds} 秒後重試。",
+  "turnRetryingUncapped": "第 {attempt} 次嘗試失敗（{reason}）；{seconds} 秒後重試（未設定重試上限）。",
   "usageWindowHours": {
     "other": "{count} 小時時段"
   },

@@ -34,6 +34,18 @@ happened, not what was planned; superseded entries are kept.
   namespace here and says so once on every surface, naming the two ways
   out, without ever switching the sandbox off on its own.
 
+### Added
+
+- Each provider's own retry limit, nothing global (lane RETRYLIMITS, the
+  owner's binding rule). The single 4-retries/1 s-to-60 s default is
+  replaced by the documented values — Anthropic 2, OpenAI 2, Gemini 4 (about 1 s to
+  60 s), Azure 10, xAI 4, Meta 4 — and a provider that documents no maximum
+  retries until its own wait or stop answer ends the exchange. The new
+  machine-scoped `museSpark.modelApiMaxRetries` setting caps every
+  provider's retries when set (`0` never retries); unset, the providers'
+  documented maxima govern. Record:
+  `docs/certification/provider-refusals.md` ("Lane RETRYLIMITS").
+
 ### Changed
 
 - Tab has no daily budget unless the person sets one: `museSpark.tabDailyBudgetUsd`
