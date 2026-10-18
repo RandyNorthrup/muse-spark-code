@@ -4155,6 +4155,10 @@ export const EXEC_MARKER_BYTES = 8
 export const EXEC_STOP_GRACE_MS = 5000
 export const EXEC_SIGNAL_DEDUP_MS = 500
 export const EXEC_FORCE_WRITE_MS = 300
+// How long a usage-error refusal waits for the display language's table
+// before falling back to the bundled English parse: a local file read, so a
+// short bound, and a stalled package filesystem never hangs the refusal.
+export const USAGE_ERROR_LOCALE_MS = 2000
 // The retry interval after EAGAIN on a full non-blocking output pipe.
 export const EXEC_WRITE_RETRY_MS = 10
 export const EXEC_SINK_HIGH_WATER_BYTES = 16_777_216
@@ -8269,15 +8273,10 @@ export const CONNECTOR_LIMITS = {
   /** 16 KiB. */
   variablesTotalBytes: 16_384,
   workspacesMax: 32,
-  callsPerMinute: 60,
-  burst: 10,
-  activeReads: 4,
-  pendingApprovals: 2,
   operationsKept: 64,
   pollMinMs: 2000,
   requestDeadlineMs: 15_000,
   approvalLeaseMs: 120_000,
-  minuteMs: 60_000,
   /** 10 MiB. */
   auditSegmentBytes: 10_485_760,
   /** 30 days. */
@@ -8294,19 +8293,6 @@ export const CONNECTOR_LIMITS = {
   auditBacklog: 64,
   /** A receipt not durable by then failed; the journal counts as failed until it answers. */
   auditTimeoutMs: 5000,
-  // The limits file's lock: the M123 PR store's storeLock protocol (store.ts).
-  /** How long a holder holds, on its own monotonic clock. */
-  lockLeaseMs: 2000,
-  /** The longest lease of another process a waiter waits out. */
-  lockHonoredMs: 10_000,
-  /** How long a lock without a readable note is watched before it counts as a crash's. */
-  lockTornMs: 250,
-  lockWaitMs: 3000,
-  lockPollMs: 10,
-  /** Two readings of one process's start time agree within this. */
-  processStartToleranceMs: 1000,
-  /** Linux's clock ticks per second in /proc/<pid>/stat (USER_HZ). */
-  linuxClockTicks: 100,
 } as const
 export const CONNECTOR_COMPANION_LIMITS = {
   /** 4 KiB. */
@@ -8366,8 +8352,8 @@ export const CONNECTOR_MODEL_TEXT = {
   invalidInput: 'Invalid input: {reason}',
   approvalUnavailable:
     'Refused: no Muse Spark Code approval surface could be shown, so no effect can be approved.',
-  rateLimited: 'Refused: the connection’s call limit was reached; try again later.',
   auditUnavailable: 'Refused: the audit record could not be written, so no effect may start.',
+  serverBusy: 'Refused: the server is busy; try again later.',
   budgetExceeded:
     'Refused: this connection has no paid authority. The owner enables it in Muse Spark Code.',
   killSwitch: 'Refused: the owner switched the connector off. Stop still works.',

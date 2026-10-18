@@ -732,12 +732,16 @@ export class RuntimeGit implements ConversationGitPort {
     }
     this.checkCurrent()
     const sessionId = this.surface.sessionId()
+    // The form's own stop travels with the discovery: Cancel or a session
+    // change aborts GitHub and skips the link, instead of persisting one
+    // for the old session (Codex on PR #227).
     const prepared = await this.pullRequests.prepare({
       repository: target.repository,
       head: target.head,
       remote: target.remote,
       remoteUrl: target.remoteUrl,
       ...(sessionId !== undefined && { sessionId }),
+      signal: operation.signal ?? this.lifetime.signal,
     })
     this.checkCurrent()
     if (!prepared.ok) {

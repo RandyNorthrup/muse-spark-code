@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { composerPlaceholderFor } from '../../src/host/views/webviewSetup'
+import { composerPlaceholderFor } from '../../src/host/views/composerPlaceholder'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 

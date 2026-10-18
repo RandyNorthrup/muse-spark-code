@@ -12,7 +12,16 @@ export interface PromptsPort {
     scope: SavedPrompt['scope'],
     signal?: AbortSignal,
   ) => Promise<readonly SavedPrompt[]>
-  readonly write: (root: string | undefined, prompt: SavedPrompt) => Promise<void>
+  /**
+   * The approved save; with `expectedGeneration` the store recomputes the
+   * library generation under its write lock and throws instead of landing a
+   * save the library moved under (Codex on PR #227).
+   */
+  readonly write: (
+    root: string | undefined,
+    prompt: SavedPrompt,
+    expectedGeneration?: number,
+  ) => Promise<void>
   /** M118's scrubbed share preview of a saved prompt (in memory). */
   readonly preview: (
     root: string | undefined,

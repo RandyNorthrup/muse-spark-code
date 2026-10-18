@@ -23,7 +23,7 @@ import {
   REPORT_KINDS,
 } from '../shared/constants'
 import { modelRef } from '../host/backend/providerPolicyEntry'
-const { isProviderId } = modelRef
+const { isProviderId, isStorableModelId } = modelRef
 import type { OpenRouterPrivacy } from '../core/providers/presets'
 import { accountIdSchema } from '../shared/accounts'
 import { fill } from '../shared/l10n/text'
@@ -352,6 +352,11 @@ export function parseCommandLine<T>(
   if (argv[0] === 'usage' && argv[1] === 'resources')
     return parseResources(['history', ...argv.slice(2)])
   if (argv[0] === 'usage') return parseUsage(argv.slice(1))
+  // The models route comes first: `chatgpt` and `copilot` are entry ids the
+  // product creates, so `providers models chatgpt` must reach the models
+  // command instead of the subscription provider actions below (Codex on
+  // PR #227).
+  if (argv[0] === 'providers' && argv[1] === 'models') return parseProvidersModels(argv.slice(2))
   if (argv[0] === 'providers' && (argv[2] === 'chatgpt' || argv[2] === 'copilot')) {
     const action = parseChatGptProviderAction(argv)
     return action === undefined
@@ -377,7 +382,6 @@ export function parseCommandLine<T>(
     }
     return { ...invalid(argv.join(' ')), exitCode: 2 }
   }
-  if (argv[0] === 'providers' && argv[1] === 'models') return parseProvidersModels(argv.slice(2))
   if (argv[0] === 'schedule') {
     const parsed = parseScheduleCommand(argv.slice(1))
     return parsed.ok
@@ -640,8 +644,11 @@ function finishProvidersModels(
       reason: fill(UI_TEXT.cliHelp.modelsUsage, { command: ACP_AGENT_NAME }),
       exitCode: 2,
     }
+  // A stored id is printed back by later lists, so control and format
+  // characters never parse: no stored value can steer a terminal (Codex on
+  // PR #227). Whitespace stays the command layer's refusal below.
   const add = values.add ?? []
-  if (add.some((model) => typeof model !== 'string' || model === '')) {
+  if (add.some((model) => typeof model !== 'string' || model === '' || !isStorableModelId(model))) {
     return {
       command: 'invalid',
       reason: fill(UI_TEXT.cliHelp.modelsUsage, { command: ACP_AGENT_NAME }),
@@ -649,7 +656,9 @@ function finishProvidersModels(
     }
   }
   const remove = values.remove ?? []
-  if (remove.some((model) => typeof model !== 'string' || model === '')) {
+  if (
+    remove.some((model) => typeof model !== 'string' || model === '' || !isStorableModelId(model))
+  ) {
     return {
       command: 'invalid',
       reason: fill(UI_TEXT.cliHelp.modelsUsage, { command: ACP_AGENT_NAME }),

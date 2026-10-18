@@ -76,6 +76,12 @@ export interface PreparePullRequestInput {
   readonly remoteUrl: string
   readonly base?: string
   readonly sessionId?: string
+  /**
+   * The running operation's own stop: Cancel, a session change and disposal
+   * abort the discovery and skip the link, instead of persisting a link for
+   * a stale session (Codex on PR #227).
+   */
+  readonly signal?: AbortSignal
 }
 
 /** A refusal; a 401 also asks the user to sign in again. */
@@ -145,10 +151,15 @@ export class RuntimePullRequests {
     })
   }
 
-  private async credential(mode: 'ask' | 'silent'): Promise<GitHubCredential | undefined> {
+  private async credential(
+    mode: 'ask' | 'silent',
+    signal: AbortSignal = this.deps.signal,
+  ): Promise<GitHubCredential | undefined> {
     this.checkTrust()
-    const found = await this.deps.github.credential(mode, this.deps.signal)
+    signal.throwIfAborted()
+    const found = await this.deps.github.credential(mode, signal)
     this.checkTrust()
+    signal.throwIfAborted()
     return found
   }
 
@@ -172,8 +183,9 @@ export class RuntimePullRequests {
     client: GitHubClient,
     bearer: string,
     target: Pick<PullRequestDestination, 'targetRepository' | 'remote' | 'remoteUrl' | 'head'>,
+    signal?: AbortSignal,
   ): Promise<Omit<PullRequestDestination, 'targetRepository' | 'remote' | 'remoteUrl' | 'head'>> {
-    const facts = await client.repositoryFacts(bearer, target.targetRepository)
+    const facts = await client.repositoryFacts(bearer, target.targetRepository, signal)
     this.checkTrust()
     const { parent } = facts
     return parent === undefined
@@ -231,8 +243,15 @@ export class RuntimePullRequests {
    * second one). Reads only; posts nothing.
    */
   public async prepare(input: PreparePullRequestInput): Promise<PreparePullRequestResult> {
+    // The window's lifetime joins the operation's own stop: either aborts
+    // the discovery below, and a stop also skips the link (Codex on PR #227).
+    const signal =
+      input.signal === undefined
+        ? this.deps.signal
+        : AbortSignal.any([this.deps.signal, input.signal])
     try {
       this.checkTrust()
+      signal.throwIfAborted()
     } catch (error: unknown) {
       return { ok: false, reason: error instanceof Error ? error.message : String(error) }
     }
@@ -249,7 +268,7 @@ export class RuntimePullRequests {
             : UI_TEXT.gitPushUnsafeName,
       }
     }
-    const credential = await this.credential('silent')
+    const credential = await this.credential('silent', signal)
     if (credential === undefined) {
       return { ok: false, reason: UI_TEXT.gitHubSignInDeclined, needsSignIn: true }
     }
@@ -263,15 +282,20 @@ export class RuntimePullRequests {
       }
       const destination = {
         ...target,
-        ...(await this.destinationOf(client, credential.bearer, target)),
+        ...(await this.destinationOf(client, credential.bearer, target, signal)),
       }
       const existing = await client.openPullRequestFor(
         credential.bearer,
         destination.repository,
         input.repository.owner,
         input.head,
+        signal,
       )
       this.checkTrust()
+      // A stop that landed during the discovery leaves no link for the old
+      // session: the adapter's epoch check would refuse it next, after the
+      // write already landed.
+      signal.throwIfAborted()
       if (existing !== undefined) {
         await this.link(input.sessionId, repositoryLabel(destination.repository), existing)
         return { ok: true, destination, existing }

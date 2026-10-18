@@ -33,9 +33,22 @@ const dd = document.createElement('dd'); dd.textContent = value;
 dl.append(dt, dd);
 };
 const labels = { title: text.fieldTitle, scope: text.fieldScope, tags: text.fieldTags, body: text.fieldBody };
-async function decide(intent, approve) {
-const response = await fetch('/post', { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' }, body: JSON.stringify({ type: 'decide', intentId: intent.intentId, digest: intent.digest, approve }) });
-say(response.ok ? (approve ? text.approved : text.denied) : text.decisionFailed);
+async function decide(intent, approveButton, denyButton, approve) {
+approveButton.disabled = true;
+denyButton.disabled = true;
+let response;
+try {
+response = await fetch('/post', { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json', 'X-Muse-Panel': '1' }, body: JSON.stringify({ type: 'decide', intentId: intent.intentId, digest: intent.digest, approve }) });
+} catch {
+response = undefined;
+}
+if (response !== undefined && response.ok) {
+say(approve ? text.approved : text.denied);
+return;
+}
+approveButton.disabled = false;
+denyButton.disabled = false;
+say(text.decisionFailed);
 }
 function render(intents) {
 list.replaceChildren();
@@ -65,11 +78,11 @@ dl.append(dt, dd);
 const approve = document.createElement('button');
 approve.type = 'button'; approve.textContent = text.approve;
 approve.setAttribute('aria-describedby', heading.id);
-approve.addEventListener('click', () => { void decide(intent, true); });
 const deny = document.createElement('button');
 deny.type = 'button'; deny.textContent = text.deny;
 deny.setAttribute('aria-describedby', heading.id);
-deny.addEventListener('click', () => { void decide(intent, false); });
+approve.addEventListener('click', () => { void decide(intent, approve, deny, true); });
+deny.addEventListener('click', () => { void decide(intent, approve, deny, false); });
 const section = document.createElement('section');
 section.setAttribute('aria-labelledby', heading.id);
 section.append(heading, dl, approve, deny);

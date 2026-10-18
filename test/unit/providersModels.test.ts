@@ -7,7 +7,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import french from '../../l10n/ui.fr.json'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
@@ -20,6 +20,8 @@ import {
   type ProvidersFile,
 } from '../../src/core/providers/providersFile'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
+import { ACP_AGENT_NAME } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import { memorySecretStoreFor } from '../../src/runtime/exec/keyInput'
 import {
   resolveEndpointHost,
@@ -31,6 +33,15 @@ import { providersModels } from '../../src/runtime/providersModelsCommand'
 import { UI_TEXT } from '../../src/shared/constants'
 
 const folders: string[] = []
+
+// The list path reads through the lazily loaded backend bundles. Their
+// first evaluation (the whole backend graph under transform) dwarfs one
+// test's 5 s budget on a loaded rig, so it is shared here once instead of
+// landing inside the first list test that needs it.
+beforeAll(async () => {
+  await import('../../src/host/backend/modelApiEntry')
+  await import('../../src/host/backend/configuredProvidersEntry')
+})
 
 afterEach(() => {
   setUiText(EN, BASE_LOCALE)
@@ -182,6 +193,44 @@ describe('providers models parsing', () => {
         force: 'beta access',
       },
     })
+  })
+
+  it('routes the subscription entry ids to the models command', () => {
+    for (const entryId of ['chatgpt', 'copilot']) {
+      expect(parseCommandLine(['providers', 'models', entryId])).toEqual({
+        command: 'providersModels',
+        options: { entry: entryId, add: [], remove: [], force: undefined },
+      })
+    }
+  })
+
+  it('refuses control and format characters in a model id with exit 2', () => {
+    for (const argv of [
+      ['providers', 'models', 'openrouter', '--add', 'a\u{1B}[31mb'],
+      ['providers', 'models', 'openrouter', '--add', 'a\u{202E}b', '--force', 'beta access'],
+      ['providers', 'models', 'openrouter', '--remove', 'a\u{7}b'],
+    ]) {
+      expect(parseCommandLine(argv), argv.join(' ')).toMatchObject({
+        command: 'invalid',
+        exitCode: 2,
+      })
+    }
+    // Length alone never refuses: a long provider id stays usable (Codex on
+    // PR #227 keeps the raw id for the equality check, cutting display only).
+    expect(
+      parseCommandLine(['providers', 'models', 'openrouter', '--add', `m${'o'.repeat(200)}`]),
+    ).toMatchObject({ command: 'providersModels' })
+  })
+
+  it('builds parser refusals from the installed table, so a re-parse localizes them', () => {
+    const english = parseCommandLine(['providers', 'models'])
+    expect(english).toMatchObject({ command: 'invalid', exitCode: 2 })
+    setUiText({ ...EN, cliHelp: french.cliHelp }, 'fr')
+    const localized = parseCommandLine(['providers', 'models'])
+    expect(localized).toMatchObject({ command: 'invalid', exitCode: 2 })
+    expect(localized).not.toEqual(english)
+    if (localized.command !== 'invalid') throw new Error('must refuse a missing entry')
+    expect(localized.reason).toBe(fill(UI_TEXT.cliHelp.modelsUsage, { command: ACP_AGENT_NAME }))
   })
 
   it('refuses a missing entry, a lone --force and an empty flag with exit 2', () => {
@@ -360,6 +409,37 @@ describe('providers models add and remove', () => {
     ).toBe(1)
     const kept = await readEntry(f.filePath)
     expect(kept.models).toEqual(['model-a'])
+  })
+
+  it('refuses a forced model id with terminal controls and writes nothing', async () => {
+    const f = deps()
+    await writeInitial(f.filePath, fileWith(['model-a']))
+    for (const id of ['a\u{1B}[31mb', 'a\u{202E}b', 'a\u{7}b']) {
+      expect(
+        await providersModels(f.deps, {
+          entry: 'openrouter',
+          add: [id],
+          remove: [],
+          force: 'beta access',
+        }),
+        JSON.stringify(id),
+      ).toBe(1)
+    }
+    const kept = await readEntry(f.filePath)
+    expect(kept.models).toEqual(['model-a'])
+    expect(kept.forcedModels ?? {}).toEqual({})
+    expect(f.printed.join('\n')).not.toContain('\u{1B}')
+  })
+
+  it('keeps the provider’s exact id for the list check, cutting display only', () => {
+    // The schema holds raw ids the provider lists (slashes, length); only
+    // control and format characters never validate (Codex on PR #227).
+    const long = `m${'o'.repeat(200)}`
+    expect(providerEntrySchema.safeParse(entry(['author/slug', long, 'qwen3:8b'])).success).toBe(
+      true,
+    )
+    expect(providerEntrySchema.safeParse(entry(['a\u{1B}[31mb'])).success).toBe(false)
+    expect(providerEntrySchema.safeParse(entry(['a\u{202E}b'])).success).toBe(false)
   })
 
   it('removes a model, drops its forced reason, and clears a default naming it', async () => {

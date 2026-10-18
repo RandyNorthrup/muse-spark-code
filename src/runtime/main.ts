@@ -38,6 +38,7 @@ import {
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
   EXEC_STOP_GRACE_MS,
+  USAGE_ERROR_LOCALE_MS,
   LEGAL_EXIT,
   LEGAL_SCAN_TIMEOUT_MS,
   LEGAL_SCAN_BUNDLE_FILE,
@@ -976,10 +977,35 @@ async function main(): Promise<number> {
     return cachedAccounts
   }
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
+    // The refusal was built from the bundled English table at parse time.
+    // Install the display language first, then re-parse so the refusal
+    // reads in it instead of always in English (Codex on PR #227). A
+    // stalled package filesystem must not hang the refusal: the wait is
+    // bounded, and a stall keeps the English parse above.
+    let reason = command.reason
+    const quiet = (): undefined => undefined
+    const installed = (async (): Promise<void> => {
+      try {
+        await loadUiTable({
+          language: displayLanguage(
+            process.env,
+            new Intl.DateTimeFormat().resolvedOptions().locale,
+          ),
+          readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+          surface: 'terminal',
+          log: { trace: quiet, info: quiet, warn: quiet, error: quiet },
+        })
+      } catch {
+        // An unreadable table keeps the bundled English parse above.
+      }
+    })()
+    await Promise.race([installed, sleep(USAGE_ERROR_LOCALE_MS)])
+    const reparsed = parseCommandLine(process.argv.slice(2), parseSharingArgs)
+    if (reparsed.command === 'invalid') reason = reparsed.reason
     const stderr = createFdWriter(process.stderr.fd, () => {
       /* A usage error already owns exit 2; a closed pipe cannot turn it into success. */
     })
-    stderr.write(`${redactWhole(command.reason, [])}\n`)
+    stderr.write(`${redactWhole(reason, [])}\n`)
     const isFlushed = await stderr.flush(EXEC_FORCE_WRITE_MS)
     exitHeadless(EXEC_EXIT.usage, !isFlushed)
   }

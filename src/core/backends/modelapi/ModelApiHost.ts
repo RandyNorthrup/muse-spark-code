@@ -17457,16 +17457,49 @@ export class ModelApiHost implements AgentHost {
    * under its owner instead of writing nothing (Codex on PR #213). Still
    * silent where no identity exists: pre-provider touches save nothing.
    */
+  /**
+   * The close drain's hold on an identity wait: the drain resolves once the
+   * wait's save is queued (or the lookup fails), so a close in the account
+   * lookup window still waits for the write the lookup enables instead of
+   * returning early and losing it when the process exits (Codex on PR #227).
+   */
+  private trackIdentityWait(): () => void {
+    const previous = this.saving
+    // Not `Promise.withResolvers`, which Node 20 (VS Code 1.99's host) lacks.
+    let releaseGate: () => void
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Node 20 (VS Code 1.99's host) lacks Promise.withResolvers (PLAN.md §8); the executor assigns the resolver synchronously, so the returned release always settles the drain.
+    const gate = new Promise<void>((resolve) => {
+      releaseGate = resolve
+    })
+    this.saving = (async () => {
+      try {
+        await previous
+      } catch {
+        // A failed save never breaks the drain (as `queueSave` documents).
+      }
+      await gate
+    })()
+    return () => {
+      releaseGate()
+    }
+  }
+
   private async persistUnowned(
     session: ModelApiSession,
     store: NonNullable<ModelApiHostDeps['store']>,
     isStrict: boolean,
   ): Promise<void> {
+    const releaseWait = this.trackIdentityWait()
     try {
       await this.requireAccountId()
     } catch {
       if (isStrict) throw new Error(UI_TEXT.notSignedInReason)
       return
+    } finally {
+      // No await sits between the lookup's answer and the queueing below
+      // (both `persistOwned` paths queue synchronously), so releasing here
+      // still holds the drain across the queued write.
+      releaseWait()
     }
     await this.persistOwned(session, store, isStrict)
   }
@@ -17545,8 +17578,16 @@ export class ModelApiHost implements AgentHost {
     if (store === undefined) {
       throw new Error(UI_TEXT.historyUnavailable)
     }
-    if (!isRefund) {
-      await this.requireAccountId()
+    // The same close-drain hold as `persistUnowned`: a close in the
+    // account lookup window waits for the liability write the lookup
+    // enables (Codex on PR #227).
+    const releaseWait = isRefund ? undefined : this.trackIdentityWait()
+    try {
+      if (!isRefund) {
+        await this.requireAccountId()
+      }
+    } finally {
+      releaseWait?.()
     }
     // A nonsent request releases its original account's liability even if
     // a different key caused admission to fail. No new account is written.
