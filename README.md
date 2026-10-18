@@ -3848,8 +3848,8 @@ writing concurrently. A crash leaves resumable bytes and a dead-owner lock
 that the next attempt recovers. Refusing or stopping preparation captures no
 audio and makes no new request; another microphone press can retry.
 
-Offline or air-gapped install: download the release's ten `linux-*` helper
-assets and the pinned model file, and place them in the folder the download
+Offline or air-gapped install: download the release's twelve `linux-*` helper
+assets for your architecture and the pinned model file, and place them in the folder the download
 card names (the `dictation-linux` folder inside the extension's global
 storage). The next microphone press checks their sizes and SHA-256 digests
 exactly as it would a download, and refuses loudly on any mismatch.
@@ -4319,8 +4319,9 @@ ACP editors can send `/help` for the current installed-skill list and the
 [generated reference](docs/reference.md). ACP locally handles `/help`, `/compact`, `/legal`, `/usage`, `/questions`, `/answer` and
 installed skills; the linked panel slash commands and settings are extension
 workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
-reference in the installed language without a model call. `exec --help`,
-`report --help` and `scan-secrets --help` also print it; `--help` prints concise
+reference in the installed language without a model call. `exec --help`
+and `scan-secrets --help` also print it; `report --help` prints the report
+command's own usage instead. `--help` prints concise
 ACP usage. Terminal help states that VS Code current values are unavailable.
 
 Maintainers run `npm run reference:generate` after changes. The reference reads
