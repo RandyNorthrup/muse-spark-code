@@ -572,6 +572,24 @@ tests fail with the quoted message, the fix restored, green rerun.
   the release PR sets the final cap) or structural packaging work.
   Budget untouched, no gate weakened, no feature cut.
 
+## PR217W1 — packages follow-up: impossibility proof (2026-10-18)
+
+Per the follow-up directive the whole hunt was redone strictly,
+key by key. All 39 remaining branch-added strings are read by
+product code (property access or table literal, verified per key);
+the 4 removed keys were the only dead ones. The staged
+`estimate*` block (44 keys × 14 locales) measures 24,945 raw value
+bytes (~7 KB final) but is M117's planned provisioning copy, so it
+is not this lane's to delete — and even deleting it (~7 KB) plus
+the dead keys (~1.6 KB) totals ~8.6 KB, still short of the 12,661
+bytes the gate needs. No combination of legitimate content removals
+closes the gap: the rest is live feature text and code, and
+sub-KB removals drown in solid-brotli noise (re-staging after the
+4-key removal measures within ±200 B). The gate needs the lead's
+cap decision or structural packaging work (the parallel vsix-room
+lane's territory). Nothing further can be cut here without
+breaking a live feature, another milestone's scope, or a gate.
+
 ## PR217W1 — gates on the final tree (2026-10-18, lane PR217W1)
 
 Every check below ran in the lane worktree with the repository's own
