@@ -1853,6 +1853,7 @@ export class ConversationController {
     try {
       port.open(this.tasksTabView(sessionId))
     } catch (error: unknown) {
+      this.deps.log.warn(`Opening the tasks tab failed: ${failureForLog(error)}`)
       this.notice('error', `${failed}: ${describe(error)}`)
       return
     }
@@ -1917,7 +1918,7 @@ export class ConversationController {
     try {
       await session.cancel()
     } catch (error: unknown) {
-      this.deps.log.warn(`turn/cancel before leaving the session failed: ${describeForLog(error)}`)
+      this.deps.log.warn(`turn/cancel before leaving the session failed: ${failureForLog(error)}`)
     }
   }
 
@@ -2100,7 +2101,7 @@ export class ConversationController {
       })
     } catch (error: unknown) {
       this.autoApproved.delete(event.approvalId)
-      this.deps.log.warn(`Edit automatically could not approve: ${describeForLog(error)}`)
+      this.deps.log.warn(`Edit automatically could not approve: ${failureForLog(error)}`)
       this.forward(event)
     }
   }
@@ -2152,7 +2153,7 @@ export class ConversationController {
       })
     } catch (error: unknown) {
       this.deps.log.warn(
-        `The Auto reviewer could not be loaded; the user decides: ${describeForLog(error)}`,
+        `The Auto reviewer could not be loaded; the user decides: ${failureForLog(error)}`,
       )
       const card = { ...event, note: UI_TEXT.autoReviewerFailed }
       this.forward(card)
@@ -2324,6 +2325,9 @@ export class ConversationController {
         )
         this.notice('info', UI_TEXT.viewGapReloaded)
       } catch (error: unknown) {
+        this.deps.log.warn(
+          `The transcript reload after dropped events failed: ${failureForLog(error)}`,
+        )
         if (generation === this.sendInvalidationEpoch && this.session === session) {
           this.notice(
             'warning',
@@ -2411,7 +2415,7 @@ export class ConversationController {
         this.forward(shown)
         this.track(shown)
       } catch (error: unknown) {
-        this.deps.log.warn(`An assistant message could not be shown: ${describe(error)}`)
+        this.deps.log.warn(`An assistant message could not be shown: ${failureForLog(error)}`)
       }
     })()
     return true
@@ -2518,7 +2522,8 @@ export class ConversationController {
               this.forward(shown)
               this.track(shown)
             })
-            .catch(() => {
+            .catch((error: unknown) => {
+              this.deps.log.warn(`A question answer could not be shown: ${failureForLog(error)}`)
               this.say('error', UI_TEXT.questionAnswerFailed)
             })
           return
@@ -2531,7 +2536,8 @@ export class ConversationController {
           void sessionQuestions
             .get(this.session)
             ?.settle(event.userInputId, event.outcome)
-            .catch(() => {
+            .catch((error: unknown) => {
+              this.deps.log.warn(`A question answer could not be settled: ${failureForLog(error)}`)
               this.say('error', UI_TEXT.questionAnswerFailed)
             })
         }
@@ -2551,7 +2557,10 @@ export class ConversationController {
               if (reminder !== undefined && this.session === session && !this.isDisposed)
                 this.deps.notifyAttention(notifyOpenQuestions(session.sessionId, event.turnId))
             })
-            .catch(() => {
+            .catch((error: unknown) => {
+              this.deps.log.warn(
+                `A question turn-end could not be recorded: ${failureForLog(error)}`,
+              )
               this.say('error', UI_TEXT.questionAnswerFailed)
             })
         }
@@ -2948,7 +2957,8 @@ export class ConversationController {
     let scheme: string
     try {
       scheme = new URL(url).protocol
-    } catch {
+    } catch (error: unknown) {
+      this.deps.log.warn(`A link could not be opened: ${failureForLog(error)}`)
       this.notice('warning', UI_TEXT.linkSchemeRefused)
       return
     }
@@ -2991,6 +3001,7 @@ export class ConversationController {
       // run on. The card offers the choice again only when the host still
       // waits on this stage (one decision per stage, D26); otherwise it
       // follows the host's own events.
+      this.deps.log.warn(`An approval decision failed: ${failureForLog(error)}`)
       this.notice('warning', `${UI_TEXT.decisionErrorNotice}: ${describe(error)}`, undefined, error)
       if (isDecisionNotAppliedError(error)) {
         this.post({ type: 'approvalReopened', approvalId: message.approvalId })
@@ -3043,6 +3054,7 @@ export class ConversationController {
     } catch (error: unknown) {
       // A refused answer unlocks the form, as a refused question answer
       // does (M25): the user fixes the named field and sends again.
+      this.deps.log.warn(`An elicitation answer failed: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.answerNotAccepted}: ${describe(error)}`)
     }
   }
@@ -3168,6 +3180,7 @@ export class ConversationController {
         this.promptSettled(error, { userInputId })
         return
       }
+      this.deps.log.warn(`Cancelling a question failed: ${failureForLog(error)}`)
       this.say('error', `${UI_TEXT.questionCancelFailed}: ${describe(error)}`)
     }
   }
@@ -3192,6 +3205,7 @@ export class ConversationController {
         this.promptSettled(error, { userInputId: message.userInputId })
         return
       }
+      this.deps.log.warn(`Answering a question failed: ${failureForLog(error)}`)
       this.say('error', `${UI_TEXT.answerNotAccepted}: ${describe(error)}`)
     }
   }
@@ -3217,6 +3231,7 @@ export class ConversationController {
         return
       }
       // An error notice unlocks the card, as a refused answer does (M25).
+      this.deps.log.warn(`Explaining a question failed: ${failureForLog(error)}`)
       this.say('error', `${UI_TEXT.clarifyNotAccepted}: ${describe(error)}`)
     }
   }
@@ -3239,6 +3254,7 @@ export class ConversationController {
     try {
       await run(session)
     } catch (error: unknown) {
+      this.deps.log.warn(`A task command failed: ${failureForLog(error)}`)
       this.notice('warning', `${failure}: ${describe(error)}`, undefined, error)
       this.post({ type: 'taskRefused', itemId })
     }
@@ -3266,6 +3282,7 @@ export class ConversationController {
     try {
       await this.session.stopAllTasks()
     } catch (error: unknown) {
+      this.deps.log.warn(`Stopping every background task failed: ${failureForLog(error)}`)
       this.notice('warning', `${UI_TEXT.stopTaskFailed}: ${describe(error)}`, undefined, error)
     }
   }
@@ -3320,11 +3337,11 @@ export class ConversationController {
         this.noteActivity()
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A command the user typed failed: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch || !this.isAuthAdmitted()) {
         return
       }
       const reason = `${UI_TEXT.userShellFailed}: ${describe(error)}`
-      this.deps.log.warn(reason)
       this.post({ type: 'userShellRefused', command: trimmed, reason })
     } finally {
       this.turnSubmissionsInFlight -= 1
@@ -3391,13 +3408,14 @@ export class ConversationController {
         eof: page.eof,
       })
     } catch (error: unknown) {
+      this.deps.log.warn(`A stored-output page could not be read: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch || this.session !== session) {
         return
       }
       const text = `${UI_TEXT.outputLoadFailed}: ${describe(error)}`
       if (this.hasSaidOutputFailure) {
         this.deps.log.warn(
-          `${describeForLog(error)} (item ${message.itemId}; said once in the panel)`,
+          `${failureForLog(error)} (item ${message.itemId}; said once in the panel)`,
         )
         return
       }
@@ -3432,6 +3450,7 @@ export class ConversationController {
     try {
       result = await this.deps.readToolImage(imagePath)
     } catch (error: unknown) {
+      this.deps.log.warn(`A tool row's picture could not be read: ${failureForLog(error)}`)
       result = { ok: false, reason: describe(error) }
     }
     if (generation !== this.sendInvalidationEpoch) {
