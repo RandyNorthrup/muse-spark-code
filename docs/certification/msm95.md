@@ -199,11 +199,15 @@ under Open below.
   (`src/core/backends/modelapi/pacing.ts`, `transport.ts`,
   `src/core/providers/configured.ts`, `src/shared/usageJournal.ts`):
   OpenAI/Groq `x-ratelimit-{limit,remaining}-{requests,tokens}` with
-  Go-duration resets (`120ms`…`1m26.4s`, captured values) as the
-  window; xAI limits with no reset (default window); Anthropic
+  Go-duration resets (`120ms`…`1m26.4s`, captured values): a reset is
+  the time until the bucket is full again, so the window is derived as
+  reset × limit ÷ used (Groq requests one day, its tokens and OpenAI's
+  buckets one minute; RVPROVM95 `57215aa02`); xAI limits with no reset
+  (default window); Anthropic
   `anthropic-ratelimit-{requests,tokens,input-tokens,output-tokens}-{limit,remaining,reset}`
-  with RFC 3339 resets as the window (token bucket is the all-tokens
-  total); Azure `retry-after-ms` honored wherever `retry-after` is read
+  request and all-tokens buckets, whose RFC 3339 resets name one fixed
+  window boundary and so never set the window length (default stands);
+  Azure `retry-after-ms` honored wherever `retry-after` is read
   (research §1.2 [AZ5]), standard header keeping precedence. The entry
   now supplies its own reader through the `pacingProvider` port
   (previously only Meta's reader existed and only Meta paths observed
@@ -212,13 +216,17 @@ under Open below.
 - Meta default off other providers' media
   (`src/core/backends/modelapi/mediaBudget.ts`): `assertMessageFits`
   threw Meta's 50-slot `documentsOverBudget` for every request; the slot
-  throw now runs only for Meta (or with no record). A listed provider's
+  throw now runs only for Meta (or with no provider identity at all —
+  the send path passes the resolved model's identity to every gate,
+  `fit()` included; RVPROVM95 `493ced5a4`, `5d0b17f0f`). A listed provider's
   fresh media rides to the provider, which answers for its own counts;
   replay elision still honors the recorded `maxCount`, and the
   pipeline's aggregate byte bound still applies to all.
 - Azure requests (`src/core/providers/*`, `src/runtime/exec/*`,
   `src/host/models/modelsPanel.ts`): the wizard's deployment now
-  persists on the entry (schema requires it for `azure`); records
+  persists on the entry (optional in the file so entries saved before
+  it persisted still load; `wireModelFor` requires it at send —
+  RVPROVM95 `d475a9238`); records
   resolve by the ticked model family against the live catalogue;
   `wireModelFor` sends `model: <deployment>`; the list
   (`/openai/v1/models`) and Responses (`/openai/v1/responses`) paths sit
@@ -269,11 +277,12 @@ checks) · `security:audit` 0 (2 advisories, 1 exceptioned).
   any local branch. Everything above is grounded in the in-repo
   2026-10-04 research and captures instead; a lead with the PR branch
   should diff its rows against this record.
-- **Groq per-day scope, xAI per-second scope, DeepSeek concurrency,
-  Azure 1/10 s windows.** Named in the brief but neither the in-repo
-  research nor the captures name them; the code reads the live headers
-  and a capture naming them (a 429 sequence per provider) would settle
-  each.
+- **xAI per-second scope, DeepSeek concurrency, Azure 1/10 s
+  windows.** Named in the brief but neither the in-repo research nor
+  the captures name them; the code reads the live headers and a
+  capture naming them (a 429 sequence per provider) would settle
+  each. (Groq's per-day requests scope is settled: derived from the
+  captured reset, RVPROVM95 `57215aa02`.)
 - **Azure live send.** Built and shape-proven against the documented
   API, but never sent: no Azure resource/key on this rig, and no paid
   calls allowed. Needs the owner's resource, which also produces the
@@ -287,6 +296,24 @@ checks) · `security:audit` 0 (2 advisories, 1 exceptioned).
   not encoded.
 - **`security:sast`.** Not run on the final tree here (semgrep
   crashes on this rig, recorded above); the lead runs it off-sandbox.
+
+### RVPROVM95 review fixes (on top of the PROVM95 commits)
+
+- `57215aa02` pacing: bucket windows derived from resets (above);
+  Anthropic resets no longer shrink the window.
+- `493ced5a4` media: provider identity threaded to the attach, steer,
+  queue and project gates PROVM95 missed.
+- `d475a9238` providers file: pre-deployment Azure entries load again
+  (above).
+- `5d0b17f0f` media: `fit()` on the real send path (`ModelApiHost.body`
+  and the compaction body) received no record and no identity, so a
+  listed provider's fresh media still threw Meta's 50-slot message and
+  its replay still elided at 50 slots. `fit()` now takes the resolved
+  model's provider identity; with no record only the pipeline byte
+  bound elides. Proof: the new `mediaBudget.test.ts` case failed
+  before the fix with `Files must total at most 50 images and PDF
+pages per message.` from `MediaBudget.fit`, and passes after
+  (13 tests in the file).
 
 ## APP PROBLEMS
 

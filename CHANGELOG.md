@@ -14,9 +14,10 @@ happened, not what was planned; superseded entries are kept.
   2026-10-05 snapshot, and Fireworks `supports_tools`/`supports_image_input`
   plus DeepSeek `max_output_tokens`/`effort.supported_levels` from the
   providers' own captured lists now land in records. Rate-limit headers read
-  with their real meaning: OpenAI/Groq `x-ratelimit-*` with duration resets,
-  xAI limits without resets, Anthropic `anthropic-ratelimit-*` with absolute
-  resets, and Azure `retry-after-ms` wherever `retry-after` is honored.
+  with their real meaning: OpenAI/Groq `x-ratelimit-*` whose duration resets
+  derive each bucket's window (Groq requests per day), xAI limits without
+  resets, Anthropic `anthropic-ratelimit-*` request and token buckets, and
+  Azure `retry-after-ms` wherever `retry-after` is honored.
   Fresh attachments on a listed provider model no longer meet Meta's 50-slot
   budget before send. Azure entries persist the deployment, send
   `model: <deployment>` to `{resource}.openai.azure.com/openai/v1/responses`
