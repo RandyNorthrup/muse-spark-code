@@ -29,12 +29,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
 import { renderPackageReadme } from './check-badges.mjs'
-import {
-  DARWIN_HELPER,
-  JOB_SOURCES,
-  LINUX_HELPERS,
-  RUNNER_HELPERS,
-} from './lib/acpNativeSources.mjs'
+import { JOB_SOURCES, RUNNER_HELPERS, acpHelperPlan } from './lib/acpNativeSources.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
 import { ACP_BUNDLES as BUNDLES, acpUsageAssets } from './lib/acpBundles.mjs'
 
@@ -77,8 +72,20 @@ function usageAssets() {
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
 const keyringVersion = lockedVersion(manifest)
 requireBundles()
-if (!existsSync(DARWIN_HELPER) || !statSync(DARWIN_HELPER).isFile())
-  throw new Error(`Required Darwin created-path helper is missing: ${DARWIN_HELPER}`)
+// Each pack carries only its own platform's built helpers
+// (scripts/lib/acpNativeSources.mjs): a helper this machine builds stays
+// required, while one only another OS builds is skipped with a warning when
+// absent. CI composes every platform's helpers, so the release tarball keeps
+// them all and its content check still requires them.
+const { required: requiredHelpers, optional: optionalHelpers } = acpHelperPlan()
+for (const helper of requiredHelpers)
+  if (!existsSync(helper) || !statSync(helper).isFile())
+    throw new Error(`Required ${process.platform} helper is missing: ${helper}`)
+const stagedHelpers = [...requiredHelpers]
+for (const helper of optionalHelpers) {
+  if (existsSync(helper) && statSync(helper).isFile()) stagedHelpers.push(helper)
+  else console.warn(`package-acp: skipping ${helper}: built on another OS and absent here`)
+}
 const PACKAGE_NAME = 'muse-spark-code-acp'
 // The package's landing page (docs/npm-readme.md): npm renders
 // GitHub-flavoured Markdown but does not resolve relative links or images,
@@ -86,9 +93,6 @@ const PACKAGE_NAME = 'muse-spark-code-acp'
 // detailed guide and is linked from the landing page instead.
 const README = path.join('docs', 'npm-readme.md')
 const NOTICES = 'THIRD_PARTY_NOTICES.txt'
-for (const helper of LINUX_HELPERS)
-  if (!existsSync(helper) || !statSync(helper).isFile())
-    throw new Error(`Required Linux created-path helper is missing: ${helper}`)
 const pageAssets = usageAssets()
 // Every installed display language needs the usage family too (lane L).
 for (const table of readdirSync('l10n')) {
@@ -121,7 +125,7 @@ for (const source of pageAssets) {
   mkdirSync(path.dirname(target), { recursive: true })
   copyFileSync(source, target)
 }
-for (const source of [...JOB_SOURCES, DARWIN_HELPER, ...LINUX_HELPERS]) {
+for (const source of [...JOB_SOURCES, ...stagedHelpers]) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
 }
