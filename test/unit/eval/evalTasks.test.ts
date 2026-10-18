@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   EVAL_FLOOR_ACCEPT_PASS_RATE,
   EVAL_FLOOR_HELDOUT_PASS_RATE,
@@ -196,8 +196,12 @@ describe('eval workspace and verifier', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, 
   })
 
   it('starts the verifier with none of the run’s environment', async () => {
-    vi.stubEnv('MUSE_EVAL_PROBE', 'inherited')
-    vi.stubEnv('META_API_KEY', 'not-a-real-eval-credential')
+    // The verifier must not inherit these, so they are set on the real
+    // environment for the run and restored afterwards.
+    const savedProbe = process.env['MUSE_EVAL_PROBE']
+    const savedCredential = process.env['META_API_KEY']
+    process.env['MUSE_EVAL_PROBE'] = 'inherited'
+    process.env['META_API_KEY'] = 'not-a-real-eval-credential'
     try {
       // CoreFoundation generates this even with env:{} and no parent value.
       const posixAllowed = process.platform === 'darwin' ? ['__CF_USER_TEXT_ENCODING'] : []
@@ -215,7 +219,10 @@ describe('eval workspace and verifier', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, 
       )
       expect(verdict).toEqual({ passed: true, detail: '' })
     } finally {
-      vi.unstubAllEnvs()
+      if (savedProbe === undefined) delete process.env['MUSE_EVAL_PROBE']
+      else process.env['MUSE_EVAL_PROBE'] = savedProbe
+      if (savedCredential === undefined) delete process.env['META_API_KEY']
+      else process.env['META_API_KEY'] = savedCredential
     }
   })
 
