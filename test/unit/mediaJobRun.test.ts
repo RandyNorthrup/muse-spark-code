@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import type { McpJobLaunch } from '../../src/host/backend/mcpJobLaunch'
 import {
   ConversionJobFailed,
@@ -11,7 +11,7 @@ import {
   type JobEncoderRunOptions,
   type OutputStat,
 } from '../../src/host/backend/mediaJobRun'
-import { fixtureJobLifecycle } from './helpers/mcpFixtures'
+import { fixtureJobLifecycle } from './helpers/jobLifecycle'
 import { expectEnded, isRunning, markedPid } from './helpers/processes'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -92,28 +92,34 @@ function stalled(): Promise<OutputStat> {
   })
 }
 
-/** The launcher's stand-in: the encoder itself, with no job, recording each launch. */
+/** The encoder itself, with no job, recording each launch and its child. */
 function directLauncher() {
-  return vi.fn((launch: McpJobLaunch) =>
-    spawn(launch.file, [...launch.args], {
+  const calls: McpJobLaunch[] = []
+  const children: ReturnType<typeof spawn>[] = []
+  const spawnJob = (launch: McpJobLaunch) => {
+    calls.push(launch)
+    const child = spawn(launch.file, [...launch.args], {
       cwd: launch.cwd,
       env: launch.env,
       stdio: 'pipe',
       windowsHide: true,
-    }),
-  )
+    })
+    children.push(child)
+    return child
+  }
+  return { spawnJob, calls, children }
 }
 
 describe('jobMemoryLimitedRun', () => {
   it('starts the encoder through the job launcher with the memory cap as the job limit', async () => {
     const where = await workspace()
-    const spawnJob = directLauncher()
+    const { spawnJob, calls: spawnCalls } = directLauncher()
     const run = jobMemoryLimitedRun({ jobExecutable: () => Promise.resolve(EXECUTABLE), spawnJob })
     const args = encoder(where, KIB, 'exit0')
     const env = encoderEnv()
     await run(process.execPath, args, options(where, { env }))
-    expect(spawnJob).toHaveBeenCalledTimes(1)
-    expect(spawnJob.mock.calls[0]?.[0]).toMatchObject({
+    expect(spawnCalls).toHaveLength(1)
+    expect(spawnCalls[0]).toMatchObject({
       executablePath: EXECUTABLE,
       file: process.execPath,
       args,
@@ -137,8 +143,12 @@ describe('jobMemoryLimitedRun', () => {
     ['a relative folder', { cwd: 'media' }],
   ])('refuses %s before preparing or starting anything', async (_label, overrides) => {
     const where = await workspace()
-    const spawnJob = directLauncher()
-    const jobExecutable = vi.fn(() => Promise.resolve(EXECUTABLE))
+    const { spawnJob, calls: spawnCalls } = directLauncher()
+    const preparedPaths: string[] = []
+    const jobExecutable = () => {
+      preparedPaths.push(EXECUTABLE)
+      return Promise.resolve(EXECUTABLE)
+    }
     const { command = process.execPath, ...rest } = overrides
     const starting = jobMemoryLimitedRun({ jobExecutable, spawnJob })(
       command,
@@ -147,8 +157,8 @@ describe('jobMemoryLimitedRun', () => {
     )
     await expect(starting).rejects.toBeInstanceOf(ConversionJobFailed)
     await expect(starting).rejects.toMatchObject(FAILED)
-    expect(jobExecutable).not.toHaveBeenCalled()
-    expect(spawnJob).not.toHaveBeenCalled()
+    expect(preparedPaths).toHaveLength(0)
+    expect(spawnCalls).toHaveLength(0)
   })
 
   it.each([
@@ -156,7 +166,7 @@ describe('jobMemoryLimitedRun', () => {
     ['a failed launcher preparation', () => Promise.reject(new Error(String.raw`C:\private\csc`))],
   ])('refuses %s and never starts the encoder unbounded', async (_label, jobExecutable) => {
     const where = await workspace()
-    const spawnJob = directLauncher()
+    const { spawnJob, calls: spawnCalls } = directLauncher()
     const starting = jobMemoryLimitedRun({ jobExecutable, spawnJob })(
       process.execPath,
       encoder(where, KIB, 'exit0'),
@@ -164,7 +174,7 @@ describe('jobMemoryLimitedRun', () => {
     )
     await expect(starting).rejects.toMatchObject(FAILED)
     await expect(starting).rejects.not.toThrow(/private|csc/u)
-    expect(spawnJob).not.toHaveBeenCalled()
+    expect(spawnCalls).toHaveLength(0)
   })
 
   it.each([
@@ -172,13 +182,15 @@ describe('jobMemoryLimitedRun', () => {
     ['while the launcher is prepared', 1],
   ] as const)('refuses a conversion cancelled %s, never starting it', async (_moment, prepared) => {
     const where = await workspace()
-    const spawnJob = directLauncher()
+    const { spawnJob, calls: spawnCalls } = directLauncher()
     const stop = new AbortController()
     if (prepared === 0) stop.abort()
-    const jobExecutable = vi.fn(() => {
+    const preparations: string[] = []
+    const jobExecutable = () => {
+      preparations.push(EXECUTABLE)
       stop.abort()
       return Promise.resolve(EXECUTABLE)
-    })
+    }
     await expect(
       jobMemoryLimitedRun({ jobExecutable, spawnJob })(
         process.execPath,
@@ -186,8 +198,8 @@ describe('jobMemoryLimitedRun', () => {
         options(where, { signal: stop.signal }),
       ),
     ).rejects.toMatchObject(FAILED)
-    expect(jobExecutable).toHaveBeenCalledTimes(prepared)
-    expect(spawnJob).not.toHaveBeenCalled()
+    expect(preparations).toHaveLength(prepared)
+    expect(spawnCalls).toHaveLength(0)
   })
 
   it.each([
@@ -197,21 +209,24 @@ describe('jobMemoryLimitedRun', () => {
     'settles %s whose output stat never answers (a stalled share)',
     async (_label, ending) => {
       const where = await workspace()
-      const spawnJob = directLauncher()
-      const statOutput = vi.fn(stalled)
+      const { spawnJob, children: spawnChildren } = directLauncher()
+      const statCalls: true[] = []
+      const statOutput = () => {
+        statCalls.push(true)
+        return stalled()
+      }
       const running = jobMemoryLimitedRun({
         jobExecutable: () => Promise.resolve(EXECUTABLE),
         spawnJob,
         statOutput,
       })(process.execPath, encoder(where, KIB, ending), options(where))
       await expect(running).rejects.toMatchObject(FAILED)
-      expect(statOutput).toHaveBeenCalled()
+      expect(statCalls.length).toBeGreaterThan(0)
       // The bounded sample may end the child before its Node script writes
       // the marker. The actual spawn handle still identifies the owned PID.
-      const result = spawnJob.mock.results[0]
-      if (result?.type !== 'return' || result.value.pid === undefined)
-        throw new Error('Expected the owned encoder PID')
-      await expectEnded(result.value.pid)
+      const child = spawnChildren[0]
+      if (child?.pid === undefined) throw new Error('Expected the owned encoder PID')
+      await expectEnded(child.pid)
     },
   )
 
@@ -237,7 +252,7 @@ describe('jobMemoryLimitedRun', () => {
     await expect(
       jobMemoryLimitedRun({
         jobExecutable: () => Promise.resolve(EXECUTABLE),
-        spawnJob: directLauncher(),
+        spawnJob: directLauncher().spawnJob,
       })(process.execPath, encoder(where, KIB, 'exit3'), options(where)),
     ).rejects.toMatchObject(FAILED)
   })
@@ -246,7 +261,7 @@ describe('jobMemoryLimitedRun', () => {
     const where = await workspace()
     const running = jobMemoryLimitedRun({
       jobExecutable: () => Promise.resolve(EXECUTABLE),
-      spawnJob: directLauncher(),
+      spawnJob: directLauncher().spawnJob,
     })(process.execPath, encoder(where, OUTPUT_CAP + 1, 'hang'), options(where))
     await expect(running).rejects.toMatchObject(FAILED)
     await expectEnded(await markedPid(where.marker))
@@ -257,7 +272,7 @@ describe('jobMemoryLimitedRun', () => {
     await expect(
       jobMemoryLimitedRun({
         jobExecutable: () => Promise.resolve(EXECUTABLE),
-        spawnJob: directLauncher(),
+        spawnJob: directLauncher().spawnJob,
       })(process.execPath, encoder(where, OUTPUT_CAP + 1, 'exit0'), options(where)),
     ).rejects.toMatchObject(FAILED)
   })
@@ -266,7 +281,7 @@ describe('jobMemoryLimitedRun', () => {
     const where = await workspace()
     const running = jobMemoryLimitedRun({
       jobExecutable: () => Promise.resolve(EXECUTABLE),
-      spawnJob: directLauncher(),
+      spawnJob: directLauncher().spawnJob,
     })(process.execPath, encoder(where, KIB, 'hang'), options(where, { timeoutMs: 3000 }))
     const pid = await markedPid(where.marker)
     await expect(running).rejects.toMatchObject(FAILED)
@@ -278,7 +293,7 @@ describe('jobMemoryLimitedRun', () => {
     const stop = new AbortController()
     const running = jobMemoryLimitedRun({
       jobExecutable: () => Promise.resolve(EXECUTABLE),
-      spawnJob: directLauncher(),
+      spawnJob: directLauncher().spawnJob,
     })(process.execPath, encoder(where, KIB, 'hang'), options(where, { signal: stop.signal }))
     const pid = await markedPid(where.marker)
     expect(isRunning(pid)).toBe(true)
