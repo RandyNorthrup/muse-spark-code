@@ -203,8 +203,10 @@ export class CdpConnection {
           `${JSON.stringify({ id, method, params, ...(sessionId !== undefined && { sessionId }) })}\0`,
         )
       } catch (error: unknown) {
+        // The write failed: forget the call so a late answer cannot settle
+        // it, and reject with the failure itself, keeping its kind.
         this.#pending.delete(id)
-        reject(new CdpError(error instanceof Error ? error.message : String(error)))
+        throw error
       }
     })
   }

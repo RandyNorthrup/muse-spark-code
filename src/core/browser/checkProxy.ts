@@ -157,7 +157,10 @@ function httpDestination(request: IncomingMessage): Destination | undefined {
   let url: URL
   try {
     url = new URL(raw)
-  } catch {
+  } catch (error) {
+    // The URL parser answers a malformed destination with a TypeError;
+    // anything else is not the destination and reaches the caller.
+    if (!(error instanceof TypeError)) throw error
     return undefined
   }
   const sent = raw.slice(HTTP_PREFIX.length).split(/[/?]/, 1)[0]
@@ -182,7 +185,10 @@ function connectDestination(request: IncomingMessage): Destination | undefined {
   let url: URL
   try {
     url = new URL(`${HTTP_PREFIX}${raw}/`)
-  } catch {
+  } catch (error) {
+    // The URL parser answers a malformed authority with a TypeError;
+    // anything else is not the authority and reaches the caller.
+    if (!(error instanceof TypeError)) throw error
     return undefined
   }
   const port = portOf(url)
