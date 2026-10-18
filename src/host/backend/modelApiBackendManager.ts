@@ -136,6 +136,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly providerId?: ModelApiClientDeps['providerId']
   readonly webSearchPriceUsd?: ModelApiClientDeps['webSearchPriceUsd']
   readonly searchTokenCostUsd?: ModelApiClientDeps['searchTokenCostUsd']
+  /** `museSpark.modelApiMaxRetries`, read per retry decision (lane RETRYLIMITS). */
+  readonly personMaxRetries?: ModelApiClientDeps['personMaxRetries']
 
   readonly hookSettingsPath?: string
   readonly isHooksEnabled?: () => boolean
@@ -341,6 +343,9 @@ export class ModelApiBackendManager {
         }),
         ...(this.deps.searchTokenCostUsd !== undefined && {
           searchTokenCostUsd: this.deps.searchTokenCostUsd,
+        }),
+        ...(this.deps.personMaxRetries !== undefined && {
+          personMaxRetries: this.deps.personMaxRetries,
         }),
         fetch: this.deps.fetch,
         ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
