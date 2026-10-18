@@ -9,6 +9,7 @@
 // failed: …", the log has the cause), and the next press tries again.
 
 import type { DictationHandle, DictationListener } from '../../core/voice/dictation'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
@@ -53,12 +54,14 @@ export function voiceLoader(deps: VoiceLoaderDeps): () => VoiceBundle {
 /**
  * A driver whose implementation is made on the first `start`, so the bundle
  * loads with the first recording rather than with the panel. A load that
- * fails is the listener's `onError` (the status is still idle), and the next
- * `start` tries again; `stop` and `dispose` reach the driver once there is one.
+ * fails is the listener's `onError` (the status is still idle) with the log
+ * keeping the failure's kind, and the next `start` tries again; `stop` and
+ * `dispose` reach the driver once there is one.
  */
 export function deferredDriver(
   listener: DictationListener,
   make: () => DictationHandle,
+  log: Logger,
 ): DictationHandle {
   let driver: DictationHandle | undefined
   let isDisposed = false
@@ -71,7 +74,8 @@ export function deferredDriver(
         try {
           driver = make()
         } catch (error: unknown) {
-          listener.onError(error instanceof Error ? error.message : String(error))
+          log.warn(`Voice driver failed to start: ${failureForLog(error)}`)
+          listener.onError(`${UI_TEXT.dictationFailed}: ${failureForLog(error)}`)
           return
         }
       }

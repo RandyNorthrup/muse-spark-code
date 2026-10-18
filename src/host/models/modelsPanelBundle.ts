@@ -8,12 +8,29 @@
 // the panel back into dist/extension.js, which the bundle-split gate
 // refuses.
 
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as ModelsPanelEntry from './modelsPanelEntry'
 import { CredentialStore, type SecretStore } from '../auth/credentialStore'
 import type { ProviderEntry } from '../providers/providerPorts'
+
+/**
+ * The configured providers: an unreadable providers file reads as none,
+ * with the log naming only the failure's kind, never the file's words.
+ */
+export async function readConfiguredProviders(
+  readProviders: () => Promise<readonly ProviderEntry[]>,
+  log: Logger,
+): Promise<readonly ProviderEntry[]> {
+  try {
+    return await readProviders()
+  } catch (error: unknown) {
+    log.warn(`Configured providers could not be read: ${failureForLog(error)}`)
+    return []
+  }
+}
 
 /** Activation and the panel share this store, including credential-free locals. */
 export function providerCredentials(
@@ -27,14 +44,7 @@ export function providerCredentials(
       log.warn(message)
     },
     undefined,
-    async () => {
-      try {
-        return await readProviders()
-      } catch {
-        log.warn('Configured providers could not be read')
-        return []
-      }
-    },
+    async () => await readConfiguredProviders(readProviders, log),
   )
 }
 
