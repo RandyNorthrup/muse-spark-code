@@ -1,0 +1,76 @@
+{
+  "models": [
+    {
+      "contextLimit": 1007997,
+      "cost": null,
+      "defaultReasoningEffort": "high",
+      "description": null,
+      "displayLabel": "muse-wonder-1.0",
+      "isActive": false,
+      "isDefault": true,
+      "modelId": "muse-wonder-1.0",
+      "outputLimit": 128000,
+      "profileId": "tbh",
+      "providerId": "meta",
+      "reasoningEffortVariants": [],
+      "releaseDate": "2026-10-12",
+      "variants": ["minimal", "low", "medium", "high", "xhigh", "max"]
+    },
+    {
+      "contextLimit": 1007997,
+      "cost": null,
+      "defaultReasoningEffort": "high",
+      "description": null,
+      "displayLabel": "muse-wonder-full-1.0",
+      "isActive": false,
+      "isDefault": false,
+      "modelId": "muse-wonder-full-1.0",
+      "outputLimit": 128000,
+      "profileId": "tbh",
+      "providerId": "meta",
+      "reasoningEffortVariants": [],
+      "releaseDate": "2026-10-12",
+      "variants": ["minimal", "low", "medium", "high", "xhigh", "max"]
+    },
+    {
+      "contextLimit": 1007997,
+      "cost": null,
+      "defaultReasoningEffort": "max",
+      "description": null,
+      "displayLabel": "muse-spark-1.3",
+      "isActive": false,
+      "isDefault": false,
+      "modelId": "muse-spark-1.3",
+      "outputLimit": 128000,
+      "profileId": "tbh",
+      "providerId": "meta",
+      "reasoningEffortVariants": [],
+      "releaseDate": "2026-09-02",
+      "variants": ["minimal", "low", "medium", "high", "xhigh", "max"]
+    },
+    {
+      "contextLimit": 1007997,
+      "cost": null,
+      "defaultReasoningEffort": "high",
+      "description": null,
+      "displayLabel": "muse-spark-1.2",
+      "isActive": false,
+      "isDefault": false,
+      "modelId": "muse-spark-1.2",
+      "outputLimit": 128000,
+      "profileId": "tbh",
+      "providerId": "meta",
+      "reasoningEffortVariants": [
+        {
+          "description": "Use this for deepest analysis and complex fixes.",
+          "tier": "xhigh"
+        }
+      ],
+      "releaseDate": "2026-08-05",
+      "variants": ["minimal", "low", "medium", "high", "xhigh"]
+    }
+  ],
+  "profileId": "tbh",
+  "providerId": "meta",
+  "source": "providerCatalog"
+}

@@ -324,6 +324,24 @@ describe('resolveShellSandbox', () => {
       '--disable-sandbox',
       '--trust-workspace',
     ])
+    // Contributor mode rides the person's own Muse Code settings: on adds
+    // the per-process override, off or absent leaves the argv untouched.
+    expect(
+      serveArguments(
+        { isSandboxed: true, reason: 'default', isUnsupportedWorkspace: false },
+        true,
+        'default',
+        true,
+      ),
+    ).toEqual(['serve', '--contributor-mode', 'on', '--trust-workspace'])
+    expect(
+      serveArguments(
+        { isSandboxed: true, reason: 'default', isUnsupportedWorkspace: false },
+        true,
+        'default',
+        false,
+      ),
+    ).toEqual(['serve', '--trust-workspace'])
     expect(isSandboxNetworkApplied('restricted', unsandboxed)).toBe(false)
     // `default` leaves Muse Code's own default or a managed configuration's.
     expect(isSandboxNetworkApplied('default', sandboxed)).toBe(false)
