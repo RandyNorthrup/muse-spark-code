@@ -760,7 +760,85 @@ typical runs before the budget stops paid usage (the lead switches
 faster; the after-minutes replace these estimates once the first hosted
 run lands, in the implementation record below.
 
-### Implementation record (this lane; filled as it lands)
+### Implementation record (this lane)
 
-Local proof and the hosted-run checklist go here once the workflows are
-edited.
+`build.yml` (checks/integration/native-build legs by `part`, `native-build`
+skipped in `home`, `packages` after `org` with a producer assert, `org`
+relays the two darwin artifacts, `required` keeps its seven names with
+per-check meaning), `ci.yml` (header), `hosts.yml`/`forks.yml` (new `route`,
+whole-workflow move), `browser-check.yml` (new `route`, per-OS split,
+larger Windows capture). Larger labels apply only when `part == 'org'`
+and that repository's `LARGE_RUNNERS` is `on`. PLAN.md D122,
+CONTRIBUTING.md (capacity section + lead step 7) and CHANGELOG.md move with
+the code.
+
+**Local proof (this rig, 2026-10-18).** Both actionlint 1.7.12 (shellcheck
+present, so `run:` scripts were checked) and prettier: exit 0 on all eight
+workflows. `zizmor` 1.31.1 `--offline` on the five touched workflows: three
+low findings, every one on a line this change does not touch (build's
+install of the just-built agent tarball, ci's `./.github/workflows`
+self path, hosts' install of the just-built agent package);
+`--persona=pedantic` adds three template-injection helps, also untouched
+(`matrix.part.gates`, `matrix.fork`, `matrix.release`, all from static
+lists). `temp/cishards2-drills.mjs` drives the steps out of the committed
+files under GitHub's `bash --noprofile --norc -eo pipefail`: 125/125 green
+— ci route 9/9, hosts/forks/browser routes 8/8 each, required 5 checks ×
+home/all green plus home org-failed/cancelled/skipped (15 red), home
+Ubuntu-leg failures failing only their own names, all-part producer
+failures, fast-tier greens, packages assert 5/5, checks/integration/captures
+matrix simulation for every part, runs-on label simulation
+(org+large → larger labels, large off/unset or part all/home →
+standard), and `bash -n` on the wait, relay and push steps. Break drill on
+a copy (`test "$ORG" = success` → `!= failure`) lets a skipped `org`
+through; the committed file rejects it. One drill bug was found and fixed
+in the driver itself (its expression tokenizer glued parentheses to names);
+the workflow expressions were never changed for it.
+
+**The App token never installs or runs pull-request code.** The `org` job's
+steps after this change, in order: create-github-app-token (pinned v3.3.0,
+contents+workflows of the capacity repository only), checkout
+(fetch-depth 0, no credentials), `git push` of the two refs through a
+credential helper that reads the step environment, the wait loop (`gh api`
+reads of the public run endpoints with the job's own token, summary
+write), `gh run download` of the two darwin artifacts from that run, and
+their re-upload under the existing names. No `npm ci`, no `node`, no
+script and no binary the pull request carries runs in this job; the
+downloaded helpers are only re-uploaded (the `test -f` guards fail the job
+if the layout ever differs). The checkout action clones but executes
+nothing from the tree.
+
+**After-minutes.** Larger-runner minutes are not yet measured (no hosted
+run on this lane); the $1.40/$1.53 estimates above use the before-minutes.
+The lead's hosted run replaces them here with the six gate times, the
+Windows capture time, and the true billed total.
+
+### Hosted proof (lead's push; the real gate)
+
+The push of this branch opens a same-repository pull request run here and
+a `ci/pr-<n>` push run in `scnetsolutions/muse-spark-code-ci` (plus
+hosts/forks/browser-check runs there when their paths match). It must show
+all of this, recorded on the pull request:
+
+- Here, the `CI` run's `route` picks `home`; `unit` and `native-build` are
+  skipped; `checks` holds only the three Ubuntu gates; `integration` holds
+  only Ubuntu; `org` pushes `GITHUB_SHA` as `ci/pr-<n>` (and `ci/base` at
+  its first parent), succeeds with the forty shard rows plus the gate,
+  integration and helper legs, and re-uploads `muse-dictate-darwin` and
+  `muse-vault-darwin`; `packages` consumes them unchanged.
+- There, the `ci/pr-<n>` run's `route` picks `org`; the Windows and macOS
+  static gates run on `msc-windows-8core` / `macos-latest-xlarge` (once the
+  lead sets `LARGE_RUNNERS` to `on` there; before that, standard labels),
+  every other moved leg on standard runners; all succeed.
+- **No job running on `windows-latest` or `macos-latest` remains on the
+  personal run**: its jobs list shows Ubuntu legs, `route`, the `org` wait
+  (Ubuntu), the aggregates and the Linux helpers/packages only. Hosts,
+  Forks and browser-check personal runs of the pull request show `route`
+  plus skipped jobs (Hosts/Forks) or the Ubuntu capture only
+  (browser-check).
+- The required `quality (ubuntu/windows/macos-latest)`, `dictation helper
+(macos)` and `package (.vsix)` are green here with the ruleset unchanged.
+- Both walls, every moved leg's minutes (the after column), and the billed
+  total go into this record against the estimates above.
+- Dependabot, fork, merge-group and manual runs are unaffected (part `all`,
+  standard labels); the lead's `LARGE_RUNNERS` step stays a variable flip,
+  never a workflow edit.

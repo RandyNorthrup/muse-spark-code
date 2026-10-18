@@ -30,10 +30,13 @@ happened, not what was planned; superseded entries are kept.
 - Pull requests can borrow the organization `scnetsolutions`'s CI runners
   (D122). Once the owner has installed the organization's GitHub App and set
   `ORG_CI` to `on` (CONTRIBUTING.md, "The capacity repository (D122)"), a
-  pull request from a branch of this repository runs its unit shards (eight
-  on Ubuntu, sixteen each on Windows and macOS) in
-  `scnetsolutions/muse-spark-code-ci` while every other job
-  runs here, and the same seven required checks wait for that run's result.
+  pull request from a branch of this repository runs every Windows and macOS
+  job (static gates, unit shards, Windows integration, the macOS dictation
+  helper, the Hosts/Forks checks and the Windows/macOS browser captures) in
+  `scnetsolutions/muse-spark-code-ci` while only the Ubuntu legs and the
+  aggregates run here, and the same seven required checks wait for that run's
+  result. The Windows and macOS static gates and the Windows browser capture
+  take larger runners there while its `LARGE_RUNNERS` variable is `on`.
   Pull requests, merges and releases stay in this repository; forks and
   Dependabot keep every job here.
 - The capacity wait survives the documented queue (D122 review). The `org`
