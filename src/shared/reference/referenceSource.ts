@@ -295,6 +295,7 @@ export const REFERENCE_ACTION_FEATURES = {
   subagentMessage: 'native-agents',
   resumeSession: 'conversation-actions',
   setSessionArchived: 'conversation-actions',
+  deleteSession: 'conversation-actions',
   forkSession: 'conversation-actions',
   openSideChat: 'chat',
   savePlan: 'plans',

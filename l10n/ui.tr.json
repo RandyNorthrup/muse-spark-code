@@ -452,6 +452,7 @@
   "sessionDeleteHostExited": "Silme işlemi onaylanmadan Muse Code sonlandı. Oturum geçmişte kalır.",
   "sessionDeleteHostClosed": "Silme işlemi onaylanmadan ana bilgisayar kapandı. Oturum geçmişte kalır.",
   "sessionDeleteTimedOut": "Silme onayı için bekleme süresi doldu. Oturum geçmişte kalır.",
+  "sessionDeleteUnsupported": "Muse Code {version} konuşmaları silemez.",
   "playbookTitle": "Orkestratör kılavuzu",
   "playbookStatus": "Durum",
   "playbookRecord": "Kayıt",
@@ -2352,6 +2353,10 @@
   "historyShowArchived": "Arşivlenenleri göster",
   "historyArchive": "Arşivle",
   "historyUnarchive": "Arşivden çıkar",
+  "historyDeleteConfirm": "{name} konuşması silinsin mi?",
+  "historyDeleteConfirmDetail": "Geçmişten kalıcı olarak kaldırılır. Bu işlem geri alınamaz.",
+  "historyDeleted": "{name} silindi",
+  "historyDeleteFailed": "Konuşma silinemedi",
   "historyCurrent": "Geçerli",
   "historyForkMark": "Çatal",
   "historyTurns": {
