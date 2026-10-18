@@ -284,7 +284,10 @@ const BUDGETS = [
   // M105's trusted media inspector stays in its first-use media bundle.
   { path: 'dist/acp.js', budgetKiB: 850 },
   // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
-  { path: 'dist/headless.js', budgetKiB: 100 },
+  // PR219FIX3: 101.0 KiB measured (the headless provider path carries the
+  // shared credential-lease acquisition, pacing admission and media-cap
+  // refusal); plus 15%, rounded up to 25 KiB.
+  { path: 'dist/headless.js', budgetKiB: 125 },
   // M114 F: runtime-only installer, measured with the shared validation API.
   { path: 'dist/fontsInstall.js', budgetKiB: 25 },
   { path: 'dist/scheduleBackground.js', budgetKiB: 50 },
