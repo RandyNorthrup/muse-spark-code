@@ -109,3 +109,19 @@ export function pruneModelLimits(
     ? undefined
     : Object.fromEntries(Object.entries(modelLimits).filter(([id]) => models.includes(id)))
 }
+
+/**
+ * The output cap a context-window edit stores. A scanned local model
+ * reports no separate output limit, so its stored cap equals its window;
+ * that derived cap rises with the window (no separate control sets it).
+ * An explicitly lower cap stays, still bounded by the new window, and a
+ * first window starts window-sized.
+ */
+export function editedOutputTokens(
+  previous: { readonly contextTokens: number; readonly outputTokens: number } | undefined,
+  contextTokens: number,
+): number {
+  return previous === undefined || previous.outputTokens === previous.contextTokens
+    ? contextTokens
+    : Math.min(previous.outputTokens, contextTokens)
+}

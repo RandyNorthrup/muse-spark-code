@@ -27,7 +27,7 @@ import {
 import { buildWebviewHtml, createNonce } from '../html'
 import { fill } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
-import { modelLimitsSchema } from '../../shared/providerRouting'
+import { editedOutputTokens, modelLimitsSchema } from '../../shared/providerRouting'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import type { ImportPreview } from '../providers/importExport'
@@ -1256,10 +1256,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           ...entry.modelLimits,
           [model]: {
             contextTokens: message.contextTokens,
-            outputTokens: Math.min(
-              previous?.outputTokens ?? message.contextTokens,
-              message.contextTokens,
-            ),
+            outputTokens: editedOutputTokens(previous, message.contextTokens),
           },
         }
         if (draft === undefined) await providers.updateProvider({ ...entry, models, modelLimits })
