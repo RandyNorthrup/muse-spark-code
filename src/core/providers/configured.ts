@@ -910,6 +910,10 @@ export function createConfiguredProviderServices(
             thinkingOff: preset.quirks.thinkingOff,
           },
           pricing,
+          // The send path's record: the same joined capabilities the
+          // evidence above projects, so fresh media meets the model's own
+          // caps instead of riding through record-less.
+          record,
           displayLabel: typeof native?.['name'] === 'string' ? native['name'] : nativeModel,
           providerLabel: preset.label,
           contextTokens:
