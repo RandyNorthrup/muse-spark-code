@@ -7,7 +7,7 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import { MuseCodeBackendManager } from '../../src/host/backend/museCodeBackendManager'
 import { CONTRIBUTOR_MODEL_SUFFIX, DEFAULT_MODEL_ID } from '../../src/shared/constants'
-import type { FakeLogOutputChannel } from '../unit/helpers/fakes'
+import type { Logger } from '../../src/host/logger'
 
 const TRACE_DIR = path.join(homedir(), '.local', 'share', 'muse', 'local-tracing', 'bootstrap')
 /** One line per model attempt admitted; the two fields are not adjacent on the line. */
@@ -59,7 +59,7 @@ export function countAttempts(log: string): number {
 export function liveBackend(
   workspaceRoot: string,
   extensionVersion: string,
-  log: FakeLogOutputChannel,
+  log: Logger,
 ): MuseCodeBackendManager {
   return new MuseCodeBackendManager({
     // Opt-in independent CLI drill: no VS Code checkpoint namespace or restore surface.

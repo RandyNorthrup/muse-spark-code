@@ -1,0 +1,20 @@
+{
+  "id": "models-list-made-up-key",
+  "provider": "deepseek",
+  "sentAt": "2026-10-13T01:27:20.231Z",
+  "method": "GET",
+  "url": "https://api.deepseek.com/models",
+  "requestHeaders": {},
+  "status": 401,
+  "responseHeaders": {
+    "x-cache": "Error from cloudfront"
+  },
+  "response": {
+    "error": {
+      "message": "Authentication Fails, Your api key: ****-000 is invalid (request_id: 2370f52c-74d2-43b5-8c72-ce2b00322e0b)",
+      "type": "authentication_error",
+      "param": null,
+      "code": "invalid_request_error"
+    }
+  }
+}
