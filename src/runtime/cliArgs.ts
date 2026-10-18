@@ -393,7 +393,11 @@ export function parseCommandLine<T>(
   if (argv[0] === 'providers' && argv[1] === 'accounts') {
     const options = parseAccountsCommand(argv.slice(2))
     return options === undefined
-      ? { command: 'invalid', reason: fill(UI_TEXT.accounts.cliUsage, { command: ACP_AGENT_NAME }) }
+      ? {
+          command: 'invalid',
+          reason: fill(UI_TEXT.accounts.cliUsage, { command: ACP_AGENT_NAME }),
+          exitCode: 2,
+        }
       : { command: 'accounts', options }
   }
   // The developer words stay raw here: the strict parser would reject them,
