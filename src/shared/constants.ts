@@ -4034,10 +4034,11 @@ export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
 export const LIST_FILES_DEFAULT_LIMIT = 500
 export const SHELL_DEFAULT_TIMEOUT_MS = 120_000
 // D107 §9.4: internal B1 boundary; F1b installs it only after certification.
+// The walk's bounds are deterministic counts, never wall-clock time, so a
+// slow machine cannot turn a walk into a refusal: entries cap the walk's
+// work and the emitted rules' size, depth caps its recursion.
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_WALK_MAX_ENTRIES = 20_000
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
-export const JUDGE_FAST_B1_WALK_MAX_MS = 100
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_WALK_MAX_DEPTH = 128
 export const JUDGE_FAST_B1_MAX_ABI = 8

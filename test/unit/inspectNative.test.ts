@@ -78,7 +78,6 @@ switch (process.platform) {
           'Device',
           'Budget',
           'Trust',
-          'Time',
           'Depth',
           'Abi',
           'Root',
@@ -354,15 +353,13 @@ switch (process.platform) {
         )
         expect(budget.code).toBe(125)
         expect(budget.stderr).toContain('walkBudget')
-        for (const name of ['Time', 'Depth']) {
-          const result = await native(
-            variant(name),
-            h.args('grep', ['.'], ['-r', '-e', 'CANARY', '.'], true),
-            h.root,
-          )
-          expect(result.code).toBe(125)
-          expect(result.stderr).toContain('walkBudget')
-        }
+        const depth = await native(
+          variant('Depth'),
+          h.args('grep', ['.'], ['-r', '-e', 'CANARY', '.'], true),
+          h.root,
+        )
+        expect(depth.code).toBe(125)
+        expect(depth.stderr).toContain('walkBudget')
         const oldAbiRoot = await mkdtemp(path.join(h.root, 'abi-'))
         const oldAbi = await native(variant('Abi'), ['probe'], oldAbiRoot)
         expect(oldAbi.code).toBe(125)
