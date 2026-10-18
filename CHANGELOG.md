@@ -35,6 +35,10 @@ happened, not what was planned; superseded entries are kept.
   failed responses had counted $352.66 of reservations as spent.
 - The atomic claim ledger is gone: its journal files, cross-process lock, the
   100 ms admission bound and its benchmark.
+- A request the provider refused before answering (an invalid key, for
+  example) books nothing: `exec` no longer keeps its reservation as
+  uncertain or fails to write its JSON result, and the next run does not
+  count it as used.
 - Initial provider rejections release their holds; incomplete responses with final
   usage settle at the reported cost. Unresolved liability is shown separately
   from spend, and terminal startup prices each real request instead of the
