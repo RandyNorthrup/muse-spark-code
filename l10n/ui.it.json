@@ -3625,6 +3625,9 @@
     "other": "La chiave funziona · {count} modelli.",
     "many": "La chiave funziona · {count} modelli."
   },
+  "providerModelNoToolCalling": "{model} non può eseguire l’agente di codifica perché le chiamate agli strumenti non sono confermate per questo modello.",
+  "providerAddPickModel": "Aggiungi uno o più di questi modelli con --model <id> (ripetibile):",
+  "providerAddNeedsModel": "Indica almeno un modello con --model <id> (ripetibile).",
   "providerProbeUnreachable": "Impossibile raggiungere il provider.",
   "providerProbeUnparseable": "Impossibile leggere l’elenco dei modelli.",
   "providerProbeNoKey": "Nessuna chiave fornita.",

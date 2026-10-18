@@ -3471,6 +3471,9 @@
   "providerTestOk": {
     "other": "키가 작동합니다 · 모델 {count}개."
   },
+  "providerModelNoToolCalling": "{model}은(는) 도구 호출이 확인되지 않아 코딩 에이전트를 실행할 수 없습니다.",
+  "providerAddPickModel": "이러한 모델 중 하나 이상을 --model <id>(으)로 추가하세요(반복 가능):",
+  "providerAddNeedsModel": "--model <id>(으)로 모델을 하나 이상 지정하세요(반복 가능).",
   "providerProbeUnreachable": "공급자에 연결할 수 없습니다.",
   "providerProbeUnparseable": "모델 목록을 읽을 수 없습니다.",
   "providerProbeNoKey": "키가 제공되지 않았습니다.",

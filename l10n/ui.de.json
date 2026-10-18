@@ -3548,6 +3548,9 @@
     "one": "Schlüssel funktioniert · {count} Modell.",
     "other": "Schlüssel funktioniert · {count} Modelle."
   },
+  "providerModelNoToolCalling": "{model} kann den Coding-Agenten nicht ausführen, weil Tool-Aufrufe dafür nicht bestätigt sind.",
+  "providerAddPickModel": "Fügen Sie eines oder mehrere dieser Modelle mit --model <id> hinzu (wiederholbar):",
+  "providerAddNeedsModel": "Geben Sie mindestens ein Modell mit --model <id> an (wiederholbar).",
   "providerProbeUnreachable": "Der Anbieter konnte nicht erreicht werden.",
   "providerProbeUnparseable": "Die Modellliste konnte nicht gelesen werden.",
   "providerProbeNoKey": "Es wurde kein Schlüssel übergeben.",

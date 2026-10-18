@@ -8,13 +8,15 @@
 // compensate the secret change; crash/rollback limits are recorded in PLAN §9.
 
 import { lookup } from 'node:dns/promises'
-import { mkdir, rmdir } from 'node:fs/promises'
+import { mkdir, readFile, rmdir } from 'node:fs/promises'
 import { isIP } from 'node:net'
 import * as z from 'zod/mini'
 import path from 'node:path'
 import {
+  capabilities,
   credentialRecord,
   endpointPolicy,
+  modelMetadata,
   presets,
   wizardFlow,
   providersFile,
@@ -269,6 +271,19 @@ export async function providersList(deps: ProvidersDeps): Promise<number> {
     const where = entry.address ?? fixedOriginOf(preset) ?? entry.preset
     const models = entry.models.length === 0 ? '—' : entry.models.join(', ')
     deps.print(`${entry.id} — ${preset?.label ?? entry.preset} — ${where} — ${models}`)
+    // A listed model states its tool-calling limit here too (F83): the
+    // same sentence the panel picker shows and the turn refusal repeats.
+    if (preset === undefined || entry.auth === 'subscription') continue
+    const unconfirmed = await unconfirmedToolModels(
+      preset,
+      entry.id,
+      entry.format,
+      entry.models,
+      entry.modelCapabilities,
+    )
+    for (const nativeModel of unconfirmed) {
+      deps.print(fill(UI_TEXT.providerModelNoToolCalling, { model: `${entry.id}/${nativeModel}` }))
+    }
   }
   return EXIT_OK
 }
@@ -311,6 +326,64 @@ function listModelIds(body: unknown, preset: ProviderPreset): readonly string[] 
     : parsed.data.models.map((row) =>
         row.name.startsWith('models/') ? row.name.slice('models/'.length) : row.name,
       )
+}
+
+const catalogProviders = z.object({
+  providers: z.record(z.string(), z.object({ models: z.record(z.string(), z.unknown()) })),
+})
+
+/**
+ * Which added models the catalogue does not confirm for tool calling
+ * (F83): the same catalogue evidence the registry resolves, so the
+ * warning matches what the list states and the turn refusal repeats.
+ * A missing catalogue stays silent; the list and the refusal still say it.
+ */
+async function unconfirmedToolModels(
+  preset: ProviderPreset,
+  providerId: string,
+  format: ProviderEntry['format'],
+  nativeModels: readonly string[],
+  overrides?: ProviderEntry['modelCapabilities'],
+): Promise<readonly string[]> {
+  let catalogue: z.infer<typeof catalogProviders>
+  try {
+    catalogue = catalogProviders.parse(
+      JSON.parse(await readFile(path.resolve(__dirname, 'providerCatalog.json'), 'utf8')),
+    )
+  } catch {
+    return []
+  }
+  const catalogId = preset.id.replace('-plan', '')
+  const listed = catalogue.providers[catalogId]?.models
+  return nativeModels.filter((nativeModel) => {
+    try {
+      const known = listed?.[nativeModel]
+      const evidence =
+        known === undefined
+          ? []
+          : [
+              modelMetadata.nativeCapabilityEvidence(preset.id, known, {
+                kind: 'catalogue',
+                ref: catalogId,
+              }),
+            ]
+      // The registry resolves the person's own capability overrides over
+      // the catalogue; the warning reads the same evidence (F83).
+      const entered = overrides?.[nativeModel]
+      if (entered !== undefined)
+        evidence.push({
+          source: { kind: 'user', ref: `${providerId}/${nativeModel}` },
+          fields: entered,
+        })
+      const record = capabilities.resolveModelCapabilities(
+        { provider: providerId, nativeModel, format: format ?? preset.format },
+        evidence,
+      )
+      return !capabilities.capabilitiesOf({ capabilityRecord: record }).toolCalling
+    } catch {
+      return true
+    }
+  })
 }
 
 function probeReason(reason: string): string {
@@ -480,7 +553,7 @@ export async function probeProvider(
       const ids = listModelIds(listed.body, provider.preset)
       return ids === undefined
         ? { ok: false, paid: false, reason: 'unparseable' }
-        : { ok: true, modelCount: ids.length }
+        : { ok: true, modelCount: ids.length, modelIds: ids }
     },
   )
 }
@@ -683,6 +756,19 @@ export async function providersAdd(
   const models = options.models
     .map((model) => model.trim())
     .filter((model) => model !== '' && !/\s/.test(model))
+  if (models.length === 0) {
+    // The panel keeps its own "tick" wording; the terminal names the flag
+    // and lists what the key test just read (F85). A key test that read no
+    // list (an identity check on another origin, an empty list) still gets
+    // the terminal's own sentence, never the wizard's tick wording.
+    const listed = probe.modelIds ?? []
+    if (listed.length === 0) {
+      return failed(deps, UI_TEXT.providerAddNeedsModel)
+    }
+    deps.printError(UI_TEXT.providerAddPickModel)
+    for (const id of listed) deps.printError(id)
+    return EXIT_FAILED
+  }
   state = applyWizardEvent(state, { type: 'set-models', models })
   if (state.error !== undefined) {
     return failed(deps, state.error)
@@ -751,6 +837,12 @@ export async function providersAdd(
   const summary = wizardSummary(state)
   for (const line of summary.lines) {
     deps.print(line)
+  }
+  // Added with its limit stated: the list shows it and an agent turn on
+  // it is refused with the same sentence (F83).
+  const unconfirmed = await unconfirmedToolModels(preset, id, options.format, models)
+  for (const nativeModel of unconfirmed) {
+    deps.print(fill(UI_TEXT.providerModelNoToolCalling, { model: `${id}/${nativeModel}` }))
   }
   deps.print(fill(UI_TEXT.providerAdded, { provider: id, origin: address.origin }))
   return EXIT_OK
