@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Honour the documented legacy vault switch: an explicitly stored `museSpark.vault` boolean stays effective until `museSpark.vault.enabled` is explicitly configured, and a switched-off vault refuses its commands and hides its panel section instead of launching. Vault audit views keep the newest 10,000 records once the log outgrows the consumer contract, and a setup retry reuses its failed attempt's OS slot instead of leaving another native credential behind (PR216W1).
+- Restore the vault translation key order the packaged gate requires: the `writerRecoveryWarning` row ships in its English position in every table, so `npm run package` passes its exact staged-bytes check again (PR216W1).
+
 - Connect the credential vault end to end on Linux and macOS: the Models & Agents panel mounts its vault section, the `Vault` command opens it, `Lock vault now` (Ctrl+Alt+Shift+L) ends every use, and SSH keys can be generated or imported when adding an item. The vault Help reference is published. Windows still waits on lane C-M109-1c's pipe helper, existing extension keys still live in SecretStorage until the key-store migration, and the companion page has no vault surface yet (RVMSM109).
 - Repair the POSIX vault epoch contender rule and the sampler warning classifier (RVCM109JD). A killed epoch guardian no longer costs the next starter its session: a contender holding the kernel mutex replaces a provably gone writer atomically and is refused with the fixed reason when the holder is live. The installed receipt whitelists only the exact sampler cause, matched whole with a counted allowance; any other sampler output fails.
 
