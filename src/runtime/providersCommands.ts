@@ -8,8 +8,7 @@
 // compensate the secret change; crash/rollback limits are recorded in PLAN §9.
 
 import { lookup } from 'node:dns/promises'
-import { randomUUID } from 'node:crypto'
-import { mkdir, rm, rmdir, writeFile } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import { isIP } from 'node:net'
 import * as z from 'zod/mini'
 import path from 'node:path'
@@ -40,9 +39,9 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import {
-  OWNER_FILE,
-  currentProcessStartTime,
+  credentialLockDir,
   providerConfigFilePath,
+  withCredentialLock,
 } from '../core/credentialLease'
 import { fill, plural, uiLocale } from '../shared/l10n/text'
 import { modelLimitsSchema } from '../shared/providerRouting'
@@ -121,26 +120,11 @@ export function userFileIo(filePath: string): {
     },
     withUserFileLock: async (operation) => {
       await mkdir(path.dirname(filePath), { recursive: true })
-      const lock = `${filePath}.lock`
-      await mkdir(lock)
-      // The owner-record protocol (`src/core/credentialLease`): the
-      // extension reclaims an ownerless directory after its settle, so a
-      // live CLI lock must carry its owner from the start.
-      const owner = {
-        pid: process.pid,
-        startTime: currentProcessStartTime(),
-        nonce: randomUUID(),
-      }
-      await writeFile(`${lock}/${OWNER_FILE}`, JSON.stringify(owner), { flag: 'wx' })
-      try {
-        return await operation()
-      } finally {
-        try {
-          await rm(`${lock}/${OWNER_FILE}`, { force: true })
-        } finally {
-          await rmdir(lock)
-        }
-      }
+      // The shared dead-owner acquisition (`src/core/credentialLease`): a
+      // lock whose owner is proven gone is reclaimed instead of failing
+      // with EEXIST on every later command; a live owner's lock still
+      // refuses with the busy error its callers already report.
+      return await withCredentialLock(credentialLockDir(filePath), operation)
     },
   }
 }
