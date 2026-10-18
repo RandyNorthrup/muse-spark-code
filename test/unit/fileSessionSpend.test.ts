@@ -17,19 +17,16 @@ afterAll(async () => {
   await removeFolder(root)
 })
 const logged: string[] = []
+const atLevel =
+  (level: string) =>
+  (message: string): void => {
+    logged.push(`${level}:${message}`)
+  }
 const log: Logger = {
-  trace: (message) => {
-    logged.push(`trace:${message}`)
-  },
-  info: (message) => {
-    logged.push(`info:${message}`)
-  },
-  warn: (message) => {
-    logged.push(`warn:${message}`)
-  },
-  error: (message) => {
-    logged.push(`error:${message}`)
-  },
+  trace: atLevel('trace'),
+  info: atLevel('info'),
+  warn: atLevel('warn'),
+  error: atLevel('error'),
 }
 const sleep = () => Promise.resolve()
 const storeIn = (directory: string) =>
