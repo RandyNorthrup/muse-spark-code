@@ -15,7 +15,7 @@ import {
   resetDurationMs,
   xaiPacingLimits,
 } from '../../src/core/backends/modelapi/pacing'
-import { providerWaitMs } from '../../src/core/backends/modelapi/transport'
+import { isPacingGoverned, providerWaitMs } from '../../src/core/backends/modelapi/transport'
 
 const CAPTURE_FILES = {
   groq: '02-tool-call-stream.json',
@@ -161,6 +161,46 @@ describe('provider pacing readers', () => {
       }),
     )
     expect(clamped?.remainingRequests).toBe(10)
+  })
+})
+
+describe('pacing admission', () => {
+  it('governs configured-provider inference carrying a model id, nothing else', () => {
+    // The codec path supplies the native model id on a native path (never
+    // `/responses`): a Groq or Anthropic stream joins the bucket its
+    // rate-limit observations feed, so learned quotas and 429 pauses
+    // throttle its background fan-out.
+    expect(isPacingGoverned('/chat/completions', 'llama-3.3-70b-versatile', 'groq')).toBe(true)
+    expect(isPacingGoverned('/v1/messages', 'claude-sonnet-4-5', 'anthropic')).toBe(true)
+    // Count and list calls carry no model id and stay observation-only.
+    expect(isPacingGoverned('/chat/completions', undefined, 'groq')).toBe(false)
+    expect(isPacingGoverned('/models', undefined, 'groq')).toBe(false)
+    // Meta keeps its exact shape: only `/responses` with a model id.
+    expect(isPacingGoverned('/responses', 'muse-spark-1-3', 'meta')).toBe(true)
+    expect(isPacingGoverned('/responses', undefined, 'meta')).toBe(false)
+    expect(isPacingGoverned('/responses/input_tokens', undefined, 'meta')).toBe(false)
+    expect(isPacingGoverned('/models', undefined, 'meta')).toBe(false)
+  })
+
+  it('holds background fan-out on a configured-provider pause while the foreground passes', async () => {
+    // A 429 pause the observation recorded (the captured Groq readers
+    // teach the windows, the 2 s wait stands in for its Retry-After):
+    // admitted background work waits it out, the user's turn never does.
+    let now = 1_800_000_000_000
+    const waits: number[] = []
+    const pacing = new ModelApiPacing({
+      now: () => now,
+      wait: (ms) => {
+        waits.push(ms)
+        now += ms
+        return Promise.resolve()
+      },
+    })
+    pacing.observe('groq', openaiPacingLimits(capturedHeaders.groq), 2000)
+    await pacing.acquire('groq', 'subagent', 0, AbortSignal.timeout(5000))
+    expect(waits).toEqual([2000])
+    await pacing.acquire('groq', 'foreground', 0, AbortSignal.timeout(5000))
+    expect(waits).toEqual([2000])
   })
 })
 

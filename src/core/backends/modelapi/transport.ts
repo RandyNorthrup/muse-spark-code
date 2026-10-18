@@ -382,6 +382,21 @@ export function providerWaitMs(headers: Headers, now: number): number | undefine
   return retryAfterMs(headers.get(RETRY_AFTER_HEADER), now)
 }
 
+/**
+ * Which requests join the pacing bucket. Meta governs only its inference
+ * path with a model id; a configured provider's inference travels a native
+ * path (never `/responses`) with the codec-supplied model id, so any of its
+ * model-carrying requests joins the same bucket its rate-limit observations
+ * feed. Count and list calls carry no model id and stay observation-only.
+ */
+export function isPacingGoverned(
+  path: string,
+  modelId: string | undefined,
+  provider: string,
+): boolean {
+  return modelId !== undefined && (path === '/responses' || provider !== 'meta')
+}
+
 /** One retry the client is about to make, for the transcript's notice. */
 export interface RetryNotice {
   readonly phase?: 'pacing'
@@ -887,7 +902,7 @@ export class RequestTransport {
       identity: { provider: 'meta' },
       readLimits: metaPacingLimits,
     }
-    const isGoverned = path === '/responses' && init.modelId !== undefined
+    const isGoverned = isPacingGoverned(path, init.modelId, provider.identity.provider)
     // Meta observes only its governed paths; a configured provider observes
     // every answer through its own header reader (undefined where the
     // provider sends no limit headers, so only a 429 pause applies).
