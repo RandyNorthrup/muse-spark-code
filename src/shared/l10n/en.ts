@@ -4193,7 +4193,6 @@ export const EN = {
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
     '  --muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)',
-    '  --no-auto-compaction             Disable automatic compaction',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
     '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',
