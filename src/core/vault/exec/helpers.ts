@@ -3,7 +3,7 @@ import { chmod } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { UI_TEXT, VAULT_LIMITS, VAULT_APPROVAL_TTL_MS } from '../../../shared/constants'
+import { UI_TEXT, VAULT_LIMITS, VAULT_TRANSPORT_TIMEOUT_MS } from '../../../shared/constants'
 import { vaultPrivateDirectory } from '../broker/files'
 import { type VaultSecuredListenerPort } from '../broker/channel'
 
@@ -80,7 +80,7 @@ export class VaultExecHelperServer {
     this.sockets.add(socket)
     let held = Buffer.alloc(0)
     let isDispatched = false
-    const timer = setTimeout(() => socket.destroy(), VAULT_APPROVAL_TTL_MS)
+    const timer = setTimeout(() => socket.destroy(), VAULT_TRANSPORT_TIMEOUT_MS)
     socket.on('error', () => {
       socket.destroy()
     })
@@ -231,7 +231,7 @@ export async function callVaultExecHelper(
   let joined: Buffer | undefined
   const timer = setTimeout(
     () => socket.destroy(new Error(UI_TEXT.vault.noAccess)),
-    VAULT_APPROVAL_TTL_MS,
+    VAULT_TRANSPORT_TIMEOUT_MS,
   )
   try {
     await new Promise<void>((resolve, reject) => {

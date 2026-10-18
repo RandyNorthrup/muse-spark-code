@@ -374,6 +374,9 @@ function modelApiManager(
           configFile: providerConfigFile,
           catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
           secrets: run.secrets,
+          // Headless indefinite waits are said out loud too (PR #214
+          // review); per-request timing still goes nowhere.
+          log,
           hasMetaKey: () => Promise.resolve(false),
           resolve: run.resolveHost,
           send: async (target, body, headers, signal) => {

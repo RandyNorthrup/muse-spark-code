@@ -1,10 +1,5 @@
 import { connect, type Socket } from 'node:net'
-import {
-  VAULT_PROTOCOL_VERSION,
-  VAULT_APPROVAL_TTL_MS,
-  VAULT_LIMITS,
-  UI_TEXT,
-} from '../../../shared/constants'
+import { VAULT_PROTOCOL_VERSION, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
 import { vaultPrivateReadSchema, type VaultBrokerRequest } from '../../../shared/vaultProtocol'
 import {
   vaultChannelRequestSchema,
@@ -54,7 +49,6 @@ export class VaultBrokerClient {
     sequence: number
     resolve: (response: VaultChannelResponse['response']) => void
     reject: (error: Error) => void
-    timer: ReturnType<typeof setTimeout>
   } | null = null
   private tail: Promise<unknown> = Promise.resolve()
   private constructor(private readonly socket: Socket) {
@@ -89,7 +83,6 @@ export class VaultBrokerClient {
         this.pending = null
         this.buffer.fill(0)
         this.buffer = Buffer.alloc(0)
-        clearTimeout(pending.timer)
         pending.resolve(response.response)
       } catch {
         this.close() /* No unvalidated bytes or remote error text escape this boundary. */
@@ -117,11 +110,11 @@ export class VaultBrokerClient {
           reject(new Error(UI_TEXT.vault.locked))
           return
         }
-        const timer = setTimeout(() => {
-          reject(new Error(UI_TEXT.vault.approvalExpired))
-          this.close()
-        }, VAULT_APPROVAL_TTL_MS)
-        this.pending = { sequence, resolve, reject, timer }
+        // No deadline of our own (owner 2026-10-16): the call ends at
+        // the broker's answer or the socket's death, never at an invented
+        // kill. A user approval behind the answer waits until it is
+        // answered or stopped.
+        this.pending = { sequence, resolve, reject }
         const bytes = Buffer.from(`${JSON.stringify(frame)}\n`)
         try {
           if (bytes.length > VAULT_LIMITS.frameBytes) {
@@ -170,7 +163,6 @@ export class VaultBrokerClient {
       const pending = this.pending
       this.pending = null
       if (pending) {
-        clearTimeout(pending.timer)
         pending.reject(new Error(UI_TEXT.vault.locked))
       }
     }

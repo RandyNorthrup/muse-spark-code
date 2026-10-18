@@ -61,7 +61,6 @@ export interface VaultCommandDeps {
   choose(title: string, options: readonly string[], signal: AbortSignal): Promise<string>
   print(text: string): void
   printError(text: string): void
-  now(): number
   signal: AbortSignal
 }
 
@@ -211,37 +210,22 @@ async function watch(port: VaultCommandPort, deps: VaultCommandDeps): Promise<vo
     if (seen.size >= VAULT_LIMITS.items) throw new Error(UI_TEXT.vault.noAccess)
     seen.add(request.id)
     const before = vaultStatusSchema.parse(await port.status())
-    if (
-      before.state !== 'unlocked' ||
-      before.lockEpoch !== request.lockEpoch ||
-      deps.now() >= request.expiresAt
-    )
-      continue
+    if (before.state !== 'unlocked' || before.lockEpoch !== request.lockEpoch) continue
     const choices = vaultDecisionChoices(request)
     const title = vaultApprovalText(request)
     let decision: VaultApprovalAnswer['decision'] = 'deny'
     try {
-      const answer = await deps.choose(
-        title,
-        choices,
-        AbortSignal.any([
-          deps.signal,
-          AbortSignal.timeout(Math.max(1, request.expiresAt - deps.now())),
-        ]),
-      )
+      // No expiry of our own (owner 2026-10-16): the person's answer or
+      // Stop ends the wait, never an invented kill.
+      const answer = await deps.choose(title, choices, deps.signal)
       if (answer === 'allowOnce' || answer === 'allowSession')
         decision = choices.includes(answer) ? answer : 'deny'
     } catch {
-      /* EOF, timeout and cancellation deny; no raw terminal diagnostic escapes. */
+      /* EOF and cancellation deny; no raw terminal diagnostic escapes. */
     }
     deps.signal.throwIfAborted()
     const current = vaultStatusSchema.parse(await port.status())
-    if (
-      current.state !== 'unlocked' ||
-      current.lockEpoch !== request.lockEpoch ||
-      deps.now() >= request.expiresAt
-    )
-      continue
+    if (current.state !== 'unlocked' || current.lockEpoch !== request.lockEpoch) continue
     vaultApprovalResultSchema.parse(
       await port.answer(
         vaultApprovalAnswerSchema.parse({

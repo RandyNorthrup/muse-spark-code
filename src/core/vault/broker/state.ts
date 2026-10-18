@@ -1,9 +1,4 @@
-import {
-  VAULT_APPROVAL_TTL_MS,
-  VAULT_KEY_BYTES,
-  VAULT_LIMITS,
-  UI_TEXT,
-} from '../../../shared/constants'
+import { VAULT_KEY_BYTES, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
 import {
   vaultItemMetadataSchema,
   vaultItemSchema,
@@ -330,10 +325,9 @@ function operationReason(state: BrokerState, op: Operation, now: number): Reason
     return 'peer'
   if (op.request) {
     if (!state.key) return 'locked'
-    if (
-      now >= op.request.expiresAt ||
-      (op.request.item.dates.expiresAt !== null && now >= op.request.item.dates.expiresAt)
-    )
+    // Only the item's own lifetime ends a request (owner 2026-10-16):
+    // no approval of ours expires on a clock.
+    if (op.request.item.dates.expiresAt !== null && now >= op.request.item.dates.expiresAt)
       return 'expired'
     if (op.authority?.kind === 'grant') {
       const grant = state.grants.get(op.authority.grantId)
@@ -622,7 +616,6 @@ export function step(
       taint,
       digest: vaultUseDigest(use),
       createdAt: event.now,
-      expiresAt: event.now + VAULT_APPROVAL_TTL_MS,
       lockEpoch: state.epoch,
     }
     if (state.writer)
@@ -665,7 +658,9 @@ export function step(
       digest: request.digest,
       nonce: request.nonce,
       issuedAt: event.now,
-      expiresAt: request.expiresAt,
+      // The item's own lifetime, or never: the grant is single-use and
+      // owner-revoked (owner 2026-10-16).
+      expiresAt: request.item.dates.expiresAt,
       lockEpoch: state.epoch,
       maxUses: 1,
     }
@@ -1137,11 +1132,10 @@ export function step(
         }
         for (const collection of [state.pending, state.tickets, state.active])
           for (const [id, admission] of collection) {
-            if (!(
-              event.now >= admission.request.expiresAt ||
-              (admission.request.item.dates.expiresAt !== null &&
-                event.now >= admission.request.item.dates.expiresAt)
-            )) {
+            if (
+              admission.request.item.dates.expiresAt === null ||
+              event.now < admission.request.item.dates.expiresAt
+            ) {
               continue
             }
 

@@ -11,8 +11,6 @@ import {
   UI_TEXT,
   WEB_FETCH_CONVERT_MAX_HEAP_MIB,
   WEB_FETCH_CONVERT_TIMEOUT_MS,
-  WEB_FETCH_MAX_BYTES,
-  WEB_FETCH_MAX_REDIRECTS,
   WEB_FETCH_MODEL_TEXT,
   WEB_FETCH_TIMEOUT_MS,
   WEB_FETCH_URL_MAX_CHARS,
@@ -32,7 +30,6 @@ export type WebFetchFailureKind =
   | 'unresolved'
   | 'nat64Unknown'
   | 'withdrawn'
-  | 'tooManyRedirects'
   | 'redirectWithoutLocation'
   | 'httpStatus'
   | 'tooLarge'
@@ -73,6 +70,8 @@ export interface FailureFacts {
   readonly encoding?: string | undefined
   /** A network failure's detail: its causes' error codes, redacted and capped. */
   readonly detail?: string | undefined
+  /** The caller-set ingress cap a page passed, in bytes (`tooLarge` only). */
+  readonly maxBytes?: number | undefined
 }
 
 const SECONDS = WEB_FETCH_TIMEOUT_MS / MS_PER_SECOND
@@ -138,9 +137,10 @@ function responseSentences(kind: WebFetchFailureKind, facts: FailureFacts): Sent
       ]
     }
     case 'tooLarge': {
+      const maxBytes = facts.maxBytes ?? 0
       return [
-        fill(WEB_FETCH_MODEL_TEXT.webFetchTooLarge, { max: String(WEB_FETCH_MAX_BYTES) }),
-        fill(UI_TEXT.webFetchTooLarge, { size: formatBytes(WEB_FETCH_MAX_BYTES) }),
+        fill(WEB_FETCH_MODEL_TEXT.webFetchTooLarge, { max: String(maxBytes) }),
+        fill(UI_TEXT.webFetchTooLarge, { size: formatBytes(maxBytes) }),
       ]
     }
     case 'noContentType': {
@@ -250,14 +250,6 @@ function urlSentences(kind: WebFetchFailureKind, facts: FailureFacts): Sentences
       return [
         fill(WEB_FETCH_MODEL_TEXT.webFetchNat64Unknown, { host, detail }),
         fill(UI_TEXT.webFetchNat64Unknown, { host, detail }),
-      ]
-    }
-    case 'tooManyRedirects': {
-      return [
-        fill(WEB_FETCH_MODEL_TEXT.webFetchTooManyRedirects, {
-          max: String(WEB_FETCH_MAX_REDIRECTS),
-        }),
-        fill(UI_TEXT.webFetchTooManyRedirects, { max: formatNumber(WEB_FETCH_MAX_REDIRECTS) }),
       ]
     }
     case 'timeout': {

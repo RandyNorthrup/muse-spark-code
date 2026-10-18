@@ -1,7 +1,7 @@
 import { spawnResourceProcess } from '../../resources/launcher'
 import { type Socket } from 'node:net'
 import * as z from 'zod/mini'
-import { VAULT_APPROVAL_TTL_MS, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
+import { VAULT_TRANSPORT_TIMEOUT_MS, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
 
 const nativePeerSchema = z.strictObject({
   v: z.literal(1),
@@ -56,7 +56,7 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
           reject(new Error(UI_TEXT.vault.noAccess))
         })
         reject(new Error(UI_TEXT.vault.noAccess))
-      }, VAULT_APPROVAL_TTL_MS)
+      }, VAULT_TRANSPORT_TIMEOUT_MS)
       child.stdout.on('data', (bytes: Buffer) => {
         size += bytes.byteLength
         if (size > VAULT_LIMITS.text) {

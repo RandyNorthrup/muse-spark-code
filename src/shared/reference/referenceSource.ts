@@ -53,7 +53,6 @@ export {
   AGENT_FILE_NAME,
   PROJECT_AGENTS_DIR_SEGMENTS,
   PERSONAL_AGENTS_DIR_SEGMENTS,
-  BROWSER_CHECK_MAX_ACTIONS,
 } from '../constants'
 export { parseGoalPrompt } from '../goalCommand'
 export { parseReviewPrompt } from '../reviewCommand'

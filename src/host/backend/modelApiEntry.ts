@@ -1,9 +1,4 @@
-import {
-  IS_AUTO_COMPACTION_EVALUATED,
-  MODEL_API_MAX_RETRIES,
-  SETTING_DEFAULTS,
-  UI_TEXT,
-} from '../../shared/constants'
+import { IS_AUTO_COMPACTION_EVALUATED, SETTING_DEFAULTS, UI_TEXT } from '../../shared/constants'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import {
   type ResponseAttemptGuard,
@@ -39,6 +34,8 @@ export {
   assertConfirmedAllowed,
   isStaleConfirmedError,
   noteConfirmedRequestStarted,
+  canRetryWithinBudget,
+  whenAborted,
 } from '../../core/backends/modelapi/transport'
 export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
 export { parseNdjson } from '../../core/backends/modelapi/ndjson'
@@ -308,7 +305,8 @@ export async function* streamLegalExplanation(
     body,
     signal,
     undefined,
-    { retriesUsed: MODEL_API_MAX_RETRIES },
+    // The legal explanation names its own single send: no transport retry.
+    { retriesUsed: 0, maxRetries: 0 },
     guard,
   )
 }

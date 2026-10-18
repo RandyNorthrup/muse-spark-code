@@ -39147,6 +39147,12 @@ PR #229 (`fix/nolimits-1-final`: the D121 owner rule removes the app's own
 counts, sizes and ceilings, keeping only each provider's own limits and the
 person's model-role settings) merged 2026-10-18 with its Fixed entries under
 `[0.19.0]`; the release now holds seven pull requests.
+PR #214 (`fix/nolimits-2`: waits replace timeouts — Model API clocks,
+pacing, vault approvals, git, `muse serve` startup, the browser check, web
+fetch, MCP servers, Muse Code commands, shell commands, billed image
+requests and the legal scan wait until done or stopped instead of stopping
+at a number of ours) merged 2026-10-18 with its Fixed entries under
+`[0.19.0]`; the release now holds eight pull requests.
 The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 

@@ -19,6 +19,7 @@ import {
 import { vaultFenceEnvironment } from '../../core/vault/exec/fence'
 import { type VaultExecFeederPort } from '../../core/vault/exec/feeder'
 import { runCommand } from '../backend/toolIo'
+import { setLongTimeout } from '../../core/timeouts'
 import { vaultPrivateDirectory } from '../../core/vault/broker/files'
 import { posixQuoted } from '../../core/shellQuote'
 import { killTree, type ProcessTreeDeps, type ShellJob } from '../processTree'
@@ -111,7 +112,7 @@ export async function spawnVaultFeeder(
     const settle = (code: number | null) => {
       if (hasSettled) return
       hasSettled = true
-      clearTimeout(timer)
+      cancelTimer()
       clearTimeout(drain)
       signal.removeEventListener('abort', stop)
       child.stdout?.destroy()
@@ -152,12 +153,13 @@ export async function spawnVaultFeeder(
         )
       })
     }
-    const timer = setTimeout(() => {
+    // The named deadline, honoured whole past one timer's range too.
+    const cancelTimer = setLongTimeout(() => {
       isTimedOut = true
       stop()
     }, deps.timeoutMs)
     deps.limit?.bind(() => {
-      clearTimeout(timer)
+      cancelTimer()
     })
     signal.addEventListener('abort', stop, { once: true })
     if (signal.aborted) stop()

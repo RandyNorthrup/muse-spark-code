@@ -286,10 +286,9 @@ export class VaultPanelHost {
           if (
             this.answered.has(message.answer.requestId) ||
             request?.digest !== message.answer.digest ||
-            request.expiresAt <= this.deps.now() ||
             request.lockEpoch !== state.status.lockEpoch
           ) {
-            throw new Error(UI_TEXT.vault.approvalExpired)
+            throw new Error(UI_TEXT.vault.useChanged)
           }
           // Remote uses need approval on the owning device every time (D89.13):
           // a session grant here cannot cover later remote uses.

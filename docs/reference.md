@@ -892,7 +892,6 @@ workspaceTrust: The page loads in a fresh private browser profile that is delete
 ```json
 {
   "actions": ["click", "type"],
-  "maxActions": 8,
   "results": ["consoleErrors", "failedRequests"],
   "screenshot": {
     "modelApi": "PNG",
