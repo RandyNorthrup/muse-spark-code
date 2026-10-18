@@ -10,9 +10,15 @@ import path from 'node:path'
 import * as z from 'zod/mini'
 import { SpendLedgerError } from '../../core/paid/spendLedgerError'
 import { DAILY_SPEND_FOLDER } from '../../shared/constants'
-import { Usd, legacyUsdSchema, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
+import { Usd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 import { storeErrorCode } from '../backend/storeErrors'
 import { writeFileAtomically } from '../fsAtomic'
+import {
+  legacyClaimIdentityError,
+  legacyClaimSpendUsd,
+  legacyClaimSchema,
+  legacySeedSchema,
+} from '../backend/legacyJournal'
 
 const FILE_EXTENSION = '.json'
 // A day ("2026-10-17") or a schedule's own day scope; never a path.
@@ -30,18 +36,6 @@ const LEGACY_CLAIMS_DIRECTORY = 'claims'
 const LEGACY_SEED_FILE = 'seed.json'
 const LEGACY_CLAIM_FILE = 'claim.json'
 const LEGACY_DAILY_ACCOUNT = '0000000000000000000000000000000000000000000000000000000000000000'
-const legacyVersionSchema = z.union([z.literal(1), z.literal(2)])
-const legacySeedSchema = z.object({
-  version: legacyVersionSchema,
-  sessionId: z.string(),
-  accountId: z.string(),
-  spentUsd: legacyUsdSchema,
-})
-const legacyClaimSchema = z.object({
-  version: legacyVersionSchema,
-  reservedUsd: legacyUsdSchema,
-  settledUsd: z.optional(legacyUsdSchema),
-})
 
 /** What a scope's calls spent, from the usage each reported. */
 export interface DailySpendTotal {
@@ -149,13 +143,21 @@ export function createDailySpend(deps: {
     for (const name of claimNames) {
       const file = path.join(LEGACY_CLAIMS_DIRECTORY, name, LEGACY_CLAIM_FILE)
       const claim = parseClaim(file, readClaimText(file))
+      const identityError = legacyClaimIdentityError(claim, {
+        name,
+        scopeId: seed.scopeId,
+        sessionId: scope,
+        accountId: LEGACY_DAILY_ACCOUNT,
+      })
+      if (identityError !== undefined) damaged(file, identityError)
       // D121: a reservation is never spend. An open claim's reservation is
       // held, not spent, so only a settled charge enters the migrated total;
       // counting the reservation recreates phantom spend (for example from a
       // dead process's unsettled claim) and stops paid requests until
-      // midnight.
-      if (claim.settledUsd !== undefined)
-        spent = spent.add(Usd.from(finite(file, claim.settledUsd)))
+      // midnight. A retained liability its run incurred past the
+      // reservation counts all the same (see legacyClaimSpendUsd).
+      const claimSpend = legacyClaimSpendUsd(claim)
+      if (claimSpend !== undefined) spent = spent.add(Usd.from(finite(file, claimSpend)))
     }
     return { spentUsd: spent.toAmount(), unknownChargeCalls: 0 }
   }

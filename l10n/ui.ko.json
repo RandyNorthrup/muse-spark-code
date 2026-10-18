@@ -3441,7 +3441,6 @@
   "execBudgetRemedyCap": "--max-budget-usd를 최소 {admitCap}까지 올리세요.",
   "execBudgetRemedyOutput": "또는 --max-output-tokens {maxTokens}로 다시 시도하세요.",
   "execBudgetRemedyInput": "입력만으로 {inputCost}가 들어 남은 {remaining}를 초과합니다.",
-  "execBudgetStartExact": "상한 실행: 상한 {cap}, 남은 {remaining}. 다음 요청은 최대 {reservation}을 예약합니다.",
   "execBudgetStartRule": "상한 실행: 상한 {cap}, 남은 {remaining}. 각 요청은 카운트된 입력에 최대 {output} 출력 토큰을 더해 예약합니다.",
   "execBudgetStartBytes": "상한 실행: 상한 {cap}, 남은 {remaining}. 각 요청은 바이트 상한 입력에 최대 {output} 출력 토큰을 더해 예약합니다.",
   "execBudgetStillReading": "예산이 실행을 읽는 도중에 중단했으므로 아직 답변이 없습니다.",
@@ -3572,9 +3571,6 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "execSummary": "{status}; 요청 {requests}; 확정 {settled}; 불확실 {uncertain}; 이미지 시도 {imageAttempts}; 반환 {imagesReturned}; 불확실 이미지 {imagesUncertain}",
-  "execStaleHoldsClosed": {
-    "other": "만료된 예약 {count}개를 정리했습니다({total})."
-  },
   "execSummaryUpperBound": "{status}; 요청 {requests}; 확정 {settled}; 불확실 {uncertain}; 이미지 시도 {imageAttempts}; 반환 {imagesReturned}; 불확실 이미지 {imagesUncertain}; 비용은 상한값입니다.",
   "exportSessionLine": "세션: `{id}`",
   "exportBackendLine": "백엔드: {backend}",

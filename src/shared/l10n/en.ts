@@ -4250,12 +4250,9 @@ export const EN = {
   execBudgetRemedyCap: 'Raise --max-budget-usd to at least {admitCap} to admit it.',
   execBudgetRemedyOutput: 'Or retry with --max-output-tokens {maxTokens}.',
   execBudgetRemedyInput: 'The input alone costs {inputCost}, above the {remaining} left.',
-  // EXECPROV round 6: a capped run states its next reservation and what is
-  // left before it spends. {reservation} is the most the next request can
-  // hold; the provider variant states the rule instead, since its first body
-  // is not built yet ({output} is the output cap every request reserves).
-  execBudgetStartExact:
-    'Capped run: cap {cap}, {remaining} left. The next request reserves at most {reservation}.',
+  // EXECPROV round 6: the provider variant states the rule, since its
+  // first body is not built yet ({output} is the output cap every request
+  // reserves).
   execBudgetStartRule:
     'Capped run: cap {cap}, {remaining} left. Each request reserves its counted input plus up to {output} output tokens.',
   // EXECPROV round 7 (R2): a wire with no counter reserves the byte
@@ -4492,12 +4489,6 @@ export const EN = {
   execScanUsage: 'scan-secrets <file> [--key-stdin]',
   execSummary:
     '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}',
-  // EXECPROV round 5 (5b): one info line names the ownerless holds a run
-  // closed by age. {total} is their summed reservation, kept as unknown cost.
-  execStaleHoldsClosed: forms({
-    one: 'Closed {count} stale hold ({total}).',
-    other: 'Closed {count} stale holds ({total}).',
-  }),
   execSummaryUpperBound:
     '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}; Cost is an upper bound.',
   // The exported Markdown's own words (M30); what was said and run is copied as it was.

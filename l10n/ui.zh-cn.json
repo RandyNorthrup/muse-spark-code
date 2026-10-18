@@ -3441,7 +3441,6 @@
   "execBudgetRemedyCap": "将 --max-budget-usd 提高到至少 {admitCap}。",
   "execBudgetRemedyOutput": "或使用 --max-output-tokens {maxTokens} 重试。",
   "execBudgetRemedyInput": "仅输入就花费 {inputCost}，超过剩余的 {remaining}。",
-  "execBudgetStartExact": "限额运行：上限 {cap}，剩余 {remaining}。下一个请求最多预留 {reservation}。",
   "execBudgetStartRule": "限额运行：上限 {cap}，剩余 {remaining}。每个请求预留其计数的输入，外加最多 {output} 个输出 token。",
   "execBudgetStartBytes": "限额运行：上限 {cap}，剩余 {remaining}。每个请求预留其字节上限的输入，外加最多 {output} 个输出 token。",
   "execBudgetStillReading": "预算在运行仍在读取时将其停止，因此尚无答案。",
@@ -3572,9 +3571,6 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "execSummary": "{status}；请求 {requests}；已结算 {settled}；不确定 {uncertain}；图像尝试 {imageAttempts}；已返回 {imagesReturned}；不确定图像 {imagesUncertain}",
-  "execStaleHoldsClosed": {
-    "other": "已关闭 {count} 个过期预留（{total}）。"
-  },
   "execSummaryUpperBound": "{status}；请求 {requests}；已结算 {settled}；不确定 {uncertain}；图像尝试 {imageAttempts}；已返回 {imagesReturned}；不确定图像 {imagesUncertain}; 费用为上限值。",
   "exportSessionLine": "会话：`{id}`",
   "exportBackendLine": "后端：{backend}",

@@ -3666,7 +3666,6 @@
   "execBudgetRemedyCap": "Увеличьте --max-budget-usd минимум до {admitCap}.",
   "execBudgetRemedyOutput": "Или повторите с --max-output-tokens {maxTokens}.",
   "execBudgetRemedyInput": "Один ввод стоит {inputCost} — больше, чем оставшиеся {remaining}.",
-  "execBudgetStartExact": "Запуск с лимитом: лимит {cap}, осталось {remaining}. Следующий запрос резервирует не более {reservation}.",
   "execBudgetStartRule": "Запуск с лимитом: лимит {cap}, осталось {remaining}. Каждый запрос резервирует свой подсчитанный ввод плюс до {output} выходных токенов.",
   "execBudgetStartBytes": "Запуск с лимитом: лимит {cap}, осталось {remaining}. Каждый запрос резервирует свой ввод, ограниченный байтами, плюс до {output} выходных токенов.",
   "execBudgetStillReading": "Бюджет остановил запуск, когда он ещё читал, поэтому ответа пока нет.",
@@ -3812,12 +3811,6 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "execSummary": "{status}; запросы {requests}; начислено {settled}; неопределённо {uncertain}; попытки изображений {imageAttempts}; возвращено {imagesReturned}; неопределённые изображения {imagesUncertain}",
-  "execStaleHoldsClosed": {
-    "one": "Закрыто {count} устаревшее удержание ({total}).",
-    "few": "Закрыто {count} устаревших удержания ({total}).",
-    "other": "Закрыто {count} устаревшего удержания ({total}).",
-    "many": "Закрыто {count} устаревших удержаний ({total})."
-  },
   "execSummaryUpperBound": "{status}; запросы {requests}; начислено {settled}; неопределённо {uncertain}; попытки изображений {imageAttempts}; возвращено {imagesReturned}; неопределённые изображения {imagesUncertain}; Стоимость является верхней границей.",
   "exportSessionLine": "Сеанс: `{id}`",
   "exportBackendLine": "Бэкенд: {backend}",

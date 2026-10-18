@@ -110,6 +110,7 @@ describe('daily running total', () => {
   // `b6ba93884^`): a v1 seed with a number total, a settled v1 claim and an
   // open one whose reservation the old total counted as spent.
   const legacyAccount = '0000000000000000000000000000000000000000000000000000000000000000'
+  const legacyScope = '12121212-1212-1212-1212-121212121212'
   function seedLegacyDay(directory: string, scope: string, seed: unknown): void {
     const day = path.join(directory, 'budget-journal', legacyAccount, scope)
     mkdirSync(path.join(day, 'claims', 'c1'), { recursive: true })
@@ -118,6 +119,7 @@ describe('daily running total', () => {
       path.join(day, 'claims', 'c1', 'claim.json'),
       JSON.stringify({
         version: 1,
+        scopeId: legacyScope,
         claimId: 'c1',
         ownerId: 'o1',
         sessionId: scope,
@@ -130,6 +132,7 @@ describe('daily running total', () => {
       path.join(day, 'claims', 'c2', 'claim.json'),
       JSON.stringify({
         version: 1,
+        scopeId: legacyScope,
         claimId: 'c2',
         ownerId: 'o1',
         sessionId: scope,
@@ -140,16 +143,21 @@ describe('daily running total', () => {
     )
   }
 
-  it('keeps the legacy current-day total instead of granting another allowance', async () => {
-    const directory = path.join(root, 'legacy')
-    const scope = '2026-10-18'
+  const seedStandardDay = (directory: string, scope: string): void => {
     seedLegacyDay(directory, scope, {
       version: 1,
+      scopeId: legacyScope,
       sessionId: scope,
       accountId: legacyAccount,
       spentUsd: 2.5,
       hasUnknownHistoricalFees: false,
     })
+  }
+
+  it('keeps the legacy current-day total instead of granting another allowance', async () => {
+    const directory = path.join(root, 'legacy')
+    const scope = '2026-10-18'
+    seedStandardDay(directory, scope)
     // 2.5 settled before, 1.25 settled since, 0.5 still open: the first
     // request after upgrading sees 3.75, not zero — the open reservation is
     // held, never spend (D121), so it stays out of the migrated total.
@@ -161,10 +169,69 @@ describe('daily running total', () => {
     })
   })
 
+  it('counts a retained liability an open legacy claim kept', () => {
+    const directory = path.join(root, 'legacy-retained')
+    const scope = '2026-10-18'
+    seedStandardDay(directory, scope)
+    // Fees exceeded the reservation before final settlement: the claim
+    // stayed open with the incurred liability retained, and the migrated
+    // total counts it instead of dropping it.
+    const day = path.join(directory, 'budget-journal', legacyAccount, scope)
+    mkdirSync(path.join(day, 'claims', 'c3'), { recursive: true })
+    writeFileSync(
+      path.join(day, 'claims', 'c3', 'claim.json'),
+      JSON.stringify({
+        version: 1,
+        scopeId: legacyScope,
+        claimId: 'c3',
+        ownerId: 'o1',
+        sessionId: scope,
+        accountId: legacyAccount,
+        reservedUsd: 0.5,
+        retainedUsd: 2,
+      }),
+    )
+    // 2.5 settled before, 1.25 settled since, 2 retained; the open 0.5
+    // stays out.
+    const spend = createDailySpend({ directory, sleep })
+    expect(spend.read(scope)).toEqual({ spentUsd: '5.75', unknownChargeCalls: 0 })
+  })
+
+  it('refuses a legacy claim detached from its journal', () => {
+    const directory = path.join(root, 'legacy-misplaced')
+    const scope = '2026-10-18'
+    seedStandardDay(directory, scope)
+    // A row filed under another claim's directory is damage, never spend.
+    const day = path.join(directory, 'budget-journal', legacyAccount, scope)
+    mkdirSync(path.join(day, 'claims', 'stray'), { recursive: true })
+    writeFileSync(
+      path.join(day, 'claims', 'stray', 'claim.json'),
+      JSON.stringify({
+        version: 1,
+        scopeId: legacyScope,
+        claimId: 'c2',
+        ownerId: 'o1',
+        sessionId: scope,
+        accountId: legacyAccount,
+        reservedUsd: 1.5,
+        settledUsd: 1.25,
+      }),
+    )
+    const spend = createDailySpend({ directory, sleep })
+    let identityError: unknown
+    try {
+      spend.read(scope)
+    } catch (error: unknown) {
+      identityError = error
+    }
+    expect(isSpendLedgerError(identityError) && identityError.kind).toBe('damaged')
+  })
+
   it('ignores a legacy journal of another day and refuses a damaged one', () => {
     const directory = path.join(root, 'legacy-other')
     seedLegacyDay(directory, '2026-10-19', {
       version: 1,
+      scopeId: legacyScope,
       sessionId: '2026-10-19',
       accountId: legacyAccount,
       spentUsd: 9,
@@ -179,6 +246,7 @@ describe('daily running total', () => {
       path.join(day, 'seed.json'),
       JSON.stringify({
         version: 1,
+        scopeId: legacyScope,
         sessionId: '2026-10-19',
         accountId: legacyAccount,
         spentUsd: 9,

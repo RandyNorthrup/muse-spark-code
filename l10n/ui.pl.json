@@ -3666,7 +3666,6 @@
   "execBudgetRemedyCap": "Zwiększ --max-budget-usd do co najmniej {admitCap}.",
   "execBudgetRemedyOutput": "Lub ponów z --max-output-tokens {maxTokens}.",
   "execBudgetRemedyInput": "Samo wejście kosztuje {inputCost}, więcej niż pozostałe {remaining}.",
-  "execBudgetStartExact": "Uruchomienie z limitem: limit {cap}, pozostało {remaining}. Następne żądanie rezerwuje co najwyżej {reservation}.",
   "execBudgetStartRule": "Uruchomienie z limitem: limit {cap}, pozostało {remaining}. Każde żądanie rezerwuje policzone wejście plus maksymalnie {output} tokenów wyjściowych.",
   "execBudgetStartBytes": "Uruchomienie z limitem: limit {cap}, pozostało {remaining}. Każde żądanie rezerwuje wejście ograniczone bajtami plus maksymalnie {output} tokenów wyjściowych.",
   "execBudgetStillReading": "Budżet zatrzymał uruchomienie, gdy wciąż czytało, więc odpowiedź jeszcze nie istnieje.",
@@ -3812,12 +3811,6 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "execSummary": "{status}; żądania {requests}; rozliczone {settled}; niepewne {uncertain}; próby obrazów {imageAttempts}; zwrócone {imagesReturned}; niepewne obrazy {imagesUncertain}",
-  "execStaleHoldsClosed": {
-    "one": "Zamknięto {count} przestarzałą rezerwację ({total}).",
-    "few": "Zamknięto {count} przestarzałe rezerwacje ({total}).",
-    "other": "Zamknięto {count} przestarzałej rezerwacji ({total}).",
-    "many": "Zamknięto {count} przestarzałych rezerwacji ({total})."
-  },
   "execSummaryUpperBound": "{status}; żądania {requests}; rozliczone {settled}; niepewne {uncertain}; próby obrazów {imageAttempts}; zwrócone {imagesReturned}; niepewne obrazy {imagesUncertain}; Koszt jest górną granicą.",
   "exportSessionLine": "Sesja: `{id}`",
   "exportBackendLine": "Backend: {backend}",

@@ -3591,7 +3591,6 @@
   "execBudgetRemedyCap": "Aumente --max-budget-usd para pelo menos {admitCap}.",
   "execBudgetRemedyOutput": "Ou tente de novo com --max-output-tokens {maxTokens}.",
   "execBudgetRemedyInput": "Só a entrada custa {inputCost}, acima dos {remaining} restantes.",
-  "execBudgetStartExact": "Execução com teto: teto {cap}, restam {remaining}. A próxima solicitação reserva no máximo {reservation}.",
   "execBudgetStartRule": "Execução com teto: teto {cap}, restam {remaining}. Cada solicitação reserva sua entrada contada mais até {output} tokens de saída.",
   "execBudgetStartBytes": "Execução com teto: teto {cap}, restam {remaining}. Cada solicitação reserva sua entrada limitada por bytes mais até {output} tokens de saída.",
   "execBudgetStillReading": "O orçamento interrompeu a execução enquanto ela ainda estava lendo, então ainda não há resposta.",
@@ -3732,11 +3731,6 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "execSummary": "{status}; solicitações {requests}; contabilizado {settled}; incerto {uncertain}; tentativas de imagem {imageAttempts}; retornadas {imagesReturned}; imagens incertas {imagesUncertain}",
-  "execStaleHoldsClosed": {
-    "one": "{count} reserva obsoleta encerrada ({total}).",
-    "other": "{count} reservas obsoletas encerradas ({total}).",
-    "many": "{count} reservas obsoletas encerradas ({total})."
-  },
   "execSummaryUpperBound": "{status}; solicitações {requests}; contabilizado {settled}; incerto {uncertain}; tentativas de imagem {imageAttempts}; retornadas {imagesReturned}; imagens incertas {imagesUncertain}; O custo é um limite superior.",
   "exportSessionLine": "Sessão: `{id}`",
   "exportBackendLine": "Back-end: {backend}",

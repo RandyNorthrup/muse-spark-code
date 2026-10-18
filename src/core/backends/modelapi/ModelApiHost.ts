@@ -16616,6 +16616,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     // from the legacy journal before this runs, so the value lands whole.
     this.budgetSpentUsd = Usd.from(stored.budgetSpentUsd ?? 0).toAmount()
     this.unknownChargeCalls = stored.unknownChargeCalls ?? 0
+    // A resume keeps the unknown-cost guard the conversation earned: with an
+    // unresolved historical charge the next known-cost turn must not print
+    // a plain cost line (see the turn-cost notice below).
+    this.hasUnknownBudgetCost = this.unknownChargeCalls > 0
     this.conversationAccountId = stored.accountId
     // The packing ledger is a session total like the token counts: a
     // session saved before it was kept carries none, so it starts at zero.
