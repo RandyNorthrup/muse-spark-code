@@ -619,11 +619,11 @@ export function withRuntimeAccounting(
           throw error
         } finally {
           if (dispatch?.onRequestStarted === started) delete dispatch.onRequestStarted
-          try {
-            await settle()
-          } catch {
-            await settle()
-          }
+          // A failed settlement is the rejection the caller sees: the
+          // attempt is already marked settled, so calling settle again
+          // would return at once and swallow the write error, reporting
+          // success without recording the spend.
+          await settle()
         }
       },
     }

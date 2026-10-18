@@ -117,4 +117,20 @@ describe('the agent daily limit', () => {
     await claim?.settle(Usd.from('0.3').toAmount())
     expect(spentFile(folder)).toEqual({ spentUsd: '0.3', unknownChargeCalls: 0 })
   })
+
+  it('a settlement the disk refuses stays a rejection, never a silent success', async () => {
+    const folder = dataFolder('unwritable', '{"paidDailyBudgetUsd":1}')
+    const daily = createRuntimeDailyBudget({ dataFolder: folder, now: Date.now, sleep })
+    const claim = daily.admit(Usd.from('0.4').toAmount(), new AbortController().signal)
+    // A file where the day's folder belongs makes the running-total write
+    // fail on every platform, so the settlement must reject.
+    mkdirSync(path.join(folder, PAID_DAILY_BUDGET.directory, today()), { recursive: true })
+    writeFileSync(
+      path.join(folder, PAID_DAILY_BUDGET.directory, today(), DAILY_SPEND_FOLDER),
+      'blocked',
+    )
+    await expect(claim?.settle(Usd.from('0.3').toAmount())).rejects.toMatchObject({
+      name: 'SpendLedgerError',
+    })
+  })
 })
