@@ -201,7 +201,11 @@ import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
 import type { SchedulesBridge } from '../schedules/schedulesBridge'
 import { parseScheduleHostMessage } from '../../shared/scheduleProtocol'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
-import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
+import {
+  approvalModeFor,
+  mspPermissionProfile,
+  untrustedStartMode,
+} from '../../shared/permissionModes'
 import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
 
 import type { ReviewedApprovals } from '../review/reviewedApprovals'
@@ -4027,10 +4031,16 @@ export class ConversationController {
     }
     this.requireCurrentOpening(generation)
     this.requireNonConfidentialModel(modelId)
+    const approvalMode = approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
+    // Manual asks the person because the session reviews with `:ask-me`
+    // instead of Muse Code's judge (Muse Code 1.4.7); Auto keeps the judge
+    // its words describe. Omitted profiles keep the host default.
+    const permissionProfile = mspPermissionProfile(approvalMode)
     const session = await host.startSession({
       workspaceRoot,
       modelId,
-      approvalMode: approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
+      approvalMode,
+      ...(permissionProfile !== undefined && { permissionProfile }),
       ...(this.isSideChat && { sideChat: true }),
       ...(mcpServers !== undefined && { mcpServers }),
     })
