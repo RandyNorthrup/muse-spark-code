@@ -14520,9 +14520,14 @@ the session's access and selects the human reviewer, while the default
 and Edit-automatically sessions start with `:ask-me`, Auto sessions with
 `:auto-review`, and every mode switch re-syncs the profile (experimental
 `session/setPermissionProfile`, tolerated as `methodNotFound` on older
-hosts). Headless sessions pass no profile and behave as before. Manual's
-words stand unchanged; they hold on Muse Code 1.4.7 and later. Record:
-`docs/certification/manualmode.md`.
+hosts). Headless ACP starts (exec and every other non-interactive path)
+pass no profile and behave as before; a mode switch whose profile step
+fails with anything else puts the previous approval mode back before
+throwing, so the menu never shows a mode the host is not running; and a
+scheduled admission on a Manual conversation runs with `:auto-review` while
+the unattended run is in charge, putting the conversation's reviewer back
+when the mode is restored. Manual's words stand unchanged; they hold on
+Muse Code 1.4.7 and later. Record: `docs/certification/manualmode.md`.
 
 ## 3. Open questions (need the owner)
 

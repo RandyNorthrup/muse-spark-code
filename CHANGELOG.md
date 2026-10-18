@@ -17,6 +17,14 @@ happened, not what was planned; superseded entries are kept.
   reaching the editor. Auto keeps the judge its description promises.
   Requires Muse Code 1.4.7 or later; older hosts keep their previous
   behaviour.
+- Three corrections to that profile work. Headless sessions (exec and every
+  other non-interactive path) start with no profile, keeping the host default
+  `:auto-review` as before, so commands the judge allowed stay allowed
+  instead of becoming rejected approvals. A mode switch whose profile step
+  fails puts the previous approval mode back before throwing, so the Modes
+  menu never shows a mode the host is not running. A scheduled admission on
+  a Manual conversation runs with `:auto-review` while the unattended run is
+  in charge and puts the conversation's reviewer back afterwards.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
