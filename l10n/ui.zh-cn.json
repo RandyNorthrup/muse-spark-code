@@ -1408,6 +1408,7 @@
     "other": "{file} 中有 {count} 个钩子"
   },
   "hooksSparkAbout": "Muse Code 从不读取此文件。它包含仅由此扩展运行的事件，以及从其他智能体导入的钩子。",
+  "hooksFileUnreadable": "无法读取此文件：",
   "hooksBackendMuseCode": "由 Muse Code 运行",
   "hooksBackendBoth": "由 Muse Code 运行；在 Model API 后端上也由此窗口运行",
   "hooksBackendSpark": "由此窗口运行：在 Model API 后端上运行；对于扩展自身处理的事件，在两种后端上都运行",
