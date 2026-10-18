@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest'
 import type { SecretStore } from '../../../src/host/auth/credentialStore'
 import type { Logger } from '../../../src/host/logger'
+import { capturingLog, mapSecrets } from '../helpers/vault/migrationFixtures'
 import { SECRET_KEYS, UI_TEXT, VAULT_PROTOCOL_VERSION } from '../../../src/shared/constants'
 import {
   buildMigrationCredentials,
@@ -29,48 +30,6 @@ const OAUTH_RECORD = {
   auth: 'oauth',
   origin: 'https://openrouter.ai',
   secret: 'not-a-real-token-for-tests',
-}
-
-function mapSecrets(initial: Readonly<Record<string, string>> = {}): {
-  store: SecretStore
-  saved: Map<string, string>
-} {
-  const saved = new Map(Object.entries(initial))
-  return {
-    saved,
-    store: {
-      get: (key) => Promise.resolve(saved.get(key)),
-      store: (key, value) => {
-        saved.set(key, value)
-        return Promise.resolve()
-      },
-      delete: (key) => {
-        saved.delete(key)
-        return Promise.resolve()
-      },
-    },
-  }
-}
-
-function testLog(): { log: Logger; logged: string[] } {
-  const logged: string[] = []
-  return {
-    logged,
-    log: {
-      trace: (message) => {
-        logged.push(`trace:${message}`)
-      },
-      info: (message) => {
-        logged.push(`info:${message}`)
-      },
-      warn: (message) => {
-        logged.push(`warn:${message}`)
-      },
-      error: (message) => {
-        logged.push(`error:${message}`)
-      },
-    },
-  }
 }
 
 interface PortCalls {
@@ -103,6 +62,32 @@ function countingPorts(calls: PortCalls, shouldFailWrites: boolean): CredentialM
       return vaultUnavailable()
     },
   }
+}
+
+function runContained(store: SecretStore): {
+  controller: CredentialMigrationController
+  calls: PortCalls
+  logged: string[]
+} {
+  const { log, logged } = capturingLog()
+  const calls: PortCalls = { snapshots: 0, writes: 0, removes: 0, reads: 0 }
+  return { controller: startController(store, calls, log), calls, logged }
+}
+
+function startController(
+  secrets: SecretStore,
+  calls: PortCalls,
+  log: Logger,
+): CredentialMigrationController {
+  return new CredentialMigrationController({
+    secrets,
+    listProviderIds: () => Promise.resolve(['openrouter']),
+    ports: countingPorts(calls, true),
+    minorRelease: () => 19,
+    now,
+    label: UI_TEXT.vault.secret,
+    log,
+  })
 }
 
 describe('migration key list', () => {
@@ -167,17 +152,7 @@ describe('migration controller without a vault', () => {
       [SECRET_KEYS.modelApiKey]: MODEL_API_KEY,
       'museSpark.provider.openrouter': JSON.stringify(API_KEY_RECORD),
     })
-    const { log, logged } = testLog()
-    const calls: PortCalls = { snapshots: 0, writes: 0, removes: 0, reads: 0 }
-    const controller = new CredentialMigrationController({
-      secrets: store,
-      listProviderIds: () => Promise.resolve(['openrouter']),
-      ports: countingPorts(calls, true),
-      minorRelease: () => 19,
-      now,
-      label: UI_TEXT.vault.secret,
-      log,
-    })
+    const { controller, logged } = runContained(store)
     await controller.ensureMigrated()
     expect(saved.get(SECRET_KEYS.modelApiKey)).toBe(MODEL_API_KEY)
     expect(saved.get('museSpark.provider.openrouter')).toBe(JSON.stringify(API_KEY_RECORD))
@@ -188,17 +163,7 @@ describe('migration controller without a vault', () => {
     const { store } = mapSecrets({
       'museSpark.provider.openrouter': JSON.stringify(OAUTH_RECORD),
     })
-    const { log, logged } = testLog()
-    const calls: PortCalls = { snapshots: 0, writes: 0, removes: 0, reads: 0 }
-    const controller = new CredentialMigrationController({
-      secrets: store,
-      listProviderIds: () => Promise.resolve(['openrouter']),
-      ports: countingPorts(calls, true),
-      minorRelease: () => 19,
-      now,
-      label: UI_TEXT.vault.secret,
-      log,
-    })
+    const { controller, calls, logged } = runContained(store)
     await controller.ensureMigrated()
     expect(calls.writes).toBe(0)
     expect(calls.removes).toBe(0)
