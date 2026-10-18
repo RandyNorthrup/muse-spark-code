@@ -96,7 +96,8 @@ export interface SessionBudgetClaim {
  * The caller refunds this claim when initial admission throws. */
 export type AccountBudgetAdmission = (claim: SessionBudgetClaim) => () => void
 
-/** Account admission supplements the existing conversation/daily cap. */
+/** Account admission supplements the existing conversation/daily cap.
+ * @unwired M102 read only by tests deleted 2026-10-17 (no fakes) */
 export function withAccountBudgetAdmission(
   claim: SessionBudgetClaim,
   admission: AccountBudgetAdmission | undefined,

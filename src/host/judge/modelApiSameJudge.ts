@@ -22,6 +22,7 @@ import type {
 export type {
   ModelApiJudgeSource,
   ModelApiJudgeTransport,
+  /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
   ModelApiSideResponse,
 } from '../../core/judge/same/modelApiSource'
 import {
