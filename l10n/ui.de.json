@@ -2687,6 +2687,7 @@
   "agentRecoveryConfirm": "{action}: {objective}? Aktuelle Berechtigungen und Budgets gelten.",
   "agentRetryUnavailable": "Erneuter Versuch nicht verfügbar: Dieses Backend bietet keinen isolierten Worktree-Kontrollpunkt. Änderungen im gemeinsamen Arbeitsbereich bleiben erhalten.",
   "agentContinueUnavailable": "Fortsetzen ist für diesen Agenten oder seinen aktuellen Zustand nicht verfügbar.",
+  "agentGone": "Dieser Agent ist nicht mehr in dieser Unterhaltung.",
   "referenceAgentOutcomes": "Agenten zeigen Aktivität und nachweisgestützte Ergebnisse. Wählen Sie einen beendeten Agenten für seinen begrenzten Beleg und Versuchsverlauf. Fortsetzen bewahrt nach Bestätigung Sitzung und Änderungen; ein erneuter Versuch erfordert einen isolierten Kontrollpunkt. Fehlende Nachweise gelten als ungeprüft. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
   "agentMapHint": "für Details auf einen Agenten klicken",
   "agentMapEmpty": "Keine Subagenten in dieser Unterhaltung.",

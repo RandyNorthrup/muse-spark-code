@@ -2799,6 +2799,7 @@
   "agentRecoveryConfirm": "{action}: {objective}? Obowiązują bieżące uprawnienia i budżety.",
   "agentRetryUnavailable": "Ponowienie jest niedostępne: ten backend nie udostępnia izolowanego punktu kontrolnego drzewa roboczego. Zmiany wspólnego obszaru roboczego zostają zachowane.",
   "agentContinueUnavailable": "Kontynuacja jest niedostępna dla tego agenta lub jego obecnego stanu.",
+  "agentGone": "Tego agenta nie ma już w tej rozmowie.",
   "referenceAgentOutcomes": "Agenci pokazują aktywność i wyniki oparte na dowodach. Wybierz zakończonego agenta, aby zobaczyć ograniczony raport i historię prób. Kontynuacja po potwierdzeniu zachowuje sesję i zmiany; ponowienie wymaga izolowanego punktu kontrolnego. Brakujące dowody pozostają niezweryfikowane. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
   "agentMapHint": "kliknij agenta, aby zobaczyć szczegóły",
   "agentMapEmpty": "Brak podagentów w tej rozmowie.",

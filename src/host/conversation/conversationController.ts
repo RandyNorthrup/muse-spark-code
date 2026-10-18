@@ -1,7 +1,7 @@
 import type { UsageRecording } from '../../core/usage/recording'
 import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../shared/usage'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
-import { recoveryStamp } from '../../shared/agentRecovery'
+import { panelRecoveryRefusal } from '../../shared/agentRecovery'
 import type { ReportQuestionsReader } from '../../core/reporting/sources/questions'
 import { QuestionRegistry } from '../../core/questions/registry'
 import { compareVersions, isVersion } from '../../core/whatsNew/whatsNewVersions'
@@ -9304,12 +9304,8 @@ export class ConversationController {
         const latest = await host.readSession(session.sessionId)
         if (!this.isCurrentSessionAction(session, generation)) return
         const current = latest.items.findLast((item) => item.subagentId === subagentId)
-        if (recoveryStamp(current) !== recoveryStamp(agent))
-          throw new Error(UI_TEXT.agentContinueUnavailable)
-        if (agent === undefined)
-          throw new Error(
-            action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable,
-          )
+        const refusal = panelRecoveryRefusal(agent, current)
+        if (refusal !== undefined) throw new Error(refusal)
       }
       await session.controlSubagent(subagentId, action)
     } catch (error: unknown) {

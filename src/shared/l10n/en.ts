@@ -3248,6 +3248,7 @@ export const EN = {
   agentRetryUnavailable:
     'Retry is unavailable: this backend provides no isolated worktree checkpoint. Shared workspace changes are kept.',
   agentContinueUnavailable: 'Continue is unavailable for this agent or its current state.',
+  agentGone: 'That agent is no longer in this conversation.',
   referenceAgentOutcomes:
     'Agents show activity and evidence-backed outcomes. Select an ended agent for its bounded receipt and attempt history. Continue keeps its session and changes after confirmation; Retry requires an isolated checkpoint. Missing evidence is shown as unverified. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.',
   agentMapHint: 'click an agent for details',
