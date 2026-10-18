@@ -915,7 +915,10 @@ export async function startWindowsPipeServe(
   }
 }
 
-/** Files mode: owner-only file commands and native identity reads. */
+/**
+ * Files mode: owner-only file commands and native identity reads.
+ * @unwired M109 Windows broker files mode (waits on the Windows broker join)
+ */
 export async function startWindowsPipeFiles(
   helper: WindowsVaultExecutable,
   signal?: AbortSignal,

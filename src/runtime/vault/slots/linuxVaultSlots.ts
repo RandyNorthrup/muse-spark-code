@@ -3,7 +3,12 @@ import { VaultError } from '../../../core/vault/crypto'
 import type { VaultSlotProvider } from '../../../core/vault/broker/repository'
 import type { VaultSlotRecord } from '../../../shared/vault'
 import { OsStoreVaultSlot } from './osStoreVaultSlot'
-import { LinuxTpm2Slot, linuxTpm2Capabilities, type LinuxTpm2Runner } from './linuxTpm2Slot'
+import {
+  LinuxTpm2Slot,
+  contextFrom,
+  linuxTpm2Capabilities,
+  type LinuxTpm2Runner,
+} from './linuxTpm2Slot'
 
 type OpenEntry = ConstructorParameters<typeof OsStoreVaultSlot>[2]
 
@@ -42,20 +47,9 @@ export class LinuxVaultSlots implements VaultSlotProvider {
         this.platform,
         this.deps.open,
       )
-    if (record.tier === 'hardware' && record.provider === 'linuxTpm2')
-      return new LinuxTpm2Slot(
-        {
-          id: record.id,
-          vaultId: record.vaultId,
-          lastGeneration: record.lastGeneration,
-          auditGeneration: record.auditGeneration,
-          auditHead: record.auditHead,
-          createdAt: record.createdAt,
-        },
-        this.deps.runner,
-        this.platform,
-      )
-    return null
+    return record.tier === 'hardware' && record.provider === 'linuxTpm2'
+      ? new LinuxTpm2Slot(contextFrom(record), this.deps.runner, this.platform)
+      : null
   }
   osStore(vaultId: string, slotId: string): OsStoreVaultSlot {
     return new OsStoreVaultSlot(
