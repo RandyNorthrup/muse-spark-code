@@ -7,12 +7,14 @@ import { compareLegalText } from '../files'
 // version known only from `go.sum` stays unknown until vendored text
 // closes the gap. Nothing is downloaded and the module cache is not read.
 
-import type {
-  EcosystemResult,
-  LegalDependencyScope,
-  ManifestLicenseDeclaration,
+import {
+  dependency,
+  countIncludedDependencies,
+  type EcosystemResult,
+  type LegalDependencyScope,
+  type ManifestLicenseDeclaration,
+  type LegalDependencyAdmission,
 } from '../dependencies'
-import { dependency } from '../dependencies'
 import type { LegalFileSnapshot } from '../files'
 import { baseNameOf, hasBinaryContent, isLicenseFileName } from '../files'
 import { identifyLicenseText } from '../projectLicense'
@@ -166,7 +168,11 @@ const noProjectLicenses: ManifestLicenseDeclaration[] = []
  * versions; `go.sum` alone proves a version existed, never its license;
  * vendored license texts are identified where present.
  */
-export function readGo(snapshot: LegalFileSnapshot): EcosystemResult {
+export function readGo(
+  snapshot: LegalFileSnapshot,
+  isDependencyIncluded?: LegalDependencyAdmission,
+): EcosystemResult {
+  const isIncluded = isDependencyIncluded ?? (() => true)
   const incomplete: string[] = []
   const requirements: (GoRequirement & { readonly file: string })[] = []
   const requirementFiles: string[] = []
@@ -247,6 +253,7 @@ export function readGo(snapshot: LegalFileSnapshot): EcosystemResult {
         sumVersions.get(requirement.name)?.version,
       scope: requirement.scope,
       licenseRaw: vendoredLicense.licenseRaw,
+      licenseTextFile: vendoredLicense.file,
     })
   })
   for (const [name, entry] of sumVersions) {
@@ -265,17 +272,25 @@ export function readGo(snapshot: LegalFileSnapshot): EcosystemResult {
         version,
         scope: 'production',
         licenseRaw: local.licenseRaw,
+        licenseTextFile: local.file,
       }),
     )
   }
-  if (requirementFiles.length > 0) incomplete.push(UI_TEXT.legalScanner.m161)
-  const checksumOnly = dependencies.filter(
+  if (isDependencyIncluded === undefined && requirementFiles.length > 0)
+    incomplete.push(UI_TEXT.legalScanner.m161)
+  const checksumOnly = countIncludedDependencies(
+    dependencies,
+    isIncluded,
     (dep) => dep.version !== undefined && dep.licenseRaw === undefined,
-  ).length
+  )
   if (checksumOnly > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m162, checksumOnly, { v0: checksumOnly }))
   }
-  const unresolved = dependencies.filter((dep) => dep.version === undefined).length
+  const unresolved = countIncludedDependencies(
+    dependencies,
+    isIncluded,
+    (dep) => dep.version === undefined,
+  )
   if (unresolved > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m163, unresolved, { v0: unresolved }))
   }

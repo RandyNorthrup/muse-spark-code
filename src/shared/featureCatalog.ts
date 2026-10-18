@@ -156,6 +156,8 @@ interface Feature {
   readonly summary: ReferenceText
   readonly description: ReferenceText
   readonly commands: readonly string[]
+  /** Runtime command discriminators documented by this feature. */
+  readonly cliRoutes?: readonly string[] | undefined
   readonly settings: readonly string[]
   readonly docs: string
   readonly editors: readonly ('vscode' | 'acp')[]
@@ -284,7 +286,6 @@ export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = [
   'team-workers',
   'vault',
   'estimator',
-  'auto-compaction',
 ]
 
 export function featureCatalog(): readonly Feature[] {
@@ -403,9 +404,10 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'legal',
       { ui: 'legalScanTitle' },
-      { ui: 'legalScanItemDetail' },
+      { ui: 'legalScanReceiptHelp' },
       ['legalScan'],
       ['legalHeaderPolicy', 'legalRegistryLookups'],
+      // Exact slots admit measured benign notice forms, reject restrictions and follow shipped material.
       'legal-scan-m97',
       ['museCode', 'modelApi'],
       false,
@@ -519,7 +521,7 @@ export function featureCatalog(): readonly Feature[] {
       ...feature(
         'auto-compaction',
         { ui: 'autoCompactionName' },
-        { ui: 'autoCompactionAwaitingEvaluation' },
+        { setting: 'modelApiAutoCompaction' },
         [],
         ['modelApiAutoCompaction'],
         'agent-loop-guarantees',
@@ -776,6 +778,17 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
     ),
     feature(
+      'windows-paths',
+      { ui: 'referenceWindowsPaths' },
+      { ui: 'referenceWindowsPathsDetail' },
+      [],
+      [],
+      'safer-windows-paths',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'context',
       { ui: 'mentionFile' },
       { tip: 'mentionFile' },
@@ -823,7 +836,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'groupGit' },
       { tip: 'newWorktree' },
       ['newWorktree', 'removeWorktree', 'openPullRequestInConversation'],
-      [],
+      ['github.useGhLogin'],
       'git-and-pull-requests',
     ),
     feature(
@@ -1076,6 +1089,19 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    // M124 (D106): the local MCP connector, a runtime command for every editor.
+    // Its approval page restarts after idle or a failed opener; our UI still decides every write.
+    feature(
+      'mcp-connector',
+      { ui: 'mcpConnectorTitle' },
+      { ui: 'referenceMcpCommand' },
+      [],
+      [],
+      'mcp-connector-for-other-agents-m124',
+      ['museCode', 'modelApi'],
+      false,
+      ['acp'],
+    ),
     feature(
       'support',
       { ui: 'groupSupport' },
@@ -1083,6 +1109,9 @@ export function featureCatalog(): readonly Feature[] {
       ['showLogs', 'diagnostics', 'reportProblem', 'openWalkthrough', 'showWhatsNew', 'openHelp'],
       ['showWhatsNewOnUpdate'],
       'help-and-reference',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
     ),
     feature(
       'vault',
@@ -1106,6 +1135,8 @@ export function featureCatalog(): readonly Feature[] {
     const surfaces = isInProgress ? [] : (REFERENCE_SURFACES[entry.id] ?? entry.surfaces)
     return {
       ...entry,
+      ...(entry.id === 'providers' && { cliRoutes: ['providersModels'] }),
+      ...(entry.id === 'acp' && { cliRoutes: ['helpTopic'] }),
       ...(isInProgress && {
         summary: { ui: 'referenceInProgress' },
         description: { ui: 'referenceInProgress' },
@@ -1130,7 +1161,13 @@ export function featureCatalog(): readonly Feature[] {
       // combine: neither source may silently erase the other.
       details: isInProgress
         ? []
-        : [...entry.details, ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui }))],
+        : [
+            ...entry.details,
+            ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui })),
+            ...(entry.id === 'providers'
+              ? ([{ cli: 'add' }, { cli: 'remove' }, { cli: 'force' }] as const)
+              : []),
+          ],
       facts: {},
     }
   })
@@ -1155,7 +1192,9 @@ const REFERENCE_DETAILS: Readonly<
     'pricePerMillion',
     'privacyNoRetentionDetail',
     'referenceOutputCapMinimum',
+    'customLimitsMissing',
   ],
+  acp: ['referenceBriefHelp'],
   estimator: ['estimateCliHelp'],
   // Includes Muse Code's permission-rule exceptions, shared with localized settings.
   permissions: ['referencePermissionLimits'],
@@ -1274,36 +1313,39 @@ export function sharingFeatures(table: UiText = UI_TEXT) {
     {
       id: 'share-cli',
       surface: 'cli',
-      syntax: 'share chat SESSION_ID [--mode full|conversation] [--format md|html|json]',
+      syntax:
+        'share chat SESSION_ID [--mode full|conversation] [--format md|html|json] [--destination copy|file|browser] [--out FILE] [--json] [--confirm PREVIEW_ID --exported-at TIME]',
       label: table.shareChat,
       detail: table.shareConfirm,
     },
     {
       id: 'prompts-save-cli',
       surface: 'cli',
-      syntax: 'prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt',
+      syntax:
+        'prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] [--json] < prompt.txt',
       label: table.promptLibrary,
-      detail: table.promptRun,
+      detail: table.promptSave,
     },
     {
       id: 'prompts-list-cli',
       surface: 'cli',
-      syntax: 'prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]',
+      syntax: 'prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER] [--json]',
       label: table.promptLibrary,
       detail: table.promptScopeUser,
     },
     {
       id: 'prompts-use-cli',
       surface: 'cli',
-      syntax: 'prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]',
+      syntax:
+        'prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER] [--json] [--var name=value ...] [--confirm]',
       label: table.promptUseSaved,
-      detail: `${table.promptVariables}; ${table.promptInsert}`,
+      detail: table.promptVariables,
     },
     {
       id: 'prompts-share-cli',
       surface: 'cli',
       syntax:
-        'prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]',
+        'prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE] [--json] [--confirm PREVIEW_ID --exported-at TIME]',
       label: table.sharePrompt,
       detail: table.shareConfirm,
     },

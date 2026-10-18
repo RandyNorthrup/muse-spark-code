@@ -28,7 +28,12 @@ export function hostPackagePath(location: string, extensionRoot: string): string
     return undefined
   }
   const relative = path.relative(path.toNamespacedPath(extensionRoot), path.toNamespacedPath(file))
-  if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) {
+  if (
+    relative === '' ||
+    relative === '..' ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
     return undefined
   }
   const packaged = relative.split(path.sep).join('/')

@@ -1,16 +1,18 @@
 // The paid Model API features in the agent (M63c, M58; PLAN.md D30, D48,
 // D62): "opt in and loud", as in the panel. A feature is off unless the
-// editor started the agent with its flag. Every use then asks in the editor,
+// editor started the agent with its flag — except automatic compaction,
+// which is on by default like the panel once evaluated and stops only with
+// `--no-auto-compaction`. Every use then asks in the editor,
 // as the panel's popup does (D48): a permission prompt that names what is
 // about to be billed and its price, with Allow once, Allow always in this
 // workspace and Deny. "Always" is offered and kept only with
 // `--trust-workspace`, as the panel offers it only in a trusted workspace;
 // it is kept per folder in the agent's data folder (runtime/paidGrants.ts)
-// and lapses when the agent starts without the feature's flag, so turning
-// the flag on again asks again. A use with no session to ask in (no client,
-// or a conversation the agent does not hold) is denied, and so is every
-// feature the agent has no flag for: subagents, Muse Voice and scheduled
-// runs.
+// and lapses when the agent starts without the feature's flag (or with
+// `--no-auto-compaction` for compaction), so asking happens again. A use
+// with no session to ask in (no client, or a conversation the agent does
+// not hold) is denied, and so is every feature the agent has no flag for:
+// subagents, Muse Voice and scheduled runs.
 
 import type { PermissionOption, RequestPermissionResponse } from '@agentclientprotocol/sdk'
 import { PaidUseConsent, type PaidUseAnswer } from '../core/paid/paidConsent'
@@ -51,6 +53,8 @@ export type PaidUseAsker = (
 
 export interface AcpPaidUseDeps {
   readonly autoCompactionEvaluated?: () => boolean
+  /** `--no-auto-compaction`: the one way to turn the default-on compaction off. */
+  readonly autoCompactionOff?: boolean
   /** The features whose flags the editor gave. */
   readonly flagged: readonly AcpPaidFeature[]
   /** `--trust-workspace`: where "always" is offered and honoured. */
@@ -183,12 +187,16 @@ export class AcpPaidUse {
   }
 
   public isOn(feature: PaidFeature): boolean {
+    if (feature === 'autoCompaction') {
+      // On by default like the panel once evaluated; only the explicit
+      // off flag stops it. The first paid use still asks in the editor.
+      return (
+        (this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED) &&
+        this.deps.autoCompactionOff !== true
+      )
+    }
     const flagged: readonly PaidFeature[] = this.deps.flagged
-    return (
-      flagged.includes(feature) &&
-      (feature !== 'autoCompaction' ||
-        (this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED))
-    )
+    return flagged.includes(feature)
   }
 
   /** The agent's way to ask; until it is attached, every use is denied. */
@@ -231,12 +239,18 @@ export class AcpPaidUse {
 
   /**
    * At start: a feature without its flag loses "always" in every folder, so
-   * turning the flag on again asks again. A file that cannot be written is
-   * logged; the grant is still never honoured while the flag is off.
+   * turning the flag on again asks again. Compaction counts as flagged
+   * while it is default-on; with `--no-auto-compaction` its grant lapses
+   * too. A file that cannot be written is logged; the grant is still never
+   * honoured while the feature is off.
    */
   public async forgetUnflagged(): Promise<void> {
     if (this.deps.headless !== undefined) return
-    const unflagged = ACP_PAID_FEATURES.filter((feature) => !this.deps.flagged.includes(feature))
+    const flagged: readonly AcpPaidFeature[] =
+      this.deps.autoCompactionOff === true
+        ? this.deps.flagged.filter((feature) => feature !== 'autoCompaction')
+        : (['autoCompaction', ...this.deps.flagged] as readonly AcpPaidFeature[])
+    const unflagged = ACP_PAID_FEATURES.filter((feature) => !flagged.includes(feature))
     if (unflagged.length === 0) {
       return
     }

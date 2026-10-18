@@ -87,9 +87,14 @@ import {
   withoutKeyringRoutes,
 } from './credentialVariables'
 import { walkFiles } from './fileWalk'
+import { isStoreUnavailable, StoreUnavailableError } from './keyStore'
+import { isPlanModelRef } from '../shared/providerRouting'
+import { providersFile } from '../host/backend/providersEntry'
 import { paidGrantFile } from './paidGrants'
 
 import type { AssembledProviderRun } from './exec/providerExec'
+
+const { readProvidersFile } = providersFile
 
 export interface ExecRuntimeOptions {
   readonly outputCap?: (policy: ModelPolicy) => number
@@ -214,6 +219,17 @@ interface MuseHomes {
   readonly xdgDataHome: string | undefined
 }
 
+/**
+ * The last Meta-key probe's outcome, shared by the session gate (which
+ * probes) and the workspace managers (which list and dispatch). The gate
+ * runs before the model list, so a dead store is known before anything
+ * dials, and a step that needs the stored key can name the store instead
+ * of claiming that no key is stored.
+ */
+interface MetaKeyProbe {
+  state: 'key' | 'absent' | 'storeDown' | undefined
+}
+
 function modelApiManager(
   deps: RuntimeBackendDeps,
   credentials: CredentialStore,
@@ -223,6 +239,7 @@ function modelApiManager(
   paid: AcpPaidUse,
   workspaceEdits: WorkspaceEdits,
   assertWorkspaceCurrent: () => void,
+  metaKeyProbe: MetaKeyProbe,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
   const providerConfigFile = path.join(
@@ -230,6 +247,16 @@ function modelApiManager(
     PROVIDERS_CONFIG_DIR_NAME,
     PROVIDERS_FILE_NAME,
   )
+  // A dead store simply holds no subscription secret; session creation
+  // must not fail before any key is needed.
+  const hasChatGptSecret = async (): Promise<boolean> => {
+    try {
+      return (await deps.secrets.get(PROVIDER_SECRET_PREFIX + 'chatgpt')) !== undefined
+    } catch (error: unknown) {
+      if (isStoreUnavailable(error)) return false
+      throw error
+    }
+  }
   let subscriptions: Promise<ReturnType<typeof runtimeSubscriptionClient>> | undefined
   let headlessProviders:
     ReturnType<typeof ConfiguredProvidersEntry.createConfiguredProviderServices> | undefined
@@ -333,7 +360,14 @@ function modelApiManager(
       : {
           ...store,
           async save(snapshot: Parameters<typeof store.save>[0]) {
-            const key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+            // A dead store holds no key to redact against; the save itself
+            // must still succeed so a session starts without a key store.
+            let key: string | undefined
+            try {
+              key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+            } catch (error: unknown) {
+              if (!isStoreUnavailable(error)) throw error
+            }
             const copy = structuredClone(snapshot)
             redactSnapshot(copy, key === undefined ? [] : [key])
             await store.save(copy)
@@ -343,7 +377,36 @@ function modelApiManager(
     log,
     usageRecording: deps.usageRecording,
     hasExternalPaidRecording: deps.exec !== undefined,
-    getApiKey: () => credentials.getApiKey(),
+    getApiKey: async () => {
+      const key = await credentials.getApiKey()
+      if (key !== undefined) return key
+      // getApiKey degrades a dead store to undefined (D25). Once the gate
+      // has proven the store dead, a step that needs the stored key throws
+      // the store failure instead, so it names the store rather than
+      // claiming no key is stored. Unprobed sessions keep absent-key reads.
+      // The prompt turn runs no readiness check of its own, so the probe
+      // may predate an unlocked store: re-read once before refusing, and
+      // heal the probe when the store answers again.
+      if (metaKeyProbe.state === 'storeDown') {
+        let reread: string | undefined
+        try {
+          reread = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+          metaKeyProbe.state = reread !== undefined && reread !== '' ? 'key' : 'absent'
+        } catch (error: unknown) {
+          if (!isStoreUnavailable(error)) throw error
+        }
+        if (metaKeyProbe.state === 'storeDown') throw new StoreUnavailableError()
+        // The store answered again: this step gets the key it just read, not
+        // an absent-key read that would refuse the step the probe just healed.
+        if (reread !== undefined && reread !== '') return reread
+      }
+      return
+    },
+    // No Meta key on record means no catalogue dial: the model list comes
+    // from the providers file alone, so a keyless session still opens.
+    // Unprobed sessions keep today's dial behavior.
+    hasMetaCredential: () => metaKeyProbe.state === undefined || metaKeyProbe.state === 'key',
+    isCredentialStoreDown: () => metaKeyProbe.state === 'storeDown',
     workspaceRoot,
     sessionWorkspaceRoot: storedWorkspaceRoot,
     assertWorkspaceCurrent,
@@ -414,11 +477,12 @@ function modelApiManager(
           },
         })
         client = headlessProviders.client
-      } else if (
-        deps.exec === undefined &&
-        (existsSync(providerConfigFile) ||
-          (await deps.secrets.get(PROVIDER_SECRET_PREFIX + 'chatgpt')) !== undefined)
-      ) {
+      } else if (existsSync(providerConfigFile) || (await hasChatGptSecret())) {
+        // The editor protocol and a terminal plan-model exec share this
+        // construction: a plan model runs on its own subscription sign-in,
+        // with or without a Meta key. A plan exec bypasses the Meta-only
+        // transport (runExec), so its requests reach the subscription leg
+        // while admission and settlement stay on the shared accounting path.
         const subscriptions = await subscriptionClient()
         client = await subscriptions.createClient(meta)
       }
@@ -441,10 +505,19 @@ function modelApiManager(
       const budget = await dailyBudget()
       return await budget.reserve(PAID_PRICES_USD.imageGeneration, signal)
     },
-    ...(deps.exec === undefined && {
+    ...(deps.exec?.providerRun === undefined && {
       getProviderAccountId: async () => {
-        const subscriptions = await subscriptionClient()
-        return await subscriptions.accountId()
+        // One shared subscription identity for the editor protocol and a
+        // terminal plan-model exec. No readable store means no readable
+        // account: unknown, not failed.
+        try {
+          const subscriptions = await subscriptionClient()
+          return await subscriptions.accountId()
+        } catch (error: unknown) {
+          if (!isStoreUnavailable(error)) throw error
+          // No readable store means no readable account.
+          return
+        }
       },
     }),
     ...(deps.exec?.providerRun !== undefined && {
@@ -518,8 +591,22 @@ function modelApiManager(
     isAutoCompactionOn: () =>
       deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
+    // The route's own context-full stop: modelApi exec names its flag and
+    // budget, ACP the editor approval. Other routes keep the shared manual
+    // sentence.
+    ...(deps.exec !== undefined &&
+      deps.options.backend === 'modelApi' && {
+        contextWindowFullText: UI_TEXT.contextWindowFullExec,
+      }),
+    ...(deps.exec === undefined && { contextWindowFullText: UI_TEXT.contextWindowFullAcp }),
     // The wrapped runtime transport owns one daily claim per HTTP attempt.
     autoCompactionAccounting: 'transport',
+    // Compaction spending here is authorized by the editor's per-use paid
+    // question (serve) or exec's explicit flag under its run budget, never
+    // by workspace trust: exec refuses trust outright, so the editor's
+    // trust fence would make the headless flag a no-op (RVMSM101).
+    // Workspace trust still gates hooks, grants and tools as before.
+    autoCompactionTrusted: () => true,
     paidDailyBudgetUsd: async () => {
       const budget = await dailyBudget()
       return budget.capUsd()
@@ -569,6 +656,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   const paid = new AcpPaidUse({
     flagged: deps.options.paidFeatures,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
+    autoCompactionOff: deps.options.autoCompaction === false,
     canRemember: () => deps.options.trustWorkspace,
     grants: paidGrantFile({
       file: paidGrantsFile({ platform: deps.platform, env: deps.env, homeDir: deps.homeDir }),
@@ -578,6 +666,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     log: deps.log,
     ...(deps.exec !== undefined && { headless: deps.exec.headlessPaid }),
   })
+  const metaKeyProbe: MetaKeyProbe = { state: undefined }
   const museEnvironment = museCode.childEnvironment()
   const homes: MuseHomes = {
     xdgConfigHome: environmentValue(museEnvironment, deps.platform, 'XDG_CONFIG_HOME'),
@@ -636,50 +725,99 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       : { state: 'signedOut', message: UI_TEXT.acpMuseCodeSignedOut }
   }
 
-  const modelApiReadiness = async (): Promise<BackendReadiness> => {
+  // `modelHint`: the exec run's requested model, when one is named. A plan
+  // model (chatgpt/…, copilot/…) runs on its own subscription sign-in, so a
+  // missing Meta key must not refuse it; a refusal then names the plan
+  // sign-in instead. Without a hint (the editor picks the model later) any
+  // subscription keeps the gate open.
+  const modelApiReadiness = async (modelHint?: string): Promise<BackendReadiness> => {
     let key: string | undefined
     try {
       key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+      metaKeyProbe.state = key !== undefined && key !== '' ? 'key' : 'absent'
     } catch (error: unknown) {
       // A refused providers file is not a keyring outage: the runtime is
       // already on the account service, so its own refusal stands as read
       // through the runtime's wrapped metadata port.
       if (isInvalidProvidersFileError(error))
         return { state: 'unavailable', message: accountErrorText(error) }
+      // A dead store reads as no key; only a step that needs a stored key
+      // still says so, in the one sentence for this condition.
+      if (isStoreUnavailable(error)) {
+        metaKeyProbe.state = 'storeDown'
+        return { state: 'signedOut', message: UI_TEXT.acpStoreDown, storeDown: true }
+      }
       return {
         state: 'unavailable',
         message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
       }
     }
     if (deps.exec?.providerRun !== undefined) return { state: 'ready' }
-    if (deps.exec === undefined && (key === undefined || key === '')) {
+    if (key !== undefined && key !== '') return { state: 'ready' }
+    // No `--model`: the configured default decides, as the late default-model
+    // resolution does after the session starts (Codex on PR #227). A default
+    // plan model must reach the subscription checks below instead of this
+    // key gate, or the keyless default-plan flow never starts.
+    let hint = modelHint
+    if (hint === undefined && deps.exec !== undefined) {
       try {
-        if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)
-          return { state: 'ready' }
-        const configFile = path.join(
-          deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
-          PROVIDERS_CONFIG_DIR_NAME,
-          PROVIDERS_FILE_NAME,
+        const read = await readProvidersFile(
+          path.join(
+            deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
+            PROVIDERS_CONFIG_DIR_NAME,
+            PROVIDERS_FILE_NAME,
+          ),
         )
-        if (existsSync(configFile)) {
-          const entry = await import('./chatGptProviderCommands')
-          const factory = entry.runtimeSubscriptionClient({
-            secrets: deps.secrets,
-            fetch: deps.fetch,
-            configFile,
-            catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
-            openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
-            callbackText: () => UI_TEXT.acpChatGpt.callback,
-          })
-          if ((await factory.accountId()) !== undefined) return { state: 'ready' }
-        }
+        if (read.ok) hint = read.file.defaultModel
       } catch {
-        return { state: 'unavailable', message: UI_TEXT.acpChatGpt.storeUnavailable }
+        // An unreadable providers file reads as no default: the key gate
+        // below still refuses, and the run surfaces the file's own error.
       }
     }
-    return key === undefined || key === ''
-      ? { state: 'signedOut', message: UI_TEXT.acpNoStoredKey }
-      : { state: 'ready' }
+    const isPlan = hint !== undefined && isPlanModelRef(hint)
+    if (!isPlan && deps.exec !== undefined)
+      return { state: 'signedOut', message: UI_TEXT.acpNoStoredKey }
+    try {
+      if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)
+        return { state: 'ready' }
+      const configFile = path.join(
+        deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
+        PROVIDERS_CONFIG_DIR_NAME,
+        PROVIDERS_FILE_NAME,
+      )
+      if (existsSync(configFile)) {
+        const entry = await import('./chatGptProviderCommands')
+        const factory = entry.runtimeSubscriptionClient({
+          secrets: deps.secrets,
+          fetch: deps.fetch,
+          configFile,
+          catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+          openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
+          callbackText: () => UI_TEXT.acpChatGpt.callback,
+        })
+        if ((await factory.accountId()) !== undefined) return { state: 'ready' }
+      }
+    } catch (error: unknown) {
+      if (isStoreUnavailable(error)) {
+        metaKeyProbe.state = 'storeDown'
+        return { state: 'signedOut', message: UI_TEXT.acpStoreDown, storeDown: true }
+      }
+      return { state: 'unavailable', message: UI_TEXT.acpChatGpt.failure }
+    }
+    // A plan model's refusal names its own sign-in, never the Meta key. The
+    // name comes from the resolved hint (the configured default included),
+    // not the flag: without `--model` the flag is empty here (Codex on PR
+    // #227).
+    let refusal = UI_TEXT.acpNoStoredKey
+    if (hint !== undefined && isPlanModelRef(hint)) {
+      if (hint.startsWith('chatgpt/')) refusal = UI_TEXT.acpChatGpt.states['signed-out']
+      // The Copilot dispatch adapter is VS Code's Language Model API
+      // (src/host/providers/copilotClient.ts): this terminal cannot reach that
+      // grant, so the refusal names its source instead of offering a sign-in
+      // no terminal can perform.
+      else if (hint.startsWith('copilot/')) refusal = UI_TEXT.planUi.copilotTerminalGrant
+    }
+    return { state: 'signedOut', message: refusal }
   }
 
   const modelApiHostFor = async (cwd: string): Promise<AgentHost> => {
@@ -711,6 +849,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       paid,
       edits,
       assertWorkspaceCurrent,
+      metaKeyProbe,
     )
     modelApiHosts.set(cwd, { manager, identity: key })
     return await manager.ensureHost()
@@ -734,8 +873,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     },
     backend: {
       kind: deps.options.backend,
-      readiness: (isRecheck) =>
-        deps.options.backend === 'modelApi' ? modelApiReadiness() : museCodeReadiness(isRecheck),
+      readiness: (isRecheck, modelHint) =>
+        deps.options.backend === 'modelApi'
+          ? modelApiReadiness(modelHint)
+          : museCodeReadiness(isRecheck),
       hostFor,
       // F91: the folder host's Linux capability probe, measured at its
       // start; the editor hears it as a session update, the model as a tail

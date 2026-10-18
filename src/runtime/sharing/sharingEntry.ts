@@ -1,11 +1,9 @@
-import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { userInfo } from 'node:os'
 import { createInterface } from 'node:readline/promises'
 import { handoffResourceFile } from '../../core/resources/launcher'
 import { isResourcePaused } from '../../core/resources/launch'
-import * as z from 'zod/mini'
 import { PromptStore } from '../../core/prompts/promptStore'
 import { usePrompt } from '../../core/prompts/promptLibrary'
 import { createChatSharePrivacy } from '../../core/sharing/privacy'
@@ -17,13 +15,17 @@ import { writeFileAtomically } from '../../host/fsAtomic'
 import { agentDataFolder, type DataFolderInput } from '../dataFolder'
 import { SharingCommands, runSharingCommand, type SharePreview, type SharingUi } from './commands'
 import type { SharingCommand } from './args'
-import { createAcpSharing, acpSharingCommands, type AcpSharingPort } from '../../acp/sharing'
+import {
+  createAcpSharing,
+  acpSharingCommands,
+  sharingResultText,
+  type AcpSharingPort,
+} from '../../acp/sharing'
 import {
   UI_TEXT,
   PROMPT_LIMITS,
   PROMPT_FILE_MODE,
   PROMPT_STDIN_TIMEOUT_MS,
-  SETTING_DEFAULTS,
   EXEC_EXIT,
 } from '../../shared/constants'
 import { redactSecrets } from '../../shared/redact'
@@ -36,21 +38,7 @@ export interface RuntimeSharingPorts {
   readonly registeredSecrets?: () => Promise<readonly string[]>
   readonly read: (cwd: string, sessionId: string, exportedAt: string) => Promise<ChatShareSource>
 }
-const policySchema = z.object({ 'museSpark.confidentialWorkspace': z.optional(z.boolean()) })
-/** Read the existing workspace setting afresh at each admission; unavailable policy refuses. */
-export function runtimeSharingConfidential(cwd: string): boolean | undefined {
-  try {
-    return (
-      policySchema.parse(
-        JSON.parse(readFileSync(path.join(cwd, '.vscode', 'settings.json'), 'utf8')),
-      )['museSpark.confidentialWorkspace'] ?? SETTING_DEFAULTS.confidentialWorkspace
-    )
-  } catch (error: unknown) {
-    return error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      ? SETTING_DEFAULTS.confidentialWorkspace
-      : undefined
-  }
-}
+import { runtimeSharingConfidential } from './confidential'
 
 function markers(content: string) {
   return Array.from(
@@ -178,34 +166,73 @@ async function question(title: string, signal: AbortSignal) {
     return await input.question(`${title}: `, { signal })
   } finally {
     input.close()
+    // A TTY stdin left flowing keeps the event loop alive after the answer,
+    // so the process would never exit. Pause it deterministically here; the
+    // next question's interface resumes it.
+    process.stdin.pause()
   }
 }
 
-function terminalUi(): SharingUi {
+/** A terminal `(y/N)` answer: y or yes in any case, with surrounding space ignored. */
+export function isAffirmativeAnswer(answer: string | undefined): boolean {
+  if (answer === undefined) return false
+  const normalized = answer.trim().toLowerCase()
+  return normalized === 'y' || normalized === 'yes'
+}
+
+function terminalUi(
+  scripted?: {
+    readonly vars: ReadonlyMap<string, string>
+    readonly confirmed: boolean
+  },
+  isSilent = false,
+): SharingUi {
   return {
     showPreview: (preview, signal) => {
       signal.throwIfAborted()
-      process.stdout.write(`${preview.content}\n`)
+      // JSON mode keeps stdout to the single result value: the structured
+      // result already carries the preview (Codex on PR #213).
+      if (!isSilent) process.stdout.write(`${preview.content}\n`)
       return Promise.resolve()
     },
     ...(process.stdin.isTTY && {
       confirmShare: async (preview: SharePreview, signal: AbortSignal) =>
-        (await question(`${UI_TEXT.shareConfirm} (y/N)`, signal)) === 'y'
+        isAffirmativeAnswer(await question(`${UI_TEXT.shareConfirm} (y/N)`, signal))
           ? { step: 'confirmed', previewId: preview.previewId, request: preview.request }
           : undefined,
     }),
     preparePrompt: async (prompt, signal) => {
-      process.stdout.write(
-        `${UI_TEXT.promptUntrusted}\n${prompt.body}\n${UI_TEXT.promptVariables}: ${prompt.variables.map((variable) => variable.name).join(', ')}\n`,
-      )
-      if ((await question(`${UI_TEXT.promptInsert} (y/N)`, signal)) !== 'y') return
+      // Only an imported prompt is untrusted; a prompt the person saved
+      // themselves must not be called imported. The single confirmation
+      // happens after the variables, at the review below.
+      if (!isSilent) {
+        if (prompt.untrusted) process.stdout.write(`${UI_TEXT.promptUntrusted}\n`)
+        process.stdout.write(
+          `${prompt.body}\n${UI_TEXT.promptVariables}: ${prompt.variables.map((variable) => variable.name).join(', ')}\n`,
+        )
+      }
       let prepared: string | undefined
       await usePrompt(prompt, {
-        valueFor: (variable) => question(`${UI_TEXT.promptVariables}: ${variable.name}`, signal),
+        valueFor: (variable) => {
+          // A script's --var answers without a keyboard; anything else
+          // still asks the terminal, and a script without the value stops
+          // at the cancelled review below instead of hanging.
+          const scriptedValue = scripted?.vars.get(variable.name)
+          return scriptedValue === undefined
+            ? question(`${UI_TEXT.promptVariables}: ${variable.name}`, signal)
+            : Promise.resolve(scriptedValue)
+        },
         review: async (text) => {
           signal.throwIfAborted()
-          process.stdout.write(`${text}\n`)
-          return (await question(`${UI_TEXT.promptInsert} (y/N)`, signal)) === 'y'
+          if (!isSilent) process.stdout.write(`${text}\n`)
+          // The terminal prints the prepared text: nothing is inserted
+          // into an editor, so the review says print, not insert. A
+          // script confirms explicitly with --confirm after previewing
+          // the same text in an earlier run without it.
+          return (
+            scripted?.confirmed === true ||
+            isAffirmativeAnswer(await question(`${UI_TEXT.promptPrintConfirm} (y/N)`, signal))
+          )
         },
         insert: (text) => {
           signal.throwIfAborted()
@@ -240,7 +267,14 @@ export async function runRuntimeSharing(
       cwd: process.cwd(),
       isActive: () => !controller.signal.aborted,
       signal: controller.signal,
-      ui: terminalUi(),
+      ui: terminalUi(
+        command.command === 'prompts' && command.action === 'use'
+          ? { vars: command.vars, confirmed: command.confirmed }
+          : undefined,
+        // JSON mode keeps stdout to the single result value; interactive
+        // questions ask on stderr (Codex on PR #213).
+        command.json,
+      ),
       readBody: async () => {
         controller.signal.addEventListener('abort', cancelRead, { once: true })
         const deadline = setTimeout(stop, PROMPT_STDIN_TIMEOUT_MS)
@@ -262,7 +296,14 @@ export async function runRuntimeSharing(
         }
       },
     })
-    process.stdout.write(`${JSON.stringify(result)}\n`)
+    // Scripts opt into JSON; people still need the saved id, list, prepared
+    // text and cancellation reason. A preview is not a command result.
+    if (command.json) process.stdout.write(`${JSON.stringify(result)}\n`)
+    else {
+      const text = result.kind === 'prepared' ? result.text : sharingResultText(result)
+      const output = result.kind === 'cancelled' ? process.stderr : process.stdout
+      output.write(`${text}\n`)
+    }
     return result.exitCode
   } catch (error: unknown) {
     if (isResourcePaused(error)) {
@@ -314,3 +355,5 @@ export function runtimeAcpSharing(
     },
   }
 }
+
+export { runtimeSharingConfidential } from './confidential'

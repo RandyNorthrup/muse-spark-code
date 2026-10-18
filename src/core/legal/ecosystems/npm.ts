@@ -1,6 +1,6 @@
 import { fill, plural } from '../../../shared/l10n/text'
 import { UI_TEXT } from '../../../shared/constants'
-import type { InstalledLicenseMetadata } from '../dependencies'
+
 import { LEGAL_HEADER_LINE_WINDOW } from '../../../shared/constants'
 import { compareLegalText } from '../files'
 // npm, pnpm and Yarn evidence (M97, PLAN.md D76): `package.json`
@@ -14,7 +14,14 @@ import type {
   LegalDependencyScope,
   ManifestLicenseDeclaration,
 } from '../dependencies'
-import { dependency, parseJson, recordOf } from '../dependencies'
+import {
+  dependency,
+  parseJson,
+  recordOf,
+  countIncludedDependencies,
+  type InstalledLicenseMetadata,
+  type LegalDependencyAdmission,
+} from '../dependencies'
 import type { LegalFileSnapshot } from '../files'
 import { baseNameOf, dirNameOf } from '../files'
 
@@ -91,18 +98,17 @@ function readNpmLock(
   snapshot: LegalFileSnapshot,
   file: string,
   incomplete: string[],
-): { readonly dependencies: readonly LegalDependency[]; readonly withoutLicense: number } {
+): { readonly dependencies: readonly LegalDependency[] } {
   const text = snapshot.readFile(file)
   const lock = text === undefined ? undefined : recordOf(parseJson(text))
   const found: LegalDependency[] = []
-  let withoutLicense = 0
   if (lock === undefined) {
     incomplete.push(fill(UI_TEXT.legalScanner.m171, { v0: file }))
-    return { dependencies: found, withoutLicense }
+    return { dependencies: found }
   }
   if (!['1', '2', '3'].includes(String(lock['lockfileVersion']))) {
     incomplete.push(fill(UI_TEXT.legalScanner.m172, { v0: file }))
-    return { dependencies: [], withoutLicense: 0 }
+    return { dependencies: [] }
   }
   const packages = recordOf(lock['packages'])
   if (packages !== undefined) {
@@ -123,9 +129,6 @@ function readNpmLock(
         continue
       }
       const license = stringField(entry, 'license')
-      if (license === undefined) {
-        withoutLicense += 1
-      }
       let scope: LegalDependencyScope = 'production'
       if (Object.entries(entry).some(([field, value]) => field === 'dev' && value === true))
         scope = 'development'
@@ -133,7 +136,7 @@ function readNpmLock(
 
       found.push(dependency('npm', file, name, { version, scope, licenseRaw: license }))
     }
-    return { dependencies: found, withoutLicense }
+    return { dependencies: found }
   }
   const visitLegacy = (entries: Record<string, unknown>, depth: number): void => {
     if (depth > LEGAL_HEADER_LINE_WINDOW) {
@@ -146,7 +149,6 @@ function readNpmLock(
       if (entry === undefined) continue
       const version = stringField(entry, 'version')
       const license = stringField(entry, 'license')
-      if (license === undefined) withoutLicense += 1
       found.push(dependency('npm', file, name, { version, scope: 'unknown', licenseRaw: license }))
       const children = recordOf(entry['dependencies'])
       if (children !== undefined) visitLegacy(children, depth + 1)
@@ -155,7 +157,7 @@ function readNpmLock(
   const legacy = recordOf(lock['dependencies'])
   if (legacy !== undefined) visitLegacy(legacy, 0)
 
-  return { dependencies: found, withoutLicense }
+  return { dependencies: found }
 }
 
 interface YarnEntry {
@@ -293,7 +295,11 @@ function licenseFieldOf(manifest: Record<string, unknown>): string | undefined {
  * without a resolving lock, and lock entries without license or installed
  * metadata, become `not checked` coverage entries, never silent gaps.
  */
-export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
+export function readNpm(
+  snapshot: LegalFileSnapshot,
+  isDependencyIncluded?: LegalDependencyAdmission,
+): EcosystemResult {
+  const isIncluded = isDependencyIncluded ?? (() => true)
   const incomplete: string[] = []
   const manifests: LegalDependency[] = []
   const projectLicenses: ManifestLicenseDeclaration[] = []
@@ -338,18 +344,16 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
     )
     .toSorted((a, b) => compareLegalText(a, b))
   for (const file of listed7) {
-    const { dependencies, withoutLicense } = readNpmLock(snapshot, file, incomplete)
+    // A lock entry without licence data stays a dependency with an unknown
+    // licence; the dependency reader names each one that ships (or every
+    // one when distribution is unknown), so no aggregate note here.
+    const { dependencies } = readNpmLock(snapshot, file, incomplete)
     for (const dep of dependencies) {
       lockedNames.add(dep.name)
       const identity = `${dep.name}@${dep.version ?? ''}:${file}:${dep.licenseRaw ?? ''}`
       if (!locked.has(identity)) {
         locked.set(identity, dep)
       }
-    }
-    if (withoutLicense > 0) {
-      incomplete.push(
-        plural(UI_TEXT.legalScanner.m174, withoutLicense, { v0: withoutLicense, v1: file }),
-      )
     }
   }
 
@@ -360,11 +364,6 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
     const entries = readYarnLock(snapshot, file)
     retainEntries(entries, file)
     if (entries.length === 0) incomplete.push(fill(UI_TEXT.legalScanner.m175, { v0: file }))
-    if (entries.length > 0) {
-      incomplete.push(
-        plural(UI_TEXT.legalScanner.m176, entries.length, { v0: file, v1: entries.length }),
-      )
-    }
   }
 
   const listed9 = snapshot.files
@@ -377,14 +376,6 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
       continue
     }
     retainEntries(dependencies, file)
-    if (dependencies.length > 0) {
-      incomplete.push(
-        plural(UI_TEXT.legalScanner.m176, dependencies.length, {
-          v0: file,
-          v1: dependencies.length,
-        }),
-      )
-    }
   }
 
   const installed = readInstalled(snapshot)
@@ -416,14 +407,15 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
             licenseRaw: present.licenseRaw,
           }),
         )
-        incomplete.push(
-          fill(UI_TEXT.legalScanner.m178, {
-            v0: dep.name,
-            v1: dep.version ?? '',
-            v2: dep.evidenceFile,
-            v3: present.file,
-          }),
-        )
+        if (isIncluded(dep))
+          incomplete.push(
+            fill(UI_TEXT.legalScanner.m178, {
+              v0: dep.name,
+              v1: dep.version ?? '',
+              v2: dep.evidenceFile,
+              v3: present.file,
+            }),
+          )
       }
     }
   }
@@ -446,7 +438,20 @@ export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
     }
   }
 
-  const unresolved = manifests.filter((dep) => !lockedNames.has(dep.name)).length
+  for (const file of [...listed8, ...listed9]) {
+    const missing = countIncludedDependencies(
+      dependencies,
+      isIncluded,
+      (dep) => dep.evidenceFile === file && dep.licenseRaw === undefined,
+    )
+    if (missing > 0)
+      incomplete.push(plural(UI_TEXT.legalScanner.m176, missing, { v0: file, v1: missing }))
+  }
+  const unresolved = countIncludedDependencies(
+    manifests,
+    isIncluded,
+    (dep) => !lockedNames.has(dep.name),
+  )
   if (unresolved > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m179, unresolved, { v0: unresolved }))
   }

@@ -85,7 +85,6 @@ import {
   AUTO_REVIEW_ROW_TOOL,
   AUTO_REVIEWER_RECENT_CALLS,
   BACKGROUND_INITIATOR_USER,
-  BASE64_DATA_URL_OVERHEAD_CHARS,
   BROWSER_CHECK_SUBJECT_KIND,
   BROWSER_CHECK_WIDEN_SUBJECT_KIND,
   type CheckCommandSetting,
@@ -118,7 +117,6 @@ import {
   HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
   MCP_ELICITATION_TIMEOUT_MS,
-  MAX_ENCODED_MEDIA_CHARS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MEMORY_INDEX_FILE,
   type MemoryScope,
@@ -228,6 +226,7 @@ import {
   type SessionHistoryOutcome,
   type SessionMcpHttpServer,
   type SessionListEvent,
+  sessionRecordsPage,
   type SessionPage,
   type SessionRecord,
   type SkillSummary,
@@ -308,6 +307,7 @@ import type {
 } from './foreignHooksEntry'
 import type * as HookRuntime from './hookRuntimeEntry'
 import type * as ModelHooksRuntime from './modelApiHooksEntry'
+import { isCredentialStoreDown } from '../../../host/auth/credentialStore'
 import {
   type ConfirmedModelRequest,
   MissingApiKeyError,
@@ -378,6 +378,8 @@ import {
   afterAgentThoughtFields,
   beforeToolSelectionFields,
   createFileChangedThrottle,
+  dispatchElicitationHooks,
+  dispatchElicitationResultHooks,
   emptyExtensionDispatch,
   extensionHookPayload,
   fileChangedFields,
@@ -388,7 +390,9 @@ import {
   isFileChangedWatched,
   permissionDeniedFields,
   taskFields,
+  teammateIdleFields,
   userPromptExpansionFields,
+  type ElicitationHookFire,
   type ExtensionHookContext,
   type ExtensionHookDefinition,
   type ExtensionHookDispatch,
@@ -629,9 +633,17 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly client: ProviderClient
   readonly models?: ModelResolver | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
+  /** The gate's Meta-key probe says the credential store itself is dead. */
+  readonly isCredentialStoreDown?: (() => boolean) | undefined
   readonly autoCompaction?: (() => boolean) | undefined
   /** Lane E's bounded evaluation override; production uses the certified latch. */
   readonly autoCompactionEvaluated?: (() => boolean) | undefined
+  /**
+   * The context-full stop in the installed language. The editor names the
+   * manual remedies; ACP names the approval, exec the opt-in flag and the
+   * run budget. Absent, the shared manual sentence is used.
+   */
+  readonly contextWindowFullText?: string | undefined
   readonly autoCompactModel?: ((modelId: string) => AutoCompactModel | undefined) | undefined
   /** D78 owns price/budget consent and the ledger; absence fails closed. */
   readonly admitAutoCompaction?:
@@ -787,8 +799,6 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
    * the operating system's temp dir is the default.
    */
   readonly shellSidecarDir?: string | undefined
-  /** A smaller replay cap for focused media-budget verification. */
-  readonly mediaBudgetMaxEncodedChars?: number
   /** W installs the portable lazy media implementation; absent preserves existing request bytes. */
   readonly createMediaReplay?: (sessionId: string) => MediaReplayPort
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
@@ -965,15 +975,10 @@ interface PendingReadFile {
   readonly notDelivered: string
   readonly lead: InputContentPart
   readonly media: InputContentPart
-  readonly encodedChars: number
   readonly slots: number
 }
 
 type FunctionImagePart = Extract<FunctionOutputPart, { readonly type: 'input_image' }>
-
-function turnMediaEncodedChars(part: ImagePart | DocumentPart): number {
-  return BASE64_DATA_URL_OVERHEAD_CHARS + part.mediaType.length + part.base64Data.length
-}
 
 function turnMediaSlots(part: ImagePart | DocumentPart): number {
   return part.type === 'image'
@@ -1592,8 +1597,9 @@ class ContextOverflowError extends Error {
     public readonly kind: ContextOverflowKind,
     public readonly modelId: string,
     public readonly contextTokens: number | undefined,
+    message?: string,
   ) {
-    super(UI_TEXT.contextWindowFull)
+    super(message ?? UI_TEXT.contextWindowFull)
     this.name = 'ContextOverflowError'
   }
 }
@@ -2896,7 +2902,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       deps.permissionSettings ?? (() => NO_PERMISSION_SETTINGS),
       deps.platform,
     )
-    this.budget = new MediaBudget(deps.mediaBudgetMaxEncodedChars)
+    this.budget = new MediaBudget()
     this.media = deps.createMediaReplay?.(sessionId)
     if (agent !== undefined) {
       this.effort = agent.effort
@@ -3472,8 +3478,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     matcherValue: string | undefined,
     signal: AbortSignal | undefined,
     shouldReplayContexts = true,
+    onlySources?: readonly ExtensionHookDefinition['source'][],
   ): Promise<ExtensionHookDispatch | undefined> {
-    const hooks = this.enabledExtensionHooks()
+    const enabled = this.enabledExtensionHooks()
+    const hooks =
+      onlySources === undefined
+        ? enabled
+        : enabled.filter((hook) => onlySources.includes(hook.source))
     if (hooks.length === 0) {
       return undefined
     }
@@ -5530,7 +5541,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       window !== undefined &&
       Math.floor(inputBytes / MODEL_API_CONTEXT_BYTES_PER_TOKEN) > window
     ) {
-      throw new ContextOverflowError('preflight', body.model, window)
+      throw new ContextOverflowError(
+        'preflight',
+        body.model,
+        window,
+        this.deps.contextWindowFullText,
+      )
     }
     return model
   }
@@ -6268,7 +6284,12 @@ export class ModelApiSession implements ScheduledAgentSession {
           : undefined
       if (overflow !== undefined) {
         this.noteUsage(usage, chargedGoalId)
-        throw new ContextOverflowError(overflow, body.model, model?.contextTokens)
+        throw new ContextOverflowError(
+          overflow,
+          body.model,
+          model?.contextTokens,
+          this.deps.contextWindowFullText,
+        )
       }
       this.markReadFileMediaDelivered(turnId, body.input)
       this.media?.delivered(body.input)
@@ -6292,7 +6313,12 @@ export class ModelApiSession implements ScheduledAgentSession {
           error,
         }) !== undefined
       ) {
-        throw new ContextOverflowError('error', body.model, model?.contextTokens)
+        throw new ContextOverflowError(
+          'error',
+          body.model,
+          model?.contextTokens,
+          this.deps.contextWindowFullText,
+        )
       }
       throw error
     } finally {
@@ -7191,7 +7217,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const seam =
       this.deps.isHooksEnabled?.() === false
         ? ALLOW_ELICITATION_SEAM
-        : (this.deps.elicitationHooks ?? ALLOW_ELICITATION_SEAM)
+        : (this.deps.elicitationHooks ?? this.defaultElicitationSeam())
     const checked = forms.validateElicitationSchema(parsed.requestedSchema)
     if (!checked.ok) {
       this.deps.log.warn(`MCP server ${server} elicitation declined: ${checked.reason}`)
@@ -7298,6 +7324,33 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
+   * The default Elicitation seam (M91 D70): the configured extension hooks
+   * run, since the host injects no seam of its own. The scope grouping
+   * (policy hooks decline only, user hooks answer and alone see values)
+   * lives in `dispatchElicitationHooks`/`dispatchElicitationResultHooks`;
+   * this binds them to the session's hook dispatch. There is no turn, so
+   * hook contexts drop and hook messages surface as notices.
+   */
+  private defaultElicitationSeam(): ElicitationHookSeam {
+    const fire: ElicitationHookFire = async (event, fields, matcherValue, onlySources) =>
+      await this.fireExtensionHooks(
+        event,
+        undefined,
+        fields,
+        matcherValue,
+        undefined,
+        true,
+        onlySources,
+      )
+    return {
+      fireElicitation: async (input) => await dispatchElicitationHooks(fire, input),
+      fireElicitationResult: async (input) => {
+        await dispatchElicitationResultHooks(fire, input)
+      },
+    }
+  }
+
+  /**
    * The ElicitationResult hook run (observation) and the server's answer. A
    * project hook sees the field names and the action only, never values.
    */
@@ -7310,8 +7363,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     const seam =
       this.deps.isHooksEnabled?.() === false
         ? ALLOW_ELICITATION_SEAM
-        : (this.deps.elicitationHooks ?? ALLOW_ELICITATION_SEAM)
-    await seam.fireElicitationResult({ server, fieldNames: [...fieldNames], action })
+        : (this.deps.elicitationHooks ?? this.defaultElicitationSeam())
+    await seam.fireElicitationResult({
+      server,
+      fieldNames: [...fieldNames],
+      action,
+      ...(content !== undefined && { values: content }),
+    })
     this.deps.log.info(describeElicitationForLog(server, fieldNames, action))
     return action === 'accept' ? { action, content: { ...content } } : { action }
   }
@@ -7573,7 +7631,6 @@ export class ModelApiSession implements ScheduledAgentSession {
         notDelivered: file.notDelivered,
         lead,
         media: sent,
-        encodedChars: turnMediaEncodedChars(file.part),
         slots: turnMediaSlots(file.part),
       })
       content.push(lead, sent)
@@ -7653,7 +7710,6 @@ export class ModelApiSession implements ScheduledAgentSession {
         notDelivered: file.notDelivered,
         lead,
         media: adopted,
-        encodedChars: 0,
         slots: 1,
       })
       return [lead, adopted]
@@ -7763,15 +7819,16 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
   }
 
-  /** Media awaiting the next request: tool outputs, read files and accepted steering. */
-  private queuedMediaUsage(): { readonly chars: number; readonly slots: number } {
+  /**
+   * Media slots awaiting the next request: tool outputs, read files and
+   * accepted steering. No character tally: the record carries no aggregate
+   * character budget, so the platform refuses what it cannot take.
+   */
+  private queuedMediaSlots(): number {
     const pending = this.media?.pending(this.replay.map((entry) => entry.item)) ?? []
     const managed = new Set(pending)
-    const usage = this.budget.usage(pending)
-    let chars = usage.chars
-    let slots = usage.slots
+    let slots = this.budget.slotsUsed(pending)
     for (const file of this.readFiles) {
-      chars += turnMediaEncodedChars(file.part)
       slots += turnMediaSlots(file.part)
     }
     // Queued file-id media carries no bytes and one media slot each.
@@ -7780,68 +7837,57 @@ export class ModelApiSession implements ScheduledAgentSession {
       const pending = this.readFileMessages.get(replay) ?? []
       for (const file of pending) {
         if (managed.has(file.media)) continue
-        chars += file.encodedChars
         slots += file.slots
       }
     }
     for (const images of this.pendingOutputMedia.values()) {
-      for (const image of images) {
-        chars += image.image_url.length
-        slots += 1
-      }
+      slots += images.length
     }
     const steers = this.active?.steered ?? []
     for (const steer of steers) {
       if (this.media !== undefined) {
-        const usage = this.budget.usage(this.contentParts(steer.parts))
-        chars += usage.chars
-        slots += usage.slots
+        slots += this.budget.slotsUsed(this.contentParts(steer.parts))
         continue
       }
       for (const part of steer.parts) {
         if (part.type !== 'image' && part.type !== 'file') {
           continue
         }
-        chars += turnMediaEncodedChars(part)
         slots += turnMediaSlots(part)
       }
     }
-    return { chars, slots }
+    return slots
   }
 
-  private canQueueMedia(chars: number, slots: number): boolean {
-    const queued = this.queuedMediaUsage()
-    const limit = this.deps.mediaBudgetMaxEncodedChars ?? MAX_ENCODED_MEDIA_CHARS
-    return queued.chars + chars <= limit && queued.slots + slots <= MODEL_API_MEDIA_PER_REQUEST
+  private canQueueMedia(slots: number): boolean {
+    return this.queuedMediaSlots() + slots <= MODEL_API_MEDIA_PER_REQUEST
   }
 
   /** Reserve all current-batch visual outputs before their tool row reports success. */
   private canQueueToolMedia(outcome: ToolOutcome): boolean {
     const newImages = outcome.outputParts?.filter((part) => part.type === 'input_image') ?? []
-    const chars =
-      (outcome.visibleFile === undefined ? 0 : turnMediaEncodedChars(outcome.visibleFile.part)) +
-      newImages.reduce((total, image) => total + image.image_url.length, 0)
     const slots =
       (outcome.visibleFile === undefined ? 0 : turnMediaSlots(outcome.visibleFile.part)) +
       newImages.length
-    return this.canQueueMedia(chars, slots)
+    return this.canQueueMedia(slots)
   }
 
   private canQueueSteeredMedia(parts: readonly TurnPart[]): boolean {
     if (this.media !== undefined) {
-      this.media.assertPendingFits(this.contentParts(parts), this.budget, this.queuedMediaUsage())
+      // The steered media must fit beside what is already queued for the
+      // next request, not only on its own (RVNOLIMITS4: the aggregate
+      // character tally went, the provider's slot count stays).
+      this.media.assertPendingFits(this.contentParts(parts), this.budget, this.queuedMediaSlots())
       return true
     }
-    let chars = 0
     let slots = 0
     for (const part of parts) {
       if (part.type !== 'image' && part.type !== 'file') {
         continue
       }
-      chars += turnMediaEncodedChars(part)
       slots += turnMediaSlots(part)
     }
-    return slots === 0 || this.canQueueMedia(chars, slots)
+    return slots === 0 || this.canQueueMedia(slots)
   }
 
   /**
@@ -9120,7 +9166,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const verdict = await this.fireExtensionHooks(
       'TeammateIdle',
       undefined,
-      { name: child.id, siblings_running: siblings },
+      teammateIdleFields({ name: child.id, siblingsRunning: siblings }),
       child.id,
       undefined,
     )
@@ -12934,8 +12980,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (!this.canQueueToolMedia(outcome)) {
         outcome = {
           output: `Error: ${MODEL_API_MODEL_TEXT.toolMediaBudgetExceeded}`,
-          visibleOutput: UI_TEXT.mediaTotalTooLarge,
-          failureReason: UI_TEXT.mediaTotalTooLarge,
+          visibleOutput: UI_TEXT.documentsOverBudget,
+          failureReason: UI_TEXT.documentsOverBudget,
         }
       }
       let status = COMPLETED
@@ -14197,12 +14243,15 @@ export class ModelApiSession implements ScheduledAgentSession {
         ) {
           this.outcomeStopReason = 'budget'
         }
-        reason = error instanceof ChildTaskRefusedError ? error.visible : describe(error)
+        // A step that needs a stored key names the dead store instead of
+        // claiming no key is stored; anything else reads as it came.
+        if (isCredentialStoreDown(error)) reason = UI_TEXT.acpStoreDown
+        else reason = error instanceof ChildTaskRefusedError ? error.visible : describe(error)
         if (this.isSubagent && this.outcomeStopReason === 'budget') terminal = COMPLETED
         if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
         } else if (error instanceof ContextOverflowError) {
-          reason = UI_TEXT.contextWindowFull
+          reason = this.deps.contextWindowFullText ?? UI_TEXT.contextWindowFull
           errorKind = 'context_overflow'
           this.deps.onContextOverflow?.({
             sessionId: this.sessionId,
@@ -14886,27 +14935,41 @@ export class ModelApiSession implements ScheduledAgentSession {
           throw error
         }
       }
-      const outcome = await this.runCompaction(turn.abort.signal, guard, false, settle)
-      assertCurrent()
+      // Currency is decided inside the apply step: the summary and the
+      // todo/goal continuation land together with no await between them, or
+      // the old history stands untouched. No check after the await can
+      // discard a success anymore.
+      const outcome = await this.runCompaction(turn.abort.signal, guard, false, settle, {
+        isCurrent: () => {
+          try {
+            assertCurrent()
+            return true
+          } catch {
+            return false
+          }
+        },
+        onApplied: () => {
+          this.todos = todos
+          this.emit({ type: 'todoChanged', items: [...todos] })
+          this.replay.push({
+            turnId: turn.turnId,
+            item: {
+              type: 'message',
+              role: 'user',
+              content: [
+                {
+                  type: 'input_text',
+                  text: `${MODEL_API_MODEL_TEXT.autoCompactionFollowup}\n${JSON.stringify({ todos, goal: this.goal })}`,
+                },
+              ],
+            },
+          })
+        },
+      })
       if (outcome.status !== ACCEPTED) {
         this.autoCompact.failed()
         return false
       }
-      this.todos = todos
-      this.emit({ type: 'todoChanged', items: [...todos] })
-      this.replay.push({
-        turnId: turn.turnId,
-        item: {
-          type: 'message',
-          role: 'user',
-          content: [
-            {
-              type: 'input_text',
-              text: `${MODEL_API_MODEL_TEXT.autoCompactionFollowup}\n${JSON.stringify({ todos, goal: this.goal })}`,
-            },
-          ],
-        },
-      })
       this.autoCompact.succeeded(decision, this.autoCompact.summaryTokens ?? summaryTokens)
       return true
     } catch (error: unknown) {
@@ -14917,7 +14980,26 @@ export class ModelApiSession implements ScheduledAgentSession {
       )
         throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
       if (isAutoCompactionNotAuthorizedError(error)) return false
+      if (error instanceof AbortedError && !isAbortRequested(turn.abort.signal)) {
+        // The turn moved on (model switch) without stopping: stand down
+        // gracefully with the history untouched, like the apply gate does.
+        return false
+      }
       if (isAbortRequested(turn.abort.signal) || error instanceof AbortedError) throw error
+      // A money refusal is terminal at once: the reserve threw before any
+      // POST, so no repair ran and nothing was sent. Name the budget and
+      // what to do in one fixed sentence, not a generic failure.
+      if (
+        error instanceof Error &&
+        [UI_TEXT.paidDailyStopped, UI_TEXT.paidDailyLedgerUnavailable].includes(error.message)
+      ) {
+        this.emit({
+          type: 'backendNotice',
+          level: 'warning',
+          text: UI_TEXT.autoCompactionBudgetRefused,
+        })
+        return false
+      }
       this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.autoCompactionFailed })
       return false
     } finally {
@@ -14934,6 +15016,19 @@ export class ModelApiSession implements ScheduledAgentSession {
       usage: Usage | undefined,
       outcome: 'returned' | 'uncertain' | 'rate-limited',
     ) => void | Promise<void>,
+    apply?: {
+      /**
+       * Decided synchronously the moment the summary is ready: false
+       * discards the paid summary and leaves the old history untouched
+       * (its settled charge stands, already tallied at send).
+       */
+      readonly isCurrent: () => boolean
+      /**
+       * Runs synchronously with the history replacement, with no await
+       * between the two, so a summary never lands without its continuation.
+       */
+      readonly onApplied?: () => void
+    },
   ): Promise<CompactOutcome> {
     if (this.teamModeForRequest() === 'team') await this.prepareTeamRuntime()
     if (!this.hasCompactableHistory(isSummaryFork)) {
@@ -15031,7 +15126,15 @@ export class ModelApiSession implements ScheduledAgentSession {
         error instanceof HookStoppedError ||
         isAutoCompactionNotAuthorizedError(error) ||
         error instanceof SessionBudgetExceededError ||
-        (error instanceof Error && error.message === UI_TEXT.sessionBudgetStoreUnavailable),
+        // A stale turn (Stop, setting off, model switch) never compacts
+        // through repairs: genuine aborts already rethrow on the signal.
+        error instanceof AbortedError ||
+        (error instanceof Error &&
+          [
+            UI_TEXT.sessionBudgetStoreUnavailable,
+            UI_TEXT.paidDailyStopped,
+            UI_TEXT.paidDailyLedgerUnavailable,
+          ].includes(error.message)),
       notice: (text) => {
         this.emit({ type: 'backendNotice', level: 'warning', text })
       },
@@ -15072,6 +15175,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     })
     if (signal.aborted) throw new AbortedError()
     if (summaryBody === undefined) throw new Error(UI_TEXT.compactionEmpty)
+    // The turn's currency is decided first, synchronously: a stale turn
+    // (Stop, setting off, model switch during the summary request) keeps
+    // its old history, and the paid summary is discarded.
+    if (apply !== undefined && !apply.isCurrent())
+      return { status: NOOP, reason: UI_TEXT.compactionStopped }
     const recorded = RecordingScope.build(recordProjection, {
       inputs: [
         {
@@ -15105,6 +15213,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       },
       ...tail,
     )
+    // No await sits between the replacement and this continuation: a new
+    // history always carries it, never half-applied.
+    apply?.onApplied?.()
     this.compactionPrefix = undefined
     const summaryEntry = this.replay[0]
     if (summaryEntry !== undefined) {
@@ -15503,11 +15614,6 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (!listedFiles.includes(relativePath)) return
     const verdict = this.fileChangedThrottle.check(relativePath, this.deps.now())
     if (verdict !== 'fire') {
-      if (verdict === 'capped') {
-        this.deps.log.warn(
-          `Model API extension hooks: FileChanged capped for ${relativePath}; resume in a minute`,
-        )
-      }
       return
     }
     await this.fireExtensionHooks(
@@ -15581,11 +15687,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     try {
       if (!this.canQueueSteeredMedia(parts)) {
-        return Promise.reject(new SteerRefusedError(UI_TEXT.mediaTotalTooLarge))
+        return Promise.reject(new SteerRefusedError(UI_TEXT.documentsOverBudget))
       }
     } catch (error) {
       return Promise.reject(
-        new SteerRefusedError(error instanceof Error ? error.message : UI_TEXT.mediaTotalTooLarge),
+        new SteerRefusedError(error instanceof Error ? error.message : UI_TEXT.documentsOverBudget),
       )
     }
     if (
@@ -17335,6 +17441,74 @@ export class ModelApiHost implements AgentHost {
     if (store === undefined) {
       return isStrict ? Promise.reject(new Error(UI_TEXT.historyUnavailable)) : Promise.resolve()
     }
+    // No account identity pinned yet: a keyless session's first
+    // provider-backed step resolves it before its persistence lands
+    // (persistUnowned). A strict save with no identity to resolve refuses
+    // as unsigned in.
+    return this.accountIdValue === undefined
+      ? this.persistUnowned(session, store, isStrict)
+      : this.persistOwned(session, store, isStrict)
+  }
+
+  /**
+   * A touch on a host whose identity the first provider-backed step has not
+   * pinned yet (a session created keyless, then prompted at once): resolve
+   * and pin the provider identity first, so that step's persistence lands
+   * under its owner instead of writing nothing (Codex on PR #213). Still
+   * silent where no identity exists: pre-provider touches save nothing.
+   */
+  /**
+   * The close drain's hold on an identity wait: the drain resolves once the
+   * wait's save is queued (or the lookup fails), so a close in the account
+   * lookup window still waits for the write the lookup enables instead of
+   * returning early and losing it when the process exits (Codex on PR #227).
+   */
+  private trackIdentityWait(): () => void {
+    const previous = this.saving
+    // Not `Promise.withResolvers`, which Node 20 (VS Code 1.99's host) lacks.
+    let releaseGate: () => void
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Node 20 (VS Code 1.99's host) lacks Promise.withResolvers (PLAN.md §8); the executor assigns the resolver synchronously, so the returned release always settles the drain.
+    const gate = new Promise<void>((resolve) => {
+      releaseGate = resolve
+    })
+    this.saving = (async () => {
+      try {
+        await previous
+      } catch {
+        // A failed save never breaks the drain (as `queueSave` documents).
+      }
+      await gate
+    })()
+    return () => {
+      releaseGate()
+    }
+  }
+
+  private async persistUnowned(
+    session: ModelApiSession,
+    store: NonNullable<ModelApiHostDeps['store']>,
+    isStrict: boolean,
+  ): Promise<void> {
+    const releaseWait = this.trackIdentityWait()
+    try {
+      await this.requireAccountId()
+    } catch {
+      if (isStrict) throw new Error(UI_TEXT.notSignedInReason)
+      return
+    } finally {
+      // No await sits between the lookup's answer and the queueing below
+      // (both `persistOwned` paths queue synchronously), so releasing here
+      // still holds the drain across the queued write.
+      releaseWait()
+    }
+    await this.persistOwned(session, store, isStrict)
+  }
+
+  private persistOwned(
+    session: ModelApiSession,
+    store: NonNullable<ModelApiHostDeps['store']>,
+    isStrict: boolean,
+  ): Promise<void> {
     const snapshot = this.ownedSnapshot(session.snapshot())
     // A turn-start user message can be saved, but a function call without
     // its output cannot be replayed after a crash. Goal/settings touches
@@ -17404,8 +17578,16 @@ export class ModelApiHost implements AgentHost {
     if (store === undefined) {
       throw new Error(UI_TEXT.historyUnavailable)
     }
-    if (!isRefund) {
-      await this.requireAccountId()
+    // The same close-drain hold as `persistUnowned`: a close in the
+    // account lookup window waits for the liability write the lookup
+    // enables (Codex on PR #227).
+    const releaseWait = isRefund ? undefined : this.trackIdentityWait()
+    try {
+      if (!isRefund) {
+        await this.requireAccountId()
+      }
+    } finally {
+      releaseWait?.()
     }
     // A nonsent request releases its original account's liability even if
     // a different key caused admission to fail. No new account is written.
@@ -17688,6 +17870,10 @@ export class ModelApiHost implements AgentHost {
 
   /** Reads the store once; this window's sessions then include the stored ones. */
   public async load(): Promise<void> {
+    // A dead store attributes no stored turn to anyone: the host builds
+    // without history instead of refusing to build. An absent key (store
+    // alive) still refuses below, as before.
+    if (this.deps.isCredentialStoreDown?.() === true) return
     const accountId = await this.requireAccountId()
     const { store } = this.deps
     if (store === undefined) {
@@ -17767,8 +17953,10 @@ export class ModelApiHost implements AgentHost {
     }
     const hooks = options.sideChat === true ? [] : await this.sessionHooks()
     const extensionHooks = options.sideChat === true ? [] : await this.sessionExtensionHooks()
-    // Loading the hooks may outlast a sign-out or the host closing.
-    await this.requireAccountId()
+    // A new session opens with no key and no account identity: identity is
+    // resolved at the first step that needs a provider, and spend is
+    // attributed to the identity resolved at that moment. Loading the hooks
+    // may outlast a sign-out or the host closing.
     this.refuseWhileClosing()
     const session = this.create(
       options.modelId,
@@ -17781,7 +17969,6 @@ export class ModelApiHost implements AgentHost {
     )
     try {
       await session.startHooks()
-      await this.requireAccountId()
       this.refuseWhileClosing()
     } catch (error: unknown) {
       session.dispose()
@@ -17805,7 +17992,7 @@ export class ModelApiHost implements AgentHost {
         records.push(recordOf(stored))
       }
     }
-    const sessions = records
+    const ordered = records
       .filter(
         (record) =>
           record.workspaceRoot === options.workspaceRoot &&
@@ -17815,8 +18002,7 @@ export class ModelApiHost implements AgentHost {
         (a, b) =>
           Date.parse(b.lastActivityAt ?? b.updatedAt) - Date.parse(a.lastActivityAt ?? a.updatedAt),
       )
-      .slice(0, options.limit)
-    return { sessions, nextCursor: undefined }
+    return sessionRecordsPage(ordered, options.limit, options.cursor)
   }
 
   /** A conversation or one of its private child transcripts (M48). */

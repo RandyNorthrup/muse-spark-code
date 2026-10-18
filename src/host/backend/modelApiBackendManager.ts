@@ -43,6 +43,7 @@ import type { SubagentUsage } from '../../shared/paid'
 import { BestOfNError } from '../../core/bestOfN/bestOfNError'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import type { AgentSession } from '../../core/agent/agentBackend'
+import { isCredentialStoreDown } from '../auth/credentialStore'
 import type { EditedFile } from '../../core/verify/diagnosticsReport'
 import { unstartedShell } from '../../core/shellResult'
 import {
@@ -74,6 +75,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly getAccountId?: (() => Promise<string | undefined>) | undefined
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
+  /** The gate's Meta-key probe says the credential store itself is dead. */
+  readonly isCredentialStoreDown?: (() => boolean) | undefined
   readonly workspaceRoot: string | undefined
   readonly io: ToolIo
   /** Existing file-listing adapter rooted in each actual attempt worktree. */
@@ -182,6 +185,16 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly workspaceEdits?: WorkspaceEdits | undefined
   /** Runtime transport owns the daily debit; other hosts supply the reserve below. */
   readonly autoCompactionAccounting?: 'transport'
+  /**
+   * Whether automatic compaction may spend in this workspace, read at
+   * preparation and final send. Absent, workspace trust decides (the
+   * editor's Restricted Mode fence). The runtime supplies its own answer:
+   * its spending is authorized by the editor's per-use paid question or by
+   * exec's explicit flag under its run budget, and exec can never trust a
+   * workspace, so the trust fence would leave headless compaction
+   * unreachable (RVMSM101).
+   */
+  readonly autoCompactionTrusted?: (() => boolean) | undefined
   /** The current shared daily cap, quoted before the first charge. */
   readonly paidDailyBudgetUsd?: () => UsdAmount | Promise<UsdAmount>
   /** D78 claim per attempt; without either owner there is no automatic admission. */
@@ -243,6 +256,22 @@ interface HostVariant {
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+/**
+ * The key, with a dead credential store reading as no key: account
+ * identity falls back to the subscription account (unknown, not failed)
+ * instead of failing on the store.
+ */
+async function readApiKey(
+  getApiKey: ModelApiBackendManagerDeps['getApiKey'],
+): Promise<string | undefined> {
+  try {
+    return await getApiKey()
+  } catch (error: unknown) {
+    if (!isCredentialStoreDown(error)) throw error
+    return undefined
+  }
 }
 
 export class ModelApiBackendManager {
@@ -376,7 +405,7 @@ export class ModelApiBackendManager {
         scheduleStore: variant.scheduleStore,
         getAccountId: async () => {
           if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()
-          const key = await this.deps.getApiKey()
+          const key = await readApiKey(this.deps.getApiKey)
           return key === undefined
             ? await this.deps.getProviderAccountId?.()
             : createHash('sha256').update(key).digest('hex')
@@ -387,6 +416,7 @@ export class ModelApiBackendManager {
         hasExternalPaidRecording: this.deps.hasExternalPaidRecording,
         usageKind: variant.usageKind,
         hasMetaCredential: this.deps.hasMetaCredential,
+        isCredentialStoreDown: this.deps.isCredentialStoreDown,
         ...(variant.budgetScope !== undefined && { budgetScope: variant.budgetScope }),
         describeEnvironment: variant.describeEnvironment,
         isPaidFeatureOn: variant.isPaidFeatureOn,
@@ -633,7 +663,7 @@ export class ModelApiBackendManager {
   }
 
   public async accountId(): Promise<string | undefined> {
-    const key = await this.deps.getApiKey()
+    const key = await readApiKey(this.deps.getApiKey)
     return key === undefined
       ? await this.deps.getProviderAccountId?.()
       : createHash('sha256').update(key).digest('hex')

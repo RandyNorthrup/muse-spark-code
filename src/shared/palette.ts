@@ -66,7 +66,16 @@ export type PaletteAction =
   | { readonly type: 'newWorktree' }
   | { readonly type: 'removeWorktree' }
   /** Commit, push and pull requests in the panel (M71). */
-  | { readonly type: 'gitAction'; readonly action: 'openCommit' | 'push' | 'openPullRequest' }
+  | {
+      readonly type: 'gitAction'
+      readonly action:
+        | 'openCommit'
+        | 'push'
+        | 'openPullRequest'
+        // M123 (D104 §2): Muse Spark's own GitHub sign-in, in every editor.
+        | 'signInGitHubWithCode'
+        | 'signOutGitHub'
+    }
   | { readonly type: 'openPullRequestInConversation' }
   | { readonly type: 'exportConversation'; readonly format: ExportFormat }
   /** "Import Session…" (M84): resume a portable JSON file on the Model API backend. */

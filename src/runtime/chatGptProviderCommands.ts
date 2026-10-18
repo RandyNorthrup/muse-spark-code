@@ -176,7 +176,7 @@ export function chatGptCommandText(): ChatGptCommandText {
     failure: (code) => {
       switch (code) {
         case 'store-unavailable': {
-          return UI_TEXT.acpChatGpt.storeUnavailable
+          return UI_TEXT.acpStoreDown
         }
         case 'expired': {
           return UI_TEXT.planUi.expired

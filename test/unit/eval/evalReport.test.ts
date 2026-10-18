@@ -175,6 +175,43 @@ describe('eval report', () => {
     },
   )
 
+  it('preserves ledger money at task, arm and run scope in both artifacts', () => {
+    const money = {
+      reservedUsd: Usd.from('0.01').toAmount(),
+      settledUsd: Usd.from('0.002').toAmount(),
+      outstandingUsd: Usd.from(0).toAmount(),
+      retainedUsd: Usd.from(0).toAmount(),
+    }
+    const receipt = result({
+      compactionLedger: money,
+      compactionsApplied: 1,
+      compactionsSettled: 1,
+    })
+    const report: EvalReport = {
+      version: EVAL_REPORT_VERSION,
+      model: 'muse-spark-1.3-contributor',
+      generatedAt: '2026-10-11',
+      verdict: 'incomplete',
+      floors: [],
+      arms: [
+        { name: 'auto-compaction', results: [receipt], summaries: [], compactionLedger: money },
+      ],
+      compactionLedger: money,
+      certifiedDigest: 'pin',
+      computedDigest: 'computed',
+    }
+    const parsed = evalReportSchema.parse(JSON.parse(formatEvalReportJson(report)))
+    if (parsed.version !== EVAL_REPORT_VERSION) throw new Error('unexpected report version')
+    expect(parsed.compactionLedger).toEqual(money)
+    expect(parsed.arms[0]?.compactionLedger).toEqual(money)
+    expect(parsed.arms[0]?.results[0]?.compactionLedger).toEqual(money)
+    const text = formatEvalReportMarkdown(report)
+    expect(text).toContain('Run compaction ledger: reserved $0.01, settled $0.002')
+    expect(text).toContain('Arm compaction ledger: reserved $0.01, settled $0.002')
+    expect(text).toContain('accept-off-by-one compaction ledger: reserved $0.01, settled $0.002')
+    expect(text).toContain('Certified digest: pin · computed: computed')
+  })
+
   it('renders the tasks, the splits, the failures and the floors', () => {
     const markdown = formatEvalReportMarkdown(sample())
     expect(markdown).toContain(

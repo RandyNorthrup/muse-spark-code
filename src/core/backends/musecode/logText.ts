@@ -37,7 +37,8 @@ export function failureForLog(error: unknown): string {
 }
 
 // The stderr lines captured from `muse serve` 1.4.0-R4302.1 (Windows and
-// Linux, 2026-09-27; scratchpad/m140cred), each named in fixed words.
+// Linux, 2026-09-27; scratchpad/m140cred) and 1.4.10-R6427.1 (macOS,
+// 2026-10-17, F94), each named in fixed words.
 const CAPTURED_STDERR: readonly {
   readonly pattern: RegExp
   readonly logged: (match: RegExpExecArray) => string
@@ -54,6 +55,22 @@ const CAPTURED_STDERR: readonly {
   {
     pattern: /startup model-catalog fetch failed/u,
     logged: () => 'the startup model-catalog fetch failed',
+  },
+  // `muse serve` 1.4.10-R6427.1 exits 3 before `initialize` when the
+  // credential file's `meta` entry lacks a field the CLI requires
+  // (captured 2026-10-17, F94): the path is never logged, and the reason
+  // only when it is one of the two captured schema diagnostics below. A
+  // reason in any other shape — including one naming an account — is
+  // logged by its length alone (Codex on PR #211).
+  {
+    // Greedy to the last ": ": a POSIX path may itself contain one, and
+    // the reason (a backticked schema word, no colon) follows the path's.
+    pattern: /malformed auth file at .*: (missing field `[A-Za-z0-9_]{1,64}`)/u,
+    logged: (match) => `the credential file is malformed (${match[1] ?? 'no reason given'})`,
+  },
+  {
+    pattern: /malformed auth file at .*: (providers\.meta\.api_key must be a string)/u,
+    logged: (match) => `the credential file is malformed (${match[1] ?? 'no reason given'})`,
   },
 ]
 

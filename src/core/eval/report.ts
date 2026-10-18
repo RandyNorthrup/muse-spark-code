@@ -24,6 +24,29 @@ const evalCountFields = {
   costUsd: legacyUsdSchema,
 }
 
+const compactionLedgerSchema = z.object({
+  /** Cumulative accepted reservations, not simultaneous headroom. */
+  reservedUsd: legacyUsdSchema,
+  /** Known settlements only; already included in trace cost, never added twice. */
+  settledUsd: legacyUsdSchema,
+  outstandingUsd: legacyUsdSchema,
+  /** Unknown settlements retain this liability and stop the run. */
+  retainedUsd: legacyUsdSchema,
+})
+const requestEvidenceSchema = z.object({
+  sha256: z.string(),
+  packageTypeModuleVisible: z.boolean(),
+  /** Only tools offered on this request; unknown names become the fixed marker other. */
+  responseTools: z.array(z.string()),
+  /** Number of unknown returned names, without retaining any of their text. */
+  otherTools: z.optional(z.number().check(z.int(), z.minimum(0))),
+  /**
+   * The request offered function tools with strict schemas throughout
+   * (M101 strict-tools engagement); absent in reports made before it.
+   */
+  strictTools: z.optional(z.boolean()),
+})
+
 const evalTaskFields = {
   taskId: z.string(),
   title: z.string(),
@@ -51,6 +74,18 @@ export const evalTaskResultSchema = z.object({
   packedTokensAvoided: z.optional(z.number()),
   /** `recall_output` calls that succeeded (M73); absent in reports made before it. */
   recalls: z.optional(z.number()),
+  /**
+   * Released D78 claims, including rejected and failed attempts. This is
+   * attempt accounting, never evidence of accepted history replacement.
+   */
+  compactionsSettled: z.optional(z.number()),
+  /** Host accepted the summary and replaced history; rejected attempts never count. */
+  compactionsApplied: z.optional(z.number()),
+  callBudget: z.optional(z.number()),
+  overBudget: z.optional(z.boolean()),
+  compactionsAttempted: z.optional(z.number()),
+  compactionLedger: z.optional(compactionLedgerSchema),
+  requestEvidence: z.optional(z.array(requestEvidenceSchema)),
 })
 export type EvalTaskResult = z.infer<typeof evalTaskResultSchema>
 
@@ -62,6 +97,11 @@ const legacyTaskResultSchema = z.object({
   order: z.optional(z.never()),
   packedTokensAvoided: z.optional(z.never()),
   recalls: z.optional(z.never()),
+  compactionsSettled: z.optional(z.never()),
+  compactionsApplied: z.optional(z.never()),
+  compactionsAttempted: z.optional(z.never()),
+  compactionLedger: z.optional(z.never()),
+  requestEvidence: z.optional(z.never()),
 })
 
 export const evalSplitSummarySchema = z.object({
@@ -83,6 +123,7 @@ const evalArmFields = {
 export const evalArmReportSchema = z.object({
   ...evalArmFields,
   results: z.array(evalTaskResultSchema),
+  compactionLedger: z.optional(compactionLedgerSchema),
 })
 export type EvalArmReport = z.infer<typeof evalArmReportSchema>
 
@@ -102,9 +143,9 @@ const evalReportFields = {
   generatedAt: z.string(),
   floors: z.array(evalFloorResultSchema),
   /**
-   * `incomplete`: every floor that ran held, but a split did not run.
+   * `incomplete`: a narrowed selection, empty split or global stop leaves evidence incomplete.
    * `fail`: a floor fell, or a mechanism's own acceptance failed (M73's
-   * packing engagement, below).
+   * packing engagement or lane E's compaction engagement, below).
    */
   verdict: z.enum(EVAL_VERDICTS),
 }
@@ -123,6 +164,41 @@ const evalPackingEngagementSchema = z.object({
   held: z.boolean(),
 })
 
+/**
+ * Lane E's acceptance beside the floors: the D78 admission settled a
+ * summary on every long-context task the auto-compaction arm ran (R2: the
+ * runner's settled-admission count per task — more model calls than the
+ * baseline is not evidence). A run that holds the floors without a
+ * settled compaction proves nothing about compaction, so it fails the
+ * run. A selection with no long-context task holds nothing: it is
+ * incomplete, never a pass.
+ */
+const evalCompactionEngagementSchema = z.object({
+  arm: z.string(),
+  /** The long-context tasks the run selected. */
+  longContextTasks: z.array(z.string()),
+  /** Those on which the admission settled no summary. */
+  unengaged: z.array(z.string()),
+  held: z.boolean(),
+})
+
+/**
+ * Lane E's acceptance beside the floors: the strict-tools arm sent
+ * strict schemas on every request of every selected task (R6: the
+ * wire's per-request strict flag, read from the request body, not from
+ * the arm's declared mechanism). A run that holds the floors without
+ * strict requests proves nothing about strict tools: it is incomplete,
+ * never a pass. A selection with no task holds nothing the same way.
+ */
+const evalStrictToolsEngagementSchema = z.object({
+  arm: z.string(),
+  /** The tasks the run selected. */
+  tasks: z.array(z.string()),
+  /** Those with a missing or non-strict request. */
+  unengaged: z.array(z.string()),
+  held: z.boolean(),
+})
+
 export const evalReportSchema = z.discriminatedUnion('version', [
   z.object({
     ...evalReportFields,
@@ -135,6 +211,23 @@ export const evalReportSchema = z.discriminatedUnion('version', [
     arms: z.array(evalArmReportSchema),
     /** Recorded by a run with a packing arm (M73); absent otherwise. */
     packingEngagement: z.optional(evalPackingEngagementSchema),
+    /** Recorded by a run with an auto-compaction arm (M101 lane E); absent otherwise. */
+    compactionEngagement: z.optional(evalCompactionEngagementSchema),
+    /** Recorded by a run with a strict-tools arm (M101 lane E R6); absent otherwise. */
+    strictToolsEngagement: z.optional(evalStrictToolsEngagementSchema),
+    /**
+     * The run stopped before every selected task could send: the call
+     * ceiling, the dollar budget or an unmeasurable reply ended it. A
+     * truncated run is `incomplete`, never `pass`: the missing sends are
+     * not evidence. Absent when every task ran to its own end.
+     */
+    stoppedEarly: z.optional(z.array(z.string())),
+    /** Present only when every arm executed its frozen bundle snapshot. */
+    harnessDigest: z.optional(z.string()),
+    compactionLedger: z.optional(compactionLedgerSchema),
+    certifiedDigest: z.optional(z.string()),
+    computedDigest: z.optional(z.string()),
+    incompleteReasons: z.optional(z.array(z.string())),
   }),
 ])
 export type EvalReport = z.infer<typeof evalReportSchema>
@@ -199,6 +292,21 @@ function armLines(arm: ReportArm): string[] {
     )
   }
   lines.push(``)
+  for (const result of arm.results) {
+    if (result.compactionLedger === undefined) continue
+    const money = result.compactionLedger
+    lines.push(
+      `${result.taskId} compaction ledger: reserved $${money.reservedUsd}, settled $${money.settledUsd}, outstanding $${money.outstandingUsd}, retained unknown $${money.retainedUsd}.`,
+      ``,
+    )
+  }
+  if ('compactionLedger' in arm && arm.compactionLedger !== undefined) {
+    const money = arm.compactionLedger
+    lines.push(
+      `Arm compaction ledger: reserved $${money.reservedUsd}, settled $${money.settledUsd}, outstanding $${money.outstandingUsd}, retained unknown $${money.retainedUsd}.`,
+      ``,
+    )
+  }
   const packed = arm.results.filter((result) => result.packedTokensAvoided !== undefined)
   if (packed.length > 0) {
     lines.push(
@@ -259,6 +367,19 @@ export function formatEvalReportMarkdown(report: EvalReport): string {
     `Model: ${report.model} · generated ${report.generatedAt} · verdict: ${report.verdict}`,
     ``,
   ]
+  if (report.version === EVAL_REPORT_VERSION && report.compactionLedger !== undefined) {
+    const money = report.compactionLedger
+    lines.push(
+      `Run compaction ledger: reserved $${money.reservedUsd}, settled $${money.settledUsd}, outstanding $${money.outstandingUsd}, retained unknown $${money.retainedUsd}.`,
+      ``,
+    )
+  }
+  if (report.version === EVAL_REPORT_VERSION && report.computedDigest !== undefined) {
+    lines.push(
+      `Certified digest: ${report.certifiedDigest ?? 'not recorded'} · computed: ${report.computedDigest}`,
+      ``,
+    )
+  }
   for (const arm of report.arms) {
     lines.push(...armLines(arm))
   }
@@ -280,6 +401,18 @@ export function formatEvalReportMarkdown(report: EvalReport): string {
     )
   }
   lines.push(``)
+  if (report.version === EVAL_REPORT_VERSION && report.strictToolsEngagement !== undefined) {
+    const engagement = report.strictToolsEngagement
+    const listed = (ids: readonly string[]) => (ids.length === 0 ? 'none' : ids.join(', '))
+    lines.push(
+      `## Strict tools engaged (M101)`,
+      ``,
+      `| Arm | Tasks | Never strict | Held |`,
+      `| --- | --- | --- | --- |`,
+      `| ${engagement.arm} | ${listed(engagement.tasks)} | ${listed(engagement.unengaged)} | ${engagement.held ? 'yes' : 'no'} |`,
+      ``,
+    )
+  }
   if (report.version === EVAL_REPORT_VERSION && report.packingEngagement !== undefined) {
     const engagement = report.packingEngagement
     const listed = (ids: readonly string[]) => (ids.length === 0 ? 'none' : ids.join(', '))
@@ -289,6 +422,47 @@ export function formatEvalReportMarkdown(report: EvalReport): string {
       `| Arm | Long-output tasks | Never packed | Held |`,
       `| --- | --- | --- | --- |`,
       `| ${engagement.arm} | ${listed(engagement.longOutputTasks)} | ${listed(engagement.unengaged)} | ${engagement.held ? 'yes' : 'no'} |`,
+      ``,
+    )
+  }
+  if (report.version === EVAL_REPORT_VERSION && report.compactionEngagement !== undefined) {
+    const engagement = report.compactionEngagement
+    const listed = (ids: readonly string[]) => (ids.length === 0 ? 'none' : ids.join(', '))
+    lines.push(
+      `## Compaction engaged (M74)`,
+      ``,
+      `| Arm | Long-context tasks | Never compacted | Held |`,
+      `| --- | --- | --- | --- |`,
+      `| ${engagement.arm} | ${listed(engagement.longContextTasks)} | ${listed(engagement.unengaged)} | ${engagement.held ? 'yes' : 'no'} |`,
+      ``,
+    )
+    // The settled-admission count per long-context task: the evidence the
+    // acceptance above judges, beside the floors.
+    if (engagement.longContextTasks.length > 0) {
+      const arm = report.arms.find((candidate) => candidate.name === engagement.arm)
+      lines.push(
+        `| Task | Settled compactions | Applied compactions |`,
+        `| --- | --- | --- |`,
+        ...engagement.longContextTasks.map(
+          (taskId) =>
+            `| ${taskId} | ${recordedCount(arm?.results.find((result) => result.taskId === taskId)?.compactionsSettled)} | ${recordedCount(arm?.results.find((result) => result.taskId === taskId)?.compactionsApplied)} |`,
+        ),
+        ``,
+      )
+    }
+  }
+  if (
+    report.version === EVAL_REPORT_VERSION &&
+    report.stoppedEarly !== undefined &&
+    report.stoppedEarly.length > 0
+  ) {
+    lines.push(`## Stopped early`, ``, ...report.stoppedEarly.map((reason) => `- ${reason}`), ``)
+  }
+  if (report.version === EVAL_REPORT_VERSION && report.incompleteReasons !== undefined) {
+    lines.push(
+      `## Incomplete evidence`,
+      ``,
+      ...report.incompleteReasons.map((reason) => `- ${reason}`),
       ``,
     )
   }

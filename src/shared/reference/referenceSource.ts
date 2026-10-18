@@ -81,7 +81,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['legal', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal-explanation', ['vscode:museCode', 'vscode:modelApi']],
   ['team-workers', []],
-  ['auto-compaction', []],
+  ['auto-compaction', ['vscode:modelApi', 'acp:modelApi']],
   ['compaction', ['vscode:modelApi', 'acp:modelApi']],
   ['custom-agents', ['vscode:modelApi']],
   ['mcp-elicitation', ['vscode:modelApi']],
@@ -137,10 +137,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     'handoff',
     'browser',
     'tab',
-    'support',
   ].map((id): [string, readonly string[]] => [id, ['vscode:museCode', 'vscode:modelApi']]),
   ...['acp'].map((id): [string, readonly string[]] => [id, ['acp:museCode', 'acp:modelApi']]),
-  ...['prompt-library', 'chat-sharing', 'resources', 'agent-outcomes'].map(
+  ...['prompt-library', 'chat-sharing', 'resources', 'agent-outcomes', 'windows-paths'].map(
     (id): [string, readonly string[]] => [
       id,
       ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
@@ -149,6 +148,10 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M99: ACP answers /whatsnew locally with the same release notes.
+  ['support', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M124: the MCP connector is a runtime command, the same for every editor.
+  ['mcp-connector', ['acp:museCode', 'acp:modelApi']],
   // M116: CLI/ACP journal commands work; the VS Code panel has no mount.
   ['orchestrator-playbook', ['acp:museCode', 'acp:modelApi']],
   // M108 (CM108ACC): the terminal and ACP on the Model API backend list
@@ -159,6 +162,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['vault', []],
   // M117: the production plan snapshot port refuses on every surface.
   ['estimator', []],
+
   ...['web-fetch', 'images'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
