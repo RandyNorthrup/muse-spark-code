@@ -35,8 +35,14 @@ afterAll(async () => {
   if (scratch.folder !== '') await rm(scratch.folder, { recursive: true, force: true })
 })
 
+/**
+ * A lock folder named relative to the working folder, which every worker
+ * inherits. A Unix socket path must fit sockaddr_un (108 bytes on Linux, 103
+ * on macOS); under a CI checkout's absolute path the longer cases did not,
+ * and the lock then never saw its own entry (CI run 39086390519).
+ */
 async function lockDirectory(prefix: string): Promise<string> {
-  return await mkdtemp(path.join(scratch.folder, prefix))
+  return path.relative(process.cwd(), await mkdtemp(path.join(scratch.folder, prefix)))
 }
 
 /** A contender's own socket entry: the lock's file name, a dot, and a name only it binds. */
