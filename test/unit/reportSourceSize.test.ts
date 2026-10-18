@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { LocalSourceError } from '../../src/core/reporting/sources/local'
 import { reportFileIo } from '../../src/runtime/reporting/sources'
+import { BOUNDED_FILE_READ_CHUNK_BYTES } from '../../src/shared/constants'
 
 const PAST_REMOVED_CAP = 17 * 1024 * 1024
 
@@ -39,6 +40,30 @@ describe('report source size', () => {
       }
       expect(failure).toBeInstanceOf(LocalSourceError)
       expect(failure).toMatchObject({ code: 'limit' })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('decodes a character split across chunk reads whole, and refuses bad bytes', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'nolimits1fix-sources-'))
+    try {
+      // A two-byte e-acute straddling the chunk cut decodes whole, not as a
+      // replacement character per chunk.
+      const body = `${'a'.repeat(BOUNDED_FILE_READ_CHUNK_BYTES - 1)}étail`
+      await writeFile(path.join(root, 'split.txt'), body)
+      const io = reportFileIo(root, process.platform)
+      expect(await io.read('split.txt', AbortSignal.timeout(30_000))).toBe(body)
+      await writeFile(path.join(root, 'bad.bin'), Buffer.from([0x61, 0xff, 0x61]))
+      let failure: unknown
+      try {
+        await io.read('bad.bin', AbortSignal.timeout(30_000))
+        expect.unreachable()
+      } catch (error: unknown) {
+        failure = error
+      }
+      expect(failure).toBeInstanceOf(LocalSourceError)
+      expect(failure).toMatchObject({ code: 'invalid' })
     } finally {
       await rm(root, { recursive: true, force: true })
     }

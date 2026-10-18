@@ -90,6 +90,14 @@ goldens are fixed in this lane.
   was seen to fail with the NUL match broken), plus a real-use drill:
   this repo's 4,932-entry `ls-tree -z` in hostile 1/7/65536/3-byte chunks
   validates byte-identical to the buffered read.
+- T8 (`reporting/sources.ts`): `read()` decodes chunks straight into the
+  returned string through one streaming `TextDecoder` instead of retaining
+  every chunk plus a second `Buffer.concat` plus the string; the default
+  still reads at any size (the N3 17 MB test stands unweakened) and an
+  explicit finite `maxBytes` still refuses past itself, with identical
+  `invalid`/`limit` mapping including mid-stream bad bytes.
+  `reportSourceSize.test.ts` 3/3 with the new split-`é`/bad-bytes case
+  (seen to fail with `{ stream: true }` removed).
 - T11 (`attachments.ts`, `ModelApiHost.ts`): the Model API text admission
   compared UTF-8 bytes to the token-window-minus-reserve number, and a fixed
   1 MiB pre-check fired first, so provider-valid plans (>1 MiB, inside the
