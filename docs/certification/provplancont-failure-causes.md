@@ -231,6 +231,22 @@ over the real modules. On such a computer the editor reads
 `Internal error: The providers file could not be read (unparseable|invalid).
 Fix or remove it, then try again.` from `requireReady`.
 
+### Local gates on the final tree (this Windows PC)
+
+format 0, eslint on every changed file with `--max-warnings 0` 0,
+typecheck (all five projects) 0, check:l10n 0, check:reference 0,
+check:plan 0, check:host-api 0, check:roadmap 0, deadcode 0, cycles 0,
+duplication 0 (0 clones), build 0, security:audit 0, `vitest related` over
+the changed sources 0, the three changed suites 0 (POSIX socket cases skip
+on Windows; hosted CI runs them).
+
+security:sast 1: 9 `detect-child-process` findings in 8 files this branch
+does not change (byte-identical to `origin/main`). Measured: this PC's
+semgrep is 1.177.0, CI pins 1.178.0 (`.github/semgrep/requirements.txt`);
+the same `scan --config auto` over `origin/main`'s copies of those 8 files
+and over this head's copies reports the same 9 findings on each. CI's
+pinned SAST passed on 183ac75674. The pinned version was not installed here.
+
 ### VSIX budget: measured, not fixed here
 
 Main (81dacaf5, as packaged by `chore/no-standins`, run 39090625665) is
