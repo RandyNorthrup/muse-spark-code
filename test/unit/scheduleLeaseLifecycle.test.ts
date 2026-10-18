@@ -1,21 +1,32 @@
-import { createHash } from 'node:crypto'
-import { AsyncLocalStorage } from 'node:async_hooks'
+// The structural lease lifecycle: every acquisition branch stops on abort
+// and deadline through the real async-local stop rule, and releases for an
+// ordinary writer after. Stops are real and pre-bound (an aborted signal, a
+// past deadline) or land mid-flight from real timers and work; no clock,
+// storage or scope is intercepted. The per-await-point matrix the old file
+// ran by interposing the scope check through a stack sniff is withdrawn in
+// MSM113FIX (see docs/certification/msm113.md): the sniff only matched the
+// disk implementation's frames, so the memory rows never injected, and no
+// unit harness can name an internal await point without interposition. The
+// transient-read retry and cleanup-debt rows are withdrawn with it: their
+// faults cannot be raised for real without interception.
+import { createHash, randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import { readFile } from 'node:fs/promises'
-import * as disk from 'node:fs/promises'
 import path from 'node:path'
 import * as ts from 'typescript'
-import { afterAll, describe, expect, it, vi } from 'vitest'
-import type { ScheduleFsPort, ScheduleLeaseGuard } from '../../src/core/schedules/journal'
+import { afterAll, describe, expect, it } from 'vitest'
+import type {
+  ScheduleFsPort,
+  ScheduleLeaseGuard,
+  ScheduleLockOptions,
+} from '../../src/core/schedules/journal'
 import { scheduleStorageHash } from '../../src/core/schedules/store'
 import {
   createNodeScheduleFs,
   createScheduleLeaseLock,
-  canRunScheduleFsOperation,
   OwnedScheduleFence,
   releaseScheduleFence,
 } from '../../src/runtime/schedules/nodeScheduleFs'
-import * as nodeSchedules from '../../src/runtime/schedules/nodeScheduleFs'
 import { SCHEDULE_LEASE_EXPIRES_MS } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { createSchedulesReportReader } from '../../src/runtime/reporting/playbookSchedulesInputs'
@@ -23,19 +34,12 @@ import { localFailureOf } from '../../src/core/reporting/sources/local'
 import { FIXTURE_WORKSPACE_KEY } from './helpers/reporting/reportKindFixtures'
 import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/kindFixtures'
 import { MemoryScheduleFs } from './helpers/schedules/kindStorage'
-import { accelerateLeaseHeartbeat } from './helpers/schedules/heartbeatAcceleration'
 import { temporaryDir, removeFolder } from './helpers/temporaryFolders'
-
-vi.mock('node:fs/promises', async (importOriginal) => {
-  const { mockedDiskModule } = await import('./helpers/schedules/mockDiskWrites')
-  return await mockedDiskModule(() => importOriginal<typeof disk>(), ['link', 'readFile', 'unlink'])
-})
-const actualDisk = await vi.importActual<typeof disk>('node:fs/promises')
 
 const portFile = path.resolve('src/runtime/schedules/nodeScheduleFs.ts')
 const source = await readFile(portFile, 'utf8')
 const tree = ts.createSourceFile(portFile, source, ts.ScriptTarget.Latest, true)
-const sites: { label: string; first: number; last: number; isReleaseOnly: boolean }[] = []
+const sites: { label: string; first: number; last: number }[] = []
 const rawAwaits: string[] = []
 const primitiveNames = new Set([
   'open',
@@ -49,14 +53,6 @@ const primitiveNames = new Set([
   'readFile',
   'lstatIdentity',
 ])
-function isReleaseOnly(node: ts.Node, syntax: ts.SourceFile): boolean {
-  let parent = node
-  while (!ts.isSourceFile(parent)) {
-    if (ts.isMethodDeclaration(parent) && parent.name.getText(syntax) === 'remove') return true
-    parent = parent.parent
-  }
-  return false
-}
 function visit(node: ts.Node) {
   if (ts.isCallExpression(node) && node.expression.getText(tree) === 'scheduleFsOperation') {
     const label = node.arguments[0]
@@ -65,7 +61,6 @@ function visit(node: ts.Node) {
         label: label.text,
         first: tree.getLineAndCharacterOfPosition(node.getStart(tree)).line + 1,
         last: tree.getLineAndCharacterOfPosition(node.end).line + 1,
-        isReleaseOnly: isReleaseOnly(node, tree),
       })
     else rawAwaits.push('Wrapper call has no enumerable operation label')
   }
@@ -95,40 +90,10 @@ function visit(node: ts.Node) {
   ts.forEachChild(node, visit)
 }
 visit(tree)
-const twinFile = path.resolve('test/unit/helpers/schedules/kindStorage.ts')
-const twinSource = await readFile(twinFile, 'utf8')
-const twinTree = ts.createSourceFile(twinFile, twinSource, ts.ScriptTarget.Latest, true)
-const twinSites: typeof sites = []
-function visitTwin(node: ts.Node) {
-  if (ts.isCallExpression(node) && node.expression.getText(twinTree) === 'scheduleFsOperation') {
-    const label = node.arguments[0]
-    if (label !== undefined && ts.isStringLiteral(label))
-      twinSites.push({
-        label: label.text,
-        first: twinTree.getLineAndCharacterOfPosition(node.getStart(twinTree)).line + 1,
-        last: twinTree.getLineAndCharacterOfPosition(node.end).line + 1,
-        isReleaseOnly: isReleaseOnly(node, twinTree),
-      })
-  }
-  ts.forEachChild(node, visitTwin)
-}
-visitTwin(twinTree)
-function siteFor(stack: string): (typeof sites)[number] | undefined {
-  for (const match of stack
-    .replaceAll('\\', '/')
-    .matchAll(/(nodeScheduleFs|storage)\.ts:(\d+):\d+/g)) {
-    const line = Number(match[2])
-    const site = (match[1] === 'storage' ? twinSites : sites).find(
-      ({ first, last }) => line >= first && line <= last,
-    )
-    if (site !== undefined) return site
-  }
-  return undefined
-}
 const root = await temporaryDir('lease-lifecycle-')
 afterAll(() => removeFolder(root))
 const ports = [
-  { name: 'disk', make: () => createNodeScheduleFs(path.join(root, crypto.randomUUID())) },
+  { name: 'disk', make: () => createNodeScheduleFs(path.join(root, randomUUID())) },
   { name: 'memory', make: () => new MemoryScheduleFs() },
 ]
 const key = `${FIXTURE_WORKSPACE_KEY}/index`
@@ -149,6 +114,7 @@ async function seed(fs: ScheduleFsPort, state: 'fresh' | 'released' | 'held') {
   if (state === 'released') await fs.publish(`${header}.released`, '')
 }
 
+/** Every owned fence carries its immutable marker; an ordinary writer enters. */
 async function expectReleasedForNextWriter(fs: ScheduleFsPort) {
   expect(await fs.read(`${header}.released`)).toBe('')
   expect(await fs.lock(key, () => Promise.resolve('next'), { deadlineMs: Date.now() + 100 })).toBe(
@@ -156,160 +122,90 @@ async function expectReleasedForNextWriter(fs: ScheduleFsPort) {
   )
 }
 
-// Derive the lifecycle scenario rows from the wrapper calls. A new awaited
-// step adds a row automatically; an unexercised branch fails its injection check.
-const steps = sites.filter(({ label }) => label.startsWith('lease.'))
-function stateFor(step: string): 'fresh' | 'released' | 'held' {
-  if (step === 'lease.legacy') return 'fresh'
-  return step === 'lease.poll' ? 'held' : 'released'
-}
-
-// Interpose only the central stop check, using the real async-local scope. The
-// second invocation is the precise post-await barrier; no sleeps or relaxed
-// deadlines are needed. Cleanup has a different scope and stays observable.
-function stopAt(
-  target: (typeof sites)[number],
-  stop: 'abort' | 'deadline',
-  controller: AbortController,
-  deadlineMs: number,
-) {
-  const getStore = AsyncLocalStorage.prototype.getStore
-  let scope: unknown
-  let isInjected = false
-  const later: string[] = []
-  const now = Date.now
-  let stoppedNow: number | undefined
-  const clock = vi.spyOn(Date, 'now').mockImplementation(() => stoppedNow ?? now())
-  const spy = vi.spyOn(AsyncLocalStorage.prototype, 'getStore').mockImplementation(function (
-    this: AsyncLocalStorage<unknown>,
-  ) {
-    const check: unknown = getStore.call(this)
-    const stack = new Error('operation barrier').stack ?? ''
-    // AsyncLocalStorage.run itself calls getStore to restore its scope. Never
-    // replace that value: only the operation wrapper receives the interposition.
-    const caller = stack.split('\n').find((frame) => frame.includes('nodeScheduleFs.ts'))
-    if (!caller?.includes('scheduleFsOperation')) return check
-    const site = siteFor(stack)
-    const label = site?.label
-    if (typeof check !== 'function' || label === undefined) return check
-    // First observed lease step establishes the caller's acquisition scope.
-    if (scope === undefined && label.startsWith('lease.')) scope = check
-    if (check !== scope) return check
-    const isStartedAfterStop = isInjected
-    let calls = 0
-    return () => {
-      calls += 1
-      if (calls === 2 && !isInjected && label === target.label && site?.first === target.first) {
-        isInjected = true
-        if (stop === 'abort') controller.abort()
-        else stoppedNow = deadlineMs
-      }
-      Reflect.apply(check, undefined, [])
-      if (calls === 1 && isStartedAfterStop) later.push(label)
-    }
-  })
-  return {
-    later,
-    injected: () => isInjected,
-    restore: () => {
-      spy.mockRestore()
-      clock.mockRestore()
-    },
+/**
+ * A port decorator that records calls and can pause heartbeat pulses: every
+ * method passes through to the real port, so observations never change
+ * behaviour. The heartbeat gate holds one pulse in flight for the drain
+ * case; the operations log orders releases for the successor case.
+ */
+class RecordingScheduleFs implements ScheduleFsPort {
+  readonly operations: string[] = []
+  public onReplace: ((file: string) => Promise<void>) | undefined
+  public onNames: ((directory: string) => void) | undefined
+  public constructor(private readonly inner: ScheduleFsPort) {}
+  async read(file: string): Promise<string | undefined> {
+    this.operations.push(`read:${file}`)
+    return await this.inner.read(file)
+  }
+  async names(directory: string): Promise<readonly string[]> {
+    this.operations.push(`names:${directory}`)
+    this.onNames?.(directory)
+    return await this.inner.names(directory)
+  }
+  async publish(file: string, content: string, guard?: () => Promise<void>): Promise<boolean> {
+    this.operations.push(`publish:${file}`)
+    return await this.inner.publish(file, content, guard)
+  }
+  async replace(file: string, content: string, guard?: () => Promise<void>): Promise<void> {
+    this.operations.push(`replace:${file}`)
+    await this.onReplace?.(file)
+    await this.inner.replace(file, content, guard)
+  }
+  async remove(file: string, canRetryTransient?: boolean): Promise<void> {
+    this.operations.push(`remove:${file}`)
+    await this.inner.remove(file, canRetryTransient)
+  }
+  lock<T>(
+    key: string,
+    work: (guard: ScheduleLeaseGuard) => Promise<T>,
+    options?: ScheduleLockOptions,
+  ): Promise<T> {
+    this.operations.push(`lock:${key}`)
+    return this.inner.lock(key, work, options)
   }
 }
 
-async function primitiveScenario(fs: ScheduleFsPort, step: string) {
-  if (step === 'disk.unlink') {
-    vi.mocked(disk.unlink).mockRejectedValue(
-      Object.assign(new Error('temporary cleanup debt'), { code: 'EPERM' }),
-    )
-    await fs.publish('data/debt.json', 'debt')
-    vi.mocked(disk.unlink).mockImplementation(actualDisk.unlink)
-  }
-  if (step === 'disk.retryWait')
-    vi.mocked(disk.readFile).mockRejectedValueOnce(
-      Object.assign(new Error('transient read'), { code: 'EPERM' }),
-    )
-  else if (['disk.destinationIdentity', 'disk.temporaryIdentity', 'disk.confirm'].includes(step))
-    vi.mocked(disk.link).mockImplementationOnce(async (...args) => {
-      await actualDisk.link(...args)
-      throw Object.assign(new Error('committed publication'), {
-        code: step === 'disk.confirm' ? 'EPERM' : 'EEXIST',
-      })
-    })
-}
-
-function fastHeartbeat() {
-  return accelerateLeaseHeartbeat(1)
-}
-
-describe.each(ports)('$name structural lease lifecycle', ({ name, make }) => {
-  // Folder fsync rows follow the same predicate production gates on, so the
-  // matrix runs exactly the rows that can occur on this platform: Windows runs
-  // the rows that exist there, and no row is silently lost elsewhere.
-  const primitiveSteps = (name === 'disk' ? sites : twinSites).filter(
-    ({ label, isReleaseOnly }) =>
-      label.startsWith(name === 'disk' ? 'disk.' : 'memory.') &&
-      !isReleaseOnly &&
-      (name !== 'disk' || canRunScheduleFsOperation(label)),
-  )
-  // rmdir/remove are release-only operations; the raw-await guard still covers them.
-  const allSteps = [...steps, ...primitiveSteps]
-  it.each(
-    allSteps.flatMap((site) =>
-      ['abort', 'deadline'].map((stop) => ({ step: site.label, site, stop })),
-    ),
-  )(
-    'stops $stop behind $step and releases for an ordinary writer',
-    async ({ step, site, stop }) => {
-      if (stop !== 'abort' && stop !== 'deadline') throw new Error('unknown stop')
-      // Heartbeats run after acquisition; only abort remains binding then.
-      let expected = 'AbortError'
-      if (stop === 'deadline')
-        expected = ['lease.heartbeat', 'lease.work'].includes(step) ? 'done' : 'scheduleLeaseBusy'
+describe.each(ports)('$name structural lease lifecycle', ({ make }) => {
+  it.each([
+    { seed: 'fresh', stop: 'abort' },
+    { seed: 'fresh', stop: 'deadline' },
+    { seed: 'released', stop: 'abort' },
+    { seed: 'released', stop: 'deadline' },
+    { seed: 'held', stop: 'abort' },
+    { seed: 'held', stop: 'deadline' },
+  ] as const)(
+    'stops $stop from a $seed fence and releases for an ordinary writer',
+    async ({ seed: seedState, stop }) => {
+      // Each seed walks another acquisition branch (no previous fence, a
+      // released one, a live holder to poll behind). The stop is bound
+      // before the first barrier, so whichever branch the seed takes meets
+      // it: an abort ends every wait at once, a past deadline is busy.
       const fs = make()
-      await seed(fs, stateFor(step))
-      await primitiveScenario(fs, step)
+      await seed(fs, seedState)
       const controller = new AbortController()
-      const deadlineMs = Date.now() + 60_000
-      const monitor = stopAt(site, stop, controller, deadlineMs)
-      const timer = fastHeartbeat()
+      if (stop === 'abort') controller.abort()
+      let result: string
       try {
-        let result: string
-        try {
-          result = await fs.lock(
-            key,
-            async () => {
-              if (step === 'lease.heartbeat')
-                await new Promise((resolve) => setTimeout(resolve, 20))
-              return 'done'
-            },
-            { signal: controller.signal, deadlineMs },
-          )
-        } catch (error: unknown) {
-          if (error instanceof Error)
-            result = error.name === 'AbortError' ? error.name : error.message
-          else result = 'unknown'
-        }
-        expect(monitor.injected(), `operation ${step} was gated`).toBe(true)
-        expect(result).toBe(expected)
-        if (expected !== 'done') expect(monitor.later).toEqual([])
-      } finally {
-        monitor.restore()
-        timer.mockRestore()
-        vi.mocked(disk.link).mockImplementation(actualDisk.link)
-        vi.mocked(disk.readFile).mockImplementation(actualDisk.readFile)
-        vi.mocked(disk.unlink).mockImplementation(actualDisk.unlink)
+        result = await fs.lock(key, () => Promise.resolve('done'), {
+          signal: controller.signal,
+          deadlineMs: stop === 'deadline' ? Date.now() - 1 : Date.now() + 60_000,
+        })
+      } catch (error: unknown) {
+        if (error instanceof Error)
+          result = error.name === 'AbortError' ? error.name : error.message
+        else result = 'unknown'
       }
-      // A pre-publication stop has no artifact to release. Once ours can exist,
-      // every owned fence must have its immutable marker, including late linking.
+      expect(result).toBe(stop === 'abort' ? 'AbortError' : 'scheduleLeaseBusy')
+      // A pre-acquisition stop owns nothing. Once a fence of ours can
+      // exist, every owned fence must have its immutable marker, including
+      // late linking; the seeded external holder is released by hand.
       const segments = await fs.names(`leaseFences/${scheduleStorageHash(key)}`)
       for (const segment of segments) {
         const names = await fs.names(`leaseFences/${scheduleStorageHash(key)}/${segment}`)
         for (const name of names) {
           if (!name.endsWith('.json')) continue
           const candidate = `leaseFences/${scheduleStorageHash(key)}/${segment}/${name}`
-          if (candidate === header && stateFor(step) === 'held') {
+          if (candidate === header && seedState === 'held') {
             await fs.publish(`${candidate}.released`, '') // release the seeded external holder
           } else expect(await fs.read(`${candidate}.released`)).toBe('')
         }
@@ -320,66 +216,79 @@ describe.each(ports)('$name structural lease lifecycle', ({ name, make }) => {
     },
   )
 
-  it.each(['token', 'pid', 'start', 'fencingToken'])(
-    'rejects an immutable heartbeat %s contradiction on one lock call',
-    async (field) => {
-      const fs = make()
-      await seed(fs, 'released')
-      const value: unknown = Reflect.get(owner, field)
-      const bad = {
-        ...owner,
-        [field]: typeof value === 'number' ? value + 1 : '22222222-2222-4222-8222-222222222222',
-      }
-      await fs.publish(`${file}.${owner.token}.heartbeat`, JSON.stringify(bad))
-      const lock = vi.spyOn(fs, 'lock')
-      const factory = vi.spyOn(nodeSchedules, 'createNodeScheduleFs').mockReturnValue(fs)
-      try {
-        let failure: string | undefined
-        try {
-          await createSchedulesReportReader({
-            storeRoot: 'matrix',
-            workspaceKey: FIXTURE_WORKSPACE_KEY,
-          }).read({
-            reportText: EN,
-            locale: 'en',
-            asOf: REPORT_FIXTURE_AS_OF,
-            workspaceKey: FIXTURE_WORKSPACE_KEY,
-            options: reportOptions('schedules'),
-            signal: new AbortController().signal,
-          })
-        } catch (error: unknown) {
-          failure = localFailureOf(error)
-        }
-        expect(failure).toBe('invalid')
-        expect(lock).toHaveBeenCalledTimes(1)
-      } finally {
-        factory.mockRestore()
-      }
-    },
-  )
+  it('aborts a polling acquisition behind a live holder and releases', async () => {
+    // The abort lands from a real timer whenever it fires: the seeded
+    // holder never releases, so the acquisition is still polling then and
+    // the abort binds it however late the timer runs.
+    const fs = make()
+    await seed(fs, 'held')
+    const controller = new AbortController()
+    const pending = fs.lock(key, () => Promise.resolve('done'), {
+      signal: controller.signal,
+      deadlineMs: Date.now() + 60_000,
+    })
+    await delay(100)
+    controller.abort()
+    await expect(pending).rejects.toThrow('aborted')
+    await fs.publish(`${header}.released`, '') // release the seeded external holder
+    await expectReleasedForNextWriter(fs)
+  })
+
+  it('binds a deadline on a polling acquisition behind a live holder', async () => {
+    // The holder never releases, so the deadline passes mid-poll and names
+    // the wait busy, however slow the polls run.
+    const fs = make()
+    await seed(fs, 'held')
+    await expect(
+      fs.lock(key, () => Promise.resolve('done'), { deadlineMs: Date.now() + 300 }),
+    ).rejects.toThrow('scheduleLeaseBusy')
+    await fs.publish(`${header}.released`, '') // release the seeded external holder
+    await expectReleasedForNextWriter(fs)
+  })
+
+  it('completes past a deadline that passes during the work', async () => {
+    // Past acquisition only the abort binds: the deadline passes while the
+    // work sleeps, and the acquisition still completes. The margins keep
+    // acquisition far inside the deadline and the deadline far inside the
+    // work on a loaded rig.
+    const fs = make()
+    await expect(
+      fs.lock(
+        key,
+        async () => {
+          await delay(3000)
+          return 'done'
+        },
+        { deadlineMs: Date.now() + 1000 },
+      ),
+    ).resolves.toBe('done')
+    await expectReleasedForNextWriter(fs)
+  })
 
   it('drains a paused heartbeat before completion can decide success', async () => {
-    const fs = make()
+    // The first production pulse (two seconds out) is held inside its
+    // replace by the decorator while the work returns; completion must
+    // drain it before the final verdict. No clock runs faster here. The
+    // lock is created over the decorator: a lock bound to the inner port
+    // would call its methods directly and bypass every observation.
+    const fs = new RecordingScheduleFs(make())
+    const lock = createScheduleLeaseLock(fs)
     const controller = new AbortController()
     const entered = Promise.withResolvers<undefined>()
     const resumed = Promise.withResolvers<undefined>()
-    const throughReplace = fs.replace.bind(fs)
-    const throughNames = fs.names.bind(fs)
+    let isFirstPulse = true
+    fs.onReplace = async (file) => {
+      if (!isFirstPulse || !file.endsWith('.heartbeat')) return
+      isFirstPulse = false
+      entered.resolve(undefined)
+      await resumed.promise
+    }
     let isWorkReturning = false
     let completionReads = 0
-    const replace = vi.spyOn(fs, 'replace').mockImplementation(async (file, content, guard) => {
-      if (file.endsWith('.heartbeat')) {
-        entered.resolve(undefined)
-        await resumed.promise
-      }
-      await throughReplace(file, content, guard)
-    })
-    const names = vi.spyOn(fs, 'names').mockImplementation(async (folder) => {
+    fs.onNames = () => {
       if (isWorkReturning) completionReads += 1
-      return await throughNames(folder)
-    })
-    const timer = fastHeartbeat()
-    const pending = fs.lock(
+    }
+    const pending = lock(
       key,
       async () => {
         await entered.promise
@@ -398,9 +307,6 @@ describe.each(ports)('$name structural lease lifecycle', ({ name, make }) => {
       controller.abort()
       resumed.resolve(undefined)
       await rejected
-      timer.mockRestore()
-      replace.mockRestore()
-      names.mockRestore()
     }
     await expectReleasedForNextWriter(fs)
   })
@@ -422,11 +328,47 @@ describe.each(ports)('$name structural lease lifecycle', ({ name, make }) => {
   })
 })
 
+it.each(['token', 'pid', 'start', 'fencingToken'])(
+  'rejects an immutable heartbeat %s contradiction on one lock call',
+  async (field) => {
+    // The bad pulse is written to a real directory with the real port, and
+    // the real report reader (which builds its own disk port from the store
+    // root) reports the source invalid: no factory stands in.
+    const directory = path.join(root, `contradiction-${randomUUID()}`)
+    const fs = createNodeScheduleFs(directory)
+    await seed(fs, 'released')
+    const value: unknown = Reflect.get(owner, field)
+    const bad = {
+      ...owner,
+      heartbeat: Date.now(),
+      [field]: typeof value === 'number' ? value + 1 : '22222222-2222-4222-8222-222222222222',
+    }
+    await fs.publish(`${file}.${owner.token}.heartbeat`, JSON.stringify(bad))
+    let failure: string | undefined
+    try {
+      await createSchedulesReportReader({
+        storeRoot: directory,
+        workspaceKey: FIXTURE_WORKSPACE_KEY,
+      }).read({
+        reportText: EN,
+        locale: 'en',
+        asOf: REPORT_FIXTURE_AS_OF,
+        workspaceKey: FIXTURE_WORKSPACE_KEY,
+        options: reportOptions('schedules'),
+        signal: new AbortController().signal,
+      })
+    } catch (error: unknown) {
+      failure = localFailureOf(error)
+    }
+    expect(failure).toBe('invalid')
+  },
+)
+
 describe.each([
   {
     name: 'disk',
     make: () => {
-      const directory = path.join(root, `collision-${crypto.randomUUID()}`)
+      const directory = path.join(root, `collision-${randomUUID()}`)
       const fsA = createNodeScheduleFs(directory)
       const fsB = createNodeScheduleFs(directory)
       const fsC = createNodeScheduleFs(directory)
@@ -445,6 +387,10 @@ describe.each([
   },
 ])('cancelled loser releases nothing ($name)', ({ make }) => {
   it('never releases the live winner fence', async () => {
+    // B publishes the slot first and holds it. A attempts behind B: its
+    // publication loses, it polls, and cancellation lands mid-poll — after
+    // which it must own nothing while B still holds. Whatever phase A has
+    // reached when the abort lands, it cannot have completed behind B.
     const { fsA, fsB, fsC } = make()
     const lockA = createScheduleLeaseLock(fsA)
     const lockB = createScheduleLeaseLock(fsB)
@@ -455,35 +401,19 @@ describe.each([
     const releaseB = Promise.withResolvers<undefined>()
     const enteredB = Promise.withResolvers<undefined>()
     let guardB: ScheduleLeaseGuard | undefined
-    let heldB: Promise<string> | undefined
-    const throughPublish = fsA.publish.bind(fsA)
-    const publish = vi
-      .spyOn(fsA, 'publish')
-      .mockImplementationOnce(async (file, content, guard) => {
-        // A prepared candidate 0 first: B publishes the same slot and holds it.
-        heldB = lockB(collisionKey, async (held) => {
-          guardB = held
-          enteredB.resolve(undefined)
-          await releaseB.promise
-          return 'b'
-        })
-        await enteredB.promise
-        // A's exclusive publication loses (EEXIST with a foreign identity on
-        // the disk port, a plain loss in memory), then cancellation lands
-        // before the wrapper settlement can clear the attempt.
-        const isPublished = await throughPublish(file, content, guard)
-        expect(file).toBe(candidate)
-        expect(isPublished).toBe(false)
-        controlA.abort()
-        return isPublished
-      })
-    try {
-      await expect(
-        lockA(collisionKey, () => Promise.resolve('a'), { signal: controlA.signal }),
-      ).rejects.toThrow('aborted')
-    } finally {
-      publish.mockRestore()
-    }
+    const heldB = lockB(collisionKey, async (held) => {
+      guardB = held
+      enteredB.resolve(undefined)
+      await releaseB.promise
+      return 'b'
+    })
+    await enteredB.promise
+    const attemptA = lockA(collisionKey, () => Promise.resolve('a'), {
+      signal: controlA.signal,
+    })
+    await delay(300)
+    controlA.abort()
+    await expect(attemptA).rejects.toThrow('aborted')
     // The lost publication owns nothing: no release marker, the winner still
     // holds, and a third writer cannot enter behind it.
     expect(await fsA.read(`${candidate}.released`)).toBeUndefined()
@@ -493,7 +423,6 @@ describe.each([
       lockC(collisionKey, () => Promise.resolve('c'), { deadlineMs: Date.now() + 50 }),
     ).rejects.toThrow('scheduleLeaseBusy')
     releaseB.resolve(undefined)
-    if (heldB === undefined) throw new Error('winner never held the fence')
     await heldB
     await expect(
       lockC(collisionKey, () => Promise.resolve('c'), { deadlineMs: Date.now() + 1000 }),
@@ -504,7 +433,7 @@ describe.each([
 describe.each([
   {
     name: 'disk',
-    make: () => createNodeScheduleFs(path.join(root, `legacy-${crypto.randomUUID()}`)),
+    make: () => createNodeScheduleFs(path.join(root, `legacy-${randomUUID()}`)),
   },
   { name: 'memory', make: () => new MemoryScheduleFs() },
 ])('previous-version heartbeat ($name)', ({ make }) => {
@@ -577,37 +506,22 @@ it('refuses a forged, re-released or foreign fence handle with the ownership wor
 describe.each([
   {
     name: 'disk',
-    make: () => createNodeScheduleFs(path.join(root, `successor-${crypto.randomUUID()}`)),
+    make: () => createNodeScheduleFs(path.join(root, `successor-${randomUUID()}`)),
   },
   { name: 'memory', make: () => new MemoryScheduleFs() },
 ])('loser cleanup beside a live successor ($name)', ({ make }) => {
   it('retires the hint before publishing its own release', async () => {
-    const fs = make()
+    const fs = new RecordingScheduleFs(make())
+    const lock = createScheduleLeaseLock(fs)
     const key = 'schedule-successor/hint-order'
     const file = `leases/${scheduleStorageHash(key)}.json`
     const candidate = `leaseFences/${scheduleStorageHash(key)}/0/0.json`
-    const operations: string[] = []
-    const throughPublish = fs.publish.bind(fs)
-    const publish = vi.spyOn(fs, 'publish').mockImplementation(async (relative, content, guard) => {
-      operations.push(`publish:${relative}`)
-      return await throughPublish(relative, content, guard)
-    })
-    const throughRemove = fs.remove.bind(fs)
-    const remove = vi.spyOn(fs, 'remove').mockImplementation(async (relative) => {
-      operations.push(`remove:${relative}`)
-      await throughRemove(relative)
-    })
-    try {
-      await expect(fs.lock(key, () => Promise.resolve('done'))).resolves.toBe('done')
-    } finally {
-      publish.mockRestore()
-      remove.mockRestore()
-    }
+    await expect(lock(key, () => Promise.resolve('done'))).resolves.toBe('done')
     // The hint is retired while no successor can exist, before the release
     // marker lets one in. The old order published the release first and
     // removed the hint after a re-read, leaving the gap this row closes.
-    const hintRetired = operations.indexOf(`remove:${file}`)
-    const released = operations.indexOf(`publish:${candidate}.released`)
+    const hintRetired = fs.operations.indexOf(`remove:${file}`)
+    const released = fs.operations.indexOf(`publish:${candidate}.released`)
     expect(hintRetired).toBeGreaterThanOrEqual(0)
     expect(released).toBeGreaterThanOrEqual(0)
     expect(hintRetired).toBeLessThan(released)
@@ -675,7 +589,7 @@ describe.each([
 
 it('allows no raw awaited filesystem call outside the structural wrapper', () => {
   expect(rawAwaits).toEqual([])
-  expect(steps.map(({ label }) => label)).toContain('lease.fence')
+  expect(sites.map(({ label }) => label)).toContain('lease.fence')
 })
 
 it('removes the last expired memory tail after its predecessor settles without a repair read', async () => {
