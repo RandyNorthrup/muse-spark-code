@@ -1,17 +1,20 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { onTestFinished, describe, expect, it } from 'vitest'
 import { acpPlaybook, type AcpPlaybookBundle } from '../../src/acp/playbook'
+import { FilePlaybookJournal } from '../../src/core/orchestration/playbook/journal'
 import { requireFile } from '../../src/host/lazyBundle'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import {
   parsePlaybookCommand,
   runPlaybookCli,
   runPlaybookCommand,
-  type PlaybookCommand,
-  type PlaybookSurfacePort,
 } from '../../src/runtime/playbook/command'
+import {
+  parsePlaybookCommand as entryParsePlaybookCommand,
+  runPlaybookCommand as entryRunPlaybookCommand,
+} from '../../src/runtime/playbook/playbookEntry'
 import { createPlaybookSurface } from '../../src/runtime/playbook/surface'
 import { UI_TEXT } from '../../src/shared/constants'
 
@@ -28,6 +31,17 @@ function surface() {
     teamId: 'panel',
     laneId: 'surface',
   })
+}
+
+/** The shipped bundle entry with production's adapter shape
+ * (`playbookBundle` in `src/runtime/main.ts`): the entry's own parse, locale
+ * installation and command wiring all run, not a hand-built double. */
+function entryBundle(): AcpPlaybookBundle {
+  return {
+    parsePlaybookCommand: (argv) => entryParsePlaybookCommand(argv),
+    runPlaybookCommand: (command, surfacePort) =>
+      entryRunPlaybookCommand(command, surfacePort, UI_TEXT, 'en'),
+  }
 }
 
 describe('M116 playbook surface adapter (W)', () => {
@@ -99,21 +113,65 @@ describe('M116 playbook surface adapter (W)', () => {
     expect(errors.join('\n')).toContain('playbook')
   })
 
-  it('a loaded playbook whose command fails says so, never unavailable', async () => {
-    const port = surface()
-    // The safety rule is not configurable: the loaded playbook's command
-    // rejects the change, and the failure names the command, not the
-    // playbook's availability.
-    const failed = await runPlaybookCommand(
-      {
-        view: 'settings',
-        change: { rule: 'neverAround', enabled: false, reason: 'No.' } as never,
-      },
-      port,
-    )
+  it('a loaded playbook whose write fails says the command failed, never unavailable', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'm116w-writefail-'))
+    onTestFinished(() => {
+      rmSync(directory, { recursive: true, force: true })
+    })
+    const workspaceFolder = path.join(directory, 'workspace')
+    mkdirSync(workspaceFolder, { recursive: true })
+    const agentDataFolder = path.join(directory, 'data')
+    const port = createPlaybookSurface({
+      agentDataFolder,
+      workspaceFolder,
+      teamId: 'panel',
+      laneId: 'surface',
+    })
+    // A reachable command: the public parser accepts it.
+    const command = parsePlaybookCommand(['settings', 'offload', 'off', 'Owner turns it off.'])
+    if (command === undefined) throw new Error('the reachable playbook command did not parse')
+    // The journal file becomes a directory (the portable form of the drilled
+    // read-only write case): the loaded playbook's write genuinely fails on
+    // every platform, with no invented payload.
+    const journalFile = new FilePlaybookJournal(agentDataFolder, workspaceFolder).file
+    const established = await runPlaybookCommand(command, port)
+    expect(established.ok).toBe(true)
+    rmSync(journalFile, { force: true })
+    mkdirSync(journalFile, { recursive: true })
+    const failed = await runPlaybookCommand(command, port)
     expect(failed.ok).toBe(false)
     expect(failed.text).toBe(UI_TEXT.playbookCommandFailed)
     expect(failed.text).not.toBe(UI_TEXT.playbookUnavailable)
+  })
+
+  it('a surface that cannot bind stays unavailable at the ACP layer', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'm116w-corrupt-'))
+    onTestFinished(() => {
+      rmSync(directory, { recursive: true, force: true })
+    })
+    const workspaceFolder = path.join(directory, 'workspace')
+    mkdirSync(workspaceFolder, { recursive: true })
+    const agentDataFolder = path.join(directory, 'data')
+    const deps = { agentDataFolder, workspaceFolder, teamId: 'panel', laneId: 'surface' }
+    // Establish a real journal with a change, then corrupt it with trailing
+    // garbage: the next bind reads the journal and throws, the
+    // corrupt-journal drill.
+    const port = createPlaybookSurface(deps)
+    const established = await runPlaybookCommand(
+      { view: 'settings', change: { rule: 'offload', enabled: true } },
+      port,
+    )
+    expect(established.ok).toBe(true)
+    appendFileSync(new FilePlaybookJournal(agentDataFolder, workspaceFolder).file, '{\n')
+    // Without the surface-construction catch this rejects at the transport
+    // level instead of answering unavailable (proven: reverting playbook.ts
+    // fails this test with the rejection).
+    const answer = await acpPlaybook(
+      [{ type: 'text' as const, text: '/playbook status' }],
+      () => createPlaybookSurface(deps),
+      () => entryBundle(),
+    )
+    expect(answer).toEqual({ ok: false, text: UI_TEXT.playbookUnavailable })
   })
 
   it('a missing surface stays unavailable', async () => {
@@ -125,18 +183,10 @@ describe('M116 playbook surface adapter (W)', () => {
 
   it('the ACP command carries the loaded playbook answer through', async () => {
     const port = surface()
-    const bundle = {
-      parsePlaybookCommand,
-      runPlaybookCommand: (
-        command: PlaybookCommand,
-        surfacePort: PlaybookSurfacePort | undefined,
-      ) => runPlaybookCommand(command, surfacePort),
-    }
-    const load = () => bundle
     const status = await acpPlaybook(
       [{ type: 'text' as const, text: '/playbook status' }],
       () => port,
-      load,
+      entryBundle,
     )
     expect(status?.ok).toBe(true)
     // No surface bound: the loaded playbook answers unavailable, and the ACP
@@ -144,7 +194,7 @@ describe('M116 playbook surface adapter (W)', () => {
     const noSurface = await acpPlaybook(
       [{ type: 'text' as const, text: '/playbook status' }],
       () => undefined,
-      load,
+      entryBundle,
     )
     expect(noSurface).toEqual({ ok: false, text: UI_TEXT.playbookUnavailable })
   })
