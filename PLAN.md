@@ -24542,11 +24542,15 @@ Until then nothing is built for it.
 
 ### M100 — Paired devices as lane pools (D80, planned)
 
-**Status 2026-10-17: building.** On main, only the receiving device's
-admission check is written (`src/host/devices/deviceReceiver.ts`, with the
-request contract in `src/core/team/remotePool.ts`), and nothing uses it:
-`knip.jsonc` lists both as built ahead of their wiring. Phase 2 is not
-merged, so no pairing, listener, discovery or remote execution is on main.
+**Status 2026-10-17: building.** On main, two unwired halves are written
+and nothing uses either: the receiving device's admission check
+(`src/host/devices/deviceReceiver.ts`) and the sender-side `RemoteAccountPool`
+(`src/core/team/remotePool.ts`, which validates offers and placements, selects
+routes, obtains claims and dispatches requests while keeping sticky/limit
+state; the file also holds the request contract). `knip.jsonc` lists both
+files as built ahead of their wiring (the pool under M96's team runtime, the
+receiver under M100). Phase 2 is not merged, so no pairing, listener,
+discovery or remote execution is on main.
 
 **Status 2026-10-09: built.** Phase 2 accepted, not yet merged.
 

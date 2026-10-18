@@ -456,9 +456,7 @@
       "id": "M63",
       "title": "Muse Spark in ACP editors",
       "summary": "A standalone agent brings chat, tool calls, approvals, modes and sessions to editors that speak the Agent Client Protocol; Zed, Neovim, Emacs and JupyterLab have run it only against a stand-in for Muse Code, so none is yet tried for real.",
-      "area": "editors",
-      "release": "0.10.0",
-      "labels": ["preview"]
+      "area": "editors"
     },
     {
       "id": "M67",
@@ -744,7 +742,7 @@
     {
       "id": "M100",
       "title": "Paired devices",
-      "summary": "Link your own devices on the local network so they can take independent agent lanes and checks and hand back reviewable Git branches, without moving credentials; so far only the receiving device's admission check is written, and nothing uses it yet.",
+      "summary": "Link your devices on the local network to take independent agent lanes and hand back reviewable branches, without moving credentials; only two unwired halves are written so far, the receiving admission check and the sender-side account pool.",
       "area": "devices"
     },
     {

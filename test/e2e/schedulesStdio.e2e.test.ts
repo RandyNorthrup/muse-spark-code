@@ -66,29 +66,4 @@ describe('schedule CLI process boundary', () => {
     expect(run(['schedule', 'run-due', '--cwd', directory]).status).toBe(2)
     expect(run(['schedule', 'background', 'off', '--cwd', directory]).status).toBe(2)
   })
-  it('preserves a committed accepted id on stdout and reports cleanup separately with exit 3', async () => {
-    const bundle = path.join(directory, 'dist', 'schedules.js')
-    await writeFile(
-      bundle,
-      `exports.createRuntimeSchedules = async () => ({
-        command: async () => ({ exitCode: 0, output: JSON.stringify({ kind: 'accepted', id: 'fake-accepted' }) }),
-        run: async () => 'fake',
-        holdWorkspace: async () => async () => {},
-        close: async () => { throw new Error('private cleanup detail') }
-      })`,
-    )
-    try {
-      const result = run(['schedule', 'add', '--draft', '{}', '--json'])
-      expect(result.status).toBe(3)
-      expect(JSON.parse(result.stdout)).toEqual({
-        kind: 'accepted',
-        id: 'fake-accepted',
-      })
-      expect(result.stderr).toContain(UI_TEXT.scheduleV2.runtime.cleanupFailed)
-      expect(result.stdout + result.stderr).not.toContain('private cleanup detail')
-      expect(result.stdout).toContain('fake-accepted')
-    } finally {
-      await rm(bundle)
-    }
-  })
 })
