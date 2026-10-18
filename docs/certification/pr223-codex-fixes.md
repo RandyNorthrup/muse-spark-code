@@ -45,3 +45,44 @@ Final gates on the final tree (repo timeout throughout, never raised):
 90/90 pass; `npx eslint --max-warnings=0 test/` exit 0;
 `npm run typecheck` exit 0; `npm run build` exit 0; prettier clean on
 every changed file.
+
+## Lane PR223FIX2 (2026-10-18, this branch `chore/no-standins-fix2`)
+
+One line per thread from the brief:
+
+- `moduleExports.test.mjs:161` (host bundles) — FIXED in `286758307`.
+  The bare-Node observation now asserts the refusal IS the missing-`vscode`
+  error (code `MODULE_NOT_FOUND`/`ERR_MODULE_NOT_FOUND` plus a headline
+  naming `vscode`, measured on all 13 host bundles in `dist/`); any other
+  refusal fails the gate instead of passing as an identical observation.
+  Measured remainder, answered not fixed: code reached after the `vscode`
+  import cannot execute without the host by construction, so post-import
+  export parity for these bundles lives in the real Extension Development
+  Host (`test/integration`, run over the built product), never in bare Node —
+  and never behind a `vscode` stand-in, which the owner's rule forbids.
+- `eslint.config.mjs:330` (alias bypass) — FIXED in `b4fe0e9af`. The two
+  `Module`-literal selectors are replaced by a local
+  `loader/no-loader-interception` rule that tracks the binding imported from
+  `node:module` (default, named, namespace and `require` spellings, dotted
+  and computed) and keeps flagging the bare `Module` spelling. Drill (all
+  planted, all removed after): `Loader._load`, `Loader['_resolveFilename']`,
+  `Renamed._load`, `mod.Module._load`, `Module._load` and
+  `Needed._resolveFilename` each fail lint; `docs/certification/no-fakes-gate.md`
+  records the rule and the drill.
+- `modelApiLegalScan.test.ts:83` (unchecked `as`) — FIXED in `801cc1c4b`.
+  All three `JSON.parse` results now go through
+  `legalScanResultSchema.safeParse` and the tests assert on the validated
+  data; no `as` remains, so no PLAN §8 entry is owed. Probe: the sparse
+  finding shape the old cast accepted (`category`/`file`/`severity` only)
+  fails the schema, so the parse is a real check. 11/11 pass.
+- `moduleExports.test.mjs:192` (worker crashes) — FIXED in `286758307`.
+  `bootWorkerEntry` requires each worker's own jobless refusal
+  (`imageResizeWorker` `{ok:false}`, `pageWorker` `BAD_JOB`,
+  `searchWorker` `done`/`ok:false` with a non-empty reason) and rejects a
+  crash, a wrong message or a silent exit, so an identical startup crash no
+  longer compares as an identical observation. Drills on a staged copy
+  (reverted after): crashing `pageWorker.js` fails with `jobless boot
+failed ... thread error: drill crash`; a wrong `searchWorker.js` message
+  fails with `unexpected jobless answer`; a non-`vscode` `extension.js`
+  refusal fails with `refused with undefined: drill boom`. Full gate after
+  revert: 90/90 pass.
