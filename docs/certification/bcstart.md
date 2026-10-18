@@ -88,3 +88,22 @@ local stands in for that run.
 | `vitest run` runtimeManifest, browserLaunch, browserPolicy, browserCheckLive, browserCheckR51 | 0: 25 passed, 8 skipped (no pinned runtime here) |
 | `npm run build` (sizes, split, host globals, notices)                                         | 0                                                |
 | `npm run check:roadmap`, `npm run check:plan`                                                 | 0, 0                                             |
+
+## Review round 1 (PR #222, two Codex threads): planned fixes
+
+- **P1, `browserCheckConstants.ts:209`, a hard-coded 5 s startup cap.** The
+  cap goes: no limit of ours but the providers' is hard-coded (AGENTS.md,
+  "Limits"). The wait rests on the bound the check already has, its own
+  lifetime (`createLifetime(timings.checkMs, [request.signal,
+admissionSignal])`: the check's life from spec §4, the person's Stop, and
+  admission), which closes the pipe when it ends; so a service that never
+  starts ends the check `timedOut` or `cancelled`, never with a request made.
+  `BROWSER_NETWORK_SERVICE_START_MS` is deleted; only the 50 ms re-ask
+  interval stays, which stops nothing.
+- **P2, `browserRun.ts:608`, targets read before the wait.** `Target.getTargets`
+  moves after `startedNetworkServiceId`, so the exactly-one-`about:blank`
+  test reads the browser as it stands when the contract is judged; a target
+  that appears during the wait is then seen and refused `unrecognized`.
+- **Proof.** The same 120 contended checks on real Chrome through the real
+  `runBrowserCheck`, and the deliberate break (the single read restored),
+  re-measured on the new head.
