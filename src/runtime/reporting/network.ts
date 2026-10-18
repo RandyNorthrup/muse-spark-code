@@ -40,6 +40,8 @@ export interface ReportingNetworkContext {
   readonly l10n: { readonly table: UiText; readonly locale: string }
   readonly policy: ReportNetworkPolicy
   readonly transport?: ReportNetworkTransport
+  /** Test seam for the credential-free public lane; production omits it. */
+  readonly fetchPublic?: typeof fetch
 }
 const GITHUB_API_HOST = new URL(GITHUB_API_BASE_URL).hostname
 const NPM_REGISTRY_HOST = LEGAL_REGISTRY_HOSTS.npm
@@ -57,8 +59,11 @@ const NPM_REGISTRY_HOST = LEGAL_REGISTRY_HOSTS.npm
  * bounds still apply first; any other host is refused, exactly as the `gh`
  * lane refused it before.
  */
-export function routeReportTransport(github: ReportNetworkTransport): ReportNetworkTransport {
-  const publicTransport = publicReportTransport((input, init) => globalThis.fetch(input, init))
+export function routeReportTransport(
+  github: ReportNetworkTransport,
+  fetchPublic: typeof fetch = (input, init) => globalThis.fetch(input, init),
+): ReportNetworkTransport {
+  const publicTransport = publicReportTransport(fetchPublic)
   return async (request, etag, signal) => {
     const hostname = new URL(request.url).hostname
     if (hostname === GITHUB_API_HOST) return await github(request, etag, signal)
@@ -171,6 +176,7 @@ export function createReportingNetwork(
             fileExists: existsSync,
           },
         }),
+      context.fetchPublic,
     ),
     cache: reportingResponseCache(context.storageRoot),
     now: () => new Date().toISOString(),
