@@ -41,6 +41,7 @@ import type {
 } from '../../core/backends/modelapi/tools'
 import { contentHash, type ContentSource } from '../../core/schedules/provenance'
 import { refusedShellEntry, unstartedShell } from '../../core/shellResult'
+import { setLongTimeout, startStillWaiting, stillWaitingText } from '../../core/timeouts'
 import { resolveExecutable } from '../../core/executables'
 import { isPdf } from '../../core/pdf'
 import type { ToolImageIo } from '../../core/toolImages'
@@ -58,7 +59,6 @@ import {
   MEDIA_MAX_UPLOAD_MIB,
   UI_TEXT,
   MODEL_TEXT,
-  NODE_MAX_TIMER_MS,
   PDF_HEADER_WINDOW_BYTES,
   SEARCH_TIMEOUT_MS,
   SHELL_DRAIN_GRACE_MS,
@@ -1158,7 +1158,12 @@ export interface CommandRun {
   readonly args: readonly string[]
   readonly cwd: string
   readonly env: NodeJS.ProcessEnv
-  readonly timeoutMs: number
+  /**
+   * The caller's own deadline, or undefined: then the process runs until it
+   * exits or the signal aborts, saying so out loud on the log while it runs
+   * (owner 2026-10-16: no arbitrary limits, no silent hangs).
+   */
+  readonly timeoutMs: number | undefined
   readonly signal: AbortSignal | undefined
   /** Lifts the timeout while the command runs (M46: moved to the background). */
   readonly limit?: ShellTimeLimit | undefined
@@ -1212,52 +1217,13 @@ function startProcess(run: CommandRun) {
 }
 
 /**
- * Runs one process to its exit (PLAN.md D25). A timeout or an abort kills
- * the whole process tree, and the result waits for that kill to finish
- * (M27); otherwise it is settled on exit plus a short drain of the output,
- * never on the pipes closing, so a background process the command left
- * running cannot hold the tool call open.
+ * Runs one process to its exit (PLAN.md D25). A named timeout or an abort
+ * kills the whole process tree, and the result waits for that kill to
+ * finish (M27); otherwise it is settled on exit plus a short drain of the
+ * output, never on the pipes closing, so a background process the command
+ * left running cannot hold the tool call open. A run with no timeout of its
+ * own has none: it runs until it exits or is stopped, saying so out loud.
  */
-/**
- * A Node timer stops at 2^31-1 ms (about 24.8 days, a platform fact): a
- * longer delay warns and fires at once. This re-arms the timer in slices of
- * at most `sliceMs` (the platform maximum unless a test says otherwise), so
- * a person's long timeout waits its whole length. No cap is added.
- */
-export interface ChainedTimeout {
-  clear(): void
-}
-
-export function setChainedTimeout(
-  callback: () => void,
-  delayMs: number,
-  sliceMs = NODE_MAX_TIMER_MS,
-): ChainedTimeout {
-  const step = Math.max(1, Math.min(sliceMs, NODE_MAX_TIMER_MS))
-  let remaining = delayMs
-  let timer: NodeJS.Timeout | undefined
-  let isCleared = false
-  const arm = (): void => {
-    if (isCleared) return
-    const slice = Math.min(remaining, step)
-    timer = setTimeout(() => {
-      remaining -= slice
-      if (remaining <= 0) {
-        callback()
-      } else {
-        arm()
-      }
-    }, slice)
-  }
-  arm()
-  return {
-    clear() {
-      isCleared = true
-      clearTimeout(timer)
-    },
-  }
-}
-
 export function runCommand(run: CommandRun): Promise<ShellResult> {
   return new Promise<ShellResult>((resolve) => {
     if (run.signal?.aborted === true) {
@@ -1310,17 +1276,24 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       isCancelled = true
       stop()
     }
-    // A person's long timeout (an uncapped `timeoutSeconds`) can pass Node's
-    // timer maximum: chained slices wait the whole length instead of firing
-    // at once. No cap is added.
-    const timer = run.hasExternalTimeout
-      ? undefined
-      : setChainedTimeout(() => {
-          isTimedOut = true
-          stop()
-        }, run.timeoutMs)
+    // A named deadline kills the tree past it, however long it is (past
+    // one timer's range too); unnamed, the process runs until it exits or
+    // the signal aborts, saying so out loud on the log.
+    const cancelTimer =
+      run.hasExternalTimeout || run.timeoutMs === undefined
+        ? undefined
+        : setLongTimeout(() => {
+            isTimedOut = true
+            stop()
+          }, run.timeoutMs)
+    const stopNoticing =
+      run.timeoutMs === undefined
+        ? startStillWaiting((elapsedMs) => {
+            run.tree.log(stillWaitingText({ key: 'shellCommand' }, elapsedMs))
+          })
+        : undefined
     run.limit?.bind(() => {
-      timer?.clear()
+      cancelTimer?.()
       run.resource?.background()
     })
     const settle = (exitCode: number | null, failure = '', isUnstarted = false) => {
@@ -1328,8 +1301,9 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
         return
       }
       isSettled = true
-      timer?.clear()
+      cancelTimer?.()
       clearTimeout(drain)
+      stopNoticing?.()
       run.signal?.removeEventListener('abort', onAbort)
       // Our ends of the pipes; whatever still writes to them is not waited for.
       child.stdout.destroy()

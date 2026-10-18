@@ -4,7 +4,7 @@
 // schema.
 
 import { describe, expect, it } from 'vitest'
-import { LEGAL_FILES_SCANNED_MAX, LEGAL_FINDINGS_MAX } from '../../src/shared/constants'
+import { LEGAL_FILES_SCANNED_MAX, LEGAL_FINDINGS_MAX, UI_TEXT } from '../../src/shared/constants'
 import { formatNumber } from '../../src/shared/l10n/text'
 import { scanLegal } from '../../src/core/legal/scan'
 import { legalScanResultSchema } from '../../src/shared/legal'
@@ -27,11 +27,11 @@ const project = {
 const LEGAL_CAP_SCAN_TIMEOUT_MS = 15_000
 
 describe('scanLegal', () => {
-  it('cancels before invoking any supplied reader', () => {
+  it('cancels before invoking any supplied reader', async () => {
     let reads = 0
     const controller = new AbortController()
     controller.abort()
-    expect(() =>
+    await expect(
       scanLegal(
         {
           files: ['x.ts'],
@@ -42,12 +42,12 @@ describe('scanLegal', () => {
         },
         { headerPolicy: 'off', signal: controller.signal },
       ),
-    ).toThrow('cancelled')
+    ).rejects.toThrow('cancelled')
     expect(reads).toBe(0)
   })
 
-  it('scans a clean project with a valid envelope', () => {
-    const result = scanLegal(snapshotFrom(project), { headerPolicy: 'optional' })
+  it('scans a clean project with a valid envelope', async () => {
+    const result = await scanLegal(snapshotFrom(project), { headerPolicy: 'optional' })
     expect(legalScanResultSchema.safeParse(result).success).toBe(true)
     expect(result.version).toBe(1)
     expect(result.ruleVersion).toBe('1')
@@ -56,14 +56,14 @@ describe('scanLegal', () => {
     expect(result.exclusions).toEqual([])
   })
 
-  it('sorts findings deterministically with stable rule ids', () => {
+  it('sorts findings deterministically with stable rule ids', async () => {
     const files = {
       ...project,
       'src/a.ts': 'export const a = 1\n',
       'src/b.ts': 'export const b = 1\n',
     }
-    const first = scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
-    const second = scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
+    const first = await scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
+    const second = await scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
     expect(first).toEqual(second)
     const ids = first.findings.map((finding) => finding.id)
     expect(ids).toEqual([...ids].toSorted((a, b) => a.localeCompare(b, 'en')))
@@ -76,13 +76,13 @@ describe('scanLegal', () => {
 
   it(
     'stops an oversize file list at the cap with an incomplete marker',
-    () => {
+    async () => {
       const files: Record<string, string> = { ...project }
       for (let index = 0; index < LEGAL_FILES_SCANNED_MAX + 5; index += 1) {
         files[`src/many${String(index)}.ts`] = headed
       }
       const { snapshot, readPaths } = countingSnapshot(files)
-      const result = scanLegal(snapshot, { headerPolicy: 'optional' })
+      const result = await scanLegal(snapshot, { headerPolicy: 'optional' })
       expect(
         result.incompleteChecks.some((entry) =>
           entry.includes(`after reading ${formatNumber(LEGAL_FILES_SCANNED_MAX)} files`),
@@ -99,50 +99,64 @@ describe('scanLegal', () => {
     LEGAL_CAP_SCAN_TIMEOUT_MS,
   )
 
-  it('caps findings with blockers kept first and a truncation marker', () => {
+  it('caps findings with blockers kept first and a truncation marker', async () => {
     const files: Record<string, string> = { ...project }
     for (let index = 0; index < LEGAL_FINDINGS_MAX + 10; index += 1) {
       files[`src/bare${String(index)}.ts`] = 'export const value = 1\n'
     }
-    const result = scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
+    const result = await scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
     expect(result.findings.length).toBeLessThanOrEqual(LEGAL_FINDINGS_MAX)
     expect(result.incompleteChecks.some((entry) => entry.includes('report truncated'))).toBe(true)
   })
 
-  it('refuses traversal paths instead of reading them', () => {
-    expect(() =>
+  it('refuses traversal paths instead of reading them', async () => {
+    await expect(
       scanLegal(snapshotFrom({ '../evil.ts': 'x' }), { headerPolicy: 'optional' }),
-    ).toThrow('outside the workspace')
-    expect(() => scanLegal(snapshotFrom({ '/abs.ts': 'x' }), { headerPolicy: 'optional' })).toThrow(
-      'outside the workspace',
-    )
-    expect(() =>
+    ).rejects.toThrow('outside the workspace')
+    await expect(
+      scanLegal(snapshotFrom({ '/abs.ts': 'x' }), { headerPolicy: 'optional' }),
+    ).rejects.toThrow('outside the workspace')
+    await expect(
       scanLegal(snapshotFrom({ 'src/ok.ts': headed }), {
         headerPolicy: 'optional',
         paths: ['../evil.ts'],
       }),
-    ).toThrow('outside the workspace')
+    ).rejects.toThrow('outside the workspace')
   })
 
-  it('limits header checks to an explicit subset but keeps workspace facts', () => {
+  it('limits header checks to an explicit subset but keeps workspace facts', async () => {
     const files = {
       ...project,
       'src/bare.ts': 'export const value = 1\n',
     }
-    const scoped = scanLegal(snapshotFrom(files), {
+    const scoped = await scanLegal(snapshotFrom(files), {
       headerPolicy: 'required',
       paths: ['src/ok.ts'],
     })
     expect(scoped.scope).toBe('src/ok.ts')
     expect(scoped.findings).toEqual([])
-    const whole = scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
+    const whole = await scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
     expect(whole.scope).toBe('')
     expect(whole.findings.length).toBeGreaterThan(0)
   })
 
-  it('rejects an unknown header policy instead of guessing', () => {
-    expect(() => {
-      Reflect.apply(scanLegal, undefined, [snapshotFrom(project), { headerPolicy: 'sometimes' }])
-    }).toThrow('Unknown header policy')
+  it('rejects an unknown header policy instead of guessing', async () => {
+    await expect(
+      Reflect.apply(scanLegal, undefined, [snapshotFrom(project), { headerPolicy: 'sometimes' }]),
+    ).rejects.toThrow('Unknown header policy')
+  })
+
+  it('honours a named deadline and marks what it could not cover (NOLIMITS2 A32)', async () => {
+    const result = await scanLegal(snapshotFrom(project), {
+      headerPolicy: 'required',
+      deadline: 1,
+    })
+    expect(result.incompleteChecks).toContain(UI_TEXT.legalScanner.m112)
+  })
+
+  it('reads everything when no deadline is named (NOLIMITS2 A32)', async () => {
+    const result = await scanLegal(snapshotFrom(project), { headerPolicy: 'required' })
+    expect(result.incompleteChecks).not.toContain(UI_TEXT.legalScanner.m112)
+    expect(result.findings).toEqual([])
   })
 })

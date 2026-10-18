@@ -1,5 +1,5 @@
 import { connect, type Socket } from 'node:net'
-import { VAULT_APPROVAL_TTL_MS } from '../../../shared/constants'
+import { VAULT_TRANSPORT_TIMEOUT_MS } from '../../../shared/constants'
 import { vaultItemMetadataSchema, type VaultItemMetadata } from '../../../shared/vault'
 import { SSH, parseSshResponse, SshFramer, sshFrame, sshString, uint32, sshFailure } from './wire'
 import { type SshExternalAgentPort, type SshIdentity } from './ports'
@@ -41,7 +41,7 @@ export async function connectUserSshAgent(
     waiter?.reject(sshFailure())
   }
   signal.addEventListener('abort', close, { once: true })
-  const timer = setTimeout(close, VAULT_APPROVAL_TTL_MS)
+  const timer = setTimeout(close, VAULT_TRANSPORT_TIMEOUT_MS)
   socket.on('error', close)
   socket.on('close', close)
   socket.on('data', (bytes: Buffer) => {

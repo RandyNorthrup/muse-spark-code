@@ -131,11 +131,7 @@ export const EN = {
   outputSchemaLocalValidation:
     'Output schema validation: local (the selected model has no structured-output format).',
   outputSchemaReadFailed: 'Could not read the output schema: {detail}',
-  modelApiPacingTokenLimit:
-    'Fan-out request exceeds the token budget reserved for background work.',
   modelApiPacingWaiting: 'Waiting for rate limit headroom…',
-  modelApiPacingExpired:
-    'The wait for rate limit headroom expired. Send the message again to retry.',
   modelApiStatusLabel: 'Meta API Status',
   modelApiStatusUnavailable: 'Status unavailable',
   modelApiStatusOpen: 'Open Service Status',
@@ -592,7 +588,6 @@ export const EN = {
     'Muse Code exited before deletion was confirmed. The session remains in History.',
   sessionDeleteHostClosed:
     'The host closed before deletion was confirmed. The session remains in History.',
-  sessionDeleteTimedOut: 'Deletion confirmation timed out. The session remains in History.',
   // M116 / D96: shared panel, Agent map, ACP, CLI and report wording.
   playbookTitle: 'Orchestrator Playbook',
   playbookStatus: 'Status',
@@ -2413,7 +2408,6 @@ export const EN = {
     'Web fetch is no longer allowed here (the workspace lost its trust, the permission mode changed, or the sandbox network setting became restricted), so the fetch stopped before its next request.',
   webFetchNat64Unknown:
     '{host} has only IPv6 addresses here, and whether this network translates them to IPv4 addresses (NAT64) could not be learned ({detail}), so they could not be checked for a private address. Nothing was fetched.',
-  webFetchTooManyRedirects: 'The page redirected more than {max} times.',
   webFetchRedirectWithoutLocation: 'The server answered {status} without saying where to go.',
   webFetchRedirectRefused: 'The page redirected to an address that is refused: {reason}',
   webFetchHttpStatus: 'The server answered {status}.',
@@ -3958,6 +3952,22 @@ export const EN = {
   stopAllTasksTitle: 'Stop every background task of this conversation',
   stopTaskFailed: 'The background task could not be stopped',
   taskNotRunning: 'That task is not running any more',
+  stillWaitingNotice: 'Still waiting: {what} ({duration}). Stop ends it.',
+  // The subjects the still-waiting notices name (PR #214 review): each one
+  // is translated, so a notice never interpolates English prose. The
+  // request and command names ({name}, {method}) stay as the other side
+  // spelled them.
+  stillWaitingSubject: {
+    imageRequest: 'the image request',
+    providerAnswer: 'the provider answer',
+    modelReply: 'the model reply',
+    mcpServerStartup: 'MCP server "{name}" startup',
+    mcpServerRequest: 'MCP server "{name}" {method}',
+    museCodeCommand: 'Muse Code {method}',
+    sessionDeletion: 'session deletion',
+    shellCommand: 'the shell command',
+    museServeStarting: 'muse serve starting',
+  },
   userShellLabel: 'You Ran',
   userShellExitCode: 'Exit code {code}',
   userShellExitSignal: 'Ended by signal {signal}',
@@ -4442,7 +4452,10 @@ export const EN = {
   announceApprovalFor: 'Approval needed for {tool}',
   // A failed turn's card when the backend gave no reason.
   turnFailed: 'The turn failed.',
-  turnRetrying: 'Attempt {attempt}/{maxAttempts} failed ({reason}); retrying in {seconds} s.',
+  turnRetrying: 'Attempt {attempt} failed ({reason}); retrying in {seconds} s.',
+  // The same card when the backend named the retry ceiling (PR #214 review).
+  turnRetryingKnownTotal:
+    'Attempt {attempt} of {total} failed ({reason}); retrying in {seconds} s.',
   // The subscription window's length (English writes the unit singular here).
   usageWindowHours: forms({ one: '{count}-hour window', other: '{count}-hour window' }),
   usageWindowMinutes: forms({ one: '{count}-minute window', other: '{count}-minute window' }),

@@ -419,7 +419,10 @@ const agentEventSchema = z.discriminatedUnion('type', [
     type: z.literal('turnRetry'),
     turnId: stringSchema,
     attempt: numberSchema,
-    maxAttempts: numberSchema,
+    // The platform's retry ceiling, when it named one (PR #214 review:
+    // Muse Code's `turn/retryScheduled` still validates `maxAttempts`).
+    // Absent on unbounded Model API retries.
+    maxAttempts: optionalNumber,
     retryDelayMs: numberSchema,
     reason: stringSchema,
   }),

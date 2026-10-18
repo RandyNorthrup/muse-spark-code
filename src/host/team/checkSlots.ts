@@ -20,7 +20,7 @@ import path from 'node:path'
 import type { CheckJob, CheckResult } from '../../core/runners/routing'
 import { runnerEnvironment } from '../../core/runners/runnerConfig'
 import { isSamePath } from '../../core/paths'
-import { GIT_METADATA_OPTIONS, GIT_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
+import { GIT_METADATA_OPTIONS, UI_TEXT } from '../../shared/constants'
 import { canonicalPath, isMissingPath } from '../canonicalPath'
 import { gitFilterOptions } from '../git'
 
@@ -54,6 +54,9 @@ export async function captureCheckSnapshot(
   scratch: string,
   git: CheckGit,
   admit: () => void,
+  // The dispatching job's own bound (owner 2026-10-16): the snapshot names
+  // no git kill of its own.
+  timeoutMs: number,
 ): Promise<string> {
   admit()
   await mkdir(scratch, { recursive: true })
@@ -76,7 +79,7 @@ export async function captureCheckSnapshot(
       args: [...options, ...args],
       cwd,
       env,
-      timeoutMs: GIT_TIMEOUT_MS,
+      timeoutMs,
       ...(input !== undefined && { input }),
     })
     if (!result.descendantsEnded) throw new Error(UI_TEXT.teamTrafficNotices.uncertainAttempt)
@@ -185,7 +188,8 @@ export class CheckSlots {
         GIT_TERMINAL_PROMPT: '0',
         GIT_OPTIONAL_LOCKS: '0',
       },
-      timeoutMs: GIT_TIMEOUT_MS,
+      // The job's own bound, not an invented git kill (owner 2026-10-16).
+      timeoutMs: job.timeoutMs,
       signal: job.signal,
     })
     if (!result.descendantsEnded) throw new Error(UI_TEXT.teamTrafficNotices.uncertainAttempt)
@@ -256,6 +260,7 @@ export class CheckSlots {
       () => {
         this.admit(job)
       },
+      job.timeoutMs,
     )
     slot.uncertain = false
     try {

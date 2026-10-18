@@ -2,12 +2,7 @@
 // Meta headers are interpreted here; another provider supplies its own
 // captured interpreter through the client's capability port.
 import * as z from 'zod/mini'
-import {
-  PACING_START_REQUESTS_PER_MINUTE,
-  PACING_WINDOW_MS,
-  PACING_BACKGROUND_TOKEN_FRACTION,
-  UI_TEXT,
-} from '../../../shared/constants'
+import { PACING_WINDOW_MS } from '../../../shared/constants'
 
 export type PacingClass = 'foreground' | 'subagent' | 'bestOfN' | 'team' | 'judge' | 'schedule'
 
@@ -103,8 +98,10 @@ export class ModelApiPacing implements RequestPacer {
     if (bucket === undefined) {
       bucket = {
         windowMs: PACING_WINDOW_MS,
-        requests: PACING_START_REQUESTS_PER_MINUTE,
-        remainingRequests: PACING_START_REQUESTS_PER_MINUTE,
+        // No shape of our own (owner 2026-10-16): an empty bucket admits
+        // freely until the first capture replaces every number here.
+        requests: 0,
+        remainingRequests: 0,
         tokens: undefined,
         remainingTokens: undefined,
         updatedAt: this.deps.now(),
@@ -200,33 +197,33 @@ export class ModelApiPacing implements RequestPacer {
       signal.throwIfAborted()
       const bucket = this.bucket(account)
       const pause = Math.max(0, bucket.pausedUntil - this.deps.now())
-      // Foreground never joins the fan-out queue. Its own HTTP retry loop
-      // honours Retry-After; a sibling's 429 cannot delay the user's turn.
-      if (kind === 'foreground') {
+      // Foreground never joins the fan-out queue. Otherwise only what the
+      // provider reported shapes the wait (owner 2026-10-16): no observed
+      // limits means no queue at all — the first requests go out freely —
+      // but a 429 pause holds even before the first headers. Its own HTTP
+      // retry loop honours Retry-After; a sibling's 429 cannot delay the
+      // user's turn.
+      if (kind === 'foreground' || (pause === 0 && !bucket.observed)) {
         this.charge(bucket, tokens)
         return
       }
-      if (
-        bucket.tokens !== undefined &&
-        tokens > bucket.tokens * PACING_BACKGROUND_TOKEN_FRACTION
-      ) {
-        throw new RangeError(UI_TEXT.modelApiPacingTokenLimit)
-      }
       // Keep one request for the foreground. A one-RPM key can still run
       // background work once full; foreground always bypasses this check.
-      const requiredRequests = Math.min(2, bucket.requests)
-      const requestWait =
-        (Math.max(0, requiredRequests - bucket.remainingRequests) * bucket.windowMs) /
-        bucket.requests
+      // Only what the provider reported shapes the wait (owner 2026-10-16):
+      // its request and token headroom, and its Retry-After pauses. No
+      // request is reserved for the foreground and no fraction held back.
+      // Unobserved buckets have no headroom math yet; a pause still holds.
+      // An estimate larger than the whole observed bucket waits only for a
+      // full bucket, then goes to the provider to judge: headroom past the
+      // bucket never comes, and waiting for it would never end.
+      const remainingRequests = bucket.remainingRequests
+      const requestWait = bucket.observed
+        ? (Math.max(0, 1 - remainingRequests) * bucket.windowMs) / bucket.requests
+        : 0
       const tokenWait =
-        bucket.tokens === undefined || bucket.remainingTokens === undefined
+        !bucket.observed || bucket.tokens === undefined || bucket.remainingTokens === undefined
           ? 0
-          : (Math.max(
-              0,
-              tokens +
-                bucket.tokens * (1 - PACING_BACKGROUND_TOKEN_FRACTION) -
-                bucket.remainingTokens,
-            ) *
+          : (Math.max(0, Math.min(tokens, bucket.tokens) - bucket.remainingTokens) *
               bucket.windowMs) /
             bucket.tokens
       const delay = Math.ceil(Math.max(pause, requestWait, tokenWait))

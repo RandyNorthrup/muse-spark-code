@@ -38,8 +38,8 @@ interface FilesForLedger {
     expectedSha256?: string,
   ): Promise<UploadedMediaRef>
   retrieve(fileId: string, signal?: AbortSignal): Promise<unknown>
-  accountFiles(): Promise<readonly z.infer<typeof accountFileSchema>[]>
-  delete(fileId: string): Promise<void>
+  accountFiles(signal?: AbortSignal): Promise<readonly z.infer<typeof accountFileSchema>[]>
+  delete(fileId: string, signal?: AbortSignal): Promise<void>
 }
 export interface UploadLedgerDeps {
   readonly storage: UploadLedgerStorage
@@ -57,8 +57,12 @@ export interface SessionUploadOwnership {
     sessionId: string,
     refs: readonly UploadedMediaRef[],
     isCurrent?: () => boolean,
+    // Ends the provider calls the sync makes under the storage lock
+    // (PR #214 review): a stalled DELETE/list no longer holds the lock
+    // past Stop. Unnamed where the caller has no signal to give.
+    signal?: AbortSignal,
   ): Promise<void>
-  releaseSession(sessionId: string): Promise<void>
+  releaseSession(sessionId: string, signal?: AbortSignal): Promise<void>
 }
 export interface SessionUploadLifecycle extends SessionUploadOwnership {
   /** Holds the storage lock across session publication and ownership changes. */
@@ -95,6 +99,7 @@ export class UploadLedger implements SessionUploadLifecycle {
   private async cleanup(
     state: UploadLedgerState,
     isCurrent: () => boolean = () => true,
+    signal?: AbortSignal,
   ): Promise<void> {
     if (!(await this.isCurrentAccount())) return
     for (const entry of state.entries) {
@@ -102,7 +107,7 @@ export class UploadLedger implements SessionUploadLifecycle {
       await this.requireAccount()
       if (!isCurrent()) return
       try {
-        await this.files.delete(entry.file.fileId)
+        await this.files.delete(entry.file.fileId, signal)
       } catch (error: unknown) {
         if (!isModelApiError(error) || error.status !== HTTP_STATUS.notFound) throw error
       }
@@ -183,6 +188,7 @@ export class UploadLedger implements SessionUploadLifecycle {
         sessionId: string,
         refs: readonly UploadedMediaRef[],
         isCurrent: () => boolean = () => true,
+        signal?: AbortSignal,
       ): Promise<void> => {
         const state = await this.read()
         if (!isCurrent()) return
@@ -204,7 +210,7 @@ export class UploadLedger implements SessionUploadLifecycle {
           if (wanted.some((ref) => ref.sha256 === entry.file.sha256)) entry.sessions.push(sessionId)
         }
         await this.deps.storage.write(state)
-        await this.cleanup(state, isCurrent)
+        await this.cleanup(state, isCurrent, signal)
         if (isCurrent()) return
         // A newer save may arrive during the write or account checks. Restore
         // still-existing owners before another account operation can clean them.
@@ -216,8 +222,8 @@ export class UploadLedger implements SessionUploadLifecycle {
       }
       return await operation({
         syncSession,
-        releaseSession: async (sessionId) => {
-          await syncSession(sessionId, [])
+        releaseSession: async (sessionId, signal) => {
+          await syncSession(sessionId, [], () => true, signal)
         },
       })
     })
@@ -227,23 +233,24 @@ export class UploadLedger implements SessionUploadLifecycle {
     sessionId: string,
     refs: readonly UploadedMediaRef[],
     isCurrent?: () => boolean,
+    signal?: AbortSignal,
   ): Promise<void> {
     await this.withLock(async (ownership) => {
-      await ownership.syncSession(sessionId, refs, isCurrent)
+      await ownership.syncSession(sessionId, refs, isCurrent, signal)
     })
   }
 
-  public async releaseSession(sessionId: string): Promise<void> {
-    await this.syncSession(sessionId, [])
+  public async releaseSession(sessionId: string, signal?: AbortSignal): Promise<void> {
+    await this.syncSession(sessionId, [], undefined, signal)
   }
 
-  public async accountReport(): Promise<UploadedFilesReport> {
+  public async accountReport(signal?: AbortSignal): Promise<UploadedFilesReport> {
     return await this.deps.storage.withLock(async () => {
       const state = await this.read()
       const isReadOnly = !(await this.isCurrentAccount())
       if (!isReadOnly) {
-        await this.cleanup(state)
-        const listed = await this.files.accountFiles()
+        await this.cleanup(state, () => true, signal)
+        const listed = await this.files.accountFiles(signal)
         state.cachedFiles = listed.map((file) => accountFileSchema.parse(file))
         await this.deps.storage.write(state)
       }

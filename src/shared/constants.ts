@@ -1523,8 +1523,12 @@ export const GIT_LS_FILES_ARGS = [
 ] as const
 // `git ls-files` on a large monorepo can exceed Node's 1 MiB default.
 export const GIT_OUTPUT_MAX_BYTES = 64 * 1024 * 1024
-// A git call that has not answered by then (a hung network drive, a lock)
-// is killed; the callers fall back as if git were absent (PLAN.md D24).
+// Synchronous spawns name this bound in their own options (the playbook's
+// contained/sync hooks): a hung child under `spawnSync` would freeze the
+// host thread with no Stop able to reach it, so the bound stays exactly
+// there. Every stoppable git wait names no deadline of its own: it ends at
+// git's answer or its abort, and a real failure still falls back as if git
+// were absent (PLAN.md D24; owner 2026-10-16: no arbitrary limits).
 export const GIT_TIMEOUT_MS = 15_000
 /** Boolean fsmonitor=false is supported from Git 2.36. */
 export const UNTRUSTED_CHECKOUT_MIN_GIT_MINOR = 36
@@ -2267,15 +2271,12 @@ export const STRUCTURED_OUTPUT_REPAIRS_MAX = 1
 export const WEB_SEARCH_MAX_PER_REQUEST = 5
 export const WEB_SEARCH_MIN_PER_REQUEST = 1
 export const WEB_SEARCH_MAX_PER_REQUEST_LIMIT = 20
-// U12 captured no reset header: Meta documents a one-minute window. The
-// startup allowance is conservative; captured headers replace it, never a
-// hard-coded account limit. Other providers require their own captures.
+// U12 captured no reset header: Meta documents a one-minute window.
+// Captured headers replace the empty initial bucket, never a hard-coded
+// account limit; unobserved buckets admit freely and 429 pauses hold
+// (owner 2026-10-16: no pace of our own). Other providers require their own
+// captures.
 export const PACING_WINDOW_MS = 60_000
-export const PACING_START_REQUESTS_PER_MINUTE = 10
-// Half the observed tokens remain available to the foreground after a background burst.
-export const PACING_BACKGROUND_TOKEN_FRACTION = 0.5
-// Six one-RPM admissions may wait six minutes; a stuck queue still has a finite deadline.
-export const PACING_ADMISSION_TIMEOUT_MS = 600_000
 /** Smallest documented manual-thinking budget; always below the output cap. */
 export const PROVIDER_MANUAL_THINKING_BUDGET = 1024
 // A turn that ran this long earns a notification when it ends while the
@@ -2328,17 +2329,18 @@ export const MODEL_API_RETRYABLE_STREAM_CODES: ReadonlySet<string> = new Set([
   'service_overloaded',
   'backend_unavailable',
 ])
-export const MODEL_API_MAX_RETRIES = 4
+// How long one fallback wait may grow between silent-provider retries
+// (owner 2026-10-16): exponential to this ceiling, forever until Stop. A
+// wait the provider names is honoured whole and never capped here.
 export const MODEL_API_RETRY_BASE_MS = 1000
 export const MODEL_API_RETRY_MAX_MS = 60_000
 export const MODEL_API_RETRY_JITTER_MS = 1000
 // The model list and the token count have no turn to stop them (PLAN.md D25).
 export const MODEL_API_STATUS_READ_TIMEOUT_MS = 3000
-export const MODEL_API_REQUEST_TIMEOUT_MS = 30_000
-// A reply stream that sends nothing for this long, headers or frames, ends
-// its turn (M39): it would otherwise hold the turn until Stop. Long enough
-// for a model reasoning at length before its first words.
-export const MODEL_API_STREAM_IDLE_MS = 300_000
+// The ChatGPT sign-in's token-freshness bound (minimum validity), not a
+// request kill: a staler token is refreshed, never refused. (NOLIMITS2 C1:
+// no request names a deadline of its own any more.)
+export const CHATGPT_TOKEN_MIN_VALIDITY_MS = 30_000
 // The file tools load a file whole (read_file shows a window of it,
 // edit_file changes it): one larger than this is refused unread (M39).
 export const BYTES_PER_MIB = 1024 * 1024
@@ -2602,12 +2604,21 @@ export const HTTP_SUCCESS_MIN = 200
 export const HTTP_SUCCESS_MAX = 299
 // The whole fetch, redirects and body included, ends by this deadline.
 export const WEB_FETCH_TIMEOUT_MS = 30_000
-// Redirects followed on the same host, each hop resolved, checked and pinned
-// again; a redirect to another host is handed back to the model instead.
-export const WEB_FETCH_MAX_REDIRECTS = 5
-// The body after any decompression; a larger page is refused, never cut.
-export const WEB_FETCH_MAX_MIB = 5
-export const WEB_FETCH_MAX_BYTES = WEB_FETCH_MAX_MIB * BYTES_PER_MIB
+// Redirects on the same host are followed without a count of their own,
+// each hop resolved, checked and pinned again; a redirect to another host
+// is handed back to the model instead. (NOLIMITS A17: the fetch used to
+// stop after 5 redirects and refuse pages past 5 MiB; both caps are gone.
+// The https-only, no-credentials and public-hosts refusals stay: they are
+// safety rules, not size limits.)
+// Safety, not a size limit (SECURITY.md, the trusted policy): at most this
+// much decompressed body is ever buffered for one page, on every product
+// call, even when the caller named no smaller ingress cap (M118 raw files
+// name one and keep their refusal). Past it the stream stops and the page
+// converts truncated-with-notice, never refused: a gzip/Brotli bomb or a
+// fast text stream costs no more than this of host memory, and a valid page
+// past it still reads.
+export const WEB_FETCH_BUFFER_WINDOW_MIB = 5
+export const WEB_FETCH_BUFFER_WINDOW_BYTES = WEB_FETCH_BUFFER_WINDOW_MIB * BYTES_PER_MIB
 // What the model receives of the converted text, within TOOL_OUTPUT_MAX_CHARS.
 export const WEB_FETCH_MAX_CONTENT_CHARS = 50_000
 // The HTML converter stops past this much Markdown (room for the text it
@@ -2800,7 +2811,9 @@ export const IMAGE_ASPECT_SIZES = {
 export type ImageAspect = keyof typeof IMAGE_ASPECT_SIZES
 export const IMAGE_OUTPUT_FORMAT = 'png'
 export const IMAGE_FILE_EXTENSION = '.png'
-export const IMAGE_REQUEST_TIMEOUT_MS = 180_000
+// Billed image requests carry no deadline of their own: waited on until
+// Meta answers or the caller stops waiting (owner 2026-10-16), saying so
+// out loud while they wait.
 // Image edits (M44, dev.meta.ai/docs/api-reference/images/edit-image, read
 // 2026-09-25; error catalog dev.meta.ai/docs/image-generation, read
 // 2026-10-16: "an edit needs 1–10 items"): `POST /images/edits` with the
@@ -4033,6 +4046,9 @@ export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
   '.gitmodules',
 ])
 export const LIST_FILES_DEFAULT_LIMIT = 500
+// Backstop waits owned by other rows (checks, the verify loop, the judge
+// harness, media conversion, the vault service default): the shell tool
+// itself no longer defaults or clamps (owner 2026-10-16).
 export const SHELL_DEFAULT_TIMEOUT_MS = 120_000
 // D107 §9.4: internal B1 boundary; F1b installs it only after certification.
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
@@ -4049,6 +4065,9 @@ export const JUDGE_FAST_B1_PROTOCOL_MAX_BYTES = 1024
 export const JUDGE_FAST_B1_ELF_MAX_BYTES = 32 * 1024 * 1024
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_SYSTEM_MAX_FILES = 64
+// The longest a backstop wait may run (check commands derive their own
+// ceiling from it): the shell tool itself no longer clamps (owner
+// 2026-10-16).
 export const SHELL_MAX_TIMEOUT_MS = 600_000
 // Per stream: past it the middle of the output is dropped with a count.
 export const SHELL_OUTPUT_MAX_CHARS = 2 * 1024 * 1024
@@ -4400,9 +4419,9 @@ export const HIDDEN_ITEM_KINDS: ReadonlySet<string> = new Set(['userMessage', 'r
 export const USER_SHELL_ITEM_KIND = 'userShell'
 export const USER_SHELL_PREFIX = '!'
 // The Model API backend runs the user's command through the shell tool's own
-// runner (job objects on Windows, M27) with this limit, the shell tool's
-// longest; the row's Stop ends it sooner.
-export const USER_SHELL_TIMEOUT_MS = 10 * 60 * 1000
+// runner (job objects on Windows, M27) with no deadline of its own: the
+// command runs until it ends or the row's Stop ends it (owner 2026-10-16),
+// saying so out loud while it runs.
 // Who moved a task to the background (MSP `BackgroundInitiator`).
 export const BACKGROUND_INITIATOR_USER = 'user'
 // What a row's button asked of a task: `task/background` or `task/stop`.
@@ -4589,11 +4608,18 @@ export const HEARTBEAT_BEAM_LINE_WIDTH_PX = 1.5
 export const HEARTBEAT_BEAM_MAX_TICKS_PER_FRAME = 8
 export const MILLISECONDS_PER_SECOND = 1000
 export const SECONDS_PER_MINUTE = 60
-// Node timers stop at 2^31-1 ms (about 24.8 days, a platform fact): a
-// longer delay warns and fires at once. Long waits re-arm in slices of at
-// most this, so a person's long timeout still waits its whole length.
-export const NODE_MAX_TIMER_MS = 2_147_483_647
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
+// How often a wait with no deadline of its own says so out loud (owner
+// 2026-10-16: no silent hangs — the wait tells the person it is still
+// waiting, and Stop ends it). A notice cadence, not a limit: nothing stops.
+export const STILL_WAITING_NOTICE_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
+// The longest delay one timer takes, 2^31 - 1 ms (about 24.8 days). Node
+// runs a longer one after 1 ms ("When delay is larger than 2147483647 or
+// less than 1 or NaN, the delay will be set to 1", nodejs.org/api/timers.html,
+// read 2026-10-17), so a longer wait a provider or a person names runs as
+// a chain of such pieces (`setLongTimeout`). The platform's fact, not a
+// limit of ours: nothing is cut short.
+export const TIMER_MAX_DELAY_MS = 2_147_483_647
 
 // M102 / D82: machine-local usage history, independent of spend ledgers.
 // Version 2 (M121) stores dollars as exact decimal text. Both versions share
@@ -4740,20 +4766,19 @@ export const OUTPUT_DOCUMENTS_KEPT = 20
 // first: the IDE server's warning names it.
 export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp', 'sessionListStream', 'userShell'] as const
 export const MSP_USER_SHELL_CAPABILITY = 'userShell'
-// How long the extension waits on `muse serve` (PLAN.md D25; the SDK has no
-// timeouts of its own, INV-006): the handshake, an ordinary command, and the
-// commands that load or copy a whole session. Past them the command fails
-// with a message instead of leaving the panel waiting for ever.
+// How the extension waits on `muse serve` (PLAN.md D25; the SDK has no
+// timeouts of its own, INV-006): a command — and the opening handshake —
+// is waited on until Muse Code answers or the wait is stopped, saying so
+// out loud on the log while it waits (owner 2026-10-16: no arbitrary
+// limits, no silent hangs). A test may still name a command wait through
+// CommandTimeouts. The handshake bound below is not the serve
+// handshake's any more (NOLIMITS2 C12): the device sign-in, the account
+// host and the team process lifetime name it for their own waits. A slow
+// serve start on a CPU-starved machine (0.10.0, an activation that took
+// 211 s) is outlasted by the wait itself, saying so each minute, and a
+// healthy start still connects in a second or two (the log's
+// "Connected ... in N ms").
 export const MSP_HANDSHAKE_TIMEOUT_MS = 30_000
-// A `muse serve` whose process still runs at the handshake's deadline is
-// starting slowly, not stuck: on a CPU-starved machine (0.10.0, an
-// activation that took 211 s) it missed 30 s and was killed. It gets one
-// longer wait, this long in all. A healthy start connects in a second or
-// two (the log's "Connected ... in N ms"), so a process still silent after
-// four times the first deadline is stuck, and is ended.
-export const MSP_SLOW_HANDSHAKE_TIMEOUT_MS = 120_000
-export const MSP_COMMAND_TIMEOUT_MS = 60_000
-export const MSP_LONG_COMMAND_TIMEOUT_MS = 180_000
 // A command the host refused without admitting it (the SDK's own rule, D26):
 // sent again with the same id up to this many times in all.
 export const MSP_COMMAND_ATTEMPTS = 3
@@ -4902,14 +4927,12 @@ export const MCP_SCHEMA_LIMITS = {
   largeEnumChars: 15_000,
   nodes: 200_000,
 } as const
-// Muse Code's `startup_timeout_sec` and `tool_timeout_sec`, when the entry
-// sets none; a value is capped at the hour.
-export const MCP_STARTUP_TIMEOUT_MS = 30_000
+// An entry's own `startup_timeout_sec` and `tool_timeout_sec` (Muse Code's
+// documented keys, seconds); when the entry sets none, starting and tool
+// calls are waited on until the server answers or is stopped, never killed
+// at an invented default (owner 2026-10-16: no arbitrary limits). The wait
+// says so out loud on STILL_WAITING_NOTICE_MS; Stop ends it.
 export const MCP_START_CONCURRENCY = 4
-export const MCP_TOOL_TIMEOUT_MS = 300_000
-export const MCP_TIMEOUT_MAX_SECONDS = 3600
-// `tools/list` and the other short requests after the handshake.
-export const MCP_REQUEST_TIMEOUT_MS = 30_000
 // Closing: a stdio server gets this long to leave after its input closes
 // before its process tree is killed; a remote session's DELETE this long.
 export const MCP_SHUTDOWN_GRACE_MS = 1500
@@ -6237,7 +6260,7 @@ export const MODEL_TEXT = {
   browserCheckUrlRefused:
     'only an http:// or https:// URL whose host is a plain name or IP address, with no user name or password, can be opened, such as http://localhost:3000/',
   browserCheckInvalidArguments:
-    'the arguments are not valid, so nothing was opened: url is a string, and actions, when given, is a list of at most {actions} steps, each with kind click or type and a CSS selector of 1 to {selector} characters, a type step also with the text it types (at most {text} characters)',
+    'the arguments are not valid, so nothing was opened: url is a string, and actions, when given, is a list of steps, each with kind click or type and a CSS selector of 1 to {selector} characters, a type step also with the text it types (at most {text} characters)',
   // The closed failures (M81 A1, browserRun.ts): the runtime's preparation.
   browserCheckRuntimeMissing:
     "the browser check's browser runtime is not installed and could not be downloaded now; nothing was opened",
@@ -6317,7 +6340,6 @@ export const WEB_FETCH_MODEL_TEXT = {
     'web fetch is no longer allowed here (the workspace lost its trust, the permission mode changed, or museSpark.sandboxNetwork became restricted), so the fetch stopped before its next request',
   webFetchNat64Unknown:
     '{host} resolves only to IPv6 addresses here, and whether this network translates IPv6 addresses to IPv4 ones (NAT64) could not be learned ({detail}), so they cannot be checked for a private address; nothing was fetched',
-  webFetchTooManyRedirects: 'more than {max} redirects',
   webFetchRedirectWithoutLocation: 'the server answered HTTP {status} without a Location to go to',
   webFetchRedirectRefused: 'the page redirected to a URL that is refused: {reason}',
   webFetchHttpStatus: 'the server answered HTTP {status}',
@@ -7909,6 +7931,10 @@ export const LEGAL_FINDINGS_MAX = 500
 export const LEGAL_FILE_MAX_BYTES = 1_000_000
 export const LEGAL_TOTAL_MAX_BYTES = 10_000_000
 export const LEGAL_DIRECTORY_ENTRIES_MAX = 20_000
+// Entries, files and readers between event-loop yields inside the legal
+// walk and scan (PR #214 review): often enough that Stop lands mid-scan,
+// seldom enough that yielding costs nothing measurable against sync syscalls.
+export const LEGAL_SCAN_YIELD_EVERY = 64
 export const LEGAL_FINDINGS_PER_RULE_MAX = 100
 // The only raw file content a finding may carry: a short excerpt around the
 // evidence (a header block, a license line), never a whole file, so a report
@@ -7953,11 +7979,10 @@ export const LEGAL_EXIT = {
 // scanner, loaded lazily by the host and the headless command, never part of
 // activation. The bundle-split gate refuses it in dist/extension.js.
 
-// The headless scan's own deadline: a workspace walk of up to
-// LEGAL_FILES_SCANNED_MAX files plus the bounded registry reads below. The
-// headless lifecycle still owns the process deadline.
+// The headless scan used to stop at its own deadline; it now runs until it
+// is done or a signal stops it (owner 2026-10-16: no arbitrary limits). The
+// headless lifecycle still owns the process for commands that name one.
 export const LEGAL_REGISTRY_NOTICE_KEY = 'legalRegistryNoticed'
-export const LEGAL_SCAN_TIMEOUT_MS = 120_000
 // Registry enrichment (D76: disclosed, bounded, OFF unless `--registry`): the
 // only hosts ever queried, over HTTPS, with no credentials. npm answers one
 // version document per package@version; PyPI one project document per
@@ -7976,7 +8001,8 @@ export const LEGAL_REGISTRY_NAME_MAX_CHARS = 214
 // A version or project document past this is refused instead of buffered:
 // the license shapes both registries use fit in kilobytes.
 export const LEGAL_REGISTRY_RESPONSE_MAX_BYTES = 262_144
-// One registry request's own deadline; LEGAL_SCAN_TIMEOUT_MS bounds the run.
+// One registry request's own deadline (registry enrichment is OFF unless
+// `--registry`; its per-request wait is not this lane's row to remove).
 export const LEGAL_REGISTRY_TIMEOUT_MS = 10_000
 // A rendered report past this is refused instead of written: 500 findings
 // with full excerpts stay far below it, so past it means a broken renderer.
@@ -8128,6 +8154,14 @@ export const DEVELOPER_MACHINE_ID_DOMAIN = 'muse-spark-developer-machine/v1'
 // M109 lane 0: vault format, limits and budgets (D89).
 export const VAULT_FORMAT_VERSION = 1
 export const VAULT_PROTOCOL_VERSION = 1
+// Transport and peer hygiene only (NOLIMITS2 A33): unauthenticated
+// sockets, helper calls and native peer handshakes end at it. It never
+// bounds an approval: approvals wait for the person or Stop.
+export const VAULT_TRANSPORT_TIMEOUT_MS = 120_000
+// The old approval clock's name, kept only for the vault harness fixture
+// and the unmerged M109 broker work that still reads it: nothing in src/
+// ends an approval at it any more (NOLIMITS2 A33). Delete it when that
+// work lands on the no-expiry rule.
 export const VAULT_APPROVAL_TTL_MS = 120_000
 // Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
 export const VAULT_LOCK_DRAIN_MS = 1000
@@ -8193,6 +8227,5 @@ export const MCP_OAUTH_LIMITS = {
 // U's independent lazy surfaces; W registers these new caps without changing existing caps.
 export const VAULT_PANEL_BUDGET_KIB = 75
 export const VAULT_HOST_BUDGET_KIB = 50
-export const VAULT_UI_TICK_MS = 1000
 export const VAULT_ID_BYTES = 16
 export const VAULT_TOTP_PERIOD_SECONDS = 30

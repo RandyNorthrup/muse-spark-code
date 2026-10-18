@@ -15,12 +15,13 @@
 //   WEB_FETCH_ATTEMPT_DELAY_MS, the first to connect wins. Through a proxy,
 //   the proxy is asked for that address too (src/host/web/pinnedRequest.ts);
 // - follows a redirect on the same host, checked, resolved and pinned
-//   again, at most WEB_FETCH_MAX_REDIRECTS times; a redirect to another host
-//   is handed back to the model, which asks again (each host is approved on
-//   its own);
-// - reads at most WEB_FETCH_MAX_BYTES of an allowed content type within
-//   WEB_FETCH_TIMEOUT_MS, then turns HTML into Markdown and leaves text as
-//   it is.
+//   again, until the page answers or the fetch's deadline (or Stop) ends
+//   the wait; a redirect to another host is handed back to the model,
+//   which asks again (each host is approved on its own);
+// - reads the whole body of an allowed content type within
+//   WEB_FETCH_TIMEOUT_MS (a caller may still name its own smaller ingress
+//   cap with `rawTextLimit`), then turns HTML into Markdown and leaves
+//   text as it is.
 //
 // What the model receives marks the page as untrusted data between markers
 // the page cannot know; text the server chose (a redirect's URL, the title)
@@ -45,9 +46,8 @@ import {
   WEB_FETCH_CONVERT_MAX_CHARS,
   WEB_FETCH_DETAIL_MAX_CHARS,
   WEB_FETCH_HTML_TYPES,
-  WEB_FETCH_MAX_BYTES,
+  WEB_FETCH_BUFFER_WINDOW_BYTES,
   WEB_FETCH_MAX_CONTENT_CHARS,
-  WEB_FETCH_MAX_REDIRECTS,
   WEB_FETCH_MODEL_TEXT,
   WEB_FETCH_NOT_TLS_CODE,
   WEB_FETCH_TEXT_TYPES,
@@ -537,38 +537,102 @@ function decoded(body: AsyncIterable<Uint8Array>, coding: string): Decoded {
   }
 }
 
-/** Every chunk, refused as soon as the total passes the cap. */
+/**
+ * Every chunk, refused as soon as the total passes the caller-named cap.
+ * Only the M118 raw path names one; the ordinary path streams instead.
+ */
 async function collect(chunks: AsyncIterable<Uint8Array>, maxBytes: number): Promise<Uint8Array> {
   const parts: Uint8Array[] = []
   let total = 0
   for await (const chunk of chunks) {
     total += chunk.byteLength
     if (total > maxBytes) {
-      refuse('tooLarge')
+      refuse('tooLarge', { maxBytes })
     }
     parts.push(chunk)
   }
   return Buffer.concat(parts)
 }
 
+/** One page's buffered bytes, and whether the stream held more past them. */
+interface BodyRead {
+  readonly bytes: Uint8Array
+  readonly truncated: boolean
+}
+
 /**
- * The whole body within the cap. Damaged compressed data is refused as the
- * coding's, not reported as a network failure.
+ * The head window of the stream, stopping it past the window: breaking the
+ * iteration destroys the source, and the fetch still releases the
+ * connection. Memory never holds more than the window, however far a
+ * decompressor expands or a stream runs.
+ */
+async function collectHead(chunks: AsyncIterable<Uint8Array>, window: number): Promise<BodyRead> {
+  const parts: Uint8Array[] = []
+  let total = 0
+  for await (const chunk of chunks) {
+    const room = window - total
+    if (room <= 0) {
+      return { bytes: Buffer.concat(parts), truncated: true }
+    }
+    if (chunk.byteLength > room) {
+      parts.push(chunk.subarray(0, room))
+      return { bytes: Buffer.concat(parts), truncated: true }
+    }
+    parts.push(chunk)
+    total += chunk.byteLength
+  }
+  return { bytes: Buffer.concat(parts), truncated: false }
+}
+
+/** A window cut can split a final multi-byte sequence; at most this many trailing bytes go. */
+const HEAD_CUT_MAX_BYTES = 4
+
+/**
+ * The head whole to a character: when the window cut a final multi-byte
+ * sequence, the head shortens past it. A genuinely undecodable head comes
+ * back whole and refuses downstream as today.
+ */
+function wholeHead(bytes: Uint8Array, contentType: string): Uint8Array {
+  const label = mimeParameter(contentType, CHARSET)
+  const encoding = (label === undefined ? undefined : encodingOf(label)) ?? UTF_8
+  for (let cut = 0; cut <= HEAD_CUT_MAX_BYTES; cut += 1) {
+    const head = cut === 0 ? bytes : bytes.subarray(0, bytes.byteLength - cut)
+    try {
+      decodeWithBom(head, encoding)
+      return head
+    } catch (error: unknown) {
+      if (!(error instanceof UndecodableText)) throw error
+    }
+  }
+  return bytes
+}
+
+/**
+ * The body within the caller-named cap (M118 raw files: refused past it),
+ * else the head window with the stream stopped past it (truncated, never
+ * refused). Damaged compressed data is refused as the coding's, not
+ * reported as a network failure.
  */
 async function readCapped(
   response: PinnedResponse,
   headers: ReadHeaders,
   signal: AbortSignal,
-  maxBytes = WEB_FETCH_MAX_BYTES,
-): Promise<Uint8Array> {
-  const declared = Number(headers['content-length'] ?? NaN)
-  if (Number.isFinite(declared) && declared > maxBytes) {
-    refuse('tooLarge')
-  }
+  maxBytes: number | undefined,
+): Promise<BodyRead> {
   const coding = (headers['content-encoding'] ?? IDENTITY).trim().toLowerCase()
   const body = decoded(response.body, coding)
+  const read = async (): Promise<BodyRead> => {
+    if (maxBytes !== undefined) {
+      const declared = Number(headers['content-length'] ?? NaN)
+      if (Number.isFinite(declared) && declared > maxBytes) {
+        refuse('tooLarge', { maxBytes })
+      }
+      return { bytes: await collect(body.chunks, maxBytes), truncated: false }
+    }
+    return await collectHead(body.chunks, WEB_FETCH_BUFFER_WINDOW_BYTES)
+  }
   try {
-    return await collect(body.chunks, maxBytes)
+    return await read()
   } catch (error: unknown) {
     if (error instanceof FetchRefused || signal.aborted || body.hasSourceFailed()) {
       throw error
@@ -623,7 +687,12 @@ const CONVERSION_FAILURES: Readonly<Record<HtmlConversionFailure, WebFetchFailur
  * not convert in time or memory is refused with that reason.
  */
 async function contentOf(
-  body: { readonly bytes: Uint8Array; readonly contentType: string; readonly isHtml: boolean },
+  body: {
+    readonly bytes: Uint8Array
+    readonly contentType: string
+    readonly isHtml: boolean
+    readonly truncated: boolean
+  },
   urls: { readonly requested: URL; readonly final: URL },
   convertHtml: HtmlConverter,
   signal: AbortSignal,
@@ -632,15 +701,16 @@ async function contentOf(
     urls.final.href === urls.requested.href
       ? []
       : [fill(WEB_FETCH_MODEL_TEXT.webFetchRedirected, { url: urls.final.href })]
+  const whole = body.truncated ? wholeHead(body.bytes, body.contentType) : body.bytes
   if (!body.isHtml) {
     return {
-      content: [...redirected, decodeText(body.bytes, body.contentType)].join('\n\n'),
-      hasMore: false,
+      content: [...redirected, decodeText(whole, body.contentType)].join('\n\n'),
+      hasMore: body.truncated,
     }
   }
   const converted = await convertHtml(
     {
-      bytes: body.bytes,
+      bytes: whole,
       charset: mimeParameter(body.contentType, CHARSET),
       url: urls.final.href,
       maxChars: WEB_FETCH_CONVERT_MAX_CHARS,
@@ -664,7 +734,7 @@ async function contentOf(
       : [fill(WEB_FETCH_MODEL_TEXT.webFetchTitle, { title: page.title })]
   return {
     content: [...redirected, ...title, page.markdown].join('\n\n'),
-    hasMore: page.isTruncated,
+    hasMore: body.truncated || page.isTruncated,
   }
 }
 
@@ -693,7 +763,13 @@ async function readPage(
     refuse('contentType', { type: shownToken(type) })
   }
   if (isHtml && deps.rawTextLimit !== undefined) refuse('contentType', { type })
-  const bytes = await readCapped(response, headers, signal, deps.rawTextLimit)
+  // The trusted policy's post-decompression bound (SECURITY.md) holds on
+  // every product call: without a caller-named ingress cap the stream stops
+  // past WEB_FETCH_BUFFER_WINDOW_BYTES and the page converts
+  // truncated-with-notice, so a gzip/Brotli bomb or a fast text stream
+  // costs no more than the window of host memory, and a valid page past it
+  // still reads instead of refusing.
+  const { bytes, truncated } = await readCapped(response, headers, signal, deps.rawTextLimit)
   if (deps.rawTextLimit !== undefined)
     return {
       kind: 'page',
@@ -707,7 +783,7 @@ async function readPage(
       text: decodeText(bytes, contentType),
     }
   const { content, hasMore } = await contentOf(
-    { bytes, contentType, isHtml },
+    { bytes, contentType, isHtml, truncated },
     urls,
     deps.convertHtml,
     signal,
@@ -734,6 +810,7 @@ function failureOf(error: unknown, deadline: AbortSignal): WebFetchFailure {
   if (deadline.aborted) {
     return webFetchFailure('timeout')
   }
+
   return error instanceof ConnectFailed
     ? connectionFailure(error)
     : webFetchFailure('network', { detail: detailOf(error) })
@@ -775,7 +852,7 @@ function movedResult(location: string, marker: string): WebFetchResult {
   return { kind: 'moved', location, text, visibleText: fill(UI_TEXT.webFetchMoved, { location }) }
 }
 
-/** Every hop of one fetch, within the deadline and the redirect limit. */
+/** Every hop of one fetch, within the deadline; same-host loops end there. */
 async function fetchHops(
   first: CheckedPageUrl,
   deps: WebFetchDeps,
@@ -791,7 +868,7 @@ async function fetchHops(
     }
   }
   let current = first
-  for (let redirects = 0; ; redirects += 1) {
+  for (;;) {
     ensureAllowed()
     const targets = await pin(current, deps, signal)
     ensureAllowed()
@@ -800,9 +877,9 @@ async function fetchHops(
       if (!HTTP_REDIRECT_STATUSES.has(response.status)) {
         return await readPage(response, { requested: first.url, final: current.url }, deps, signal)
       }
-      if (redirects >= WEB_FETCH_MAX_REDIRECTS) {
-        refuse('tooManyRedirects')
-      }
+      // No count of its own: a loop of same-host redirects ends at the
+      // fetch's deadline (or Stop); another host is handed back, never
+      // followed, so no loop can hide behind a new name.
       const hop = nextHop(response, headersOf(response), current)
       if ('moved' in hop) {
         return movedResult(hop.moved, deps.newMarker())

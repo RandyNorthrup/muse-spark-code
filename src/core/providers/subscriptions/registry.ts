@@ -19,9 +19,9 @@ import { responses, modelRef, recordPlanUsage } from '../../../host/backend/prov
 const { ChatgptPlanLimitError, createResponsesCodec, ResponsesOutputCapError } = responses
 const { parseModelRef } = modelRef
 import {
+  CHATGPT_TOKEN_MIN_VALIDITY_MS,
   MILLISECONDS_PER_SECOND,
-  MODEL_API_REQUEST_TIMEOUT_MS,
-  MODEL_API_STREAM_IDLE_MS,
+  STILL_WAITING_NOTICE_MS,
   SUBSCRIPTION_STREAM_MAX_BYTES,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -29,9 +29,17 @@ import {
   assertConfirmedAllowed,
   isStaleConfirmedError,
   noteConfirmedRequestStarted,
+  whenAborted,
 } from '../../backends/modelapi/transport'
 import { fill } from '../../../shared/l10n/text'
-import { DeadlineError, withDeadline } from '../../timeouts'
+import {
+  DeadlineError,
+  startStillWaiting,
+  stillWaitingText,
+  withDeadline,
+  type StillWaitingSubject,
+} from '../../timeouts'
+import type { CoreLogger } from '../../logging'
 import type { ProvidersFile } from '../providersFile'
 import { type ChatGptSignIn, ChatGptSignInError, chatGptRecordSchema } from './chatgpt'
 import type { PlanUsageRow } from './planUsage'
@@ -54,10 +62,11 @@ export async function chatGptModels(
   signIn: ChatGptSignIn,
   fetcher: typeof fetch,
 ): Promise<string[]> {
-  const token = await signIn.accessToken(MODELS_URL, MODEL_API_REQUEST_TIMEOUT_MS)
+  const token = await signIn.accessToken(MODELS_URL, CHATGPT_TOKEN_MIN_VALIDITY_MS)
+  // No deadline of our own (owner 2026-10-16): the catalogue read ends at
+  // the provider's answer or a network failure.
   const response = await fetcher(MODELS_URL, {
     redirect: 'error',
-    signal: AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!response.ok) throw new Error(UI_TEXT.acpChatGpt.failure)
@@ -139,10 +148,48 @@ export interface SubscriptionRegistryDeps {
   readonly copilotUsage?: () => readonly PlanUsageRow[]
   /**
    * How long the ChatGPT stream may send nothing, headers or frames, before
-   * it is ended (MODEL_API_STREAM_IDLE_MS when absent). It is the only time
-   * limit on that stream: there is no limit on its total.
+   * it is ended; absent, the stream ends at Stop, never at an invented kill
+   * (owner 2026-10-16). It is the only time limit on that stream: there is
+   * no limit on its total.
    */
   readonly streamIdleMs?: number
+  /**
+   * Where indefinite stream waits say so (PR #214 review): without a
+   * provider-named idle nothing else ends the silence, so the wait would
+   * otherwise look hung until Stop. Unnamed, the branch stays silent.
+   */
+  readonly log?: CoreLogger
+}
+
+/**
+ * Periodic still-waiting notices for an indefinite provider wait (PR #214
+ * review): each notice restarts the silence clock, as the transport does
+ * for its own streams. A named log with a provider-named idle, or no log
+ * at all, notices nothing — the idle ends silence itself.
+ */
+export function silentWaitNotices(
+  log: CoreLogger | undefined,
+  idleMs: number | undefined,
+  everyMs: number = STILL_WAITING_NOTICE_MS,
+): {
+  notice(subject: StillWaitingSubject): void
+  stop(): void
+} {
+  let stopNoticing: (() => void) | undefined
+  return {
+    notice(subject: StillWaitingSubject): void {
+      stopNoticing?.()
+      stopNoticing = undefined
+      if (log === undefined || idleMs !== undefined) return
+      stopNoticing = startStillWaiting((elapsedMs) => {
+        log.info(stillWaitingText(subject, elapsedMs))
+      }, everyMs)
+    },
+    stop(): void {
+      stopNoticing?.()
+      stopNoticing = undefined
+    },
+  }
 }
 
 /** Routes the existing canonical tool loop; image extras still use the separate Meta key. */
@@ -182,7 +229,7 @@ export function createSubscriptionClient(
     waitBeforeRetry: (ms, signal) => meta.waitBeforeRetry(ms, signal),
     createImage: (...args) => meta.createImage(...args),
     editImage: (...args) => meta.editImage(...args),
-    listModels: async () => {
+    listModels: async (signal) => {
       const file = await deps.providers()
       const ids: string[] = []
       for (const entry of file.providers) {
@@ -200,19 +247,19 @@ export function createSubscriptionClient(
         }
       }
       // A plan-only account makes no Meta request; keyed users keep both catalogues.
-      if ((await deps.hasMetaKey?.()) === true) return [...(await meta.listModels()), ...ids]
+      if ((await deps.hasMetaKey?.()) === true) return [...(await meta.listModels(signal)), ...ids]
       if (ids.length === 0 && file.providers.some((entry) => entry.auth === 'subscription')) {
         throw new Error(UI_TEXT.planUi.copilotUnavailable)
       }
-      return ids.length > 0 ? ids : await meta.listModels()
+      return ids.length > 0 ? ids : await meta.listModels(signal)
     },
-    countInputTokens: async (body) => {
-      if (!isPlanModel(body.model)) return await meta.countInputTokens(body)
+    countInputTokens: async (body, signal) => {
+      if (!isPlanModel(body.model)) return await meta.countInputTokens(body, signal)
       const ref = await configured(body.model)
       if (ref.providerId === 'copilot') {
         const adapter = deps.copilot?.().get(ref.modelId)
         if (adapter === undefined) throw new Error(UI_TEXT.actionFailed)
-        return await adapter.countInputTokens({ ...body, model: ref.modelId })
+        return await adapter.countInputTokens({ ...body, model: ref.modelId }, signal)
       }
       return Buffer.byteLength(JSON.stringify(body.input)) + Buffer.byteLength(body.instructions)
     },
@@ -222,6 +269,11 @@ export function createSubscriptionClient(
         return
       }
       const ref = await configured(body.model)
+      // Declared at function scope (PR #214 review): the ChatGPT section's
+      // finally below stops the notices, and a declaration inside the try
+      // is not visible there on every path the generator can take.
+      const idleMs = deps.streamIdleMs
+      const notices = silentWaitNotices(deps.log, idleMs)
       let isDispatched = false
       let usage: Usage | undefined
       const note = (event: StreamEvent) => {
@@ -268,17 +320,28 @@ export function createSubscriptionClient(
           return
         }
         const signIn = await deps.chatgpt()
-        const token = await signIn.accessToken(RESPONSES_URL, MODEL_API_REQUEST_TIMEOUT_MS)
+        const token = await signIn.accessToken(RESPONSES_URL, CHATGPT_TOKEN_MIN_VALIDITY_MS)
         const stop = new AbortController()
-        // No limit on the stream's total time. Silence ends it. The idle clock
-        // starts with the request and restarts when the headers arrive and at
-        // every event the codec decodes, as on the configured-provider path
-        // (only a validated canonical event renews the deadline there). Bytes
-        // that decode to no event, such as SSE comments and empty lines, do
-        // not restart it, so keep-alive traffic cannot hold a reply open.
-        const idleMs = deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
+        // No limit on the stream's total time (owner 2026-10-16). A provider
+        // that names its own idle through `streamIdleMs` still ends silence
+        // at it, as on the configured-provider path; otherwise the wait ends
+        // at Stop, never at an invented kill. The idle clock starts with the
+        // request and restarts when the headers arrive and at every event the
+        // codec decodes. Bytes that decode to no event, such as SSE comments
+        // and empty lines, do not restart it, so keep-alive traffic cannot
+        // hold a reply open past a named idle.
+        // An unnamed wait says so out loud (PR #214 review): the provider
+        // answer while the send is out, the reply between its bytes after.
         let lastEventAt = Date.now()
         const withinIdle = async <T>(waiting: Promise<T>): Promise<T> => {
+          if (idleMs === undefined) {
+            const aborted = whenAborted(stop.signal)
+            try {
+              return await Promise.race([waiting, aborted.promise])
+            } finally {
+              aborted.dispose()
+            }
+          }
           try {
             return await withDeadline(
               waiting,
@@ -296,12 +359,21 @@ export function createSubscriptionClient(
         const request = codec.encodeRequest({ ...body, model: ref.modelId })
         admitAttempt?.(await deps.accountId())
         if (signal.aborted) throw signal.reason
+        // Stop ends an unnamed wait: without a named idle nothing else would.
+        signal.addEventListener(
+          'abort',
+          () => {
+            stop.abort()
+          },
+          { once: true },
+        )
         // A paid-gate lapse during sign-in still refuses: re-check the gate
         // immediately before the send, like the other clients.
         assertConfirmedAllowed(body.model, confirmed)
         noteConfirmedRequestStarted(confirmed, admitAttempt)
         isDispatched = true
         lastEventAt = Date.now()
+        notices.notice({ key: 'providerAnswer' })
         const response = await withinIdle(
           deps.fetch(RESPONSES_URL, {
             method: 'POST',
@@ -312,6 +384,7 @@ export function createSubscriptionClient(
           }),
         )
         lastEventAt = Date.now()
+        notices.notice({ key: 'modelReply' })
         if (!response.ok || response.body === null) throw new Error(UI_TEXT.acpChatGpt.failure)
         // The captured endpoint streams SSE without Content-Type. Never branch on that header.
         const reader = response.body.getReader()
@@ -348,6 +421,7 @@ export function createSubscriptionClient(
           })
           for await (const event of stream) {
             lastEventAt = Date.now()
+            notices.notice({ key: 'modelReply' })
             note(event)
             yield event
           }
@@ -397,6 +471,7 @@ export function createSubscriptionClient(
           message,
         }
       } finally {
+        notices.stop()
         if (isDispatched && (ref.providerId !== 'copilot' || deps.copilotUsage === undefined)) {
           tallies = recordPlanUsage(tallies, {
             providerId: ref.providerId,

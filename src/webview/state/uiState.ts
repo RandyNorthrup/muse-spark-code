@@ -2050,16 +2050,22 @@ function applyAgentEvent(
     }
     case 'turnRetry': {
       const seconds = Math.round(event.retryDelayMs / MILLISECONDS_PER_SECOND)
-      return withNotice(
-        state,
-        'warning',
-        fill(UI_TEXT.turnRetrying, {
-          attempt: event.attempt,
-          maxAttempts: event.maxAttempts,
-          reason: event.reason,
-          seconds,
-        }),
-      )
+      // A named ceiling reads with its total (PR #214 review); an unnamed
+      // one keeps the old card, as unbounded Model API retries do.
+      const text =
+        event.maxAttempts === undefined
+          ? fill(UI_TEXT.turnRetrying, {
+              attempt: event.attempt,
+              reason: event.reason,
+              seconds,
+            })
+          : fill(UI_TEXT.turnRetryingKnownTotal, {
+              attempt: event.attempt,
+              total: event.maxAttempts,
+              reason: event.reason,
+              seconds,
+            })
+      return withNotice(state, 'warning', text)
     }
     case 'tokenUsage': {
       return {

@@ -11,6 +11,7 @@ import * as z from 'zod/mini'
 import type { ModelApiHostDeps, DirectResponseBudget } from './ModelApiHost'
 import type { reviewPaidCall } from './reviewerEntry'
 import type { ConfirmedModelRequest, ResponseAttemptGuard } from './client'
+import { streamRepairAttempt } from './repairAttempt'
 import { isFunctionCallItem } from './schemas'
 import type { FunctionCallItem, InputItem, StreamEvent, ToolDefinition, Usage } from './schemas'
 import {
@@ -29,7 +30,6 @@ import {
   HOOK_MODEL_ROW_TOOL,
   HOOK_MODEL_TIMEOUT_MS,
   MODEL_API_EFFORT_OFF,
-  MODEL_API_MAX_RETRIES,
 } from '../../../shared/constants'
 import { hookDecisionSchema } from '../../../shared/sideCallSchemas'
 import { setUiText } from '../../../shared/l10n/text'
@@ -354,19 +354,13 @@ async function requestHookStep(
         },
       },
     )
-    const events = context.deps.client.streamResponse(
+    const events = streamRepairAttempt(
+      context.deps.client,
       body,
-      AbortSignal.any([signal, AbortSignal.timeout(HOOK_MODEL_TIMEOUT_MS)]),
-      undefined,
-      // No transport retry; structured repair has its own admission and settlement.
-      { retriesUsed: MODEL_API_MAX_RETRIES },
+      signal,
+      HOOK_MODEL_TIMEOUT_MS,
       admission,
-      {
-        ...confirmed,
-        onRequestStarted: () => {
-          // The combined admission observer above counts this paid use once.
-        },
-      },
+      confirmed,
     )
     for await (const event of events) {
       if (event.type === 'response.completed') hasCompleted = true

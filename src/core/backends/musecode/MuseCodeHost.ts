@@ -46,17 +46,17 @@ import {
   MILLISECONDS_PER_SECOND,
   MSP_ATTACHMENT_FRAME_BUDGET_BYTES,
   MSP_COMMAND_ATTEMPTS,
-  MSP_COMMAND_TIMEOUT_MS,
   MSP_FRAME_LIMIT_BYTES,
-  MSP_LONG_COMMAND_TIMEOUT_MS,
   MSP_LONG_COMMANDS,
   MSP_RETRY_BASE_DELAY_MS,
   MSP_RETRY_MAX_DELAY_MS,
   MSP_RETRYABLE_REFUSALS,
   MSP_SESSION_LIST_MAX_LIMIT,
   MSP_STEER_NO_TURN_REASONS,
+  QUESTION_DEFER_DEFAULT_SECONDS,
   MSP_UNRESPONSIVE_MISSES,
   MSP_UNRESPONSIVE_SILENCE_MS,
+  STILL_WAITING_NOTICE_MS,
   MSP_USER_SHELL_CAPABILITY,
   MUSE_APPROVAL_LEDGER_FAULT,
   MUSE_APPROVAL_REPLAY_FAULT,
@@ -66,7 +66,7 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
-import { DeadlineError, withDeadline } from '../../timeouts'
+import { DeadlineError, startStillWaiting, stillWaitingText, withDeadline } from '../../timeouts'
 import { textFileInput } from '../../textAttachment'
 import {
   type SubscriptionUsage,
@@ -418,38 +418,50 @@ const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true })
 // The worst-case JSON-RPC envelope around a command's params, for the size check.
 const FRAME_ENVELOPE = { jsonrpc: '2.0', id: Number.MAX_SAFE_INTEGER }
 
-/** How long a command may wait (PLAN.md D25); overridable for tests. */
+/**
+ * How long a command may wait (PLAN.md D25); overridable for tests. An
+ * unnamed wait has no deadline: the command is waited on until Muse Code
+ * answers or the wait is stopped, saying so out loud while it waits (owner
+ * 2026-10-16: no arbitrary limits, no silent hangs).
+ */
 export interface CommandTimeouts {
-  readonly normalMs: number
-  readonly longMs: number
-  /** Deletion's admission and terminal notification; defaults to the long command deadline. */
-  readonly deleteTerminalMs?: number
+  readonly normalMs?: number | undefined
+  readonly longMs?: number | undefined
   /** The watchdog's silence (`MSP_UNRESPONSIVE_SILENCE_MS` unless a test shortens it). */
   readonly unresponsiveSilenceMs?: number
 }
 
-const DEFAULT_TIMEOUTS: CommandTimeouts = {
-  normalMs: MSP_COMMAND_TIMEOUT_MS,
-  longMs: MSP_LONG_COMMAND_TIMEOUT_MS,
+export const DEFAULT_COMMAND_TIMEOUTS: CommandTimeouts = {}
+
+/** Which wait a command gets: the long one for whole-session loads, else the ordinary one. */
+export function commandTimeoutMs(method: string, timeouts: CommandTimeouts): number | undefined {
+  return MSP_LONG_COMMANDS.has(method) ? timeouts.longMs : timeouts.normalMs
 }
 
 /**
  * Whether `muse serve` still answers at all (the unresponsive-host watchdog,
  * CLI recovery 2026-10-03). Every frame from it (an answer, an event, a
  * server request) is heard here and clears the count. A command that
- * misses its deadline counts once; at `MSP_UNRESPONSIVE_MISSES` in a row
- * with nothing heard for the silence, Muse Code is not answering: that is
- * logged and told once, and new commands fail at once until a frame comes.
+ * misses its named deadline counts once; a wait with none counts once per
+ * notice period it spends silent, however many commands wait in that
+ * period (PR #214 review: two long commands no longer count twice as fast
+ * as one). At `MSP_UNRESPONSIVE_MISSES` in a row with nothing heard for the
+ * silence, Muse Code is not answering: that is logged and told once, and
+ * new commands fail at once until a frame comes. The waiting commands
+ * themselves keep waiting.
  */
-class HostLiveness {
+export class HostLiveness {
   private lastHeardAt = Date.now()
   private misses = 0
   private isSilent = false
+  /** The notice period that last counted a still-waiting notice; -1 for none since a frame. */
+  private lastNoticePeriod = -1
 
   public constructor(
     private readonly silenceMs: number,
     private readonly log: CoreLogger,
     private readonly onUnresponsive: () => void,
+    private readonly noticeEveryMs: number,
   ) {}
 
   public get isUnresponsive(): boolean {
@@ -460,6 +472,7 @@ class HostLiveness {
   public heard(): void {
     this.lastHeardAt = Date.now()
     this.misses = 0
+    this.lastNoticePeriod = -1
     if (!this.isSilent) {
       return
     }
@@ -467,7 +480,21 @@ class HostLiveness {
     this.log.info('Muse Code answers again; commands are sent again')
   }
 
-  /** A command missed its deadline. */
+  /**
+   * A wait with no deadline is still waiting past a notice. Every waiting
+   * command tells once a notice period, so the period counts once.
+   */
+  public stillWaiting(method: string): void {
+    // Periods count from the last frame heard: a frame resets both the
+    // clock and the dedup, so a period counts once however many commands
+    // wait in it, before a frame as after.
+    const period = Math.floor((Date.now() - this.lastHeardAt) / this.noticeEveryMs)
+    if (period === this.lastNoticePeriod) return
+    this.lastNoticePeriod = period
+    this.missed(method)
+  }
+
+  /** A command missed its named deadline. */
   public missed(method: string): void {
     this.misses += 1
     const silentMs = Date.now() - this.lastHeardAt
@@ -760,34 +787,48 @@ async function answered(
 }
 
 /**
- * A request with a deadline, refused at once while Muse Code is not
- * answering (the watchdog); a missed deadline counts toward that.
+ * A request with the wait its timeouts name, refused at once while Muse
+ * Code is not answering (the watchdog). A wait with no deadline is waited
+ * on until Muse Code answers or the wait is stopped, saying so out loud
+ * (owner 2026-10-16); each notice period counts toward the watchdog like a
+ * missed deadline did, so a truly wedged host is still detected.
  */
 async function requestWithin<T>(
   channel: CommandChannel,
   generation: number,
   method: string,
-  timeoutMs: number,
+  timeoutMs: number | undefined,
   request: () => Promise<T>,
+  signal?: AbortSignal,
 ): Promise<T> {
   if (channel.liveness.isUnresponsive) {
     channel.log.info(`${method} was not sent: Muse Code is not answering`)
     throw new Error(UI_TEXT.museCodeNotAnswering)
   }
   channel.assertCurrent(generation)
+  // A caller's stop (PR #214 review) ends the wait like the channel going.
+  const stopSignal =
+    signal === undefined ? channel.signal : AbortSignal.any([channel.signal, signal])
   let onAbort: (() => void) | undefined
   const cancelled = new Promise<never>((_resolve, reject) => {
     onAbort = () => {
       reject(new Error(UI_TEXT.questionCancelled))
     }
-    channel.signal.addEventListener('abort', onAbort, { once: true })
+    stopSignal.addEventListener('abort', onAbort, { once: true })
   })
+  const stopNoticing =
+    timeoutMs === undefined
+      ? startStillWaiting((elapsedMs) => {
+          channel.log.info(stillWaitingText({ key: 'museCodeCommand', method }, elapsedMs))
+          channel.liveness.stillWaiting(method)
+        })
+      : undefined
   try {
-    const answer = await withDeadline(
-      Promise.race([request(), cancelled]),
-      timeoutMs,
-      `Muse Code did not answer ${method} within ${String(Math.round(timeoutMs / MILLISECONDS_PER_SECOND))} s`,
-    )
+    const raced = Promise.race([request(), cancelled])
+    const answer =
+      timeoutMs === undefined
+        ? await raced
+        : await withDeadline(raced, timeoutMs, `Muse Code did not answer ${method} in time`)
     channel.assertCurrent(generation)
     return answer
   } catch (error: unknown) {
@@ -797,28 +838,35 @@ async function requestWithin<T>(
     }
     throw error
   } finally {
-    if (onAbort !== undefined) channel.signal.removeEventListener('abort', onAbort)
+    stopNoticing?.()
+    if (onAbort !== undefined) stopSignal.removeEventListener('abort', onAbort)
   }
 }
 
 /**
- * One MSP command with a deadline. `sessionNotLoaded` (the host evicted or
- * closed the session) becomes a `SessionNotLoadedError` the controller
- * answers by resuming the session.
+ * One MSP command with the wait its timeouts name (none by default).
+ * `sessionNotLoaded` (the host evicted or closed the session) becomes a
+ * `SessionNotLoadedError` the controller answers by resuming the session.
  */
 async function commandWithin(
   channel: CommandChannel,
   generation: number,
   method: string,
   params: Record<string, unknown>,
+  signal?: AbortSignal,
   commandId: string = channel.connection.mintCommandId(),
 ): Promise<unknown> {
   const { log, timeouts } = channel
-  const timeoutMs = MSP_LONG_COMMANDS.has(method) ? timeouts.longMs : timeouts.normalMs
+  const timeoutMs = commandTimeoutMs(method, timeouts)
   const startedAt = Date.now()
   try {
-    const answer = await requestWithin(channel, generation, method, timeoutMs, () =>
-      sendCommand(channel, generation, method, params, commandId),
+    const answer = await requestWithin(
+      channel,
+      generation,
+      method,
+      timeoutMs,
+      () => sendCommand(channel, generation, method, params, commandId),
+      signal,
     )
     log.trace(`${method} answered in ${String(Date.now() - startedAt)} ms`)
     return answer
@@ -963,7 +1011,6 @@ export class MuseSession implements ScheduledAgentSession {
    */
   private readonly unqueuedTurns = new Set<string>()
   private readonly log: CoreLogger
-  private readonly timeouts: CommandTimeouts
   private readonly owner: SessionOwner
   private readonly scheduledItems = new Map<string, NativeFireToken>()
   private readonly scheduledApprovals = new Map<string, NativeFireToken>()
@@ -984,7 +1031,6 @@ export class MuseSession implements ScheduledAgentSession {
   ) {
     this.owner = new SessionOwner(initialApprovalMode)
     this.log = channel.log
-    this.timeouts = channel.timeouts
     this.leaseGeneration = channel.generation
   }
 
@@ -1174,7 +1220,7 @@ export class MuseSession implements ScheduledAgentSession {
         `Stop: approval ${approvalId} stage ${String(approval.requirementId.sourceIndex)} is rejected before the turn stops`,
       )
       // Bounded: a Stop never waits long on a host that does not answer.
-      const deadlineMs = Math.min(APPROVAL_REJECT_DEADLINE_MS, this.timeouts.normalMs)
+      const deadlineMs = APPROVAL_REJECT_DEADLINE_MS
       try {
         await withDeadline(
           this.decideApproval({
@@ -1799,7 +1845,9 @@ export class MuseSession implements ScheduledAgentSession {
       () => {
         this.prompts.unmarkQuestionDeferred(userInputId)
       },
-      this.timeouts.normalMs,
+      // The deferral's own wait is the questions lane's (B22/C4), not an MSP
+      // command wait: the questions' own default, as before.
+      QUESTION_DEFER_DEFAULT_SECONDS * MILLISECONDS_PER_SECOND,
       UI_TEXT.questionAnswerUncertain,
     )
   }
@@ -1990,7 +2038,7 @@ export class MuseCodeHost implements AgentHost {
   public constructor(
     private readonly host: MspHost,
     private readonly log: CoreLogger,
-    private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
+    private readonly timeouts: CommandTimeouts = DEFAULT_COMMAND_TIMEOUTS,
     private readonly features: MuseCodeFeaturePorts = {},
     private readonly usageRecording = MuseCodeHost.usageRecording,
     private readonly accountHome?: MuseCodeAccountHome,
@@ -2025,6 +2073,7 @@ export class MuseCodeHost implements AgentHost {
             },
           )
         },
+        STILL_WAITING_NOTICE_MS,
       ),
     }
     const parsed = initializeResultSchema.parse(host.initializeResult)
@@ -2193,8 +2242,12 @@ export class MuseCodeHost implements AgentHost {
     }
   }
 
-  private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
-    return await commandWithin(this.channel, this.channel.generation, method, params)
+  private async command(
+    method: string,
+    params: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    return await commandWithin(this.channel, this.channel.generation, method, params, signal)
   }
 
   /**
@@ -2526,32 +2579,37 @@ export class MuseCodeHost implements AgentHost {
       }
       signal.addEventListener('abort', onAbort, { once: true })
     })
+    const raced = Promise.race([
+      (async () => {
+        reader.parseDeleteAdmission(
+          await commandWithin(
+            this.channel,
+            this.channel.generation,
+            'session/delete',
+            { sessionId },
+            undefined,
+            commandId,
+          ),
+          commandId,
+        )
+        return await terminal
+      })(),
+      stopped,
+    ])
+    // The deletion is waited on until it is confirmed or the wait is
+    // stopped, saying so out loud (owner 2026-10-16); no test names this
+    // wait, so it names no deadline at all.
+    const stopNoticing = startStillWaiting((elapsedMs) => {
+      this.log.info(stillWaitingText({ key: 'sessionDeletion' }, elapsedMs))
+    })
     try {
-      return await withDeadline(
-        Promise.race([
-          (async () => {
-            reader.parseDeleteAdmission(
-              await commandWithin(
-                this.channel,
-                this.channel.generation,
-                'session/delete',
-                { sessionId },
-                commandId,
-              ),
-              commandId,
-            )
-            return await terminal
-          })(),
-          stopped,
-        ]),
-        this.timeouts.deleteTerminalMs ?? this.timeouts.longMs,
-        UI_TEXT.sessionDeleteTimedOut,
-      )
+      return await raced
     } catch (error: unknown) {
       // Dispatch validated the terminal before shutdown; async admission may still be resuming.
       if (deletion.state.phase === 'terminalValidated') return deletion.state.event
       throw error
     } finally {
+      stopNoticing()
       deletion.state = { phase: 'reported' }
       if (onTerminal !== undefined) this.deletionTerminalListeners.delete(onTerminal)
       if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)
@@ -2666,10 +2724,20 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /** The visible model catalogue; with a session id the active row is flagged. */
-  public async listModels(sessionId?: string): Promise<readonly MuseCodeModelSummary[]> {
-    const result = await this.command('model/list', {
-      ...(sessionId !== undefined && { sessionId }),
-    })
+  public async listModels(
+    sessionId?: string,
+    signal?: AbortSignal,
+  ): Promise<readonly MuseCodeModelSummary[]> {
+    // The caller's stop joins the channel's own cancel in the shared wait
+    // (PR #214 review); the read-only listing still settles underneath.
+    signal?.throwIfAborted()
+    const result = await this.command(
+      'model/list',
+      {
+        ...(sessionId !== undefined && { sessionId }),
+      },
+      signal,
+    )
     return modelListResultSchema.parse(result).models.map((model) => ({
       modelId: model.modelId,
       displayLabel: model.displayLabel,

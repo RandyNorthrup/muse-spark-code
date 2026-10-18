@@ -15,7 +15,7 @@ import type { UiText } from '../../shared/l10n/en'
 
 // M91 HTTP hooks reuse this lazy transport bundle and its pinned-request path.
 export { postHookPayload } from './hookHttpRequest'
-import { UI_TEXT, WEB_FETCH_MAX_BYTES } from '../../shared/constants'
+import { UI_TEXT, WEB_FETCH_BUFFER_WINDOW_BYTES } from '../../shared/constants'
 import { setUiText } from '../../shared/l10n/text'
 import type { Logger } from '../logger'
 import { createWebFetcher } from './webFetcher'
@@ -49,8 +49,8 @@ export async function fetchWebPageWith(
 /**
  * Portable prompt bytes use the same DNS, pinning, redirects and decoding as
  * web fetch. NOLIMITS1FIX: the removed 128 KiB prompt-file bound was
- * invented — a remote prompt reads under the fetch transport's own body
- * bound instead.
+ * invented — a remote prompt reads under the fetch transport's own buffer
+ * window instead.
  */
 export async function readRawPromptWith(
   url: string,
@@ -62,7 +62,7 @@ export async function readRawPromptWith(
     call.log,
     call.convertHtml,
     undefined,
-    WEB_FETCH_MAX_BYTES,
+    WEB_FETCH_BUFFER_WINDOW_BYTES,
   )(url, new AbortController().signal, isStillAllowed)
   if (result.kind !== 'page') throw new Error(UI_TEXT.promptFileInvalid)
   if (!isStillAllowed()) throw new Error(UI_TEXT.shareConfidential)

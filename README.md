@@ -400,11 +400,10 @@ reason and record the owner. The reviewer charter ships as the
 ## Screenshots
 
 M106 development: the Model API client paces tagged background requests from
-captured Meta request and token limits. Concurrent responses retain local
-charges, and background work reserves half the observed token budget for the
-foreground. A queued request reports that it is waiting for rate-limit
-headroom, with a separate ten-minute admission deadline; provider idle timing
-starts at dispatch. Gateway-timeout retries remain bounded. Public status
+the provider's observed rate-limit headers and 429 answers, with no invented
+pace of its own. A queued request reports that it is waiting for rate-limit
+headroom and keeps waiting until Stop; retries follow the provider's
+Retry-After and its documented guidance. Public status
 failures expose fixed text and safe status fields. Its service-status read and usage/report
 presentation ports await the integration bindings listed in
 [the lane R certification](docs/certification/m106-r.md).
@@ -1586,10 +1585,11 @@ service. The extension helps you build gadgets; it never becomes one:
   mode, including Bypass. Every approval Muse Code emits has its card redacted
   and offers only one-time approval; Muse Code Bypass can execute without
   emitting an approval, so the extension cannot warn before those commands.
-- **Device commands stay bounded.** A monitor never exits by itself, so the
-  shell tool's `timeout_ms` ends it and returns what it captured: flash, then
-  capture N seconds of serial output, in one call, with no process left
-  behind.
+- **Device commands stay bounded.** A monitor never exits by itself, so name
+  the shell tool's `timeout_ms` to end it and return what it captured:
+  flash, then capture N seconds of serial output, in one call, with no
+  process left behind. A command without one runs until it ends or is
+  stopped, with a still-waiting notice each minute.
 - **The skill knows the drill.** `/muse_gadgets` (a bundled skill, off while
   `museSpark.bundledSkills` is off) covers the SDK layout, the Windows and
   POSIX setup, the bounded-monitor pattern and the token rules. In a clone of
@@ -1748,7 +1748,10 @@ hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuratio
     `framing` (`auto`, `line_delimited_json`, `content_length`) for a
     local server; `url` and `headers` for a remote one (streamable HTTP);
     `enabled`, `mode`, `startup_timeout_sec`, `tool_timeout_sec`,
-    `enabled_tools` and `disabled_tools` for either. `${VAR}` reads an
+    `enabled_tools` and `disabled_tools` for either. A timeout the entry
+    names is honoured whole, however long; one it does not name is no
+    deadline at all — the server is waited on until it answers or is
+    stopped, with a still-waiting notice each minute. `${VAR}` reads an
     environment variable of VS Code's; an unset one keeps the server from
     starting. A local server sees only a short list of VS Code's environment
     variables (`PATH`, `HOME`, `TEMP` and the like) plus its own `env`.
@@ -2713,8 +2716,8 @@ Meta's paid web search.
   page nested to be slow to parse), and then refused with the reason. Plain text, Markdown, JSON,
   XML, CSV, YAML, TOML, CSS and JavaScript come back as they are; XHTML
   (`application/xhtml+xml`) is refused, since read as HTML its XML syntax
-  would be misread; anything else is refused with the reason. At most 5 MiB (after decompression) within 30
-  seconds; the model reads the first 50,000 characters, and is told when
+  would be misread; anything else is refused with the reason. The whole page is read (after decompression) within 30
+  seconds, however large; the model reads the first 50,000 characters, and is told when
   there was more. A page built to expand stops converting at 100,000.
 - **Where it may go.** Public internet addresses only. A URL that names a
   local or reserved name (`localhost`, `*.local`, `*.internal`, single-label
@@ -2729,7 +2732,8 @@ Meta's paid web search.
   request then goes to an address that was checked, never to a second
   lookup, and TLS still verifies the page's name; when one address does not
   connect within a quarter of a second, the next is tried too. A redirect on
-  the same host is checked and pinned the same way, at most five times; a
+  the same host is checked and pinned the same way, as many times as it takes
+  within the 30 seconds (a loop of redirects ends at the deadline); a
   redirect to another host is handed back to the model, which asks again.
 - **Asking.** Each host is approved on its own: the Model API backend's card
   names the URL, and "Always allow in this session" covers that host only.
@@ -2773,9 +2777,9 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   20 of each; on the Model API backend also a screenshot, which the model
   sees as it sees an image `read_file` read. Muse Code gets text only until
   a capture shows that an `ide` tool's image reaches its model. Before the
-  page is read, the model may run up to eight click or type steps, each
-  naming a CSS selector. A check ends after 60 seconds; a page still loading
-  after 15 is read as it stands.
+  page is read, the model may run any number of click or type steps, each
+  naming a CSS selector. A check runs until it finishes or is stopped; a
+  page still loading after 15 seconds is read as it stands.
 - **The browser.** Google's Chrome for Testing headless shell, one exact
   version pinned by each extension release (now 154.0.8037.92), on Windows
   x64, Linux x64 and macOS (Intel and Apple silicon; the Apple silicon build
@@ -2787,8 +2791,8 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   pins, and `off` turns the check off and downloads nothing. The download,
   and each file of it, is checked against the pinned length and SHA-256
   before anything runs, and the browser's own file again before each check.
-  Getting it ready has its own 15 minutes; the check's 60 seconds start
-  after. A pinned version serves for 45 days after Google published it;
+  Getting it ready has its own 15 minutes; the check itself names no
+  deadline and starts after. A pinned version serves for 45 days after Google published it;
   after that the check refuses until an extension update pins a newer one.
   Each version stays in that storage until you remove it. The browser runs
   headless, talks to the extension over its debugging pipe and never opens
@@ -4068,8 +4072,8 @@ source cannot elevate their priority. See [M95 N's record contract](docs/certifi
 | A message to Muse Code           | 10 MiB. Attachment admission reserves 2 MiB for the prompt, context and frame; serialized text and base64 images count toward the rest. The exact outbound frame is checked at send.                                                                            |
 | Model API: tool rounds           | 50 per turn                                                                                                                                                                                                                                                     |
 | Model API: shell commands        | 2 minutes by default, 10 at most                                                                                                                                                                                                                                |
-| Model API: retries               | Up to 5 attempts on 429, 500, 502 and 503, and when a reply stream ends because the server shut down or was overloaded, honouring `Retry-After`, shown in the transcript; Stop cuts the wait short                                                              |
-| Model API: a silent reply stream | Ended after 5 minutes with nothing from the server; send again to retry                                                                                                                                                                                         |
+| Model API: retries               | Retryable failures (429, 500, 502 and 503, and a reply stream the server shut down or overloaded) retry honouring `Retry-After` at any length, shown in the transcript; attempts end at Stop, never at a count, and quota never retries                         |
+| Model API: a silent reply stream | Waits until Stop, saying so while it lasts; a provider-named idle still ends silence at it                                                                                                                                                                      |
 | Model API: file tools            | Text and images up to 10 MiB, PDFs up to 32 MB; the search tool skips files over 1 MiB                                                                                                                                                                          |
 | Opened tool outputs              | 16 MiB each; the latest 20, and 33,554,432 characters together                                                                                                                                                                                                  |
 
@@ -4775,28 +4779,29 @@ stopped and the next message resumes the same session.
   stops Muse Code, and your next message starts it again and continues the
   conversation. **New Conversation** starts afresh. The panel now rejects
   the waiting step before a Stop, which keeps the conversation usable.
-- **"Could not load the output: Muse Code did not answer item/readOutput
-  within 180 s"** — a busy Muse Code answers stored-output reads one after
-  another. The panel says it once per conversation; the row keeps the diff it
+- **A stored-output read that takes a while** — a busy Muse Code answers
+  stored-output reads one after another, and the panel waits for each one
+  instead of giving up, saying so while it waits. The row keeps the diff it
   already has, and collapsing and expanding the row asks again. An open row
   without a page also retries once when the turn ends. Automatic edit-row
-  reads wait until then. At most four reads per panel go to Muse Code at a time, using
-  the longer 180 s deadline so late replies can still supply the patch.
+  reads wait until then. At most four reads per panel go to Muse Code at a time,
+  so late replies can still supply the patch.
 - **Muse Code is stuck, or slow and you want a fresh one** — run **Muse
   Spark: Restart Muse Code**. It stops `muse serve` and starts it again
   without reloading the window; a running turn is stopped, and each
   conversation continues with your next message.
 - **"Muse Code is not answering. Restart it with "Muse Spark: Restart Muse
-  Code"."** — three commands in a row went unanswered and nothing at all
-  came from Muse Code for 90 s, so the panel stopped waiting 60 s for each
-  one. When no turn was running, Muse Code was restarted already ("Muse Code
-  stopped answering and was restarted."); while a turn runs, its notice
-  offers **Restart Now**, which stops the turn. If Muse Code answers again
-  on its own, commands go through again.
+  Code"."** — three waits in a row went unanswered and nothing at all
+  came from Muse Code for 90 s. The waiting commands keep waiting, with a
+  still-waiting notice each minute, but new commands fail at once until
+  Muse Code answers or restarts. When no turn was running, Muse Code was
+  restarted already ("Muse Code stopped answering and was restarted.");
+  while a turn runs, its notice offers **Restart Now**, which stops the
+  turn. If Muse Code answers again on its own, commands go through again.
 - **"Muse Code did not confirm your message reached the running turn"** —
-  the message was for the running turn, and Muse Code did not answer in
-  time. It may still reach the turn, so it is not sent again; the composer
-  keeps it. Look at the conversation before you send it again.
+  the message was for the running turn, and Muse Code stayed silent while
+  the panel waited. It may still reach the turn, so it is not sent again;
+  the composer keeps it. Look at the conversation before you send it again.
 - **"This conversation's Muse Code log is damaged"** — Muse Code 1.4.2
   failed the session's event log ("event log failed: …"), after which it
   fails every message of that session. The panel refuses new messages to it

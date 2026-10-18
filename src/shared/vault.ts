@@ -1,6 +1,5 @@
 import * as z from 'zod/mini'
 import {
-  VAULT_APPROVAL_TTL_MS,
   VAULT_BASE64_GROUP_CHARS,
   VAULT_FORMAT_VERSION,
   VAULT_KDF,
@@ -461,24 +460,17 @@ export const vaultTaintSchema = z
   .check(z.refine((v) => v.tainted || v.reasons.length === 0))
 export type VaultTaint = z.infer<typeof vaultTaintSchema>
 
-export const vaultApprovalRequestSchema = z
-  .strictObject({
-    id,
-    requester: vaultRequesterSchema,
-    item: vaultItemMetadataSchema,
-    use: vaultUseSchema,
-    digest,
-    nonce: id,
-    createdAt: time,
-    expiresAt: time,
-    lockEpoch: time,
-    taint: vaultTaintSchema,
-  })
-  .check(
-    z.refine(
-      (v) => v.expiresAt > v.createdAt && v.expiresAt - v.createdAt <= VAULT_APPROVAL_TTL_MS,
-    ),
-  )
+export const vaultApprovalRequestSchema = z.strictObject({
+  id,
+  requester: vaultRequesterSchema,
+  item: vaultItemMetadataSchema,
+  use: vaultUseSchema,
+  digest,
+  nonce: id,
+  createdAt: time,
+  lockEpoch: time,
+  taint: vaultTaintSchema,
+})
 export type VaultApprovalRequest = z.infer<typeof vaultApprovalRequestSchema>
 export const vaultApprovalAnswerSchema = z.strictObject({
   requestId: id,
@@ -495,13 +487,13 @@ export const vaultTicketSchema = z
     digest,
     nonce: id,
     issuedAt: time,
-    expiresAt: time,
+    // The item's own lifetime, or null when it never expires: a grant is
+    // single-use and owner-revoked, never clocked by us (owner 2026-10-16).
+    expiresAt: z.nullable(time),
     lockEpoch: time,
     maxUses: z.literal(1),
   })
-  .check(
-    z.refine((v) => v.expiresAt > v.issuedAt && v.expiresAt - v.issuedAt <= VAULT_APPROVAL_TTL_MS),
-  )
+  .check(z.refine((v) => v.expiresAt === null || v.expiresAt > v.issuedAt))
 export type VaultTicket = z.infer<typeof vaultTicketSchema>
 
 /** Audit stores a digest and redacted target, never the raw argv or a value. */

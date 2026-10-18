@@ -2,9 +2,11 @@ import { resourceEnvironment } from '../core/resources/launch'
 // How the extension runs git (the mention index, the Model API prompt's
 // environment facts): by absolute path, found on the absolute PATH entries
 // only, so a `git.exe` committed to the workspace is never the one that runs
-// (PLAN.md D24); with a timeout, no console window, no credential prompt,
-// and `GIT_OPTIONAL_LOCKS=0` so a background `git status` never takes the
-// index lock out from under the user's own git.
+// (PLAN.md D24); with no deadline unless the caller names one (owner
+// 2026-10-16: no arbitrary limits — a wait ends at git's answer or its
+// abort, never at an invented kill), no console window, no credential
+// prompt, and `GIT_OPTIONAL_LOCKS=0` so a background `git status` never
+// takes the index lock out from under the user's own git.
 
 import { type ExecFileOptions, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
@@ -26,7 +28,6 @@ import {
   GIT_OUTPUT_MAX_BYTES,
   type GIT_PUSH_CREDENTIAL_VARIABLES,
   GIT_STDERR_MAX_CHARS,
-  GIT_TIMEOUT_MS,
   UI_TEXT,
 } from '../shared/constants'
 
@@ -202,7 +203,8 @@ export function hasGitProgramControls(output: string, minimumMinor: number): boo
 
 /**
  * A git runner; rejects when git is not on the absolute PATH. A call that
- * does real work (a worktree's checkout, M32) passes its own timeout.
+ * does real work (a worktree's checkout, M32) passes its own timeout;
+ * unnamed, the call waits for git's answer or its abort (owner 2026-10-16).
  */
 export function createGitRunner(
   deps: GitRunnerDeps,
@@ -216,7 +218,7 @@ export function createGitRunner(
   const env = quietGitEnvironment(deps.env)
   const gitPath = gitLocator(deps)
   let supportedVersion: { readonly git: string; readonly checked: Promise<void> } | undefined
-  return async (args, cwd, timeoutMs = GIT_TIMEOUT_MS, input, beforeRun) => {
+  return async (args, cwd, timeoutMs, input, beforeRun) => {
     const git = gitPath()
     if (git === undefined) {
       throw new GitMissingError()
@@ -308,7 +310,9 @@ export function processGitRunner(
       const result = await run(args, {
         cwd: options.cwd,
         env: options.env,
-        timeoutMs: options.timeout ?? GIT_TIMEOUT_MS,
+        // A timeout Node names still kills; unnamed, git is waited on until
+        // it answers or the signal aborts (owner 2026-10-16).
+        ...(options.timeout !== undefined && { timeoutMs: options.timeout }),
         ...(input !== undefined && { input }),
         ...(options.signal !== undefined && { signal: options.signal }),
         ...(beforeRun !== undefined && { beforeRun }),
@@ -383,7 +387,12 @@ export interface GitProcessOptions {
   readonly env: NodeJS.ProcessEnv
   /** Written to stdin, which is then closed; stdin is empty without it. */
   readonly input?: string | Uint8Array
-  readonly timeoutMs: number
+  /**
+   * A deadline the caller names (a worktree checkout, a job's own bound);
+   * undefined waits for git's answer or the signal's abort (owner
+   * 2026-10-16: no arbitrary limits). Nothing here invents one.
+   */
+  readonly timeoutMs?: number | undefined
   /** Aborting ends the command (the window closing). */
   readonly signal?: AbortSignal
   /**
@@ -394,7 +403,7 @@ export interface GitProcessOptions {
   readonly onStdout?: (chunk: Buffer) => Promise<void>
 }
 
-/** One git command's stdout as bytes; rejects on a failure, a timeout or a non-zero exit. */
+/** One git command's stdout as bytes; rejects on a failure, a named timeout or a non-zero exit. */
 export type GitProcess = (args: readonly string[], options: GitProcessOptions) => Promise<Buffer>
 
 export interface GitProcessDeps {
@@ -444,7 +453,8 @@ export function cappedStderr(stderr: string, wasCut: boolean): string {
  * git with stdin and binary stdout (M72's checkpoints, M71's held checkout):
  * found as the other runner finds it, no console window, collected stdout
  * capped at GIT_OUTPUT_MAX_BYTES (a taker bounds its own) and stderr at
- * GIT_STDERR_MAX_CHARS, killed at its timeout. The caller
+ * GIT_STDERR_MAX_CHARS, killed only at a timeout the caller names —
+ * unnamed, the call waits for git's answer or its abort. The caller
  * passes the complete environment, so nothing of the extension host's own
  * (a `GIT_DIR`, a `GIT_INDEX_FILE`) reaches it unless the caller says so.
  */
@@ -528,8 +538,8 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         let stderr = ''
         let isStderrCut = false
         let failure: Error | undefined
-        // A failure (the timeout, the window closing) also ends the wait for a
-        // taker still busy with a chunk after the child closed.
+        // A failure (a named timeout, the window closing) also ends the wait
+        // for a taker still busy with a chunk after the child closed.
         // Not `Promise.withResolvers`, which Node 20 (VS Code 1.99's host) lacks.
         const stopping = new AbortController()
         const stopped = new Promise<void>((resolveStopped) => {
@@ -550,7 +560,7 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
                 stopError instanceof Error
                   ? stopError
                   : new Error('Registered Git tree stop failed')
-              clearTimeout(timer)
+              if (timer !== undefined) clearTimeout(timer)
               options.signal?.removeEventListener('abort', onAbort)
               child.stdout.destroy()
               child.stderr.destroy()
@@ -558,9 +568,14 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
             })
           stopping.abort()
         }
-        const timer = setTimeout(() => {
-          fail(new Error(`git ${command} timed out after ${String(options.timeoutMs)} ms`))
-        }, options.timeoutMs)
+        // A deadline only the caller names (owner 2026-10-16: no invented
+        // kill); unnamed, the call waits for git's answer or its abort.
+        const timer =
+          options.timeoutMs === undefined
+            ? undefined
+            : setTimeout(() => {
+                fail(new Error(`git ${command} timed out after ${String(options.timeoutMs)} ms`))
+              }, options.timeoutMs)
         const onAbort = () => {
           fail(new Error(`git ${command} was stopped: the window is closing`))
         }
@@ -617,10 +632,10 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         child.on('error', (error) => {
           fail(error)
         })
-        // The timeout and the abort stay armed until the taker is done.
+        // A named timeout and the abort stay armed until the taker is done.
         const settle = async (code: number | null): Promise<void> => {
           await Promise.race([taking, stopped])
-          clearTimeout(timer)
+          if (timer !== undefined) clearTimeout(timer)
           options.signal?.removeEventListener('abort', onAbort)
           if (refusal !== undefined) {
             reject(refusal)

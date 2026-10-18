@@ -281,6 +281,9 @@ function rawNotification(notification: WireNotification): MapOutcome {
       >
       return {
         sessionId,
+        // The platform's ceiling survives the mapping (PR #214 review);
+        // the boundary schema above requires it, while Model API retries
+        // stay unbounded by leaving the shared event's own field unnamed.
         event: { type: 'turnRetry', turnId, attempt, maxAttempts, retryDelayMs, reason },
       }
     }

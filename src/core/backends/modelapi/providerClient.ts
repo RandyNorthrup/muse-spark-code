@@ -7,6 +7,7 @@ import type { CreateResponseBody, StreamEvent } from './schemas'
 import {
   RequestTransport,
   assertConfirmedAllowed,
+  canRetryWithinBudget,
   ignoreClosingError,
   redactModelApiError,
   ModelApiError,
@@ -19,12 +20,7 @@ import {
 } from './transport'
 import type { AuthSource } from './authSource'
 import { isRefusalRetryable, isRetryableStreamFailure } from './providerRefusal'
-import {
-  MODEL_API_MAX_RETRIES,
-  MODEL_API_REQUEST_TIMEOUT_MS,
-  PROVIDER_CONNECTION_LOST_CODE,
-  UI_TEXT,
-} from '../../../shared/constants'
+import { PROVIDER_CONNECTION_LOST_CODE, UI_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { streamEventSchema, usageSchema } from '../../../host/backend/modelApiEntry'
 
@@ -62,9 +58,9 @@ export interface ProviderClient {
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
   ): AsyncGenerator<StreamEvent>
-  countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number>
+  countInputTokens(body: Omit<CreateResponseBody, 'stream'>, signal?: AbortSignal): Promise<number>
   /** Preserve today's host contract; registry owns the richer catalogue/model rows. */
-  listModels(): Promise<readonly string[]>
+  listModels(signal?: AbortSignal): Promise<readonly string[]>
   currentKeyDigest(): Promise<string>
   retryDelayMs(attempt: number): number
   waitBeforeRetry(ms: number, signal: AbortSignal): Promise<void>
@@ -157,16 +153,22 @@ export class CodecClient implements ProviderClient {
     this.retryDelayMs = this.transport.backoffMs.bind(this.transport)
     this.waitBeforeRetry = this.transport.pause.bind(this.transport)
   }
-  public async listModels(): Promise<readonly string[]> {
+  public async listModels(signal?: AbortSignal): Promise<readonly string[]> {
+    // No deadline of our own (owner 2026-10-16): the catalogue read ends at
+    // the provider's answer, a network failure, or the caller's signal
+    // (Stop owns the wait; PR #214 review).
     const result = await this.transport.request(
       this.deps.codec.models.path,
       { method: 'GET', accept: 'application/json' },
-      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      signal,
     )
     const models = await parseJsonResponse(result, (json) => this.deps.codec.models.parse(json))
     return models.map((model) => result.redact(model.id))
   }
-  public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
+  public async countInputTokens(
+    body: Omit<CreateResponseBody, 'stream'>,
+    signal?: AbortSignal,
+  ): Promise<number> {
     const counter = this.deps.codec.countTokens
     if (counter === undefined) {
       throw new ModelApiError(
@@ -185,7 +187,9 @@ export class CodecClient implements ProviderClient {
         ...(request.headers !== undefined && { headers: request.headers }),
         accept: 'application/json',
       },
-      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      // No deadline of our own (owner 2026-10-16): the caller's
+      // signal, if any, ends it, else the provider's answer (see listModels).
+      signal,
     )
     const count = await parseJsonResponse(result, (json) => counter.parse(json))
     if (!Number.isSafeInteger(count) || count < 0) {
@@ -271,7 +275,7 @@ export class CodecClient implements ProviderClient {
           hasContent ||
           signal.aborted ||
           admitAttempt?.mediaAccounting !== undefined ||
-          retries.retriesUsed >= MODEL_API_MAX_RETRIES
+          !canRetryWithinBudget(retries, retries.retriesUsed)
         )
           throw failure
         const attempt = retries.retriesUsed
@@ -279,7 +283,6 @@ export class CodecClient implements ProviderClient {
         const delayMs = this.retryDelayMs(attempt)
         onRetry?.({
           attempt: attempt + 1,
-          maxAttempts: MODEL_API_MAX_RETRIES + 1,
           delayMs,
           reason: `${failure.code ?? ''}: ${failure.message}`,
         })

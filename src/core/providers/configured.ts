@@ -53,6 +53,7 @@ import {
   refusalSentence,
 } from '../backends/modelapi/providerRefusal'
 import { isConnectionFailure, networkFailureCodes } from '../networkFailure'
+import type { CoreLogger } from '../logging'
 import { withDeadline } from '../timeouts'
 import { Usd } from '../../shared/usd'
 import { fill } from '../../shared/l10n/text'
@@ -61,8 +62,6 @@ import {
   ANTHROPIC_MAX_ARGUMENT_BYTES,
   ANTHROPIC_MAX_FRAME_BYTES,
   ANTHROPIC_MAX_ITEMS,
-  MODEL_API_REQUEST_TIMEOUT_MS,
-  MODEL_API_STREAM_IDLE_MS,
   PROVIDER_CONNECTION_LOST_CODE,
   PROVIDER_SECRET_PREFIX,
   SUBSCRIPTION_STREAM_MAX_BYTES,
@@ -86,10 +85,18 @@ export interface ConfiguredProviderOptions {
   ) => Promise<PinnedResponse>
   /**
    * How long an inference stream may send nothing, headers or frames,
-   * before it is ended (MODEL_API_STREAM_IDLE_MS when absent). It is the
-   * only time limit on an inference stream: there is no limit on its total.
+   * before it is ended; absent, the stream ends at Stop, never at an
+   * invented kill (owner 2026-10-16). It is the only time limit on an
+   * inference stream: there is no limit on its total.
    */
   readonly streamIdleMs?: number
+  /**
+   * Where the transport's notices go (PR #214 review): without one its
+   * still-waiting notices during an indefinite stream wait reach the
+   * no-op logger below and the request looks hung until Stop. Per-request
+   * timing still never reaches a log, named or not.
+   */
+  readonly log?: CoreLogger
 }
 const secretSchema = z.object({
   v: z.literal(1),
@@ -301,18 +308,49 @@ export function providerFailureReader(
 function ignoreTransportLog(): void {
   // This adapter reports fixed failures through its caller, without retaining
   // per-request diagnostics or forwarding arbitrary provider text to a log.
+  // Still-waiting notices and scrubbed retry sentences are the host's own
+  // words, so they go to the host's log when it named one (PR #214 review);
+  // per-request timing (trace) never does, named or not.
+}
+
+/** The transport's log: notices and scrubbed sentences to the host's log when named. */
+export function configuredTransportLog(log: CoreLogger | undefined): CoreLogger {
+  if (log === undefined) {
+    return {
+      trace: ignoreTransportLog,
+      info: ignoreTransportLog,
+      warn: ignoreTransportLog,
+      error: ignoreTransportLog,
+    }
+  }
+  return {
+    trace: ignoreTransportLog,
+    info: (message: string) => {
+      log.info(message)
+    },
+    warn: (message: string) => {
+      log.warn(message)
+    },
+    error: (message: string) => {
+      log.error(message)
+    },
+  }
 }
 
 function ignoreProviderCache(): void {
   // Provider requests do not maintain a page cache.
 }
 
-async function* chunks(response: PinnedResponse, idleMs: number, provider: string) {
+async function* chunks(response: PinnedResponse, idleMs: number | undefined, provider: string) {
   let size = 0
   const iterator = response.body[Symbol.asyncIterator]()
   try {
     for (;;) {
-      const part = await withDeadline(iterator.next(), idleMs, UI_TEXT.actionFailed)
+      // No deadline of our own (owner 2026-10-16) unless the provider names one.
+      const part =
+        idleMs === undefined
+          ? await iterator.next()
+          : await withDeadline(iterator.next(), idleMs, UI_TEXT.actionFailed)
       if (part.done) return
       const bytes = z.instanceof(Uint8Array).parse(part.value)
       size += bytes.byteLength
@@ -335,9 +373,11 @@ export function createConfiguredProviderServices(
   options: ConfiguredProviderOptions,
 ) {
   // The only time limit on an inference stream: silence, of headers or
-  // frames. The transport ends such a stream with its stalled sentence,
-  // which passes through the `streamResponse` catch below untouched.
-  const idleMs = options.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
+  // frames, and only when the provider names an idle (owner 2026-10-16:
+  // unnamed, the stream ends at Stop). The transport ends such a stream
+  // with its stalled sentence, which passes through the `streamResponse`
+  // catch below untouched.
+  const idleMs = options.streamIdleMs
   const readCatalog = async () => {
     try {
       return catalogSchema.parse(JSON.parse(await readFile(options.catalogFile, 'utf8')))
@@ -357,10 +397,10 @@ export function createConfiguredProviderServices(
   const base: ProviderClient = {
     hasPaidDailyBudget: meta?.hasPaidDailyBudget ?? false,
     currentKeyDigest: () => delegate().currentKeyDigest(),
-    listModels: () => delegate().listModels(),
+    listModels: (signal) => delegate().listModels(signal),
     retryDelayMs: (attempt) => delegate().retryDelayMs(attempt),
     waitBeforeRetry: (delay, signal) => delegate().waitBeforeRetry(delay, signal),
-    countInputTokens: (body) => delegate().countInputTokens(body),
+    countInputTokens: (body, signal) => delegate().countInputTokens(body, signal),
     streamResponse: (body, ...args) => delegate().streamResponse(body, ...args),
     createImage: (...args) => delegate().createImage(...args),
     editImage: (...args) => delegate().editImage(...args),
@@ -469,13 +509,8 @@ export function createConfiguredProviderServices(
           }),
         now: Date.now,
         random: Math.random,
-        streamIdleMs: idleMs,
-        log: {
-          trace: ignoreTransportLog,
-          info: ignoreTransportLog,
-          warn: ignoreTransportLog,
-          error: ignoreTransportLog,
-        },
+        ...(idleMs !== undefined && { streamIdleMs: idleMs }),
+        log: configuredTransportLog(options.log),
         // A send that produced no answer: the provider, Node's own failure
         // codes (never what a server wrote) and that whether the request
         // arrived is unknown (lane PROVERRORS).
@@ -487,7 +522,10 @@ export function createConfiguredProviderServices(
           else requestUrl = url.url
           if (target?.url.href !== requestUrl || init?.redirect !== 'error')
             throw invalidEntry(entry, { kind: 'defect', detail: requestUrl })
-          const signal = init.signal ?? AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
+          // The caller's signal, if any; no deadline of our own (owner 2026-10-16).
+          // Without one the send still needs a signal to listen to, so it
+          // gets one that never aborts.
+          const signal = init.signal ?? new AbortController().signal
           const headers = Object.fromEntries(
             Object.entries(z.record(z.string(), z.string()).parse(init.headers)).map(
               ([name, value]) => [
@@ -637,7 +675,7 @@ export function createConfiguredProviderServices(
     entry: ProviderEntry,
     path: string,
     supplied: string | undefined,
-    signal: AbortSignal,
+    signal: AbortSignal | undefined,
     keyTestOrigin?: string,
   ) => {
     const preset = presetFor(entry)
@@ -677,7 +715,9 @@ export function createConfiguredProviderServices(
   const scan = async (
     entry: ProviderEntry,
     supplied?: string,
-    signal = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+    // No deadline of our own (owner 2026-10-16): the catalogue read ends at
+    // the provider's answer or a network failure.
+    signal?: AbortSignal,
   ): Promise<readonly NativeModelMetadata[]> => {
     // A scan failure keeps its own text: the key test names it
     // `providerProbeUnparseable`, and the panel shows what the list said.
@@ -1013,7 +1053,7 @@ export function createConfiguredProviderServices(
       // OpenAI's documented retryable `server_error` is read), and the
       // envelope code (e.g. a quota 429's) reaches the real classifier.
       transport: { ...connection.transport, retryTable: presets.quirksOf(preset).retry },
-      streamIdleMs: idleMs,
+      ...(idleMs !== undefined && { streamIdleMs: idleMs }),
       modelFor: () => ({
         id: ref,
         capabilities: capabilities.capabilitiesOf({ capabilityRecord: record }),
@@ -1058,9 +1098,9 @@ export function createConfiguredProviderServices(
           if (body.model !== ref)
             throw new ModelApiError(UI_TEXT.actionFailed, 0, undefined, undefined)
           // No limit on the stream's total time: it ends when it finishes,
-          // on the caller's signal, on a budget or request cap, or after
-          // `idleMs` of silence (the transport bounds the wait for headers
-          // and every gap between frames).
+          // on the caller's signal, on a budget or request cap, or after a
+          // provider-named idle of silence (the transport bounds the wait
+          // for headers and every gap between frames only then).
           const events = client.streamResponse(
             body,
             signal,
@@ -1118,12 +1158,12 @@ export function createConfiguredProviderServices(
   })
   const client: ProviderClient = {
     ...base,
-    listModels: async () =>
+    listModels: async (signal) =>
       options.hasMetaKey !== undefined &&
       !(await options.hasMetaKey()) &&
       meta?.isPlanModel === undefined
         ? []
-        : await delegate().listModels(),
+        : await delegate().listModels(signal),
     models: {
       list: registry.list,
       resolve: async (ref) =>
@@ -1267,10 +1307,11 @@ export function createConfiguredProviderServices(
       // (a rejected key is neither "unreachable" nor "could not be read").
       // Lane PROVERRORS: a failure with no answer says what happened — the
       // network codes of a failed send, or the entry's own cause — and only
-      // the probe's own time running out, or a list that cannot be read,
-      // keeps the probe sentences.
-      const probeFailure = (error: unknown, signal: AbortSignal, fallback: string): string => {
-        if (!isModelApiError(error) || (error.status === 0 && signal.aborted)) return fallback
+      // a list that cannot be read keeps the probe sentences. The probe has
+      // no deadline of our own (owner 2026-10-16): it ends at the provider's
+      // answer or a network failure.
+      const probeFailure = (error: unknown, fallback: string): string => {
+        if (!isModelApiError(error)) return fallback
         return error.status === 0
           ? error.message
           : refusalSentence(refusalOf(error), providerDisplayName(entry, presetFor(entry)))
@@ -1279,13 +1320,12 @@ export function createConfiguredProviderServices(
         presetFor(entry).keyTest,
         new URL(address).origin,
         async (origin, path) => {
-          const signal = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
           try {
             await getJson(
               entry,
               path,
               key,
-              signal,
+              undefined,
               origin === new URL(address).origin ? undefined : origin,
             )
             return { ok: true, modelCount: undefined }
@@ -1293,20 +1333,19 @@ export function createConfiguredProviderServices(
             return {
               ok: false,
               paid: false,
-              reason: probeFailure(error, signal, UI_TEXT.providerProbeUnreachable),
+              reason: probeFailure(error, UI_TEXT.providerProbeUnreachable),
             }
           }
         },
         async () => {
-          const signal = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
           try {
-            const rows = await scan(entry, key, signal)
+            const rows = await scan(entry, key)
             return { ok: true, modelCount: rows.length }
           } catch (error: unknown) {
             return {
               ok: false,
               paid: false,
-              reason: probeFailure(error, signal, UI_TEXT.providerProbeUnparseable),
+              reason: probeFailure(error, UI_TEXT.providerProbeUnparseable),
             }
           }
         },

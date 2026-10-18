@@ -94,7 +94,6 @@ import { newFileDiff } from '../../../core/git/gitText'
 import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 import {
   GIT_PUSH_CREDENTIAL_VARIABLES,
-  GIT_TIMEOUT_MS,
   PULL_REQUEST_WORKTREES_DIR,
 } from '../../../shared/constants'
 import {
@@ -597,7 +596,6 @@ export class NativeGitService {
         env: isUserEnvironment
           ? nativePushEnvironment(this.deps.userEnvironment())
           : quietGitEnvironment(process.env),
-        timeoutMs: GIT_TIMEOUT_MS,
         signal: guard.signal,
         beforeRun: this.atSpawn(args, root, guard, held),
         ...(isUserEnvironment && { credentialRoutes: GIT_PUSH_CREDENTIAL_VARIABLES }),

@@ -8,11 +8,13 @@ export function gitCredentialAnswer(
   input: string,
   username: Uint8Array | null,
   password: Uint8Array,
-  expiresAt: number,
+  // Null when no lifetime bounds the lease: the answer stays single-use and
+  // ephemeral, never clocked by us (owner 2026-10-16).
+  expiresAt: number | null,
   now: number = Date.now(),
 ): Buffer {
   if (operation !== 'get') return Buffer.alloc(0)
-  if (now >= expiresAt) throw new Error(UI_TEXT.vault.noAccess)
+  if (expiresAt !== null && now >= expiresAt) throw new Error(UI_TEXT.vault.noAccess)
   if (Buffer.byteLength(input) > VAULT_LIMITS.text) throw new Error(UI_TEXT.vault.noAccess)
   const fields = new Map<string, string>()
   for (const line of input.split(/\r?\n/u)) {
@@ -40,7 +42,7 @@ export function gitCredentialAnswer(
   const prefix = Buffer.from(username === null ? '' : 'username=')
   const middle = Buffer.from(username === null ? 'password=' : '\npassword=')
   const suffix = Buffer.from(
-    `\npassword_expiry_utc=${String(Math.floor(expiresAt / MILLISECONDS_PER_SECOND))}\nephemeral=true\n\n`,
+    `${expiresAt === null ? '' : `\npassword_expiry_utc=${String(Math.floor(expiresAt / MILLISECONDS_PER_SECOND))}`}\nephemeral=true\n\n`,
   )
   const output = Buffer.alloc(
     prefix.length + user.length + middle.length + password.length + suffix.length,

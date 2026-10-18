@@ -101,6 +101,10 @@ happened, not what was planned; superseded entries are kept.
   instead of the window-minus-reserve formula. A check's long
   `timeoutSeconds` waits its whole length instead of firing at once past
   Node's 2^31-1 ms timer maximum (timers re-arm in slices; no cap added).
+
+- Model API requests are no longer ended by the product's own clocks: no 30-second request timeout and no 300-second stream idle limit. A request names how long it has been waiting and keeps waiting until Stop or a caller-named deadline. Retries are not counted out at four and a Retry-After is honoured at any length; only a call that names its own ceiling stops early, and quota never retries.
+- Model API pacing follows the provider instead of invented numbers: no 10-requests-a-minute starting shape, no reserved foreground fraction and no 600-second admission wait. A queued request names what it is waiting for and keeps waiting until Stop; only the provider's observed rate-limit headers, 429 answers and Retry-After shape the wait.
+- Vault approvals no longer expire after 120 seconds: a request waits until the person allows or denies it, or until it is stopped. Granted uses carry the vault item's own lifetime instead of the approval clock; socket, helper-call and peer handshakes keep their own bounds.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
@@ -113,6 +117,37 @@ happened, not what was planned; superseded entries are kept.
   report bundle on that command's first run instead of living in the
   activation bundle. `dist/extension.js` measures about 24 KB lighter
   against the unchanged activation budget. No behaviour change.
+
+- Git is waited on instead of killed after 15 seconds: status, diff and the
+  other readers name no deadline of their own, so a slow repository no
+  longer falls back to git-absent answers; a timeout a caller names still
+  applies, and team runs share the dispatching job's own bound.
+- `muse serve` startup is waited on instead of ended at 30 seconds with one
+  120-second second chance: the handshake runs until the server answers or
+  the wait is stopped, saying so in the log each minute, and a server that
+  never finishes is still closed rather than left behind.
+- The browser check runs until it finishes or is stopped instead of ending
+  at 60 seconds, and takes any number of click or type steps instead of at
+  most eight. Loopback-only addressing, the per-call extra-hosts approval
+  and the 45-day runtime expiry are unchanged.
+- Web fetch no longer stops same-host redirects after 5 or refuses pages
+  past 5 MiB; a redirect loop ends at the fetch deadline and cross-host
+  redirects are still handed back. The https-only, no-credentials and
+  public-hosts refusals stay, and a caller-set text limit still applies.
+- MCP servers are waited on instead of timed out: an entry's own startup
+  and tool timeouts are honoured whole however long, and unnamed they are
+  no deadline at all, with a still-waiting notice each minute.
+- Muse Code commands no longer fail at 60 or 180 seconds: unnamed they are
+  waited on until Muse Code answers or the wait is stopped, with notices
+  that still count toward the unresponsive-host watchdog.
+- Shell commands no longer default to 120 seconds or clamp to 600: the
+  model's own timeout is honoured whole, unnamed commands run until they
+  end or are stopped, and the user's own shell loses its 10-minute kill.
+- Billed image requests no longer abort at 180 seconds: the backend waits
+  until Meta answers or the turn stops it, saying so each minute.
+- The legal scan, its workspace walk and the headless legal command no
+  longer stop at 120 seconds: unnamed they run until done or stopped, and
+  a caller-named deadline still marks what it could not cover.
 
 ### Packaging
 
