@@ -14,6 +14,8 @@ import { jsonOutput } from '../../src/core/backends/modelapi/hookFormats/core'
 import { functionParameters } from '../../src/core/backends/modelapi/mcp/functions'
 import { placeMemoryCall } from '../../src/core/backends/modelapi/memoryTools'
 import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
+import { McpHttpTransport } from '../../src/core/backends/modelapi/mcp/http'
+import { McpError } from '../../src/core/backends/modelapi/mcp/protocol'
 import { ArgumentPreview } from '../../src/core/backends/modelapi/argumentPreview'
 import { parseRunChecks, thenRunOf } from '../../src/core/backends/modelapi/verifyTools'
 import {
@@ -232,6 +234,49 @@ describe('damaged Ollama thinking envelopes and arguments', () => {
       ollamaOptions,
     ).body
     expect(passed).toContain('{oops')
+  })
+})
+
+function goneServer(logs: { info: string[]; warn: string[] }) {
+  return new McpHttpTransport({
+    name: 'gone',
+    // Nothing listens here: the real fetch fails the send without a server.
+    url: 'http://127.0.0.1:1/mcp',
+    headers: {},
+    fetch,
+    log: {
+      trace: () => undefined,
+      info: (message: string) => {
+        logs.info.push(message)
+      },
+      warn: (message: string) => {
+        logs.warn.push(message)
+      },
+      error: () => undefined,
+    },
+  })
+}
+
+describe('an unreachable MCP server over HTTP', () => {
+  it('refuses the send naming the server, and keeps an abort an abort', async () => {
+    const logs = { info: [] as string[], warn: [] as string[] }
+    const transport = goneServer(logs)
+    await expect(
+      transport.send({ jsonrpc: '2.0', id: 1, method: 'ping' }, new AbortController().signal),
+    ).rejects.toThrow(McpError)
+    await expect(
+      transport.send({ jsonrpc: '2.0', id: 1, method: 'ping' }, new AbortController().signal),
+    ).rejects.toThrow('the server could not be reached')
+    const stopped = new AbortController()
+    stopped.abort()
+    let failure: unknown = 'sent'
+    try {
+      await transport.send({ jsonrpc: '2.0', id: 2, method: 'ping' }, stopped.signal)
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(DOMException)
+    expect((failure as DOMException).name).toBe('AbortError')
   })
 })
 
