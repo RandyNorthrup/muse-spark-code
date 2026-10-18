@@ -3656,6 +3656,7 @@
   "announceApprovalFor": "{tool} için onay gerekiyor",
   "turnFailed": "Tur başarısız oldu.",
   "turnRetrying": "Deneme {attempt} başarısız oldu ({reason}); {seconds} sn içinde yeniden deneniyor.",
+  "turnRetryingKnownTotal": "Deneme {attempt}/{total} başarısız oldu ({reason}); {seconds} sn içinde yeniden deneniyor.",
   "usageWindowHours": {
     "one": "{count} saatlik pencere",
     "other": "{count} saatlik pencere"

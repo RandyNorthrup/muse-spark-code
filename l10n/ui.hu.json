@@ -3656,6 +3656,7 @@
   "announceApprovalFor": "Jóváhagyás szükséges: {tool}",
   "turnFailed": "A kör sikertelen volt.",
   "turnRetrying": "{attempt}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva.",
+  "turnRetryingKnownTotal": "{attempt}. kísérlet ({total}-ból) sikertelen ({reason}); újrapróbálás {seconds} mp múlva.",
   "usageWindowHours": {
     "one": "{count} órás időablak",
     "other": "{count} órás időablak"

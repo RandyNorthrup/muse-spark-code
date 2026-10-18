@@ -3576,6 +3576,7 @@
   "announceApprovalFor": "{tool} 需要核准",
   "turnFailed": "此回合失敗。",
   "turnRetrying": "第 {attempt} 次嘗試失敗（{reason}）；{seconds} 秒後重試。",
+  "turnRetryingKnownTotal": "第 {attempt}/{total} 次嘗試失敗（{reason}）；{seconds} 秒後重試。",
   "usageWindowHours": {
     "other": "{count} 小時時段"
   },

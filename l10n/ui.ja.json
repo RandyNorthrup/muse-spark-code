@@ -3576,6 +3576,7 @@
   "announceApprovalFor": "{tool} の承認が必要です",
   "turnFailed": "ターンが失敗しました。",
   "turnRetrying": "試行 {attempt} が失敗しました ({reason})。{seconds} 秒後に再試行します。",
+  "turnRetryingKnownTotal": "試行 {attempt}/{total} が失敗しました ({reason})。{seconds} 秒後に再試行します。",
   "usageWindowHours": {
     "other": "{count} 時間枠"
   },

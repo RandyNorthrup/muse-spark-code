@@ -3816,6 +3816,7 @@
   "announceApprovalFor": "Wymagane zatwierdzenie dla {tool}",
   "turnFailed": "Tura nie powiodła się.",
   "turnRetrying": "Próba {attempt} nie powiodła się ({reason}); ponowienie za {seconds} s.",
+  "turnRetryingKnownTotal": "Próba {attempt} z {total} nie powiodła się ({reason}); ponowienie za {seconds} s.",
   "usageWindowHours": {
     "one": "Okno {count}-godzinne",
     "other": "Okno {count}-godzinne",

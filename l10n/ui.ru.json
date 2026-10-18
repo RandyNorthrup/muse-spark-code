@@ -3816,6 +3816,7 @@
   "announceApprovalFor": "Требуется подтверждение для {tool}",
   "turnFailed": "Не удалось выполнить ход.",
   "turnRetrying": "Попытка {attempt} не удалась ({reason}); повтор через {seconds} с.",
+  "turnRetryingKnownTotal": "Попытка {attempt} из {total} не удалась ({reason}); повтор через {seconds} с.",
   "usageWindowHours": {
     "one": "{count}-часовое окно",
     "other": "{count}-часовое окно",
