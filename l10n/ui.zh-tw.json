@@ -1317,6 +1317,7 @@
   "mcpRestartDetail": "正在執行的回覆將會停止；對話會在您傳送下一則訊息時繼續",
   "mcpInvalidUrl": "無效的 URL",
   "mcpNoCommand": "沒有命令",
+  "mcpInvalidJson": "該檔案不是有效的 JSON",
   "mcpRestarted": "Muse Code 已重新啟動；您的下一則訊息會依目前的設定載入。",
   "mcpDocs": "Muse Code 中的 MCP 伺服器（說明文件）",
   "mcpSignIn": "登入",

@@ -1317,6 +1317,7 @@
   "mcpRestartDetail": "실행 중인 응답은 중지되며, 대화는 다음 메시지에서 계속됩니다",
   "mcpInvalidUrl": "잘못된 URL",
   "mcpNoCommand": "명령 없음",
+  "mcpInvalidJson": "파일이 유효한 JSON이 아닙니다",
   "mcpRestarted": "Muse Code가 다시 시작되었습니다. 다음 메시지에서 현재 설정을 로드합니다.",
   "mcpDocs": "Muse Code의 MCP 서버(설명서)",
   "mcpSignIn": "로그인",

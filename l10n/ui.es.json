@@ -1335,6 +1335,7 @@
   "mcpRestartDetail": "Se detiene la respuesta que esté en curso; la conversación continúa con su siguiente mensaje",
   "mcpInvalidUrl": "una URL no válida",
   "mcpNoCommand": "sin comando",
+  "mcpInvalidJson": "el archivo no es un JSON válido",
   "mcpRestarted": "Muse Code se reinició; su siguiente mensaje carga la configuración tal como está ahora.",
   "mcpDocs": "Servidores MCP en Muse Code (documentación)",
   "mcpSignIn": "Iniciar sesión",
