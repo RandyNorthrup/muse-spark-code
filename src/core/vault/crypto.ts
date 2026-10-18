@@ -57,6 +57,11 @@ export function ownedBytes(source: Uint8Array): Buffer<ArrayBuffer> {
   return copy
 }
 
+/** Erase every owned scratch buffer. */
+export function wipeBuffers(buffers: readonly Uint8Array[]): void {
+  for (const buffer of buffers) buffer.fill(0)
+}
+
 export function encodeVaultJson(value: object): Buffer {
   // Object order is irrelevant; array order is semantic. JSON normalizes finite numbers, including -0.
   const json = JSON.stringify(value, (_name, entry: unknown): unknown =>
@@ -324,12 +329,9 @@ export function decodeVaultMaterial(bytes: Buffer): VaultItem['material'] {
     if (!material.success || used.size !== fields.length) throw new VaultError('invalid')
     return material.data
   } catch (error: unknown) {
-    // Wiped as one expression: a torn-down split reads invalid whatever broke
-    // it, and the failure rides along as the cause while the person keeps
-    // fixed words.
-    for (const field of fields) {
-      field.fill(0)
-    }
+    // A torn-down split reads invalid whatever broke it, and the failure
+    // rides along as the cause while the person keeps fixed words.
+    wipeBuffers(fields)
     if (error instanceof VaultError) throw error
     throw new VaultError('invalid', { cause: error })
   }

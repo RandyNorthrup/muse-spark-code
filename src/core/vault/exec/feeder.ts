@@ -123,6 +123,7 @@ export async function runVaultFeeder(
   let hasSucceeded = false
   let hasFailed = false
   let outcome: ShellResult | undefined
+  const terminalReasons: unknown[] = []
   let shouldClearSudo = false
   try {
     check()
@@ -241,6 +242,8 @@ export async function runVaultFeeder(
           check()
           out = (out + outStream.push(bytes)).slice(0, SHELL_OUTPUT_MAX_CHARS)
         } catch {
+          // Fail closed: the revoked or finished run aborts, and the abort
+          // fails the run below with fixed words; the check failure keeps no cause.
           abort()
         } finally {
           bytes.fill(0)
@@ -251,6 +254,8 @@ export async function runVaultFeeder(
           check()
           err = (err + errStream.push(bytes)).slice(0, SHELL_OUTPUT_MAX_CHARS)
         } catch {
+          // Fail closed: the revoked or finished run aborts, and the abort
+          // fails the run below with fixed words; the check failure keeps no cause.
           abort()
         } finally {
           bytes.fill(0)
@@ -262,8 +267,10 @@ export async function runVaultFeeder(
     err = (err + errStream.end()).slice(0, SHELL_OUTPUT_MAX_CHARS)
     hasSucceeded = result.exitCode === 0 && !result.isCancelled && !result.isTimedOut
     outcome = { ...result, stdout: out, stderr: err }
-  } catch {
-    hasFailed = true
+  } catch (error: unknown) {
+    // A failed run denies with fixed words; the failure rides along as the
+    // cause. The terminal cleanup below still runs before this propagates.
+    throw new Error(UI_TEXT.vault.noAccess, { cause: error })
   } finally {
     erase()
     signal.removeEventListener('abort', abort)
@@ -273,7 +280,7 @@ export async function runVaultFeeder(
       await work()
     }
     // Cleanup resources independently; one failed helper cannot retain another lease.
-    const cleanup = await Promise.allSettled([
+    const cleanup: PromiseSettledResult<unknown>[] = await Promise.allSettled([
       ...leases.map(async (lease) => {
         await lease.close(hasSucceeded)
       }),
@@ -295,7 +302,15 @@ export async function runVaultFeeder(
         : []),
     ])
     hasFailed ||= cleanup.some((result) => result.status === 'rejected')
+    for (const result of cleanup) {
+      if (result.status === 'rejected') terminalReasons.push(result.reason)
+    }
   }
-  if (hasFailed || !outcome) throw new Error(UI_TEXT.vault.noAccess)
+  if (hasFailed) {
+    // The run reached its terminal cleanup, so the outcome below is set; only
+    // failed terminal cleanups land here, denied with fixed words and their
+    // reasons as the cause.
+    throw new Error(UI_TEXT.vault.noAccess, { cause: terminalReasons })
+  }
   return outcome
 }
