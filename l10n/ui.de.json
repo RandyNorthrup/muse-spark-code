@@ -2357,6 +2357,7 @@
   "historyDeleteConfirmDetail": "Sie wird endgültig aus dem Verlauf entfernt. Dies kann nicht rückgängig gemacht werden.",
   "historyDeleted": "{name} gelöscht",
   "historyDeleteFailed": "Die Unterhaltung konnte nicht gelöscht werden",
+  "historyDeleteCleanupFailed": "{name} gelöscht, aber die abschließende Bereinigung ist fehlgeschlagen: {reason}",
   "historyCurrent": "Aktuell",
   "historyForkMark": "Abzweigung",
   "historyTurns": {

@@ -11,10 +11,17 @@ happened, not what was planned; superseded entries are kept.
 
 - History can delete a conversation for good on the Model API backend: a
   Delete action on each row asks for confirmation naming the conversation,
-  then removes it from the session store and the list. The same deletion is
-  offered to editors through ACP `session/delete`. On the Muse Code backend
-  no Delete is offered: its CLI serves no `session/delete` from 1.4.4 on
-  (verified on 1.4.10), so there is nothing that could remove the session.
+  then removes it from the session store and the list. Deleting drains the
+  saves already queued, then removes the file; every save queued later is
+  dropped, a settling refund or team persist writes nothing and never fails,
+  the live session is stopped so its turn cannot keep spending, and the id
+  can no longer be resumed or forked. The success notice goes out once the
+  store removal has succeeded; a later cleanup failure (archived ids,
+  checkpoints, the refreshed list) says so instead of reporting a failed
+  delete. The same deletion is offered to editors through ACP
+  `session/delete`. On the Muse Code backend no Delete is offered: its CLI
+  serves no `session/delete` from 1.4.4 on (verified on 1.4.10), so there is
+  nothing that could remove the session.
 
 ### Fixed
 

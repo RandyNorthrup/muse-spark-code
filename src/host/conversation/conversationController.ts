@@ -6155,10 +6155,13 @@ export class ConversationController {
    * History's Delete: after a confirmation naming the conversation, the
    * backend's store loses it for good (Muse Code through `deleteSession`,
    * the Model API through its session store) and the list is read again, so
-   * the row is gone. A failure names its real cause and keeps the row.
+   * the row is gone. Once the backend confirms the removal the conversation
+   * is deleted, whatever happens next: the cleanup below reports its own
+   * failure instead of the delete's, and a stale turn still drops the row.
    */
   private async deleteSession(sessionId: string): Promise<void> {
     const generation = this.sendInvalidationEpoch
+    let name: string
     try {
       const host = await this.deps.ensureHost()
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
@@ -6172,7 +6175,7 @@ export class ConversationController {
         return
       }
       const record = this.sessionRecords?.get(sessionId)
-      const name = record === undefined ? sessionId : sessionTitle(record)
+      name = record === undefined ? sessionId : sessionTitle(record)
       const isConfirmed = await this.deps.confirmFileAction(
         fill(UI_TEXT.historyDeleteConfirm, { name }),
         UI_TEXT.historyDeleteConfirmDetail,
@@ -6182,25 +6185,57 @@ export class ConversationController {
         return
       }
       await host.deleteSession(sessionId)
-      if (generation !== this.sendInvalidationEpoch) {
-        return
-      }
-      const others = this.deps.sessions.archivedIds().filter((id) => id !== sessionId)
-      await this.deps.sessions.setArchivedIds(others)
-      this.historyQuestionCounts.delete(sessionId)
-      this.sessionRecords?.delete(sessionId)
-      // A deleted conversation's checkpoints go with it (M72).
-      await this.checkpoints.forget(sessionId)
-      if (this.session?.sessionId === sessionId) {
-        this.clear()
-      }
-      this.notice('info', fill(UI_TEXT.historyDeleted, { name }))
-      await this.listSessions()
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch && !this.isDisposed) {
         this.notice('error', `${UI_TEXT.historyDeleteFailed}: ${describe(error)}`, undefined, error)
       }
+      return
     }
+    // The backend removed the conversation: it is deleted. The row goes even
+    // when this turn is stale — the next list would hide it anyway.
+    this.sessionRecords?.delete(sessionId)
+    this.historyQuestionCounts.delete(sessionId)
+    if (generation !== this.sendInvalidationEpoch) {
+      // A newer generation owns the open conversation: its session is not
+      // touched, but the person is still told their delete happened, once.
+      this.notice('info', fill(UI_TEXT.historyDeleted, { name }))
+      return
+    }
+    try {
+      const others = this.deps.sessions.archivedIds().filter((id) => id !== sessionId)
+      await this.deps.sessions.setArchivedIds(others)
+    } catch (error: unknown) {
+      this.cleanupFailed(name, error)
+    }
+    // A deleted conversation's checkpoints go with it (M72).
+    try {
+      await this.checkpoints.forget(sessionId)
+    } catch (error: unknown) {
+      this.cleanupFailed(name, error)
+    }
+    if (this.session?.sessionId === sessionId) {
+      this.clear()
+    }
+    this.notice('info', fill(UI_TEXT.historyDeleted, { name }))
+    try {
+      await this.listSessions()
+    } catch (error: unknown) {
+      this.cleanupFailed(name, error)
+    }
+  }
+
+  /**
+   * Something after a confirmed delete failed (archived ids, checkpoints,
+   * the refreshed list): the conversation is still deleted, so this says
+   * that with the real cause instead of the delete's failure text.
+   */
+  private cleanupFailed(name: string, error: unknown): void {
+    this.notice(
+      'error',
+      fill(UI_TEXT.historyDeleteCleanupFailed, { name, reason: describe(error) }),
+      undefined,
+      error,
+    )
   }
 
   /**
