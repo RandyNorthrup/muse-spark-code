@@ -115,6 +115,10 @@
   "certaintyUnpriced": "Fiyatsız",
   "certaintyEstimated": "Tahmini",
   "uncertainNote": "İstek gönderildi ancak kullanım döndürülmedi. Maliyet sorumluluğu korunur.",
+  "unknownCalls": {
+    "one": "{count} bilinmeyen maliyetli istek",
+    "other": "{count} bilinmeyen maliyetli istek"
+  },
   "unpricedNote": "Kullanılabilir fiyat kartı yok. Bilinmeyen maliyet sıfır değildir.",
   "estimatedNote": "Belirteç sayıları tahmindir.",
   "localNote": "Yerel model: API ücreti yok.",

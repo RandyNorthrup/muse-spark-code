@@ -115,6 +115,10 @@
   "certaintyUnpriced": "Ár nélküli",
   "certaintyEstimated": "Becsült",
   "uncertainNote": "A kérés el lett küldve, de nem érkezett használat. A költségfelelősség megmarad.",
+  "unknownCalls": {
+    "one": "{count} kérés ismeretlen költséggel",
+    "other": "{count} kérés ismeretlen költséggel"
+  },
   "unpricedNote": "Nincs elérhető árkártya. Az ismeretlen költség nem nulla.",
   "estimatedNote": "A tokenszámok becslések.",
   "localNote": "Helyi modell: nincs API-díj.",

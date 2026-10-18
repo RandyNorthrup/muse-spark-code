@@ -229,6 +229,8 @@ export function usageText(
       row(USAGE_TEXT.certaintyUncertain, amount(budget.uncertainUsd))
       lines.push(escape(USAGE_TEXT.uncertainNote))
     }
+    if (budget.unknownChargeCalls !== undefined)
+      row(USAGE_TEXT.certaintyUncertain, plural(USAGE_TEXT.unknownCalls, budget.unknownChargeCalls))
     if (budget.projectedUsd !== undefined)
       lines.push(escape(fill(USAGE_TEXT.budgetProjection, { amount: amount(budget.projectedUsd) })))
   }
