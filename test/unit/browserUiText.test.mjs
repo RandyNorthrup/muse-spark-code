@@ -84,6 +84,35 @@ export async function loadDeveloper() { await import('../../src/webview/develope
   })
   fixture.browser = await import(pathToFileURL(path.join(fixture.folder, 'dist/probe.js')).href)
   // Real shared ESM construction and native DEFLATE decoding belong to setup.
+  // The full-table shape walks below are setup too: the canonical-shape
+  // test compares their results, and walking every table twice inside the
+  // test missed its deadline on a slow runner.
+  {
+    const { EN, TABLE_LOCALES, tableFileName, tableProblems } = fixture.canonical
+    const { EN_SHAPE } = fixture.browser
+    const broken = [
+      { ...EN, execBudgetRequired: undefined },
+      { ...EN, extra: 'unexpected' },
+      { ...EN, execBudgetRequired: '{unknown}' },
+      { ...EN, toolLabels: { ...EN.toolLabels, shell: undefined } },
+      { ...EN, todoProgress: '{unknown}' },
+      { ...EN, stepSummary: { ...EN.stepSummary, other: undefined } },
+      { ...EN, composerLabel: 1 },
+    ]
+    fixture.brokenProblems = broken.map((table) => ({
+      expected: tableProblems(EN, table, { locale: 'en', isStrict: false }),
+      shaped: tableProblems(EN_SHAPE, table, { locale: 'en', isStrict: false }),
+    }))
+    fixture.localeProblems = TABLE_LOCALES.map((locale) => {
+      const table = JSON.parse(readFileSync(path.join('l10n', tableFileName(locale)), 'utf8'))
+      return {
+        locale,
+        table,
+        expected: tableProblems(EN, table, { locale, isStrict: false }),
+        shaped: tableProblems(EN_SHAPE, table, { locale, isStrict: false }),
+      }
+    })
+  }
 }, 120_000)
 
 afterAll(async () => {
@@ -175,28 +204,13 @@ describe('the production browser English and full-table contract', () => {
   })
 
   it('checks every installed language against the same complete canonical shape and slots', () => {
-    const { EN, TABLE_LOCALES, tableFileName, tableProblems } = fixture.canonical
-    const { EN_SHAPE, installEmbeddedTable } = fixture.browser
-    const options = { locale: 'en', isStrict: false }
-    const broken = [
-      { ...EN, execBudgetRequired: undefined },
-      { ...EN, extra: 'unexpected' },
-      { ...EN, execBudgetRequired: '{unknown}' },
-      { ...EN, toolLabels: { ...EN.toolLabels, shell: undefined } },
-      { ...EN, todoProgress: '{unknown}' },
-      { ...EN, stepSummary: { ...EN.stepSummary, other: undefined } },
-      { ...EN, composerLabel: 1 },
-    ]
-    for (const table of broken) {
-      const expected = tableProblems(EN, table, options)
+    const { installEmbeddedTable } = fixture.browser
+    for (const { expected, shaped } of fixture.brokenProblems) {
       expect(expected.length).toBeGreaterThan(0)
-      expect(tableProblems(EN_SHAPE, table, options)).toEqual(expected)
+      expect(shaped).toEqual(expected)
     }
-    for (const locale of TABLE_LOCALES) {
-      const table = JSON.parse(readFileSync(path.join('l10n', tableFileName(locale)), 'utf8'))
-      expect(tableProblems(EN_SHAPE, table, { locale, isStrict: false }), locale).toEqual(
-        tableProblems(EN, table, { locale, isStrict: false }),
-      )
+    for (const { locale, table, expected, shaped } of fixture.localeProblems) {
+      expect(shaped, locale).toEqual(expected)
       expect(
         installEmbeddedTable({
           querySelector: () => ({ textContent: JSON.stringify({ locale, table }) }),
@@ -206,7 +220,12 @@ describe('the production browser English and full-table contract', () => {
     }
     expect(
       installEmbeddedTable({
-        querySelector: () => ({ textContent: JSON.stringify({ locale: 'en', table: broken[0] }) }),
+        querySelector: () => ({
+          textContent: JSON.stringify({
+            locale: 'en',
+            table: { ...fixture.canonical.EN, execBudgetRequired: undefined },
+          }),
+        }),
       })?.message,
     ).toContain('execBudgetRequired: missing')
   })
