@@ -726,6 +726,47 @@ makes `npm run check:catches` exit 1 (`new GENERIC catch site` + `root:
 GENERIC rose from 9 to 10`); removing it restores exit 0 with the
 baseline byte-identical.
 
+## PR161FIX3: thread triage (2026-10-18, lane PR161FIX3)
+
+One line per review thread; fixes follow in this lane, then this section
+grows the receipts.
+
+- usage.tsx boot report: FIXED at 49543e7 (PR161FIX2) — the report is
+  built first and posted best-effort in a guarded send, so a refused
+  report never kills the `Unavailable` fallback. This lane additionally
+  renders the fallback for a non-`Error` boot throw instead of rethrowing
+  past it, so the fallback truly always runs.
+- paidConsent non-`Error` store writes: FIXED at 49543e7 — `remember()`,
+  `searchApprovalOrder()` and the quote-save path all classify every
+  rejection with `paidStoreFailureKind` (`unknown` for a non-`Error`),
+  allow once with `onNotKept`, never rethrow. Verified in the tree.
+- oauthJson aborts: FIXED at 49543e7 — the request signal's abort reason
+  is rethrown untouched before mapping, so `run`'s
+  `error === signal.reason` check still recognises a caller cancellation.
+  Verified against `client.ts` (`operation(joined, …)`, joined reason
+  follows the aborting source).
+- getApiKey warn-once: FIXED at 49543e7 — failures funnel through
+  `unreadableKey`, which warns once per `port.owner` and re-arms on a
+  healthy read (TBL-02). Verified in the tree.
+- credentialReadFailures:59 fabricated warn-once test: VALID — the case
+  feeds an invented failure through a hand-written port. No real
+  keyring/store exists in unit, so the case is deleted (title withdrawn
+  to `docs/real-life/unproven.md`) and warn-once is proven by the lead's
+  real-life run below. Fix in this lane.
+- paidConsent:429 non-search stale notice: VALID — `remember()` emits
+  `onNotKept` ("applied this time") the moment `saveGrantIf` rejects
+  with `StaleEpochError`, while `AccountPaidUseConsent.allows()`
+  subsequently refuses at the epoch fence, so the person is told the
+  choice applied when nothing proceeds. The search path already carries
+  its failure past the currentness check; the non-search path must carry
+  its stale failure past the outer account fence the same way. Fix in
+  this lane.
+- damageNotice:53 healthy-side gate: VALID — a reader whose
+  `healthyMarkerChecked` is already true skips the clear on a later
+  healthy read, so another window's marker survives the repair and
+  suppresses the next recurrence announcement. `noteHealthy()` must
+  consult the durable marker, not only its own flag. Fix in this lane.
+
 ## PR161FIX2: Codex re-review threads (2026-10-18, lane PR161FIX2)
 
 - usage.tsx boot report: the boot `host?.post(webviewErrorReport(...))`
