@@ -260,14 +260,15 @@ PRs keep the full tier. Settings and evidence:
 
 ### The capacity repository (D122)
 
-GitHub runs at most five macOS jobs at a time per account, and a full run
-has twelve. The organization `scnetsolutions` lends its own five: while the
+GitHub caps concurrent jobs per account, and a full run holds forty unit
+shards (eight on Ubuntu, sixteen each on Windows and macOS) besides the
+gates. The organization `scnetsolutions` lends its runners: while the
 repository variable `ORG_CI` is `on` and the capacity app's key reaches the
 run, a pull request from a branch of this repository runs part `home`.
-Every job runs here except the Windows and macOS unit shards; in their place
+Every job runs here except the unit shards; in their place
 the `org` job pushes the pull request's merge commit to
 [`scnetsolutions/muse-spark-code-ci`](https://github.com/scnetsolutions/muse-spark-code-ci)
-as `ci/pr-<number>`, where the same `ci.yml` runs those sixteen shards on
+as `ci/pr-<number>`, where the same `ci.yml` runs those forty shards on
 the organization's runners (part `org`), and waits for that run. Its
 result feeds every required name, so a pull request merges only when those
 shards passed there; its summary lists each shard with a link. Both
@@ -306,7 +307,7 @@ ruleset):
 5. Keep `scnetsolutions/muse-spark-code-ci` public with Actions on: public
    repositories use standard runners free (a private one would draw on the
    free organization's 2,000 included minutes a month, and one of its runs
-   is sixteen shard jobs of up to 25 minutes), and the `org` job reads the
+   is forty shard jobs of up to 25 minutes), and the `org` job reads the
    run there with its own read-only token. The first hosted split run is the
    proof that read works with the job's token
    (`docs/certification/ciflow.md`, D122).
