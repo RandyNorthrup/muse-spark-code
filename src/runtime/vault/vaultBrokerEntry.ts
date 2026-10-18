@@ -9,11 +9,7 @@ export { setUiText } from '../../shared/l10n/text'
 import { isCredentialVariable } from '../../core/credentialEnvironment'
 import * as z from 'zod/mini'
 import { VaultBroker } from '../../core/vault/broker/broker'
-import {
-  VaultChannelServer,
-  type VaultChannelDeps,
-  type VaultSecuredListenerPort,
-} from '../../core/vault/broker/channel'
+import { VaultChannelServer, type VaultChannelDeps } from '../../core/vault/broker/channel'
 import { VaultManagement } from '../../core/vault/broker/management'
 import {
   VaultStoreRepository,
@@ -26,7 +22,7 @@ import type { VaultSlotRecord } from '../../shared/vault'
 import { VaultLockEpoch } from '../../core/vault/broker/epoch'
 import { UnixVaultPrivateFiles, type VaultPrivateFilesPort } from '../../core/vault/broker/files'
 import { UnixVaultPeerVerifier, type VaultPeerVerifier } from '../../core/vault/broker/peer'
-import { type VaultBrokerDeps } from '../../core/vault/broker/ports'
+import { type VaultBrokerDeps, type VaultSecuredListenerPort } from '../../core/vault/broker/ports'
 import { NodeVaultFiles } from '../../core/vault/store'
 import { KeyringVaultAnchor } from './keyringAnchor'
 import { type KeyringEntryFactory } from '../keyStore'
