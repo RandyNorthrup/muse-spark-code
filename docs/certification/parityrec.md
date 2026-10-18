@@ -99,3 +99,56 @@ lane unless the line says otherwise.
 - CI quality/package/dictation `ubuntu/windows/macos` "downstream" entries:
   no independent cause found; they clear with the budget fix (verified on
   the next CI run).
+
+## Lane PR236W1 results (2026-10-18, macmini rig)
+
+- T1 FIXED (`src/host/media/recordingLatest.ts`, `resolveWindowsVideosDir`):
+  win32 resolves `FOLDERID_Videos` through the OS
+  (`[Environment]::GetFolderPath('MyVideos')`, absolute system PowerShell,
+  bounded, `path.win32`-validated) with the homedir layout as fallback;
+  `createWindowsLatestPort` takes the resolved `videosDir`. Proved by
+  parse/resolve/fallback unit tests; the live query runs on Windows CI.
+- T2 FIXED (`src/core/media/record/linux.ts`, `recordingLatest.ts`):
+  `LatestRecordingPort.isRecordingFileName` gates candidates; the macOS
+  factory sets `isScreenshotRecordingName`. A newer Desktop export no longer
+  shadows an older Screenshot recording (the firing test), and export-only
+  Desktops report no recent recording.
+- T3 PART ANSWERED: the OS-format claims are gone from the test names and
+  header (layout/recency/selection is what synthetic bytes prove). Real
+  Snipping Tool bytes need the lead's Windows host; real Screenshot video
+  needs a GUI login session (this rig's session denies ScreenCaptureKit
+  video while stills succeed — both capture commands recorded in triage).
+- T4 DONE (`CHANGELOG.md`): the Windows/macOS entry is withheld until
+  packed-product runs on both OSs are recorded.
+- T5 FIXED (`recordingLatest.ts`, `createWindowsPrivateDirectory`):
+  `icacls /inheritance:r /grant:r *S-1-3-4:(OI)(CI)F` plus a
+  `Get-Acl`-verified single-rule check, required on win32 and wired in
+  `src/extension.ts`; POSIX keeps `mkdtemp`+`chmod`. Proved by
+  lockdown/verify-failure/refusal unit tests; the live run happens on
+  Windows CI.
+- T6 NO CHANGE (measured): real video capability/binding is U6c's
+  lead-owned upload work; `modalityGate` refuses video as `unknown` before
+  `bind` runs, so latest-preview Attach reaches exactly the shipped
+  direct-recording admission state (named refusal, preview kept). T4 keeps
+  the public claim honest.
+- T7 FIXED (`screenRecordBundle.ts` `resolveLatestRecording`,
+  `previewPanel.ts`): liveness rechecked after discovery; a stale copy is
+  disposed, never previewed. Proved by 5 vscode-free unit tests
+  (`test/unit/resolveLatestRecording.test.ts`), including the failing
+  cleanup path.
+- CI budget FIXED without touching the budget: latest discovery moved into
+  `dist/screenRecord.js` (40.0 KiB vs its 50 KiB budget) behind the
+  existing loader; activation growth 3289 -> 921 bytes (<= 3072).
+- Gates (final tree): `recordingLatest` + `resolveLatestRecording` +
+  `modelsActivationBudget` 50/50 pass at the repo default timeout;
+  `lazyBundleFiles` 13/13; `npm run build` exit 0 (size, split, lazy
+  registry, host globals); typecheck exit 0; eslint zero warnings on
+  changed files; prettier clean; `check:l10n` 0 problems; `check:plan` 0
+  drift; `check:host-api` 0 problems (one generated row: `node:child_process`
+  30 -> 31); `check:reference` current; `cycles` clean; `duplication` 0
+  clones; `deadcode` exit 0.
+- Drills: `npm run package` still stops at staging on this rig —
+  `native/linux/{x64,arm64}/muse-created` are Linux-built, untracked, and
+  absent here (pre-existing, unrelated to this lane; CI builds them). No
+  packed-product command run: headless rig, and Windows proof needs the
+  lead's host — the T4 withhold stands.
