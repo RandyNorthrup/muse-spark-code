@@ -4317,6 +4317,31 @@ export class ModelApiSession implements ScheduledAgentSession {
     return this.teamRosterStable
   }
 
+  /**
+   * The instructions that shape every turn of the conversation beyond the
+   * workspace's rules: the goal, the agent's role and the team's roster,
+   * each recorded as read where it is sent. A playback (D203) reports them
+   * as an ordinary turn sends them.
+   */
+  private standingInstructions(
+    read: (value: unknown, bytes: string, source: ContentSource) => void,
+  ): {
+    readonly goalSection: string | undefined
+    readonly role: AgentRuntime | undefined
+    readonly teamRoster: string | undefined
+  } {
+    const goalSection = goalInstructions(this.goal)
+    if (goalSection !== undefined)
+      read(goalSection, goalSection, { kind: 'harness', operation: 'goal-context' })
+    const role = this.agentRole()
+    if (role !== undefined)
+      read(role, JSON.stringify({ id: role.id, prompt: role.prompt }), {
+        kind: 'harness',
+        operation: 'agent-role',
+      })
+    return { goalSection, role, teamRoster: this.teamRosterForRequest() }
+  }
+
   /** The agent's own instructions and tools, the Reviewer's, or a playback's (no tools). */
   private promptAndTools(
     today: string,
@@ -4372,16 +4397,20 @@ export class ModelApiSession implements ScheduledAgentSession {
         operation: 'git-facts',
       })
     // A playback answers from working memory, with no tools at all: the
-    // goal and rules stay (they are what it reports), and every tool call
-    // is refused in code where the turn runs.
+    // goal, the rules, the agent's role and the team's instructions stay
+    // (they are what it reports), and every tool call is refused in code
+    // where the turn runs.
     if (isPlayback) {
+      const standing = this.standingInstructions(read)
       return {
         instructions: playbackInstructionsFor({
           workspaceRoot: this.deps.workspaceRoot,
           platform: this.deps.platform,
           today,
-          goalSection: goalInstructions(this.goal),
+          goalSection: standing.goalSection,
           rules: context.rules,
+          teamRoster: standing.teamRoster,
+          agent: standing.role,
         }),
         tools: [],
       }
@@ -4407,22 +4436,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     const shell = shellToolFor(this.deps.platform)
     const flags = this.toolFlags()
     const { hasShell, hasMemory } = flags
-    const goalSection = goalInstructions(this.goal)
-    if (goalSection !== undefined)
-      read(goalSection, goalSection, { kind: 'harness', operation: 'goal-context' })
+    const { goalSection, role, teamRoster } = this.standingInstructions(read)
     const repoMap = this.promptRepoMap()
     if (repoMap !== undefined) read(repoMap, repoMap, { kind: 'harness', operation: 'repo-map' })
-    const role = this.agentRole()
     // M96 lane T: a team conversation declares the team's five tools and none
     // of M48's six; every other conversation declares exactly what it declares
     // today. The declared set is fixed for the conversation.
     const teamMode = this.teamModeForRequest()
-    const teamRoster = this.teamRosterForRequest()
-    if (role !== undefined)
-      read(role, JSON.stringify({ id: role.id, prompt: role.prompt }), {
-        kind: 'harness',
-        operation: 'agent-role',
-      })
     const checks = this.canRunVerifyCommands() ? this.checkCommands() : []
     if (checks.length > 0)
       read(checks, JSON.stringify(checks), { kind: 'harness', operation: 'verify-settings' }, false)
