@@ -214,3 +214,13 @@ test/unit/playbackPrompt.test.ts --maxWorkers=3`: 4 passed, repo
 - No stand-ins: the new and changed tests drive the real
   `PlaybackWatch` and the real `playbackInstructionsFor` with realistic
   input; no mock, fake timer, invented wire data, or text-exists check.
+
+## Codex threads, second round (2026-10-17, branch `ms/playback-fix2`)
+
+Verdict per thread (fixes follow as separate commits):
+
+1. `conversationController.ts:7680` (P2, Muse Code tools before playback starts): fix by refusal. MSP is select-never-create with four host modes; the strictest (Plan/`denyUnmatched`) still runs reads and file-tool edits (`src/shared/permissionModes.ts`, SECURITY.md "Muse Code's file writes"), so no backend-enforced zero-tool turn exists on Muse Code. Playback is refused where the session has no backend no-tools turn; the Plan-held path goes.
+2. `src/acp/agent.ts:2094` (P1, playback+attachments resolved before rejection): fix in code. The command is detected from the raw text block before `promptParts()`/`AcpMedia.block()` runs, and extra blocks are answered as usage without touching attachments.
+3. `README.md:2339` (P1, panel and Model API claims unproven): answered with a narrowed claim. No panel harness exists and no stored Model API key may be used here, so the README will claim only the proven surfaces until the lead runs the two real playbacks.
+4. `ModelApiHost.ts:4416` (P2, playback with `--output-schema`): fix in code. A playback with a configured headless output schema is refused before dispatch: a schema-compliant JSON reply cannot open with the documented verbatim marker line, so the combination is rejected rather than given precedence either way.
+5. `conversationController.ts:7563` (P1, playback starts across shared panels): fix in code. Playback admission is claimed per shared session (not per controller) for the starting window; with fix 1 no Plan hold exists for a playback, so the restore-vs-queued-start race it describes is gone and the host queue orders what remains.
