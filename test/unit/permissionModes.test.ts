@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { PERMISSION_MODES, UI_TEXT } from '../../src/shared/constants'
+import {
+  MUSE_ASK_ME_PROFILE,
+  MUSE_AUTO_REVIEW_PROFILE,
+  PERMISSION_MODES,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import {
   approvalModeFor,
   availablePermissionModes,
   isPermissionMode,
+  mspPermissionProfile,
   nextPermissionMode,
   type AutoReviewers,
   permissionModeDetail,
@@ -126,5 +132,20 @@ describe('permissionModeDetail (D24, D69)', () => {
         permissionModeDetail(mode, 'modelApi'),
       )
     }
+  })
+})
+
+describe('mspPermissionProfile', () => {
+  it('asks the person in Manual, keeps the judge for Auto, and leaves the rest to the mode', () => {
+    // Manual and Edit automatically review with `:ask-me`, so an unmatched
+    // command raises an approval instead of letting Muse Code's judge allow
+    // it (seen live as `allow:llm_judge` on 1.4.7, 2026-10-18).
+    expect(mspPermissionProfile('promptUnmatched')).toBe(MUSE_ASK_ME_PROFILE)
+    // Auto's words promise the judge's simple-command allows.
+    expect(mspPermissionProfile('onRequest')).toBe(MUSE_AUTO_REVIEW_PROFILE)
+    // Plan refuses and Bypass allows: the mode itself decides, no reviewer.
+    expect(mspPermissionProfile('denyUnmatched')).toBeUndefined()
+    expect(mspPermissionProfile('allowAll')).toBeUndefined()
+    expect(mspPermissionProfile('a-future-mode')).toBeUndefined()
   })
 })

@@ -351,10 +351,15 @@ export class MuseCodeBackendManager {
           clientInfo: { name: MSP_CLIENT_NAME, version: this.deps.extensionVersion },
           // The panel renders question cards (M4), so the host may send
           // `userInput/requested` instead of answering questions itself; the IDE
-          // tool server (M5) needs the `sessionMcp` grant.
+          // tool server (M5) needs the `sessionMcp` grant. `experimentalApi`
+          // unlocks `session/setPermissionProfile`, which keeps a mode switch
+          // on the mode's reviewer (Manual asks the person, Auto the judge);
+          // stable behavior is unchanged, and a host without the method
+          // answers `methodNotFound`, which the sync tolerates.
           capabilities: {
             userInputDialogs: true,
             requestedCapabilities: [...MSP_REQUESTED_CAPABILITIES],
+            experimentalApi: true,
           },
         }),
         {
