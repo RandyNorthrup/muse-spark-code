@@ -15946,6 +15946,16 @@ every branch.
 - **Record.** `docs/certification/muse-code-latest.md` names each capture's
   date and source command.
 - **Depends on.** M106 (wire guarantees), M51 (hook limits).
+- **Contributor mode (2026-10-18, lane `fix/muse-contributor-mode`).** An
+  entitled person's `contributor_mode_enabled` is honoured: `serve` starts
+  with `--contributor-mode on` (never defaulted on for anyone else), and the
+  catalogue carries each served model's `-contributor` counterpart by name
+  (`model/list` serves none on 1.4.10 with or without the flag, while
+  `session/start` accepts every one and a contributor session flags no row
+  active, all verified live 2026-10-18). The picker, `exec --model`, ACP
+  `session/set_config_option` and the panel list and accept them through the
+  existing contributor confirmation; a person not entitled hears the
+  provider's own refusal.
 
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
