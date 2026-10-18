@@ -14,6 +14,7 @@ import {
   type UploadLedgerState,
 } from '../../src/core/media/uploadLedger'
 import { fileUploadLedgerStorage } from '../../src/core/media/uploadLedgerStorage'
+import { systemBootId } from '../../src/core/locks/processOwner'
 
 const accountId = 'c'.repeat(64)
 const fileId = 'file-shared'
@@ -174,5 +175,32 @@ describe('upload ledger across two real processes', () => {
     await ledger.unpinFiles([fileId], 'parent-owner')
     await ledger.deleteFile(fileId, () => Promise.resolve(true))
     expect(deletes).toEqual([fileId])
+  })
+
+  it('reaps a pin whose birth no longer matches its live id', async () => {
+    const { deletes, ledger, stop, done, stderr, child } = await seededChild('3', 'hold')
+    const holder = child.pid
+    if (holder === undefined) throw new Error('the holder has no pid')
+    // A pin the crashed process left behind, now shadowed by the live holder
+    // the system gave the recycled id to: the birth proves it is not the owner.
+    const bootId = await systemBootId()
+    const storage = fileUploadLedgerStorage(path.join(shared.scratch, accountId))
+    await storage.write({
+      ...seedState(),
+      pinned: [
+        {
+          fileId,
+          owner: `${String(holder)}:stale-owner`,
+          processStart: 1,
+          ...(bootId !== undefined && { bootId }),
+        },
+      ],
+    })
+    await ledger.pinFiles([fileId], 'parent-owner')
+    await ledger.unpinFiles([fileId], 'parent-owner')
+    await ledger.deleteFile(fileId, () => Promise.resolve(true))
+    expect(deletes).toEqual([fileId])
+    writeFileSync(stop, 'stop')
+    await waitFor(done, stderr)
   })
 })

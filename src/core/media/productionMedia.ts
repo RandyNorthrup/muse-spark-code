@@ -242,7 +242,10 @@ export function workspaceMediaSource(deps: {
     const api = pathModule(deps.platform)
     const absolute = api.resolve(deps.workspaceRoot, media.name)
     const root = api.resolve(deps.workspaceRoot)
-    if (absolute !== root && !absolute.startsWith(`${root}${api.sep}`)) return
+    // A filesystem root already ends in the separator: appending another
+    // doubles it (`//`), so no child ever matches the prefix.
+    const prefix = root.endsWith(api.sep) ? root : `${root}${api.sep}`
+    if (absolute !== root && !absolute.startsWith(prefix)) return
     const read = await readMedia(absolute, MEDIA_MAX_UPLOAD_MIB * BYTES_PER_MIB, absolute, signal)
     if (
       read === undefined ||

@@ -13480,6 +13480,10 @@ export class ModelApiSession implements ScheduledAgentSession {
           this.recordTranscript(turn.turnId, refused)
           turn.steered.shift()
           turn.acceptedTextAttachmentBytes -= textAttachmentBytes(parts)
+          // A refused steer never reaches a request: its claim ends here, as a
+          // withdrawal's does, or the token stays claimed until the attach
+          // bound fills and later attachments are refused.
+          steer.media?.release()
           this.emit({ type: 'itemCompleted', item: refused })
         }
         throw error
