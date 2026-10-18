@@ -2,9 +2,10 @@
 // The catch-clause gate (`npm run check:catches`): every `catch` clause and
 // `.catch(` handler under src holds a named condition or a failure report.
 // `node scripts/catch-inventory.mjs --check` scans the tree and compares the
-// SWALLOW and GENERIC sites and per-area counts with scripts/catch-baseline.json:
-// replacement sites fail even at equal totals; a fall needs a lowered baseline.
-// No newly exposed debt is accepted automatically. `--write-baseline` regenerates
+// SWALLOW, GENERIC and CLEANUP sites and per-area counts with
+// scripts/catch-baseline.json: replacement sites fail even at equal totals; a
+// fall needs a lowered baseline. No newly exposed debt is accepted
+// automatically. `--write-baseline` regenerates
 // the baseline after an intentional fix; `--inventory <json> --markdown <md>`
 // writes the full listing for the certification record.
 import fs from 'node:fs'
@@ -35,14 +36,18 @@ if (has('--write-baseline')) {
   const entries = scanCatches(ROOT)
   const counts = countByArea(entries)
   const baseline = {
-    version: 2,
+    version: 3,
     counts: {},
     sites: entries
-      .filter((entry) => entry.class === 'SWALLOW' || entry.class === 'GENERIC')
+      .filter((entry) => ['SWALLOW', 'GENERIC', 'CLEANUP'].includes(entry.class))
       .map(({ file, identity, class: kind }) => ({ file, identity, class: kind })),
   }
   for (const area of Object.keys(counts).toSorted(byName))
-    baseline.counts[area] = { SWALLOW: counts[area].SWALLOW, GENERIC: counts[area].GENERIC }
+    baseline.counts[area] = {
+      SWALLOW: counts[area].SWALLOW,
+      GENERIC: counts[area].GENERIC,
+      CLEANUP: counts[area].CLEANUP,
+    }
   fs.writeFileSync(BASELINE_PATH, `${JSON.stringify(baseline, null, 2)}\n`)
   process.stdout.write(`Wrote ${BASELINE_PATH}\n`)
 } else if (has('--check')) {

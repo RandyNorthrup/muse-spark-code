@@ -24,7 +24,10 @@
 //   reason comment on the catch line or as the handler's leading comment
 //   (prettier expands an empty `catch { // reason }` onto its own lines, so a
 //   same-line comment does not survive formatting; the leading comment is the
-//   stable form).
+//   stable form). A comment alone never suffices silently: every CLEANUP site
+//   stands in the ratchet baseline by identity, so a commented
+//   primary-operation tail cannot bypass the gate — it fails until a person
+//   accepts that exact site.
 //
 // The classifier is conservative: when unsure it answers SWALLOW or GENERIC,
 // never NARROW or REPORTED. A `throw` inside a nested function does not
@@ -503,7 +506,8 @@ function handlerPaths(body, binding) {
  * Classify one handler body. `binding` is the caught name, if any.
  * `catchLine` is the source line of the `catch` keyword or `.catch(` call;
  * `leading` is the handler's leading comment text, if any. A reason comment
- * in either place marks CLEANUP.
+ * in either place marks CLEANUP; the ratchet baseline accepts each such
+ * site by identity, so no new one passes silently.
  */
 export function classifyHandler(body, options) {
   const { binding, catchLine, leading } = options
@@ -691,12 +695,16 @@ export function countByArea(entries) {
 }
 
 /**
- * The ratchet: live SWALLOW/GENERIC counts must equal the baseline exactly.
- * A rise fails; a fall without a lowered baseline fails too, so the number
- * only goes down and is always exact.
+ * The ratchet: live SWALLOW/GENERIC/CLEANUP counts must equal the baseline
+ * exactly. A rise fails; a fall without a lowered baseline fails too, so
+ * the number only goes down and is always exact. CLEANUP stands in the
+ * ratchet beside the other debt classes: a reason comment still marks it,
+ * but the site is accepted by identity, so a commented primary-operation
+ * tail cannot bypass the gate — it fails until a person audits that exact
+ * site and regenerates the baseline.
  */
 export function checkBaseline(entries, baseline) {
-  if (baseline.version !== 2 || !Array.isArray(baseline.sites))
+  if (baseline.version !== 3 || !Array.isArray(baseline.sites))
     return ['Catch baseline lacks site identities; migrate it without increasing the accepted debt']
   const live = countByArea(entries)
   const problems = []
@@ -706,7 +714,8 @@ export function checkBaseline(entries, baseline) {
     accepted.set(key, (accepted.get(key) ?? 0) + 1)
   }
   for (const entry of entries) {
-    if (entry.class !== 'SWALLOW' && entry.class !== 'GENERIC') continue
+    if (entry.class !== 'SWALLOW' && entry.class !== 'GENERIC' && entry.class !== 'CLEANUP')
+      continue
     const key = JSON.stringify([entry.file, entry.class, entry.identity])
     const remaining = accepted.get(key) ?? 0
     if (remaining === 0)
@@ -722,7 +731,7 @@ export function checkBaseline(entries, baseline) {
   const areas = new Set([...Object.keys(live), ...Object.keys(baseline.counts ?? {})])
   const names = [...areas].toSorted((left, right) => left.localeCompare(right))
   for (const area of names) {
-    for (const kind of ['SWALLOW', 'GENERIC']) {
+    for (const kind of ['SWALLOW', 'GENERIC', 'CLEANUP']) {
       const now = live[area]?.[kind] ?? 0
       const was = baseline.counts?.[area]?.[kind] ?? 0
       if (now > was)

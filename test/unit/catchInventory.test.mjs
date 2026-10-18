@@ -224,7 +224,7 @@ describe('catch-inventory baseline', () => {
 
   it('refuses replacement or relocated debt even when area counts stay equal', () => {
     const original = scan('function read() { try { load() } catch { return fallback } }')
-    const baseline = { version: 2, counts: countByArea(original), sites: original }
+    const baseline = { version: 3, counts: countByArea(original), sites: original }
     expect(checkBaseline(original, baseline)).toEqual([])
     expect(
       checkBaseline(
@@ -251,6 +251,23 @@ describe('catch-inventory baseline', () => {
     expect(
       checkBaseline(original, { version: 1, counts: countByArea(original) }).join('\n'),
     ).toMatch(/lacks site identities/)
+  })
+
+  it('fails a commented primary-operation tail until a person accepts that site', () => {
+    // The shape the review caught: a `.catch(` tail that drops a primary
+    // rejection after a prose comment. The comment still marks CLEANUP, but
+    // the site is not in the baseline, so the gate fails instead of passing
+    // silently.
+    const planted = scan(
+      'void sampleOnce(status).catch(() => {\n// foreign failures have no consumer\nreport()\n})',
+    )
+    expect(planted.map((entry) => entry.class)).toEqual(['CLEANUP'])
+    const empty = { version: 3, counts: {}, sites: [] }
+    expect(checkBaseline(planted, empty).join('\n')).toMatch(/new CLEANUP catch site/)
+    // The same site accepted by identity passes.
+    expect(
+      checkBaseline(planted, { version: 3, counts: countByArea(planted), sites: planted }),
+    ).toEqual([])
   })
 
   it('rejects handlers with an unreported branch, including broad Error fallbacks', () => {

@@ -6,12 +6,7 @@
 // every sample. The once-marker is written atomically and cleared when the
 // file reads valid again, so a recurrence after a repair is reported again.
 
-import { linkSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
-
-/** Whether the failure is the filesystem's name-collision code. */
-function isExistsError(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST'
-}
+import { linkSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 
 /** Durable once-marker storage; every method is best-effort and never throws. */
 export interface DamageMarkerStore {
@@ -103,6 +98,7 @@ export function fileDamageMarkers(file: string): DamageMarkerStore {
   return {
     readMarker,
     writeMarker: (identity) => {
+      let hasClaimed = false
       try {
         writeFileSync(temporaryFile, JSON.stringify({ identity }))
         try {
@@ -111,30 +107,23 @@ export function fileDamageMarkers(file: string): DamageMarkerStore {
           // winner's marker stands to announce. The rename below stays
           // crash-safe; the link only decides who announces.
           linkSync(temporaryFile, markerFile)
-          unlinkSync(temporaryFile)
-          return true
-        } catch (linkError: unknown) {
-          if (!isExistsError(linkError)) {
-            // No atomic claim on this filesystem: record through the
-            // crash-safe rename as before, announcing (a duplicate under
-            // true concurrency, never a hidden damage).
+          rmSync(temporaryFile, { force: true })
+          hasClaimed = true
+        } catch {
+          // A standing marker decides: when it names this same damage,
+          // its window announces and this call loses; a changed damage
+          // (or no atomic claim on this filesystem) replaces the marker
+          // through the crash-safe rename and wins.
+          if (readMarker() === identity) rmSync(temporaryFile, { force: true })
+          else {
             renameSync(temporaryFile, markerFile)
-            return true
+            hasClaimed = true
           }
-          // Another window's marker stands. When it names this same
-          // damage, its window announces and this call loses; a changed
-          // damage still replaces the marker and wins.
-          if (readMarker() === identity) {
-            rmSync(temporaryFile, { force: true })
-            return false
-          }
-          renameSync(temporaryFile, markerFile)
-          return true
         }
       } catch {
         // Best effort: an unwritten marker only repeats the announcement.
-        return false
       }
+      return hasClaimed
     },
     clearMarker: () => {
       try {
