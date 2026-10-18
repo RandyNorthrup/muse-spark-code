@@ -54,6 +54,16 @@ happened, not what was planned; superseded entries are kept.
   cumulative merge diff, so a follow-up push that touches only an unrelated
   file no longer passes with no Windows or macOS run anywhere; a capacity
   run that never appears now fails its relay instead.
+- The Hosts, Forks and browser-check relays wait for the capacity push
+  before starting their ten-minute run clock, and wait out the platform's
+  full 6-hour job ceiling (D122 review). The push is made by build.yml's
+  `org` job, which queues independently of the relay, so the relay first
+  waits for its `ci/pr-<number>` branch to reach the pushed commit and only
+  then gives the run ten minutes to appear — a pull request whose producer
+  is still queued never goes falsely red, while a landed push with no run
+  still fails closed. Each relay's bound is GitHub's own 6-hour job ceiling,
+  the same figure the `org` wait already uses, so a healthy multi-stage
+  capacity run under contention is never cut off while it can still succeed.
 
 ### Pending
 
