@@ -1,15 +1,15 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { CliAccount } from '../../src/host/auth/cliAccount'
 import type { Logger } from '../../src/host/logger'
 
 const log: Logger = {
-  trace: vi.fn(),
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
+  trace: () => undefined,
+  info: () => undefined,
+  warn: () => undefined,
+  error: () => undefined,
 }
 
 const dirs: string[] = []
