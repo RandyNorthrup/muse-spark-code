@@ -9908,7 +9908,7 @@ export class ConversationController {
         return
       }
       consentFence(accountId, true)
-      // The first paid recording asks; Allow once covers this window (CM352).
+      // Every paid recording asks; Allow once covers one recording (CM352).
       const isAllowed = (await this.deps.allowsPaidUse({ feature: 'voice' })) === true
       if (!isAllowed || !isCurrent()) {
         this.postDictationState()
