@@ -106,3 +106,43 @@ minimum 0`, no maximum. The settings editor stops showing "$1.00" as the
   error in the run log). No workaround attempted. The Tab row's three
   states are instead proven by `test/unit/paidUsageTabRow.test.tsx`,
   which renders the real component.
+- `test/unit/inspectNative.test.ts` (18 failures) measured UNRELATED on
+  the untouched base: same 18 failures at `81dacaf5a7` in an isolated
+  worktree (native helper refuses system files in this sandbox:
+  `cat: {"refused":"systemFile"}`). Worktree removed afterwards.
+
+## Final gates (all on the final tree, exit codes)
+
+- typecheck all 5 projects: 0 (webview + unit re-run after last edit: 0)
+- eslint changed files: 0 warnings, 0 errors (one nested-ternary fixed)
+- prettier changed files: clean
+- `npm run build`: 0, no budget errors
+- `check:l10n`: 0 problems (14 UI + 14 usage tables, 252 manifest strings)
+- `check:reference`: 0 (matches catalog)
+- `check:host-api`: 0 problems
+- `check:plan`: 0 drift
+- `deadcode` (knip): 0
+- `cycles`: 0; `duplication`: 0 clones
+- `schema:exec -- --check`: schemas match
+- SAST (semgrep): 0 findings; `security:audit`: exit 0
+- `vitest related` on all changed src files: 288 files passed,
+  5439 tests passed; only `inspectNative.test.ts` fails (pre-existing,
+  measured on base as above)
+- Focused suites: tabConstants (10), tabLedger (2), tabBudgetSetting (2),
+  paidUsageTabRow (3), execArgs, runLedger (36), tabSpend — all pass.
+  No `--testTimeout` raised anywhere (repo default).
+
+## Real-use drills (packed `dist/` from this tree, no model calls)
+
+- `node dist/acp.js exec --help`: `--max-requests` reads "Set the
+  maximum number of model requests; without it, there is no request
+  limit." with `minimum: 1, maximum: 500` and no default.
+- `node scripts/gen-reference.mjs` drove the real `parseCommandLine`:
+  unset `--max-requests` parses to `maxRequests: undefined`, `500`
+  parses to `500`.
+- Tab UI (settings editor, status bar, consent popup, usage page) cannot
+  run headless here; covered by the render test, the ledger test, and
+  the settings test above. The person-facing steps: leave
+  `museSpark.tabDailyBudgetUsd` at `0` (no budget, nothing reserved);
+  set e.g. `5` to cap the local day; run `exec` without
+  `--max-requests` for an uncapped run.
