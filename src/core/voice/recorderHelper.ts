@@ -121,8 +121,9 @@ export function recorderHelper(recorderName: string, start: () => RecorderProces
       }
       if (isStopping || isQuitting) {
         // A kill was refused while ending it: the process may still hold
-        // the microphone, so this is an error, never "stopped".
-        recorder = undefined
+        // the microphone, so this is an error, never "stopped". Ownership
+        // stays until its real exit: a later stop or quit retries the
+        // kill, and no second recorder may start over a live one.
         stdout.write({ type: 'error', reason: `${recorderName} did not stop (${description})` })
         return
       }
