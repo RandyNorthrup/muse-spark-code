@@ -13,9 +13,9 @@
 //   (`/proc/sys/kernel/random/boot_id`). Exact, and no clock step changes
 //   either; an owner from another boot is gone.
 // - Windows: the creation time the kernel stored when the process started
-//   (Windows PowerShell's `Get-Process`, read in milliseconds). A later
-//   clock step does not change it; it is only as right as the clock was at
-//   creation.
+//   (`GetProcessTimes`, read in milliseconds) through a small native reader
+//   (below). A later clock step does not change it; it is only as right as
+//   the clock was at creation.
 // - macOS: the start time the kernel stored (`ps -o lstart=`, printed in UTC
 //   so no timezone change moves it), to the second.
 // On Windows and macOS two processes that had one id and started within
@@ -23,14 +23,18 @@
 // nothing. Queries use absolute paths, no shell, and a timeout.
 
 import { execFile } from 'node:child_process'
-import { readFile } from 'node:fs/promises'
-import { hostname } from 'node:os'
+import { createHash, randomUUID } from 'node:crypto'
+import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { homedir, hostname } from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import {
+  ACP_DATA_FOLDER,
   MILLISECONDS_PER_SECOND,
   PROCESS_START_QUERY_TIMEOUT_MS,
   PROCESS_START_TOLERANCE_MS,
+  WINDOWS_BIRTH_READER_FOLDER,
+  WINDOWS_FRAMEWORK_RELATIVE_PATH,
 } from '../../shared/constants'
 
 const NO_SUCH_PROCESS = 'ESRCH'
@@ -40,6 +44,58 @@ const NO_SUCH_PROCESS = 'ESRCH'
 const LINUX_START_FIELD = 19
 const LINUX_BOOT_ID = '/proc/sys/kernel/random/boot_id'
 const DECIMAL = /^\d+$/u
+const WINDOWS_BIRTH_READER_STEM = 'MuseSparkBirth-'
+const WINDOWS_BIRTH_READER_DIGEST_LENGTH = 16
+// Windows' birth reader, C# 5 for the .NET Framework that ships with Windows.
+// Windows PowerShell spent 300 to 600 ms of CPU starting before it read one
+// birth, and its first start on a fresh hosted runner passed the query bound
+// (docs/certification/windows-process-birth.md); this asks the kernel
+// directly in about 55 ms. Exit 1: no running process has the id, or it
+// cannot be opened.
+const WINDOWS_BIRTH_READER_SOURCE = `using System;
+using System.Globalization;
+using System.Runtime.InteropServices;
+
+static class MuseSparkBirth
+{
+    const uint QueryLimitedInformation = 0x1000;
+    const uint StillActive = 259;
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool GetExitCodeProcess(IntPtr process, out uint exitCode);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool GetProcessTimes(IntPtr process, out long creation, out long exit, out long kernel, out long user);
+
+    [DllImport("kernel32.dll")]
+    static extern bool CloseHandle(IntPtr handle);
+
+    static int Main(string[] args)
+    {
+        uint pid;
+        if (args.Length != 1 || !uint.TryParse(args[0], NumberStyles.None, CultureInfo.InvariantCulture, out pid)) return 2;
+        IntPtr process = OpenProcess(QueryLimitedInformation, false, pid);
+        if (process == IntPtr.Zero) return 1;
+        try
+        {
+            uint exitCode;
+            long creation, exit, kernel, user;
+            // An exited process keeps its times while a handle to it is open.
+            if (!GetExitCodeProcess(process, out exitCode) || exitCode != StillActive) return 1;
+            if (!GetProcessTimes(process, out creation, out exit, out kernel, out user)) return 1;
+            Console.Out.Write(DateTimeOffset.FromFileTime(creation).ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture));
+            return 0;
+        }
+        finally
+        {
+            CloseHandle(process);
+        }
+    }
+}
+`
 
 export const processOwnerSchema = z.object({
   host: z.string(),
@@ -105,27 +161,99 @@ async function darwinStartTime(pid: number): Promise<number | undefined> {
   return Number.isFinite(started) ? started : undefined
 }
 
+/** Whether the program never started (Node names the `spawn` call); not an exit or a kill. */
+function isSpawnFailure(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'syscall' in error &&
+    String(error.syscall).startsWith('spawn')
+  )
+}
+
+async function isFile(file: string): Promise<boolean> {
+  try {
+    const info = await stat(file)
+    return info.isFile()
+  } catch {
+    return false
+  }
+}
+
+/**
+ * The birth reader for this source: compiled once per user by Windows' own
+ * C# compiler into the user's data folder, named by the source's digest, and
+ * moved into place whole, so a reader another process compiles at the same
+ * time is never half written.
+ */
+async function prepareWindowsBirthReader(systemRoot: string): Promise<string> {
+  const localAppData = process.env['LOCALAPPDATA'] ?? path.win32.join(homedir(), 'AppData', 'Local')
+  const folder = path.win32.join(localAppData, ACP_DATA_FOLDER.win32, WINDOWS_BIRTH_READER_FOLDER)
+  const digest = createHash('sha256')
+    .update(WINDOWS_BIRTH_READER_SOURCE)
+    .digest('hex')
+    .slice(0, WINDOWS_BIRTH_READER_DIGEST_LENGTH)
+  const reader = path.win32.join(folder, `${WINDOWS_BIRTH_READER_STEM}${digest}.exe`)
+  if (await isFile(reader)) {
+    return reader
+  }
+  await mkdir(folder, { recursive: true })
+  const stem = path.win32.join(folder, randomUUID())
+  try {
+    await writeFile(`${stem}.cs`, WINDOWS_BIRTH_READER_SOURCE, 'utf8')
+    await run(
+      path.win32.join(systemRoot, WINDOWS_FRAMEWORK_RELATIVE_PATH, 'csc.exe'),
+      ['/nologo', '/noconfig', '/target:exe', `/out:${stem}.exe`, `${stem}.cs`],
+      { SystemRoot: systemRoot },
+    )
+    try {
+      await rename(`${stem}.exe`, reader)
+    } catch (error: unknown) {
+      // Another process put the same reader in place first.
+      if (!(await isFile(reader))) {
+        throw error
+      }
+    }
+  } finally {
+    await rm(`${stem}.cs`, { force: true })
+    await rm(`${stem}.exe`, { force: true })
+  }
+  return reader
+}
+
+const windowsBirthReader: { ready?: Promise<string> | undefined } = {}
+
 async function windowsStartTime(pid: number): Promise<number | undefined> {
-  // The system's own Windows PowerShell, from the system folder the
-  // environment names (never an assumed drive).
+  // The system folder the environment names (never an assumed drive).
   const systemRoot = process.env['SystemRoot'] ?? process.env['windir']
   if (systemRoot === undefined) {
     return undefined
   }
-  const powershell = path.win32.join(
-    systemRoot,
-    'System32',
-    'WindowsPowerShell',
-    'v1.0',
-    'powershell.exe',
-  )
-  const output = await run(powershell, [
-    '-NoLogo',
-    '-NoProfile',
-    '-NonInteractive',
-    '-Command',
-    `[DateTimeOffset]::new((Get-Process -Id ${String(pid)} -ErrorAction Stop).StartTime).ToUnixTimeMilliseconds()`,
-  ])
+  const ready = (windowsBirthReader.ready ??= prepareWindowsBirthReader(systemRoot))
+  let reader: string
+  try {
+    reader = await ready
+  } catch (error: unknown) {
+    // A failed build is not kept: the next read tries again.
+    windowsBirthReader.ready = undefined
+    throw error
+  }
+  let output: string
+  try {
+    output = await run(reader, [String(pid)], { SystemRoot: systemRoot })
+  } catch (error: unknown) {
+    // A reader that could not start (removed, quarantined, damaged) is built
+    // again on the next read; an exit code is the reader's own answer.
+    if (isSpawnFailure(error)) {
+      windowsBirthReader.ready = undefined
+      try {
+        await rm(reader, { force: true })
+      } catch {
+        // Another process is running it: it stays, and is tried again.
+      }
+    }
+    throw error
+  }
   const text = output.trim()
   return DECIMAL.test(text) ? Number(text) : undefined
 }
