@@ -761,7 +761,7 @@ export const EN = {
       grantHelp:
         'One entry per line. Paths stay inside this workspace; protected paths and tools that require a person are always refused.',
       paidCapHelp:
-        'No spending cap applies unless you set one; zero means the schedule never spends.',
+        'A new schedule starts at zero and never spends; set a cap to let it spend up to that amount.',
       auditKinds: {
         created: 'Created',
         changed: 'Changed',

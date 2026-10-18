@@ -607,7 +607,7 @@
       "afterRuns": "N çalıştırmadan sonra bitir",
       "cost": "Maliyet",
       "grantHelp": "Satır başına bir giriş. Yollar bu çalışma alanı içinde kalır; korunan yollar ve insan gerektiren araçlar her zaman reddedilir.",
-      "paidCapHelp": "No spending cap applies unless you set one; zero means the schedule never spends.",
+      "paidCapHelp": "A new schedule starts at zero and never spends; set a cap to let it spend up to that amount.",
       "auditKinds": {
         "created": "Oluşturuldu",
         "changed": "Değiştirildi",

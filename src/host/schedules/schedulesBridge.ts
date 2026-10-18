@@ -122,9 +122,8 @@ export function createSchedulesBridge(deps: SchedulesBridgeDeps) {
     backend: 'museCode' | 'modelApi',
   ): ScheduleDraft => {
     const choices = targets(session)
-    // No spending cap unless the person sets one: the draft starts at zero,
-    // so a schedule never spends until the person names a cap and completes
-    // paid consent for it.
+    // The draft starts at a zero cap, so a schedule never spends until the
+    // person raises the cap and completes paid consent for it.
     const cap = Usd.from(0).toAmount()
     // A valid template, not a blank: the wire schema and the prompt mapper
     // both refuse empty names and prompts, and the editor validates before

@@ -606,7 +606,7 @@
       "afterRuns": "N회 실행 후 종료",
       "cost": "비용",
       "grantHelp": "줄당 하나의 항목을 입력하세요. 경로는 이 작업 공간 내로 제한되며, 보호된 경로 및 사람이 필요한 도구는 항상 거부됩니다.",
-      "paidCapHelp": "No spending cap applies unless you set one; zero means the schedule never spends.",
+      "paidCapHelp": "A new schedule starts at zero and never spends; set a cap to let it spend up to that amount.",
       "auditKinds": {
         "created": "생성됨",
         "changed": "변경됨",

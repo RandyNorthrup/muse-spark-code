@@ -606,7 +606,7 @@
       "afterRuns": "N 回の実行後に終了",
       "cost": "費用",
       "grantHelp": "1 行に 1 件入力してください。パスはこのワークスペース内に限定され、保護されたパスや人の操作が必要なツールは常に拒否されます。",
-      "paidCapHelp": "No spending cap applies unless you set one; zero means the schedule never spends.",
+      "paidCapHelp": "A new schedule starts at zero and never spends; set a cap to let it spend up to that amount.",
       "auditKinds": {
         "created": "作成",
         "changed": "変更",

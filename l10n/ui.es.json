@@ -608,7 +608,7 @@
       "afterRuns": "Finalizar tras N ejecuciones",
       "cost": "Coste",
       "grantHelp": "Una entrada por línea. Las rutas permanecen en este espacio de trabajo; siempre se rechazan las rutas protegidas y las herramientas que requieren una persona.",
-      "paidCapHelp": "No spending cap applies unless you set one; zero means the schedule never spends.",
+      "paidCapHelp": "A new schedule starts at zero and never spends; set a cap to let it spend up to that amount.",
       "auditKinds": {
         "created": "Creado",
         "changed": "Modificado",

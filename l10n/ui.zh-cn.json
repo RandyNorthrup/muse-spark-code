@@ -606,7 +606,7 @@
       "afterRuns": "运行 N 次后结束",
       "cost": "费用",
       "grantHelp": "每行一项。路径必须位于此工作区内；受保护的路径和需要人工操作的工具始终会被拒绝。",
-      "paidCapHelp": "No spending cap applies unless you set one; zero means the schedule never spends.",
+      "paidCapHelp": "A new schedule starts at zero and never spends; set a cap to let it spend up to that amount.",
       "auditKinds": {
         "created": "已创建",
         "changed": "已更改",
