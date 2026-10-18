@@ -14,6 +14,12 @@ happened, not what was planned; superseded entries are kept.
   runs without editor delivery never load it. The schedule billing popup also
   loads past the activation split, through the paid entry, instead of an
   eager host import (record: `docs/certification/schedule-delivery-diet.md`).
+- The conversation bundle defers its schedule surfaces: `dist/conversation.js`
+  falls from 251.3 KiB to 248.7 KiB under its unchanged 250 KiB cap, and the
+  delivery target readout, scheduled-question settlement and schedules panel
+  commands load as the new `dist/scheduleSurfaces.js` (25 KiB budget) on the
+  first schedule delivery, panel command or scheduled question (record:
+  `docs/certification/schedule-surfaces-diet.md`).
 
 - Terminal schedule management is merged with the no-hold money model: a
   schedule fire admits against the schedule's own caps and the person's

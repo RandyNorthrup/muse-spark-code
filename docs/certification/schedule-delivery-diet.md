@@ -105,3 +105,13 @@ behaviour-touching redesign of the delivery contract whose proof is a live
 schedule fire, which is impossible while delivery certification stays off
 (lead-only receipts): it cannot merge proven tonight, so it is left for a
 follow-up milestone, not release-night surgery.
+
+## 7. Follow-up the same night: `dist/conversation.js` dieted green
+
+The §6 work order is superseded: the follow-up moved the delivery target
+readout, the scheduled-question settlement and the schedules panel commands
+(rather than redesigning the ports) behind one controller snapshot, and
+`dist/conversation.js` is 254,707 B under its unchanged 250 KiB cap with
+`npm run build` green end to end. No port type changes; the dispatch,
+billing and lease paths are untouched. Record:
+`docs/certification/schedule-surfaces-diet.md`.
