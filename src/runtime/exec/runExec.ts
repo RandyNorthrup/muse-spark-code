@@ -52,7 +52,7 @@ import { effortLevelsFor } from '../../shared/effort'
 import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
 import { modelApiPaidTier } from '../../shared/paid'
 import type { RuntimeBackend, RuntimeBackendDeps } from '../backends'
-import { serveOptionsFor } from './execArgs'
+import { isHeadlessPaidUseAllowed, serveOptionsFor } from './execArgs'
 import { execAttachmentBlocks, type ExecAttachmentOptions as ExecOptions } from './attachArgs'
 import { execAccountSelection, type ExecAccountsPort } from './execAccounts'
 import type { AccountsSessionPort } from '../../acp/accounts'
@@ -750,14 +750,15 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             }),
           streamIdleMs: EXEC_STREAM_IDLE_MS,
           headlessPaid: (request, requiresAsking) => {
-            const isAllowed =
-              request.feature === 'imageGeneration' &&
-              options.paidFeatures.includes('imageGeneration') &&
-              options.mode === 'acceptEdits' &&
-              !requiresAsking &&
-              !lifecycle.signal.aborted &&
-              microUsd(ledger?.totals().remainingUsd ?? Usd.from(0).toAmount()) >=
-                microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
+            // The summary request rides the same ledger-bound transport as
+            // any request; this gate only decides whether it may be asked.
+            const isAllowed = isHeadlessPaidUseAllowed(
+              options,
+              ledger?.totals().remainingUsd ?? Usd.from(0).toAmount(),
+              lifecycle.signal.aborted,
+              request,
+              requiresAsking,
+            )
             if (!isAllowed && !isFinishing && request.feature === 'imageGeneration')
               sink.emit({
                 type: 'paid_use',

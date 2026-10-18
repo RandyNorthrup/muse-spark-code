@@ -14628,6 +14628,14 @@ freshness records, the full zero-changed-scene replay and the SHA-256
 old-baseline drill. Evidence remains in `docs/certification/cifix017.md`,
 "0.17.1 visual refresh". Stop only for an incorrect frame.
 
+- **Q-CM1013B-MODULE-VISIBILITY (2026-10-11):** the first live receipt
+  records CommonJS writes in the ESM packing fixture but no request evidence.
+  The repository already has `package.json` type module; its prompts and
+  existing files supply no other module clue. The next lead-owned live run
+  records request hashes, explicit package-fact visibility and returned tool
+  names to determine whether any arm withheld the fact at a writing turn.
+  Keep the fixture and mechanisms unchanged until that evidence exists.
+
 **Q-VISREGEN2 resolved by lead (2026-10-09).** Preserve every 0.17.0
 change and Highlight while tightening only that release's wording below
 72,000 decoded bytes. Keep 0.16.0 and older notes byte-exact and all content
@@ -25382,7 +25390,108 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M101 — Upstream sync: Pi and SoL-Pi ports, automatic compaction (D81)
 
-**Status 2026-10-10 (first parts shipped in 0.15.0; automatic compaction stays off until its evaluation passes and the remaining port items remain): building.**
+**CM1013R4 review repair plan (2026-10-11, kubuntu).** Fix all three
+RVCM1013C P2 classes offline. Every one of the sixteen frozen verifiers
+must report a fresh private-input token and its declared successful assertion
+count after its last assertion; zero exit alone fails. Permanently exercise
+all 64 premature-exit outputs through the four arms and both engagement
+wrappers. Bind the actual Vitest configuration, setup/alias closure, compiler
+and package inputs, process arguments and environment allow-list, plan and
+launcher; attest the executable search worker before credentials. Store only
+offered tool identities or a counted fixed unknown marker; sweep round-three
+evidence for model/workspace free text. Each guard receives a failing regression
+and byte-exact red drill in `docs/certification/m101-eval-arms.md`. Re-freeze
+using the repository step, run all five type projects, every eval suite and
+related suites, and commit the verifier repair first with hooks. No production
+latch flip, live/paid call, dependency, merge, push or gate weakening.
+
+**CM1013R4 execution and evidence repair (2026-10-11).** The freeze now
+resolves the real Vitest setup/global-setup/alias roots, their import closure,
+and the nearest compiler configurations and extends chains. Global setup's
+language builds also read UI entries and regional-reader source as data;
+conservatively pin the complete `src/` family rather than miss those reads.
+Package/lock bytes, the plan's actual launch flags and environment allow-list,
+and the launcher are bound too. A fresh self-contained search worker is
+hashed into the receipt, prepared before credentials and executed from the
+same preflight snapshot; stale `dist/searchWorker.js` is never used. Refuse
+a snapshot for different task identities or fixture data before dispatch.
+Returned function names survive only if offered on that exact request;
+unknown names become `other` with a count. All other round-three fields are
+fixed identities/reasons, booleans, counts, exact dollar tallies or hashes.
+Regression and byte-exact drill receipts remain in the M101 certification.
+
+**CM1013B harness repair plan (2026-10-11, kubuntu).** Repair the first
+198-call live run's evidence starvation on fakes only: run both compaction
+and both packing tasks first; assign an independent measured call allowance
+to every task/arm (highest observed arm +50%, rounded up, floor six; unrun
+tasks use the prior plan +50%). The sum is the global backstop; a local
+overrun fails that task and continues, while global money/ceiling/unknown
+usage stops remain incomplete. Preserve incomplete through engagement
+wrappers, label narrowed selections/empty splits, and accept incomplete
+only in the launcher's explicit smoke mode. Record ledger reservations and
+settlements per task/arm/run, investigate the CommonJS failures without
+tuning a mechanism, and add sanitized request evidence if the first receipt
+cannot establish what the writing request saw. Re-freeze with the repository
+digest function; certify all eval files at repository deadlines and the
+three owning type projects. Review RVCM1013B also requires accepted-history
+replacement events (and settled money), full sixteen-task identity, live
+digest preflight and a source-closure completeness guard. Linux reproduces
+the merged f5b07747…2cd3 digest; expand its declared closure without altering
+production admission helpers. No production admission API changes, latch flip,
+live call, merge, push, dependencies or gate changes. Aggregate quality is
+lead-owned under the lane's explicit shared-rule prohibition.
+
+**CM1013B fake certification (2026-10-11).** The measured plan now owns
+137 calls per arm, 548 total, with a $0.073 projection at the observed token
+mix and the existing $0.50 measured-spend stop. All 557 offline launcher tests
+pass, including accepted/rejected summary cases, independent allowances and
+narrowed-selection verdicts. Receipts retain task/arm/run compaction dollars
+and sanitized writing-request evidence. The ESM fixture already states its
+module type; the original receipt cannot establish whether the failing arms
+saw it. Keep Q-CM1013B-MODULE-VISIBILITY open for the lead's counted run.
+Certification and current generated freeze: `docs/certification/m101-eval-arms.md`.
+The production latch remains false; this fake certification does not certify
+live compaction effectiveness or the aggregate quality gates.
+
+**Status 2026-10-17 (automatic compaction evaluated and on after the second binding run passed, connected on every surface; lane record `docs/certification/msm101.md`; the remaining upstream port items stay open): building.**
+
+**CM1013R9 binding run and latch flip (2026-10-12; the lead's run on the Windows host, the flip lane on the macbook rig).** The
+lead's counted run at `3c68efb2e` (`node scripts/m101-e.mjs --live-m75`,
+full frozen set, contributor model) returned verdict `pass`: certified
+digest equals the frozen pin, 274 attempts / 276 requests of the 588 ceiling at $0.06285, all
+four arms above both 0.75 floors, packing engaged on both long-output
+tasks, one settled D78 admission applied on each long-context task, strict
+tools engaged everywhere with both its floors held. The documented Part B
+step ran to the letter: receipts committed byte-exact, the latch flipped,
+`modelApiStrictTools` kept `true`. Certification:
+`docs/certification/m101-cm1013r9.md`.
+
+**CM1013R10 second binding run and per-host connection (2026-10-12,
+macbook rig; lane MSM101 merged current main 2026-10-16/17).** The
+lead's second counted run at `28686235d` returned verdict `pass`:
+certified equals computed equals the frozen pin `a59c8448…725e28`,
+265 attempts / 267 requests at $0.059742, all eight floor rows held, compaction engaged
+on both long-context tasks. Receipts kept byte-exact beside the first
+run's (`docs/certification/m101-binding-report-2026-10-12-28686235d.json`/`.md`,
+`docs/certification/m101-binding-run-2026-10-12-28686235d.log`).
+Part B measured the one missed check from the receipt tool sequence
+(the model ended its turn with text instead of writing the answer
+file); no product change, pin unchanged. Parts C+D connected true
+automatic compaction per host (panel setting, ACP `--auto-compaction`
+/ `--no-auto-compaction`, headless only with `--auto-compaction`
+under `--max-budget-usd`), with truthful budget refusals, atomic
+apply, Help reference, README, ACP/CI docs, l10n tables and
+regenerated reference/exec-schema output. Certification:
+`docs/certification/m101-cm1013r10.md`; milestone lane record:
+`docs/certification/msm101.md`. **RVMSM101 review (2026-10-17):** the
+runtime admission's workspace-trust fence made the connected headless
+and untrusted-ACP surfaces unreachable (exec can never trust); the
+runtime now authorizes compaction spending by the editor's per-use
+paid question or exec's explicit flag under its run budget, the editor
+keeps its Restricted Mode fence, and `--auto-compaction` on the Muse
+Code backend is refused instead of accepted as a no-op. The same
+review fixed the lane's two knip findings instead of deferring them
+and deleted three inherited suites that tested stand-ins.
 
 Status detail retained: planned; lanes start from `m101/base` (the M95
 integration branch plus this plan). C-M101-1 (2026-10-10, lane CM1011,
@@ -25775,6 +25884,131 @@ receipts remain the lead's checks under the rig brief.
   importing-suite receipts live in `docs/certification/m101-c2.md`. The M75 pair
   and absent shared D78/registry binding keep production inactive; the milestone
   checkbox remains open until those integration receipts exist.
+
+  **C-M101-2 evaluation freeze (2026-10-10, kubuntu).** The M75 harness
+  freezes four arms (baseline, packing, auto-compaction, strict-tools) and
+  sixteen tasks (the twelve previous fixtures plus per split one
+  long-context compaction task and one two-defect multi-edit task) with
+  digest `7f6241a6…45b26` (`src/core/eval/mechanisms.ts`,
+  `src/core/eval/tasks.ts`, `docs/certification/m101-eval-arms.md`).
+  Fake baseline/mechanism pairs for packing, strict tools and
+  auto-compaction hold both 0.75 floors; multi-edit comparability is
+  task-level (no host seam exists). Production stays inactive; lane E owns
+  the counted run, the D78 binding and the window-size decision.
+
+  **CM1012R2 repair of review RVCM1012 (2026-10-10, kubuntu).** All three
+  P2s fixed, no residuals. The window is harness condition shared by both
+  arms (`driver.ts` holds `contextModel`/`memory` fixed, `tasks.ts`
+  resolves the per-task window, `runner.ts` passes it); the auto-compaction
+  arm carries compaction alone. The digest now covers arm implementation
+  sources, per-task windows, the verifier prelude, the window rule, the
+  held-deps list and the frozen defaults, re-frozen as `dc3f6372…dd15f`.
+  The memory proof drives the real automatic flush through a fake store
+  (allowed and refused). Record: `docs/certification/m101.md`; updated
+  evidence in `docs/certification/m101-eval-arms.md`.
+
+  **CM1012R3 repair of review RVCM1012B (2026-10-10, kubuntu).** Both
+  findings fixed, no residuals. The frozen digest is now computed over the
+  transitive static-import closure of the arm modules
+  (`src/core/eval/armSources.ts`), not a hand-kept list: every
+  harness-owned file the arms reach contributes its bytes (so an arm
+  helper such as the admission's `noop` is covered), and every outside
+  binding they draw contributes its canonical value (capabilities, quirks,
+  windows, thresholds); anything the walk cannot cover fails closed. The
+  held-deps list moved to `src/core/eval/heldDeps.ts` so the digest need
+  not depend on the driver, which drives the production host the harness
+  measures rather than freezes. Re-frozen as `80d6fd00…ea95959`. The two
+  dependency-key assertions in `test/unit/eval/evalFrozen.test.ts` are
+  recorded in §8 with their reasons, guarded by a test that fails when the
+  rows go missing. Record: `docs/certification/m101.md`; updated evidence
+  in `docs/certification/m101-eval-arms.md`.
+
+  **CM1012R4 repair of review RVCM1012C (2026-10-10, linuxlt).** All four
+  findings (three P2, one P3) fixed with no residuals, by redesign rather
+  than another scanner patch: the frozen digest now bundles each arm root
+  with the real resolver (esbuild, already a build dependency, never
+  shipped) and hashes the exact bytes of every input file the metafile
+  reports, so accessor implementations (finding 1), comment-quoted edges
+  and relative dynamic imports (finding 2) and directory indexes
+  (finding 3) are covered exactly as the build resolves them; a
+  non-literal dynamic `import()` or `require()` fails the digest, and the
+  hash-outside-bindings-by-value path is removed. Canonical JSON keeps an
+  own `__proto__` field via definition, never assignment (finding 4, P3),
+  and the digest envelope is canonicalized through it. Re-frozen as
+  `630ffa…f4fc1f`. Record: updated evidence and R4 drills in
+  `docs/certification/m101-eval-arms.md`.
+
+  **CM1012R5 repair of review RVCM1012D (2026-10-10, linuxlt).** The single
+  P2 fixed with no residuals: the remaining refusal scanner is replaced
+  with the TypeScript compiler API (already a dev dependency, never
+  shipped). Every file in the esbuild closure is parsed; a non-literal
+  dynamic `import()` or bare `require()` fails the digest with file and
+  line, and every indirect loader spelling (`module.require`,
+  `require?.()`, require aliases, `createRequire(…)(…)`,
+  `require.call/apply/bind`) and every `new Worker(…)` is refused in all
+  spellings — probed, the bundler follows none of them. `new URL(…)` alone
+  stays allowed (data, not a load; zod validates with one). Regression
+  tests plus a 64-case property sweep over generated load spellings; the
+  R5 drill breaks the walk and restores byte-exact. Re-frozen as
+  `d277f9…0b9`. Record: updated evidence and R5 drills in
+  `docs/certification/m101-eval-arms.md`.
+
+  **CM1012R7 decision and repair plan (2026-10-10, linuxlt; RVCM1012F).**
+  HASH WHAT RUNS: replace the static runtime-load scanner and metafile/walk
+  comparison with one self-contained esbuild Node bundle per frozen arm.
+  Only Node built-ins remain external. Freeze the SHA-256 of the emitted
+  bundle bytes and explicitly declared fixture bytes; run that same snapshot
+  in a child Node process under `--permission`, with filesystem reads limited
+  to its bundle and fixture snapshots, no child processes and no workers.
+  Frozen arms return validated declarative host options; the parent supplies
+  the fixed host adapters and production system under test. It never executes
+  a frozen arm's source or callback itself. Unfrozen injected callbacks remain
+  fake-test seams and cannot produce a frozen receipt. Runtime permission or
+  output-validation failures become failed task results before model dispatch.
+  Canonicalize every scratch path with realpath, including macOS /var aliases.
+  Remove the unverified template-literal cast with the scanner. Sweep indirect
+  loaders and reads through runtime regression tests; preserve literal .jsx
+  and absolute .js resolver mappings and byte-identical features-off goldens.
+  Execution plan: implement bundle snapshots and runner binding; regressions;
+  red drills with byte-exact restoration; owning suites and lane gates; local
+  hooked commits. Status: implemented; all five findings fixed, 443 tests
+  in 18 complete files pass, and twelve red-drill runs restore byte-exact.
+  Frozen digest `dc7726f6f99def7d4de9845059a90e2944adda2533a82edf96311324cffb01a3`.
+  The receipt binds the exact selected task data as well as the arm snapshots;
+  Windows computed imports use file URLs. A hard child deadline and cleanup
+  are proved against an arm that handles SIGTERM. Static/build, roadmap and
+  plan gates pass; the local repair is complete for lead integration. No paid/live
+  calls or dependencies. Certification: `docs/certification/m101-eval-arms.md`.
+
+  **Lead threat model for the evaluation arms (2026-10-11, decision; it
+  settles the class the last three reviews kept reopening).** The arms are
+  this project's own reviewed code. The fence exists to catch accidental
+  undeclared inputs (a forgotten fixture, a stray import, a file read
+  outside the frozen set), so that the digest truly describes what ran. A
+  deliberately hostile arm (computed module names, process internals,
+  native add-ons) is out of scope: an arm is changed only through review,
+  and the digest changes with it. Under that model: (1) the enforcement
+  that counts is static and complete — at freeze time the bundler's
+  metafile is read and every built-in the bundle imports must be on a
+  short explicit allow-list (an unknown built-in fails), and `node:sqlite`
+  and the other data-reading built-ins are not on it; (2) the run-time
+  layer is Node's permission flags for the file system only, and no claim
+  remains in code comments, README or certification that it stops a
+  determined arm; (3) the Node floor names the exact minimum versions
+  with the flags (22.13.0 and 23.5.0), refusing 23.0–23.4 with the minimum
+  named.
+
+  **CM1012R9 repair of review RVCM1012I (2026-10-11, linuxlt).** All three
+  findings (one P2, two P3) fixed with no residuals, under the threat model
+  above. The `vm` guard module is deleted — the bundle entry runs in the
+  child host context and confines nothing by itself, and every comment,
+  the README live-eval row and the certification say so. The freeze reads
+  the same build's own metafile (`inputs[*].imports`, `external: true`)
+  and refuses every external outside the allow-list, bare and `node:`
+  spellings alike (`node:fs/../sqlite` included); the deny-list is
+  deleted. The version gate enforces 22.13.0 and 23.5.0 exactly. Re-frozen
+  as `a9f74f85…5f6f0`. Record: updated evidence and R9 drills in
+  `docs/certification/m101-eval-arms.md`.
 
   **C2 final-review accounting correction.** If shared settlement throws during
   an HTTP retry notice, mark that attempt consumed before invoking settlement
@@ -34067,6 +34301,21 @@ The lane's explicit shared rules reserve the full aggregate quality command
 for the lead, so this rig runs the prescribed static gates, production build,
 and complete owning test files instead.
 
+**CM1013B scoped rig verification (2026-10-11, kubuntu).** The task's named
+shared rules explicitly prohibit aggregate quality and full-suite runs. The
+lead owns those gates before integration. This lane runs every eval suite,
+three owning type projects, changed-file lint/format, localization, reference,
+roadmap and production build without weakening any gate or deadline.
+The production build passes every size cap (extension 555.9/600 KiB,
+Model API 517.1/525 KiB, checkpoint store 87.3/225 KiB), then fails five
+split checks: `modelPolicy.ts` in activation and `priceCard.ts` in activation
+and runtime (the latter pair is each reported twice). These are inherited
+from the named merged base: all 95 production/ACP metafiles contain no eval
+input and no source/build input changed by this lane. The brief explicitly
+leaves the admission-helper injection to the release lead; do not change
+those imports or weaken the split gate here. This justified scoped deferral
+requires the lead to repair the production split before integration and
+aggregate quality. Detailed receipts: `docs/certification/m101-eval-arms.md`.
 **M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
 job 115017063279: "loads the real lazy menu independently of the secret
 modal focus owner" (`test/unit/m114Panel.test.mjs:241`) exceeded Vitest's
@@ -35577,6 +35826,17 @@ repeats changed-file formatting after recording this receipt.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
+**CM1012R7 lane verification (2026-10-10, linuxlt).** The shared lane
+brief explicitly forbids full `npm run quality` and the full unit/coverage
+run; the lead owns that aggregate matrix. All 443 tests across 18 complete
+owning/importing files pass at repository timeouts, with 3 workers and at
+most 3 files per invocation. All five typecheck projects, changed-file lint
+and formatting, plain knip, duplication, localization, host API, reference,
+cycles and production build pass. The generated host API record refreshes
+four Node import counts; no VS Code API changes. Unchanged caps hold:
+extension 550.1/600 KiB, Model API 515.8/525 KiB, checkpoint store 87.3/225 KiB.
+No browser, install, live or paid call, merge, push, rebase or gate weakening.
+
 ### M95 K repair residuals (2026-10-05)
 
 - **K22 resolved:** final comparable activation is 608,089 bytes against
@@ -36484,6 +36744,11 @@ before a repaired one loads (2026-09-30).
 | `test/unit/modelsPanel.test.ts`               | `as { providers: readonly unknown[] }` on this lane's own export text               | `JSON.parse` returns `any`; the text is the round-tripped export, so the cast names its document shape for the count assertion. A foreign shape never reaches this cast: the malformed-import tests exercise `parseProvidersDocument` directly. Test-only.  | 2026-10-05 |
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
+CM1012R7 removes both CM1012R3 dependency-key test assertions through
+`Object.entries` and a typed `Set<string>`, and deletes the scanner containing
+the unverified `ts.NoSubstitutionTemplateLiteral` cast (RVCM1012F finding 5).
+No new escape hatch is introduced.
+
 | TRAINDIET location                                                                  | Escape hatch                                                                                          | Reason                                                                                                                                                                                                                                                   | Date       |
 | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/shared/constants.ts` (5 lines), `src/shared/browserCheckConstants.ts` (1 line) | `eslint-disable-next-line unicorn/prefer-string-raw` on plain-string Windows paths and one git regexp | `String.raw` is a call and pins the whole initialiser into every bundle importing the module; the plain strings are byte-identical (verified with node) and drop when unused. `test/unit/bundleDiet.test.ts` fails on any new non-droppable initialiser. | 2026-10-11 |
@@ -36491,6 +36756,10 @@ before a repaired one loads (2026-09-30).
 | CLIFLOWS2 location                      | Escape hatch                               | Reason                                                                                                                                                                                                                                                                                               | Added      |
 | --------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/unit/subscriptionCopilot.test.ts` | `{} as ProviderClient` for the Meta client | The Copilot branch under test throws before any Meta member runs; an invoked member would fail the test (no methods to answer with). Hand-implementing the ten members would be a stand-in provider, which the owner's rules forbid; the empty object with the cast cannot behave as one. Test-only. | 2026-10-17 |
+
+| Location                                                   | Escape hatch                                                                          | Reason                                                                                                                                                                                                                   | Date       |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `test/unit/eval/evalFreezeLayout.test.ts` (`trackedFiles`) | `eslint-disable-next-line unicorn/prefer-unicode-code-point-escapes` on the NUL split | The lane brief mandates the `\x00` escape text where a literal NUL byte stood (Git read the file as binary); `\u{0}` would satisfy the rule but not the mandated text. Test-only; the split still yields NUL at runtime. | 2026-10-12 |
 
 ## 9. Security assumptions and accepted residual risk
 

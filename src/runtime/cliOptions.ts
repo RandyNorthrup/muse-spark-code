@@ -117,6 +117,7 @@ const EXEC_OPTIONS = {
   'shell-sandbox': { type: 'string' },
   'allow-contributor-models': { type: 'boolean' },
   'image-generation': { type: 'boolean' },
+  'auto-compaction': { type: 'boolean' },
   'fail-on-denial': { type: 'boolean' },
   ephemeral: { type: 'boolean' },
   'key-stdin': { type: 'boolean' },

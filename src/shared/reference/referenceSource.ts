@@ -81,7 +81,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['legal', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal-explanation', ['vscode:museCode', 'vscode:modelApi']],
   ['team-workers', []],
-  ['auto-compaction', []],
+  ['auto-compaction', ['vscode:modelApi', 'acp:modelApi']],
   ['compaction', ['vscode:modelApi', 'acp:modelApi']],
   ['custom-agents', ['vscode:modelApi']],
   ['mcp-elicitation', ['vscode:modelApi']],
