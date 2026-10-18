@@ -69,7 +69,7 @@ export class VaultMigration {
       return await this.deps.owner.run(work)
     } catch (error: unknown) {
       if (error instanceof VaultMigrationFault) throw error
-      throw new VaultMigrationFault('storage')
+      throw new VaultMigrationFault('storage', { cause: error })
     }
   }
   private currentRelease(): number {
