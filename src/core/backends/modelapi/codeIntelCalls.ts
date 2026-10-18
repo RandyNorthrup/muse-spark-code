@@ -44,7 +44,8 @@ function failed(reason: string, visibleReason: string = reason): ToolOutcome {
 function parsedArguments(argsJson: string): { readonly value: unknown } | undefined {
   try {
     return { value: JSON.parse(argsJson) }
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }

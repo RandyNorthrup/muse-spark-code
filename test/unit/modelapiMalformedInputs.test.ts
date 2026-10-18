@@ -14,6 +14,14 @@ import { jsonOutput } from '../../src/core/backends/modelapi/hookFormats/core'
 import { functionParameters } from '../../src/core/backends/modelapi/mcp/functions'
 import { placeMemoryCall } from '../../src/core/backends/modelapi/memoryTools'
 import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
+import { ArgumentPreview } from '../../src/core/backends/modelapi/argumentPreview'
+import { parseRunChecks, thenRunOf } from '../../src/core/backends/modelapi/verifyTools'
+import {
+  decodeGeminiStream,
+  encodeGeminiRequest,
+} from '../../src/core/backends/modelapi/codecs/gemini'
+import { ModelApiError } from '../../src/core/backends/modelapi/transport'
+import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import {
   restoreOptionalToolArguments,
   type FunctionToolDefinition,
@@ -100,6 +108,70 @@ describe('a broken SSE data line on the responses codec', () => {
     await expect(
       Array.fromAsync(codec.decodeStream([encoder.encode('data: {oops}\n\n')])),
     ).rejects.toThrow(ResponsesDecodeError)
+  })
+})
+
+describe('argument previews over unparseable input', () => {
+  it('freezes malformed JSON and non-object JSON instead of throwing', () => {
+    const malformed = new ArgumentPreview()
+    malformed.finish('{oops')
+    expect(malformed.snapshot().frozen).toBe(true)
+    const scalar = new ArgumentPreview()
+    scalar.finish('[1]')
+    expect(scalar.snapshot().frozen).toBe(true)
+    const valid = new ArgumentPreview()
+    valid.finish('{"a":1}')
+    expect(valid.snapshot().frozen).toBe(false)
+  })
+})
+
+describe('verify tool arguments that are not JSON', () => {
+  it('refuses run_checks and leaves then_run absent', () => {
+    expect(parseRunChecks('{oops')).toEqual({
+      ok: false,
+      reason: 'arguments are not valid JSON',
+    })
+    expect(thenRunOf('{oops')).toEqual({ kind: 'absent' })
+  })
+})
+
+describe('a broken SSE data line on the Gemini codec', () => {
+  it('ends the turn naming only the frame length', async () => {
+    await expect(
+      Array.fromAsync(decodeGeminiStream([encoder.encode('data: {oops}\n\n')], 'gemini-2.5-flash')),
+    ).rejects.toThrow(/Malformed stream frame \(6 characters\)/)
+    await expect(
+      Array.fromAsync(decodeGeminiStream([encoder.encode('data: {oops}\n\n')], 'gemini-2.5-flash')),
+    ).rejects.toThrow(ModelApiError)
+  })
+
+  it('rides a history item with unparseable arguments as an empty object', () => {
+    const body: CreateResponseBody = {
+      model: 'muse-spark-1.3',
+      input: [{ type: 'function_call', call_id: 'call-1', name: 'read', arguments: '{oops' }],
+      instructions: '',
+      tools: [],
+      tool_choice: 'auto',
+      reasoning: { effort: 'none', summary: 'auto' },
+      max_output_tokens: 4096,
+      stream: true,
+      store: false,
+      include: [],
+      prompt_cache_key: 'fixture',
+      prompt_cache_retention: 'in_memory',
+    }
+    const contents = encodeGeminiRequest(body, 'gemini-2.5-flash').body['contents']
+    expect(Array.isArray(contents)).toBe(true)
+    const parts = (contents as readonly unknown[]).flatMap((content) =>
+      typeof content === 'object' && content !== null && 'parts' in content
+        ? (content.parts as readonly unknown[])
+        : [],
+    )
+    const call = parts.find(
+      (part): part is { functionCall: { name: string; args: unknown } } =>
+        typeof part === 'object' && part !== null && 'functionCall' in part,
+    )
+    expect(call?.functionCall.args).toEqual({})
   })
 })
 

@@ -548,7 +548,8 @@ function convertItem(build: ContentsBuild, item: InputItem): void {
     let args: unknown
     try {
       args = cleanJsonStrings(JSON.parse(cleanWireText(item.arguments)))
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
       args = {}
     }
     if (!isRecord(args)) {
@@ -708,7 +709,8 @@ const SSE_DONE_SENTINEL = '[DONE]'
 function parseFrameJson(data: string): unknown {
   try {
     return JSON.parse(data)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     throw new ModelApiError(
       `Malformed stream frame (${String(data.length)} characters)`,
       0,
