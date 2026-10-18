@@ -6,8 +6,9 @@ import {
   accountBindingSchema,
 } from '../../core/providers/accountCredentialRecord'
 import { isValidModelApiKey } from '../../host/auth/credentialStore'
+import { inspectProviderKey, providerKeyNoticeText } from '../../core/providers/keyInspection'
 import { UI_TEXT } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, setUiText, uiLocale } from '../../shared/l10n/text'
 import type { AuthCommandDeps } from '../authCommands'
 import { providerKeyFailureText } from '../exec/keyInput'
 import { isNonTextStdin } from '../hiddenInput'
@@ -109,6 +110,18 @@ export async function runAccountAuthSet(
     pending.value = pending.value.trim()
     if (pending.value === '' || (target.provider === 'meta' && !isValidModelApiKey(pending.value)))
       throw new AccountStoreError('invalidCredential')
+    if (target.provider !== 'meta') {
+      // Any non-blank key is stored for the provider to judge, never its
+      // shape (PLAN.md D123). A value that looks like the wrong thing is
+      // named, and stdin cannot answer, so the run continues to the store.
+      // The notice reads UI_TEXT at call time: install this command's
+      // table before formatting it.
+      setUiText(UI_TEXT, uiLocale())
+      const inspection = inspectProviderKey(pending.value)
+      if (inspection !== 'ok' && inspection !== 'empty') {
+        deps.printError(providerKeyNoticeText(inspection))
+      }
+    }
     await deps.accounts.setCredential(target.provider, target.account, {
       ...binding,
       v: 1,
