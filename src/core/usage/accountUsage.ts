@@ -41,7 +41,7 @@ const catalogSchema = z.strictObject({
 })
 export interface AccountUsageSource {
   /** Return each current projection once: period history plus every unresolved
-   * reservation/uncertainty before end, even when created before start. */
+  reservation/uncertainty before end, even when created before start. */
   records(range: Range & { readonly includeOutstanding: true }): unknown
   events(range: Range): unknown
 }
@@ -266,7 +266,7 @@ export function readAccountUsage(deps: {
   readonly now: number
 }): AccountUsageReport {
   const now = new Date(deps.now)
-  if (!Number.isFinite(now.getTime())) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+  if (!Number.isFinite(now.getTime())) throw new TypeError(UI_TEXT.sessionBudgetStoreUnavailable)
   const period = z.enum(['day', 'week', 'month']).parse(deps.period)
   const ranges = {
     day: rangeFor('day', now),

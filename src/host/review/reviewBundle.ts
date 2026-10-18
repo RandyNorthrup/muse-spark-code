@@ -33,9 +33,9 @@ export interface ReviewFeatures {
   /** The hold that keeps a Muse Code review in Plan mode and puts the user's mode back. */
   readonly createHold: (deps: PlanModeHoldDeps) => PlanModeHold
   /**
-   * Edit review (M5) and the review pane's hunks (M70): they share one read,
-   * rebuild and write lane per file, so one instance serves both.
-   */
+  Edit review (M5) and the review pane's hunks (M70): they share one read,
+  rebuild and write lane per file, so one instance serves both.
+  */
   readonly editReview: EditReviewActions & {
     /** The original text of a `muse-edit:` document; undefined before any diff was opened. */
     readonly provide: (uriPath: string) => string | undefined
@@ -46,9 +46,9 @@ export interface ReviewFeatures {
 export type ReviewTurnFeatures = Omit<ReviewFeatures, 'editReview'>
 
 /**
- * What the bundle builds its parts from: values and functions of the
- * activation bundle, nothing compared by identity across the two (M57's audit).
- */
+What the bundle builds its parts from: values and functions of the
+activation bundle, nothing compared by identity across the two (M57's audit).
+*/
 export interface ReviewBundleDeps {
   /** The installed table and its language (PLAN.md D33); installed before the factory builds. */
   readonly uiText: UiText
@@ -63,10 +63,10 @@ interface ReviewBundle {
 }
 
 /**
- * Whether a required module is the bundle: its factory is a function. The
- * factory's signature is taken on trust (PLAN.md §8): both bundles come from
- * one source tree, one `npm run build` and one package.
- */
+Whether a required module is the bundle: its factory is a function. The
+factory's signature is taken on trust (PLAN.md §8): both bundles come from
+one source tree, one `npm run build` and one package.
+*/
 export function isReviewBundle(value: unknown): value is ReviewBundle {
   return (
     typeof value === 'object' &&
@@ -95,17 +95,17 @@ function describe(error: unknown): string {
 }
 
 /**
- * The review's parts, the bundle required the first time any is used and
- * kept from then on. A missing or corrupt bundle throws `reviewUnavailable`
- * and is tried again on the next use.
- */
+The review's parts, the bundle required the first time any is used and
+kept from then on. A missing or corrupt bundle throws `reviewUnavailable`
+and is tried again on the next use.
+*/
 export function lazyReview(deps: LazyReviewDeps): ReviewFeatures {
   let features: ReviewFeatures | undefined
   const loaded = (): ReviewFeatures => {
     if (features !== undefined) {
       return features
     }
-    const { bundlePath, workspaceRoot, loadBundle = requireFile } = deps
+    const { bundlePath, workspaceRoot = '', loadBundle = requireFile } = deps
     let bundle: unknown
     try {
       bundle = loadBundle(bundlePath)
@@ -123,7 +123,7 @@ export function lazyReview(deps: LazyReviewDeps): ReviewFeatures {
     features = bundle.createReviewFeatures({
       uiText: UI_TEXT,
       uiLocale: uiLocale(),
-      collector: { workspaceRoot: workspaceRoot ?? '', runGit: deps.runGit, pickOne: deps.pickOne },
+      collector: { workspaceRoot, runGit: deps.runGit, pickOne: deps.pickOne },
       editReview: deps.editReview,
     })
     return features

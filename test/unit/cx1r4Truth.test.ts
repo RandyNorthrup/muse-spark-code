@@ -15,16 +15,8 @@ import { EN } from '../../src/shared/l10n/en'
 import { REPORT_KINDS } from '../../src/shared/constants'
 import { currentWhatsNewText } from './helpers/currentWhatsNew'
 
-function repoFile(name: string): string {
-  return readFileSync(new URL(`../../${name}`, import.meta.url), 'utf8')
-}
-
-const changelog = repoFile('CHANGELOG.md')
-const releases = parseChangelog(
-  repoFile('CHANGELOG.md'),
-  contributedIds(manifest),
-  repositoryUrl(manifest),
-)
+const changelog = readFileSync(new URL('../../CHANGELOG.md', import.meta.url), 'utf8')
+const releases = parseChangelog(changelog, contributedIds(manifest), repositoryUrl(manifest))
 
 const WORKING_REPORT_KINDS = ['project', 'milestone', 'release', 'changes', 'quality']
 const DORMANT_REPORT_KINDS = REPORT_KINDS.filter(

@@ -72,7 +72,7 @@ export async function readJson(request: IncomingMessage, maxBytes: number): Prom
   const chunks: Buffer[] = []
   const stream = request.iterator({ destroyOnReturn: false })
   for await (const chunk of stream) {
-    if (!Buffer.isBuffer(chunk)) throw new Error('EPANEL_BODY')
+    if (!Buffer.isBuffer(chunk)) throw new TypeError('EPANEL_BODY')
     size += chunk.length
     if (size > maxBytes) throw new Error('EPANEL_BODY')
     chunks.push(chunk)

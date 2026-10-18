@@ -25,10 +25,10 @@ export const outputTextPartSchema = z.object({
   text: z.string(),
   annotations: z.optional(z.array(z.union([urlCitationSchema, otherAnnotationSchema]))),
   /**
-   * M101 lane P1 (BYO item 4): a thought signature Gemini attached to this
-   * text part. Only the Gemini codec reads it; every other reader renders
-   * the text and ignores the signature.
-   */
+  M101 lane P1 (BYO item 4): a thought signature Gemini attached to this
+  text part. Only the Gemini codec reads it; every other reader renders
+  the text and ignores the signature.
+  */
   thoughtSignature: z.optional(z.string()),
 })
 
@@ -67,11 +67,11 @@ export const reasoningItemSchema = z.object({
 export type ReasoningItem = z.infer<typeof reasoningItemSchema>
 
 /**
- * What a search did (the Responses schema's `action`): `search` with its
- * queries (`query` is the deprecated single one), or `open_page` /
- * `find_in_page` on a URL. Meta's guide shows items without it, so it is
- * optional here though the schema requires it.
- */
+What a search did (the Responses schema's `action`): `search` with its
+queries (`query` is the deprecated single one), or `open_page` /
+`find_in_page` on a URL. Meta's guide shows items without it, so it is
+optional here though the schema requires it.
+*/
 export const webSearchActionSchema = z.object({
   type: z.string(),
   query: z.optional(z.string()),
@@ -155,16 +155,16 @@ export function citationsOf(item: MessageItem): readonly Citation[] {
 }
 
 /**
- * The reply text of a message: its output text, and a refusal's own words
- * (PLAN.md D26: a refusal used to render as an empty reply).
- */
+The reply text of a message: its output text, and a refusal's own words
+(PLAN.md D26: a refusal used to render as an empty reply).
+*/
 export function messageText(item: MessageItem): string {
   return item.content
     .flatMap((part) => {
       if (part.type === 'output_text' && 'text' in part) {
-        return [part.text]
+        return part.text
       }
-      return part.type === 'refusal' && 'refusal' in part ? [part.refusal] : []
+      return part.type === 'refusal' && 'refusal' in part ? part.refusal : []
     })
     .join('')
 }
@@ -274,11 +274,11 @@ export const inputTokensSchema = z.object({ input_tokens: z.number().check(z.non
 // --- request items (what the backend sends back as `input`) ---
 
 /**
- * What an assistant message was (protocols/responses, message phase):
- * `commentary` is text the model wrote before a tool call, and must be
- * replayed as such: replayed as a final answer before a `function_call`
- * it is a 400. `final_answer` is accepted on input only.
- */
+What an assistant message was (protocols/responses, message phase):
+`commentary` is text the model wrote before a tool call, and must be
+replayed as such: replayed as a final answer before a `function_call`
+it is a 400. `final_answer` is accepted on input only.
+*/
 
 /** A user or assistant message in the replayed conversation. */
 export interface InputMessageItem {
@@ -289,10 +289,10 @@ export interface InputMessageItem {
 }
 
 /**
- * A PDF sent inline (M54, PLAN.md D47; file-handling, "Send a file inline"):
- * the bytes as a base64 data URL, never uploaded, with the name the model
- * sees.
- */
+A PDF sent inline (M54, PLAN.md D47; file-handling, "Send a file inline"):
+the bytes as a base64 data URL, never uploaded, with the name the model
+sees.
+*/
 export interface InputFilePart {
   readonly type: 'input_file'
   readonly filename: string
@@ -307,19 +307,19 @@ export type InputContentPart =
       readonly type: 'output_text'
       readonly text: string
       /**
-       * M101 lane P1 (BYO item 4): a thought signature Gemini attached to
-       * this text part, empty parts included (Pi #7356). Only the Gemini
-       * codec reads it, replaying the part with its signature; every other
-       * codec renders the text and ignores the signature.
-       */
+      M101 lane P1 (BYO item 4): a thought signature Gemini attached to
+      this text part, empty parts included (Pi #7356). Only the Gemini
+      codec reads it, replaying the part with its signature; every other
+      codec renders the text and ignores the signature.
+      */
       readonly thoughtSignature?: string | undefined
     }
 
 /**
- * A part of a function's output given as content (the Responses schema's
- * `FunctionCallOutputContentListParam`, read 2026-09-25): text and pictures,
- * which an MCP tool may return (M50).
- */
+A part of a function's output given as content (the Responses schema's
+`FunctionCallOutputContentListParam`, read 2026-09-25): text and pictures,
+which an MCP tool may return (M50).
+*/
 export type FunctionOutputPart =
   | { readonly type: 'input_text'; readonly text: string }
   | { readonly type: 'input_image'; readonly image_url: string; readonly detail: 'auto' }
@@ -332,11 +332,11 @@ export interface FunctionCallOutputItem {
 }
 
 /**
- * A search the model made, replayed so its reasoning keeps the item that
- * followed it (search-grounding: earlier `web_search_call` items may be
- * replayed). Its results stay out: they were asked for the transcript, and
- * the reply that used them is replayed already.
- */
+A search the model made, replayed so its reasoning keeps the item that
+followed it (search-grounding: earlier `web_search_call` items may be
+replayed). Its results stay out: they were asked for the transcript, and
+the reply that used them is replayed already.
+*/
 export interface WebSearchCallInputItem {
   readonly type: 'web_search_call'
   readonly id?: string | undefined
@@ -371,12 +371,12 @@ export interface FunctionToolDefinition {
 }
 
 /**
- * Flags function tools strict where the model takes it (M101 item 24);
- * search tools pass through. Off returns the same definitions, so the
- * canonical body (and the golden bytes) stays `strict: false` when the
- * session setting or capability is off. Unconvertible MCP tools retain
- * their declaration; harness schema failures still refuse the request.
- */
+Flags function tools strict where the model takes it (M101 item 24);
+search tools pass through. Off returns the same definitions, so the
+canonical body (and the golden bytes) stays `strict: false` when the
+session setting or capability is off. Unconvertible MCP tools retain
+their declaration; harness schema failures still refuse the request.
+*/
 export function withStrictTools(
   tools: readonly FunctionToolDefinition[],
   shouldUseStrict: boolean,
@@ -591,12 +591,12 @@ function isGrammarType(value: unknown): boolean {
 }
 
 /**
- * Whether a tool parameter schema converts to a constrained-decoding
- * grammar (M101 item 24): known primitive types only, no references or
- * combinators, bounded depth. Structural, not a byte limit: the byte
- * budget beside it is a regression tripwire, and the exact upstream
- * grammar limit stays a residual until a live capture names it.
- */
+Whether a tool parameter schema converts to a constrained-decoding
+grammar (M101 item 24): known primitive types only, no references or
+combinators, bounded depth. Structural, not a byte limit: the byte
+budget beside it is a regression tripwire, and the exact upstream
+grammar limit stays a residual until a live capture names it.
+*/
 export function isToolSchemaGrammarSafe(node: unknown, depth = 0): boolean {
   if (depth > TOOL_SCHEMA_MAX_DEPTH) {
     return false
@@ -691,9 +691,9 @@ export interface CreateImageBody {
 }
 
 /**
- * One edited image (M44): Meta's JSON form of `POST /images/edits`, the
- * sources inline as data URLs; the answer is an `ImagesResponse`.
- */
+One edited image (M44): Meta's JSON form of `POST /images/edits`, the
+sources inline as data URLs; the answer is an `ImagesResponse`.
+*/
 export interface EditImageBody extends CreateImageBody {
   readonly images: readonly { readonly image_url: string }[]
 }

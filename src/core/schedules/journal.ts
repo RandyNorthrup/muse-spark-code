@@ -40,19 +40,16 @@ export const SCHEDULE_LEGACY_MONEY_KEYS: ReadonlySet<string> = new Set([
 ])
 
 /**
- * Stored corruption must not quote private prompts or event contents. A
- * version 1 dollar whose written digits a double cannot carry is refused
- * here, never rounded: the written digits come from `parseJsonWithExactNumbers`,
- * never the reviver's source text, so the refusal holds on Node 20 as well
- * as newer runtimes (M121 P2-1). Version 2 writes decimal text, so the check
- * is a no-op there.
- */
-export function parseScheduleStoredJson(content: string | undefined): unknown {
+Stored corruption must not quote private prompts or event contents. A
+version 1 dollar whose written digits a double cannot carry is refused
+here, never rounded: the written digits come from `parseJsonWithExactNumbers`,
+never the reviver's source text, so the refusal holds on Node 20 as well
+as newer runtimes (M121 P2-1). Version 2 writes decimal text, so the check
+is a no-op there.
+*/
+export function parseScheduleStoredJson(content: string | undefined = 'null'): unknown {
   try {
-    const { value, isExact } = parseJsonWithExactNumbers(
-      content ?? 'null',
-      SCHEDULE_LEGACY_MONEY_KEYS,
-    )
+    const { value, isExact } = parseJsonWithExactNumbers(content, SCHEDULE_LEGACY_MONEY_KEYS)
     if (!isExact) throw new Error('scheduleStoredJsonInvalid')
     return value
   } catch {

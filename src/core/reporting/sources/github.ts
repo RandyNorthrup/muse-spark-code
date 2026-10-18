@@ -354,8 +354,8 @@ export function ghReportTransport(options: ReportGhOptions): ReportNetworkTransp
     // is HTTP syntax, not a new upstream JSON shape. stderr is never used.
     const output = result.stdout.replaceAll('\r\n', '\n')
     const boundary = output.indexOf('\n\n')
-    const [statusLine, ...headers] = output.slice(0, boundary).split('\n')
-    const status = /^HTTP\/[\d.]+\s+(\d{3})(?:\s|$)/.exec(statusLine ?? '')?.[1]
+    const [statusLine = '', ...headers] = output.slice(0, boundary).split('\n')
+    const status = /^HTTP\/[\d.]+\s+(\d{3})(?:\s|$)/.exec(statusLine)?.[1]
     if (boundary === -1 || status === undefined)
       throw new ReportNetworkFailure('gh-response-invalid')
     const responseHeaders = new Headers()
@@ -402,7 +402,7 @@ export interface ReportPostingDeps {
   readonly enabled: (kind: ReportKind, target: PostTarget) => Promise<boolean>
   readonly previewed: (kind: ReportKind, target: PostTarget) => Promise<boolean>
   /** Q verifies the active occurrence/creator/workspace grant independently
-   * of the caller's fields. A prior target preview is not scheduler authority. */
+  of the caller's fields. A prior target preview is not scheduler authority. */
   readonly authorizeSchedule: (
     context: SourceReadContext,
     grant: PostScheduleGrant,
@@ -425,10 +425,10 @@ export type ReportPostResult =
     }
 
 /**
- * A manual invocation previews the entire exact scrubbed post. Unattended
- * posting needs a previously previewed target and a schedule grant naming it.
- * A pinned status issue is edited in place; retries never create new issues.
- */
+A manual invocation previews the entire exact scrubbed post. Unattended
+posting needs a previously previewed target and a schedule grant naming it.
+A pinned status issue is edited in place; retries never create new issues.
+*/
 function isPostingAllowed(deps: ReportPostingDeps, context: SourceReadContext): boolean {
   return isReportNetworkAllowed(deps.policy, context) && deps.policy.githubSignedIn
 }

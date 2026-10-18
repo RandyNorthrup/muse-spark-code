@@ -56,9 +56,9 @@ const NATIVE_CONFIRM_MS = 5000
 const LAUNCH_GATE_FD = 3
 
 /** A separate team MSP host, never the conversation's host. W supplies the
- * resolved CLI command/flags and credential-free environment. The handshake
- * is the installed SDK's request/initialized/flush sequence; MuseCodeHost
- * validates the existing captured initialize shape before initialized. */
+resolved CLI command/flags and credential-free environment. The handshake
+is the installed SDK's request/initialized/flush sequence; MuseCodeHost
+validates the existing captured initialize shape before initialized. */
 export async function startTeamMuseCodeHost(options: {
   readonly lifetime: TeamProcessLifetime
   readonly request: TeamLaunchRequest
@@ -870,7 +870,7 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
       const strings = (values: readonly string[]) =>
         `[string[]]@(${values.map((value) => powerShellQuoted(value)).join(',')})`
       const environment = Object.entries(request.env).flatMap(([key, value]) =>
-        value === undefined ? [] : [`${key}=${value}`],
+        value === undefined ? [] : `${key}=${value}`,
       )
       const powershell = windowsPowerShell(systemRoot, request.env)
       // .NET and quoted literals only: ConvertFrom-Json discovers PowerShell

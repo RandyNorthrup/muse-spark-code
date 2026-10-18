@@ -34,12 +34,7 @@ function tableBase(path: string): string {
   return `{\n  "10": "ten",\n  "2": "two",\n  "nested": { "kept": true, "file": ${JSON.stringify(path)} }\n}\n`
 }
 
-function git(
-  root: string,
-  args: readonly string[],
-  input?: string,
-  index?: string,
-): Promise<string> {
+function git(root: string, args: readonly string[], input?: string): Promise<string> {
   gitCommands.push(args[0] ?? '')
   return new Promise((resolve, reject) => {
     const child = execFile(
@@ -53,7 +48,7 @@ function git(
         'core.autocrlf=false',
         ...args,
       ],
-      { cwd: root, ...(index !== undefined && { env: { ...process.env, GIT_INDEX_FILE: index } }) },
+      { cwd: root },
       (error, stdout) => {
         if (error === null) resolve(stdout)
         else reject(new Error('git fixture command failed', { cause: error }))

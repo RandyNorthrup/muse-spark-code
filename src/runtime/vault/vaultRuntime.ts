@@ -35,14 +35,14 @@ export function runtimeVaultLoader(
         // The installed lazy module's function signature is the W/H build contract; runtime checks reject missing exports (PLAN §8).
         const module = load(path.join(context.distDir, 'vault.js')) as Partial<RuntimeVaultModule>
         if (typeof module.createRuntimeVault !== 'function')
-          throw new Error(UI_TEXT.vault.brokerBlocked)
+          throw new TypeError(UI_TEXT.vault.brokerBlocked)
         const binding = await module.createRuntimeVault({
           ...context,
           uiText: UI_TEXT,
           locale: uiLocale(),
         })
         if (typeof binding.commands !== 'function' || typeof binding.exec.open !== 'function')
-          throw new Error(UI_TEXT.vault.brokerBlocked)
+          throw new TypeError(UI_TEXT.vault.brokerBlocked)
         return binding
       } catch {
         throw new Error(UI_TEXT.vault.brokerBlocked)

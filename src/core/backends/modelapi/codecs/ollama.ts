@@ -61,9 +61,9 @@ export const OLLAMA_CHAT_PATH = '/api/chat'
 export type OllamaThink = boolean | 'low' | 'medium' | 'high'
 
 /**
- * The `think` level for a canonical effort tier. `none` (the Thinking
- * toggle off) disables thinking; unknown tiers leave it to the model.
- */
+The `think` level for a canonical effort tier. `none` (the Thinking
+toggle off) disables thinking; unknown tiers leave it to the model.
+*/
 export function thinkForEffort(effort: string): OllamaThink {
   switch (effort) {
     case 'none': {
@@ -161,11 +161,11 @@ export interface OllamaEncodeOptions {
   /** Explicit `think`; derived from the body's effort tier when absent. */
   readonly think?: OllamaThink | undefined
   /**
-   * M101 lane P1 (BYO item 1): the model's image input, read from
-   * `capabilities.vision`. `false` sends the image-omitted placeholder so
-   * the turn keeps its shape; unknown keeps today's bytes and sends the
-   * image.
-   */
+  M101 lane P1 (BYO item 1): the model's image input, read from
+  `capabilities.vision`. `false` sends the image-omitted placeholder so
+  the turn keeps its shape; unknown keeps today's bytes and sends the
+  image.
+  */
   readonly capabilities?: { readonly vision: boolean } | undefined
 }
 
@@ -231,11 +231,11 @@ function stringOutputText(output: string): string {
 }
 
 /**
- * A tool result's text. M101 lane P1 (BYO item 1): pictures have no native
- * field and fail loudly, unless the model takes no images, when they ride
- * as the image-omitted placeholder; an empty result rides as an explicit
- * marker instead of an empty string.
- */
+A tool result's text. M101 lane P1 (BYO item 1): pictures have no native
+field and fail loudly, unless the model takes no images, when they ride
+as the image-omitted placeholder; an empty result rides as an explicit
+marker instead of an empty string.
+*/
 function toolOutputText(
   output: readonly FunctionOutputPart[],
   vision: boolean | undefined,
@@ -263,27 +263,25 @@ function toolOutputText(
 }
 
 function imagesOf(parts: readonly InputContentPart[]): readonly string[] {
-  return parts.flatMap((part) =>
-    part.type === 'input_image' ? [imagePayload(part.image_url)] : [],
-  )
+  return parts.flatMap((part) => (part.type === 'input_image' ? imagePayload(part.image_url) : []))
 }
 
 /**
- * The native `/api/chat` request bytes for a canonical body. Keys in a
- * fixed order, tool schemas rewritten the same way every time, nothing
- * from the clock or random: the same session encodes the same bytes.
- *
- * Dropped, each for a reason: `web_search` tools and past `web_search_call`
- * items (acceptance 11: never declared; the native API has no search-call
- * role, and the reply that used them replays as text); Meta's `store`,
- * `include`, `prompt_cache_key` and `prompt_cache_retention` (no native
- * counterpart); `tool_choice` (the format has none: quirks `toolChoice:
- * 'omit'`). An empty tool list is never sent (quirks `neverSendEmptyTools`).
- *
- * Throws an explicit error for what the native API cannot carry (a PDF, a
- * tool result's pictures): the turn fails loudly instead of running on
- * silently shortened input.
- */
+The native `/api/chat` request bytes for a canonical body. Keys in a
+fixed order, tool schemas rewritten the same way every time, nothing
+from the clock or random: the same session encodes the same bytes.
+
+Dropped, each for a reason: `web_search` tools and past `web_search_call`
+items (acceptance 11: never declared; the native API has no search-call
+role, and the reply that used them replays as text); Meta's `store`,
+`include`, `prompt_cache_key` and `prompt_cache_retention` (no native
+counterpart); `tool_choice` (the format has none: quirks `toolChoice:
+'omit'`). An empty tool list is never sent (quirks `neverSendEmptyTools`).
+
+Throws an explicit error for what the native API cannot carry (a PDF, a
+tool result's pictures): the turn fails loudly instead of running on
+silently shortened input.
+*/
 export function encodeOllamaRequest(
   body: CreateResponseBody,
   options: OllamaEncodeOptions,
@@ -389,16 +387,14 @@ export function encodeOllamaRequest(
   }
   const tools = body.tools.flatMap((tool) =>
     tool.type === 'function'
-      ? [
-          {
-            type: 'function' as const,
-            function: {
-              name: tool.name,
-              description: tool.description,
-              parameters: tool.parameters,
-            },
+      ? {
+          type: 'function' as const,
+          function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: tool.parameters,
           },
-        ]
+        }
       : [],
   )
   const request = {
@@ -415,9 +411,9 @@ export function encodeOllamaRequest(
 // --- NDJSON (the native stream is newline-delimited JSON, [OL-chat]) ---
 
 /**
- * Native NDJSON over byte chunks, with caps before decoding/concatenating.
- * Closing this iterator closes its byte source, including at native done.
- */
+Native NDJSON over byte chunks, with caps before decoding/concatenating.
+Closing this iterator closes its byte source, including at native done.
+*/
 export async function* readOllamaLines(chunks: AsyncIterable<Uint8Array>): AsyncGenerator<string> {
   const decoder = new TextDecoder()
   let buffered = ''
@@ -479,10 +475,10 @@ function isValidCount(value: number | undefined): value is number {
 }
 
 /**
- * The final line's usage as canonical `Usage`, or unknown. Counts must be
- * finite and non-negative, and cached at most input (as M75 validates);
- * anything else leaves the cost unknown rather than counted wrong.
- */
+The final line's usage as canonical `Usage`, or unknown. Counts must be
+finite and non-negative, and cached at most input (as M75 validates);
+anything else leaves the cost unknown rather than counted wrong.
+*/
 function usageOf(line: OllamaLine): Usage | undefined {
   const input = line.prompt_eval_count
   const output = line.eval_count
@@ -510,12 +506,12 @@ interface PendingCall {
 }
 
 /**
- * Decodes counted Ollama 0.35.1 frames. Native index/id identifies a whole
- * call across lines; native arguments are objects, not invented JSON deltas.
- * The caller supplies a session-unique responseId, which namespaces item
- * and fallback call ids without rewriting any previous request's history.
- * Native done is the terminal boundary; EOF without it is truncation.
- */
+Decodes counted Ollama 0.35.1 frames. Native index/id identifies a whole
+call across lines; native arguments are objects, not invented JSON deltas.
+The caller supplies a session-unique responseId, which namespaces item
+and fallback call ids without rewriting any previous request's history.
+Native done is the terminal boundary; EOF without it is truncation.
+*/
 export async function* decodeOllamaStream(
   chunks: AsyncIterable<Uint8Array>,
   options: OllamaDecodeOptions,
@@ -731,12 +727,12 @@ export async function* decodeOllamaStream(
 // --- errors (research [OL-err]: `{"error": "…"}`) ---
 
 /**
- * A non-2xx answer as a `ModelApiError`. The status is preserved so the
- * transport's retry policy (429 / 500 / 503) reads it; a 429 keeps the
- * `HTTP 429:` reason the host's rate-limit retry reads (D74). The message
- * is the server's own text, or the status line when the body is not an
- * error envelope.
- */
+A non-2xx answer as a `ModelApiError`. The status is preserved so the
+transport's retry policy (429 / 500 / 503) reads it; a 429 keeps the
+`HTTP 429:` reason the host's rate-limit retry reads (D74). The message
+is the server's own text, or the status line when the body is not an
+error envelope.
+*/
 /** Tags retain their native details. No local route is certified without its capture. */
 export function parseOllamaModelsList(body: unknown): readonly NativeModelMetadata[] {
   const rows = z.object({ models: z.array(nativeModelMetadataSchema) }).parse(body).models

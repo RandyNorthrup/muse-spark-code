@@ -132,9 +132,9 @@ function admittedVoiceProcess(
 type ExitEvents = Pick<HelperProcess, 'on'>
 
 /**
- * Reports a child's end once, however it ended: it could not start, it
- * exited with a code, or a signal ended it. Returns whether it has ended.
- */
+Reports a child's end once, however it ended: it could not start, it
+exited with a code, or a signal ended it. Returns whether it has ended.
+*/
 function watchExit(child: ExitEvents, onExit: (description: string) => void): () => boolean {
   let isExited = false
   const exited = (description: string) => {
@@ -147,8 +147,9 @@ function watchExit(child: ExitEvents, onExit: (description: string) => void): ()
   child.on('error', (error) => {
     exited(`could not start: ${error.message}`)
   })
+  // Node reports exactly one of the two: the signal when one ended the process.
   child.on('exit', (code, signal) => {
-    exited(code === null ? `${SIGNAL_EXIT} ${signal ?? 'unknown'}` : `exit code ${String(code)}`)
+    exited(signal === null ? `exit code ${String(code)}` : `${SIGNAL_EXIT} ${signal}`)
   })
   return () => isExited
 }

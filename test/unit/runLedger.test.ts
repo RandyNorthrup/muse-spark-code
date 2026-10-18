@@ -23,10 +23,10 @@ const valid = {
   output_tokens_details: { reasoning_tokens: 1 },
   total_tokens: 15,
 }
-function response(ledger: RunLedger, isStandard = false, maxOutputTokens = 32_768): ResponseTicket {
+function response(ledger: RunLedger, isStandard = false): ResponseTicket {
   const ticket = ledger.admitResponse({
     model: isStandard ? 'muse-spark-1.3' : 'muse-spark-1.3-contributor',
-    maxOutputTokens,
+    maxOutputTokens: 32_768,
     price: isStandard ? tierPrice(true) : price,
   })
   if ('refused' in ticket) throw new Error(ticket.refused)

@@ -94,11 +94,7 @@ export async function explainLegal(
       id: finding.id,
       category: finding.category,
       severity: finding.severity,
-      licenses: license.ok
-        ? license.licenses.flatMap((entry) =>
-            entry.canonicalId === undefined ? [] : [entry.canonicalId],
-          )
-        : [],
+      licenses: license.ok ? license.licenses.flatMap((entry) => entry.canonicalId ?? []) : [],
     }
   })
   const input = JSON.stringify(facts)

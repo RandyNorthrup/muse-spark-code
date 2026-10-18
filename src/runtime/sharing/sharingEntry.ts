@@ -250,7 +250,7 @@ export async function runRuntimeSharing(
         try {
           for await (const chunk of process.stdin) {
             controller.signal.throwIfAborted()
-            if (!(chunk instanceof Buffer)) throw new Error(UI_TEXT.promptFileInvalid)
+            if (!(chunk instanceof Buffer)) throw new TypeError(UI_TEXT.promptFileInvalid)
             bytes += chunk.byteLength
             if (bytes > PROMPT_LIMITS.fileBytes) throw new Error(UI_TEXT.promptLimits)
             text += decoder.decode(chunk, { stream: true })

@@ -72,9 +72,9 @@ export interface EvalTurnOutcome {
   /** The packing ledger's last total (M73); absent when no session packed. */
   readonly packedTokensAvoided?: number
   /**
-   * What each `recall_output` call that succeeded returned (M73), for the
-   * packing arm's own check; never copied into a report.
-   */
+  What each `recall_output` call that succeeded returned (M73), for the
+  packing arm's own check; never copied into a report.
+  */
   readonly recalledOutputs: readonly string[]
 }
 
@@ -86,10 +86,10 @@ function describe(error: unknown): string {
 }
 
 /**
- * What a mechanism may not change: the client (every request must pass the
- * trace), the workspace (the empty folder) and the paid-use hooks (the run
- * refuses and counts every paid use).
- */
+What a mechanism may not change: the client (every request must pass the
+trace), the workspace (the empty folder) and the paid-use hooks (the run
+refuses and counts every paid use).
+*/
 const HELD_DEPS = [
   'client',
   'workspaceRoot',
@@ -263,7 +263,7 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
         item.status === EVAL_TURN_COMPLETED &&
         item.failureReason === undefined &&
         item.visibleOutput !== undefined
-          ? [item.visibleOutput]
+          ? item.visibleOutput
           : [],
       ),
     }

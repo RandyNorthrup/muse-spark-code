@@ -152,15 +152,15 @@ export function groupSessions(
     .toSorted((a, b) => activityOf(b) - activityOf(a))
   return GROUP_ORDER.flatMap((id) => {
     const members = shown.filter((row) => groupIdOf(row, options.nowMs) === id)
-    return members.length === 0 ? [] : [{ id, title: groupTitle(id), rows: members }]
+    return members.length === 0 ? [] : { id, title: groupTitle(id), rows: members }
   })
 }
 
 /**
- * How long ago, in the display language (PLAN.md D33): "now", "5 min. ago",
- * "3 hr. ago", "yesterday", "2 days ago"; past a week, the date. A time in
- * the future (a clock ahead of this one) reads as now.
- */
+How long ago, in the display language (PLAN.md D33): "now", "5 min. ago",
+"3 hr. ago", "yesterday", "2 days ago"; past a week, the date. A time in
+the future (a clock ahead of this one) reads as now.
+*/
 export function relativeTime(iso: string, nowMs: number): string {
   const thenMs = Date.parse(iso)
   const minutes = Math.floor(Math.max(0, nowMs - thenMs) / MS_PER_MINUTE)

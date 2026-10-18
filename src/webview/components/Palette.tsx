@@ -59,9 +59,9 @@ export interface PaletteProps {
   /** The active row's element id, for the prompt's aria-activedescendant. */
   readonly onActiveRowChange?: (elementId: string | undefined) => void
   /**
-   * The document retry for prices that failed to load (STARTUP017): said
-   * inside the palette, since pressing a notice outside it closes it first.
-   */
+  The document retry for prices that failed to load (STARTUP017): said
+  inside the palette, since pressing a notice outside it closes it first.
+  */
   readonly onRetryMoney?: () => void
 }
 
@@ -150,10 +150,10 @@ export function layoutActions(
 }
 
 /**
- * How a price reads in the picker: the pair, `unpriced`, `local` or `plan`.
- * The formatter is the lazy money chunk's (STARTUP017): unknown while it
- * loads, so priced rows read without prices rather than with guessed ones.
- */
+How a price reads in the picker: the pair, `unpriced`, `local` or `plan`.
+The formatter is the lazy money chunk's (STARTUP017): unknown while it
+loads, so priced rows read without prices rather than with guessed ones.
+*/
 function priceText(
   model: ModelOption,
   formatPrice: (amount: number | string) => string | undefined,
@@ -208,10 +208,10 @@ export interface ModelSection {
 }
 
 /**
- * The models view's sections (M95): pinned favourites first, then one group
- * per provider (Meta's own models under their own name). Pure, so the panel
- * and its tests share it.
- */
+The models view's sections (M95): pinned favourites first, then one group
+per provider (Meta's own models under their own name). Pure, so the panel
+and its tests share it.
+*/
 export function modelSections(
   models: readonly ModelOption[],
   currentModelId: string | undefined,
@@ -437,7 +437,7 @@ export function Palette(props: PaletteProps) {
   const filterBox = useRef<HTMLInputElement>(null)
   const [storedIndex, setActiveIndex] = useState(0)
 
-  const layout = useMemo(
+  const { entries, rows } = useMemo(
     () =>
       view === 'models'
         ? layoutModels(models, filter, currentModelId, onSelectModel, onAction, (amount) =>
@@ -446,7 +446,6 @@ export function Palette(props: PaletteProps) {
         : layoutActions(filterPalette(groups, filter), onAction),
     [view, filter, models, currentModelId, onSelectModel, groups, onAction, money],
   )
-  const { entries, rows } = layout
 
   // The stored index may point past the end after the filter narrowed the
   // rows; derive the effective one instead of resetting state in an effect.

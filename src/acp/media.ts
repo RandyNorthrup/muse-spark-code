@@ -109,7 +109,7 @@ function bytesInput(name: string, info: MediaInfo, bytes: Uint8Array): AcpMediaI
 }
 
 /** No bytes or provider IDs appear in ACP acknowledgements.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+@unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export class AcpMedia implements AcpMediaPort {
   public constructor(private readonly deps: AcpMediaDeps) {}
 
@@ -238,7 +238,7 @@ export class AcpMedia implements AcpMediaPort {
       const mime = block.type === 'audio' ? block.mimeType : resource?.mimeType
       const maximum = MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB
       const bytes = decodeAcpBlob(data, maximum, mime ?? 'blob', UI_TEXT.execFileTooLarge)
-      if (typeof bytes === 'string') throw new Error(bytes)
+      if (typeof bytes === 'string') return bytes
       const info = sniffMediaBytes(bytes)
       if (info === undefined || (mime != null && mime !== info.mediaType))
         throw unknown(mime ?? 'blob')

@@ -70,12 +70,12 @@ export function reportSaveName(
   payload: ReportDeliveryPayload,
 ): string {
   const stamp = new Date(payload.document.header.asOf).toISOString()
-  const [date, clock] = stamp.split('T', 2)
+  const [date = '', clock = ''] = stamp.split('T', 2)
   const values: Readonly<Record<string, string>> = {
     kind: payload.document.header.kind,
     scope: payload.document.header.scope.replaceAll(/[^\p{L}\p{N}._-]+/gu, '-'),
-    date: date ?? '',
-    time: (clock ?? '').replaceAll(':', '-'),
+    date,
+    time: clock.replaceAll(':', '-'),
     hash8: payload.document.header.contentHash.slice(0, REPORT_HASH_PREFIX_CHARS),
     ext: payload.format === 'text' ? 'txt' : payload.format,
   }

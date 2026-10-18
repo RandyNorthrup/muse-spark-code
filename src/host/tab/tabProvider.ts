@@ -98,9 +98,9 @@ function whenSibling(matchedPath: string, when: string): string {
 }
 
 /**
- * Whether a `files.exclude` table excludes the workspace-relative path. A
- * condition asks `hasSibling` about its sibling (workspace-relative).
- */
+Whether a `files.exclude` table excludes the workspace-relative path. A
+condition asks `hasSibling` about its sibling (workspace-relative).
+*/
 export function isFilesExcluded(
   relativePath: string,
   patterns: TabFilesExclude,
@@ -359,10 +359,10 @@ export interface TabFileCheckDeps {
 }
 
 /**
- * Whether the path may be read at all, before any of its text is: not
- * private or protected, not `files.exclude`d and not ignored (Acceptance 4;
- * RVM94HU 17).
- */
+Whether the path may be read at all, before any of its text is: not
+private or protected, not `files.exclude`d and not ignored (Acceptance 4;
+RVM94HU 17).
+*/
 export async function isTabPathEligible(
   relativePath: string,
   deps: TabFileCheckDeps,
@@ -375,9 +375,9 @@ export async function isTabPathEligible(
 }
 
 /**
- * Whether the file may enter a request, as the current file or as context:
- * its path eligible, not oversize, and allowed by `beforeTabFileRead`.
- */
+Whether the file may enter a request, as the current file or as context:
+its path eligible, not oversize, and allowed by `beforeTabFileRead`.
+*/
 export async function isTabFileEligible(
   candidate: TabFileCandidate,
   deps: TabFileCheckDeps,
@@ -413,11 +413,11 @@ function relativeInside(root: string, file: string): string | undefined {
 }
 
 /**
- * The redacted request halves: the whole text is redacted at the cursor's
- * split, so no secret is cut by the window's edges, and a secret spanning
- * the cursor (which neither half would match alone) refuses the request
- * (RVM94HU 15).
- */
+The redacted request halves: the whole text is redacted at the cursor's
+split, so no secret is cut by the window's edges, and a secret spanning
+the cursor (which neither half would match alone) refuses the request
+(RVM94HU 15).
+*/
 function redactedHalves(
   text: string,
   offset: number,
@@ -437,10 +437,10 @@ const NOTHING_SENT = { inputTokens: 0, cachedTokens: 0, outputTokens: 0 } as con
 const TAB_ACCEPT_COMMAND_TITLE = 'Tab accept'
 
 /**
- * The document parts the provider reads. `vscode.TextDocument` satisfies it
- * structurally, so the registered wrapper passes the document straight
- * through and the tests hand in fakes.
- */
+The document parts the provider reads. `vscode.TextDocument` satisfies it
+structurally, so the registered wrapper passes the document straight
+through and the tests hand in fakes.
+*/
 export interface TabDocument {
   readonly uri: TabUri
   readonly languageId: string
@@ -488,11 +488,11 @@ function positionAfter(
 }
 
 /**
- * What one request is bound to from its start (RVM94KR 2–3): the trust, the
- * Tab settings (its model among them), every `files.exclude` scope it read,
- * the ignore files' generation and the hook policy. `isCurrent` is read again
- * before the question, before sending and before the answer is used.
- */
+What one request is bound to from its start (RVM94KR 2–3): the trust, the
+Tab settings (its model among them), every `files.exclude` scope it read,
+the ignore files' generation and the hook policy. `isCurrent` is read again
+before the question, before sending and before the answer is used.
+*/
 interface TabRequestPolicy {
   /** The settings the request runs with: its model and its modes come from here. */
   readonly settings: ReturnType<TabProviderDeps['settings']>
@@ -513,12 +513,12 @@ interface TabTracked extends TabTrackedItem {
 }
 
 /**
- * The `InlineCompletionItemProvider` (V2, V7–V10): quiet wherever D73 says
- * quiet, one item otherwise. Every file the request reads passed
- * `isTabFileEligible`; every byte sent passed `redactSecrets`. The log gets
- * counts, sizes, timings and outcome classes, never code, a completion or a
- * path. The shim registers it (the handle's `provider`).
- */
+The `InlineCompletionItemProvider` (V2, V7–V10): quiet wherever D73 says
+quiet, one item otherwise. Every file the request reads passed
+`isTabFileEligible`; every byte sent passed `redactSecrets`. The log gets
+counts, sizes, timings and outcome classes, never code, a completion or a
+path. The shim registers it (the handle's `provider`).
+*/
 export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
   const ignore = new TabIgnoreCache({
     runGit: deps.runGit,
@@ -863,8 +863,11 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     // The request's window (lane C's anchored prefix and bounded suffix) over
     // the redacted text: a secret reaches the engine only as the mark
     // (Acceptance 5).
-    const window = contextWindow(halves.before + halves.after, halves.before.length, mode)
-    const { prefix, suffix } = window
+    const { prefix, suffix } = contextWindow(
+      halves.before + halves.after,
+      halves.before.length,
+      mode,
+    )
     const snippets =
       mode === 'multiline'
         ? await contextSnippets(

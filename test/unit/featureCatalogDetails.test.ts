@@ -12,7 +12,7 @@ import { referenceModel } from '../../src/shared/reference/reference.generated'
 function detailKeys(id: string): string[] {
   const feature = featureCatalog().find((entry) => entry.id === id)
   if (feature === undefined) throw new Error(`missing feature: ${id}`)
-  return feature.details.flatMap((detail) => ('ui' in detail ? [detail.ui] : []))
+  return feature.details.flatMap((detail) => ('ui' in detail ? detail.ui : []))
 }
 
 describe('feature catalogue details merge', () => {
@@ -49,7 +49,7 @@ describe('feature catalogue details merge', () => {
   it('ships the schedules limitation in the generated reference model', () => {
     const schedules = referenceModel().features.find((feature) => feature.id === 'schedules')
     if (schedules === undefined) throw new Error('missing generated schedules feature')
-    const keys = schedules.details.flatMap((detail) => ('ui' in detail ? [detail.ui] : []))
+    const keys = schedules.details.flatMap((detail) => ('ui' in detail ? detail.ui : []))
     expect(keys).toContain('scheduledMediaSupport')
     expect(EN.scheduledMediaSupport).toContain('unsupported in this version')
   })

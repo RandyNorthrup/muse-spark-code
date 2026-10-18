@@ -163,8 +163,8 @@ function useLines(file, identifier) {
 
 function sideName(sides) {
   if (sides.has('vscode') && sides.has('acp')) return 'both'
-  const [only] = sides
-  return only ?? 'unreached'
+  const [only = 'unreached'] = sides
+  return only
 }
 
 // A bundler-internal chunk (content-hashed, below a chunks/ folder) is never

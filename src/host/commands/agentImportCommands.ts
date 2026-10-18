@@ -49,10 +49,10 @@ import type { Logger } from '../logger'
 export type AgentImportSourceChoice = AgentImportSource | 'all'
 
 /**
- * Runs the task unless one is already running; false when it is busy. The
- * gate is held until the whole flow ends, every answer the user owes
- * included, so a second import never starts over the first one's questions.
- */
+Runs the task unless one is already running; false when it is busy. The
+gate is held until the whole flow ends, every answer the user owes
+included, so a second import never starts over the first one's questions.
+*/
 export type ImportGate = (task: () => Promise<void>) => Promise<boolean>
 
 /** One gate for the extension host: only one import is open at a time. */
@@ -83,29 +83,29 @@ export interface AgentImportPickItem {
 
 export interface AgentImportDeps extends Omit<ImportScanInput, 'sources'> {
   /**
-   * Whether this window is held on someone else's pull request (M71): when
-   * held, project reads and writes are refused with the held-worktree text
-   * even while VS Code trusts the folder. `isWorkspaceTrusted` carries the
-   * combined project trust (trusted and not held); user-scope imports never
-   * consult either predicate.
-   */
+  Whether this window is held on someone else's pull request (M71): when
+  held, project reads and writes are refused with the held-worktree text
+  even while VS Code trusts the folder. `isWorkspaceTrusted` carries the
+  combined project trust (trusted and not held); user-scope imports never
+  consult either predicate.
+  */
   readonly isProjectHeld?: () => boolean
   /** Muse Code's settings file where `muse serve` reads it; its folder holds the personal skills. */
   readonly museSettingsFile: string
   /**
-   * The window's first folder as VS Code names it now. The approval wait can
-   * outlast a change to it, so a write compares it with the folder the plan
-   * was made for.
-   */
+  The window's first folder as VS Code names it now. The approval wait can
+  outlast a change to it, so a write compares it with the folder the plan
+  was made for.
+  */
   readonly currentRoot: () => string | undefined
   readonly writer: ImportWriter
   /** The session-owned workspace notice for a project write (M68); absent without a live session. */
   readonly beginProjectEdit?: ImportWriteNotice
   /**
-   * Holds the checkpoint lease (M86) until `work` settles, so no restore
-   * runs over the import's project writes; `check` throws once the window
-   * or the root it was taken for is gone. Runs only for project writes.
-   */
+  Holds the checkpoint lease (M86) until `work` settles, so no restore
+  runs over the import's project writes; `check` throws once the window
+  or the root it was taken for is gone. Runs only for project writes.
+  */
   readonly editProject: <T>(work: (check: () => void) => Promise<T>) => Promise<T>
   /** Refuses a project publication in checkpoint storage (M86); records no bytes. */
   readonly beforeProjectWrite: (absolutePath: string) => void | Promise<void>
@@ -125,10 +125,10 @@ export interface AgentImportDeps extends Omit<ImportScanInput, 'sources'> {
   /** Offers an unsaved edit in the target, or opens it without changing it. */
   readonly offerEdit: (message: string) => Promise<'edit' | 'open' | undefined>
   /**
-   * Opens the file in an editor: loads the document, then asks `isStillSafe`
-   * before it is shown (the load awaits); one that does not exist opens
-   * unsaved at its path, for the user to save.
-   */
+  Opens the file in an editor: loads the document, then asks `isStillSafe`
+  before it is shown (the load awaits); one that does not exist opens
+  unsaved at its path, for the user to save.
+  */
   readonly openTarget: (
     absolutePath: string,
     isExisting: boolean,
@@ -164,10 +164,10 @@ const PREVIEW_EXTENSION = '.md'
 const LOG_PREFIX = 'Import from other agents:'
 
 /**
- * What a project-scope refusal shows: the held-worktree text while the
- * window is held on someone else's pull request (M71), else the untrusted
- * workspace text. User-scope imports never reach this helper.
- */
+What a project-scope refusal shows: the held-worktree text while the
+window is held on someone else's pull request (M71), else the untrusted
+workspace text. User-scope imports never reach this helper.
+*/
 function projectTrustRefusal(deps: AgentImportDeps): string {
   return deps.isProjectHeld?.() === true ? UI_TEXT.worktreeHeldShell : UI_TEXT.agentImportUntrusted
 }
@@ -297,10 +297,8 @@ function reasonLabel(reason: ImportSkipReason): string {
 }
 
 /** A refusal in the user's language; `field` names the refusing field when there is one. */
-function skipReasonText(reason: ImportSkipReason, field?: string): string {
-  return reason === 'field'
-    ? fill(UI_TEXT.agentImportSkippedField, { field: field ?? '' })
-    : reasonLabel(reason)
+function skipReasonText(reason: ImportSkipReason, field = ''): string {
+  return reason === 'field' ? fill(UI_TEXT.agentImportSkippedField, { field }) : reasonLabel(reason)
 }
 
 function skipLabel(skip: ImportSkip): string {
@@ -409,11 +407,11 @@ async function projectStanding(
 }
 
 /**
- * A destination file for the plan: its text, or why it is unknown. A
- * project's file is confined first, so a link out of the workspace is never
- * read; a file that is there but cannot be read says so rather than passing
- * for an empty one.
- */
+A destination file for the plan: its text, or why it is unknown. A
+project's file is confined first, so a link out of the workspace is never
+read; a file that is there but cannot be read says so rather than passing
+for an empty one.
+*/
 async function readPlanFile(
   deps: AgentImportDeps,
   absolutePath: string,
@@ -596,10 +594,10 @@ async function isCopyTargetSafe(
 }
 
 /**
- * Whether the window's first folder still leads to the folder the plan was
- * made for: the approval wait can outlast a change to the folder list or to
- * a link on the way to it.
- */
+Whether the window's first folder still leads to the folder the plan was
+made for: the approval wait can outlast a change to the folder list or to
+a link on the way to it.
+*/
 async function isRootCurrent(deps: AgentImportDeps, project: ImportProjectRoot): Promise<boolean> {
   const live = deps.currentRoot()
   if (live === undefined) {
@@ -759,7 +757,7 @@ async function applyPlan(
   )
   const refused = applied.skipped.flatMap((skip) => {
     const candidate = selected.find((entry) => entry.id === skip.candidateId)
-    return candidate === undefined ? [] : [`${candidate.label}: ${skipLabel(skip)}`]
+    return candidate === undefined ? [] : `${candidate.label}: ${skipLabel(skip)}`
   })
   // An import that wrote nothing and has no editor edit says why, not that it finished.
   const counts = countLines(result, refusedCopyEntries).join(DETAIL_SEPARATOR)

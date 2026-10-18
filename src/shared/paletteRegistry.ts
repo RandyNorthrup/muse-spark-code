@@ -49,14 +49,12 @@ function continueItems(skills: readonly SkillOption[] | undefined): readonly Pal
   return SKILL_IMPORT_SOURCES.flatMap((source) => {
     const selector = RESUME_SKILL_SELECTORS[source]
     return skills?.some((skill) => skill.selector === selector) === true
-      ? [
-          {
-            id: `continue:${source}`,
-            label: continueLabel(source),
-            detail: UI_TEXT.continueDetail,
-            action: { type: 'insertSkill', selector } as const,
-          },
-        ]
+      ? {
+          id: `continue:${source}`,
+          label: continueLabel(source),
+          detail: UI_TEXT.continueDetail,
+          action: { type: 'insertSkill', selector } as const,
+        }
       : []
   })
 }
@@ -82,9 +80,9 @@ function skillManagementItems(backend: BackendKind | undefined): readonly Palett
 }
 
 /**
- * What Muse Code loads from its own settings (M31). The Model API backend
- * runs the same MCP servers itself (M50) and may load reviewed hooks (M51).
- */
+What Muse Code loads from its own settings (M31). The Model API backend
+runs the same MCP servers itself (M50) and may load reviewed hooks (M51).
+*/
 function museConfigItems(backend: BackendKind | undefined): readonly PaletteItem[] {
   if (backend === undefined) {
     return []
@@ -109,13 +107,13 @@ function museConfigItems(backend: BackendKind | undefined): readonly PaletteItem
 }
 
 /**
- * The paid features' toggles (M33, PLAN.md D30), where they can be used: all
- * on the Model API backend, and on Muse Code the key's images and voice when
- * a key is stored (M44). Each names its price, and turning one on asks the
- * host's confirmation first. Prices arrive with the lazy money chunk
- * (STARTUP017): unknown while it loads, so rows read without prices rather
- * than with guessed ones.
- */
+The paid features' toggles (M33, PLAN.md D30), where they can be used: all
+on the Model API backend, and on Muse Code the key's images and voice when
+a key is stored (M44). Each names its price, and turning one on asks the
+host's confirmation first. Prices arrive with the lazy money chunk
+(STARTUP017): unknown while it loads, so rows read without prices rather
+than with guessed ones.
+*/
 function paidItems(
   context: PaletteContext,
   priceOf: ((feature: PaidFeature) => string | undefined) | undefined,
@@ -234,11 +232,11 @@ function scheduleItems(context: PaletteContext): readonly PaletteItem[] {
 }
 
 /**
- * Review (M70, PLAN.md D49), the same on both backends: `/review` for what
- * to look at, the git presets, the security preset and the review pane. The
- * presets that read git say why when Restricted Mode refuses them (the host
- * answers the request).
- */
+Review (M70, PLAN.md D49), the same on both backends: `/review` for what
+to look at, the git presets, the security preset and the review pane. The
+presets that read git say why when Restricted Mode refuses them (the host
+answers the request).
+*/
 function reviewItems(): readonly PaletteItem[] {
   return [
     {

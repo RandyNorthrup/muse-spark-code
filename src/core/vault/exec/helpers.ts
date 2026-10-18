@@ -242,7 +242,7 @@ export async function callVaultExecHelper(
     if (!isAuthenticated || socket.destroyed) throw new Error(UI_TEXT.vault.noAccess)
     socket.end(outgoing, () => outgoing.fill(0))
     for await (const input of socket) {
-      if (!(input instanceof Buffer)) throw new Error(UI_TEXT.vault.noAccess)
+      if (!(input instanceof Buffer)) throw new TypeError(UI_TEXT.vault.noAccess)
       total += input.length
       if (total > VAULT_LIMITS.frameBytes) {
         input.fill(0)

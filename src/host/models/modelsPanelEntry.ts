@@ -49,9 +49,9 @@ export interface ModelsPanelHostDeps {
   readonly log: Logger
   readonly globalState: ModelsPanelMemento
   /**
-   * `museSpark.suggestedProvider` as written (a preset id at most): read
-   * fresh on every call, so a workspace edit applies without a reload.
-   */
+  `museSpark.suggestedProvider` as written (a preset id at most): read
+  fresh on every call, so a workspace edit applies without a reload.
+  */
   readonly suggestedProviderSetting: () => string
   /** True in a remote window: connects paste a code instead of a callback. */
   readonly isRemote: boolean
@@ -129,7 +129,7 @@ function storedRemovals(value: unknown): PendingRemoval[] {
       !isStoredEntry(removal['entry']) ||
       typeof removal['removedAt'] !== 'number'
       ? []
-      : [{ entry: removal['entry'], removedAt: removal['removedAt'] }]
+      : { entry: removal['entry'], removedAt: removal['removedAt'] }
   })
 }
 
@@ -229,9 +229,9 @@ async function readImportFile(): Promise<string | undefined> {
 }
 
 /**
- * The panel's features, composed from the VS Code host and the lane-P/T
- * seam. One instance serves the window; the panel it opens is one tab.
- */
+The panel's features, composed from the VS Code host and the lane-P/T
+seam. One instance serves the window; the panel it opens is one tab.
+*/
 export function createModelsPanelFeatures(
   host: ModelsPanelHostDeps,
   seam: ModelsPanelSeam,

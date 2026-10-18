@@ -138,9 +138,9 @@ export type GitHubFailureKind =
   'signIn' | 'notFound' | 'invalid' | 'rateLimited' | 'server' | 'network' | 'response'
 
 /**
- * A call GitHub refused or that never reached it. `message` is for the user
- * (GitHub's own words where it gave them); the log gets `kind` and `status`.
- */
+A call GitHub refused or that never reached it. `message` is for the user
+(GitHub's own words where it gave them); the log gets `kind` and `status`.
+*/
 export class GitHubError extends Error {
   public constructor(
     message: string,
@@ -216,11 +216,11 @@ function errorMessage(body: unknown, status: number): string {
   }
   const details = (parsed.data.errors ?? []).flatMap((error) => {
     if (error.message !== undefined) {
-      return [error.message]
+      return error.message
     }
     return error.field === undefined || error.code === undefined
       ? []
-      : [`${error.field} ${error.code}`]
+      : `${error.field} ${error.code}`
   })
   return details.length === 0
     ? parsed.data.message

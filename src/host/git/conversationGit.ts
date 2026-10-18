@@ -85,6 +85,9 @@ export interface ConversationGitErrorTypes {
   readonly GitUnavailableError: typeof GitUnavailableError
 }
 
+/** This bundle's own error classes: the identities when no caller hands in activation's. */
+const OWN_ERROR_TYPES: ConversationGitErrorTypes = { GitHubError, GitUnavailableError }
+
 /** What the push modal names: every part of what goes out. */
 export interface PushConfirmation {
   readonly remote: string
@@ -116,13 +119,13 @@ export interface GitWindow {
   readonly repository: (root: string) => Promise<GitRepository>
   readonly captureGitOwner: CaptureGitOwner
   /**
-   * A commit or a push runs the repository's hooks, signing programs and
-   * credential helpers, and a hook can write the workspace or leave a process
-   * behind. It starts only through the window's admission for workspace
-   * processes (M72, PLAN.md D51): trust, the window's closing and the backend's
-   * generation are asked at the last moment, and checkpoints' file restore
-   * becomes unavailable for this window, as after any command that may write.
-   */
+  A commit or a push runs the repository's hooks, signing programs and
+  credential helpers, and a hook can write the workspace or leave a process
+  behind. It starts only through the window's admission for workspace
+  processes (M72, PLAN.md D51): trust, the window's closing and the backend's
+  generation are asked at the last moment, and checkpoints' file restore
+  becomes unavailable for this window, as after any command that may write.
+  */
   readonly admit: <T>(start: () => Promise<T>) => Promise<T>
   /** VS Code's GitHub sign-in: `ask` may prompt, `silent` only reads one there is. */
   readonly githubToken: (mode: 'ask' | 'silent') => Promise<string | undefined>
@@ -147,10 +150,10 @@ export interface GitWindow {
   /** Formats the existing user turn; no separate draft request is started here. */
   readonly draftOutput?: GitDraftOutputPort | undefined
   /**
-   * M123's native route (PLAN.md D104) for a VS Code-family host without
-   * the `vscode.git` extension: the runtime adapter's deps over this
-   * window, or undefined when there is no folder or no git on PATH.
-   */
+  M123's native route (PLAN.md D104) for a VS Code-family host without
+  the `vscode.git` extension: the runtime adapter's deps over this
+  window, or undefined when there is no folder or no git on PATH.
+  */
   readonly nativeGit?: (() => RuntimeGitDeps | undefined) | undefined
 }
 
@@ -311,7 +314,7 @@ export class ConversationGit implements ConversationGitPort {
   public constructor(
     private readonly window: GitWindow,
     private readonly surface: GitSurface,
-    private readonly errorTypes: ConversationGitErrorTypes = { GitHubError, GitUnavailableError },
+    private readonly errorTypes: ConversationGitErrorTypes = OWN_ERROR_TYPES,
   ) {}
 
   private currentState(): GitState {
@@ -494,9 +497,9 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * Asks, then pushes exactly `plan`: three arguments to the git extension,
-   * never a force mode. True when the push went through.
-   */
+  Asks, then pushes exactly `plan`: three arguments to the git extension,
+  never a force mode. True when the push went through.
+  */
   private async pushWithConfirmation(
     repository: GitRepository,
     plan: Extract<PushPlan, { ok: true }>,
@@ -613,9 +616,9 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * Where the pull request opens: the remote's repository, or for a fork the
-   * repository it came from, with the branch named `owner:branch` there.
-   */
+  Where the pull request opens: the remote's repository, or for a fork the
+  repository it came from, with the branch named `owner:branch` there.
+  */
   private async destinationOf(token: string, target: PullRequestTarget): Promise<Destination> {
     const facts = await this.window.github.repositoryFacts(token, target.repository)
     this.checkCurrent()
@@ -998,10 +1001,10 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * Runs `operation` unless another commit, push or pull request operation
-   * is running for this conversation: a second press is ignored, and a
-   * form's press is answered as failed, so its buttons come back.
-   */
+  Runs `operation` unless another commit, push or pull request operation
+  is running for this conversation: a second press is ignored, and a
+  form's press is answered as failed, so its buttons come back.
+  */
   private async exclusively(operation: () => Promise<void>, form?: GitForm): Promise<void> {
     if (this.isDisposed || this.isOperating) {
       this.window.log.info('A git operation is already running here; the second press is ignored')
@@ -1277,9 +1280,9 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * The hold card, the worktree line and the pull request strip, sent when
-   * they change; `isSurfaceReady` for a webview that starts with none of them.
-   */
+  The hold card, the worktree line and the pull request strip, sent when
+  they change; `isSurfaceReady` for a webview that starts with none of them.
+  */
   public postState(isSurfaceReady = false): void {
     if (this.isDisposed) {
       return
@@ -1390,9 +1393,9 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   /**
-   * What the model needs beside the user's own message asking for `kind`.
-   * Throws with the reason in words when it cannot be built.
-   */
+  What the model needs beside the user's own message asking for `kind`.
+  Throws with the reason in words when it cannot be built.
+  */
   public async promptFor(kind: GitDraftKind, base?: string): Promise<string> {
     const formEpoch = this.formEpoch
     const check = this.activityCheck()

@@ -136,7 +136,7 @@ export function audioRouteOptions(
 }
 
 /** Application result, NOT a provider schema. The adapter parses the captured
- * HTTP response before mapping it here. No duration receipt is invented. */
+HTTP response before mapping it here. No duration receipt is invented. */
 const batchResultSchema = z.strictObject({
   text: z.string(),
   billedSeconds: z.optional(z.number().check(z.gte(0))),
@@ -144,10 +144,10 @@ const batchResultSchema = z.strictObject({
 
 export interface BatchTranscriptionPort {
   /** Evidence-backed billing bound, including any provider rounding. Unknown
-   * refuses admission; sniffed duration alone is not a billing receipt. */
+  refuses admission; sniffed duration alone is not a billing receipt. */
   readonly billableSecondsUpperBound: (source: AudioSource) => number | undefined
   /** Streams a confined source; calls admitSend before EACH charged attempt,
-   * after retrieving the stored key. Stop/close aborts the supplied signal. */
+  after retrieving the stored key. Stop/close aborts the supplied signal. */
   readonly transcribe: (
     source: AudioSource,
     signal: AbortSignal,
@@ -157,7 +157,7 @@ export interface BatchTranscriptionPort {
 
 export interface AudioConversionPort {
   /** M1 verifies the absolute executable through its trusted-path port, uses
-   * argument arrays and a bounded owner-only temporary file. No key is passed. */
+  argument arrays and a bounded owner-only temporary file. No key is passed. */
   readonly convert: (
     source: AudioSource,
     mode: 'extractWav' | 'wrapMp4',
@@ -178,7 +178,7 @@ export interface BatchSpendClaim {
 export interface AudioPreparationDeps {
   readonly context: AudioRoutingContext
   /** Rebinds owner/key, model, mode, trust, contributor consent and source
-   * revision after every await. Throws on a stale choice, including switch-back. */
+  revision after every await. Throws on a stale choice, including switch-back. */
   readonly assertCurrent: () => void
   readonly converter?: AudioConversionPort
   readonly batch?: BatchTranscriptionPort
@@ -200,7 +200,7 @@ export interface PreparedAudioAttachment {
 }
 
 /** The existing three-choice modal uses this question for a batch, with exact
- * hourly money and the shared daily budget; no microphone starts. */
+hourly money and the shared daily budget; no microphone starts. */
 export function batchTranscriptionQuestion(name: string, dailyBudgetUsd: UsdAmount) {
   if (!nonnegativeUsdSchema.safeParse(dailyBudgetUsd).success)
     throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
@@ -221,7 +221,7 @@ function batchCost(seconds: number): Usd {
   if (match === null) throw new Error(UI_TEXT.media.durationUnknown)
   const digits = BigInt(`${match[1] ?? ''}${match[2] ?? ''}`)
   const shift = Number(match[3] ?? 0) - (match[2]?.length ?? 0)
-  if (!Number.isSafeInteger(shift)) throw new Error(UI_TEXT.media.durationUnknown)
+  if (!Number.isSafeInteger(shift)) throw new TypeError(UI_TEXT.media.durationUnknown)
   const radix = BigInt(USD_DECIMAL_RADIX)
   const count = Number(shift >= 0 ? digits * radix ** BigInt(shift) : digits)
   let cost = Usd.from(PAID_PRICES_USD.voicePerHour).times(count)

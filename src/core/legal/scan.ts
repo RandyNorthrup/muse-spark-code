@@ -217,11 +217,11 @@ function deriveDistribution(snapshot: LegalFileSnapshot): DistributionEvidence {
 }
 
 /**
- * Run the read-only scan over the snapshot. Reads stay inside the capped,
- * sorted file list; paths outside the workspace throw instead of reading.
- * The result always validates against the lane 0 schema: a validation
- * failure is an internal bug and throws.
- */
+Run the read-only scan over the snapshot. Reads stay inside the capped,
+sorted file list; paths outside the workspace throw instead of reading.
+The result always validates against the lane 0 schema: a validation
+failure is an internal bug and throws.
+*/
 export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions): LegalScanResult {
   if (!LEGAL_HEADER_POLICIES.includes(options.headerPolicy)) {
     throw new LegalScanError(UI_TEXT.legalScanner.m108)
@@ -482,12 +482,10 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     evidenceFiles: [...cache].flatMap(([path, text]) =>
       text === undefined
         ? []
-        : [
-            {
-              path,
-              hash: snapshot.readFileHash?.(path) ?? fingerprint(text),
-            },
-          ],
+        : {
+            path,
+            hash: snapshot.readFileHash?.(path) ?? fingerprint(text),
+          },
     ),
   }
   const scrubbed: unknown = JSON.parse(

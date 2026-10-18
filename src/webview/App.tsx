@@ -292,10 +292,10 @@ export interface AppProps {
   /** U/M95: already-validated, lazy Vault cards; values never enter this slot or UI state. */
   readonly vaultApprovals?: ReactNode
   /**
-   * The UI store. main.tsx owns one that outlives a crashed tree and keeps
-   * reducing host messages under the crash screen (M25); without one the
-   * app makes its own and listens to the host itself (the tests).
-   */
+  The UI store. main.tsx owns one that outlives a crashed tree and keeps
+  reducing host messages under the crash screen (M25); without one the
+  app makes its own and listens to the host itself (the tests).
+  */
   readonly store?: UiStore
   /** Injected so tests get deterministic ids. */
   readonly newLocalId?: () => string
@@ -308,10 +308,10 @@ export interface AppProps {
 type RewindConversationRequest = Extract<WebviewToHostMessage, { type: 'rewindConversation' }>
 
 /**
- * The conversation rewind for a user card (M53): a fork cut before its turn
- * and its prompt back in the composer; undefined when the card cannot be
- * rewound (no cut, a running or a file card, no session).
- */
+The conversation rewind for a user card (M53): a fork cut before its turn
+and its prompt back in the composer; undefined when the card cannot be
+rewound (no cut, a running or a file card, no session).
+*/
 function rewindRequest(current: UiState, entryId: string): RewindConversationRequest | undefined {
   const entry = current.transcript.find((candidate) => candidate.id === entryId)
   const cut = forkCutBefore(current.transcript, entryId)
@@ -448,11 +448,11 @@ function providerOf(modelId: string): string | undefined {
 }
 
 /**
- * The composer's paid badge (M33, PLAN.md D30): the paid features that are
- * on, named, with their prices in the tooltip. Shown on the Model API
- * backend only, the one that uses them. The names paint with startup; the
- * prices wait for the lazy money chunk, so the tooltip arrives just after.
- */
+The composer's paid badge (M33, PLAN.md D30): the paid features that are
+on, named, with their prices in the tooltip. Shown on the Model API
+backend only, the one that uses them. The names paint with startup; the
+prices wait for the lazy money chunk, so the tooltip arrives just after.
+*/
 function paidBadgeFeatures(state: UiState): readonly PaidFeature[] {
   // The features on that this backend uses (M44: the key's images and voice on Muse Code).
   const usable = usablePaidFeatures(state.auth.backend, state.paid.isKeyStored)
@@ -572,7 +572,7 @@ export function App({
     (selectedProvider === 'chatgpt' ||
       selectedProvider === 'copilot' ||
       selectedModel?.pricing === 'plan')
-  const [isPlanModalOpen, setPlanModalOpen] = useState<boolean>()
+  const [isPlanModalOpen = true, setPlanModalOpen] = useState<boolean>()
   const [chosenOverlay, setOverlay] = useState<Overlay | undefined>(undefined)
   const sharingAction = useCallback(
     (action: string, payload: unknown = {}) => {
@@ -3191,7 +3191,7 @@ export function App({
     )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
-  const isPlanDialogOpen = hasPlan && (isPlanModalOpen ?? true)
+  const isPlanDialogOpen = hasPlan && isPlanModalOpen
   const isModalOpen =
     isOtherModalOpen ||
     legalReport !== null ||

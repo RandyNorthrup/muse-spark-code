@@ -37,7 +37,7 @@ export function ThresholdEditor({
       const field = (name: string) => {
         const value = data.get(name)
         if (value === null) return ''
-        if (typeof value !== 'string') throw new Error(UI_TEXT.accounts.invalidAccount)
+        if (typeof value !== 'string') throw new TypeError(UI_TEXT.accounts.invalidAccount)
         return value.trim()
       }
       // Preserve thresholds for unavailable live capabilities; never invent windows.

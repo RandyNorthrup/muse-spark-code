@@ -44,25 +44,23 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
         const policy = modelPolicyFor(model.ref, { ...model.evidence, pricing: model.pricing })
         if (policy.tools.calling.state !== 'yes') return []
         const pricing = model.pricing
-        return [
-          {
-            modelId: model.ref,
-            displayLabel: sanitizeModelLabel(model.displayLabel ?? model.ref),
-            providerId: policy.identity.provider,
-            providerLabel: sanitizeModelLabel(model.providerLabel ?? policy.identity.provider),
-            contextLimit: model.contextTokens,
-            isActive: false,
-            isDefault: model.isDefault === true,
-            pricing: pricing.kind,
-            isPinned: model.isPinned,
-            trainsOnContent: model.trainsOnContent,
-            planLimitsUrl: model.planLimitsUrl,
-            ...(pricing.kind === 'priced' && {
-              inputUsdPerMTokens: pricing.card.input * TOKENS_PER_MILLION,
-              outputUsdPerMTokens: pricing.card.output * TOKENS_PER_MILLION,
-            }),
-          },
-        ]
+        return {
+          modelId: model.ref,
+          displayLabel: sanitizeModelLabel(model.displayLabel ?? model.ref),
+          providerId: policy.identity.provider,
+          providerLabel: sanitizeModelLabel(model.providerLabel ?? policy.identity.provider),
+          contextLimit: model.contextTokens,
+          isActive: false,
+          isDefault: model.isDefault === true,
+          pricing: pricing.kind,
+          isPinned: model.isPinned,
+          trainsOnContent: model.trainsOnContent,
+          planLimitsUrl: model.planLimitsUrl,
+          ...(pricing.kind === 'priced' && {
+            inputUsdPerMTokens: pricing.card.input * TOKENS_PER_MILLION,
+            outputUsdPerMTokens: pricing.card.output * TOKENS_PER_MILLION,
+          }),
+        }
       })
     },
     async resolve(ref): Promise<ResolvedModel> {
