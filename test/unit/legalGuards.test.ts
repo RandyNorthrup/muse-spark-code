@@ -23,7 +23,7 @@ function fixtureFiles(dir: URL, root: URL): string[] {
 }
 
 describe('legal scanner guards', () => {
-  it('leaves the hazardous fixture tree byte-identical and executes nothing', () => {
+  it('leaves the hazardous fixture tree byte-identical and executes nothing', async () => {
     const before = new Map<string, string>()
     const listed3 = fixtureFiles(FIXTURE_DIR, FIXTURE_DIR)
     for (const file of listed3) {
@@ -44,7 +44,7 @@ describe('legal scanner guards', () => {
         return readFileSync(new URL(path, FIXTURE_DIR), 'utf8')
       },
     }
-    const result = scanLegal(snapshot, { headerPolicy: 'required' })
+    const result = await scanLegal(snapshot, { headerPolicy: 'required' })
     expect(result.findings.length).toBeGreaterThan(0)
     expect(readPaths).not.toContain('notes/payload.md')
 
