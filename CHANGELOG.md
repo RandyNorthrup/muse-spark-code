@@ -13,10 +13,14 @@ happened, not what was planned; superseded entries are kept.
   from PATH. Every child environment built for `muse serve` (the VS Code
   backend, the ACP agent and the CLI exec path) drops PATH entries that are
   relative, empty, or inside the workspace (resolved through links), on
-  Windows, macOS and Linux alike; nothing else in PATH changes. Real use
-  showed Muse Code 1.4.9 running a planted `<workspace>/bin/bwrap` twice at
-  serve start, before any prompt or approval
-  (`docs/certification/pathguard.md`).
+  Windows, macOS and Linux alike; nothing else in PATH changes. A PATH with
+  nothing left is removed rather than emptied, a PATH from
+  `museSpark.environmentVariables` is sanitized the same way, Windows
+  drive-relative entries are resolved on the workspace drive, and guarded
+  Windows children set `NoDefaultCurrentDirectoryInExePath` so the working
+  directory is not tried before PATH. Real use showed Muse Code 1.4.9
+  running a planted `<workspace>/bin/bwrap` twice at serve start, before any
+  prompt or approval (`docs/certification/pathguard.md`).
 
 ### Fixed
 
