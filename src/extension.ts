@@ -1,3 +1,4 @@
+import { SpendLedgerError } from './core/paid/spendLedgerError'
 import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
 import { notify } from './core/events/notify'
 import {
@@ -764,6 +765,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         isEnabled: () =>
           vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
         onWriteError,
+        onInvalidSettings: () => {
+          log.warn(
+            'Usage history settings are invalid, so usage history is paused. Delete usage-settings.json in the agent data folder or turn usage history off and on again to record history again.',
+          )
+        },
       })
     },
   })
@@ -1134,7 +1140,6 @@ async function activateWindow(
     if (!isUsageBudgetBundle(bundle)) throw new Error(UI_TEXT.actionFailed)
     paidDaily = bundle.createUsageBudget({
       l10n,
-      authority: paidAuthority,
       directory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
       now: Date.now,
       capUsd: () => currentSettings().paidDailyBudgetUsd,
@@ -1150,14 +1155,11 @@ async function activateWindow(
     capUsd: () => loadDailyPaid().capUsd(),
     reserve: (...args) => loadDailyPaid().reserve(...args),
     reserveExact: (costUsd) => loadDailyPaid().reserveExact(costUsd),
-    reserveSchedule: (...args) => loadDailyPaid().reserveSchedule(...args),
     readToday: () => loadDailyPaid().readToday(),
     judgeLedger: {
       remainingUsd: () => loadDailyPaid().judgeLedger.remainingUsd(),
       reserve: (costUsd) => loadDailyPaid().judgeLedger.reserve(costUsd),
     },
-    latestDay: () => loadDailyPaid().latestDay(),
-    lookupByClaimId: (scope, claimId) => loadDailyPaid().lookupByClaimId(scope, claimId),
   }
   const paid = createPaidFeatures({
     usageRecording,
@@ -2741,7 +2743,9 @@ async function activateWindow(
         return await dailyPaid.reserve(body, feature, estimatedInputTokens, signal)
       }
       signal?.throwIfAborted()
+      // A person-set daily limit's claim; none when no limit is set (D121).
       const claim = await dailyPaid.reserveExact(reservationUsd)
+      if (claim === undefined) return
       try {
         signal?.throwIfAborted()
         return {
@@ -2756,13 +2760,13 @@ async function activateWindow(
         throw error
       }
     },
-    // C-M101-1: the D78 daily claim behind automatic compaction. Exact-USD,
-    // like the reservationUsd branch above; without it the host has no
-    // production admission and automatic compaction stays dormant.
+    // C-M101-1: automatic compaction under the person's D78 daily limit,
+    // exact-USD like the reservationUsd branch above; none without a limit.
     paidDailyBudgetUsd: () => dailyPaid.capUsd(),
     reserveAutoCompaction: async (amount, signal) => {
       signal.throwIfAborted()
       const claim = await dailyPaid.reserveExact(amount)
+      if (claim === undefined) return
       try {
         signal.throwIfAborted()
       } catch (error: unknown) {
@@ -2770,12 +2774,11 @@ async function activateWindow(
         throw error
       }
       return {
-        reservedUsd: claim.reservedUsd,
+        ...claim,
         check: () => {
           signal.throwIfAborted()
           claim.check()
         },
-        settle: (actual, hasUnknownCost) => claim.settle(actual, hasUnknownCost, true),
       }
     },
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
@@ -3616,7 +3619,7 @@ async function activateWindow(
           voiceAccountId: () => modelApi.accountId(),
           ownedVoiceBudgetScope: async (sessionId) => {
             if (auth.current.backend !== 'modelApi') {
-              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+              throw new SpendLedgerError('integrity', { scope: 'session', file: 'extension' })
             }
             const host = await modelApi.ensureHost()
             return await host.getOwnedBudgetScope(sessionId)
@@ -3699,7 +3702,6 @@ async function activateWindow(
                 gate: paid.gate,
                 consent: paid.consent,
                 reserve: dailyPaid.reserve,
-                capUsd: dailyPaid.capUsd,
                 keyDigest: () => modelApi.accountId(),
                 usage: paid.usage,
                 stream: (body, active, guard) =>

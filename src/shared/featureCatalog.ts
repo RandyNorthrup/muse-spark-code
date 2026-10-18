@@ -324,6 +324,7 @@ export function featureCatalog(): readonly Feature[] {
     // restores its measured box. Lazy price/usage rows announce loading.
     feature(
       'providers',
+      // M95: configured clients preserve local refusals; ACP auth lists sign-ins only.
       { ui: 'modelsPanelTitle' },
       { ui: 'startWithOwnModelDetail' },
       [
@@ -569,6 +570,8 @@ export function featureCatalog(): readonly Feature[] {
       [],
       [],
       'headless-runs',
+      // JSON progress uses stderr; stopped runs retain redacted incomplete answers.
+      // M80/M95: one atomic spend admission; estimates include a margin and each ambiguous attempt retains its reservation.
       ['modelApi'],
       false,
       ['acp'],
@@ -591,6 +594,8 @@ export function featureCatalog(): readonly Feature[] {
       'agent-loop-guarantees',
       ['museCode'],
     ),
+    // Deep CLI help follows the public command table; full reference is explicit.
+    // ACP and exec use the selected provider summary's known effort levels.
     feature('effort', { ui: 'effortItem' }, { tip: 'effort' }, [], [], 'the-panel'),
     feature(
       'custom-agents',
@@ -1004,7 +1009,7 @@ export function featureCatalog(): readonly Feature[] {
       { setting: 'paidDailyBudgetUsd' },
       { setting: 'paidDailyBudgetUsd' },
       [],
-      ['paidDailyBudgetUsd'],
+      ['paidDailyBudgetUsd', 'modelApiSessionBudgetUsd'],
       'paid-features',
       ['modelApi'],
       false,
@@ -1310,8 +1315,11 @@ export function sharingFeatures(table: UiText = UI_TEXT) {
   ]
 }
 
+// Terminal and ACP help only: the editor's own commands and settings
+// (museSpark.*) cannot be run there, so they stay out of this text.
 export function sharingHelp(table: UiText = UI_TEXT): string {
   return sharingFeatures(table)
+    .filter((feature) => feature.surface !== 'editor' && feature.surface !== 'setting')
     .map((feature) => `${feature.syntax}\n${feature.label}: ${feature.detail}`)
     .join('\n\n')
 }

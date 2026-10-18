@@ -406,8 +406,10 @@ export const EN = {
       '--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.',
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
-    'max-budget-usd': 'Set the hard spending limit in USD for this run.',
+    'max-budget-usd': 'Set the spending reservation limit in USD for this run.',
     'max-requests': 'Set the maximum number of model requests.',
+    'max-output-tokens':
+      'Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
     ephemeral: 'Keep the session in memory without saving it.',
@@ -437,7 +439,8 @@ export const EN = {
   referenceVaultPanel: 'In progress.',
   referenceVaultLock: 'In progress.',
   referenceAuthClear: 'Remove the stored Model API key.',
-  referenceAuthStatus: 'Check whether a Model API key is stored.',
+  referenceAuthStatus:
+    'List the stored keys (the Model API key and every configured provider key); the exit code reports whether any key is stored.',
   referenceAccountsTitle: 'Several Accounts per Provider',
   referenceAccounts:
     'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.',
@@ -456,7 +459,7 @@ export const EN = {
   referenceInstallSkills:
     "Copy project_setup, feature_delivery and quality_retrofit into Muse Code's configuration and link them as skills.",
   referenceExecContract:
-    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.',
+    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.',
   referenceBriefHelp:
     'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
   referenceKeyStdin:
@@ -525,7 +528,7 @@ export const EN = {
   referenceBrowser:
     'The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts. The browser check is off in Restricted Mode. Trust the workspace to use it.',
   referenceBudget:
-    'Shared daily budget for interactive paid extras: museSpark.paidDailyBudgetUsd. Tab has its own separate budget.',
+    'Shared daily budget: museSpark.paidDailyBudgetUsd, a limit you set (none by default); a session limit you set also applies. Tab has its own separate budget. Nothing is held for a request in flight: a request without reported usage counts as cost unknown, never as its estimate. A response can cost more than its estimate; the next request is then stopped.',
   referenceCache: 'Settings (modelApiPromptCacheRetention).',
   referenceMcp:
     'MCP servers: Muse Code runs its own servers; on Model API this window runs configured servers. ACP Model API has no editor MCP servers.',
@@ -1067,16 +1070,18 @@ export const EN = {
   },
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
+  // D121: a daily budget shown where none is set; the person sets one, none by default.
+  paidDailyBudgetNone: 'none set',
   paidDailyLedgerUnavailable:
-    'Daily paid budget reached: its ledger is unreadable, incomplete, or cannot admit this request. No paid request was sent.',
+    'The daily paid spend ledger is unavailable. Repair it before another paid request.',
   paidDailyStopped: 'Paid extras are stopped until tomorrow.',
   paidDailyReached: 'Daily paid budget reached',
   paidDailyReachedDetail:
-    'Today’s limit is {budget}. This request and existing reservations need {needed}. Raise the limit for today, or stop paid extras until tomorrow.',
+    'Today’s limit is {budget}. What is spent today plus this request’s estimate comes to {needed}. Raise the limit for today, or stop paid extras until tomorrow.',
   paidDailyRaise: 'Raise for Today',
   paidDailyStop: 'Stop Until Tomorrow',
   paidDailyRaisePrompt:
-    'Enter today’s limit in USD (0.50–500), enough for the pending reservations.',
+    'Enter today’s limit in USD, at least what is spent today plus this request’s estimate.',
   planUi: {
     copilotConnect: 'Use My Copilot Models',
     copilotUnavailable: 'Copilot models are unavailable. Enable Copilot and try again.',
@@ -3084,18 +3089,37 @@ export const EN = {
   autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
   autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
   contextWindowFull: 'Context window full: /compact or /handoff',
-  // The Model API session budget (M82): a request that cannot fit is not
-  // sent, and the turn's cost is shown against the cap afterwards.
+  // The Model API session budget (M82, D121): a limit the person set. A
+  // request whose estimate would pass it is not sent, and the turn's cost is
+  // shown against it afterwards.
   sessionBudgetStopped:
     'Stopped: the next request (about {estimate}) would pass the session budget of {cap} ({spent} used). It was not sent.',
+  // D121: said once when what is left no longer fits a request like the last one.
+  sessionBudgetNearLimit:
+    'Session budget: {spent} of {cap} used. What is left may not fit the next request.',
+  // D121: a response that ended without its usage adds nothing; {spent} is what the conversation counts.
+  sessionBudgetCostUnknown:
+    'A response ended without reporting its usage, so its cost is unknown. It was not added to what this conversation spent ({spent} so far).',
+  spendLedgerDamaged:
+    'The {scope} spend ledger is damaged ({file}). No new request can be sent; restore or repair this ledger.',
+  spendLedgerUnreadable:
+    'The {scope} spend ledger cannot be read or saved ({file}: {errno}). No new request can be sent; correct the file access or storage problem.',
+  spendLedgerIntegrity:
+    'The {scope} spend ledger has conflicting ownership or amounts ({file}). No new request can be sent; repair this ledger.',
+  spendLedgerMidnight:
+    'Local midnight passed. Nothing was sent; restart with today’s daily budget.',
+  execContextLimit:
+    'The request exceeds this model’s context limit. Nothing was sent; reduce the input or output allowance.',
+  execBudgetImpossible:
+    'This request is too large for any spend cap this run accepts. Reduce its input or output allowance.',
+  execEstimateBound:
+    'Input reservation: provider estimate + {margin}, capped by the upper bound from size.',
   sessionBudgetStoreUnavailable:
     'The session spend ledger could not be read or saved. No new request can be sent until it is available.',
-  sessionBudgetLegacyFeesUnknown:
-    'The conversation’s spending is not fully verified. Wait for pending requests to finish, or start a new conversation to use a spend cap.',
   sessionBudgetSearchUnavailable:
     'Web search is unavailable under a finite spend cap: its billed query count has no verified limit. Ordinary chat and free web fetch remain available.',
   sessionBudgetRetryUnavailable:
-    'The previous request may have been billed. Its full reservation was kept; send a new prompt to retry with a fresh allowance.',
+    'The previous request may have been billed, so it is not sent again. Send a new prompt to retry.',
   sessionBudgetUnknownCharge:
     'Usage was not verified. {amount} remains reserved as a possible charge; this is not a confirmed bill.',
   sessionBudgetVoiceUnavailable:
@@ -3944,6 +3968,8 @@ export const EN = {
     'Other enabled paid tools may add their own charges. Bypass does not skip this confirmation.',
   scheduleConfirmationExpired:
     'The model, conversation or prompt changed during confirmation. Review the schedule and choose Run again.',
+  // P3-2: a rotated key is not a changed mind: the refusal says the key moved.
+  execKeyRotated: 'The key was rotated during the run; the request was not sent.',
   requestStaleTurn: 'The model or conversation changed while sending. Send your message again.',
   requestStaleCompaction: 'The model or conversation changed while compacting. Compact again.',
   requestStaleRetry: 'The model or conversation changed before the request was sent. Try again.',
@@ -4189,8 +4215,16 @@ export const EN = {
     '  --no-events          Leave the recent events out',
   ].join('\n'),
   // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
+  execProgressStarted: 'Request {request} started; {reserved} reserved.',
+  execProgressSettled:
+    'Request {request} ended; run input {input}, output {output}; {settled} spent, {uncertain} uncertain.',
+  execProgressTokens: forms({ one: '{count} token in total', other: '{count} tokens in total' }),
+  execTokenCount: forms({ one: 'at most {count} token', other: 'at most {count} tokens' }),
+  execBudgetQuote:
+    'Input {inputTokens} ({inputCost}) + output cap {outputTokens} ({outputCost}) = {estimate}; run cap {cap}, {spent} used. Request not sent.',
   execBudgetRequired: 'Model API requires --max-budget-usd.',
   execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',
+  execLimitInvalid: 'Invalid number or limit for {flag}.',
   execTrustRefused: 'Headless runs refuse workspace trust and bypass permissions.',
   execModeRefused: 'Headless runs permit only plan or acceptEdits.',
   execWebSearchUnbounded: 'Hosted web search has no bounded allowance and is refused.',
@@ -4212,7 +4246,63 @@ export const EN = {
   execEffortUnavailable: 'This effort is not available for this model.',
   execTimedOut: 'The run reached its deadline.',
   execBudgetRefused: 'The next request exceeds the remaining budget.',
-  execBudgetMinimum: 'This run requires at least {minimum}.',
+  // EXECPROV round 5: a budget refusal names both remedies with numbers. The
+  // cap remedy is a complete clause on its own, so ACP and the editor show
+  // the same reason through the shared scope without the terminal-only flag
+  // half. {admitCap} is the cap that admits the request, rounded up to the
+  // cent; {maxTokens} is the largest --max-output-tokens value that fits the
+  // remaining cap; {inputCost} and {remaining} feed the input-alone note.
+  execBudgetRemedyCap: 'Raise --max-budget-usd to at least {admitCap} to admit it.',
+  execBudgetRemedyOutput: 'Or retry with --max-output-tokens {maxTokens}.',
+  execBudgetRemedyInput: 'The input alone costs {inputCost}, above the {remaining} left.',
+  // EXECPROV round 6: the provider variant states the rule, since its
+  // first body is not built yet ({output} is the output cap every request
+  // reserves).
+  execBudgetStartRule:
+    'Capped run: cap {cap}, {remaining} left. Each request reserves its counted input plus up to {output} output tokens.',
+  // EXECPROV round 7 (R2): a wire with no counter reserves the byte
+  // bound, and the start line says so — never "counted input".
+  execBudgetStartBytes:
+    'Capped run: cap {cap}, {remaining} left. Each request reserves its byte-bound input plus up to {output} output tokens.',
+  // A budget stop with nothing produced yet: the run was still reading, so
+  // no answer exists. The remedies follow as their own sentences.
+  execBudgetStillReading:
+    'The budget stopped the run while it was still reading, so no answer exists yet.',
+  // An exact provider count was tried and failed: the fixed reason the byte
+  // bound is used instead. The provider's own error never reaches this line.
+  execCountBytesFallback:
+    'The provider input count failed, so the byte bound reserves this request instead.',
+  // A --max-output-tokens value above the policy cap is refused at parsing.
+  // {cap} is the absolute ceiling every policy cap sits at or below.
+  execOutputCapExceeded: '--max-output-tokens exceeds the output cap of {cap} tokens.',
+  // EXECPROV round 5 (5a): a missing price is not a budget stop. {model} is
+  // the requested ref; {file} is the runner's own providers file, where a
+  // price for the model is added. The second sentence is the backend without
+  // a providers file.
+  execUnpricedProvider:
+    'This model has no known tariff, so a capped run cannot reserve for {model}. Add a price for this model in {file}, or choose a priced model.',
+  execUnpricedModel:
+    'This model has no known tariff, so a capped run cannot reserve for it. Choose a priced model.',
+  // D1, D121: a daily stop names its numbers: the request's estimate, the
+  // limit the person set, what is spent today, when the day resets, and the
+  // setting that raises it. Nothing is held, so nothing else is counted.
+  execPaidDailyStopped:
+    'Stopped: the next request (about {estimate}) would pass the daily budget of {cap} ({spent} used today). It was not sent. The budget resets {reset}; raise {setting} to continue.',
+  // D3: a budget-stopped turn keeps its work; the final message says what was
+  // reached ({count} is the completed request count).
+  execBudgetProgress: forms({
+    one: 'The budget stopped the run after {count} request; work so far is kept.',
+    other: 'The budget stopped the run after {count} requests; work so far is kept.',
+  }),
+  // D4: three causes, three sentences. {available} names what can run.
+  execModelNeedsProvider:
+    'Model {model} belongs to provider {provider}; run again with --provider {provider}. Available models: {available}.',
+  execModelNotOnProvider:
+    'Model {model} is not on provider {provider}. Available models: {available}.',
+  execModelAvailable:
+    'Model {model} is not available on this backend. Available models: {available}.',
+  execBudgetOverage:
+    'The last request exceeded its reservation by {overage} ({cost} charged, {reserved} reserved). The run stopped before another request.',
   execBudgetBreach: 'Observed accounting exceeded its reservation.',
   execIncomplete: 'The response did not complete.',
   execDeniedStop: 'An approval denial stopped this run.',
@@ -4229,6 +4319,7 @@ export const EN = {
     cancelled: 'Cancelled',
     timeout: 'Timed Out',
     budget_exceeded: 'Budget Exceeded',
+    unpriced: 'Unpriced',
     request_cap: 'Request Cap Reached',
     denied: 'Denied',
     auth_required: 'Authentication Required',
@@ -4253,7 +4344,7 @@ export const EN = {
   // {provider}: the provider id; {store}: where the key lives; {origin}: the bound origin.
   providerKeyStored: 'The {provider} key is stored in {store}.',
   providerKeyNotStored: 'No key was entered, so nothing was stored.',
-  providerKeyPresent: 'A {provider} key is stored in {store}, bound to {origin}.',
+  providerKeyPresent: 'The {provider} key is stored in {store}, bound to {origin}.',
   providerKeyAbsent: 'No {provider} key is stored.',
   providerKeyCleared: 'The {provider} key was removed from this computer’s credential store.',
   // {provider}: the id as typed; {hint}: the key's shape as a hint.
@@ -4391,6 +4482,8 @@ export const EN = {
   // {reason}: the endpoint policy's refusal.
   providerEndpointRefused: 'That address cannot be used ({reason}).',
   providerNoRequestPath: '{provider} cannot run here yet; its wire capture is still pending.',
+  // D4: a listed model without a price card cannot run; add/test/list say why.
+  providerModelNoPrice: '{ref} cannot run: it has no price card, so no run can reserve for it.',
   execProviderNeedsModelApi: '--provider needs --backend modelApi.',
   execProviderModelRequired: 'This provider run needs --model provider/model.',
   // {provider}: the provider id the run asked for.
@@ -5266,8 +5359,6 @@ export const EN = {
   sessionBudgetScopeGlobal: 'this computer',
   wizardSessionBudgetInvalid:
     'Enter a non-negative amount in dollars, for example 2 (0 means no limit).',
-  // {detail}: why the setting write failed, in the settings' own words.
-  sessionBudgetWriteFailed: 'The spending limit was not saved: {detail}',
   // {detail}: why the limit could not change after provider persistence succeeded.
   sessionBudgetPartialSave: 'Provider saved; the spending limit was not changed: {detail}',
   // {amount}: the concurrent current limit; {requested}: the user's retained edit.
@@ -5333,6 +5424,10 @@ export const EN = {
     storeUnavailable:
       'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
   },
+  execProviderNotCatalogue: 'This model is not in this build’s catalogue: {model}.',
+  providerCliModelsRequired: 'Use --model <id> (repeat for more models). Available: {models}.',
+  providerCliConfigure:
+    'Check these flags: --preset {preset}, --model <id>, --key-stdin, --address <url>, --private-ok.',
   execProviderNotConfigured: 'Provider {id} is not configured.',
   // M95 providers: evaluated through UI_TEXT at use time.
   providerText: {

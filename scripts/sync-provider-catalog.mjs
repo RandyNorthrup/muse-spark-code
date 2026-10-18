@@ -307,6 +307,31 @@ export function parseCatalogSnapshot(text) {
       }
     }
   }
+  // Owner-reported IDs with no captured tariff stay separate from tool-capable data.
+  if (document.unpriced !== undefined) {
+    const entries = z
+      .record(
+        z.string(),
+        z.record(
+          z.string(),
+          z.strictObject({
+            id: z.string().min(1).max(MAX_ID_LENGTH),
+            name: z.string().min(1).max(MAX_NAME_LENGTH),
+            price: z.literal('unknown'),
+            addedAt: dateSchema,
+            source: z.string().min(1),
+          }),
+        ),
+      )
+      .parse(document.unpriced)
+    for (const [preset, models] of Object.entries(entries)) {
+      if (!expected.includes(preset)) throw new Error('Unknown unpriced catalogue provider')
+      for (const [id, row] of Object.entries(models)) {
+        if (row.id !== id || document.providers[preset].models[id] !== undefined)
+          throw new Error('Unpriced catalogue row mismatches or replaces a captured model')
+      }
+    }
+  }
   return document
 }
 

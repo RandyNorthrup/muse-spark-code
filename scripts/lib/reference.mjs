@@ -853,6 +853,13 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       minimum: 1,
       maximum: source.EXEC_MAX_REQUESTS,
     },
+    // The parse floor stays 1; the selected model's own provider minimum
+    // applies at admission and at the send.
+    'max-output-tokens': {
+      minimum: 1,
+      maximum: source.MODEL_API_MAX_OUTPUT_TOKENS,
+      unit: 'tokens',
+    },
     timeout: {
       default: source.EXEC_DEFAULT_TIMEOUT_SECONDS,
       minimum: source.EXEC_MIN_TIMEOUT_SECONDS,
@@ -1447,7 +1454,7 @@ export async function generateReference(root, isCheck = false) {
       commands: z.array(z.object({ id: z.string(), name: z.string(), nameKey: z.optional(z.string()), category: z.string(), categoryKey: z.optional(z.string()), description: z.string(), text: textSchema, enablement: z.optional(z.string()), canRun: z.boolean() })),
       settings: z.array(z.object({ text: z.optional(textSchema), id: z.string(), name: z.string(), nameKey: z.optional(z.string()), description: z.string(), descriptionKey: z.optional(z.string()), type: z.union([z.string(), strings]), default: z.unknown(), enum: z.optional(z.array(z.unknown())), enumDescriptions: z.optional(strings), enumTexts: z.optional(z.record(z.string(), textSchema)), enumDescriptionKeys: z.optional(z.array(z.nullable(z.string()))), scope: z.string(), refinements: strings, schema: z.record(z.string(), z.unknown()) })),
       slash: z.array(z.object({ name: z.string(), description: z.string(), descriptions: z.record(z.string(), textSchema), backends: strings, syntax: strings })),
-      cli: z.array(z.object({ route: z.string(), name: z.string(), description: z.string(), text: z.optional(textSchema), usageKey: z.optional(z.enum(['acpUsage', 'reportUsage'])), usageLine: z.optional(z.number()), contract: z.optional(z.record(z.string(), z.unknown())) })),
+      cli: z.array(z.object({ route: z.string(), name: z.string(), description: z.string(), text: z.optional(textSchema), usageKey: z.optional(z.enum(['acpUsage', 'reportUsage'])), usageLine: z.optional(z.number()), contract: z.optional(z.record(z.string(), z.unknown())), invocations: z.optional(z.array(z.array(z.string()))) })),
       shortcuts: z.array(z.object({ command: z.string(), key: z.string(), mac: z.optional(z.string()), win: z.optional(z.string()), linux: z.optional(z.string()), when: z.optional(z.string()), text: z.optional(textSchema) }))
     })
     export function parseReferenceModel(value: unknown): ReferenceModel { return schema.parse(value) }

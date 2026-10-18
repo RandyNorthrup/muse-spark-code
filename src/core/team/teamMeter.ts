@@ -1,3 +1,4 @@
+import { SpendLedgerError } from '../paid/spendLedgerError'
 import { Usd, type UsdAmount } from '../../shared/usd'
 // Team meters (M96 lane A, PLAN.md D75): caps by measure and window as sums
 // over ledger rows, plus the reservations still open in the team's scope of
@@ -10,7 +11,7 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 // charged to the entry that sent it: rows carry their sending entry, and the
 // meter sums rows, never the task's current entry. No `vscode` here.
 
-import { MILLISECONDS_PER_MINUTE, UI_TEXT } from '../../shared/constants'
+import { MILLISECONDS_PER_MINUTE } from '../../shared/constants'
 import type { TeamMeasure, TeamWindow } from './teamPool'
 
 /** One task's (or rollup's) usage, by kind, with its provenance. */
@@ -245,7 +246,7 @@ export async function settleTeamReservation(
     journal,
     id,
     outcome,
-    () => new Error(UI_TEXT.sessionBudgetStoreUnavailable),
+    () => new SpendLedgerError('integrity', { scope: 'account', file: 'teamMeter' }),
   )
 }
 

@@ -1,3 +1,4 @@
+import { UserRefusalError } from '../shared/refusal'
 import { resolveExecOutputCap } from './exec/runLedger'
 import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
@@ -428,6 +429,7 @@ function modelApiManager(
         client,
         await dailyBudget(),
         deps.exec?.responseAccounting,
+        deps.exec?.providerRun?.dispatch,
         deps.exec?.outputCap,
       )
     },
@@ -439,7 +441,7 @@ function modelApiManager(
     ) => {
       if ('input' in body) return
       const budget = await dailyBudget()
-      return await budget.reserve(PAID_PRICES_USD.imageGeneration, signal)
+      return budget.admit(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount(), signal)
     },
     ...(deps.exec === undefined && {
       getProviderAccountId: async () => {
@@ -449,7 +451,8 @@ function modelApiManager(
     }),
     ...(deps.exec?.providerRun !== undefined && {
       getProviderAccountId: async () => {
-        if (headlessProviders === undefined) throw new Error(UI_TEXT.execModelUnpriced)
+        if (headlessProviders === undefined)
+          throw new UserRefusalError(UI_TEXT.execModelUnpriced, 'unpriced')
         return await headlessProviders.accountId()
       },
     }),
@@ -518,7 +521,7 @@ function modelApiManager(
     isAutoCompactionOn: () =>
       deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
-    // The wrapped runtime transport owns one daily claim per HTTP attempt.
+    // The wrapped runtime transport checks a person-set daily limit per HTTP attempt.
     autoCompactionAccounting: 'transport',
     paidDailyBudgetUsd: async () => {
       const budget = await dailyBudget()
@@ -637,6 +640,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   }
 
   const modelApiReadiness = async (): Promise<BackendReadiness> => {
+    if (deps.exec?.providerRun !== undefined) return { state: 'ready' }
     let key: string | undefined
     try {
       key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
@@ -651,7 +655,6 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
       }
     }
-    if (deps.exec?.providerRun !== undefined) return { state: 'ready' }
     if (deps.exec === undefined && (key === undefined || key === '')) {
       try {
         if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)

@@ -34,6 +34,16 @@ happened, not what was planned; superseded entries are kept.
   namespace here and says so once on every surface, naming the two ways
   out, without ever switching the sandbox off on its own.
 
+### Added
+
+- JSON headless runs report request starts, token totals and cost on stderr while stdout remains one JSON result.
+- Headless Model API runs accept `--max-output-tokens <n>` as an optional
+  lowering limit: absent is the model's policy cap, present never exceeds it
+  (a larger value is refused at parsing). The limit is carried into the
+  request and its reservation, so a small budget can size a run down.
+- Claude Haiku 5.5 is listed with an unknown price pending a documented receipt.
+- `help reference` explicitly opens the full terminal reference.
+
 ### Fixed
 
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
@@ -69,6 +79,121 @@ happened, not what was planned; superseded entries are kept.
   re-armed. The waiter now re-arms for the remainder and is answered at
   the deadline.
 
+- A spending limit exists only when you set one (D121). The editor's
+  `museSpark.paidDailyBudgetUsd` and the agent's `paidDailyBudgetUsd` in its
+  `settings.json` are none by default, so the ACP agent no longer stops a job
+  on a daily budget it was never given. With no limit there is no spending
+  check on the request path: nothing is reserved, locked or written before a
+  send.
+- Under a limit you set, the session and daily budgets keep running totals
+  from the usage each call reported, saved after the call, so a resume
+  continues from them. A request whose estimate would pass the limit is not
+  sent and the reason says so; one warning comes when what is left no longer
+  fits a request like the last one. A response that ended without its usage
+  counts as cost unknown instead of its whole reservation: one job's thirteen
+  failed responses had counted $352.66 of reservations as spent.
+- The atomic claim ledger is gone: its journal files, cross-process lock, the
+  100 ms admission bound and its benchmark.
+- A request the provider refused before answering (an invalid key, for
+  example) books nothing: `exec` no longer keeps its reservation as
+  uncertain or fails to write its JSON result, and the next run does not
+  count it as used.
+- Initial provider rejections release their holds; incomplete responses with final
+  usage settle at the reported cost. Unresolved liability is shown separately
+  from spend, and terminal startup prices each real request instead of the
+  whole context window. Output-cap remedies are accepted by the parser.
+
+- Session, editor daily and terminal daily spend admission uses one atomic
+  versioned ledger. Refused requests publish no hold; dead locks recover by
+  process identity, and each ambiguous attempt retains its full reservation.
+- Concurrent spend checks inside one process queue instead of refusing each
+  other as busy, a model whose context equals its output limit no longer ends
+  a full answer as over budget (including media requests' daily reservation),
+  and an invalid `--max-output-tokens`, `--timeout` or `--max-requests` value
+  names that flag instead of the USD budget's decimal places.
+- Anthropic token estimates reserve a 25% margin; Gemini uses the size bound
+  until its complete count shape is verified. Overages are recorded before
+  another request, and refusal remedies stay within accepted flag limits.
+
+- A headless budget refusal names both remedies with numbers: the run cap
+  that admits the request (rounded up to the cent) and the largest
+  `--max-output-tokens` value that fits the remaining cap (or that even the
+  input alone does not fit). ACP and the editor show the same reason with
+  the budget remedy only.
+- A headless provider run counts the request's exact input tokens where the
+  provider documents a same-body count call (the OpenAI Responses
+  `input_tokens` call), instead of reserving every body byte as a token at
+  the uncached price; entries keep the byte bound with
+  `"exactInputCount": false`, and any failed count falls back to it with an
+  info line. A capped run states its next reservation and what is left before
+  it spends; a budget stop that produced nothing says the run was still
+  reading and no answer exists, and the JSON result carries the refused
+  request's numbers in typed `budget` fields.
+- The same-body count now covers every wire that documents one: Anthropic
+  Messages (`POST /v1/messages/count_tokens`) and Google Gemini
+  (`models/<model>:countTokens`) join the OpenAI Responses call, each built
+  from the already-built native request on the request's own origin, never
+  retried, never recorded as a model call, and a count larger than the byte
+  bound falls back to the byte bound. Wires with no counter (OpenAI
+  compatible chat completions and the other presets without one) keep the
+  byte bound and say so on the start line; the refusal already names the
+  higher cap and the lower `--max-output-tokens` that admit the request.
+- Closing a stale spend hold no longer locks capped runs out for the rest of
+  the day. A settled unknown cost (a hold closed at its full reservation, a
+  sent request whose answer was lost) stays counted as an upper bound and
+  admits later capped runs; only money no record bounds (history written
+  without fees, an open unbounded claim, an unverified tariff) refuses one,
+  with a sentence naming the ledger and its counted spend and remedies that
+  work.
+- A headless run refused for a model with no known tariff no longer reports
+  a budget stop: it returns its own `unpriced` status (exit 4) with a
+  sentence naming the model and the providers file where a price is added,
+  or a priced model to choose instead.
+- Holds left by older builds with no recorded owner close by age once older
+  than the longest a request can be in flight, settling at their reservation
+  as unknown cost; each run logs one info line with the count and total, and
+  the usage output keeps showing the unknown-cost share of the day's total.
+- A paid limit refusal names the limit with its numbers instead of a generic failure.
+- A budget hold left by a run that died is released instead of leaking into the daily ledger.
+- A turn stopped by its budget keeps the work produced so far instead of withholding it.
+- Stopped headless runs retain the redacted partial answer and its cost with an explicit incomplete marker.
+- Bounded uncertain daily liability keeps its full amount without blocking all later requests as an unknown historical fee.
+
+- Deep command `--help` stays in the terminal’s command, including prompts, provider accounts, named reports, schedules and ChatGPT maintenance; authentication help shows its own flags.
+
+- Headless daily claims recover killed owners, refund interrupted DNS checks, and durably retain sent requests whose usage is unknown.
+
+- ACP and headless runs offer each provider model’s recorded effort levels, including Opus `xhigh`, and list allowed values when a choice is refused.
+
+- ACP sign-in choices include ChatGPT Add; Remove and Status remain terminal commands.
+
+- Headless provider runs accept configured native model IDs containing slashes; provider setup accepts repeated `--model` flags.
+
+- Exec and ACP honor the configured provider default and refuse a missing default
+  instead of silently choosing another model.
+- Provider setup errors name terminal flags and available model IDs. Models absent
+  from this build’s catalogue have a specific refusal.
+- Ephemeral exec omits durable usage history and says so in its JSON record.
+- Command `--help` stays within that command’s own usage and options.
+- An invalid usage-history settings file pauses recording with a specific repair
+  warning instead of the generic write warning on every run.
+- `estimate --help` lists its deadline and export formats from the route’s own
+  reference words instead of the shared flag placeholders.
+- Bare `--help` prints the compact agent help with the machine flags instead of
+  the default launch’s options.
+
+- Provider and headless Meta requests reserve their actual conservative input
+  and output cap instead of a full context window. Budget refusals show the
+  arithmetic, and configured provider JSONL records show admission and settlement.
+- Catalogue price cards retain cache-write premiums and long-context rates.
+
+- Configured providers keep budget, consent, model, codec and stale-confirmation
+  refusals visible instead of reporting that Models & Agents is unavailable.
+  Provider diagnostics still pass through credential redaction.
+
+- Unsent headless requests refund both their daily and run reservations, including
+  their request count. New unsent daily claims recover after their owner exits;
+  requests that may have reached the provider retain their liability.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

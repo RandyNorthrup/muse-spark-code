@@ -4,6 +4,7 @@ function isPlanModel(model: string): boolean {
 // M95b's subscription dispatch. Only the account catalogue chooses ChatGPT
 // models; neither tokens nor service error text cross the host bridge.
 import { createHash } from 'node:crypto'
+import { isUserRefusal } from '../../refusal'
 import * as z from 'zod/mini'
 import type { ProviderClient } from '../../backends/modelapi/client'
 import {
@@ -238,6 +239,7 @@ export function createSubscriptionClient(
           if (adapter === undefined) throw new Error(UI_TEXT.actionFailed)
           const account = await deps.accountId()
           const guard = Object.assign(() => admitAttempt?.(account), {
+            ...admitAttempt,
             onRequestStarted: () => {
               isDispatched = true
               noteConfirmedRequestStarted(confirmed, admitAttempt)
@@ -294,7 +296,9 @@ export function createSubscriptionClient(
         }
         const codec = createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' })
         const request = codec.encodeRequest({ ...body, model: ref.modelId })
-        admitAttempt?.(await deps.accountId())
+        const account = await deps.accountId()
+        await admitAttempt?.prepare?.()
+        admitAttempt?.(account)
         if (signal.aborted) throw signal.reason
         // A paid-gate lapse during sign-in still refuses: re-check the gate
         // immediately before the send, like the other clients.
@@ -369,7 +373,7 @@ export function createSubscriptionClient(
           } else throw error
         }
       } catch (error) {
-        if (signal.aborted) throw error
+        if (isUserRefusal(error) || signal.aborted) throw error
         // A lapsed confirmation names the run (hook, schedule, review) with
         // its own guidance instead of the generic plan retry sentence, on
         // both plan branches: the gate throws above, and an admission guard

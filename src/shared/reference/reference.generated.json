@@ -1617,7 +1617,7 @@
       "summary": { "setting": "paidDailyBudgetUsd" },
       "description": { "setting": "paidDailyBudgetUsd" },
       "commands": [],
-      "settings": ["museSpark.paidDailyBudgetUsd"],
+      "settings": ["museSpark.paidDailyBudgetUsd", "museSpark.modelApiSessionBudgetUsd"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#paid-features",
       "backends": ["modelApi"],
       "paid": false,
@@ -3093,7 +3093,7 @@
       },
       "id": "museSpark.modelApiSessionBudgetUsd",
       "name": "museSpark.modelApiSessionBudgetUsd",
-      "description": "Spend cap in US dollars for each Model API conversation; 0 means no cap. Shared durable reservations cover ordinary token requests and image fees before sending; a request that cannot fit what is left is not sent, and input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it.",
+      "description": "Spending limit in US dollars that you set for each Model API conversation; 0 (the default) means none, and then nothing is checked before a request. With a limit, the conversation keeps a running total from the usage each call reports, saved with the conversation; a request whose estimate would pass what is left is not sent, and a response that ended without its usage counts as cost unknown, never as its estimate. Input estimates may differ from billed usage. Web search and paid Muse Voice are unavailable while a limit is set because their billed amounts have no verified bound. Separate paid consent still applies.",
       "descriptionKey": "config.modelApiSessionBudgetUsd.description",
       "type": "number",
       "default": 0,
@@ -3380,10 +3380,10 @@
       "description": "Shared daily budget for interactive paid extras: USD.",
       "descriptionKey": "config.paidDailyBudgetUsd",
       "type": "number",
-      "default": 5,
+      "default": 0,
       "scope": "machine",
       "refinements": [],
-      "schema": { "type": "number", "default": 5, "minimum": 0.5, "maximum": 500 }
+      "schema": { "type": "number", "default": 0, "minimum": 0 }
     },
     {
       "id": "museSpark.dictationEngine",
@@ -4400,199 +4400,325 @@
       "route": "usage",
       "name": "usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json",
       "description": "Show usage and cost across models, or open the usage page.",
-      "text": { "ui": "acpUsageDescription" }
+      "text": { "ui": "acpUsageDescription" },
+      "invocations": [
+        ["usage", "summary"],
+        ["usage", "daily"],
+        ["usage", "models"],
+        ["usage", "limits"],
+        ["usage", "export"],
+        ["usage", "open"],
+        ["usage", "serve"]
+      ]
     },
     {
       "route": "legal",
       "name": "exec legal-scan --json / legal [--format text|json] [--out <file>] [--registry]",
       "description": "Scan the workspace for licensing, attribution and header findings",
-      "text": { "ui": "legalScanItemDetail" }
+      "text": { "ui": "legalScanItemDetail" },
+      "invocations": [["legal"], ["exec", "legal-scan"]]
     },
     {
       "route": "providersList",
       "name": "providers list",
       "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
-      "text": { "ui": "referenceProviders" }
+      "text": { "ui": "referenceProviders" },
+      "invocations": [["providers", "list"]]
     },
     {
       "route": "providersAdd",
       "name": "providers add --preset <preset> [--as <id>] [--address <url>] [--model <model>] [--privacy <policy>] [--private-ok] [--key-stdin]",
       "description": "Add a model provider with an API key and pick a model.",
-      "text": { "ui": "startWithOwnModelDetail" }
+      "text": { "ui": "startWithOwnModelDetail" },
+      "invocations": [["providers", "add"]]
     },
     {
       "route": "providersTest",
       "name": "providers test <id>",
       "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
-      "text": { "ui": "referenceProviders" }
+      "text": { "ui": "referenceProviders" },
+      "invocations": [["providers", "test"]]
     },
     {
       "route": "providersRemove",
       "name": "providers remove <id>",
       "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
-      "text": { "ui": "referenceProviders" }
+      "text": { "ui": "referenceProviders" },
+      "invocations": [["providers", "remove"]]
     },
     {
       "route": "chatGptProvider",
       "name": "providers add|remove|status chatgpt",
       "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
-      "text": { "ui": "referenceProviders" }
+      "text": { "ui": "referenceProviders" },
+      "invocations": [
+        ["providers", "add", "chatgpt"],
+        ["providers", "remove", "chatgpt"],
+        ["providers", "status", "chatgpt"]
+      ]
     },
     {
       "route": "serve",
       "name": "[options]",
       "description": "{command} [options]              Serve the Agent Client Protocol on stdin and stdout",
-      "text": { "ui": "referenceServe" }
+      "text": { "ui": "referenceServe" },
+      "invocations": [[]]
     },
     {
       "route": "login",
       "name": "login",
       "description": "Runs Muse Code’s own sign-in in a terminal. Your Muse subscription pays for the conversations.",
-      "text": { "ui": "acpAuthMuseCodeDetail" }
+      "text": { "ui": "acpAuthMuseCodeDetail" },
+      "invocations": [["login"]]
     },
     {
       "route": "authSet",
       "name": "auth set",
       "description": "Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations.",
-      "text": { "ui": "acpAuthKeyDetail" }
+      "text": { "ui": "acpAuthKeyDetail" },
+      "invocations": [["auth", "set"]]
     },
     {
       "route": "authStatus",
       "name": "auth status",
-      "description": "Check whether a Model API key is stored.",
-      "text": { "ui": "referenceAuthStatus" }
+      "description": "List the stored keys (the Model API key and every configured provider key); the exit code reports whether any key is stored.",
+      "text": { "ui": "referenceAuthStatus" },
+      "invocations": [["auth", "status"]]
     },
     {
       "route": "authClear",
       "name": "auth clear",
       "description": "Remove the stored Model API key.",
-      "text": { "ui": "referenceAuthClear" }
+      "text": { "ui": "referenceAuthClear" },
+      "invocations": [["auth", "clear"]]
     },
     {
       "route": "setup",
       "name": "setup",
       "description": "Run Setup hooks for init from spark-hooks.json in a trusted workspace.",
-      "text": { "ui": "referenceSetup" }
+      "text": { "ui": "referenceSetup" },
+      "invocations": [["setup"]]
     },
     {
       "route": "exec",
       "name": "exec",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
-      "text": { "ui": "referenceExecContract" }
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "text": { "ui": "referenceExecContract" },
+      "invocations": [["exec"]]
     },
     {
       "route": "scan-secrets",
       "name": "scan-secrets",
       "description": "Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.",
-      "text": { "ui": "referenceScanSecrets" }
+      "text": { "ui": "referenceScanSecrets" },
+      "invocations": [["scan-secrets"]]
     },
     {
       "route": "accounts",
       "name": "providers accounts",
       "description": "Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.",
-      "text": { "ui": "referenceAccounts" }
+      "text": { "ui": "referenceAccounts" },
+      "invocations": [
+        ["providers", "accounts", "list"],
+        ["providers", "accounts", "add"],
+        ["providers", "accounts", "remove"],
+        ["providers", "accounts", "order"],
+        ["providers", "accounts", "thresholds"]
+      ]
     },
     {
       "route": "developer",
       "name": "developer",
       "description": "Show or unlock machine-local developer options. Profile operations require a connected resource owner.",
-      "text": { "ui": "referenceDeveloper" }
+      "text": { "ui": "referenceDeveloper" },
+      "invocations": [
+        ["developer", "status"],
+        ["developer", "enable"],
+        ["developer", "disable"],
+        ["developer", "reset"],
+        ["developer", "add"],
+        ["developer", "remove"]
+      ]
     },
     {
       "route": "report",
       "name": "report",
       "description": "Usage:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Prints the scrubbed problem report to stdout, or writes it to <file> with --out.\n  Starts no backend, signs in nowhere, and opens no browser.\nOptions:\n  --out <file>         Write the report to a file instead of stdout\n  --description <text>  What was happening, in your own words\n  --no-facts           Leave the support facts out\n  --no-events          Leave the recent events out",
-      "text": { "ui": "reportUsage" }
+      "text": { "ui": "reportUsage" },
+      "invocations": [["report"], ["report", "problem"]]
     },
     {
       "route": "report",
       "name": "report problem",
       "description": "Usage:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Prints the scrubbed problem report to stdout, or writes it to <file> with --out.\n  Starts no backend, signs in nowhere, and opens no browser.\nOptions:\n  --out <file>         Write the report to a file instead of stdout\n  --description <text>  What was happening, in your own words\n  --no-facts           Leave the support facts out\n  --no-events          Leave the recent events out",
-      "text": { "ui": "reportUsage" }
+      "text": { "ui": "reportUsage" },
+      "invocations": [["report"], ["report", "problem"]]
     },
     {
       "route": "reports",
       "name": "report <kind> / report history",
       "description": "Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
-      "text": { "ui": "reportCliUsage" }
+      "text": { "ui": "reportCliUsage" },
+      "invocations": [
+        ["report", "project"],
+        ["report", "milestone"],
+        ["report", "release"],
+        ["report", "usage"],
+        ["report", "session"],
+        ["report", "changes"],
+        ["report", "quality"],
+        ["report", "fleet"],
+        ["report", "security"],
+        ["report", "accounts"],
+        ["report", "estimate"],
+        ["report", "playbook"],
+        ["report", "issues"],
+        ["report", "schedules"],
+        ["report", "keybindings"],
+        ["report", "history"],
+        ["report", "history", "project"],
+        ["report", "history", "milestone"],
+        ["report", "history", "release"],
+        ["report", "history", "usage"],
+        ["report", "history", "session"],
+        ["report", "history", "changes"],
+        ["report", "history", "quality"],
+        ["report", "history", "fleet"],
+        ["report", "history", "security"],
+        ["report", "history", "accounts"],
+        ["report", "history", "estimate"],
+        ["report", "history", "playbook"],
+        ["report", "history", "issues"],
+        ["report", "history", "schedules"],
+        ["report", "history", "keybindings"]
+      ]
+    },
+    {
+      "route": "playbook",
+      "name": "playbook [status|record|settings]",
+      "description": "Use `playbook status|record|settings`.",
+      "text": { "ui": "playbookCommandUsage" },
+      "invocations": [
+        ["playbook", "status"],
+        ["playbook", "record"],
+        ["playbook", "settings"]
+      ]
     },
     {
       "route": "fontsInstall",
       "name": "fonts install [--from <directory>]",
       "description": "Usage: {command} fonts install [--from <directory>]",
-      "text": { "ui": "acpFontsUsage" }
+      "text": { "ui": "acpFontsUsage" },
+      "invocations": [["fonts", "install"]]
     },
     {
       "route": "help",
-      "name": "help --all",
+      "name": "help reference / help --all",
       "description": "Commands, settings and features, with descriptions and documentation.",
-      "text": { "ui": "referenceIntro" }
+      "text": { "ui": "referenceIntro" },
+      "invocations": [["help"], ["help", "reference"]]
     },
     {
       "route": "help",
       "name": "help / --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
-      "text": { "ui": "referenceBriefHelp" }
+      "text": { "ui": "referenceBriefHelp" },
+      "invocations": [["help"], ["help", "reference"]]
     },
     {
       "route": "share",
       "name": "share chat SESSION_ID [--mode full|conversation] [--format md|html|json]",
       "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
-      "text": { "ui": "shareReviewPrivacy" }
+      "text": { "ui": "shareReviewPrivacy" },
+      "invocations": [["share", "chat"]]
     },
     {
       "route": "prompts",
       "name": "prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt",
       "description": "Prompts are stored as plain text. Do not save passwords or keys.",
-      "text": { "ui": "promptSecretsNote" }
+      "text": { "ui": "promptSecretsNote" },
+      "invocations": [
+        ["prompts", "save"],
+        ["prompts", "list"],
+        ["prompts", "use"],
+        ["prompts", "share"]
+      ]
     },
     {
       "route": "prompts",
       "name": "prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]",
       "description": "Prompt Library",
-      "text": { "ui": "promptLibrary" }
+      "text": { "ui": "promptLibrary" },
+      "invocations": [
+        ["prompts", "save"],
+        ["prompts", "list"],
+        ["prompts", "use"],
+        ["prompts", "share"]
+      ]
     },
     {
       "route": "prompts",
       "name": "prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]",
       "description": "Review Variables and Insert",
-      "text": { "ui": "promptRun" }
+      "text": { "ui": "promptRun" },
+      "invocations": [
+        ["prompts", "save"],
+        ["prompts", "list"],
+        ["prompts", "use"],
+        ["prompts", "share"]
+      ]
     },
     {
       "route": "prompts",
       "name": "prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]",
       "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
-      "text": { "ui": "shareReviewPrivacy" }
+      "text": { "ui": "shareReviewPrivacy" },
+      "invocations": [
+        ["prompts", "save"],
+        ["prompts", "list"],
+        ["prompts", "use"],
+        ["prompts", "share"]
+      ]
     },
     {
       "route": "acp",
       "name": "/agents [receipt|continue|retry] [ID]",
       "description": "Agents show activity and evidence-backed outcomes. Select an ended agent for its bounded receipt and attempt history. Continue keeps its session and changes after confirmation; Retry requires an isolated checkpoint. Missing evidence is shown as unverified. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
-      "text": { "ui": "referenceAgentOutcomes" }
+      "text": { "ui": "referenceAgentOutcomes" },
+      "invocations": []
     },
     {
       "route": "acp",
       "name": "/prompt save|list|use|share",
       "description": "Review Variables and Insert",
-      "text": { "ui": "promptRun" }
+      "text": { "ui": "promptRun" },
+      "invocations": []
     },
     {
       "route": "acp",
       "name": "/share chat [--mode full|conversation] [--format md|html|json]",
       "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
-      "text": { "ui": "shareReviewPrivacy" }
+      "text": { "ui": "shareReviewPrivacy" },
+      "invocations": []
     },
     {
       "route": "resources",
       "name": "resources [status|history|resume] [--json]; usage resources [--json]",
       "description": "Keep this machine responsive by slowing or deferring work started by the harness. On by default.",
-      "text": { "ui": "resourceGovernorDescription" }
+      "text": { "ui": "resourceGovernorDescription" },
+      "invocations": [
+        ["resources", "status"],
+        ["resources", "history"],
+        ["resources", "resume"],
+        ["usage", "resources"]
+      ]
     },
     {
       "route": "version",
       "name": "--version / -v",
       "description": "Print the installed agent version.",
-      "text": { "ui": "referenceVersion" }
+      "text": { "ui": "referenceVersion" },
+      "invocations": []
     },
     {
       "route": "providersAdd",
@@ -4972,7 +5098,7 @@
     {
       "route": "serve",
       "name": "serve: --max-budget-usd <value>",
-      "description": "Set the hard spending limit in USD for this run.",
+      "description": "Set the spending reservation limit in USD for this run.",
       "text": { "cli": "max-budget-usd" },
       "contract": {
         "type": "string",
@@ -5441,103 +5567,10 @@
     },
     {
       "route": "authSet",
-      "name": "authSet: --preset <value>",
-      "description": "--preset: Provider",
-      "text": { "cli": "preset" },
-      "contract": { "type": "string", "repeatable": false, "refused": true }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --as <value>",
-      "description": "--as: Provider",
-      "text": { "cli": "as" },
-      "contract": { "type": "string", "repeatable": false, "refused": true }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --address <value>",
-      "description": "--address: Address",
-      "text": { "cli": "address" },
-      "contract": { "type": "string", "repeatable": false, "refused": true }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --format <value>",
-      "description": "--format <format>: Export",
-      "text": { "cli": "format" },
-      "contract": { "type": "string", "repeatable": false, "refused": true }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --model <value>",
-      "description": "Choose the model for this run.",
-      "text": { "cli": "model" },
-      "contract": { "type": "string", "repeatable": true, "refused": true }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --privacy <value>",
-      "description": "--privacy: Any provider may be used, including ones that train on data.",
-      "text": { "cli": "privacy" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "enum": ["zdr", "no-training", "any"],
-        "refused": true
-      }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --private-ok",
-      "description": "privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm.",
-      "text": { "conditions": [{ "when": "privateNetwork", "text": { "cli": "private-ok" } }] },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "refused": true,
-        "consent": "privateNetwork",
-        "default": false
-      }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --key-stdin",
-      "description": "auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.",
-      "text": { "cli": "key-stdin" },
-      "contract": { "type": "boolean", "repeatable": false, "refused": true, "default": false }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --usage-history <value>",
-      "description": "--usage-history: Track cost, tokens and limits across editors.",
-      "text": { "cli": "usage-history" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "enum": ["on", "off"],
-        "default": "on",
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authSet",
       "name": "authSet: --provider <value>",
       "description": "--provider <id>                   The provider the account belongs to (auth set/status/clear).",
       "text": { "cli": "provider" },
       "contract": { "type": "string", "repeatable": false }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --backend <value>",
-      "description": "--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key",
-      "text": { "cli": "backend" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "enum": ["museCode", "modelApi"],
-        "default": "museCode",
-        "purpose": "acceptedUnused"
-      }
     },
     {
       "route": "authSet",
@@ -5548,223 +5581,10 @@
     },
     {
       "route": "authSet",
-      "name": "authSet: --trust-workspace",
-      "description": "--trust-workspace                Load the folder’s rules, skills and memory",
-      "text": { "cli": "trust-workspace" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --maintenance",
-      "description": "Run the Setup maintenance event instead of init.",
-      "text": { "cli": "maintenance" },
-      "contract": {
-        "type": "boolean",
-        "refused": true,
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --muse-binary <value>",
-      "description": "--muse-binary <path>             The Muse Code CLI to run",
-      "text": { "cli": "muse-binary" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --shell-sandbox <value>",
-      "description": "--shell-sandbox auto|muse|off    Muse Code’s shell sandbox",
-      "text": { "cli": "shell-sandbox" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "enum": ["auto", "muse", "off"],
-        "default": "auto",
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --allow-dangerously-skip-permissions",
-      "description": "--allow-dangerously-skip-permissions  Offer the Bypass permissions mode",
-      "text": { "cli": "allow-dangerously-skip-permissions" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --allow-contributor-models",
-      "description": "--allow-contributor-models       List contributor-tier models (Meta may train on their content)",
-      "text": { "cli": "allow-contributor-models" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
-      "text": {
-        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
-      },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --web-search",
-      "description": "--web-search                     Offer paid web search (Model API backend; its price is asked first)",
-      "text": { "cli": "web-search" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --image-generation",
-      "description": "--image-generation               Offer paid image generation (Model API backend; its price is asked first)",
-      "text": { "cli": "image-generation" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --verbose",
-      "description": "--verbose                        Log every detail on stderr",
-      "text": { "cli": "verbose" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --questions-defer-after <value>",
-      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
-      "text": { "cli": "questions-defer-after" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
-    },
-    {
-      "route": "authSet",
       "name": "authSet: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }
-    },
-    {
-      "route": "authSet",
-      "name": "authSet: --version / -v",
-      "description": "Print the installed agent version.",
-      "text": { "cli": "version" },
-      "contract": { "type": "boolean", "repeatable": false, "default": false }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --preset <value>",
-      "description": "--preset: Provider",
-      "text": { "cli": "preset" },
-      "contract": { "type": "string", "repeatable": false, "refused": true }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --as <value>",
-      "description": "--as: Provider",
-      "text": { "cli": "as" },
-      "contract": { "type": "string", "repeatable": false, "refused": true }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --address <value>",
-      "description": "--address: Address",
-      "text": { "cli": "address" },
-      "contract": { "type": "string", "repeatable": false, "refused": true }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --format <value>",
-      "description": "--format <format>: Export",
-      "text": { "cli": "format" },
-      "contract": { "type": "string", "repeatable": false, "refused": true }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --model <value>",
-      "description": "Choose the model for this run.",
-      "text": { "cli": "model" },
-      "contract": { "type": "string", "repeatable": true, "refused": true }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --privacy <value>",
-      "description": "--privacy: Any provider may be used, including ones that train on data.",
-      "text": { "cli": "privacy" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "enum": ["zdr", "no-training", "any"],
-        "refused": true
-      }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --private-ok",
-      "description": "privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm.",
-      "text": { "conditions": [{ "when": "privateNetwork", "text": { "cli": "private-ok" } }] },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "refused": true,
-        "consent": "privateNetwork",
-        "default": false
-      }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --key-stdin",
-      "description": "auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.",
-      "text": { "cli": "key-stdin" },
-      "contract": { "type": "boolean", "repeatable": false, "refused": true, "default": false }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --usage-history <value>",
-      "description": "--usage-history: Track cost, tokens and limits across editors.",
-      "text": { "cli": "usage-history" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "enum": ["on", "off"],
-        "default": "on",
-        "purpose": "acceptedUnused"
-      }
     },
     {
       "route": "authStatus",
@@ -5775,236 +5595,10 @@
     },
     {
       "route": "authStatus",
-      "name": "authStatus: --backend <value>",
-      "description": "--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key",
-      "text": { "cli": "backend" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "enum": ["museCode", "modelApi"],
-        "default": "museCode",
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --trust-workspace",
-      "description": "--trust-workspace                Load the folder’s rules, skills and memory",
-      "text": { "cli": "trust-workspace" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --maintenance",
-      "description": "Run the Setup maintenance event instead of init.",
-      "text": { "cli": "maintenance" },
-      "contract": {
-        "type": "boolean",
-        "refused": true,
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --muse-binary <value>",
-      "description": "--muse-binary <path>             The Muse Code CLI to run",
-      "text": { "cli": "muse-binary" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --shell-sandbox <value>",
-      "description": "--shell-sandbox auto|muse|off    Muse Code’s shell sandbox",
-      "text": { "cli": "shell-sandbox" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "enum": ["auto", "muse", "off"],
-        "default": "auto",
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --allow-dangerously-skip-permissions",
-      "description": "--allow-dangerously-skip-permissions  Offer the Bypass permissions mode",
-      "text": { "cli": "allow-dangerously-skip-permissions" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --allow-contributor-models",
-      "description": "--allow-contributor-models       List contributor-tier models (Meta may train on their content)",
-      "text": { "cli": "allow-contributor-models" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
-      "text": {
-        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
-      },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --web-search",
-      "description": "--web-search                     Offer paid web search (Model API backend; its price is asked first)",
-      "text": { "cli": "web-search" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --image-generation",
-      "description": "--image-generation               Offer paid image generation (Model API backend; its price is asked first)",
-      "text": { "cli": "image-generation" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --verbose",
-      "description": "--verbose                        Log every detail on stderr",
-      "text": { "cli": "verbose" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --questions-defer-after <value>",
-      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
-      "text": { "cli": "questions-defer-after" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
-    },
-    {
-      "route": "authStatus",
       "name": "authStatus: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }
-    },
-    {
-      "route": "authStatus",
-      "name": "authStatus: --version / -v",
-      "description": "Print the installed agent version.",
-      "text": { "cli": "version" },
-      "contract": { "type": "boolean", "repeatable": false, "default": false }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --preset <value>",
-      "description": "--preset: Provider",
-      "text": { "cli": "preset" },
-      "contract": { "type": "string", "repeatable": false, "refused": true }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --as <value>",
-      "description": "--as: Provider",
-      "text": { "cli": "as" },
-      "contract": { "type": "string", "repeatable": false, "refused": true }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --address <value>",
-      "description": "--address: Address",
-      "text": { "cli": "address" },
-      "contract": { "type": "string", "repeatable": false, "refused": true }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --format <value>",
-      "description": "--format <format>: Export",
-      "text": { "cli": "format" },
-      "contract": { "type": "string", "repeatable": false, "refused": true }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --model <value>",
-      "description": "Choose the model for this run.",
-      "text": { "cli": "model" },
-      "contract": { "type": "string", "repeatable": true, "refused": true }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --privacy <value>",
-      "description": "--privacy: Any provider may be used, including ones that train on data.",
-      "text": { "cli": "privacy" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "enum": ["zdr", "no-training", "any"],
-        "refused": true
-      }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --private-ok",
-      "description": "privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm.",
-      "text": { "conditions": [{ "when": "privateNetwork", "text": { "cli": "private-ok" } }] },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "refused": true,
-        "consent": "privateNetwork",
-        "default": false
-      }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --key-stdin",
-      "description": "auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.",
-      "text": { "cli": "key-stdin" },
-      "contract": { "type": "boolean", "repeatable": false, "refused": true, "default": false }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --usage-history <value>",
-      "description": "--usage-history: Track cost, tokens and limits across editors.",
-      "text": { "cli": "usage-history" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "enum": ["on", "off"],
-        "default": "on",
-        "purpose": "acceptedUnused"
-      }
     },
     {
       "route": "authClear",
@@ -6015,155 +5609,9 @@
     },
     {
       "route": "authClear",
-      "name": "authClear: --backend <value>",
-      "description": "--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key",
-      "text": { "cli": "backend" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "enum": ["museCode", "modelApi"],
-        "default": "museCode",
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --trust-workspace",
-      "description": "--trust-workspace                Load the folder’s rules, skills and memory",
-      "text": { "cli": "trust-workspace" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --maintenance",
-      "description": "Run the Setup maintenance event instead of init.",
-      "text": { "cli": "maintenance" },
-      "contract": {
-        "type": "boolean",
-        "refused": true,
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --muse-binary <value>",
-      "description": "--muse-binary <path>             The Muse Code CLI to run",
-      "text": { "cli": "muse-binary" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --shell-sandbox <value>",
-      "description": "--shell-sandbox auto|muse|off    Muse Code’s shell sandbox",
-      "text": { "cli": "shell-sandbox" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "enum": ["auto", "muse", "off"],
-        "default": "auto",
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --allow-dangerously-skip-permissions",
-      "description": "--allow-dangerously-skip-permissions  Offer the Bypass permissions mode",
-      "text": { "cli": "allow-dangerously-skip-permissions" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --allow-contributor-models",
-      "description": "--allow-contributor-models       List contributor-tier models (Meta may train on their content)",
-      "text": { "cli": "allow-contributor-models" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --auto-compaction",
-      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
-      "text": {
-        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
-      },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --web-search",
-      "description": "--web-search                     Offer paid web search (Model API backend; its price is asked first)",
-      "text": { "cli": "web-search" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --image-generation",
-      "description": "--image-generation               Offer paid image generation (Model API backend; its price is asked first)",
-      "text": { "cli": "image-generation" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --verbose",
-      "description": "--verbose                        Log every detail on stderr",
-      "text": { "cli": "verbose" },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "default": false,
-        "purpose": "acceptedUnused"
-      }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --questions-defer-after <value>",
-      "description": "--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600",
-      "text": { "cli": "questions-defer-after" },
-      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
-    },
-    {
-      "route": "authClear",
       "name": "authClear: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
-      "contract": { "type": "boolean", "repeatable": false, "default": false }
-    },
-    {
-      "route": "authClear",
-      "name": "authClear: --version / -v",
-      "description": "Print the installed agent version.",
-      "text": { "cli": "version" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }
     },
     {
@@ -6313,7 +5761,7 @@
     {
       "route": "exec",
       "name": "exec: --max-budget-usd <value>",
-      "description": "Set the hard spending limit in USD for this run.",
+      "description": "Set the spending reservation limit in USD for this run.",
       "text": { "cli": "max-budget-usd" },
       "contract": {
         "type": "string",
@@ -6338,6 +5786,20 @@
         "minimum": 1,
         "maximum": 500,
         "purpose": "maxRequests"
+      }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --max-output-tokens <value>",
+      "description": "Lower the run’s output cap in tokens; absent is the model’s policy cap, never above it.",
+      "text": { "cli": "max-output-tokens" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "minimum": 1,
+        "maximum": 32768,
+        "unit": "tokens",
+        "purpose": "max-output-tokens"
       }
     },
     {
@@ -6447,7 +5909,7 @@
     {
       "route": "exec",
       "name": "exec: --trust-workspace",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
       "text": { "ui": "referenceExecContract" },
       "contract": {
         "type": "boolean",
@@ -6460,7 +5922,7 @@
     {
       "route": "exec",
       "name": "exec: --allow-dangerously-skip-permissions",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
       "text": { "ui": "referenceExecContract" },
       "contract": {
         "type": "boolean",
@@ -6473,7 +5935,7 @@
     {
       "route": "exec",
       "name": "exec: --web-search",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
       "text": { "ui": "referenceExecContract" },
       "contract": {
         "type": "boolean",
@@ -6591,7 +6053,7 @@
     {
       "route": "exec",
       "name": "exec <prompt> | exec - | exec --prompt-file <file>",
-      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
+      "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
       "text": { "ui": "referenceExecContract" }
     },
     {
