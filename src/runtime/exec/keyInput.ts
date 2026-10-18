@@ -121,17 +121,13 @@ async function readValidatedKeyLine(
   }
   const bytes = await readBytes(input, EXEC_KEY_MAX_BYTES, signal, true)
   if (bytes === undefined) return { ok: false, reason: 'tooLong' }
-  let key: string
-  try {
-    // One CRLF line ending is accepted; any other white space or CR is part
-    // of the value and fails validation, as the Action's intake refuses it.
-    const line = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-    key = line.endsWith('\r') ? line.slice(0, -1) : line
-  } catch {
-    return { ok: false, reason: 'invalid' }
-  } finally {
-    bytes.fill(0)
-  }
+  // One CRLF line ending is accepted; any other white space or CR is part
+  // of the value and fails validation, as the Action's intake refuses it.
+  // The decode never throws: malformed bytes become the replacement
+  // character, which validation below refuses as invalid.
+  const line = new TextDecoder('utf-8').decode(bytes)
+  bytes.fill(0)
+  const key = line.endsWith('\r') ? line.slice(0, -1) : line
   if (key === '') return { ok: false, reason: 'empty' }
   return key === key.trim() && isValid(key) ? { ok: true, key } : { ok: false, reason: 'invalid' }
 }
