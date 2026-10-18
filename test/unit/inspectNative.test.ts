@@ -520,13 +520,15 @@ switch (process.platform) {
         })
         it('refuses protected and noncanonical operands before confinement', async () => {
           if (binary === null) throw new Error('Missing helper')
-          const h = await fixture()
           for (const operand of [
             '.env',
             'x/../allowed.txt',
             'C:outside',
             String.raw`pkg\.github\workflows\probe.txt`,
           ]) {
+            // A fresh fixture per operand: each raw run writes profile.sb
+            // into its home dir, and the helper only accepts an empty one.
+            const h = await fixture()
             const result = await native(binary, h.args('cat', [operand], [operand]), h.root)
             expect(result.code, operand).toBe(125)
             expect(result.stdout.length).toBe(0)
@@ -535,10 +537,13 @@ switch (process.platform) {
         })
         it('refuses symlink and hardlink escapes at the walk', async () => {
           if (binary === null) throw new Error('Missing helper')
-          const h = await fixture()
-          symlinkSync(h.outside, path.join(h.workspace, 'link'))
-          linkSync(h.outside, path.join(h.workspace, 'hardlink'))
           for (const name of ['link', 'hardlink']) {
+            // A fresh fixture per name: each raw run writes profile.sb into
+            // its home dir, so a shared home would refuse the second run at
+            // the home check instead of at the walk.
+            const h = await fixture()
+            symlinkSync(h.outside, path.join(h.workspace, 'link'))
+            linkSync(h.outside, path.join(h.workspace, 'hardlink'))
             const result = await native(binary, h.args('cat', [name], [name]), h.root)
             expect(result.code, name).toBe(125)
             expect(result.stdout.length).toBe(0)
@@ -567,13 +572,15 @@ switch (process.platform) {
         })
         it('runs verified cat, ls, grep and find under the profile', async () => {
           if (binary === null) throw new Error('Missing helper')
-          const h = await fixture()
           for (const [program, tool] of [
             ['cat', ['allowed.txt']],
             ['ls', ['-l', '.']],
             ['grep', ['-e', 'ALLOWED', 'allowed.txt']],
             ['find', ['.', '-print']],
           ] as const) {
+            // A fresh fixture per program: each raw run writes profile.sb
+            // into its home dir, and the helper only accepts an empty one.
+            const h = await fixture()
             const operand = tool.at(-1) === 'allowed.txt' ? 'allowed.txt' : '.'
             const result = await native(
               binary,
@@ -583,6 +590,7 @@ switch (process.platform) {
             expect(result.code, `${program}: ${result.stderr}`).toBe(0)
             expect(result.stderr).toMatch(/^\{"confined":true,/u)
           }
+          const h = await fixture()
           const cat = await native(binary, h.args('cat', ['allowed.txt'], ['allowed.txt']), h.root)
           expect(cat.stdout.toString()).toBe('ALLOWED_CANARY\n')
         })
