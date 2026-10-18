@@ -85,9 +85,11 @@ jobs:
   native-helpers:
     name: package helper (${{ matrix.platform }})
     # The whole workflow moves at once (see above): skipped only in `home`.
-    # When `route` itself is skipped, `part` is empty and the job runs here.
+    # When `route` itself is skipped, `part` is empty and the job runs here:
+    # `!cancelled()` keeps GitHub from adding its implicit `success()` over
+    # `needs`, which a skipped `route` would fail.
     needs: route
-    if: ${{ needs.route.outputs.part != 'home' }}
+    if: ${{ !cancelled() && needs.route.outputs.part != 'home' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -139,7 +141,9 @@ jobs:
   vsix:
     name: vsix
     needs: [native-helpers, route]
-    if: ${{ needs.route.outputs.part != 'home' }}
+    # `!cancelled()` drops the implicit `success()` (see native-helpers), so
+    # the predecessor's success is required explicitly.
+    if: ${{ !cancelled() && needs.native-helpers.result == 'success' && needs.route.outputs.part != 'home' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -182,7 +186,7 @@ jobs:
   fork:
     name: ${{ matrix.fork }}
     needs: [vsix, route]
-    if: ${{ needs.route.outputs.part != 'home' }}
+    if: ${{ !cancelled() && needs.vsix.result == 'success' && needs.route.outputs.part != 'home' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
