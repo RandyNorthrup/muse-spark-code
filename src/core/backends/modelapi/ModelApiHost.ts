@@ -85,7 +85,6 @@ import {
   AUTO_REVIEW_ROW_TOOL,
   AUTO_REVIEWER_RECENT_CALLS,
   BACKGROUND_INITIATOR_USER,
-  BASE64_DATA_URL_OVERHEAD_CHARS,
   BROWSER_CHECK_SUBJECT_KIND,
   BROWSER_CHECK_WIDEN_SUBJECT_KIND,
   type CheckCommandSetting,
@@ -119,7 +118,6 @@ import {
   HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
   MCP_ELICITATION_TIMEOUT_MS,
-  MAX_ENCODED_MEDIA_CHARS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MEMORY_INDEX_FILE,
   type MemoryScope,
@@ -229,6 +227,7 @@ import {
   type SessionHistoryOutcome,
   type SessionMcpHttpServer,
   type SessionListEvent,
+  sessionRecordsPage,
   type SessionPage,
   type SessionRecord,
   type SkillSummary,
@@ -800,8 +799,6 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
    * the operating system's temp dir is the default.
    */
   readonly shellSidecarDir?: string | undefined
-  /** A smaller replay cap for focused media-budget verification. */
-  readonly mediaBudgetMaxEncodedChars?: number
   /** W installs the portable lazy media implementation; absent preserves existing request bytes. */
   readonly createMediaReplay?: (sessionId: string) => MediaReplayPort
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
@@ -978,15 +975,10 @@ interface PendingReadFile {
   readonly notDelivered: string
   readonly lead: InputContentPart
   readonly media: InputContentPart
-  readonly encodedChars: number
   readonly slots: number
 }
 
 type FunctionImagePart = Extract<FunctionOutputPart, { readonly type: 'input_image' }>
-
-function turnMediaEncodedChars(part: ImagePart | DocumentPart): number {
-  return BASE64_DATA_URL_OVERHEAD_CHARS + part.mediaType.length + part.base64Data.length
-}
 
 function turnMediaSlots(part: ImagePart | DocumentPart): number {
   return part.type === 'image'
@@ -2910,7 +2902,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       deps.permissionSettings ?? (() => NO_PERMISSION_SETTINGS),
       deps.platform,
     )
-    this.budget = new MediaBudget(deps.mediaBudgetMaxEncodedChars)
+    this.budget = new MediaBudget()
     this.media = deps.createMediaReplay?.(sessionId)
     if (agent !== undefined) {
       this.effort = agent.effort
@@ -7634,7 +7626,6 @@ export class ModelApiSession implements ScheduledAgentSession {
         notDelivered: file.notDelivered,
         lead,
         media: sent,
-        encodedChars: turnMediaEncodedChars(file.part),
         slots: turnMediaSlots(file.part),
       })
       content.push(lead, sent)
@@ -7714,7 +7705,6 @@ export class ModelApiSession implements ScheduledAgentSession {
         notDelivered: file.notDelivered,
         lead,
         media: adopted,
-        encodedChars: 0,
         slots: 1,
       })
       return [lead, adopted]
@@ -7824,15 +7814,16 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
   }
 
-  /** Media awaiting the next request: tool outputs, read files and accepted steering. */
-  private queuedMediaUsage(): { readonly chars: number; readonly slots: number } {
+  /**
+   * Media slots awaiting the next request: tool outputs, read files and
+   * accepted steering. No character tally: the record carries no aggregate
+   * character budget, so the platform refuses what it cannot take.
+   */
+  private queuedMediaSlots(): number {
     const pending = this.media?.pending(this.replay.map((entry) => entry.item)) ?? []
     const managed = new Set(pending)
-    const usage = this.budget.usage(pending)
-    let chars = usage.chars
-    let slots = usage.slots
+    let slots = this.budget.slotsUsed(pending)
     for (const file of this.readFiles) {
-      chars += turnMediaEncodedChars(file.part)
       slots += turnMediaSlots(file.part)
     }
     // Queued file-id media carries no bytes and one media slot each.
@@ -7841,68 +7832,57 @@ export class ModelApiSession implements ScheduledAgentSession {
       const pending = this.readFileMessages.get(replay) ?? []
       for (const file of pending) {
         if (managed.has(file.media)) continue
-        chars += file.encodedChars
         slots += file.slots
       }
     }
     for (const images of this.pendingOutputMedia.values()) {
-      for (const image of images) {
-        chars += image.image_url.length
-        slots += 1
-      }
+      slots += images.length
     }
     const steers = this.active?.steered ?? []
     for (const steer of steers) {
       if (this.media !== undefined) {
-        const usage = this.budget.usage(this.contentParts(steer.parts))
-        chars += usage.chars
-        slots += usage.slots
+        slots += this.budget.slotsUsed(this.contentParts(steer.parts))
         continue
       }
       for (const part of steer.parts) {
         if (part.type !== 'image' && part.type !== 'file') {
           continue
         }
-        chars += turnMediaEncodedChars(part)
         slots += turnMediaSlots(part)
       }
     }
-    return { chars, slots }
+    return slots
   }
 
-  private canQueueMedia(chars: number, slots: number): boolean {
-    const queued = this.queuedMediaUsage()
-    const limit = this.deps.mediaBudgetMaxEncodedChars ?? MAX_ENCODED_MEDIA_CHARS
-    return queued.chars + chars <= limit && queued.slots + slots <= MODEL_API_MEDIA_PER_REQUEST
+  private canQueueMedia(slots: number): boolean {
+    return this.queuedMediaSlots() + slots <= MODEL_API_MEDIA_PER_REQUEST
   }
 
   /** Reserve all current-batch visual outputs before their tool row reports success. */
   private canQueueToolMedia(outcome: ToolOutcome): boolean {
     const newImages = outcome.outputParts?.filter((part) => part.type === 'input_image') ?? []
-    const chars =
-      (outcome.visibleFile === undefined ? 0 : turnMediaEncodedChars(outcome.visibleFile.part)) +
-      newImages.reduce((total, image) => total + image.image_url.length, 0)
     const slots =
       (outcome.visibleFile === undefined ? 0 : turnMediaSlots(outcome.visibleFile.part)) +
       newImages.length
-    return this.canQueueMedia(chars, slots)
+    return this.canQueueMedia(slots)
   }
 
   private canQueueSteeredMedia(parts: readonly TurnPart[]): boolean {
     if (this.media !== undefined) {
-      this.media.assertPendingFits(this.contentParts(parts), this.budget, this.queuedMediaUsage())
+      // The steered media must fit beside what is already queued for the
+      // next request, not only on its own (RVNOLIMITS4: the aggregate
+      // character tally went, the provider's slot count stays).
+      this.media.assertPendingFits(this.contentParts(parts), this.budget, this.queuedMediaSlots())
       return true
     }
-    let chars = 0
     let slots = 0
     for (const part of parts) {
       if (part.type !== 'image' && part.type !== 'file') {
         continue
       }
-      chars += turnMediaEncodedChars(part)
       slots += turnMediaSlots(part)
     }
-    return slots === 0 || this.canQueueMedia(chars, slots)
+    return slots === 0 || this.canQueueMedia(slots)
   }
 
   /**
@@ -12995,8 +12975,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (!this.canQueueToolMedia(outcome)) {
         outcome = {
           output: `Error: ${MODEL_API_MODEL_TEXT.toolMediaBudgetExceeded}`,
-          visibleOutput: UI_TEXT.mediaTotalTooLarge,
-          failureReason: UI_TEXT.mediaTotalTooLarge,
+          visibleOutput: UI_TEXT.documentsOverBudget,
+          failureReason: UI_TEXT.documentsOverBudget,
         }
       }
       let status = COMPLETED
@@ -15629,11 +15609,6 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (!listedFiles.includes(relativePath)) return
     const verdict = this.fileChangedThrottle.check(relativePath, this.deps.now())
     if (verdict !== 'fire') {
-      if (verdict === 'capped') {
-        this.deps.log.warn(
-          `Model API extension hooks: FileChanged capped for ${relativePath}; resume in a minute`,
-        )
-      }
       return
     }
     await this.fireExtensionHooks(
@@ -15707,11 +15682,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     try {
       if (!this.canQueueSteeredMedia(parts)) {
-        return Promise.reject(new SteerRefusedError(UI_TEXT.mediaTotalTooLarge))
+        return Promise.reject(new SteerRefusedError(UI_TEXT.documentsOverBudget))
       }
     } catch (error) {
       return Promise.reject(
-        new SteerRefusedError(error instanceof Error ? error.message : UI_TEXT.mediaTotalTooLarge),
+        new SteerRefusedError(error instanceof Error ? error.message : UI_TEXT.documentsOverBudget),
       )
     }
     if (
@@ -17942,7 +17917,7 @@ export class ModelApiHost implements AgentHost {
         records.push(recordOf(stored))
       }
     }
-    const sessions = records
+    const ordered = records
       .filter(
         (record) =>
           record.workspaceRoot === options.workspaceRoot &&
@@ -17952,8 +17927,7 @@ export class ModelApiHost implements AgentHost {
         (a, b) =>
           Date.parse(b.lastActivityAt ?? b.updatedAt) - Date.parse(a.lastActivityAt ?? a.updatedAt),
       )
-      .slice(0, options.limit)
-    return { sessions, nextCursor: undefined }
+    return sessionRecordsPage(ordered, options.limit, options.cursor)
   }
 
   /** A conversation or one of its private child transcripts (M48). */

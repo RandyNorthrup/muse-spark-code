@@ -912,7 +912,6 @@ export const HOOK_MATCHER_TIMEOUT_MS = 25
 export const HOOK_MATCHER_COMPILE_TIMEOUT_MS = 250
 export const HOOK_SOURCE_MAX_HANDLERS = 64
 export const HOOK_TOTAL_MAX_HANDLERS = 64
-export const HOOK_MAX_RUNNING_COMMANDS = 4
 export const HOOK_ON_FAILURE_MAX_DEPTH = 3
 export const HOOK_MANAGED_ENV_MAX_NAMES = 64
 export const HOOK_MANAGED_ENV_NAME_MAX_CHARS = 128
@@ -1065,10 +1064,8 @@ export const EXTENSION_HOOK_EVENTS = [
   'beforeTabFileRead',
   'afterTabFileEdit',
 ] as const
-// A save storm or a build's output changes a path many times in a burst, so FileChanged fires once per path in this quiet window.
+// A save storm or a build's output changes a path many times in a burst, so FileChanged fires once per path in this quiet window; every change past the window fires.
 export const HOOK_FILE_CHANGED_DEBOUNCE_MS = 500
-// At most this many FileChanged runs a minute per session; the rest are dropped and counted in the log, so a watcher loop cannot spawn processes without bound.
-export const HOOK_FILE_CHANGED_MAX_PER_MINUTE = 30
 // How long an MCP elicitation form waits for its answer (M91 lane M): a
 // timeout or a stopped turn settles it as a cancel, never as an accept. It
 // runs inside the tool call's own deadline, which still bounds the call.
@@ -1365,6 +1362,8 @@ export const MEDIA_FILE_EXPIRY_MAX_S = 2_592_000
 export const MEDIA_FILE_EXPIRY_DEFAULT_S = 604_800
 export const MEDIA_MAX_UPLOAD_DEFAULT_MIB = 200
 export const MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES = MEDIA_MAX_UPLOAD_DEFAULT_MIB * 1024 * 1024
+// The recorder and the companion upload keep their own 1024 MiB bound; the
+// person's attach setting has no ceiling of ours.
 export const MEDIA_MAX_UPLOAD_MIB = 1024
 export const MEDIA_NAME_MAX_CHARS = 256
 export const MEDIA_ID_MAX_CHARS = 256
@@ -1411,9 +1410,10 @@ export const SCREEN_RECORDING_REMOVE_RETRY_MS = 200
 export const PDF_MEDIA_TYPE = 'application/pdf'
 export const PDF_EXTENSION = '.pdf'
 export const MAX_DOCUMENT_BYTES = 32_000_000
-// A conservative aggregate cap on base64 media in one message and in a
-// replayed Model API request. Meta's 50 MB inline limit is per file; this
-// separate bound keeps a long session from serializing gigabytes of PDFs.
+// Sizes the ACP transport's NDJSON frame (with the headroom below): a valid
+// prompt can carry tens of megabytes of base64 media. It caps no model
+// media: the record carries no aggregate character budget, so none is
+// enforced on attach, in the composer or per request.
 export const MAX_ENCODED_MEDIA_CHARS = 48_000_000
 // ACP SDK 1.5.1 refuses an NDJSON line over 32 MiB unless told otherwise (1.7.0
 // unchanged, SDK144), and a valid prompt can carry the whole aggregate media
@@ -1588,15 +1588,11 @@ export const CHECKPOINT_RESTORE_BLOCKERS = ['modelApiOnly', 'nativeUnsafe'] as c
 export type CheckpointRestoreBlocker = (typeof CHECKPOINT_RESTORE_BLOCKERS)[number]
 // One git call of a unit record or a restore: importing large copies takes time.
 export const CHECKPOINT_GIT_TIMEOUT_MS = 2 * 60 * 1000
-// A file larger than this has no copy kept; a restore leaves it as it is
-// (`tooLarge`) and never deletes a file that existed.
-export const CHECKPOINT_FILE_MAX_BYTES = 16 * 1024 * 1024
-// Retention (M86): the newest units (turns, restores and Redos) of each
-// conversation, by their number, never their clock; and the conversations
-// used most recently, whole. A conversation idle longer than
-// `museSpark.cleanupPeriodDays` goes whole (0: no age limit).
-export const CHECKPOINTS_PER_SESSION_MAX = 100
-export const CHECKPOINT_SESSIONS_MAX = 50
+// Every file's copy is kept, whatever its size; a restore never deletes a
+// file that existed.
+// Retention (M86) is by the clock only, never by number: every unit stays,
+// and a conversation idle longer than `museSpark.cleanupPeriodDays` goes
+// whole (0: no age limit).
 // A unit's number is a ref created only if absent: when another window took
 // a number first, the next is tried, at most this many times.
 export const CHECKPOINT_SEQUENCE_ATTEMPTS = 64
@@ -1684,12 +1680,9 @@ export const CHECKPOINT_JOURNAL_FILE = 'journal.jsonl'
 export const CHECKPOINT_BLOBS_DIR = 'blobs'
 // The journal and the kept bytes are the user's alone, as the folder is.
 export const CHECKPOINT_JOURNAL_FILE_MODE = 0o600
-// What one unit (a turn, a restore) may record: past the intents, its writes
-// go on unrecorded and the unit can never be restored; past the kept bytes,
-// its writes are recorded without their bytes, and their files are not
-// restorable. Fixed: a turn that reaches either is far from a usual one.
-export const CHECKPOINT_UNIT_INTENTS_MAX = 1000
-export const CHECKPOINT_UNIT_BLOB_BYTES_MAX = 256 * 1024 * 1024
+// Every unit's writes are recorded with their bytes, whatever their number
+// or size: no intent or byte count makes a unit unrestorable (a failed
+// journal write still can, and says so).
 export const FIND_FILES_GLOB = '**/*'
 
 // --- Git and pull requests (M71, PLAN.md D49) ---
@@ -2109,7 +2102,7 @@ export const IDE_CODE_INTEL_TOOLS = {
 // says so, and Muse Code may run it as a read (D49's rule for `ide`).
 export const MCP_ANNOTATIONS_READ_ONLY = { readOnlyHint: true } as const
 // What one answer lists at most; the rest are counted, never silently cut.
-export const CODE_INTEL_MAX_LOCATIONS = 100
+// (Locations have no cap: every one is shown.)
 export const CODE_INTEL_MAX_SYMBOLS = 200
 export const CODE_INTEL_MAX_CALLS = 50
 // Call sites listed per caller or callee; the rest are counted.
@@ -2158,10 +2151,10 @@ export const SYMBOL_KIND_NAMES = [
   'operator',
   'type parameter',
 ] as const
-// The repo map (Aider's idea, over VS Code's services): files ranked by how
-// often other files use the names they define. The names are counted in
-// the files' text; where each is defined comes from workspace symbols.
-export const REPO_MAP_MAX_FILES = 1000
+// The repo map (Aider's idea, over VS Code's services): every listed file
+// ranked by how often other files use the names they define. The names are
+// counted in the files' text; where each is defined comes from workspace
+// symbols.
 export const REPO_MAP_MAX_FILE_CHARS = 131_072
 // The names looked up (the most widely used first), and how many at once.
 export const REPO_MAP_MAX_LOOKUPS = 300
@@ -4264,8 +4257,8 @@ export const ACP_PAID_OPTIONS = {
   allowAlways: 'paid-allow-always',
   deny: 'paid-deny',
 } as const
-// A tool's output as the client sees it; the full text stays with the backend.
-export const ACP_TOOL_OUTPUT_MAX_CHARS = 20_000
+// One session-list page the agent reads for the editor's cursor; the editor
+// pages through every one, so no session is hidden past the page.
 export const ACP_SESSION_LIST_LIMIT = 50
 // Model API sessions of the agent, per folder, under the user's data folder:
 // the folder named per platform, and the length of the folder's hash.
@@ -4701,8 +4694,9 @@ export const CLI_STDERR_LOG_MAX_CHARS = 4096
 
 // Active-editor changes are broadcast to the composer after this quiet gap.
 export const EDITOR_CONTEXT_DEBOUNCE_MS = 150
-// The selected text handed to the model with a message; longer selections
-// are clipped with a marker rather than dropped.
+// The exec untrusted-input chunk capacity (runtime/exec/untrustedInput.ts).
+// Selections and attached files reach the model whole; the provider's own
+// context limit decides what fits.
 export const SELECTION_TEXT_MAX_CHARS = 64 * 1024
 // The wording Claude Code uses for editor context (its system reminders).
 // A message replying to an output or quoting a highlighted passage (M17):
@@ -4735,11 +4729,8 @@ export const PATCH_DOCUMENT_MAX_PAGES = 8
 export const OUTPUT_DOCUMENT_MAX_PAGES = 64
 /** The item-id tail that names an output editor tab, as Claude Code names its own. */
 export const OUTPUT_TAB_ID_LENGTH = 6
-/** The URI scheme of those read-only output documents, and how many stay readable. */
+/** The URI scheme of those read-only output documents; every one stays readable. */
 export const OUTPUT_DOCUMENT_SCHEME = 'muse-output'
-// And at most this many characters together (M39): each can be 16 MiB.
-export const OUTPUT_DOCUMENTS_MAX_CHARS = 32 * 1024 * 1024
-export const OUTPUT_DOCUMENTS_KEPT = 20
 // The IDE tool server `muse serve` reaches over loopback (session MCP), the
 // `session/listChanged` stream behind the History dialog (M6), and the
 // TUI's `!` escape, `session/userShell` (M46, PLAN.md D39). The first stays
@@ -4893,9 +4884,9 @@ export const MCP_FUNCTION_SEPARATOR = '__'
 export const MCP_FUNCTION_NAME_MAX_CHARS = 64
 export const MCP_FUNCTION_HASH_CHARS = 8
 export const MCP_TOOL_DESCRIPTION_MAX_CHARS = 2048
-// Past these a server's tools are not all offered (the view says how many were).
-export const MCP_TOOLS_MAX_PER_SERVER = 128
-export const MCP_TOOLS_LIST_MAX_PAGES = 20
+// A tools listing follows every page the server names, to the end: every
+// listed tool is offered to the model, and the provider's own request
+// limits decide what fits.
 // Meta's limits on a function's `parameters` schema (structured-output,
 // "Stay within schema constraints", read 2026-09-25): a request that breaks
 // one is a 400 for the whole turn, so a schema is cut to fit first.
@@ -6151,7 +6142,6 @@ export const MODEL_TEXT = {
     'read part of it with a shell command instead (the search tool skips files over 1 MiB)',
   fileNotText:
     'is not UTF-8 text (binary, or another encoding such as UTF-16 or Latin-1), so it cannot be read or edited as text',
-  selectionClipped: '[selection clipped]',
   selectionNotShared:
     'Its content is not shared because the file is excluded from the workspace index.',
   // M34: what the model is told when an image cannot be made.
@@ -6576,7 +6566,6 @@ export const CODE_INTEL_MODEL_TEXT = {
   repoMapLead:
     'Files ranked by how often other files use the names they define (names counted in the text, definitions from workspace symbols), each with its most used definitions:',
   repoMapPartial: '[partial: looked up {done} of {total} names within the time budget]',
-  repoMapFilesCapped: '[ranked the first {count} of {total} files]',
   repoMapFilesRead: '[partial: read {done} of {total} files within the time budget]',
   repoMapNoFiles: "[partial: the workspace's files were not listed within the time budget]",
   repoMapNoService:
@@ -7637,13 +7626,9 @@ export const TEAM_EXHAUSTED_DEFAULT: TeamExhaustedPolicy = 'ask'
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 // eslint-disable-next-line unicorn/consistent-boolean-name -- the Team region names every setting default TEAM_<SETTING>_DEFAULT (D75); a boolean prefix would break the scheme lane X reads.
 export const TEAM_CONTINUE_ON_NEXT_DEFAULT = false
-// `queue` waits for headroom at most this long, in a queue of at most this
-// many tasks, then asks; a spent `lifetime` cap never recovers, so it asks
-// at once (D75).
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
-export const TEAM_QUEUE_MAX_WAIT_MS = 3_600_000
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
-export const TEAM_QUEUE_MAX = 16
+// `queue` waits for headroom until it recovers, however many tasks wait and
+// however long it takes; a spent `lifetime` cap never recovers, so it asks
+// at once (D75; NOLIMITS4 C9: no 16-task, 1-hour queue bounds of ours).
 // A token cap below one request's minimum is refused by inline validation
 // (D75): the role's prefix plus this.
 export const TEAM_MIN_REQUEST_TOKENS = 2048
@@ -7932,13 +7917,13 @@ export type LegalHeaderPolicy = (typeof LEGAL_HEADER_POLICIES)[number]
 export const LEGAL_RESULT_VERSION = 1
 // Bounds every scan and result stays inside (D76: bound all reads, file
 // counts and result sizes through named constants). Each has its reason.
-// Files read per scan: a large workspace holds tens of thousands of files,
-// but manifests, locks, license texts and headers number in the hundreds;
-// past this the scan stops and says it is incomplete instead of hanging a
-// machine on generated folders.
+// The scan has no file-count stop and its report no finding-count
+// truncation (B18); the per-file, total-bytes, per-rule and time bounds
+// below still apply and report as incomplete. These two stay as shared
+// array bounds other legal modules reuse (never the scan's own stop);
+// LEGAL_FILES_SCANNED_MAX is named by no src module now, only by the
+// scan's deadline comment below and its past-the-stop test.
 export const LEGAL_FILES_SCANNED_MAX = 20_000
-// Findings kept per report: past this the scan keeps the blockers and
-// should-fix findings first and says the report is truncated.
 export const LEGAL_FINDINGS_MAX = 500
 // Independent admission budgets: UTF-8 bytes, directory entries and findings per rule.
 // The text budget covers a distributed workspace's sources (CM971-R3).

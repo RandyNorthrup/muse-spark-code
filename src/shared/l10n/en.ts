@@ -2073,7 +2073,7 @@ export const EN = {
   gitChecksRunning: forms({ one: '{count} running', other: '{count} running' }),
   gitChecksSkipped: forms({ one: '{count} skipped', other: '{count} skipped' }),
   gitChecksCancelled: forms({ one: '{count} cancelled', other: '{count} cancelled' }),
-  gitChecksNotRead: forms({ one: '{count} more not read', other: '{count} more not read' }),
+
   gitStatusNeedsSignIn: 'Sign in to GitHub to see its status.',
   gitCheckedAt: 'as of {time}',
   gitSignInGitHub: 'Sign In to GitHub',
@@ -2444,7 +2444,6 @@ export const EN = {
   attachmentUnreadable: 'The file could not be read.',
   documentTooLarge: 'PDFs must be 32 MB or smaller.',
   documentsOverBudget: 'Files must total at most 50 images and PDF pages per message.',
-  mediaTotalTooLarge: 'Attached images and PDFs exceed the combined media size limit.',
   olderMediaOmitted:
     'Older images or PDFs were left out of this request to stay within media limits. They remain in local history.',
   pdfNeedsModelApi: 'PDF attachments require the Model API backend.',
@@ -2964,7 +2963,6 @@ export const EN = {
     'Left as they are, edited from more than one window in an order that cannot be told: {files}',
   restoreRefusedLinked: 'Left as they are, reached through a link or junction: {files}',
   restoreRefusedNotKept: 'Not restorable, the earlier version was not kept: {files}',
-  restoreRefusedTooLarge: 'Not restorable, too large to keep a copy of: {files}',
   restoreRefusedFailed: 'Could not be changed: {files}',
   restoreUnchanged: forms({
     one: 'Already as before: {count} file.',
@@ -6100,10 +6098,6 @@ export const EN = {
     m112: 'scan stopped at limit: elapsed time',
     m113: 'not checked: {v0} cannot be read as text',
     m114: 'scan stopped at limit: {v0} exceeds the bounded text read budget',
-    m115: forms({
-      one: 'not checked: the scan stopped after reading {count} file; {v1} more not read',
-      other: 'not checked: the scan stopped after reading {count} files; {v1} more not read',
-    }),
     m116: forms({
       one: 'not checked: dependency evidence bound reached; {count} entry omitted',
       other: 'not checked: dependency evidence bound reached; {count} entries omitted',
@@ -6117,11 +6111,7 @@ export const EN = {
     }),
     m120: 'Supply bundle inputs or package inventory evidence so shipped obligations are exact.',
     m121: 'scan stopped at limit: report truncated for {v0}',
-    m122: forms({
-      one: 'report truncated: {count} finding omitted past the {v1}-finding bound; blockers and should-fix findings kept first',
-      other:
-        'report truncated: {count} findings omitted past the {v1}-finding bound; blockers and should-fix findings kept first',
-    }),
+
     m123: forms({
       one: 'report truncated: {count} generated exclusions omitted past the bound',
       other: 'report truncated: {count} generated exclusions omitted past the bound',

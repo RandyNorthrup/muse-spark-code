@@ -28,7 +28,6 @@ import {
   HOOK_DISPLAY_MESSAGE_MAX_CHARS,
   HOOK_EXPANSION_MAX_CHARS,
   HOOK_FILE_CHANGED_DEBOUNCE_MS,
-  HOOK_FILE_CHANGED_MAX_PER_MINUTE,
   HOOK_MATCHER_MAX_CHARS,
   HOOK_MATCHER_VALUE_MAX_CHARS,
   HOOK_NEWLINE_CODE,
@@ -42,7 +41,6 @@ import {
   HOOK_THOUGHT_MAX_CHARS,
   HOOK_TOTAL_MAX_HANDLERS,
   MILLISECONDS_PER_SECOND,
-  SECONDS_PER_MINUTE,
 } from '../../../shared/constants'
 import {
   HOOK_EVENTS,
@@ -1321,42 +1319,25 @@ export function isToolAllowedBySelection(
 
 // --- FileChanged throttle ---
 
-export type FileChangedVerdict = 'fire' | 'debounced' | 'capped'
+export type FileChangedVerdict = 'fire' | 'debounced'
 
 export interface FileChangedThrottle {
   check(relativePath: string, nowMs: number): FileChangedVerdict
 }
 
 /**
- * One FileChanged run per path per quiet window, at most
- * `HOOK_FILE_CHANGED_MAX_PER_MINUTE` runs a minute; the rest report
- * `capped` so the caller drops and counts them in the log. Pure time comes
- * from the caller, so tests drive it with a fake clock.
+ * One FileChanged run per path per quiet window; every change past the
+ * window fires, whatever the minute's count. Pure time comes from the
+ * caller, so tests drive it with explicit timestamps.
  */
 export function createFileChangedThrottle(): FileChangedThrottle {
-  const minuteMs = SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND
-  let windowStart = 0
-  let windowCount = 0
-  let pauseUntil = 0
   const lastFire = new Map<string, number>()
   return {
     check(relativePath, nowMs) {
-      if (nowMs < pauseUntil) {
-        return 'capped'
-      }
-      if (nowMs - windowStart >= minuteMs) {
-        windowStart = nowMs
-        windowCount = 0
-      }
       const last = lastFire.get(relativePath)
       if (last !== undefined && nowMs - last < HOOK_FILE_CHANGED_DEBOUNCE_MS) {
         return 'debounced'
       }
-      if (windowCount >= HOOK_FILE_CHANGED_MAX_PER_MINUTE) {
-        pauseUntil = nowMs + minuteMs
-        return 'capped'
-      }
-      windowCount += 1
       lastFire.set(relativePath, nowMs)
       return 'fire'
     },

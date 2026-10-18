@@ -1644,7 +1644,7 @@ async function activateWindow(
   }
   // Tool outputs open as read-only documents (M15), the tab named through the
   // URI path as Claude Code names its own ("PowerShell tool output (a1b2c3)");
-  // the last OUTPUT_DOCUMENTS_KEPT stay readable after their tab is reopened.
+  // every one stays readable after its tab is reopened.
   // An export's preview (M84) and the import preview (M83) open the same way:
   // read-only, never on disk.
   const outputDocuments = new OutputDocumentStore()

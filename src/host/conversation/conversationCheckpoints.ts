@@ -74,7 +74,6 @@ const REFUSAL_ORDER: readonly PathRefusal[] = [
   'orderUnknown',
   'linked',
   'notKept',
-  'tooLarge',
   'failed',
 ]
 /** Names, the first few spelled out and the rest counted. */
@@ -94,7 +93,6 @@ function refusalTemplate(reason: PathRefusal): string {
     orderUnknown: UI_TEXT.restoreRefusedOrderUnknown,
     linked: UI_TEXT.restoreRefusedLinked,
     notKept: UI_TEXT.restoreRefusedNotKept,
-    tooLarge: UI_TEXT.restoreRefusedTooLarge,
     failed: UI_TEXT.restoreRefusedFailed,
   }
   return templates[reason]

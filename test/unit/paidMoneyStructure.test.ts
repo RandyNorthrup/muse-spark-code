@@ -75,10 +75,7 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
     category: 'nonMoney',
     reason: 'Model thinking budget in tokens, not money.',
   },
-  'core/backends/modelapi/ModelApiHost.ts:mediaBudgetMaxEncodedChars': {
-    category: 'nonMoney',
-    reason: 'Character count, not money.',
-  },
+
   'core/codeIntel/repoMap.ts:timeBudgetMs': {
     category: 'nonMoney',
     reason: 'Duration in milliseconds, not money.',

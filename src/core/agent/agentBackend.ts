@@ -452,6 +452,25 @@ export interface SessionPage {
   readonly nextCursor: string | undefined
 }
 
+/**
+ * One page of session records under the cursor's offset, newest first
+ * assumed. The cursor is the list's offset, so paging through reaches every
+ * record; a cursor that is not one starts over, never empty. Pure.
+ */
+export function sessionRecordsPage(
+  ordered: readonly SessionRecord[],
+  limit: number,
+  cursor: string | undefined,
+): SessionPage {
+  const parsed = cursor === undefined ? 0 : Math.trunc(Number(cursor))
+  const start = Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 0
+  const end = start + Math.max(limit, 0)
+  return {
+    sessions: ordered.slice(start, end),
+    nextCursor: end > start && end < ordered.length ? String(end) : undefined,
+  }
+}
+
 /** What a resumed or forked session's history yields for the transcript. */
 export interface SessionHistoryOutcome {
   /** `inline`, `snapshot`, `anchoredSnapshot` or `none` (then `items` is empty). */
