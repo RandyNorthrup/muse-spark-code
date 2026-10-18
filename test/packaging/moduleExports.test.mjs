@@ -1,22 +1,94 @@
 // Native Node loader regressions run during packaging, after its production build.
-// Each dist bundle loads once by import and once by require, then the test only
-// enumerates the exports: the packaged bundle must expose exactly the freshly
-// built baseline's names. Loading stays hermetic (no network; no host), and no
-// bundle API is ever called, so nothing here emulates a service.
+// Workers isolate CLI/host state; the remaining calls drive real schemas and
+// parsers with data, and no model call is made. Nothing intercepts the loader
+// and no module is substituted. A host bundle (`vscode` external in
+// scripts/build.mjs) must refuse bare Node with exactly the missing-`vscode`
+// error on both sides: anything else — a truncated bundle, a new external —
+// fails here instead of passing as an identical refusal. Pre-import staging
+// corruption is caught by the byte comparison; the bundles' live behaviour
+// past the `vscode` import runs only under the real Extension Development
+// Host (test/integration). A worker entry must post its own jobless refusal
+// over the thread protocol; a crash or a silent exit fails the test instead
+// of comparing as an identical observation. No network use is proved from the
+// real code path: Node's own diagnostics channels must report no socket,
+// request or fetch from the loading thread, with nothing replaced.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import diagnosticsChannel from 'node:diagnostics_channel'
 import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
-import Module, { createRequire } from 'node:module'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { test, after } from 'node:test'
 import { pathToFileURL } from 'node:url'
 import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads'
 
-function ignore() {
-  // The load guard below has no external side effects.
-}
-
 const compare = (left, right) => left.localeCompare(right, 'en')
+// Node's built-in channels for outbound network use: a TCP or pipe client
+// socket (fetch, http and net all open one), an HTTP request, a fetch through
+// Node's bundled undici, and a UDP socket.
+const NETWORK_CHANNELS = [
+  'net.client.socket',
+  'http.client.request.created',
+  'http.client.request.start',
+  'undici:request:create',
+  'udp.socket',
+]
+
+async function exercise(api, name, table) {
+  switch (name) {
+    case 'modelApiBoundaries.js': {
+      const valid = api.inputTokensSchema.safeParse({ input_tokens: 1 }).success
+      const invalid = api.inputTokensSchema.safeParse({ input_tokens: -1 }).success
+      assert.equal(valid, true)
+      assert.equal(invalid, false)
+      const decision = api.decideTeamConversationMode({ teamSwitchOn: false })
+      assert.deepEqual(decision, { mode: 'single-model', reason: 'team-off' })
+      const legal = await api.runLegalScanCall(
+        {},
+        undefined,
+        true,
+        new globalThis.AbortController().signal,
+        'Přehled, nikoli právní rada.',
+      )
+      assert.equal(legal.ok, false)
+      assert.equal(legal.isRestricted, false)
+      const detail = `fixture: ${table.teamInPlaceOrchestratorRefused}`
+      const refusal = api.teamInPlaceRefusalFor({
+        name: 'shell',
+        capability: 'shell',
+        isExternalWriter: false,
+        isUnknownMcp: false,
+        detail,
+      })
+      assert.equal(refusal.visibleOutput, detail)
+      return { valid, invalid, decision, refusal }
+    }
+    case 'hookRuntime.js': {
+      return api.parseElicitationParams({ message: 'Who?', requestedSchema: {} })
+    }
+    case 'pluginHooks.js': {
+      return api.pluginAnswer(
+        'amp',
+        'PreToolUse',
+        {
+          status: 'completed',
+          replacement: { target: 'toolResult', value: { output: 'fake' } },
+        },
+        { tool_name: 'shell', tool_input: { command: 'pwd' } },
+      )
+    }
+    case 'modelApiTools.js': {
+      const passed = api.checkPageUrl('https://Docs.Example.com/a/b?x=1#part')
+      assert.equal(passed.ok, true)
+      const refused = api.checkPageUrl('http://localhost/')
+      assert.equal(refused.ok, false)
+      return { ok: passed.ok, refusedOk: refused.ok }
+    }
+    default: {
+      return
+    }
+  }
+}
 
 if (isMainThread) {
   const [kind, artifact] = process.argv.slice(2)
@@ -65,39 +137,168 @@ if (isMainThread) {
     })
   }
   for (const file of files) {
-    test(`${kind} ${file}: native import and require retain baseline exports`, async () => {
+    test(`${kind} ${file}: packaged bundle matches the baseline bundle`, async () => {
       const [baseline, packaged] = await Promise.all([
         observe(path.join(root, 'dist', file)),
         observe(path.join(packageRoot, 'dist', file)),
       ])
-      assert.deepEqual(packaged.imported, baseline.imported)
-      assert.deepEqual(packaged.required, baseline.required)
+      for (const [side, observation] of [
+        ['baseline', baseline],
+        ['packaged', packaged],
+      ]) {
+        assert.deepEqual(observation.network, [], `${side} ${file} used the network`)
+      }
+      assert.deepEqual(packaged, baseline)
+      if (packaged.kind === 'library') {
+        assert.deepEqual(packaged.importCall, packaged.requireCall)
+      }
     })
   }
 } else {
-  // The hermetic load guard: extension-host bundles resolve `vscode` to a
-  // no-op namespace so they can load in bare Node, worker threads stay
-  // detached, and any network use throws. The test only enumerates what the
-  // load exposes; nothing here calls a bundle API.
+  // The real CLI entry takes its help path; neither auth nor backend setup runs.
   process.argv = [process.execPath, workerData.file, '--help']
-  const noop = new Proxy(ignore, { get: () => noop })
-  const load = Module._load
-  Module._load = function (name, ...args) {
-    if (name === 'vscode') return noop
-    return name === 'node:worker_threads'
-      ? { parentPort: undefined, workerData: undefined }
-      : Reflect.apply(load, Module, [name, ...args])
+  // Worker entries boot their job protocol on a real thread instead of
+  // exporting (their entries are named in scripts/build.mjs); each runs
+  // jobless here and answers its own refusal over the thread protocol.
+  const workerEntries = new Set(['imageResizeWorker.js', 'pageWorker.js', 'searchWorker.js'])
+  const scrubRoot = (value) =>
+    String(value ?? '')
+      .split(path.dirname(workerData.file))
+      .join('<dist>')
+      .split(process.cwd())
+      .join('<root>')
+  const headlineOf = (error) => scrubRoot(error?.message).split('\n', 1)[0]
+  function assertHostRefusal(file, failure, side) {
+    // Host bundles take `vscode` from the host; bare Node refuses exactly
+    // that import (MODULE_NOT_FOUND for the CJS host bundles, or the ESM
+    // spelling). A bundle that fails for any other reason is corrupt, not
+    // a host module, and must fail the gate.
+    const name = path.basename(file)
+    assert.ok(
+      failure.code === 'MODULE_NOT_FOUND' || failure.code === 'ERR_MODULE_NOT_FOUND',
+      `${side} of ${name} refused with ${String(failure.code)}: ${failure.headline}`,
+    )
+    assert.ok(
+      failure.headline.includes('vscode'),
+      `${side} of ${name} refused without naming vscode: ${failure.headline}`,
+    )
   }
-  Object.defineProperty(globalThis, 'fetch', {
-    value() {
-      throw new Error('Packaging regression must not use the network')
-    },
-  })
-  const require = createRequire(workerData.file)
-  const imported = await import(pathToFileURL(workerData.file).href)
-  const required = require(workerData.file)
-  parentPort.postMessage({
-    imported: Object.keys(imported).toSorted(compare),
-    required: Object.getOwnPropertyNames(required).toSorted(compare),
-  })
+  async function loadLibrary(file) {
+    let imported
+    try {
+      imported = await import(pathToFileURL(file).href)
+    } catch (error) {
+      const failure = { code: error?.code, headline: headlineOf(error) }
+      assertHostRefusal(file, failure, 'import')
+      try {
+        createRequire(file)(file)
+        return { kind: 'hostModule', import: failure, require: { loaded: true } }
+      } catch (requireError) {
+        const requireFailure = {
+          code: requireError?.code,
+          headline: headlineOf(requireError),
+        }
+        // An ESM host bundle cannot load through require at all; a CJS one
+        // must refuse the same `vscode` import.
+        if (requireFailure.code !== 'ERR_REQUIRE_ESM') {
+          assertHostRefusal(file, requireFailure, 'require')
+        }
+        return { kind: 'hostModule', import: failure, require: requireFailure }
+      }
+    }
+    const require = createRequire(file)
+    const required = require(file)
+    const table = require(path.join(path.dirname(file), 'uiText.js')).EN
+    return {
+      kind: 'library',
+      imported: Object.keys(imported).toSorted(compare),
+      required: Object.getOwnPropertyNames(required).toSorted(compare),
+      importCall: await exercise(imported, path.basename(file), table),
+      requireCall: await exercise(required, path.basename(file), table),
+    }
+  }
+  // Each worker entry answers a jobless boot with its own refusal over the
+  // thread protocol. The search worker's reason embeds the validator's issue
+  // text, so only its shape is pinned here; the parity comparison still
+  // matches the full message between the staged and baseline bundles.
+  function isJoblessRefusal(file, message) {
+    if (message === null || typeof message !== 'object') {
+      return false
+    }
+    switch (path.basename(file)) {
+      case 'imageResizeWorker.js': {
+        return message.ok === false && Object.keys(message).length === 1
+      }
+      case 'pageWorker.js': {
+        return message.ok === false && message.kind === 'failed' && message.detail === 'BAD_JOB'
+      }
+      case 'searchWorker.js': {
+        return (
+          message.type === 'done' &&
+          message.outcome !== null &&
+          typeof message.outcome === 'object' &&
+          message.outcome.ok === false &&
+          typeof message.outcome.reason === 'string' &&
+          message.outcome.reason.length > 0
+        )
+      }
+      default: {
+        return false
+      }
+    }
+  }
+  function bootWorkerEntry(file) {
+    return new Promise((resolve, reject) => {
+      const nested = new Worker(file)
+      let isSettled = false
+      const stop = async () => {
+        nested.removeAllListeners()
+        try {
+          await nested.terminate()
+        } catch {
+          // The thread is already gone; its refusal was already recorded.
+        }
+      }
+      // A crash or a silent exit leaves no refusal to compare: the parity
+      // test fails instead of recording an identical crash on both sides.
+      const fail = async (detail) => {
+        if (isSettled) return
+        isSettled = true
+        await stop()
+        reject(new Error(`jobless boot failed for ${path.basename(file)}: ${scrubRoot(detail)}`))
+      }
+      const settle = async (boot) => {
+        if (isSettled) return
+        isSettled = true
+        await stop()
+        resolve({ kind: 'workerBoot', boot })
+      }
+      nested.once('message', (message) => {
+        if (isJoblessRefusal(file, message)) {
+          void settle({ posted: message })
+        } else {
+          void fail(`unexpected jobless answer: ${scrubRoot(JSON.stringify(message))}`)
+        }
+      })
+      nested.once('error', (error) => {
+        void fail(`thread error: ${headlineOf(error)}`)
+      })
+      nested.once('exit', (code) => {
+        void fail(`silent exit ${String(code)}`)
+      })
+    })
+  }
+  // Network use is observed, never intercepted: Node's own diagnostics
+  // channels report each client socket, HTTP request, fetch and UDP socket
+  // this thread starts, while the real fetch, http and net stay in place.
+  const network = []
+  for (const name of NETWORK_CHANNELS) {
+    diagnosticsChannel.subscribe(name, () => {
+      network.push(name)
+    })
+  }
+  const observation = workerEntries.has(path.basename(workerData.file))
+    ? await bootWorkerEntry(workerData.file)
+    : await loadLibrary(workerData.file)
+  parentPort.postMessage({ ...observation, network })
 }
