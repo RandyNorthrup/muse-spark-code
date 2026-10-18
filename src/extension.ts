@@ -196,6 +196,7 @@ import {
   terminalPlatform,
   withTerminalOverrides,
 } from './host/backend/toolIo'
+import { NO_WORKSPACE } from './core/executables'
 import { pluginContainment } from './host/backend/pluginContainment'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { createRevertIo } from './host/editor/revertIo'
@@ -1259,7 +1260,8 @@ async function activateWindow(
       platform: process.platform,
       systemRoot: process.env['SystemRoot'],
       helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
-      ...(workspaceRoot !== undefined && { workspaceRoot }),
+      workspaceRoot: workspaceRoot ?? process.cwd(),
+      realpath: realpathSync,
     },
     {
       apiKey: () => credentials.getApiKey(),
@@ -2651,7 +2653,9 @@ async function activateWindow(
           shellEnvironmentOf(),
           process.platform,
           [],
-          workspaceRoot === undefined ? undefined : { workspaceRoot, realpath: realpathSync },
+          workspaceRoot === undefined
+            ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
+            : { workspaceRoot, realpath: realpathSync },
         ),
       containment: pluginJobs.containment,
     },

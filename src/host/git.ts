@@ -135,7 +135,7 @@ function subcommandOf(args: readonly string[]): string {
  */
 function gitLocator(
   deps: Pick<GitRunnerDeps, 'platform' | 'env' | 'fileExists' | 'realpath'>,
-): (workspaceRoot?: string) => string | undefined {
+): (workspaceRoot: string) => string | undefined {
   let cache: { readonly key: string; readonly git: string } | undefined
   return (workspaceRoot) => {
     const pathValue = environmentValue(deps.env, deps.platform, PATH_VARIABLE)
@@ -145,8 +145,7 @@ function gitLocator(
         platform: deps.platform,
         pathVariable: pathValue,
         fileExists: deps.fileExists,
-        ...(workspaceRoot !== undefined && { workspaceRoot }),
-        ...(deps.realpath !== undefined && { realpath: deps.realpath }),
+        scope: { workspaceRoot, realpath: deps.realpath },
       })
       cache = git === undefined ? undefined : { key, git }
     }
@@ -164,16 +163,13 @@ function gitLocator(
  */
 export function quietGitEnvironment(
   env: NodeJS.ProcessEnv,
-  workspace?: {
+  workspace: {
     readonly workspaceRoot: string
     readonly platform: NodeJS.Platform
-    readonly realpath?: ((filePath: string) => string) | undefined
+    readonly realpath: (filePath: string) => string
   },
 ): NodeJS.ProcessEnv {
   const base = { ...withoutCredentials(env), GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' }
-  if (workspace === undefined) {
-    return base
-  }
   return {
     ...workspaceChildEnvironment(workspace.platform, base, workspace),
     GIT_OPTIONAL_LOCKS: '0',
@@ -188,9 +184,9 @@ export interface GitRunnerDeps {
   /**
    * Resolves links for the workspace comparison, so a PATH entry that is a
    * symlink or junction into the run's working directory is excluded with
-   * it. Absent means lexical comparison only.
+   * it. REQUIRED: a lexical-only comparison keeps such an entry on PATH.
    */
-  readonly realpath?: ((filePath: string) => string) | undefined
+  readonly realpath: (filePath: string) => string
   /**
    * Arguments put before each command's own once the runner found git:
    * only the untrusted lane that lists, adds and indexes someone else's
@@ -259,7 +255,7 @@ export function createGitRunner(
       env: quietGitEnvironment(deps.env, {
         workspaceRoot: cwd,
         platform: deps.platform,
-        ...(deps.realpath !== undefined && { realpath: deps.realpath }),
+        realpath: deps.realpath,
       }),
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
       timeout: timeoutMs,
@@ -341,6 +337,7 @@ export function processGitRunner(
         platform: process.platform,
         env: options.env,
         fileExists: existsSync,
+        realpath: realpathSync,
         spawn,
       })
       const result = await run(args, {
@@ -443,9 +440,9 @@ export interface GitProcessDeps {
   /**
    * Resolves links for the workspace comparison, so a PATH entry that is a
    * symlink or junction into the run's working directory is excluded with
-   * it. Absent means lexical comparison only.
+   * it. REQUIRED: a lexical-only comparison keeps such an entry on PATH.
    */
-  readonly realpath?: ((filePath: string) => string) | undefined
+  readonly realpath: (filePath: string) => string
   readonly spawn: typeof spawn
   /**
    * The git to run instead of a PATH search (M123's native route: the git
@@ -453,7 +450,7 @@ export interface GitProcessDeps {
    * when there is none, so the run fails as git missing (D24). The run's
    * working directory is passed so a searching locator can exclude it.
    */
-  readonly locate?: ((workspaceRoot?: string) => string | undefined) | undefined
+  readonly locate?: ((workspaceRoot: string) => string | undefined) | undefined
 }
 
 /**
@@ -467,7 +464,7 @@ function childGitEnvironment(
   workspace: {
     readonly workspaceRoot: string
     readonly platform: NodeJS.Platform
-    readonly realpath?: ((filePath: string) => string) | undefined
+    readonly realpath: (filePath: string) => string
   },
 ): NodeJS.ProcessEnv {
   const base =
@@ -539,7 +536,7 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
           childGitEnvironment(options, {
             workspaceRoot: options.cwd,
             platform: deps.platform,
-            ...(deps.realpath !== undefined && { realpath: deps.realpath }),
+            realpath: deps.realpath,
           }),
           resource,
         )
@@ -711,7 +708,7 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
  * it (resolved through links) are never probed, so a planted git there
  * never resolves.
  */
-export function processGitPath(workspaceRoot?: string): string | undefined {
+export function processGitPath(workspaceRoot: string): string | undefined {
   return gitLocator({
     platform: process.platform,
     env: process.env,
@@ -726,8 +723,9 @@ export function processGitLocator(): () => boolean {
     platform: process.platform,
     env: process.env,
     fileExists: existsSync,
+    realpath: realpathSync,
   })
-  return () => locate() !== undefined
+  return () => locate(process.cwd()) !== undefined
 }
 
 /** The process runner over this process's PATH and Node's `spawn` (M72). */

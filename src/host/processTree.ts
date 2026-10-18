@@ -28,6 +28,8 @@ import {
 import { stopResourceTree } from '../core/resources/admission'
 import type { ResourceLease } from '../core/resources/launch'
 import { withoutCredentials } from '../core/credentialEnvironment'
+import { noWorkspaceChildEnvironment, type GuardedChildEnv } from '../core/executables'
+import { realpathSync } from 'node:fs'
 import path from 'node:path'
 import {
   setEnvironmentVariable,
@@ -54,11 +56,16 @@ const ABSENT = 'absent'
 // A killed process's exit code, as `taskkill /F` gives it.
 const KILLED_EXIT_CODE = 1
 
-/** Runs a program to its end: its stdout, or a rejection on a failure exit. */
+/**
+ * Runs a program to its end: its stdout, or a rejection on a failure exit.
+ * The environment is always a guarded child environment (only
+ * `workspaceChildEnvironment` / `noWorkspaceChildEnvironment` can produce
+ * one), so a raw `process.env` does not type-check here.
+ */
 export type RunProgram = (
   file: string,
   args: readonly string[],
-  env: NodeJS.ProcessEnv,
+  env: GuardedChildEnv,
   timeoutMs?: number,
 ) => Promise<string>
 
@@ -120,7 +127,7 @@ export function windowsPowerShell(
   base: NodeJS.ProcessEnv = process.env,
 ): {
   readonly file: string
-  readonly env: NodeJS.ProcessEnv
+  readonly env: GuardedChildEnv
 } {
   const env = withoutCredentials(base)
   setEnvironmentVariable(
@@ -129,7 +136,11 @@ export function windowsPowerShell(
     PS_MODULE_PATH,
     windowsPowerShellModulePath(systemRoot, base['ProgramFiles']),
   )
-  return { file: path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH), env }
+  // System PowerShell runs no workspace program: absolute entries only, links followed.
+  return {
+    file: path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
+    env: noWorkspaceChildEnvironment('win32', env, realpathSync),
+  }
 }
 
 function hasExited(root: TreeRoot): boolean {
@@ -349,7 +360,8 @@ async function waitForPosixGroup(pid: number, deps: ProcessTreeDeps): Promise<vo
         const table = await (deps.run ?? runProgram)(
           '/bin/ps',
           ['-eo', 'pgid=,stat='],
-          {},
+          // Fixed `/bin/ps` reads only the process table: no workspace PATH entries.
+          noWorkspaceChildEnvironment(deps.platform, {}, realpathSync),
           Math.max(1, deadline - Date.now()),
         )
         const isRunning = table.split('\n').some((line) => {
@@ -432,7 +444,8 @@ export async function killTree(
     await (deps.run ?? runProgram)(
       path.win32.join(systemRoot, WINDOWS_TASKKILL_RELATIVE_PATH),
       ['/PID', String(pid), '/T', '/F'],
-      process.env,
+      // Fixed `taskkill` under SystemRoot: absolute entries only, links followed.
+      noWorkspaceChildEnvironment(deps.platform, process.env, realpathSync),
     )
   } catch (error: unknown) {
     if (!hasExited(root)) {
@@ -565,12 +578,19 @@ deadline = setTimeout(() => {
 }, spec.timeout);
 `
 
-/** POSIX synchronous caller, asynchronous tree supervision. The supplied
- * environment is already scrubbed by the caller; no shell parses the effect. */
+/**
+ * POSIX synchronous caller, asynchronous tree supervision. The supplied
+ * environment is always the guarded child environment for the effect's
+ * working directory (only `workspaceChildEnvironment` can produce one), and
+ * `cwd` is required; no shell parses the effect.
+ */
 export function runTreeSync(
   command: string,
   args: readonly string[],
-  options: SpawnSyncOptions,
+  options: Omit<SpawnSyncOptions, 'env' | 'cwd'> & {
+    readonly env: GuardedChildEnv
+    readonly cwd: string
+  },
 ): SpawnSyncReturns<Buffer> {
   const maxBuffer = options.maxBuffer ?? GIT_OUTPUT_MAX_BYTES
   return spawnSync(process.execPath, ['-e', POSIX_TREE_SUPERVISOR], {

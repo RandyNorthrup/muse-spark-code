@@ -188,8 +188,7 @@ export function reportGitIo(
     platform,
     pathVariable: env['PATH'] ?? env['Path'],
     fileExists: existsSync,
-    workspaceRoot: root,
-    realpath: realpathSync,
+    scope: { workspaceRoot: root, realpath: realpathSync },
   })
   const childEnvironment = workspaceChildEnvironment(
     platform,

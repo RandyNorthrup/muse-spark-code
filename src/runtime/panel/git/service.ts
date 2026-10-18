@@ -319,7 +319,7 @@ export function fixedGitLocator(
   executable: string,
   workspace?: {
     readonly workspaceRoot: string
-    readonly realpath?: (filePath: string) => string
+    readonly realpath: (filePath: string) => string
   },
 ): () => string | undefined {
   const p = platform === 'win32' ? path.win32 : path.posix
@@ -609,7 +609,11 @@ export class NativeGitService {
         cwd: root.path,
         env: isUserEnvironment
           ? nativePushEnvironment(this.deps.userEnvironment())
-          : quietGitEnvironment(process.env),
+          : quietGitEnvironment(process.env, {
+              workspaceRoot: root.path,
+              platform: process.platform,
+              realpath: realpathSync,
+            }),
         timeoutMs: GIT_TIMEOUT_MS,
         signal: guard.signal,
         beforeRun: this.atSpawn(args, root, guard, held),

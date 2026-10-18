@@ -5,6 +5,7 @@ import { resourceEnvironment } from '../../core/resources/launch'
 // recording; no `vscode` here.
 
 import { spawn } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 import { PassThrough, type Readable, type Writable } from 'node:stream'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { admitResource, resourceWindowsJob, stopResourceTree } from '../../core/resources/admission'
@@ -13,6 +14,11 @@ import { spawnMcpJob } from '../backend/mcpJobLaunch'
 import { observeResourceProcess } from '../resources/resourceAdmission'
 import { treeSpawnOptions } from '../processTree'
 import { withoutCredentials } from '../../core/credentialEnvironment'
+import {
+  noWorkspaceChildEnvironment,
+  workspaceChildEnvironment,
+  type GuardedChildEnv,
+} from '../../core/executables'
 import type { HelperChild, HelperInvocation } from '../../core/voice/dictation'
 import { helperEnvironment } from '../../core/voice/helperLocation'
 import type { VoiceSocket, VoiceSocketHandlers } from '../../core/voice/museVoice'
@@ -34,7 +40,14 @@ function startProcess(invocation: HelperInvocation): HelperProcess {
   return admittedVoiceProcess(
     invocation.command,
     invocation.args,
-    helperEnvironment(process.env, invocation, process.platform),
+    // The dictation helper runs before any workspace is known (microphone
+    // availability at activation): absolute entries only, links followed.
+    noWorkspaceChildEnvironment(
+      process.platform,
+      helperEnvironment(process.env, invocation, process.platform),
+      realpathSync,
+    ),
+    process.cwd(),
   )
 }
 
@@ -42,7 +55,8 @@ function startProcess(invocation: HelperInvocation): HelperProcess {
 function admittedVoiceProcess(
   command: string,
   args: readonly string[],
-  env: NodeJS.ProcessEnv,
+  env: GuardedChildEnv,
+  cwd: string,
 ): HelperProcess {
   const stdin = new PassThrough()
   const stdout = new PassThrough()
@@ -67,6 +81,7 @@ function admittedVoiceProcess(
       child =
         job === undefined
           ? spawn(command, [...args], {
+              cwd,
               env: resourceEnvironment(withoutCredentials(env), resource),
               stdio: ['pipe', 'pipe', 'pipe'],
               windowsHide: true,
@@ -77,7 +92,7 @@ function admittedVoiceProcess(
               resourceAssembly: job.assemblyPath,
               file: command,
               args,
-              cwd: process.cwd(),
+              cwd,
               env: resourceEnvironment(withoutCredentials(env), resource),
               isVerbatim: false,
               resource,
@@ -224,9 +239,18 @@ export function openWebSocket(url: string, handlers: VoiceSocketHandlers): Voice
 }
 
 /** The system's recorder, one process per recording (Linux, M35). */
-export function startRecorder(command: string, args: readonly string[]): RecorderProcess {
-  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command is arecord or parec found by absolute path on PATH (helperLocation.ts, resolveExecutable) with fixed arguments from constants.ts; nothing from the user, the model or the workspace is in it (PLAN.md §8)
-  const child = admittedVoiceProcess(command, args, process.env)
+export function startRecorder(
+  command: string,
+  args: readonly string[],
+  workspace: { readonly workspaceRoot: string; readonly realpath: (filePath: string) => string },
+): RecorderProcess {
+  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command is arecord or parec found by absolute path on PATH outside the workspace (helperLocation.ts, resolveExecutable) with fixed arguments from constants.ts; nothing from the user, the model or the workspace is in it (PLAN.md §8)
+  const child = admittedVoiceProcess(
+    command,
+    args,
+    workspaceChildEnvironment(process.platform, process.env, workspace),
+    workspace.workspaceRoot,
+  )
   let exitListener: ((description: string) => void) | undefined
   watchExit(child, (description) => {
     exitListener?.(description)

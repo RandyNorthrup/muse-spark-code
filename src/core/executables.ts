@@ -10,23 +10,38 @@
 
 import path from 'node:path'
 
+/**
+ * The explicit "no workspace" scope for a capability probe before any folder
+ * is known: absolute PATH entries only, links followed. Grep for
+ * `NO_WORKSPACE` to review every such probe: each must never execute a
+ * program planted in a workspace, so it resolves fixed absolute paths or
+ * re-resolves once a workspace is known.
+ */
+export const NO_WORKSPACE = 'absolute-entries-only-links-followed' as const
+
+/**
+ * Where an executable lookup runs: a workspace root with its link resolver
+ * (directories inside it are never probed), or the explicit no-workspace
+ * scope above. Both carry the realpath function: forgetting either is a
+ * type error, so the compiler lists every call site that skipped the guard.
+ */
+export type ExecutableScope =
+  | {
+      readonly workspaceRoot: string
+      readonly realpath: (filePath: string) => string
+    }
+  | {
+      readonly noWorkspace: typeof NO_WORKSPACE
+      readonly realpath: (filePath: string) => string
+    }
+
 export interface ExecutableProbe {
   readonly platform: NodeJS.Platform
   /** The PATH value, unsplit. */
   readonly pathVariable: string | undefined
   readonly fileExists: (filePath: string) => boolean
-  /**
-   * The workspace the child runs in: directories inside it are never
-   * probed, so a program planted on an absolute workspace PATH entry never
-   * resolves. Absent leaves every absolute entry probed, as before.
-   */
-  readonly workspaceRoot?: string
-  /**
-   * Resolves links for the workspace comparison; injected so the Windows,
-   * macOS and Linux branches are all unit-tested on any OS. Absent means
-   * lexical comparison only.
-   */
-  readonly realpath?: ((filePath: string) => string) | undefined
+  /** REQUIRED: the workspace the child runs in, or the explicit no-workspace scope. */
+  readonly scope: ExecutableScope
 }
 
 // `execFile` starts these directly; batch files need a shell.
@@ -59,13 +74,14 @@ export function isFullyQualifiedWindowsPath(entry: string): boolean {
 export function absolutePathEntries(
   platform: NodeJS.Platform,
   pathVariable: string | undefined,
-  workspace?: {
-    readonly workspaceRoot: string
-    readonly realpath?: ((filePath: string) => string) | undefined
-  },
+  scope: ExecutableScope,
 ): readonly string[] {
   const p = platform === 'win32' ? path.win32 : path.posix
   const separator = platform === 'win32' ? ';' : ':'
+  const workspace =
+    'workspaceRoot' in scope
+      ? { workspaceRoot: scope.workspaceRoot, realpath: scope.realpath }
+      : undefined
   return (pathVariable ?? '')
     .split(separator)
     .map((entry) => entry.trim())
@@ -88,14 +104,14 @@ export function isWorkspacePath(
   platform: NodeJS.Platform,
   workspace: {
     readonly workspaceRoot: string
-    readonly realpath?: ((filePath: string) => string) | undefined
+    readonly realpath: (filePath: string) => string
   },
   candidate: string,
 ): boolean {
   return isSameOrInsideDirectory(
     platform,
-    resolveForCompare(workspace, workspace.workspaceRoot),
-    resolveForCompare(workspace, candidate),
+    resolveForCompare(workspace.realpath, workspace.workspaceRoot),
+    resolveForCompare(workspace.realpath, candidate),
   )
 }
 
@@ -240,15 +256,9 @@ function collapsePosix(slashed: string): string {
   return `/${kept.join('/')}`
 }
 
-function resolveForCompare(
-  probe: { readonly realpath?: ((filePath: string) => string) | undefined },
-  filePath: string,
-): string {
-  if (probe.realpath === undefined) {
-    return filePath
-  }
+function resolveForCompare(realpath: (filePath: string) => string, filePath: string): string {
   try {
-    return probe.realpath(filePath)
+    return realpath(filePath)
   } catch {
     return filePath
   }
@@ -272,7 +282,7 @@ function resolveForCompare(
 export function sanitizePathForWorkspace(probe: WorkspacePathSanitizeProbe): string {
   const p = probe.platform === 'win32' ? path.win32 : path.posix
   const separator = probe.platform === 'win32' ? ';' : ':'
-  const root = resolveForCompare(probe, probe.workspaceRoot)
+  const root = resolveForCompare(probe.realpath, probe.workspaceRoot)
   const entries = (probe.pathVariable ?? '').split(separator)
   const kept: string[] = []
   for (const entry of entries) {
@@ -283,7 +293,7 @@ export function sanitizePathForWorkspace(probe: WorkspacePathSanitizeProbe): str
     // The original entry is resolved as itself: a forward-slash UNC or
     // verbatim spelling of the workspace must compare as the workspace, not
     // as a drive-rewritten path that no longer names it.
-    if (isSameOrInsideDirectory(probe.platform, root, resolveForCompare(probe, trimmed))) {
+    if (isSameOrInsideDirectory(probe.platform, root, resolveForCompare(probe.realpath, trimmed))) {
       continue
     }
     // A rooted `\foo` or `/foo` entry is drive-relative: the child resolves
@@ -296,7 +306,9 @@ export function sanitizePathForWorkspace(probe: WorkspacePathSanitizeProbe): str
         continue
       }
       const candidate = `${drive}${trimmed.replaceAll('/', '\\')}`
-      if (isSameOrInsideDirectory(probe.platform, root, resolveForCompare(probe, candidate))) {
+      if (
+        isSameOrInsideDirectory(probe.platform, root, resolveForCompare(probe.realpath, candidate))
+      ) {
         continue
       }
     }
@@ -310,10 +322,26 @@ export interface WorkspaceChild {
   readonly workspaceRoot: string
   /**
    * Resolves links in an entry or the workspace root; may throw (an entry
-   * that cannot be resolved is compared lexically instead). Absent means
-   * lexical comparison only.
+   * that cannot be resolved is compared lexically instead). REQUIRED: a
+   * lexical-only comparison keeps a symlink into the workspace on PATH.
    */
-  readonly realpath?: ((filePath: string) => string) | undefined
+  readonly realpath: (filePath: string) => string
+}
+
+declare const guardedChildEnvBrand: unique symbol
+
+/**
+ * A child environment the guard produced: only `workspaceChildEnvironment`
+ * (or `noWorkspaceChildEnvironment` for the explicit no-workspace probe)
+ * can make one. Every spawn helper for a product-chosen program takes this
+ * type, so passing a raw `process.env` is a type error the compiler lists.
+ */
+export type GuardedChildEnv = NodeJS.ProcessEnv & {
+  readonly [guardedChildEnvBrand]: true
+}
+
+function brandGuarded(env: NodeJS.ProcessEnv): GuardedChildEnv {
+  return env as GuardedChildEnv
 }
 
 /**
@@ -328,7 +356,7 @@ export function workspaceChildEnvironment(
   platform: NodeJS.Platform,
   env: NodeJS.ProcessEnv,
   workspace: WorkspaceChild,
-): NodeJS.ProcessEnv {
+): GuardedChildEnv {
   const pathName =
     platform === 'win32'
       ? (Object.keys(env).find((name) => name.toLowerCase() === 'path') ?? 'PATH')
@@ -337,7 +365,7 @@ export function workspaceChildEnvironment(
     platform,
     pathVariable: env[pathName],
     workspaceRoot: workspace.workspaceRoot,
-    realpath: workspace.realpath ?? ((filePath) => filePath),
+    realpath: workspace.realpath,
   })
   const { [pathName]: _removed, ...kept } = env
   const child: NodeJS.ProcessEnv =
@@ -345,7 +373,52 @@ export function workspaceChildEnvironment(
   if (platform === 'win32') {
     child['NoDefaultCurrentDirectoryInExePath'] = '1'
   }
-  return child
+  return brandGuarded(child)
+}
+
+/**
+ * The guarded child environment before any folder is known (the explicit
+ * no-workspace probe): empty and relative entries are still dropped and
+ * Windows still gets `NoDefaultCurrentDirectoryInExePath`, but no workspace
+ * is excluded. Only for probes that resolve fixed absolute paths and never
+ * execute a PATH-resolved program; grep `NO_WORKSPACE` to review each one.
+ */
+export function noWorkspaceChildEnvironment(
+  platform: NodeJS.Platform,
+  env: NodeJS.ProcessEnv,
+  realpath: (filePath: string) => string,
+): GuardedChildEnv {
+  const pathName =
+    platform === 'win32'
+      ? (Object.keys(env).find((name) => name.toLowerCase() === 'path') ?? 'PATH')
+      : 'PATH'
+  const p = platform === 'win32' ? path.win32 : path.posix
+  const separator = platform === 'win32' ? ';' : ':'
+  const keptEntries = (env[pathName] ?? '')
+    .split(separator)
+    .filter((entry) => {
+      const trimmed = entry.trim()
+      return (
+        trimmed !== '' &&
+        p.isAbsolute(trimmed) &&
+        (platform !== 'win32' || isFullyQualifiedWindowsPath(trimmed))
+      )
+    })
+    .map((entry) => {
+      try {
+        void realpath(entry)
+      } catch {
+        /* An entry that cannot be resolved stays as written. */
+      }
+      return entry
+    })
+  const { [pathName]: _removed, ...kept } = env
+  const child: NodeJS.ProcessEnv =
+    keptEntries.length === 0 ? { ...kept } : { ...kept, [pathName]: keptEntries.join(separator) }
+  if (platform === 'win32') {
+    child['NoDefaultCurrentDirectoryInExePath'] = '1'
+  }
+  return brandGuarded(child)
 }
 
 /**
@@ -363,11 +436,7 @@ export function resolveExecutable(name: string, probe: ExecutableProbe): string 
     isNamedExecutable || probe.platform !== 'win32'
       ? [name]
       : WINDOWS_EXECUTABLE_EXTENSIONS.map((extension) => `${name}${extension}`)
-  const workspace =
-    probe.workspaceRoot === undefined
-      ? undefined
-      : { workspaceRoot: probe.workspaceRoot, realpath: probe.realpath }
-  for (const directory of absolutePathEntries(probe.platform, probe.pathVariable, workspace)) {
+  for (const directory of absolutePathEntries(probe.platform, probe.pathVariable, probe.scope)) {
     for (const candidate of candidates) {
       const full = p.join(directory, candidate)
       if (probe.fileExists(full)) {

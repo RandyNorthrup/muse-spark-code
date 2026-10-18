@@ -42,10 +42,13 @@ import type {
 import { contentHash, type ContentSource } from '../../core/schedules/provenance'
 import { refusedShellEntry, unstartedShell } from '../../core/shellResult'
 import {
+  NO_WORKSPACE,
   isFullyQualifiedWindowsPath,
   isWorkspacePath,
+  noWorkspaceChildEnvironment,
   resolveExecutable,
   workspaceChildEnvironment,
+  type ExecutableScope,
 } from '../../core/executables'
 import { isPdf } from '../../core/pdf'
 import type { ToolImageIo } from '../../core/toolImages'
@@ -345,10 +348,7 @@ export function shellEnvironment(
   passNames: readonly string[] = [],
   isFenced = true,
   vault: VaultFenceOptions = {},
-  workspace?: {
-    readonly workspaceRoot: string
-    readonly realpath?: ((filePath: string) => string) | undefined
-  },
+  scope: ExecutableScope,
 ): NodeJS.ProcessEnv {
   const clean: NodeJS.ProcessEnv = {}
   const entries = Object.entries(withoutCredentials(env, passNames, platform))
@@ -369,19 +369,16 @@ export function shellEnvironment(
   // Shell commands run with the workspace as their working directory: the
   // guarded child PATH plus `NoDefaultCurrentDirectoryInExePath` on
   // Windows, so a planted helper there never runs by bare name.
-  return workspace === undefined
-    ? fenced
-    : { ...workspaceChildEnvironment(platform, fenced, workspace) }
+  return 'workspaceRoot' in scope
+    ? { ...workspaceChildEnvironment(platform, fenced, scope) }
+    : { ...noWorkspaceChildEnvironment(platform, fenced, scope.realpath) }
 }
 
 export function hookEnvironment(
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,
   extraNames: readonly string[] = [],
-  workspace?: {
-    readonly workspaceRoot: string
-    readonly realpath?: ((filePath: string) => string) | undefined
-  },
+  scope: ExecutableScope,
 ): NodeJS.ProcessEnv {
   const clean: NodeJS.ProcessEnv = {}
   const names: readonly string[] =
@@ -400,6 +397,7 @@ export function hookEnvironment(
     if (normalizedName === PATH_VARIABLE) {
       const pathApi = platform === 'win32' ? path.win32 : path.posix
       const delimiter = pathApi.delimiter
+      const workspace = 'workspaceRoot' in scope ? scope : undefined
       setEnvironmentVariable(
         clean,
         platform,
@@ -422,9 +420,9 @@ export function hookEnvironment(
   // Hooks run with the workspace as their working directory: the guarded
   // child PATH plus `NoDefaultCurrentDirectoryInExePath` on Windows, so a
   // planted helper there never runs by bare name.
-  return workspace === undefined
-    ? fenced
-    : { ...workspaceChildEnvironment(platform, fenced, workspace) }
+  return 'workspaceRoot' in scope
+    ? { ...workspaceChildEnvironment(platform, fenced, scope) }
+    : { ...noWorkspaceChildEnvironment(platform, fenced, scope.realpath) }
 }
 
 /**
@@ -439,16 +437,13 @@ export function shellInterpreter(
   systemRoot: string | undefined,
   env: NodeJS.ProcessEnv,
   isExistingFile: (filePath: string) => boolean,
-  workspace?: {
-    readonly workspaceRoot: string
-    readonly realpath?: ((filePath: string) => string) | undefined
-  },
+  scope: ExecutableScope,
 ): string | undefined {
   const probe = {
     platform,
     pathVariable: environmentValue(env, platform, PATH_VARIABLE),
     fileExists: isExistingFile,
-    ...(workspace !== undefined && { ...workspace }),
+    scope,
   }
   if (platform === 'win32') {
     return systemRoot === undefined
@@ -493,28 +488,24 @@ export function shellArguments(
 export function hookProgramFor(
   deps: ToolIoDeps,
   configuredShell: string | undefined,
-  workspace?: {
-    readonly workspaceRoot: string
-    readonly realpath?: ((filePath: string) => string) | undefined
-  },
+  scope: ExecutableScope,
 ): string | undefined {
-  const probe = {
-    ...(workspace !== undefined && { ...workspace }),
-  }
   if (deps.platform === 'win32') {
     return deps.systemRoot === undefined
       ? resolveExecutable('cmd', {
           platform: deps.platform,
           pathVariable: deps.env()['PATH'],
           fileExists: existsSync,
-          ...probe,
+          scope,
         })
       : path.win32.join(deps.systemRoot, 'System32', 'cmd.exe')
   }
   // An absolute `SHELL` inside the workspace (for example from
   // `terminal.integrated.env.*` with `${workspaceFolder}` expanded) is
   // never the hook interpreter: a planted shell there must not run. It is
-  // ignored and `sh` is resolved outside the workspace instead.
+  // ignored and `sh` is resolved outside the workspace instead. With the
+  // explicit no-workspace scope there is no workspace to be inside.
+  const workspace = 'workspaceRoot' in scope ? scope : undefined
   const isShellInWorkspace =
     configuredShell !== undefined &&
     workspace !== undefined &&
@@ -529,7 +520,7 @@ export function hookProgramFor(
         platform: deps.platform,
         pathVariable: deps.env()['PATH'],
         fileExists: existsSync,
-        ...probe,
+        scope,
       })
 }
 
@@ -700,9 +691,11 @@ export function toolImagePreviewIo(
 export function createToolIo(deps: ToolIoDeps): ToolIo {
   // Shells and hooks run with the workspace as their working directory, so
   // their interpreters are resolved outside it (resolved through links).
-  const lookupWorkspace =
+  // With no folder open the explicit no-workspace scope applies: absolute
+  // entries only, links followed.
+  const lookupWorkspace: ExecutableScope =
     deps.workspaceRoot === undefined
-      ? undefined
+      ? { noWorkspace: NO_WORKSPACE, realpath: realpathSync }
       : { workspaceRoot: deps.workspaceRoot, realpath: realpathSync }
   const interpreter = shellInterpreter(
     deps.platform,

@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from 'node:crypto'
-import type { SpawnSyncOptions } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import nodePath from 'node:path'
 import { UI_TEXT } from '../../../shared/l10n/text'
@@ -213,7 +212,7 @@ export function renamedFiles(
     }
     if (!admission.admit(effect) || (process.platform === 'win32' && !admission.runContained))
       throw new Error(UI_TEXT.playbookUnavailable)
-    const options: SpawnSyncOptions = {
+    const options = {
       cwd: workspace,
       // The guarded child PATH for the workspace, so git's own bare-name
       // helpers never run a planting.
@@ -221,7 +220,7 @@ export function renamedFiles(
         workspaceRoot: workspace,
         realpath: realpathSync,
       }),
-      encoding: 'buffer',
+      encoding: 'buffer' as const,
       timeout: GIT_TIMEOUT_MS,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
       windowsHide: true,

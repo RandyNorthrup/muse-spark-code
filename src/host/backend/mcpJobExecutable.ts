@@ -2,8 +2,10 @@
 // starts this executable directly; its compiler is started directly too.
 // M27's shell-job DLL remains separate for shell commands.
 
+import { realpathSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import path from 'node:path'
+import { noWorkspaceChildEnvironment } from '../../core/executables'
 import {
   MCP_JOB_SELF_TEST_ARGUMENT,
   MCP_JOB_SELF_TEST_TOKEN,
@@ -53,9 +55,12 @@ export function mcpJobExecutableName(csharp: string): string {
 async function verify(executable: string, deps: McpJobExecutableDeps): Promise<void> {
   let answer: string
   try {
-    answer = await (deps.run ?? runProgram)(executable, [MCP_JOB_SELF_TEST_ARGUMENT], {
-      SystemRoot: deps.systemRoot,
-    })
+    answer = await (deps.run ?? runProgram)(
+      executable,
+      [MCP_JOB_SELF_TEST_ARGUMENT],
+      // The self-test answers for its own binary: absolute entries only, links followed.
+      noWorkspaceChildEnvironment('win32', { SystemRoot: deps.systemRoot }, realpathSync),
+    )
   } catch (error: unknown) {
     throw new Error(`the MCP job executable self-test failed (${String(error)})`, { cause: error })
   }
