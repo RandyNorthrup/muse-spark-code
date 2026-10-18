@@ -48,6 +48,11 @@ const KNOWN: Record<string, KnownSpawn> = {
     reason:
       'absolute launch command from the manager resolveLaunch (workspace excluded) + guarded builder env',
   },
+  'src/core/backends/musecode/sandbox.ts': {
+    kind: 'reviewed',
+    anchor: 'resolveExecutable',
+    reason: 'absolute bwrap probe from the guarded lookup (workspace excluded), no shell',
+  },
   'src/core/locks/processOwner.ts': {
     kind: 'reviewed',
     anchor: '/bin/ps',

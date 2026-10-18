@@ -140,6 +140,10 @@ happened, not what was planned; superseded entries are kept.
   saved", although nothing was wrong with the ledger. Windows answers a lock
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
+- Merging the PATHGUARD spawn inventory with the release branch reviewed the
+  Linux sandbox probe into its record: `bwrap` resolves through absolute
+  PATH entries only, a binary inside the workspace is refused, and the
+  spawn itself carries the absolute path with no shell. No behaviour change.
 
 ### Packaging
 
