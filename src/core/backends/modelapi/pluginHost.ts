@@ -549,7 +549,8 @@ function readFrame(call: PluginCall, text: string, deps: PluginRunDeps): Foreign
   let value: unknown
   try {
     value = JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return transportFailure(call, 'the plugin child answered outside its frame')
   }
   const frame = FRAME_SCHEMA.safeParse(value)
