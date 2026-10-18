@@ -8,10 +8,10 @@
 // `version` is read. The 404 answer was not captured, so no 404 body shape
 // is asserted: the reader reports the status itself as `http-404`.
 import { readFileSync } from 'node:fs'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { openVsxStoreAdapter } from '../../src/core/reporting/sources/openVsxStore'
 import { npmStoreAdapter } from '../../src/core/reporting/sources/npmStore'
-import { readStoresReport } from './helpers/reportKindNetwork'
+import { readStoresReport, recordingTransport } from './helpers/reportKindNetwork'
 
 const CAPTURED_RECORD: unknown = JSON.parse(
   readFileSync(
@@ -40,9 +40,9 @@ describe('open vsx store adapter', () => {
   })
 
   it('reads the served version from the captured record', async () => {
-    const transport = vi.fn(() => Promise.resolve(Response.json(CAPTURED_RECORD)))
+    const transport = recordingTransport(() => Promise.resolve(Response.json(CAPTURED_RECORD)))
     const result = await readStoresReport({
-      transport,
+      transport: transport.transport,
       project,
       releaseVersion: '0.17.0',
       adapters: [openVsxStoreAdapter('RandyNorthrup', 'muse-spark-code')],
@@ -73,13 +73,13 @@ describe('open vsx store adapter', () => {
         reason: 'store-capture-required',
       },
     ])
-    expect(transport).toHaveBeenCalledOnce()
+    expect(transport.calls).toHaveLength(1)
   })
 
   it('reports a 404 as its own refusal without parsing a guessed body', async () => {
     // The 404 body was not captured: only the reader's status refusal is
     // asserted, beside a succeeding npm sibling so the row stays visible.
-    const transport = vi.fn((request: { url: string }) =>
+    const transport = recordingTransport((request) =>
       Promise.resolve(
         request.url.includes('open-vsx.org')
           ? new Response('not found', { status: 404 })
@@ -87,7 +87,7 @@ describe('open vsx store adapter', () => {
       ),
     )
     const result = await readStoresReport({
-      transport,
+      transport: transport.transport,
       project,
       releaseVersion: '0.17.0',
       adapters: [
@@ -105,7 +105,7 @@ describe('open vsx store adapter', () => {
 
   it('blames the document when the captured version field is missing', async () => {
     const result = await readStoresReport({
-      transport: vi.fn(() => Promise.resolve(Response.json({}))),
+      transport: recordingTransport(() => Promise.resolve(Response.json({}))).transport,
       project,
       releaseVersion: '0.17.0',
       adapters: [openVsxStoreAdapter('RandyNorthrup', 'muse-spark-code')],

@@ -2,11 +2,11 @@
 // exactly the four hosts the captured adapters need, no more. Each adapter's
 // own request form dispatches; anything else refuses before the transport.
 import * as z from 'zod/mini'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { marketplaceStoreAdapter } from '../../src/core/reporting/sources/marketplaceStore'
 import { npmStoreAdapter } from '../../src/core/reporting/sources/npmStore'
 import { openVsxStoreAdapter } from '../../src/core/reporting/sources/openVsxStore'
-import { networkContext, networkRig } from './helpers/reportKindNetwork'
+import { networkContext, networkRig, recordingTransport } from './helpers/reportKindNetwork'
 
 const schema = z.looseObject({})
 
@@ -17,13 +17,13 @@ describe('report adapter hosts', () => {
     ['npm', npmStoreAdapter('fixture').request],
     ['GitHub', { url: 'https://api.github.com/repos/fixture/fixture/tags?per_page=100&page=1' }],
   ])('dispatches the %s adapter request', async (_label, request) => {
-    const transport = vi.fn(() => Promise.resolve(Response.json({})))
-    const rig = networkRig({ transport })
+    const transport = recordingTransport(() => Promise.resolve(Response.json({})))
+    const rig = networkRig({ transport: transport.transport })
     await rig.reader.read(networkContext(), 'hosts', schema, async (query) => ({
       data: await query(request, schema),
       reason: null,
     }))
-    expect(transport).toHaveBeenCalledOnce()
+    expect(transport.calls).toHaveLength(1)
   })
 
   it('refuses a host no adapter needs', async () => {
@@ -33,7 +33,7 @@ describe('report adapter hosts', () => {
       reason: null,
     }))
     expect(result.record.reason).toContain('endpoint-refused')
-    expect(rig.transport).not.toHaveBeenCalled()
+    expect(rig.calls).toHaveLength(0)
   })
 
   it('refuses a POST outside the captured gallery query path', async () => {
@@ -50,6 +50,6 @@ describe('report adapter hosts', () => {
       reason: null,
     }))
     expect(result.record.reason).toContain('read-method-refused')
-    expect(rig.transport).not.toHaveBeenCalled()
+    expect(rig.calls).toHaveLength(0)
   })
 })
