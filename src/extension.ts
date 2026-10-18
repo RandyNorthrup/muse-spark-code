@@ -357,7 +357,6 @@ import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
 import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
-import { abortableSleep } from './core/backends/modelapi/transport'
 
 import { BACKEND_KINDS, type HostAction } from './shared/protocol'
 import type { AccountFacts } from './shared/usage'
@@ -886,6 +885,11 @@ async function activateWindow(
   }
   const currentSettings = () =>
     readSettings(vscode.workspace.getConfiguration(SETTINGS_SECTION), log)
+  // Lane RETRYLIMITS: the person's retry limit, read live wherever a retry
+  // limit is needed; null stays unset. One reader for the three clients
+  // below keeps the activation bundle small (modelsActivationBudget).
+  const personMaxRetries = (): number | undefined =>
+    currentSettings().modelApiMaxRetries ?? undefined
   const updateSetting = (key: string, value: unknown) =>
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
@@ -1079,8 +1083,7 @@ async function activateWindow(
       l10n,
       catalogFile: vscode.Uri.joinPath(context.extensionUri, 'dist', 'providerCatalog.json').fsPath,
       configFile: providerConfigFile,
-      // Lane RETRYLIMITS: the person's retry limit, read live; null stays unset.
-      personMaxRetries: () => currentSettings().modelApiMaxRetries ?? undefined,
+      personMaxRetries,
       isRemote: vscode.env.remoteName !== undefined,
       isConfidential: () => currentSettings().confidentialWorkspace,
       access: context.languageModelAccessInformation,
@@ -2051,11 +2054,9 @@ async function activateWindow(
       fetch: liveFetch,
       baseUrl: MODEL_API_BASE_URL,
       apiKey: () => credentials.getApiKey(),
-      // Lane RETRYLIMITS: the person's retry limit, read live; null stays unset.
-      personMaxRetries: () => currentSettings().modelApiMaxRetries ?? undefined,
-      // Lane PR225FIX2: a Stop clears the wait's own timer, so an
-      // abandoned wait leaves none behind.
-      sleep: abortableSleep,
+      personMaxRetries,
+      // Lane PR225W1: no `sleep` here — the transport waits with
+      // `abortableSleep`, so a Stop clears the wait's own timer.
       now: () => Date.now(),
       random: () => Math.random(),
       log,
@@ -2624,14 +2625,12 @@ async function activateWindow(
     contextIo: fileContextIo,
     // VS Code's proxy-aware fetch, as it stands at each request (M56, D43).
     fetch: liveFetch,
-    // Lane RETRYLIMITS: the conversation client's retry limit, read live;
-    // null stays unset (PR #225: it reached only the stored-key client).
-    personMaxRetries: () => currentSettings().modelApiMaxRetries ?? undefined,
+    // PR #225: the conversation client reads it too, not only the stored-key one.
+    personMaxRetries,
     newId: () => crypto.randomUUID(),
     now: () => Date.now(),
-    // Lane PR225FIX2: a Stop clears the wait's own timer, so an
-    // abandoned wait leaves none behind.
-    sleep: abortableSleep,
+    // Lane PR225W1: no `sleep` here — the transport waits with
+    // `abortableSleep`, so a Stop clears the wait's own timer.
     random: () => Math.random(),
     personalSkillsRoot: skillsHome,
     bundledSkills: {
