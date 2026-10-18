@@ -61,6 +61,26 @@ happened, not what was planned; superseded entries are kept.
   command) and embedded supervisor scripts, and fails on any start
   outside the guarded routes or the reviewed lists.
 
+- Forgetting the guard is now a type error (round 6): the executable
+  lookup and every wrapper of it take the workspace root and the link
+  resolver as required parameters, with no default resolver — a probe
+  with genuinely no workspace passes an explicit absolute-entries-only
+  value — and the `runProgram`/`runTreeSync` runners and the plugin
+  spawn take a branded child environment only the guarded builders can
+  produce, so a raw environment no longer type-checks there. Fixed at
+  the cause through those types: the team probe never searches PATH
+  (fixed `/usr/bin/setpriv` and `/usr/bin/systemd-run` with an
+  absolute `true` under the no-workspace environment; the launch still
+  re-resolves outside its own directory); the report's `gh` resolves
+  with the report workspace and an absolute path inside it is refused
+  like a bare name there; the production plugin lookup follows links;
+  a linked playbook worktree's directory is sanitized as well as the
+  main workspace, so a helper git starts by bare name never runs from
+  either; the Linux recorder child runs with the guarded environment
+  for the recording workspace. The inventory also enumerates the
+  governed command boundary and its aliases, and pins the branded
+  signatures so loosening one fails the gate.
+
 ### Fixed
 
 - On Windows, two requests that reserve session spend at the same moment

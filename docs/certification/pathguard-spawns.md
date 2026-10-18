@@ -1,4 +1,4 @@
-# PATHGUARD spawn inventory — every program start and its guard (2026-10-18, lane PR249FIX4)
+# PATHGUARD spawn inventory — every program start and its guard (2026-10-18, lane PR249FIX5)
 
 One comparison (`isSameOrInsideDirectory` in `src/core/executables.ts`:
 device/verbatim prefixes stripped, `.\UNC\` mapped like `?\UNC\`,
@@ -8,25 +8,32 @@ dot off the final segment, so `repo .` is `repo`; one trailing dot off a
 non-final segment, so `repo.\bin` is `repo\bin` while `repo...\bin` stays
 a distinct name), `.`/`..` collapsed, case-insensitive on Windows, then
 realpath where the path exists), one lookup (every product name resolved
-outside the workspace, links followed), one child environment
-(`workspaceChildEnvironment`: PATH sanitised, empty/relative/
-drive-relative/workspace entries dropped, `NoDefaultCurrentDirectoryInExePath=1`
-on Windows). `test/unit/pathGuardSpawns.test.ts` enumerates every direct
+outside a required workspace scope, links followed — the explicit
+`NO_WORKSPACE` sentinel where no folder is known), one child environment
+(`workspaceChildEnvironment` / `noWorkspaceChildEnvironment`: PATH
+sanitised, empty/relative/drive-relative/workspace entries dropped,
+`NoDefaultCurrentDirectoryInExePath=1` on Windows, branded
+`GuardedChildEnv` only they can produce, which the `runProgram` /
+`runTreeSync` runners and the plugin spawn require).
+`test/unit/pathGuardSpawns.test.ts` enumerates every direct
 child-process start in `src/` from the source itself (TypeScript AST: bare
 calls and references of names value-imported from `node:child_process`,
 including `require`), every wrapper that ends in one (`runProgram`,
-`runTreeSync`, `runResourceCommand`, literal or variable command alike),
-every embedded supervisor script (a backtick literal spawning a process,
-where the playbook's `git` variable used to hide), and every raw governed
-launch, and fails on any file outside the lists below, on any listed file
-that loses its anchor, and on any `exec`/`execSync` import (shell strings
-stay banned, D4).
+`runTreeSync`, `runResourceCommand`, `execResourceFile`,
+`handoffResourceFile`, literal or variable command alike, including
+one-level aliases), every embedded supervisor script (a backtick literal
+spawning a process, where the playbook's `git` variable used to hide),
+and every raw governed launch, and fails on any file outside the lists
+below, on any listed file that loses its anchor, on any loosened branded
+signature, and on any `exec`/`execSync` import (shell strings stay
+banned, D4).
 
 ## Guarded in the file (lookup + child env)
 
 - Plugin host (`src/core/backends/modelapi/pluginHost.ts`): `node`/`bun`/
   `prlimit` resolved outside `deps.workspaceRoot` (from
-  `foreignHooksEntry.ts`, which passes its own workspace root); the child
+  `foreignHooksEntry.ts`, which passes its own workspace root with
+  `realpathSync`, so links into the workspace are followed); the child
   runs the absolute runtime with the guarded child env for the workspace.
 - Git (`src/host/git.ts`, both runners): each run's working directory is
   the workspace, resolved through `realpathSync`; the child env is the
@@ -49,27 +56,36 @@ stay banned, D4).
   and `hookEnvironment` additionally drops Windows drive-relative entries.
 - Team launches and probes (`src/host/team/processLifetime.ts`): the
   person's configured command keeps running, with the guarded child env
-  for its cwd; `setpriv`/`systemd-run`/`systemctl` probe on the absolute
-  PATH entries only and resolve outside each launch's own working directory
+  for its cwd; the pre-launch probe never searches PATH (fixed
+  `/usr/bin/setpriv` + `/usr/bin/systemd-run` with an absolute
+  `/bin/true` under the no-workspace env), and `setpriv`/`systemd-run`/
+  `systemctl` resolve outside each launch's own working directory
   (links followed), with the guarded child env for the scope queries — a
   tool the probe saw but the launch directory shadows fails the launch
   closed. Windows runs absolute PowerShell with the same guarded env.
 - Playbook git (`src/core/orchestration/playbook/outcomes.ts`,
   `modules.ts`): every effect's command is `processGitPath(workspace)`
   (links followed), admitted and spawned absolute, with the guarded child
-  env for the workspace, so the POSIX supervisor's `spec.command` is never
-  a bare name either.
+  env for the workspace sanitized again against the effect's own cwd —
+  a linked worktree outside the main checkout is excluded too — so the
+  POSIX supervisor's `spec.command` is never a bare name either.
 - Governed commands (`src/core/resources/commands.ts`, serving
   `handoffResourceFile`/`execResourceFile`): bare names (`xdg-open`,
   `open`, `rundll32.exe`, probes) resolved outside the run's workspace with
-  the guarded child env. This covers the usage opener (`src/runtime/main.ts`
-  passes its cwd), schedules, reporting and vault callers.
+  the guarded child env, and an absolute path inside the workspace is
+  refused like a bare name there. This covers the usage opener
+  (`src/runtime/main.ts` passes its cwd), the report's `gh` (resolved
+  with the report workspace, same root threaded to the exec), the
+  schedule git reader and the sharing adapters (their own workspace),
+  the report history (fixed absolute system files), and vault callers.
 - `muse serve` family (`MuseCodeHost.ts` via
   `museCodeBackendManager.ts:279`): absolute launch command from
   `resolveLaunch` (workspace excluded) + guarded builder env.
 - Voice recorder lookup (`locateCaptureHelper` in
   `src/core/voice/helperLocation.ts`, wired in `dictationHost.ts` and
-  `src/extension.ts`): `arecord`/`parec` resolved outside the workspace.
+  `src/extension.ts`): `arecord`/`parec` resolved outside the workspace
+  (links followed), and the recorder child (`voiceProcesses.ts`)
+  starts with the guarded child env and cwd for that workspace.
 
 ## Reviewed: fixed path or the person's own terminal (no PATH search)
 
@@ -97,7 +113,7 @@ stay banned, D4).
 - `src/core/eval/workspace.ts`: fixed `process.execPath`, empty env.
 - `src/core/team/workers/workerFence.ts`: fixed `/usr/sbin/lsof`, scrubbed env.
 - `src/host/voice/voiceProcesses.ts`: absolute helper/recorder command from
-  the guarded lookup, no shell.
+  the guarded lookup, guarded child env + cwd, no shell.
 - `src/core/media/record/macos.ts`: absolute `/usr/bin/codesign` and helper
   paths only.
 - `src/runtime/panel/pullRequests/checkout.ts`: thin wrapper, the caller
@@ -115,7 +131,8 @@ stay banned, D4).
   `src/host/team/acpProcess.ts`, `src/core/voice/dictation.ts`,
   `src/core/schedules/events/git.ts`, `src/core/reporting/history.ts`,
   `src/core/reporting/sources/github.ts`: injected runners, the guarded
-  spawners above, or the governed `execResourceFile` boundary.
+  spawners above, or the governed `execResourceFile` boundary (each now
+  enumerated as a wrapper start with its own guard entry).
 - `src/core/media/record/macos.ts`: an injected `spawn` port; the commands
   are fixed `/usr/bin/codesign` and a helper path that must be absolute and
   trust-verified before it runs.
@@ -158,7 +175,13 @@ with a workspace working directory inherits a raw PATH.
 - No `shell: true` in `src/`; no `exec`/`execSync` import (gate-enforced);
   `openExternal` takes URIs, never programs.
 - Stated boundary: the team capability probes run at driver creation,
-  before any launch directory is known, so they resolve on the absolute
-  PATH entries only; every later use (launch chain, scope queries)
-  additionally excludes the launch's own working directory, and a tool
-  the probe saw but that directory shadows fails the launch closed.
+  before any launch directory is known, so they never search PATH at
+  all (fixed system tools, absolute `true`); every later use (launch
+  chain, scope queries) additionally excludes the launch's own working
+  directory, and a tool the probe saw but that directory shadows fails
+  the launch closed.
+- Round-6 hunt (lane PR249FIX5): the compiler lists every lookup or
+  runner that skips the guard (required scope, branded env); the
+  inventory additionally enumerates the governed command boundary and
+  its one-level aliases (`exec`, `execFileAsync`), and pins the branded
+  signatures it rests on.
