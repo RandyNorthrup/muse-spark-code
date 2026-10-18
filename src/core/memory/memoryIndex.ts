@@ -84,8 +84,11 @@ function linkTarget(line: string): string | undefined {
       const relative = raw.startsWith(CURRENT_DIRECTORY) ? raw.slice(CURRENT_DIRECTORY.length) : raw
       try {
         return decodeURIComponent(relative)
-      } catch {
-        return relative
+      } catch (error) {
+        // Only malformed percent-encoding keeps its spelling: decoding
+        // raises URIError for exactly that, so anything else is raised.
+        if (error instanceof URIError) return relative
+        throw error
       }
     }
     return undefined

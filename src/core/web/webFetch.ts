@@ -56,6 +56,7 @@ import {
   WEB_FETCH_XHTML_TYPE,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { isCodedError } from '../workspaceRoot'
 import { describeNetworkFailure, networkFailureCodes } from '../networkFailure'
 import {
   type FailureFacts,
@@ -224,6 +225,9 @@ async function answersFor(
     if (signal.aborted) {
       throw error
     }
+    // Only a failed lookup reads unresolved: the resolver fails shaped,
+    // so anything else keeps its kind past the lookup.
+    if (!isCodedError(error)) throw error
     return refuse('unresolved', { host: checked.host })
   }
 }
@@ -329,6 +333,8 @@ function requestPinned(
       try {
         ensureAllowed()
       } catch (error: unknown) {
+        // An allowance check that fails rejects the race with its failure:
+        // the fetch fails as refused, never as a connection error.
         settle(() => {
           reject(error instanceof Error ? error : new Error(String(error)))
         })
@@ -573,6 +579,10 @@ async function readCapped(
     if (error instanceof FetchRefused || signal.aborted || body.hasSourceFailed()) {
       throw error
     }
+    // Damaged compressed data is refused as the coding's, not reported as
+    // a network failure: only a shaped transport failure reads that way,
+    // so anything else keeps its kind.
+    if (!isCodedError(error)) throw error
     return refuse('encoding', { encoding: shownToken(coding) })
   }
 }
@@ -752,7 +762,10 @@ function nextHop(
   let target: URL
   try {
     target = new URL(location.trim(), current.url)
-  } catch {
+  } catch (error) {
+    // Only an unparsable redirect target refuses the hop: the constructor
+    // raises TypeError for exactly that, so anything else keeps its kind.
+    if (!(error instanceof TypeError)) throw error
     throw new FetchRefused(redirectRefused(webFetchFailure('invalidUrl')))
   }
   const checked = checkPageUrl(target.href)

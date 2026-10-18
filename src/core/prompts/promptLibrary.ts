@@ -57,6 +57,8 @@ export class PromptLibrary {
       try {
         scopes.push({ scope, prompts: await this.store.list(scope), damaged: false })
       } catch {
+        // A scope that cannot be read contributes nothing: the damaged flag
+        // tells the person (promptScopeDamaged), and the other scope still loads.
         scopes.push({ scope, prompts: [], damaged: true })
       }
     }

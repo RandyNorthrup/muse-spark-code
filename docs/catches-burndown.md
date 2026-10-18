@@ -42,6 +42,58 @@ Designed baselines with reasons (accepted, not forgotten):
 - `src/host/auth/authService.ts` sign-in restart, `src/core/developer`
   multi-account start/enable, `src/runtime/chatGptProviderCommands.ts`
   setup: fixed in PR161FIN (named closers, kind words, cause slots).
+- `src/acp/agent.ts` media attach: refusals answer as written, anything
+  else answers `attachmentUnreadable`, never in its own words (no-leak
+  boundary; proven by `test/unit/acpMediaRefusal.test.ts`).
+- `src/acp/agent.ts` retry/continue, question peek and answer start: fixed
+  protocol words (`agentRetryUnavailable`, `cancelled`, the stored outcome
+  error); the turn protocol has no words for these failures, so they stay
+  fixed and non-errors keep their kind.
+- `src/acp/playbook.ts` (2), `src/acp/reports.ts`: fail-closed command and
+  string boundaries; a bundle or surface that cannot load reads unavailable,
+  a failed report stays its fixed sentence.
+- `src/core/bestOfN/bestOfNRunner.ts` (3): event and hook boundaries never
+  throw; a failed attempt records its reason on the attempt, a failed hook
+  warns in fixed words and denies.
+- `src/core/codeIntel/codeIntelQuery.ts`, `src/core/codeIntel/repoMap.ts`:
+  graceful degradation; an unreadable file keeps its locations without
+  their lines (or leaves the counts), while a placement refusal propagates.
+- `src/core/developer/surfaces.ts`: the surface always answers its error
+  vocabulary; an owner refusal names its code, anything else reads
+  `unavailable`.
+- `src/core/diagnostics.ts`: a malformed URI or path comes back with its
+  reason (proven by `test/unit/diagnostics.test.ts`).
+- `src/core/eval/driver.ts` (2), `src/core/eval/runner.ts`,
+  `src/core/eval/wire.ts`: the eval harness's own failure record; the text
+  diagnoses the mechanism under test for the owner running the eval.
+- `src/core/mcp.ts` tool call: the protocol mandates an `isError` result,
+  never a throw; the text is the tool's own failure words.
+- `src/core/pathIdentity.ts` (4): negative-default identity probes; only a
+  missing path climbs, anything else has no identity rather than a wrong one.
+- `src/core/plans/planStore.ts` existence probe: unreadable is not this plan.
+- `src/core/review/planModeHold.ts`: the restore outcome carries its error
+  to `onRestored`; the owner sees the failure as data.
+- `src/core/review/reviewMaterial.ts` (5): git probes; any git failure is a
+  negative answer (proven by `test/unit/reviewMaterialProbes.test.ts` with
+  the real git binary).
+- `src/core/tab/tabEngine.ts` (3): the progress failure is recorded, the
+  published usage rejection stands, the queued request hears its error
+  (rejections now carry their cause).
+- `src/core/tab/tabHooks.ts` read refusal: a hook-state failure refuses the
+  read outright (fail-closed, beside the two CLEANUP neighbours).
+- `src/core/usage/usageService.ts` dispatch: the page protocol always
+  answers; a failed message reads `writeFailed`/`readFailed` with its id.
+- `src/core/usage/usageService.ts` resource read: CLEANUP; the page renders
+  without resources rather than failing or inventing them.
+- `src/core/voice/museVoice.ts` (3): the stream settles failed in the
+  refusal's own words, never by throwing out of a socket callback (proven
+  by `test/unit/museVoiceSettle.test.ts`).
+- `src/core/web/webFetch.ts` connection race and page boundary: attempts
+  record into the race and the final `ConnectFailed` carries them; the page
+  maps every failure to the fixed `WebFetchFailure` vocabulary while abort
+  propagates.
+- `src/core/imageResizeWorker.ts`: CLEANUP; the worker always answers so
+  the parent never hangs.
 - Everything else below: pre-existing, grouped for area-by-area lanes.
 
 | Folder                 | GENERIC | SWALLOW |

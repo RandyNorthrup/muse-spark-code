@@ -250,8 +250,11 @@ export class PlanStore {
     let text: string
     try {
       text = new TextDecoder('utf-8', { fatal: true }).decode(read.bytes)
-    } catch {
-      throw new Error(UI_TEXT.textFileInvalid)
+    } catch (error) {
+      // Only undecodable bytes are invalid text: a fatal decoder raises
+      // TypeError for exactly those, so anything else keeps its kind.
+      if (!(error instanceof TypeError)) throw error
+      throw new Error(UI_TEXT.textFileInvalid, { cause: error })
     }
     if (hasBinaryControlCharacters(text)) {
       throw new Error(UI_TEXT.textFileInvalid)
