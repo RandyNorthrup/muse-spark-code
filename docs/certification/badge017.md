@@ -32,6 +32,17 @@ Nothing was deployed and no secret is in the repository.
   against a fake KV in Node. The webhook (needs the Workers runtime's
   `crypto.subtle.timingSafeEqual`) and the downloads route (public APIs) are
   not unit-tested.
+
+## Withdrawn proof (lane STANDINS, 2026-10-17)
+
+`test/unit/marketplaceHook.test.mjs` is deleted: its `{ get }` object
+pretended to be the Workers KV store, so these claims are UNPROVEN — the
+purchased-minus-cancelled counter in both badge formats, the non-negative
+floor, and the 404/405 answers. The drills above proved the code against
+the double, not the store. Real-use proof: run the worker against a real
+KV namespace (wrangler dev backed by real KV, or the deployed hook) and
+check both badge formats, a garbage count, and unknown routes.
+
 - Drill 1: `appInstalls` returned `n` instead of `Math.max(0, n)`; the test
   failed (`expected '-2' to be '0'`); restored, SHA-256 matched.
 - Drill 2: removed the app installs badge from README; `refreshBadges.test.mjs`

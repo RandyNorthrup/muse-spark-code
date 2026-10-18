@@ -1,3 +1,5 @@
+import { fill } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import { outputTokenMinimumMessage } from '../../shared/providerRouting'
 import { Usd } from '../../shared/usd'
 import * as z from 'zod/mini'
@@ -6,6 +8,7 @@ import { readImageInfo } from '../../core/imageDimensions'
 import { modelApiPaidTier } from '../../shared/paid'
 import {
   EXEC_ENDPOINTS,
+  EXEC_USD_DECIMALS,
   EXEC_IMAGE_N,
   EXEC_MIN_OUTPUT_TOKENS,
   EXEC_OBSERVER_HIGH_WATER_BYTES,
@@ -18,7 +21,7 @@ import {
 } from '../../shared/constants'
 import type { ExecEventBody, LastResponse, Refusal } from './execProtocol'
 import type { Lifecycle, StopCause } from './execLimits'
-import type { ImageSettlement, ResponseSettlement, RunLedger } from './runLedger'
+import { type ImageSettlement, type ResponseSettlement, type RunLedger } from './runLedger'
 
 export interface ExecTransport {
   readonly fetch: typeof fetch
@@ -63,9 +66,10 @@ export function execFetch(input: {
   fetch: typeof fetch
   ledger: RunLedger
   selectedModel: string
+  readonly externalResponseAccounting?: boolean
   imageGeneration: boolean
   lifecycle: Lifecycle
-  onLatch: (cause: StopCause) => void
+  onLatch: (cause: StopCause, message?: string) => void
   emit: (event: ExecEventBody) => void
   onResponseStart: (n: number) => void
   onResponseSettled: (outcome: LastResponse) => void
@@ -84,7 +88,7 @@ export function execFetch(input: {
         usd: Usd.from(0).toAmount(),
         reason,
       })
-    if (reason !== 'closed') input.onLatch({ kind: reason })
+    if (reason !== 'closed') input.onLatch({ kind: reason }, message)
     throw new Error(message)
   }
   const transport: typeof fetch = async (url, init) => {
@@ -153,6 +157,8 @@ export function execFetch(input: {
       return refuse('request_shape', true)
     const tier = modelApiPaidTier(input.selectedModel)
     if (isResponse && tier === undefined) return refuse('unpriced')
+    if (isResponse && input.externalResponseAccounting === true)
+      return await input.fetch(url, { ...init, redirect: 'error' })
     // Each caller captures the current tail synchronously. Rechecking after
     // this wait and reserving have no intervening await.
     const previous = barrier
@@ -234,7 +240,7 @@ export function execFetch(input: {
           feature: 'imageGeneration',
           n: ticket.n,
           phase,
-          units: 1,
+          units: phase === 'returned' ? count : 1,
           usd: result.chargedUsd,
         })
       }
@@ -249,7 +255,22 @@ export function execFetch(input: {
         ...(ticket.kind === 'responses' && { terminal }),
         totals: input.ledger.totals(),
       })
-      if (result.latch !== undefined) input.onLatch({ kind: result.latch })
+      if (result.latch !== undefined)
+        input.onLatch(
+          { kind: result.latch },
+          result.latch === 'breach' &&
+            Usd.from(result.chargedUsd).compare(Usd.from(ticket.reserveUsd)) > 0
+            ? fill(UI_TEXT.execBudgetOverage, {
+                overage: formatUsd(
+                  Usd.from(result.chargedUsd).subtract(Usd.from(ticket.reserveUsd)),
+                  EXEC_USD_DECIMALS,
+                ),
+                cost: formatUsd(result.chargedUsd, EXEC_USD_DECIMALS),
+                reserved: formatUsd(ticket.reserveUsd, EXEC_USD_DECIMALS),
+              })
+            : undefined,
+        )
+
       stopActive = undefined
       release.run?.()
     }

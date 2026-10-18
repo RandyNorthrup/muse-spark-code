@@ -1,7 +1,7 @@
 {
   "anthropic": {
     "lines": 40,
-    "sha256": "17d8828c1c0d7cc409ff84d7a91ee3730b9ab2e91930b21c991b5392411b4e5f"
+    "sha256": "03b0430723cea564118d10f9d80a262a8e4e7d35f0086c9c47931fd0eddea8f0"
   },
   "azure": {
     "lines": 32,
@@ -17,7 +17,7 @@
   },
   "gemini": {
     "lines": 56,
-    "sha256": "aeaa0a8439eb764069a7f2a99cfb3b407ffbae142ea74cf2f8bd626cbefb7e69"
+    "sha256": "f248b50a57e94292e3a9993a6b9b0d8229255b88c329653d17cf305dd9e3679b"
   },
   "groq": {
     "lines": 40,
@@ -45,7 +45,7 @@
   },
   "ollama": {
     "lines": 8,
-    "sha256": "31c4aafca442a5318cccda3fa24f70991e4e673662dc5aa321a616f87e910b6b"
+    "sha256": "11d93b0b7b9b380a2ec54eb2717288ff6bda14588f6c3843ea1469a105f99d12"
   },
   "openai": {
     "lines": 128,

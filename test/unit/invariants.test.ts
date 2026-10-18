@@ -9,8 +9,8 @@
 // files, roster data) comes from the product's own listed records or from the
 // recorded M91-G harness capture (`test/fixtures/golden-requests/`, harness
 // date 1970-01-01, workspace /ws), never invented. The remaining values are
-// the functions' own scenario parameters (ledger days, token counts, the
-// approval answers), documented where they are used. No mocks, no fakes, no
+// the functions' own scenario parameters (token counts, the approval
+// answers), documented where they are used. No mocks, no fakes, no
 // timers, no loopback provider.
 
 import { createHash, randomUUID } from 'node:crypto'
@@ -334,21 +334,10 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
     // like the packing thresholds above.
     expect(tariff).toBe('0.0025')
     expect(paidAuthorityKey(searchA)).not.toBe(paidAuthorityKey(searchB))
-    // The day, cap and spend are the scenario's ledger state (the reducer
-    // only mirrors them for the host's budget wiring; the cap itself is
-    // refused by the budget journal's claim check, not here — see the
-    // certification record).
+    // D121 keeps no daily ledger state in the reducer: no cap by default,
+    // nothing reserved before a send. The gate below is quotes and grants
+    // only; each claim still settles its own tally.
     let state = initialPaidAuthorityState()
-    state = step(state, {
-      type: 'day',
-      day: '2026-01-01',
-      capUsd: Usd.from('1').toAmount(),
-      spentUsd: Usd.from(0).toAmount(),
-    }).state
-    expect(state.days.get('2026-01-01')).toEqual({
-      capUsd: Usd.from('1').toAmount(),
-      spentUsd: Usd.from(0).toAmount(),
-    })
 
     const first = step(state, { type: 'quote', quote: searchA, generation: 'g1', ask: true })
     state = first.state

@@ -123,7 +123,10 @@ function SessionChatShareDialog({
         throw new Error(UI_TEXT.sharePreviewExpired)
       setPreview(shown)
       port.remember(request.mode, request.format)
-    } catch (error_) {
+    } catch (error_: unknown) {
+      // A failed preview reads failed: only a non-error keeps its kind past
+      // the dialog.
+      if (!(error_ instanceof Error)) throw error_
       if (current === generation.current) setError(failureText(error_))
     } finally {
       if (current === generation.current) setBusy(false)
@@ -141,7 +144,10 @@ function SessionChatShareDialog({
         request: preview.request,
       })
       if (result === 'shared' && current === generation.current) close()
-    } catch (error_) {
+    } catch (error_: unknown) {
+      // A failed share reads failed: only a non-error keeps its kind past
+      // the dialog.
+      if (!(error_ instanceof Error)) throw error_
       if (current === generation.current) setError(failureText(error_))
     } finally {
       if (current === generation.current) {

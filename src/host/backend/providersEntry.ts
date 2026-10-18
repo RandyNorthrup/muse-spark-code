@@ -18,6 +18,7 @@ export * as priceCard from '../../core/providers/priceCard'
 export * as providersFile from '../../core/providers/providersFile'
 export * as scanDiff from '../../core/providers/scanDiff'
 export * as suggest from '../../core/providers/suggest'
+export * as tokenCount from '../../core/providers/tokenCount'
 export * as wizardFlow from '../../core/providers/wizardFlow'
 export { setUiText } from '../../shared/l10n/text'
 

@@ -11,7 +11,7 @@ still open, so this page does not claim certified headless or Action support,
 nor npm-registry Action support. Command receipts and precise claim limits live in
 [m80.md](certification/m80.md).
 
-ACP and headless Model API/BYO requests share a hard local-day budget in the agent data folder. Its `settings.json` accepts `{"paidDailyBudgetUsd":5}` (USD; default $5, range $0.50–$500), corresponding to the extension’s `museSpark.paidDailyBudgetUsd`. Reservations use an exclusive cross-process lock before dispatch and settle from verified usage; an interrupted or unpriced request retains its liability. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search is unavailable in this runtime while the hard daily budget is active because its returned fees have no dispatch bound.
+ACP and headless Model API/BYO requests can share a daily spending limit that you set in the agent data folder's `settings.json`: `{"paidDailyBudgetUsd":5}` (USD; none by default), matching the extension's `museSpark.paidDailyBudgetUsd`. With no limit set, nothing is checked, read or written before a request. With one, a request whose estimate would pass what is left of today is not sent and the reason says so; each request's reported cost joins today's total after it ends, in one file per process with no lock, and a request that ended without its usage counts as cost unknown, never as its estimate. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search runs in this runtime only with a verified per-request call bound, because its returned fees have no other dispatch bound.
 
 ## One prompt, one workspace, one turn
 
@@ -45,6 +45,7 @@ muse-spark-code-acp scan-secrets fix.patch
 | --untrusted-file <path>, repeatable | none                   | At most 8 files, 1 MiB each, 2 MiB total, 48 chunks total; readable regular files.                                          |
 | --permission-mode plan\|acceptEdits | plan                   | Refuse auto, manual, bypassPermissions and all other modes.                                                                 |
 | --model, --effort                   | backend default        | Listed for this run; supported effort. Model API model must also have a known tariff.                                       |
+| --fast                              | off                    | The plan catalogue's Fast tier (2x speed, increased usage) where the model lists a priority tier; refused elsewhere.        |
 | --allow-contributor-models          | off                    | Explicit permission to select a contributor model; docs name training eligibility (`apidocs/pricing-rate-limits.md:21–29`). |
 | --output text\|json\|jsonl          | text                   | Exact enum.                                                                                                                 |
 | --max-budget-usd <usd>              | required for Model API | Finite, 0 < value ≤ 20; must cover the model minimum below before billable dispatch. Refuse on Muse Code.                   |

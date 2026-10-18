@@ -6,7 +6,11 @@ import { Usd, type UsdAmount } from '../../../../shared/usd'
 
 import type { ModelCapabilities } from '../../../providers/capabilities'
 import * as z from 'zod/mini'
-import { CODEC_EMPTY_TOOL_OUTPUT, CODEC_IMAGE_WITHOUT_VISION } from '../../../../shared/constants'
+import {
+  CHATGPT_PLAN_RETRYABLE_CODES,
+  CODEC_EMPTY_TOOL_OUTPUT,
+  CODEC_IMAGE_WITHOUT_VISION,
+} from '../../../../shared/constants'
 export { parseNativeModelsList as parseResponsesModelsList } from '../../../providers/modelMetadata'
 import {
   type CreateResponseBody,
@@ -24,7 +28,6 @@ import {
   responseSchema,
   type StreamEvent,
   streamEventSchema,
-  type Usage,
   usageSchema,
   webSearchCallItemSchema,
   withStrictTools,
@@ -47,8 +50,13 @@ export type ResponsesCodecQuirks =
       readonly supportsStrictTools?: boolean | undefined
       /** Stable across turns; supplied by the host, never derived from a token. */
       readonly toolNamespace: string
-      /** The caller's namespace description, preserved as in the M95b capture. */
-      readonly toolNamespaceDescription?: string
+      /**
+       * The namespace's own description. Required on this profile: the
+       * plan endpoint answers HTTP 400 without it
+       * (`missing_required_parameter: tools[0].description`), so the type
+       * leaves no way to omit it.
+       */
+      readonly toolNamespaceDescription: string
     }
 /**
  * M101 lane P1 (BYO item 2): per-request replay provenance. Replayed call
@@ -65,11 +73,16 @@ export interface ResponsesEncodeOptions {
   readonly replayOrigins?: Readonly<Record<string, string>> | undefined
 }
 
-/** Technical diagnostics contain no provider-controlled text or schema errors. */
+/**
+ * Technical diagnostics contain no provider-controlled text or schema errors.
+ * `isLocal` marks a refusal of this app's own setup (a hosted tool it cannot
+ * send), not of what the provider streamed.
+ */
 export class ResponsesDecodeError extends Error {
   public constructor(
-    reason: string,
+    public readonly reason: string,
     public readonly frameLength: number,
+    public readonly isLocal = false,
   ) {
     super(`ResponsesDecodeError: ${reason}`)
     this.name = 'ResponsesDecodeError'
@@ -88,37 +101,9 @@ export class ChatgptPlanLimitError extends Error {
   }
 }
 
-/** Cancellation is local; no output-cap parameter is sent to the plan endpoint. */
-export class ResponsesOutputCapError extends Error {
-  public constructor(
-    public readonly maxOutputTokens: number,
-    public readonly outputTokens: number,
-    /** Validated report for canonical failure settlement; never rejected output. */
-    public readonly usage?: Usage,
-  ) {
-    super('ResponsesOutputCapError: client output cap exceeded')
-    this.name = 'ResponsesOutputCapError'
-  }
-}
-
-/** Per-request host dependencies, kept out of the pure request encoder. */
-export interface ResponsesOutputCap {
-  readonly maxOutputTokens: number
-  /**
-   * Cumulative tokens after this validated event, including tool arguments
-   * and whole final items without double-counting earlier deltas. The host
-   * supplies its model's counter; the codec never guesses chars per token.
-   */
-  readonly countOutputTokens: (event: StreamEvent) => number
-  /** Abort only this request's active transport when the cap is crossed. */
-  readonly abort: () => void
-}
-
 /** xAI's reported cost reaches settlement before canonical consumers read usage. */
 export interface ResponsesDecodeSink {
   readonly settledCostUsd?: (costUsd: UsdAmount) => void
-  /** Mandatory for the ChatGPT profile, unused by the API-key profile. */
-  readonly outputCap?: ResponsesOutputCap
 }
 
 // Meta's canonical tools declare strict:false. This wire seam also accepts
@@ -353,6 +338,31 @@ const responseFrameSchema = z.object({
   }),
 })
 const itemFrameSchema = z.object({ item: nativeItemSchema })
+type NativeItem = z.infer<typeof nativeItemSchema>
+type NativeResponse = z.infer<typeof responseFrameSchema>['response']
+
+/**
+ * A ChatGPT plan response's output: the items its stream delivered, in their
+ * output order. A terminal frame that lists items itself must list the same
+ * number, or the stream is refused rather than one of the two trusted.
+ */
+function withStreamedOutput(
+  response: NativeResponse,
+  streamed: readonly { readonly index: number; readonly item: NativeItem }[],
+  frameLength: number,
+): NativeResponse {
+  if (response.output.length > 0 && response.output.length !== streamed.length) {
+    throw new ResponsesDecodeError('terminal output differs from the streamed items', frameLength)
+  }
+  const sorted = streamed.toSorted((a, b) => a.index - b.index)
+  // A gap (items 0 and 2, say) must refuse, never compact: the missing item
+  // may be the call the later ones depend on.
+  if (sorted.some((entry, index) => entry.index !== index)) {
+    throw new ResponsesDecodeError('streamed output indices are not contiguous', frameLength)
+  }
+  const output = sorted.map((entry) => entry.item)
+  return { ...response, output }
+}
 const settledCostSchema = z.object({
   cost_in_usd_ticks: tokenCountSchema,
 })
@@ -367,27 +377,6 @@ function settledCostOf(usage: unknown): UsdAmount | undefined {
     : undefined
 }
 
-function withinOutputCap(event: StreamEvent, cap: ResponsesOutputCap | undefined): StreamEvent {
-  if (cap === undefined) return event
-  const counted = cap.countOutputTokens(event)
-  if (!Number.isSafeInteger(counted) || counted < 0) {
-    throw new ResponsesDecodeError('invalid output counter', 0)
-  }
-  // Encrypted reasoning is not observable in deltas. Reported output usage
-  // includes it; it can only stop the reply once that usage arrives.
-  const reported = 'response' in event ? (event.response.usage?.output_tokens ?? 0) : 0
-  const outputTokens = Math.max(counted, reported)
-  if (outputTokens > cap.maxOutputTokens) {
-    cap.abort()
-    throw new ResponsesOutputCapError(
-      cap.maxOutputTokens,
-      outputTokens,
-      'response' in event ? (event.response.usage ?? undefined) : undefined,
-    )
-  }
-  return event
-}
-
 export function createResponsesCodec(
   quirks: ResponsesCodecQuirks,
   capabilitiesForModel?: (modelId: string) => ModelCapabilities | undefined,
@@ -400,7 +389,7 @@ export function createResponsesCodec(
     ): Record<string, unknown> {
       const isChatgpt = quirks.profile === 'chatgpt'
       if (isChatgpt && body.tools.some((tool) => tool.type !== 'function')) {
-        throw new ResponsesDecodeError('unsupported ChatGPT hosted tool', 0)
+        throw new ResponsesDecodeError('unsupported ChatGPT hosted tool', 0, true)
       }
       // M101 lane P1 (BYO items 1, 2, 13): the input replays replay-safe.
       // An input left with nothing after the mapping is refused outright
@@ -430,9 +419,7 @@ export function createResponsesCodec(
               {
                 type: 'namespace',
                 name: quirks.toolNamespace,
-                ...(quirks.toolNamespaceDescription !== undefined && {
-                  description: quirks.toolNamespaceDescription,
-                }),
+                description: quirks.toolNamespaceDescription,
                 tools: body.tools,
               },
             ]
@@ -446,6 +433,7 @@ export function createResponsesCodec(
         stream: body.stream,
         store: body.store,
         include: body.include,
+        ...(isChatgpt && body.service_tier !== undefined && { service_tier: body.service_tier }),
         ...(!isChatgpt && { max_output_tokens: body.max_output_tokens }),
         ...((isChatgpt || quirks.sendPromptCacheKey) && {
           prompt_cache_key: body.prompt_cache_key,
@@ -460,17 +448,14 @@ export function createResponsesCodec(
       chunks: AsyncIterable<Uint8Array>,
       sink?: ResponsesDecodeSink,
     ): AsyncGenerator<StreamEvent> {
-      const outputCap = quirks.profile === 'chatgpt' ? sink?.outputCap : undefined
-      if (outputCap === undefined && quirks.profile === 'chatgpt') {
-        throw new ResponsesDecodeError('missing ChatGPT output cap', 0)
-      }
-      if (
-        outputCap !== undefined &&
-        (!Number.isSafeInteger(outputCap.maxOutputTokens) || outputCap.maxOutputTokens <= 0)
-      ) {
-        throw new ResponsesDecodeError('invalid output cap', 0)
-      }
       let hasReportedCost = false
+      // The ChatGPT plan streams each output item in its own
+      // `response.output_item.done` frame and ends with `output: []` (measured
+      // 2026-10-14, finding F87: a read_file call streamed, the terminal frame
+      // listed nothing, and the turn ended without running it). Codex reads
+      // the items from those frames too, so for this profile they are the
+      // response's output.
+      const streamed: { readonly index: number; readonly item: NativeItem }[] = []
       for await (const frame of parseSse(chunks)) {
         if (frame.data.trim() === '' || frame.data === DONE_SENTINEL) {
           continue
@@ -514,6 +499,19 @@ export function createResponsesCodec(
           ) {
             throw new ChatgptPlanLimitError(parsed.data.response.error.message)
           }
+          // "Usage availability could not be checked" can arrive after the
+          // stream began; the documented recovery is the bounded retry, so
+          // it reaches the turn as a retryable error, not a failed reply.
+          const failure = parsed.data.response.error
+          if (
+            quirks.profile === 'chatgpt' &&
+            known.data.type === 'response.failed' &&
+            failure?.code != null &&
+            CHATGPT_PLAN_RETRYABLE_CODES.includes(failure.code)
+          ) {
+            yield { type: 'error', code: failure.code, message: failure.message }
+            continue
+          }
           if (!hasReportedCost && TERMINAL_WITH_USAGE.has(known.data.type)) {
             const costUsd = settledCostOf(parsed.data.response.usage)
             if (costUsd !== undefined) {
@@ -521,13 +519,45 @@ export function createResponsesCodec(
               sink?.settledCostUsd?.(costUsd)
             }
           }
-          yield withinOutputCap({ ...known.data, response: parsed.data.response }, outputCap)
+          // A plan response's output is taken from its streamed items.
+          yield quirks.profile === 'chatgpt' && TERMINAL_WITH_USAGE.has(known.data.type)
+            ? {
+                ...known.data,
+                response: withStreamedOutput(parsed.data.response, streamed, frame.data.length),
+              }
+            : { ...known.data, response: parsed.data.response }
         } else if ('item' in known.data) {
           const parsed = itemFrameSchema.safeParse(json)
           if (!parsed.success) {
             throw new ResponsesDecodeError('invalid item', frame.data.length)
           }
-          yield withinOutputCap({ ...known.data, item: parsed.data.item }, outputCap)
+          if (quirks.profile === 'chatgpt' && known.data.type === 'response.output_item.done') {
+            const index = known.data.output_index
+            if (
+              index === undefined ||
+              !Number.isSafeInteger(index) ||
+              index < 0 ||
+              streamed.some((entry) => entry.index === index)
+            ) {
+              throw new ResponsesDecodeError('invalid or repeated output index', frame.data.length)
+            }
+            const item = parsed.data.item
+            if (
+              streamed.some(
+                (entry) =>
+                  (item.id !== undefined && entry.item.id === item.id) ||
+                  (item.type === 'function_call' &&
+                    'call_id' in item &&
+                    entry.item.type === 'function_call' &&
+                    'call_id' in entry.item &&
+                    entry.item.call_id === item.call_id),
+              )
+            ) {
+              throw new ResponsesDecodeError('repeated output identity', frame.data.length)
+            }
+            streamed.push({ index, item })
+          }
+          yield { ...known.data, item: parsed.data.item }
         } else {
           if (
             quirks.profile === 'chatgpt' &&
@@ -536,7 +566,7 @@ export function createResponsesCodec(
           ) {
             throw new ChatgptPlanLimitError(known.data.message)
           }
-          yield withinOutputCap(known.data, outputCap)
+          yield known.data
         }
       }
     },

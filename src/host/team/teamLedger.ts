@@ -1,3 +1,4 @@
+import { SpendLedgerError } from '../../core/paid/spendLedgerError'
 import { legacyUsdSchema } from '../../shared/usd'
 // The team ledger (M96 lane A, PLAN.md D75): the durable record behind the
 // Agent map's live and history views. Every delegation is one row, kept per
@@ -16,7 +17,7 @@ import { legacyUsdSchema } from '../../shared/usd'
 
 import { mkdir, open, readdir, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
-import { storeErrorCode } from '../backend/storeErrors'
+import { isStoreErrorCode } from '../backend/storeErrors'
 import * as z from 'zod/mini'
 import type { CoreLogger } from '../../core/logging'
 import { redactSecrets } from '../../core/redact'
@@ -34,7 +35,6 @@ import {
   TEAM_LEDGER_FILE_SUFFIX,
   TEAM_LEDGER_LINE_MAX_BYTES,
   TEAM_LEDGER_RETRY_MAX_MS,
-  UI_TEXT,
 } from '../../shared/constants'
 
 /** A task's live state (D75): active until one of the inactive states. */
@@ -288,6 +288,16 @@ export class TeamLedger {
     this.scheduleFlush(nextDelay)
   }
 
+  /** Puts unpublished batches back ahead of newer generations' lines. */
+  private requeuePending(
+    batches: readonly (readonly [string, readonly string[]])[],
+    index: number,
+  ): void {
+    for (const [pendingDay, pendingLines] of batches.slice(index)) {
+      this.pending.set(pendingDay, [...pendingLines, ...(this.pending.get(pendingDay) ?? [])])
+    }
+  }
+
   /** Called only inside the publication queue, including Reset's baseline capture. */
   private async flushPending(): Promise<void> {
     if (this.generation <= this.publishedGeneration && this.pending.size === 0) return
@@ -299,9 +309,7 @@ export class TeamLedger {
         await this.appendLines(dayKey, lines)
       } catch (error: unknown) {
         // Requeue before a newer generation can publish: older state always precedes it.
-        for (const [pendingDay, pendingLines] of batches.slice(index)) {
-          this.pending.set(pendingDay, [...pendingLines, ...(this.pending.get(pendingDay) ?? [])])
-        }
+        this.requeuePending(batches, index)
         throw error
       }
     }
@@ -317,7 +325,7 @@ export class TeamLedger {
     try {
       names = await readdir(this.ownedDirectory)
     } catch (error: unknown) {
-      if (storeErrorCode(error) !== 'ENOENT') throw error
+      if (!isStoreErrorCode(error, 'ENOENT')) throw error
       return { rolled: 0, removed: 0 }
     }
     let rolled = 0
@@ -358,7 +366,7 @@ export class TeamLedger {
       parsed.data.workspaceId !== this.deps.workspaceId ||
       (parsed.data.kind === 'task' && parsed.data.lease.holder !== this.deps.windowId)
     ) {
-      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      throw new SpendLedgerError('integrity', { scope: 'account', file: 'teamLedger' })
     }
     let line = toLedgerLine(parsed.data)
     if (parsed.data.kind === 'reset') {
@@ -593,7 +601,7 @@ async function ledgerNames(directory: string) {
   try {
     return await readdir(directory, { withFileTypes: true })
   } catch (error: unknown) {
-    if (storeErrorCode(error) === 'ENOENT') return []
+    if (isStoreErrorCode(error, 'ENOENT')) return []
     throw error
   }
 }

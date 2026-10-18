@@ -1,3 +1,4 @@
+import { UserRefusalError } from '../refusal'
 // M105-A / D85.5. Portable sound routing; the captured batch HTTP adapter,
 // M1's confined converter and M2's media encoder are injected at integration.
 import * as z from 'zod/mini'
@@ -9,7 +10,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
+import { formatDailyBudget, formatUsd } from '../../shared/l10n/exactUsd'
 import { mediaInfoSchema, type MediaInfo } from '../../shared/media'
 import type { BackendKind } from '../../shared/protocol'
 import type { AudioAction, AudioRouteOptions } from '../../shared/audioRouting'
@@ -171,7 +172,7 @@ export interface AudioConversionPort {
 export interface BatchSpendClaim {
   /** Final synchronous admission, including the current budget and owner. */
   readonly admitSend: () => void
-  /** Undefined keeps the full reservation as uncertain liability. */
+  /** Undefined is a cost unknown: nothing is counted, never the estimate (D121). */
   readonly settle: (costUsd: Usd | undefined) => Promise<void>
 }
 
@@ -185,7 +186,7 @@ export interface AudioPreparationDeps {
   readonly gate: Pick<PaidFeatureGate, 'isOn'>
   /** Shared PaidUseConsent, with voice's window-once policy and batch question. */
   readonly consent: Pick<PaidUseConsent, 'allows'>
-  /** D78 daily and M82 session admission, durable before dispatch. */
+  /** D78 daily and M82 session limits the person set, checked before dispatch (D121). */
   readonly reserve: (costUsd: Usd, signal: AbortSignal) => Promise<BatchSpendClaim>
   readonly usage: Pick<PaidUsage, 'addVoiceBatch'>
 }
@@ -203,13 +204,13 @@ export interface PreparedAudioAttachment {
  * hourly money and the shared daily budget; no microphone starts. */
 export function batchTranscriptionQuestion(name: string, dailyBudgetUsd: UsdAmount) {
   if (!nonnegativeUsdSchema.safeParse(dailyBudgetUsd).success)
-    throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'ledger_integrity')
   const price = fill(UI_TEXT.paidVoicePrice, { price: formatUsd(PAID_PRICES_USD.voicePerHour, 2) })
   return {
     title: fill(UI_TEXT.media.transcript, { name }),
     detail: [
       fill(UI_TEXT.imageBuyBilling, { price }),
-      fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(dailyBudgetUsd, 2) }),
+      fill(UI_TEXT.paidDailyBudgetLine, { budget: formatDailyBudget(dailyBudgetUsd) }),
     ].join('\n\n'),
   }
 }

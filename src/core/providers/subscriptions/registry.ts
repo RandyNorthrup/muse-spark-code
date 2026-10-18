@@ -4,71 +4,338 @@ function isPlanModel(model: string): boolean {
 // M95b's subscription dispatch. Only the account catalogue chooses ChatGPT
 // models; neither tokens nor service error text cross the host bridge.
 import { createHash } from 'node:crypto'
+import { isUserRefusal } from '../../refusal'
 import * as z from 'zod/mini'
 import type { ProviderClient } from '../../backends/modelapi/client'
-import {
-  isFunctionCallItem,
-  isMessageItem,
-  isReasoningItem,
-  messageText,
-  type OutputItem,
-  type StreamEvent,
-  type Usage,
-} from '../../backends/modelapi/schemas'
+import { errorBodySchema, type StreamEvent, type Usage } from '../../backends/modelapi/schemas'
 import { responses, modelRef, recordPlanUsage } from '../../../host/backend/providersEntry'
-const { ChatgptPlanLimitError, createResponsesCodec, ResponsesOutputCapError } = responses
+const { ChatgptPlanLimitError, createResponsesCodec, ResponsesDecodeError } = responses
 const { parseModelRef } = modelRef
 import {
+  CHATGPT_DIRECT_UNAVAILABLE_CODE,
+  CHATGPT_PLAN_LIMIT_ERROR_KIND,
+  CHATGPT_PLAN_NOT_ELIGIBLE_CODE,
+  CHATGPT_PLAN_RETRYABLE_CODES,
+  CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+  HTTP_TOO_MANY_REQUESTS,
   MILLISECONDS_PER_SECOND,
   MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_STREAM_IDLE_MS,
-  SUBSCRIPTION_STREAM_MAX_BYTES,
+  PROVIDER_RETRY_HTTP_STATUS,
   UI_TEXT,
 } from '../../../shared/constants'
 import {
   assertConfirmedAllowed,
   isStaleConfirmedError,
   noteConfirmedRequestStarted,
+  rateLimitHeaders,
+  type ResponseAttemptGuard,
 } from '../../backends/modelapi/transport'
 import { fill } from '../../../shared/l10n/text'
 import { DeadlineError, withDeadline } from '../../timeouts'
+import { failureCodeNames } from '../../networkFailure'
 import type { ProvidersFile } from '../providersFile'
 import { type ChatGptSignIn, ChatGptSignInError, chatGptRecordSchema } from './chatgpt'
+import { CopilotFailureError } from './copilotFailure'
+import type { ChatGptPlanFacts } from '../../backends/modelapi/planFacts'
+import { chatGptPlanFacts } from './chatgptPlanFacts'
 import type { PlanUsageRow } from './planUsage'
 
 // Owner captures acdc0f60 / 577bc807 (0 + 1 model attempts), 2026-10-05.
-const catalogueSchema = z.object({
-  models: z.array(
-    z.object({
-      slug: z.string().check(z.minLength(1)),
-      display_name: z.string(),
-      visibility: z.enum(['list', 'hide']),
-      supported_in_api: z.boolean(),
-    }),
-  ),
+const catalogueRowSchema = z.looseObject({
+  slug: z.string().check(z.minLength(1)),
+  visibility: z.enum(['list', 'hide']),
+  supported_in_api: z.boolean(),
 })
+// The outer array carries only rows: one entry with a capability field this
+// build cannot parse (a `service_tiers` entry without a description) must
+// not fail the whole listing. Rows parse minimally here; capability facts
+// parse per row in `chatGptCatalog`, so that model still lists by slug,
+// without facts.
+const catalogueSchema = z.object({ models: z.array(z.unknown()) })
 const MODELS_URL = 'https://api.openai.com/v1/models'
 const RESPONSES_URL = 'https://api.openai.com/v1/responses'
 
+export interface ChatGptCatalog {
+  readonly slugs: readonly string[]
+  readonly facts: ReadonlyMap<string, ChatGptPlanFacts>
+}
+
+/** A refused answer named by its HTTP status and OpenAI's own code, never its text. */
+async function refusalOf(response: Response): Promise<string> {
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch {
+    body = undefined
+  }
+  const envelope = errorBodySchema.safeParse(body)
+  const code = envelope.success ? envelope.data.error.code : undefined
+  const status = `HTTP ${String(response.status)}`
+  return code == null || code === '' ? status : `${status} ${code}`
+}
+
+/**
+ * The plan catalogue with each entry's capability facts. An entry that
+ * fails the facts parse still lists by slug, without facts: listing never
+ * loses a model to a field the app does not use.
+ */
+export async function chatGptCatalog(
+  signIn: Pick<ChatGptSignIn, 'accessToken'>,
+  fetcher: typeof fetch,
+): Promise<ChatGptCatalog> {
+  const token = await signIn.accessToken(MODELS_URL, MODEL_API_REQUEST_TIMEOUT_MS)
+  let response: Response
+  try {
+    response = await fetcher(MODELS_URL, {
+      redirect: 'error',
+      signal: AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  } catch (error) {
+    throw new ChatGptSignInError('request-failed', failureCodeNames(error))
+  }
+  if (!response.ok) throw new ChatGptSignInError('catalogue-refused', await refusalOf(response))
+  let value: unknown
+  try {
+    value = await response.json()
+  } catch {
+    throw new ChatGptSignInError('catalogue-unreadable')
+  }
+  const parsed = catalogueSchema.safeParse(value)
+  if (!parsed.success) throw new ChatGptSignInError('catalogue-unreadable')
+  // A row without the listing fields cannot list; a row with them but with
+  // unparseable capability fields still lists by slug, without facts.
+  const rows: { readonly slug: string; readonly entry: unknown }[] = []
+  for (const row of parsed.data.models) {
+    const listing = catalogueRowSchema.safeParse(row)
+    if (!listing.success || listing.data.visibility !== 'list' || !listing.data.supported_in_api)
+      continue
+    rows.push({ slug: listing.data.slug, entry: row })
+  }
+  const slugs = [...new Set(rows.map((row) => row.slug))]
+  if (slugs.length === 0) throw new ChatGptSignInError('catalogue-empty')
+  const facts = new Map<string, ChatGptPlanFacts>()
+  for (const row of rows) {
+    const parsedFacts = chatGptPlanFacts(row.entry)
+    if (parsedFacts !== undefined && !facts.has(row.slug)) facts.set(row.slug, parsedFacts)
+  }
+  return { slugs, facts }
+}
+
 export async function chatGptModels(
-  signIn: ChatGptSignIn,
+  signIn: Pick<ChatGptSignIn, 'accessToken'>,
   fetcher: typeof fetch,
 ): Promise<string[]> {
-  const token = await signIn.accessToken(MODELS_URL, MODEL_API_REQUEST_TIMEOUT_MS)
-  const response = await fetcher(MODELS_URL, {
-    redirect: 'error',
-    signal: AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!response.ok) throw new Error(UI_TEXT.acpChatGpt.failure)
-  const value: unknown = await response.json()
-  const parsed = catalogueSchema.safeParse(value)
-  if (!parsed.success) throw new Error(UI_TEXT.acpChatGpt.failure)
-  const models = parsed.data.models
-    .filter((row) => row.visibility === 'list' && row.supported_in_api)
-    .map((row) => row.slug)
-  if (models.length === 0) throw new Error(UI_TEXT.acpChatGpt.failure)
-  return [...new Set(models)]
+  const catalog = await chatGptCatalog(signIn, fetcher)
+  return [...catalog.slugs]
+}
+
+/**
+ * A non-OK answer from the plan route, handled as OpenAI's errors and
+ * recovery page says (read 2026-10-17). `code` is OpenAI's own `error.code`
+ * (or this app's name for the code-less direct-route 503), and the message
+ * is what the person reads: OpenAI's own `error.message` or `detail` for a
+ * refusal, never a header or a token. The usage limit is the plan-limit
+ * answer; a 503 rides the turn's bounded retry with the credentials kept;
+ * every other refusal is terminal and is never retried.
+ */
+class ChatgptPlanRequestError extends Error {
+  public constructor(
+    message: string,
+    public readonly code: string,
+  ) {
+    super(message)
+  }
+}
+
+/** A direct-route admission refusal before any Responses request: diagnostic text, no code. */
+const directAdmissionSchema = z.object({ detail: z.string() })
+
+/**
+ * The one sentence for a failed ChatGPT sign-in, refresh, lock or catalogue
+ * read, shared by the terminal and ACP commands, the Models panel, the
+ * session's model listing and the plan stream's catch. Every code has its
+ * own cause; none falls back to a general sentence. `reason` is the
+ * operating system's code, OpenAI's error code, an HTTP status, Node's
+ * network codes or this app's own word, never provider text.
+ */
+export function chatGptFailureText(code: ChatGptSignInError['code'], reason?: string): string {
+  const named = reason ?? code
+  switch (code) {
+    case 'invalid-discovery': {
+      return UI_TEXT.acpChatGpt.discoveryInvalid
+    }
+    case 'invalid-callback': {
+      return UI_TEXT.acpChatGpt.callbackInvalid
+    }
+    case 'callback-timeout': {
+      return UI_TEXT.acpChatGpt.callbackTimeout
+    }
+    case 'invalid-state': {
+      return UI_TEXT.acpChatGpt.stateMismatch
+    }
+    case 'invalid-token': {
+      return UI_TEXT.acpChatGpt.tokenAnswerInvalid
+    }
+    case 'invalid-id-token': {
+      return UI_TEXT.acpChatGpt.idTokenInvalid
+    }
+    case 'missing-plan-scope': {
+      return UI_TEXT.acpChatGpt.missingPlanScope
+    }
+    case 'origin-mismatch': {
+      return UI_TEXT.acpChatGpt.originMismatch
+    }
+    case 'not-signed-in': {
+      return UI_TEXT.acpChatGpt.states['signed-out']
+    }
+    case 'still-signed-in': {
+      return UI_TEXT.acpChatGpt.states['signed-in']
+    }
+    case 'sign-in-required': {
+      return fill(UI_TEXT.acpChatGpt.signInRefused, { reason: named })
+    }
+    case 'grant-unreadable': {
+      return UI_TEXT.acpChatGpt.grantUnreadable
+    }
+    case 'registration-unreadable': {
+      return UI_TEXT.acpChatGpt.registrationUnreadable
+    }
+    case 'host-id-unreadable': {
+      return fill(UI_TEXT.acpChatGpt.hostIdUnreadable, { reason: named })
+    }
+    case 'catalogue-refused': {
+      return fill(UI_TEXT.acpChatGpt.catalogueRefused, { reason: named })
+    }
+    case 'catalogue-unreadable': {
+      return UI_TEXT.acpChatGpt.catalogueUnreadable
+    }
+    case 'catalogue-empty': {
+      return UI_TEXT.acpChatGpt.catalogueEmpty
+    }
+    case 'added-models-unlisted': {
+      return UI_TEXT.acpChatGpt.addedModelsUnlisted
+    }
+    case 'model-not-added': {
+      return fill(UI_TEXT.acpChatGpt.modelNotAdded, { model: named })
+    }
+    case 'store-unavailable': {
+      return UI_TEXT.acpChatGpt.storeUnavailable
+    }
+    case 'lock-unavailable': {
+      return fill(UI_TEXT.acpChatGpt.lockUnavailable, { reason: reason ?? code })
+    }
+    case 'lock-busy': {
+      return UI_TEXT.acpChatGpt.lockBusy
+    }
+    case 'cancelled': {
+      return UI_TEXT.acpChatGpt.cancelled
+    }
+    case 'browser-unavailable': {
+      return UI_TEXT.acpChatGpt.browserUnavailable
+    }
+    case 'local-failed': {
+      return fill(UI_TEXT.acpChatGpt.localFailed, { reason: reason ?? code })
+    }
+    case 'providers-file-unreadable': {
+      return fill(UI_TEXT.acpChatGpt.providersFileUnreadable, { reason: reason ?? code })
+    }
+    case 'providers-file-unwritable': {
+      return fill(UI_TEXT.acpChatGpt.providersFileUnwritable, { reason: reason ?? code })
+    }
+    case 'already-added': {
+      return UI_TEXT.acpChatGpt.alreadyAdded
+    }
+    case 'account-mismatch': {
+      return UI_TEXT.acpChatGpt.accountMismatch
+    }
+    case 'client-refused': {
+      return UI_TEXT.acpChatGpt.clientRefused
+    }
+    case 'authorize-refused': {
+      return fill(UI_TEXT.acpChatGpt.authorizeRefused, { reason: reason ?? code })
+    }
+    case 'expired': {
+      return UI_TEXT.planUi.expired
+    }
+    case 'request-failed': {
+      // OpenAI or the network, named by status or Node's codes where known.
+      return reason === undefined
+        ? UI_TEXT.planUi.retry
+        : fill(UI_TEXT.acpChatGpt.requestFailed, { reason })
+    }
+  }
+}
+
+/**
+ * The sentence for a refused plan answer, from a real `Response`: OpenAI's
+ * own error message or admission detail where it sent one, the HTTP status
+ * where it sent none, and the standing retry sentence only for the
+ * documented transient (503 / retryable code).
+ */
+export async function planRequestError(response: Response): Promise<ChatgptPlanRequestError> {
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch {
+    body = undefined
+  }
+  const envelope = errorBodySchema.safeParse(body)
+  const code = envelope.success ? (envelope.data.error.code ?? undefined) : undefined
+  if (code === CHATGPT_PLAN_LIMIT_ERROR_KIND) {
+    return new ChatgptPlanRequestError(UI_TEXT.planUi.limitDetail, code)
+  }
+  const isRetryCode = code !== undefined && CHATGPT_PLAN_RETRYABLE_CODES.includes(code)
+  if (isRetryCode || response.status === PROVIDER_RETRY_HTTP_STATUS.serviceUnavailable) {
+    return new ChatgptPlanRequestError(
+      UI_TEXT.planUi.retry,
+      isRetryCode ? code : CHATGPT_DIRECT_UNAVAILABLE_CODE,
+    )
+  }
+  if (code === CHATGPT_PLAN_NOT_ELIGIBLE_CODE) {
+    return new ChatgptPlanRequestError(UI_TEXT.planUi.notEligible, code)
+  }
+  const admission = directAdmissionSchema.safeParse(body)
+  let detail = ''
+  if (envelope.success) detail = envelope.data.error.message
+  else if (admission.success) detail = admission.data.detail
+  if (detail === '') {
+    // No words from OpenAI: the HTTP status is the cause, never a generic outage.
+    return new ChatgptPlanRequestError(
+      fill(UI_TEXT.planUi.requestFailed, { message: `HTTP ${String(response.status)}` }),
+      code ?? 'request-failed',
+    )
+  }
+  return new ChatgptPlanRequestError(
+    fill(UI_TEXT.planUi.requestFailed, { message: detail }),
+    code ?? 'request-failed',
+  )
+}
+
+/**
+ * What the plan route reports in its headers is kept as reported, through
+ * the usage journal's allow list; nothing is read as a meter or a reset
+ * time (OpenAI documents none for this route, and the 2026-10-05 capture
+ * carries none). An observation failure never changes the request.
+ */
+function observePlanAnswer(guard: ResponseAttemptGuard | undefined, response: Response): void {
+  try {
+    guard?.observe?.({
+      headers: rateLimitHeaders(response.headers),
+      ...(!response.ok && { rateLimited: response.status === HTTP_TOO_MANY_REQUESTS }),
+    })
+  } catch {
+    /* The journal's own refusal is not the plan request's. */
+  }
+}
+
+// The catalogue slug for one model reference. Bare ids read as slugs;
+// a qualified foreign provider reads as undescribed, so plan facts are
+// never fetched for a provider the catalogue does not describe.
+function planSlug(model: string): string | undefined {
+  const ref = parseModelRef(model)
+  return ref === undefined || ref.providerId === 'chatgpt' ? (ref?.modelId ?? model) : undefined
 }
 
 function subscriptionRecord(record: unknown) {
@@ -77,11 +344,27 @@ function subscriptionRecord(record: unknown) {
   try {
     if (typeof record === 'string') value = JSON.parse(record)
   } catch {
-    throw new Error(UI_TEXT.acpChatGpt.failure)
+    throw new ChatGptSignInError('grant-unreadable')
   }
   const parsed = chatGptRecordSchema.safeParse(value)
-  if (!parsed.success) throw new Error(UI_TEXT.acpChatGpt.failure)
+  if (!parsed.success) throw new ChatGptSignInError('grant-unreadable')
   return parsed.data
+}
+
+/**
+ * A session's model listing and resolution say a ChatGPT failure in its own
+ * sentence: the error a session shows is its message, and a sign-in error's
+ * message is only its technical code.
+ */
+async function named<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work()
+  } catch (error) {
+    if (error instanceof ChatGptSignInError) {
+      throw new Error(chatGptFailureText(error.code, error.reason), { cause: error })
+    }
+    throw error
+  }
 }
 
 export function chatGptAccountId(record: unknown): string | undefined {
@@ -96,37 +379,11 @@ export function chatGptPlanAccount(record: unknown) {
     : { providerId: 'chatgpt', accountIdHash: parsed.accountIdHash }
 }
 
-/** Byte counts conservatively bound text tokens until a model tokenizer is available. */
-function outputCounter(): (event: StreamEvent) => number {
-  const counts = new Map<string, number>()
-  const remember = (id: string, text: string) => {
-    counts.set(id, Math.max(counts.get(id) ?? 0, Buffer.byteLength(text)))
-  }
-  return (event) => {
-    if ('delta' in event) {
-      counts.set(event.item_id, (counts.get(event.item_id) ?? 0) + Buffer.byteLength(event.delta))
-    }
-    const items: OutputItem[] = []
-    if ('item' in event) items.push(event.item)
-    else if ('response' in event) items.push(...event.response.output)
-    for (const item of items) {
-      let text = ''
-      if (isFunctionCallItem(item)) text = item.arguments
-      else if (isMessageItem(item)) text = messageText(item)
-      else if (isReasoningItem(item)) text = (item.summary ?? []).map((part) => part.text).join('')
-      remember(item.id ?? String(counts.size), text)
-    }
-    let total = 0
-    for (const value of counts.values()) total += value
-    return total
-  }
-}
-
 export interface SubscriptionRegistryDeps {
   readonly fetch: typeof fetch
   readonly hasMetaKey?: () => Promise<boolean>
   readonly providers: () => Promise<ProvidersFile>
-  readonly chatgpt: () => Promise<ChatGptSignIn>
+  readonly chatgpt: () => Promise<Pick<ChatGptSignIn, 'accessToken'>>
   readonly accountId: () => Promise<string | undefined>
   readonly copilot?: () => ReadonlyMap<
     string,
@@ -151,13 +408,54 @@ export function createSubscriptionClient(
   deps: SubscriptionRegistryDeps,
 ): ProviderClient {
   let tallies = [...(deps.loadUsage?.() ?? [])]
+  // The catalogue's per-model facts, refreshed by every model listing and
+  // fetched on demand where a turn resolves before any listing ran. One
+  // in-flight fetch is shared; a failed fetch leaves the cache cold so the
+  // next read retries, and every read without facts keeps today's behaviour.
+  let cachedFacts: ReadonlyMap<string, ChatGptPlanFacts> | undefined
+  let inflightFacts: Promise<ReadonlyMap<string, ChatGptPlanFacts>> | undefined
+  const readFacts = (): Promise<ReadonlyMap<string, ChatGptPlanFacts>> => {
+    if (cachedFacts !== undefined) return Promise.resolve(cachedFacts)
+    return (inflightFacts ??= (async () => {
+      try {
+        const catalog = await chatGptCatalog(await deps.chatgpt(), deps.fetch)
+        cachedFacts = catalog.facts
+        return cachedFacts
+      } finally {
+        inflightFacts = undefined
+      }
+    })())
+  }
+  /** The signed-in plans' model references; makes no Meta request. */
+  const planModelIds = async (): Promise<string[]> => {
+    const file = await deps.providers()
+    const ids: string[] = []
+    for (const entry of file.providers) {
+      if (entry.id === 'chatgpt') {
+        // Every listing refreshes the cached catalogue facts the plan
+        // send path resolves from.
+        const catalog = await chatGptCatalog(await deps.chatgpt(), deps.fetch)
+        cachedFacts = catalog.facts
+        ids.push(
+          ...catalog.slugs.filter((id) => entry.models.includes(id)).map((id) => `chatgpt/${id}`),
+        )
+      } else if (entry.id === 'copilot') {
+        ids.push(
+          ...entry.models
+            .filter((id) => deps.copilot?.().has(id) === true)
+            .map((id) => `copilot/${id}`),
+        )
+      }
+    }
+    return ids
+  }
   const configured = async (model: string) => {
     const ref = parseModelRef(model)
     const file = await deps.providers()
     const entries = file.providers
     const entry = entries.find((row) => row.id === ref?.providerId)
     if (ref === undefined || !entry?.models.includes(ref.modelId))
-      throw new Error(UI_TEXT.acpChatGpt.failure)
+      throw new ChatGptSignInError('model-not-added', model)
     return ref
   }
   const client: ProviderClient = {
@@ -165,57 +463,60 @@ export function createSubscriptionClient(
     isPlanModel,
     modelContextLimit: (model) => {
       const ref = parseModelRef(model)
+      // The catalogue's own window once a listing warmed the cache; cold
+      // keeps today's undefined.
       return ref?.providerId === 'copilot'
         ? deps.copilot?.().get(ref.modelId)?.model?.maxInputTokens
-        : undefined
+        : cachedFacts?.get(planSlug(model) ?? model)?.contextTokens
     },
+    planModelFacts: async (model: string) =>
+      await named(async () => {
+        const slug = planSlug(model)
+        if (slug === undefined) return
+        const facts = await readFacts()
+        return facts.get(slug)
+      }),
     readPlanUsage: () =>
       deps.copilotUsage === undefined
         ? tallies
         : [...tallies.filter((row) => row.providerId !== 'copilot'), ...deps.copilotUsage()],
-    currentKeyDigest: async () => {
-      return (await deps.hasMetaKey?.()) === true
-        ? await meta.currentKeyDigest()
-        : ((await deps.accountId()) ?? (await meta.currentKeyDigest()))
-    },
+    currentKeyDigest: async () =>
+      await named(async () =>
+        (await deps.hasMetaKey?.()) === true
+          ? await meta.currentKeyDigest()
+          : ((await deps.accountId()) ?? (await meta.currentKeyDigest())),
+      ),
     retryDelayMs: (attempt) => meta.retryDelayMs(attempt),
     waitBeforeRetry: (ms, signal) => meta.waitBeforeRetry(ms, signal),
     createImage: (...args) => meta.createImage(...args),
     editImage: (...args) => meta.editImage(...args),
-    listModels: async () => {
-      const file = await deps.providers()
-      const ids: string[] = []
-      for (const entry of file.providers) {
-        if (entry.id === 'chatgpt') {
-          const available = await chatGptModels(await deps.chatgpt(), deps.fetch)
-          ids.push(
-            ...available.filter((id) => entry.models.includes(id)).map((id) => `chatgpt/${id}`),
-          )
-        } else if (entry.id === 'copilot') {
-          ids.push(
-            ...entry.models
-              .filter((id) => deps.copilot?.().has(id) === true)
-              .map((id) => `copilot/${id}`),
-          )
+    listPlanModels: async () => await named(planModelIds),
+    listModels: async () =>
+      await named(async () => {
+        const file = await deps.providers()
+        const ids = await planModelIds()
+        // A plan-only account makes no Meta request; keyed users keep both catalogues.
+        if ((await deps.hasMetaKey?.()) === true) return [...(await meta.listModels()), ...ids]
+        if (ids.length === 0 && file.providers.some((entry) => entry.id === 'chatgpt')) {
+          // The plan answered, but none of the models added here is in its list now.
+          throw new ChatGptSignInError('added-models-unlisted')
         }
-      }
-      // A plan-only account makes no Meta request; keyed users keep both catalogues.
-      if ((await deps.hasMetaKey?.()) === true) return [...(await meta.listModels()), ...ids]
-      if (ids.length === 0 && file.providers.some((entry) => entry.auth === 'subscription')) {
-        throw new Error(UI_TEXT.planUi.copilotUnavailable)
-      }
-      return ids.length > 0 ? ids : await meta.listModels()
-    },
-    countInputTokens: async (body) => {
-      if (!isPlanModel(body.model)) return await meta.countInputTokens(body)
-      const ref = await configured(body.model)
-      if (ref.providerId === 'copilot') {
-        const adapter = deps.copilot?.().get(ref.modelId)
-        if (adapter === undefined) throw new Error(UI_TEXT.actionFailed)
-        return await adapter.countInputTokens({ ...body, model: ref.modelId })
-      }
-      return Buffer.byteLength(JSON.stringify(body.input)) + Buffer.byteLength(body.instructions)
-    },
+        if (ids.length === 0 && file.providers.some((entry) => entry.auth === 'subscription')) {
+          throw new Error(UI_TEXT.planUi.copilotUnavailable)
+        }
+        return ids.length > 0 ? ids : await meta.listModels()
+      }),
+    countInputTokens: async (body) =>
+      await named(async () => {
+        if (!isPlanModel(body.model)) return await meta.countInputTokens(body)
+        const ref = await configured(body.model)
+        if (ref.providerId === 'copilot') {
+          const adapter = deps.copilot?.().get(ref.modelId)
+          if (adapter === undefined) throw new Error(UI_TEXT.actionFailed)
+          return await adapter.countInputTokens({ ...body, model: ref.modelId })
+        }
+        return Buffer.byteLength(JSON.stringify(body.input)) + Buffer.byteLength(body.instructions)
+      }),
     streamResponse: async function* (body, signal, onRetry, budget, admitAttempt, confirmed) {
       if (!isPlanModel(body.model)) {
         yield* meta.streamResponse(body, signal, onRetry, budget, admitAttempt, confirmed)
@@ -238,6 +539,7 @@ export function createSubscriptionClient(
           if (adapter === undefined) throw new Error(UI_TEXT.actionFailed)
           const account = await deps.accountId()
           const guard = Object.assign(() => admitAttempt?.(account), {
+            ...admitAttempt,
             onRequestStarted: () => {
               isDispatched = true
               noteConfirmedRequestStarted(confirmed, admitAttempt)
@@ -292,9 +594,15 @@ export function createSubscriptionClient(
             throw error
           }
         }
-        const codec = createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' })
+        const codec = createResponsesCodec({
+          profile: 'chatgpt',
+          toolNamespace: 'functions',
+          toolNamespaceDescription: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+        })
         const request = codec.encodeRequest({ ...body, model: ref.modelId })
-        admitAttempt?.(await deps.accountId())
+        const account = await deps.accountId()
+        await admitAttempt?.prepare?.()
+        admitAttempt?.(account)
         if (signal.aborted) throw signal.reason
         // A paid-gate lapse during sign-in still refuses: re-check the gate
         // immediately before the send, like the other clients.
@@ -312,20 +620,25 @@ export function createSubscriptionClient(
           }),
         )
         lastEventAt = Date.now()
-        if (!response.ok || response.body === null) throw new Error(UI_TEXT.acpChatGpt.failure)
+        observePlanAnswer(admitAttempt, response)
+        // The error body reads under the stream-idle deadline too: headers
+        // that arrive with a stalled body end the turn instead of hanging it
+        // past cancellation, like a silent stream.
+        if (!response.ok) throw await withinIdle(planRequestError(response))
+        if (response.body === null) {
+          throw new ChatgptPlanRequestError(UI_TEXT.planUi.noReply, 'request-failed')
+        }
         // The captured endpoint streams SSE without Content-Type. Never branch on that header.
+        // No size or output cap of this app's own: the plan route takes no
+        // `max_output_tokens` (SIWC preview limitations), so the reply ends
+        // where the model's own limit ends it.
         const reader = response.body.getReader()
         async function* bytes() {
-          let receivedBytes = 0
           try {
             for (;;) {
               const next = await withinIdle(reader.read())
               if (next.done) return
-              const chunk = z.instanceof(Uint8Array).parse(next.value)
-              receivedBytes += chunk.byteLength
-              if (receivedBytes > SUBSCRIPTION_STREAM_MAX_BYTES)
-                throw new Error(UI_TEXT.actionFailed)
-              yield chunk
+              yield z.instanceof(Uint8Array).parse(next.value)
             }
           } finally {
             try {
@@ -337,48 +650,36 @@ export function createSubscriptionClient(
           }
         }
         try {
-          const stream = codec.decodeStream(bytes(), {
-            outputCap: {
-              maxOutputTokens: body.max_output_tokens,
-              countOutputTokens: outputCounter(),
-              abort: () => {
-                stop.abort()
-              },
-            },
-          })
-          for await (const event of stream) {
+          for await (const event of codec.decodeStream(bytes())) {
             lastEventAt = Date.now()
             note(event)
-            yield event
+            // A documented retry answer keeps OpenAI's code for the retry
+            // notice; the person reads the standing retry sentence.
+            yield event.type === 'error' &&
+            event.code != null &&
+            CHATGPT_PLAN_RETRYABLE_CODES.includes(event.code)
+              ? { ...event, message: UI_TEXT.planUi.retry }
+              : event
           }
         } catch (error) {
           if (error instanceof ChatgptPlanLimitError) {
             yield { type: 'error', code: error.code, message: UI_TEXT.planUi.limitDetail }
-          } else if (error instanceof ResponsesOutputCapError) {
-            usage = error.usage
-            yield {
-              type: 'response.failed',
-              response: {
-                id: 'client-output-cap',
-                status: 'failed',
-                output: [],
-                ...(usage !== undefined && { usage }),
-                error: { code: error.name, message: UI_TEXT.actionFailed },
-              },
-            }
           } else throw error
         }
       } catch (error) {
-        if (signal.aborted) throw error
+        if (isUserRefusal(error) || signal.aborted) throw error
+        // Anything that is not an error keeps its kind past this boundary:
+        // the fixed retry sentence below must never stand in for it.
+        if (!(error instanceof Error)) throw error
         // A lapsed confirmation names the run (hook, schedule, review) with
         // its own guidance instead of the generic plan retry sentence, on
         // both plan branches: the gate throws above, and an admission guard
         // may throw a stale-model refusal with the same strings.
-        if (error instanceof Error && isStaleConfirmedError(error)) {
+        if (isStaleConfirmedError(error)) {
           yield { type: 'error', message: error.message }
           return
         }
-        if (ref.providerId === 'copilot' && error instanceof Error) {
+        if (ref.providerId === 'copilot' && error instanceof CopilotFailureError) {
           yield { type: 'error', message: error.message }
           return
         }
@@ -387,15 +688,36 @@ export function createSubscriptionClient(
           yield { type: 'error', code: 'request-failed', message: error.message }
           return
         }
-        const code = error instanceof ChatGptSignInError ? error.code : 'request-failed'
-        let message = UI_TEXT.acpChatGpt.failure
-        if (code === 'expired') message = UI_TEXT.planUi.expired
-        else if (code === 'request-failed') message = UI_TEXT.planUi.retry
+        if (error instanceof ChatgptPlanRequestError) {
+          yield { type: 'error', code: error.code, message: error.message }
+          return
+        }
+        // This app's own refusal to build the request (a tool it cannot
+        // send) is said as that.
+        if (error instanceof ResponsesDecodeError && error.isLocal) {
+          yield {
+            type: 'error',
+            code: 'request-failed',
+            message: fill(UI_TEXT.planUi.requestNotBuilt, { reason: error.reason }),
+          }
+          return
+        }
+        const signInCode = error instanceof ChatGptSignInError ? error.code : undefined
+        const code = signInCode ?? 'request-failed'
         yield {
           type: 'error',
           code: code === 'sign-in-required' ? 'invalid_api_key' : code,
-          message,
+          // Anything untyped (the network, a malformed stream) is named by
+          // its own codes, never as an unexplained outage.
+          message: chatGptFailureText(
+            code,
+            error instanceof ChatGptSignInError ? error.reason : failureCodeNames(error),
+          ),
         }
+        // Anything else keeps its kind past this boundary, like the sibling
+        // clients' streams: the fixed retry sentence must never stand in
+        // for a failure it does not describe (PLAN.md D119).
+        throw error
       } finally {
         if (isDispatched && (ref.providerId !== 'copilot' || deps.copilotUsage === undefined)) {
           tallies = recordPlanUsage(tallies, {

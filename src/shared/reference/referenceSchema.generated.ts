@@ -174,6 +174,7 @@ export const textKeys = [
   'referenceScanSecrets',
   'reportUsage',
   'reportCliUsage',
+  'playbookCommandUsage',
   'acpFontsUsage',
   'referenceBriefHelp',
   'resourceGovernorDescription',
@@ -299,6 +300,7 @@ export const textKeys = [
   'output',
   'max-budget-usd',
   'max-requests',
+  'max-output-tokens',
   'timeout',
   'fail-on-denial',
   'ephemeral',
@@ -316,13 +318,13 @@ export const textKeys = [
   'fleet',
   'estimate-format',
   'seed',
+  'fast',
 ] as const
 
 const plainTextSchema = z.union([
   z.object({ fallbackKey: z.string(), fallback: z.string() }),
   z.object({
     cli: z.enum([
-      textKeys[252],
       textKeys[253],
       textKeys[254],
       textKeys[255],
@@ -364,8 +366,8 @@ const plainTextSchema = z.union([
       textKeys[291],
       textKeys[292],
       textKeys[293],
-      textKeys[220],
       textKeys[294],
+      textKeys[221],
       textKeys[295],
       textKeys[296],
       textKeys[297],
@@ -385,6 +387,9 @@ const plainTextSchema = z.union([
       textKeys[311],
       textKeys[312],
       textKeys[313],
+      textKeys[314],
+      textKeys[315],
+      textKeys[316],
     ]),
   }),
   z.object({
@@ -609,16 +614,16 @@ const plainTextSchema = z.union([
       textKeys[217],
       textKeys[218],
       textKeys[219],
+      textKeys[220],
     ]),
   }),
   z.object({
     tip: z.enum([
-      textKeys[220],
       textKeys[221],
       textKeys[222],
       textKeys[223],
-      textKeys[94],
       textKeys[224],
+      textKeys[94],
       textKeys[225],
       textKeys[226],
       textKeys[227],
@@ -646,6 +651,7 @@ const plainTextSchema = z.union([
       textKeys[249],
       textKeys[250],
       textKeys[251],
+      textKeys[252],
     ]),
   }),
   z.object({ setting: z.string() }),
@@ -736,6 +742,7 @@ const schema = z.object({
       usageKey: z.optional(z.enum(['acpUsage', 'reportUsage'])),
       usageLine: z.optional(z.number()),
       contract: z.optional(z.record(z.string(), z.unknown())),
+      invocations: z.optional(z.array(z.array(z.string()))),
     }),
   ),
   shortcuts: z.array(

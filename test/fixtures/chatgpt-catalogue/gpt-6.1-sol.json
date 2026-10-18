@@ -1,0 +1,22 @@
+{
+  "slug": "gpt-6.1-sol",
+  "visibility": "list",
+  "supported_in_api": true,
+  "default_reasoning_level": "low",
+  "supported_reasoning_levels": [
+    { "effort": "low" },
+    { "effort": "medium" },
+    { "effort": "high" },
+    { "effort": "xhigh" },
+    { "effort": "max" },
+    { "effort": "ultra", "description": "Maximum reasoning with automatic task delegation" }
+  ],
+  "default_service_tier": null,
+  "service_tiers": [
+    { "id": "priority", "name": "Fast", "description": "2x speed, increased usage" }
+  ],
+  "additional_speed_tiers": ["fast"],
+  "supports_reasoning_effort_updates": true,
+  "supports_reasoning_summary_parameter": true,
+  "default_reasoning_summary": "none"
+}

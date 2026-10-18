@@ -14,6 +14,7 @@ import {
   EXEC_MAX_REQUESTS,
   EXEC_MAX_TIMEOUT_SECONDS,
   EXEC_MIN_TIMEOUT_SECONDS,
+  MODEL_API_MAX_OUTPUT_TOKENS,
   EXEC_MODES,
   EXEC_OUTPUTS,
   EXEC_PROMPT_MAX_BYTES,
@@ -56,6 +57,8 @@ export interface ExecOptions {
   readonly provider: string | undefined
   readonly model: string | undefined
   readonly effort: EffortLevel | undefined
+  /** The plan route's Fast tier while on; off by default, refused where unoffered. */
+  readonly fast: boolean
   readonly allowsContributorModels: boolean
   readonly output: ExecOutput
   readonly outputSchema?: string
@@ -63,6 +66,12 @@ export interface ExecOptions {
   /** Exact canonical budget; admission uses integer micro-units internally (F1). */
   readonly budgetUsd: UsdAmount | undefined
   readonly maxRequests: number | undefined
+  /**
+   * Optional lowering limit for the run's output cap (round 5): absent is
+   * the policy cap; present never exceeds it (larger values are refused at
+   * parsing). Carried into the request's output limit and its reservation.
+   */
+  readonly maxOutputTokens?: number | undefined
   readonly timeoutMs: number
   readonly paidFeatures: readonly ExecPaidFeature[]
   readonly failOnDenial: boolean
@@ -78,6 +87,7 @@ export interface ExecOptions {
 
 const BOOLEAN_OPTIONS = new Set([
   'allow-contributor-models',
+  'fast',
   'image-generation',
   'no-auto-compaction',
   'fail-on-denial',
@@ -102,6 +112,7 @@ const STRING_OPTIONS = new Set([
   'output-schema',
   'max-budget-usd',
   'max-requests',
+  'max-output-tokens',
   'timeout',
   'muse-binary',
   'shell-sandbox',
@@ -139,11 +150,9 @@ function invalid(reason: string): { readonly ok: false; readonly reason: string 
 }
 
 /**
- * The model for a provider run: a bare id (no slash) qualifies to
- * `<provider>/<model>`; a ref must name this provider in full
- * (`openrouter/deepseek/…`, since a model id may itself hold a slash).
- * Without a provider the model passes through untouched. Undefined for a
- * ref aimed elsewhere.
+ * Bare single-segment IDs qualify immediately. Slash-containing IDs remain
+ * intact until assembly can distinguish a configured native ID from a qualified
+ * reference. Without a provider the model passes through untouched.
  */
 export function qualifyProviderModel(
   provider: string | undefined,
@@ -155,14 +164,11 @@ export function qualifyProviderModel(
   if (model === undefined || model === '') {
     return model
   }
-  const parsed = parseModelRef(model)
+  const parsed = parseModelRef(`${provider}/${model}`)
   if (parsed === undefined) {
     return undefined
   }
-  if (parsed.providerId === 'meta') {
-    return `${provider}/${model}`
-  }
-  return parsed.providerId === provider ? model : undefined
+  return model.includes('/') ? model : `${provider}/${model}`
 }
 
 export function parseExec(
@@ -231,12 +237,29 @@ export function parseExec(
     1,
     EXEC_MAX_REQUESTS,
   )
+  // An absent flag keeps the policy cap; a present one only lowers it. The
+  // parse-time ceiling is the absolute cap every policy cap sits at or
+  // below; a larger value is refused here with its own sentence. The floor
+  // stays 1 here: the selected model's own provider minimum applies later,
+  // at admission and at the send (a configured provider's minimum with its
+  // sentence, Meta's 16 through its own path), so a provider that permits
+  // fewer than 16 output tokens can be capped at 1 through 15.
+  const rawMaxOutput = values['max-output-tokens']
+  const maxOutputTokens =
+    rawMaxOutput === undefined
+      ? undefined
+      : integer(rawMaxOutput, MODEL_API_MAX_OUTPUT_TOKENS, 1, Number.MAX_SAFE_INTEGER)
+  if (rawMaxOutput !== undefined && maxOutputTokens === undefined)
+    return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--max-output-tokens' }))
+  if (maxOutputTokens !== undefined && maxOutputTokens > MODEL_API_MAX_OUTPUT_TOKENS)
+    return invalid(
+      fill(UI_TEXT.execOutputCapExceeded, { cap: String(MODEL_API_MAX_OUTPUT_TOKENS) }),
+    )
+  if (timeout === undefined) return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--timeout' }))
+  if (maxRequests === undefined)
+    return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--max-requests' }))
   const budgetUsd = budgetUnits(values['max-budget-usd'])
-  if (
-    timeout === undefined ||
-    maxRequests === undefined ||
-    (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
-  )
+  if (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
     return invalid(UI_TEXT.execNumberInvalid)
   if (backend === 'modelApi' && budgetUsd === undefined) return invalid(UI_TEXT.execBudgetRequired)
   if (
@@ -249,6 +272,7 @@ export function parseExec(
     [
       'max-budget-usd',
       'max-requests',
+      'max-output-tokens',
       'ephemeral',
       'key-stdin',
       'image-generation',
@@ -311,12 +335,14 @@ export function parseExec(
       provider,
       model,
       effort,
+      fast: values['fast'] === true,
       allowsContributorModels: values['allow-contributor-models'] === true,
       output,
       ...(outputSchema !== undefined && { outputSchema }),
       ...(values['output-schema-outside'] === true && { outputSchemaOutside: true }),
       budgetUsd,
       maxRequests: backend === 'modelApi' ? maxRequests : undefined,
+      ...(backend === 'modelApi' && maxOutputTokens !== undefined && { maxOutputTokens }),
       timeoutMs: timeout * MILLISECONDS_PER_SECOND,
       paidFeatures: values['image-generation'] === true ? ['imageGeneration'] : [],
       failOnDenial: values['fail-on-denial'] === true,
