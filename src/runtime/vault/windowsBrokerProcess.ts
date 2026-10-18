@@ -5,7 +5,7 @@ import { unlinkSync } from 'node:fs'
 import type * as z from 'zod/mini'
 import { VaultBrokerDiscovery, type VaultBrokerLocation } from '../../core/vault/broker/discovery'
 import { isVaultFileMissing, type VaultPrivateFilesPort } from '../../core/vault/broker/files'
-import type { VaultSecuredListenerPort } from '../../core/vault/broker/channel'
+import type { VaultSecuredListenerPort } from '../../core/vault/broker/ports'
 import {
   WindowsVaultPeerVerifier,
   type VaultPeerVerifier,

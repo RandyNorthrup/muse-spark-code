@@ -514,7 +514,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:process`           | 22    |
 | `node:readline`          | 1     |
 | `node:readline/promises` | 1     |
-| `node:stream`            | 24    |
+| `node:stream`            | 25    |
 | `node:stream/promises`   | 3     |
 | `node:string_decoder`    | 3     |
 | `node:timers/promises`   | 31    |
