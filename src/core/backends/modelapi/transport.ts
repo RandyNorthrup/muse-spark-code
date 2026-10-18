@@ -18,6 +18,7 @@ import {
   MODEL_API_RETRY_BASE_MS,
   MODEL_API_RETRY_JITTER_MS,
   MODEL_API_RETRY_MAX_MS,
+  MODEL_API_TIMER_MAX_MS,
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
   PROVIDER_HTTP_BODY_MAX_BYTES,
@@ -739,19 +740,28 @@ export class RequestTransport {
     return response
   }
 
+  /**
+   * Waits `ms` whole, or rejects as soon as `signal` aborts. A timer holds
+   * at most `MODEL_API_TIMER_MAX_MS` and a longer delay fires after 1 ms, so
+   * a longer wait is slept in pieces no larger than that (PR #225): the
+   * provider is never asked again before the wait it named or the backoff
+   * it was given.
+   */
   public async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
-    if (signal === undefined) {
-      await this.deps.sleep(ms)
-      return
-    }
-    if (signal.aborted) {
+    if (signal?.aborted === true) {
       throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
     }
-    const aborted = whenAborted(signal)
+    const aborted = signal === undefined ? undefined : whenAborted(signal)
     try {
-      await Promise.race([this.deps.sleep(ms), aborted.promise])
+      let remaining = ms
+      do {
+        const piece = Math.min(remaining, MODEL_API_TIMER_MAX_MS)
+        const slept = this.deps.sleep(piece)
+        await (aborted === undefined ? slept : Promise.race([slept, aborted.promise]))
+        remaining -= piece
+      } while (remaining > 0)
     } finally {
-      aborted.dispose()
+      aborted?.dispose()
     }
   }
 

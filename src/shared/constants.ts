@@ -2347,6 +2347,12 @@ export const MODEL_API_RETRYABLE_STREAM_CODES: ReadonlySet<string> = new Set([
 export const MODEL_API_RETRY_BASE_MS = 1000
 export const MODEL_API_RETRY_MAX_MS = 60_000
 export const MODEL_API_RETRY_JITTER_MS = 1000
+// The longest delay one timer holds: "When `delay` is larger than
+// `2147483647` … the `delay` will be set to `1`" (nodejs.org/api/timers.html,
+// Node.js v26.12.0, read 2026-10-17). A longer retry wait (an uncapped
+// backoff, a provider's Retry-After date weeks away) is slept in pieces of
+// at most this, so it is never cut to 1 ms (PR #225). Mechanism, not a limit.
+export const MODEL_API_TIMER_MAX_MS = 2_147_483_647
 // A stream that ends with an `error` event of these codes (the instance shut
 // down or was overloaded mid-reply) is retried whole, as the guide says.
 // The model list and the token count have no turn to stop them (PLAN.md D25).
