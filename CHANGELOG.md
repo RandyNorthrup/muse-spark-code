@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The credential lease loads from its own bundle on the first guarded write
+  or Connect recovery instead of riding in activation (PR219W1). A crashed
+  owner's lock is reclaimed deterministically (no more raw-`ENOENT` loser
+  under contention), and a draft limit with the output cap above the context
+  window fails parsing like a saved row. The headless preflight keeps its
+  100 KiB budget.
+
 - Provider records, rate limits, media and Azure work per provider (PROVM95).
   The provider catalogue is the live models.dev list of 2026-10-17, not the
   2026-10-05 snapshot, and Fireworks `supports_tools`/`supports_image_input`

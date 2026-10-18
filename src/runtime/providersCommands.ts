@@ -38,11 +38,7 @@ import {
   PROVIDER_PROBE_TIMEOUT_MS,
   UI_TEXT,
 } from '../shared/constants'
-import {
-  credentialLockDir,
-  providerConfigFilePath,
-  withCredentialLock,
-} from '../core/credentialLease'
+import { credentialLockDir, providerConfigFilePath } from '../core/credentialPaths'
 import { fill, plural, uiLocale } from '../shared/l10n/text'
 import { modelLimitsSchema } from '../shared/providerRouting'
 import type { ProvidersAddOptions } from './cliArgs'
@@ -69,7 +65,7 @@ export function providersFilePath(input: {
   readonly homeDir: string
   readonly xdgConfigHome: string | undefined
 }): string {
-  // One implementation in `core/credentialLease`: the terminal and the
+  // One implementation in `core/credentialPaths`: the terminal and the
   // panel derive the same lease directory, so one credential lease excludes
   // writers on either side.
   return providerConfigFilePath(input)
@@ -120,10 +116,12 @@ export function userFileIo(filePath: string): {
     },
     withUserFileLock: async (operation) => {
       await mkdir(path.dirname(filePath), { recursive: true })
-      // The shared dead-owner acquisition (`src/core/credentialLease`): a
-      // lock whose owner is proven gone is reclaimed instead of failing
-      // with EEXIST on every later command; a live owner's lock still
-      // refuses with the busy error its callers already report.
+      // The shared dead-owner acquisition (the credential lease's bundle,
+      // loaded on the first guarded write): a lock whose owner is proven
+      // gone is reclaimed instead of failing with EEXIST on every later
+      // command; a live owner's lock still refuses with the busy error its
+      // callers already report.
+      const { withCredentialLock } = await import('../core/credentialLeaseEntry')
       return await withCredentialLock(credentialLockDir(filePath), operation)
     },
   }

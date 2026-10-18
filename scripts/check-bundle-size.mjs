@@ -236,6 +236,10 @@ const BUDGETS = [
   // the shared protocol it validates against), plus 15%, rounded up to 25 KiB
   // (PLAN.md D6).
   { path: 'dist/recorder.js', budgetKiB: 75 },
+  // The credential lease (M95 D74), loaded on the first guarded credential
+  // write or Connect recovery. 8.6 KiB when split out (the lease, its
+  // journal and the entry), plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/credentialLease.js', budgetKiB: 25 },
   // What's New (M99, PLAN.md D79), loaded on the first page or notice: the
   // page's renderer, its content schema (zod's mini parser) and its tab.
   // 34.8 KiB when split out, plus 15%, rounded up to 25 KiB.
@@ -284,10 +288,9 @@ const BUDGETS = [
   // M105's trusted media inspector stays in its first-use media bundle.
   { path: 'dist/acp.js', budgetKiB: 850 },
   // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
-  // PR219FIX3: 101.0 KiB measured (the headless provider path carries the
-  // shared credential-lease acquisition, pacing admission and media-cap
-  // refusal); plus 15%, rounded up to 25 KiB.
-  { path: 'dist/headless.js', budgetKiB: 125 },
+  // PR219W1: the credential lease loads from its own bundle on the first
+  // guarded write, so the preflight keeps its 100 KiB budget (never raised).
+  { path: 'dist/headless.js', budgetKiB: 100 },
   // M114 F: runtime-only installer, measured with the shared validation API.
   { path: 'dist/fontsInstall.js', budgetKiB: 25 },
   { path: 'dist/scheduleBackground.js', budgetKiB: 50 },

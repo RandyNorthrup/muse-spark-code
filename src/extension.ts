@@ -127,10 +127,8 @@ import type { ReportPanel } from './host/reporting/reportPanel'
 
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
-import { storedCredentialId } from './host/providers/credentialRecords'
 import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
 import type { UsagePanel } from './host/usage/usagePanel'
-
 import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
@@ -349,10 +347,8 @@ import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
 import {
-  credentialLeaseSecrets,
   modelsPanelLoader,
   providerCredentials,
-  recoverOpenRouterConnect,
   recoverProviderRemovals,
 } from './host/models/modelsPanelBundle'
 import { modelsSubscriptionsLoader } from './host/models/modelsSubscriptionsBundle'
@@ -4125,7 +4121,7 @@ async function activateWindow(
           connectCopilot: () => subscriptionFeatures().connectCopilot(),
           removeSubscription: (id) => subscriptionFeatures().removeSubscription(id),
           isConfidential: () => currentSettings().confidentialWorkspace,
-          secrets: credentialLeaseSecrets(context.secrets),
+          secrets: bundle.credentialLeaseSecrets(context.secrets),
           extensionUri: context.extensionUri,
           l10n,
           log,
@@ -4191,9 +4187,12 @@ async function activateWindow(
           readLiveLimits: () => Promise.resolve(usageRecording.limits?.() ?? []),
           providerConsoles: () => [],
           // The stored credential's identity selects the budgets the usage
-          // page shows: a rotated or removed key's numbers disappear.
-          currentCredentialId: (providerId: string) =>
-            storedCredentialId(context.secrets, providerId),
+          // page shows: a rotated or removed key's numbers disappear. The
+          // identity reader loads with the lease's bundle, never here.
+          currentCredentialId: async (providerId: string) => {
+            const { storedCredentialId } = await import('./core/credentialLeaseEntry')
+            return await storedCredentialId(context.secrets, providerId)
+          },
         },
         openModels: (provider, model) => {
           ensureModelsFeatures().openPanel({
@@ -4229,16 +4228,19 @@ async function activateWindow(
   )
   // A crashed terminal Connect is found at this start without connecting
   // again (RVCM952D R5): the journal is compared with the primary and
-  // reported, inside the one credential lease.
-  void recoverOpenRouterConnect(
-    context.secrets,
-    (message) => {
-      void vscode.window.showWarningMessage(message)
-    },
-    (message) => {
-      void vscode.window.showInformationMessage(message)
-    },
-    log,
+  // reported, inside the one credential lease. The lease's bundle loads for
+  // the recovery, never at activation.
+  void import('./core/credentialLeaseEntry').then((lease) =>
+    lease.recoverOpenRouterConnect(
+      context.secrets,
+      (message) => {
+        void vscode.window.showWarningMessage(message)
+      },
+      (message) => {
+        void vscode.window.showInformationMessage(message)
+      },
+      log,
+    ),
   )
 
   editorContext.update(editorSnapshot)

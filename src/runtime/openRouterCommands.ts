@@ -15,7 +15,6 @@ import {
   pkce,
 } from '../host/backend/providersEntry'
 import type { createConfiguredProviderServices } from '../core/providers/configured'
-import { formatCredentialJournal } from '../core/credentialLease'
 import { ACP_AGENT_NAME, CREDENTIAL_RECORD_VERSION, UI_TEXT } from '../shared/constants'
 import { isCredentialLockBusy, recoverOpenRouterJournalReport } from './providerAuth'
 import { fill } from '../shared/l10n/text'
@@ -71,6 +70,8 @@ export async function runOpenRouterConnect(
   // refuse.
   const transact = async (): Promise<number> => {
     signal.throwIfAborted()
+    // The lease's bundle loads on a Connect, never with the command's own bundle.
+    const { formatCredentialJournal } = await import('../core/credentialLeaseEntry')
     const target = await keyTargetFor(deps.readUserFile, 'openrouter')
     if (
       account === undefined ||
