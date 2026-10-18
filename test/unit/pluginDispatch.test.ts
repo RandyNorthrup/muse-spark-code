@@ -644,36 +644,9 @@ describe.runIf(IS_REAL && process.platform === 'linux' && BUN !== undefined)(
 
 describe('plugin dispatch without real children', () => {
   const pluginRoot = process.platform === 'win32' ? 'C:/plugins' : '/plugins'
-  it('runs plugin hooks under the host-wide cap', async () => {
-    let running = 0
-    let peak = 0
-    const adapter: ForeignHookAdapter = {
-      prepare: () =>
-        Promise.resolve({
-          outcome: 'plugin',
-          run: async () => {
-            running += 1
-            peak = Math.max(peak, running)
-            await new Promise((resolve) => setTimeout(resolve, 30))
-            running -= 1
-            return { status: 'completed' }
-          },
-        }),
-      answer: () => ({ status: 'failed' }),
-    }
-    const hooks = Array.from({ length: HOOK_MAX_RUNNING_COMMANDS + 3 }, (_, index) =>
-      definitions('PreToolUse', 'amp', 'tool.call', path.join(pluginRoot, `p${String(index)}.mjs`)),
-    ).flat()
-    await dispatch(
-      hooks,
-      'PreToolUse',
-      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
-      adapter,
-    )
-    expect(peak).toBe(HOOK_MAX_RUNNING_COMMANDS)
-  })
-
-  it('caps plugin hooks at the configured running-commands value', async () => {
+  // Seven plugin hooks through the real dispatch, each holding 30 ms while
+  // the peak concurrency is recorded.
+  async function peakPlugins(maxRunningCommands?: number): Promise<number> {
     let running = 0
     let peak = 0
     const adapter: ForeignHookAdapter = {
@@ -699,9 +672,17 @@ describe('plugin dispatch without real children', () => {
       toolPayload('PreToolUse', 'bash', { command: 'ls' }),
       adapter,
       [],
-      2,
+      maxRunningCommands,
     )
-    expect(peak).toBe(2)
+    return peak
+  }
+
+  it('runs plugin hooks under the host-wide cap', async () => {
+    expect(await peakPlugins()).toBe(HOOK_MAX_RUNNING_COMMANDS)
+  })
+
+  it('caps plugin hooks at the configured running-commands value', async () => {
+    expect(await peakPlugins(2)).toBe(2)
   })
 
   it('strips a grant from a plugin answer, as from every imported hook', async () => {
