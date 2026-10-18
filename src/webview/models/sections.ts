@@ -114,7 +114,7 @@ export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
   },
   {
     id: 'vault',
-    getTitle: () => UI_TEXT.vault.title,
+    getTitle: () => UI_TEXT.vaultSectionTitle,
     icon: LockIcon,
     isOffered: (panelState) => panelState?.vaultOffered === true,
     Component: VaultSectionMount,

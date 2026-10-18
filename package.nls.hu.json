@@ -230,7 +230,7 @@
   "config.accounts.severalOnThisDevice.description": "Kompatibilitási célból tárolva; ez a beállítás ebben a verzióban nincs hatással a működésre.",
   "command.vault.title": "Tároló",
   "command.lockVault.title": "Tároló zárolása most",
-  "config.vault.description": "Kompatibilitási célból tárolva; ez a beállítás ebben a verzióban nincs hatással a működésre.",
+  "config.vault.enabled.description": "Be- vagy kikapcsolja a felhasználó hitelesítőadat-tárolóját. A tárolt régi museSpark.vault érték addig érvényes, amíg ez a beállítás nincs konfigurálva.",
   "config.vault.protection.description": "Kompatibilitási célból tárolva; ez a beállítás ebben a verzióban nincs hatással a működésre.",
   "config.vault.agentFence.description": "Az interaktív Model API shellparancsok hitelesítőadat-védelmét szabályozza. Az ellenőrzések, ütemezések, munkások és hookok védettek maradnak.",
   "config.vault.lockAfterIdleMinutes.description": "Kompatibilitási célból tárolva; ez a beállítás ebben a verzióban nincs hatással a működésre.",

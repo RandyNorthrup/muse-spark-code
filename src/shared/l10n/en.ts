@@ -5092,6 +5092,10 @@ export const EN = {
   modelsPanelUnavailable: 'Models & Agents is not available in this build.',
   providersSectionTitle: 'Providers',
   modelsSectionTitle: 'Models',
+  // The Models & Agents section nav paints before the vault surface loads,
+  // so its title is startup English like the other section titles; the
+  // vault group's own title stays with the deferred surface.
+  vaultSectionTitle: 'Vault',
   providerSearchPlaceholder: 'Search providers…',
   modelsSearchPlaceholder: 'Search models…',
   // The provider dropdown's filter chips.
@@ -6416,6 +6420,10 @@ export const EN = {
       'The credential vault is switched off in this build pending integration checks. First-party keys still work; agent uses are refused.',
     brokerBlocked:
       'The broker cannot start. First-party keys still work; agent uses are refused. Repair the broker installation.',
+    // The person switched the vault off in settings (museSpark.vault.enabled,
+    // or the legacy museSpark.vault boolean): commands refuse with this.
+    switchedOff:
+      'The credential vault is switched off in settings. Turn museSpark.vault.enabled on to use it.',
     noUnattended:
       '{item} needs an unattended grant for {use}. Add one in the vault or run interactively.',
     nopasswd:

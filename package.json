@@ -1647,9 +1647,8 @@
         "museSpark.vault.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "%config.vault.description%",
-          "scope": "machine",
-          "deprecationMessage": "%config.vault.description%"
+          "description": "%config.vault.enabled.description%",
+          "scope": "machine"
         },
         "museSpark.vault.protection": {
           "type": "string",

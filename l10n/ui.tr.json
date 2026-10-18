@@ -4150,6 +4150,7 @@
   "modelsPanelUnavailable": "Modeller ve Ajanlar bu derlemede yok.",
   "providersSectionTitle": "Sağlayıcılar",
   "modelsSectionTitle": "Modeller",
+  "vaultSectionTitle": "Kasa",
   "providerSearchPlaceholder": "Sağlayıcı ara…",
   "modelsSearchPlaceholder": "Model ara…",
   "providerFilters": {
@@ -5260,6 +5261,7 @@
     "basicText": "basic_text arka ucu güvenli şifreleme sağlamaz ve kasa yuvasını koruyamaz.",
     "brokerDisabled": "Kimlik bilgileri kasası, entegrasyon kontrolleri tamamlanana kadar bu derlemede kapalıdır. Birinci taraf anahtarlar çalışmaya devam eder; aracıların kullanımı reddedilir.",
     "brokerBlocked": "Aracı başlatılamıyor. Kendi istemcilerimizin anahtarları çalışır; ajan kullanımları reddedilir. Aracı kurulumunu onarın.",
+    "switchedOff": "Kimlik bilgileri kasası ayarlarda kapalıdır. Kullanmak için museSpark.vault.enabled ayarını açın.",
     "noUnattended": "{item}, {use} için gözetimsiz izin gerektirir. Kasada ekleyin veya etkileşimli çalıştırın.",
     "nopasswd": "NOPASSWD sudo kullanılabilir. Onaylı her komut root yetkisi alabilir; kasa burada ek koruma sağlamaz.",
     "fenceOff": "Sınırı kapatmak ortamınızı ve kimlik bilgisi yollarını ana konuşmaya açar. Çalışan ajanlar korunmaya devam eder.",
@@ -5280,6 +5282,7 @@
     "setupHeadless": "Kasa kurulumu ve kurtarma etkileşimli bir terminal gerektirir; arayüzsüz çalıştırmalar bunları yapamaz.",
     "recoveryShownOnce": "Kurtarma kodu (yalnızca şimdi gösterilir): {code}",
     "savedItPrompt": "Kurtarma kodunu güvenli bir yere kaydettiniz mi?",
+    "writerRecoveryWarning": "{holder} Başka bir program bu kasaya hâlâ yazıyorsa sıfırlama veya geri yükleme onun değişikliklerini kaybettirir. Yalnızca açıkça onayladıktan sonra devam edin.",
     "busy": "Kasa başka bir pencerede meşgul. Yeniden deneyin.",
     "busyHolder": "Kasa {since} tarihinden beri {pid} işlemi tarafından tutuluyor. İşlem sona erdikten sonra yeniden deneyin.",
     "busyOtherMachine": "Kasa başka bir makinede {since} tarihinden beri {pid} işlemi tarafından tutuluyor. İşlemin sona erdiği buradan doğrulanamaz.",
@@ -5384,7 +5387,6 @@
     "grantsCount": {
       "one": "{count} izin",
       "other": "{count} izin"
-    },
-    "writerRecoveryWarning": "{holder} Başka bir program bu kasaya hâlâ yazıyorsa sıfırlama veya geri yükleme onun değişikliklerini kaybettirir. Yalnızca açıkça onayladıktan sonra devam edin."
+    }
   }
 }

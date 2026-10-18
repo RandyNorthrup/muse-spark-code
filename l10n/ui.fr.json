@@ -4259,6 +4259,7 @@
   "modelsPanelUnavailable": "Modèles et agents n’est pas disponible dans ce build.",
   "providersSectionTitle": "Fournisseurs",
   "modelsSectionTitle": "Modèles",
+  "vaultSectionTitle": "Coffre-fort",
   "providerSearchPlaceholder": "Rechercher des fournisseurs…",
   "modelsSearchPlaceholder": "Rechercher des modèles…",
   "providerFilters": {
@@ -5411,6 +5412,7 @@
     "basicText": "Le moteur basic_text n’offre aucun chiffrement sûr et ne peut pas protéger un emplacement du coffre-fort.",
     "brokerDisabled": "Le coffre d’identifiants est désactivé dans cette version en attendant les vérifications d’intégration. Les clés propriétaires fonctionnent toujours ; leur utilisation par les agents est refusée.",
     "brokerBlocked": "Le courtier ne peut pas démarrer. Les clés des clients internes fonctionnent encore ; les usages des agents sont refusés. Réparez son installation.",
+    "switchedOff": "Le coffre d’identifiants est désactivé dans les paramètres. Activez museSpark.vault.enabled pour l’utiliser.",
     "noUnattended": "{item} nécessite une autorisation sans surveillance pour {use}. Ajoutez-la au coffre-fort ou lancez l’opération de manière interactive.",
     "nopasswd": "Sudo avec NOPASSWD est disponible. Toute commande approuvée peut obtenir les droits root ; le coffre-fort n’ajoute aucune protection ici.",
     "fenceOff": "Désactiver la barrière expose votre environnement et les accès aux identifiants à la conversation principale. Les agents de travail restent protégés.",
@@ -5431,6 +5433,7 @@
     "setupHeadless": "La configuration et la récupération du coffre-fort nécessitent un terminal interactif ; les exécutions sans interface ne peuvent pas les faire.",
     "recoveryShownOnce": "Code de récupération (affiché seulement maintenant) : {code}",
     "savedItPrompt": "Avez-vous enregistré le code de récupération en lieu sûr ?",
+    "writerRecoveryWarning": "{holder} Si un autre programme écrit encore dans ce coffre, la réinitialisation ou la restauration fera perdre ses modifications. Continuez uniquement après confirmation explicite.",
     "busy": "Le coffre-fort est occupé dans une autre fenêtre. Réessayez.",
     "busyHolder": "Le coffre est détenu par le processus {pid} depuis {since}. Réessayez après la fin de ce processus.",
     "busyOtherMachine": "Le coffre est détenu sur une autre machine par le processus {pid} depuis {since}. Sa fin ne peut pas être établie ici.",
@@ -5538,7 +5541,6 @@
       "one": "{count} autorisation",
       "other": "{count} autorisations",
       "many": "{count} autorisations"
-    },
-    "writerRecoveryWarning": "{holder} Si un autre programme écrit encore dans ce coffre, la réinitialisation ou la restauration fera perdre ses modifications. Continuez uniquement après confirmation explicite."
+    }
   }
 }

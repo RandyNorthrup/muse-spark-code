@@ -4150,6 +4150,7 @@
   "modelsPanelUnavailable": "Modelle & Agenten ist in diesem Build nicht verfügbar.",
   "providersSectionTitle": "Anbieter",
   "modelsSectionTitle": "Modelle",
+  "vaultSectionTitle": "Tresor",
   "providerSearchPlaceholder": "Anbieter suchen…",
   "modelsSearchPlaceholder": "Modelle suchen…",
   "providerFilters": {
@@ -5260,6 +5261,7 @@
     "basicText": "Das Backend basic_text bietet keine sichere Verschlüsselung und kann keinen Tresor-Slot schützen.",
     "brokerDisabled": "Der Zugangsdaten-Tresor ist in diesem Build bis zum Abschluss der Integrationsprüfungen ausgeschaltet. Eigene Schlüssel funktionieren weiterhin; die Verwendung durch Agenten wird abgelehnt.",
     "brokerBlocked": "Der Broker kann nicht starten. Eigene Clients können ihre Schlüssel nutzen; Agentennutzungen werden verweigert. Reparieren Sie die Broker-Installation.",
+    "switchedOff": "Der Zugangsdaten-Tresor ist in den Einstellungen ausgeschaltet. Zum Verwenden museSpark.vault.enabled einschalten.",
     "noUnattended": "{item} benötigt eine unbeaufsichtigte Berechtigung für {use}. Erstellen Sie sie im Tresor oder führen Sie die Nutzung interaktiv aus.",
     "nopasswd": "Sudo mit NOPASSWD ist verfügbar. Jeder genehmigte Befehl kann Root-Rechte erhalten; der Tresor bietet hier keinen zusätzlichen Schutz.",
     "fenceOff": "Ohne die Abschirmung erhält die Hauptkonversation Ihre Umgebung und Zugangsrouten. Worker bleiben abgeschirmt.",
@@ -5280,6 +5282,7 @@
     "setupHeadless": "Einrichtung und Wiederherstellung des Tresors brauchen ein interaktives Terminal; Headless-Läufe können sie nicht ausführen.",
     "recoveryShownOnce": "Wiederherstellungscode (nur jetzt angezeigt): {code}",
     "savedItPrompt": "Haben Sie den Wiederherstellungscode an einem sicheren Ort gespeichert?",
+    "writerRecoveryWarning": "{holder} Wenn ein anderes Programm noch in diesen Tresor schreibt, gehen seine Änderungen beim Zurücksetzen oder Wiederherstellen verloren. Fahren Sie nur nach ausdrücklicher Bestätigung fort.",
     "busy": "Der Tresor wird gerade in einem anderen Fenster verwendet. Versuchen Sie es erneut.",
     "busyHolder": "Der Tresor wird seit {since} von Prozess {pid} gehalten. Versuchen Sie es nach dessen Beendigung erneut.",
     "busyOtherMachine": "Der Tresor wird auf einem anderen Rechner seit {since} von Prozess {pid} gehalten. Dessen Beendigung lässt sich hier nicht feststellen.",
@@ -5384,7 +5387,6 @@
     "grantsCount": {
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
-    },
-    "writerRecoveryWarning": "{holder} Wenn ein anderes Programm noch in diesen Tresor schreibt, gehen seine Änderungen beim Zurücksetzen oder Wiederherstellen verloren. Fahren Sie nur nach ausdrücklicher Bestätigung fort."
+    }
   }
 }

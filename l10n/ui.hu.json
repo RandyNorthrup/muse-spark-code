@@ -4150,6 +4150,7 @@
   "modelsPanelUnavailable": "A Modellek és ügynökök panel ebben a buildben nem érhető el.",
   "providersSectionTitle": "Szolgáltatók",
   "modelsSectionTitle": "Modellek",
+  "vaultSectionTitle": "Tároló",
   "providerSearchPlaceholder": "Szolgáltatók keresése…",
   "modelsSearchPlaceholder": "Modellek keresése…",
   "providerFilters": {
@@ -5260,6 +5261,7 @@
     "basicText": "A basic_text háttér nem nyújt biztonságos titkosítást, ezért nem védhet tárolóhelyet.",
     "brokerDisabled": "A hitelesítőadat-tároló ebben a buildben az integrációs ellenőrzések befejezéséig ki van kapcsolva. A saját kulcsok továbbra is működnek; az ügynökök használata tiltott.",
     "brokerBlocked": "A közvetítő nem indítható. A saját kliensek kulcsai működnek; az ügynökök használata elutasítva. Javítsa a közvetítő telepítését.",
+    "switchedOff": "A hitelesítőadat-tároló ki van kapcsolva a beállításokban. Használatához kapcsolja be a museSpark.vault.enabled beállítást.",
     "noUnattended": "A(z) {item} felügyelet nélküli engedélyt igényel ehhez: {use}. Adja hozzá a tárolóban, vagy futtassa interaktívan.",
     "nopasswd": "A NOPASSWD sudo elérhető. Bármely jóváhagyott parancs root jogosultságot kaphat; itt a tároló nem ad további védelmet.",
     "fenceOff": "A korlát kikapcsolása a fő beszélgetésnek átadja a környezetét és hitelesítési útvonalait. A dolgozók védettek maradnak.",
@@ -5280,6 +5282,7 @@
     "setupHeadless": "A tároló beállításához és helyreállításához interaktív terminál kell; a felület nélküli futások ezt nem tehetik meg.",
     "recoveryShownOnce": "Helyreállítási kód (csak most látható): {code}",
     "savedItPrompt": "Elmentette a helyreállítási kódot biztonságos helyre?",
+    "writerRecoveryWarning": "{holder} Ha egy másik program még ír ebbe a tárolóba, az alaphelyzetbe állítás vagy visszaállítás elveszíti a módosításait. Csak kifejezett megerősítés után folytassa.",
     "busy": "A tárolót egy másik ablak használja. Próbálja újra.",
     "busyHolder": "A tárolót a(z) {pid} folyamat tartja zárolva {since} óta. Próbálja újra a folyamat kilépése után.",
     "busyOtherMachine": "A tárolót egy másik gépen a(z) {pid} folyamat tartja zárolva {since} óta. A folyamat megszűnése itt nem állapítható meg.",
@@ -5384,7 +5387,6 @@
     "grantsCount": {
       "one": "{count} engedély",
       "other": "{count} engedély"
-    },
-    "writerRecoveryWarning": "{holder} Ha egy másik program még ír ebbe a tárolóba, az alaphelyzetbe állítás vagy visszaállítás elveszíti a módosításait. Csak kifejezett megerősítés után folytassa."
+    }
   }
 }

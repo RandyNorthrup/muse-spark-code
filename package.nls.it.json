@@ -230,7 +230,7 @@
   "config.accounts.severalOnThisDevice.description": "Conservata per compatibilità; questa preferenza non ha effetto in questa versione.",
   "command.vault.title": "Cassaforte",
   "command.lockVault.title": "Blocca la cassaforte ora",
-  "config.vault.description": "Conservata per compatibilità; questa preferenza non ha effetto in questa versione.",
+  "config.vault.enabled.description": "Attiva o disattiva la cassaforte delle credenziali personale. Un valore legacy museSpark.vault memorizzato si applica finché questa impostazione non viene configurata.",
   "config.vault.protection.description": "Conservata per compatibilità; questa preferenza non ha effetto in questa versione.",
   "config.vault.agentFence.description": "Controlla l’isolamento delle credenziali per i comandi shell interattivi di Model API. Verifiche, pianificazioni, worker e hook restano isolati.",
   "config.vault.lockAfterIdleMinutes.description": "Conservata per compatibilità; questa preferenza non ha effetto in questa versione.",

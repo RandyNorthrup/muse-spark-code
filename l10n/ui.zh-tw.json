@@ -4041,6 +4041,7 @@
   "modelsPanelUnavailable": "此組建中沒有「模型與代理」。",
   "providersSectionTitle": "提供者",
   "modelsSectionTitle": "模型",
+  "vaultSectionTitle": "憑證庫",
   "providerSearchPlaceholder": "搜尋提供者…",
   "modelsSearchPlaceholder": "搜尋模型…",
   "providerFilters": {
@@ -5109,6 +5110,7 @@
     "basicText": "basic_text 後端不提供安全加密，無法保護憑證庫的金鑰槽。",
     "brokerDisabled": "憑證保管庫在此版本中已關閉，等待整合檢查完成。第一方金鑰仍可使用；代理使用會被拒絕。",
     "brokerBlocked": "代理服務無法啟動。內部用戶端的金鑰仍可使用，但代理的使用要求遭拒。請修復服務安裝。",
+    "switchedOff": "憑證庫已在設定中關閉。若要使用，請啟用 museSpark.vault.enabled。",
     "noUnattended": "{item} 需要用於 {use} 的無人值守授權。請在憑證庫中新增，或以互動方式執行。",
     "nopasswd": "可使用 NOPASSWD sudo。任何已核准的命令都可能取得 root 權限；憑證庫在此不提供額外保護。",
     "fenceOff": "關閉隔離會向主要對話公開您的環境和憑證取得途徑。工作代理仍保持隔離。",
@@ -5129,6 +5131,7 @@
     "setupHeadless": "設定和復原憑證庫需要互動式終端機；無介面執行無法進行。",
     "recoveryShownOnce": "復原碼（僅此次顯示）：{code}",
     "savedItPrompt": "您已將復原碼儲存在安全的地方了嗎？",
+    "writerRecoveryWarning": "{holder} 如果另一個程式仍在寫入此保險庫，重設或還原將導致其變更遺失。請僅在明確確認後繼續。",
     "busy": "憑證庫正在另一個視窗中使用。請重試。",
     "busyHolder": "保管庫自 {since} 起由程序 {pid} 持有。請在該程序結束後重試。",
     "busyOtherMachine": "保管庫自 {since} 起由另一台電腦上的程序 {pid} 持有。此處無法確認該程序已終止。",
@@ -5230,7 +5233,6 @@
     },
     "grantsCount": {
       "other": "{count} 個授權"
-    },
-    "writerRecoveryWarning": "{holder} 如果另一個程式仍在寫入此保險庫，重設或還原將導致其變更遺失。請僅在明確確認後繼續。"
+    }
   }
 }

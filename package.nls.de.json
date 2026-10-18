@@ -230,7 +230,7 @@
   "config.accounts.severalOnThisDevice.description": "Zur Kompatibilität gespeichert; diese Einstellung hat in diesem Build keine Wirkung.",
   "command.vault.title": "Tresor",
   "command.lockVault.title": "Tresor jetzt sperren",
-  "config.vault.description": "Zur Kompatibilität gespeichert; diese Einstellung hat in diesem Build keine Wirkung.",
+  "config.vault.enabled.description": "Schaltet den benutzereigenen Zugangsdaten-Tresor ein oder aus. Ein gespeicherter veralteter museSpark.vault-Wert gilt, bis diese Einstellung konfiguriert wird.",
   "config.vault.protection.description": "Zur Kompatibilität gespeichert; diese Einstellung hat in diesem Build keine Wirkung.",
   "config.vault.agentFence.description": "Steuert die Abschirmung von Zugangsdaten für interaktive Model-API-Shellbefehle. Prüfungen, Zeitpläne, Worker und Hooks bleiben abgeschirmt.",
   "config.vault.lockAfterIdleMinutes.description": "Zur Kompatibilität gespeichert; diese Einstellung hat in diesem Build keine Wirkung.",
