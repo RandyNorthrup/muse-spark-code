@@ -39,9 +39,21 @@ on:
       - 'test/fixtures/browser-check.html'
       - '.github/workflows/browser-check.yml'
   # Only the capacity repository ever sees this branch (build.yml's `org`
-  # job pushes it there); nothing pushes it here.
+  # job pushes it there); nothing pushes it here. The paths mirror the
+  # pull_request trigger, so a capacity push runs this workflow only for
+  # the pull requests whose own run it replaces.
   push:
     branches: [ci/pr-*]
+    paths:
+      - 'src/core/browser/**'
+      - 'src/host/browser/**'
+      - 'src/shared/browserCheckConstants.ts'
+      - 'scripts/browser-check-restart.mjs'
+      - 'test/unit/browserCheckLive.test.ts'
+      - 'test/unit/browserCheckR51.test.ts'
+      - 'test/unit/helpers/browserProcesses.ts'
+      - 'test/fixtures/browser-check.html'
+      - '.github/workflows/browser-check.yml'
   workflow_dispatch:
 
 permissions:
