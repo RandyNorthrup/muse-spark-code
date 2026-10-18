@@ -6410,17 +6410,31 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     // The finished reasoning blocks observe first: they completed before the
     // response did (M91 lane E). Their context joins the tail ahead of the
-    // post-call context, oldest operation first.
-    const thoughtContexts = await this.noteThoughts(turnId, open, signal)
+    // post-call context, oldest operation first. A playback answers from
+    // working memory only (D203): no AfterAgentThought fan-out for its
+    // reasoning and no PostLLMCall dispatch on its responses — the model's
+    // own text still flows to the turn, but no hook handler runs for it.
+    const isPlaybackResponse = this.isPlaybackTurn()
+    const thoughtContexts = isPlaybackResponse ? [] : await this.noteThoughts(turnId, open, signal)
     const callFields = await this.hookCallFields()
-    const post = await this.runHooks(
-      'PostLLMCall',
-      turnId,
-      callFields.postModelCallFields(body, final, requestId, attempt, step, this.sessionId),
-      replayProducer(body.model).provider,
-      signal,
-      false,
-    )
+    const post: HookDispatch = isPlaybackResponse
+      ? {
+          blockedReason: undefined,
+          contexts: [],
+          messages: [],
+          updatedInput: undefined,
+          forceApproval: false,
+          stopReason: undefined,
+          approvalDecision: undefined,
+        }
+      : await this.runHooks(
+          'PostLLMCall',
+          turnId,
+          callFields.postModelCallFields(body, final, requestId, attempt, step, this.sessionId),
+          replayProducer(body.model).provider,
+          signal,
+          false,
+        )
     const requiredAfterPostHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
     if (requiredAfterPostHook !== undefined) {
       this.skipCalls(turnId, calls, MODEL_API_MODEL_TEXT.mcpRequiredUnavailable)
@@ -12742,8 +12756,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       selection === undefined || isToolAllowedBySelection(call.name, selection)
         ? undefined
         : `${call.name}: ${UI_TEXT.hookToolRemoved}`
+    // A playback names no tool (D203): a call it refuses in code below runs
+    // no PreToolUse dispatch — a hook handler must neither observe nor shape
+    // a call the turn refuses. The refusal itself still answers the model.
+    const isPlaybackRefusal = this.isPlaybackTurn()
     const pre: HookDispatch =
-      selectionReason === undefined
+      selectionReason === undefined && !isPlaybackRefusal
         ? await this.runHooks(
             'PreToolUse',
             turnId,
@@ -12757,7 +12775,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             false,
           )
         : {
-            blockedReason: selectionReason,
+            blockedReason: isPlaybackRefusal ? undefined : selectionReason,
             contexts: [],
             messages: [],
             updatedInput: undefined,
@@ -13096,30 +13114,43 @@ export class ModelApiSession implements ScheduledAgentSession {
     } catch {
       // A failed proof leaves this call eligible to run again.
     }
-    const post = await this.runHooks(
-      outcome.failureReason === undefined ? 'PostToolUse' : 'PostToolUseFailure',
-      turnId,
-      outcome.failureReason === undefined
-        ? {
-            tool_name: effectiveCall.name,
-            tool_input: toolHookInput(argumentsOf(effectiveCall)),
-            tool_use_id: itemId,
-            tool_response: toolHookOutput(outcome.output),
-          }
-        : {
-            tool_name: effectiveCall.name,
-            tool_input: toolHookInput(argumentsOf(effectiveCall)),
-            tool_use_id: itemId,
-            error: toolHookOutput(outcome.failureReason),
-            is_interrupt: false,
-            duration_ms: this.deps.now() - startedAt,
-          },
-      toolMatcherNames(effectiveCall.name),
-      signal,
-      true,
-      true,
-      { fileOperation: fileOperationOf(outcome) },
-    )
+    // A playback names no tool (D203): its refused calls settle with no
+    // PostToolUse dispatch, as they ran with no PreToolUse one — the refusal
+    // outcome itself still reaches the model.
+    const post: HookDispatch = this.isPlaybackTurn()
+      ? {
+          blockedReason: undefined,
+          contexts: [],
+          messages: [],
+          updatedInput: undefined,
+          forceApproval: false,
+          stopReason: undefined,
+          approvalDecision: undefined,
+        }
+      : await this.runHooks(
+          outcome.failureReason === undefined ? 'PostToolUse' : 'PostToolUseFailure',
+          turnId,
+          outcome.failureReason === undefined
+            ? {
+                tool_name: effectiveCall.name,
+                tool_input: toolHookInput(argumentsOf(effectiveCall)),
+                tool_use_id: itemId,
+                tool_response: toolHookOutput(outcome.output),
+              }
+            : {
+                tool_name: effectiveCall.name,
+                tool_input: toolHookInput(argumentsOf(effectiveCall)),
+                tool_use_id: itemId,
+                error: toolHookOutput(outcome.failureReason),
+                is_interrupt: false,
+                duration_ms: this.deps.now() - startedAt,
+              },
+          toolMatcherNames(effectiveCall.name),
+          signal,
+          true,
+          true,
+          { fileOperation: fileOperationOf(outcome) },
+        )
     checkStopped()
     if (executed.value.isParallelExecution) commit()
     if (
@@ -14366,7 +14397,14 @@ export class ModelApiSession implements ScheduledAgentSession {
             ? `Model API turn ${turn.turnId} stopped by a hook`
             : `Model API turn ${turn.turnId} failed: ${reason}`,
         )
-        if (turn.modelFailure !== undefined && !(error instanceof ChildTaskRefusedError)) {
+        // A failed playback runs no StopFailure dispatch either (D203): a
+        // hook handler must not run for a turn that answers from working
+        // memory only, even to observe its failure.
+        if (
+          turn.modelFailure !== undefined &&
+          !turn.isPlayback &&
+          !(error instanceof ChildTaskRefusedError)
+        ) {
           const lastAssistantMessage = this.transcript.findLast(
             (entry) => entry.item.turnId === turn.turnId && entry.item.kind === 'agentMessage',
           )?.item.text
