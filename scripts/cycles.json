@@ -3,6 +3,7 @@
   "roots": [
     "src/runtime/runtimeEngineEntry.ts",
     "src/host/commands/rulesFileEntry.ts",
+    "src/host/commands/commandsEntry.ts",
     "src/host/backend/providerPolicyEntry.ts",
     "src/runtime/runtimeAccountingEntry.ts",
     "src/core/backends/modelapi/modelApiHooksEntry.ts",

@@ -39027,7 +39027,11 @@ a five-bullet Highlights list, plus PR #230's Packaging entry under
 tree: format, eslint zero warnings, typecheck, check:plan, check:roadmap,
 check:l10n, check:reference, knip, build with bundle budgets, and the unit
 suites of the files the revert touched, all green; the full .vsix is packed by hosted
-CI. The `0.19.0 released (…)` line is written by the lead after the tag's
+CI. PR #245 (`fix/activation-room`: the CLI-backed and workspace command
+flows move into a new lazily required `dist/commands.js` bundle, and the
+Diagnostics report text moves into the report bundle) merged 2026-10-18 with
+its Fixed entry under `[0.19.0]`; the release now holds six pull requests.
+The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**

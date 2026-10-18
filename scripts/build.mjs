@@ -206,6 +206,10 @@ const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
 const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
 const MODELS_SUBSCRIPTIONS_ENTRY = 'src/host/models/modelsSubscriptionsEntry.ts'
 const MODELS_SUBSCRIPTIONS_OUTFILE = 'dist/modelsSubscriptions.js'
+// ACTIVATIONROOM: the CLI-backed and workspace command flows, required on
+// the first of those commands.
+const COMMANDS_ENTRY = 'src/host/commands/commandsEntry.ts'
+const COMMANDS_OUTFILE = 'dist/commands.js'
 const USAGE_SERVICE_ENTRY = 'src/runtime/usage/usageServiceEntry.ts'
 const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
 const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
@@ -825,6 +829,16 @@ const rulesFileOptions = {
   outfile: RULES_FILE_OUTFILE,
 }
 
+// ACTIVATIONROOM: the CLI-backed and workspace command flows, required on
+// the first of those commands. They read no `vscode`, so a stray import
+// fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const commandsOptions = {
+  ...conversationGitOptions,
+  entryPoints: [COMMANDS_ENTRY],
+  outfile: COMMANDS_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
@@ -1281,6 +1295,7 @@ if (isWatch) {
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
     esbuild.context(modelsSubscriptionsOptions),
+    esbuild.context(commandsOptions),
     esbuild.context(usageServiceOptions),
     esbuild.context(headlessOptions),
     esbuild.context(usageCompanionOptions),
@@ -1411,6 +1426,7 @@ if (isWatch) {
     museCodeReviewer: () => esbuild.build(museCodeReviewerOptions),
     modelsPanel: () => esbuild.build(modelsPanelOptions),
     modelsSubscriptions: () => esbuild.build(modelsSubscriptionsOptions),
+    commands: () => esbuild.build(commandsOptions),
     usageService: () => esbuild.build(usageServiceOptions),
     usageCompanion: () => esbuild.build(usageCompanionOptions),
     usagePanel: () => esbuild.build(usagePanelOptions),
@@ -1556,6 +1572,7 @@ if (isWatch) {
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)
   reportSize(MODELS_SUBSCRIPTIONS_OUTFILE)
+  reportSize(COMMANDS_OUTFILE)
   reportSize('dist/usageService.js')
   reportSize('dist/usageCompanion.js')
   reportSize('dist/usagePanel.js')

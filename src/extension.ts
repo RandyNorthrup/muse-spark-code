@@ -4639,58 +4639,62 @@ async function activateWindow(
       // (dist/report.js, PLAN.md D6) on the first run, not at activation.
       const report: typeof ReportBundle = await import('./host/support/reportEntry')
       log.info(
-        report.renderSupportReport({
-          extensionVersion: version,
-          vscodeVersion: vscode.version,
-          nodeVersion: process.versions.node,
-          platform: process.platform,
-          arch: process.arch,
-          remoteName: vscode.env.remoteName,
-          hasWorkspace: workspaceRoot !== undefined,
-          isWorkspaceTrusted: vscode.workspace.isTrusted,
-          backendSetting: settings.backend,
-          shellSandboxSetting: settings.shellSandbox,
-          shellSandboxPosture: `${posture.isSandboxed ? 'sandboxed' : 'disabled'} (${posture.reason})`,
-          // F91: the health line for the sandbox (posture and this check);
-          // a fresh probe when no host has started yet.
-          shellSandboxReadiness: report.sandboxReadinessLine(
-            await backend.readShellSandboxReadiness(),
-          ),
-          isShellSandboxed: posture.isSandboxed,
-          sandboxNetworkSetting: settings.sandboxNetwork,
-          isSandboxNetworkApplied: isSandboxNetworkApplied(settings.sandboxNetwork, posture),
-          isBinaryPathConfigured: settings.museBinaryPath !== '',
-          environmentVariableCount: settings.environmentVariables.length,
-          cli: resolution.ok
-            ? {
-                ok: true,
-                installDir: resolution.launch.installDir,
-                version: backend.installedVersion(resolution.launch.installDir),
-              }
-            : { ok: false, reason: resolution.reason },
-          cliCredentialFile: backend.credentialFileVerdict(),
-          cliSignIn: await cliAccount.signIn(true),
-          keychainItem:
-            keychainLookup === undefined
-              ? undefined
-              : keychainItemPresence(keychainLookup.exitCode),
-          delegationMode: delegationMode(),
-          workflowTriggerMode: workflowTriggerMode(),
-          hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
-          hasEnvironmentApiKey: backend.hasEnvironmentKey(),
-          dictation: dictation.isAvailable
-            ? { isAvailable: true }
-            : { isAvailable: false, reason: dictation.reason },
-          network: readNetworkFacts(
-            vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION),
-            process.env,
-            process.platform,
-            backend,
-            globalThis,
-          ),
-          managedConfiguration: managed,
-          homeDir: homedir(),
-        }),
+        report.renderSupportReport(
+          {
+            extensionVersion: version,
+            vscodeVersion: vscode.version,
+            nodeVersion: process.versions.node,
+            platform: process.platform,
+            arch: process.arch,
+            remoteName: vscode.env.remoteName,
+            hasWorkspace: workspaceRoot !== undefined,
+            isWorkspaceTrusted: vscode.workspace.isTrusted,
+            backendSetting: settings.backend,
+            shellSandboxSetting: settings.shellSandbox,
+            shellSandboxPosture: `${posture.isSandboxed ? 'sandboxed' : 'disabled'} (${posture.reason})`,
+            // F91: the health line for the sandbox (posture and this check);
+            // a fresh probe when no host has started yet.
+            shellSandboxReadiness: report.sandboxReadinessLine(
+              await backend.readShellSandboxReadiness(),
+            ),
+            isShellSandboxed: posture.isSandboxed,
+            sandboxNetworkSetting: settings.sandboxNetwork,
+            isSandboxNetworkApplied: isSandboxNetworkApplied(settings.sandboxNetwork, posture),
+            isBinaryPathConfigured: settings.museBinaryPath !== '',
+            environmentVariableCount: settings.environmentVariables.length,
+            cli: resolution.ok
+              ? {
+                  ok: true,
+                  installDir: resolution.launch.installDir,
+                  version: backend.installedVersion(resolution.launch.installDir),
+                }
+              : { ok: false, reason: resolution.reason },
+            cliCredentialFile: backend.credentialFileVerdict(),
+            cliSignIn: await cliAccount.signIn(true),
+            keychainItem:
+              keychainLookup === undefined
+                ? undefined
+                : keychainItemPresence(keychainLookup.exitCode),
+            delegationMode: delegationMode(),
+            workflowTriggerMode: workflowTriggerMode(),
+            hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
+            hasEnvironmentApiKey: backend.hasEnvironmentKey(),
+            dictation: dictation.isAvailable
+              ? { isAvailable: true }
+              : { isAvailable: false, reason: dictation.reason },
+            network: readNetworkFacts(
+              vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION),
+              process.env,
+              process.platform,
+              backend,
+              globalThis,
+            ),
+            managedConfiguration: managed,
+            homeDir: homedir(),
+          },
+          UI_TEXT,
+          uiLocale(),
+        ),
       )
       channel.show(true)
     }),

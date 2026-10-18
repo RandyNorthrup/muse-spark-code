@@ -69,6 +69,13 @@ happened, not what was planned; superseded entries are kept.
   saved", although nothing was wrong with the ledger. Windows answers a lock
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
+- First-use command flows no longer load at activation: the MCP-servers and
+  hooks pickers, the skills flows, the worktree flows, the memory flow and
+  the Plans picker now load with a new `dist/commands.js` bundle on the
+  first of those commands, and the Diagnostics report text loads with the
+  report bundle on that command's first run instead of living in the
+  activation bundle. `dist/extension.js` measures about 24 KB lighter
+  against the unchanged activation budget. No behaviour change.
 
 ### Packaging
 
