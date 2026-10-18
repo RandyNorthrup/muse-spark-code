@@ -3947,6 +3947,10 @@ export const SEARCH_WORKER_FILE = 'searchWorker.js'
 // loaded when that backend first starts, not at activation.
 export const CONVERSATION_BUNDLE_FILE = 'conversation.js'
 export const MODEL_API_BUNDLE_FILE = 'modelApi.js'
+// The Muse Code backend's bundle (PR206, PLAN.md D6), beside dist/extension.js:
+// the host, its notification mapping and the SDK, loaded when that backend
+// first starts, not at activation.
+export const MUSE_CODE_BUNDLE_FILE = 'museCode.js'
 // Its session store (D14), required when that backend's host is first built.
 export const MODEL_API_SESSIONS_BUNDLE_FILE = 'modelApiSessions.js'
 // The Create AGENTS.md command (D15), required when that command runs, not at
@@ -6158,7 +6162,8 @@ export const MODEL_TEXT = {
     'A high-effort consult on a hard question: gives its judgement as advice, not action.',
   secondOpinionAgentPrompt:
     'You are a second opinion on a hard question: think carefully, check the relevant code with your tools, then give your judgement plainly: what you would do, why, and what you are unsure of. The parent agent decides; your reply is advice, not action.',
-  attachedTextFile: 'Attached text file {name}:\n\n{text}',
+  // A picked UTF-8 file's template moved to TEXT_ATTACHMENT_MODEL_TEXT (PR206):
+  // no source file of the activation bundle reads it anymore.
   // M49 (PLAN.md D41): the memory tools' results and refusals in Muse Code's
   // own words (its 1.3.0 binary's strings, and the live capture of 2026-09-25).
   memoryNoteWritten: 'memory note written',
@@ -6499,6 +6504,13 @@ export const JUDGE_MODEL_TEXT = {
 // server's answers for Muse Code (dist/codeIntel.js) and the Model API's
 // native tools (dist/modelApi.js); the bundle-split gate fails when
 // dist/extension.js or dist/acp.js carries them (PLAN.md D6).
+// A picked UTF-8 file carried as named text on both backends (M54, PLAN.md
+// D47): read by the backends' bundles and the conversation, never at
+// activation (PR206).
+export const TEXT_ATTACHMENT_MODEL_TEXT = {
+  attachedTextFile: 'Attached text file {name}:\n\n{text}',
+} as const
+
 export const CODE_INTEL_MODEL_TEXT = {
   renameChanged:
     '{path} changed after the rename was planned; nothing was changed, so call rename_symbol again',

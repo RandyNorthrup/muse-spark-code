@@ -3362,6 +3362,7 @@
   "modelApiNeedsFolder": "請先開啟資料夾；Model API 後端需在工作區內運作。",
   "modelApiBundleUnavailable": "無法載入 Model API 後端；請重新安裝擴充功能並重新載入視窗。詳細資訊請見記錄。",
   "acpModelApiBundleUnavailable": "無法載入 Model API 後端；請重新安裝 muse-spark-code-acp 並重新啟動代理程式。詳細資訊請見代理程式的記錄。",
+  "museCodeBundleUnavailable": "無法載入 Muse Code 後端；請重新安裝擴充功能並重新載入視窗。詳細資訊請見記錄。",
   "cliNotFound": "任何已知位置都沒有安裝 Muse Code。",
   "cliPathNotAbsolute": "museSpark.museBinaryPath 必須是絕對路徑。",
   "cliSearched": "已搜尋：{paths}",

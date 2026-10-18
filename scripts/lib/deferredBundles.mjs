@@ -429,6 +429,23 @@ export const ON_FIRST_USE = [
       'src/core/vault/scrub.ts',
     ],
   },
+  // PR206: the Muse Code backend's own bundle, required the first time that
+  // backend starts. Only the loader (museCodeBundle.ts) stays at activation;
+  // the Model API backend, the ACP agent and the team bundles keep whatever
+  // copies of these they carry today, so the parent is activation alone.
+  {
+    output: 'dist/museCode.js',
+    metafile: 'dist/meta/museCode.json',
+    use: 'the first Muse Code backend start',
+    files: [
+      'src/host/backend/museCodeEntry.ts',
+      'src/core/backends/musecode/MuseCodeHost.ts',
+      'src/core/backends/musecode/mapNotification.ts',
+      'src/core/backends/musecode/sessionRecords.ts',
+      'src/core/backends/musecode/promptLedger.ts',
+      'src/core/backends/musecode/feedback.ts',
+    ],
+  },
   {
     output: 'dist/legalScan.js',
     metafile: 'dist/meta/legalScan.json',

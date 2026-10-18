@@ -3435,6 +3435,7 @@
   "modelApiNeedsFolder": "Először nyisson meg egy mappát; a Model API háttérrendszer munkaterületen belül dolgozik.",
   "modelApiBundleUnavailable": "A Model API háttérrendszer nem tölthető be; telepítse újra a bővítményt, és töltse újra az ablakot. A részletek a naplóban vannak.",
   "acpModelApiBundleUnavailable": "A Model API háttérrendszer nem tölthető be; telepítse újra a muse-spark-code-acp csomagot, és indítsa újra az ügynököt. A részletek az ügynök naplójában vannak.",
+  "museCodeBundleUnavailable": "A Muse Code háttérszolgáltatás nem tölthető be; telepítse újra a bővítményt, és töltse újra az ablakot. A részletek a naplóban vannak.",
   "cliNotFound": "A Muse Code egyetlen ismert helyen sincs telepítve.",
   "cliPathNotAbsolute": "A museSpark.museBinaryPath értékének abszolút elérési útnak kell lennie.",
   "cliSearched": "Átkeresett helyek: {paths}",

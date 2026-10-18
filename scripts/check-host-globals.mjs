@@ -31,6 +31,7 @@ const HOST_BUNDLES = [
   'dist/usageCompanion.js',
   'dist/usagePanel.js',
   'dist/modelApi.js',
+  'dist/museCode.js',
   'dist/mcpPool.js',
   'dist/modelApiCodeIntel.js',
   'dist/structuredSchema.js',

@@ -3435,6 +3435,7 @@
   "modelApiNeedsFolder": "Önce bir klasör açın; Model API arka ucu bir çalışma alanı içinde çalışır.",
   "modelApiBundleUnavailable": "Model API arka ucu yüklenemedi; uzantıyı yeniden kurun ve pencereyi yeniden yükleyin. Ayrıntılar günlüktedir.",
   "acpModelApiBundleUnavailable": "Model API arka ucu yüklenemedi; muse-spark-code-acp paketini yeniden kurun ve aracıyı yeniden başlatın. Ayrıntılar aracının günlüğündedir.",
+  "museCodeBundleUnavailable": "Muse Code arka ucu yüklenemedi; uzantıyı yeniden kurun ve pencereyi yeniden yükleyin. Ayrıntılar günlüktedir.",
   "cliNotFound": "Muse Code bilinen hiçbir konumda yüklü değil.",
   "cliPathNotAbsolute": "museSpark.museBinaryPath mutlak bir yol olmalıdır.",
   "cliSearched": "Aranan yerler: {paths}",

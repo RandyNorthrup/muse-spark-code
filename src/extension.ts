@@ -52,6 +52,7 @@ import {
   EXTENSION_SKILLS_DIR,
   WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
+  MUSE_CODE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   JUDGE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
@@ -106,7 +107,6 @@ import {
   isUsageWriterBundle,
   type UsageRecording,
 } from './core/usage/recording'
-import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
 import { agentDataFolder } from './runtime/dataFolder'
 import { requireFile } from './host/lazyBundle'
 import { isJudgeEngineOn } from './core/judge/engine'
@@ -764,7 +764,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       })
     },
   })
-  MuseCodeHost.usageRecording = usageRecording
   ModelApiBackendManager.usageRecording = usageRecording
   context.subscriptions.push({
     dispose: () => {
@@ -1528,6 +1527,8 @@ async function activateWindow(
   )
   const backend = new MuseCodeBackendManager({
     shellJobAssembly: () => windowsJobAssembly?.() ?? Promise.resolve(undefined),
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MUSE_CODE_BUNDLE_FILE).fsPath,
+    usageRecording,
     beforeWorkspaceHostStart: async () => {
       await checkpoints.markNativeBackend()
     },
