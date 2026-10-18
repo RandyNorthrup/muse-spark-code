@@ -41,7 +41,12 @@ Before the release PR bumps
    (`X.Y.0`) without Highlights fails `test/unit/changelogVersion.test.ts`,
    as does a release with more than 5.
 
-The notes stay English; the page's own words are translated.
+The notes stay English; the page's own words are translated. The newest
+release's notes must fit the What's New decoded bound (`npm run build`
+fails otherwise: trim the notes, never raise the bound). Never repeat an
+entry that already shipped under an older version: a merge that carries
+one in deletes the newer copy, so each claim is recorded once, under the
+version that shipped it.
 
 ## Release notes and the screenshots
 
