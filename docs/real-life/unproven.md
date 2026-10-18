@@ -2889,9 +2889,11 @@ unproven:
 
 ### test/unit/modelApiLegalScan.test.ts (the runner-driven block; definition and unoffered-tool cases stay)
 
-Restored through the real scanner by RVSTANDINS: validated-JSON answers
-with the installed disclaimer, whole-workspace scans, write/exec refusal
-before the scan runs, restricted-mode and stopped-turn pre-checks. Still
+Restored through the real scanner by RVSTANDINS, then through the
+production `runLegalScan` entry by PR223FIX (Codex thread): validated-JSON
+answers with the installed disclaimer, whole-workspace scans, subset scope,
+header-policy forwarding, write/exec refusal before the scan runs,
+restricted-mode and stopped-turn pre-checks. Still
 unproven:
 
 - failure passthrough and invalid-result refusal (record: `docs/certification/m97-b.md`)
