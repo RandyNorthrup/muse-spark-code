@@ -9,10 +9,10 @@
 // is read. Synthetic bodies below are marked as such and never claimed as
 // captures.
 import { readFileSync } from 'node:fs'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { marketplaceStoreAdapter } from '../../src/core/reporting/sources/marketplaceStore'
 import { npmStoreAdapter } from '../../src/core/reporting/sources/npmStore'
-import { readStoresReport } from './helpers/reportKindNetwork'
+import { readStoresReport, recordingTransport } from './helpers/reportKindNetwork'
 
 const CAPTURED_ANSWER: unknown = JSON.parse(
   readFileSync(
@@ -40,7 +40,7 @@ const project = {
 }
 
 function capturedMarketplace() {
-  return vi.fn(() => Promise.resolve(Response.json(CAPTURED_ANSWER)))
+  return recordingTransport(() => Promise.resolve(Response.json(CAPTURED_ANSWER)))
 }
 
 describe('marketplace store adapter', () => {
@@ -60,7 +60,7 @@ describe('marketplace store adapter', () => {
   it('reads the served version from the captured answer', async () => {
     const transport = capturedMarketplace()
     const result = await readStoresReport({
-      transport,
+      transport: transport.transport,
       project,
       releaseVersion: '0.17.0',
       adapters: [marketplaceStoreAdapter('RandyNorthrup', 'muse-spark-code')],
@@ -91,12 +91,12 @@ describe('marketplace store adapter', () => {
         reason: 'store-capture-required',
       },
     ])
-    expect(transport).toHaveBeenCalledOnce()
+    expect(transport.calls).toHaveLength(1)
   })
 
   it('reports lag when the captured channel is older than the release', async () => {
     const result = await readStoresReport({
-      transport: capturedMarketplace(),
+      transport: capturedMarketplace().transport,
       project,
       releaseVersion: '0.17.1',
       adapters: [marketplaceStoreAdapter('RandyNorthrup', 'muse-spark-code')],
@@ -108,7 +108,7 @@ describe('marketplace store adapter', () => {
     // Synthetic, never claimed as a capture: the not-listed answer was not
     // captured, so only the empty extensions array of the captured shape is
     // asserted. Sibling npm succeeds, so the refused row stays visible.
-    const transport = vi.fn((request: { url: string }) =>
+    const transport = recordingTransport((request) =>
       Promise.resolve(
         Response.json(
           request.url.includes('marketplace.visualstudio.com')
@@ -118,7 +118,7 @@ describe('marketplace store adapter', () => {
       ),
     )
     const result = await readStoresReport({
-      transport,
+      transport: transport.transport,
       project,
       releaseVersion: '0.17.0',
       adapters: [
@@ -132,7 +132,7 @@ describe('marketplace store adapter', () => {
       status: 'unavailable',
       reason: 'marketplace-not-listed',
     })
-    expect(transport).toHaveBeenCalledTimes(2)
+    expect(transport.calls).toHaveLength(2)
   })
 
   it.each([
@@ -141,7 +141,7 @@ describe('marketplace store adapter', () => {
     ['a version-less entry', { results: [{ extensions: [{ versions: [] }] }] }],
   ])('blames the document for %s', async (_label, answer) => {
     const result = await readStoresReport({
-      transport: vi.fn(() => Promise.resolve(Response.json(answer))),
+      transport: recordingTransport(() => Promise.resolve(Response.json(answer))).transport,
       project,
       releaseVersion: '0.17.0',
       adapters: [marketplaceStoreAdapter('RandyNorthrup', 'muse-spark-code')],
