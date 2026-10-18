@@ -1259,6 +1259,7 @@ async function activateWindow(
       platform: process.platform,
       systemRoot: process.env['SystemRoot'],
       helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
+      ...(workspaceRoot !== undefined && { workspaceRoot }),
     },
     {
       apiKey: () => credentials.getApiKey(),
@@ -1995,6 +1996,7 @@ async function activateWindow(
   const toolIo = createToolIo({
     platform: process.platform,
     listFiles: listWorkspaceFiles,
+    ...(workspaceRoot !== undefined && { workspaceRoot }),
     systemRoot: process.env['SystemRoot'],
     // The user's terminal environment settings apply to the shell tool as
     // they do to VS Code's terminal (PLAN.md D25).
@@ -2644,7 +2646,13 @@ async function activateWindow(
       isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),
     // Plugin children get the hook environment (M51) and their tree (M91b).
     pluginHooks: {
-      env: () => hookEnvironment(shellEnvironmentOf(), process.platform),
+      env: () =>
+        hookEnvironment(
+          shellEnvironmentOf(),
+          process.platform,
+          [],
+          workspaceRoot === undefined ? undefined : { workspaceRoot, realpath: realpathSync },
+        ),
       containment: pluginJobs.containment,
     },
     // Sessions survive the window (PLAN.md D14) in the workspace storage

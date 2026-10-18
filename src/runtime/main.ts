@@ -651,6 +651,7 @@ async function openUsageBrowser(input: string): Promise<void> {
     // is launched once started, and its lifetime never holds the CLI or the page.
     await handoffResourceFile(executable, args, {
       env: process.env,
+      workspaceRoot: process.cwd(),
       ...(process.platform === 'linux' && { until: 'spawn' as const }),
     })
   } catch (error: unknown) {

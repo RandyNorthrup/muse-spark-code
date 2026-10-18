@@ -312,6 +312,7 @@ class ForeignHooks implements ForeignHookAdapter {
         this.plugins ??= new PluginSession({
           env: host.env,
           platform: this.deps.platform,
+          workspaceRoot: this.deps.workspaceRoot,
           processTree: tree,
           warn: host.warn,
         })
