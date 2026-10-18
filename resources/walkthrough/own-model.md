@@ -1,4 +1,4 @@
-![The first-run screen's third choice: Start with your own model, beside the Muse sign-in and the Meta Model API key](sign-in.png)
+![The first-run screen's third choice: Start with your own model, beside the Muse sign-in and the Meta Model API key](sign-in.webp)
 
 **No Muse subscription or Meta key? Bring your own model.**
 

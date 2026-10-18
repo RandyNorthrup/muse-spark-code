@@ -1,4 +1,4 @@
-![The sign-in gate: Sign in with your Meta account, which shows an approval code, Use a Model API key, or Start with your own model](sign-in.png)
+![The sign-in gate: Sign in with your Meta account, which shows an approval code, Use a Model API key, or Start with your own model](sign-in.webp)
 
 **Two ways in with Meta, never mixed. The third button is for your own model: see the last step.**
 

@@ -1,4 +1,4 @@
-![The empty panel with its getting-started tips](open.png)
+![The empty panel with its getting-started tips](open.webp)
 
 **Click the Muse Spark icon in the activity bar.**
 
