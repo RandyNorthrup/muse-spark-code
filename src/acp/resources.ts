@@ -40,8 +40,16 @@ export async function acpResourceCommand(
   }
 }
 
-/** A local tool id supplies correlation; it never enters the bounded resource payload. */
-export function acpResourceUpdates(notice: RuntimeResourceNotice): SessionUpdate[] {
+/**
+ * A local tool id supplies correlation; it never enters the bounded resource
+ * payload. A governor status is the app's own words, never the model's: where
+ * the client advertised `session.notices` it goes out as its own `notice`
+ * update, and only then falls back to an agent message (F82's class).
+ */
+export function acpResourceUpdates(
+  notice: RuntimeResourceNotice,
+  areNoticesSupported = false,
+): SessionUpdate[] {
   const event = resourceEventSchema.parse(notice.event)
   const status = resourceStatusSchema.parse(notice.status)
   if (event.type === 'deferred' && notice.toolCallId !== undefined)
@@ -62,6 +70,15 @@ export function acpResourceUpdates(notice: RuntimeResourceNotice): SessionUpdate
     event.type !== 'relocated'
   )
     return []
+  if (areNoticesSupported)
+    return [
+      {
+        sessionUpdate: 'notice',
+        severity: event.type === 'levelChanged' && event.to === 'pause' ? 'warning' : 'info',
+        title: notice.text,
+        _meta: { 'museSpark.resources': { event, status } },
+      },
+    ]
   return [
     {
       sessionUpdate: 'agent_message_chunk',

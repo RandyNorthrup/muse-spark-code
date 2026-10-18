@@ -3741,6 +3741,9 @@ export class ConversationController {
       }),
       ...(model.isPinned === true && { isPinned: model.isPinned }),
       ...(model.planLimitsUrl !== undefined && { planLimitsUrl: model.planLimitsUrl }),
+      // The tool-calling limit travels with the model (F83): a configured
+      // model without confirmed tool calling is listed with its limit stated.
+      ...(model.agentLimit !== undefined && { agentLimit: model.agentLimit }),
       // The contributor state travels with the model (F62): the CLI's list
       // names no tier, but a `-contributor` id trains on what it is sent by
       // definition, so the picker's tier mark and the contributor switch

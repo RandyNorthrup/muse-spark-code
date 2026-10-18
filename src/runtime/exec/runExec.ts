@@ -440,6 +440,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     } else if (event.type === 'questionRequested') {
       questionsDeclined += 1
       sink.emit({ type: 'question_declined', count: 1 })
+    } else if (event.type === 'backendNotice') {
+      // The app's own words, on stderr beside the run: never part of the
+      // model's message. The backend emits each notice once per session.
+      // The notice's own level names the log line, so an info status does
+      // not read as a warning.
+      if (event.level === 'error') log.error(event.text)
+      else if (event.level === 'warning') log.warn(event.text)
+      else log.info(event.text)
     } else if (
       event.type === 'itemCompleted' &&
       event.item.kind !== 'agentMessage' &&

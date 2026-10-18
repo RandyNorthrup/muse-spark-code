@@ -132,6 +132,23 @@ happened, not what was planned; superseded entries are kept.
   bypass, and a digest of the complete eval task definitions). The host's
   scalar request assembly stays with the lead's loopback run pending
   recorded exchanges.
+- Fixed: the app's own statuses (such as automatic compaction awaiting
+  evaluation) no longer speak as the model's reply on the editor
+  protocol — they arrive as their own session notice where the editor
+  can show one, as a separate panel notice as before, and on terminal
+  stderr in headless runs (F82).
+- Fixed: a configured model without confirmed tool calling is listed
+  with its limit stated instead of vanishing silently, is flagged when
+  added, and is refused for agent turns with the same sentence (F83).
+- Fixed: terminal `providers add` without `--model` lists the key's
+  models and says to pass `--model <id>` (repeatable) instead of the
+  panel's tick wording (F85).
+- Provider-truth review: resource-governor and account statuses use
+  the same session notice on the editor protocol; a refused model
+  switch keeps the session on its model and carries the refusal
+  sentence in the protocol error; `providers list` states the
+  tool-calling limit; a key test that read no model list still gets
+  the terminal's own wording (F82, F83, F85).
 
 - Test-overhaul review: paid-popup lazy-load checks now build the real
   runtime instead of writing a replacement formatter, retaining locale
