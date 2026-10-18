@@ -1513,6 +1513,8 @@ if (isWatch) {
     reporting: () => esbuild.build(reportingOptions),
     reportingNetwork: () => esbuild.build(reportingNetworkOptions),
     reportingDestinations: () => esbuild.build(reportingDestinationsOptions),
+    reportInputs: () => esbuild.build(reportInputsOptions),
+    playbookSchedulesInputs: () => esbuild.build(playbookSchedulesInputsOptions),
     reportingPanel: () => esbuild.build(reportingPanelOptions),
     reference: () => esbuild.build(referenceOptions),
     schedules: () => esbuild.build(schedulesOptions),
