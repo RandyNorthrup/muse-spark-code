@@ -29,9 +29,9 @@ inputs:
     required: false
     default: 'false'
   max-requests:
-    description: Billable HTTP attempts allowed, retries included (1 or more; no ceiling of ours).
+    description: Billable HTTP attempts allowed, retries included (1-500); empty sets no request limit.
     required: false
-    default: '30'
+    default: ''
   timeout-minutes:
     description: The run's deadline in minutes (1-360).
     required: false

@@ -331,12 +331,13 @@ function isBackendAccountingValid(value) {
       Object.entries(usage.paid).every(([key, total]) => total === (key.endsWith('Usd') ? '0' : 0))
     )
   }
+  // The request cap is the person's to set: without `max-requests` there is
+  // no limit, so a completed run may carry a null one.
   if (
     ledger === null ||
     usage.costUsd === null ||
     usage.requests === null ||
-    limits.budgetUsd === null ||
-    limits.maxRequests === null
+    limits.budgetUsd === null
   ) {
     return value.status !== 'completed'
   }

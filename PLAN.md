@@ -39160,6 +39160,10 @@ value stays within 1–500 and `--max-budget-usd` within $20) merged
 2026-10-18 with its Changed entries under `[0.19.0]`; the release now holds
 nine pull requests. The reinstated set-value ceilings overlap D121's
 removals; PR #228 (exec-budget-ceiling, next in this lane) settles them.
+PR #240 (`fix/nolimits-5b`: the GitHub Action sets no request limit when
+its `max-requests` input is empty, mirroring the CLI; a set value stays
+within 1–500) merged 2026-10-18 with its Fixed entry under `[0.19.0]`; the
+release now holds ten pull requests.
 The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 
