@@ -675,6 +675,8 @@ tested on chunk splits inside frames and inside multi-byte characters.
 
 **`smol-toml`** — Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.
 
+**`@napi-rs/keyring`** — The vault's OS store (D61, D89): Secret Service on Linux and login Keychain on macOS, loaded at runtime by the broker child, the ACP agent and headless runs alike. MIT; no peer dependencies (its per-OS/arch binaries are same-version optional dependencies); `npm audit` clean. Moved from devDependencies to dependencies (PR216FIX T1): a runtime load declared dev-only hid the VSIX gap. Staging its platform binaries in the universal VSIX stays a lead follow-up: the six VS Code platforms measure 4,716,310 bytes compressed (`npm pack` tarballs, 2026-10-17) against ~0.9 MB of size-budget headroom, so shipping them needs per-platform packaging or a re-set cap, never a raised one here.
+
 DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,
 Vitest and V8 coverage 5.0.3 together, jscpd 5.4.0, knip 6.39.0 and
 typescript-eslint 8.71.0. Their exact registry peers accept the existing
