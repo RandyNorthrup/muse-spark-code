@@ -2,9 +2,18 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { onTestFinished, describe, expect, it } from 'vitest'
+import { acpPlaybook, type AcpPlaybookBundle } from '../../src/acp/playbook'
+import { requireFile } from '../../src/host/lazyBundle'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
-import { runPlaybookCli, runPlaybookCommand } from '../../src/runtime/playbook/command'
+import {
+  parsePlaybookCommand,
+  runPlaybookCli,
+  runPlaybookCommand,
+  type PlaybookCommand,
+  type PlaybookSurfacePort,
+} from '../../src/runtime/playbook/command'
 import { createPlaybookSurface } from '../../src/runtime/playbook/surface'
+import { UI_TEXT } from '../../src/shared/constants'
 
 function surface() {
   const directory = mkdtempSync(path.join(tmpdir(), 'm116w-surface-'))
@@ -88,6 +97,67 @@ describe('M116 playbook surface adapter (W)', () => {
       }),
     ).toBe(2)
     expect(errors.join('\n')).toContain('playbook')
+  })
+
+  it('a loaded playbook whose command fails says so, never unavailable', async () => {
+    const port = surface()
+    // The safety rule is not configurable: the loaded playbook's command
+    // rejects the change, and the failure names the command, not the
+    // playbook's availability.
+    const failed = await runPlaybookCommand(
+      {
+        view: 'settings',
+        change: { rule: 'neverAround', enabled: false, reason: 'No.' } as never,
+      },
+      port,
+    )
+    expect(failed.ok).toBe(false)
+    expect(failed.text).toBe(UI_TEXT.playbookCommandFailed)
+    expect(failed.text).not.toBe(UI_TEXT.playbookUnavailable)
+  })
+
+  it('a missing surface stays unavailable', async () => {
+    expect(await runPlaybookCommand({ view: 'status' }, undefined)).toEqual({
+      ok: false,
+      text: UI_TEXT.playbookUnavailable,
+    })
+  })
+
+  it('the ACP command carries the loaded playbook answer through', async () => {
+    const port = surface()
+    const bundle = {
+      parsePlaybookCommand,
+      runPlaybookCommand: (
+        command: PlaybookCommand,
+        surfacePort: PlaybookSurfacePort | undefined,
+      ) => runPlaybookCommand(command, surfacePort),
+    }
+    const load = () => bundle
+    const status = await acpPlaybook(
+      [{ type: 'text' as const, text: '/playbook status' }],
+      () => port,
+      load,
+    )
+    expect(status?.ok).toBe(true)
+    // No surface bound: the loaded playbook answers unavailable, and the ACP
+    // layer carries that answer instead of replacing it.
+    const noSurface = await acpPlaybook(
+      [{ type: 'text' as const, text: '/playbook status' }],
+      () => undefined,
+      load,
+    )
+    expect(noSurface).toEqual({ ok: false, text: UI_TEXT.playbookUnavailable })
+  })
+
+  it('a bundle that cannot load stays unavailable', async () => {
+    // The real Node loader on a missing file: the bundle genuinely fails to
+    // load, so the person reads unavailable.
+    const missing = await acpPlaybook(
+      [{ type: 'text' as const, text: '/playbook status' }],
+      () => undefined,
+      () => requireFile('/nonexistent/acpPlaybook.js') as AcpPlaybookBundle,
+    )
+    expect(missing).toEqual({ ok: false, text: UI_TEXT.playbookUnavailable })
   })
 
   it('rejects invalid changes without persisting them', async () => {
