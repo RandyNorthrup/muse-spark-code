@@ -19,6 +19,7 @@ import {
   MODEL_API_RETRY_BASE_MS,
   MODEL_API_RETRY_JITTER_MS,
   MODEL_API_RETRY_MAX_MS,
+  NODE_MAX_TIMEOUT_MS,
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
   PROVIDER_HTTP_BODY_MAX_BYTES,
@@ -590,6 +591,23 @@ export class RequestTransport {
     }
   }
 
+  /**
+   * A provider's wait is honoured whole: past Node's timer maximum the delay
+   * is slept in pieces, so a long quota-reset hint never overflows to ~1 ms.
+   */
+  private async sleepWhole(ms: number): Promise<void> {
+    if (!Number.isFinite(ms) || ms <= NODE_MAX_TIMEOUT_MS) {
+      await this.deps.sleep(ms)
+      return
+    }
+    let remaining = ms
+    while (remaining > 0) {
+      const chunk = Math.min(remaining, NODE_MAX_TIMEOUT_MS)
+      await this.deps.sleep(chunk)
+      remaining -= chunk
+    }
+  }
+
   /** Bound headers and every body read, without timing local admission, backoff or consumers. */
   public async fetchWithIdleDeadline(url: string, init: RequestInit): Promise<Response> {
     const idleMs = this.deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
@@ -696,7 +714,7 @@ export class RequestTransport {
 
   public async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
     if (signal === undefined) {
-      await this.deps.sleep(ms)
+      await this.sleepWhole(ms)
       return
     }
     if (signal.aborted) {
@@ -704,7 +722,7 @@ export class RequestTransport {
     }
     const aborted = whenAborted(signal)
     try {
-      await Promise.race([this.deps.sleep(ms), aborted.promise])
+      await Promise.race([this.sleepWhole(ms), aborted.promise])
     } finally {
       aborted.dispose()
     }

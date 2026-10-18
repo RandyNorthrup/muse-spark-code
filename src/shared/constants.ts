@@ -2331,6 +2331,9 @@ export const MODEL_API_MAX_RETRIES = 4
 export const MODEL_API_RETRY_BASE_MS = 1000
 export const MODEL_API_RETRY_MAX_MS = 60_000
 export const MODEL_API_RETRY_JITTER_MS = 1000
+// Node's timers overflow past this many milliseconds (about 24.9 days): a
+// longer wait is slept in pieces, never shortened.
+export const NODE_MAX_TIMEOUT_MS = 2_147_483_647
 // The model list and the token count have no turn to stop them (PLAN.md D25).
 export const MODEL_API_STATUS_READ_TIMEOUT_MS = 3000
 export const MODEL_API_REQUEST_TIMEOUT_MS = 30_000
