@@ -119,12 +119,16 @@ export class LinuxDictation implements DictationHandle {
     this.driver = undefined
     this.isActive = false
     await this.pending
+    // The driver is gone and nothing is recording: say so, or the button
+    // keeps the last live status the disposed driver published.
+    this.deps.listener.onStatus('idle')
   }
 
-  public dispose(): void {
+  public dispose(): void | Promise<void> {
     this.isDisposed = true
     this.stop()
-    void this.driver?.dispose()
+    const disposal = this.driver?.dispose()
     this.driver = undefined
+    return disposal
   }
 }
