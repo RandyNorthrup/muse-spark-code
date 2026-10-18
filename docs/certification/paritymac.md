@@ -659,3 +659,43 @@ both helpers, the TS refusal enum and the `Time` test variant; the
 remaining bounds fire. No widening: every denial, exclusion and
 same-device check is untouched; a slow walk now completes slowly
 instead of refusing.
+
+## Lane PR244W2 — fix and verification (macbook rig, 2026-10-18)
+
+Fix (commit `366c19234`): `budget()` in both confine helpers refuses
+`walkBudget` only past 20,000 visited entries; the wall-clock arm, the
+`started` timestamp, the per-entry `clock_gettime` call, the `clock`
+refusal, `JUDGE_FAST_B1_WALK_MAX_MS` (constants, `policy.h` key list)
+and the `Time` test variant with `test/unit/helpers/inspectTime.c` are
+deleted. The depth arm (`> 128`), the path-length `walkBudget`
+refusals, and the `Budget`/`Depth` variants that prove the remaining
+bounds fire are untouched. `constants.ts` states the reason on the
+bounds: counts, never wall-clock, so a slow machine cannot turn a walk
+into a refusal.
+
+- Load proof on this Mac: 40 consecutive real walks of a fresh fixture
+  with the rebuilt helper while `npm run build` saturated the machine —
+  0 `walkBudget` hits, walk wall times p50 124 ms / max 192 ms. Under
+  the old 100 ms budget the median walk alone would have refused; the
+  timing data is the cause measured, not inferred.
+- Refusals that must hold still hold on the rebuilt binary (each
+  reason is the helper's own stderr): `workspaceIdentity`,
+  `program`, `privateOperand`, symlink-operand `operand`, and a valid
+  walk prints `{"confined":true,"abi":1,…}` (it then stops only at this
+  sandbox's `sandbox_apply` denial, exit 71 from `sandbox-exec`).
+- The helper compiles clean under the repo's exact flags
+  (`-Werror -Wconversion -Wshadow`); `policy.h` regenerates from the
+  updated constants. The Linux helper is the mirrored edit and builds
+  on Linux CI.
+- Gates on the final tree, all exit 0: prettier on changed files,
+  eslint `--max-warnings=0` on changed files, `typecheck` (all five
+  projects), `check:plan` (0 drift), `check:l10n` (0 problems),
+  `npm run build` (budgets hold), `deadcode`, `cycles`, `duplication`
+  (0 clones), `security:audit` (2 advisories, 1 exception, exit 0).
+- Suite here: `test/unit/inspectNative.test.ts` 10 skipped, exit 0 —
+  this rig's `xcode-select` points at a broken Xcode (no `cc` shim) and
+  this sandbox denies `sandbox_apply`, so `build-confine` stops at the
+  compiler exec and every drill skips visibly. Nothing in this lane
+  changed the skip logic. The lead's unsandboxed rerun must show 10/10
+  under load (repo-default timeout, `--maxWorkers=3`, a build running
+  beside the suite).
