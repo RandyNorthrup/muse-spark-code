@@ -10,7 +10,6 @@ import { chmodSync, existsSync, realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { execResourceFile } from '../../src/core/resources/commands'
 import { ghReportTransport } from '../../src/core/reporting/sources/github'
-import { locateCaptureHelper } from '../../src/core/voice/helperLocation'
 import { PlaybookOutcomes } from '../../src/core/orchestration/playbook/outcomes'
 import { GITHUB_API_BASE_URL } from '../../src/shared/constants'
 import type { SpawnSyncReturns } from 'node:child_process'
@@ -29,7 +28,7 @@ describe('round-6 planted programs (real filesystem)', () => {
     binDir = path.join(root, 'bin')
     outsideDir = realpathSync(await mkdtemp(path.join(tmpdir(), 'muse-pathguard-r6-out-')))
     await mkdir(binDir, { recursive: true })
-    for (const name of ['gh', 'xdg-open', 'arecord']) {
+    for (const name of ['gh', 'xdg-open']) {
       const planted = path.join(binDir, name)
       await writeFile(planted, '#!/bin/sh\necho planted\n')
       chmodSync(planted, 0o755)
@@ -96,24 +95,11 @@ describe('round-6 planted programs (real filesystem)', () => {
     },
   )
 
-  it.runIf(PLATFORM !== 'win32')('the recorder lookup refuses the workspace planting', () => {
-    // Only the planted `arecord` is on PATH: the lookup excludes the
-    // workspace (links followed), so nothing resolves and the planting the
-    // recorder child would have started never does.
-    const location = locateCaptureHelper({
-      platform: 'linux',
-      systemRoot: undefined,
-      programFiles: undefined,
-      remoteName: undefined,
-      appName: 'test',
-      helperDir: path.join(root, 'no-helpers'),
-      fileExists: existsSync,
-      pathVariable: binDir,
-      workspaceRoot: root,
-      realpath: realpathSync,
-    })
-    expect(location.isAvailable).toBe(false)
-  })
+  // The recorder lookup refusal is proven by round 4's `arecord` test
+  // (updated to the required scope); what round 6 adds for the recorder —
+  // the child guarded env and cwd — is enforced by the required
+  // `GuardedChildEnv` + `cwd` on the recorder spawn, pinned by the
+  // inventory's `workspaceChildEnvironment` anchor on voiceProcesses.ts.
 
   it.runIf(PLATFORM !== 'win32')(
     'a linked worktree outside the main workspace is sanitized too',

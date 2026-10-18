@@ -327,19 +327,20 @@ found by the compiler, not the reviewer:
   real plantings on a temporary workspace (absolute refusal at the
   governed boundary — seen to fail with the check broken — `gh`
   resolved outside the workspace with the root threaded to the exec,
-  the recorder refusal, the linked-worktree double sanitize through
-  the real `PlaybookOutcomes`, and a real team driver start that never
-  executes a planted `setpriv`/`true`). The inventory scans
+  the linked-worktree double sanitize through the real
+  `PlaybookOutcomes`, and a real team driver start that never executes
+  a planted `setpriv`/`true`; the recorder lookup refusal stays proven
+  by round 4's `arecord` test). The inventory scans
   `execResourceFile`/`handoffResourceFile` and one-level aliases and
   pins the branded signatures.
 
 ## Proof (round 6)
 
-`test/unit/pathGuardRound6.test.ts` (5 tests), the updated
+`test/unit/pathGuardRound6.test.ts` (4 tests), the updated
 `test/unit/pathGuard.test.ts` (17), `test/unit/executables.test.ts`
 (9), `test/unit/pathGuardRound4.test.ts` (19) and the extended
 `test/unit/pathGuardSpawns.test.ts` (6 tests: inventory, aliases,
-governed calls, type pins), all passing on the rig (round 6 adds 5 +
+governed calls, type pins), all passing on the rig (round 6 adds 4 +
 the inventory pins):
 
 - The no-workspace scope drops relative/empty entries and still sets
@@ -356,7 +357,7 @@ the inventory pins):
 Round-6 gates (lane PR249FIX5, repository's own timeout throughout,
 never `--testTimeout`):
 
-- `test/unit/pathGuardRound6.test.ts`: 5/5 pass.
+- `test/unit/pathGuardRound6.test.ts`: 4/4 pass.
 - Guard + inventory suites: `pathGuard` + `executables` +
   `pathGuardRound4` (45 pass); `pathGuardSpawns` (6 pass);
   `helperLocation` + `nativeGitCore` (41 pass).
