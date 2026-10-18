@@ -225,8 +225,12 @@ const BUDGETS = [
   // MSM109: 120,644 bytes measured on linuxlt after the joined lease/store
   // reviews (owner-death-only takeover, staged publication, confirmed
   // recovery); exactly 15% headroom, rounded to one byte.
-  { path: 'dist/vaultBroker.js', budgetKiB: 138_741 / 1024 },
-  { path: 'dist/vaultBrokerBindings.js', budgetKiB: 32 },
+  // VAULTPARITY: 168,477 bytes measured on linuxlt with the Windows broker
+  // channel, host and file anchor wired in; exactly 15% headroom.
+  { path: 'dist/vaultBroker.js', budgetKiB: 193_749 / 1024 },
+  // VAULTPARITY: 33,159 bytes measured on linuxlt with the OS-store/file
+  // anchor choice; exactly 15% headroom.
+  { path: 'dist/vaultBrokerBindings.js', budgetKiB: 38_133 / 1024 },
   // MSM109: 58,130 bytes measured on linuxlt after the joined lease/store
   // reviews; exactly 15% headroom, rounded to one byte.
   { path: 'dist/vaultStore.js', budgetKiB: 66_850 / 1024 },

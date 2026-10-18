@@ -522,7 +522,7 @@ jobs:
     if: ${{ inputs.part != 'org' && !inputs.fast }}
     needs: [checks, native-build, linux-native-build]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -579,7 +579,8 @@ jobs:
       # browserCheck.js on the first browser check, M81).
       - name: the .vsix carries the notices, the helpers, the bundles and the manifest's text
         run: |
-          listing="$(unzip -Z1 ./*.vsix)"
+          universal="muse-spark-code-$(node -p "require('./package.json').version").vsix"
+          listing="$(unzip -Z1 "$universal")"
           for entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json \
             extension/native/linux/x64/muse-created extension/native/linux/arm64/muse-created \
             extension/native/linux/x64/muse-vault-peer extension/native/linux/arm64/muse-vault-peer extension/native/darwin/muse-vault-peer \
@@ -614,6 +615,49 @@ jobs:
             fi
           done
           echo "the .vsix holds $(wc -l <<< "$listing") entries, the required ones included"
+      # One package per platform: each target packs only its own native
+      # pieces, meets the same unchanged budget, and carries only its own
+      # helpers with its TargetPlatform in the manifest.
+      - name: the six platform packages meet the budget with only their own helpers
+        env:
+          # The packaged-README badge check lists public main (GitHub API).
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          for target in win32-x64 win32-arm64 darwin-x64 darwin-arm64 linux-x64 linux-arm64; do
+            node scripts/package-vsix.mjs --target "$target"
+          done
+          node scripts/check-vsix-size.mjs muse-spark-code-win32-*.vsix muse-spark-code-darwin-*.vsix muse-spark-code-linux-*.vsix
+          for target in win32-x64 win32-arm64 darwin-x64 darwin-arm64 linux-x64 linux-arm64; do
+            artifact="muse-spark-code-${target}-$(node -p "require('./package.json').version").vsix"
+            listing="$(unzip -Z1 "$artifact")"
+            platform="${target%%-*}"
+            case "$platform" in
+              win32) own="extension/native/windows/MuseSparkVaultPipe.cs" ;;
+              darwin) own="extension/dist/native/darwin/muse-vault" ;;
+              linux) own="extension/native/linux/${target##*-}/muse-vault-peer" ;;
+            esac
+            if ! grep -Fxq -- "$own" <<< "$listing"; then
+              echo "::error::$own is missing from $artifact" >&2
+              exit 1
+            fi
+            foreign="$(grep -E -- '^extension/(native/(windows|darwin|linux/)|dist/native/darwin/)' <<< "$listing" || true)"
+            while IFS= read -r entry; do
+              [ -z "$entry" ] && continue
+              case "$entry" in
+                extension/native/runner/*) continue ;;
+                extension/native/windows/*) [ "$platform" = win32 ] || { echo "::error::$entry is foreign to $artifact" >&2; exit 1; } ;;
+                extension/native/darwin/*|extension/dist/native/darwin/*) [ "$platform" = darwin ] || { echo "::error::$entry is foreign to $artifact" >&2; exit 1; } ;;
+                extension/native/linux/*)
+                  rest="${entry#extension/native/linux/}"
+                  [ "$platform" = linux ] && [ "${rest%%/*}" = "${target##*-}" ] || { echo "::error::$entry is foreign to $artifact" >&2; exit 1; } ;;
+              esac
+            done <<< "$foreign"
+            if ! unzip -p "$artifact" extension.vsixmanifest | grep -Fq "TargetPlatform=\"$target\""; then
+              echo "::error::$artifact lacks its TargetPlatform" >&2
+              exit 1
+            fi
+            echo "$artifact holds $(wc -l <<< "$listing") entries, only its own helpers"
+          done
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-spark-code-vsix
