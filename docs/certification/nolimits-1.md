@@ -21,10 +21,7 @@ piece, with its commit.
 preview drops its byte check; the VS Code link/gist reader and the runtime
 stdin reader take any size (remote reads use web fetch's own 5 MiB body
 bound, `WEB_FETCH_MAX_BYTES`). `promptLimits` removed from English and all
-14 tables; `promptTitleRequired` added in all 15. Proof tests:
-`promptStore.test.ts` reads a 131,073-byte file back whole and validates a
-131,073-tag prompt; `promptImport.test.ts` previews a past-cap portable
-file. Real-use proof with the built product: see §N6.
+14 tables; `promptTitleRequired` added in all 15. Proof tests (NOLIMITS1FIN 2026-10-18: the two files first cited here were deleted as stand-ins in the main-now merge; the proof now lives in `test/unit/promptBoundsRemoved.test.ts` — a 131,073-byte file reads back whole, a past-cap portable file previews through a real file read, and any title/body/count stands with only blank refusing). Real-use proof with the built product: see §N6.
 
 ### §N2 — transcript item count removed (A30fix)
 
@@ -324,3 +321,56 @@ so the review removed both (`action/lib/tools.mjs`, `action/action.yml`,
 - `temp/nolimits-l10n.mjs` (this lane's spent pre-outage helper) failed
   `unicorn/no-useless-template-literals`; fixed with a one-line edit,
   file kept.
+
+## NOLIMITS1FIN (2026-10-18, branch `fix/nolimits-1-fin`): main-now merge, no stand-ins
+
+Merge commit `1a1d5aa03` takes current `main-now` (98 commits), keeping
+both sides: main's product work stands, and this lane's source removals
+stand with no dangling uses left in `src/` (checked by name: none of
+`PROMPT_LIMITS`, `SESSION_EXPORT_MAX_ITEMS`, `REPORT_SOURCE_MAX_BYTES`,
+`CHECK_COMMANDS_MAX`, `TEAM_ENGINE_HARD_CEILING`, `TEAM_DELEGATE_MAX`
+is referenced anywhere under `src/`).
+
+Main's no-stand-ins sweep (PR #183) deleted six test files this branch
+had modified; the merge keeps the deletions, since every one of the six
+used `vi.fn`, which main's eslint gate now refuses in `test/`
+(`no-restricted-properties`). Per-file outcome:
+
+- `BestOfNDialog.test.tsx`: deleted. Its 1-or-more contract is still
+  proven on real code by `bestOfN.test.ts` ("accepts any whole-number
+  count of 1 or more", attempts 201 stands); the dialog-form wiring it
+  covered is withdrawn to `docs/real-life/unproven.md`.
+- `bridgeChecks.test.ts`: deleted. The removed check-count ceiling is
+  still proven by `checkCommands.test.ts` ("takes any number of checks
+  (D121)", 9 checks stand); the "oversized calls" half of its unproven
+  entry is withdrawn there, the rest stays backlog.
+- `promptImport.test.ts` and `promptStore.test.ts`: deleted, replaced by
+  one vi-free file, `test/unit/promptBoundsRemoved.test.ts` (3 tests,
+  real temp files, the real store, the real importer over a real file
+  read, 868 ms): past-128 KiB reads whole, past-cap previews carry the
+  tags with untrusted on, any title/body/count stands with only blank
+  refusing, and the 201st prompt stands. Fire drill: a planted 200-row
+  cap in `scan` fails exactly the count test (2 pass, 1 fails); reverted
+  byte-identical, 3/3 pass again.
+- `actionInputs.test.ts`: deleted. Exec-side 501 parsing is still proven
+  by `execArgs.test.ts` (`max-requests 501`); the Action-side parity
+  title stays listed in `unproven.md`.
+- `execSchema.test.ts`: deleted with its D121 501/$21 parse assertions;
+  CLI-side parsing stays proven by `execArgs.test.ts`; the schema titles
+  stay listed in `unproven.md`.
+- `teamConstants.test.ts`: takes main's version. The whole caps/strings
+  describes the sweep removed are gone, which subsumes this lane's
+  two-line assertion drop (`TEAM_DELEGATE_MAX`,
+  `TEAM_ENGINE_HARD_CEILING` — both constants, and every use of them,
+  are gone from the merged tree).
+
+Stale bound language in `unproven.md` (entries that still say a removed
+cap is "enforced") carries a dated NOLIMITS1FIN note naming what is
+withdrawn and what stays backlog, so a future real-use run cannot
+re-prove a removed bound by mistake.
+
+Limits check on the merged tree: main added no job-stopping cap of ours
+— its only new bound-like constants since the merge base are lane
+PROVERR's `PROVIDER_REFUSAL_MESSAGE_MAX_CHARS` (500) and
+`PROVIDER_REQUEST_ID_MAX_CHARS` (200), which truncate quoted provider
+text for display and the log; they refuse no work and stop no job.
