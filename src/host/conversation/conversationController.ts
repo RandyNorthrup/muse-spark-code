@@ -3492,6 +3492,7 @@ export class ConversationController {
           : { startLine: message.startLine, endLine: message.endLine },
       )
     } catch (error: unknown) {
+      this.deps.log.warn(`A tool row's file could not be opened: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.openFileFailed}: ${describe(error)}`, undefined, error)
     }
   }
@@ -3523,6 +3524,7 @@ export class ConversationController {
       }
       await this.deps.openDocument(title, stored ?? message.text)
     } catch (error: unknown) {
+      this.deps.log.warn(`A tool row's output could not be opened: ${failureForLog(error)}`)
       if (this.isCurrentSessionAction(session, generation)) {
         this.notice('error', `${UI_TEXT.openOutputFailed}: ${describe(error)}`, undefined, error)
       }
@@ -3720,6 +3722,7 @@ export class ConversationController {
       }
       return notices.every((notice) => notice.level === 'info')
     } catch (error: unknown) {
+      this.deps.log.warn(`A review of git's changes failed: ${failureForLog(error)}`)
       if (this.isCurrentSessionAction(session, generation)) {
         if (action === 'revert' && this.isRevertRefused(turnStartEpoch)) {
           this.notice('info', UI_TEXT.restoreTurnRunning)
@@ -3884,10 +3887,10 @@ export class ConversationController {
         ...(skill.argumentHint !== undefined && { argumentHint: skill.argumentHint }),
       }))
     } catch (error: unknown) {
+      this.deps.log.warn(`skill/list failed: ${failureForLog(error)}`)
       if (this.session !== session || this.attachmentGeneration !== generation || this.isDisposed) {
         return
       }
-      this.deps.log.warn(`skill/list failed: ${describeForLog(error)}`)
       this.skills = []
     }
     this.postSkills()
@@ -4044,7 +4047,7 @@ export class ConversationController {
     void this.refreshSkills(session)
     if (session.schedules !== undefined) {
       void session.schedules.list().catch((error: unknown) => {
-        this.deps.log.warn(`Scheduled prompts could not be loaded: ${describeForLog(error)}`)
+        this.deps.log.warn(`Scheduled prompts could not be loaded: ${failureForLog(error)}`)
       })
     }
   }
@@ -4162,7 +4165,7 @@ export class ConversationController {
       // A broken package is said, not swallowed: without the read there is
       // no offer, and the conversation would otherwise continue silently on
       // stale links (GROK-m116k P2).
-      this.deps.log.warn(`The bundled skills could not be offered: ${describeForLog(error)}`)
+      this.deps.log.warn(`The bundled skills could not be offered: ${failureForLog(error)}`)
       this.say('warning', fill(UI_TEXT.bundledSkillsOfferFailed, { reason: describe(error) }))
     }
   }
@@ -4251,6 +4254,7 @@ export class ConversationController {
         this.ideSessions.add(loaded.session)
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A session could not be continued: ${failureForLog(error)}`)
       this.resumeTarget = undefined
       this.notice('warning', `${UI_TEXT.sessionNotContinued}: ${describe(error)}`, undefined, error)
       return undefined
@@ -4299,6 +4303,7 @@ export class ConversationController {
         approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
       )
     } catch (error: unknown) {
+      this.deps.log.warn(`The permission mode was not applied: ${failureForLog(error)}`)
       this.notice(
         'warning',
         `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`,
@@ -4510,15 +4515,16 @@ export class ConversationController {
               record.sessionId,
               questions.filter((entry) => entry.state === 'open').length,
             )
-          } catch {
+          } catch (error: unknown) {
+            this.deps.log.warn(`A history question count is unavailable: ${failureForLog(error)}`)
             if (generation !== this.sendInvalidationEpoch) return
             this.historyQuestionCounts.delete(record.sessionId)
-            this.deps.log.warn('History question count unavailable')
           }
         }
       }
       this.postSessionList()
     } catch (error: unknown) {
+      this.deps.log.warn(`The session history could not be listed: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch) {
         this.notice('error', `${UI_TEXT.historyUnavailable}: ${describe(error)}`, undefined, error)
       }
@@ -4540,7 +4546,7 @@ export class ConversationController {
       }
       return bundle
     } catch (error: unknown) {
-      this.deps.log.error(`The session board bundle could not be loaded: ${describeForLog(error)}`)
+      this.deps.log.error(`The session board bundle could not be loaded: ${failureForLog(error)}`)
       throw new Error(UI_TEXT.boardUnavailable, { cause: error })
     }
   }
