@@ -155,15 +155,21 @@ export function readLedger(
     deliveryOrder: [],
     drift: [],
   }
+  const unreadable = {
+    ledger: null,
+    facts: { ...facts, drift: [{ code: 'ledger-json', line, detail: 'quality-ledger' }] },
+  }
   let value: unknown
   try {
     value = JSON.parse(json)
     if (hasDuplicateJsonKeys(json)) throw new Error('quality-ledger duplicate key')
-  } catch {
-    return {
-      ledger: null,
-      facts: { ...facts, drift: [{ code: 'ledger-json', line, detail: 'quality-ledger' }] },
-    }
+  } catch (error: unknown) {
+    // JSON.parse throws only SyntaxError; anything else is not a malformed
+    // ledger and must not read as one.
+    if (error instanceof SyntaxError) return unreadable
+    if (error instanceof Error && error.message === 'quality-ledger duplicate key')
+      return unreadable
+    throw error
   }
   const parsed = qualityLedgerSchema.safeParse(value)
   if (!parsed.success)

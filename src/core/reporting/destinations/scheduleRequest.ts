@@ -16,8 +16,8 @@ export async function openReportSchedule(
   if (!flags.includes('--schedule')) return 'ignored'
   try {
     await port.openReportSchedule(options)
-  } catch {
-    throw new Error(UI_TEXT.reportUi.generationFailed)
+  } catch (error: unknown) {
+    throw new Error(UI_TEXT.reportUi.generationFailed, { cause: error })
   }
   return 'opened'
 }
@@ -29,7 +29,7 @@ export async function saveReportSchedule(
   if (!validation.success) throw new Error(UI_TEXT.reportUi.generationFailed)
   try {
     await port.saveReportSchedule(validation.data)
-  } catch {
-    throw new Error(UI_TEXT.reportUi.generationFailed)
+  } catch (error: unknown) {
+    throw new Error(UI_TEXT.reportUi.generationFailed, { cause: error })
   }
 }

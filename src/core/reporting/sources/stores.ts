@@ -1,6 +1,7 @@
 import * as z from 'zod/mini'
 import { UI_TEXT } from '../../../shared/constants'
-import { compareVersions } from '../../whatsNew/whatsNewVersions'
+import { compareVersions, isVersion } from '../../whatsNew/whatsNewVersions'
+import { isErrno } from '../../resources/errno'
 import type { ReportSourcePayloads, ReportSourcePort } from './types'
 import {
   ReportNetworkFailure,
@@ -102,6 +103,15 @@ export function storesReportSource(options: ReportStoreOptions): ReportSourcePor
           }
           try {
             const fact = await query(adapter.request, adapter.schema, storeFactSchema)
+            if (!isVersion(fact.version) || !isVersion(options.releaseVersion)) {
+              rows.push({
+                ...target,
+                version: fact.version,
+                status: 'unavailable',
+                reason: 'store-response-invalid',
+              })
+              continue
+            }
             const isLagging =
               compareVersions(
                 fact.version.replace(/^v/, ''),
@@ -114,13 +124,30 @@ export function storesReportSource(options: ReportStoreOptions): ReportSourcePor
               reason: null,
             })
           } catch (error: unknown) {
-            rows.push({
-              ...target,
-              version: null,
-              status: 'unavailable',
-              reason:
-                error instanceof ReportNetworkFailure ? error.message : 'store-response-invalid',
-            })
+            // A channel keeps its own failure: network failures carry their
+            // code, an unparsable response is invalid. Anything else is not a
+            // channel outcome and reaches the reader instead.
+            if (error instanceof ReportNetworkFailure) {
+              rows.push({ ...target, version: null, status: 'unavailable', reason: error.message })
+            } else if (error instanceof z.core.$ZodError) {
+              rows.push({
+                ...target,
+                version: null,
+                status: 'unavailable',
+                reason: 'store-response-invalid',
+              })
+            } else if (error instanceof Error && error.name === 'AbortError') {
+              throw error
+            } else if (isErrno(error)) {
+              rows.push({
+                ...target,
+                version: null,
+                status: 'unavailable',
+                reason: 'store-response-invalid',
+              })
+            } else {
+              throw error
+            }
           }
         }
         if (rows.every((row) => row.status === 'unavailable'))

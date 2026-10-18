@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import * as z from 'zod/mini'
 import {
   ACP_WORKSPACE_HASH_CHARS,
   REPORT_SOURCE_TIMEOUT_MS,
@@ -41,6 +42,15 @@ export interface LocalFileIo {
 export function sourceReason(code: LocalFailure): string {
   return UI_TEXT.reportSourceReasons[code]
 }
+/**
+ * Whether a throw is the content failing to parse: malformed JSON or a schema
+ * mismatch. Sources map both to their invalid-data outcome; anything else is
+ * not a content failure.
+ */
+export function isParseFailure(error: unknown): boolean {
+  return error instanceof SyntaxError || error instanceof z.core.$ZodError
+}
+
 export function codeUnitCompare(a: string, b: string): number {
   if (a === b) return 0
   return a < b ? -1 : 1

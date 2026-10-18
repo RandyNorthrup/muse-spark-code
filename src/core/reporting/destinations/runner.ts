@@ -176,8 +176,8 @@ export class ScheduledReportRunner {
           return false
       }
       return true
-    } catch {
-      throw new Error(UI_TEXT.reportUi.generationFailed)
+    } catch (error: unknown) {
+      throw new Error(UI_TEXT.reportUi.generationFailed, { cause: error })
     }
   }
 

@@ -4,6 +4,7 @@ import * as z from 'zod/mini'
 import { MILLISECONDS_PER_SECOND, REPORT_MAX_ROWS } from '../../../shared/constants'
 import {
   codeUnitCompare,
+  isParseFailure,
   localSource,
   LocalSourceError,
   sourceReason,
@@ -11,6 +12,7 @@ import {
   type LocalFailure,
   type SourceScrub,
 } from './local'
+import { isErrno } from '../../resources/errno'
 import type { UsageFacts } from './types'
 import { scrubUsage } from './session'
 
@@ -256,7 +258,14 @@ export function agentUsageSource(
         if (observedAt === undefined || Date.parse(parsed.observedAt) < Date.parse(observedAt))
           observedAt = parsed.observedAt
       } catch (error) {
-        failures.push(error instanceof LocalSourceError ? error.code : 'invalid')
+        // A file's failure keeps its own code: typed source errors, unparsable
+        // content, a file that vanished, or an unreadable one. Anything else
+        // (cancellation, a bug) reaches the source reader, never a content code.
+        if (error instanceof LocalSourceError) failures.push(error.code)
+        else if (isParseFailure(error)) failures.push('invalid')
+        else if (isErrno(error) && error.code === 'ENOENT') failures.push('missing')
+        else if (isErrno(error)) failures.push('failed')
+        else throw error
       }
     }
     if (observedAt === undefined || rows.length === 0)
