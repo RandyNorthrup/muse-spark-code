@@ -954,7 +954,7 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "configuredDefault": false,
       "key": "SecretStorage",
       "explicitOptIn": true,
-      "consent": "window",
+      "consent": "use",
       "ledger": false
     },
     "vscode:modelApi": {
@@ -963,7 +963,7 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
         "value": true
       },
       "key": "SecretStorage",
-      "consent": "window",
+      "consent": "use",
       "ledger": "paidDailyBudgetUsd"
     }
   }

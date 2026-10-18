@@ -201,6 +201,45 @@ m9-linux (`1437fc9c5`), m35-mic (`05a5636b6`).
 4. Still owed (lead, physical): mic receipts on Mac and Windows; release
    helper/model assets; then remove `COMPANION_VOICE_RELEASE` hold.
 
+## RVMSM9M35 review addendum (2026-10-17, linuxlt, PR #224)
+
+- Merged current main `81dacaf5a` (`492e1e84e`). One content conflict
+  (`build.yml` linux-native-build name/guard: kept both sides) and six
+  modify/delete conflicts: main deleted `test/e2e/modelApi.live.e2e.test.ts`,
+  `test/unit/{acpPackageFixtures.test.ts, helpers/acpPackageSources.ts,
+manifest.test.ts, usagePackaging.test.mjs, vsixPackaging.test.mjs}`
+  in `33150b3cf` ("delete every fake test"); the deletions stand and this
+  lane's edits to those files are withdrawn with them. The two stand-ins
+  the review named lived there (`vi.stubGlobal('fetch', …)` at
+  modelApi.live:1472, a `vi.fn()` logger at vsixPackaging:667) and are
+  gone with the files. The suite tallies above that cite those files
+  (172/172 incl. `acpPackageFixtures`; `usagePackaging` 9–11/12 and its
+  APP PROBLEMS row) are historical runs on the pre-merge tree; no
+  current claim rests on them.
+- The m9-linux merge note above ("`dispose` marks it `void`") is
+  superseded: `LinuxDictation.dispose` and the bundle entry's handle now
+  return the driver's cleanup promise, and `reset()` publishes `idle`
+  (`3bae1ee1e`). The CHANGELOG's "Allow once covers the window" for Muse
+  Voice is corrected to one recording (`ab631cd75`; reference
+  regenerated, consent `use`).
+- PR #224 Codex threads fixed at cause: pin checker after `npm ci`
+  (`ab7f92f28`, proven `ERR_MODULE_NOT_FOUND: esbuild` in a clean
+  worktree); SHA256SUMS helper basenames (`c91bb467e`, drilled with
+  real `sha256sum -c`); recorder ownership after a refused kill
+  (`479bcb2a5`); idle after a failed voice stream (`c7a80a94c`).
+- Gates on the merged tree (exit codes): typecheck 0; ESLint 0 and
+  Prettier 0 on every review-changed file plus the three surviving
+  lane test files; check-l10n 0; check:reference 0 (after regenerate);
+  deadcode 0; cycles 0; duplication 0; check:roadmap 0; check:host-api
+  0; check:plan 0; build 0 (`voice.js` 42.3 KiB, `voiceLinux.js`
+  35.1 KiB, `dictation.js` 12.7 KiB). Tests (repo-default timeout):
+  companionWav+helperLocation+linuxHelperPins 21/21;
+  paidMoneyStructure+paidConsentBundle+dictationGesture 50/50;
+  modelsActivationBudget 1/1 (growth 2,612 B ≤ 3,072 B cap). Packed
+  drill: `node dist/acp.js --help` lists no dictate/`--muse-voice`;
+  `node dist/acp.js dictate` → `Unknown argument: dictate` (exit 1).
+  Stand-in grep over the surviving lane-changed test files: no hits.
+
 ## APP PROBLEMS
 
 - `usagePackaging` cases take 7–10 s on this rig vs the 5 s repo timeout;

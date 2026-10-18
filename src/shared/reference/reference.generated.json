@@ -1341,13 +1341,13 @@
             "configuredDefault": false,
             "key": "SecretStorage",
             "explicitOptIn": true,
-            "consent": "window",
+            "consent": "use",
             "ledger": false
           },
           "vscode:modelApi": {
             "defaultState": { "type": "boolean", "value": true },
             "key": "SecretStorage",
-            "consent": "window",
+            "consent": "use",
             "ledger": "paidDailyBudgetUsd"
           }
         }
