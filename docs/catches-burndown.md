@@ -80,6 +80,27 @@ Designed baselines with reasons (accepted, not forgotten):
   real unreadable-file failure) with explicit exit 1. Inlining the
   vocabulary into the handlers would duplicate it and diverge; rethrowing
   would crash past the explicit exit. No record channel in deps.
+- `src/runtime/sharing/sharingEntry.ts` exec catch (CATCHRUN2): the outer
+  exec floor. A paused run, an allow-listed known failure and anything
+  else each write fixed words to stderr with an explicit exit code; the
+  allow-list never echoes exception text. Rethrowing would crash past the
+  explicit exit; no record channel in scope. Driving it needs process
+  stdio and signals, so it stands on the contract above, unverified by a
+  test — stated, not hidden.
+- `src/runtime/usage/usageCli.ts` receive catch (CATCHRUN2): one failed
+  message reports its fixed `readFailed` protocol code and the session
+  survives; the cause cannot enter the fixed page schema and the ports
+  offer no record channel. Evidence: `test/unit/runtimeCatchHandlers.test.ts`
+  "usage stdio pump" (a malformed line and a failed message report their
+  codes and the pump returns 0; a failed print rejects with the same
+  error object).
+- `src/runtime/usage/usageServiceEntry.ts` service-handle catch
+  (CATCHRUN2): malformed input stays `invalidMessage`, a failed read
+  reports `readFailed`, and the stdio server survives the blip — a fixed
+  protocol vocabulary with truthful codes, no record channel in ports.
+  Evidence: `test/unit/runtimeCatchHandlers.test.ts` "usage stdio
+  service boundary" (malformed, oversized, failing and malformed-input
+  lines each answer their code).
 - Everything else below: pre-existing, grouped for area-by-area lanes.
 
 | Folder                 | GENERIC | SWALLOW |

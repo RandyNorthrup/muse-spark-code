@@ -37,6 +37,18 @@ export interface RuntimeSharingPorts {
   readonly read: (cwd: string, sessionId: string, exportedAt: string) => Promise<ChatShareSource>
 }
 const policySchema = z.object({ 'museSpark.confidentialWorkspace': z.optional(z.boolean()) })
+const POLICY_UNREADABLE_CODES: ReadonlySet<string> = new Set(['EACCES', 'EPERM'])
+/** An unreadable or corrupt policy refuses admission; anything else keeps its kind. */
+function isConfidentialPolicyError(error: unknown): boolean {
+  return (
+    error instanceof SyntaxError ||
+    (error instanceof Error && error.name === '$ZodError') ||
+    (error instanceof Error &&
+      'code' in error &&
+      typeof error.code === 'string' &&
+      POLICY_UNREADABLE_CODES.has(error.code))
+  )
+}
 /** Read the existing workspace setting afresh at each admission; unavailable policy refuses. */
 export function runtimeSharingConfidential(cwd: string): boolean | undefined {
   try {
@@ -46,9 +58,12 @@ export function runtimeSharingConfidential(cwd: string): boolean | undefined {
       )['museSpark.confidentialWorkspace'] ?? SETTING_DEFAULTS.confidentialWorkspace
     )
   } catch (error: unknown) {
-    return error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      ? SETTING_DEFAULTS.confidentialWorkspace
-      : undefined
+    // A missing settings file reads the default; an unreadable or corrupt
+    // policy refuses admission. Anything else keeps its kind.
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+      return SETTING_DEFAULTS.confidentialWorkspace
+    if (isConfidentialPolicyError(error)) return undefined
+    throw error
   }
 }
 
