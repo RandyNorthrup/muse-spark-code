@@ -1,0 +1,56 @@
+{
+  "id": "ZAI-JSON",
+  "provider": "zai",
+  "sentAt": "2026-10-13T01:37:51.914Z",
+  "method": "POST",
+  "url": "https://api.z.ai/api/paas/v4/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "messages": [
+      {
+        "content": "Reply with exactly: {\"hi\": true}.",
+        "role": "user"
+      }
+    ],
+    "model": "glm-5.2",
+    "response_format": {
+      "type": "json_object"
+    },
+    "stream": false,
+    "max_tokens": 200
+  },
+  "lookFor": "Status and whether the reply is a bare JSON object (JSON mode honored on the standard endpoint).",
+  "status": 200,
+  "responseHeaders": {
+    "x-request-id": "a6e7d77d-c903-4e63-b503-531ff14ea5fb"
+  },
+  "response": {
+    "choices": [
+      {
+        "finish_reason": "length",
+        "index": 0,
+        "message": {
+          "content": "",
+          "reasoning_content": "1.  **Analyze the Request:**\n    *   The user wants me to reply with exactly: `{\"hi\": true}`.\n    *   The system prompt requires me to output a valid JSON object, use a specific structure (defaulting to `{\"answer\":\"$your_answer\"}` if unsure), and end the code block with \"```\".\n\n2.  **Evaluate the constraints:**\n    *   User wants exactly `{\"hi\": true}`.\n    *   System prompt wants valid JSON, and specifically mentions using \"```\" to end a code block.\n    *   System prompt says: \"If unsure, please default to using {\"answer\":\"$your_answer\"}.\" Since I am *sure* the user wants `{\"hi\": true}` and it *is* a valid JSON object, I can just output `{\"hi\": true}` inside a JSON code block as requested by the system prompt's formatting requirement, or just output the exact string if",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1791855480,
+    "id": "20261013093752f3b499a9d735424a",
+    "model": "glm-5.2",
+    "object": "chat.completion",
+    "request_id": "20261013093752f3b499a9d735424a",
+    "usage": {
+      "completion_tokens": 200,
+      "completion_tokens_details": {
+        "reasoning_tokens": 198
+      },
+      "prompt_tokens": 82,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "total_tokens": 282
+    }
+  }
+}

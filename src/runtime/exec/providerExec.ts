@@ -444,7 +444,7 @@ export async function assembleProviderRun(
     return usage(
       read.reason === 'missing'
         ? fill(UI_TEXT.providerUnknown, { provider: input.providerId })
-        : fill(UI_TEXT.providerTestFailed, { reason: read.detail }),
+        : fill(UI_TEXT.providerTestFailed, { detail: read.detail }),
     )
   }
   const resolved = await resolveProvider(read.file, input.providerId, presetById, input.resolveHost)

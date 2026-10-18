@@ -1,0 +1,337 @@
+[
+  {
+    "id": "R5-R1-receipts-enabled",
+    "file": "src/core/legal/scan.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 4 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > resolves only the receipt text check and reports its reason visibly",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > shows reviewed by receipt in text and exits zero",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > shows reviewed by receipt in json and exits zero",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > does not report a complete scan when the receipt finding cannot fit",
+      "Tests  4 failed | 22 passed (26)"
+    ],
+    "sha256Before": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9",
+    "sha256Restored": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9"
+  },
+  {
+    "id": "R5-R2-package",
+    "file": "src/core/legal/scan.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > refuses a receipt whose identity differs: {\"package\":\"another-package\"}",
+      "Tests  1 failed | 25 passed (26)"
+    ],
+    "sha256Before": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9",
+    "sha256Restored": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9"
+  },
+  {
+    "id": "R5-R3-version",
+    "file": "src/core/legal/scan.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > refuses a receipt whose identity differs: {\"version\":\"1.5.1\"}",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > voids the receipt on a package version bump",
+      "Tests  2 failed | 24 passed (26)"
+    ],
+    "sha256Before": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9",
+    "sha256Restored": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9"
+  },
+  {
+    "id": "R5-R4-sha256",
+    "file": "src/core/legal/scan.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 5 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > refuses a receipt whose identity differs: {\"sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > voids the receipt after any licence byte change: \"\\n\"",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > voids the receipt after any licence byte change: \"\\r\\n\"",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > voids the receipt after any licence byte change: \"\ufeff\"",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > requires the exact native byte digest when the snapshot offers it",
+      "Tests  5 failed | 21 passed (26)"
+    ],
+    "sha256Before": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9",
+    "sha256Restored": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9"
+  },
+  {
+    "id": "R5-R5-found-spdx",
+    "file": "src/core/legal/scan.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > refuses a receipt whose identity differs: {\"spdx\":\"BSD-3-Clause\"}",
+      "Tests  1 failed | 25 passed (26)"
+    ],
+    "sha256Before": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9",
+    "sha256Restored": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9"
+  },
+  {
+    "id": "R5-R6-single-declaration",
+    "file": "src/core/legal/scan.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > requires a single agreeing declaration, even when alternatives include the found SPDX id",
+      "Tests  1 failed | 25 passed (26)"
+    ],
+    "sha256Before": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9",
+    "sha256Restored": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9"
+  },
+  {
+    "id": "R5-R7-native-byte-hash",
+    "file": "src/core/legal/scan.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > requires the exact native byte digest when the snapshot offers it",
+      "Tests  1 failed | 25 passed (26)"
+    ],
+    "sha256Before": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9",
+    "sha256Restored": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9"
+  },
+  {
+    "id": "R5-R8-single-line-reason",
+    "file": "src/core/legal/depLicenses.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"lz-string\",\"version\":\"1.5.0\",\"sha256\":\"433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80\",\"spdx\":\"MIT\",\"reason\":\"two\\nlines\"}",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"lz-string\",\"version\":\"1.5.0\",\"sha256\":\"433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80\",\"spdx\":\"MIT\",\"reason\":\" \"}",
+      "Tests  2 failed | 24 passed (26)"
+    ],
+    "sha256Before": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f",
+    "sha256Restored": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f"
+  },
+  {
+    "id": "R5-R9-strict-schema",
+    "file": "src/core/legal/depLicenses.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"lz-string\",\"version\":\"1.5.0\",\"sha256\":\"433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80\",\"spdx\":\"MIT\",\"reason\":\"MIT terms are unchanged; the copyright notice names the lowercase holder pieroxy.\",\"path\":\"../LICENSE\"}",
+      "Tests  1 failed | 25 passed (26)"
+    ],
+    "sha256Before": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f",
+    "sha256Restored": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f"
+  },
+  {
+    "id": "R5-R10-single-spdx-schema",
+    "file": "src/core/legal/depLicenses.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"lz-string\",\"version\":\"1.5.0\",\"sha256\":\"433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80\",\"spdx\":\"MIT OR BSD-3-Clause\",\"reason\":\"MIT terms are unchanged; the copyright notice names the lowercase holder pieroxy.\"}",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"lz-string\",\"version\":\"1.5.0\",\"sha256\":\"433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80\",\"spdx\":\"MadeUp\",\"reason\":\"MIT terms are unchanged; the copyright notice names the lowercase holder pieroxy.\"}",
+      "Tests  2 failed | 24 passed (26)"
+    ],
+    "sha256Before": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f",
+    "sha256Restored": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f"
+  },
+  {
+    "id": "R5-R11-root-file",
+    "file": "src/core/legal/depLicenses.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > reads only the root file once and refuses malformed JSON",
+      "Tests  1 failed | 25 passed (26)"
+    ],
+    "sha256Before": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f",
+    "sha256Restored": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f"
+  },
+  {
+    "id": "R5-R12-visible-receipts",
+    "file": "src/core/legal/scan.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > does not report a complete scan when the receipt finding cannot fit",
+      "Tests  1 failed | 25 passed (26)"
+    ],
+    "sha256Before": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9",
+    "sha256Restored": "55362f630ceb15dfa1aad4de3e93047b6d5fdd874be23a3c969d1bded47858d9"
+  },
+  {
+    "id": "R5-R13-slot-byte-pin",
+    "file": "src/core/legal/licenseTemplates.ts",
+    "command": "npx vitest run test/unit/legalSlotData.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalSlotData.test.ts > pinned holder review vocabulary outside the bundle > disables exact matching when slot data is changed",
+      "Tests  1 failed | 2 passed (3)"
+    ],
+    "sha256Before": "b8a402f24f85e3806be8a3e8de021ee7f585b4af3707b8b6c34a5de86802c38a",
+    "sha256Restored": "b8a402f24f85e3806be8a3e8de021ee7f585b4af3707b8b6c34a5de86802c38a"
+  },
+  {
+    "id": "R5-R14-missing-slot-fail-closed",
+    "file": "src/core/legal/licenseTemplates.ts",
+    "command": "npx vitest run test/unit/legalSlotData.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalSlotData.test.ts > pinned holder review vocabulary outside the bundle > disables exact matching when slot data is missing",
+      "FAIL  test/unit/legalSlotData.test.ts > pinned holder review vocabulary outside the bundle > disables exact matching when slot data is changed",
+      "Tests  2 failed | 1 passed (3)"
+    ],
+    "sha256Before": "b8a402f24f85e3806be8a3e8de021ee7f585b4af3707b8b6c34a5de86802c38a",
+    "sha256Restored": "b8a402f24f85e3806be8a3e8de021ee7f585b4af3707b8b6c34a5de86802c38a"
+  },
+  {
+    "id": "R5-R15-narrow-terminal-period",
+    "file": "src/core/legal/licenseTemplates.ts",
+    "command": "npx vitest run test/unit/legalVendorHolders.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > keeps an unlisted holder form under review: Different Terms Govern This Work.",
+      "FAIL  test/unit/legalVendorHolders.test.ts > real shipped vendor holder forms > keeps an unlisted holder form under review: Further Conditions Apply To Distribution.",
+      "Tests  2 failed | 17 passed (19)"
+    ],
+    "sha256Before": "b8a402f24f85e3806be8a3e8de021ee7f585b4af3707b8b6c34a5de86802c38a",
+    "sha256Restored": "b8a402f24f85e3806be8a3e8de021ee7f585b4af3707b8b6c34a5de86802c38a"
+  },
+  {
+    "id": "R5-R21-nonempty-text",
+    "file": "src/core/legal/depLicenses.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"\",\"version\":\"1.5.0\",\"sha256\":\"433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80\",\"spdx\":\"MIT\",\"reason\":\"MIT terms are unchanged; the copyright notice names the lowercase holder pieroxy.\"}",
+      "Tests  1 failed | 31 passed (32)"
+    ],
+    "sha256Before": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f",
+    "sha256Restored": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f"
+  },
+  {
+    "id": "R5-R16-version-bound",
+    "file": "src/core/legal/depLicenses.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"lz-string\",\"version\":\"vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv\",\"sha256\":\"433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80\",\"spdx\":\"MIT\",\"reason\":\"MIT terms are unchanged; the copyright notice names the lowercase holder pieroxy.\"}",
+      "Tests  1 failed | 31 passed (32)"
+    ],
+    "sha256Before": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f",
+    "sha256Restored": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f"
+  },
+  {
+    "id": "R5-R17-text-bound",
+    "file": "src/core/legal/depLicenses.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp\",\"version\":\"1.5.0\",\"sha256\":\"433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80\",\"spdx\":\"MIT\",\"reason\":\"MIT terms are unchanged; the copyright notice names the lowercase holder pieroxy.\"}",
+      "Tests  1 failed | 31 passed (32)"
+    ],
+    "sha256Before": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f",
+    "sha256Restored": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f"
+  },
+  {
+    "id": "R5-R18-reason-bound",
+    "file": "src/core/legal/depLicenses.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"lz-string\",\"version\":\"1.5.0\",\"sha256\":\"433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80\",\"spdx\":\"MIT\",\"reason\":\"rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr\"}",
+      "Tests  1 failed | 31 passed (32)"
+    ],
+    "sha256Before": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f",
+    "sha256Restored": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f"
+  },
+  {
+    "id": "R5-R19-entry-bound",
+    "file": "src/core/legal/depLicenses.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > refuses a receipt array over its declared entry bound",
+      "Tests  1 failed | 31 passed (32)"
+    ],
+    "sha256Before": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f",
+    "sha256Restored": "c75f979e4700dbaa66efc7fb6e935b9ff34c370501ca6ae54b2a0497f740ae2f"
+  },
+  {
+    "id": "R5-R20-build-slot-pin",
+    "file": "src/core/legal/legal-data/slot-words.txt",
+    "command": "node scripts/build.mjs --production",
+    "exit": 1,
+    "failure": "dist/legal-data/slot-words.txt does not match its pinned SHA-256",
+    "sha256Before": "33d392c38b9dc51013097abd1bedacbec14174933fbe4d05d4b267fb9056b292",
+    "sha256Restored": "33d392c38b9dc51013097abd1bedacbec14174933fbe4d05d4b267fb9056b292"
+  },
+  {
+    "id": "R5-R22-unicode-line-separators",
+    "file": "src/core/legal/depLicenses.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 3 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"lz-string\",\"version\":\"1.5.0\",\"sha256\":\"433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80\",\"spdx\":\"MIT\",\"reason\":\"two",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"lz-string\",\"version\":\"1.5.0\",\"sha256\":\"433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80\",\"spdx\":\"MIT\",\"reason\":\"two",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"lz-string\",\"version\":\"1.5.0\",\"sha256\":\"433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80\",\"spdx\":\"MIT\",\"reason\":\"two",
+      "Tests  3 failed | 32 passed (35)"
+    ],
+    "sha256Before": "402a89ffaf0555214f7910761aa93ec6b97eb23d9bcd46cadaf8a586ad9946b7",
+    "sha256Restored": "402a89ffaf0555214f7910761aa93ec6b97eb23d9bcd46cadaf8a586ad9946b7"
+  },
+  {
+    "id": "R5-R23-nonempty-reason",
+    "file": "src/core/legal/depLicenses.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"lz-string\",\"version\":\"1.5.0\",\"sha256\":\"433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80\",\"spdx\":\"MIT\",\"reason\":\" \"}",
+      "Tests  1 failed | 34 passed (35)"
+    ],
+    "sha256Before": "402a89ffaf0555214f7910761aa93ec6b97eb23d9bcd46cadaf8a586ad9946b7",
+    "sha256Restored": "402a89ffaf0555214f7910761aa93ec6b97eb23d9bcd46cadaf8a586ad9946b7"
+  },
+  {
+    "id": "R5-R24-nonempty-version",
+    "file": "src/core/legal/depLicenses.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"lz-string\",\"version\":\"\",\"sha256\":\"433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80\",\"spdx\":\"MIT\",\"reason\":\"MIT terms are unchanged; the copyright notice names the lowercase holder pieroxy.\"}",
+      "Tests  1 failed | 34 passed (35)"
+    ],
+    "sha256Before": "402a89ffaf0555214f7910761aa93ec6b97eb23d9bcd46cadaf8a586ad9946b7",
+    "sha256Restored": "402a89ffaf0555214f7910761aa93ec6b97eb23d9bcd46cadaf8a586ad9946b7"
+  },
+  {
+    "id": "R5-R25-sha256-shape",
+    "file": "src/core/legal/depLicenses.ts",
+    "command": "npx vitest run test/unit/legalReceipts.test.ts --maxWorkers=3",
+    "exit": 1,
+    "failures": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "FAIL  test/unit/legalReceipts.test.ts > workspace licence review receipts > fails closed on malformed receipt entries: {\"package\":\"lz-string\",\"version\":\"1.5.0\",\"sha256\":\"not-a-hash\",\"spdx\":\"MIT\",\"reason\":\"MIT terms are unchanged; the copyright notice names the lowercase holder pieroxy.\"}",
+      "Tests  1 failed | 34 passed (35)"
+    ],
+    "sha256Before": "402a89ffaf0555214f7910761aa93ec6b97eb23d9bcd46cadaf8a586ad9946b7",
+    "sha256Restored": "402a89ffaf0555214f7910761aa93ec6b97eb23d9bcd46cadaf8a586ad9946b7"
+  }
+]

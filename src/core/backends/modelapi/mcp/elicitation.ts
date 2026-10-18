@@ -204,7 +204,7 @@ export function validateElicitationValues(
   return { ok: true, content: Object.fromEntries(content) }
 }
 
-// Lane E owns real dispatch. Only explicit user-scope answers may be accepted.
+// The default seam runs the configured extension hooks. Only explicit user-scope answers may be accepted.
 export interface ElicitationHookInput {
   readonly server: string
   readonly message: string
@@ -221,12 +221,18 @@ export interface ElicitationResultInput {
   readonly server: string
   readonly fieldNames: readonly string[]
   readonly action: ElicitationOutcome['action']
+  /**
+   * The accepted answer, for user-scope hooks only; absent unless the
+   * elicitation was accepted. Project hooks never receive it.
+   */
+  readonly values?: Readonly<Record<string, unknown>>
 }
 export interface ElicitationHookSeam {
   fireElicitation(input: ElicitationHookInput): Promise<ElicitationHookVerdict>
   fireElicitationResult(input: ElicitationResultInput): Promise<void>
 }
-// The unwired seam deliberately proceeds to the explicit user form.
+
+// The fallback seam proceeds to the explicit user form (hooks off).
 export const ALLOW_ELICITATION_SEAM: ElicitationHookSeam = {
   fireElicitation: () => Promise.resolve({ decision: 'proceed' }),
   fireElicitationResult: () => Promise.resolve(),

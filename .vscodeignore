@@ -39,6 +39,7 @@
 !dist/review.js
 !dist/agentImport.js
 !dist/conversationGit.js
+!dist/nativeGit.js
 !dist/bundledSkills.js
 !dist/codeIntel.js
 !dist/voice.js
@@ -117,6 +118,7 @@
 !dist/modelApiHooks.js
 !dist/modelApiMcp.js
 !dist/modelApiTools.js
+!dist/modelApiVerify.js
 
 !dist/reporting.js
 !dist/reportingPanel.js

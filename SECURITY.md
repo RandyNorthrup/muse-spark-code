@@ -164,10 +164,33 @@ Releases and npm.
   force mode, refuses a branch behind its upstream, and refuses a branch,
   upstream or remote whose name git would read as an option or a force
   (`+`, `-`, `:`, whitespace). Pull requests go to `api.github.com` only,
-  with VS Code's GitHub sign-in token read per call; every GitHub reply is
-  validated against a captured shape. Credential-shaped strings in a commit
-  message or pull request are masked and returned to the form before
-  anything is sent.
+  with a token read per call from the window's GitHub sign-in; every GitHub
+  reply is validated against a captured shape. Credential-shaped strings in
+  a commit message or pull request are masked and returned to the form
+  before anything is sent.
+- **GitHub sign-in (M123, D104).** Three sources, first available wins:
+  the editor's own GitHub session; Muse Spark's device-flow sign-in with
+  the project's public OAuth App (no client secret exists; scope `repo`
+  only; only `https://github.com/login/device` is ever shown or opened,
+  and a user code that is not plain letters, digits and hyphens is
+  refused, so a reply cannot put terminal or markup text on screen; the
+  token pair is kept only in the editor's secret storage or the OS
+  credential store, registered with the redactor, and a sign-out barrier
+  keeps any token issued before a sign-out from being served after it);
+  and the user's `gh` login, only when `museSpark.github.useGhLogin` is on
+  in user or machine settings (a repository's value is ignored), read with
+  fixed arguments through the governed launcher, with none of our
+  credential variables, for one call. A 401 drops the refused token. No
+  token reaches a child process, a model, a log or the panel; the panel
+  shows the source and the account's login only.
+- **Without VS Code's Git extension (M123).** Commit, push and pull
+  requests run the user's own `git` (an absolute PATH entry) with fixed
+  argument lists that a check refuses in any other shape; a base branch git
+  would read as an option or a range is refused before any git starts. One
+  pipeline per mutation (plan, confirmation, the repository's lock across
+  windows, a final revalidation of everything confirmed, then the spawn),
+  never a force-push; only the confirmed push and a base fetch get the
+  user's Git credential routes.
 - **Someone else's pull request.** "Open a pull request in a conversation"
   checks a pull request by another author out under the extension's own
   storage. A window whose folder is anywhere under that storage is held,
@@ -784,3 +807,38 @@ Native attachment bridge frames carry metadata/tokens, never file bytes or
 credentials. Production mounting waits for M104's guarded launch exchange and
 private storage; provider consumption waits for captured capability, consent,
 exact budget and Files ledger bindings. Missing ports refuse explicitly.
+
+## MCP connector boundary (M124 local phase, PLAN D106)
+
+- **Authority stays here.** A connection grant (workspaces, scope
+  families, content, user library) is created only with a typed
+  confirmation in an interactive terminal and stored owner-only outside
+  every repository; launching `mcp` or trusting a repository grants
+  nothing. Re-enabling after the kill switch needs the same confirmation;
+  revoking and switching off never ask.
+- **Our approval decides effects.** Every write returns `awaitingApproval`
+  and takes effect only when our loopback approval page (M104 C's
+  companion server: one-use launch code in the URL fragment, a per-window
+  bearer kept in page memory, exact Host/Origin, Fetch-Metadata and CSP)
+  posts a decision for the digest it showed. The digest binds principal,
+  grant generation, workspace, tool, exact payload, target generation,
+  price and a 120-second expiry; the dispatch re-reads them and consumes the
+  approval once. MCP arguments (strict schemas refuse unknown fields such
+  as `confirm`), client responses, elicitation answers and tool annotations
+  never reach the decision. No tool answers approvals, edits grants or
+  exposes a shell, files, credentials or OAuth administration.
+- **Residual:** another process running as the same OS user could open the
+  approval page if it obtained a launch code (it passes once through the
+  OS browser opener's arguments) or edit the owner-only grant files; the
+  connector does not isolate same-user processes, as D106 states.
+- **Stop is never gated.** `muse_stop` and `muse_schedule_cancel` skip the
+  call limiter, the kill switch, the approval queue and audit failure; they
+  still require a live grant and the workspace.
+- **Bounded and audited.** 64 KiB frames (refused before parsing) and
+  results, 60 calls a minute per connection with a burst of 10, 4 reads at
+  once, 2 pending approvals, a 2-second poll floor and a 15-second call
+  deadline. Reads and writes fail closed when their audit line cannot be
+  written. Paid authority is zero; `paid:request` cannot be granted.
+- **Child processes.** The runtime removes credential variables from its
+  environment before the connector loads; the only process the connector
+  starts is the fixed OS opener with the checked loopback URL.

@@ -19,6 +19,7 @@ import { buildWebviewHtml, createNonce } from '../html'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from './chatSurface'
+import { composerPlaceholderFor } from './composerPlaceholder'
 import { mintFocusRequest, shouldDeliverFocusInput } from './focusGate'
 import { webviewErrorLog } from './webviewErrors'
 
@@ -69,7 +70,7 @@ function buildInitMessage(context: WebviewHostContext, isSideChat: boolean): Hos
   return {
     type: 'init',
     emptyStateHint: UI_TEXT.emptyStateHint,
-    composerPlaceholder: UI_TEXT.composerPlaceholder,
+    composerPlaceholder: composerPlaceholderFor(process.platform),
     settings: isSideChat
       ? { ...context.getSettings(), initialPermissionMode: 'plan' }
       : context.getSettings(),

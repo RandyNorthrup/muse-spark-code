@@ -54,6 +54,8 @@ export const ACP_BUNDLES = [
   'estimator.js',
   'headless.js',
   'sharingRuntime.js',
+  // M124 (D106): the MCP connector ships in the ACP package; `mcp` loads it on use.
+  'connector.js',
   'acpQuestions.js',
   'acpPlaybook.js',
   'runtimeQuestions.js',
@@ -85,6 +87,9 @@ export const ACP_BUNDLES = [
   'configuredProviders.js',
   'providerCatalog.json',
   'providerCatalog.js',
+  // What's New's release notes for /whatsnew in ACP editors (M99): data the
+  // agent reads beside its bundle, never code, so no lazy-registry row.
+  'whatsNew.json',
   'media.js',
   'reviewer.js',
   'team.js',
@@ -94,6 +99,7 @@ export const ACP_BUNDLES = [
   'foreignHooks.js',
   'hookRuntime.js',
   'modelApiTools.js',
+  'modelApiVerify.js',
   'recorder.js',
   'reporting.js',
   'reportingNetwork.js',

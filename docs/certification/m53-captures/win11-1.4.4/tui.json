@@ -1,0 +1,41 @@
+{
+  "cli": "1.4.4-R5419.1",
+  "provider": "echo",
+  "workspace": "C:/lanes/_tmp/CM531-tui-empty",
+  "home": "<probe-home>",
+  "exitCode": 0,
+  "events": [
+    {
+      "input": "/fork\\r",
+      "output": "/f── Voice input (Alt+V to start) ────────────────────────────────────────────────❯ /fork\r\n                                                                                ────────────────────────────────────────────────────────────────────────────────  echo · <workspace> · Auto-review\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n[prompt]"
+    },
+    {
+      "input": "\\n",
+      "output": ""
+    },
+    {
+      "input": "\\r\\n",
+      "output": "── Voice input (Alt+V to start) ────────────────────────────────────────────────❯\r\n────────────────────────────────────────────────────────────────────────────────  echo · <workspace> · Auto-review                    Forking…\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n◆ Could not fork this session.                                                    Reason: fork session could not be written; check disk permissions and retry     (seed path: runtime_full_replay)                                                The source session is unchanged.                                                                                                                              ── Voice input (Alt+V to start) ────────────────────────────────────────────────❯\r\n────────────────────────────────────────────────────────────────────────────────  echo · <workspace> · Auto-review                            \r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n"
+    },
+    {
+      "input": "CM531 token-free TUI boundary\\r\\n",
+      "output": "CM── Voice input (Alt+V to start) ────────────────────────────────────────────────❯ CM531 token-free TUI boundary\r\n                                                                                ────────────────────────────────────────────────────────────────────────────────  echo · <workspace> · Auto-review\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n"
+    },
+    {
+      "input": "\\r\\n",
+      "output": "❯ CM531 token-free TUI boundary                                                 \r\n\r\n◇ Thinking                                                                                                                                                      ── Voice input (Alt+V to start) ────────────────────────────────────────────────❯\r\n────────────────────────────────────────────────────────────────────────────────  echo · <workspace> · Auto-review\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\nkgWorking (0s·esctointerrupt)g◈◆ W◈o r❯ CM531 token-free TUI boundary                                                                                                                                 ◆ echo: CM531 token-free TUI boundary                                                                                                                           ── Voice input (Alt+V to start) ────────────────────────────────────────────────❯\r\n────────────────────────────────────────────────────────────────────────────────  echo · <workspace> · Auto-review                            \r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n"
+    },
+    {
+      "input": "/fork",
+      "output": "Type@tosearchandinsertworkspacefilepaths                               /fork[prompt]\r\n  /fork  Branch this session from the latest message                            ────────────────────────────────────────────────────────────────────────────────echo·<workspace>·Auto-review"
+    },
+    {
+      "input": "\\r\\n",
+      "output": "── Voice input (Alt+V to start) ────────────────────────────────────────────────❯\r\n────────────────────────────────────────────────────────────────────────────────  echo · <workspace> · Auto-review                    Forking…\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n◆ Could not fork this session.                                                    Reason: fork session could not be written; check disk permissions and retry     (seed path: runtime_full_replay)                                                The source session is unchanged.                                                                                                                              ── Voice input (Alt+V to start) ────────────────────────────────────────────────❯\r\n────────────────────────────────────────────────────────────────────────────────  echo · <workspace> · Auto-review                            \r\n\r\n\r\n"
+    },
+    {
+      "input": "Ctrl-C twice",
+      "output": "Press Ctrl-C again to quit                                                                                 \r\n\r\n                                                                                                                                                                \r\n\r\n\r\nTo continue this session, run muse resume 01a126c4-d146-7933-a41f-1e4284158786\r\n"
+    }
+  ]
+}

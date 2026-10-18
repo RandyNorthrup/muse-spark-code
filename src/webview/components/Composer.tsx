@@ -32,9 +32,6 @@ import {
 } from 'react'
 import {
   COMPOSER_MAX_ROWS,
-  BASE64_DATA_URL_OVERHEAD_CHARS,
-  BASE64_INPUT_BLOCK_BYTES,
-  BASE64_OUTPUT_BLOCK_CHARS,
   type DictationAction,
   GOAL_SLASH_COMMAND,
   HANDOFF_SLASH_COMMAND,
@@ -43,7 +40,6 @@ import {
   IME_PROCESS_KEY,
   MAX_ATTACHMENTS_PER_MESSAGE,
   MAX_DOCUMENT_BYTES,
-  MAX_ENCODED_MEDIA_CHARS,
   MAX_IMAGE_BYTES,
   PDF_EXTENSION,
   PDF_HEADER_WINDOW_BYTES,
@@ -317,18 +313,8 @@ function filesWithoutUris(files: readonly File[], uris: readonly string[]): read
   return files.filter((file) => file.name === '' || !names.has(file.name))
 }
 
-/** The same conservative data-URL budget the host checks after decoding. */
-function encodedMediaChars(sizeBytes: number, mediaType: string): number {
-  return (
-    BASE64_DATA_URL_OVERHEAD_CHARS +
-    mediaType.length +
-    BASE64_OUTPUT_BLOCK_CHARS * Math.ceil(sizeBytes / BASE64_INPUT_BLOCK_BYTES)
-  )
-}
-
 interface PendingMediaReservation {
   readonly requestId: string
-  readonly encodedChars: number
 }
 
 /** Ctrl+D (Cmd+D on a Mac): the microphone from the keyboard. */
@@ -935,15 +921,6 @@ export function Composer(props: ComposerProps) {
     const admit = (file: File, name: string, mediaType: string) => {
       const current = currentAttachments.current
       const count = current.length + pendingFiles.current.length
-      const mediaChars =
-        current.reduce(
-          (total, attachment) =>
-            total +
-            (attachment.media !== undefined || attachment.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE
-              ? 0
-              : encodedMediaChars(attachment.sizeBytes, attachment.mediaType)),
-          0,
-        ) + pendingFiles.current.reduce((total, pending) => total + pending.encodedChars, 0)
       const isDocument = mediaType === PDF_MEDIA_TYPE
       if (file.size > (isDocument ? MAX_DOCUMENT_BYTES : MAX_IMAGE_BYTES)) {
         onRefuseFile(name, isDocument ? UI_TEXT.documentTooLarge : UI_TEXT.attachmentTooLarge)
@@ -953,16 +930,10 @@ export function Composer(props: ComposerProps) {
         onRefuseFile(name, UI_TEXT.attachmentLimit)
         return
       }
-      const estimate = encodedMediaChars(file.size, mediaType)
-      if (mediaChars + estimate > MAX_ENCODED_MEDIA_CHARS) {
-        onRefuseFile(name, UI_TEXT.mediaTotalTooLarge)
-        return
-      }
       const requestId = newAttachmentRequestId()
       const admittedEpoch = attachmentEpoch
       const reservation: PendingMediaReservation = {
         requestId,
-        encodedChars: estimate,
       }
       pendingFiles.current.push(reservation)
       void blobToBase64(file)

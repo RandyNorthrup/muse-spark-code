@@ -24,9 +24,9 @@
 //
 // Around it:
 // - The user's `git` (`RuntimeGitDeps.gitPath`, absolute) runs through the
-//   bounded runner (`createGitProcess`: output caps, deadlines, M107
-//   admission, whole-tree stop), with explicit argument arrays and no
-//   shell. Every argument list passes `assertNativeGitArgs`.
+//   bounded runner (`createGitProcess`: output caps, M107 admission,
+//   whole-tree stop on Cancel or the window's closing; no deadline of ours),
+//   with explicit argument arrays and no shell. Every argument list passes `assertNativeGitArgs`.
 // - Environments are allow-lists per operation: reads, commits and
 //   worktrees get no credential variable; a confirmed push and a pull
 //   request fetch get only GIT_PUSH_CREDENTIAL_VARIABLES, as captured at
@@ -68,7 +68,15 @@ import {
   nativeStageAllArgs,
   type CommitMessageProblem,
 } from '../../../core/git/commit'
-import { nativeDiffArgs, readNativeDiff, type TruncatedDiff } from '../../../core/git/diff'
+import {
+  isRangeSafeRefName,
+  nativeBranchFilesArgs,
+  nativeBranchLogArgs,
+  nativeDiffArgs,
+  readNativeDiff,
+  remoteBaseRef,
+  type TruncatedDiff,
+} from '../../../core/git/diff'
 import {
   isPlainRefName,
   isPlainRefspec,
@@ -94,7 +102,6 @@ import { newFileDiff } from '../../../core/git/gitText'
 import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 import {
   GIT_PUSH_CREDENTIAL_VARIABLES,
-  GIT_TIMEOUT_MS,
   PULL_REQUEST_WORKTREES_DIR,
 } from '../../../shared/constants'
 import {
@@ -115,6 +122,7 @@ import {
 const NATIVE_GIT_SUBCOMMANDS = [
   'status',
   'diff',
+  'log',
   'commit',
   'push',
   'fetch',
@@ -160,6 +168,41 @@ function isAllowedConfigRead(rest: readonly string[]): boolean {
   )
 }
 
+/** A pull request base as `refs/remotes/<remote>/<base>`, range-safe in every segment. */
+function isRemoteBaseRef(ref: string | undefined): boolean {
+  const prefix = remoteBaseRef('', '').slice(0, -1)
+  const name = ref?.startsWith(prefix) === true ? ref.slice(prefix.length) : ''
+  return name.includes('/') && isRangeSafeRefName(name)
+}
+
+/** The fixed flags before a branch read's names: every argument but the last one (log) or two (diff). */
+const BRANCH_LOG_NAMES = 1
+const BRANCH_FILES_NAMES = 2
+
+/** The draft prompt's reads of a pull request's branch: its commit subjects, or its changed files. */
+function isAllowedBranchRead(args: readonly string[]): boolean {
+  const range = '..HEAD'
+  const last = args.at(-1) ?? ''
+  if (args[0] === 'log') {
+    const base = last.endsWith(range) ? last.slice(0, -range.length) : undefined
+    return (
+      isRemoteBaseRef(base) &&
+      haveSameArgs(
+        args.slice(0, -BRANCH_LOG_NAMES),
+        nativeBranchLogArgs('r', 'b').slice(0, -BRANCH_LOG_NAMES),
+      )
+    )
+  }
+  return (
+    last === 'HEAD' &&
+    isRemoteBaseRef(args.at(-BRANCH_FILES_NAMES)) &&
+    haveSameArgs(
+      args.slice(0, -BRANCH_FILES_NAMES),
+      nativeBranchFilesArgs('r', 'b').slice(0, -BRANCH_FILES_NAMES),
+    )
+  )
+}
+
 /** `remote`, or `remote get-url --push --all <plain name>`. */
 function isAllowedRemoteRead(args: readonly string[]): boolean {
   if (haveSameArgs(args, nativeRemoteNamesArgs())) {
@@ -197,8 +240,18 @@ export function assertNativeGitArgs(args: readonly string[]): void {
       break
     }
     case 'diff': {
-      if (!haveSameArgs(args, nativeDiffArgs(true)) && !haveSameArgs(args, nativeDiffArgs(false))) {
+      if (
+        !haveSameArgs(args, nativeDiffArgs(true)) &&
+        !haveSameArgs(args, nativeDiffArgs(false)) &&
+        !isAllowedBranchRead(args)
+      ) {
         throw new Error('Refused git diff arguments')
+      }
+      break
+    }
+    case 'log': {
+      if (!isAllowedBranchRead(args)) {
+        throw new Error('Refused git log arguments')
       }
       break
     }
@@ -482,6 +535,23 @@ function headBranch(gitDir: string): string | undefined {
   }
 }
 
+/**
+ * What the service reads of the host's deps: the bound root and its git,
+ * the window's signal and trust, the push's environment, the host's
+ * admission, the data folder for held checkouts, and the log.
+ */
+export type NativeGitServiceDeps = Pick<
+  RuntimeGitDeps,
+  | 'repositoryRoot'
+  | 'gitPath'
+  | 'signal'
+  | 'isTrusted'
+  | 'userEnvironment'
+  | 'admitWorkspaceCommand'
+  | 'dataFolder'
+  | 'log'
+>
+
 export interface NativeGitServiceOptions {
   /** The bounded runner; the production `createGitProcess` wiring unless a test passes its own. */
   readonly run?: GitProcess | undefined
@@ -515,7 +585,7 @@ export class NativeGitService {
   private readonly bound: Promise<ConfinedRoot | undefined>
 
   public constructor(
-    private readonly deps: RuntimeGitDeps,
+    private readonly deps: NativeGitServiceDeps,
     options: NativeGitServiceOptions = {},
   ) {
     this.run =
@@ -597,7 +667,9 @@ export class NativeGitService {
         env: isUserEnvironment
           ? nativePushEnvironment(this.deps.userEnvironment())
           : quietGitEnvironment(process.env),
-        timeoutMs: GIT_TIMEOUT_MS,
+        // No deadline of ours: a push, a fetch or a commit's hooks take what
+        // they take, as in VS Code's own Git; Cancel and the window stop it.
+        timeoutMs: undefined,
         signal: guard.signal,
         beforeRun: this.atSpawn(args, root, guard, held),
         ...(isUserEnvironment && { credentialRoutes: GIT_PUSH_CREDENTIAL_VARIABLES }),
@@ -1072,6 +1144,47 @@ export class NativeGitService {
     const repo = await this.rootFor(guard)
     await this.replanned(repo, guard, plan)
     return repo.path
+  }
+
+  /**
+   * What a pull request's draft prompt names (M71's `pullRequestPrompt`):
+   * the subjects of the branch's commits since `remote/base` (at most
+   * GIT_PROMPT_COMMITS_MAX) and the files it changed. When git has no
+   * `remote/base` yet, the base is fetched first, in the user's Git
+   * environment and through the repository's transaction, as M71 does.
+   */
+  public async branchSince(
+    remote: string,
+    base: string,
+    operation?: NativeGitOperation,
+  ): Promise<{ readonly subjects: readonly string[]; readonly files: readonly string[] }> {
+    if (!isPlainRefName(remote) || !isRangeSafeRefName(base)) {
+      throw new NativeGitRefusalError('refused')
+    }
+    const guard = this.guard(operation)
+    const root = await this.rootFor(guard)
+    let log: Buffer
+    try {
+      log = await this.runGit(nativeBranchLogArgs(remote, base), root, guard, false)
+    } catch (error: unknown) {
+      if (refusalOf(error) !== undefined) {
+        throw error
+      }
+      await this.fetch(remote, base, operation)
+      log = await this.runGit(nativeBranchLogArgs(remote, base), root, guard, false)
+    }
+    const files = await this.runGit(nativeBranchFilesArgs(remote, base), root, guard, false)
+    guard.check()
+    return {
+      subjects: log
+        .toString('utf8')
+        .split(/\r?\n/)
+        .filter((line) => line !== ''),
+      files: files
+        .toString('utf8')
+        .split('\0')
+        .filter((file) => file !== ''),
+    }
   }
 
   /** A pull request fetch in the user's own Git environment (lane P), in one transaction. */

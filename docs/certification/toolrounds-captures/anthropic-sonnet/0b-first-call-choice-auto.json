@@ -1,0 +1,71 @@
+{
+  "vendor": "anthropic-sonnet",
+  "model": "claude-sonnet-5-5",
+  "variant": "0b-first-call-choice-auto",
+  "url": "https://api.anthropic.com/v1/messages",
+  "requestBody": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 400,
+    "tools": [
+      {
+        "name": "read_file",
+        "description": "Read a file.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": ["path"]
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "model": "claude-sonnet-5-5",
+    "id": "msg_011Cfxw3iRopssohkz7bdsZd",
+    "type": "message",
+    "role": "assistant",
+    "content": [
+      {
+        "type": "tool_use",
+        "id": "toolu_01WikVSFL26DkKoLkHUuv4Xe",
+        "name": "read_file",
+        "input": {
+          "path": "a.txt"
+        },
+        "caller": {
+          "type": "direct"
+        }
+      }
+    ],
+    "container": null,
+    "stop_reason": "tool_use",
+    "stop_sequence": null,
+    "stop_details": null,
+    "usage": {
+      "input_tokens": 381,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+        "ephemeral_5m_input_tokens": 0,
+        "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 50,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "service_tier": "standard",
+      "inference_geo": "global"
+    },
+    "diagnostics": null
+  }
+}

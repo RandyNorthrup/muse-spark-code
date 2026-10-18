@@ -46,13 +46,14 @@ import {
   PAID_PRICES_USD,
   MODEL_API_IMAGE_MODEL,
   SECRET_KEYS,
+  THINKING_OFF_EFFORT,
   UI_TEXT,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
 import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
 import { modelApiPaidTier } from '../../shared/paid'
 import type { RuntimeBackend, RuntimeBackendDeps } from '../backends'
-import { serveOptionsFor } from './execArgs'
+import { isHeadlessPaidUseAllowed, serveOptionsFor } from './execArgs'
 import { execAttachmentBlocks, type ExecAttachmentOptions as ExecOptions } from './attachArgs'
 import { execAccountSelection, type ExecAccountsPort } from './execAccounts'
 import type { AccountsSessionPort } from '../../acp/accounts'
@@ -80,7 +81,13 @@ import {
   readPromptStdin,
 } from './keyInput'
 import type { AssembledProviderRun } from './providerExec'
-import { createRunLedger, resolveExecOutputCap, previewResponseReservation } from './runLedger'
+import {
+  createRunLedger,
+  resolveExecOutputCap,
+  previewResponseReservation,
+  type TierPrice,
+} from './runLedger'
+import { isPlanModelRef } from '../../shared/providerRouting'
 import { modelPolicyFor, type ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
@@ -331,6 +338,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let resolvedOutputCap: number | undefined
   const outputCap = (policy?: ModelPolicy): number =>
     (resolvedOutputCap ??= resolveExecOutputCap(policy ?? modelPolicyFor(model ?? '')))
+  // A provider id is user-configurable, not proof of subscription billing.
+  // Keep every Model API/BYO run inside its request and exact-USD limits.
   const ledger =
     options.backend === 'modelApi' &&
     options.budgetUsd !== undefined &&
@@ -341,6 +350,15 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           outputCap,
         })
       : undefined
+  // A plan model runs on its subscription sign-in, not the Meta key: it
+  // bypasses the Meta-only transport below, and its attempts are admitted
+  // through the shared accounting wrapper's zero-price tickets (the same
+  // single-admission pattern as a configured-provider run), so the run's
+  // request count still bounds it.
+  // Re-decided from the session's resolved model below: without `--model`
+  // the default may be a plan model the transport must not wrap (Codex on
+  // PR #213).
+  let isPlanRun = options.model !== undefined && isPlanModelRef(options.model)
   let providerRun: AssembledProviderRun | undefined
   let memory: MemorySecretStore | undefined
   let runtime: RuntimeBackend | undefined
@@ -358,6 +376,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let isCompactionPrompt = false
   let terminal: string | null = null
   let incompleteReason: string | null = null
+  let modelCallLimitReason: string | undefined
   let backendErrorKind: string | undefined
   let catalogueHttpStatus: number | undefined
   let status: ExecStatus = 'failed'
@@ -430,6 +449,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       terminal = event.terminal
       incompleteReason = event.reason ?? null
       backendErrorKind = event.errorKind
+      if (event.errorKind === 'max_turn_requests') {
+        modelCallLimitReason = event.reason
+        sink.emit({ type: 'limit', limit: 'requests' })
+      }
     } else if (event.type === 'tokenUsage' && options.backend === 'museCode') {
       latestTokens = {
         inputTokens: event.inputTokens,
@@ -440,6 +463,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     } else if (event.type === 'questionRequested') {
       questionsDeclined += 1
       sink.emit({ type: 'question_declined', count: 1 })
+    } else if (event.type === 'backendNotice') {
+      // The app's own words, on stderr beside the run: never part of the
+      // model's message. The backend emits each notice once per session.
+      // The notice's own level names the log line, so an info status does
+      // not read as a warning.
+      if (event.level === 'error') log.error(event.text)
+      else if (event.level === 'warning') log.warn(event.text)
+      else log.info(event.text)
     } else if (
       event.type === 'itemCompleted' &&
       event.item.kind !== 'agentMessage' &&
@@ -647,7 +678,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         store: secrets.store.bind(secrets),
         delete: secrets.delete.bind(secrets),
       }
-      if (ledger !== undefined && providerRun === undefined)
+      if (ledger !== undefined && providerRun === undefined && !isPlanRun)
         transport = execFetch({
           fetch: async (url, init) => {
             const response = await deps.fetch(url, init)
@@ -709,18 +740,30 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         homeDir: deps.homeDir,
         secrets: watchedSecrets,
         runGit: deps.runGit,
-        fetch: transport?.fetch ?? deps.fetch,
+        // Late-bound: a default plan model resolved after session creation
+        // drops the Meta-only transport below, and later requests must ride
+        // the plain fetch (Codex on PR #213).
+        fetch: (url, init) => (transport?.fetch ?? deps.fetch)(url, init),
         sleep: (ms) => lifecycle.race(deps.sleep(ms)),
         log,
         usageRecording,
         exec: {
           isEphemeral: options.ephemeral,
+          ...(ledger !== undefined &&
+            options.maxRequests !== undefined && {
+              remainingModelCalls: () => (options.maxRequests ?? 0) - ledger.totals().requests,
+            }),
           outputCap,
           ...(providerRun !== undefined && { providerRun }),
-          ...(providerRun !== undefined &&
+          ...((providerRun !== undefined || isPlanRun || options.model === undefined) &&
             ledger !== undefined && {
               responseAccounting: {
                 ledger,
+                // No `--model`: the session's default is unknown yet. The
+                // wrapper admits plan requests only, so a resolved Meta
+                // model is not counted twice (Codex on PR #213).
+                ...(providerRun === undefined &&
+                  options.model === undefined && { admitOnlyPlan: true }),
                 refuse: (reason) => {
                   if (reason === 'closed') latch({ kind: 'internal' })
                   else latch({ kind: reason })
@@ -736,14 +779,15 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             }),
           streamIdleMs: EXEC_STREAM_IDLE_MS,
           headlessPaid: (request, requiresAsking) => {
-            const isAllowed =
-              request.feature === 'imageGeneration' &&
-              options.paidFeatures.includes('imageGeneration') &&
-              options.mode === 'acceptEdits' &&
-              !requiresAsking &&
-              !lifecycle.signal.aborted &&
-              microUsd(ledger?.totals().remainingUsd ?? Usd.from(0).toAmount()) >=
-                microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
+            // The summary request rides the same ledger-bound transport as
+            // any request; this gate only decides whether it may be asked.
+            const isAllowed = isHeadlessPaidUseAllowed(
+              options,
+              ledger?.totals().remainingUsd ?? Usd.from(0).toAmount(),
+              lifecycle.signal.aborted,
+              request,
+              requiresAsking,
+            )
             if (!isAllowed && !isFinishing && request.feature === 'imageGeneration')
               sink.emit({
                 type: 'paid_use',
@@ -766,13 +810,13 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         accounts = configured.accounts
       } else runtime = createRuntimeBackend(runtimeDeps)
       setup.isUsageError = false
-      const readiness = await lifecycle.race(runtime.backend.readiness(false))
+      const readiness = await lifecycle.race(runtime.backend.readiness(false, options.model))
       if (readiness.state !== 'ready') {
         status = readiness.state === 'signedOut' ? 'auth_required' : 'backend_unavailable'
         error = readiness.message
         return await finish()
       }
-      tap = observeBackend(runtime.backend)
+      tap = observeBackend(runtime.backend, options.model)
       const { createAcpAgent, createExecClient } = engine
       const agent = createAcpAgent({
         questions: 'decline',
@@ -923,13 +967,32 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               )
               model = options.model
             }
+            if (!isPlanRun && isPlanModelRef(model ?? '')) {
+              // No `--model`: the session's default resolved to a plan
+              // model after transport selection. Drop the Meta-only
+              // transport so the subscription request rides the plain
+              // fetch, like an explicit `--model` plan run; later
+              // requests read the late-bound fetch above (Codex on PR
+              // #213).
+              isPlanRun = true
+              transport = undefined
+            }
             if (options.effort === undefined) {
               const config = created.configOptions?.find(
                 (option) => option.id === ACP_CONFIG_IDS.effort,
               )
               effort = typeof config?.currentValue === 'string' ? config.currentValue : null
             } else {
-              if (!effortLevelsFor(model ?? undefined).includes(options.effort)) {
+              // A configured-provider id carries no static tiers (lane
+              // REASONSHAPESR2, XAI-G01): the record governs, so the value
+              // rides and the wire omits or refuses from the record. The
+              // static table still guards bare (Meta) ids, where `none`
+              // is not a tier either.
+              if (
+                !(model ?? '').includes('/') &&
+                (options.effort === THINKING_OFF_EFFORT ||
+                  !effortLevelsFor(model ?? undefined).includes(options.effort))
+              ) {
                 setup.isUsageError = true
                 error = UI_TEXT.execEffortUnavailable
                 return
@@ -975,18 +1038,23 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               setup.isUsageError = false
             }
             if (ledger !== undefined && providerRun === undefined) {
-              if (tier === undefined) {
+              // A plan model reserves nothing: its zero-price preview still
+              // consumes the preview ledger's one request, so an exhausted
+              // run is refused before dispatch like a priced one.
+              let price: TierPrice | undefined
+              if (tier !== undefined) price = MODEL_API_PRICES_PER_MILLION[tier]
+              else if (isPlanModelRef(model ?? '')) {
+                const zero = Usd.from(0).toAmount()
+                price = { input: zero, cachedInput: zero, output: zero }
+              }
+              if (price === undefined) {
                 setup.isUsageError = true
                 error = UI_TEXT.execModelUnpriced
                 return
               }
               // Ask the ledger's exact arithmetic for the start reservation, in a
               // separate un-dispatched ledger. No request belongs to this run yet.
-              const preview = previewResponseReservation(
-                ledger,
-                model ?? '',
-                MODEL_API_PRICES_PER_MILLION[tier],
-              )
+              const preview = previewResponseReservation(ledger, model ?? '', price)
               const minimum =
                 microUsd(preview.reserveUsd) +
                 (options.paidFeatures.includes('imageGeneration')
@@ -1113,7 +1181,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         (last?.usage !== 'valid' || last.settlement !== 'priced')
       )
         status = 'accounting_unverified'
-      else status = stopReason === 'end_turn' ? 'completed' : 'failed'
+      else if (stopReason === 'max_turn_requests') {
+        status = 'request_cap'
+        error = modelCallLimitReason ?? plural(UI_TEXT.modelApiTurnLimit, totals?.requests ?? 0)
+      } else status = stopReason === 'end_turn' ? 'completed' : 'failed'
     }
     if (status === 'accounting_unverified') error = UI_TEXT.execAccountingUnverified
     const signal = lifecycle.cause?.kind === 'signal' ? lifecycle.cause.signal : null
@@ -1246,6 +1317,18 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       }
       const result = early ?? makeResult()
       if (early === undefined) await grace(sink.finish(result))
+      // A refusal before any session names what is missing on stderr.
+      // Usage errors already printed above; turns speak through their own
+      // messages. The text is redacted like every other log line.
+      if (
+        early === undefined &&
+        !setup.isUsageError &&
+        setup.sessionId === null &&
+        (result.status === 'auth_required' || result.status === 'backend_unavailable') &&
+        result.error !== null
+      ) {
+        log.error(result.error.message)
+      }
       await grace(
         Promise.all([
           deps.stdout.flush(lifecycle.remainingGraceMs()),

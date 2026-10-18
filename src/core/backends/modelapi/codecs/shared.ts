@@ -11,6 +11,7 @@
 // bytes, so the cache-stable prefix (D49, D81.5) is untouched. Compliant
 // inputs pass through byte-identical; only inputs the wire would reject are
 // rewritten, deterministically (FNV-1a, no dependency).
+import type { BoundedToolText } from '../schemas'
 
 /** What a lone surrogate becomes on the wire (Unicode's own replacement). */
 const SURROGATE_REPLACEMENT = '�'
@@ -27,6 +28,13 @@ const LONE_SURROGATE_MAX = 0xdf_ff
  * fields are constrained to safe charsets elsewhere and never cleaned, so
  * call pairing cannot shift under a replacement.
  */
+/**
+ * TOOLCAP: the lone-surrogate swap replaces one character with one
+ * character (and one UTF-8 sequence with another of the same length), so
+ * bounded text stays within the caps it passed: the brand is preserved.
+ */
+export function cleanWireText(text: BoundedToolText): BoundedToolText
+export function cleanWireText(text: string): string
 export function cleanWireText(text: string): string {
   return Array.from(text, (symbol) => {
     const code = symbol.codePointAt(0) ?? 0

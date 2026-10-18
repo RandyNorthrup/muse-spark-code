@@ -1,0 +1,52 @@
+{
+  "vendor": "xai",
+  "model": "grok-4.3",
+  "variant": "1-wrap-up-tools-empty-choice-auto",
+  "url": "https://api.x.ai/v1/responses",
+  "requestBody": {
+    "model": "grok-4.3",
+    "max_output_tokens": 400,
+    "store": false,
+    "tools": [],
+    "tool_choice": "auto",
+    "input": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "id": "rs_2f691c59-c72d-9709-8c42-6dd0cd11eda9",
+        "summary": [
+          {
+            "text": "Reading a.txt to report its contents.",
+            "type": "summary_text"
+          }
+        ],
+        "type": "reasoning",
+        "status": "completed"
+      },
+      {
+        "arguments": "{\"path\":\"a.txt\"}",
+        "call_id": "call-eedf2a0b-9912-4610-a918-104a70aaa7c5-0",
+        "name": "read_file",
+        "type": "function_call",
+        "id": "fc_2f691c59-c72d-9709-8c42-6dd0cd11eda9_0",
+        "status": "completed"
+      },
+      {
+        "type": "function_call_output",
+        "call_id": "call-eedf2a0b-9912-4610-a918-104a70aaa7c5-0",
+        "output": "hello from a.txt"
+      },
+      {
+        "role": "developer",
+        "content": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+      }
+    ]
+  },
+  "status": 400,
+  "response": {
+    "code": "invalid-argument",
+    "error": "Invalid request content: A tool_choice was set on the request but no tools were specified."
+  }
+}

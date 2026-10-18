@@ -303,6 +303,10 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
       },
     ]
   }
+  // A person-facing line only (F68): the skill's title, never the
+  // description its SKILL.md wrote for the model (`read_skill` calls and
+  // other assistant instructions). The model still reads the description
+  // from the skill file itself when the skill runs.
   return skills
     .filter(
       (skill) =>
@@ -313,11 +317,11 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
     .map((skill) => ({
       id: `skill:${skill.selector}`,
       label: `/${skill.selector}`,
-      tip: skill.description.trim() || fill(UI_TEXT.paletteSkillTip, { name: skill.displayName }),
+      tip: fill(UI_TEXT.paletteSkillTip, { name: skill.displayName }),
       detail:
         skill.argumentHint === undefined
-          ? skill.description
-          : `${skill.description} — ${skill.argumentHint}`,
+          ? skill.displayName
+          : `${skill.displayName} — ${skill.argumentHint}`,
       action: { type: 'insertSkill', selector: skill.selector },
     }))
 }
@@ -427,6 +431,24 @@ export function buildPalette(
           slashName: SLASH_COMMAND_NAMES.checkoutPullRequest,
           detail: UI_TEXT.gitCheckoutItemDetail,
           action: { type: 'openPullRequestInConversation' },
+        },
+        // M123 (PLAN.md D104 §2): GitHub's device flow, the code shown in the
+        // panel's card, wherever the editor has a sign-in of its own or not.
+        {
+          id: 'githubSignInWithCode',
+          label: UI_TEXT.gitHubSignInWithCodeItem,
+          tip: UI_TEXT.gitHubSignInWithCodeDetail,
+          slashName: SLASH_COMMAND_NAMES.githubLogin,
+          detail: UI_TEXT.gitHubSignInWithCodeDetail,
+          action: { type: 'gitAction', action: 'signInGitHubWithCode' },
+        },
+        {
+          id: 'githubSignOut',
+          label: UI_TEXT.gitHubSignOutItem,
+          tip: UI_TEXT.gitHubSignOutItemDetail,
+          slashName: SLASH_COMMAND_NAMES.githubLogout,
+          detail: UI_TEXT.gitHubSignOutItemDetail,
+          action: { type: 'gitAction', action: 'signOutGitHub' },
         },
       ],
     },

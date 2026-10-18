@@ -40,6 +40,28 @@ export async function runTerminalDeveloperCommand(
   clientId: string,
 ): Promise<{ readonly text: string; readonly exitCode: number }> {
   setUiText(table, locale)
+  // `developer --help` answers before any owner work: the usage plus the
+  // unlock pointer, exit 0.
+  const action = args[1]
+  if (action !== undefined && args.length === 2 && ['--help', '-h', 'help'].includes(action)) {
+    return {
+      text: `${UI_TEXT.developer.commandUsage}\n${UI_TEXT.developer.helpTerminal}`,
+      exitCode: 0,
+    }
+  }
+  // Usage is settled before any store or state work: a misuse reports the
+  // usage with exit 2 whatever state this machine holds, never a stack
+  // trace. Only the parser's own usage text converts: any other
+  // SyntaxError still propagates.
+  let request: ReturnType<typeof parseDeveloperCommand>
+  try {
+    request = parseDeveloperCommand(args)
+  } catch (error: unknown) {
+    if (error instanceof SyntaxError && error.message === UI_TEXT.developer.commandUsage) {
+      return { text: error.message, exitCode: 2 }
+    }
+    throw error
+  }
   const services = createRuntimeAccountServices(input)
   try {
     const developer = await services.developer(owner)
@@ -52,7 +74,6 @@ export async function runTerminalDeveloperCommand(
     // only Reset can recover (DEVID017B). Anything else names the identity
     // instead of reporting a generic failure.
     if (!(error instanceof DeveloperOptionsError) || error.code !== 'differentMachine') throw error
-    const request = parseDeveloperCommand(args)
     if (request?.type !== 'developer/reset')
       return { text: UI_TEXT.developer.differentMachine, exitCode: 1 }
     try {
