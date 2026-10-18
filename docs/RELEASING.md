@@ -113,10 +113,14 @@ This lane admits those successful runs without changing `ci.yml`.
 CI's full tier produces one VSIX per supported target
 (win32-x64, win32-arm64, darwin-x64, darwin-arm64, linux-x64, linux-arm64),
 each carrying only its own platform's native pieces, including the macOS helper
-compiled on macOS, and `muse-spark-code-acp-X.Y.Z.tgz`. The full tier runs in
+compiled on macOS, plus the untargeted universal VSIX
+(`muse-spark-code-X.Y.Z.vsix`), which VS Code serves as the fallback on
+platforms without their own package (Alpine and 32-bit ARM Linux servers
+keep installing the way they always have), and `muse-spark-code-acp-X.Y.Z.tgz`.
+The full tier runs in
 the merge queue, on manual runs, in the release workflow's own build, and on
 every PR until the merge queue is on; a fast PR run builds no packages
-(CONTRIBUTING.md, "CI tiers"). Each target's VSIX goes to GitHub,
+(CONTRIBUTING.md, "CI tiers"). Each target's VSIX and the universal fallback go to GitHub,
 the VS Code Marketplace, and Open VSX, which serve each person their
 platform's package. The same ACP tarball goes to GitHub
 and npm. A package made locally without the macOS helper is not that
@@ -188,11 +192,17 @@ An already-published version is successful only when it matches this run:
 - npm: compare `npm view muse-spark-code-acp@X.Y.Z dist.integrity` to the
   tarball's locally computed SHA-512 SRI.
 
-After a fresh publish the job polls the same endpoints until the exact
-version is visible with matching integrity (up to 30 minutes, backing off;
-npm took 19 minutes for 0.16.0), then reports `published and visible`. A
-poll timeout reports `published, not yet visible` as a warning in the job
+Every artifact is published before any visibility poll runs; the job
+then polls the same endpoints until each exact version is visible with
+matching integrity (up to 30 minutes in total, shared across all
+artifacts and backing off; npm took 19 minutes for 0.16.0), re-checking
+unfinished targets in the same job, then reports each
+`published and visible`. A target still pending at the deadline reports
+`published, not yet visible` as a warning in the job
 summary without failing the release; re-check the registry before announcing.
+A re-run of the job re-publishes nothing (the already-published path
+verifies at once) and re-polls what is still pending, so a cancelled job
+never leaves only some targets published.
 
 Unavailable metadata or mismatched bytes fail closed. Do not remove a version
 or overwrite an asset to make that check pass.
