@@ -448,7 +448,7 @@ function urlOf(input: string | URL | Request): URL {
 /** The key the fake API's scripted replies accept. */
 export const FAKE_MODEL_API_KEY = 'LLM|1|secret'
 
-export function fakeModelApi(options: { readonly keys?: readonly string[] } = {}): FakeModelApi {
+export function fakeModelApi(): FakeModelApi {
   const requests: RecordedRequest[] = []
   let replies: ScriptedReply[] = [{ text: 'ok' }]
   let consumed = 0
@@ -493,11 +493,7 @@ export function fakeModelApi(options: { readonly keys?: readonly string[] } = {}
       )
       const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined
       requests.push({ path: url.pathname.replace(/^\/v1/, ''), method, headers, body })
-      if (
-        (options.keys ?? ['LLM|1|secret']).every(
-          (key) => (headers['Authorization'] ?? headers['authorization']) !== `Bearer ${key}`,
-        )
-      ) {
+      if ((headers['Authorization'] ?? headers['authorization']) !== 'Bearer LLM|1|secret') {
         return Promise.resolve(
           json(
             {

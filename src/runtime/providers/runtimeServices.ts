@@ -161,9 +161,13 @@ class RuntimeAccountSessions implements AccountsSessionPort {
     if (!ACCOUNT_REQUEST_CERTIFICATION.isComplete) {
       const state = await this.snapshot(sessionId)
       if (state.currentAccount === account) return state
+      // No current account (it was removed): there is nothing to stay on,
+      // so the stay-put sentence would name a gone account as current.
+      if (state.currentAccount === null) throw new Error(UI_TEXT.accounts.unavailable)
       throw new AccountSwitchRefusedError(
         this.provider,
-        state.accounts.find((row) => row.id === state.currentAccount)?.label ?? this.account,
+        state.accounts.find((row) => row.id === state.currentAccount)?.label ??
+          state.currentAccount,
       )
     }
     owner.pool.useNext('conversation', sessionId, account, canCommit)
