@@ -2,6 +2,7 @@ import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   createRunLedger,
+  previewResponseReservation,
   type ResponseTicket,
   type RunLedger,
 } from '../../src/runtime/exec/runLedger'
@@ -92,6 +93,15 @@ describe('M80 ledger integer admission and retained liability', () => {
     }
     const l = createRunLedger({ capUsd: Usd.from(0.108135).toAmount(), maxRequests: 1 })
     expect(response(l).reserveUsd).toBe(Usd.from(0.108135).toAmount())
+    // The quote ignores the run cap: a valid low budget stays quotable so the
+    // caller reports its own minimum instead of an unpriced model.
+    const small = createRunLedger({ capUsd: Usd.from(0.01).toAmount(), maxRequests: 30 })
+    expect(previewResponseReservation(small, 'muse-spark-1.3-contributor', price)).toMatchObject({
+      kind: 'responses',
+      n: 1,
+      reserveUsd: Usd.from(0.108135).toAmount(),
+    })
+    expect(small.totals().requests).toBe(0)
   })
   it('L2 prices cached/uncached/output exactly before upward micro rounding', () => {
     const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })
@@ -272,5 +282,10 @@ describe('M80 ledger integer admission and retained liability', () => {
       expect(() =>
         createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 }),
       ).not.toThrow()
+    // A person's exact BigInt budget is honored as given: one micro-USD past
+    // Number.MAX_SAFE_INTEGER still opens a run and round-trips through totals.
+    const hugeCap = Usd.from('9007199254.740992').toAmount()
+    const huge = createRunLedger({ capUsd: hugeCap, maxRequests: 1 })
+    expect(huge.totals().capUsd).toBe(hugeCap)
   })
 })
