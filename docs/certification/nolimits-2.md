@@ -174,3 +174,56 @@ the fix at its cause, or the measured reason it needs none.
 - `importIo.ts:76` (import Git probes with no kill path): fix — the probes
   take the import's cancellation signal, so Stop ends a stalled Git child;
   no deadline of ours comes back.
+
+## PR214FIX addendum (2026-10-17, branch `fix/nolimits-2-fix`)
+
+`main-now` is already an ancestor (both at `81dacaf5a`): no merge needed.
+Of the eight threads, five were already fixed on the branch and three
+were claimed but unfixed; each was verified or fixed at its cause:
+
+- `transport.ts:871`, `mcp/servers.ts:185`, `tools.ts:1964` (timers):
+  already fixed (`220441101`, verified at cause — the Retry-After retry
+  sleeps through chunked `pause()`, entry timeouts reach `McpConnection`
+  through `setLongTimeout`, the model `timeout_ms` reaches `runCommand`'s
+  `setLongTimeout`). Suites: `modelApiRetryNoCount`, `modelApiPacing`,
+  `shellNoDeadline`, `stillWaiting` (the added tests drive real code).
+- `pacing.ts:223`: already fixed (`d66b35861`, estimate clamped to the
+  observed bucket so a full bucket admits).
+- `MuseCodeHost.ts:799`: already fixed (`80169cb04`, one miss per silent
+  notice period via `HostLiveness.stillWaiting`).
+- `timeouts.ts:97`: fixed here (`add382ec9`) — `stillWaitingText` takes a
+  `StillWaitingSubject` key instead of English prose; nine subjects in the
+  English table and all 14 translated tables (`museCodeCommand` allowed
+  English in `untranslated.json`: product name plus command id). All eight
+  callers pass keys; `stillWaiting.test.ts` covers every subject (5 passed).
+  `check:l10n` 0 problems. Translations are the author's own; a native
+  speaker has not reviewed them.
+- `browserCheckConstants.ts:143`: fixed here (`5d0c3d293`) — M81 says "as
+  many steps as the check needs"; `ROADMAP.md` regenerated,
+  `check:roadmap` current.
+- `importIo.ts:76`: fixed here (`708e6972c`) — the window-lifetime signal
+  (`nativeStarts`) travels through the host deps, scan input, plan
+  destinations and apply options into `isIgnored`, and both probes hand it
+  to the git child. No timeout of ours returns (owner 2026-10-16); window
+  closing is the kill path. `importGitStop.test.ts` drives the real
+  probes against a scratch repository (2 passed, repo default timeout).
+
+No stand-ins in any test added or changed on this lane: no `vi.*`, no
+mock library, no hand-written fakes (eslint `test/` clean); the new
+tests spawn real timers, processes and git. Gate-fire: the abort test
+does not compile against the old two-argument `isIgnored` (no kill path
+to pass); with a live signal the probe classifies a scratch repository
+file (check-ignore exit 1 → `false`); with a stopped window it rejects
+`was not started`.
+
+Gates on the final tree: eslint `--max-warnings=0` on `test/` and `src/`
+clean; `npm run typecheck` (all projects) clean; `format:check` clean;
+`check:plan` 0 drift; `check:l10n` 0 problems; `check:reference` current;
+`check:host-api` 0 problems; `check:roadmap` current; knip 3 pre-existing
+config hints; cycles clean; jscpd 0 clones; `npm run build` green.
+
+Pre-existing failure (not this lane): `shellNoDeadline`'s unnamed-run
+test fails on this rig with `kill EPERM` on process-group confirmation;
+it fails identically on the untouched base commit `80169cb04` (separate
+worktree, removed after). `test/unit/webFetch.test.ts` was not run
+(finding 11: stalls on this rig).
