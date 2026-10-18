@@ -11,6 +11,8 @@ import type { BrowserRuntimeMode } from './browserCheckConstants'
 export const RESOURCE_SAMPLE_MS = 5000
 // libuv 1.52 adds inactive/purgeable pages to Darwin's available-memory reading.
 export const RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR = 52
+// IOKit's storage busy counters tick in nanoseconds; samples tick in milliseconds.
+export const RESOURCE_NS_PER_MS = 1_000_000
 // D87.14: free-space policy and owned-tree retention.
 export const RESOURCE_DISK_SAMPLE_MS = 30_000
 export const RESOURCE_DISK_FAST_SAMPLE_MS = 5000
@@ -4049,14 +4051,18 @@ export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
 export const LIST_FILES_DEFAULT_LIMIT = 500
 export const SHELL_DEFAULT_TIMEOUT_MS = 120_000
 // D107 §9.4: internal B1 boundary; F1b installs it only after certification.
+// The walk's bounds are deterministic counts, never wall-clock time, so a
+// slow machine cannot turn a walk into a refusal: entries cap the walk's
+// work and the emitted rules' size, depth caps its recursion.
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_WALK_MAX_ENTRIES = 20_000
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
-export const JUDGE_FAST_B1_WALK_MAX_MS = 100
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_WALK_MAX_DEPTH = 128
 export const JUDGE_FAST_B1_MAX_ABI = 8
 export const JUDGE_FAST_B1_MIN_ABI = 3
+// The Seatbelt confinement has no Landlock ABI: it reports its own generation,
+// below the Landlock range so the two can never be confused.
+export const JUDGE_FAST_B1_DARWIN_ABI = 1
 export const JUDGE_FAST_B1_REFUSED_EXIT = 125
 export const JUDGE_FAST_B1_PROTOCOL_MAX_BYTES = 1024
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */

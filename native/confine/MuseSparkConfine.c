@@ -27,12 +27,10 @@
 #include <sys/socket.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
-#include <time.h>
 
 static int rules, abi;
 static size_t visited, excluded;
 static dev_t device;
-static struct timespec started;
 static char system_paths[JUDGE_FAST_B1_SYSTEM_MAX_FILES][PATH_MAX];
 static size_t system_count;
 
@@ -118,11 +116,12 @@ static void grant(int fd, uint64_t rights) {
   struct landlock_path_beneath_attr rule = { .allowed_access = rights, .parent_fd = fd };
   if (syscall(SYS_landlock_add_rule, rules, LANDLOCK_RULE_PATH_BENEATH, &rule, 0)) refuse("landlock");
 }
+// The walk's bound is deterministic: entries visited, never wall-clock time.
+// A wall-clock budget refuses slow walks on a busy machine, while the entry
+// count caps the walk's work and the granted rules' size however long the
+// walk takes.
 static void budget(void) {
-  struct timespec now;
-  if (clock_gettime(CLOCK_MONOTONIC, &now)) refuse("clock");
-  int64_t ns = ((int64_t)now.tv_sec - (int64_t)started.tv_sec) * 1000000000 + now.tv_nsec - started.tv_nsec;
-  if (visited > JUDGE_FAST_B1_WALK_MAX_ENTRIES || ns > JUDGE_FAST_B1_WALK_MAX_MS * 1000000LL) refuse("walkBudget");
+  if (visited > JUDGE_FAST_B1_WALK_MAX_ENTRIES) refuse("walkBudget");
 }
 static void walk(int fd, const char *relative, int recursive, size_t depth) {
   if (depth > JUDGE_FAST_B1_WALK_MAX_DEPTH) refuse("walkBudget");
@@ -388,7 +387,6 @@ int main(int argc, char **argv) {
   char cache[PATH_MAX];
   int cache_fd = system_file("/etc/ld.so.cache", cache, 0);
   grant(cache_fd, LANDLOCK_ACCESS_FS_READ_FILE); close(cache_fd);
-  if (clock_gettime(CLOCK_MONOTONIC, &started)) refuse("clock");
   int separator = 7;
   while (separator < argc && strcmp(argv[separator], "--")) {
     if (private_path(argv[separator])) refuse("privateOperand");

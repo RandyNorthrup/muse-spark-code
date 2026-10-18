@@ -7,7 +7,8 @@ import { pathToFileURL } from 'node:url'
 import * as esbuild from 'esbuild'
 
 async function buildConfine(directory) {
-  if (process.platform !== 'linux') throw new Error('B1 requires the macOS capture on this host')
+  if (process.platform !== 'linux' && process.platform !== 'darwin')
+    throw new Error('B1 is confined on Linux (Landlock) and macOS (Seatbelt) only')
   if (!['x64', 'arm64'].includes(process.arch)) throw new Error('Unsupported B1 architecture')
   const keys = [
     'PROTECTED_PATH_SEGMENTS',
@@ -16,13 +17,14 @@ async function buildConfine(directory) {
     'PRIVATE_ATTACHMENT_EXTENSIONS',
     'PRIVATE_ENV_PREFIX',
     'JUDGE_FAST_B1_WALK_MAX_ENTRIES',
-    'JUDGE_FAST_B1_WALK_MAX_MS',
     'JUDGE_FAST_B1_WALK_MAX_DEPTH',
     'JUDGE_FAST_B1_MAX_ABI',
     'JUDGE_FAST_B1_MIN_ABI',
+    'JUDGE_FAST_B1_DARWIN_ABI',
     'JUDGE_FAST_B1_REFUSED_EXIT',
     'JUDGE_FAST_B1_ELF_MAX_BYTES',
     'JUDGE_FAST_B1_SYSTEM_MAX_FILES',
+    'JUDGE_FAST_B1_PROTOCOL_MAX_BYTES',
   ]
   const result = await esbuild.build({
     stdin: {
@@ -70,7 +72,9 @@ async function buildConfine(directory) {
       '-Wshadow',
       '-I',
       directory,
-      'native/confine/MuseSparkConfine.c',
+      process.platform === 'darwin'
+        ? 'native/confine/MuseSparkConfineMac.c'
+        : 'native/confine/MuseSparkConfine.c',
       '-o',
       binary,
     ],
