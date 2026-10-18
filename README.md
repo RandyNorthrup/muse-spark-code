@@ -5054,8 +5054,8 @@ or `jsonl`; `--timeout` is the process deadline. Model API requires
 stays in memory and conflicts with a stdin prompt. CI never runs `auth set` or
 gives the agent a key environment variable.
 
-Budgets are positive ASCII decimals up to $20 with at most six fractional
-digits, parsed straight into integer micro-USD. At 32,768 output tokens the
+Budgets are positive ASCII decimals with at most six fractional digits and
+no upper bound, parsed straight into integer micro-USD. At 32,768 output tokens the
 minimum reservation is $0.108135 for the contributor model ($0.118135 with
 images) and $1.409024 for standard ($1.419024). The contributor model needs
 `--allow-contributor-models`; its content may be used for training under

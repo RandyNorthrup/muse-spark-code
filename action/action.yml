@@ -18,7 +18,7 @@ inputs:
     description: The Meta Model API key, from secrets.MUSE_MODEL_API_KEY. Only the run step receives it.
     required: true
   max-budget-usd:
-    description: Hard USD cap for this run, text and images together (more than 0, at most 20, up to six decimals).
+    description: Hard USD cap for this run, text and images together (more than 0, up to six decimals).
     required: true
   mode:
     description: review (plan mode, no edits) or fix (accept edits, a patch is proposed).
@@ -29,11 +29,11 @@ inputs:
     required: false
     default: 'false'
   max-requests:
-    description: Billable HTTP attempts allowed, retries included (1-500).
+    description: Billable HTTP attempts allowed, retries included (any positive integer); empty sets no request limit.
     required: false
-    default: '30'
+    default: ''
   timeout-minutes:
-    description: The run's deadline in minutes (1-360).
+    description: The run's deadline in minutes (any positive integer).
     required: false
     default: '20'
   model:
