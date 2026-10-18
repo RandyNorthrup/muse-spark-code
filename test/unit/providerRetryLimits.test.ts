@@ -13,7 +13,10 @@
 import { createServer } from 'node:net'
 import { setTimeout as timer } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { PLAN_KEY_PRESETS, PRESETS, presetById, quirksOf } from '../../src/core/providers/presets'
+import { emptyProvidersFile } from '../../src/core/providers/providersFile'
+import { createSubscriptionClient } from '../../src/core/providers/subscriptions/registry'
 import {
   abortableSleep,
   ModelApiError,
@@ -168,14 +171,38 @@ describe('each provider retries by its documented maximum', () => {
 })
 
 describe("the person's setting decides", () => {
-  it('wins over the documented maximum (0 never retries), else the documented one, else none', () => {
+  it('caps the documented maximum (0 never retries), never raises it, else the documented one, else none', () => {
     expect(effectiveMaxRetries(1, limitsOf('xai'))).toBe(1)
     expect(effectiveMaxRetries(0, limitsOf('azure'))).toBe(0)
     expect(effectiveMaxRetries(0, limitsOf('openrouter'))).toBe(0)
+    // A count left over from a generous provider never raises a stricter
+    // one (PR #225: 10 set for Azure, then Anthropic selected, stays 2).
+    expect(effectiveMaxRetries(10, limitsOf('anthropic'))).toBe(2)
+    expect(effectiveMaxRetries(10, limitsOf('openrouter'))).toBe(10)
     expect(effectiveMaxRetries(undefined, limitsOf('anthropic'))).toBe(2)
     expect(effectiveMaxRetries(undefined, limitsOf('openrouter'))).toBeUndefined()
     expect(transportFor(limitsOf('gemini')).maxRetries()).toBe(4)
     expect(transportFor(limitsOf('groq')).maxRetries()).toBeUndefined()
+  })
+  it('a count above the documented maximum still stops at it on a real refused send', async () => {
+    // Anthropic documents two retries: with the person at 10, the refused
+    // send gets its two retries (two notices), not ten.
+    const transport = transportToNowhere(
+      await closedLoopbackPort(),
+      limitsOf('anthropic'),
+      () => 10,
+    )
+    expect(transport.maxRetries()).toBe(2)
+    const stop = new AbortController()
+    const notices: RetryNotice[] = []
+    const attempt = postNowhere(transport, stop.signal, notices)
+    const start = Date.now()
+    while (notices.length < 2 && Date.now() - start < 4000) {
+      await timer(10, undefined, { ref: false })
+    }
+    stop.abort()
+    await expect(attempt).rejects.toBeInstanceOf(ModelApiError)
+    expect(notices).toHaveLength(2)
   })
 })
 
@@ -292,6 +319,56 @@ describe('ambiguous sends need an explicit cap', () => {
     stop.abort()
     await expect(attempt).rejects.toBeInstanceOf(ModelApiError)
     expect(notices).toHaveLength(1)
+  })
+})
+
+/**
+ * The product's subscription registry in front of the product's Meta
+ * client (PR #225: the aggregate reported Meta's four retries for
+ * `chatgpt/...` and `copilot/...`, though neither route documents a
+ * maximum). Sign-in, the catalogue and the account stay untouched: a limit
+ * read never reaches them, and no send ever happens for one.
+ */
+const subscriptionClient = (person: number | undefined) => {
+  const log = stderrLogger((line) => process.stderr.write(`${line}\n`), 'warn')
+  const meta = new ModelApiClient({
+    fetch: globalThis.fetch,
+    baseUrl: MODEL_API_BASE_URL,
+    apiKey: () => Promise.resolve('retry-limit-test-key'),
+    sleep: platformSleep,
+    now: Date.now,
+    random: Math.random,
+    log,
+    ...(person !== undefined && { personMaxRetries: () => person }),
+  })
+  return createSubscriptionClient(meta, {
+    fetch: globalThis.fetch,
+    providers: () => Promise.resolve(emptyProvidersFile()),
+    chatgpt: () => {
+      throw new Error('sign-in unused by a limit read')
+    },
+    accountId: () => Promise.resolve(undefined),
+    ...(person !== undefined && { personMaxRetries: () => person }),
+  })
+}
+
+describe('each subscription route answers its own retry limit', () => {
+  it('plan routes read the setting, else unbounded; off-plan stays Meta', () => {
+    const unset = subscriptionClient(undefined)
+    expect(unset.maxRetries('chatgpt/gpt-5.2')).toBeUndefined()
+    expect(unset.maxRetries('copilot/gpt-4.1')).toBeUndefined()
+    expect(unset.maxRetries('some-model')).toBe(4)
+    const capped = subscriptionClient(1)
+    expect(capped.maxRetries('chatgpt/gpt-5.2')).toBe(1)
+    expect(capped.maxRetries('copilot/gpt-4.1')).toBe(1)
+    expect(capped.maxRetries('some-model')).toBe(1)
+  })
+  it('a count above no documented maximum still passes through on plan routes', () => {
+    // Nothing documented to keep on either plan route, so the person's 10
+    // stands there, while Meta's own route stays capped at its 4.
+    const generous = subscriptionClient(10)
+    expect(generous.maxRetries('chatgpt/gpt-5.2')).toBe(10)
+    expect(generous.maxRetries('some-model')).toBe(4)
   })
 })
 

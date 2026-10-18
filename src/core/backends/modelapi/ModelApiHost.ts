@@ -6011,7 +6011,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         let allowed: number | undefined
         try {
           client = this.selectedModel().client
-          allowed = client.maxRetries()
+          // Lane PR225W1: an aggregate client answers for the model that
+          // handled the request (a subscription route, not Meta).
+          allowed = client.maxRetries(this.modelId)
         } catch {
           throw error
         }
@@ -14435,6 +14437,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       // (lane PR225FIX2: with the setting unset, an Anthropic compaction
       // retried four times on Meta's limit instead of its own two).
       let attemptClient: ResolvedModel['client'] | undefined
+      let attemptModel: string | undefined
       try {
         await unlessStopped(this.refreshBudgetSpend(), signal)
         // One record owns the hook projection and final request. A stale
@@ -14450,6 +14453,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           resolved = await unlessStopped(this.resolveModel(), signal)
         if (!resolved.isCurrent()) throw this.staleRecordError(turnId === COMPACTION_TURN_ID)
         attemptClient = resolved.client
+        attemptModel = resolved.ref
         const body = makeBody(resolved)
         const revision = this.modelRevision
         const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
@@ -14616,7 +14620,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         // set). Before any attempt resolved, no client of ours answers, so
         // the original error passes through untouched.
         const retryClient = attemptClient ?? this.deps.client
-        const allowed = retryClient.maxRetries()
+        // Lane PR225W1: an aggregate client answers for the model the
+        // attempt went through (a subscription route, not Meta).
+        const allowed = retryClient.maxRetries(attemptModel)
         if (
           !(error instanceof RetryableStreamError) ||
           signal.aborted ||
