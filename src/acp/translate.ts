@@ -65,7 +65,10 @@ const TEXT_FIELD = 'text'
 const OUTPUT_FIELD = 'output'
 // A reasoning item streams its summary parts as `summary.0`, `summary.1`, …
 const SUMMARY_FIELD = /^summary\.(\d+)$/
-const PART_SEPARATOR = '\n\n'
+// What `promptParts()` joins the raw text blocks with for its display text:
+// `/playback` with anything beside it is recognised on that same text before
+// any block is converted, so no attachment is resolved for a refused turn.
+export const PART_SEPARATOR = '\n\n'
 const FILE_SCHEME = 'file:'
 const APPROVED_DECISION_PREFIX = 'approved'
 const ONCE_SCOPE = 'once'

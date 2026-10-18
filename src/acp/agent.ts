@@ -127,6 +127,7 @@ import {
   permissionOptions,
   permissionResponse,
   planEntries,
+  PART_SEPARATOR,
   promptParts,
   UpdateTranslator,
 } from './translate'
@@ -1985,6 +1986,31 @@ class AcpSession {
     try {
       if (await this.mediaCommand(blocks, preparing.abort.signal)) {
         await this.announceCommands()
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
+      // `/playback` with anything beside it (D203): answered as usage from
+      // the raw text blocks, before `promptParts()` converts any block. The
+      // joined text is exactly what `promptParts()` decides on below, so the
+      // answer matches its refusal — but no attachment is resolved for it:
+      // a memory-only playback must never read a file it arrived with.
+      if (
+        blocks.length !== 1 &&
+        parsePlaybackPrompt(
+          slashCommandText(
+            blocks
+              .flatMap((block) => (block.type === 'text' ? [block.text] : []))
+              .join(PART_SEPARATOR),
+          ),
+        ) !== undefined
+      ) {
+        await this.announceCommands()
+        if ('error' in preparing) throw preparing.error
+        if (!preparing.isCancelled)
+          this.send({
+            sessionUpdate: 'agent_message_chunk',
+            content: { type: 'text', text: UI_TEXT.playbackUsage },
+          })
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
       }
