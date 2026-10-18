@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { expect, it } from 'vitest'
+import { beforeAll, expect, it } from 'vitest'
 import { buildReference, referenceSources } from '../../scripts/lib/reference.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
@@ -9,6 +9,12 @@ const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'
 const nls = JSON.parse(readFileSync(path.join(root, 'package.nls.json'), 'utf8'))
 const runtime = readFileSync(path.join(root, 'src/runtime/cliArgs.ts'), 'utf8')
 const readme = readFileSync(path.join(root, 'README.md'), 'utf8')
+
+// One cold build takes seconds (JIT); warm builds take ~0.1 s. Warm up in
+// beforeAll so no case pays the cold build under shard load.
+beforeAll(() => {
+  buildReference(manifest, nls, source, runtime, readme)
+})
 
 it('connects provider model edits and per-command help to their catalogue features', () => {
   const model = buildReference(manifest, nls, source, runtime, readme)
