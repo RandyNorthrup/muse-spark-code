@@ -4110,18 +4110,13 @@
     {
       "id": "museSpark.vault.enabled",
       "name": "museSpark.vault.enabled",
-      "description": "Stored for compatibility; no runtime effect.",
-      "descriptionKey": "config.vault.description",
+      "description": "Turn the per-user credential vault on or off. A stored legacy museSpark.vault value takes precedence while this setting has no stored value.",
+      "descriptionKey": "config.vault.enabled.description",
       "type": "boolean",
       "default": true,
       "scope": "machine",
       "refinements": [],
-      "schema": {
-        "type": "boolean",
-        "default": true,
-        "deprecationMessage": "Stored for compatibility; no runtime effect.",
-        "deprecationMessageKey": "config.vault.description"
-      }
+      "schema": { "type": "boolean", "default": true }
     },
     {
       "id": "museSpark.vault.protection",
