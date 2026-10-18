@@ -4,6 +4,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { isMuseCodeBundle, museCodeBundleLoader } from '../../src/host/backend/museCodeBundle'
+import * as museCodeEntry from '../../src/host/backend/museCodeEntry'
 import { EN } from '../../src/shared/l10n/en'
 
 function goodBundle() {
@@ -16,6 +17,10 @@ function goodBundle() {
 }
 
 describe('isMuseCodeBundle', () => {
+  it('accepts the real bundle entry the build ships as dist/museCode.js', () => {
+    expect(isMuseCodeBundle(museCodeEntry)).toBe(true)
+  })
+
   it('accepts the host and spawn paths and refuses anything else', () => {
     expect(isMuseCodeBundle(goodBundle())).toBe(true)
     expect(isMuseCodeBundle({ ...goodBundle(), MuseCodeHost: 'x' })).toBe(false)
