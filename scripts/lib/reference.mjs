@@ -303,7 +303,7 @@ export function referenceFacts(source) {
       maxAttachments: source.MAX_ATTACHMENTS_PER_MESSAGE,
       textExtensions: [...source.TEXT_ATTACHMENT_EXTENSIONS],
       textSources: 'trustedIndexedWorkspacePaths',
-      modelApiTextAllowanceBytes: source.MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
+      modelApiTextAllowanceTokens: source.MODEL_API_TEXT_BUDGET_TOKENS,
       imageBytes: source.MAX_IMAGE_BYTES,
       pdfBytes: source.MAX_DOCUMENT_BYTES,
       textBytes: source.MAX_TEXT_ATTACHMENT_BYTES,

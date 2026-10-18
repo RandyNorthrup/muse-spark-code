@@ -282,7 +282,7 @@ Attach files by selecting or dropping them, and paste images into the composer. 
     ".sh"
   ],
   "textSources": "trustedIndexedWorkspacePaths",
-  "modelApiTextAllowanceBytes": 786432,
+  "modelApiTextAllowanceTokens": 786432,
   "imageBytes": 10485760,
   "pdfBytes": 32000000,
   "textBytes": 1048576,

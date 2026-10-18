@@ -14,8 +14,9 @@ import {
   MAX_DOCUMENT_BYTES,
   MAX_ENCODED_MEDIA_CHARS,
   MAX_IMAGE_BYTES,
-  MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MAX_TEXT_ATTACHMENT_BYTES,
+  MODEL_API_CONTEXT_BYTES_PER_TOKEN,
+  MODEL_API_TEXT_BUDGET_TOKENS,
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_PDF_PAGE_IMAGES,
   MSP_ATTACHMENT_FRAME_BUDGET_BYTES,
@@ -122,11 +123,19 @@ export class AttachmentStore {
     ).reduce((total, length) => total + length, 0)
   }
 
-  /** Conservative text-only share of the Model API context window. */
+  /** Conservative text-only share of the Model API context window, in UTF-8 bytes. */
   private modelApiTextBytes(): number {
     return Array.from(this.entries.values(), (entry) =>
       'bytes' in entry ? (entry.modelApiTextBytes ?? 0) : 0,
     ).reduce((total, length) => total + length, 0)
+  }
+
+  /**
+   * The held Model API text in tokens, estimated high: the admission unit
+   * the provider's window is counted in.
+   */
+  private modelApiTextTokens(): number {
+    return Math.ceil(this.modelApiTextBytes() / MODEL_API_CONTEXT_BYTES_PER_TOKEN)
   }
 
   private fitsMediaBytes(bytes: Uint8Array, mediaType: string): boolean {
@@ -265,7 +274,11 @@ export class AttachmentStore {
     bytes: Uint8Array,
     shouldCheckMspBudget: boolean,
   ): AddAttachmentResult {
-    if (bytes.byteLength > MAX_TEXT_ATTACHMENT_BYTES) {
+    // Muse Code's 1 MiB file ceiling is its own transport bound. On the
+    // Model API backend a text file (a plan brief included) is admitted by
+    // the selected model's capability instead: its estimated tokens against
+    // the window-minus-reserve budget below.
+    if (shouldCheckMspBudget && bytes.byteLength > MAX_TEXT_ATTACHMENT_BYTES) {
       return { ok: false, reason: UI_TEXT.textFileTooLarge }
     }
     let content: string
@@ -305,7 +318,8 @@ export class AttachmentStore {
     }
     if (
       !shouldCheckMspBudget &&
-      this.modelApiTextBytes() + modelApiTextBytes > MAX_MODEL_API_TEXT_ATTACHMENT_BYTES
+      this.modelApiTextTokens() + Math.ceil(modelApiTextBytes / MODEL_API_CONTEXT_BYTES_PER_TOKEN) >
+        MODEL_API_TEXT_BUDGET_TOKENS
     ) {
       return { ok: false, reason: UI_TEXT.textFilesOverModelApiBudget }
     }

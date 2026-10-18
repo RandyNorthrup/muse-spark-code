@@ -2294,11 +2294,13 @@ export const SESSION_BUDGET_MIN_BYTES_PER_TOKEN = 1
 // How long closing the window waits for the Model API turns it stops to
 // end, so what they spent is saved (M82).
 export const MODEL_API_CLOSE_SETTLE_MS = 5000
-// Conservatively bound named text attachments by UTF-8 bytes. The reserve
-// covers output and leaves room for prompt/replay; already long replay still
-// needs the backend's request/context handling.
+// The named text attachments' share of the provider's documented window, in
+// tokens: what the model reads, estimated high with
+// `MODEL_API_CONTEXT_BYTES_PER_TOKEN`, must fit the window minus the
+// reserve. The reserve covers output and leaves room for prompt/replay;
+// already long replay still needs the backend's request/context handling.
 export const MODEL_API_TEXT_CONTEXT_RESERVE_TOKENS = 256 * 1024
-export const MAX_MODEL_API_TEXT_ATTACHMENT_BYTES =
+export const MODEL_API_TEXT_BUDGET_TOKENS =
   MODEL_API_CONTEXT_WINDOW - MODEL_API_TEXT_CONTEXT_RESERVE_TOKENS
 // Prompt caching (M56, PLAN.md D43; dev.meta.ai/docs/prompt-caching, read
 // 2026-09-25). "Use one stable key per shared prefix … Don't over-partition:
