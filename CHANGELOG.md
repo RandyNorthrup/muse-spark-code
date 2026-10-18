@@ -45,7 +45,7 @@ happened, not what was planned; superseded entries are kept.
   `$1.00`.
 - Headless `exec` has no default request limit: without `--max-requests` a
   Model API run is not stopped after 30 requests. A set value caps the run
-  at 1–500 requests, and a set `--max-budget-usd` is refused past $20.
+  at 1–500 requests.
 
 - A Model API turn no longer stops itself after 50 tool rounds. No provider
   publishes a round count, so the product sets none: a turn runs until the
@@ -127,6 +127,12 @@ happened, not what was planned; superseded entries are kept.
 - The GitHub Action no longer caps a run at 30 requests unless the person
   asks: with no `max-requests` input the Action sets no request limit, and a
   set value still allows 1–500 billable HTTP attempts, retries included.
+
+- Headless `--max-budget-usd` no longer stops at 20 USD: a person's amount is
+  honored as given (validated only as a positive number), in `exec`, `serve`,
+  the run ledger, the protocol schemas, the generated reference and the
+  Action's input and result validation. The 20 USD ceiling was ours, not a
+  provider's.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

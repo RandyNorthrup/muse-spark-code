@@ -37,32 +37,32 @@ muse-spark-code-acp exec --backend modelApi --allow-contributor-models --model m
 muse-spark-code-acp scan-secrets fix.patch
 ```
 
-| Exec option                         | Default                | Validation                                                                                                                  |
-| ----------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| --backend museCode\|modelApi        | museCode               | Must be an ACP backend.                                                                                                     |
-| --cwd <dir>                         | process.cwd()          | Resolve absolute; existing directory.                                                                                       |
-| <prompt>, --prompt-file, -          | required               | Exactly one; nonempty UTF-8; at most 262,144 bytes. Stdin prompt conflicts with --key-stdin.                                |
-| --untrusted-file <path>, repeatable | none                   | At most 8 files, 1 MiB each, 2 MiB total, 48 chunks total; readable regular files.                                          |
-| --permission-mode plan\|acceptEdits | plan                   | Refuse auto, manual, bypassPermissions and all other modes.                                                                 |
-| --model, --effort                   | backend default        | Listed for this run; supported effort. Model API model must also have a known tariff.                                       |
-| --allow-contributor-models          | off                    | Explicit permission to select a contributor model; docs name training eligibility (`apidocs/pricing-rate-limits.md:21–29`). |
-| --output text\|json\|jsonl          | text                   | Exact enum.                                                                                                                 |
-| --max-budget-usd <usd>              | required for Model API | Finite, 0 < value ≤ 20; must cover the model minimum below before billable dispatch. Refuse on Muse Code.                   |
-| --max-requests <n>                  | none (no limit)        | Integer 1–500 when set; all admitted billable HTTP attempts, including retries, compaction and images. Refuse on Muse Code. |
-| --timeout <seconds>                 | 1800                   | Integer 10–21,600; deadline counts from process start.                                                                      |
-| --image-generation                  | off                    | Model API plus acceptEdits plus budget.                                                                                     |
-| --web-search                        | refused                | Exit 2; no hosted-tool allowance.                                                                                           |
-| --fail-on-denial                    | off                    | First ordinary approval denial stops if enabled.                                                                            |
-| --ephemeral                         | off                    | Model API only; suppress the session store.                                                                                 |
-| --key-stdin                         | off                    | Model API only; non-TTY stdin.                                                                                              |
-| --muse-binary, --shell-sandbox      | serve defaults         | Muse Code only.                                                                                                             |
-| --account <id>                      | default                | Pin one run to one account; refused with --key-stdin in CI.                                                                 |
-| --verbose                           | off                    | Trace on redacted stderr.                                                                                                   |
+| Exec option                         | Default                | Validation                                                                                                                                     |
+| ----------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| --backend museCode\|modelApi        | museCode               | Must be an ACP backend.                                                                                                                        |
+| --cwd <dir>                         | process.cwd()          | Resolve absolute; existing directory.                                                                                                          |
+| <prompt>, --prompt-file, -          | required               | Exactly one; nonempty UTF-8; at most 262,144 bytes. Stdin prompt conflicts with --key-stdin.                                                   |
+| --untrusted-file <path>, repeatable | none                   | At most 8 files, 1 MiB each, 2 MiB total, 48 chunks total; readable regular files.                                                             |
+| --permission-mode plan\|acceptEdits | plan                   | Refuse auto, manual, bypassPermissions and all other modes.                                                                                    |
+| --model, --effort                   | backend default        | Listed for this run; supported effort. Model API model must also have a known tariff.                                                          |
+| --allow-contributor-models          | off                    | Explicit permission to select a contributor model; docs name training eligibility (`apidocs/pricing-rate-limits.md:21–29`).                    |
+| --output text\|json\|jsonl          | text                   | Exact enum.                                                                                                                                    |
+| --max-budget-usd <usd>              | required for Model API | Finite positive USD decimal (grammar below, no upper bound); must cover the model minimum below before billable dispatch. Refuse on Muse Code. |
+| --max-requests <n>                  | none (no limit)        | Integer 1–500 when set; all admitted billable HTTP attempts, including retries, compaction and images. Refuse on Muse Code.                    |
+| --timeout <seconds>                 | 1800                   | Integer 10–21,600; deadline counts from process start.                                                                                         |
+| --image-generation                  | off                    | Model API plus acceptEdits plus budget.                                                                                                        |
+| --web-search                        | refused                | Exit 2; no hosted-tool allowance.                                                                                                              |
+| --fail-on-denial                    | off                    | First ordinary approval denial stops if enabled.                                                                                               |
+| --ephemeral                         | off                    | Model API only; suppress the session store.                                                                                                    |
+| --key-stdin                         | off                    | Model API only; non-TTY stdin.                                                                                                                 |
+| --muse-binary, --shell-sandbox      | serve defaults         | Muse Code only.                                                                                                                                |
+| --account <id>                      | default                | Pin one run to one account; refused with --key-stdin in CI.                                                                                    |
+| --verbose                           | off                    | Trace on redacted stderr.                                                                                                                      |
 
 Budget grammar is unsigned ASCII decimal `[0-9]+(?:\.[0-9]{1,6})?`,
 1 micro-USD or more, with no ceiling of ours (D121). Signs, exponents, whitespace, non-ASCII digits
 and more than six fractional digits are usage errors. The raw string is parsed
-directly into integer micro-USD; `Number` never parses that budget string.
+directly into exact integer micro-USD; `Number` never parses that budget string.
 Exactly one nonempty UTF-8 prompt is required (262,144-byte maximum).
 Stdin prompt conflicts with stdin key. Files must be readable regular files.
 Untrusted resources: at most 8 files, 1 MiB each, 2 MiB total and 48 chunks.
@@ -315,7 +315,7 @@ Main Action is `action/`; apply sub-action is `action/apply/`. Frozen contract:
 | Input                                   | Default             | Rule                                                                                                               |
 | --------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | model-api-key                           | required            | secrets.MUSE_MODEL_API_KEY; only run step gets MUSE_SPARK_MODEL_API_KEY.                                           |
-| max-budget-usd                          | required            | Same CLI budget grammar/range above; includes text and images.                                                     |
+| max-budget-usd                          | required            | Same CLI budget grammar above (positive, no upper bound); includes text and images.                                |
 | mode                                    | review              | review→plan, fix→acceptEdits.                                                                                      |
 | image-generation                        | false               | Exact boolean; true only in fix.                                                                                   |
 | max-requests                            | empty (no limit)    | Empty sets no request limit; a set value follows the CLI request-count bounds above (1–500).                       |

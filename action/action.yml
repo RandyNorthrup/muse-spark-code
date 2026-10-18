@@ -18,7 +18,7 @@ inputs:
     description: The Meta Model API key, from secrets.MUSE_MODEL_API_KEY. Only the run step receives it.
     required: true
   max-budget-usd:
-    description: Hard USD cap for this run, text and images together (more than 0, up to six decimals; no ceiling of ours).
+    description: Hard USD cap for this run, text and images together (more than 0, up to six decimals).
     required: true
   mode:
     description: review (plan mode, no edits) or fix (accept edits, a patch is proposed).

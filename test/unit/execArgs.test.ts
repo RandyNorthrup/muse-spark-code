@@ -128,6 +128,10 @@ describe('M80 args (A1–A10, F1)', () => {
     ['0.108135', 108_135],
     ['1.409024', 1_409_024],
     ['20.000000', 20_000_000],
+    // Above-$20 budgets from the recorded real CLI exchange in
+    // docs/certification/pr228fix.md (2026-10-18, rig macmini).
+    ['20.01', 20_010_000],
+    ['250.50', 250_500_000],
     ['0001.000001', 1_000_001],
   ])('F1 parses %s directly into exact micro-USD', (value, units) => {
     const parsed = parseExec({ backend: 'modelApi', 'max-budget-usd': value }, ['hi'])

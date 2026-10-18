@@ -236,10 +236,7 @@ function boundedInteger(env, name, fallback, min, max) {
   return parsed
 }
 
-/**
- * The budget's exact decimal string: [0-9]+(.[0-9]{1,6})?, more than 0 with
- * no ceiling of ours (D121; F1 parity with exec, which accepts the same).
- */
+/** The budget's exact decimal string: [0-9]+(.[0-9]{1,6})?, more than 0 (lead ruling F1). */
 export function budgetString(value) {
   if (typeof value !== 'string' || !DECIMAL_BUDGET.test(value)) {
     throw new InputError('max-budget-usd must be a plain decimal number of USD')
