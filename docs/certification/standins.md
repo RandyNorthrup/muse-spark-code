@@ -168,3 +168,13 @@ block to `test/**/*.mjs` and add `new Proxy` plus
 Correction 2026-10-17: `muse.search` skips `.cs` files, so an early
 "zero references" finding for the vault helpers was wrong (grep covers
 all extensions); the files were restored byte-identical.
+
+## Verification notes (2026-10-17, macmini rig)
+
+- `schedulesStdio.e2e` case 3 ('keeps exec scheduling ... refused')
+  failed once in a 3-file parallel batch and passes alone (twice) and in
+  an identical repeat batch; the same batch on the untouched base
+  (worktree at 296c63f20, since removed) passed 45/45. The case is
+  byte-identical on both trees, so the single failure is measured as
+  transient parallel-load, not a lane regression. No timeout was raised
+  (repository default kept).
