@@ -1,5 +1,19 @@
 # MSM80 — finish milestone M80: Headless runs and the GitHub Action
 
+> **RVMSM80 addendum (2026-10-17):** the `ciRun` 39/39 and `ciTemplatesRun`
+> 43/43 receipts in §3/§5 ran the Action's fake agent inside simulated
+> vendor hosts. Under the owner's no-stand-ins rule they are withdrawn as
+> proof; the suites are deleted or reduced to pure logic through the real
+> modules, real template data and the real shells, and the withdrawn
+> behaviours wait for hosted receipts in `docs/real-life/unproven.md`. The
+> two macOS shell bugs stand: both were failures of the real bootstrap
+> under the real macOS `sh`, before any agent ran, and their guards now
+> execute the shipped shell (the unpinned refusal and the parent trap's
+> cleanup) instead of reading its text. Red drill for the new guards:
+> an unbalanced `case` planted in the GitLab template's generated
+> bootstrap fails both the generated-source match and the shell-execution
+> refusal (2 failed, 13 passed); reverted and green.
+
 Lane worktree `/Users/randy/lanes/MSM80`, rig `macmini`. Base: `rigs/kubuntu/c/m80-ci-r3`
 (`a94456769`); merged `main-now` (`821566c0f`) as `5f940132b`.
 

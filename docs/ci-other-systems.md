@@ -4,10 +4,14 @@ PLAN.md M80/D65, CM80CI-R4. The GitLab, Azure, Jenkins and Bitbucket templates
 share the GitHub Action's input grammar, installer, sanitized Git, proposal
 engine, result validator and scanner. Nothing comments or pushes.
 
-These templates are **not certified or supported**. Tests use local packages,
-real Git/npm and fabricated credentials with a fake agent. No hosted/live
-receipt exists, and no release carrying `ci/` is claimed. Pin only a release
-that actually carries it; registry-path support still needs M80's LR receipt.
+These templates are **not certified or supported**. What is tested locally
+is the launcher's pure logic through its real modules, the templates'
+defaults through that grammar, and the shipped bootstrap under the real
+shells; no vendor run is simulated. No hosted/live receipt exists, and no
+release carrying `ci/` is claimed. Pin only a release that actually
+carries it; registry-path support still needs M80's LR receipt. The
+behaviours a hosted run must still prove are listed in
+`docs/real-life/unproven.md`.
 
 ## Credential boundary
 

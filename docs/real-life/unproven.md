@@ -2849,3 +2849,48 @@ These tests drove real code but through stand-ins (`vi.fn` and mock return value
 - denial, changed preview and live admission loss each prevent publication
 - rechecks admission between patches and reports per-file failures
 - refuses evidence changes during ownership approval
+
+## Removed with the other-CI lane's review (RVMSM80, 2026-10-17)
+
+The M80 other-CI lane's process suites ran the launcher and the templates
+against the Action's fake agent (`test/action/fake-agent.mjs`, itself deleted
+above) inside locally simulated GitLab, Azure, Jenkins and Bitbucket hosts,
+with scripted filesystem operations. Under the owner's rule that proof does
+not stand: the suites were deleted or reduced to pure logic through the real
+modules, real template data and the real shells. The behaviours below now
+wait for hosted vendor receipts; nothing local may claim them. Kept, in
+rewritten real form: the adapters, trust gate, key intake and scrubbing,
+input grammar, remaining-time admission and private-temp checks
+(`test/unit/ciRun.test.ts`); the generated bootstrap matching its source,
+GitLab/Azure defaults parsing, Azure's declared deadline, the unpinned
+bootstrap's refusal and the parent trap's cleanup with a missing Node
+(`test/unit/ciTemplates.test.ts`).
+
+### test/unit/ciTemplatesRun.test.ts (whole file, with test/unit/helpers/ciFixtures.ts)
+
+- on each system the key reaches exec's stdin and no program's environment, argv or log
+- aliases and an exported holder never reach a child
+- each system refuses a reserved key alias before a bootstrap child starts
+- GitLab's File variable is read only by Node, with no key-file copying child
+- an early bootstrap failure never selects repository artifacts
+- malformed launcher facts and a launcher module-load failure still clean the bootstrap directory
+- a tarball whose digest differs is never unpacked or run
+- Bitbucket keeps an explicitly empty budget, which the launcher refuses
+
+### test/unit/ciRun.test.ts (the end-to-end, publication and pipe suites; the pure suites stay)
+
+- on each system an end-to-end review completes, publishes outputs and keeps the key on exec's stdin only
+- fix mode publishes the scanned patch, the scanner getting the key on stdin only
+- the diff is cut to max-diff-bytes and says so; empty or malformed agent output is never published as completed
+- SIGTERM stops the run and kills the agent child
+- lifecycle scripts and a checked-out .npmrc are ignored; only the pinned bytes install; an impostor package is refused by identity
+- forks, untrusted pull requests, unprotected refs and an uncoverable deadline refuse before installing or spawning
+- a repository-planted output directory or symlink is ignored; publication happens only in job temp
+- stale-output removal, late publication and final cleanup abort at their bounds in the real filesystem subprocess, without claiming a removal that did not happen
+- a child writing megabytes to both pipes finishes instead of blocking
+
+### test/unit/ciTemplates.test.ts (the template-text guards; the suites named above stay)
+
+- each vendor's own rules, conditions and credential bindings as written in its template (GitLab rules, Azure job condition and secret mapping, Jenkins `when` and `withCredentials`, Bitbucket step placement)
+- the templates carrying only the launcher's inputs, their timeout declarations matching, and Azure conditions using only documented words
+- the package carrying the launcher as `ci/`, as the packaging script's text

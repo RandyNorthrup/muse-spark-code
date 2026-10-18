@@ -18920,6 +18920,18 @@ on the merged tree; the process suites' remaining failures are rig-load
 timeouts, with a quiet full-green run still wanted. No paid/live calls.
 Evidence: [msm80.md](docs/certification/msm80.md).
 
+**Review RVMSM80, 2026-10-17.** Merged current main (`81dacaf5a`). The
+other-CI process suites rested on the Action's fake agent (deleted on main
+with every fake test) inside simulated vendor hosts, with scripted
+filesystem operations; under the owner's no-stand-ins rule they are deleted
+(`ciTemplatesRun.test.ts`, `ciFixtures.ts`) or reduced to pure logic
+through the real modules (`ciRun.test.ts`), and the template-text guards
+are replaced by parsing the real defaults, the real deadline check and
+executing the shipped bootstrap under the real shells
+(`ciTemplates.test.ts`). The end-to-end vendor behaviours are withdrawn to
+`docs/real-life/unproven.md`; hosted receipts remain the only proof. The
+two macOS shell fixes stand, guarded by shell execution with a red drill.
+
 ### M81 — Browser check (D49)
 
 **Status 2026-10-02: lane A1 of design spec v4 built on

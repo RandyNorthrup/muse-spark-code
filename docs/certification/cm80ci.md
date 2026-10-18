@@ -1,5 +1,12 @@
 # CM80CI certification — headless runs on GitLab, Azure, Jenkins, Bitbucket
 
+> **RVMSM80 addendum (2026-10-17):** every receipt below that rests on the
+> fake agent or a locally simulated vendor host is withdrawn as proof under
+> the owner's no-stand-ins rule. The process suites are deleted or reduced
+> to pure logic through the real modules; the withdrawn behaviours are
+> listed in `docs/real-life/unproven.md` and wait for hosted receipts. The
+> design records and review history below stand as history, not evidence.
+
 Lanes CM80CI (branch `c/m80-ci`, rig `macbook`) and CM80CI-R2 (branch
 `c/m80-ci-r2`, host lane), 2026-10-10. Status: built, tested with fakes on
 Linux, macOS and Windows, **not certified** (no live run on these systems,
