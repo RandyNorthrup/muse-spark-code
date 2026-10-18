@@ -46,6 +46,30 @@ settled $0.000000):
   → exit 2 (usage error). Negative control: invalid budgets still fail
   arg validation.
 
+## Lane PR228W1 triage (2026-10-18, rig macbook, at 1b06d92)
+
+1. runLedger quote vs run cap: fixed in 1b06d92 — `previewResponseReservation`
+   quotes via `quoteReservation` without admitting, and `runExec.ts:985`
+   compares that quote against the budget, reporting the budget minimum with
+   a budget latch. Covered by the `$0.01` `previewResponseReservation` case.
+2. BigInt budgets through the ledger: fixed in 1b06d92 on the runtime side —
+   `budgetUnits` parses the exact BigInt, ledger `units()` and protocol
+   `microUsd()` carry it with no upper bound. The Action side stayed open
+   (thread 5 below).
+3. execArgs `20.01`/`250.50` cases: answered by 1b06d92 — both values are the
+   recorded real CLI exchange above (date, rig, commands, exit codes), so
+   they are not invented. Re-run on this rig below for corroboration.
+4. Stale CI contract: fixed in 1b06d92 — the CLI table, the grammar and the
+   Action entries in `docs/ci.md` are positive-only with no upper bound.
+5. Action `result.mjs` ceiling: CONFIRMED OPEN — `microUsd` still returns
+   `undefined` above `Number.MAX_SAFE_INTEGER`, so `isExecEvent`/`isExecResult`
+   reject accounting records for exact BigInt budgets the CLI now carries.
+   Fix: return the exact units with no upper bound, as the runtime protocol
+   already does.
+6. runLedger `1000` (and `20.000001`) caps: CONFIRMED — neither is in the
+   recorded exchange. Fix: replace with recorded above-ceiling inputs
+   (`20.01`, `250.50`), keeping above-ceiling coverage.
+
 ## Base-code failures (new assertions run against the untouched base)
 
 Via a throwaway clone of this branch's base with only the updated
