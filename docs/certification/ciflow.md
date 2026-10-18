@@ -873,3 +873,30 @@ all pass after):
 The hosted proof above must additionally show the Windows and macOS
 `static gates (...)` jobs present and green in the capacity run, and a
 push to `main` here still running the full Hosts workflow.
+
+### Review fixes (PR218FIX, 2026-10-18, this rig — first result)
+
+Six Codex threads on PR #218 (branch `ci/more-shards2`), one line each:
+
+- build.yml:77 (static gates skipped in org builds): already fixed in
+  RVCISHARDS2 (`ed4feb907`); the job-level guard is gone, verified present.
+- forks.yml:90 (relay offloaded results): APPLIES — no source-side waiter
+  exists for the capacity Forks/Hosts/Browser runs; adding one `relay` job
+  to each of the three workflows.
+- hosts.yml:70 (Hosts skipped on source main pushes): already fixed in
+  RVCISHARDS2 (`54b617125`); every job carries `!cancelled()`, verified
+  present.
+- browser-check.yml:44 (path filtering on capacity pushes): already fixed
+  in RVCISHARDS2 (`684a9f091`); both push triggers mirror their
+  `pull_request` paths, verified present.
+- build.yml:417 (artifact downloads): APPLIES — the relay uses the source
+  repo's `github.token` against the capacity repo; minting a fresh
+  capacity-scoped token after the wait for the two `gh run download` calls.
+- hosts.yml:106 (fast PR runs): APPLIES — the three auxiliary routes lack
+  `ci.yml`'s fast-tier condition and would select `home` with no capacity
+  push to replace the skipped jobs; mirroring the `FAST` condition.
+- Lead measurement (org run 39083598004, `LARGE_RUNNERS=on`, static gates
+  on standard labels): under investigation; the Windows browser capture in
+  the same window did take `msc-windows-8core`, so the variable read worked
+  there. `runs-on` is evaluated when each job starts, so a variable set
+  after the run starts reaches late jobs only.
