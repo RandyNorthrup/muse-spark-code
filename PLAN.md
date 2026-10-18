@@ -40591,6 +40591,9 @@ PR #231 (`rv/msm80`) merged onto the release as `Merge PR #231
 (rv/msm80) into release/0.19.0`, its CHANGELOG entries under `[0.19.0]`;
 `referenceAcp` keeps `/playback` with PR #231's CI-other keys added;
 generated files regenerated.
+PR #232 (`ci/real-use`) merged onto the release as `Merge PR #232
+(ci/real-use) into release/0.19.0`, its CHANGELOG bullet under `[0.19.0]`;
+no conflicts, no generated-file changes.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
 Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from

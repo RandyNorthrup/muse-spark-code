@@ -33,6 +33,10 @@ happened, not what was planned; superseded entries are kept.
   each host start probes whether the bubblewrap sandbox can create a user
   namespace here and says so once on every surface, naming the two ways
   out, without ever switching the sandbox off on its own.
+- Real-use CI drives the packed product against the real provider by hand
+  (PR #232): `.github/workflows/real-use.yml` (`workflow_dispatch` only)
+  runs the release candidate's steps under a dollar cap and an
+  expected-calls guard and publishes a transcript artifact.
 
 - Attached existing video and audio are wired for VS Code, ACP and headless
   exec. The machine's `mediaAudioAction` choice is honored: transcription
