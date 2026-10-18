@@ -4259,6 +4259,7 @@
   "modelsPanelUnavailable": "Modelos y agentes no está disponible en esta compilación.",
   "providersSectionTitle": "Proveedores",
   "modelsSectionTitle": "Modelos",
+  "vaultSectionTitle": "Bóveda",
   "providerSearchPlaceholder": "Buscar proveedores…",
   "modelsSearchPlaceholder": "Buscar modelos…",
   "providerFilters": {
@@ -5411,6 +5412,7 @@
     "basicText": "El backend basic_text no ofrece cifrado seguro y no puede proteger una ranura de la bóveda.",
     "brokerDisabled": "La bóveda de credenciales está desactivada en esta compilación hasta que se completen las comprobaciones de integración. Las claves propias siguen funcionando; se rechaza su uso por agentes.",
     "brokerBlocked": "El intermediario no puede iniciarse. Las claves de los clientes propios siguen funcionando; se rechaza el uso por agentes. Repare su instalación.",
+    "switchedOff": "La bóveda de credenciales está desactivada en los ajustes. Activa museSpark.vault.enabled para usarla.",
     "noUnattended": "{item} necesita un permiso de uso desatendido para {use}. Añádalo en la bóveda o ejecute de forma interactiva.",
     "nopasswd": "Sudo con NOPASSWD está disponible. Cualquier comando aprobado puede obtener acceso root; la bóveda no añade protección aquí.",
     "fenceOff": "Desactivar la barrera expone su entorno y las vías de credenciales a la conversación principal. Los trabajadores siguen protegidos.",
@@ -5431,6 +5433,7 @@
     "setupHeadless": "La configuración y la recuperación de la bóveda necesitan una terminal interactiva; las ejecuciones sin interfaz no pueden hacerlas.",
     "recoveryShownOnce": "Código de recuperación (solo se muestra ahora): {code}",
     "savedItPrompt": "¿Guardó el código de recuperación en un lugar seguro?",
+    "writerRecoveryWarning": "{holder} Si otro programa sigue escribiendo en esta bóveda, al restablecerla o restaurarla se perderán sus cambios. Continúe solo con confirmación explícita.",
     "busy": "La bóveda está ocupada en otra ventana. Inténtelo de nuevo.",
     "busyHolder": "El proceso {pid} mantiene la bóveda desde {since}. Inténtalo de nuevo cuando termine.",
     "busyOtherMachine": "El proceso {pid} mantiene la bóveda en otra máquina desde {since}. Aquí no se puede comprobar su finalización.",
@@ -5538,7 +5541,6 @@
       "one": "{count} autorización",
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
-    },
-    "writerRecoveryWarning": "{holder} Si otro programa sigue escribiendo en esta bóveda, al restablecerla o restaurarla se perderán sus cambios. Continúe solo con confirmación explícita."
+    }
   }
 }

@@ -4368,6 +4368,7 @@
   "modelsPanelUnavailable": "Modele i agenci nie są dostępni w tej kompilacji.",
   "providersSectionTitle": "Dostawcy",
   "modelsSectionTitle": "Modele",
+  "vaultSectionTitle": "Sejf",
   "providerSearchPlaceholder": "Szukaj dostawców…",
   "modelsSearchPlaceholder": "Szukaj modeli…",
   "providerFilters": {
@@ -5562,6 +5563,7 @@
     "basicText": "Mechanizm basic_text nie zapewnia bezpiecznego szyfrowania i nie może chronić slotu sejfu.",
     "brokerDisabled": "Magazyn poświadczeń jest wyłączony w tej kompilacji do czasu zakończenia kontroli integracji. Własne klucze nadal działają; użycie przez agentów jest odrzucane.",
     "brokerBlocked": "Nie można uruchomić brokera. Klucze własnych klientów działają; użycia agentów są odrzucane. Napraw instalację brokera.",
+    "switchedOff": "Magazyn poświadczeń jest wyłączony w ustawieniach. Aby go używać, włącz museSpark.vault.enabled.",
     "noUnattended": "{item} wymaga uprawnienia bez nadzoru do {use}. Dodaj je w sejfie lub uruchom interaktywnie.",
     "nopasswd": "Dostępne jest sudo z NOPASSWD. Każde zatwierdzone polecenie może uzyskać prawa root; sejf nie dodaje tu ochrony.",
     "fenceOff": "Wyłączenie bariery udostępnia środowisko i ścieżki poświadczeń głównej rozmowie. Procesy robocze pozostają chronione.",
@@ -5582,6 +5584,7 @@
     "setupHeadless": "Konfiguracja i odzyskiwanie sejfu wymagają interaktywnego terminala; uruchomienia bez interfejsu nie mogą ich wykonać.",
     "recoveryShownOnce": "Kod odzyskiwania (wyświetlany tylko teraz): {code}",
     "savedItPrompt": "Czy zapisano kod odzyskiwania w bezpiecznym miejscu?",
+    "writerRecoveryWarning": "{holder} Jeśli inny program nadal zapisuje w tym sejfie, reset lub przywrócenie spowoduje utratę jego zmian. Kontynuuj wyłącznie po wyraźnym potwierdzeniu.",
     "busy": "Sejf jest zajęty w innym oknie. Spróbuj ponownie.",
     "busyHolder": "Sejf jest zajęty przez proces {pid} od {since}. Spróbuj ponownie po zakończeniu tego procesu.",
     "busyOtherMachine": "Sejf jest zajęty na innym komputerze przez proces {pid} od {since}. Nie można tutaj potwierdzić jego zakończenia.",
@@ -5692,7 +5695,6 @@
       "other": "{count} uprawnień",
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
-    },
-    "writerRecoveryWarning": "{holder} Jeśli inny program nadal zapisuje w tym sejfie, reset lub przywrócenie spowoduje utratę jego zmian. Kontynuuj wyłącznie po wyraźnym potwierdzeniu."
+    }
   }
 }

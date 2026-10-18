@@ -4,7 +4,6 @@
 import { type Disposable } from 'vscode'
 import { UI_TEXT } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
-import { uiLocale } from '../../shared/l10n/text'
 import { fixedMessageLog, lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type {
@@ -87,15 +86,19 @@ export interface VaultBundleLoaderDeps {
   readonly log: Logger
   /** How the bundle is loaded: Node's `require` unless a test hands in the module. */
   readonly loadBundle?: ((file: string) => unknown) | undefined
+  /** Live switch (README's legacy vault flag): refused while it answers false. */
+  readonly on: () => boolean
 }
 
 /**
  * The bundle, required the first time it is asked for and kept from then on.
  * A missing or corrupt bundle throws `vault.brokerBlocked` and is tried again
- * on the next call (the log has the cause, never a credential).
+ * on the next call (the log has the cause, never a credential). A
+ * switched-off vault refuses before anything loads, on every call, so
+ * re-enabling needs no restart.
  */
 export function vaultBundleLoader(deps: VaultBundleLoaderDeps): () => VaultBundle {
-  return lazyBundleLoader({
+  const load = lazyBundleLoader({
     ...deps,
     log: fixedMessageLog({
       log: deps.log,
@@ -106,33 +109,8 @@ export function vaultBundleLoader(deps: VaultBundleLoaderDeps): () => VaultBundl
     label: 'vault bundle',
     unavailable: () => UI_TEXT.vault.brokerBlocked,
   })
-}
-
-export interface VaultControlsDeps extends VaultBundleLoaderDeps {
-  /** dist/ beside the running bundle: the bundle builds its broker-backed service from it. */
-  readonly distDir: string
-}
-
-/**
- * The window controls, or an explicit refusal while the panel binding is
- * missing. `connect` supplies the panel opener; the bundle itself builds
- * the broker-backed service the lock command needs (C-M109-1), so
- * activation loads no client. Until the Models & Agents panel mounts the
- * vault section, the caller passes undefined and both commands report
- * `vault.brokerDisabled`.
- */
-export function loadVaultControls(
-  deps: VaultControlsDeps,
-  connect: (() => Omit<WindowVaultControlsDeps, 'distDir'>) | undefined,
-): VaultWindowControls {
-  if (connect === undefined) {
-    deps.log.error('The vault panel is not mounted in this window; refusing closed')
-    throw new Error(UI_TEXT.vault.brokerDisabled)
+  return () => {
+    if (!deps.on()) throw new Error(UI_TEXT.vault.switchedOff)
+    return load()
   }
-  const bundle = vaultBundleLoader(deps)()
-  return bundle.createWindowVaultControls(
-    { distDir: deps.distDir, ...connect() },
-    UI_TEXT,
-    uiLocale(),
-  )
 }

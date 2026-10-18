@@ -4259,6 +4259,7 @@
   "modelsPanelUnavailable": "Modelli e agenti non è disponibile in questa build.",
   "providersSectionTitle": "Provider",
   "modelsSectionTitle": "Modelli",
+  "vaultSectionTitle": "Cassaforte",
   "providerSearchPlaceholder": "Cerca provider…",
   "modelsSearchPlaceholder": "Cerca modelli…",
   "providerFilters": {
@@ -5411,6 +5412,7 @@
     "basicText": "Il backend basic_text non offre cifratura sicura e non può proteggere uno slot della cassaforte.",
     "brokerDisabled": "La cassaforte delle credenziali è disattivata in questa build in attesa delle verifiche di integrazione. Le chiavi proprie continuano a funzionare; l’uso da parte degli agenti viene rifiutato.",
     "brokerBlocked": "Il broker non può avviarsi. Le chiavi dei client interni funzionano ancora; gli usi degli agenti sono rifiutati. Ripara l’installazione del broker.",
+    "switchedOff": "La cassaforte delle credenziali è disattivata nelle impostazioni. Attiva museSpark.vault.enabled per usarla.",
     "noUnattended": "{item} richiede un’autorizzazione non presidiata per {use}. Aggiungila nella cassaforte o esegui in modo interattivo.",
     "nopasswd": "Sudo con NOPASSWD è disponibile. Ogni comando approvato può ottenere privilegi root; qui la cassaforte non aggiunge protezione.",
     "fenceOff": "Disattivare la barriera espone l’ambiente e le vie di accesso alle credenziali alla conversazione principale. I lavoratori restano protetti.",
@@ -5431,6 +5433,7 @@
     "setupHeadless": "La configurazione e il recupero della cassaforte richiedono un terminale interattivo; le esecuzioni headless non possono farli.",
     "recoveryShownOnce": "Codice di recupero (mostrato solo ora): {code}",
     "savedItPrompt": "Hai salvato il codice di recupero in un luogo sicuro?",
+    "writerRecoveryWarning": "{holder} Se un altro programma sta ancora scrivendo in questa cassaforte, il ripristino o il ripristino da backup farà perdere le sue modifiche. Continuare solo dopo conferma esplicita.",
     "busy": "La cassaforte è occupata in un’altra finestra. Riprova.",
     "busyHolder": "La cassaforte è detenuta dal processo {pid} da {since}. Riprova dopo la sua terminazione.",
     "busyOtherMachine": "La cassaforte è detenuta su un altro computer dal processo {pid} da {since}. Qui non è possibile accertarne la terminazione.",
@@ -5538,7 +5541,6 @@
       "one": "{count} autorizzazione",
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
-    },
-    "writerRecoveryWarning": "{holder} Se un altro programma sta ancora scrivendo in questa cassaforte, il ripristino o il ripristino da backup farà perdere le sue modifiche. Continuare solo dopo conferma esplicita."
+    }
   }
 }

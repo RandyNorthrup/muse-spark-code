@@ -4041,6 +4041,7 @@
   "modelsPanelUnavailable": "モデルとエージェントはこのビルドでは利用できません。",
   "providersSectionTitle": "プロバイダー",
   "modelsSectionTitle": "モデル",
+  "vaultSectionTitle": "保管庫",
   "providerSearchPlaceholder": "プロバイダーを検索…",
   "modelsSearchPlaceholder": "モデルを検索…",
   "providerFilters": {
@@ -5109,6 +5110,7 @@
     "basicText": "basic_text は安全な暗号化を提供せず、保管庫のスロットを保護できません。",
     "brokerDisabled": "認証情報の保管庫は、統合の確認が完了するまでこのビルドでは無効になっています。ファーストパーティのキーは引き続き使用できますが、エージェントによる使用は拒否されます。",
     "brokerBlocked": "ブローカーを起動できません。内部クライアントのキーは利用できますが、エージェントの使用は拒否されます。ブローカーのインストールを修復してください。",
+    "switchedOff": "認証情報の保管庫は設定で無効になっています。使用するには museSpark.vault.enabled をオンにしてください。",
     "noUnattended": "{item} で {use} を行うには無人使用の許可が必要です。保管庫で追加するか、対話的に実行してください。",
     "nopasswd": "NOPASSWD の sudo が利用できます。承認されたコマンドは root になれるため、ここでは保管庫による保護が追加されません。",
     "fenceOff": "保護を無効にすると、メインの会話に環境と認証経路が公開されます。ワーカーの保護は続きます。",
@@ -5129,6 +5131,7 @@
     "setupHeadless": "保管庫の設定と復旧には対話型ターミナルが必要です。ヘッドレス実行ではできません。",
     "recoveryShownOnce": "復旧コード（今回のみ表示）: {code}",
     "savedItPrompt": "復旧コードを安全な場所に保存しましたか?",
+    "writerRecoveryWarning": "{holder} 別のプログラムがこの保管庫に書き込み中の場合、リセットまたは復元するとその変更が失われます。明示的に確認した場合のみ続行してください。",
     "busy": "保管庫は別のウィンドウで使用中です。もう一度お試しください。",
     "busyHolder": "保管庫は {since} からプロセス {pid} が保持しています。そのプロセスの終了後に再試行してください。",
     "busyOtherMachine": "保管庫は別のマシンで {since} からプロセス {pid} が保持しています。ここではその終了を確認できません。",
@@ -5230,7 +5233,6 @@
     },
     "grantsCount": {
       "other": "{count} 件の許可"
-    },
-    "writerRecoveryWarning": "{holder} 別のプログラムがこの保管庫に書き込み中の場合、リセットまたは復元するとその変更が失われます。明示的に確認した場合のみ続行してください。"
+    }
   }
 }

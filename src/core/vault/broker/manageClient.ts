@@ -3,7 +3,12 @@
 // (the platform's connect: discovery, launch and peer check from lanes b and
 // c) and closes it; values travel only in private frames.
 
-import { UI_TEXT, VAULT_PROTOCOL_VERSION, VAULT_WATCH_RETRY_MS } from '../../../shared/constants'
+import {
+  UI_TEXT,
+  VAULT_LIMITS,
+  VAULT_PROTOCOL_VERSION,
+  VAULT_WATCH_RETRY_MS,
+} from '../../../shared/constants'
 import type {
   VaultApprovalAnswer,
   VaultAuditRecord,
@@ -51,6 +56,11 @@ function expectKind<K extends VaultChannelResponse['response']['kind']>(
   kind: K,
 ): asserts response is Extract<VaultChannelResponse['response'], { kind: K }> {
   if (response.kind !== kind) throw new Error(UI_TEXT.vault.noAccess)
+}
+
+/** Consumers carry at most this many audit records; beyond it, the newest win. */
+export function capAuditRecords(records: readonly VaultAuditRecord[]): readonly VaultAuditRecord[] {
+  return records.length > VAULT_LIMITS.items ? records.slice(-VAULT_LIMITS.items) : records
 }
 function expectOk(response: VaultChannelResponse['response']): void {
   expectKind(response, 'ok')
@@ -131,6 +141,9 @@ export class VaultManageSession {
   async audit(): Promise<readonly VaultAuditRecord[]> {
     // The log may outgrow one 4 MiB protocol frame (it is allowed 8 MiB):
     // page past the last returned generation until a page adds nothing.
+    // Every consumer carries at most VAULT_LIMITS.items audit records
+    // (vaultRead and the panel state schema refuse longer arrays), so a log
+    // longer than that keeps its newest, security-relevant events.
     const records: VaultAuditRecord[] = []
     let afterGeneration = 0
     for (;;) {
@@ -141,10 +154,10 @@ export class VaultManageSession {
         afterGeneration,
       })
       expectKind(response, 'audit')
-      if (response.records.length === 0) return records
+      if (response.records.length === 0) return capAuditRecords(records)
       const last = response.records.at(-1)
       if (last === undefined || last.generation <= afterGeneration)
-        return [...records, ...response.records]
+        return capAuditRecords([...records, ...response.records])
       records.push(...response.records)
       afterGeneration = last.generation
     }

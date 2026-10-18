@@ -343,11 +343,7 @@ import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRe
 import { createLinuxLatestPort } from './host/media/recordingLatest'
 import { latestLinuxRecording } from './core/media/record/linux'
 import type { ScreenRecordingPreview } from './core/media/record/driver'
-import {
-  loadVaultControls,
-  registerVaultCommands,
-  vaultBundleLoader,
-} from './host/vault/vaultPanelBundle'
+import { registerVaultCommands, vaultBundleLoader } from './host/vault/vaultPanelBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
@@ -4092,17 +4088,21 @@ async function activateWindow(
     return typeof raw === 'string' ? raw : ''
   }
   // The credential vault (M109, PLAN.md D89): dist/vault.js builds its
-  // broker-backed service itself (C-M109-1) on first use. The window host
-  // publishes into the mounted panel section; before the first mount its
-  // frames have nowhere to go, and every broker use refuses while the
-  // broker is unavailable instead of opening an empty vault.
-  const vaultDistDir = vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath
-  const vaultBundlePath = vscode.Uri.joinPath(
-    context.extensionUri,
-    'dist',
-    VAULT_BUNDLE_FILE,
-  ).fsPath
-  const vaultBundle = vaultBundleLoader({ bundlePath: vaultBundlePath, log })
+  // broker-backed service itself (C-M109-1) on first use; only the loader
+  // (no broker, no client) is built here, and both vault uses share its one
+  // memoization, so dist/vault.js loads only once. The window host publishes
+  // into the mounted panel section; before the first mount its frames have
+  // nowhere to go, and every broker use refuses while the broker is
+  // unavailable instead of opening an empty vault.
+  const vaultDir = vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath
+  // A switched-off vault (README's legacy switch) refuses before anything
+  // loads, on every use: its section stays hidden and its commands refuse
+  // closed, without mounting, binding or launching.
+  const vault = vaultBundleLoader({
+    bundlePath: path.join(vaultDir, VAULT_BUNDLE_FILE),
+    log,
+    on: () => currentSettings()['vault.enabled'],
+  })
   let modelsFeatures: ModelsPanelFeatures | undefined
   const ensureModelsFeatures = (): ModelsPanelFeatures => {
     if (modelsFeatures === undefined) {
@@ -4122,16 +4122,13 @@ async function activateWindow(
           suggestedProviderSetting,
           isRemote: vscode.env.remoteName !== undefined,
           setComposerModel,
-          // The vault section (C-M109-1 P1): the broker-backed binding
-          // around this panel's publisher, built in dist/vault.js on first
-          // mount. Without it the section stays hidden; a factory that
-          // throws leaves the panel without the section too.
-          createVault: (publish) =>
-            vaultBundle().createModelsVaultBinding(
-              { distDir: vaultDistDir, now: () => Date.now(), publish, log },
-              UI_TEXT,
-              uiLocale(),
-            ),
+          // The vault section (C-M109-1 P1): dist/modelsPanel.js builds
+          // the broker-backed binding around this panel's publisher on
+          // first mount, from the loader and directory below. Without both
+          // the section stays hidden; a factory that throws leaves the
+          // panel without the section too.
+          vault,
+          vaultDir,
           onKeyUsage: (snapshot) => {
             usageRecording.limit({
               backend: 'modelApi',
@@ -4167,18 +4164,24 @@ async function activateWindow(
   }
 
   // The vault window commands: opening reveals the panel's vault section
-  // (which mounts the binding above); locking works without the panel.
+  // (which mounts the binding above); locking works without the panel. Both
+  // share the one memoized bundle loader, so dist/vault.js loads only once.
   context.subscriptions.push(
     registerVaultCommands(
       (id, run) => registerLoggedCommand(log, id, run),
       () =>
-        loadVaultControls({ bundlePath: vaultBundlePath, distDir: vaultDistDir, log }, () => ({
-          openPanel: () => {
-            ensureModelsFeatures().openPanel({ section: 'vault' })
-            return Promise.resolve()
+        vault().createWindowVaultControls(
+          {
+            distDir: vaultDir,
+            openPanel: () => {
+              ensureModelsFeatures().openPanel({ section: 'vault' })
+              return Promise.resolve()
+            },
+            log,
           },
-          log,
-        })),
+          UI_TEXT,
+          uiLocale(),
+        ),
     ),
   )
 

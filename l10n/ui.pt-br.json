@@ -4259,6 +4259,7 @@
   "modelsPanelUnavailable": "Modelos e agentes não está disponível nesta compilação.",
   "providersSectionTitle": "Provedores",
   "modelsSectionTitle": "Modelos",
+  "vaultSectionTitle": "Cofre",
   "providerSearchPlaceholder": "Pesquisar provedores…",
   "modelsSearchPlaceholder": "Pesquisar modelos…",
   "providerFilters": {
@@ -5411,6 +5412,7 @@
     "basicText": "O backend basic_text não fornece criptografia segura e não pode proteger um slot do cofre.",
     "brokerDisabled": "O cofre de credenciais está desativado nesta versão até a conclusão das verificações de integração. As chaves próprias continuam funcionando; o uso por agentes é recusado.",
     "brokerBlocked": "O intermediário não pode iniciar. As chaves dos clientes internos funcionam; usos por agentes são recusados. Repare a instalação.",
+    "switchedOff": "O cofre de credenciais está desativado nas configurações. Ative museSpark.vault.enabled para usá-lo.",
     "noUnattended": "{item} precisa de uma permissão sem supervisão para {use}. Adicione-a no cofre ou execute de forma interativa.",
     "nopasswd": "Sudo com NOPASSWD está disponível. Qualquer comando aprovado pode obter acesso root; o cofre não acrescenta proteção aqui.",
     "fenceOff": "Desativar a barreira expõe seu ambiente e as rotas de credenciais à conversa principal. Os trabalhadores continuam protegidos.",
@@ -5431,6 +5433,7 @@
     "setupHeadless": "A configuração e a recuperação do cofre precisam de um terminal interativo; execuções sem interface não podem fazê-las.",
     "recoveryShownOnce": "Código de recuperação (exibido só agora): {code}",
     "savedItPrompt": "Você guardou o código de recuperação em um lugar seguro?",
+    "writerRecoveryWarning": "{holder} Se outro programa ainda estiver gravando neste cofre, redefinir ou restaurar fará com que suas alterações sejam perdidas. Continue somente após confirmação explícita.",
     "busy": "O cofre está ocupado em outra janela. Tente novamente.",
     "busyHolder": "O cofre está em uso pelo processo {pid} desde {since}. Tente novamente após o encerramento desse processo.",
     "busyOtherMachine": "O cofre está em uso em outra máquina pelo processo {pid} desde {since}. Não é possível confirmar seu encerramento aqui.",
@@ -5538,7 +5541,6 @@
       "one": "{count} autorização",
       "other": "{count} autorizações",
       "many": "{count} autorizações"
-    },
-    "writerRecoveryWarning": "{holder} Se outro programa ainda estiver gravando neste cofre, redefinir ou restaurar fará com que suas alterações sejam perdidas. Continue somente após confirmação explícita."
+    }
   }
 }

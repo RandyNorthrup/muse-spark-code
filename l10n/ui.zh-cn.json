@@ -4041,6 +4041,7 @@
   "modelsPanelUnavailable": "此构建中没有“模型与智能体”。",
   "providersSectionTitle": "提供方",
   "modelsSectionTitle": "模型",
+  "vaultSectionTitle": "凭据库",
   "providerSearchPlaceholder": "搜索提供方…",
   "modelsSearchPlaceholder": "搜索模型…",
   "providerFilters": {
@@ -5109,6 +5110,7 @@
     "basicText": "basic_text 后端不提供安全加密，不能保护凭据库的密钥槽。",
     "brokerDisabled": "凭据保险库在此构建中已关闭，等待集成检查完成。第一方密钥仍可使用；代理使用会被拒绝。",
     "brokerBlocked": "代理服务无法启动。内部客户端的密钥仍可使用，但代理的使用请求被拒绝。请修复服务安装。",
+    "switchedOff": "凭据库已在设置中关闭。若要使用，请启用 museSpark.vault.enabled。",
     "noUnattended": "{item} 需要用于 {use} 的无人值守授权。请在凭据库中添加，或交互式运行。",
     "nopasswd": "可使用 NOPASSWD sudo。任何已批准的命令都可能获得 root 权限；凭据库在此不提供额外保护。",
     "fenceOff": "关闭隔离会向主对话暴露您的环境和凭据获取途径。工作代理仍保持隔离。",
@@ -5129,6 +5131,7 @@
     "setupHeadless": "设置和恢复凭据库需要交互式终端；无界面运行无法执行。",
     "recoveryShownOnce": "恢复码（仅此次显示）：{code}",
     "savedItPrompt": "您已将恢复码保存在安全的地方了吗？",
+    "writerRecoveryWarning": "{holder} 如果另一个程序仍在写入此保险库，重置或恢复将导致其更改丢失。请仅在明确确认后继续。",
     "busy": "凭据库正在另一个窗口中使用。请重试。",
     "busyHolder": "保管库自 {since} 起由进程 {pid} 持有。请在该进程退出后重试。",
     "busyOtherMachine": "保管库自 {since} 起由另一台计算机上的进程 {pid} 持有。此处无法确认该进程已终止。",
@@ -5230,7 +5233,6 @@
     },
     "grantsCount": {
       "other": "{count} 个授权"
-    },
-    "writerRecoveryWarning": "{holder} 如果另一个程序仍在写入此保险库，重置或恢复将导致其更改丢失。请仅在明确确认后继续。"
+    }
   }
 }

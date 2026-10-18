@@ -4368,6 +4368,7 @@
   "modelsPanelUnavailable": "Modely a agenti nejsou v tomto sestavení k dispozici.",
   "providersSectionTitle": "Poskytovatelé",
   "modelsSectionTitle": "Modely",
+  "vaultSectionTitle": "Trezor",
   "providerSearchPlaceholder": "Hledat poskytovatele…",
   "modelsSearchPlaceholder": "Hledat modely…",
   "providerFilters": {
@@ -5562,6 +5563,7 @@
     "basicText": "Backend basic_text neposkytuje bezpečné šifrování a nemůže chránit slot trezoru.",
     "brokerDisabled": "Úložiště přihlašovacích údajů je v tomto sestavení vypnuté, dokud nebudou dokončeny kontroly integrace. Klíče první strany nadále fungují; použití agenty je odmítnuto.",
     "brokerBlocked": "Zprostředkovatel se nemůže spustit. Klíče vlastních klientů fungují; použití agenty je odmítnuto. Opravte jeho instalaci.",
+    "switchedOff": "Úložiště přihlašovacích údajů je vypnuté v nastaveních. K použití zapněte museSpark.vault.enabled.",
     "noUnattended": "{item} potřebuje bezobslužné oprávnění pro {use}. Přidejte je v trezoru nebo spusťte interaktivně.",
     "nopasswd": "Je dostupné sudo s NOPASSWD. Každý schválený příkaz může získat práva root; trezor zde nepřidává ochranu.",
     "fenceOff": "Vypnutí ochrany zpřístupní prostředí a přihlašovací cesty hlavní konverzaci. Pracovní agenti zůstávají chráněni.",
@@ -5582,6 +5584,7 @@
     "setupHeadless": "Nastavení a obnova trezoru vyžadují interaktivní terminál; běhy bez rozhraní je provést nemohou.",
     "recoveryShownOnce": "Obnovovací kód (zobrazen pouze nyní): {code}",
     "savedItPrompt": "Uložili jste obnovovací kód na bezpečné místo?",
+    "writerRecoveryWarning": "{holder} Pokud tento trezor stále zapisuje jiný program, reset nebo obnovení způsobí ztrátu jeho změn. Pokračujte jen po výslovném potvrzení.",
     "busy": "Trezor právě používá jiné okno. Zkuste to znovu.",
     "busyHolder": "Trezor drží proces {pid} od {since}. Zkuste to znovu po ukončení tohoto procesu.",
     "busyOtherMachine": "Trezor drží na jiném počítači proces {pid} od {since}. Jeho ukončení zde nelze ověřit.",
@@ -5692,7 +5695,6 @@
       "other": "{count} oprávnění",
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
-    },
-    "writerRecoveryWarning": "{holder} Pokud tento trezor stále zapisuje jiný program, reset nebo obnovení způsobí ztrátu jeho změn. Pokračujte jen po výslovném potvrzení."
+    }
   }
 }

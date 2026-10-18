@@ -155,6 +155,12 @@ interface PendingSetup {
   readonly key: Buffer
   readonly recovery: VaultSlotRecord
   readonly expiresAt: number
+  /**
+   * The OS-store wrap a failed confirmation left behind. A retry reuses this
+   * exact wrap (one slot per setup) instead of creating another native
+   * credential; it is cleared whenever its credential is removed.
+   */
+  wrappedOsStore?: { slotId: string; record: VaultSlotRecord } | undefined
 }
 const newId = (): string => randomBytes(VAULT_LIMITS.idBytes).toString('hex')
 /** An OS-store failure keeps its fixed repair reason; anything else is `io`. */
@@ -238,6 +244,19 @@ export class VaultManagement implements VaultManagementPort {
   private discard(): void {
     this.pending?.key.fill(0)
     this.pending = null
+  }
+  /**
+   * Whether a committed setup intent names this attempt's wrap, so a retry
+   * completes it instead of wrapping again. Reads owned bytes and erases
+   * them, like every other file read here.
+   */
+  private async hasSetupIntent(): Promise<boolean> {
+    const intent = await this.deps.files.read('pending.v1')
+    try {
+      return intent !== null
+    } finally {
+      intent?.fill(0)
+    }
   }
   private store(): VaultStore {
     try {
@@ -701,25 +720,41 @@ export class VaultManagement implements VaultManagementPort {
       this.confirming = pending
       let isCreated = false
       try {
-        // Retained for the whole commit: a Lock between wrap and creation
-        // must delete the native credential the wrap just created.
-        const slot = this.deps.slots.osStore(pending.vaultId, newId())
+        // One OS slot per setup: a retry reuses the wrap its failed attempt
+        // left behind instead of leaving another native credential, and a
+        // wrap nothing references is removed instead of leaking. Retained
+        // for the whole commit: a Lock between wrap and creation must delete
+        // the native credential the wrap just created.
+        const wrapped = pending.wrappedOsStore
+        const slotId = wrapped?.slotId ?? newId()
+        const slot = this.deps.slots.osStore(pending.vaultId, slotId)
         let osStore: VaultSlotRecord
-        try {
-          osStore = await slot.wrap(pending.key)
-        } catch (error: unknown) {
-          throw storeRefusal(error)
+        let isFreshWrap = false
+        if (wrapped !== undefined && (await this.hasSetupIntent())) {
+          osStore = wrapped.record
+        } else {
+          pending.wrappedOsStore = undefined
+          try {
+            osStore = await slot.wrap(pending.key)
+          } catch (error: unknown) {
+            throw storeRefusal(error)
+          }
+          isFreshWrap = true
         }
         try {
           // Locked while wrapping: nothing is created and the key is erased below.
           this.assertSameLock(generation)
         } catch (error: unknown) {
-          // Nothing references the wrapped credential yet, so remove it
-          // instead of leaking a randomly named key in the OS store.
-          try {
-            await slot.remove?.()
-          } catch {
-            // The cancellation owns the outcome; cleanup is best effort.
+          // A fresh wrap is referenced by nothing yet, so remove it instead
+          // of leaking a randomly named key in the OS store; a reused wrap
+          // stays (its committed intent still names it).
+          if (isFreshWrap) {
+            pending.wrappedOsStore = undefined
+            try {
+              await slot.remove?.()
+            } catch {
+              // The cancellation owns the outcome; cleanup is best effort.
+            }
           }
           throw error
         }
@@ -734,6 +769,18 @@ export class VaultManagement implements VaultManagementPort {
             },
           )
         } catch (error: unknown) {
+          // A committed intent references this wrap: the retry completes it.
+          // Without one nothing ever will: remove the native credential now.
+          if (await this.hasSetupIntent()) {
+            pending.wrappedOsStore = { slotId, record: osStore }
+          } else {
+            pending.wrappedOsStore = undefined
+            try {
+              await slot.remove?.()
+            } catch {
+              // The failure owns the outcome; cleanup is best effort.
+            }
+          }
           throw error instanceof VaultStoreUnavailableError ? storeRefusal(error) : error
         }
         store.lock()
