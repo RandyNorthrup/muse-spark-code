@@ -56,3 +56,19 @@ it('reports kind words and retries the next start', () => {
   expect(calls).toBe(2)
   expect(errors).toHaveLength(1)
 })
+
+it('keeps the bundle loader remedy when the code did not load', () => {
+  const errors: string[] = []
+  const warned: string[] = []
+  const driver = deferredDriver(
+    listener(errors),
+    () => {
+      throw new Error(UI_TEXT.dictationNotLoaded)
+    },
+    memoryLog(warned),
+  )
+  driver.start()
+  expect(errors).toEqual([`${UI_TEXT.dictationFailed}: ${UI_TEXT.dictationNotLoaded}`])
+  expect(warned).toHaveLength(1)
+  expect(warned[0]).toContain('failed to start')
+})

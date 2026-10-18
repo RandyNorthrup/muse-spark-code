@@ -13,7 +13,7 @@
     },
     "host": {
       "SWALLOW": 46,
-      "GENERIC": 333,
+      "GENERIC": 334,
       "CLEANUP": 73
     },
     "root": {
@@ -5811,6 +5811,11 @@
     {
       "file": "src/host/skills/bundledSkillsInstall.ts",
       "identity": "6c2025372c3b57954fa24db39f584dc744cb16a504c6d11a48857c92f7c81007",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/support/hostFrames.ts",
+      "identity": "46fecadfb53ecb607715ea2b7d01a6d00ed5145ddcb8c8df0a68e06f48c07c6b",
       "class": "GENERIC"
     },
     {

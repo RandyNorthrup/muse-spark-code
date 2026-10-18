@@ -21,7 +21,9 @@ export function hostPackagePath(location: string, extensionRoot: string): string
     try {
       file = fileURLToPath(file)
     } catch (error: unknown) {
-      if (error instanceof TypeError) return undefined
+      // A malformed URL or its escapes drop the frame: anything else keeps
+      // its kind past the frame.
+      if (error instanceof TypeError || error instanceof URIError) return undefined
       throw error
     }
   }

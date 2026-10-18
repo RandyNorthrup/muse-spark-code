@@ -7,6 +7,18 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A problem report no longer chokes on a frame location with bad escapes.**
+  A stack location whose percent-encoding does not decode drops the frame
+  instead of failing the report.
+- **A voice driver that cannot start names its remedy again.** When the
+  dictation code did not load, the person hears the reinstall sentence
+  instead of "Voice dictation failed: Error".
+- **A best-of-N attempt that never ran names its reason again.** The
+  attempt's failed event keeps the redacted failure text (as the runner
+  records its own failures) instead of the bare "Error".
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights
