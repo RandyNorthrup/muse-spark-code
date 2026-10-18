@@ -385,3 +385,89 @@ budget or limit is raised.
 | 7 (P1) fabricated OAuth grants       | `test/unit/helpers/chatGptGrant.ts:100`              | NOT FIXED: helper added by `a5f929e30`; fix here (product-generated fields from product generators; tokens stay opaque placeholders, never sent; real sign-in stays the lead's packed-product proof). |
 | 8 (P2) gaps in streamed indices      | `src/core/backends/modelapi/codecs/responses.ts:357` | NOT FIXED: sort+compact without contiguity check; fix here (refuse unless sorted indices are exactly `0..length-1`).                                                                                  |
 | CI VSIX budget                       | `npm run package`                                    | NOT FIXED: VSIX 3801216 B vs budget 3788800 B (+2416 B); fix here by cutting shipped bytes, never by raising the budget.                                                                              |
+
+## PR180W1 fixes: threads 6-8 (commit `fafe94203`)
+
+6. Baseline (`src/runtime/chatGptProviderCommands.ts:292`): the captured
+   grant read marks its rejection handled at build
+   (`void baselineRecord.then(undefined, ...)`); each `verify` still
+   observes the failure through `await` and maps it to a sentence. A
+   startup host/lock/store failure no longer ends the standalone agent
+   as an unhandled rejection.
+7. Grants (`test/unit/helpers/chatGptGrant.ts`): every product-generated
+   field now comes from the product — `hostId` from `createChatGptHostId`,
+   `nonce` from `pkceRandom(PKCE_STATE_BYTES)`, `accountIdHash` from the
+   new exported `chatGptAccountIdHash` (the exact derivation
+   `verifyChatGptIdToken` used, now shared). Only the provider-issued
+   secrets stay synthetic (`oaiapp_…` form client, placeholder tokens): a
+   real issued client and real tokens can never be recorded (credentials
+   rule), they never leave the test process (unexpired grant, recorded
+   captures for fetch), and the lead's packed-product real sign-in is
+   their proof. Literal fabrication is answered, not just documented:
+   `chatGptAccountIdHash` is product code used by production.
+8. Gaps (`src/core/backends/modelapi/codecs/responses.ts:360`): the
+   terminal output refuses unless the sorted streamed indices are exactly
+   `0..length-1`; items 0 and 2 no longer compact into a two-element
+   reply.
+
+Tests: `chatGptAddNewAccount` gains the unhandled-rejection pin (failing
+host, 25 ms settle with no verifier, all four methods return the mapped
+sentence, zero unhandled events); `chatgptResponsesCodec` gains the gap
+refusal; new `chatGptGrantProvenance` pins schema/host-id/nonce/hash
+provenance plus hash distinctness. Drills, each seen red then reverted:
+contiguity check vacuously true (gap resolves instead of rejecting);
+handler line removed (one unhandled rejection captured); old helper
+restored (provenance fails on the hardcoded nonce/hash). Suites:
+add-new-account 4, provenance 2, codec+catalogue+local-failures 48,
+lock+host-id+facts 34 passed / 2 skipped (Windows-only). Gates on the
+final tree: eslint `--max-warnings=0` on all touched files clean (three
+of mine fixed, none suppressed); typecheck all five projects clean;
+`check:l10n` 0 problems; `check:plan` 0 drift; `check:reference`
+current; `jscpd` 0 clones; knip only pre-existing config/tag hints in
+untouched files; `cycles` clean. No `as` casts, no disables, no new UI
+text, no new limits, no changelog (claimed fixed only after real use).
+
+## PR180W1 VSIX budget: correction and measurement
+
+CORRECTION to the triage above: `3801216 - 3788800 = 12416`, not 2416.
+The overrun is TWELVE THOUSAND four hundred sixteen bytes.
+
+Method (mac rig cannot run the Linux-only helper build in
+`build-linux-helper.mjs`, so the full `npm run package` stops at
+`Required Linux created-path helper excluded from VSIX: x64`):
+`native/` is byte-identical between base `81dacaf5a` and this head, so
+identical 20,000-zero-byte stubs at
+`native/linux/{x64,arm64}/muse-created` in both trees cancel out exactly,
+and the real `node scripts/package-vsix.mjs` (vsce pack, compactVsix,
+max-DEFLATE compress, size check) measures the TRUE branch delta.
+Stubs were deleted from both trees after measuring.
+
+- Base `81dacaf5a`: VSIX 3331009 bytes (under budget).
+- Head (this lane): VSIX 3349190 bytes.
+- TRUE branch delta: +18181 bytes. CI head 3801216 follows as
+  3783035 + 18181 (real native artifacts identical both sides).
+
+Attribution of the +18181 (staged-file comparison): the packed locale
+archive `l10n/ui.tables.json.br` +10971 (the branch's ~35 new
+cause-naming sentences in all 14 translation tables, each genuine and
+each mandated by `check:l10n`); the code archive
+`dist/runtime.bundles.json.br` +4744 (registry/chatgpt/namedLock/
+keyStore/accountStoreError/facts — metafile-attributed, no duplication:
+one shared `chatGptFailureText` map, one lock implementation);
+renamed webview chunks +~2500 (the Fast switch and tier UI in App and
+ProvidersSection). Packaged CHANGELOG.md is byte-identical; no dep
+changes; no maps/tests/sources ship (354 staged files audited).
+
+Avenues exhausted, none cuttable: knip 0 dead, jscpd 0 clones, cycles
+clean; brotli quality already 11 and final DEFLATE already maximum;
+namedLock's POSIX/Windows halves cannot split without redesigning a
+reviewed, certified safety mechanism (grant-lock R2); verify reads
+cannot drop the refresh lock without reopening thread 3's race; English
+rewording would orphan all 14 translations. Removing any of the +18181
+removes reviewed product or breaks a gate. The cap itself is the lead's
+call (PLAN.md D6: the hosted CI universal VSIX on the release PR sets
+the final cap): this lane cannot raise it and cannot cut to it.
+
+The other CI failures need no action: quality (ubuntu/macos/windows),
+package (.vsix) and dictation-helper jobs are tier-gating skips
+downstream of the size gate, not independent failures.
