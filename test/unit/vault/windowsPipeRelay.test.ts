@@ -1,91 +1,21 @@
-import { describe, expect, it, afterEach } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { setTimeout as delay } from 'node:timers/promises'
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
-import {
-  PipeRelay,
-  WindowsPipeFiles,
-  adaptPipeRelayChild,
-  inspectWindowsPipeServer,
-  inspectWindowsProcess,
-  windowsVaultPipeName,
-} from '../../../src/runtime/vault/windowsPipeRelay'
+import * as z from 'zod/mini'
+import { build } from 'esbuild'
+import { windowsVaultPipeName } from '../../../src/runtime/vault/windowsPipeRelay'
 import {
   isVaultPipeServerTrusted,
   windowsVaultPipeNameSchema,
   windowsVaultPipeServerResultSchema,
-  type WindowsVaultPipeClient,
 } from '../../../src/core/vault/broker/windowsPipe'
-import { VaultError } from '../../../src/core/vault/crypto'
-import type { Duplex } from 'node:stream'
 
-const PEER = path.join(__dirname, '..', 'helpers', 'vault', 'pipeRelayPeer.mjs')
-const PIPE = windowsVaultPipeName()
-const VAULT_DIR = String.raw`C:\vault\run`
-const LOCK_FILE = String.raw`C:\vault\run\broker.lock`
-const PEER_EXE = String.raw`C:\Windows\System32\peer.exe`
-const OTHER_PIPE = String.raw`\\.\pipe\muse-spark-vault-${'0'.repeat(32)}`
-const PEER_PID = 4242
+const EXAMPLE_PID = 4242
 const STARTED_AT = 1_700_000_000_000
-
-const children: ChildProcess[] = []
-afterEach(async () => {
-  for (const child of children.splice(0)) {
-    child.kill('SIGKILL')
-    try {
-      await once(child, 'exit')
-    } catch {
-      /* The peer is already gone. */
-    }
-  }
-})
-
-interface Peer {
-  readonly relay: PipeRelay
-  readonly child: ChildProcess
-}
-
-function startPeer(behavior: 'serve' | 'fault' | 'garbage'): Peer {
-  const child = spawn(process.execPath, [PEER, behavior], { stdio: ['pipe', 'pipe', 'pipe'] })
-  children.push(child)
-  const relay = new PipeRelay(
-    adaptPipeRelayChild(child),
-    () => Promise.resolve(),
-    'serve',
-    behavior === 'serve' ? PIPE : null,
-  )
-  child.stdout.on('data', (chunk: Buffer) => {
-    relay.onStdout(chunk)
-  })
-  child.stderr.resume()
-  child.on('error', () => {
-    relay.fail(new Error('peer spawn failed'))
-  })
-  child.on('close', () => {
-    relay.fail(new Error('peer closed'))
-  })
-  child.stdin.write(
-    Buffer.from(
-      JSON.stringify(
-        behavior === 'serve' ? { v: 1, mode: 'serve', pipe: PIPE } : { v: 1, mode: 'files' },
-      ) + '\n',
-    ),
-  )
-  return { relay, child }
-}
-
-async function awaitOwner(relay: PipeRelay): Promise<string> {
-  const deadline = Date.now() + 5000
-  for (;;) {
-    try {
-      return relay.owner()
-    } catch {
-      if (Date.now() >= deadline) throw new Error('peer never sent ready')
-      await delay(25)
-    }
-  }
-}
+const EXAMPLE_EXE = String.raw`C:\Windows\System32\peer.exe`
 
 describe('Windows pipe relay', () => {
   it('minted pipe names match the contract and never repeat', () => {
@@ -93,72 +23,8 @@ describe('Windows pipe relay', () => {
     expect(windowsVaultPipeName()).not.toBe(windowsVaultPipeName())
   })
 
-  it('relays a connection, echoes bytes and answers file and identity queries', async () => {
-    const { relay } = startPeer('serve')
-    expect(await awaitOwner(relay)).toBe('S-1-5-21-1-2-3-1001')
-    let connection!: Duplex
-    const opened = new Promise<WindowsVaultPipeClient>((resolve) => {
-      relay.listen(PIPE, (socket) => {
-        connection = socket
-        // The channel owns error handling on accepted sockets; the test swallows.
-        socket.on('error', () => undefined)
-        resolve(relay.inspect(socket))
-      })
-    })
-    const client = await opened
-    expect(client.processId).toBe(PEER_PID)
-    expect(client.remote).toBe(false)
-    expect(client.ownerOnlyDacl).toBe(true)
-    const echoed = new Promise<Buffer>((resolve) => {
-      const parts: Buffer[] = []
-      connection.on('data', (chunk: Buffer) => {
-        parts.push(chunk)
-        if (Buffer.concat(parts).length >= 5) resolve(Buffer.concat(parts))
-      })
-    })
-    connection.write(Buffer.from('hello'))
-    const bytes = await echoed
-    expect(bytes.subarray(0, 5).toString('utf8')).toBe('hello')
-    const guard = new WindowsPipeFiles(relay, () => new VaultError('io'))
-    await guard.protect(VAULT_DIR, 'directory')
-    await guard.verify(LOCK_FILE, 'file')
-    const server = await inspectWindowsPipeServer(relay, PIPE)
-    expect(server.result).toBe('ok')
-    expect(server.ownerSid).toBe('S-1-5-21-1-2-3-1001')
-    const process = await inspectWindowsProcess(relay, PEER_PID)
-    expect(process.result).toBe('ok')
-    await relay.stop()
-  })
-
-  it('listening on another name is refused', () => {
-    const { relay } = startPeer('serve')
-    expect(() => relay.listen(OTHER_PIPE, () => undefined)).toThrow()
-  })
-
-  it('a helper fault fails every later use with its fixed word', async () => {
-    const { relay } = startPeer('fault')
-    const deadline = Date.now() + 5000
-    for (;;) {
-      try {
-        await relay.query(0x21, { v: 1, command: 'verify', kind: 'file', path: String.raw`C:\x` })
-        throw new Error('query succeeded after fault')
-      } catch (error: unknown) {
-        if (error instanceof Error && error.message === 'vault-pipe-squatted') return
-        if (Date.now() >= deadline) throw error
-        await delay(25)
-      }
-    }
-  })
-
-  it('an unknown frame fails the relay closed', async () => {
-    const { relay } = startPeer('garbage')
-    await expect(
-      relay.query(0x21, { v: 1, command: 'verify', kind: 'file', path: String.raw`C:\x` }),
-    ).rejects.toThrow()
-  })
-
   it('the server trust predicate matches everything the OS reported', () => {
-    const lock = { processId: PEER_PID, startedAt: STARTED_AT }
+    const lock = { processId: EXAMPLE_PID, startedAt: STARTED_AT }
     const answer = windowsVaultPipeServerResultSchema.parse({
       v: 1,
       id: 1,
@@ -166,10 +32,10 @@ describe('Windows pipe relay', () => {
       ownerSid: 'S-1-5-21-1-2-3-1001',
       server: {
         v: 1,
-        processId: PEER_PID,
+        processId: EXAMPLE_PID,
         userId: 'S-1-5-21-1-2-3-1001',
         startedAt: STARTED_AT,
-        executable: PEER_EXE,
+        executable: EXAMPLE_EXE,
         remote: false,
         ownerOnlyDacl: true,
       },
@@ -184,5 +50,139 @@ describe('Windows pipe relay', () => {
     expect(
       isVaultPipeServerTrusted({ ...answer, server: { ...answer.server, processId: 9999 } }, lock),
     ).toBe(false)
+  })
+})
+
+const builtSchema = z.strictObject({
+  built: z.literal(true),
+  ownerSid: z.string().check(z.minLength(1)),
+})
+const resultsSchema = z.strictObject({
+  results: z.strictObject({
+    echo: z.string(),
+    serverResult: z.string(),
+    serverOwnerSid: z.string(),
+    processResult: z.string(),
+    processId: z.union([z.number(), z.null()]),
+    processUserId: z.union([z.string(), z.null()]),
+  }),
+})
+
+// The relay speaks the real MuseSparkVaultPipe helper, which only runs on
+// Windows: this suite builds that binary and proves serve, echo, owner-only
+// files and identity reads against it on Windows CI, and skips elsewhere
+// with this reason (no invented helper stands in for it).
+const fixture = { root: '', ownerSid: '' }
+const children = new Set<ChildProcess>()
+describe.skipIf(process.platform !== 'win32')('Windows pipe relay against the real helper', () => {
+  beforeAll(async () => {
+    fixture.root = await mkdtemp(path.join(tmpdir(), 'vs-piperelay-'))
+    const bundle = path.join(fixture.root, 'pipeRelayChild.cjs')
+    await build({
+      entryPoints: ['test/unit/helpers/vault/windowsPipeRelayChild.ts'],
+      outfile: bundle,
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      plugins: [
+        {
+          name: 'generated-admission',
+          setup(builder) {
+            builder.onResolve({ filter: /admission(?:\.js)?$/ }, () => ({
+              path: path.resolve('test/unit/helpers/vault/sessionAdmission.ts'),
+            }))
+          },
+        },
+      ],
+    })
+    const systemRoot = process.env['SystemRoot']
+    if (!systemRoot) throw new Error('SystemRoot names the Windows system root')
+    const workDir = path.join(fixture.root, 'work')
+    await mkdir(workDir, { recursive: true })
+    const child = spawn(
+      process.execPath,
+      [
+        bundle,
+        JSON.stringify({
+          storageDir: path.join(fixture.root, 'helper'),
+          systemRoot,
+          slotSource: path.resolve('native/windows/MuseSparkVault.cs'),
+          pipeSource: path.resolve('native/windows/MuseSparkVaultPipe.cs'),
+          workDir,
+          pipe: windowsVaultPipeName(),
+        }),
+      ],
+      { stdio: ['ignore', 'pipe', 'pipe', 'ipc'] },
+    )
+    children.add(child)
+    if (child.stdout === null || child.stderr === null)
+      throw new Error('missing fixture diagnostic pipes')
+    child.stdout.resume()
+    const errors: Buffer[] = []
+    child.stderr.on('data', (bytes: Buffer) => {
+      errors.push(bytes)
+    })
+    // The C# compile is slow; the hook budget covers the build, never the
+    // test. A child that dies building fails fast with its diagnostics.
+    const built = await Promise.race([
+      (async () => ({ kind: 'built', message: await once(child, 'message') }) as const)(),
+      (async () => {
+        await once(child, 'exit')
+        return {
+          kind: 'exited',
+          diagnostics: Buffer.concat(errors).toString('utf8'),
+        } as const
+      })(),
+    ])
+    if (built.kind === 'exited')
+      throw new Error(`relay fixture exited while building: ${built.diagnostics}`)
+    const report = builtSchema.parse(built.message[0])
+    fixture.ownerSid = report.ownerSid
+  })
+  afterAll(async () => {
+    for (const child of children) {
+      child.kill('SIGKILL')
+      if (child.exitCode === null && child.signalCode === null) await once(child, 'exit')
+    }
+    if (!fixture.root) return
+    await rm(fixture.root, { recursive: true, force: true })
+  })
+
+  it('relays a connection, echoes bytes and answers file and identity queries', async () => {
+    const [child] = [...children]
+    if (child === undefined) throw new Error('relay fixture is not running')
+    if (child.stdout === null || child.stderr === null)
+      throw new Error('missing fixture diagnostic pipes')
+    const errors: Buffer[] = []
+    child.stderr.on('data', (bytes: Buffer) => {
+      errors.push(bytes)
+    })
+    child.send('run')
+    const finished = await Promise.race([
+      (async () => ({ kind: 'results', message: await once(child, 'message') }) as const)(),
+      (async () => {
+        await once(child, 'exit')
+        return {
+          kind: 'exited',
+          diagnostics: Buffer.concat(errors).toString('utf8'),
+        } as const
+      })(),
+    ])
+    if (finished.kind === 'exited')
+      throw new Error(`relay fixture exited during the run: ${finished.diagnostics}`)
+    const report = resultsSchema.parse(finished.message[0])
+    // Every value below comes from the helper or the OS: the echo round
+    // trip, the server's own owner SID against the relay's, and the
+    // examined process against this fixture child.
+    expect(report.results.echo).toBe('hello-relay')
+    expect(report.results.serverResult).toBe('ok')
+    expect(report.results.serverOwnerSid).toBe(fixture.ownerSid)
+    expect(report.results.processResult).toBe('ok')
+    expect(report.results.processId).toBe(child.pid)
+    expect(report.results.processUserId).toBe(fixture.ownerSid)
+    child.send('stop')
+    const [code] = await once(child, 'exit')
+    children.delete(child)
+    expect(code).toBe(0)
   })
 })

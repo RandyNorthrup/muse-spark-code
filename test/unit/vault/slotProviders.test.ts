@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { randomBytes } from 'node:crypto'
 import { VaultError } from '../../../src/core/vault/crypto'
 import { VaultStoreUnavailableError } from '../../../src/core/vault/broker/ports'
-import { vaultSlotRecordSchema, type VaultSlotRecord } from '../../../src/shared/vault'
+import {
+  vaultSlotRecordSchema,
+  type VaultSlotRecord,
+  type VaultUse,
+} from '../../../src/shared/vault'
 import { defaultBrokerSlots } from '../../../src/runtime/vault/vaultBrokerEntry'
 import { LinuxVaultSlots } from '../../../src/runtime/vault/slots/linuxVaultSlots'
 import { MacVaultSlots } from '../../../src/runtime/vault/slots/macVaultSlots'
@@ -123,14 +127,7 @@ describe('platform slot providers', () => {
     const capabilities = await linuxTpm2Capabilities()
     // The probe's contract, on any machine: sealing implies a device.
     expect(!capabilities.canSeal || capabilities.hasDevice).toBe(true)
-    const use = {
-      kind: 'sudo',
-      command: { executable: '/usr/bin/apt', argv: [], cwd: '/' },
-      sudoPath: '/usr/bin/sudo',
-    } as const
-    expect(
-      await new LinuxVaultSlots({ platform: 'linux' }).presence('item', 'challenge', use),
-    ).toBe(false)
+    expect(await new LinuxVaultSlots({ platform: 'linux' }).presence()).toBe(false)
   })
 
   it('the TPM2 slot seals where the machine seals and refuses where it cannot', async () => {
@@ -205,11 +202,11 @@ describe('platform slot providers', () => {
       platform: 'darwin',
       presenceRecords: () => Promise.resolve([presenceRecord]),
     })
-    const use = {
+    const use: VaultUse = {
       kind: 'sudo',
       command: { executable: '/usr/bin/apt', argv: [], cwd: '/' },
       sudoPath: '/usr/bin/sudo',
-    } as const
+    }
     // The helper is absent, so the fresh unwrap fails and presence refuses.
     expect(await slots.presence('item', 'challenge', use)).toBe(false)
     const none = new MacVaultSlots(macTransport(), {
@@ -245,7 +242,7 @@ describe('platform slot providers', () => {
 
   it('Windows presence fails closed without a presence record or a helper', async () => {
     const { vaultId, slotId } = ids()
-    const use = {
+    const use: VaultUse = {
       kind: 'sudo',
       command: {
         executable: String.raw`C:\Windows\System32\cmd.exe`,
@@ -253,7 +250,7 @@ describe('platform slot providers', () => {
         cwd: String.raw`C:\Windows`,
       },
       sudoPath: String.raw`C:\Windows\System32\sudo.exe`,
-    } as const
+    }
     const none = new WindowsVaultSlots(windowsHelper(), { platform: 'win32' })
     expect(await none.presence('item', 'challenge', use)).toBe(false)
     const presenceRecord = {
