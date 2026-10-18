@@ -121,6 +121,18 @@ What "no tool ran" rests on: exec receipts (`inputs []`,
 `filesChanged []`, paid zero) and ACP turn updates (zero `tool_call*`
 updates on every playback turn, vs 2 on the ordinary turn before it).
 
+## PR #221 third round — one line per thread (2026-10-18, lane PR221W1, branch `ms/playback`)
+
+1. `conversationController.ts:null` (P2, Muse Code tools before playback): already fixed by `a1c516f17` — panel and ACP refuse where the session has no backend no-tools turn (`playbackNeedsModelApi`); the Plan-held path and `PlaybackWatch` are gone (zero references in `src/` or `test/`). This lane verifies and fixes the stale Plan-hold comment.
+2. `src/acp/agent.ts:2001` (P1, playback+attachments resolved first): already fixed by `fcaf9a047` — the command is detected from the raw text blocks before `promptParts()` runs, and `displayText` derives from text blocks only (`translate.ts:806-808`), so the post-conversion check can only see single-text usage where no media conversion occurs.
+3. `README.md:null` (P1, unproven panel/Model API claims): already narrowed by `19db66abf` (Model API only, both refusals named). The live panel and Model API playbacks remain lead-side: no browser/display/key on this rig, and live calls are out of scope here.
+4. `ModelApiHost.ts:4416` (P2, playback with `--output-schema`): already fixed by `f5ce93e5c` — `playback()` rejects with `playbackOutputSchemaRefused` before dispatch (verified at `ModelApiHost.ts:15994-15997`).
+5. `conversationController.ts:7568` (P1, playback starts across shared panels): already fixed by `3c668e5d9` — per-shared-session barrier through `sessionSurfaces` (verified at `conversationController.ts:7599-7614`); the Plan-restore race is gone with fix 1.
+6. `ModelApiHost.ts:14068` (P1, workspace context loading for playback): new — fix in code this lane: skip `context.load()` for playback turns, use only held context.
+7. `ModelApiHost.ts:14136` (P1, external hooks during playback): new — fix in code this lane: bypass turn hooks for playback (`UserPromptSubmit`, `noteLoadedRules`, `UserPromptExpansion`, `PreLLMCall`) and withhold pending hook contexts from its turn.
+8. `playbackPrompt.ts:16` (P2, marker enforced outside the model): new — fix in code this lane: the host ensures the marker on the turn's first playback text, stream and stored alike.
+   CI failures: none listed in the brief.
+
 ## Left undone (for the lead)
 
 - Panel live run: no browser and no display on this rig (`ui:look`:
