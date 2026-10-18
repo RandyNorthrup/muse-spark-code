@@ -123,7 +123,7 @@ export const PAID_USE_REGISTRY = {
   autoCompaction: { featureId: 'auto-compaction', tally: 'autoCompactionRequests', once: 'window' },
   webSearch: { featureId: 'search', tally: 'webSearches', once: 'window' },
   imageGeneration: { featureId: 'images', tally: 'images', once: 'use' },
-  voice: { featureId: 'voice', tally: 'voiceSeconds', once: 'window' },
+  voice: { featureId: 'voice', tally: 'voiceSeconds', once: 'use' },
   subagents: {
     featureId: 'subagents',
     tally: 'subagentRequests',
