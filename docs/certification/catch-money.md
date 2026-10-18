@@ -782,6 +782,118 @@ this lane, then this section grows the receipts.
   local `npm run package`, then cut at the cause. All other listed CI
   failures are downstream of a red gate and need no separate fix.
 
+## PR161W1 receipts (2026-10-18, lane PR161W1)
+
+- usage.tsx boot report: no change (49543e7 holds, verified in the
+  tree). The one new usage report path — `UsageApp` action failures
+  (`src/webview/usage/UsageApp.tsx`) — now posts best-effort in a
+  guarded send, mirroring the boot path; the shown `readFailed` state
+  is set before the report, so a refused report never hides the
+  failure. Typecheck, eslint and the related suites green; the
+  interactive bridge-refusal proof waits for the lead's real-life run
+  (HTTP/JCEF/WebView2/SWT usage bridge refusing `webviewError`).
+- paidConsent non-`Error` writes: no change (49543e7 holds:
+  `remember()`, `searchApprovalOrder()`, quote-save all classify with
+  `paidStoreFailureKind`). Verified by grep in the tree.
+- oauthJson aborts: no change (49543e7 holds). Verified in the tree.
+- getApiKey warn-once: no change (49543e7 holds). Verified in the
+  tree.
+- credentialReadFailures fabricated test: no change (9b443c5d5
+  holds). Verified in the tree.
+- paidConsent:458 non-search stale notice: no change (43cef3efc
+  holds). Verified in the tree.
+- damageNotice healthy-side gate: no change (651cce0c11 holds).
+  Verified in the tree.
+- credentialReadFailures:28: the whole file is deleted (4 remaining
+  cases drove hand-written ports with invented errors); titles
+  withdrawn to `docs/real-life/unproven.md` (PR161W1 section) with the
+  lead's real-life scenario (repeated guarded scans on a keyring-less
+  Linux box: one warning per kind; healthy scan re-arms).
+- paidConsent:704 (commit `8fb6f54952`): `settleStaleNotKept` takes the
+  fencing call's feature and settles only its entries; same-feature
+  overlapping calls share one inner question, so same-feature entries
+  belong to one decision. Scratch probe through the real
+  `PaidUseConsent` (deleted after the run, never committed): two stale
+  `allows()` calls, per-feature settle announces only its own notice;
+  a refused fence drops only its own entry — 6/6 green. Red drill on
+  the pre-fix tree: the voice fence announced both notices and a voice
+  refusal discarded the image notice (5 probe failures), matching the
+  thread.
+- damageNotice:44 (commits `8fb6f54952`, `eedc1fb24b`): `writeMarker`
+  claims through an exclusive link; the loser re-reads and yields on
+  the same identity, replaces on a changed damage, and falls back to
+  the crash-safe rename where no atomic claim exists (never hides).
+  Real-code test (`test/unit/damageNotice.test.ts`, real temp folder):
+  claim-true, lose-false with the marker untouched, change-wins —
+  green; red drill on the old code fails the new test 1/2. Real
+  cross-window drill (12 node processes behind a file barrier, same
+  shared file): new code announces exactly once, pre-fix code
+  announces 10 times. A repair landing between observation and claim
+  can still announce a stale damage; that pre-existing window is
+  unchanged.
+- nodeScheduleFs:125 (commit `8fb6f54952`): the post-publish `finally`
+  re-queues a persistent removal failure for the next write instead of
+  rejecting a committed publication (the owed-cleanup loop still
+  reports it there). A persistent `EIO`-class unlink cannot be
+  produced with real file systems, so no committed test covers the
+  path; the schedule suites stay green.
+- extension.ts:1164 (commit `a9f8720dd9`): `activateWindow` no longer
+  awaits the paid/auth entry imports; activation keeps the bundle
+  loaders (`src/host/paid/paidBundle.ts`, `src/host/auth/authBundle.ts`,
+  mirroring `usagePanelBundle.ts`) and typed facades, and each entry
+  is required from its first operation. No call-site changes; all
+  `paid.*`/`auth.*` uses are post-activation closures (verified by
+  inspection). Typecheck (all projects), eslint, build and the lazy
+  registry green. Loader drill through the real `dist/paid.js` /
+  `dist/auth.js` bytes (deleted after the run): both load through the
+  new loaders with the shape guards passing, memoized across calls
+  (`vscode` resolution stubbed for loading only; no behaviour run
+  through the stub). First-use proof through the packed product waits
+  for the lead (the rig cannot package: the arm64 helper builds for the
+  current arch only).
+- catch-inventory.mjs:537 (commit `eedc1fb24b`): the ratchet now
+  accepts SWALLOW, GENERIC and CLEANUP sites by identity (baseline
+  v3). A reason comment still marks CLEANUP, but the site fails until
+  a person audits that exact site and regenerates the baseline — a
+  commented primary-operation tail can no longer bypass the gate
+  silently. Regression test added
+  (`test/unit/catchInventory.test.mjs`: a planted commented primary
+  tail fails as `new CLEANUP catch site` until accepted). The two
+  `history.ts` pump tails forward their rejection to the recorder's
+  error channel (REPORTED) instead of dropping it; the recorder's
+  `onError` widens to `(failure?: unknown) => void` with both
+  production callers unchanged and assignable. Three guarded-scan
+  catches read GENERIC (the classifier has no conditional-record
+  class; every first failure still reaches the record with its
+  redacted kind) and one usage catch moved REPORTED to GENERIC (the
+  guarded report nests the sink call); all four are recorded accepted
+  debt in baseline v3 with this justification. No SWALLOW/GENERIC
+  count rose except these four justified sites; no CLEANUP site was
+  removed silently.
+- credentialRead.ts:206 (commit `8fb6f54952`): guarded scans warn
+  once per owner and read kind (`key`, `list`, `provider:<id>`) with
+  healthy-scan re-arm. Scratch probe through the real reads (deleted
+  after the run): fail, fail-silent, healthy-silent, fail-warns-again
+  — 4/4 green; red drill on the pre-fix tree warns on every scan.
+- CI VSIX budget: MEASURED, not fixed (needs the lead's call). Local
+  `npm run package` cannot run on this rig: staging refuses without
+  `native/linux/arm64/muse-created`, and `scripts/build-linux-helper.mjs`
+  builds the helper for the current arch only. Proxy measurement
+  instead: per-file gzip over the vsce-staged set, main worktree
+  against this tree — lane stages +32,198 gzip bytes over main
+  (≈ CI's +17,205 solid bytes): `dist/auth.js` +17,718 and
+  `dist/paid.js` +15,615 (new CIFIX161B bundles) against
+  `dist/extension.js` −13,951, `l10n` +7,213 (19 new strings × 14
+  tables), small dist growth +2,500, root/changelog +2,900. No waste
+  found: knip clean, auth/paid overlap ~457 bytes (the sharing
+  plugins already externalize), no staged junk, packaging already at
+  maximum deflate. Cutting 17 KiB solid without removing branch
+  features is not possible unilaterally. Options for the lead: (a) a
+  feature diet on this branch, or (b) a re-derivation of the
+  provisional cap through the authorized CAPS process (budgets are
+  never raised in-lane). All other listed CI failures are downstream
+  of red gates and need no separate fix.
+
 ## PR161FIX3: thread triage (2026-10-18, lane PR161FIX3)
 
 One line per review thread; fixes follow in this lane, then this section
