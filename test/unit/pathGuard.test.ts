@@ -1,8 +1,9 @@
 // The PATH guard: no workspace program runs from PATH when Muse Code starts
 // (docs/certification/pathguard.md). Drives the real environment builder
 // with a real temporary workspace and a real planted program.
+import { spawnSync } from 'node:child_process'
 import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises'
-import { existsSync, realpathSync } from 'node:fs'
+import { chmodSync, existsSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -64,6 +65,29 @@ describe('sanitizePathForWorkspace', () => {
       }),
     ).toBe(String.raw`D:\Tools;C:\Git\cmd`)
   })
+
+  it('resolves rooted Windows entries on the workspace drive: inside goes, outside stays', () => {
+    const joined = String.raw`\Users\me\project\bin;/Users/me/project/bin;\Other\bin;D:\Tools;\\srv\share\bin`
+    expect(
+      sanitizePathForWorkspace({
+        platform: 'win32',
+        pathVariable: joined,
+        workspaceRoot: String.raw`D:\Users\me\project`,
+        realpath: throwingRealpath,
+      }),
+    ).toBe(String.raw`\Other\bin;D:\Tools;\\srv\share\bin`)
+  })
+
+  it('drops rooted Windows entries when the workspace root names no drive', () => {
+    expect(
+      sanitizePathForWorkspace({
+        platform: 'win32',
+        pathVariable: String.raw`\Tools\bin;D:\Tools`,
+        workspaceRoot: String.raw`\\srv\share\project`,
+        realpath: throwingRealpath,
+      }),
+    ).toBe(String.raw`D:\Tools`)
+  })
 })
 
 describe('buildChildEnvironment PATH guard', () => {
@@ -89,6 +113,53 @@ describe('buildChildEnvironment PATH guard', () => {
       realpath: throwingRealpath,
     })
     expect('PATH' in env).toBe(false)
+  })
+
+  it('deletes PATH when nothing remains instead of storing an empty one', () => {
+    const env = buildChildEnvironment({
+      platform: 'linux',
+      baseEnv: { PATH: '/home/person/work/bin:.:/home/person/work' },
+      extraVariables: [],
+      systemRoot: undefined,
+      programFiles: undefined,
+      workspaceRoot: '/home/person/work',
+      realpath: throwingRealpath,
+    })
+    expect('PATH' in env).toBe(false)
+  })
+
+  it('sanitizes a PATH from environmentVariables instead of letting it replace the guard', () => {
+    const env = buildChildEnvironment({
+      platform: 'linux',
+      baseEnv: { PATH: '/usr/bin' },
+      extraVariables: [{ name: 'PATH', value: '/home/person/work/bin:./bin:/usr/bin' }],
+      systemRoot: undefined,
+      programFiles: undefined,
+      workspaceRoot: '/home/person/work',
+      realpath: throwingRealpath,
+    })
+    expect(env['PATH']).toBe('/usr/bin')
+  })
+
+  it('sets NoDefaultCurrentDirectoryInExePath on a guarded Windows child only', () => {
+    const guarded = buildChildEnvironment({
+      platform: 'win32',
+      baseEnv: { PATH: String.raw`D:\Tools` },
+      extraVariables: [],
+      systemRoot: undefined,
+      programFiles: undefined,
+      workspaceRoot: String.raw`D:\ws`,
+      realpath: throwingRealpath,
+    })
+    expect(guarded['NoDefaultCurrentDirectoryInExePath']).toBe('1')
+    const unguarded = buildChildEnvironment({
+      platform: 'win32',
+      baseEnv: { PATH: String.raw`D:\Tools` },
+      extraVariables: [],
+      systemRoot: undefined,
+      programFiles: undefined,
+    })
+    expect('NoDefaultCurrentDirectoryInExePath' in unguarded).toBe(false)
   })
 })
 
@@ -159,5 +230,52 @@ describe('planted workspace program (real filesystem)', () => {
         fileExists: existsSync,
       }),
     ).toBe(path.join(nodeDir, systemName))
+  })
+
+  // A real process start, not a lookup: the planted program runs from the
+  // raw PATH with the workspace as the working directory, and the same start
+  // from the guarded child environment finds nothing. (Windows CreateProcess
+  // behaviour is covered by the recorded probe in docs/certification/m21.md
+  // plus the NoDefaultCurrentDirectoryInExePath assertion above.)
+  it.runIf(PLATFORM !== 'win32')(
+    'the planted program runs raw but not from the child environment',
+    () => {
+      chmodSync(path.join(binDir, PLANTED), 0o755)
+      const nodeDir = path.dirname(process.execPath)
+      const rawPath = [binDir, nodeDir].join(':')
+      const ran = spawnSync(PLANTED, [], { cwd: root, env: { PATH: rawPath }, encoding: 'utf8' })
+      expect(ran.error).toBeUndefined()
+      expect(ran.status).toBe(0)
+      expect(ran.stdout.trim()).toBe('planted')
+      const child = buildChildEnvironment({
+        platform: PLATFORM,
+        baseEnv: { PATH: rawPath },
+        extraVariables: [],
+        systemRoot: undefined,
+        programFiles: undefined,
+        workspaceRoot: root,
+        realpath: realpathSync,
+      })
+      const blocked = spawnSync(PLANTED, [], { cwd: root, env: { ...child }, encoding: 'utf8' })
+      expect(blocked.status).toBeNull()
+      expect(blocked.error?.message).toContain('ENOENT')
+    },
+  )
+
+  it.runIf(PLATFORM !== 'win32')('no PATH key means no working-directory fallback', () => {
+    chmodSync(path.join(binDir, PLANTED), 0o755)
+    const child = buildChildEnvironment({
+      platform: PLATFORM,
+      baseEnv: { PATH: [binDir, '.', ''].join(':') },
+      extraVariables: [],
+      systemRoot: undefined,
+      programFiles: undefined,
+      workspaceRoot: root,
+      realpath: realpathSync,
+    })
+    expect('PATH' in child).toBe(false)
+    const blocked = spawnSync(PLANTED, [], { cwd: root, env: { ...child }, encoding: 'utf8' })
+    expect(blocked.status).toBeNull()
+    expect(blocked.error?.message).toContain('ENOENT')
   })
 })

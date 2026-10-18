@@ -20,6 +20,19 @@ export interface ExecutableProbe {
 // `execFile` starts these directly; batch files need a shell.
 const WINDOWS_EXECUTABLE_EXTENSIONS = ['.exe', '.com'] as const
 
+/**
+ * Whether a Windows path names its drive (or server and share), so it means
+ * the same folder whatever the child's working directory is. `path.win32`
+ * calls a rooted `\foo` or `/foo` absolute, but CreateProcess resolves it on
+ * the working directory's drive — with the workspace as the working
+ * directory that is the workspace's drive, so such an entry can name the
+ * workspace. Only drive-letter (`D:\…`, `D:/…`) and UNC (`\\server\share\…`)
+ * entries are fully qualified; anything else rooted is drive-relative.
+ */
+export function isFullyQualifiedWindowsPath(entry: string): boolean {
+  return /^[a-z]:[\\/]/iu.test(entry) || entry.startsWith('\\\\')
+}
+
 /** The absolute, non-empty entries of a PATH value, in order. */
 export function absolutePathEntries(
   platform: NodeJS.Platform,
@@ -30,7 +43,12 @@ export function absolutePathEntries(
   return (pathVariable ?? '')
     .split(separator)
     .map((entry) => entry.trim())
-    .filter((entry) => entry !== '' && p.isAbsolute(entry))
+    .filter(
+      (entry) =>
+        entry !== '' &&
+        p.isAbsolute(entry) &&
+        (platform !== 'win32' || isFullyQualifiedWindowsPath(entry)),
+    )
 }
 
 export interface WorkspacePathSanitizeProbe {
@@ -82,9 +100,12 @@ function resolveForCompare(probe: WorkspacePathSanitizeProbe, filePath: string):
  * directory before PATH), so with the workspace as the working directory a
  * planted program would otherwise run instead of the real one — as Muse
  * Code 1.4.9 proved with a planted `<workspace>/bin/bwrap` at `muse serve`
- * start (docs/certification/pathguard.md). Nothing else changes: kept
- * entries stay byte-identical and in order, and entries that cannot be
- * resolved are kept unless they are relative, empty, or lexically inside.
+ * start (docs/certification/pathguard.md). On Windows a rooted `\foo` or
+ * `/foo` entry is drive-relative and resolves on the child's drive, so it
+ * is compared with the workspace root's drive applied (and dropped when the
+ * root names no drive). Nothing else changes: kept entries stay
+ * byte-identical and in order, and entries that cannot be resolved are kept
+ * unless they are relative, empty, or lexically inside.
  */
 export function sanitizePathForWorkspace(probe: WorkspacePathSanitizeProbe): string {
   const p = probe.platform === 'win32' ? path.win32 : path.posix
@@ -94,11 +115,22 @@ export function sanitizePathForWorkspace(probe: WorkspacePathSanitizeProbe): str
   const kept: string[] = []
   for (const entry of entries) {
     const trimmed = entry.trim()
-    if (
-      trimmed === '' ||
-      !p.isAbsolute(trimmed) ||
-      isSameOrInsideDirectory(probe.platform, root, resolveForCompare(probe, trimmed))
-    ) {
+    if (trimmed === '' || !p.isAbsolute(trimmed)) {
+      continue
+    }
+    // A rooted `\foo` or `/foo` entry is drive-relative: the child resolves
+    // it on its own working directory's drive, which is the workspace's
+    // drive, so compare it with that drive applied. Without a drive on the
+    // workspace root there is nothing safe to resolve it against: drop it.
+    let candidate = trimmed
+    if (probe.platform === 'win32' && !isFullyQualifiedWindowsPath(trimmed)) {
+      const drive = /^([a-z]:)/iu.exec(root)?.[1]
+      if (drive === undefined) {
+        continue
+      }
+      candidate = `${drive}${trimmed.replaceAll('/', '\\')}`
+    }
+    if (isSameOrInsideDirectory(probe.platform, root, resolveForCompare(probe, candidate))) {
       continue
     }
     kept.push(entry)
