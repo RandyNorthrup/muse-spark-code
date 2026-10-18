@@ -228,6 +228,8 @@ export async function createVaultBrokerBindings(
         new AsyncEntry(service, account, { linux: { store: 'secret-service' } })
       anchor ??= new KeyringVaultAnchor(keyring)
     } catch {
+      // No installed binding (a staged package carries no node_modules):
+      // the file anchor keeps the same record and rollback rules.
       keyring = unavailableKeyring()
       anchor ??= new FileVaultAnchor(vaultAnchorFile(context.dataDir))
     }
@@ -354,6 +356,8 @@ async function createWindowsVaultBrokerBindings(
       keyring = (service, account) => new AsyncEntry(service, account)
       anchor ??= new KeyringVaultAnchor(keyring)
     } catch {
+      // No installed binding: the file anchor keeps the same record and
+      // rollback rules under the pipe-helper guard.
       keyring = unavailableKeyring()
       // Modes set no DACL on Windows: the pipe-helper guard protects the
       // anchor directory and file after each write, like the vault files.
