@@ -340,8 +340,8 @@ import {
 } from './host/media/mediaProviders'
 import { mediaBundleLoader } from './host/media/mediaBundle'
 import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRecordBundle'
-import { createLinuxLatestPort } from './host/media/recordingLatest'
-import { latestLinuxRecording } from './core/media/record/linux'
+import { createLatestRecordingPort } from './host/media/recordingLatest'
+import { findLatestRecording } from './core/media/record/linux'
 import type { ScreenRecordingPreview } from './core/media/record/driver'
 import { loadVaultControls, registerVaultCommands } from './host/vault/vaultPanelBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
@@ -3374,10 +3374,14 @@ async function activateWindow(
     canonicalRelativePath: (fsPath) => files.canonicalRelativePath(fsPath),
     recordingTempRoot,
   })
-  const linuxLatestPort = createLinuxLatestPort({ tempRoot: recordingTempRoot })
+  // PARITYREC: Attach latest reads the running platform's OS recordings
+  // location (Linux Videos, Windows Screen Recordings, macOS Desktop).
+  const latestPort = createLatestRecordingPort({
+    platform: process.platform,
+    tempRoot: recordingTempRoot,
+  })
   const latestScreenRecording = async (): Promise<ScreenRecordingPreview | undefined> => {
-    if (process.platform !== 'linux') return undefined
-    const result = await latestLinuxRecording(linuxLatestPort)
+    const result = await findLatestRecording(latestPort)
     return result.ok ? result.preview : undefined
   }
   const controllerFor = (surface: ChatSurface): ConversationController => {
@@ -3457,8 +3461,9 @@ async function activateWindow(
           // No native driver binds in this round: macOS needs its signed
           // helper, Windows direct capture is unavailable here, and Linux
           // needs a D-Bus portal transport (lead-owned; see m105.md). The
-          // absent driver refuses explicitly; latest-file discovery works
-          // on Linux. The conversation overrides attach with admission.
+          // absent driver refuses explicitly; latest-file discovery reads
+          // the running platform's OS recordings location. The
+          // conversation overrides attach with admission.
           recordingCommandDeps: () =>
             Promise.resolve({
               l10n: { table: UI_TEXT, locale: uiLocale() },

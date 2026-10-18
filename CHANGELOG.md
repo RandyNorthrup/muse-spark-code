@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- "Attach Latest Screen Recording" now attaches the newest recent recording
+  on Windows (the Snipping Tool's `Videos\Screen Recordings`) and macOS (the
+  Screenshot app's Desktop default) instead of always reporting "No recent
+  screen recording was found." Linux behaviour is unchanged.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
