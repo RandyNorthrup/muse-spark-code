@@ -10,7 +10,7 @@ import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { describeEnvironment } from '../../src/host/backend/environment'
 import { GitExitError, metadataGit } from '../../src/host/git'
-import type { Logger } from '../../src/host/logger'
+import { collectingLogger as logger } from './helpers/collectingLogger'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const base = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-git-metadata-')))
@@ -33,13 +33,6 @@ function gitIn(directory: string): GitRunner {
         }
       })
     })
-}
-
-function logger(messages: string[]): Logger {
-  const push = (message: string) => {
-    messages.push(message)
-  }
-  return { info: push, warn: push, error: push, debug: push, trace: push }
 }
 
 function freshRepository(): string {

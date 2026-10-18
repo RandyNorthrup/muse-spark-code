@@ -39,7 +39,7 @@ describe('apply', () => {
       write: (path) =>
         path === 'a.txt' ? Promise.reject(new Error('disk gone')) : Promise.resolve(true),
     })
-    await both.prepare([])
+    await both.prepare?.([], ['a.txt', 'b.txt'])
     const result = await both.apply([], ['a.txt', 'b.txt'], [patch, second], () => true)
     expect(result.applied).toEqual(['b.txt'])
     expect(result.failed).toEqual([{ path: 'a.txt', reason: UI_TEXT.editReviewFailed }])

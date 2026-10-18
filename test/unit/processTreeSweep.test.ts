@@ -1,10 +1,19 @@
-// The orphan sweep over a real process table: signalling a group that
-// is gone resolves instead of failing, and the miss is said once.
+// The orphan sweep over a real process table: a group that is gone
+// ends quietly instead of failing, and nothing runs without a group.
 
 import { describe, expect, it } from 'vitest'
-import { sweepExitedTree } from '../../src/host/processTree'
+import { sweepExitedTree, type ProcessTreeDeps } from '../../src/host/processTree'
+import { collectingLogger as logger } from './helpers/collectingLogger'
 
 const deadGroup = 4_194_304
+
+function sweepDeps(messages: string[]): ProcessTreeDeps {
+  return {
+    platform: 'linux',
+    systemRoot: undefined,
+    log: logger(messages).warn,
+  }
+}
 
 describe('sweepExitedTree', () => {
   // A missing POSIX group answers ESRCH; Windows answers its own miss.
@@ -12,26 +21,14 @@ describe('sweepExitedTree', () => {
     'ends quietly when the group is already gone',
     async () => {
       const messages: string[] = []
-      await sweepExitedTree(deadGroup, Date.now(), Date.now(), {
-        platform: 'linux',
-        systemRoot: undefined,
-        log: (message: string) => {
-          messages.push(message)
-        },
-      })
+      await sweepExitedTree(deadGroup, Date.now(), Date.now(), sweepDeps(messages))
       expect(messages).toHaveLength(0)
     },
   )
 
   it('resolves at once without a group', async () => {
     const messages: string[] = []
-    await sweepExitedTree(undefined, Date.now(), Date.now(), {
-      platform: 'linux',
-      systemRoot: undefined,
-      log: (message: string) => {
-        messages.push(message)
-      },
-    })
+    await sweepExitedTree(undefined, Date.now(), Date.now(), sweepDeps(messages))
     expect(messages).toHaveLength(0)
   })
 })

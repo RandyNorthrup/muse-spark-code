@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { loadUiTable } from '../../src/host/l10n'
-import type { Logger } from '../../src/host/logger'
+import { collectingLogger as logger } from './helpers/collectingLogger'
 import { EN } from '../../src/shared/l10n/en'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -20,13 +20,6 @@ afterAll(async () => {
 function readFrom(directory: string) {
   return async (segments: readonly string[]): Promise<string> =>
     await readFile(path.join(directory, ...segments), 'utf8')
-}
-
-function logger(messages: string[]): Logger {
-  const push = (message: string) => {
-    messages.push(message)
-  }
-  return { info: push, warn: push, error: push, debug: push, trace: push }
 }
 
 describe('loadUiTable', () => {

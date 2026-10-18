@@ -7,7 +7,7 @@ import { chmod, mkdir, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import type { Logger } from '../../src/host/logger'
+import { collectingLogger as logger } from './helpers/collectingLogger'
 import { createPlanIo } from '../../src/host/planFeatures'
 import { PLAN_STAGE_STALE_MS } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -21,13 +21,6 @@ afterAll(async () => {
   }
   await removeFolder(base)
 })
-
-function logger(messages: string[]): Logger {
-  const push = (message: string) => {
-    messages.push(message)
-  }
-  return { info: push, warn: push, error: push, debug: push, trace: push }
-}
 
 describe('listEntries', () => {
   it('lists nothing where the folder does not exist', async () => {

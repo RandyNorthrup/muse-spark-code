@@ -85,26 +85,30 @@ describe('createFileExclusively', () => {
 })
 
 describe('renameReplacing', () => {
-  it('reports a persistently held target instead of retrying forever', async () => {
-    const from = path.join(base, 'held-from.txt')
-    await writeFile(from, 'held')
-    const locked = path.join(base, 'locked-dir')
-    await mkdir(locked)
-    await chmod(locked, 0o555)
-    let failure: unknown
-    try {
-      await renameReplacing(from, path.join(locked, 'held-to.txt'), { sleep })
-    } catch (error: unknown) {
-      failure = error
-    } finally {
-      await chmod(locked, 0o755)
-    }
-    const code =
-      typeof failure === 'object' && failure !== null && 'code' in failure
-        ? String(failure.code)
-        : undefined
-    expect(code).toBe('EACCES')
-  })
+  // POSIX permissions refuse the rename; Windows ACLs do not refuse the same way.
+  it.runIf(process.platform !== 'win32')(
+    'reports a persistently held target instead of retrying forever',
+    async () => {
+      const from = path.join(base, 'held-from.txt')
+      await writeFile(from, 'held')
+      const locked = path.join(base, 'locked-dir')
+      await mkdir(locked)
+      await chmod(locked, 0o555)
+      let failure: unknown
+      try {
+        await renameReplacing(from, path.join(locked, 'held-to.txt'), { sleep })
+      } catch (error: unknown) {
+        failure = error
+      } finally {
+        await chmod(locked, 0o755)
+      }
+      const code =
+        typeof failure === 'object' && failure !== null && 'code' in failure
+          ? String(failure.code)
+          : undefined
+      expect(code).toBe('EACCES')
+    },
+  )
 })
 
 describe('writeFileAtomically', () => {
