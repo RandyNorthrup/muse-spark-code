@@ -32,7 +32,7 @@ import {
 import { handleIdentity, lstatIdentity, sameFile } from '../fs/fileIdentity'
 import { withoutCredentials } from '../credentialEnvironment'
 import { compareReports } from './diff'
-import { isErrno } from '../resources/errno'
+import { isErrno } from '../fs/errno'
 
 /** R supplies canonical, scrubbed JSON and verifies the saved content hash on decode. */
 export interface ReportHistoryCodec {

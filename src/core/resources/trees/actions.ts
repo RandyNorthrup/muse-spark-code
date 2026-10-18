@@ -4,7 +4,7 @@ import type {
   ResourceTicket,
   ResourceTreeReader,
 } from '../../../shared/resources'
-import { isErrno } from '../errno'
+import { isErrno } from '../../fs/errno'
 
 export const resourceSignalSchema = z.enum(['SIGTERM', 'SIGKILL'])
 export type ResourceSignal = z.infer<typeof resourceSignalSchema>

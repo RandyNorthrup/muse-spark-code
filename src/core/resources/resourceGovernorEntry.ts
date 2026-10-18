@@ -46,7 +46,7 @@ import {
   WINDOWS_POWERSHELL_RELATIVE_PATH,
 } from '../../shared/constants'
 
-import { isErrno } from './errno'
+import { isErrno } from '../fs/errno'
 
 export interface ResourceHostSettings {
   /** Runtime shares its existing machine governor's queue with process launches. */

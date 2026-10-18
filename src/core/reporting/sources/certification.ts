@@ -8,7 +8,7 @@ import {
   type SourceScrub,
 } from './local'
 import type { ReportSourcePayloads } from './types'
-import { isErrno } from '../../resources/errno'
+import { isErrno } from '../../fs/errno'
 
 export function certificationSource(io: LocalFileIo, scrub: SourceScrub) {
   return localSource('certification', async ({ signal }) => {

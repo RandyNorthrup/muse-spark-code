@@ -1,7 +1,8 @@
 import * as z from 'zod/mini'
 import { UI_TEXT } from '../../../shared/constants'
 import { compareVersions, isVersion } from '../../whatsNew/whatsNewVersions'
-import { isErrno } from '../../resources/errno'
+import { isErrno } from '../../fs/errno'
+import { isParseFailure } from './local'
 import type { ReportSourcePayloads, ReportSourcePort } from './types'
 import {
   ReportNetworkFailure,
@@ -129,7 +130,7 @@ export function storesReportSource(options: ReportStoreOptions): ReportSourcePor
             // channel outcome and reaches the reader instead.
             if (error instanceof ReportNetworkFailure) {
               rows.push({ ...target, version: null, status: 'unavailable', reason: error.message })
-            } else if (error instanceof z.core.$ZodError) {
+            } else if (isParseFailure(error)) {
               rows.push({
                 ...target,
                 version: null,

@@ -11,7 +11,7 @@ import {
   RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR,
 } from '../../../shared/constants'
 import type { ResourceSampler, ResourceSettings } from '../../../shared/resources'
-import { isErrno } from '../errno'
+import { isErrno } from '../../fs/errno'
 import { MachineResourceSampler } from './machineSampler'
 import type { ResourceProbePort } from './optionalProbes'
 
