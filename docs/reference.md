@@ -3344,16 +3344,14 @@ Type: `"string"`. Default: `"transcribe"`. Scope: `machine`.
 
 ### museSpark.vault.enabled
 
-Stored for compatibility; no runtime effect.
+Turn the per-user credential vault on or off. A stored legacy museSpark.vault value takes precedence while this setting has no stored value.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ```json
 {
   "type": "boolean",
-  "default": true,
-  "deprecationMessage": "Stored for compatibility; no runtime effect.",
-  "deprecationMessageKey": "config.vault.description"
+  "default": true
 }
 ```
 
