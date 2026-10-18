@@ -164,7 +164,10 @@ Gates on the final tree: vitest `execArgs + runLedger +
 actionMaxRequests` 99 passed with the repository's own timeout;
 `check:reference` pass; `schema:exec --check` match; typecheck exit
 0; eslint exit 0 with zero warnings on the changed files; prettier
-clean; `npm run build` exit 0 with budgets.
+clean; `npm run build` exit 0 with budgets; SAST exit 0 (0
+findings, 533 rules over 3287 files); `security:audit` exit 0 (2
+advisories, 1 documented exception); `check:l10n` 0 problems;
+`check:host-api` 0 problems.
 
 Proof by driving the real code (production `dist/`, built above):
 
@@ -235,10 +238,12 @@ muse-spark-1.3-contributor`. Turn 1 answered exactly `ok`
   not — stated plainly, as in round 1.
 - Provider-line audit (§0): every provider line in the product's
   own records says `muse-wonder-1.0`, never the lane model — the
-  tier gate above is why. Model calls: 5 product turns (1 exec +
-  4 ACP) plus 1 CLI-direct diagnostic probe, all answered `ok`;
-  spend $0.00 of $2.00 (Muse Code backend, `costUsd` null; no
-  Model API inference, no key read).
+  tier gate above is why. (The panel later ran one turn on
+  `muse-spark-1.3`; same gate, see the addendum.) Model calls at
+  this point: 5 product turns (1 exec + 4 ACP) plus 1 CLI-direct
+  diagnostic probe, all answered `ok`; spend $0.00 of $2.00
+  (Muse Code backend, `costUsd` null; no Model API inference, no
+  key read).
 
 ## Not done here (blocked, with the exact errors)
 
@@ -259,3 +264,49 @@ native/darwin/muse-dictate` (Mac-only). No workaround was
   packaging (or a merge step listing it) belongs to the lead.
 - `check:catches` on group-touched files: left to the join, per
   the brief.
+
+## Panel addendum (dev-host, unpacked — not the packed `.vsix`)
+
+§2 as specified (install the packed `.vsix`) stays blocked for
+the reasons above. What follows ran the same production `dist/`
+bundles in a dev-host window instead (`code
+--extensionDevelopmentPath`, isolated user/extension dirs under
+`temp/`, `xvfb-run`, CDP text reads only, no screenshots), so it
+is supplementary, not pack certification. All processes stopped
+afterwards; the empty scratch folder trust was window-local to
+that throwaway profile.
+
+- Panel opened via the Muse Spark activity button; composer live
+  (`Message Muse`, Send, Model, Permission Mode: Manual).
+- Prompt `Reply with exactly this word and nothing else: ok` →
+  `Muse finished responding`, answer `ok`, footer
+  `muse-spark-1.3 High`, `Context 2% used · 26.9K of 1M tokens`.
+- Model picker audit: `muse-wonder-1.0`, `muse-wonder-full-1.0`,
+  `muse-spark-1.3`, `muse-spark-1.2` (each 1M context) — no
+  contributor tier, the same provider gate as above.
+- `!echo panel-probe-deny` in the untrusted scratch folder →
+  `Shell commands do not run while the workspace is in
+Restricted Mode. Trust the workspace to run them.` Trusting
+  the empty folder through the product's own dialog → command
+  ran → sandbox failure with diagnostics (`bwrap: No
+permissions to create a new namespace`, managed-sandbox
+  backend named).
+- `List the files in the workspace directory` → model attempted
+  `ls -la`, hit the sandbox snag, raised a panel approval card
+  (`Allow once` / `Reject`, `Waiting for your approval, in the
+card above the message box`). `Reject` → `Shell approval was
+declined`, then `Shell listing failed. The sandbox blocked
+it. You rejected the approval. It stays blocked until you
+allow it.` The model fell back to search and correctly
+  reported the workspace empty.
+- Retry: this UI offers no re-run control for a finished turn —
+  the answer menu holds only `Copy Response` and `Reply to
+This Output`, the header menu nothing retry-shaped. The only
+  retry control in the product is `Try Again` for a failed
+  lazy-surface load (`surfaceLoadRetry`), which was not forced
+  here (breaking `dist/` to watch it fail would prove machinery
+  this change cannot affect).
+
+Final count: 8 model calls of 40 (5 headless/ACP turns, 1
+CLI-direct entitlement probe, 2 panel turns), spend $0.00 of
+$2.00 — subscription backend throughout, no Model API key.
