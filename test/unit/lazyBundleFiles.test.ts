@@ -93,7 +93,9 @@ it('names the five lazily loaded engine bundles the old copy missed', () => {
   expect(LAZY_BUNDLES.find((entry) => entry.file === 'headless.js')?.requestedBy).toEqual([])
 })
 
-it('names the helpers bundle by the method that loads it', () => {
+it('names the helpers bundle by the methods that load it', () => {
+  // Two loaders since the byte-range execution joined the tools chunk: the
+  // per-call helpers and the range tools' own loader (generated registry).
   expect(LAZY_BUNDLES.find((entry) => entry.file === 'modelApiTools.js')).toEqual({
     file: 'modelApiTools.js',
     side: 'both',
@@ -101,6 +103,11 @@ it('names the helpers bundle by the method that loads it', () => {
       {
         importer: 'src/core/backends/modelapi/ModelApiHost.ts',
         symbol: 'ModelApiSession.toolAssist',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/core/backends/modelapi/tools.ts',
+        symbol: 'loadFileRangeTools',
         side: ['acp', 'vscode'],
       },
     ],
