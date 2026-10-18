@@ -8,6 +8,10 @@
 # pinned ones, and their feeds can change without notice: every Monday, by
 # hand, and on pull requests that change this check. Every job has a
 # timeout and leaves no token in the git config; none pushes.
+# Capacity (D122, CISHARDS2): like hosts.yml, the whole workflow moves — a
+# routed same-repository pull request run skips every job here, and the
+# capacity repository's `ci/pr-<number>` push run runs every job there. Any
+# other event runs everything here, as now.
 name: Forks
 
 on:
@@ -17,6 +21,10 @@ on:
       - 'test/hosts/installed.vscode-test.mjs'
       - 'test/hosts/run-fork.sh'
       - '.github/workflows/forks.yml'
+  # Only the capacity repository ever sees this branch (build.yml's `org`
+  # job pushes it there); nothing pushes it here.
+  push:
+    branches: [ci/pr-*]
   schedule:
     - cron: '41 6 * * 1'
   workflow_dispatch:
@@ -29,8 +37,57 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Where this run's jobs belong (D122, CISHARDS2): the same split as
+  # hosts.yml's `route`. A push outside `ci/pr-*` is `all`, not an error.
+  route:
+    name: route
+    if: ${{ github.event_name != 'push' || github.repository == 'scnetsolutions/muse-spark-code-ci' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      part: ${{ steps.pick.outputs.part }}
+    steps:
+      - id: pick
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          ORG_CI: ${{ vars.ORG_CI }}
+          # GitHub passes no Actions secret to a fork's or Dependabot's run,
+          # so this is false there whatever ORG_CI says.
+          HAS_KEY: ${{ secrets.ORG_CI_APP_PRIVATE_KEY != '' }}
+          REF: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            if [[ "$REF" =~ ^ci/pr-[0-9]+$ ]]; then
+              part=org
+              why="the merge commit of pull request #${REF#ci/pr-}"
+            else
+              part=all
+              why="a push outside ci/pr-<number> keeps every job here"
+            fi
+          elif [ "$EVENT" != pull_request ]; then
+            part=all
+            why="a $EVENT run keeps every job here"
+          elif [ "$ORG_CI" != on ]; then
+            part=all
+            why="ORG_CI is not on"
+          elif [ "$SAME_REPO" != true ] || [ "$HAS_KEY" != true ]; then
+            part=all
+            why="no capacity app key reaches this run: a fork, Dependabot, or ORG_CI_APP_PRIVATE_KEY unset"
+          else
+            part=home
+            why="every job runs in scnetsolutions/muse-spark-code-ci"
+          fi
+          echo "part=$part" >> "$GITHUB_OUTPUT"
+          echo "This run's part: $part ($why)"
+
   native-helpers:
     name: package helper (${{ matrix.platform }})
+    # The whole workflow moves at once (see above): skipped only in `home`.
+    # When `route` itself is skipped, `part` is empty and the job runs here.
+    needs: route
+    if: ${{ needs.route.outputs.part != 'home' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -81,7 +138,8 @@ jobs:
 
   vsix:
     name: vsix
-    needs: native-helpers
+    needs: [native-helpers, route]
+    if: ${{ needs.route.outputs.part != 'home' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -123,7 +181,8 @@ jobs:
 
   fork:
     name: ${{ matrix.fork }}
-    needs: vsix
+    needs: [vsix, route]
+    if: ${{ needs.route.outputs.part != 'home' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
