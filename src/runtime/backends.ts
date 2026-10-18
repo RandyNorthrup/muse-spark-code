@@ -25,7 +25,6 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
-import { ChatGptSignInError } from '../core/providers/subscriptions/chatgpt'
 import { StoreUnavailableError } from './keyStore'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
@@ -701,13 +700,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
           // is not this account read's answer to give.
           if (isInvalidProvidersFileError(error))
             return { state: 'unavailable', message: error.message }
-          if (error instanceof ChatGptSignInError)
-            return {
-              state: 'unavailable',
-              message:
-                entry.chatGptFailureOf(error) ??
-                fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
-            }
+          const grantWords = entry.chatGptFailureOf(error)
+          if (grantWords !== undefined) return { state: 'unavailable', message: grantWords }
           if (error instanceof StoreUnavailableError)
             return {
               state: 'unavailable',
