@@ -139,6 +139,7 @@
 !dist/vaultBrokerBindings.js
 !dist/vaultBoundaries.js
 !dist/vaultActions.js
+!dist/vaultMigration.js
 !dist/estimator.js
 !dist/estimateContracts.js
 !dist/native/darwin/muse-vault

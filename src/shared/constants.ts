@@ -3976,6 +3976,9 @@ export const VAULT_BUNDLE_FILE = 'vault.js'
 // editor, write-only crypto, the Reset/Setup/Import dialogs), loaded on the
 // first action that needs it.
 export const VAULT_ACTIONS_BUNDLE_FILE = 'vaultActions.js'
+// The key-store migration's own chunk (D89.14 lane M): the engine, its
+// codecs and the first-party reader, loaded on the first unlock edge only.
+export const VAULT_MIGRATION_BUNDLE_FILE = 'vaultMigration.js'
 // C-M109-1: the CLI, ACP and headless vault (no `vscode`), lead decision 5.
 export const VAULT_RUNTIME_BUNDLE_FILE = 'vaultRuntime.js'
 // The empty folder under the extension's global storage the reviewer's side
@@ -8208,10 +8211,16 @@ export const MCP_OAUTH_LIMITS = {
 }
 // U's independent lazy surfaces; W registers these new caps without changing existing caps.
 export const VAULT_PANEL_BUDGET_KIB = 75
-export const VAULT_HOST_BUDGET_KIB = 50
+// The opening bundle outgrew 50 KiB through the reviewed Windows broker
+// channel/host/pipe code (C-M109-1c) plus the migration loader (75.5 KiB
+// measured in the harness build); the tripwire moves with it, plus headroom.
+export const VAULT_HOST_BUDGET_KIB = 90
 // RVAPP-CM1091D5 BYTES: the vault's explicit-action bundle, loaded on the
 // first action that needs it; a new cap, no existing cap moves.
 export const VAULT_ACTIONS_BUDGET_KIB = 25
+// The key-store migration's own chunk (D89.14 lane M), loaded on the first
+// unlock edge; 36.75 KiB measured in the harness build, plus headroom.
+export const VAULT_MIGRATION_BUDGET_KIB = 45
 export const VAULT_UI_TICK_MS = 1000
 export const VAULT_ID_BYTES = 16
 export const VAULT_TOTP_PERIOD_SECONDS = 30

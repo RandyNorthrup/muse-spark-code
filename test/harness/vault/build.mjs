@@ -77,5 +77,25 @@ export async function buildVaultSurfaces(outdir, hasHarness = false) {
     plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
     logLevel: 'silent',
   })
-  return { browser: browser.metafile, host: host.metafile, actions: actions.metafile }
+  // The key-store migration's own chunk loads on the first unlock edge,
+  // never with the panel or at activation.
+  const migration = await build({
+    entryPoints: ['src/host/vault/vaultMigrationEntry.ts'],
+    outfile: path.join(outdir, 'vaultMigration.js'),
+    bundle: true,
+    minify: true,
+    metafile: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node20.18',
+    external: ['vscode'],
+    plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+    logLevel: 'silent',
+  })
+  return {
+    browser: browser.metafile,
+    host: host.metafile,
+    actions: actions.metafile,
+    migration: migration.metafile,
+  }
 }

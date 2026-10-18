@@ -220,6 +220,10 @@ const BUDGETS = [
   // RVAPP-CM1091D5 BYTES: the vault's explicit-action code; measured below,
   // plus D6 headroom.
   { path: 'dist/vaultActions.js', budgetKiB: 25 },
+  // The key-store migration's own chunk (D89.14 lane M); 36.75 KiB measured
+  // in the harness build, plus headroom (production splitting only shrinks
+  // it); a new cap, no existing cap moves.
+  { path: 'dist/vaultMigration.js', budgetKiB: 45 },
   // INT0180: shared vault boundary closure; measured plus D6 headroom.
   { path: 'dist/vaultBoundaries.js', budgetKiB: 50 },
   // MSM109: 120,644 bytes measured on linuxlt after the joined lease/store
