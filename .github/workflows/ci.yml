@@ -3,16 +3,17 @@
 # on, the full tier for everything else. The required checks are the same
 # seven names on every event.
 #
-# CI capacity (D122): while the repository variable ORG_CI is `on` and the
-# capacity app's key reaches the run, a same-repository pull request runs
-# part `home`: every job here except the unit shards (eight on Ubuntu,
-# sixteen each on Windows and macOS), plus build.yml's `org` job, which
-# pushes the pull request's merge commit to the capacity repository
-# scnetsolutions/muse-spark-code-ci as ci/pr-<number>, where this same file
-# runs those forty shards on the organization's runners (part `org`), and
-# waits for that run. The required names fold in its result. Forks,
-# Dependabot, merge groups, manual runs and every pull request while ORG_CI
-# is not `on` keep every job here (part `all`): none of them gets the key.
+# CI capacity (D122, CISHARDS2): while the repository variable ORG_CI is
+# `on` and the capacity app's key reaches the run, a same-repository pull
+# request runs part `home`: only the Ubuntu legs here, plus build.yml's
+# `org` job, which pushes the pull request's merge commit to the capacity
+# repository scnetsolutions/muse-spark-code-ci as ci/pr-<number>, where this
+# same file runs every Windows and macOS leg on the organization's runners
+# (part `org`: static gates, all forty unit shards, Windows integration and
+# the macOS helper), and waits for that run. The required names fold in its
+# result. Forks, Dependabot, merge groups, manual runs and every pull
+# request while ORG_CI is not `on` keep every job here (part `all`): none of
+# them gets the key.
 name: CI
 
 on:
