@@ -237,7 +237,7 @@ import type { DescribedFile, EditReviewActions, ReviewNotice } from '../editor/e
 import { LegalFixPreviews, type LegalFixFileAccess, type LegalFixApplier } from '../legalFix'
 import type { ReviewCollection } from '../review/reviewCollector'
 import type { ReviewTurnFeatures } from '../review/reviewBundle'
-import { errorDetail, type Logger } from '../logger'
+import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
 import type { TasksTabPort, TasksTabView } from '../views/tasksTabPort'
 
@@ -829,11 +829,6 @@ const NOTICE_PREFIX = 'Shown in the panel: '
 // CLI output) is redacted first, since it can carry a secret-shaped value.
 function describe(error: unknown): string {
   return redactSecrets(error instanceof Error ? error.message : String(error))
-}
-
-/** CLI errors are logged by kind/code; their message is for the redacted panel only. */
-function describeForLog(error: unknown): string {
-  return isMspFailure(error) ? failureForLog(error) : describe(error)
 }
 
 // The two tables below are built when used, never at module load: the
@@ -10142,7 +10137,7 @@ export class ConversationController {
         this.postSessionInfo(this.modelId)
       }
     } catch (error: unknown) {
-      this.deps.log.warn(`model warm-up failed: ${describeForLog(error)}`)
+      this.deps.log.warn(`model warm-up failed: ${failureForLog(error)}`)
       // Whatever else waited on the same start fails with it now; a message's
       // own card says it better, so this says it only if nothing else did.
       await new Promise((resolve) => setImmediate(resolve))
@@ -10170,7 +10165,8 @@ export class ConversationController {
           throw new Error(UI_TEXT.reportUi.generationFailed)
         await this.showDeterministicReport(message.argumentsText)
         isAccepted = true
-      } catch {
+      } catch (error: unknown) {
+        this.deps.log.warn(`A deterministic report failed: ${failureForLog(error)}`)
         this.notice('warning', UI_TEXT.reportUi.generationFailed)
       }
       this.post({ type: 'reportCommandResult', requestId: message.requestId, accepted: isAccepted })
@@ -10303,7 +10299,8 @@ export class ConversationController {
         }
         try {
           await this.answerRegisteredQuestion(registry, message.userInputId, message.reply)
-        } catch {
+        } catch (error: unknown) {
+          this.deps.log.warn(`A late answer could not be sent: ${failureForLog(error)}`)
           this.say('error', UI_TEXT.answerNotAccepted)
         }
         break
@@ -10328,7 +10325,8 @@ export class ConversationController {
               false,
             )
           }
-        } catch {
+        } catch (error: unknown) {
+          this.deps.log.warn(`A question could not be dismissed: ${failureForLog(error)}`)
           this.say('error', UI_TEXT.questionDismissFailed)
         }
         break
@@ -10670,6 +10668,7 @@ export class ConversationController {
           this.beginBrowserSessionChange()
           await this.resumeSession(message.sessionId)
         } catch (error: unknown) {
+          this.deps.log.warn(`A best-of-N session change failed: ${failureForLog(error)}`)
           if (generation === this.sendInvalidationEpoch && !this.isDisposed)
             this.noticeBestOfNFailure(error)
         }
@@ -10688,6 +10687,7 @@ export class ConversationController {
           const manager = await this.bestOfN()
           await manager.open(message.attemptId, message.runId)
         } catch (error: unknown) {
+          this.deps.log.warn(`A best-of-N attempt could not be opened: ${failureForLog(error)}`)
           if (this.isDisposed) break
           this.noticeBestOfNFailure(error, message.attemptId)
         }
@@ -10900,6 +10900,7 @@ export class ConversationController {
       const report = uploadedFilesReportSchema.parse(await port.read())
       if (this.canPostUploadedFiles()) port.post(report)
     } catch (error: unknown) {
+      this.deps.log.warn(`The uploaded files could not be read: ${failureForLog(error)}`)
       if (this.canPostUploadedFiles())
         this.say('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
     }
@@ -10921,6 +10922,7 @@ export class ConversationController {
         )
       await this.readUploadedFiles()
     } catch (error: unknown) {
+      this.deps.log.warn(`An uploaded file could not be deleted: ${failureForLog(error)}`)
       if (this.canPostUploadedFiles())
         this.say(
           'error',
@@ -10935,16 +10937,14 @@ export class ConversationController {
   /**
    * Runs one message from the webview. The caller does not wait (a `void`
    * call), so a failure no step in `dispatch` caught would reach only VS Code's
-   * Extension Host log: it is logged here, with its stack, and said (M39),
+   * Extension Host log: it is logged here, by kind only, and said (M39),
    * unless the panel showed this very failure already (a shared start).
    */
   public async handle(message: ConversationMessage): Promise<void> {
     try {
       await this.dispatch(message)
     } catch (error: unknown) {
-      this.deps.log.error(
-        `${message.type} failed: ${isMspFailure(error) ? describeForLog(error) : errorDetail(error)}`,
-      )
+      this.deps.log.error(`${message.type} failed: ${failureForLog(error)}`)
       if (this.isFirstShowing(error)) {
         this.say('error', `${UI_TEXT.actionFailed}: ${describe(error)}`)
       }
@@ -11038,10 +11038,10 @@ export class ConversationController {
           approvalModeFor(FALLBACK_MODE, this.deps.hasApprovalUi),
         )
       } catch (error: unknown) {
+        this.deps.log.warn(`Bypass revocation: the mode change failed (${failureForLog(error)})`)
         if (!this.isCurrentSessionAction(session, generation)) {
           return
         }
-        this.deps.log.warn(`Bypass revocation: the mode change failed (${describeForLog(error)})`)
         this.retireBypassSession()
         return
       }
@@ -11283,7 +11283,7 @@ export class ConversationController {
         try {
           await session.cancel()
         } catch (error: unknown) {
-          this.deps.log.warn(`turn/cancel before the restart failed: ${describeForLog(error)}`)
+          this.deps.log.warn(`turn/cancel before the restart failed: ${failureForLog(error)}`)
         }
         this.endTurnLocally('cancelled', UI_TEXT.turnStoppedByRestart)
       }
