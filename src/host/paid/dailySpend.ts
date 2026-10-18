@@ -149,7 +149,13 @@ export function createDailySpend(deps: {
     for (const name of claimNames) {
       const file = path.join(LEGACY_CLAIMS_DIRECTORY, name, LEGACY_CLAIM_FILE)
       const claim = parseClaim(file, readClaimText(file))
-      spent = spent.add(Usd.from(finite(file, claim.settledUsd ?? claim.reservedUsd)))
+      // D121: a reservation is never spend. An open claim's reservation is
+      // held, not spent, so only a settled charge enters the migrated total;
+      // counting the reservation recreates phantom spend (for example from a
+      // dead process's unsettled claim) and stops paid requests until
+      // midnight.
+      if (claim.settledUsd !== undefined)
+        spent = spent.add(Usd.from(finite(file, claim.settledUsd)))
     }
     return { spentUsd: spent.toAmount(), unknownChargeCalls: 0 }
   }

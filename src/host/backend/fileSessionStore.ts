@@ -522,8 +522,6 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
             )
               projected = { ...session, budgetSpentUsd: previousSpend }
           }
-          if (projected.budgetSpentUsd === undefined) spendBases.delete(session.sessionId)
-          else spendBases.set(session.sessionId, projected.budgetSpentUsd)
           if (uploads !== undefined && projected.accountId !== undefined)
             await writeIntent(session.sessionId, projected.accountId, 'save')
           // Retain both snapshots until the durable rename; a failed save cannot
@@ -537,6 +535,13 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
             sleep: deps.sleep,
             ...(deps.rename !== undefined && { rename: deps.rename }),
           })
+          // This window's base is its own unmerged total, stored only after
+          // the write lands. Storing the merged file total instead drops the
+          // window's next increment: with the same session open in two
+          // windows, both load 1 and save 3 and 5, and the second window's
+          // next save of 6 would read as older than its stored base of 7.
+          if (incomingSpend === undefined) spendBases.delete(session.sessionId)
+          else spendBases.set(session.sessionId, incomingSpend)
           await uploads?.syncSession(session.sessionId, fileRefsOf(projected), isCurrent)
           if (isCurrent()) await rm(intentFor(session.sessionId), { force: true })
         },

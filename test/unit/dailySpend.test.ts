@@ -150,12 +150,13 @@ describe('daily running total', () => {
       spentUsd: 2.5,
       hasUnknownHistoricalFees: false,
     })
-    // 2.5 settled before, 1.25 settled and 0.5 still open since: the first
-    // request after upgrading sees 4.25, not zero.
+    // 2.5 settled before, 1.25 settled since, 0.5 still open: the first
+    // request after upgrading sees 3.75, not zero — the open reservation is
+    // held, never spend (D121), so it stays out of the migrated total.
     const spend = createDailySpend({ directory, sleep })
-    expect(spend.read(scope)).toEqual({ spentUsd: '4.25', unknownChargeCalls: 0 })
+    expect(spend.read(scope)).toEqual({ spentUsd: '3.75', unknownChargeCalls: 0 })
     expect(await spend.add(scope, Usd.from('0.75').toAmount())).toEqual({
-      spentUsd: '5',
+      spentUsd: '4.5',
       unknownChargeCalls: 0,
     })
   })
