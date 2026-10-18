@@ -85,11 +85,34 @@ describe('pacing follows the provider, not our own pace (NOLIMITS2 C2)', () => {
     expect(waits.length).toBeGreaterThan(0)
   })
 
+  it('an estimate past the whole observed bucket waits for a full bucket, then goes', async () => {
+    const pacing = pacer()
+    pacing.observe(
+      'small',
+      { requests: 10, remainingRequests: 10, tokens: 1000, remainingTokens: 0, windowMs: 100 },
+      0,
+    )
+    const waits: number[] = []
+    const signal = new AbortController().signal
+    // Five thousand tokens against a thousand-token bucket: no refill ever
+    // covers it, so the wait ends when the bucket is full (one window).
+    await pacing.acquire('small', 'team', 5000, signal, (delayMs) => {
+      waits.push(delayMs)
+    })
+    expect(waits.length).toBeGreaterThan(0)
+    expect(Math.max(...waits)).toBeLessThanOrEqual(100)
+  })
+
   it('Stop ends a headroom wait', async () => {
     const pacing = pacer()
-    observed(pacing, 'stuck')
+    // A minute's window with no request left: the wait is seconds long.
+    pacing.observe(
+      'stuck',
+      { requests: 10, remainingRequests: 0, tokens: 1000, remainingTokens: 0, windowMs: 60_000 },
+      0,
+    )
     const controller = new AbortController()
-    const waited = pacing.acquire('stuck', 'team', 100_000, controller.signal)
+    const waited = pacing.acquire('stuck', 'team', 100, controller.signal)
     await new Promise((resolve) => setTimeout(resolve, 20))
     controller.abort(new Error('stopped by the test'))
     await expect(waited).rejects.toThrow('stopped by the test')
