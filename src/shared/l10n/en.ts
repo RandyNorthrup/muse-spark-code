@@ -4557,7 +4557,7 @@ export const EN = {
     'Muse may search the web while it answers. Each search is billed to your Model API key at {price}, on top of the tokens its results add. Deny sends the prompt without web search.',
   paidUseVoiceTitle: 'Record with Muse Voice?',
   paidUseVoiceDetail:
-    'Muse Voice is a Meta service and bills your Meta Model API key at {price}, regardless of the conversation model. Recordings stop at three minutes. Allow once covers this window; Always covers this workspace until revoked. Duration and estimated cost are shown; the provider’s bill cannot be read back. Deny leaves the microphone off.',
+    'Muse Voice is a Meta service and bills your Meta Model API key at {price}, regardless of the conversation model. Recordings stop at three minutes. Allow once covers one recording; Always covers this workspace until revoked. Duration and estimated cost are shown; the provider’s bill cannot be read back. Deny leaves the microphone off.',
   paidWebSearchPrice: '{price} per 1,000 searches',
   paidImagePrice: '{price} per image',
   paidVoicePrice: '{price} per hour of audio',
@@ -4569,7 +4569,7 @@ export const EN = {
   paidConfirmImage:
     'The model may create image files in the workspace, or edit workspace images into new ones. Each image is billed to your Model API key at {price}, and you are asked before every one, in every permission mode, unless you allow images always in this workspace. Used on the Model API backend, and on the Muse Code backend while a key is stored (never billed to the subscription).',
   paidConfirmVoice:
-    'Muse Voice sends recordings to Meta, billed to your Model API key at {price}, on either backend. Recordings stop at three minutes and reserve the daily budget and any conversation cap before connecting. Allow once covers this window; Always covers this workspace until revoked. The provider’s bill cannot be read back.',
+    'Muse Voice sends recordings to Meta, billed to your Model API key at {price}, on either backend. Recordings stop at three minutes and reserve the daily budget and any conversation cap before connecting. Allow once covers one recording; Always covers this workspace until revoked. The provider’s bill cannot be read back.',
   paidConfirmScheduled:
     'A due scheduled prompt waits for you to run it. Each run asks before any Model API call, unless you allow scheduled runs always in this workspace. {price}. Billed to your Model API key; total varies with tokens used.',
   paidConfirmSubagents:
