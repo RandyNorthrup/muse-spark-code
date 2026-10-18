@@ -25,5 +25,11 @@ export const DARWIN_HELPER = path.join('native', 'darwin', 'muse-dictate')
 export const LINUX_HELPERS = ['x64', 'arm64'].map((arch) =>
   path.join('native', 'linux', arch, 'muse-created'),
 )
+// The Windows free engine the packaged companion's file recognition starts
+// (`src/runtime/companion/voiceEntry.ts` through `locateDictationHelper`):
+// Windows PowerShell running this script on a staged WAV. The extension's
+// own install carries it through `.vscodeignore`; the npm package must copy
+// it too, or the certified route fails on an installed Windows agent.
+export const VOICE_WINDOWS_HELPERS = [path.join('native', 'windows', 'dictate.ps1')]
 // The governed runner's helper scripts, copied as a folder.
 export const RUNNER_HELPERS = path.join('native', 'runner')

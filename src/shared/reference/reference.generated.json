@@ -826,13 +826,13 @@
         "conditions": [{ "when": "platform&localWindow", "text": { "ui": "referenceDictation" } }]
       },
       "commands": [],
-      "settings": [],
+      "settings": ["museSpark.linuxDictationModel"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#voice-dictation",
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
       "details": [],
-      "facts": { "platforms": ["win32", "darwin"], "remote": false },
+      "facts": { "platforms": ["win32", "darwin", "linux"], "remote": false },
       "editors": ["vscode"]
     },
     {
@@ -1317,18 +1317,27 @@
         ]
       },
       "commands": [],
-      "settings": ["museSpark.dictationEngine", "museSpark.modelApiVoice"],
+      "settings": [
+        "museSpark.dictationEngine",
+        "museSpark.modelApiVoice",
+        "museSpark.modelApiSessionBudgetUsd",
+        "museSpark.paidDailyBudgetUsd"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#voice-dictation",
-      "backends": ["museCode"],
+      "backends": ["museCode", "modelApi"],
       "paid": true,
-      "surfaces": ["vscode:museCode"],
+      "surfaces": ["vscode:museCode", "vscode:modelApi"],
       "details": [{ "ui": "referencePaidContexts" }],
       "facts": {
-        "modelApi": "unavailable",
-        "museCode": ["local", "storedModelApiKey", "explicitOptIn"],
+        "modelApi": ["local", "storedModelApiKey", "boundedBudgetAdmission"],
+        "museCode": ["local", "storedModelApiKey", "explicitOptIn", "boundedBudgetAdmission"],
         "platforms": ["win32", "darwin", "linux"],
         "remote": false,
         "linuxRecorders": ["arecord", "parec"],
+        "maximumRecordingSeconds": 180,
+        "frameMs": 80,
+        "reservedMs": 180080,
+        "settlement": "finalAudioProcessedMsWholeSeconds",
         "paidFeature": "voice",
         "paidSettings": ["museSpark.modelApiVoice"],
         "configuredDefaults": { "museSpark.modelApiVoice": true },
@@ -1350,6 +1359,12 @@
             "explicitOptIn": true,
             "consent": "use",
             "ledger": false
+          },
+          "vscode:modelApi": {
+            "defaultState": { "type": "boolean", "value": true },
+            "key": "SecretStorage",
+            "consent": "use",
+            "ledger": "paidDailyBudgetUsd"
           }
         }
       },
@@ -2864,7 +2879,7 @@
       },
       "id": "museSpark.modelApiVoice",
       "name": "museSpark.modelApiVoice",
-      "description": "Offers Muse Voice ($0.18 per audio hour); free OS dictation remains the default. Muse Voice is unavailable under a finite budget. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.",
+      "description": "Muse Voice sends recordings to Meta, billed to your Model API key at $0.18 per hour of audio, on either backend. Recordings stop at three minutes and reserve the daily budget and any conversation cap before connecting. Allow once covers this window; Always covers this workspace until revoked. The provider’s bill cannot be read back.",
       "descriptionKey": "config.modelApiVoice.description",
       "type": "boolean",
       "default": true,
@@ -3109,7 +3124,7 @@
       },
       "id": "museSpark.modelApiSessionBudgetUsd",
       "name": "museSpark.modelApiSessionBudgetUsd",
-      "description": "Spend cap in US dollars for each Model API conversation; 0 means no cap. Shared durable reservations cover ordinary token requests and image fees before sending; a request that cannot fit what is left is not sent, and input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it.",
+      "description": "Spend cap in US dollars for each Model API conversation; 0 means no cap. Shared durable reservations cover ordinary token requests and image fees before sending; a request that cannot fit what is left is not sent, and input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it. Paid Muse Voice works on both backends in a local window with a stored Model API key; Muse Code requires explicit opt-in. Recordings stop at three minutes and reserve the daily budget and any conversation cap before connecting. Linux needs arecord or parec. Final reported seconds determine the estimate; the provider’s bill cannot be read back.",
       "descriptionKey": "config.modelApiSessionBudgetUsd.description",
       "type": "number",
       "default": 0,
@@ -3404,7 +3419,7 @@
     {
       "id": "museSpark.dictationEngine",
       "name": "museSpark.dictationEngine",
-      "description": "Dictation engine on Model API. Free OS recognizer is the default; choosing Muse Voice requires paid-use consent and verified budget admission. Muse Code’s explicit voice opt-in is unchanged.",
+      "description": "Dictation engine on Model API. Free dictation is the default; choosing Muse Voice requires paid-use consent and verified budget admission. Muse Code’s explicit voice opt-in is unchanged.",
       "descriptionKey": "config.dictationEngine.description",
       "type": "string",
       "default": "system",
@@ -4095,6 +4110,17 @@
       "name": "museSpark.vault.agentFence",
       "description": "Controls the credential fence for interactive Model API shell commands. Verification, schedules, workers and hooks remain fenced.",
       "descriptionKey": "config.vault.agentFence.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.linuxDictationModel",
+      "name": "museSpark.linuxDictationModel",
+      "description": "Enable free offline English dictation on local Linux x64/arm64. First use asks before downloading the 74 MiB model. Turning this off stops dictation and removes the model and partial download; turn it on and reload the window to enable it again. Windows/macOS are unchanged.",
+      "descriptionKey": "config.linuxDictationModel.description",
       "type": "boolean",
       "default": true,
       "scope": "machine",

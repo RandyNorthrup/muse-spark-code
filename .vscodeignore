@@ -43,6 +43,8 @@
 !dist/bundledSkills.js
 !dist/codeIntel.js
 !dist/voice.js
+!dist/voiceLinux.js
+!dist/dictation.js
 !dist/webFetch.js
 !dist/museCodeReviewer.js
 !dist/modelsPanel.js
@@ -145,3 +147,7 @@ dist/fontsInstall.js
 **/*.ttf
 **/*.otf
 **/*.eot
+
+# CM9LNX/D106: the Linux dictation helper ships as release assets, never in
+# the VSIX (the cap stays unchanged); only its licence notices stay packed.
+!native/dictation-linux/*LICENSE.txt

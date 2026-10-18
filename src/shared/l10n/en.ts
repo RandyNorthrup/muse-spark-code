@@ -16,6 +16,17 @@
 import { forms } from './forms'
 
 export const EN = {
+  companionVoiceCancel: 'Cancel',
+  companionVoiceFailed:
+    'Dictation failed or was refused. Check microphone permission, the selected engine and the daily budget, then record again. A paid request already sent may still be charged.',
+  companionVoiceFree: 'Operating system (free)',
+  companionVoiceLimit: '{seconds} seconds maximum. Audio is removed after transcription.',
+  companionVoiceOpen: 'Open dictation companion',
+  companionVoicePaidSummary: 'Paid audio: {duration}.',
+  companionVoiceReference:
+    'Dictate in the browser and review before sending to your owning ACP session or terminal. System recognition is free on Windows and macOS; paid Muse Voice asks for consent and shares the daily budget.',
+  companionVoiceReview: 'Review transcript before sending',
+  companionVoiceTitle: 'Dictate',
   // M107 / D87: resource surfaces and manifest-ready settings text.
   resourceTitle: 'Resources',
   resourceHarnessInTree:
@@ -350,6 +361,8 @@ export const EN = {
   referenceCliOptions: {
     'context-window':
       '--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.',
+    'muse-voice':
+      '--muse-voice: Allow paid Muse Voice in the dictation companion; it asks before the first charge and shares the daily budget.',
     'resource-governor':
       '--resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default.',
     'cpu-max': '--cpu-max <percent>: Throttle when CPU stays above this percentage for 30 seconds.',
@@ -482,9 +495,9 @@ export const EN = {
   referenceSetup: 'Run Setup hooks for init from spark-hooks.json in a trusted workspace.',
   referenceSkills: "SKILL.md. museCode: Turn Muse Code's skills on or off. modelApi: SKILL.md.",
   referenceDictation:
-    'Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine. Voice dictation is not available in a remote window (SSH, WSL, a container, a tunnel or a codespace): the extension runs on the remote machine, which cannot hear this computer’s microphone. Open the folder in a local window to dictate.',
+    'Free dictation uses the OS engine on Windows and macOS. Local Linux x64/arm64 uses offline English Whisper tiny.en after consent to download its model; linuxDictationModel=false removes it. Remote workspace hosts cannot hear the local microphone.',
   referenceVoice:
-    'Paid voice is unavailable on Model API in this version. Muse Code needs a local window, a stored Model API key and explicit opt-in. Linux also needs arecord or parec.',
+    'Paid Muse Voice works on both backends in a local window with a stored Model API key; Muse Code requires explicit opt-in. Recordings stop at three minutes and reserve the daily budget and any conversation cap before connecting. Linux needs arecord or parec. Final reported seconds determine the estimate; the provider’s bill cannot be read back.',
   referenceBestOfN:
     'Best of N Apply and stage exactly the selected preview. No commit is created; ignored files are excluded.',
   referenceNativeAgentsConditions:
@@ -540,7 +553,7 @@ export const EN = {
   referenceCodeOutput:
     'Copy copies code; Insert writes at the editor cursor; Apply replaces the editor selection. Open tool output to read the full result; clipped output can be paged. Select transcript text to quote it in the composer, ask about it, add a comment or copy it.',
   referencePaidContexts:
-    'Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
+    'Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
   referenceAcp:
     'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
   referenceWebFetchTitle: 'Web Fetch',
@@ -2981,6 +2994,25 @@ export const EN = {
   announceQuestion: 'Muse asked a question',
   announceResumed: 'Conversation resumed',
   // Voice dictation (M9).
+  linuxDictationDownloadTitle:
+    'Download the offline English dictation helper ({helperSize}) and model ({size})?',
+  linuxDictationDownloadDetail:
+    'Whisper tiny.en is free and recognizes English on this computer, using only the CPU. Download the helper from the extension release assets and the model from huggingface.co into {location}. Audio stays in memory. Turn linuxDictationModel off to stop dictation and remove the helper and model.',
+  linuxDictationIntegrity:
+    'The dictation helper or model failed its size or SHA-256 check. No recognition started.',
+  linuxDictationBusy:
+    'Another window is using the dictation helper or model. Stop its recording or download and try again.',
+  linuxDictationRemoved:
+    'Linux dictation is off and its helper and model are removed. Turn linuxDictationModel on and reload the window to enable it.',
+  linuxDictationRemovalPending:
+    'Linux dictation is off and its helper and model are being removed. Reload the window to retry removal, or turn linuxDictationModel on and reload the window to enable it.',
+  linuxDictationDisabled:
+    'Linux dictation is off. Turn linuxDictationModel on and reload the window to enable it.',
+  linuxDictationRemoveFailed:
+    'The offline dictation helper or model could not be removed. Check storage permissions and stop downloads in other windows, then reload this window to retry.',
+  linuxDictationFailed: 'Linux dictation failed',
+  linuxDictationDownloadFailed:
+    'The dictation helper or model could not be downloaded. Press the microphone to retry; an interrupted download can resume.',
   dictationTitle: 'Tap or hold to record (Ctrl+D)',
   dictationStopTitle: 'Stop recording (Ctrl+D)',
   dictationLabel: 'Record Voice',
@@ -2989,7 +3021,7 @@ export const EN = {
   dictationFailed: 'Voice dictation failed',
   dictationUnavailable: 'Voice dictation is not available on this platform.',
   dictationUnavailableLinux:
-    'Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine.',
+    'Linux dictation needs an x64 or arm64 computer with PulseAudio or PipeWire running.',
   dictationUnavailableWindows:
     'Voice dictation needs Windows PowerShell, which was not found (SystemRoot is not set).',
   dictationUnavailableDarwin:
@@ -3102,7 +3134,7 @@ export const EN = {
   sessionBudgetUnknownCharge:
     'Usage was not verified. {amount} remains reserved as a possible charge; this is not a confirmed bill.',
   sessionBudgetVoiceUnavailable:
-    'Muse Voice is unavailable under a finite spend cap: its billed audio duration has no verified bound. Use free system dictation.',
+    'Muse Voice file transcription is unavailable under a finite spend cap: its billed audio duration has no verified bound. Use free system dictation.',
   sessionBudgetVoiceContextChanged:
     'Muse Voice stopped because the conversation or its permissions changed. Start a new recording in the current conversation.',
   sessionBudgetUnpriced:
@@ -4533,7 +4565,7 @@ export const EN = {
     'Muse may search the web while it answers. Each search is billed to your Model API key at {price}, on top of the tokens its results add. Deny sends the prompt without web search.',
   paidUseVoiceTitle: 'Record with Muse Voice?',
   paidUseVoiceDetail:
-    'Muse Voice transcribes this recording, billed to your Model API key at {price}. Deny leaves the microphone off.',
+    'Muse Voice is a Meta service and bills your Meta Model API key at {price}, regardless of the conversation model. Recordings stop at three minutes. Allow once covers one recording; Always covers this workspace until revoked. Duration and estimated cost are shown; the provider’s bill cannot be read back. Deny leaves the microphone off.',
   paidWebSearchPrice: '{price} per 1,000 searches',
   paidImagePrice: '{price} per image',
   paidVoicePrice: '{price} per hour of audio',
@@ -4545,7 +4577,7 @@ export const EN = {
   paidConfirmImage:
     'The model may create image files in the workspace, or edit workspace images into new ones. Each image is billed to your Model API key at {price}, and you are asked before every one, in every permission mode, unless you allow images always in this workspace. Used on the Model API backend, and on the Muse Code backend while a key is stored (never billed to the subscription).',
   paidConfirmVoice:
-    'The microphone will send what you record to Meta’s Muse Voice Transcribe instead of your computer’s own recogniser, billed to your Model API key at {price}. Each recording asks first, unless you allow Muse Voice always in this workspace. Used on the Model API backend, and on the Muse Code backend while a key is stored.',
+    'Muse Voice sends recordings to Meta, billed to your Model API key at {price}, on either backend. Recordings stop at three minutes and reserve the daily budget and any conversation cap before connecting. Allow once covers one recording; Always covers this workspace until revoked. The provider’s bill cannot be read back.',
   paidConfirmScheduled:
     'A due scheduled prompt waits for you to run it. Each run asks before any Model API call, unless you allow scheduled runs always in this workspace. {price}. Billed to your Model API key; total varies with tokens used.',
   paidConfirmSubagents:
@@ -4807,8 +4839,19 @@ export const EN = {
   dictationPaidTitle:
     'Muse Voice, paid: {price}, billed to your Model API key. Tap or hold to record (Ctrl+D)',
   // Why Muse Voice cannot record or transcribe.
-  museVoiceNoKey: 'Muse Voice needs a Model API key; sign in with one first.',
+  museVoiceNoKey:
+    'Muse Voice needs a Meta Model API key; add one even when your conversation uses another provider or a local model.',
   museVoiceNoAnswer: 'Muse Voice did not answer; check the connection and try again.',
+  museVoiceIdle:
+    'Muse Voice closed the recording because audio stopped arriving at real-time pace.',
+  museVoiceTransportFailed: 'The Muse Voice connection failed; the recording stopped.',
+  museVoiceInvalidDuration: 'Muse Voice reported an invalid audio duration; the recording stopped.',
+  museVoiceUsageReported:
+    'Muse Voice: {duration}, estimated {cost} from the reported duration. The provider’s bill cannot be read back.',
+  museVoiceUsageEstimated:
+    'Muse Voice: {duration}, estimated {cost} from audio sent. No final duration arrived; the full reservation remains uncertain. The provider’s bill cannot be read back.',
+  museVoiceUsageEmpty:
+    'Muse Voice: {duration}, estimated {cost}. No audio was sent; no audio charge is expected. The provider’s bill cannot be read back.',
   museVoiceNoFinal: 'Muse Voice did not send the transcript in time; try again.',
   museVoiceMalformed: 'Muse Voice sent something that is not JSON, so the recording was dropped.',
   museVoiceRefused: 'Muse Voice refused the recording',

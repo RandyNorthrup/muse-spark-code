@@ -1,0 +1,28 @@
+{
+  "input": "sentence 1 padded to 10 seconds; libflite slt PCM16 mono 16 kHz",
+  "engine": "whisper.cpp 1.7.6, portable dynamic CPU helper",
+  "model": "tiny.en",
+  "elapsedSeconds": 2.135,
+  "exitCode": 0,
+  "frames": [
+    {
+      "type": "ready",
+      "language": "en",
+      "recognizer": "whisper.cpp tiny.en"
+    },
+    {
+      "type": "listening"
+    },
+    {
+      "type": "text",
+      "text": " Please open the project and run the tests."
+    },
+    {
+      "type": "stopped"
+    }
+  ],
+  "workspace": "CM9LNX",
+  "offlineModelAttempts": 1,
+  "vendorModelAttempts": 0,
+  "helperSha256": "f5a52d59d84977fac1dd093f4a955dea646e0dfcc07cc34fdde8d4436221f830"
+}

@@ -1,3 +1,4 @@
+import { COMPANION_VOICE_RELEASE } from '../companionVoice'
 // The generator's build entry: its imports are visible to the dead-code gate.
 export {
   featureCatalog,
@@ -16,6 +17,9 @@ export { fill } from '../l10n/text'
 export { Usd } from '../usd'
 export {
   ACP_AGENT_NAME,
+  MUSE_VOICE_MAX_SECONDS,
+  MUSE_VOICE_FRAME_MS,
+  MUSE_VOICE_RESERVED_MS,
   PAID_FEATURE_SETTINGS,
   PAID_FEATURES,
   MUSE_CODE_PAID_FEATURES,
@@ -63,7 +67,11 @@ export { parseHandoffPrompt } from '../handoff'
 
 // Reviewed host capability inventory: pairs are explicit, never a Cartesian claim.
 // The tooling gate also checks tool/action coverage and host admission witnesses.
+const companionCapabilities: [string, readonly string[]][] = COMPANION_VOICE_RELEASE.isReady
+  ? [['companion-dictation', ['acp:museCode', 'acp:modelApi']]]
+  : []
 const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
+  ...companionCapabilities,
   ['resources', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi']],
   ...['strict-tools', 'parallel-reads', 'cut-short-tools', 'structured-side-calls'].map(
@@ -75,6 +83,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['argument-preview', ['vscode:modelApi', 'acp:modelApi']],
   ...['service-status'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi']]),
   ['native-deletion', ['vscode:museCode']],
+  ['voice', ['vscode:museCode', 'vscode:modelApi']],
   ['output-schema', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['usage', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
@@ -101,13 +110,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // C-X-1: the shared daily budget also binds headless/ACP runs through the
   // runtime ledger, which reads the same paidDailyBudgetUsd setting.
   ['budget', ['vscode:modelApi', 'acp:modelApi']],
-  ...[
-    'auto-subscription',
-    'native-agents',
-    'native-search-cron',
-    'voice',
-    'judge-subscription',
-  ].map((id): [string, readonly string[]] => [id, ['vscode:museCode']]),
+  ...['auto-subscription', 'native-agents', 'native-search-cron', 'judge-subscription'].map(
+    (id): [string, readonly string[]] => [id, ['vscode:museCode']],
+  ),
   ...[
     'attachments',
     'effort',

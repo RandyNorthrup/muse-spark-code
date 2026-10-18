@@ -160,6 +160,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/runtime/providersCommands.ts', symbol: 'userFileIo', side: ['acp'] },
     ],
   },
+  {
+    file: 'dictation.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'DICTATION_BUNDLE_FILE', side: ['vscode'] },
+    ],
+  },
   { file: 'estimateContracts.js', side: 'both', requestedBy: [] },
   {
     file: 'estimator.js',
@@ -819,7 +826,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/extension.ts', symbol: 'activate', side: ['vscode'] },
       { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] },
-      { importer: 'src/runtime/main.ts', symbol: 'serve', side: ['acp'] },
+      { importer: 'src/runtime/main.ts', symbol: 'runtimeRecording', side: ['acp'] },
       {
         importer: 'src/runtime/usage/usageAdapter.ts',
         symbol: 'lazyUsageAdapter',
@@ -846,6 +853,29 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'vscode',
     requestedBy: [
       { importer: 'src/shared/constants.ts', symbol: 'VOICE_BUNDLE_FILE', side: ['vscode'] },
+    ],
+  },
+  {
+    file: 'voiceCompanion.js',
+    side: 'acp',
+    requestedBy: [
+      {
+        importer: 'src/runtime/companion/voiceEntry.ts',
+        symbol: 'openVoiceCompanion',
+        side: ['acp'],
+      },
+      {
+        importer: 'src/runtime/companion/voiceLoader.ts',
+        symbol: 'voiceCompanionLoader',
+        side: ['acp'],
+      },
+    ],
+  },
+  {
+    file: 'voiceLinux.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'VOICE_LINUX_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
   {
@@ -901,6 +931,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  { file: 'webview/voiceCompanion.js', side: 'unreached', requestedBy: [] },
   {
     file: 'webview/whatsNew.js',
     side: 'vscode',

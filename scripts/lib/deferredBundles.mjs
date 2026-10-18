@@ -274,6 +274,16 @@ export const DEFERRED = [
     files: ['src/runtime/usage/usageCompanionEntry.ts', 'src/runtime/companion/server.ts'],
   },
   {
+    output: 'dist/voiceCompanion.js',
+    metafile: 'dist/meta/voiceCompanion.json',
+    files: [
+      'src/runtime/companion/voiceEntry.ts',
+      'src/runtime/companion/voiceHandler.ts',
+      'src/runtime/companion/voicePaid.ts',
+      'src/runtime/companion/voiceSystem.ts',
+    ],
+  },
+  {
     output: 'dist/usagePanel.js',
     metafile: 'dist/meta/usagePanel.json',
     files: [
@@ -643,6 +653,34 @@ export const ON_FIRST_USE = [
       'src/core/voice/dictation.ts',
       'src/core/voice/museVoice.ts',
       'src/core/voice/recorderHelper.ts',
+    ],
+  },
+  // Linux's offline voice driver (M9, D140), split out of dist/voice.js:
+  // the driver glue and its helper/model acquisition load only on the first
+  // Linux recording, keeping voice.js inside its cap.
+  {
+    output: 'dist/voiceLinux.js',
+    metafile: 'dist/meta/voiceLinux.json',
+    use: 'the first Linux recording',
+    files: [
+      'src/host/voice/voiceLinuxEntry.ts',
+      'src/core/voice/linuxDictation.ts',
+      'src/core/voice/linuxHelper.ts',
+      'src/core/voice/linuxModel.ts',
+    ],
+  },
+  // Voice dictation's setups (M9, M35): the window's dictation and Muse
+  // Voice setups with the helper probes, required at their existing
+  // construction points, keeping activation's lane-K growth inside its cap.
+  {
+    output: 'dist/dictation.js',
+    metafile: 'dist/meta/dictation.json',
+    use: 'the window dictation setup construction',
+    files: [
+      'src/host/voice/dictationEntry.ts',
+      'src/host/voice/dictationHost.ts',
+      'src/host/voice/voiceBundle.ts',
+      'src/core/voice/helperLocation.ts',
     ],
   },
   // The window's web fetch (M69), split out on 2026-10-04: the Model API

@@ -72,6 +72,8 @@ const HOST_BUNDLES = [
   'dist/legalScan.js',
   'dist/codeIntel.js',
   'dist/voice.js',
+  'dist/voiceLinux.js',
+  'dist/dictation.js',
   'dist/media.js',
   'dist/screenRecord.js',
   'dist/webFetch.js',
