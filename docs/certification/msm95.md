@@ -314,6 +314,10 @@ checks) · `security:audit` 0 (2 advisories, 1 exceptioned).
   before the fix with `Files must total at most 50 images and PDF
 pages per message.` from `MediaBudget.fit`, and passes after
   (13 tests in the file).
+- `c32a1bc86` test typecheck: the Azure registry test called the
+  optional `registry.list` directly (TS2722/TS18048), so
+  `typecheck:unit` was red on this tree; it now fails loudly when
+  `list` is absent. `npm run typecheck` exits 0 after the fix.
 
 ## APP PROBLEMS
 
