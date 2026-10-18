@@ -18,7 +18,10 @@ happened, not what was planned; superseded entries are kept.
   host identifier could not be read. The packed agent also crashed with a
   `TypeError` instead of the sentence where the account check failed: the
   account check's failure-text helper was never exported from the
-  subscriptions bundle, and now is.
+  subscriptions bundle, and now is. An editor starting a session with an
+  unreadable providers file now gets that sentence as the error's message
+  instead of a bare "Internal error", and `providers list`
+  and `exec --provider` print the reason instead of "Test failed: {detail}".
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

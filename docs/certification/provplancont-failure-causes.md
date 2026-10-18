@@ -112,17 +112,26 @@ Read with `gh run view --job <id> --log-failed` (read-only), each failed job:
 Lock cause, from the logs: every failing case binds a Unix socket under
 `<repo>/temp/m95b-x-lock-XXXXXX/<case>-XXXXXX/grant.lock.<pid>.<6 hex>`
 (or `<repo>/temp/named-lock-race-XXXXXX/work/…`). The failures split by that
-path's length against `sockaddr_un` (107 usable bytes on Linux, 103 on
-macOS): on Linux (repo root 49 bytes) the 12-byte case folders (`live-`,
-`port-`) pass and the 13-14-byte ones (`crash-`, `stale-`, `serial-`,
-`thrown-`) fail; on macOS (repo root 56 bytes, 4 fewer usable) every
-binding case fails. Node binds an over-long path truncated: the contender's
-own entry then shows up in `readdir` under a name that is not its own, is
-live (its own listener), so it gives way to itself forever: timeouts
-without a deadline, `lock-busy` with one. That is exactly the failure set.
-The product's lock root is `/tmp/<folder>` (`src/runtime/namedLock.ts:231`),
-short, so only the tests' long folders reach it. To confirm on a POSIX box
-before the fix lands: bind the same path length and read the entry name.
+path's length against `sockaddr_un` (108 usable bytes on Linux, 103 on
+macOS): on Linux (repo root 49 bytes, a 4-digit pid) the `live-` and
+`port-` cases are 108 bytes and pass, `crash-` and `stale-` are 109 and
+`serial-` and `thrown-` 110, and those fail; on macOS (repo root 56 bytes,
+5 fewer usable) every binding case fails. The CI symptom is `lock-busy`, not
+`EINVAL`: Node 22 bound the over-long path truncated, so the contender's own
+entry showed up in `readdir` under a name that is not its own, live (its
+own listener), and it gave way to itself forever: timeouts without a
+deadline, `lock-busy` with one. That is exactly the failure set. The
+product's lock root is `/tmp/<folder>` (`src/runtime/namedLock.ts:231`),
+short, so only the tests' long folders reach it.
+
+Measured on this Windows PC's WSL (Arch, Node 26.9.0), `temp/sockprobe.mjs`
+binding one socket at each total path length: 100-108 bytes reach the file
+system (`ENOTSUP`, sockets are refused on the Windows-mounted drive), 109,
+110 and 112 bytes are refused with `EINVAL` before it. So Linux's limit is
+108 bytes, matching the split above. Node 26 refuses where CI's Node 22
+truncated; the truncating bind itself is UNMEASURED here (no Node 22 in
+WSL), read from the CI symptom. The POSIX suites cannot run on this PC (no
+socket on the mounted drive): hosted CI is their gate.
 
 ### Plan for findings 1-3 (real use of the packed agent)
 
@@ -152,3 +161,88 @@ Each fix is proven by driving the packed agent (`node dist/acp.js`) with a
 real broken providers file in an empty workspace, plus a unit test over the
 real modules where one adds meaning; each new test is broken once on
 purpose and recorded here.
+
+### What changed
+
+1. The providers-file refusal, carrying its sentence:
+   `src/core/accountStoreError.ts:31` (`providersFileUnreadable`; the
+   `AccountStoreError` class moved there unchanged but for an optional
+   message, re-exported from `accountCredentialRecord.ts`, so the shipped
+   configured and subscriptions bundles carry the class and not the account
+   schemas; under `src/core/providers/` the bundle-split gate refused it,
+   and it was moved rather than given an exception). Thrown by the
+   configured reader (`src/core/providers/configured.ts:382`) and the ChatGPT
+   session client (`src/runtime/chatGptProviderCommands.ts:65`). The account
+   check returns its message (`src/runtime/backends.ts:685`);
+   `isInvalidProvidersFileError` is a type guard (`src/acp/accountText.ts:37`).
+2. Session new, load, resume and list answer a providers-file refusal with
+   its sentence as the error's message (`src/acp/agent.ts:2406`, in
+   `openHost`), as the readiness check already did.
+3. `providers` commands and `exec --provider` fill `{detail}`, the name all
+   15 tables use (`src/runtime/providersCommands.ts:155`,
+   `src/runtime/exec/providerExec.ts:447`); the tables were already
+   consistent, so the two call sites were the fault.
+4. CI lock suites: lock folders and the race's work folder are named
+   relative to the working folder every worker inherits
+   (`test/unit/runtimeChatGptLock.test.ts:45`,
+   `test/unit/namedLockRace.test.ts:70`, `test/hosts/named-lock-race.mjs:118`).
+
+### Test and drills
+
+`test/unit/chatGptLocalFailures.test.ts:69`: a real corrupt and a real
+invalid providers file; the real `runtimeSubscriptionClient`, its
+`accountId()` (the call the account check makes) and `createClient()` with a
+real `ModelApiClient` (the Proxy stand-in and its PLAN.md §8 row are gone).
+Each must be the providers-file refusal with exactly the filled sentence.
+
+- Drill 1: the configured reader put back to `RangeError` /
+  `ModelApiError(actionFailed)`: 2 failed (`expected false to be true` at the
+  account-check assertion), exit 1. Reverted: 20 passed, exit 0.
+- Drill 2: the session reader put back to `new Error(...)`: 2 failed at the
+  session assertion, exit 1. Reverted: 20 passed, exit 0.
+
+### Real use: the packed agent, 2026-10-17, this Windows PC
+
+`npm run build` (exit 0), then `temp/realuse/drive.mjs` and `more.mjs`: an
+empty workspace, an isolated profile (`USERPROFILE`, `APPDATA`,
+`LOCALAPPDATA`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME` in the worktree's
+`temp/`), `providers.json` holding `{not json` (unparseable) or
+`{"v":0,"providers":[]}` (invalid). No model request was made: every path
+stops at the file read. The agent's own commands said `auth status`: "No
+Meta Model API key is stored." and `providers status chatgpt`: "ChatGPT
+sign-in has expired; …" (this PC holds a ChatGPT grant), so readiness is
+`ready` and session/new reaches the provider client, finding 2's path.
+
+| Step (editor or terminal)                                                               | Before (183ac75674 behaviour)                                                                                           | Now                                                                                                                                                   |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--backend modelApi`, `initialize`, `session/new`                                       | `{"code":-32603,"message":"Internal error","data":{"details":"The providers file could not be read (unparseable). …"}}` | `{"code":-32603,"message":"Internal error: The providers file could not be read (unparseable). Fix or remove it, then try again."}` (and `(invalid)`) |
+| `providers list`                                                                        | `Test failed: {detail}` (the owner's run)                                                                               | exit 1, `Test failed: <path of providers.json>` (unparseable), `Test failed: Invalid input` (invalid)                                                 |
+| `exec --backend modelApi --max-budget-usd 0.01 --provider acme --model acme/m "say ok"` | `Test failed: {detail}` (same call-site fault)                                                                          | exit 2, `[error] Test failed: <path>` / `[error] Test failed: Invalid input`                                                                          |
+
+The "Before" row for session/new was measured, not recalled: the `openHost`
+conversion was taken out, the agent rebuilt and driven again (it answered as
+above), then restored and rebuilt (tree clean).
+
+Not reached in real use here: the readiness branch itself
+(`src/runtime/backends.ts:685`, a computer with no stored grant or key),
+because this PC holds a ChatGPT grant and the agent's store has no override;
+the grant was not touched. The unit case drives the same `accountId()` call
+over the real modules. On such a computer the editor reads
+`Internal error: The providers file could not be read (unparseable|invalid).
+Fix or remove it, then try again.` from `requireReady`.
+
+### VSIX budget: measured, not fixed here
+
+Main (81dacaf5, as packaged by `chore/no-standins`, run 39090625665) is
+3,783,387 bytes, 5,413 under the 3700 KiB budget; this branch is 3,800,805
+(+17,418). The growth is the branch's product content: `l10n/` +10.7 KB
+(about 45 new sentences in 15 languages, already brotli-compressed at the
+build's quality, so it passes into the VSIX whole) and code (`dist/subscriptions.js`
+29.7 → 40.7 KiB, `modelApi.js` +1.8, `conversation.js` +1.5,
+`uiTextRuntime.js` +1.0, smaller others). Every key the branch adds is read
+by code; no file was added to the VSIX; Unreleased notes ship only their
+Highlights, so the CHANGELOG lines do not count. The fixes above add about
+0.4 KiB raw. Room for 12 KB cannot come from a lazily loaded bundle (the
+VSIX holds every bundle), and the cap is not raised here (PLAN.md D6):
+the owner decides between authorizing a new budget and cutting shipped
+content.
