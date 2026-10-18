@@ -7,6 +7,7 @@
 // socket and the tool implementations.
 
 import * as z from 'zod/mini'
+import type { UnattendedRun } from './schedules/unattended'
 import {
   JSON_RPC_ERRORS,
   MCP_CANCELLED_NOTIFICATION,
@@ -26,6 +27,12 @@ export interface McpTool {
    * `notifications/cancelled` named it).
    */
   readonly call: (args: Readonly<Record<string, unknown>>, signal: AbortSignal) => Promise<string>
+  /** Explicit prompt-free executor with policy at every file read/result. */
+  readonly callUnattended?: (
+    args: Readonly<Record<string, unknown>>,
+    signal: AbortSignal,
+    run: UnattendedRun,
+  ) => Promise<string>
 }
 
 export interface McpServerInfo {

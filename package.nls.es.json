@@ -160,7 +160,7 @@
   "command.schedulePrompt.title": "Schedule this prompt…",
   "command.showSchedules.title": "Show schedules",
   "command.showScheduleTimeline.title": "Show schedule timeline",
-  "config.schedules.description": "Controla el acceso directo al comando /loop existente en el chat de Muse Code. La gestión de programaciones y la ejecución de instrucciones programadas no están disponibles.",
+  "config.schedules.description": "Controla /loop en el chat de Muse Code. La entrega de indicaciones programadas requiere certificación.",
   "config.schedules.defaultDelivery.description": "Selecciona la entrega guardada en los nuevos borradores de programación; no habilita la ejecución programada.",
   "config.schedules.agentCreation.description": "Se conserva por compatibilidad; esta preferencia no tiene efecto en esta compilación.",
   "command.tabLanguages.title": "Idiomas de Tab",

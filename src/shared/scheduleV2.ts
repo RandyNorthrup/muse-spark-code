@@ -227,15 +227,22 @@ export const scheduleActionSchema = z.discriminatedUnion('kind', [
   }),
 ])
 export type ScheduleReportAction = Extract<z.infer<typeof scheduleActionSchema>, { kind: 'report' }>
-export const schedulePaidConsentSchema = z.strictObject({
-  modelId: text,
-  accountId: text,
-  priceTier: text,
-  grantedAtMs: timestamp,
-  dailyCapUsd: money.check(z.refine((amount) => amount !== '0')),
-  sharedDailyBudgetUsd: money.check(z.refine((amount) => amount !== '0')),
-  extras: z.array(z.enum(PAID_FEATURES)),
-})
+export const schedulePaidConsentSchema = z
+  .strictObject({
+    modelId: text,
+    accountId: text,
+    priceTier: text,
+    /** Legacy records remain readable, but cannot authorize a paid-key fire. */
+    payerKind: z.optional(z.enum(['paidKey', 'plan'])),
+    grantedAtMs: timestamp,
+    dailyCapUsd: money.check(z.refine((amount) => amount !== '0')),
+    sharedDailyBudgetUsd: money.check(z.refine((amount) => amount !== '0')),
+    extras: z.array(z.enum(PAID_FEATURES)),
+    /** Absent on prior standing grants; Once is bound atomically before dispatch. */
+    scope: z.optional(z.enum(['once', 'schedule'])),
+    runId: z.optional(runId),
+  })
+  .check(z.refine((consent) => consent.runId === undefined || consent.scope === 'once'))
 export const scheduleCreatorSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('user') }),
   z.strictObject({
@@ -401,6 +408,8 @@ export function noScheduleCost(): ScheduleFireRecord['cost'] {
 }
 
 export interface ScheduleStoreV2 {
+  /** In-process edits retire authority before their durable write awaits. */
+  authorityGeneration?(workspaceKey: string, scheduleId: string): number
   /** New ids start at revision zero and are never reused after removal. */
   create(schedule: ScheduleV2): Promise<void>
   list(workspaceKey: string): Promise<readonly ScheduleV2[]>
@@ -422,6 +431,7 @@ export type ScheduleDeliveryResult = ScheduleFireRecord
 export const scheduleDeliveryStateSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('absent') }),
   z.strictObject({ status: z.literal('admitted') }),
+  z.strictObject({ status: z.literal('dispatchStarted'), retainedLiabilityUsd: z.optional(money) }),
   z
     .strictObject({ status: z.enum(['settled', 'uncertain']), fire: scheduleFireRecordSchema })
     .check(
@@ -430,6 +440,7 @@ export const scheduleDeliveryStateSchema = z.discriminatedUnion('status', [
 ])
 export type ScheduleDeliveryState = z.infer<typeof scheduleDeliveryStateSchema>
 export interface ScheduleHostPort {
+  readonly signal?: AbortSignal | undefined
   now(): number
   monotonicNow(): number
   holds(workspaceKey: string): boolean

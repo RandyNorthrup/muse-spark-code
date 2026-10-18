@@ -2,6 +2,7 @@
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
+  MILLISECONDS_PER_SECOND,
   SCHEDULE_MAX_PER_WORKSPACE,
   SCHEDULE_ID_MAX_CHARS,
   SCHEDULE_PAUSE_AFTER_FAILURES,
@@ -17,6 +18,7 @@ import {
   scheduleV2Schema,
   type ScheduleStoreV2,
   type ScheduleFireRecord,
+  type ScheduleDeliveryState,
 } from '../../shared/scheduleV2'
 import { scheduleEventSchema } from '../../shared/scheduleEvents'
 import { createScheduleJournal, parseScheduleStoredJson, type ScheduleFsPort } from './journal'
@@ -49,7 +51,11 @@ export type ScheduleRunIntent = z.infer<typeof intentSchema>
 const pendingSchema = z.strictObject({
   intent: intentSchema,
   ownerPid: z.int().check(z.gte(1)),
+  // Process birth: a reused pid, or one from another user, never owns a dispatch.
+  ownerStart: z.optional(z.number().check(z.gte(0))),
   admitted: z.optional(z.boolean()),
+  dispatchStarted: z.optional(z.boolean()),
+  dispatchLiabilityUsd: z.optional(scheduleFireRecordSchema.shape.cost.shape.retainedLiabilityUsd),
   sequence: z.optional(z.int().check(z.gte(0))),
   ack: z.optional(scheduleFireRecordSchema),
 })
@@ -78,6 +84,7 @@ const indexSchema = z.strictObject({
 const fenceSchema = z.strictObject({
   runId: scheduleFireRecordSchema.shape.runId,
   ownerPid: z.int().check(z.gte(1)),
+  ownerStart: z.optional(z.number().check(z.gte(0))),
 })
 const decisionSchema = z.strictObject({
   admitted: z.boolean(),
@@ -100,6 +107,14 @@ export interface ScheduleRunJournalPort {
   admit(intent: ScheduleRunIntent): Promise<boolean>
   /** Cursor CAS and after-N admission, idempotent for an already admitted run. */
   advance(intent: ScheduleRunIntent): Promise<boolean>
+  /** Durable at-most-once fence before entering any host delivery boundary. */
+  startDispatch(
+    intent: ScheduleRunIntent,
+    liabilityUsd?: ScheduleFireRecord['cost']['retainedLiabilityUsd'],
+  ): Promise<boolean>
+  lookupRun(workspaceKey: string, runId: string): Promise<ScheduleDeliveryState>
+  /** A target lease expiry does not prove its dispatching process died. */
+  isLiveDispatchOwnedElsewhere?(workspaceKey: string, runId: string): Promise<boolean>
   /** Bounded dispatchers select from this persisted queue, including live owners. */
   pending(workspaceKey: string): Promise<readonly ScheduleRunIntent[]>
   abandoned(workspaceKey: string): Promise<readonly ScheduleRunIntent[]>
@@ -114,6 +129,23 @@ export function isScheduleProcessAlive(pid: number): boolean {
     return true
   } catch (error: unknown) {
     return !(error instanceof Error && 'code' in error && error.code === 'ESRCH')
+  }
+}
+// A dispatch owner is a process birth (pid plus process start time), as the
+// target-lease owner already is. A reused pid never keeps a dead owner's
+// dispatch pending: the same pid with another start time is dead. A pid this
+// process cannot signal (another user's) cannot own this journal's dispatch.
+const scheduleProcessStart = Date.now() - process.uptime() * MILLISECONDS_PER_SECOND
+export function scheduleProcessBirth(): { pid: number; start: number } {
+  return { pid: process.pid, start: scheduleProcessStart }
+}
+export function isScheduleDispatchOwnerAlive(pid: number, start?: number): boolean {
+  if (pid === process.pid) return start === undefined || start === scheduleProcessStart
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
   }
 }
 function ordered(a: ScheduleRunIntent, b: ScheduleRunIntent): number {
@@ -135,9 +167,17 @@ function fenceFolder(runId: string): string {
   return `claims/${scheduleStorageHash(id)}/${hash.slice(0, SCHEDULE_FENCE_SEGMENT_CHARS)}/${hash}`
 }
 
+const authorityKey = (workspace: string, id: string) => JSON.stringify([workspace, id])
+
 export function createScheduleStore(
   fs: ScheduleFsPort,
 ): ScheduleStoreV2 & ScheduleRunJournalPort & ScheduleMigrationJournalPort {
+  const authorityGenerations = new Map<string, number>()
+
+  const retireAuthority = (workspace: string, id: string) => {
+    const key = authorityKey(workspace, id)
+    authorityGenerations.set(key, (authorityGenerations.get(key) ?? 0) + 1)
+  }
   const createIndex = (workspaceKey: string) =>
     createScheduleJournal(
       fs,
@@ -287,8 +327,11 @@ export function createScheduleStore(
         (a, b) => a.createdAtMs - b.createdAtMs || compareId(a.id, b.id),
       )
     },
+    authorityGeneration: (workspace, id) =>
+      authorityGenerations.get(authorityKey(workspace, id)) ?? 0,
     async update(input) {
       const job = scheduleV2Schema.parse(input)
+      retireAuthority(job.workspaceKey, job.id)
       return await index(job.workspaceKey).transact((value) => {
         const current = value.schedules[job.id]
         if (current?.revision !== job.revision) return { value, result: false }
@@ -307,6 +350,7 @@ export function createScheduleStore(
     },
     async remove(workspaceKey, id) {
       identifier.parse(id)
+      retireAuthority(workspaceKey, id)
       return await index(workspaceKey).transact((value) => {
         if (value.schedules[id] === undefined) return { value, result: false }
         // Removal and its timestamp commit in the same journal CAS. The
@@ -334,7 +378,11 @@ export function createScheduleStore(
         reservation?.removedAtMs === undefined &&
         (await fs.publish(
           `${fenceFolder(runId)}.json`,
-          JSON.stringify({ runId, ownerPid: process.pid }),
+          JSON.stringify({
+            runId,
+            ownerPid: scheduleProcessBirth().pid,
+            ownerStart: scheduleProcessBirth().start,
+          }),
         ))
       )
     },
@@ -354,7 +402,11 @@ export function createScheduleStore(
           return { value, result: false }
         if (Object.keys(value.pending).length >= SCHEDULE_OUTBOX_MAX_PENDING)
           throw new Error('scheduleOutboxLimit')
-        value.pending[intent.runId] = { intent, ownerPid: process.pid }
+        value.pending[intent.runId] = {
+          intent,
+          ownerPid: scheduleProcessBirth().pid,
+          ownerStart: scheduleProcessBirth().start,
+        }
         return { value, result: true }
       })
       // Intent precedes the identity fence. A crash here leaves definitely-unsent
@@ -405,6 +457,7 @@ export function createScheduleStore(
                 (cursor === undefined || intent.occurrenceMs > cursor)))
           const sequence = revision + 1
           pending.admitted = isAdmitted
+          pending.dispatchStarted = false
           pending.sequence = sequence
           decision = {
             admitted: isAdmitted,
@@ -439,6 +492,47 @@ export function createScheduleStore(
         )
       return isResult
     },
+    async startDispatch(input, liabilityUsd) {
+      const intent = intentSchema.parse(input)
+      return await index(intent.schedule.workspaceKey).transact((value) => {
+        const pending = value.pending[intent.runId]
+        if (pending?.admitted !== true) throw new Error('scheduleRunNotClaimed')
+        if (JSON.stringify(pending.intent) !== JSON.stringify(intent))
+          throw new Error('scheduleRunIntentMismatch')
+        if (pending.dispatchStarted !== false || pending.ack !== undefined)
+          return { value, result: false }
+        pending.dispatchStarted = true
+        pending.dispatchLiabilityUsd =
+          scheduleFireRecordSchema.shape.cost.shape.retainedLiabilityUsd.parse(
+            liabilityUsd ?? intent.schedule.grant.paidCapUsd,
+          )
+        pending.ownerPid = process.pid
+        pending.ownerStart = scheduleProcessBirth().start
+        return { value, result: true }
+      })
+    },
+    async lookupRun(workspaceKey, runId) {
+      const current = await index(workspaceKey).read()
+      const pending = current.value.pending[runId]
+      const saved =
+        pending?.ack === undefined
+          ? await read(`${workspaceKey}/fires/${scheduleStorageHash(runId)}.json`, (raw) =>
+              fireEnvelopeSchema.parse(raw),
+            )
+          : undefined
+      const fire = pending?.ack ?? saved?.fire
+      if (fire !== undefined)
+        return { status: fire.outcome === 'uncertain' ? 'uncertain' : 'settled', fire }
+      // Legacy admitted rows lack a write-ahead flag; they cannot prove unsent.
+      if (pending?.admitted === true && pending.dispatchStarted !== false)
+        return {
+          status: 'dispatchStarted',
+          ...(pending.dispatchLiabilityUsd !== undefined && {
+            retainedLiabilityUsd: pending.dispatchLiabilityUsd,
+          }),
+        }
+      return { status: pending === undefined ? 'absent' : 'admitted' }
+    },
     async pending(workspaceKey) {
       const current = await index(workspaceKey).read()
       return Object.values(current.value.pending)
@@ -448,9 +542,20 @@ export function createScheduleStore(
     async abandoned(workspaceKey) {
       const current = await index(workspaceKey).read()
       return Object.values(current.value.pending)
-        .filter((entry) => !isScheduleProcessAlive(entry.ownerPid))
+        .filter((entry) => !isScheduleDispatchOwnerAlive(entry.ownerPid, entry.ownerStart))
         .map((entry) => entry.intent)
         .toSorted(ordered)
+    },
+    async isLiveDispatchOwnedElsewhere(workspaceKey, runId) {
+      const current = await index(workspaceKey).read()
+      const pending = current.value.pending[runId]
+      if (pending === undefined || pending.dispatchStarted === false) return false
+      // A row this process owns under its own birth is not owned elsewhere;
+      // anything else is alive only under its recorded birth.
+      const isOwnBirth =
+        pending.ownerPid === process.pid &&
+        (pending.ownerStart === undefined || pending.ownerStart === scheduleProcessStart)
+      return !isOwnBirth && isScheduleDispatchOwnerAlive(pending.ownerPid, pending.ownerStart)
     },
     async acknowledge(input) {
       const fire = scheduleFireRecordSchema.parse(input)
@@ -546,6 +651,8 @@ export function createScheduleStore(
               )
             : firstNonFailure
         const isMustPause = consecutiveFailures >= SCHEDULE_PAUSE_AFTER_FAILURES
+        if (job !== undefined && isMustPause && !job.paused)
+          retireAuthority(job.workspaceKey, job.id)
         if (
           job !== undefined &&
           (job.consecutiveFailures !== consecutiveFailures || (isMustPause && !job.paused))

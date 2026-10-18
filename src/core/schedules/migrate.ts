@@ -98,7 +98,7 @@ async function reconcileCopiedSchedule(
   }
 }
 
-/** @unwired M115 schedule store migration */
+/** M52's v1 jobs migrate into the shared v2 store, verified then removed. */
 export async function migrateSchedules(
   source: ScheduleMigrationSource,
   store: ScheduleStoreV2 & ScheduleMigrationJournalPort,

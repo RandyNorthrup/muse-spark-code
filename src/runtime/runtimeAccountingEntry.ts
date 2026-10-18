@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { createDailySpend } from '../host/paid/dailySpend'
+import { assertScheduleOwnCap } from '../core/paid/scheduleBudget'
+import type { ScheduleV2 } from '../shared/scheduleV2'
 import {
   isModelApiError,
   type ProviderClient,
@@ -34,10 +36,10 @@ import {
   HTTP_TOO_MANY_REQUESTS,
   MODEL_API_REQUEST_TIMEOUT_MS,
   PAID_DAILY_BUDGET,
-  RUNTIME_SETTINGS_FILE,
-  SETTING_DEFAULTS,
   TOKENS_PER_MILLION,
   UI_TEXT,
+  RUNTIME_SETTINGS_FILE,
+  SETTING_DEFAULTS,
 } from '../shared/constants'
 import { storeErrorCode } from '../host/backend/storeErrors'
 import {
@@ -135,45 +137,62 @@ export function createRuntimeDailyBudget(deps: {
     date.setHours(0, 0, 0, 0)
     return date.getTime()
   }
+  /**
+   * One request about to be sent: `undefined` when the person set no daily
+   * limit (only the settings file is read); otherwise its claim, refused with
+   * the stop sentence when its estimate would pass what is left of today.
+   */
+  const admit = (estimateUsd: UsdAmount, signal: AbortSignal): SpendClaim | undefined => {
+    signal.throwIfAborted()
+    if (!isPositiveUsd(capUsd())) return undefined
+    const scope = day()
+    const check = () => {
+      signal.throwIfAborted()
+      if (scope !== day()) throw new UserRefusalError(UI_TEXT.spendLedgerMidnight, 'midnight')
+      const limitUsd = capUsd()
+      if (!isPositiveUsd(limitUsd)) return
+      const { spentUsd } = spend.read(scope)
+      if (Usd.from(spentUsd).add(Usd.from(estimateUsd)).compare(Usd.from(limitUsd)) > 0)
+        throw new SessionBudgetExceededError(
+          fill(UI_TEXT.execPaidDailyStopped, {
+            estimate: formatUsd(estimateUsd),
+            cap: formatUsd(limitUsd),
+            spent: formatUsd(spentUsd),
+            reset: formatDateTime(nextMidnight()),
+            setting: 'paidDailyBudgetUsd',
+          }),
+        )
+    }
+    check()
+    let isSettled = false
+    return {
+      estimateUsd,
+      check,
+      settle: async (costUsd) => {
+        if (isSettled) return
+        isSettled = true
+        await spend.add(scope, costUsd === undefined ? undefined : ceilUsd(costUsd))
+      },
+    }
+  }
   return {
     capUsd,
+    admit,
     /**
-     * One request about to be sent: `undefined` when the person set no daily
-     * limit (only the settings file is read); otherwise its claim, refused with
-     * the stop sentence when its estimate would pass what is left of today.
+     * One schedule fire about to be sent: the schedule's own caps admit the
+     * estimate first, then the person's daily limit, as one claim. A fire
+     * past either cap refuses with the cap sentence; nothing is held (D121).
      */
-    admit(estimateUsd: UsdAmount, signal: AbortSignal): SpendClaim | undefined {
+    reserveSchedule: (
+      schedule: ScheduleV2,
+      estimateUsd: UsdAmount,
+      signal: AbortSignal,
+    ): Promise<SpendClaim> => {
       signal.throwIfAborted()
-      if (!isPositiveUsd(capUsd())) return undefined
-      const scope = day()
-      const check = () => {
-        signal.throwIfAborted()
-        if (scope !== day()) throw new UserRefusalError(UI_TEXT.spendLedgerMidnight, 'midnight')
-        const limitUsd = capUsd()
-        if (!isPositiveUsd(limitUsd)) return
-        const { spentUsd } = spend.read(scope)
-        if (Usd.from(spentUsd).add(Usd.from(estimateUsd)).compare(Usd.from(limitUsd)) > 0)
-          throw new SessionBudgetExceededError(
-            fill(UI_TEXT.execPaidDailyStopped, {
-              estimate: formatUsd(estimateUsd),
-              cap: formatUsd(limitUsd),
-              spent: formatUsd(spentUsd),
-              reset: formatDateTime(nextMidnight()),
-              setting: 'paidDailyBudgetUsd',
-            }),
-          )
-      }
-      check()
-      let isSettled = false
-      return {
-        estimateUsd,
-        check,
-        settle: async (costUsd) => {
-          if (isSettled) return
-          isSettled = true
-          await spend.add(scope, costUsd === undefined ? undefined : ceilUsd(costUsd))
-        },
-      }
+      assertScheduleOwnCap(schedule, estimateUsd)
+      const claim = admit(estimateUsd, signal)
+      if (claim === undefined) throw new Error(UI_TEXT.scheduleV2.messages.capReached)
+      return Promise.resolve(claim)
     },
   }
 }
@@ -258,6 +277,11 @@ export function withRuntimeAccounting(
       countInputTokens: original.countInputTokens.bind(original),
       ...(original.countInputTokensDetailed !== undefined && {
         countInputTokensDetailed: original.countInputTokensDetailed.bind(original),
+      }),
+      // Scheduled transport uses its own schedule admission, never a second
+      // daily admission from the interactive wrapper.
+      ...(original.withScheduleAuthority !== undefined && {
+        withScheduleAuthority: original.withScheduleAuthority.bind(original),
       }),
       listModels: original.listModels.bind(original),
       retryDelayMs: original.retryDelayMs.bind(original),
@@ -652,6 +676,9 @@ export function withRuntimeAccounting(
   }
   return {
     currentKeyDigest: client.currentKeyDigest.bind(client),
+    ...(client.withScheduleAuthority !== undefined && {
+      withScheduleAuthority: client.withScheduleAuthority.bind(client),
+    }),
     countInputTokens: client.countInputTokens.bind(client),
     listModels: client.listModels.bind(client),
     retryDelayMs: client.retryDelayMs.bind(client),

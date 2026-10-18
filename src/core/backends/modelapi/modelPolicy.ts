@@ -3,6 +3,7 @@ import { Usd, type UsdAmount } from '../../../shared/usd'
 // consumers retain the distinctions between unknown and unsupported. Provider
 // core stays in dist/providers.js, so only its types cross this seam.
 import type { ModelApiClient, ProviderClient } from './client'
+import type { UnattendedRun } from '../../schedules/unattended'
 import type { ModelSummary } from '../../agent/agentBackend'
 import type { CreateResponseBody, Usage } from './schemas'
 import { estimateCostUsd } from '../../usage/insights'
@@ -277,6 +278,10 @@ export type ModelClient = Pick<
     readonly costUsd?: UsdAmount | undefined
     readonly accuracy?: 'exact' | 'estimate'
   }>
+  readonly withScheduleAuthority?: (
+    run: () => UnattendedRun | undefined,
+    price?: ModelPricePolicy,
+  ) => ModelClient
 }
 
 export interface ResolvedModel {

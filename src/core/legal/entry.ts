@@ -18,7 +18,12 @@ export async function runLegalScan(request: LegalScanRequest): Promise<LegalScan
   request.signal?.throwIfAborted()
   const input = legalScanInputSchema.parse(request.input)
   const deadline = Date.now() + LEGAL_SCAN_TIMEOUT_MS
-  const snapshot = createLegalSnapshot(request.workspaceRoot, request.signal, deadline)
+  const snapshot = createLegalSnapshot(
+    request.workspaceRoot,
+    request.signal,
+    deadline,
+    request.canReadFile,
+  )
   const result = scanLegal(snapshot, {
     deadline,
     ...(input.paths !== undefined && { paths: input.paths }),

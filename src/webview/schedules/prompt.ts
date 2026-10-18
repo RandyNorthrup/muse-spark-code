@@ -1,4 +1,4 @@
-import { SCHEDULE_LIFETIME_MS, SCHEDULE_MIN_INTERVAL_MS, UI_TEXT } from '../../shared/constants'
+import { SCHEDULE_MIN_INTERVAL_MS, UI_TEXT } from '../../shared/constants'
 import type { LoopParseResult } from '../../core/backends/modelapi/schedules'
 import {
   scheduleDraftSchema,
@@ -19,16 +19,16 @@ export type SchedulePromptAction =
 /**
  * Why `/schedule` is refused while its runtime is unbound (C-X-1). Chat reads
  * the words here, in the module it loads on a first `/schedule`, so startup
- * carries none of the schedule surfaces' English (STARTUP017).
- * @unwired M115 schedule refused reason
+ * carries none of the schedule surfaces' English (STARTUP017). Reached from
+ * App.tsx's lazy schedule prompt mapping.
  */
 export function scheduleUnavailableReason(): string {
   return UI_TEXT.scheduleV2.runtime.unavailable
 }
 
 /** W calls this before an ordinary submit on either backend. The loop parser
- * @unwired M115 schedule prompt action
- * is injected from T: its grammar is retained, rather than duplicated here. */
+ * is injected from T: its grammar is retained, rather than duplicated here.
+ * Reached from App.tsx's lazy schedule prompt mapping. */
 export function schedulePromptAction(
   text: string,
   workspaceKey: string,
@@ -47,11 +47,12 @@ export function schedulePromptAction(
       command.cadence.kind === 'cron'
         ? command.cadence
         : { ...command.cadence, anchorMs: nowMs + command.cadence.everyMs }
+    // No end is stamped in: how long the schedule lives is the person's
+    // choice in the editor the draft opens.
     return checkedDraft({
       ...defaultDraft,
       action: { kind: 'prompt', prompt: command.prompt },
       trigger,
-      end: { atMs: nowMs + SCHEDULE_LIFETIME_MS },
     })
   }
   const match = /^\/schedule(?:\s+([\s\S]*))?$/i.exec(text.trim())

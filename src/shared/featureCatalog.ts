@@ -1,7 +1,13 @@
 import { PAID_USE_REGISTRY } from './paid'
 // HELPREF: reviewed feature relationships. The generator validates every id
 // against the manifest and reuses its translated text and the palette's tips.
-import { COMMAND_IDS, type SETTING_DEFAULTS, PROMPT_COMMAND_IDS, UI_TEXT } from './constants'
+import {
+  COMMAND_IDS,
+  type SETTING_DEFAULTS,
+  PROMPT_COMMAND_IDS,
+  UI_TEXT,
+  SCHEDULE_EDITOR_DELIVERY_CERTIFICATION,
+} from './constants'
 import type { UiText } from './l10n/en'
 
 type PlainReferenceText =
@@ -27,6 +33,14 @@ const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
   referenceScreenRecording: 'nativeRecorder=absent',
+  // Review repairs cover dispatch authority, resolved-file policy and window
+  // lifetime; the delivery certification switch still owns availability.
+  referenceSchedules: 'scheduleDeliveryCertified=false',
+  referenceSchedulesCertified: 'scheduleDeliveryCertified=true',
+  referenceRuntimeSchedulesCertified: 'scheduleDeliveryCertified=true',
+  referenceSchedulePaidConsentCertified: 'scheduleDeliveryCertified=true',
+  referenceSchedulePaidConsent: 'scheduleDeliveryCertified=false',
+  referenceRuntimeSchedules: 'scheduleDeliveryCertified=false',
   referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
@@ -87,13 +101,15 @@ const SETTING_CONDITIONS: Readonly<
   // through a validated decimal-to-number boundary.
   modelApiSessionBudgetUsd: 'sessionBudget',
 
-  schedules: 'scheduleRuntime=unbound&backend=museCode',
   modelApiObservationPacking: 'conversationStart',
   modelApiAutoCompaction: 'conversationStart&modelPricing',
   modelApiStrictTools: 'conversationStart&tools.strict',
   modelApiParallelReads: 'conversationStart',
   webSearchMaxPerRequest: 'conversationStart&hosted.webSearch',
   showWhatsNewOnUpdate: 'releaseHighlights',
+  schedules: 'scheduleDeliveryCertified=true',
+  scheduleDefaultDelivery: 'scheduleDeliveryCertified=true',
+  scheduleAgentCreation: 'scheduleDeliveryCertified=true',
   modelApiPermissionProfile: 'permissionProfile',
   tabLanguages: 'language',
   tabMultiline: 'multilineMode',
@@ -241,9 +257,24 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   deleteUploadedFiles: { description: { ui: 'referenceUploadedFiles' }, canRun: false },
   nextOpenQuestion: { description: { ui: 'questionNextOpen' }, canRun: false },
   previousOpenQuestion: { description: { ui: 'questionPreviousOpen' }, canRun: false },
-  schedulePrompt: { description: { tip: 'schedulePrompt' }, canRun: false },
-  showSchedules: { description: { tip: 'schedule' }, canRun: false },
-  showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: false },
+  schedulePrompt: {
+    description: { tip: 'schedulePrompt' },
+    get canRun() {
+      return SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+    },
+  },
+  showSchedules: {
+    description: { tip: 'schedule' },
+    get canRun() {
+      return SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+    },
+  },
+  showScheduleTimeline: {
+    description: { tip: 'scheduleTimeline' },
+    get canRun() {
+      return SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+    },
+  },
   vault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
   lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
 }
@@ -973,7 +1004,44 @@ export function featureCatalog(): readonly Feature[] {
         true,
         ['vscode'],
       ),
-      details: [{ ui: 'referenceAttachments' }, { ui: 'scheduledMediaSupport' }] as const,
+      details: [
+        {
+          ui: SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+            ? 'referenceSchedulesCertified'
+            : 'referenceSchedules',
+        },
+        {
+          ui: SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+            ? 'referenceSchedulePaidConsentCertified'
+            : 'referenceSchedulePaidConsent',
+        },
+        { ui: 'scheduledMediaSupport' },
+      ] as const,
+    },
+    {
+      ...feature(
+        'runtime-schedules',
+        { ui: 'runtimeSchedulesItem' },
+        { ui: 'runtimeSchedulesItemDetail' },
+        [],
+        [],
+        'runtime-scheduled-delivery',
+        ['museCode', 'modelApi'],
+        false,
+        ['acp'],
+      ),
+      facts: {
+        unattended: true,
+        durableClaims: true,
+        terminal: true,
+      },
+      details: [
+        {
+          ui: SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+            ? 'referenceRuntimeSchedulesCertified'
+            : 'referenceRuntimeSchedules',
+        },
+      ] as const,
     },
     feature(
       'subagents',
@@ -1196,6 +1264,7 @@ const REFERENCE_DETAILS: Readonly<
   'structured-side-calls': ['structuredOutputRepair', 'structuredOutputFallback'],
   budget: ['referenceBudget'],
   voice: ['referencePaidContexts'],
+  schedules: ['referenceAttachments'],
   auto: ['referencePaidContexts'],
   subagents: ['referencePaidContexts'],
   'best-of-n': ['referenceBestOfNRequirements', 'referencePaidContexts'],

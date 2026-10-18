@@ -29,6 +29,7 @@ import type { ApprovalMode } from '../../shared/permissionModes'
 import type { SessionExport } from '../export/sessionTransfer'
 import type { GitDraftOutputPort } from '../git/gitText'
 import type { ExtensionHookDispatch, ExtensionHookEvent } from '../backends/modelapi/extensionHooks'
+import type { UnattendedRun } from '../schedules/unattended'
 
 export type BackendKind = 'museCode' | 'modelApi'
 
@@ -495,6 +496,8 @@ export type SessionListEvent =
 export interface AgentSession {
   readonly sessionId: string
   readonly modelId: string
+  /** Host-local authority for authenticated IDE callers; never a provider wire field. */
+  getScheduledRun?(turnId?: string): UnattendedRun | undefined
   onEvent(listener: SessionEventListener): () => void
   /**
    * Submit a turn. `displayText` is the transcript's presentation form of

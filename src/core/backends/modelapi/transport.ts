@@ -987,7 +987,10 @@ export class RequestTransport {
       // A scheduled fire's authority is live: checked before pacing and again
       // after it, since revocation or a key change can land during the wait.
       const assertScheduleAuthority = () => {
-        if (init.method !== 'POST' || (path !== '/responses' && !path.startsWith('/images/')))
+        if (
+          init.method !== 'POST' ||
+          (path !== '/responses' && init.paid === undefined && !path.startsWith('/images/'))
+        )
           return
         const run = this.deps.scheduledRun?.()
         if (
@@ -1091,16 +1094,23 @@ export class RequestTransport {
         ...(init.body !== undefined && { body: wireBody ?? JSON.stringify(init.body) }),
         ...(signal !== undefined && { signal }),
       }
-      admitAttempt?.check?.()
-      noteConfirmedRequestStarted(confirmed, admitAttempt)
-      if (init.paid !== undefined) {
-        init.paid.isSent = true
+      const dispatchState = { isStarted: false }
+      const dispatch = () => {
+        admitAttempt?.check?.()
+        assertScheduleAuthority()
+        noteConfirmedRequestStarted(confirmed, admitAttempt)
+        if (init.paid !== undefined) {
+          init.paid.isSent = true
+        }
+        admitAttempt?.mediaAccounting?.started()
+        dispatchState.isStarted = true
+        return this.fetchWithIdleDeadline(url, requestInit)
       }
       const sent = this.pacing.snapshot(account)
-      admitAttempt?.mediaAccounting?.started()
       let response: Response
       try {
-        response = await this.fetchWithIdleDeadline(url, requestInit)
+        const run = this.deps.scheduledRun?.()
+        response = await (run === undefined ? dispatch() : run.dispatch(dispatch))
       } catch (error: unknown) {
         if (
           error instanceof Error &&
@@ -1114,6 +1124,8 @@ export class RequestTransport {
           admitAttempt?.mediaAccounting?.refused()
           throw error
         }
+        // A dispatch that never started is never retried: rethrow as-is.
+        if (!dispatchState.isStarted) throw error
         // P2-3/D1: a dispatch-time paid stop (a daily limit's check runs
         // inside the pinned fetch) is never a send failure: no log line, no
         // retry, and never a network-failure replacement. The classifier

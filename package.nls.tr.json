@@ -160,7 +160,7 @@
   "command.schedulePrompt.title": "Schedule this prompt…",
   "command.showSchedules.title": "Show schedules",
   "command.showScheduleTimeline.title": "Show schedule timeline",
-  "config.schedules.description": "Muse Code sohbetindeki mevcut /loop kısayolunu denetler. Zamanlama yönetimi ve zamanlanmış istemlerin yürütülmesi kullanılamaz.",
+  "config.schedules.description": "Muse Code sohbetinde /loop işlevini denetler. Zamanlanmış istemlerin teslimi sertifikasyon gerektirir.",
   "config.schedules.defaultDelivery.description": "Yeni zamanlama taslaklarına yazılan teslim biçimini seçer; zamanlanmış çalıştırmayı etkinleştirmez.",
   "config.schedules.agentCreation.description": "Uyumluluk için saklanır; bu tercih bu derlemede etkili değildir.",
   "command.tabLanguages.title": "Tab dilleri",

@@ -5,6 +5,7 @@ import {
   UI_TEXT,
   SLASH_COMMAND_NAMES,
   REPORT_KINDS,
+  SCHEDULE_EDITOR_DELIVERY_CERTIFICATION,
 } from './constants'
 
 export function cliCommands() {
@@ -321,7 +322,11 @@ export function compactReference(skills: readonly string[]): string {
     UI_TEXT.referenceAcp.replaceAll(`/${SLASH_COMMAND_NAMES.help}`, () => SLASH_COMMAND_NAMES.help),
     `${UI_TEXT.groupSlashCommands}: ${[...new Set([SLASH_COMMAND_NAMES.help, ...skills])].map((name) => `/${name}`).join(', ')}`,
     `${UI_TEXT.referenceCommands}: ${cliCommands()
-      .filter((entry) => !['schedule', 'estimate', 'vault', 'vaultHelp'].includes(entry.route))
+      .filter(
+        (entry) =>
+          (entry.route !== 'schedule' || SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady) &&
+          !['estimate', 'vault', 'vaultHelp'].includes(entry.route),
+      )
       .map((entry) => entry.name)
       .join(', ')}`,
     `${UI_TEXT.referenceDocs}: ${REFERENCE_DOCS_URL}`,

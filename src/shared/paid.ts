@@ -276,7 +276,21 @@ export type PaidUseRequest =
       readonly sources: readonly string[]
       readonly prompt: string
     }
-  | { readonly feature: 'scheduledPrompts'; readonly prompt: string; readonly modelId: string }
+  | {
+      readonly feature: 'scheduledPrompts'
+      readonly prompt: string
+      readonly modelId: string
+      /** D95 consent belongs to this schedule, never the workspace's extra grant. */
+      readonly schedule?: {
+        readonly id: string
+        readonly price: string
+        readonly cadence: string
+        readonly dailyCapUsd: UsdAmount
+        readonly sharedDailyBudgetUsd: UsdAmount
+        readonly extras: readonly PaidFeature[]
+        readonly payerKind: 'paidKey'
+      }
+    }
   | { readonly feature: 'subagents'; readonly task: SubagentTaskConfirmation }
   | {
       readonly feature: 'autoReviewer'

@@ -15810,6 +15810,48 @@ person set. The original scope follows. Replace directory-per-claim budgeting wi
 
 - **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
+Completed: F2–F7 are capture-backed through the real facade, with 14
+byte-exact red/restored drills. Final macmini verification passes 44 complete
+provider/models files (739 tests at repository deadlines), five typechecks,
+changed-file ESLint/formatting, localization (0), reference, host API, plain
+knip, zero-clone duplication and the production build within all existing caps.
+The optional persisted format remains unchanged. Full quality, hosted CI and
+installed-editor/live certification remain with the lead under the lane brief.
+
+Round 2 (RVPROVWIREG finding 1, P2): seed every saved-provider edit draft,
+including Change key and Change key followed by Edit, with the saved routing's
+privacy, provider order and fallback choice. Save uses that seeded draft;
+new OpenRouter providers still default to ZDR. Regressions replay the saved
+`any`/ordered/fallback-enabled row through replacement key, Edit, Test and
+Save, and cover plain Edit and direct Change key, including `no-training`
+and disabled fallbacks. Record failing-first and byte-exact routing drills
+in the PROVWIRE certification, then run provider/models suites at repository
+deadlines, changed-file lint/format and all five typechecks before a normal-hook
+local commit. No new feature, wire shape, dependency or live/paid call.
+
+Round 2 completed: saved routing and the replacement key survive every edit
+flow; new providers remain ZDR. Macmini passes 44 complete provider/models
+files (746 tests, default deadlines), all five typechecks, changed-file
+ESLint/formatting, localization/reference/host-API checks, plain Knip,
+zero-clone duplication and the production build within unchanged caps.
+Four deliberate routing breaks fail and restore SHA-256-exact bytes; see
+the round-2 PROVWIRE certification. Aggregate quality and hosted/editor/live
+qualification remain lead-owned under the lane rules.
+
+**CX1R3 removal pass (RVCX1B, 2026-10-10; ships in 0.17.1).** Remove dormant
+feature claims and usage from current README, Help, What's New and editor
+records; retain historical changelog text with dated corrections. Put dormant
+work in roadmap In progress without capability or shipped claims. Keep complete
+reference coverage validation before filtering its user-facing publication;
+archive corrected release bullets from What's New rather than qualifying them.
+The compact CLI help is also a current Help surface: remove its v2 schedule
+grammar and inactive automatic-compaction option without altering parsers.
+No feature implementation, dependency, gate widening, merge, push or live call.
+
+Plan: [x] current surfaces and roadmap; [x] regression tests and byte-exact red
+drills for every finding and sibling class; [x] scoped rig gates; [x] hooked
+commits, committed-diff review and certification in `docs/certification/cx1.md`.
+
 ### M125 — The Judge: our own Jev, for speed and accuracy (D107)
 
 **Status 2026-10-10: building.** F1a builds the internal B1 runner and
@@ -31517,7 +31559,193 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
 
 ### M115 — Scheduled prompts v2: unattended, stacked, with a delivery mode (D95)
 
-**Status 2026-10-10 (management store and surfaces merged; production session lookup, open/fresh and run ports are unbound on every surface): building.** It comes right after M112 in the delivery
+**SCHEDJOIN2 release-tree qualification (2026-10-11, kubuntu).** Merge only
+`snap/train` by meaning, preserving joined delivery and the release/provider
+repairs. Keep the delivery certification switch false. The 18:00 lead addendum
+authorizes RVSCHEDJOIN repairs: close settles only this process's owned fires;
+unhanded admissions survive close; known withdrawal results release liability;
+all host families share both daily ledgers. Carry the window's previous daily
+spend and held liability into the common journal idempotently before admission;
+preserve its stopped-day guard and leave historical source bytes untouched.
+Confirm the three unrun drills,
+strengthen the settlement matrix and cause-specific translated reasons, and
+match every walk-back item to one restoration switch. Record the broken
+historical merge without rewriting it. Qualify migration against the join base, complete the exact
+remaining/restricted dependency inventory in three-file batches, replay each
+real-process recovery case ten times, and run browser/visual and scoped static
+gates without changing caps, baselines or deadlines. Record all results and
+platform replay commands in `docs/certification/m115-join.md` and its suite
+ledger; aggregate quality belongs to the lead under the explicit rig brief.
+
+Migration fixture qualification moves only old-job creation and empty fsynced
+journal initialization into the existing fixture-budget hook; all migration,
+race, edit and recovery assertions keep default case deadlines. Empty, corrupt
+and invalid receipt vectors each get their own complete case. No scheduler
+settlement design changes. The named helper is the existing §8 fixture budget.
+
+**SCHEDJOIN redesign (2026-10-11, macbook).** Merge C-M115-1/2/3 first;
+move durable terminal ownership and dispatch write-ahead recovery into the core
+scheduler, retain unknown spend after ambiguous dispatch and failed cost reads,
+and preserve session-owned output and truthful inactive refusals. Certify all
+delivery exits/kinds, real-process crash boundaries and production host assembly.
+Reduce schedules bytes using existing lazy owners; no cap increases. Automatic
+delivery remains behind certification. Browser/GUI qualification runs on Linux,
+never this owner's MacBook. Receipts: `docs/certification/m115-join.md`.
+
+- [x] Join all three reviewed heads with both authority and lifecycle behavior.
+- [x] Core settlement and dispatch journal implemented; known, never-dispatched
+      and ambiguous recovery plus legacy fail-closed rows have regressions.
+- [x] Existing lazy owners: paid consent/pricing uses reviewer.js; runtime
+      session ownership uses runtimeEngine.js, already in the runtime archive.
+      Keep schedules.js at 200 KiB and every existing cap unchanged; measure
+      closure/source ownership; schedules fit the unchanged 200 KiB cap.
+      Full artifact rows await the accepted What's New integration at the lead.
+- [x] Six complete-file red drills, byte-exact restoration, scoped static
+      gates, final core journal-contract replay and owned money/delivery tests.
+- [ ] Full dependent sweep and cross-platform qualification: exact remaining
+      and failed suites are in m115-join-dependent-suites.json; migration/default
+      deadline and claims/setup failures remain visible. Full production build
+      retains the accepted What's New writer hold. Keep certification false.
+      The full production assembly test cannot run on MacBook: native resource
+      retirement requires the forbidden muse-dictate helper, absent in this
+      checkout; retain the test for Linux with the packaged native helpers.
+
+**C-M115-1 review repair (2026-10-11):** repair RVCM1151B/G as classes:
+one final scheduled dispatch gate after asynchronous work, live schedule and
+billing authority, per-file unattended IDE policy, stable native queued-message
+identity and promotion settlement, abortable retired-caller reception, explicit
+prompt-free tool executors, a window-owned workspace hold, and deterministic
+three-process claim qualification. Delivery stays unregistered; consent/args
+remain with CM1153. Regressions and byte-exact red drills are recorded in
+`docs/certification/m115-cm1151.md` before local commits.
+
+**C-M115-2 R2 review repair (2026-10-11, macbook).** All three RVCM1152
+findings are implemented and regression-tested. Delivery exits settle; borrowed
+queued messages withdraw on shutdown/detach; abandoned claims retire without
+replay; Run now requires a durable fire; output follows session ownership;
+runtime scheduling has its own translated Help entry.
+Interruption boundaries, sixteen byte-exact red drills and the sibling
+concurrent-close/borrowed-owner replacement checks are recorded in
+`docs/certification/m115-cm1152.md`. No dependency added; no guard or budget
+is weakened.
+C-M115-3 remains the next slice: production paid consent and ledger binding.
+
+**C-M115-2 runtime delivery (2026-10-11, macbook).** Bind the shared delivery
+engine to ACP-owned live sessions and lazily opened CLI/background sessions.
+Persist and validate workspace path bindings for global `run-due`; retain the
+existing claim, unattended grant, queue and paid-policy ports. Missing paid
+authority refuses before dispatch; C-M115-3 supplies consent, not this lane.
+Certify runtime acceptance 1, 5 and 7 with fake backends over stdio, default
+test deadlines and byte-exact red drills. No host UI changes or paid/live calls.
+Native editor surfaces remain C-M115-9, OS wake installation C-M115-6, and
+independent Codex/Grok review plus Windows/Linux receipts remain lead gates.
+The supplier preserves parent turn identity across child events, joins idle
+waits to shutdown, normalizes workspace spellings before hashing, and locks
+grant-audit appends so parallel uses cannot overwrite one another.
+
+- [x] C-M115-2: runtime/ACP/CLI targets, runs, persisted roots and live-session
+      handoff implemented; fake backend/stdin/loopback and byte-exact drill
+      receipts are in `docs/certification/m115-cm1152.md`.
+- [ ] Joined-tree build, independent Codex/Grok review and Windows/Linux
+      execution: lead gates; C-M115-3 supplies production paid consent next.
+
+**C-M115-3 paid authority (2026-10-11, win11): implemented; held for certification.**
+RVCM1153 repair covers cause-specific translated refusals, truthful gated
+Help/roadmap and consent/cap documentation, and journal-first in-memory claim
+publication for every daily reservation caller. Regressions cover consent
+causes and each awaited authority/pricing/reservation boundary; deliberate
+red controls restore byte-exact source. Automatic delivery remains off.
+The candidate schedule billing port supplies schedule-scoped D48 questions in VS Code and ACP,
+explicit CLI authorization, payer/model/key/tariff/shared-cap binding, one-use renewal,
+and the same exact-money schedule/D78 reservation in editor and standalone
+runtime. No unattended fire opens a permission prompt: invalid consent refuses
+before HTTP and must be renewed through an interactive schedule edit. Legacy
+records without a payer binding remain readable but require fresh consent.
+Automatic delivery stays behind the existing certification switch. C-M115-2
+owns runtime/ACP delivery composition and C-M115-9 owns the native editor
+bindings; this lane changes only their paid contracts, not their delivery
+files. Installed native modal, Linux/macOS and independent Codex/Grok review
+receipts are required before the lead enables delivery. Evidence belongs in
+`docs/certification/m115-cm1153.md`; no live/paid call is authorized.
+
+- [x] Creation/renewal and payer/model/key/tariff binding, scoped Once/Always,
+      CLI flags/quote, ACP permission and shared exact-money D78 admission.
+- [x] Win11 scoped regression files, separate-process cap races and 21 red
+      controls with byte-exact SHA-256 restoration.
+- [ ] C-M115-2 runtime composition, C-M115-9 installed editor receipts,
+      native modal decline, Linux/macOS replay and fresh Codex/Grok review.
+      Delivery remains off until the complete certification passes.
+
+**C-M115-1 completion lane (2026-10-10, win11).** Bind the VS Code workspace
+lifetime and conversation delivery to the existing shared scheduler, unattended
+backend entry points and background targets. Certify D95.6–7 and acceptance
+5–8 with fake backends, real cross-process claims and byte-exact red drills.
+Delivery remains unregistered if any required admission, queue, settlement or
+host safety path cannot be completed. C-M115-2 owns runtime/ACP/CLI delivery;
+C-M115-9 owns JCEF (JetBrains), WebView2 (Visual Studio), SWT (Eclipse), the
+companion/ACP editor rows (Zed, Xcode, Neovim, Emacs, Sublime), TUI and node.
+C-M115-3 owns per-schedule paid consent; C-M115-4 owns production event sources;
+C-M115-6 owns OS wakes; C-M115-8 owns role/team targets. No live/paid calls in
+this lane. Aggregate quality, Linux/macOS receipts and independent Grok/Codex
+reviews remain with the lead under the rig/common rules.
+
+**Round 2 (2026-10-10).** Complete the controller/workspace and M87 bindings,
+native busy queue with message-scoped authority, authenticated IDE requester
+binding, and the existing schedule consent/reservation/tally composition.
+Certify the native and Model API delivery/mode matrix and three-process claims
+on win11; Linux/macOS and independent reviews stay with the lead. Register
+delivery only after every VS Code admission and safety acceptance passes.
+The inherited What's New decoded-content refusal is fixed by the accepted
+`fix/whatsnew-budget` branch at integration; this lane preserves its bound.
+
+**Round 2 continuation (2026-10-11).** Complete trust/auth workspace retirement
+and late IDE identity cleanup. The selected provider's scheduled transport must
+retain its own credential digest, origin and verified tariff, use the same
+hard reservation/settlement authority through both native codecs and Responses,
+and refuse an adapter that cannot bind it before sending. Native dispatch waits
+for mode restoration, then claims authority without another await so a public
+mode waiter cannot overtake it. Certify these paths
+with captured fake producers; no live calls or budget-cap changes.
+
+Native busy queue admission and withdrawal now preserve the user's turn and
+mode until promotion. IDE endpoints now authenticate separate session owners
+and scope cancellation to that owner; unattended read-only calls use the
+schedule grant and interactive-only tools refuse before execution. Windows
+regressions and byte-exact red controls are in `m115-cm1151.md`; automatic
+registration remains held for the complete controller/money/OS receipts.
+
+- [x] Shared workspace watches retain every holder; default-timeout regression
+      and deliberate early-retirement drill recorded in `m115-cm1151.md`.
+- [x] Unregistered lazy delivery composition qualified with both fake backends:
+      once, collision order, interrupt, fenced events, closed-target Skip,
+      fresh background conversations, Model API parallel delivery and queue
+      withdrawal; three separate shared-engine processes admit one fire.
+- [x] Candidate VS Code controller/workspace, M87 admission/promotion and
+      withdrawal, background History/Agent-map publication and lifetime
+      bindings; session IDE identities survive shared panels and retire with
+      their last holder. Native busy queues preserve the user's permissions
+      and refuse failed/unknown authority. The Windows fake-backend matrix
+      covers steer, interrupt, queue, when idle, background open/Skip and
+      parallel overlap in manual/plan/acceptEdits/auto.
+- [x] Candidate editor Model API consent binds Allow once to one run or an
+      explicit standing schedule grant, with actual verified selected-model
+      pricing, first-revision CAS, shared/own durable reservations and settled
+      tally. Changed account, tariff, grant or budget refuses before dispatch.
+      This composes the existing C-M115-3 money machinery without a new wire
+      shape, credential lane or interactive popup during an unattended fire.
+      The editor billing path accepts verified priced models; local, plan and
+      unpriced tariffs refuse. Interactive-only paid extras have no bound
+      unattended executor and refuse before purchase; their qualification
+      remains with C-M115-3 before claiming the complete paid/editor matrix.
+- [ ] VS Code registration remains off and unregistered through the explicit
+      certification gate: Linux/macOS, fresh independent Grok/Codex reviews
+      and the lead's aggregate/artifact qualification remain outstanding.
+      The three-process receipt covers two window holders and one ACP holder
+      running the shared engine and native backend over in-memory captured MSP,
+      not installed VS Code windows or the ACP editor adapter. C-M115-2 and
+      C-M115-9 retain the other editor/runtime bindings above.
+
+**Status 2026-10-11: building.** It comes right after M112 in the delivery
 order: it shares M112's deferral and the unattended machinery, and builds on
 M52's store, claim and cron matcher. No model call is needed outside one live
 check (step 3). Lanes T, S, U, D, G, V and X start on lane 0's contracts and
@@ -31525,6 +31753,31 @@ need nothing unmerged but M112; event sources, targets and editor rows join
 as their milestones merge (below), and none blocks the rest. **M115w**, the
 issue watchdog (D95.13), is a phase of its own with its own lanes, after the
 core (below).
+
+**Status 2026-10-17 (delivery lane MSM115): building.** The round-3 join
+tree merged with main; all nine earlier candidate branches are contained,
+nothing further to merge. Connected since: the versioned store root
+(`schedules/v1`) with a
+one-time idempotent carry of pre-version stores; M52 v1 migration at control
+creation; the ACP-side engine module installed by `main.ts` callers; the lazy
+`/schedule` prompt mapping; the per-schedule paid-consent question (rule 12's
+line). Still behind the `SCHEDULE_EDITOR_DELIVERY_CERTIFICATION` switch
+(off): automatic delivery in VS Code, ACP and the terminal, the gated v1
+migration, and the `schedule` commands the catalog hides until certification.
+The switch flips only on the lead's complete receipts (VS Code admission and
+safety acceptance on Windows, Linux and macOS; the installed native modal
+decline; independent Codex/Grok review; aggregate and artifact
+qualification). Waiting on other milestones: the report action's `reports`
+port (M113 lane Q's full-destination authority, leases, previews and scrub),
+the `schedule_report` agent tool (G's charter and destination enforcement),
+further event sources, targets and editor rows as their milestones merge, and
+M115w (needs M96c, M113 N and M109 T). Fix lane MSM115FIX (2026-10-17):
+close-time background reconciliation no longer touches the OS entry when no
+consent was ever recorded, so terminal `schedule` management
+(add/list/timeline/remove) exits on its merits with no user bus; the review's
+exit-3 finding is fixed and regression-tested
+(`test/unit/scheduleBackgroundReconcile.test.ts`). The commands stay out of
+help and the catalog until certification.
 
 - **Goal.** A user, or an orchestrating agent within the user's limits,
   schedules any number of prompts to fire once, repeatedly, on a cron
@@ -31611,7 +31864,7 @@ Total: about 144 lane-hours.
     `update`, `remove`, `runNow` and `timeline`.
   - **Constants:** `SCHEDULE_MAX_PER_WORKSPACE` (200),
     `SCHEDULE_COLLISION_WINDOW_MS` (60,000), `SCHEDULE_PAUSE_AFTER_FAILURES`
-    (3), `SCHEDULE_PAID_CAP_DEFAULT_USD` (1.00), `SCHEDULE_EVENT_DEBOUNCE_MS`
+    (3), `SCHEDULE_EVENT_DEBOUNCE_MS`
     (30,000), `SCHEDULE_EVENT_FIELD_MAX_CHARS` (500),
     `AGENT_SCHEDULES_MAX_ACTIVE` (10), `AGENT_SCHEDULE_MIN_INTERVAL_MS`
     (900,000), `AGENT_SCHEDULE_MAX_DEPTH` (1); `SCHEDULE_MIN_INTERVAL_MS`,
@@ -33576,6 +33829,81 @@ any module it lives in lands in the same lazy closure (verified minified in
 the 810 bytes. Re-baselined by the documented rule: 26,410 x 1.15 =
 30,371.5 bytes = 29.66 KiB, so 30 KiB (`scripts/lib/webviewBundles.mjs`).
 Disposition: closed; `npm run build` is green on the re-baselined tree.
+
+**MSM115-DELIVERY (2026-10-17, wslpc).** Delivery-lane scope: all nine
+`cand/MSM115/*` branches are contained in the lane head (verified with
+`git log <branch> --not HEAD`, empty for all nine), so no candidate merge is
+owed. The lane connects the versioned store root, the v1 migration, the
+ACP-side engine module, the lazy `/schedule` mapping and the per-schedule
+consent line; it removes only `@unwired` tags whose exports have a caller in
+the tree. It does not flip `SCHEDULE_EDITOR_DELIVERY_CERTIFICATION`: every v2
+fire still refuses in production by design until the lead's complete receipts
+exist, and flipping it here would weaken the gate. Still waiting: the report
+action's `reports` port and the `schedule_report` tool (M113 lane Q and G
+regions, not this lane's files), further sources/targets/editor rows (their
+milestones), and M115w (needs M96c). No cap, threshold, ignore or rule is
+weakened. See `docs/certification/msm115.md`.
+
+**SCHEDJOIN2-ASSEMBLY-GRANT (2026-10-11, kubuntu).** The native helper builds
+and fixture preparation fits the budget, but all three assembly families stay
+red: the background coordinator's reconcile throws "Schedules are unavailable
+in this host" during close on this rig, before any delivery assertion runs
+(0/3 at the committed head and in the worktree). Per the shared lane stop rule
+no third repair or broader grant is tried here. Keep every assertion and the
+certification switch false. The lead owns further context/grant assembly
+qualification and aggregate quality.
+
+**C-M115-2 R2 verification (2026-10-11, macbook).** All RVCM1152 findings
+are fixed, with sixteen byte-exact red guards and interrupted-write shutdown
+reconciliation. The scoped rig brief delegates aggregate quality to the lead.
+Production build/full visual replay retain the accepted What's New decode
+hold; jscpd retains only the two unchanged base clones. An additional direct
+native-backend probe reproduces five unchanged native-queue failures with
+HEAD English; its backend sources and tests are outside this lane and are
+unchanged. Certification names all five and retains the control receipt.
+No gate, timeout, dependency or budget is weakened.
+
+**C-M115-2 gate ownership (2026-10-11, macbook).** Scoped runtime/ACP/CLI
+checks and red/restoration controls belong to this lane; aggregate quality,
+independent Codex/Grok review and Windows/Linux execution remain with the
+lead. The production build retains C-M115-1's accepted-base What's New decode
+refusal; integrate the already accepted `fix/whatsnew-budget`, then replay
+size/split/host-global checks on the complete artifacts. No cap is raised.
+The zero-clone gate retains unchanged clones in `test/unit/ideMcpServer.test.ts`
+and `test/unit/windowsTrustedPath.test.ts`, outside this lane's ownership.
+Owned duplicate fixture setup is consolidated; no rule or ignore is relaxed.
+See `docs/certification/m115-cm1152.md`.
+
+**C-M115-3 gate ownership (2026-10-11, win11).** The rig brief and shared
+lane rules assign aggregate `npm run quality` to the lead; this worktree runs
+complete owned test files at repository timeouts, five-project typecheck,
+changed-file lint/format and scoped static checks. The production build still
+refuses the inherited What's New decode budget before producing a complete
+artifact set; size/split certification awaits the accepted content repair at
+integration. The zero-clone gate retains only the inherited six-line clone in
+`test/unit/windowsTrustedPath.test.ts`; that independent repair remains with
+the lead. No cap, threshold, ignore or rule is weakened. This process runs in
+Windows Session 0 and cannot exercise Session 1's native VS Code modal.
+Native decline, Linux/macOS and independent Codex/Grok receipts remain required,
+and the existing automatic-delivery certification switch stays false. See
+`docs/certification/m115-cm1153.md` for scoped evidence and editor ownership.
+
+**C-M115-1 gate ownership (2026-10-10, win11).** The rig brief and shared
+lane rules forbid aggregate quality in this worktree; the lead owns
+`npm run quality` before integration. This lane runs its complete owning
+test files at repository timeouts, the five typecheck projects, changed-file
+lint/format, plain knip, duplication, localization, host API, reference,
+roadmap and production build checks. Caps and gate levels stay unchanged.
+Delivery registration remains absent until the acceptance matrix and the
+independent Grok/fresh-Codex reviews are complete; the lane forbids sub-agents
+and live model calls. See `docs/certification/m115-cm1151.md`.
+The production build retains the accepted base's What's New decode refusal
+(79,510 bytes against 76,800); no budget is raised. Its artifact size/split
+replay and the visual gate's build prerequisite are deferred to the lead
+after that inherited content is repaired.
+The zero-clone gate also retains the accepted base's unchanged six-line clone
+in `test/unit/windowsTrustedPath.test.ts`; owned clones are removed rather
+than ignored, and that independent Windows-test repair belongs to the lead.
 
 **M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
 job 115017063279: "loads the real lazy menu independently of the secret
@@ -35696,7 +36024,7 @@ INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/uni
 | `test/unit/ollamaCodec.test.ts` (stream cap), `test/unit/vsixPackaging.test.mjs` (oversized archive), `test/unit/refreshBadges.test.mjs` (README badges), `test/unit/companionBrowser.test.ts` | `OLLAMA_STREAM_CAP_TIMEOUT_MS`, `REAL_OVERSIZED_PACKAGE_TIMEOUT_MS` (30 s), `README_BADGE_PARSE_TIMEOUT_MS` (15 s) per-case; `REAL_BROWSER_CASE_TIMEOUT_MS` (20 s) per-suite | A second sweep at 2 s over two full CI runs: the stream-cap case took 5.2 s and the companion browser case passed 5 s on hosted runners; the others took 3.4 to 4.0 s. The same run showed hosted macOS (3 vCPUs) oversubscribed by four workers plus coverage; `vitest.config.ts` now uses cores minus one there, capped at the measured four.                                                                    | Read the stream cap from a test-sized option; share one browser context per file; drop each deadline once a hosted run measures the case under 2.5 s.     |
 | `vitest.config.ts` (Windows)                                                                                                                                                                   | `WINDOWS_TEST_TIMEOUT_MS` (15 s) and `WINDOWS_HOOK_TIMEOUT_MS` (30 s) as the Windows defaults                                                                                | Windows runs test files one at a time, and its real-OS cases start PowerShell, icacls or job helpers as cold processes. Hosted Windows shards varied from 456 s to 727 s between runs (2026-10-07); `tokenFile` real ACL ownership passed 5 s in one run and not the next, after the same happened to `teamHintsAndLoad` and `vsixCompression`. Assertions are unchanged; explicit per-case deadlines still apply. | Return to the default when a hosted Windows run measures every case under 2.5 s, or when the PowerShell-backed helpers are precompiled once per run.      |
 | `test/unit/treesWindows.test.ts`, `test/unit/actuatorsWindows.test.ts`, `test/unit/resourceWindowsLaunch.test.ts`                                                                              | `REAL_WINDOWS_JOB_TIMEOUT_MS` (60 s) per-suite deadline                                                                                                                      | These suites compile and drive the real Windows job helper (C#) and real child processes. In PR #140 run 2 (0.16.0) they passed the 15 s Windows default on hosted runners, while the Win11 rig ran them in a few seconds. Assertions unchanged.                                                                                                                                                                   | Precompile the job helper once per run into the content-addressed assembly cache, then return to the Windows default.                                     |
-| `test/unit/helpers/fixtureBudget.ts`; the fixture hooks of `test/e2e` (`acpStdio`, `estimator`, `reports`, `schedulesStdio`)                                                                   | `FIXTURE_HOOK_TIMEOUT_MS` (120 s) for a hook that builds bundles or starts real processes                                                                                    | Building fixtures is work that grows with the product, not a wait for readiness. Under the 10 s default `acpStdio`'s hook (seven bundle builds, the created-path helper) failed three of four hosted macOS attempts of 0.17.1's pull request before any assertion ran; the Mac mini built it in 1.3 to 2.2 s at load 26 to 64. Lead's ruling (2026-10-11); `REAL_GIT_TIMEOUT_MS`'s value; assertions unchanged.    | The train applies it to the other 98 such hooks and adds a guard against an unbudgeted one; shorten it when hosted macOS measures these hooks.            |
+| `test/unit/helpers/fixtureBudget.ts`; `test/unit/scheduleMigrate.test.ts`; the fixture hooks of `test/e2e` (`acpStdio`, `estimator`, `reports`, `schedulesStdio`)                              | `FIXTURE_HOOK_TIMEOUT_MS` (120 s) for a hook that builds bundles or starts real processes                                                                                    | Building fixtures is work that grows with the product, not a wait for readiness. Under the 10 s default `acpStdio`'s hook (seven bundle builds, the created-path helper) failed three of four hosted macOS attempts of 0.17.1's pull request before any assertion ran; the Mac mini built it in 1.3 to 2.2 s at load 26 to 64. Lead's ruling (2026-10-11); `REAL_GIT_TIMEOUT_MS`'s value; assertions unchanged.    | The train applies it to the other 98 such hooks and adds a guard against an unbudgeted one; shorten it when hosted macOS measures these hooks.            |
 
 | REL0144 location                                                | Escape hatch                                                                                                   | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
