@@ -39,4 +39,48 @@ thread 8's ACP half is item 9's neighbour and fixed with item 8.)
 
 ## Fixes
 
-(To be filled as each lands, with tests and gate receipts.)
+1. bwrap PATH (`0ecaeaa0c2`): `probeLinuxSandboxShell(workspaceRoot?)`
+   resolves `bwrap` with `resolveExecutable` (absolute PATH entries only)
+   and refuses unresolved/workspace candidates as `bwrapFailed` without
+   spawning; the backend manager passes its workspace root. Regression:
+   `sandbox.test.ts` refuses the machine's own bwrap with its own folder
+   as the workspace (no fakes). Live: `/usr/bin/bwrap --ro-bind / /
+--unshare-user -- /bin/true` on this rig → exit 1 with the namespace
+   marker, through the new resolver (the committed probe test ran it).
+2. Resumed sessions (`e499e6df2e`): `noteShellSandbox()` now runs on the
+   `adopt()` path (History resume, fork, import) and in
+   `resumeAfterRestart()`, after the current-opening check; the new-session
+   path is unchanged (direct `attach`, never `adopt`), so nothing notifies
+   twice.
+3. Voice proxy (`e499e6df2e`): `voiceNetworkRefusal()` takes the live
+   support settings — a marker-`routed` socket with `proxySupport` off or
+   `webSocketAdditionalSupport` off refuses a set proxy. `extension.ts`
+   reads all three via `readVoiceNetworkPosture()` and rebuilds on any of
+   the three settings changing. Regression: `voiceNetwork.test.ts` (8).
+4. Consent fixtures (`0f1898e823`): the two unwired-helper describes and
+   their invented fixtures are deleted (188 lines); the file keeps only
+   the four reachable production-surface refusal tests through the real
+   `ScheduleSurface`.
+5. Stale cache (`0ecaeaa0c2`): both `shellSandboxReadiness()` and
+   `readShellSandboxReadiness()` check posture applicability before the
+   cache, so sandbox-off reads as not checked even when an earlier run
+   populated it.
+6. Test time box (`0ecaeaa0c2`): the 20 s `BATCHING_TIMEOUT_MS` is gone;
+   the repository's own timeout applies.
+7. Healthy sandbox path (measured here): the exact corrected probe args
+   run live above (exit 1, namespace marker — the blocked path, scenarios
+   1–3); the exit-0 success parse is unit-covered (`reads a started user
+namespace as a sandbox that can start`). A live success run needs a
+   machine where user namespaces work, which this rig is not — that gap
+   is recorded, not claimed.
+8. Model-note ordering (`e499e6df2e`): the told-flag flips only after an
+   accepted submission, in `conversationController` (after `runResuming`
+   resolves, beside `checkpoints.accepted`) and in `AcpSession` (on
+   `isAccepted`); a failed or cancelled first send retells on the next
+   turn.
+9. ACP notices (`e499e6df2e`): `noteSandboxCannotStart()` sends
+   `sessionUpdate: 'notice'` (warning) where the client advertises
+   `session.notices`, keeping the `_meta`-marked chunk as the fallback the
+   schema prescribes for clients that do not. Both shapes come from the
+   vendored `@agentclientprotocol/sdk` schema (`Notice`,
+   `ClientSessionCapabilities::notices`).
