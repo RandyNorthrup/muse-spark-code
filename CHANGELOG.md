@@ -9,6 +9,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Web fetch no longer ships a dead second HTML-to-Markdown entry point:
+  `htmlToMarkdown` had no callers (both backends convert through
+  `convertHtmlJob` on the page worker), so it was removed. No behaviour
+  change.
+- Paid-use consent audit: the four unused consent helpers for scheduled
+  runs and per-account consent stay unwired until their owning milestones
+  land (M115 Lane U's per-schedule consent; M108 lane P's per-account
+  consent). Meanwhile a paid schedule draft from the panel is refused
+  (its caller carries no paid flag or budget) and every reachable paid
+  use still asks the popup; a unit suite now tests that surface refusal
+  through the real surface, separately from the unwired helpers' logic
+  (RVMSM58M69). No behaviour change.
 - On VS Code 1.101 to 1.111 with `http.proxy` set, Muse Voice recorded audio
   and then failed, because those versions do not route an extension's
   WebSocket through the proxy. The microphone now stays unavailable with the
