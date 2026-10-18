@@ -67,7 +67,7 @@ export interface LaunchProbe {
    * macOS and Linux branches are all unit-tested on any OS. Absent means
    * lexical comparison only.
    */
-  readonly realpath?: (filePath: string) => string
+  readonly realpath?: ((filePath: string) => string) | undefined
 }
 
 export interface MuseLaunch {
@@ -256,7 +256,7 @@ export interface ChildEnvironmentInput {
    * Linux branches are all unit-tested on any OS. Absent means lexical
    * comparison only (relative, empty and lexically-inside entries still go).
    */
-  readonly realpath?: (filePath: string) => string
+  readonly realpath?: ((filePath: string) => string) | undefined
 }
 
 /**
