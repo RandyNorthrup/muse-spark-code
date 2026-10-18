@@ -283,5 +283,14 @@ describe('M80 ledger integer admission and retained liability', () => {
     expect(
       createRunLedger({ capUsd: Usd.from(25).toAmount(), maxRequests: 1 }).totals().requests,
     ).toBe(0)
+    // PR229FIX T3: a budget past 9007199254.740991 USD (micro-USD above
+    // Number.MAX_SAFE_INTEGER, which the old units() ceiling refused)
+    // admits and round-trips exactly.
+    expect(
+      createRunLedger({ capUsd: Usd.from('9007199255').toAmount(), maxRequests: 1 }).totals(),
+    ).toMatchObject({
+      capUsd: Usd.from('9007199255').toAmount(),
+      remainingUsd: Usd.from('9007199255').toAmount(),
+    })
   })
 })

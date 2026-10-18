@@ -130,8 +130,10 @@ const usageSchema = z.object({
 
 function units(amount: UsdAmount): bigint {
   const value = Usd.from(amount).units(EXEC_USD_DECIMALS)
-  if (value < ZERO || value > BigInt(Number.MAX_SAFE_INTEGER))
-    throw new Error(UI_TEXT.execNumberInvalid)
+  // D121: the person's budget has no ceiling of ours — the range is
+  // whatever the argument parser accepts, held exactly as micro-USD BigInt
+  // throughout the ledger. Only a negative amount refuses.
+  if (value < ZERO) throw new Error(UI_TEXT.execNumberInvalid)
   return value
 }
 function usd(value: bigint): UsdAmount {
