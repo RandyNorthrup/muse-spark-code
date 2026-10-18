@@ -227,12 +227,47 @@ manifest.test.ts, usagePackaging.test.mjs, vsixPackaging.test.mjs}`
   worktree); SHA256SUMS helper basenames (`c91bb467e`, drilled with
   real `sha256sum -c`); recorder ownership after a refused kill
   (`479bcb2a5`); idle after a failed voice stream (`c7a80a94c`).
-- PR #224 new Codex threads (lane PR224FIX, in progress): dictation
-  double-refused kill must keep the reaping and queue starts until the
-  exit is observed; Linux cleanup must remove the now-empty dictation
-  directory; the ggml CPU variants the build emits must be pinned and
-  published; an empty download lock must be reclaimed, not busy
-  forever. Fixes with real-use proof land below as each completes.
+- PR #224 new Codex threads, all fixed at cause (lane PR224FIX,
+  linuxlt, commits `29b48c4ce`..`c5913257c8` plus the test-narrowing
+  `3909e2decc`):
+  - Double-refused kill (`dictation.ts`): `finishFail` kept the reaping
+    on an unobserved exit, `start()` queues behind any reaping, and
+    `retainUntilExit` retries the kill until the exit is seen; only
+    then idle and the queued press. Proven with
+    `test/unit/dictationRefusedKill.test.ts` (scripted host-seam child:
+    a real process cannot refuse its kill): the queued-press case
+    fails before the fix, the idle-without-pending and clean-quit
+    paths are locked. Named 10 s per-test timeout: the failure
+    settles only after two sequential 2 s quit-grace waits.
+  - Stale cleanup directory (`voiceLinuxEntry.ts`): removal now rmdirs
+    the dictation directory with its managed files (ENOENT tolerated,
+    anything else loud), so reloads stop relaunching cleanup. Proven
+    with `test/unit/linuxDictationRemoval.test.ts` (real filesystem;
+    two cases fail before the fix).
+  - Unpublished CPU variants (`linuxHelperPins.ts`, both pin scripts,
+    both workflows, CMakeLists, D140): all 8 x64 + 8 arm64 Linux
+    backends the `GGML_CPU_ALL_VARIANTS` build emits (verified against
+    whisper.cpp v1.7.6 `ggml/src/CMakeLists.txt`) are pinned, staged,
+    checked and refused from the VSIX; the stamper reads and writes
+    prettier's broken pin form. Proven with
+    `test/unit/linuxHelperPins.test.mjs` (manifest equals the build's
+    install set; all three fail on the five-file manifest) and a stamp
+    round-trip drill (prettier-clean under the repo config, idempotent
+    restamp, checker shape+values clean on the stamped module). Card
+    byte size still the five-file number: D140 records the re-measure
+    at release (lead to confirm).
+  - Empty download lock (`linuxModel.ts`): an empty `.download-lock`
+    is reclaimed instead of busy-forever (Windows, where staging
+    rename collides; Linux rename replaces it — confirmed by probe).
+    Proven with `test/unit/linuxDownloadLock.test.ts` (real
+    filesystem: empty reclaim, live refusal, dead reclaim).
+- Gates on the lane tree (exit codes): typecheck 0; ESLint 0 warnings
+  on all eleven lane-changed sources; Prettier clean; check:plan 0
+  drift; check:l10n 0 problems; build 0 (caps hold);
+  modelsActivationBudget 1/1 (growth 2,612 B ≤ 3,072 B cap, unchanged).
+  Suites (repo-default timeout, except the named case above):
+  dictationRefusedKill+linuxDownloadLock+linuxDictationRemoval 9/9;
+  linuxHelperPins+helperLocation+dictationGesture 22/22.
 - Gates on the merged tree (exit codes): typecheck 0; ESLint 0 and
   Prettier 0 on every review-changed file plus the three surviving
   lane test files; check-l10n 0; check:reference 0 (after regenerate);
