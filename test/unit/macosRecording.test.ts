@@ -127,13 +127,11 @@ const recordOptions = { maxSeconds: 10, microphone: false, systemAudio: false }
 
 describe('macos driver availability', () => {
   it('refuses without a trusted-helper verifier', async () => {
-    const { deps } = depsWith(
-      () => {
-        throw new Error('spawn must not run without trust')
-      },
-      { verifyTrustedHelper: undefined },
-    )
-    const driver = macosScreenRecordingDriver(deps)
+    const { deps } = depsWith(() => {
+      throw new Error('spawn must not run without trust')
+    })
+    const { verifyTrustedHelper: _dropped, ...unverified } = deps
+    const driver = macosScreenRecordingDriver(unverified)
     await expect(driver.available()).resolves.toEqual({
       ok: false,
       reason: expect.any(String),
