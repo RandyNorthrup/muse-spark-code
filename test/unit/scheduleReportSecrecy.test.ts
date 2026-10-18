@@ -4,24 +4,19 @@
 // settled record carries none of its text.
 import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
-import { scheduleEventRunId } from '../../src/shared/scheduleEvents'
 import { Usd } from '../../src/shared/usd'
-import {
-  scheduleV2Schema,
-  type ScheduleRunContext,
-  type ScheduleV2,
-} from '../../src/shared/scheduleV2'
 import {
   ScheduleReportActionRunner,
   scheduleReportTool,
 } from '../../src/core/schedules/reportAction'
+import { quietStoreBase, runContextFixture, scheduleFixture } from './helpers/scheduleFixtures'
 
 const SECRET = 'SECRET-recipient-secret-path'
 
-function schedule(): ScheduleV2 {
-  return scheduleV2Schema.parse({
-    id: 'schedule-1',
+function schedule() {
+  return scheduleFixture({
     name: 'Morning report',
+    grant: { rules: [], destinationIds: ['dest-1'], paidCapUsd: Usd.from(0).toAmount() },
     action: {
       kind: 'report',
       reportKind: 'status',
@@ -38,43 +33,7 @@ function schedule(): ScheduleV2 {
         },
       ],
     },
-    trigger: { kind: 'interval', everyMs: 3_600_000, anchorMs: 1_700_000_000_000 },
-    target: { kind: 'conversation', sessionId: 'session-1', backend: 'modelApi' },
-    delivery: 'interrupt',
-    whenClosed: 'open',
-    catchUp: 'runOnce',
-    mode: 'manual',
-    grant: { rules: [], destinationIds: ['dest-1'], paidCapUsd: Usd.from(0).toAmount() },
-    paidCapUsd: Usd.from(0).toAmount(),
-    parallel: false,
-    zone: 'UTC',
-    pinned: false,
-    version: 2,
-    revision: 0,
-    workspaceKey: 'workspace-1',
-    paused: false,
-    createdAtMs: 1_700_000_000_000,
-    updatedAtMs: 1_700_000_000_000,
-    nextFireAtMs: 1_700_000_060_000,
-    fireCount: 0,
-    consecutiveFailures: 0,
-    depth: 0,
-    allowAgentReschedule: false,
-    creator: { kind: 'user' },
   })
-}
-
-function context(): ScheduleRunContext {
-  return {
-    unattended: true,
-    scheduleId: 'schedule-1',
-    runId: scheduleEventRunId('schedule-1', { source: 'manual', eventKey: 'req-1' }),
-    grant: { rules: [], destinationIds: ['dest-1'], paidCapUsd: Usd.from(0).toAmount() },
-    creator: { kind: 'user' },
-    mode: 'manual',
-    depth: 0,
-    allowAgentReschedule: false,
-  }
 }
 
 describe('report failure secrecy', () => {
@@ -84,11 +43,7 @@ describe('report failure secrecy', () => {
       store: {
         create: () => Promise.resolve(undefined),
         list: () => Promise.resolve([job]),
-        update: () => Promise.resolve(true),
-        remove: () => Promise.resolve(true),
-        claim: () => Promise.resolve(true),
-        record: () => Promise.resolve(undefined),
-        fires: () => Promise.resolve([]),
+        ...quietStoreBase(),
       },
       reports: {
         run: () => Promise.reject(new Error(`provider exploded: ${SECRET}`)),
@@ -96,7 +51,7 @@ describe('report failure secrecy', () => {
       audit: () => Promise.resolve(undefined),
       now: () => 1,
     })
-    const result = await runner.run(job, context(), 1_700_000_060_000)
+    const result = await runner.run(job, runContextFixture(job), 1_700_000_060_000)
     expect(result.outcome).toBe('failed')
     expect(result.reason).toBe(UI_TEXT.scheduleV2.reportAction.failed)
     expect(JSON.stringify(result)).not.toContain('SECRET')
