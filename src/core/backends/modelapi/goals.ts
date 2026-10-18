@@ -118,7 +118,8 @@ function parsedArgs<T>(schema: z.ZodMiniType<T>, args: string): T | undefined {
   let raw: unknown
   try {
     raw = JSON.parse(args)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
   const parsed = schema.safeParse(raw)

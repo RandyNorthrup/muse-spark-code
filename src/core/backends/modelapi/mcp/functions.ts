@@ -146,7 +146,8 @@ function resolvePointer(root: JsonObject, ref: string): unknown {
     let key: string
     try {
       key = decodeURIComponent(raw)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof URIError)) throw error
       return undefined
     }
     key = key.replaceAll(POINTER_SLASH, '/').replaceAll(POINTER_TILDE, '~')
