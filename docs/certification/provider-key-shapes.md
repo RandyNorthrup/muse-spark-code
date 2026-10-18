@@ -363,3 +363,42 @@ open and worked below.
 - T7 (P2, per-account notice, `accountsCommand.ts:104`): OPEN —
   `runAccountAuthSet` reports non-text stdin but stores any trimmed
   non-blank non-Meta key without `inspectProviderKey`. Fixed below.
+
+### PR159FIX outcomes (2026-10-18, macmini rig, lane PR159FIX)
+
+- T7 fixed in `67325eb4f` (`src/runtime/providers/accountsCommand.ts`:
+  non-Meta per-account keys are inspected through `keyInspection`
+  directly and the notice prints before the store; the key still
+  reaches the store). Split-gate declarations for `keyInspection` in
+  `dist/runtimeAccounts.js` added beside the modelsPanel one in both
+  `scripts/check-bundle-split.mjs` and `scripts/lib/deferredBundles.mjs`
+  (the panel precedent `c50b2061d` touched both files; the second fires
+  from the lib, which is why the first build still reported one
+  problem). No new unit test: wiring coverage would need a
+  hand-written credential vault (a fake store), which the owner's
+  no-fakes rule forbids; the shared functions are proven by
+  `providerKeyInspect`/`execProviderNotice`, and the wiring mirrors the
+  proven siblings line for line. Packed-product proof (`npm run build`
+  green, `node dist/acp.js`, fresh empty `HOME` under `temp/`): `auth
+set --provider groq --account work` piped a URL answers `This
+product cannot be added.` (exit 1, `HOME` untouched) — the genuine
+  not-offered gate, since no provider row exists without a real key,
+  which this rig never holds; the notice is unreachable without one.
+  Sibling intact in the same packaged runtime: `providers add --preset
+custom --as keytext --address http://127.0.0.1:9/v1 --private-ok
+--format chat --model m --key-stdin` piped the same URL prints `This
+looks like a web address, not a key. Use it anyway?` first, then the
+  key test's connection truth (exit 1).
+- T4 answered with a measured reason, pictures still pending for the
+  lead. Attempted the sanctioned look on this rig (Chrome present):
+  `npm run ui:look -- models-byo` exit 0, light and dark pictures
+  rendered to `temp/ui-look/` and inspected — they show only the model
+  picker; the modal warning (`modelsPanelEntry.ts:302 confirmKeyUse`)
+  and the password box (`keyPrompt.ts`) are native VS Code surfaces the
+  webview harness cannot render by construction. No
+  integration/e2e test names `confirmKeyUse` or `promptForProviderKey`,
+  so there is no automated run to extend; a packed-vsix GUI run is
+  blocked here (the CI-built native helpers are ignored build
+  artifacts absent from this checkout, so `npm run package` stops).
+  The lead's prescribed manual look above ("Panel look (pending)")
+  stands unchanged.
