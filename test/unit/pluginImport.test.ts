@@ -199,6 +199,43 @@ describe('scanAgentImports: Amp and OpenCode plugins', () => {
     expect(lines.every((line) => line.includes('g.js'))).toBe(true)
   })
 
+  it('warns and continues when a plugin file cannot be read', async () => {
+    const setup = input(
+      {
+        files: {
+          [`${HOME}/.config/amp/plugins/guard.ts`]: AMP_GUARD,
+          [`${HOME}/.config/amp/plugins/locked.ts`]: 'unreadable',
+        },
+        failing: { [`${HOME}/.config/amp/plugins/locked.ts`]: 'EACCES' },
+      },
+      {},
+      ['amp'],
+    )
+    const scan = await scanAgentImports(setup)
+    // The readable plugin still imports; the unreadable one warns and skips.
+    expect(summary(scan.candidates).some((line) => line.includes('guard.ts'))).toBe(true)
+    expect(summary(scan.candidates).some((line) => line.includes('locked.ts'))).toBe(false)
+    expect(scan.warnings.some((warning) => warning.includes('could not be read'))).toBe(true)
+  })
+
+  it('warns and continues when a plugin folder cannot be listed', async () => {
+    const setup = input(
+      {
+        files: {
+          [`${HOME}/.config/amp/plugins/guard.ts`]: AMP_GUARD,
+          [`${WS}/.amp/plugins/team.js`]: `export default function (amp) { amp.on('session.start', () => {}) }`,
+        },
+        failing: { [`${WS}/.amp/plugins`]: 'EACCES' },
+      },
+      {},
+      ['amp'],
+    )
+    const scan = await scanAgentImports(setup)
+    expect(summary(scan.candidates).some((line) => line.includes('guard.ts'))).toBe(true)
+    expect(summary(scan.candidates).some((line) => line.includes('team.js'))).toBe(false)
+    expect(scan.warnings.some((warning) => warning.includes('could not be listed'))).toBe(true)
+  })
+
   it('refuses a personal plugin that leads into the open project, and reads no project plugin untrusted', async () => {
     const user = `${HOME}/.config/opencode/plugins/linked.js`
     const tree = {
