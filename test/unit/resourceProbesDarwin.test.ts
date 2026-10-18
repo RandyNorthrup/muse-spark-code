@@ -3,6 +3,10 @@
 // MacBookPro15,1 (Intel i9, AMD Radeon Pro + Intel UHD 630) on 2026-10-17:
 //   ioreg -r -c IOAccelerator -d 1
 //   ioreg -r -c IOBlockStorageDriver -d 1            (then again ~5 s later)
+// The twodevices pair is a recorded real exchange captured on the macmini
+// rig on 2026-10-18 with the same two commands ~5 s apart: two driver
+// instances sharing the object name `IOBlockStorageDriver` under distinct
+// registry entry ids.
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -21,6 +25,11 @@ const fixtures = path.resolve('test/fixtures/resources')
 const accelerator = readFileSync(path.join(fixtures, 'ioreg-ioaccelerator.txt'), 'utf8')
 const diskFirst = readFileSync(path.join(fixtures, 'ioreg-blockstorage.txt'), 'utf8')
 const diskLater = readFileSync(path.join(fixtures, 'ioreg-blockstorage-later.txt'), 'utf8')
+const diskTwoFirst = readFileSync(path.join(fixtures, 'ioreg-blockstorage-twodevices.txt'), 'utf8')
+const diskTwoLater = readFileSync(
+  path.join(fixtures, 'ioreg-blockstorage-twodevices-later.txt'),
+  'utf8',
+)
 
 /** The OS side of the probe port, replaying one recorded exchange per tool. */
 function recordingPort(recordings: Record<string, string>): ResourceProbePort {
@@ -79,6 +88,13 @@ describe('macOS disk probe', () => {
     expect(await probes.disk()).toBeNull()
     // Same counters twice: no busy time elapsed, through the real port.
     expect(await probes.disk()).toBe(0)
+  })
+
+  it('tells same-named drivers apart by registry entry id', () => {
+    const delta = new DarwinDiskDelta()
+    expect(delta.read(diskTwoFirst, 0)).toBeNull()
+    // The busy instance advanced ~14.4 s over 5,000 ms of wall time: capped.
+    expect(delta.read(diskTwoLater, 5000)).toBe(100)
   })
 })
 
