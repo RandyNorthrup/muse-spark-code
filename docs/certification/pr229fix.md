@@ -3,6 +3,48 @@
 One line per thread; each item ends FIXED in this lane or ANSWERED with the
 earlier commit / a measured reason. No model calls, no credentials.
 
+## Triage W1 (lane PR229W1, branch `fix/nolimits-1-final-w1`, head `5990cc56d2`)
+
+One line per thread (11) and per CI failure; each ends FIXED earlier, FIX in
+this lane, or ANSWERED with a measured reason. T1–T6 stand FIXED/ANSWERED by
+the commits named below (verified present on this branch); T7–T11 and the CI
+goldens are fixed in this lane.
+
+- T1 `imageGeneration.ts` ten-source edit limit — FIXED earlier by `e0f4e8af4f`
+  (Meta's own 1–10 range in runtime schema and tool definition).
+- T2 `bestOfN.ts:76` eager attempt materialization — FIXED earlier by
+  `7f07354f1b` (lazy per-item creation after consent, with cancellation).
+- T3 `execArgs.ts:131` large budget vs ledger — FIXED earlier by `10a1951e63`
+  (ledger `units()` holds BigInt micro-USD with no ceiling).
+- T4 `rename.test.ts:17` invented fixtures — ANSWERED earlier by `d3ef3d00fd`
+  (drives the real `mergePlacedEdits` with plain internal-type literals; no
+  mocks, no wire boundary, fails with the old ceiling restored).
+- T5 `promptCommands.ts:272` unbounded share filename — FIXED earlier by
+  `bf1ffe8a06` (title unlimited; suggested filename cut to 255 bytes).
+- T6 `mcpBridge.ts:642` duplicated check names — FIXED earlier by `570ef7dd84`
+  (deduplicate names before scheduling; distinct checks unbounded).
+- T7 `checkout.ts:822` tree-listing ceiling — FIX in this lane: the `ls-tree`
+  still runs through the fixed `GIT_OUTPUT_MAX_BYTES` buffer; stream the
+  listing (the module already owns a spawn/stream port) instead of keeping a
+  hard-coded ceiling.
+- T8 `sources.ts:114` unbounded report concat — FIX in this lane: the default
+  path retains every chunk plus a full concat plus the full string; decode
+  incrementally so one large source is never held several times over.
+- T9 `sessionTransfer.ts:674` bytes-vs-tokens replay check — FIX in this
+  lane: measure the replay in tokens with the established
+  `MODEL_API_CONTEXT_BYTES_PER_TOKEN` estimator instead of comparing UTF-8
+  bytes to a token window.
+- T10 `goals.ts:135` goal vs context window — FIX in this lane: refuse a goal
+  whose pinned objective section cannot fit the selected model's recorded
+  context window (provider's own limit), measured with the same estimator.
+- T11 `planStore.ts:190` plan brief vs attachment ceiling — FIX in this
+  lane: the brief path hits the fixed `MAX_TEXT_ATTACHMENT_BYTES` before the
+  model-derived bound; admit plan briefs by backend/model capability.
+- CI `invariants.test.ts` golden drift (06-subagent-child, 08-team-on,
+  strict/06) — FIX in this lane: the T1 fix changed the real `edit_image`
+  tool definition, so the recorded golden bytes are stale; regenerate the
+  affected goldens from the real builders (recorded input untouched).
+
 ## Triage (committed first)
 
 - T1 `imageGeneration.ts:59` ten-source edit limit — FIX in this lane: enforce
