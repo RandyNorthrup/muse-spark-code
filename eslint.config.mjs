@@ -332,6 +332,13 @@ export default tseslint.config(
           message:
             'Intercepting the module loader is a stand-in. Test the real code (AGENTS.md: no fakes in tests).',
         },
+        {
+          // The computed spelling of the same trap: Module['_load'] = ...
+          selector:
+            'AssignmentExpression[left.object.name="Module"][left.property.value=/^(_load|_resolveFilename)$/]',
+          message:
+            'Intercepting the module loader is a stand-in. Test the real code (AGENTS.md: no fakes in tests).',
+        },
       ],
       'no-restricted-imports': [
         'error',
