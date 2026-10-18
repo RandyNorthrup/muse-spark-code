@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { MediaBudget } from '../../src/core/backends/modelapi/mediaBudget'
 import type { InputItem } from '../../src/core/backends/modelapi/schemas'
 import { resolveModelCapabilities } from '../../src/core/providers/capabilities'
-import { MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
+import { MODEL_API_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import { pdfFixture } from './helpers/pdfFixture'
 
 const requiredImages = (count: number) =>
@@ -278,6 +278,87 @@ describe('Model API replay media budget', () => {
     expect(() => {
       budget.assertMessageFits(required)
     }).toThrow()
+  })
+
+  it('refuses required images above the resolved record count cap instead of protecting them', () => {
+    // A fresh batch above the model's own maxCount is refused locally with
+    // the model's reason, not sent intact for a remote rejection. A batch
+    // at the cap still rides through protected.
+    const record = resolveModelCapabilities(
+      { provider: 'fireworks', nativeModel: 'm', format: 'chat' },
+      [
+        {
+          source: { kind: 'user' as const },
+          fields: {
+            modalities: {
+              image: { state: 'yes', value: { mimes: ['image/png'], maxCount: 2 } },
+            },
+          },
+        },
+      ],
+    )
+    const over = requiredImages(3)
+    const overfull: readonly InputItem[] = [{ type: 'message', role: 'user', content: over }]
+    expect(() => new MediaBudget().fit(overfull, record, over)).toThrow(
+      UI_TEXT.modelAttachmentOverLimit,
+    )
+    const atCap = requiredImages(2)
+    const fitting: readonly InputItem[] = [{ type: 'message', role: 'user', content: atCap }]
+    expect(new MediaBudget().fit(fitting, record, atCap)).toEqual(fitting)
+  })
+
+  it('seats protected fresh images in the record cap before fitting replay', () => {
+    // Required parts consume the cap they just passed: with two fresh
+    // images protected under a maxCount of two, an older replay image no
+    // longer fits and is named instead of overflowing the model cap.
+    const record = resolveModelCapabilities(
+      { provider: 'fireworks', nativeModel: 'm', format: 'chat' },
+      [
+        {
+          source: { kind: 'user' as const },
+          fields: {
+            modalities: {
+              image: { state: 'yes', value: { mimes: ['image/png'], maxCount: 2 } },
+            },
+          },
+        },
+      ],
+    )
+    const fresh = requiredImages(2)
+    const replay = requiredImages(1)
+    const input: readonly InputItem[] = [
+      { type: 'message', role: 'user', content: replay },
+      { type: 'message', role: 'user', content: fresh },
+    ]
+    const budget = new MediaBudget()
+    const fitted = budget.fit(input, record, fresh)
+    expect(fitted[1]).toBe(input[1])
+    expect(fitted[0]).toMatchObject({
+      content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.imageLeftOut }],
+    })
+    expect(budget.omitted).toBe(true)
+  })
+
+  it('refuses a required PDF above the resolved record page cap', () => {
+    const record = resolveModelCapabilities(
+      { provider: 'fireworks', nativeModel: 'm', format: 'chat' },
+      [
+        {
+          source: { kind: 'user' as const },
+          fields: { modalities: { pdf: { state: 'yes', value: { maxPages: 1 } } } },
+        },
+      ],
+    )
+    const pdfData = (pages: number) =>
+      `data:application/pdf;base64,${Buffer.from(pdfFixture(pages)).toString('base64')}` as const
+    const twoPage = { type: 'input_file', filename: 'two.pdf', file_data: pdfData(2) } as const
+    const overfull: readonly InputItem[] = [{ type: 'message', role: 'user', content: [twoPage] }]
+    expect(() => new MediaBudget().fit(overfull, record, [twoPage])).toThrow(
+      UI_TEXT.modelAttachmentOverLimit,
+    )
+    const onePage = { type: 'input_file', filename: 'one.pdf', file_data: pdfData(1) } as const
+    const fitting: readonly InputItem[] = [{ type: 'message', role: 'user', content: [onePage] }]
+    expect(new MediaBudget().fit(fitting, record, [onePage])).toEqual(fitting)
   })
 
   it('never meets Meta’s 50-slot budget in fit() when only the provider identity is known', () => {

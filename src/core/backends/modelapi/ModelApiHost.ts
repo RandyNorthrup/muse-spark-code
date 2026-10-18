@@ -4488,7 +4488,11 @@ export class ModelApiSession implements ScheduledAgentSession {
           ) ?? original
         const fitted = this.budget.fit(
           mediaProjected,
-          undefined,
+          // The resolved model's own record, when its lane carried one:
+          // fresh attachments above its image/page caps are refused here
+          // instead of rejected remotely. Absent keeps the provider-identity
+          // gating (Meta's number never meets a configured provider).
+          resolved.capabilityRecord,
           this.media?.pending(mediaProjected),
           resolved.policy.identity.provider,
         )
