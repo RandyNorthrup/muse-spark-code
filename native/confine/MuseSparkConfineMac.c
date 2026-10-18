@@ -27,7 +27,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <time.h>
 #include <unistd.h>
 #include "policy.h"
 
@@ -40,7 +39,6 @@
 static int profile_fd = -1;
 static size_t visited, excluded;
 static dev_t device;
-static struct timespec started;
 static char root_absolute[PATH_MAX];
 static char home_absolute[PATH_MAX];
 
@@ -115,11 +113,12 @@ static int private_path(const char *path) {
   }
   return 0;
 }
+// The walk's bound is deterministic: entries visited, never wall-clock time.
+// A wall-clock budget refuses slow walks on a busy machine, while the entry
+// count caps the walk's work and the generated profile's size however long
+// the walk takes.
 static void budget(void) {
-  struct timespec now;
-  if (clock_gettime(CLOCK_MONOTONIC, &now)) refuse("clock");
-  int64_t ns = ((int64_t)now.tv_sec - (int64_t)started.tv_sec) * 1000000000 + now.tv_nsec - started.tv_nsec;
-  if (visited > JUDGE_FAST_B1_WALK_MAX_ENTRIES || ns > JUDGE_FAST_B1_WALK_MAX_MS * 1000000LL) refuse("walkBudget");
+  if (visited > JUDGE_FAST_B1_WALK_MAX_ENTRIES) refuse("walkBudget");
 }
 // One component, never a slash: no-follow, same device checked by the caller.
 static int open_component(int parent, const char *name, int want_dir) {
@@ -495,7 +494,6 @@ int main(int argc, char **argv) {
   allow_loader();
   allow_exec(resolved);
   allow_literal(resolved);
-  if (clock_gettime(CLOCK_MONOTONIC, &started)) refuse("clock");
   int separator = 7;
   while (separator < argc && strcmp(argv[separator], "--")) {
     if (private_path(argv[separator])) refuse("privateOperand");

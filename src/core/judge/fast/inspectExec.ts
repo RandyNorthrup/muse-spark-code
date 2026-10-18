@@ -39,7 +39,6 @@ const nativeRefusalSchema = z.strictObject({
   refused: z.enum([
     'file',
     'landlock',
-    'clock',
     'walkBudget',
     'operand',
     'walk',
