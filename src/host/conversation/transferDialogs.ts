@@ -8,7 +8,7 @@ import * as vscode from 'vscode'
 import { SESSION_EXPORT_MAX_BYTES, UI_TEXT } from '../../shared/constants'
 import { readPickedFile } from '../backend/toolIo'
 import { canonicalPath } from '../canonicalPath'
-import type { SessionTransferFiles } from './sessionImport'
+import { decodeTransferBytes, type SessionTransferFiles } from './sessionImport'
 
 const JSON_FILTER = 'JSON'
 const JSON_EXTENSION = 'json'
@@ -40,17 +40,9 @@ export function createSessionTransferFiles(): SessionTransferFiles {
       if (isMissing) {
         throw new Error(UI_TEXT.transferFileMissing)
       }
-      if (bytes === undefined) {
-        return { kind: 'tooLarge' }
-      }
-      // Invalid UTF-8 is refused rather than read as replacement characters,
-      // in the panel's language (the decoder's own message is English); a
-      // byte-order mark is dropped.
-      try {
-        return { kind: 'read', content: new TextDecoder('utf-8', { fatal: true }).decode(bytes) }
-      } catch {
-        throw new Error(UI_TEXT.textFileInvalid)
-      }
+      return bytes === undefined
+        ? { kind: 'tooLarge' }
+        : { kind: 'read', content: decodeTransferBytes(bytes) }
     },
     async confirmImport(title, detail) {
       return (

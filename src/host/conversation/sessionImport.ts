@@ -6,6 +6,19 @@
 import { UI_TEXT } from '../../shared/constants'
 import { parseSessionExport, type SessionExportParse } from '../../core/export/sessionTransfer'
 
+/**
+ * The picked bytes as text. Invalid UTF-8 is refused rather than read as
+ * replacement characters, in the panel's language (the decoder's own message
+ * is English); a byte-order mark is dropped. The refusal carries its cause.
+ */
+export function decodeTransferBytes(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch (error: unknown) {
+    throw new Error(UI_TEXT.textFileInvalid, { cause: error })
+  }
+}
+
 /** A picked file: dismissed, refused for its size, or its text. */
 export type PickedTransferFile =
   | { readonly kind: 'dismissed' }
