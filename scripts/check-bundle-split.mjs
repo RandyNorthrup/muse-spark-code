@@ -1192,8 +1192,10 @@ const TEXT_BLOCKS = [
     sentinels: ['codeIntelNoSymbolNamed', 'repoMapBudgetTooSmall'],
     readers: ['dist/codeIntel.js', BUNDLES.modelApi.output, 'dist/modelApiCodeIntel.js'],
   },
-  // A picked text file's template (M54): the backends' bundles and the
-  // conversation carry it; activation reads it no longer (PR206).
+  // A picked text file's template (M54): the backends' bundles (including
+  // the runtime's ACP/exec media port, which attaches picked files through
+  // src/acp/media.ts) and the conversation carry it; activation reads it no
+  // longer (PR206).
   {
     block: 'TEXT_ATTACHMENT_MODEL_TEXT',
     sentinels: ['attachedTextFile'],
@@ -1202,6 +1204,7 @@ const TEXT_BLOCKS = [
       'dist/museCode.js',
       'dist/conversation.js',
       'dist/runtimeEngine.js',
+      'dist/runtimeMedia.js',
     ],
   },
   {

@@ -341,6 +341,17 @@ happened, not what was planned; superseded entries are kept.
   table lists its keys in English's order, including the resource history
   and Windows path strings merged for 0.17.0.
 
+- The features group's merges dropped three build lines in conflict
+  resolution, and the build carries them again: PR #226's
+  `productionMediaEntry → dist/productionMedia.js` externalization (without
+  it every dynamic import of the production media bundle was compiled
+  inline, pushing `dist/modelApi.js` and `dist/productionAudio.js` over
+  their budgets and failing the split gate), PR #243's `reportInputs` and
+  `playbookSchedulesInputs` production builds (the size gate listed both as
+  not built), and PR #206's picked-text template reader list now names the
+  runtime's ACP/exec media port, which attaches picked files through
+  `src/acp/media.ts`.
+
 - The dependency-cycle gate now covers every build entry, lazy import target,
   entry-named module and knip entry, with a guard against root-list drift.
   Remove the worker admission/environment/ref-fence cycle by sharing the
