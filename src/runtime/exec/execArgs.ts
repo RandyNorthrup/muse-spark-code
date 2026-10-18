@@ -9,7 +9,6 @@ import {
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
   EXEC_DEFAULT_TIMEOUT_SECONDS,
-  EXEC_MAX_REQUESTS,
   EXEC_MAX_TIMEOUT_SECONDS,
   EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MODES,
@@ -223,11 +222,11 @@ export function parseExec(
     EXEC_MAX_TIMEOUT_SECONDS,
   )
   // No default: without `--max-requests` the run has no request limit. A set
-  // value stays within 1–EXEC_MAX_REQUESTS, like the budget grammar below.
+  // value is any positive safe integer; no provider publishes a maximum.
   const maxRequests =
     values['max-requests'] === undefined
       ? undefined
-      : integer(values['max-requests'], 0, 1, EXEC_MAX_REQUESTS)
+      : integer(values['max-requests'], 0, 1, Number.MAX_SAFE_INTEGER)
   const budgetUsd = budgetUnits(values['max-budget-usd'])
   if (
     timeout === undefined ||
