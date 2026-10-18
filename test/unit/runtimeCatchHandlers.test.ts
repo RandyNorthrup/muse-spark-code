@@ -3,12 +3,20 @@
 // a missing file, a refused permission, a vanished listing entry, malformed
 // arguments, a corrupt store, a failing key read.
 import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Logger } from '../../src/host/logger'
+import { runEstimateCommand } from '../../src/runtime/estimator/command'
+import { nodeFontInstallPort } from '../../src/runtime/fonts/nodeInstall'
+import { runPlaybookCommand, type PlaybookSurfacePort } from '../../src/runtime/playbook/command'
 import { parseAccountsCommand } from '../../src/runtime/providers/accountArgs'
+import {
+  checkDeveloperAccount,
+  createRuntimeAccountServices,
+} from '../../src/runtime/providers/runtimeServices'
+import { cancelAfterFailedDeferral } from '../../src/runtime/questions/acpRegistry'
 import {
   createQuestionQueueStore,
   createQuestionStore,
@@ -19,7 +27,9 @@ import {
   readResourceReset,
   writeResourceReset,
 } from '../../src/runtime/usage/resourceResetFile'
-import { RESOURCE_JOURNAL_RESET_FILE } from '../../src/shared/constants'
+import { RESOURCE_JOURNAL_RESET_FILE, UI_TEXT } from '../../src/shared/constants'
+import { estimateSectionSchema } from '../../src/shared/estimate'
+import { fill } from '../../src/shared/l10n/text'
 
 const folders: string[] = []
 afterEach(async () => {
@@ -199,5 +209,161 @@ describe('sharing registered secrets', () => {
       },
     )
     await expect(ports.registeredSecrets()).resolves.toEqual(['cred-a'])
+  })
+})
+
+/** A contract failure the estimator never worded, built by its real schema. */
+function foreignEstimateFailure(): Error {
+  try {
+    estimateSectionSchema.parse({})
+  } catch (error) {
+    if (error instanceof Error) return error
+  }
+  throw new Error('the estimate contract did not refuse an empty section')
+}
+
+describe('estimate command floor', () => {
+  it('exits 1 with fixed words when the run fails, never exception text', async () => {
+    const written: string[] = []
+    const errors: string[] = []
+    const code = await runEstimateCommand(['M1'], {
+      context: () => ({ asOf: new Date().toISOString(), optimize: 'cost' as const }),
+      runner: { estimate: () => Promise.reject(foreignEstimateFailure()) },
+      money: { price: () => '' },
+      write: (text) => {
+        written.push(text)
+      },
+      error: (text) => {
+        errors.push(text)
+      },
+      signal: new AbortController().signal,
+    })
+    expect(code).toBe(1)
+    expect(errors).toEqual([fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' })])
+    expect(written).toEqual([])
+  })
+})
+
+describe('playbook command floor', () => {
+  it('answers a failed port read with fixed words, never exception text', async () => {
+    const failing: PlaybookSurfacePort = {
+      read: () => Promise.reject(Object.assign(new Error('journal locked'), { code: 'EBUSY' })),
+      change: () => Promise.reject(new Error('unused in this path')),
+    }
+    const result = await runPlaybookCommand({ view: 'status' }, failing)
+    expect(result).toEqual({ ok: false, text: UI_TEXT.playbookCommandFailed })
+  })
+})
+
+function seedMeta(dir: string): void {
+  writeFileSync(
+    path.join(dir, 'providers.json'),
+    JSON.stringify({
+      providers: {
+        meta: {
+          id: 'meta',
+          policyProvider: 'meta',
+          product: 'model-api',
+          auth: 'apiKey',
+          origin: 'https://api.meta.ai',
+          accounts: [{ id: 'default', label: 'Default', order: 0, thresholds: {} }],
+        },
+      },
+    }),
+    'utf8',
+  )
+}
+
+async function checkAccount(dir: string, provider: string, account: string): Promise<void> {
+  const services = createRuntimeAccountServices({
+    dataDir: dir,
+    openEntry: () => {
+      throw new Error('unused in this path')
+    },
+  })
+  await checkDeveloperAccount(services.metadata, services.store, provider, account)
+}
+
+const pack = (): ReadonlyMap<string, Uint8Array> =>
+  new Map([['a.woff2', new Uint8Array([1, 2, 3])]])
+
+describe('developer account check', () => {
+  it('passes a configured account', async () => {
+    const dir = folder()
+    seedMeta(dir)
+    await expect(checkAccount(dir, 'meta', 'default')).resolves.toBeUndefined()
+  })
+
+  it('refuses an unknown account as invalid, not as unavailable', async () => {
+    const dir = folder()
+    seedMeta(dir)
+    await expect(checkAccount(dir, 'meta', 'ghost')).rejects.toThrow(
+      UI_TEXT.developer.invalidRequest,
+    )
+  })
+
+  it('refuses an unconfigured provider as invalid', async () => {
+    const dir = folder()
+    seedMeta(dir)
+    await expect(checkAccount(dir, 'other', 'default')).rejects.toThrow(
+      UI_TEXT.developer.invalidRequest,
+    )
+  })
+})
+
+describe('font pack publication', () => {
+  it('publishes a fresh pack and reuses a matching one', async () => {
+    const dir = folder()
+    const port = nodeFontInstallPort({ directory: dir, fetch })
+    const destination = await port.publish('v1', pack())
+    expect(destination).toBe(path.join(dir, 'v1'))
+    expect(await readFile(path.join(destination, 'a.woff2'))).toEqual(Buffer.from([1, 2, 3]))
+    await expect(port.publish('v1', pack())).resolves.toBe(destination)
+  })
+
+  it('refuses to clobber a mismatched pack and leaves it untouched', async () => {
+    const dir = folder()
+    const destination = path.join(dir, 'v1')
+    await mkdir(destination, { recursive: true })
+    writeFileSync(path.join(destination, 'a.woff2'), Buffer.from([9, 9, 9]))
+    const port = nodeFontInstallPort({ directory: dir, fetch })
+    await expect(port.publish('v1', pack())).rejects.toThrow()
+    expect(await readFile(path.join(destination, 'a.woff2'))).toEqual(Buffer.from([9, 9, 9]))
+  })
+
+  it('settles concurrent publishers on one destination', async () => {
+    const dir = folder()
+    const port = nodeFontInstallPort({ directory: dir, fetch })
+    const [first, second] = await Promise.all([
+      port.publish('v1', pack()),
+      port.publish('v1', pack()),
+    ])
+    expect(first).toBe(path.join(dir, 'v1'))
+    expect(second).toBe(path.join(dir, 'v1'))
+    expect(await readFile(path.join(dir, 'v1', 'a.woff2'))).toEqual(Buffer.from([1, 2, 3]))
+  })
+})
+
+describe('failed deferral fallback', () => {
+  it('reports a failed cancel and resolves', async () => {
+    let marks = 0
+    await cancelAfterFailedDeferral(
+      {
+        cancelQuestions: () => Promise.reject(new Error('cancel blew up')),
+      },
+      'q1',
+      () => {
+        marks += 1
+      },
+    )
+    expect(marks).toBe(1)
+  })
+
+  it('stays silent when the fallback succeeds', async () => {
+    let marks = 0
+    await cancelAfterFailedDeferral({ cancelQuestions: () => Promise.resolve() }, 'q1', () => {
+      marks += 1
+    })
+    expect(marks).toBe(0)
   })
 })
