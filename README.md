@@ -5379,7 +5379,7 @@ DEFLATE compression after `vsce` creates the archive. Python 3 (`python3`,
 are skipped, including Windows' Microsoft Store aliases. The step preserves
 entry paths, metadata, every UI JSON value and all other uncompressed bytes.
 Only packaged translation JSON whitespace is compacted; source tables stay
-unchanged and malformed JSON refuses publication. The 3000 KiB universal VSIX budget covers the measured 0.16.0 combined train plus D6's margin; individual bundle caps follow their recorded measurements.
+unchanged and malformed JSON refuses publication. Each platform's VSIX package meets the same 3700 KiB budget, which covers the measured universal package plus D6's margin (one package per platform: PLAN.md D123); individual bundle caps follow their recorded measurements.
 The legal scanner's pinned data is embedded in its lazy bundle, with separate
 notice/provenance files in both packages.
 
@@ -5537,8 +5537,9 @@ as **admin move required**, preserving the release channels' outcomes. The
 the administrator's fast-forward recovery; the ruleset stays in place.
 The workflow creates a GitHub Release with
 that `.vsix`, the ACP tarball, both inventories, the exec schemas from `docs/schemas/` and `SHA256SUMS`, with the
-CHANGELOG section as its notes and package provenance attestations. The same
-VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX; the same
+CHANGELOG section as its notes and package provenance attestations. Each
+target's VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX,
+which serve each person their platform's package; the same
 ACP tarball goes to npm with provenance by npm trusted publishing: npm
 trusts `release.yml` in the tag-only `marketplace` environment, so the npm
 job reads no npm token. Marketplace and Open VSX use their tokens from that
@@ -5546,7 +5547,7 @@ environment (`VSCE_PAT`, `OVSX_PAT`); a missing token is reported as a
 skip. Network errors get bounded retries;
 already-published versions require matching artifact hashes/integrity. A final
 summary reports every channel and fails if any channel failed. A `.vsix` packed
-locally has no macOS helper, so only CI's universal artifact is published.
+locally has no macOS helper, so only CI's per-target artifacts are published.
 See [the release and recovery guide](docs/RELEASING.md) for half-published
 states, npm EOTP, signing decisions and the M80 hooks (the schemas as
 release assets and the Action's `v0` tag). A manual run of `release.yml` on
