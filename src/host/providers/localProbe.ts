@@ -57,15 +57,31 @@ export async function probeLocalServers(
           status: response.status,
           snippet: isAnswered ? body.slice(0, LOCAL_PROBE_SNIPPET_CHARS) : '',
         }
-      } catch {
-        return {
-          host: target.host,
-          port: target.port,
-          path: target.path,
-          answered: false,
-          status: undefined,
-          snippet: '',
+      } catch (error: unknown) {
+        // Our own timeout aborts the probe, and a refused loopback
+        // connection answers nothing: both read as unanswered. A failure
+        // from the fetch itself is not an answer either way, so it rejects.
+        if (controller.signal.aborted) {
+          return {
+            host: target.host,
+            port: target.port,
+            path: target.path,
+            answered: false,
+            status: undefined,
+            snippet: '',
+          }
         }
+        if (error instanceof TypeError) {
+          return {
+            host: target.host,
+            port: target.port,
+            path: target.path,
+            answered: false,
+            status: undefined,
+            snippet: '',
+          }
+        }
+        throw error
       } finally {
         clearTimeout(timer)
       }
