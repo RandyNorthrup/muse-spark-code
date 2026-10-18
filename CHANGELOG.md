@@ -249,6 +249,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Packaging
 
+- One package per platform target (D123). `npm run package` and
+  `npm run package:acp` take `--target <platform>-<arch>` (the six
+  desktop targets); a targeted package stages only its own platform's
+  native pieces and names its target in its filename, so a platform's
+  package packs on that platform without helpers only another OS
+  builds. The universal packages keep every platform's helpers, and
+  every target is checked against the same unchanged size budget. No
+  behaviour change on any platform.
 - The Get Started walkthrough's four screenshots ship as lossless WebP
   instead of PNG (`open.webp`, `welcome.webp`, `chat.webp`,
   `sign-in.webp` in `resources/walkthrough/`): pixel-identical, about
