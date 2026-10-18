@@ -48,6 +48,7 @@ import {
   type AgentHost,
   type AgentSession,
   isPromptSettledError,
+  isSessionNotLoadedError,
   type ModelSummary,
   type SessionMcpServer,
   type SkillSummary,
@@ -64,6 +65,7 @@ import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
 import type { AgentEvent, ItemSnapshot } from '../shared/agentEvents'
 import { parsePlaybackPrompt } from '../shared/playbackCommand'
 import { playbackTurnText } from '../core/playback/playbackPrompt'
+import { PlaybackWatch } from '../core/playback/playbackWatch'
 import {
   ACP_AGENT_NAME,
   ACP_AGENT_TITLE,
@@ -367,10 +369,11 @@ class AcpSession {
    * (D203): held in Plan mode and stopped at the first tool item. The mode
    * is put back when the turn ends.
    */
-  private playbackTurnId: string | undefined
-  private playbackStopped = false
+  private readonly playbackWatch = new PlaybackWatch()
   private playbackModeRestore = false
   private playbackRestore: Promise<void> | undefined
+  /** The last backend mode command queued: each one runs after the one before it. */
+  private modeOrder: Promise<unknown> = Promise.resolve()
   public readonly sessionId: string
 
   public constructor(
@@ -512,6 +515,12 @@ class AcpSession {
    * caller watches the submission and puts the mode back at its end.
    */
   private startPlaybackTurn(): Promise<TurnSubmission> {
+    // Refused while a turn runs (one a resumed session carries, say), as the
+    // panel refuses it: a Plan hold would land on that turn, and the turn's
+    // permissions would change under it.
+    if (this.activeTurnId !== undefined) {
+      return Promise.reject(RequestError.invalidRequest(undefined, UI_TEXT.playbackBusy))
+    }
     const parts: readonly TurnPart[] = [{ type: 'text', text: playbackTurnText() }]
     const display = `/${SLASH_COMMAND_NAMES.playback}`
     const playback = this.session.playback
@@ -519,56 +528,110 @@ class AcpSession {
       return playback.call(this.session, parts, display)
     }
     return (async (): Promise<TurnSubmission> => {
-      await this.session.setApprovalMode(approvalModeFor('plan', true))
-      this.playbackModeRestore = true
+      await this.inModeOrder(async () => {
+        await this.session.setApprovalMode(approvalModeFor('plan', true))
+        this.playbackModeRestore = true
+      })
+      // Armed before the submission: the turn's items can arrive before the
+      // acknowledgement names the turn, and a tool among them still stops it.
+      this.playbackWatch.arm()
       try {
         return await this.session.sendTurn(parts, display)
       } catch (error: unknown) {
+        this.playbackWatch.clear()
         await this.restorePlaybackMode()
         throw error
       }
     })()
   }
 
+  /**
+   * One backend mode command, run after the ones queued before it: the
+   * Plan hold, its restore and the client's `session/set_mode` never
+   * overlap, so a restore cannot land after a newer selection, and it reads
+   * the mode to put back when it runs. The latest explicit choice stays.
+   */
+  private async inModeOrder<T>(command: () => Promise<T>): Promise<T> {
+    const previous = this.modeOrder
+    const next = (async () => {
+      try {
+        await previous
+      } catch {
+        // The command before this one answered its own caller with its failure.
+      }
+      return await command()
+    })()
+    this.modeOrder = next
+    return await next
+  }
+
   /** Put the session's mode back after a Plan-held playback turn. Never rejects. */
   private async restorePlaybackMode(): Promise<void> {
-    if (!this.playbackModeRestore) {
-      return
-    }
-    this.playbackModeRestore = false
-    try {
-      await this.session.setApprovalMode(approvalModeFor(this.mode, true))
-    } catch (error: unknown) {
-      this.deps.log.warn(
-        `ACP session ${this.sessionId}: playback mode not restored: ${failureForLog(error)}`,
-      )
-    }
+    await this.inModeOrder(async () => {
+      if (!this.playbackModeRestore) {
+        return
+      }
+      this.playbackModeRestore = false
+      try {
+        await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+      } catch (error: unknown) {
+        this.playbackModeNotRestored(error)
+      }
+    })
   }
 
   /**
-   * A tool item of the running Plan-held playback turn (D203): the turn is
-   * stopped at once and the editor is told why outright. Never silent.
-   * The Model API backend refuses the call itself, so this only ever
-   * fires elsewhere.
+   * The mode could not be put back after a playback: the backend stays in
+   * Plan mode, so the editor is told that Plan is the mode in force, and
+   * why, rather than showing a mode the session no longer runs in. A
+   * session the backend no longer holds takes the client's mode when it is
+   * loaded again, so only a live one is relabelled.
+   */
+  private playbackModeNotRestored(error: unknown): void {
+    this.deps.log.warn(
+      `ACP session ${this.sessionId}: playback mode not restored: ${failureForLog(error)}`,
+    )
+    if (isSessionNotLoadedError(error)) {
+      return
+    }
+    this.mode = 'plan'
+    this.send({ sessionUpdate: 'current_mode_update', currentModeId: this.mode })
+    this.send({
+      sessionUpdate: 'agent_message_chunk',
+      content: {
+        type: 'text',
+        text: `${UI_TEXT.playbackModeNotRestored}: ${error instanceof Error ? error.message : String(error)}`,
+      },
+    })
+  }
+
+  /**
+   * A tool item of a Plan-held playback turn (D203): the turn is stopped at
+   * once and the editor is told why outright. Never silent. The Model API
+   * backend refuses the call itself, so this only ever fires elsewhere.
    */
   private watchPlaybackItem(item: ItemSnapshot): void {
     if (
-      this.playbackTurnId === undefined ||
-      this.playbackStopped ||
-      item.kind !== 'toolCall' ||
-      item.turnId === undefined ||
-      item.turnId !== this.playbackTurnId
+      item.kind === 'toolCall' &&
+      item.turnId !== undefined &&
+      this.playbackWatch.sawTool(item.turnId)
     ) {
-      return
+      this.stopPlaybackTurn(item.turnId)
     }
-    this.playbackStopped = true
+  }
+
+  private stopPlaybackTurn(turnId: string): void {
     this.deps.log.info(
-      `ACP session ${this.sessionId}: playback turn ${this.playbackTurnId} used a tool; stopping it`,
+      `ACP session ${this.sessionId}: playback turn ${turnId} used a tool; stopping it`,
     )
     this.send({
       sessionUpdate: 'agent_message_chunk',
       content: { type: 'text', text: UI_TEXT.playbackStoppedTools },
     })
+    // A turn that ended before its acknowledgement has nothing left to stop.
+    if (this.earlyFinishes.has(turnId)) {
+      return
+    }
     void this.session.cancel().catch((error: unknown) => {
       this.deps.log.warn(
         `ACP session ${this.sessionId}: stopping the playback turn failed: ${failureForLog(error)}`,
@@ -582,9 +645,8 @@ class AcpSession {
    * only after the session's mode is back.
    */
   private endPlaybackTurn(turnId: string): Promise<void> {
-    if (this.playbackTurnId === turnId) {
-      this.playbackTurnId = undefined
-      this.playbackStopped = false
+    if (this.playbackWatch.isWatching(turnId)) {
+      this.playbackWatch.clear()
       this.playbackRestore ??= this.runPlaybackRestore()
     }
     return this.playbackRestore ?? Promise.resolve()
@@ -1661,7 +1723,7 @@ class AcpSession {
    */
   public async matchAdvertised(): Promise<void> {
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    await this.inModeOrder(() => this.session.setApprovalMode(approvalModeFor(this.mode, true)))
     const reported = await this.host.listModels(this.sessionId)
     const active = reported.find((model) => model.isActive)
     if (active !== undefined && this.models.some((model) => model.modelId === active.modelId)) {
@@ -1701,7 +1763,7 @@ class AcpSession {
    */
   public async restoreChoice(modelId: string, effort: EffortLevel): Promise<void> {
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    await this.inModeOrder(() => this.session.setApprovalMode(approvalModeFor(this.mode, true)))
     this.ensureHeld()
     // Muse resume needs an explicit selection; Model API's loaded model is
     // authoritative and an unchanged selection must not run switch hooks.
@@ -1739,8 +1801,13 @@ class AcpSession {
       throw RequestError.invalidParams(undefined, modeId)
     }
     this.ensureHeld()
-    await this.session.setApprovalMode(approvalModeFor(mode, true))
-    this.mode = mode
+    await this.inModeOrder(async () => {
+      await this.session.setApprovalMode(approvalModeFor(mode, true))
+      this.mode = mode
+      // The client's own choice ends a playback's Plan hold, as the
+      // panel's does: nothing is put back over it.
+      this.playbackModeRestore = false
+    })
     // The set took: tell the editor, which otherwise keeps showing the old
     // mode (it learns it only from new/load responses and this notice).
     this.send({ sessionUpdate: 'current_mode_update', currentModeId: mode })
@@ -2015,13 +2082,17 @@ class AcpSession {
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
       }
-      // `/playback` (D203): a memory-only turn. With anything after it,
-      // usage instead: a playback takes no arguments.
-      const playbackCommand =
-        parsed.parts.length === 1 && part?.type === 'text'
-          ? parsePlaybackPrompt(part.text)
-          : undefined
-      if (playbackCommand?.kind === 'usage') {
+      // `/playback` (D203): a memory-only turn, recognised on the command
+      // text as every local command is. With anything after it, or any
+      // other block or part beside it (an image, a resource, more text),
+      // usage instead: a playback takes no arguments, and nothing it came
+      // with may run as an ordinary turn with tools.
+      const playbackCommand = parsePlaybackPrompt(typed)
+      if (
+        playbackCommand?.kind === 'usage' ||
+        (playbackCommand !== undefined &&
+          (blocks.length !== 1 || parsed.parts.length !== 1 || part?.type !== 'text'))
+      ) {
         await this.announceCommands()
         if ('error' in preparing) throw preparing.error
         if (!preparing.isCancelled)
@@ -2225,13 +2296,18 @@ class AcpSession {
         }
         // A Plan-held playback (a backend with no no-tools turn of its
         // own) is watched for tool items until its turn ends, which puts
-        // the session's mode back. The watch is noted before the turn id:
-        // noting settles a turn that already finished, and settling is
-        // what puts the mode back, so the other order would leave the
-        // session in Plan mode with the editor told another mode.
-        if (isAccepted && isPlayback && this.session.playback === undefined) {
-          this.playbackTurnId = submission.turnId
-          this.playbackStopped = false
+        // the session's mode back; one that reached for a tool before this
+        // acknowledgement is stopped now. The watch is bound before the
+        // turn id is noted: noting settles a turn that already finished,
+        // and settling is what puts the mode back, so the other order would
+        // leave the session in Plan mode with the editor told another mode.
+        if (
+          isAccepted &&
+          isPlayback &&
+          this.session.playback === undefined &&
+          this.playbackWatch.bind(submission.turnId)
+        ) {
+          this.stopPlaybackTurn(submission.turnId)
         }
         this.noteTurnId(submission.turnId, submission.disposition)
         if (!isAccepted) {
@@ -2239,6 +2315,7 @@ class AcpSession {
           // or refused): nothing will end to put the mode back, so the
           // Plan hold comes off here instead of leaking into later turns.
           if (isPlayback && this.session.playback === undefined) {
+            this.playbackWatch.clear()
             await this.restorePlaybackMode()
           }
           throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
