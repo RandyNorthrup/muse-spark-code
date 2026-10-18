@@ -188,7 +188,9 @@ export function parseCatalogPresence(value: unknown): CatalogPresence | undefine
  * refuses. An `unpriced` catalogue entry is capability evidence, not price
  * evidence — configured resolution still leaves that model unpriced and an
  * exec run refuses it — so only a priced catalogue record or a user-entered
- * price suppresses the warning.
+ * price suppresses the warning. A plan-key preset never warns: configured
+ * resolution assigns its models `{ kind: 'plan' }`, so the run is not
+ * refused as unpriced.
  */
 export function isModelUnpriced(
   catalog: CatalogPresence,
@@ -196,6 +198,7 @@ export function isModelUnpriced(
   entry: Pick<ProviderEntry, 'auth' | 'prices'>,
   nativeModel: string,
 ): boolean {
+  if (presets.planKeyPresetById(presetId) !== undefined) return false
   const base = presetId.replace('-plan', '')
   const isPriced = catalog.providers[base]?.models[nativeModel] !== undefined
   return (
