@@ -324,11 +324,40 @@ export type FunctionOutputPart =
   | { readonly type: 'input_text'; readonly text: string }
   | { readonly type: 'input_image'; readonly image_url: string; readonly detail: 'auto' }
 
+/**
+ * TOOLCAP: the text of a tool result allowed into a request. Only
+ * `boundToolResultText` (tool text through the one bound), `withCutNotice`
+ * (bounded text with its cut notice appended) and `fixedHarnessText` (fixed
+ * harness words with no tool text: cancellations, refusals) in
+ * toolResultBound.ts produce it; every place that builds a
+ * `function_call_output` or a tool-carrying note takes this type, not
+ * `string`, so bypassing the bound fails compilation. A plain `string` is
+ * never assignable: a new site must route through the bound, and a cast
+ * elsewhere needs its own justification.
+ */
+export type BoundedToolText = string & { readonly __boundedToolText: true }
+
+/**
+ * TOOLCAP: stored text re-entering the live session. This lives beside the
+ * brand (not the bound: the stored-session format ships in the activation
+ * bundle, while the bound loads lazily with the backend). Restore keeps
+ * stored bytes byte-identical (golden requests, forks and compaction rely on
+ * it), so the bound cannot re-cut here; text stored before the bound still
+ * meets it through send-time recovery, which cuts whatever exceeds the bound
+ * with a spill before the turn gives up. The only brand restatement outside
+ * the bound itself, the cut notice, and fixed harness words (PLAN.md §8:
+ * TOOLCAP brand).
+ */
+export function restoredToolText(text: string): BoundedToolText {
+  // Brand: restore is byte-identical by design; the send-time recovery is the backstop (PLAN.md §8: TOOLCAP brand).
+  return text as BoundedToolText
+}
+
 export interface FunctionCallOutputItem {
   readonly type: 'function_call_output'
   readonly call_id: string
   /** The result as text, or as content parts when it holds pictures. */
-  readonly output: string | readonly FunctionOutputPart[]
+  readonly output: BoundedToolText | readonly FunctionOutputPart[]
 }
 
 /**

@@ -509,6 +509,8 @@ function modelApiManager(
     // ACP and headless share the panel's packing/recall engine. Without a
     // VS Code setting here, use D81.6's enabled policy in every editor.
     isObservationPackingOn: () => true,
+    // TOOLCAP: the headless run's --max-tool-output-bytes, if raised for one run.
+    maxToolOutputBytes: () => deps.options.maxToolOutputBytes,
     // M82's cap and reply line are VS Code settings; ACP exposes neither.
     sessionBudgetUsd: () => Usd.from(SETTING_DEFAULTS.modelApiSessionBudgetUsd).toAmount(),
     pacingOwner: deps,

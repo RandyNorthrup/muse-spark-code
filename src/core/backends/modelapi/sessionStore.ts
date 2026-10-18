@@ -25,8 +25,10 @@ import {
 import {
   AGENT_SOURCES,
   EFFORT_LEVELS,
+  MILLISECONDS_PER_DAY,
   PERMISSION_MODES,
   STORED_SESSION_VERSION,
+  TOOL_RESULT_SPILL_MAX_AGE_DAYS,
 } from '../../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
 import type { AgentRuntime } from '../../context/customAgents'
@@ -38,6 +40,7 @@ import {
   functionCallItemSchema,
   type InputItem,
   reasoningItemSchema,
+  restoredToolText,
   webSearchActionSchema,
 } from './schemas'
 
@@ -437,6 +440,71 @@ function withoutCorruptEstimate(raw: unknown): unknown {
   return rest
 }
 
+/** One spill path segment: safe on every platform, bounded in length. */
+const SPILL_NAME_MAX = 80
+
+function spillSafePart(part: string): string {
+  return part.replaceAll(/[^A-Za-z0-9_-]/g, '_').slice(0, SPILL_NAME_MAX) || 'output'
+}
+
+/** `TOOL_RESULT_SPILL_DIR`-relative spill path; safe on every platform. */
+export function spillName(sessionId: string, callId: string): string {
+  return `${spillSafePart(sessionId)}-${spillSafePart(callId)}.txt`
+}
+
+/**
+ * TOOLCAP: one session's spill file-name prefix. A session's spills are
+ * exactly the `.txt` files under this prefix in `TOOL_RESULT_SPILL_DIR`, so
+ * deleting the session can remove them.
+ */
+export function spillPrefix(sessionId: string): string {
+  return `${spillSafePart(sessionId)}-`
+}
+
+/**
+ * TOOLCAP: whether a directory entry is shaped like a spill file
+ * (`<safe>-<safe>.txt`). The age sweep removes only these; anything else a
+ * person put in the spill directory is left alone.
+ */
+const SPILL_FILE_PATTERN = /^[A-Za-z0-9_-]{1,80}-[A-Za-z0-9_-]{1,80}\.txt$/
+
+export function isSpillFile(name: string): boolean {
+  return SPILL_FILE_PATTERN.test(name)
+}
+
+/**
+ * TOOLCAP: a spill file's age rule. Past TOOL_RESULT_SPILL_MAX_AGE_DAYS it is
+ * pruned, whatever session it belonged to. An unreadable clock is kept: only
+ * a known age deletes anything.
+ */
+export function isSpillStale(mtimeMs: number, nowMs: number): boolean {
+  return (
+    Number.isFinite(mtimeMs) &&
+    Number.isFinite(nowMs) &&
+    nowMs - mtimeMs >= TOOL_RESULT_SPILL_MAX_AGE_DAYS * MILLISECONDS_PER_DAY
+  )
+}
+
+/**
+ * TOOLCAP: one parsed replay item re-entering the live session. Stored tool
+ * text takes the restore brand (see the call site for why); every other item
+ * already matches the live shape.
+ */
+function restoreReplayItem(item: z.infer<typeof storedInputItemSchema>): InputItem {
+  switch (item.type) {
+    case 'function_call_output': {
+      if (typeof item.output === 'string') {
+        const output = restoredToolText(item.output)
+        return { type: 'function_call_output', call_id: item.call_id, output }
+      }
+      return { type: 'function_call_output', call_id: item.call_id, output: [...item.output] }
+    }
+    default: {
+      return item
+    }
+  }
+}
+
 /** Validates one parsed JSON document. */
 export function parseStoredSession(raw: unknown): StoredSessionParse {
   const result = storedSessionSchema.safeParse(withoutCorruptEstimate(raw))
@@ -469,8 +537,13 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     promptDate,
     ...rest
   } = result.data
+  // TOOLCAP: stored tool text re-enters the live session through the
+  // restore brand, which keeps the stored bytes byte-identical; text stored
+  // before the bound still meets it through send-time recovery (PLAN.md §8:
+  // TOOLCAP brand).
   const replay = rest.replay.map(({ backgroundTaskId, userMessageId, media, ...entry }) => ({
     ...entry,
+    item: restoreReplayItem(entry.item),
     ...(userMessageId !== undefined && { userMessageId }),
     ...(backgroundTaskId !== undefined && { backgroundTaskId }),
     ...(media !== undefined && { media }),

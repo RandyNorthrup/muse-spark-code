@@ -411,13 +411,6 @@ export interface ToolContext {
   /** The shell's time limit, lifted when the command moves to the background (M46). */
   readonly limit?: ShellTimeLimit
   /**
-   * Keep shell output whole instead of eliding its middle (M101): set while
-   * the session packs observations, so a packed shell result stays
-   * recoverable through `recall_output`. Oversized originals are packed
-   * before their first model send.
-   */
-  readonly wholeShellOutput?: boolean
-  /**
    * The session's record of each file as the model last read or wrote it
    * (absolute path to a fingerprint): `write_file` replaces only what the
    * model has seen (D27).
@@ -1986,9 +1979,12 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
             context.assertCanRun,
             context.isInteractiveShell === true,
           )
+    // TOOLCAP: the runner's whole output rides the outcome; the host's one
+    // bound cuts it with a spill and notices on its way into the
+    // conversation, so no command's tail is ever dropped silently.
     return args.secrets && result.exitCode === null
       ? failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
-      : shellOutcome(result, timeoutMs, TOOL_OUTPUT_MAX_CHARS, context.wholeShellOutput === true)
+      : shellOutcome(result, timeoutMs, TOOL_OUTPUT_MAX_CHARS, true)
   } catch (error: unknown) {
     if (args.secrets) return failure(MODEL_API_MODEL_TEXT.toolRefusedByMode, UI_TEXT.vault.noAccess)
     throw error
@@ -2063,8 +2059,9 @@ export function shellText(
   shouldKeepWhole = false,
 ): string {
   const parts = [result.stdout.trimEnd(), result.stderr.trimEnd()].filter((part) => part !== '')
-  // The runner already bounds each stream. Preserve that original in
-  // replay; the packer projects oversized results before their first send.
+  // The runner already bounds each stream (SHELL_OUTPUT_MAX_CHARS). The
+  // shell tool keeps that original whole: the host's one bound cuts it with
+  // a spill and notices (TOOLCAP). Other callers elide per stream.
   if (shouldKeepWhole) return parts.join('\n')
   const streamBudget = Math.floor(maxChars / SHELL_STREAMS)
   return parts.map((part) => clipMiddle(part, streamBudget)).join('\n')

@@ -35304,6 +35304,24 @@ remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
+**TOOLCAP lane verification (2026-10-13, macmini).** One tool result can
+never end a conversation: every tool result passes one choke
+(`boundToolResultText`: 16,000 estimated tokens per result, 8,000 chars per
+line, at most 1/4 of the remaining window), cuts keep a spill file under
+`.muse-spark/tool-results/` with a one-line notice to the model and the
+person, and a provider `prompt is too long` refusal trims largest results,
+compacts once, then ends the turn with the true sentence (at most 3 sends).
+The lane's own base measurement (fake provider, ten 400,000-char lines:
+32,014 chars reach the request packing-off, a 1,024-char placeholder
+packing-on) and the per-kind bound survey are in
+`docs/certification/tool-result-bound.md`; the exact entry path of the
+lead's 2026-10-12 940k-token session is recorded there as undetermined, with
+the two consistent mechanisms named. The rig brief forbids the full
+`npm run quality` wrapper and the whole suite here (at most three files per
+run, repository timeouts); the lead runs the aggregate gate and the
+loopback/socket suites this sandbox blocks (EPERM) before release. No
+threshold, ignore or timeout is weakened.
+
 ## 8. Escape hatches register
 
 | Location                                            | Residual / follow-up                                | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
@@ -35665,6 +35683,13 @@ before a repaired one loads (2026-09-30).
 | TRAINDIET location                                                                  | Escape hatch                                                                                          | Reason                                                                                                                                                                                                                                                   | Date       |
 | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/shared/constants.ts` (5 lines), `src/shared/browserCheckConstants.ts` (1 line) | `eslint-disable-next-line unicorn/prefer-string-raw` on plain-string Windows paths and one git regexp | `String.raw` is a call and pins the whole initialiser into every bundle importing the module; the plain strings are byte-identical (verified with node) and drop when unused. `test/unit/bundleDiet.test.ts` fails on any new non-droppable initialiser. | 2026-10-11 |
+
+| TOOLCAP location                                                                               | Escape hatch                                           | Reason                                                                                                                                                                                                                                                                     | Date       |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/core/backends/modelapi/toolResultBound.ts` (`boundToolResultText`, uncut and cut returns) | `text as BoundedToolText`, `joined as BoundedToolText` | The bound measured this text under every cap (characters for the estimate, UTF-8 bytes for the window-share guarantee), so it may enter a request; the brand is the choke's own output.                                                                                    | 2026-10-13 |
+| `src/core/backends/modelapi/toolResultBound.ts` (`withCutNotice`)                              | `` `${bounded}\n${notice}` as BoundedToolText ``       | The kept text already passed the bound; the appended notice is harness words with counts, never tool text.                                                                                                                                                                 | 2026-10-13 |
+| `src/core/backends/modelapi/toolResultBound.ts` (`fixedHarnessText`)                           | `text as BoundedToolText`                              | Fixed harness words with no tool text (cancellations, refusals, skip reasons, continuation prompts); a misuse reads as one at the call site. Never a wrapper for tool text.                                                                                                | 2026-10-13 |
+| `src/core/backends/modelapi/schemas.ts` (`restoredToolText`)                                   | `text as BoundedToolText`                              | Restore is byte-identical by design (goldens, forks, compaction rely on it); text stored before the bound still meets it through send-time recovery. Lives beside the brand because the stored-session format ships in the activation bundle while the bound loads lazily. | 2026-10-13 |
 
 ## 9. Security assumptions and accepted residual risk
 

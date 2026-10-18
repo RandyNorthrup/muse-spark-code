@@ -8,7 +8,7 @@ import {
   ResponsesDecodeError,
   type ResponsesDecodeSink,
 } from '../../src/core/backends/modelapi/codecs/responses'
-import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
+import { restoredToolText, type CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 
 const encoder = new TextEncoder()
 const codec = createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' })
@@ -198,7 +198,7 @@ describe('chatgpt Responses request profile', () => {
           name: 'get_time',
           arguments: '{"timezone":"UTC"}',
         },
-        { type: 'function_call_output', call_id: 'call_1', output: '12:00 UTC' },
+        { type: 'function_call_output', call_id: 'call_1', output: restoredToolText('12:00 UTC') },
       ],
     }
     const before = JSON.stringify(history)

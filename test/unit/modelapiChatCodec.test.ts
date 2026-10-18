@@ -25,14 +25,15 @@ import {
   type ChatEncodeOptions,
   type ChatPresetQuirks,
 } from '../../src/core/backends/modelapi/codecs/chat'
-import type {
-  CreateResponseBody,
-  FunctionCallItem,
-  InputItem,
-  ReasoningItem,
-  ResponseObject,
-  StreamEvent,
-  ToolDefinition,
+import {
+  restoredToolText,
+  type CreateResponseBody,
+  type FunctionCallItem,
+  type InputItem,
+  type ReasoningItem,
+  type ResponseObject,
+  type StreamEvent,
+  type ToolDefinition,
 } from '../../src/core/backends/modelapi/schemas'
 
 const CHAT_LIMITS = {
@@ -314,7 +315,7 @@ function bodyFromCapture(
       input.push({
         type: 'function_call_output',
         call_id: stringField(msg['tool_call_id'], 'tool_call_id'),
-        output: stringField(msg['content'], 'tool content'),
+        output: restoredToolText(stringField(msg['content'], 'tool content')),
       })
       continue
     }
@@ -421,7 +422,7 @@ function retainedToolBody(output: string): CreateResponseBody {
         name: 'get_time',
         arguments: '{"timezone":"UTC"}',
       },
-      { type: 'function_call_output', call_id: 'time00001', output },
+      { type: 'function_call_output', call_id: 'time00001', output: restoredToolText(output) },
     ],
     tools: [
       {
@@ -1165,7 +1166,11 @@ function loopBody(reasoning: ReasoningItem): CreateResponseBody {
         name: 'get_time',
         arguments: '{"timezone":"UTC"}',
       },
-      { type: 'function_call_output', call_id: 'call-1', output: '{"time":"12:00"}' },
+      {
+        type: 'function_call_output',
+        call_id: 'call-1',
+        output: restoredToolText('{"time":"12:00"}'),
+      },
     ],
     instructions: 'be brief',
     tools: [
@@ -1436,7 +1441,7 @@ describe('chat codec breakpoints', () => {
             name: 'read_file',
             arguments: '{"path":"a.txt"}',
           },
-          { type: 'function_call_output', call_id: 'read', output: 'file bytes' },
+          { type: 'function_call_output', call_id: 'read', output: restoredToolText('file bytes') },
         ],
         [
           {
@@ -2030,7 +2035,14 @@ describe('chat codec guards', () => {
     expect(earlier.call_id).toContain(first.response.id)
     expect(later.call_id).toContain(second.response.id)
     const body = tinyBody({
-      input: [earlier, { type: 'function_call_output', call_id: earlier.call_id, output: 'saved' }],
+      input: [
+        earlier,
+        {
+          type: 'function_call_output',
+          call_id: earlier.call_id,
+          output: restoredToolText('saved'),
+        },
+      ],
     })
     const before = encodeChatRequest(body, 'm', MISTRAL).body.messages
     const after = encodeChatRequest({ ...body, input: [...body.input, later] }, 'm', MISTRAL).body
@@ -2103,7 +2115,7 @@ function callBody(callId: string, output: string): CreateResponseBody {
         name: 'get_time',
         arguments: '{"timezone":"UTC"}',
       },
-      { type: 'function_call_output', call_id: callId, output },
+      { type: 'function_call_output', call_id: callId, output: restoredToolText(output) },
     ],
   }
 }

@@ -86,6 +86,8 @@ export interface ServeOptions {
   readonly autoCompaction?: boolean | undefined
   readonly scheduledPrompts?: boolean
   readonly maxBudgetUsd?: UsdAmount
+  /** TOOLCAP: the run's per-tool-result byte guard, if raised for one run. */
+  readonly maxToolOutputBytes?: number | undefined
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
