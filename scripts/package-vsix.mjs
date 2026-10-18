@@ -165,7 +165,7 @@ async function main() {
   const root = process.cwd()
   const targetIndex = process.argv.indexOf('--target')
   const target = targetIndex === -1 ? undefined : process.argv[targetIndex + 1]
-  if (target !== undefined && !VSIX_TARGETS.includes(target))
+  if (targetIndex !== -1 && (target === undefined || !VSIX_TARGETS.includes(target)))
     throw new Error(`Unknown VSIX target: ${target}. Valid targets: ${VSIX_TARGETS.join(', ')}`)
   const stage = path.join(root, 'dist', 'vsix-package')
   await stageVsix(root, stage, target)

@@ -63,3 +63,56 @@ so no universal fallback ships. Uncovered targets (linux-armhf,
 alpine-*, web) never had native helpers and the extension never supported
 them there. Both registries serve the matching target package
 (vsce 4.0.0 `--target`; ovsx documents target-platform downloads).
+
+## 2. Measured per-target sizes and headroom (2026-10-18, linuxlt rig)
+
+Budget for every target: 3,788,800 bytes (3700 KiB, `scripts/check-vsix-size.mjs`, unchanged).
+
+Locally packed from the full production build on this rig
+(`npm run build` green with budgets, then `node scripts/package-vsix.mjs
+--target <t>`), each asserting its own `TargetPlatform` in
+`extension.vsixmanifest` and zero foreign helpers in its entry list:
+
+| Target       | Measured bytes          | Headroom | Method                                                                                                                                       |
+| ------------ | ----------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| linux-x64    | 3,248,894               | 539,906  | complete local package (helper built here: `native/linux/x64/muse-created`, 43,208 bytes)                                                    |
+| win32-x64    | 3,282,301               | 506,499  | complete local package (Windows helpers are arch-independent sources in git)                                                                 |
+| win32-arm64  | same bytes as win32-x64 | same     | identical stage: Windows files are arch-independent (ps1 run directly, .cs compiled on the person's machine)                                 |
+| linux-arm64  | CI                      | CI       | helper built on ubuntu-24.04-arm in CI; same filter as x64                                                                                   |
+| darwin-x64   | CI                      | CI       | universal darwin binaries built on macOS in CI; stage filter proven locally (darwin stage keeps only `native/runner/*` plus the CI binaries) |
+| darwin-arm64 | CI                      | CI       | same as darwin-x64                                                                                                                           |
+
+CI's package job prints every target's bytes (`stat -c '%n %s' ./*.vsix`),
+checks each against the budget, and asserts per target: all shared
+bundles present, only its own helpers present, no other platform's
+helpers, and its `TargetPlatform` in the manifest.
+
+## 3. Every place that assumed one universal package
+
+- `scripts/package-vsix.mjs`: staged everything VSCE allowlisted and packed
+  one archive. Now stages per `--target` and packs six.
+- `scripts/check-vsix-size.mjs`: took exactly one path. Now checks every
+  artifact against the same budget.
+- `scripts/publish-registry.mjs`: took exactly one artifact and verified the
+  universal download. Now publishes every target and verifies each against
+  its own target's download (Marketplace `?targetPlatform=`, Open VSX
+  `/api/<ns>/<name>/<target>/<version>`).
+- `scripts/release-reuse.mjs`: expected `muse-spark-code-<version>.vsix` and
+  read one manifest. Now expects all six names and reads all six manifests.
+- `.github/workflows/build.yml` packages job: built and checked one
+  universal VSIX. Now builds once, packs and checks six; the ACP agent's
+  npm package is unchanged (one tarball for every platform).
+- `.github/workflows/release.yml`: comments said "universal VSIX". Now
+  per-target packages; every glob (`release/*.vsix`, `./*.vsix`,
+  `SHA256SUMS`) already expands to all six.
+- `docs/RELEASING.md`, `README.md`: said one universal VSIX. Now per-target.
+- `PLAN.md`: new decision D123. `CHANGELOG.md`: Packaging entry under
+  `[0.19.0]`.
+- Unchanged on purpose: the ACP npm package (runs on the person's machine,
+  needs every platform's sources), `native/runner/*` (ships in every
+  target: the SSH runner copies the helper to the remote side), and the
+  `required` aggregate's `package (.vsix)` check name (release recovery
+  matches on it).
+
+No behaviour change for a person on any platform: same bundles, same
+helpers, same panel; only the store serves the matching package.
