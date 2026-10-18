@@ -48,6 +48,12 @@ happened, not what was planned; superseded entries are kept.
   branch starts with a cold npm cache, and a weekly seed keeps the capacity
   repository's default-branch cache warm so later pull requests share it
   (CONTRIBUTING.md, "The capacity repository (D122)").
+- The Hosts, Forks and browser-check capacity runs follow the pull request's
+  cumulative paths, not the latest push's (D122 review). Every capacity push
+  starts those workflows and a path gate re-applies their path list to the
+  cumulative merge diff, so a follow-up push that touches only an unrelated
+  file no longer passes with no Windows or macOS run anywhere; a capacity
+  run that never appears now fails its relay instead.
 
 ### Pending
 
