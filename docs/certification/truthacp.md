@@ -3,9 +3,11 @@
 First result: what the person sees now → what they will see after this lane.
 
 - Legal scan (`src/acp/agent.ts` `runLegalScan`): now any failure of the scan,
-  the registry permission prompt, the update send or the outbox says "The
-  legal scanner could not be loaded; …" → only a scanner load failure will
-  say that; every other failure will carry its own cause.
+  the registry permission prompt request, the update send or the outbox says
+  "The legal scanner could not be loaded; …" → only a scanner load failure
+  will say that; a failing scan or a lost update will carry its own cause.
+  Denying the registry permission prompt returns the scan with the registry
+  marked offline (unchanged, never an error).
 - Agent retry (`src/acp/agent.ts` `agentCommand`): now any `retry` failure,
   and an agent with no subagent id, says "Retry is unavailable: this backend
   provides no isolated worktree checkpoint" → only the backend that lacks a
@@ -31,10 +33,13 @@ First result: what the person sees now → what they will see after this lane.
   contract for a missing or corrupt scanner (`src/host/lazyBundle.ts`: "A
   missing or corrupt bundle throws `unavailable`"; the same message the
   runtime's legal wiring throws for missing render/enrich entries) — says
-  that. A failing scan or permission prompt rethrows its own cause, and the
-  send plus `await this.outbox` moved out of the `try` (send never throws;
-  `deliver` already absorbs notify failures, so an outbox rejection is a
-  transport failure, not a scanner failure). No new string.
+  that. A failing scan rethrows its own cause, as does a failing permission
+  prompt request; a _denied_ prompt returns the offline report
+  (`enrichInteractiveLegalScan`: `if (!(await deps.notice(unseen))) return
+offline()`), never an error. The send plus `await this.outbox` moved out
+  of the `try` (send never throws; `deliver` already absorbs notify
+  failures, so an outbox rejection is a transport failure, not a scanner
+  failure). No new string.
 - Retry: `agentCommand` mapped every `retry` failure and an undefined
   `subagentId` to the backend-has-no-checkpoint message. Now an entry with
   no subagent behind it (background tool call, workflow child) answers new
@@ -70,14 +75,19 @@ First result: what the person sees now → what they will see after this lane.
 ## Tests (real code only, no stand-ins)
 
 - `test/unit/playbookSurface.test.ts`: real journal surface on a real temp
-  dir — a refused settings change on a loaded playbook answers
-  `playbookCommandFailed` (proven to fire: reverting the fix fails it);
-  missing surface answers unavailable; the ACP layer carries the loaded
-  playbook's answer through; a genuinely missing bundle file through the
-  real Node loader answers unavailable.
+  dir — a parsed `settings offload off` command against a journal that
+  became a directory (portable form of the drilled read-only write case)
+  answers `playbookCommandFailed`, never unavailable; a corrupt journal
+  (trailing garbage) makes the next bind throw, and the ACP layer answers
+  unavailable instead of rejecting (proven to fire: reverting the
+  surface-construction catch fails it); missing surface answers
+  unavailable; the ACP layer carries the loaded playbook's answer through
+  the real `playbookEntry` module with production's adapter shape; a
+  genuinely missing bundle file through the real Node loader answers
+  unavailable.
 - `test/unit/providerRefusals.test.ts`: the eight D117 statuses are
-  definite; 0/408/409/418/425/499/500/529 stay uncertain (proven to fire:
-  adding 499 fails it).
+  definite; 0/408/409/500/529 stay uncertain, each grounded in the drills or
+  the fetched provider docs (PR238W1 dropped the ungrounded 418/425/499).
 - Sites 1–2 (`runLegalScan`, `agentCommand`) have no committed test: no
   test builds the ACP agent, and scaffolding one would be stand-ins. Verified
   by typecheck, eslint, and reading; drills below.
@@ -102,8 +112,9 @@ First result: what the person sees now → what they will see after this lane.
   person steps for the lead — open the packed product on the Model API
   backend, run `/legal` with the scanner bundle removed (expect the
   could-not-be-loaded message with the cause in the log), then with the
-  bundle present but the registry prompt denied (expect the denial's own
-  cause); list `/agents`, `retry` an entry with no subagent (expect the
+  bundle present but the registry prompt denied (expect the full scan report
+  with the registry marked offline — denial is an offline report, never an
+  error); list `/agents`, `retry` an entry with no subagent (expect the
   no-subagent message) and one refused by the backend (expect the agent's
   own missing-checkpoint message, never the backend one).
 

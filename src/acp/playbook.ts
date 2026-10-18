@@ -35,7 +35,15 @@ export async function acpPlaybook(
   }
   const text = first.text.trim().replace(/^\/playbook\s*/u, '')
   const command = bundle.parsePlaybookCommand(text === '' ? [] : text.split(/\s+/u))
-  return command === undefined
-    ? { ok: false, text: UI_TEXT.playbookCommandUsage }
-    : await bundle.runPlaybookCommand(command, port())
+  if (command === undefined) return { ok: false, text: UI_TEXT.playbookCommandUsage }
+  // Binding the surface reads the journal: a corrupt journal or an
+  // unresolvable workspace throws here, and that is a missing surface, not
+  // a loaded playbook's command failing.
+  let surfacePort: PlaybookSurfacePort | undefined
+  try {
+    surfacePort = port()
+  } catch {
+    return { ok: false, text: UI_TEXT.playbookUnavailable }
+  }
+  return await bundle.runPlaybookCommand(command, surfacePort)
 }

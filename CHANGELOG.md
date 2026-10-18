@@ -10,9 +10,10 @@ happened, not what was planned; superseded entries are kept.
 ### Fixed
 
 - In the ACP agent, only a legal scanner that fails to load says "The legal
-  scanner could not be loaded". A scan that fails, a refused registry
-  permission prompt, or a lost update now carries its own cause instead of
-  blaming the scanner installation.
+  scanner could not be loaded". A scan that fails or a lost update now
+  carries its own cause instead of blaming the scanner installation.
+  Denying the registry permission prompt still returns the scan with the
+  registry marked offline, as before.
 - In the ACP agent, `/agents retry` no longer blames the backend's missing
   checkpoint for everything. An agent entry with no subagent behind it says
   it has nothing to retry; a refusal from a backend that has checkpoints
