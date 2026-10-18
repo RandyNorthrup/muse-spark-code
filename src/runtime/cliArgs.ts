@@ -266,7 +266,8 @@ function isOneOf<T extends string>(allowed: readonly T[], value: string | undefi
 }
 
 function invalid(argument: string): Extract<RuntimeCommand, { command: 'invalid' }> {
-  return { command: 'invalid', reason: fill(UI_TEXT.acpUnknownArgument, { argument }) }
+  // Every misuse owns exit 2; only a real failure falls back to exit 1.
+  return { command: 'invalid', reason: fill(UI_TEXT.acpUnknownArgument, { argument }), exitCode: 2 }
 }
 
 /** The paid features whose flags were given, in the flags' order. */
@@ -320,7 +321,7 @@ export function parseCommandLine<T>(
   if (argv[0] === 'providers' && (argv[2] === 'chatgpt' || argv[2] === 'copilot')) {
     const action = parseChatGptProviderAction(argv)
     return action === undefined
-      ? { command: 'invalid', reason: UI_TEXT.acpChatGpt.usage }
+      ? { command: 'invalid', reason: UI_TEXT.acpChatGpt.usage, exitCode: 2 }
       : { command: 'chatGptProvider', action }
   }
   if (argv[0] === 'help') {
@@ -337,7 +338,11 @@ export function parseCommandLine<T>(
   if (argv[0] === 'providers' && argv[1] === 'accounts') {
     const options = parseAccountsCommand(argv.slice(2))
     return options === undefined
-      ? { command: 'invalid', reason: fill(UI_TEXT.accounts.cliUsage, { command: ACP_AGENT_NAME }) }
+      ? {
+          command: 'invalid',
+          reason: fill(UI_TEXT.accounts.cliUsage, { command: ACP_AGENT_NAME }),
+          exitCode: 2,
+        }
       : { command: 'accounts', options }
   }
   // The developer words stay raw here: the strict parser would reject them,
@@ -362,9 +367,15 @@ export function parseCommandLine<T>(
   try {
     parsed = parseCommandLineStrictly(argv)
   } catch (error: unknown) {
+    // Auth argv is never echoed: a mistyped token may be the key itself.
     if (argv.includes('auth'))
-      return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
-    return { command: 'invalid', reason: error instanceof Error ? error.message : String(error) }
+      return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp, exitCode: 2 }
+    // The strict parser's own words name the offending flag; every misuse owns exit 2.
+    return {
+      command: 'invalid',
+      reason: error instanceof Error ? error.message : String(error),
+      exitCode: 2,
+    }
   }
   const { values, positionals } = parsed
   if (values.help === true) {
@@ -401,12 +412,13 @@ export function parseCommandLine<T>(
     return {
       command: 'invalid',
       reason: fill(UI_TEXT.acpPaidNeedsModelApi, { argument: `--${ACP_PAID_FLAGS[firstPaid]}` }),
+      exitCode: 2,
     }
   }
   const budget =
     values['max-budget-usd'] === undefined ? undefined : scheduleBudgetUsd(values['max-budget-usd'])
   if (budget === undefined && values['max-budget-usd'] !== undefined)
-    return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage }
+    return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage, exitCode: 2 }
   const options: ServeOptions = {
     ...(values['usage-history'] !== undefined && {
       usageHistory: values['usage-history'] === 'on',
@@ -428,10 +440,12 @@ export function parseCommandLine<T>(
     ...(budget !== undefined && { maxBudgetUsd: budget }),
   }
   const [first, second, ...rest] = positionals
+  // A refused flag is named, never folded into the positionals.
+  const refusedServeFlag = NON_SERVE_OPTIONS.find((name) => values[name] !== undefined)
   if (values.account !== undefined && (first !== 'auth' || second !== 'set' || rest.length > 0))
-    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+    return invalid('--account')
   if (first === 'setup' && second === undefined) {
-    if (values.provider !== undefined) return invalid('setup')
+    if (values.provider !== undefined) return invalid('--provider')
     return options.trustWorkspace
       ? { command: 'setup', options, maintenance: values.maintenance === true }
       : { command: 'invalid', reason: UI_TEXT.hooksNotRunnable }
@@ -439,26 +453,29 @@ export function parseCommandLine<T>(
   if (values.maintenance === true) return invalid('--maintenance')
   if (first === undefined) {
     // The provider commands' flags are not serve flags.
-    return NON_SERVE_OPTIONS.some((name) => values[name] !== undefined)
-      ? invalid(positionals.join(' '))
-      : { command: 'serve', options }
+    return refusedServeFlag === undefined
+      ? { command: 'serve', options }
+      : invalid(`--${refusedServeFlag}`)
   }
   if (first === 'login') {
-    return second === undefined && NON_SERVE_OPTIONS.every((name) => values[name] === undefined)
+    return second === undefined && refusedServeFlag === undefined
       ? { command: 'login', options }
-      : invalid(positionals.join(' '))
+      : invalid(refusedServeFlag === undefined ? positionals.join(' ') : `--${refusedServeFlag}`)
   }
   if (first === 'providers') {
     return parseProviders(values, second, rest)
   }
   if (first !== 'auth') return invalid(positionals.join(' '))
-  if (rest.length > 0) return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
-  if (PROVIDER_AUTH_OPTIONS.some((name) => values[name] !== undefined)) {
-    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+  // Auth positionals are never echoed: a mistyped token may be the key itself.
+  if (rest.length > 0)
+    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp, exitCode: 2 }
+  const refusedAuthFlag = PROVIDER_AUTH_OPTIONS.find((name) => values[name] !== undefined)
+  if (refusedAuthFlag !== undefined) {
+    return invalid(`--${refusedAuthFlag}`)
   }
   const auth = authCommand(second)
   if (auth === undefined) {
-    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp, exitCode: 2 }
   }
   const provider = values.provider
   const hasTarget = values.account !== undefined
@@ -467,10 +484,14 @@ export function parseCommandLine<T>(
     const targetAccount = accountIdSchema.safeParse(values.account ?? ACCOUNT_DEFAULT_ID)
     return targetProvider.success && targetAccount.success
       ? { command: auth, target: { provider: targetProvider.data, account: targetAccount.data } }
-      : { command: 'invalid', reason: UI_TEXT.accounts.invalidAccount }
+      : { command: 'invalid', reason: UI_TEXT.accounts.invalidAccount, exitCode: 2 }
   }
   if (provider !== undefined && !isProviderId(provider)) {
-    return { command: 'invalid', reason: fill(UI_TEXT.providerUnknown, { provider }) }
+    return {
+      command: 'invalid',
+      reason: fill(UI_TEXT.providerUnknown, { provider }),
+      exitCode: 2,
+    }
   }
 
   return provider === undefined ? { command: auth } : { command: auth, provider }
@@ -503,10 +524,14 @@ function parseProviders(
     case 'test':
     case 'remove': {
       const [provider] = rest
-      if (provider === undefined || rest.length !== 1 || !isProviderId(provider)) {
+      if (provider === undefined || rest.length !== 1) {
+        return invalid(`providers ${verb}`)
+      }
+      if (!isProviderId(provider)) {
         return {
           command: 'invalid',
-          reason: fill(UI_TEXT.providerUnknown, { provider: provider ?? '' }),
+          reason: fill(UI_TEXT.providerUnknown, { provider }),
+          exitCode: 2,
         }
       }
       return { command: verb === 'test' ? 'providersTest' : 'providersRemove', provider }
@@ -526,12 +551,14 @@ function parseProvidersAdd(values: StrictValues, rest: readonly string[]): Runti
     return invalid(`providers add ${rest.join(' ')}`.trim())
   }
   const preset = values.preset
+  if (preset === undefined) return invalid('--preset')
   if (typeof preset !== 'string' || !isProviderId(preset)) {
     return {
       command: 'invalid',
       reason: fill(UI_TEXT.providerUnknown, {
         provider: typeof preset === 'string' ? preset : '',
       }),
+      exitCode: 2,
     }
   }
   const as = values.as
@@ -580,7 +607,7 @@ function parseProvidersAdd(values: StrictValues, rest: readonly string[]): Runti
   const rawWindow = values['context-window']
   const contextWindow = rawWindow === undefined ? undefined : Number(rawWindow)
   if (contextWindow !== undefined && (!Number.isSafeInteger(contextWindow) || contextWindow <= 0)) {
-    return { command: 'invalid', reason: UI_TEXT.localContextWindowInvalid }
+    return { command: 'invalid', reason: UI_TEXT.localContextWindowInvalid, exitCode: 2 }
   }
   if (rawModels.some((model) => typeof model !== 'string' || model === '')) {
     return invalid('providers add')
@@ -628,21 +655,21 @@ function parseUsage(argv: readonly string[]): RuntimeCommand {
     })
     if (values.help) return { command: 'help' }
     const [action = 'summary', ...rest] = positionals
-    const fail = (): RuntimeCommand => ({ ...invalid('usage'), exitCode: 2 })
-    if (rest.length > 0 || (values.json && values.csv) || values.out === '') return fail()
+    // A refused flag or argument is named, never folded into the command.
+    const fail = (argument = 'usage'): RuntimeCommand => invalid(argument)
+    if (rest.length > 0) return fail(rest.join(' '))
+    if (values.json === true && values.csv === true) return fail('--json --csv')
+    if (values.out === '') return fail('--out')
     if (action === 'open' || action === 'serve') {
       if (
         Object.keys(values).some((key) => key !== 'stdio') ||
         (action === 'serve' ? values.stdio !== true : values.stdio !== undefined)
       )
-        return fail()
+        return fail('--stdio')
       return { command: 'usage', options: { action: action === 'serve' ? 'stdio' : 'open' } }
     }
-    if (
-      values.stdio !== undefined ||
-      !['summary', 'daily', 'models', 'limits', 'export'].includes(action)
-    )
-      return fail()
+    if (values.stdio !== undefined) return fail('--stdio')
+    if (!['summary', 'daily', 'models', 'limits', 'export'].includes(action)) return fail(action)
     // CLI flags are a separate input boundary. Importing the page schema here
     // would eagerly carry the full usage table into the ACP startup bundle.
     const query = z
@@ -661,15 +688,27 @@ function parseUsage(argv: readonly string[]): RuntimeCommand {
         ...(values.from !== undefined && { from: values.from }),
         ...(values.to !== undefined && { to: values.to }),
       })
+    if (!query.success) {
+      if (
+        typeof values.range === 'string' &&
+        !['today', '7d', '30d', '90d', 'custom'].includes(values.range)
+      )
+        return fail('--range')
+      return fail(
+        typeof values.by === 'string' &&
+          !['provider', 'model', 'kind', 'client'].includes(values.by)
+          ? '--by'
+          : '--from --to',
+      )
+    }
     if (
-      !query.success ||
       (query.data.range === 'custom' &&
         (query.data.from === undefined ||
           query.data.to === undefined ||
           query.data.from > query.data.to)) ||
       (query.data.range !== 'custom' && (values.from !== undefined || values.to !== undefined))
     )
-      return fail()
+      return fail('--from --to')
     // Narrow the validated subcommand without a cast, keeping invalid actions out.
     if (
       action !== 'summary' &&
@@ -690,7 +729,7 @@ function parseUsage(argv: readonly string[]): RuntimeCommand {
       },
     }
   } catch {
-    return { ...invalid('usage'), exitCode: 2 }
+    return invalid('usage')
   }
 }
 
@@ -795,7 +834,7 @@ function parseResources(argv: readonly string[]): RuntimeCommand {
     const action = positionals[0] ?? 'status'
     return positionals.length > 1 ||
       (action !== 'status' && action !== 'history' && action !== 'resume')
-      ? { ...invalid(`resources ${positionals.join(' ')}`), exitCode: 2 }
+      ? invalid(`resources ${positionals.join(' ')}`)
       : { command: 'resources', action, json: values.json === true }
   } catch {
     return { ...invalid('resources'), exitCode: 2 }
@@ -888,6 +927,7 @@ function parseFonts(argv: readonly string[]): RuntimeCommand {
   }
   return {
     command: 'invalid',
+    exitCode: 2,
     // main installs the display language after parsing, before printing usage.
     get reason() {
       return fill(UI_TEXT.acpFontsUsage, { command: ACP_AGENT_NAME })

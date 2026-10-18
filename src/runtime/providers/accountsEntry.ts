@@ -40,6 +40,15 @@ export async function runTerminalDeveloperCommand(
   clientId: string,
 ): Promise<{ readonly text: string; readonly exitCode: number }> {
   setUiText(table, locale)
+  // The command's own words refuse misuse (exit 2) before any store is
+  // touched, so only the store's own failures can throw below.
+  let request: ReturnType<typeof parseDeveloperCommand>
+  try {
+    request = parseDeveloperCommand(args)
+  } catch (error: unknown) {
+    if (error instanceof SyntaxError) return { text: error.message, exitCode: 2 }
+    throw error
+  }
   const services = createRuntimeAccountServices(input)
   try {
     const developer = await services.developer(owner)
@@ -52,7 +61,6 @@ export async function runTerminalDeveloperCommand(
     // only Reset can recover (DEVID017B). Anything else names the identity
     // instead of reporting a generic failure.
     if (!(error instanceof DeveloperOptionsError) || error.code !== 'differentMachine') throw error
-    const request = parseDeveloperCommand(args)
     if (request?.type !== 'developer/reset')
       return { text: UI_TEXT.developer.differentMachine, exitCode: 1 }
     try {

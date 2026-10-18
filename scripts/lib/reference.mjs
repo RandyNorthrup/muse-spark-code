@@ -1407,14 +1407,7 @@ export function publishedReference(model, source) {
     slash: model.slash.filter(
       (command) => !['estimate', 'vault', 'schedule'].includes(command.name),
     ),
-    cli: model.cli.filter(
-      (command) =>
-        !hiddenRoutes.has(command.route) &&
-        // `--account` is served (CM108ACC); pooling is refused until its owner is bound.
-        !/(?:^|\s)--(?:scheduled-prompts|vault|no-auto-compaction|account-pool)(?:\s|$)/.test(
-          command.name,
-        ),
-    ),
+    cli: model.cli.filter((command) => !hiddenRoutes.has(command.route)),
     shortcuts: model.shortcuts.filter(
       (shortcut) => !commands.has(shortcut.command) && shortcut.command !== 'team.tree',
     ),

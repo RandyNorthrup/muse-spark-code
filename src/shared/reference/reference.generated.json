@@ -5000,6 +5000,23 @@
     },
     {
       "route": "serve",
+      "name": "serve: --no-auto-compaction",
+      "description": "autoCompactionEvaluation: Disable automatic compaction",
+      "text": {
+        "conditions": [
+          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
+        ]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "purpose": "disableAutoCompaction",
+        "effective": "evaluationPending",
+        "default": false
+      }
+    },
+    {
+      "route": "serve",
       "name": "serve: --trust-workspace",
       "description": "--trust-workspace                Load the folder’s rules, skills and memory",
       "text": { "cli": "trust-workspace" },
@@ -5101,6 +5118,13 @@
       "name": "serve: --version / -v",
       "description": "Print the installed agent version.",
       "text": { "cli": "version" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --scheduled-prompts",
+      "description": "--scheduled-prompts              Offer paid scheduled prompts (Model API backend; its price is asked first)",
+      "text": { "cli": "scheduled-prompts" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }
     },
     {
@@ -5216,6 +5240,23 @@
         "enum": ["museCode", "modelApi"],
         "default": "museCode",
         "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "login",
+      "name": "login: --no-auto-compaction",
+      "description": "autoCompactionEvaluation: Disable automatic compaction",
+      "text": {
+        "conditions": [
+          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
+        ]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "purpose": "acceptedUnused",
+        "effective": "evaluationPending",
+        "default": false
       }
     },
     {
@@ -5472,6 +5513,23 @@
     },
     {
       "route": "setup",
+      "name": "setup: --no-auto-compaction",
+      "description": "autoCompactionEvaluation: Disable automatic compaction",
+      "text": {
+        "conditions": [
+          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
+        ]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "purpose": "acceptedUnused",
+        "effective": "evaluationPending",
+        "default": false
+      }
+    },
+    {
+      "route": "setup",
       "name": "setup: --trust-workspace",
       "description": "--trust-workspace                Load the folder’s rules, skills and memory",
       "text": { "cli": "trust-workspace" },
@@ -5716,6 +5774,23 @@
         "enum": ["museCode", "modelApi"],
         "default": "museCode",
         "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authSet",
+      "name": "authSet: --no-auto-compaction",
+      "description": "autoCompactionEvaluation: Disable automatic compaction",
+      "text": {
+        "conditions": [
+          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
+        ]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "purpose": "acceptedUnused",
+        "effective": "evaluationPending",
+        "default": false
       }
     },
     {
@@ -5986,6 +6061,23 @@
     },
     {
       "route": "authStatus",
+      "name": "authStatus: --no-auto-compaction",
+      "description": "autoCompactionEvaluation: Disable automatic compaction",
+      "text": {
+        "conditions": [
+          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
+        ]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "purpose": "acceptedUnused",
+        "effective": "evaluationPending",
+        "default": false
+      }
+    },
+    {
+      "route": "authStatus",
       "name": "authStatus: --trust-workspace",
       "description": "--trust-workspace                Load the folder’s rules, skills and memory",
       "text": { "cli": "trust-workspace" },
@@ -6245,6 +6337,23 @@
     },
     {
       "route": "authClear",
+      "name": "authClear: --no-auto-compaction",
+      "description": "autoCompactionEvaluation: Disable automatic compaction",
+      "text": {
+        "conditions": [
+          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
+        ]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "purpose": "acceptedUnused",
+        "effective": "evaluationPending",
+        "default": false
+      }
+    },
+    {
+      "route": "authClear",
       "name": "authClear: --trust-workspace",
       "description": "--trust-workspace                Load the folder’s rules, skills and memory",
       "text": { "cli": "trust-workspace" },
@@ -6417,6 +6526,23 @@
     },
     {
       "route": "exec",
+      "name": "exec: --no-auto-compaction",
+      "description": "autoCompactionEvaluation: Disable automatic compaction",
+      "text": {
+        "conditions": [
+          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
+        ]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "purpose": "no-auto-compaction",
+        "effective": "evaluationPending",
+        "default": false
+      }
+    },
+    {
+      "route": "exec",
       "name": "exec: --cwd <value>",
       "description": "Use this directory as the workspace.",
       "text": { "cli": "cwd" },
@@ -6513,6 +6639,18 @@
       "description": "--account <id>                    The account to use (auth set, exec).",
       "text": { "cli": "account" },
       "contract": { "type": "string", "repeatable": false, "purpose": "account" }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --account-pool",
+      "description": "--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.",
+      "text": { "cli": "account-pool" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "account-pool"
+      }
     },
     {
       "route": "exec",
@@ -6665,6 +6803,13 @@
         "default": false,
         "purpose": "keyFromStdin"
       }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --vault",
+      "description": "--vault                          Allow headless exec to use vault items covered by unattended grants",
+      "text": { "cli": "vault" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false, "purpose": "vault" }
     },
     {
       "route": "exec",
