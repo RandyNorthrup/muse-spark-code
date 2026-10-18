@@ -178,26 +178,30 @@ export function parseCiInputs(env, system) {
   }
 }
 
-/** The launcher owner's total: install, checkout, input, exec and every later phase. */
+/**
+ * The launcher owner's total: install, checkout, input, exec and every later
+ * phase. Null (no timeout-minutes) leaves the run with no total of ours:
+ * undefined, so the owner arms no timer of its own.
+ */
 export function ownerTotalMs(inputs) {
-  return (
-    ACTION_INSTALL_MS +
-    ACTION_CHECKOUT_MS +
-    ACTION_INPUT_MS +
-    inputs.timeoutMinutes * MILLISECONDS_PER_MINUTE +
-    ACTION_EXEC_OVERHEAD_MS +
-    ACTION_EXTRACT_MS +
-    ACTION_GIT_MS +
-    ACTION_SCAN_MS +
-    ACTION_PUBLISH_MS
-  )
+  return inputs.timeoutMinutes === null
+    ? undefined
+    : ACTION_INSTALL_MS +
+        ACTION_CHECKOUT_MS +
+        ACTION_INPUT_MS +
+        inputs.timeoutMinutes * MILLISECONDS_PER_MINUTE +
+        ACTION_EXEC_OVERHEAD_MS +
+        ACTION_EXTRACT_MS +
+        ACTION_GIT_MS +
+        ACTION_SCAN_MS +
+        ACTION_PUBLISH_MS
 }
 
 /** Bootstrap and launcher bounds in minutes; admission also deducts Azure's pre-bootstrap reserve. */
 export function requiredJobMinutes(inputs) {
   const total =
     CI_BOOTSTRAP_MS +
-    ownerTotalMs(inputs) +
+    (ownerTotalMs(inputs) ?? 0) +
     ACTION_KILL_AFTER_MS +
     ACTION_REAP_MS +
     ACTION_CLEANUP_MS +
@@ -252,10 +256,14 @@ export function jobStartMs(env, system, nowMs = Date.now()) {
   return Math.min(...valid)
 }
 
-/** The run's own tail after admission: stop grace, reaping, cleanup and the final writes. */
+/**
+ * The run's own tail after admission: stop grace, reaping, cleanup and the
+ * final writes. Without timeout-minutes only the fixed tail needs to fit;
+ * the unbounded exec itself is the job's own timeout to end.
+ */
 export function requiredRunMs(inputs) {
   return (
-    ownerTotalMs(inputs) +
+    (ownerTotalMs(inputs) ?? 0) +
     ACTION_KILL_AFTER_MS +
     ACTION_REAP_MS +
     ACTION_CLEANUP_MS +
@@ -273,11 +281,14 @@ export function checkJobDeadline(env, system, inputs, nowMs = Date.now()) {
   const need = requiredRunMs(inputs)
   const remain =
     jobMinutes(env, system) * MILLISECONDS_PER_MINUTE - (nowMs - jobStartMs(env, system, nowMs))
-  if (remain < need) {
-    throw new InputError(
-      `timeout-minutes ${String(inputs.timeoutMinutes)} needs a job timeout of at least ${String(Math.ceil(need / MILLISECONDS_PER_MINUTE))} minutes, only ${String(Math.max(0, Math.floor(remain / MILLISECONDS_PER_MINUTE)))} of ${String(jobMinutes(env, system))} remain`,
-    )
-  }
+  if (remain >= need) return
+  const asked =
+    inputs.timeoutMinutes === null
+      ? 'no deadline'
+      : `timeout-minutes ${String(inputs.timeoutMinutes)}`
+  throw new InputError(
+    `${asked} needs a job timeout of at least ${String(Math.ceil(need / MILLISECONDS_PER_MINUTE))} minutes, only ${String(Math.max(0, Math.floor(remain / MILLISECONDS_PER_MINUTE)))} of ${String(jobMinutes(env, system))} remain`,
+  )
 }
 
 /** The template's private directory: absolute, outside the workspace, a real directory, ours alone on POSIX. */

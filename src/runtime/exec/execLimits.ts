@@ -30,7 +30,9 @@ export interface StopLatch {
 export interface Lifecycle extends StopLatch {
   readonly signal: AbortSignal
   readonly stopped: Promise<StopCause>
-  readonly deadlineMs: number
+  /** Null without `--timeout`: no deadline of ours, so no timer is armed. */
+  readonly deadlineMs: number | null
+  readonly startMs: number
   race<T>(waiting: Promise<T>): Promise<T>
   remainingGraceMs(): number
   forceExit(code: number): never
@@ -70,7 +72,7 @@ export function statusForStop(cause: StopCause): ExecStatus {
 
 export function createLifecycle(input: {
   processStartMs: number
-  timeoutMs: number
+  timeoutMs: number | undefined
   now: () => number
   setTimer: (ms: number, run: () => void) => () => void
   onSignal: (signal: ExecSignal, run: () => void) => () => void
@@ -78,7 +80,7 @@ export function createLifecycle(input: {
   exit: (code: number) => never
 }): Lifecycle {
   const controller = new AbortController()
-  const deadlineMs = input.processStartMs + input.timeoutMs
+  const deadlineMs = input.timeoutMs === undefined ? null : input.processStartMs + input.timeoutMs
   let cause: StopCause | null = null
   const stopped = new Promise<StopCause>((resolve) => {
     controller.signal.addEventListener(
@@ -123,8 +125,10 @@ export function createLifecycle(input: {
   // A set deadline has no maximum of ours, and a delay past Node's setTimeout
   // ceiling would fire after 1 ms: arm at most the platform ceiling and
   // re-arm until the deadline is reached, so a large --timeout is honored.
+  // Without --timeout there is no deadline and no timer.
   let clearDeadline: (() => void) | undefined
   const armDeadline = (): void => {
+    if (deadlineMs === null) return
     const delay = Math.max(0, deadlineMs - input.now())
     if (delay <= NODE_SET_TIMEOUT_MAX_MS) {
       clearDeadline = input.setTimer(delay, () => {
@@ -153,6 +157,7 @@ export function createLifecycle(input: {
     signal: controller.signal,
     stopped,
     deadlineMs,
+    startMs: input.processStartMs,
     latch,
     race(waiting) {
       // Attach to the awaited operation even when stop already won: late

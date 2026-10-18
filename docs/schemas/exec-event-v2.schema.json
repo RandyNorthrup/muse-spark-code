@@ -36,7 +36,12 @@
                 { "type": "null" }
               ]
             },
-            "timeoutSeconds": { "type": "integer", "minimum": 10, "maximum": 9007199254740991 }
+            "timeoutSeconds": {
+              "anyOf": [
+                { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                { "type": "null" }
+              ]
+            }
           },
           "required": ["budgetUsd", "maxRequests", "timeoutSeconds"],
           "additionalProperties": false
@@ -636,7 +641,12 @@
                     { "type": "null" }
                   ]
                 },
-                "timeoutSeconds": { "type": "integer", "minimum": 10, "maximum": 9007199254740991 }
+                "timeoutSeconds": {
+                  "anyOf": [
+                    { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                    { "type": "null" }
+                  ]
+                }
               },
               "required": ["budgetUsd", "maxRequests", "timeoutSeconds"],
               "additionalProperties": false

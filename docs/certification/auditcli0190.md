@@ -77,24 +77,30 @@ headless `EXEC_EXIT`/`LEGAL_EXIT` codes). `--help` exits 0 everywhere.
   with the usage before any store is touched.
 - `test/unit/cliHelpConsistency.test.ts`: 37 checks with no stand-ins —
   the real parser and renderer in-process. The built `dist/acp.js` itself
-  is proven in `test/hosts/exec.sh` (10 misuse/help checks, then 4
-  no-bounds checks below): the unit shards run `vitest` without `dist/`,
+  is proven in `test/hosts/exec.sh` (10 misuse/help checks, then 5
+  no-bounds checks below, including `--timeout 9` past the removed floor):
+  the unit shards run `vitest` without `dist/`,
   and that script runs in CI only after the production package is built
   and installed (hosts.yml `agent` job). The built-binary sweep above is
   the recorded real-use drill.
 - No bound of ours on `exec` (owner's Limits rule, 2026-10-16): without
   `--max-requests` a run has no request limit (the ledger cap is optional
-  end to end, and the Action forwards the flag only when set); a set
+  end to end, and the Action forwards the flag only when set); without
+  `--timeout` a run has no deadline of ours (no timer armed, null
+  `timeoutSeconds` in the result/event limits); a set
   `--timeout`/`--max-requests` is any positive safe integer;
   `--max-budget-usd` is positive-only. The 21,600-second, 500-request and
-  20 USD maxima and the 30-request default are gone from the parser, the
-  ledger, the protocol schemas, the generated reference, the v2 exec
-  schemas, the Action and the docs; `--timeout` keeps its 1800-second
-  default and 10-second floor. The deadline timer re-arms at Node's
-  setTimeout ceiling instead of overflowing on a large value. Proven
-  through the real binary: large values fall through to the missing-prompt
-  check instead of being refused as bounds (red on the stale binary,
-  green on the rebuild). Frozen v1 wire snapshots untouched.
+  20 USD maxima, the 30-request default, the 1800-second default, the
+  10-second floor and the Action's 20-minute default are gone from the
+  parser, the lifecycle, the protocol schemas, the generated reference,
+  the v2 exec schemas, the Action (which forwards `--timeout` and arms
+  its wrapper timers only when `timeout-minutes` is set) and the docs.
+  The deadline timer re-arms at Node's setTimeout ceiling instead of
+  overflowing on a large value. Proven through the real binary: large
+  values fall through to the missing-prompt check instead of being
+  refused as bounds (red on the stale binary, green on the rebuild),
+  and a default run reports null `timeoutSeconds`. Frozen v1 wire
+  snapshots untouched.
 
 ## Open (not fixed here)
 

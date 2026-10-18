@@ -110,11 +110,13 @@ export function execArguments({ agentJs, paths, inputs }) {
     '--ephemeral',
     '--max-budget-usd',
     inputs.maxBudgetUsd,
-    // No request limit unless the person set max-requests (null): only then
-    // is the flag forwarded, like --model and --effort below.
+    // No request limit unless the person set max-requests (null), and no
+    // deadline unless they set timeout-minutes (null): only then is the flag
+    // forwarded, like --model and --effort below.
     ...(inputs.maxRequests === null ? [] : ['--max-requests', String(inputs.maxRequests)]),
-    '--timeout',
-    String(inputs.timeoutMinutes * SECONDS_PER_MINUTE),
+    ...(inputs.timeoutMinutes === null
+      ? []
+      : ['--timeout', String(inputs.timeoutMinutes * SECONDS_PER_MINUTE)]),
     '--prompt-file',
     paths.prompt,
     '--untrusted-file',
@@ -330,7 +332,13 @@ export async function runProposal(input) {
       env: input.baseEnv,
       stdin: Buffer.from(`${key}\n`, 'utf8'),
       stdoutPath: paths.eventsTmp,
-      withinMs: inputs.timeoutMinutes * MILLISECONDS_PER_MINUTE + ACTION_EXEC_OVERHEAD_MS,
+      // No wrapper deadline of ours without timeout-minutes: the run ends
+      // with exec's own deadline (when the person set one), the signal, or
+      // the job's own timeout.
+      withinMs:
+        inputs.timeoutMinutes === null
+          ? undefined
+          : inputs.timeoutMinutes * MILLISECONDS_PER_MINUTE + ACTION_EXEC_OVERHEAD_MS,
       stdoutMaxBytes: ACTION_EVENTS_MAX_BYTES,
       stderrMaxBytes: ACTION_STDERR_MAX_BYTES,
     })
@@ -427,13 +435,15 @@ async function run(env, held) {
       held.key = undefined
     },
     totalMs:
-      ACTION_INPUT_MS +
-      inputs.timeoutMinutes * MILLISECONDS_PER_MINUTE +
-      ACTION_EXEC_OVERHEAD_MS +
-      ACTION_EXTRACT_MS +
-      ACTION_GIT_MS +
-      ACTION_SCAN_MS +
-      ACTION_PUBLISH_MS,
+      inputs.timeoutMinutes === null
+        ? undefined
+        : ACTION_INPUT_MS +
+          inputs.timeoutMinutes * MILLISECONDS_PER_MINUTE +
+          ACTION_EXEC_OVERHEAD_MS +
+          ACTION_EXTRACT_MS +
+          ACTION_GIT_MS +
+          ACTION_SCAN_MS +
+          ACTION_PUBLISH_MS,
     temporaryFiles: [paths.resultTmp, paths.manifestTmp, paths.eventsTmp, paths.diffFull],
   })
   let report

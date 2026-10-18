@@ -12,7 +12,6 @@ import {
   EXEC_PROTOCOL_VERSION,
   EXEC_RAW_TOOL_FIELDS,
   EXEC_USD_DECIMALS,
-  EXEC_MIN_TIMEOUT_SECONDS,
   RESOURCE_EXEC_EVENT_VERSION,
 } from '../../shared/constants'
 import { outputJsonSchema, parseExecRecord } from './outputSchema'
@@ -83,7 +82,8 @@ export interface LedgerTotals {
 export interface ExecLimits {
   budgetUsd: UsdAmount | null
   maxRequests: number | null
-  timeoutSeconds: number
+  /** Null without `--timeout`: the run has no deadline of ours. */
+  timeoutSeconds: number | null
 }
 export interface ExecInputRecord {
   name: string
@@ -295,7 +295,8 @@ const lastResponseSchema = z
 const limitsSchema = z.strictObject({
   budgetUsd: z.nullable(capAmount),
   maxRequests: z.nullable(counter.check(z.gte(1))),
-  timeoutSeconds: counter.check(z.gte(EXEC_MIN_TIMEOUT_SECONDS)),
+  // Null without `--timeout`; a set deadline is any positive duration.
+  timeoutSeconds: z.nullable(counter.check(z.gte(1))),
 })
 const ledgerSchema = z.strictObject({
   outputSchemaSha256: z.optional(z.string().check(z.regex(/^[a-f\d]{64}$/u))),

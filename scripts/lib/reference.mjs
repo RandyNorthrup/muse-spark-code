@@ -862,9 +862,9 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     'max-requests': {
       minimum: 1,
     },
+    // No default: without `--timeout` a run has no deadline of ours.
     timeout: {
-      default: source.EXEC_DEFAULT_TIMEOUT_SECONDS,
-      minimum: source.EXEC_MIN_TIMEOUT_SECONDS,
+      minimum: 1,
       unit: 'seconds',
     },
     // The person's --max-budget-usd has no ceiling of ours: no provider
@@ -1043,11 +1043,13 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   for (const refused of ['0', '-1', 'abc'])
     if (exec(['--max-requests', refused]).command !== 'invalid')
       errors.push('CLI request bound mismatch')
-  if (
-    exec(['--timeout', String(source.EXEC_MIN_TIMEOUT_SECONDS)]).options?.timeoutMs !==
-    source.EXEC_MIN_TIMEOUT_SECONDS * source.MILLISECONDS_PER_SECOND
-  )
+  if (exec([]).options?.timeoutMs !== undefined)
+    errors.push('CLI timeout mismatch: --timeout unset must leave no deadline')
+  if (exec(['--timeout', '1']).options?.timeoutMs !== 1 * source.MILLISECONDS_PER_SECOND)
     errors.push('CLI timeout limit mismatch')
+  for (const refused of ['0', '-1', 'abc'])
+    if (exec(['--timeout', refused]).command !== 'invalid')
+      errors.push('CLI timeout bound mismatch')
   for (const value of ['21601', '1000000'])
     if (
       exec(['--timeout', value]).options?.timeoutMs !==

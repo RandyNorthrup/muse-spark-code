@@ -6701,13 +6701,12 @@
     {
       "route": "exec",
       "name": "exec: --timeout <value>",
-      "description": "Set the run deadline in seconds.",
+      "description": "Set the run deadline in seconds (any positive integer); without it the run has no deadline of its own.",
       "text": { "cli": "timeout" },
       "contract": {
         "type": "string",
         "repeatable": false,
-        "default": 1800,
-        "minimum": 10,
+        "minimum": 1,
         "unit": "seconds",
         "purpose": "timeoutMs"
       }

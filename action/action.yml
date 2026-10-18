@@ -33,9 +33,9 @@ inputs:
     required: false
     default: ''
   timeout-minutes:
-    description: The run's deadline in minutes (any positive integer).
+    description: The run's deadline in minutes (any positive integer); empty sets no deadline.
     required: false
-    default: '20'
+    default: ''
   model:
     description: The Model API model id; empty uses the agent's default.
     required: false
