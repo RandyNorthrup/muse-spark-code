@@ -14,7 +14,11 @@
 // end the direct child, so closing a launcher left muse-bin running.
 
 import path from 'node:path'
-import { isFullyQualifiedWindowsPath, sanitizePathForWorkspace } from '../../executables'
+import {
+  isFullyQualifiedWindowsPath,
+  isWorkspacePath,
+  sanitizePathForWorkspace,
+} from '../../executables'
 import type { MuseCodeAccountHome } from './accountHomes'
 import type { EnvironmentVariable } from '../../../shared/constants'
 import {
@@ -52,6 +56,18 @@ export interface LaunchProbe {
   readonly listDirectory: (directory: string) => readonly string[]
   /** `serve` plus the host-posture flags (`serveArguments`, sandbox.ts). */
   readonly serveArgs: readonly string[]
+  /**
+   * The workspace the child runs in: PATH entries inside it are never
+   * probed, so a planted `muse` on an absolute workspace PATH entry never
+   * resolves. Absent probes every fully qualified entry, as before.
+   */
+  readonly workspaceRoot?: string
+  /**
+   * Resolves links for the workspace comparison; injected so the Windows,
+   * macOS and Linux branches are all unit-tested on any OS. Absent means
+   * lexical comparison only.
+   */
+  readonly realpath?: (filePath: string) => string
 }
 
 export interface MuseLaunch {
@@ -80,12 +96,19 @@ function pathModule(platform: NodeJS.Platform): path.PlatformPath {
  * working directory's drive, so only fully qualified entries are probed.
  */
 function absoluteEntries(probe: LaunchProbe, p: path.PlatformPath): readonly string[] {
-  return probe.pathEntries.filter(
-    (entry) =>
-      entry !== '' &&
-      p.isAbsolute(entry) &&
-      (probe.platform !== 'win32' || isFullyQualifiedWindowsPath(entry)),
-  )
+  const workspace =
+    probe.workspaceRoot === undefined
+      ? undefined
+      : { workspaceRoot: probe.workspaceRoot, realpath: probe.realpath }
+  return probe.pathEntries
+    .map((entry) => entry.trim())
+    .filter(
+      (entry) =>
+        entry !== '' &&
+        p.isAbsolute(entry) &&
+        (probe.platform !== 'win32' || isFullyQualifiedWindowsPath(entry)) &&
+        (workspace === undefined || !isWorkspacePath(probe.platform, workspace, entry)),
+    )
 }
 
 function windowsCandidateDirs(probe: LaunchProbe, p: path.PlatformPath): string[] {

@@ -15,6 +15,18 @@ export interface ExecutableProbe {
   /** The PATH value, unsplit. */
   readonly pathVariable: string | undefined
   readonly fileExists: (filePath: string) => boolean
+  /**
+   * The workspace the child runs in: directories inside it are never
+   * probed, so a program planted on an absolute workspace PATH entry never
+   * resolves. Absent leaves every absolute entry probed, as before.
+   */
+  readonly workspaceRoot?: string
+  /**
+   * Resolves links for the workspace comparison; injected so the Windows,
+   * macOS and Linux branches are all unit-tested on any OS. Absent means
+   * lexical comparison only.
+   */
+  readonly realpath?: (filePath: string) => string
 }
 
 // `execFile` starts these directly; batch files need a shell.
@@ -26,17 +38,28 @@ const WINDOWS_EXECUTABLE_EXTENSIONS = ['.exe', '.com'] as const
  * calls a rooted `\foo` or `/foo` absolute, but CreateProcess resolves it on
  * the working directory's drive — with the workspace as the working
  * directory that is the workspace's drive, so such an entry can name the
- * workspace. Only drive-letter (`D:\…`, `D:/…`) and UNC (`\\server\share\…`)
- * entries are fully qualified; anything else rooted is drive-relative.
+ * workspace. Only drive-letter (`D:\…`, `D:/…`) and UNC (`\\server\share\…`,
+ * spelled with either slash — Windows accepts forward slashes in a UNC
+ * path) entries are fully qualified; anything else rooted is drive-relative.
+ * Separators are normalised before classifying, so `//server/share` and
+ * `//?/C:/…` count as the UNC and verbatim paths they are instead of being
+ * rewritten onto the workspace's drive.
  */
 export function isFullyQualifiedWindowsPath(entry: string): boolean {
-  return /^[a-z]:[\\/]/iu.test(entry) || entry.startsWith('\\\\')
+  const normalized = entry.replaceAll('/', '\\')
+  return /^[a-z]:\\/iu.test(normalized) || normalized.startsWith('\\\\')
 }
 
-/** The absolute, non-empty entries of a PATH value, in order. */
+/**
+ * The absolute, non-empty entries of a PATH value, in order. With a
+ * workspace, entries inside it (resolved through `realpath` when given) are
+ * dropped too, so a planted program on an absolute workspace PATH entry is
+ * never probed.
+ */
 export function absolutePathEntries(
   platform: NodeJS.Platform,
   pathVariable: string | undefined,
+  workspace?: { readonly workspaceRoot: string; readonly realpath?: (filePath: string) => string },
 ): readonly string[] {
   const p = platform === 'win32' ? path.win32 : path.posix
   const separator = platform === 'win32' ? ';' : ':'
@@ -47,8 +70,27 @@ export function absolutePathEntries(
       (entry) =>
         entry !== '' &&
         p.isAbsolute(entry) &&
-        (platform !== 'win32' || isFullyQualifiedWindowsPath(entry)),
+        (platform !== 'win32' || isFullyQualifiedWindowsPath(entry)) &&
+        (workspace === undefined || !isWorkspacePath(platform, workspace, entry)),
     )
+}
+
+/**
+ * Whether `candidate` is the workspace itself or inside it (resolved through
+ * `realpath` when given, lexical otherwise), on `platform`'s terms: Windows
+ * compares case-insensitively with verbatim prefixes stripped and loopback
+ * admin shares mapped to their drive path.
+ */
+export function isWorkspacePath(
+  platform: NodeJS.Platform,
+  workspace: { readonly workspaceRoot: string; readonly realpath?: (filePath: string) => string },
+  candidate: string,
+): boolean {
+  return isSameOrInsideDirectory(
+    platform,
+    resolveForCompare(workspace, workspace.workspaceRoot),
+    resolveForCompare(workspace, candidate),
+  )
 }
 
 export interface WorkspacePathSanitizeProbe {
@@ -68,7 +110,12 @@ export interface WorkspacePathSanitizeProbe {
 /**
  * Compares two absolute paths on `platform`'s terms: separators normalised
  * to `/` (so Windows spellings compare on any host) and, on Windows,
- * case-insensitive.
+ * case-insensitive. Verbatim `\\?\` (`//?/`) prefixes are stripped, so a
+ * verbatim spelling of the workspace compares as the workspace; a loopback
+ * admin share (`//localhost/C$/…`, `//127.0.0.1/C$/…`) is mapped to its
+ * drive path, so an admin share of the workspace directory compares as the
+ * workspace itself. A remote UNC name that cannot be proven local stays as
+ * it is: only the local spellings above are mapped.
  */
 function isSameOrInsideDirectory(
   platform: NodeJS.Platform,
@@ -76,15 +123,33 @@ function isSameOrInsideDirectory(
   candidate: string,
 ): boolean {
   const normalize = (value: string): string => {
-    const slashed = value.replaceAll('\\', '/').replaceAll(/\/+$/g, '')
-    return platform === 'win32' ? slashed.toLowerCase() : slashed
+    let slashed = value.replaceAll('\\', '/').replaceAll(/\/+$/g, '')
+    if (platform === 'win32') {
+      slashed = slashed.toLowerCase()
+      if (slashed.startsWith('//?/unc/')) {
+        slashed = `//${slashed.slice('//?/unc/'.length)}`
+      } else if (slashed.startsWith('//?/')) {
+        slashed = slashed.slice('//?/'.length)
+      }
+      const adminShare = /^\/\/(?:localhost|127\.0\.0\.1)\/([a-z])\$(\/.*)?$/u.exec(slashed)
+      if (adminShare?.[1] !== undefined) {
+        slashed = `${adminShare[1]}:${adminShare[2] ?? ''}`
+      }
+    }
+    return slashed
   }
   const root = normalize(directory)
   const target = normalize(candidate)
   return target === root || target.startsWith(`${root}/`)
 }
 
-function resolveForCompare(probe: WorkspacePathSanitizeProbe, filePath: string): string {
+function resolveForCompare(
+  probe: { readonly realpath?: (filePath: string) => string },
+  filePath: string,
+): string {
+  if (probe.realpath === undefined) {
+    return filePath
+  }
   try {
     return probe.realpath(filePath)
   } catch {
@@ -118,20 +183,25 @@ export function sanitizePathForWorkspace(probe: WorkspacePathSanitizeProbe): str
     if (trimmed === '' || !p.isAbsolute(trimmed)) {
       continue
     }
+    // The original entry is resolved as itself: a forward-slash UNC or
+    // verbatim spelling of the workspace must compare as the workspace, not
+    // as a drive-rewritten path that no longer names it.
+    if (isSameOrInsideDirectory(probe.platform, root, resolveForCompare(probe, trimmed))) {
+      continue
+    }
     // A rooted `\foo` or `/foo` entry is drive-relative: the child resolves
     // it on its own working directory's drive, which is the workspace's
-    // drive, so compare it with that drive applied. Without a drive on the
-    // workspace root there is nothing safe to resolve it against: drop it.
-    let candidate = trimmed
+    // drive, so compare it with that drive applied too. Without a drive on
+    // the workspace root there is nothing safe to resolve it against: drop it.
     if (probe.platform === 'win32' && !isFullyQualifiedWindowsPath(trimmed)) {
       const drive = /^([a-z]:)/iu.exec(root)?.[1]
       if (drive === undefined) {
         continue
       }
-      candidate = `${drive}${trimmed.replaceAll('/', '\\')}`
-    }
-    if (isSameOrInsideDirectory(probe.platform, root, resolveForCompare(probe, candidate))) {
-      continue
+      const candidate = `${drive}${trimmed.replaceAll('/', '\\')}`
+      if (isSameOrInsideDirectory(probe.platform, root, resolveForCompare(probe, candidate))) {
+        continue
+      }
     }
     kept.push(entry)
   }
@@ -153,7 +223,11 @@ export function resolveExecutable(name: string, probe: ExecutableProbe): string 
     isNamedExecutable || probe.platform !== 'win32'
       ? [name]
       : WINDOWS_EXECUTABLE_EXTENSIONS.map((extension) => `${name}${extension}`)
-  for (const directory of absolutePathEntries(probe.platform, probe.pathVariable)) {
+  const workspace =
+    probe.workspaceRoot === undefined
+      ? undefined
+      : { workspaceRoot: probe.workspaceRoot, realpath: probe.realpath }
+  for (const directory of absolutePathEntries(probe.platform, probe.pathVariable, workspace)) {
     for (const candidate of candidates) {
       const full = p.join(directory, candidate)
       if (probe.fileExists(full)) {
