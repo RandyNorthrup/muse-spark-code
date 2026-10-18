@@ -304,8 +304,13 @@ jobs:
           mkdir -p release/helpers
           staged=0
           for spec in x64:muse-dictate x64:libwhisper.so.1 x64:libggml.so x64:libggml-base.so \
-              x64:libggml-cpu-x64.so arm64:muse-dictate arm64:libwhisper.so.1 arm64:libggml.so \
-              arm64:libggml-base.so arm64:libggml-cpu-armv8.0_1.so; do
+              x64:libggml-cpu-x64.so x64:libggml-cpu-sse42.so x64:libggml-cpu-sandybridge.so \
+              x64:libggml-cpu-haswell.so x64:libggml-cpu-skylakex.so x64:libggml-cpu-icelake.so \
+              x64:libggml-cpu-alderlake.so x64:libggml-cpu-sapphirerapids.so \
+              arm64:muse-dictate arm64:libwhisper.so.1 arm64:libggml.so \
+              arm64:libggml-base.so arm64:libggml-cpu-armv8.0_1.so arm64:libggml-cpu-armv8.2_1.so \
+              arm64:libggml-cpu-armv8.2_2.so arm64:libggml-cpu-armv8.2_3.so arm64:libggml-cpu-armv8.6_1.so \
+              arm64:libggml-cpu-armv8.6_2.so arm64:libggml-cpu-armv9.2_1.so arm64:libggml-cpu-armv9.2_2.so; do
             arch="${spec%%:*}"
             file="${spec#*:}"
             if [ -f "helpers/$arch/$file" ]; then

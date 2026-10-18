@@ -567,8 +567,13 @@ jobs:
         run: |
           mkdir -p helper-assets
           for spec in x64:muse-dictate x64:libwhisper.so.1 x64:libggml.so x64:libggml-base.so \
-              x64:libggml-cpu-x64.so arm64:muse-dictate arm64:libwhisper.so.1 arm64:libggml.so \
-              arm64:libggml-base.so arm64:libggml-cpu-armv8.0_1.so; do
+              x64:libggml-cpu-x64.so x64:libggml-cpu-sse42.so x64:libggml-cpu-sandybridge.so \
+              x64:libggml-cpu-haswell.so x64:libggml-cpu-skylakex.so x64:libggml-cpu-icelake.so \
+              x64:libggml-cpu-alderlake.so x64:libggml-cpu-sapphirerapids.so \
+              arm64:muse-dictate arm64:libwhisper.so.1 arm64:libggml.so \
+              arm64:libggml-base.so arm64:libggml-cpu-armv8.0_1.so arm64:libggml-cpu-armv8.2_1.so \
+              arm64:libggml-cpu-armv8.2_2.so arm64:libggml-cpu-armv8.2_3.so arm64:libggml-cpu-armv8.6_1.so \
+              arm64:libggml-cpu-armv8.6_2.so arm64:libggml-cpu-armv9.2_1.so arm64:libggml-cpu-armv9.2_2.so; do
             arch="${spec%%:*}"
             file="${spec#*:}"
             cp "native/linux/$arch/$file" "helper-assets/linux-$arch-$file"
@@ -622,7 +627,14 @@ jobs:
             extension/native/linux/x64/libwhisper.so.1 extension/native/linux/arm64/libwhisper.so.1 \
             extension/native/linux/x64/libggml.so extension/native/linux/arm64/libggml.so \
             extension/native/linux/x64/libggml-base.so extension/native/linux/arm64/libggml-base.so \
-            extension/native/linux/x64/libggml-cpu-x64.so extension/native/linux/arm64/libggml-cpu-armv8.0_1.so; do
+            extension/native/linux/x64/libggml-cpu-x64.so extension/native/linux/x64/libggml-cpu-sse42.so \
+            extension/native/linux/x64/libggml-cpu-sandybridge.so extension/native/linux/x64/libggml-cpu-haswell.so \
+            extension/native/linux/x64/libggml-cpu-skylakex.so extension/native/linux/x64/libggml-cpu-icelake.so \
+            extension/native/linux/x64/libggml-cpu-alderlake.so extension/native/linux/x64/libggml-cpu-sapphirerapids.so \
+            extension/native/linux/arm64/libggml-cpu-armv8.0_1.so extension/native/linux/arm64/libggml-cpu-armv8.2_1.so \
+            extension/native/linux/arm64/libggml-cpu-armv8.2_2.so extension/native/linux/arm64/libggml-cpu-armv8.2_3.so \
+            extension/native/linux/arm64/libggml-cpu-armv8.6_1.so extension/native/linux/arm64/libggml-cpu-armv8.6_2.so \
+            extension/native/linux/arm64/libggml-cpu-armv9.2_1.so extension/native/linux/arm64/libggml-cpu-armv9.2_2.so; do
             if grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry must not ship in the .vsix" >&2
               exit 1

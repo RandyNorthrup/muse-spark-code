@@ -1,7 +1,8 @@
 // Verify the Linux dictation helper's release pins (CM9LNX, PLAN.md D140).
 //
-// - Shape: both architectures pin the same five files, exactly the binary
-//   is executable, every URL is an https release asset (no credentials).
+// - Shape: both architectures pin the full install set (the build
+//   script's EXPECTED list, variants included), exactly the binary is
+//   executable, every URL is an https release asset (no credentials).
 // - `--require-values`: every pin carries real release bytes and digests;
 //   the packages job runs this after generating the pins, so a VSIX never
 //   ships unset pins.
@@ -22,9 +23,9 @@ import { build } from 'esbuild'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { EXPECTED } from './build-linux-helper-pins.mjs'
 
 const ARCHES = ['x64', 'arm64']
-const EXPECTED_FILES = ['muse-dictate', 'libwhisper.so.1', 'libggml.so', 'libggml-base.so']
 
 export async function loadPins() {
   const compiled = await build({
@@ -39,17 +40,16 @@ export async function loadPins() {
   )
 }
 
-/** Both architectures, five files each, one executable, https asset URLs. */
+/** Both architectures, the full install set each, one executable, https asset URLs. */
 export function checkShape(pins) {
   const failures = []
   for (const arch of ARCHES) {
+    const wanted = EXPECTED[arch]
     const entries = pins.LINUX_HELPER_PINS?.[arch]
-    if (!Array.isArray(entries) || entries.length !== EXPECTED_FILES.length + 1) {
-      failures.push(`${arch}: expected ${String(EXPECTED_FILES.length + 1)} pins`)
+    if (!Array.isArray(entries) || entries.length !== wanted.length) {
+      failures.push(`${arch}: expected ${String(wanted.length)} pins`)
       continue
     }
-    const baseline = arch === 'x64' ? 'libggml-cpu-x64.so' : 'libggml-cpu-armv8.0_1.so'
-    const wanted = [...EXPECTED_FILES, baseline]
     for (const [index, file] of wanted.entries()) {
       const pin = entries[index]
       const asset = `linux-${arch}-${file}`

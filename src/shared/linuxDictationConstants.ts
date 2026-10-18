@@ -25,8 +25,10 @@ export const LINUX_DICTATION = {
   setting: 'linuxDictationModel',
   helperBinary: 'muse-dictate',
   // Approximate first-download bytes shown on the consent card (measured
-  // x64 inventory, 2026-10-10; arm64 is similar). The pins enforce the
-  // exact per-file sizes at download; this is display only.
+  // five-file x64 inventory, 2026-10-10; arm64 is similar). The pins
+  // enforce the exact per-file sizes at download; this is display only.
+  // The CPU backend variants are not in this number yet: re-measure it
+  // from the staged release helpers before publishing (PLAN.md D140).
   helperDownloadBytes: 7_623_768,
   sampleRate: 16_000,
   framesPerSecond: 5,

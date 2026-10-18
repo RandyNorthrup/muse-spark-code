@@ -5,6 +5,11 @@ set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
 set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
 set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
 set(GGML_BACKEND_DL ON CACHE BOOL "" FORCE)
+# Every CPU backend variant is built (x64/sse42/sandybridge/haswell/
+# skylakex/icelake/alderlake/sapphirerapids on x86, the armv8/armv9 set on
+# ARM) so the engine's ggml_backend_load_all selects the machine's best.
+# scripts/build-linux-helper-pins.mjs EXPECTED must name them all: only
+# pinned files are published as release assets and downloaded.
 set(GGML_CPU_ALL_VARIANTS ON CACHE BOOL "" FORCE)
 set(GGML_CPU_KLEIDIAI OFF CACHE BOOL "" FORCE)
 set(GGML_LLAMAFILE OFF CACHE BOOL "" FORCE)

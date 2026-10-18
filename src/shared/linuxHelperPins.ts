@@ -47,7 +47,12 @@ function filePin(
   return { asset, file, bytes, sha256, isExecutable }
 }
 
-/** Every helper file one architecture downloads, in install order. */
+/**
+ * Every helper file one architecture downloads, in install order: the
+ * binary, whisper, ggml, and every CPU backend variant the
+ * `GGML_CPU_ALL_VARIANTS` build emits, so `ggml_backend_load_all` finds
+ * the optimized backend for the machine, not only the portable baseline.
+ */
 export const LINUX_HELPER_PINS: Record<LinuxHelperArch, readonly LinuxHelperFilePin[]> = {
   // BEGIN GENERATED PINS (scripts/build-linux-helper-pins.mjs rewrites the
   // bytes/sha256 fields between these markers; keep the assets and order).
@@ -57,6 +62,19 @@ export const LINUX_HELPER_PINS: Record<LinuxHelperArch, readonly LinuxHelperFile
     filePin('linux-x64-libggml.so', 'libggml.so', 0, '', false),
     filePin('linux-x64-libggml-base.so', 'libggml-base.so', 0, '', false),
     filePin('linux-x64-libggml-cpu-x64.so', 'libggml-cpu-x64.so', 0, '', false),
+    filePin('linux-x64-libggml-cpu-sse42.so', 'libggml-cpu-sse42.so', 0, '', false),
+    filePin('linux-x64-libggml-cpu-sandybridge.so', 'libggml-cpu-sandybridge.so', 0, '', false),
+    filePin('linux-x64-libggml-cpu-haswell.so', 'libggml-cpu-haswell.so', 0, '', false),
+    filePin('linux-x64-libggml-cpu-skylakex.so', 'libggml-cpu-skylakex.so', 0, '', false),
+    filePin('linux-x64-libggml-cpu-icelake.so', 'libggml-cpu-icelake.so', 0, '', false),
+    filePin('linux-x64-libggml-cpu-alderlake.so', 'libggml-cpu-alderlake.so', 0, '', false),
+    filePin(
+      'linux-x64-libggml-cpu-sapphirerapids.so',
+      'libggml-cpu-sapphirerapids.so',
+      0,
+      '',
+      false,
+    ),
   ],
   arm64: [
     filePin('linux-arm64-muse-dictate', 'muse-dictate', 0, '', true),
@@ -64,6 +82,13 @@ export const LINUX_HELPER_PINS: Record<LinuxHelperArch, readonly LinuxHelperFile
     filePin('linux-arm64-libggml.so', 'libggml.so', 0, '', false),
     filePin('linux-arm64-libggml-base.so', 'libggml-base.so', 0, '', false),
     filePin('linux-arm64-libggml-cpu-armv8.0_1.so', 'libggml-cpu-armv8.0_1.so', 0, '', false),
+    filePin('linux-arm64-libggml-cpu-armv8.2_1.so', 'libggml-cpu-armv8.2_1.so', 0, '', false),
+    filePin('linux-arm64-libggml-cpu-armv8.2_2.so', 'libggml-cpu-armv8.2_2.so', 0, '', false),
+    filePin('linux-arm64-libggml-cpu-armv8.2_3.so', 'libggml-cpu-armv8.2_3.so', 0, '', false),
+    filePin('linux-arm64-libggml-cpu-armv8.6_1.so', 'libggml-cpu-armv8.6_1.so', 0, '', false),
+    filePin('linux-arm64-libggml-cpu-armv8.6_2.so', 'libggml-cpu-armv8.6_2.so', 0, '', false),
+    filePin('linux-arm64-libggml-cpu-armv9.2_1.so', 'libggml-cpu-armv9.2_1.so', 0, '', false),
+    filePin('linux-arm64-libggml-cpu-armv9.2_2.so', 'libggml-cpu-armv9.2_2.so', 0, '', false),
   ],
   // END GENERATED PINS
 }
