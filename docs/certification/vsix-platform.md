@@ -55,59 +55,81 @@ the vault's cross-platform keyring needs about 4.7 MB of binaries. Neither
 fits the universal package; per-platform packages absorb the platform's own
 share only.
 
-### Universal fallback: none
+### Universal fallback: shipped (lane PR246FIX, 2026-10-18, macmini rig)
 
-All six desktop targets VS Code runs on are covered
-(win32-x64, win32-arm64, darwin-x64, darwin-arm64, linux-x64, linux-arm64),
-so no universal fallback ships. Uncovered targets (linux-armhf,
-alpine-*, web) never had native helpers and the extension never supported
-them there. Both registries serve the matching target package
-(vsce 4.0.0 `--target`; ovsx documents target-platform downloads).
+The release ships the six targeted packages plus the untargeted universal
+package (`muse-spark-code-<version>.vsix`, no `--target`). VS Code serves
+the universal package as the fallback on every platform without its own
+package, so Alpine (`alpine-x64`, `alpine-arm64`) and `linux-armhf`
+servers — the extension is `extensionKind: ["workspace"]`, so a Dev
+Container or Remote SSH window installs it on the server — keep installing
+exactly what they ran before: the universal package carries every
+allowlisted helper. (There is no `web` package to serve: the extension has
+no `browser` entry, so VS Code never installs it on web.) The fallback
+meets the same unchanged budget; CI packs, checks and publishes it with
+the six. Both registries serve the matching target package where one
+exists (vsce 4.0.0 `--target`; ovsx documents target-platform downloads)
+and the universal package everywhere else.
 
-## 2. Measured per-target sizes and headroom (2026-10-18, linuxlt rig)
+## 2. Measured per-target sizes and headroom (2026-10-18; linuxlt and macmini rigs)
 
-Budget for every target: 3,788,800 bytes (3700 KiB, `scripts/check-vsix-size.mjs`, unchanged).
+Budget for every package: 3,788,800 bytes (3700 KiB, `scripts/check-vsix-size.mjs`, unchanged).
+A size failure names the artifact that went over.
 
-Locally packed from the full production build on this rig
+Locally packed from the full production build on the named rig
 (`npm run build` green with budgets, then `node scripts/package-vsix.mjs
---target <t>`), each asserting its own `TargetPlatform` in
-`extension.vsixmanifest` and zero foreign helpers in its entry list:
+--target <t>`, or no flag for the universal fallback), each asserting its
+own `TargetPlatform` in `extension.vsixmanifest` (or none for the
+fallback) and zero foreign helpers in its entry list. No two archives
+are byte-identical: the `TargetPlatform` string alone differs per target
+(`cmp -l` of the two Windows archives below differs from byte 15 on).
 
-| Target       | Measured bytes          | Headroom | Method                                                                                                                                       |
-| ------------ | ----------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| linux-x64    | 3,248,894               | 539,906  | complete local package (helper built here: `native/linux/x64/muse-created`, 43,208 bytes)                                                    |
-| win32-x64    | 3,282,301               | 506,499  | complete local package (Windows helpers are arch-independent sources in git)                                                                 |
-| win32-arm64  | same bytes as win32-x64 | same     | identical stage: Windows files are arch-independent (ps1 run directly, .cs compiled on the person's machine)                                 |
-| linux-arm64  | CI                      | CI       | helper built on ubuntu-24.04-arm in CI; same filter as x64                                                                                   |
-| darwin-x64   | CI                      | CI       | universal darwin binaries built on macOS in CI; stage filter proven locally (darwin stage keeps only `native/runner/*` plus the CI binaries) |
-| darwin-arm64 | CI                      | CI       | same as darwin-x64                                                                                                                           |
+| Target       | Measured bytes | Headroom | Method                                                                                                                                                                                                                                                  |
+| ------------ | -------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| linux-x64    | 3,248,894      | 539,906  | complete local package on linuxlt (helper built there: `native/linux/x64/muse-created`, 43,208 bytes)                                                                                                                                                   |
+| win32-x64    | 3,282,047      | 506,753  | complete local package on macmini (Windows helpers are arch-independent sources in git)                                                                                                                                                                 |
+| win32-arm64  | 3,282,048      | 506,752  | complete local package on macmini: same stage as win32-x64 except `TargetPlatform="win32-arm64"`, hence one byte larger, never identical bytes                                                                                                          |
+| linux-arm64  | CI             | CI       | helper built on ubuntu-24.04-arm in CI; same filter as x64                                                                                                                                                                                              |
+| darwin-x64   | CI             | CI       | universal darwin binaries built on macOS in CI (muse-dictate + .app via build.sh, muse-vault); stage filter proven locally                                                                                                                              |
+| darwin-arm64 | CI             | CI       | same CI binaries as darwin-x64                                                                                                                                                                                                                          |
+| universal    | CI             | CI       | packed by CI's package job with all helpers (both muse-created binaries, Windows sources, darwin binaries); reference only: 3,272,933 bytes on Kubuntu with the real x64 helper, an empty arm64 helper and no macOS artifacts (not a shippable package) |
 
-CI's package job prints every target's bytes (`stat -c '%n %s' ./*.vsix`),
+CI's package job prints every package's bytes (`stat -c '%n %s' ./*.vsix`),
 checks each against the budget, and asserts per target: all shared
 bundles present, only its own helpers present, no other platform's
-helpers, and its `TargetPlatform` in the manifest.
+helpers, and its `TargetPlatform` in the manifest — and for the fallback:
+every helper present and no `TargetPlatform` at all.
 
 ## 3. Every place that assumed one universal package
 
 - `scripts/package-vsix.mjs`: staged everything VSCE allowlisted and packed
   one archive. Now stages per `--target` and packs six.
 - `scripts/check-vsix-size.mjs`: took exactly one path. Now checks every
-  artifact against the same budget.
+  artifact against the same budget, and a failure names the artifact that
+  went over.
 - `scripts/publish-registry.mjs`: took exactly one artifact and verified the
-  universal download. Now publishes every target and verifies each against
+  universal download. Now publishes every artifact first, then polls all
+  fresh ones under one shared 30-minute deadline (`pollAllVisible`,
+  re-checking unfinished targets in the same job), verifying each against
   its own target's download (Marketplace `?targetPlatform=`, Open VSX
-  `/api/<ns>/<name>/<target>/<version>`).
+  `/api/<ns>/<name>/<target>/<version>`, universal download for the
+  fallback). The Marketplace and Open VSX jobs run 60 minutes to cover all
+  publishes plus that poll.
 - `scripts/release-reuse.mjs`: expected `muse-spark-code-<version>.vsix` and
-  read one manifest. Now expects all six names and reads all six manifests.
+  read one manifest. Now expects all six targeted names plus the universal
+  fallback name and reads all seven manifests.
 - `.github/workflows/build.yml` packages job: built and checked one
-  universal VSIX. Now builds once, packs and checks six; the ACP agent's
+  universal VSIX. Now builds once, packs and checks six targeted packages
+  plus the universal fallback (asserting the fallback carries every helper
+  and no `TargetPlatform`); the ACP agent's
   npm package is unchanged (one tarball for every platform).
 - `.github/workflows/release.yml`: comments said "universal VSIX". Now
-  per-target packages; every glob (`release/*.vsix`, `./*.vsix`,
-  `SHA256SUMS`) already expands to all six.
+  per-target packages plus the fallback; every glob (`release/*.vsix`, `./*.vsix`,
+  `SHA256SUMS`) already expands to all seven.
 - `docs/RELEASING.md`, `README.md`: said one universal VSIX. Now per-target.
-- `PLAN.md`: new decision D123. `CHANGELOG.md`: Packaging entry under
-  `[0.19.0]`.
+- `PLAN.md`: new decision D123 (fallback and shared poll added by PR246FIX).
+  `CHANGELOG.md`: Packaging entry under `[Unreleased]` (moved out of
+  `[0.19.0]`: the change is not in that tag).
 - Unchanged on purpose: the ACP npm package (runs on the person's machine,
   needs every platform's sources), `native/runner/*` (ships in every
   target: the SSH runner copies the helper to the remote side), the
@@ -129,3 +151,24 @@ One line per finding; each fixed at its cause in this lane:
 4. Certification claimed identical bytes across targets (false: TargetPlatform differs) and left three budgets as "CI" — fix: state measured sizes per target with method, no identical-bytes claim.
 5. `check-vsix-size` failure does not say which target went over — fix: name the artifact in the error.
 6. CHANGELOG bullet sits under `[0.19.0]` though the change is not in that tag — fix: move it to `[Unreleased]`.
+
+## 5. PR246FIX proof (2026-10-18, macmini rig)
+
+- `test/unit/vsixTargets.test.mjs`: 9 tests, passed, repo timeout.
+  `test/unit/publishRegistry.test.mjs` (new): 4 tests, passed, repo
+  timeout — driven against the real `pollAllVisible`/`publishOnce` with
+  their declared injection points, no module stand-ins.
+- Gate-fire check: with `pending.delete(label)` disabled in
+  `pollAllVisible`, the re-check test fails (1 failed, 3 passed);
+  reverted, all 4 pass again.
+- Local packs from the green production build
+  (`npm run build`, budgets hold): `muse-spark-code-win32-x64-0.19.0.vsix`
+  3,282,047 bytes, `muse-spark-code-win32-arm64-0.19.0.vsix` 3,282,048
+  bytes, each within budget via `scripts/check-vsix-size.mjs`, each
+  declaring its own `TargetPlatform`, `cmp -l` differing from byte 15.
+- `node --check` passes on both changed scripts;
+  `scripts/publish-registry.mjs` with no arguments prints the fixed usage
+  label (`publication refused`) and exits 1.
+- Not measurable on this rig (no Linux helper toolchain, darwin binaries
+  are CI builds): linux-arm64, darwin-x64, darwin-arm64, universal sizes —
+  CI's package job prints and checks them (`stat -c '%n %s' ./*.vsix`).
