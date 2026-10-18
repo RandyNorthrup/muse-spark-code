@@ -103,7 +103,7 @@ export interface BackendManagerDeps {
   readonly bundlePath: string
   /** How the bundle is loaded: Node's `require` unless a test hands in the module. */
   readonly loadBundle?: ((file: string) => unknown) | undefined
-  /** The window's usage recorder, installed on the bundle's host at the first spawn. */
+  /** This manager's usage recorder, put on the bundle's host class at every bundle load. */
   readonly usageRecording?: UsageRecording | undefined
   /** One manager per capture-gated CLI account. Absent preserves today's single account. */
   readonly accountHome?: MuseCodeAccountHome
@@ -178,6 +178,13 @@ function listDirectoryOrEmpty(log: Logger, directory: string): readonly string[]
 }
 
 export class MuseCodeBackendManager {
+  /**
+   * The runtime's journal when no manager carries its own (the ACP agent
+   * installs it through `installUsageRecording`): forwarded onto the
+   * bundle's host class at every bundle load, since dist/museCode.js
+   * carries its own copy of that class and its static.
+   */
+  public static usageRecording: UsageRecording | undefined
   private hostPromise: Promise<MuseCodeHost> | undefined
   /** Bumped by every spawn and every dispose: an attempt only clears its own slot. */
   private generation = 0
@@ -187,11 +194,17 @@ export class MuseCodeBackendManager {
   private readonly loadBackend: () => MuseCodeBundle
 
   public constructor(private readonly deps: BackendManagerDeps) {
-    this.loadBackend = museCodeBundleLoader({
+    const load = museCodeBundleLoader({
       bundlePath: deps.bundlePath,
       log: deps.log,
       loadBundle: deps.loadBundle,
     })
+    this.loadBackend = () => {
+      const bundle = load()
+      bundle.MuseCodeHost.usageRecording =
+        deps.usageRecording ?? MuseCodeBackendManager.usageRecording
+      return bundle
+    }
   }
 
   /**
@@ -319,7 +332,6 @@ export class MuseCodeBackendManager {
     }
     const accountHome = this.deps.accountHome
     const backend = this.loadBackend()
-    backend.MuseCodeHost.usageRecording = this.deps.usageRecording
     const handshake =
       accountHome === undefined
         ? await spawnResourceConnection(
