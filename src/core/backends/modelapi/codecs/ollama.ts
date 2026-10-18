@@ -104,7 +104,8 @@ function unpackThinking(encrypted: string | undefined, model: string): string | 
       JSON.parse(encrypted.slice(OLLAMA_THINKING_MARKER.length)) as unknown,
     )
     return parsed.success && parsed.data.model === model ? parsed.data.thinking : undefined
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }
@@ -194,7 +195,8 @@ function argumentsForWire(argumentsText: string): unknown {
   const cleaned = cleanWireText(argumentsText)
   try {
     return cleanJsonStrings(JSON.parse(cleaned))
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     // Not JSON the model wrote: the server decides, and its error names
     // the call. Never an empty object, which would run a different call.
     return cleaned
@@ -548,7 +550,8 @@ export async function* decodeOllamaStream(
     let json: unknown
     try {
       json = JSON.parse(line) as unknown
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
       throw malformedFrame(options.status)
     }
     const parsed = ollamaLineSchema.safeParse(json)
