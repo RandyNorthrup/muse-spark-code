@@ -14,7 +14,7 @@ import {
   resetDurationMs,
   xaiPacingLimits,
 } from '../../src/core/backends/modelapi/pacing'
-import { retryWaitMs } from '../../src/core/backends/modelapi/transport'
+import { providerWaitMs } from '../../src/core/backends/modelapi/transport'
 
 const CAPTURE_FILES = {
   groq: '02-tool-call-stream.json',
@@ -165,12 +165,13 @@ describe('azureRetryAfterMs', () => {
     expect(azureRetryAfterMs(new Headers({ 'retry-after-ms': '-3' }))).toBeUndefined()
     expect(azureRetryAfterMs(new Headers({ 'retry-after-ms': 'soon' }))).toBeUndefined()
   })
-  it('backs the standard header, which keeps precedence', () => {
+  it('reads the millisecond header first (research azure-openai.md ZB2)', () => {
     const now = Date.now()
-    expect(retryWaitMs(new Headers({ 'retry-after': '2', 'retry-after-ms': '1500' }), now)).toBe(
-      2000,
+    expect(providerWaitMs(new Headers({ 'retry-after': '2', 'retry-after-ms': '1500' }), now)).toBe(
+      1500,
     )
-    expect(retryWaitMs(new Headers({ 'retry-after-ms': '1500' }), now)).toBe(1500)
-    expect(retryWaitMs(new Headers(), now)).toBeUndefined()
+    expect(providerWaitMs(new Headers({ 'retry-after-ms': '1500' }), now)).toBe(1500)
+    expect(providerWaitMs(new Headers({ 'retry-after': '2' }), now)).toBe(2000)
+    expect(providerWaitMs(new Headers(), now)).toBeUndefined()
   })
 })

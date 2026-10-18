@@ -114,7 +114,6 @@ import {
   HOOK_NOTIFICATION_DELAY_MS,
   HOOK_ON_FAILURE_MAX_DEPTH,
   HOOK_SESSION_END_TIMEOUT_MS,
-  HTTP_STATUS,
   HTTP_TOO_MANY_REQUESTS,
   HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
@@ -320,6 +319,7 @@ import {
   type RetryNotice,
   type ResponseAttemptGuard,
 } from './client'
+import { isDefiniteRefusal, scrubRefusalLeak } from './providerRefusal'
 import {
   applyGoalCommand,
   type GoalContext,
@@ -4187,9 +4187,10 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private noteRequestRefusal(reservation: OpenReservation | undefined, error: unknown): void {
-    const isRefused =
-      isModelApiError(error) &&
-      (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
+    // Lane PROVERR: a refusal the provider answered with a definite
+    // "nothing billed" status before processing releases the reservation in
+    // full; anything else keeps its uncertain liability.
+    const isRefused = isModelApiError(error) && isDefiniteRefusal(error.status)
     if (isRefused && this.recordedCall !== undefined && reservation?.hasStarted !== true) {
       this.recordedCall = { ...this.recordedCall, outcome: 'refused' }
     }
@@ -4218,8 +4219,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       await work
     } catch (error: unknown) {
       // A turn reports its own failures, so one that reaches here is a fault.
+      // The words can carry a masked-key remnant or an account id (round 2,
+      // finding 5): the log file keeps the scrubbed form only.
       if (!isFailureCallers) {
-        this.deps.log.error(`A Model API turn failed unexpectedly: ${describe(error)}`)
+        this.deps.log.error(
+          `A Model API turn failed unexpectedly: ${scrubRefusalLeak(describe(error))}`,
+        )
       }
     } finally {
       this.unsettled.delete(id)
@@ -6835,9 +6840,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.responseAttemptGuard(body, resolved, budget),
       isCountedUsage,
       abortError: () => new AbortedError(),
-      isRefused: (error: unknown) =>
-        isModelApiError(error) &&
-        (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
+      // Lane PROVERR: the definite "nothing billed" refusal releases its
+      // reservation; anything else keeps its uncertain liability.
+      isRefused: (error: unknown) => isModelApiError(error) && isDefiniteRefusal(error.status),
       emit: (event: AgentEvent) => {
         this.emit(event)
       },
@@ -6955,9 +6960,9 @@ export class ModelApiSession implements ScheduledAgentSession {
           guard: (body, budget) => this.responseAttemptGuard(body, resolved, budget),
           isCountedUsage,
           abortError: () => new AbortedError(),
-          isRefused: (error) =>
-            isModelApiError(error) &&
-            (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
+          // Lane PROVERR: the definite "nothing billed" refusal releases its
+          // reservation; anything else keeps its uncertain liability.
+          isRefused: (error) => isModelApiError(error) && isDefiniteRefusal(error.status),
           emit: (event) => {
             this.emit(event)
           },
@@ -8105,9 +8110,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (egressRefusal !== undefined) {
         return egressRefusal
       }
-      isRefused =
-        isModelApiError(error) &&
-        (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
+      // Lane PROVERR: the definite "nothing billed" refusal releases its
+      // reservation; anything else keeps its uncertain liability.
+      isRefused = isModelApiError(error) && isDefiniteRefusal(error.status)
       throw error
     } finally {
       const charged =

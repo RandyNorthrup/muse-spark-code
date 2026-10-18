@@ -251,6 +251,40 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Provider refusals read as the provider's refusal (lane PROVERR): when a
+  configured provider answers with an error — out of credit, a rejected key,
+  rate-limited, overloaded, an invalid request and the rest — the turn ends
+  with a sentence naming the provider, saying what to do, and quoting the
+  provider's own words, in every host and language. "Models & Agents is not
+  available in this build" is now said only when a part of the build is
+  really missing. A refusal answered before any processing (HTTP 400, 401,
+  402, 403, 404, 413, 422, 429) releases its cost reservation in full, so
+  settled and uncertain stay 0; anything else keeps its uncertain liability.
+  Refusals that asking again cannot fix are never retried. Record:
+  `docs/certification/provider-refusals.md`.
+
+- Provider refusals read by shape and retried by code (lanes PROVERR round
+  2 and PROVERRR2): a wrong key reads as a rejected key and an unknown
+  model as no such model at every recorded provider, whatever the envelope
+  shape; a quota or spend-cap refusal is never retried while a bare rate
+  limit still is; an Anthropic reply cut at its output limit continues
+  instead of ending the turn; an Azure content-filter block has its own
+  sentence. Masked-key remnants and account ids in a provider's words no
+  longer reach the log file or report bundles. Records:
+  `docs/certification/proverr-round2.md`,
+  `docs/certification/proverrr2.md`.
+
+- What stopped a provider request is said as it happened (lane PROVERRORS).
+  A session-budget stop on a configured provider now ends the turn with its
+  own sentence ("Stopped: the next request … would pass the session budget
+  … It was not sent.") and is not retried; it had read "Models & Agents is
+  not available in this build". `providers add` and `providers test` name a
+  failed connection's network codes and say whether the request arrived is
+  unknown, instead of "The provider could not be reached". A refusal shows
+  the provider's request id, and a rejected key, missing permission or
+  unknown model says nothing reached a model, no longer that nothing was
+  sent. Record: `docs/certification/provider-refusals.md`.
+
 - All fourteen translated settings tables now say Muse Code asks before a
   command unless a permission rule allows it, matching the English modes.
 
@@ -265,6 +299,7 @@ happened, not what was planned; superseded entries are kept.
 
 - ACP permission answers retain the selected persistent rule's identity;
   consent for one command prefix cannot silently install another stage's rule.
+
 - After Muse Code restarted, a conversation could continue on a different
   model than the one shown (and at that model's price). It now keeps the
   model you chose: the choice is applied and read back from Muse Code before
@@ -293,6 +328,16 @@ happened, not what was planned; superseded entries are kept.
   input as before, and Focus Input while the composer is focused hands
   the keyboard back to the file you were in (it used to focus the editor
   group, which keeps a chat tab active).
+
+- Invariants lane: `test/unit/invariants.test.ts` re-guards the SoL-Pi
+  request-shape and savings invariants through real modules with real inputs
+  (per-scenario tool/instruction/cache-key reproduction with byte-exact
+  plain and strict golden turns, the recorded packing output, listed-tariff
+  paid quotes with per-claim tallies and a re-ask when the price rises,
+  `then_run` parsing with real-file guard ordering, overflow compaction
+  bypass, and a digest of the complete eval task definitions). The host's
+  scalar request assembly stays with the lead's loopback run pending
+  recorded exchanges.
 
 - Test-overhaul review: paid-popup lazy-load checks now build the real
   runtime instead of writing a replacement formatter, retaining locale

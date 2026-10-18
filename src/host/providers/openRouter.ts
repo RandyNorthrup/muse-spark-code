@@ -198,7 +198,7 @@ async function readOpenRouterPanelUsage(
     ) => Promise<KeyUsageSnapshot | undefined>
   },
   signal?: AbortSignal,
-): Promise<z.input<typeof providerKeyUsageSchema>> {
+): Promise<z.infer<typeof providerKeyUsageSchema>> {
   signal?.throwIfAborted()
   const key = await deps.storedCredential(entry)
   if (key === undefined) throw new Error(UI_TEXT.providerUsageFailed)
@@ -206,14 +206,18 @@ async function readOpenRouterPanelUsage(
   if (snapshot === undefined || (await deps.storedCredential(entry)) !== key)
     throw new Error(UI_TEXT.providerUsageFailed)
   signal?.throwIfAborted()
+  // Exact money at the boundary (M121): the validated snapshot numbers are
+  // canonicalised here, so no numeric money reaches the panel state.
   return {
-    totalUsd: snapshot.usedTotal,
+    totalUsd:
+      snapshot.usedTotal === undefined ? undefined : legacyUsdSchema.parse(snapshot.usedTotal),
     unlimited: snapshot.unlimited,
-    dayUsd: snapshot.usedToday,
-    weekUsd: snapshot.usedThisWeek,
-    monthUsd: snapshot.usedThisMonth,
-    limitUsd: snapshot.limit,
-    remainingUsd: snapshot.remaining,
+    dayUsd: legacyUsdSchema.parse(snapshot.usedToday),
+    weekUsd: legacyUsdSchema.parse(snapshot.usedThisWeek),
+    monthUsd: legacyUsdSchema.parse(snapshot.usedThisMonth),
+    limitUsd: snapshot.limit === undefined ? undefined : legacyUsdSchema.parse(snapshot.limit),
+    remainingUsd:
+      snapshot.remaining === undefined ? undefined : legacyUsdSchema.parse(snapshot.remaining),
   }
 }
 

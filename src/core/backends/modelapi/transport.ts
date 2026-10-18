@@ -4,7 +4,6 @@ import type { PaidQuote, SearchSettlement } from '../../../shared/paid'
 import { Usd, type UsdAmount } from '../../../shared/usd'
 import {
   ModelApiPacing,
-  azureRetryAfterMs,
   metaPacingLimits,
   type PacingClass,
   type PacingProvider,
@@ -24,6 +23,7 @@ import {
   UI_TEXT,
   PROVIDER_HTTP_BODY_MAX_BYTES,
   MODEL_API_STREAM_IDLE_MS,
+  PROVIDER_REQUEST_ID_MAX_CHARS,
   type PaidFeature,
 } from '../../../shared/constants'
 // M95-T: the existing retry/admission loop, shared by Meta and injected codecs.
@@ -36,10 +36,11 @@ interface PaidRequestClaim {
 }
 import type { MediaRequestAccounting } from '../../media/mediaCost'
 import { fill } from '../../../shared/l10n/text'
-import { classifyRetry, RETRY_TABLES } from '../../../shared/retryPolicy'
+import { classifyRetry, RETRY_TABLES, type RetryTables } from '../../../shared/retryPolicy'
 import type { CoreLogger } from '../../logging'
 import {
   describeNetworkFailure,
+  isConnectionFailure,
   type NetworkAdvice,
   networkFailureMessage,
 } from '../../networkFailure'
@@ -47,6 +48,7 @@ import { redactSecrets } from '../../redact'
 import { scrubSecrets, secretRedactor, type SecretScrubPort } from '../../../shared/redact'
 export { redactSecrets } from '../../redact'
 import { errorBodySchema, type StreamEvent } from './schemas'
+import { scrubRefusalLeak } from './providerRefusal'
 import type { UnattendedRun } from '../../schedules/unattended'
 import type { ModelApiClientDeps } from './client'
 
@@ -66,10 +68,7 @@ export interface TransportDeps {
   readonly pacingProvider?: (modelId: string | undefined) => PacingProvider
   readonly paidAuthority?: PaidAuthority
   readonly onServiceFailure?: (status: number, statusUrl: string) => void
-  readonly isRetryableFailure?: (
-    failure: ModelApiError,
-    retryAfterMs: number | undefined,
-  ) => boolean
+  readonly isRetryableFailure?: (failure: ModelApiError) => boolean
   readonly scheduledRun?: () => UnattendedRun | undefined
   readonly fetch: typeof fetch
   readonly baseUrl: string
@@ -78,12 +77,19 @@ export interface TransportDeps {
   /** Required by CodecClient: resolve/recheck against the saved network on every attempt. */
   readonly verifyEndpoint?: (url: string) => Promise<void>
   readonly parseError?: (status: number, body: unknown, headers: Headers) => ModelApiError
-  readonly isTerminalError?: (error: ModelApiError) => boolean
+  /** The preset's own retry table (OPENAI-G20); defaults to the Responses table. */
+  readonly retryTable?: RetryTables
   readonly sleep: (ms: number) => Promise<void>
   readonly now: () => number
   readonly random: () => number
   readonly log: CoreLogger
   readonly networkAdvice?: NetworkAdvice
+  /**
+   * The sentence a send that produced no answer reads as: a configured
+   * provider names itself, the network failure and that whether the request
+   * arrived is unknown. Meta's network advice when absent.
+   */
+  readonly sendFailure?: (error: unknown) => string
 }
 
 /** The stream has already reported its failure; cancellation must not add a second one. */
@@ -164,6 +170,10 @@ export async function readBoundedText(response: Response): Promise<string> {
 }
 
 export class ModelApiError extends Error {
+  /** The provider's request id, when its answer carried one (lane PROVERR). */
+  public requestId: string | undefined
+  /** The answer's parsed `Retry-After`, when it carried one (lane PROVERR). */
+  public retryAfterMs: number | undefined
   public constructor(
     message: string,
     /** HTTP status, or 0 when the request never got a response. */
@@ -234,7 +244,7 @@ export function redactModelApiError(
   redact: (text: string) => string,
   fallbackStatus: number,
 ): ModelApiError {
-  return new ModelApiError(
+  const out = new ModelApiError(
     error instanceof SyntaxError
       ? fill(UI_TEXT.webFetchNetwork, { detail: 'malformed_json' })
       : redact(error instanceof Error ? error.message : String(error)),
@@ -242,6 +252,13 @@ export function redactModelApiError(
     isModelApiError(error) && error.kind !== undefined ? redact(error.kind) : undefined,
     isModelApiError(error) && error.code !== undefined ? redact(error.code) : undefined,
   )
+  // Lane PROVERR: a refusal keeps its request id and wait across the privacy
+  // boundary (both are provider-chosen, never credentials).
+  if (isModelApiError(error)) {
+    out.requestId = error.requestId
+    out.retryAfterMs = error.retryAfterMs
+  }
+  return out
 }
 
 /** Thrown when the key is absent: the caller decides how to prompt. */
@@ -266,6 +283,10 @@ export function isMissingApiKeyError(error: unknown): error is MissingApiKeyErro
 
 const JSON_MEDIA_TYPE = 'application/json'
 const RETRY_AFTER_HEADER = 'retry-after'
+// Azure OpenAI's 429 wait in milliseconds (research azure-openai.md ZB2,
+// https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/quota, read
+// 2026-10-17): read before `Retry-After`, which Azure adds only on PTU.
+const RETRY_AFTER_MS_HEADER = 'retry-after-ms'
 const NETWORK_FAILURE_STATUS = 0
 
 /** The documented error envelope, or the status text when the body is not one. */
@@ -273,42 +294,60 @@ async function describeFailure(
   response: Response,
   parseError: TransportDeps['parseError'],
   redact: (text: string) => string,
+  now: number,
 ): Promise<ModelApiError> {
   let body: unknown
+  let text = ''
   try {
-    body = JSON.parse(await readBoundedText(response), (_key, value: unknown) =>
+    text = await readBoundedText(response)
+    body = JSON.parse(text, (_key, value: unknown) =>
       typeof value === 'string' ? redact(value) : value,
     )
   } catch (error: unknown) {
     if (error instanceof ModelApiError && error.status === NETWORK_FAILURE_STATUS) throw error
     body = undefined
   }
+  // Lane PROVERR: a refusal carries the provider's request id and wait, both
+  // provider-chosen and never credentials.
+  const attach = (failure: ModelApiError): ModelApiError => {
+    const requestId = response.headers.get('request-id') ?? response.headers.get('x-request-id')
+    if (requestId !== null && requestId.trim() !== '')
+      failure.requestId = requestId.trim().slice(0, PROVIDER_REQUEST_ID_MAX_CHARS)
+    failure.retryAfterMs = providerWaitMs(response.headers, now)
+    return failure
+  }
   if (parseError !== undefined) {
     try {
-      return redactModelApiError(
-        parseError(response.status, body, response.headers),
-        redact,
-        response.status,
+      return attach(
+        redactModelApiError(
+          parseError(response.status, body ?? text, response.headers),
+          redact,
+          response.status,
+        ),
       )
     } catch (error: unknown) {
-      return redactModelApiError(error, redact, response.status)
+      return attach(redactModelApiError(error, redact, response.status))
     }
   }
   const parsed = errorBodySchema.safeParse(body)
   if (!parsed.success) {
-    return new ModelApiError(
-      redact(`HTTP ${String(response.status)} ${response.statusText}`.trim()),
-      response.status,
-      undefined,
-      undefined,
+    return attach(
+      new ModelApiError(
+        redact(`HTTP ${String(response.status)} ${response.statusText}`.trim()),
+        response.status,
+        undefined,
+        undefined,
+      ),
     )
   }
   const { error } = parsed.data
-  return new ModelApiError(
-    redact(error.message),
-    response.status,
-    error.type == null ? undefined : redact(error.type),
-    error.code == null ? undefined : redact(error.code),
+  return attach(
+    new ModelApiError(
+      redact(error.message),
+      response.status,
+      error.type == null ? undefined : redact(error.type),
+      error.code == null ? undefined : redact(error.code),
+    ),
   )
 }
 
@@ -329,12 +368,18 @@ export function retryAfterMs(header: string | null, now: number): number | undef
 }
 
 /**
- * The wait a failure asks for: the standard `retry-after` (seconds or an
- * HTTP date) where present, else Azure's integer-millisecond
- * `retry-after-ms` (research §1.2 [AZ5]).
+ * The wait an answer names, in every form a provider uses: `retry-after-ms`
+ * (milliseconds; Azure OpenAI, read before `Retry-After` per research
+ * azure-openai.md ZB2), then `Retry-After` (seconds or an HTTP date).
+ * Honoured as given: no wait of ours shortens or refuses it.
  */
-export function retryWaitMs(headers: Headers, now: number): number | undefined {
-  return retryAfterMs(headers.get(RETRY_AFTER_HEADER), now) ?? azureRetryAfterMs(headers)
+export function providerWaitMs(headers: Headers, now: number): number | undefined {
+  const milliseconds = headers.get(RETRY_AFTER_MS_HEADER)
+  if (milliseconds !== null && milliseconds.trim() !== '') {
+    const value = Number(milliseconds)
+    if (Number.isFinite(value) && value >= 0) return value
+  }
+  return retryAfterMs(headers.get(RETRY_AFTER_HEADER), now)
 }
 
 /** One retry the client is about to make, for the transcript's notice. */
@@ -641,7 +686,12 @@ export class RequestTransport {
     signal.throwIfAborted()
     const response = await this.deps.fetch(`${this.deps.baseUrl}${route}`, init)
     if (!response.ok)
-      throw await describeFailure(response, this.deps.parseError, credentials.redact)
+      throw await describeFailure(
+        response,
+        this.deps.parseError,
+        credentials.redact,
+        this.deps.now(),
+      )
     return response
   }
 
@@ -792,9 +842,12 @@ export class RequestTransport {
   }
 
   public backoffMs(attempt: number, suggestedMs?: number): number {
-    const exponential = Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS)
     const jitter = Math.floor(this.deps.random() * MODEL_API_RETRY_JITTER_MS)
-    return Math.min((suggestedMs ?? exponential) + jitter, MODEL_API_RETRY_MAX_MS)
+    // The provider's own wait is the least it asks for (every provider
+    // documents it so): waited out whole, never shortened to our backoff.
+    if (suggestedMs !== undefined) return suggestedMs + jitter
+    const exponential = Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS)
+    return Math.min(exponential + jitter, MODEL_API_RETRY_MAX_MS)
   }
 
   /**
@@ -1028,8 +1081,8 @@ export class RequestTransport {
       try {
         response = await this.fetchWithIdleDeadline(url, requestInit)
       } catch (error: unknown) {
-        if (error instanceof ModelApiError || signal?.aborted === true) {
-          throw error instanceof ModelApiError
+        if (isModelApiError(error) || signal?.aborted === true) {
+          throw isModelApiError(error)
             ? redactModelApiError(error, credentials.redact, NETWORK_FAILURE_STATUS)
             : new ModelApiError(
                 credentials.redact(error instanceof Error ? error.message : String(error)),
@@ -1038,14 +1091,20 @@ export class RequestTransport {
                 undefined,
               )
         }
-        // Never reached the server: its causes say why, and the message
-        // names the setting or store to check (M56, PLAN.md D43).
+        // A refusal the product raised inside the send (an endpoint pin, a
+        // budget or ledger stop) is no connection failure: it passes on with
+        // its own message and type and is never retried (lane PROVERRORS).
+        if (!isConnectionFailure(error)) throw error
+        // No answer came: its causes say why, and the message names the
+        // setting or store to check (M56, PLAN.md D43), or the provider and
+        // the unknown fate of the send (lane PROVERRORS). A transient send
+        // failure is retried below, as Anthropic documents its SDK doing
+        // ("automatically retries transient failures (such as connection
+        // errors …) with exponential backoff", platform.claude.com/docs/en/
+        // api/errors, read 2026-10-17); the retry notice marks the attempt
+        // ambiguous, since the send may have arrived.
         const reason = credentials.redact(
-          this.deps.auth === undefined
-            ? networkFailureMessage(error, this.deps.networkAdvice)
-            : fill(UI_TEXT.webFetchNetwork, {
-                detail: `${new URL(url).origin}: ${describeNetworkFailure(error).detail}`,
-              }),
+          this.deps.sendFailure?.(error) ?? networkFailureMessage(error, this.deps.networkAdvice),
         )
         if (isRateLimitOnly || attempt >= MODEL_API_MAX_RETRIES) {
           throw new ModelApiError(reason, NETWORK_FAILURE_STATUS, undefined, undefined)
@@ -1062,7 +1121,7 @@ export class RequestTransport {
           account,
           provider.readLimits?.(response.headers),
           response.status === HTTP_TOO_MANY_REQUESTS
-            ? (retryWaitMs(response.headers, this.deps.now()) ??
+            ? (providerWaitMs(response.headers, this.deps.now()) ??
                 Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS))
             : undefined,
           sent,
@@ -1088,7 +1147,12 @@ export class RequestTransport {
           redactContent: secretRedactor(secrets, false),
         }
       }
-      const failure = await describeFailure(response, this.deps.parseError, credentials.redact)
+      const failure = await describeFailure(
+        response,
+        this.deps.parseError,
+        credentials.redact,
+        this.deps.now(),
+      )
       if (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
         admitAttempt?.mediaAccounting?.refused()
       if (
@@ -1097,28 +1161,21 @@ export class RequestTransport {
       ) {
         init.paid.isSent = false
       }
-      const waitMs = retryWaitMs(response.headers, this.deps.now())
-      const decision = classifyRetry(RETRY_TABLES.responses, {
+      // The wait the provider named, in whichever form it used, is waited
+      // out whole before the next try (lane PROVERRORS).
+      const waitMs = failure.retryAfterMs
+      // OPENAI-G20: the preset's own retry table decides, so its override
+      // (e.g. OpenAI's documented retryable `server_error`) is read, not
+      // skipped. The envelope kind/code the parsers carry is what lets a
+      // quota 429 refuse while a bare one retries.
+      const decision = classifyRetry(this.deps.retryTable ?? RETRY_TABLES.responses, {
         status: response.status,
         kind: failure.kind,
         code: failure.code,
         message: failure.message,
-        retryAfterMs: waitMs,
       })
-      if (!decision.retry && decision.reason === 'retry-after-cap') {
-        throw new ModelApiError(
-          fill(UI_TEXT.modelApiRetryAfterTooLong, {
-            wait: Math.ceil((waitMs ?? 0) / MILLISECONDS_PER_SECOND),
-            cap: RETRY_TABLES.responses.retryAfterCapMs / MILLISECONDS_PER_SECOND,
-          }),
-          response.status,
-          failure.kind,
-          failure.code,
-        )
-      }
       const isRetryable =
-        !this.deps.isTerminalError?.(failure) &&
-        (this.deps.isRetryableFailure?.(failure, waitMs) ?? decision.retry) &&
+        (this.deps.isRetryableFailure?.(failure) ?? decision.retry) &&
         (!isRateLimitOnly || response.status === HTTP_TOO_MANY_REQUESTS)
       if (!isRetryable || attempt >= MODEL_API_MAX_RETRIES) {
         if (
@@ -1134,8 +1191,10 @@ export class RequestTransport {
         throw failure
       }
       const delay = this.backoffMs(attempt, waitMs)
+      // The provider's words can carry a masked-key remnant or an account
+      // id (PLAN.md D118): the log file keeps the scrubbed form only.
       this.deps.log.warn(
-        `Model API answered ${String(response.status)} (${failure.message}); retrying in ${String(delay)} ms`,
+        `Model API answered ${String(response.status)} (${scrubRefusalLeak(failure.message)}); retrying in ${String(delay)} ms`,
       )
       if (
         response.status === PROVIDER_RETRY_HTTP_STATUS.gatewayTimeout &&
