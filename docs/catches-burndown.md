@@ -84,6 +84,63 @@ Designed baselines with reasons (accepted, not forgotten):
   caller discards; throwing would lose it. Proved with a real
   maker failure (`nativeCheckout.test.ts`: a blocked folder fails
   the claim with its `EEXIST`).
+- `src/runtime/main.ts` CLI answers (13: schedules fallback, scan
+  usage, legal/exec barriers, history naming, wake refused and
+  unavailable, report probes, key presence, report and crash
+  barriers): a command answers in fixed words with its exit code and
+  never throws past its barrier; the schedule wake reason and the
+  crash line pass the redactor first. The report probes degrade an
+  unreadable file to absent so one bad file never kills the report.
+- `src/runtime/exec/runExec.ts` vault deny, prompt text and result
+  computer (1 SWALLOW + 2 GENERIC): no vault answers as vaultless
+  with fixed words; the prompt failure's text and the result's
+  status travel in the exec result the transport settles; the close
+  failure is always recorded, the latch stays first-cause-wins.
+- `src/runtime/providersCommands.ts` restore, queue tail, busy,
+  warnings and probe answers (3 GENERIC + 1 SWALLOW + 1 CLEANUP): a
+  failed restore or a busy commit answers that it failed; the queue
+  tail settles either way (its failure travels on the commit);
+  advisory warnings degrade to none; the probe answers with its
+  refusal or `unreachable`, never throwing past the command.
+- `src/runtime/chatGptCallback.ts` (2 SWALLOW + 2 GENERIC),
+  `chatGptHost.ts` (2 GENERIC), `chatGptRefreshLock.ts` (1 GENERIC):
+  fixed-vocabulary sign-in errors (the core class carries the code,
+  hosts render their own sentences); the loopback answers 400s for
+  bad requests and the waiter always settles. Proved on a real
+  loopback server (`chatGptCallback.test.ts`, `chatGptHost.test.ts`).
+  The command-level answers share the existing
+  `chatGptProviderCommands.ts` row above.
+- `src/runtime/authCommands.ts` label fallback (1 SWALLOW): an
+  unreadable user file labels the provider with its id, always true.
+- `src/runtime/cliArgs.ts` sharing parse (1 GENERIC): an unbound
+  runner's failure answers `invalid` with its own words; parsing
+  must answer, never serve.
+- `src/runtime/providerPaths.ts` DNS deny (1 SWALLOW) and
+  `windowsTrustedPath.ts` trust walk (1 GENERIC): fail-closed; an
+  unresolvable name or an unreadable step refuses. Proved with a
+  real `.invalid` lookup and a blocked ACL walk
+  (`providerPaths.test.ts`, `windowsTrustedPath.test.ts`).
+- `src/runtime/panel/git/transaction.ts` renew loss (1 SWALLOW):
+  a failed lease renewal marks the transaction lost, which refuses;
+  fail-closed.
+- `src/runtime/exec/execFetch.ts` stream forward (1 GENERIC): a
+  body read failure is forwarded into the wrapped stream the
+  consumer reads; dropping it would hang the consumer.
+- `src/runtime/exec/scanSecrets.ts` scanner refusal (1 GENERIC)
+  and `src/runtime/reportCommand.ts` journal/build/save fallbacks
+  (3 GENERIC): the scanner refuses with usage rather than echoing;
+  the report names each failed stage in fixed words with its exit
+  code. Proved (`scanSecrets.test.ts`, `reportCommand.test.ts`).
+- `src/runtime/namedLock.ts` kill probe (1 GENERIC) and
+  `runtimeAccountingEntry.ts` settings read and estimate fallback
+  (2 GENERIC): only `ESRCH` collects a lock entry (alive or foreign
+  stays); a missing settings file takes the default while a damaged
+  one throws its kind with its cause; Cancel propagates out of
+  counting while other failures estimate.
+- `src/runtime/exec/providerExec.ts` DNS refusal (1 GENERIC): an
+  unanswered name refuses as unreachable with nothing sent, carrying
+  its cause where the gate cannot see positional causes. Proved
+  (`providerExec.test.ts`).
 
 | Folder                 | GENERIC | SWALLOW |
 | ---------------------- | ------- | ------- |

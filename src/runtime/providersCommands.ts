@@ -228,7 +228,7 @@ async function commitProviderChange(
     try {
       await result
     } catch {
-      /* A failed commit must release queued writers. */
+      // A failed commit still releases queued writers: the tail settles either way.
     }
   })()
   providerUpdates.set(deps.readUserFile, tail)
@@ -452,7 +452,10 @@ export async function probeProvider(
         status: result.response.status,
         body: await shared.parseJsonResponse(result, (value) => value),
       }
-    } catch {
+    } catch (error: unknown) {
+      // Only the body parser's redacted failure reads as no body; anything
+      // else is not this probe's answer to give.
+      if (!(error instanceof shared.ModelApiError)) throw error
       return { status: result.response.status, body: undefined }
     }
   }
