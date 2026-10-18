@@ -11,6 +11,7 @@ import {
   type AccountCredential,
   type AccountCredentialVault,
 } from '../../core/providers/accountCredentialRecord'
+import { isRevokeUnsupportedError } from '../../acp/accountText'
 import { registerSecretValue } from '../../core/redact'
 import { ACCOUNT_DEFAULT_ID, MODEL_API_BASE_URL } from '../../shared/constants'
 import { isValidModelApiKey, type SecretStore } from '../auth/credentialStore'
@@ -164,7 +165,10 @@ export class AccountSecrets implements AccountCredentialVault {
       }
       this.available(binding)
       await this.deps.vault.remove(binding)
-    } catch {
+    } catch (error: unknown) {
+      // A refused revocation is the person's answer, not a store outage: it
+      // crosses this boundary instead of becoming a generic unavailable.
+      if (isRevokeUnsupportedError(error)) throw error
       throw new AccountStoreError('unavailable')
     }
   }

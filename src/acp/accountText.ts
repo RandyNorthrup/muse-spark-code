@@ -43,6 +43,30 @@ export function isInvalidProvidersFileError(error: unknown): boolean {
   )
 }
 
+/** Revocation has no provider flow outside VS Code: removing a sign-in
+ * refuses loudly rather than orphan it. Carries the user-facing text,
+ * already filled, so later layers can repeat it instead of reporting a
+ * generic failure. Recognized across bundle boundaries by its brand
+ * rather than its constructor (see the `code` field above). */
+export class RevokeUnsupportedError extends Error {
+  public readonly code = 'revokeUnsupported'
+  public constructor() {
+    super(UI_TEXT.accounts.revokeUnsupported)
+    this.name = 'RevokeUnsupportedError'
+  }
+}
+
+/** A refused revocation, recognized across bundle boundaries by its brand
+ * rather than its constructor (see the `code` field above). */
+export function isRevokeUnsupportedError(error: unknown): error is RevokeUnsupportedError {
+  return (
+    error instanceof Error &&
+    error.name === 'RevokeUnsupportedError' &&
+    'code' in error &&
+    error.code === 'revokeUnsupported'
+  )
+}
+
 /** A store refusal, recognized the same brand-first way (never imported, so
  * this leaf stays out of the store's bundle). */
 function asStoreRefusal(error: Error): { code: string; cause: unknown } | undefined {
@@ -64,6 +88,8 @@ export function accountErrorText(error: unknown): string {
   // A refused providers file names the refusal: the runtime is already on
   // the account service, and the file was left untouched.
   if (isInvalidProvidersFileError(error)) return UI_TEXT.accounts.providersInvalid
+  // A refused revocation names its refusal: removing the sign-in never ran.
+  if (isRevokeUnsupportedError(error)) return UI_TEXT.accounts.revokeUnsupported
   let current: unknown = error
   while (current instanceof Error) {
     if (current.message === UI_TEXT.accounts.invalidAccount) return UI_TEXT.accounts.invalidAccount
@@ -78,32 +104,29 @@ export function accountErrorText(error: unknown): string {
       ].includes(current.message)
     )
       return current.message
+    // A refused revocation nested in a wrapper keeps its refusal.
+    if (isRevokeUnsupportedError(current)) return UI_TEXT.accounts.revokeUnsupported
     const refusal = asStoreRefusal(current)
-    const cause = refusal === undefined ? current.cause : refusal.cause
     if (refusal !== undefined) {
       // A store refusal names its own record: bad ids and unoffered
-      // products keep their sentences, a refusal that kept its cause (an
-      // unreadable providers file keeps its disk error) reports the cause,
-      // and a refusal without detail stays a plain unavailable rather than
-      // inventing a cause from its code word.
+      // products keep their sentences. Any other refusal — including one
+      // that kept its underlying cause — stays on the fixed unavailable
+      // sentence: the cause is raw service text and never crosses the ACP
+      // boundary (PLAN.md FIXM108H).
       if (refusal.code === 'invalidAccount' || refusal.code === 'invalidCredential')
         return UI_TEXT.accounts.invalidAccount
-      if (refusal.code === 'notOffered') return UI_TEXT.accounts.notOffered
-      if (cause === undefined) return UI_TEXT.accounts.unavailable
-    } else if (cause === undefined) {
-      // A raw store, credential-store or disk failure names itself: the
-      // runtime is connected, so the connection sentence would lie. Wrappers
-      // carry the failure as their cause, so the loop above already walked
-      // past the wrapper's own text (usually the connection sentence).
-      return current.message !== '' && current.message !== UI_TEXT.accounts.unavailable
-        ? fill(UI_TEXT.accounts.unavailableReason, { reason: current.message })
+      return refusal.code === 'notOffered'
+        ? UI_TEXT.accounts.notOffered
         : UI_TEXT.accounts.unavailable
     }
-    current = cause
+    // A raw store, credential-store or disk failure stays behind the
+    // boundary on the fixed sentence; the terminal names it on its own
+    // surface instead. Wrappers carry the failure as their cause, so the
+    // loop walks past the wrapper's own text to this same sentence.
+    if (current.cause === undefined) return UI_TEXT.accounts.unavailable
+    current = current.cause
   }
-  return typeof current === 'string' && current !== ''
-    ? fill(UI_TEXT.accounts.unavailableReason, { reason: current })
-    : UI_TEXT.accounts.unavailable
+  return UI_TEXT.accounts.unavailable
 }
 
 export function accountUsageUrl(port: AccountUsagePort, provider: string): string {
