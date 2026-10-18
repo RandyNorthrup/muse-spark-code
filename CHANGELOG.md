@@ -42,15 +42,6 @@ happened, not what was planned; superseded entries are kept.
   each host start probes whether the bubblewrap sandbox can create a user
   namespace here and says so once on every surface, naming the two ways
   out, without ever switching the sandbox off on its own.
-=======
-### Added
-
-- History can delete a conversation for good on the Model API backend: a
-  Delete action on each row asks for confirmation naming the conversation,
-  then removes it from the session store and the list. The same deletion is
-  offered to editors through ACP `session/delete`. On the Muse Code backend
-  no Delete is offered: its CLI serves no `session/delete` from 1.4.4 on
-  (verified on 1.4.10), so there is nothing that could remove the session.
 
 ### Fixed
 
