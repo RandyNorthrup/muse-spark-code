@@ -5,22 +5,30 @@
 
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostBridge } from '../../src/webview/hostBridge'
-import { ModelsApp, ModelsPanel } from '../../src/webview/models/panel'
+import type { ErrorReporter } from '../../src/webview/errorReport'
+import { ModelsApp, ModelsPanel, type ModelsPanelProps } from '../../src/webview/models/panel'
 import { INITIAL_PANEL_UI } from '../../src/webview/models/reducer'
 import { makeState } from './modelsPanelFixtures'
 import { panel } from './helpers/vault/fixtures'
+import { recordCalls } from './helpers/recordCalls'
 
 function panelProps(extra: object = {}): Parameters<typeof ModelsPanel>[0] {
   return {
     panelState: makeState(),
     ui: INITIAL_PANEL_UI,
-    post: vi.fn(),
-    dispatch: vi.fn(),
+    post: () => undefined,
+    dispatch: () => undefined,
     ...extra,
   }
+}
+
+type VaultPost = NonNullable<ModelsPanelProps['vaultPost']>
+function recordVaultPost(): { calls: Parameters<VaultPost>[]; post: VaultPost } {
+  const { calls, fn } = recordCalls<Parameters<VaultPost>>()
+  return { calls, post: fn }
 }
 
 describe('Vault section mount', () => {
@@ -32,7 +40,7 @@ describe('Vault section mount', () => {
   })
 
   it('falls back to the first visible section on a vault deep link while hidden', () => {
-    const dispatch = vi.fn()
+    const { fn: dispatch } = recordCalls<Parameters<ModelsPanelProps['dispatch']>>()
     render(
       <ModelsPanel {...panelProps({ ui: { ...INITIAL_PANEL_UI, section: 'vault' }, dispatch })} />,
     )
@@ -44,8 +52,9 @@ describe('Vault section mount', () => {
   })
 
   it('with the gate forced on, navigates to the vault and asks for its snapshot once', () => {
-    const dispatch = vi.fn()
-    const vaultPost = vi.fn()
+    const { calls: dispatchCalls, fn: dispatch } =
+      recordCalls<Parameters<ModelsPanelProps['dispatch']>>()
+    const { calls: vaultPostCalls, post: vaultPost } = recordVaultPost()
     render(
       <ModelsPanel
         {...panelProps({
@@ -56,14 +65,14 @@ describe('Vault section mount', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.vault.title }))
-    expect(dispatch).toHaveBeenCalledWith({ type: 'navigate', section: 'vault' })
+    expect(dispatchCalls).toEqual([[{ type: 'navigate', section: 'vault' }]])
     // The mount is not rendered yet (providers section is active), so no
     // vault message has been posted.
-    expect(vaultPost).not.toHaveBeenCalled()
+    expect(vaultPostCalls).toEqual([])
   })
 
   it('the mount posts vaultReady once and waits for the host state', () => {
-    const vaultPost = vi.fn()
+    const { calls: vaultPostCalls, post: vaultPost } = recordVaultPost()
     render(
       <ModelsPanel
         {...panelProps({
@@ -73,12 +82,12 @@ describe('Vault section mount', () => {
         })}
       />,
     )
-    expect(vaultPost).toHaveBeenCalledExactlyOnceWith({ type: 'vaultReady' })
+    expect(vaultPostCalls).toEqual([[{ type: 'vaultReady' }]])
     expect(screen.getByText(UI_TEXT.connecting)).toBeInTheDocument()
   })
 
   it('renders the shared surface once the host answers', async () => {
-    const vaultPost = vi.fn()
+    const { post: vaultPost } = recordVaultPost()
     render(
       <ModelsPanel
         {...panelProps({
@@ -99,14 +108,14 @@ describe('Vault section mount', () => {
   })
 
   it('routes vault envelopes without reporting, and still reports garbage', () => {
-    const post = vi.fn<HostBridge['post']>()
+    const { fn: post } = recordCalls<Parameters<HostBridge['post']>>()
     const host: HostBridge = {
       post,
       messages: window,
       savedState: () => undefined,
-      saveState: vi.fn(),
+      saveState: () => undefined,
     }
-    const report = vi.fn()
+    const { calls: reportCalls, fn: report } = recordCalls<Parameters<ErrorReporter>>()
     render(<ModelsApp host={host} report={report} />)
     act(() => {
       window.dispatchEvent(
@@ -122,10 +131,10 @@ describe('Vault section mount', () => {
         }),
       )
     })
-    expect(report).not.toHaveBeenCalled()
+    expect(reportCalls).toEqual([])
     act(() => {
       window.dispatchEvent(new MessageEvent('message', { data: { type: 'nope' } }))
     })
-    expect(report).toHaveBeenCalledWith('hostMessage', expect.any(Error))
+    expect(reportCalls).toEqual([['hostMessage', expect.any(Error)]])
   })
 })

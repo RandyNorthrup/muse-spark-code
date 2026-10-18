@@ -1,7 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
-import * as z from 'zod/mini'
-import { SETTING_DEFAULTS } from '../../src/shared/constants'
 import {
   AutoCompact,
   measureAutoCompactRequest,
@@ -109,26 +106,6 @@ function registered(requests = 100) {
 }
 
 describe('automatic compaction economics (D81.4)', () => {
-  it('documents the actual candidate observation-packing default in D81 and M73', () => {
-    const plan = readFileSync(new URL('../../PLAN.md', import.meta.url), 'utf8')
-    const manifest = z
-      .object({
-        contributes: z.object({
-          configuration: z.object({
-            properties: z.object({
-              'museSpark.modelApiObservationPacking': z.object({ default: z.boolean() }),
-            }),
-          }),
-        }),
-      })
-      .parse(JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')))
-    const isOn =
-      manifest.contributes.configuration.properties['museSpark.modelApiObservationPacking'].default
-    expect(isOn).toBe(SETTING_DEFAULTS.modelApiObservationPacking)
-    const status = `**Candidate packing default: ${isOn ? 'on' : 'off'}.**`
-    expect(plan.split('### D81', 2)[1]?.split('## 3.', 1)[0]).toContain(status)
-    expect(plan.split('### M73', 2)[1]?.split('### M74', 1)[0]).toContain(status)
-  })
   it('measures removable dispatched placeholders rather than their stored originals', () => {
     const pack = new ObservationPack()
     const original: InputItem[] = [

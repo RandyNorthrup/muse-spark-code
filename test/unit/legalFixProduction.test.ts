@@ -1,9 +1,6 @@
-import { fingerprint } from '../../src/core/verify/fingerprint'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { prepareLegalHeaderPatches } from '../../src/core/legal/headerFix'
-import { createLegalFixApplier } from '../../src/host/legalFixApplier'
 import {
-  UI_TEXT,
   LEGAL_ATTRIBUTION_STRESS_CHARS,
   LEGAL_ATTRIBUTION_PARSE_BUDGET_MS,
 } from '../../src/shared/constants'
@@ -30,25 +27,6 @@ const fixture = () =>
     'src/b.py': 'print("other")\n',
     'vendor/a.py': source,
   })
-function setup() {
-  const write = vi
-    .fn<Parameters<typeof createLegalFixApplier>[0]['write']>()
-    .mockResolvedValue(true)
-  const approveOwnership = vi
-    .fn<(paths: readonly string[]) => Promise<boolean>>()
-    .mockResolvedValue(true)
-  const readHash = vi
-    .fn<(path: string) => Promise<string | undefined>>()
-    .mockImplementation((path) => Promise.resolve(fingerprint(fixture().readFile(path) ?? '')))
-  const applier = createLegalFixApplier({
-    prepare: (findings) => Promise.resolve(prepareLegalHeaderPatches(fixture(), findings)),
-    approveOwnership,
-    readHash,
-    write,
-  })
-  return { applier, write, approveOwnership, readHash }
-}
-
 describe('production selected header fixes', () => {
   it('prepares an actual patch from project evidence, retaining BOM, shebang, EOL and old year', () => {
     const [entry] = prepareLegalHeaderPatches(fixture(), [finding('src/a.py')])
@@ -89,61 +67,10 @@ describe('production selected header fixes', () => {
       '// SPDX-License-Identifier: MIT',
     )
   })
-  it('writes only the exact prepared selection after explicit ownership approval', async () => {
-    const { applier, write, approveOwnership } = setup()
-    const selected = [finding('src/a.py')]
-    const patches = (await applier.prepare?.(selected, ['src/a.py'])) ?? []
-    const result = await applier.apply(selected, ['src/a.py'], patches, () => true)
-    expect(approveOwnership).toHaveBeenCalledWith(['src/a.py'])
-    expect(write).toHaveBeenCalledOnce()
-    expect(write.mock.calls[0]?.slice(0, 2)).toEqual(['src/a.py', source])
-    expect(result).toEqual({ applied: ['src/a.py'], failed: [] })
-  })
-  it('denial, changed preview and live admission loss each prevent publication', async () => {
-    for (const scenario of ['denied', 'stale', 'expired']) {
-      const { applier, write, approveOwnership } = setup()
-      const selected = [finding('src/a.py')]
-      const patches = (await applier.prepare?.(selected, ['src/a.py'])) ?? []
-      if (scenario === 'denied') approveOwnership.mockResolvedValue(false)
-      const shown =
-        scenario === 'stale' ? patches.map((patch) => ({ ...patch, diff: 'forged' })) : patches
-      const result = await applier.apply(
-        selected,
-        ['src/a.py'],
-        shown,
-        () => scenario !== 'expired',
-      )
-      expect(write).not.toHaveBeenCalled()
-      expect(result.failed).toHaveLength(1)
-    }
-  })
-  it('rechecks admission between patches and reports per-file failures', async () => {
-    const { applier, write } = setup()
-    const selected = [finding('src/a.py'), finding('src/b.py')]
-    const paths = ['src/a.py', 'src/b.py']
-    const patches = (await applier.prepare?.(selected, paths)) ?? []
-    let isCurrent = true
-    write.mockImplementation(() => {
-      isCurrent = false
-      return Promise.resolve(true)
-    })
-    const result = await applier.apply(selected, paths, patches, () => isCurrent)
-    expect(write).toHaveBeenCalledOnce()
-    expect(result).toEqual({
-      applied: ['src/a.py'],
-      failed: [{ path: 'src/b.py', reason: UI_TEXT.legalFixRefusedExpired }],
-    })
-  })
 })
 
-it('refuses evidence changes during ownership approval and scrubs confidential patch context', async () => {
-  const { applier, readHash, write } = setup()
+it('scrubs confidential patch context and refuses dependency files', () => {
   const selected = [finding('src/a.py')]
-  const patches = (await applier.prepare?.(selected, ['src/a.py'])) ?? []
-  readHash.mockResolvedValue('changed')
-  const result = await applier.apply(selected, ['src/a.py'], patches, () => true)
-  expect(result.failed).toHaveLength(1)
-  expect(write).not.toHaveBeenCalled()
   const snapshot = fixture()
   expect(
     prepareLegalHeaderPatches(

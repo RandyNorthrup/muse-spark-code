@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   BrokerSecretStore,
   type VaultCredentialBindingPort,
@@ -13,26 +13,44 @@ const binding = vaultPrivateReadSchema.parse({
   origin: 'https://example.test',
   client: 'model',
 })
+type Binding = typeof binding
 function setup() {
   const source = Buffer.from(randomBytes(32).toString('hex'))
+  const readCalls: Binding[] = []
+  const deletedKeys: string[] = []
   const bindings: VaultCredentialBindingPort = {
-    resolve: vi.fn(() => Promise.resolve(binding)),
-    store: vi.fn(() => Promise.resolve()),
-    delete: vi.fn(() => Promise.resolve()),
+    resolve: () => Promise.resolve(binding),
+    store: () => Promise.resolve(),
+    delete: (key) => {
+      deletedKeys.push(key)
+      return Promise.resolve()
+    },
   }
-  const reader = { read: vi.fn(() => Promise.resolve(source)) }
-  return { source, bindings, reader, store: new BrokerSecretStore(reader, bindings) }
+  const reader = {
+    read: (request: Binding) => {
+      readCalls.push(request)
+      return Promise.resolve(source)
+    },
+  }
+  return {
+    source,
+    bindings,
+    reader,
+    readCalls,
+    deletedKeys,
+    store: new BrokerSecretStore(reader, bindings),
+  }
 }
 describe('first-party credential adapter', () => {
   it('reads per request and erases the broker buffer after conversion', async () => {
     const fixture = setup(),
       expected = fixture.source.toString('utf8')
     expect(await fixture.store.get('provider-key')).toBe(expected)
-    expect(fixture.reader.read).toHaveBeenCalledWith(binding)
+    expect(fixture.readCalls).toEqual([binding])
     expect(fixture.source.every((byte) => byte === 0)).toBe(true)
     fixture.bindings.resolve = () => Promise.resolve(null)
     expect(await fixture.store.get('missing')).toBeUndefined()
-    expect(fixture.reader.read).toHaveBeenCalledOnce()
+    expect(fixture.readCalls).toHaveLength(1)
   })
   it.each([false, true])(
     'existing entry flow erases transient write bytes even on failure %s',
@@ -52,7 +70,7 @@ describe('first-party credential adapter', () => {
       else await fixture.store.store('provider-key', value)
       expect(held.every((byte) => byte === 0)).toBe(true)
       await fixture.store.delete('provider-key')
-      expect(fixture.bindings.delete).toHaveBeenCalledWith('provider-key')
+      expect(fixture.deletedKeys).toEqual(['provider-key'])
     },
   )
 })

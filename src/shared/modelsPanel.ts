@@ -48,6 +48,7 @@ export const wizardStepSchema = z.enum([
   'confirm',
   'done',
 ])
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export type ModelsWizardStep = z.infer<typeof wizardStepSchema>
 
 /** The wire formats a custom server may speak (lane P's presets fix their own). */
@@ -120,6 +121,7 @@ export const providerKeyUsageSchema = z.strictObject({
   limitUsd: z.optional(legacyUsdSchema),
   remainingUsd: z.optional(legacyUsdSchema),
 })
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export type ProviderKeyUsage = z.infer<typeof providerKeyUsageSchema>
 
 /** One configured provider as the Providers section lists it. */
@@ -228,6 +230,7 @@ export type ScanState = z.infer<typeof scanStateSchema>
 
 /** The suggestion kinds M95 implements (M96 adds role kinds beside them). */
 export const suggestionKindSchema = z.enum(['defaultModel', 'sessionBudget'])
+/** @unwired M95 read only by tests deleted 2026-10-17 (no fakes) */
 export type SuggestionKind = z.infer<typeof suggestionKindSchema>
 
 /** One suggestion with its reason; the panel shows Accept or Change. */
@@ -245,6 +248,7 @@ export const suggestionSchema = z.discriminatedUnion('kind', [
     accepted: z.boolean(),
   }),
 ])
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export type PanelSuggestion = z.infer<typeof suggestionSchema>
 
 /**
@@ -351,6 +355,7 @@ export const importPreviewSchema = z.strictObject({
   ),
   errors: z.array(z.string()),
 })
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export type ImportPreview = z.infer<typeof importPreviewSchema>
 
 /** The host-owned state the panel renders. */
