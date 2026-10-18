@@ -155,4 +155,18 @@ describe('provider key stdin failure sentences (KEYTEXT)', () => {
     input.end('pipe-key\nignored\n')
     await expect(line).resolves.toBe('pipe-key')
   })
+
+  it('reads a valid first line even when later bytes are not text', async () => {
+    const input = new PassThrough()
+    const line = readSecretLine('Key: ', input, new PassThrough())
+    input.end(Buffer.concat([Buffer.from('pipe-key\n', 'utf8'), Buffer.from([0xff, 0xfe])]))
+    await expect(line).resolves.toBe('pipe-key')
+  })
+
+  it('still refuses a first line that is not text', async () => {
+    const input = new PassThrough()
+    const refused = readSecretLine('Key: ', input, new PassThrough())
+    input.end(Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('\npipe-key', 'utf8')]))
+    await expect(refused).rejects.toSatisfy(isNonTextStdin)
+  })
 })

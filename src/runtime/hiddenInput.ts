@@ -16,7 +16,6 @@ const ENTER = new Set(['\r', '\n'])
 const BACKSPACE = new Set(['\u{7F}', '\b'])
 const INTERRUPT = '\u{3}'
 const END_OF_INPUT = '\u{4}'
-const LINE_BREAK = /\r?\n/
 
 /**
  * Piped standard input was not UTF-8 text, so no key line could be read
@@ -59,16 +58,24 @@ function readPipedLine(input: Readable): Promise<string> {
       const bytes = Buffer.concat(pieces)
       for (const piece of pieces) piece.fill(0)
       pieces.length = 0
+      // This reader's contract is the first line, so only the bytes up to
+      // the first LF are validated and decoded; later malformed bytes are
+      // the next reader's problem, never this key's (the exec key reader
+      // already stops at the first LF the same way).
+      const end = bytes.indexOf('\n')
+      const first = end === -1 ? bytes : bytes.subarray(0, end)
       let line: string
       try {
-        line = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+        line = new TextDecoder('utf-8', { fatal: true }).decode(first)
       } catch {
         reject(new NonTextStdinError())
         return
       } finally {
         bytes.fill(0)
       }
-      resolve(line.split(LINE_BREAK, 1)[0] ?? '')
+      // A CR here ended a CRLF line; a trailing CR with no LF stays part
+      // of the value, exactly as the whole-stream decode left it.
+      resolve(end !== -1 && line.endsWith('\r') ? line.slice(0, -1) : line)
     })
     input.once('error', failure)
   })
