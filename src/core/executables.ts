@@ -352,6 +352,19 @@ function brandGuarded(env: NodeJS.ProcessEnv): GuardedChildEnv {
  * and `NoDefaultCurrentDirectoryInExePath=1` on Windows so CreateProcess
  * does not try the working directory before PATH. Nothing else changes.
  */
+/**
+ * The `KEY=value` environment block for a native helper that starts the
+ * payload itself (`CreateProcessW` from its own environment array): only a
+ * guarded child environment serializes, so a raw `request.env` cannot reach
+ * a helper payload. Entries with `undefined` values are dropped, as the
+ * helper's block parser rejects them.
+ */
+export function guardedEnvironmentBlock(env: GuardedChildEnv): string[] {
+  return Object.entries(env).flatMap(([key, value]) =>
+    value === undefined ? [] : [`${key}=${value}`],
+  )
+}
+
 export function workspaceChildEnvironment(
   platform: NodeJS.Platform,
   env: NodeJS.ProcessEnv,

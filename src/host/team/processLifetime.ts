@@ -24,7 +24,8 @@ export function prepareTeamProcess(
 }
 
 import { randomBytes, randomUUID } from 'node:crypto'
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawnGuarded } from '../../core/guardedChildProcess'
 import { existsSync, realpathSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
@@ -37,6 +38,7 @@ import type { TeamJournal } from './teamJournal'
 import { shellJobAssembly, type ShellJobDeps } from '../backend/shellJob'
 import { loadJobAssembly, runProgram, windowsPowerShell } from '../processTree'
 import {
+  guardedEnvironmentBlock,
   noWorkspaceChildEnvironment,
   resolveExecutable,
   workspaceChildEnvironment,
@@ -566,16 +568,15 @@ export async function createNativeTeamProcessDriver(options: {
       // The person's configured command runs with the guarded child PATH
       // for its working directory: a bare name still resolves, but never to
       // a program planted in the workspace.
-      const child = spawn(command, args, {
+      const childEnv = workspaceChildEnvironment(
+        process.platform,
+        { ...probeEnv, ...request.env },
+        { workspaceRoot: request.cwd, realpath: realpathSync },
+      )
+      childEnv['MUSE_SPARK_LAUNCH_ID'] = launchId
+      const child = spawnGuarded(command, args, {
         cwd: request.cwd,
-        env: {
-          ...workspaceChildEnvironment(
-            process.platform,
-            { ...probeEnv, ...request.env },
-            { workspaceRoot: request.cwd, realpath: realpathSync },
-          ),
-          MUSE_SPARK_LAUNCH_ID: launchId,
-        },
+        env: childEnv,
         detached: true,
         stdio: ['pipe', 'pipe', 'pipe', 'pipe'],
       })
@@ -814,6 +815,25 @@ export async function createNativeTeamProcessDriver(options: {
   }
 }
 
+/**
+ * The Windows team payload's whole environment, as the `string[]` block the
+ * native helper hands `CreateProcessW`: the same guarded child environment
+ * the POSIX launch uses for the same payload, so a bare `request.command`
+ * (`npm`, `git`, `node`) never resolves to a program planted in the
+ * workspace, and neither does a helper the payload starts by bare name
+ * (`ssh`, `git-remote-https`). Only a guarded environment serializes
+ * (`guardedEnvironmentBlock`), so a raw `request.env` does not type-check
+ * here.
+ */
+export function windowsTeamPayloadEnvironment(env: NodeJS.ProcessEnv, cwd: string): string[] {
+  return guardedEnvironmentBlock(
+    workspaceChildEnvironment('win32', env, {
+      workspaceRoot: cwd,
+      realpath: realpathSync,
+    }),
+  )
+}
+
 function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDriver {
   return {
     launch(request, launchId, lifecycle = new TeamLaunchLifecycle()) {
@@ -934,14 +954,16 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
       }
       const strings = (values: readonly string[]) =>
         `[string[]]@(${values.map((value) => powerShellQuoted(value)).join(',')})`
-      const environment = Object.entries(request.env).flatMap(([key, value]) =>
-        value === undefined ? [] : [`${key}=${value}`],
-      )
+      // The payload's whole environment: the same guarded child environment
+      // the POSIX launch uses, so a bare `request.command` never resolves to
+      // a program planted in the workspace and neither does anything it
+      // starts by bare name.
+      const environment = windowsTeamPayloadEnvironment(request.env, request.cwd)
       const powershell = windowsPowerShell(systemRoot, request.env)
       // .NET and quoted literals only: ConvertFrom-Json discovers PowerShell
       // modules on a cold runner before the native confirmation clock can fire.
       const script = `${loadJobAssembly(assembly)}; exit [MuseSparkJob]::RunTeam(${powerShellQuoted(request.command)}, ${strings(request.args)}, ${powerShellQuoted(request.cwd)}, ${String(process.pid)}, ${strings(environment)}, ${powerShellQuoted(ownerPipe)}, ${powerShellQuoted(nonce)}, ${powerShellQuoted(statusPipe)}, ${powerShellQuoted(group)}, $${request.priority === 'belowNormal' ? 'true' : 'false'})`
-      const child = spawn(powershell.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], {
+      const child = spawnGuarded(powershell.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], {
         cwd: request.cwd,
         env: workspaceChildEnvironment('win32', powershell.env, {
           workspaceRoot: request.cwd,
