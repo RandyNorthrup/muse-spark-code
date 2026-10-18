@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import {
+  EstimateDiagnosticError,
   estimateFailureText,
   type EstimateDiagnostic,
   type EstimateViewState,
@@ -40,10 +41,10 @@ const runner = (diagnostic: EstimateDiagnostic) => {
     estimate: () => {
       calls += 1
       if (calls === 1) return Promise.resolve(section)
-      // The runner port rejects with the diagnostic object itself, and the
-      // surfaces assert that object flows through unchanged.
-      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
-      return Promise.reject(diagnostic)
+      // The runner port refuses exactly as the production engine does: an
+      // EstimateDiagnosticError carrying the code, which every surface
+      // normalizes back to its installed-language sentence.
+      return Promise.reject(new EstimateDiagnosticError(diagnostic.estimateDiagnostic))
     },
   }
 }

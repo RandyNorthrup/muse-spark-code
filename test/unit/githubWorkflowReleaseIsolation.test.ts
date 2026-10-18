@@ -834,11 +834,11 @@ describe('all source read boundaries preserve admitted facts', () => {
   })
 
   // NOTE (MSM113FIX): the former 'isolates a query exception' cases are
-  // gone. They replaced the reader's query with a throwing function via
-  // vi.spyOn: a stand-in, and unrepresentable through the real reader. The
-  // identical observable (that page's invalidCode, every other row kept) is
-  // still proven for every endpoint by the stream-error fault cases above,
-  // which drive the real transport with an errored body stream.
+  // gone. They swapped the reader's query for a throwing stand-in, which is
+  // unrepresentable through the real reader. The identical observable (that
+  // page's invalidCode, every other row kept) is still proven for every
+  // endpoint by the stream-error fault cases above, which drive the real
+  // transport with an errored body stream.
 })
 
 describe('storage, metadata and request allowance boundaries', () => {
