@@ -1176,6 +1176,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/web/webFetchEntry.ts'), 'dist/webFetch.js'],
   [path.resolve('src/core/backends/modelapi/pluginHooksEntry.ts'), 'dist/pluginHooks.js'],
   [path.resolve('src/host/backend/productionAudioEntry.ts'), 'dist/productionAudio.js'],
+  [path.resolve('src/host/backend/productionMediaEntry.ts'), 'dist/productionMedia.js'],
   [path.resolve('src/runtime/runtimeMediaEntry.ts'), 'dist/runtimeMedia.js'],
   [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
 ])
