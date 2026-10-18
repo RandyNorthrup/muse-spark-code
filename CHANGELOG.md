@@ -48,6 +48,14 @@ happened, not what was planned; superseded entries are kept.
   can no longer fail this version's embedded digests; the helper binary is
   owner-only (0700) as its record states; and this changelog no longer
   repeats thirteen already-released entries under Unreleased.
+- Review (RVMSM9M35, PR #224 threads): a refused recorder kill keeps its
+  ownership until the process really exits; a failed Muse Voice stream
+  returns the button to idle once its capture is released; Allow once for
+  Muse Voice covers one recording, not the window; Linux dictation's
+  reset publishes idle and its dispose returns the helper cleanup
+  promise; CI installs dependencies before the Linux helper pin checker
+  (it imports esbuild) and SHA256SUMS names the released helpers by the
+  basenames they are downloaded under.
 - Muse Voice gives each recording one owner from Start until its end: a queued
   Start keeps the budget scope, consent and context fence it was pressed under
   (rechecked at its turn, refused with the true reason when no longer valid),
@@ -66,7 +74,7 @@ happened, not what was planned; superseded entries are kept.
   settle from the final reported audio duration. The tally shows estimated
   cost and explains that Meta’s invoice cannot be read back; interrupted audio
   keeps its reserved liability. Idle streams with no audio settle zero.
-  Allow once covers the window; workspace Always remains revocable.
+  Allow once covers one recording; workspace Always remains revocable.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
