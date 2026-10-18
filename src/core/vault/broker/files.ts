@@ -133,6 +133,16 @@ export async function vaultExclusiveFile(
     // The physical publication boundary: the crash table parks here.
     await onReady?.()
     await link(temporary, path)
+    try {
+      await unlink(temporary)
+    } catch {
+      /* The complete record is published; a leftover temporary older than a
+         contender's mutex hold is retired by its recovery rule. */
+    }
+    // The temporary is gone before the directory sync, so a concurrent
+    // reader observes the extra link only inside this link/unlink pair
+    // instead of across the whole sync: a publication in flight resolves to
+    // one link before any blocking call yields.
     const directory = await open(pathModule.dirname(path), constants.O_RDONLY)
     try {
       await directory.sync()
@@ -141,12 +151,6 @@ export async function vaultExclusiveFile(
     }
     const identity = await handleIdentity(file)
     await file.close()
-    try {
-      await unlink(temporary)
-    } catch {
-      /* The complete record is published; a leftover temporary older than a
-         contender's mutex hold is retired by its recovery rule. */
-    }
     return async () => {
       if (sameFile(identity, await lstatIdentity(path))) await unlink(path)
     }

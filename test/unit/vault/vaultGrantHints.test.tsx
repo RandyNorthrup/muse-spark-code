@@ -2,7 +2,7 @@
 // RVCM1091D P3 (grant hints): every hint beside a grant-form label is read
 // from the UI tables at use time, never an English literal in the component.
 import { render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { VaultGrantEditor } from '../../../src/webview/models/sections/vault/VaultGrantEditor'
 import { UI_TEXT } from '../../../src/shared/constants'
 import { setUiText } from '../../../src/shared/l10n/text'
@@ -17,8 +17,8 @@ function renderEditor(): { readonly labels: readonly string[] } {
   const { container } = render(
     <VaultGrantEditor
       items={[metadata()]}
-      onSave={vi.fn()}
-      onClose={vi.fn()}
+      onSave={() => undefined}
+      onClose={() => undefined}
       now={() => 1000}
       newId={() => 'e'.repeat(32)}
     />,

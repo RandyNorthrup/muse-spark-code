@@ -1,8 +1,7 @@
 {
   // Unit tests (vitest). Node + DOM libs because webview component tests run
-  // under jsdom; `vscode` resolves to test/mocks/vscode.ts via the vitest alias
-  // and to @types/vscode for type-checking, so mocks are checked against the
-  // real API surface.
+  // under jsdom. No `vscode` module exists outside the editor: a suite whose
+  // code needs the editor API runs in test/integration, inside VS Code.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2024", "ESNext.Array", "DOM", "DOM.Iterable"],

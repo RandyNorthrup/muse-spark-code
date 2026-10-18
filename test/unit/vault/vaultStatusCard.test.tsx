@@ -3,7 +3,7 @@
 // plain localized words, never raw protocol tokens, and every vault action
 // label is Title Case.
 import { render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { VaultSection } from '../../../src/webview/models/sections/vault/VaultSection'
 import { VaultDetails } from '../../../src/webview/models/sections/vault/vaultPresentation'
 import { UI_TEXT } from '../../../src/shared/constants'
@@ -26,7 +26,7 @@ function renderUnlocked(): { container: HTMLElement } {
     itemCount: 1,
     reason: null,
   }
-  const { container } = render(<VaultSection state={state} post={vi.fn()} />)
+  const { container } = render(<VaultSection state={state} post={() => undefined} />)
   return { container }
 }
 
