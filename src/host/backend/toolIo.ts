@@ -1289,7 +1289,7 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
     const stopNoticing =
       run.timeoutMs === undefined
         ? startStillWaiting((elapsedMs) => {
-            run.tree.log(stillWaitingText('the shell command', elapsedMs))
+            run.tree.log(stillWaitingText({ key: 'shellCommand' }, elapsedMs))
           })
         : undefined
     run.limit?.bind(() => {

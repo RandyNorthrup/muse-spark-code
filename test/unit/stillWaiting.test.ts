@@ -1,12 +1,37 @@
 import { describe, expect, it } from 'vitest'
 import { TIMER_MAX_DELAY_MS } from '../../src/shared/constants'
-import { setLongTimeout, startStillWaiting, stillWaitingText } from '../../src/core/timeouts'
+import {
+  setLongTimeout,
+  startStillWaiting,
+  stillWaitingSubjectText,
+  stillWaitingText,
+} from '../../src/core/timeouts'
 
 describe('stillWaitingText (NOLIMITS2)', () => {
   it('names what waits and how long, ending with Stop', () => {
-    const text = stillWaitingText('MCP server "s" startup', 125_000)
+    const text = stillWaitingText({ key: 'mcpServerStartup', name: 's' }, 125_000)
     expect(text).toContain('MCP server "s" startup')
     expect(text).toContain('Stop ends it.')
+  })
+})
+
+describe('stillWaitingSubjectText (PR #214 review)', () => {
+  it('reads every subject from the translated table, never English prose', () => {
+    expect(stillWaitingSubjectText({ key: 'imageRequest' })).toBe('the image request')
+    expect(stillWaitingSubjectText({ key: 'providerAnswer' })).toBe('the provider answer')
+    expect(stillWaitingSubjectText({ key: 'modelReply' })).toBe('the model reply')
+    expect(stillWaitingSubjectText({ key: 'sessionDeletion' })).toBe('session deletion')
+    expect(stillWaitingSubjectText({ key: 'shellCommand' })).toBe('the shell command')
+    expect(stillWaitingSubjectText({ key: 'museServeStarting' })).toBe('muse serve starting')
+    expect(stillWaitingSubjectText({ key: 'mcpServerStartup', name: 's' })).toBe(
+      'MCP server "s" startup',
+    )
+    expect(
+      stillWaitingSubjectText({ key: 'mcpServerRequest', name: 's', method: 'tools/list' }),
+    ).toBe('MCP server "s" tools/list')
+    expect(stillWaitingSubjectText({ key: 'museCodeCommand', method: 'session/read' })).toBe(
+      'Muse Code session/read',
+    )
   })
 })
 

@@ -3258,6 +3258,17 @@
   "stopTaskFailed": "백그라운드 작업을 중지하지 못했습니다",
   "taskNotRunning": "해당 작업은 더 이상 실행 중이 아닙니다",
   "stillWaitingNotice": "{duration} 후에도 {what} 대기 중 — 중지로 종료합니다.",
+  "stillWaitingSubject": {
+    "imageRequest": "이미지 요청",
+    "providerAnswer": "제공자 응답",
+    "modelReply": "모델 응답",
+    "mcpServerStartup": "MCP 서버 \"{name}\" 시작",
+    "mcpServerRequest": "MCP 서버 \"{name}\" {method}",
+    "museCodeCommand": "Muse Code {method}",
+    "sessionDeletion": "세션 삭제",
+    "shellCommand": "셸 명령",
+    "museServeStarting": "muse serve 시작"
+  },
   "userShellLabel": "직접 실행",
   "userShellExitCode": "종료 코드 {code}",
   "userShellExitSignal": "신호 {signal}(으)로 종료됨",

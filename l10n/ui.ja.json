@@ -3258,6 +3258,17 @@
   "stopTaskFailed": "バックグラウンド タスクを停止できませんでした",
   "taskNotRunning": "そのタスクはもう実行されていません",
   "stillWaitingNotice": "{duration}経過後も{what}を待機中 — 「停止」で終了します。",
+  "stillWaitingSubject": {
+    "imageRequest": "画像リクエスト",
+    "providerAnswer": "プロバイダーの応答",
+    "modelReply": "モデルの応答",
+    "mcpServerStartup": "MCPサーバー「{name}」の起動",
+    "mcpServerRequest": "MCPサーバー「{name}」の{method}",
+    "museCodeCommand": "Muse Codeの{method}",
+    "sessionDeletion": "セッションの削除",
+    "shellCommand": "シェルコマンド",
+    "museServeStarting": "muse serveの起動"
+  },
   "userShellLabel": "実行したコマンド",
   "userShellExitCode": "終了コード {code}",
   "userShellExitSignal": "シグナル {signal} で終了",

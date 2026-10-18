@@ -3258,6 +3258,17 @@
   "stopTaskFailed": "無法停止背景工作",
   "taskNotRunning": "該工作已不在執行",
   "stillWaitingNotice": "已等待 {what} 超過 {duration}——「停止」可結束等待。",
+  "stillWaitingSubject": {
+    "imageRequest": "圖片要求",
+    "providerAnswer": "提供方的回應",
+    "modelReply": "模型的回覆",
+    "mcpServerStartup": "MCP 伺服器「{name}」啟動",
+    "mcpServerRequest": "MCP 伺服器「{name}」{method}",
+    "museCodeCommand": "Muse Code {method}",
+    "sessionDeletion": "工作階段刪除",
+    "shellCommand": "shell 指令",
+    "museServeStarting": "muse serve 啟動"
+  },
   "userShellLabel": "您執行了",
   "userShellExitCode": "結束代碼 {code}",
   "userShellExitSignal": "被訊號 {signal} 終止",

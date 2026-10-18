@@ -112,10 +112,39 @@ export function startStillWaiting(
   }
 }
 
+/**
+ * What a still-waiting notice names (PR #214 review): a key into the
+ * translated subject table, never English prose, so a non-English locale
+ * reads the whole notice in its own language. Names the other side chose
+ * (a server, a method) travel as slots.
+ */
+export type StillWaitingSubject =
+  | { readonly key: 'imageRequest' }
+  | { readonly key: 'providerAnswer' }
+  | { readonly key: 'modelReply' }
+  | { readonly key: 'mcpServerStartup'; readonly name: string }
+  | { readonly key: 'mcpServerRequest'; readonly name: string; readonly method: string }
+  | { readonly key: 'museCodeCommand'; readonly method: string }
+  | { readonly key: 'sessionDeletion' }
+  | { readonly key: 'shellCommand' }
+  | { readonly key: 'museServeStarting' }
+
+/**
+ * A notice's subject in the installed language. The subject itself carries
+ * the slots its template names (`fill` leaves the rest alone), so every
+ * key of the union is read and none needs its own branch.
+ */
+export function stillWaitingSubjectText(subject: StillWaitingSubject): string {
+  return fill(UI_TEXT.stillWaitingSubject[subject.key], subject)
+}
+
 /** The person's words for a wait with no deadline: what waits, and how long. */
-export function stillWaitingText(what: string, elapsedMs: number): string {
+export function stillWaitingText(subject: StillWaitingSubject, elapsedMs: number): string {
   const minutes = Math.max(1, Math.round(elapsedMs / MILLISECONDS_PER_SECOND / SECONDS_PER_MINUTE))
-  return fill(UI_TEXT.stillWaitingNotice, { what, duration: formatUnit(minutes, 'minute') })
+  return fill(UI_TEXT.stillWaitingNotice, {
+    what: stillWaitingSubjectText(subject),
+    duration: formatUnit(minutes, 'minute'),
+  })
 }
 
 /** Does nothing: the abort listener until it is made, and a late failure nobody waits for. */

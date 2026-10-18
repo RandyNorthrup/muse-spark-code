@@ -440,7 +440,10 @@ export class McpConnection {
       timeoutMs === undefined
         ? startStillWaiting((elapsedMs) => {
             this.options.log.info(
-              stillWaitingText(`MCP server "${this.options.name}" ${method}`, elapsedMs),
+              stillWaitingText(
+                { key: 'mcpServerRequest', name: this.options.name, method },
+                elapsedMs,
+              ),
             )
           })
         : undefined

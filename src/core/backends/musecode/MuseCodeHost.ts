@@ -813,7 +813,7 @@ async function requestWithin<T>(
   const stopNoticing =
     timeoutMs === undefined
       ? startStillWaiting((elapsedMs) => {
-          channel.log.info(stillWaitingText(`Muse Code ${method}`, elapsedMs))
+          channel.log.info(stillWaitingText({ key: 'museCodeCommand', method }, elapsedMs))
           channel.liveness.stillWaiting(method)
         })
       : undefined
@@ -2582,7 +2582,7 @@ export class MuseCodeHost implements AgentHost {
     // stopped, saying so out loud (owner 2026-10-16); no test names this
     // wait, so it names no deadline at all.
     const stopNoticing = startStillWaiting((elapsedMs) => {
-      this.log.info(stillWaitingText('session deletion', elapsedMs))
+      this.log.info(stillWaitingText({ key: 'sessionDeletion' }, elapsedMs))
     })
     try {
       return await raced

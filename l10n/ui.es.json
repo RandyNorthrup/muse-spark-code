@@ -3390,6 +3390,17 @@
   "stopTaskFailed": "No se pudo detener la tarea en segundo plano",
   "taskNotRunning": "Esa tarea ya no se está ejecutando",
   "stillWaitingNotice": "Sigue esperando {what} después de {duration} — Detener lo termina.",
+  "stillWaitingSubject": {
+    "imageRequest": "la solicitud de imagen",
+    "providerAnswer": "la respuesta del proveedor",
+    "modelReply": "la respuesta del modelo",
+    "mcpServerStartup": "el inicio del servidor MCP \"{name}\"",
+    "mcpServerRequest": "el servidor MCP \"{name}\" {method}",
+    "museCodeCommand": "Muse Code {method}",
+    "sessionDeletion": "la eliminación de la sesión",
+    "shellCommand": "el comando de shell",
+    "museServeStarting": "el inicio de muse serve"
+  },
   "userShellLabel": "Usted ejecutó",
   "userShellExitCode": "Código de salida {code}",
   "userShellExitSignal": "Terminado por la señal {signal}",

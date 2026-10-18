@@ -3955,6 +3955,21 @@ export const EN = {
   stopTaskFailed: 'The background task could not be stopped',
   taskNotRunning: 'That task is not running any more',
   stillWaitingNotice: 'Still waiting: {what} ({duration}). Stop ends it.',
+  // The subjects the still-waiting notices name (PR #214 review): each one
+  // is translated, so a notice never interpolates English prose. The
+  // request and command names ({name}, {method}) stay as the other side
+  // spelled them.
+  stillWaitingSubject: {
+    imageRequest: 'the image request',
+    providerAnswer: 'the provider answer',
+    modelReply: 'the model reply',
+    mcpServerStartup: 'MCP server "{name}" startup',
+    mcpServerRequest: 'MCP server "{name}" {method}',
+    museCodeCommand: 'Muse Code {method}',
+    sessionDeletion: 'session deletion',
+    shellCommand: 'the shell command',
+    museServeStarting: 'muse serve starting',
+  },
   userShellLabel: 'You Ran',
   userShellExitCode: 'Exit code {code}',
   userShellExitSignal: 'Ended by signal {signal}',
