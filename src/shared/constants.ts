@@ -781,7 +781,6 @@ export const PAID_DAILY_BUDGET = {
 export const RUNTIME_SETTINGS_FILE = 'settings.json'
 export const DAILY_BUDGET_LOCK_ATTEMPTS = 100
 export const DAILY_BUDGET_LOCK_WAIT_MS = 10
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
 // D15): they choose what executes, what is billed and how much is approved,
@@ -1423,7 +1422,6 @@ export const MAX_ENCODED_MEDIA_CHARS = 48_000_000
 // answer with a message.
 export const ACP_MESSAGE_HEADROOM_BYTES = 16 * 1024 * 1024
 export const ACP_MAX_MESSAGE_BYTES = MAX_ENCODED_MEDIA_CHARS + ACP_MESSAGE_HEADROOM_BYTES
-export const BASE64_DATA_URL_OVERHEAD_CHARS = 'data:;base64,'.length
 export const BASE64_INPUT_BLOCK_BYTES = 3
 export const BASE64_OUTPUT_BLOCK_CHARS = 4
 export const MAX_TEXT_ATTACHMENT_BYTES = 1024 * 1024
@@ -1727,13 +1725,9 @@ export const GITHUB_OAUTH_CLIENT_ID = 'Ov23liXlNSPBbFyJ0A1z' // gitleaks:allow
 // GitHub's device flow (docs.github.com, "Authorizing OAuth apps", device
 // flow; not re-read in lane A, see docs/certification/m123.md). Only this
 // verification address is ever opened.
-/** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_CODE_URL = 'https://github.com/login/device/code'
-/** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_TOKEN_URL = 'https://github.com/login/oauth/access_token'
-/** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_VERIFICATION_URL = 'https://github.com/login/device'
-/** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code'
 export const GITHUB_REFRESH_GRANT_TYPE = 'refresh_token'
 // A user code as shown to the user: letters, digits and hyphens only, so a
@@ -1763,16 +1757,12 @@ export const GITHUB_AUTH_ACTIONS = ['login', 'logout', 'status'] as const
 export const GH_AUTH_TOKEN_MAX_BYTES = 4096
 export const GH_AUTH_TOKEN_TIMEOUT_MS = 10_000
 // GitHub's defaults when its reply omits them, and the step `slow_down` adds.
-/** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_CODE_EXPIRES_S = 900
-/** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_POLL_INTERVAL_S = 5
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_SLOW_DOWN_STEP_S = 5
 // An editor lease lives at most this long, whatever the editor says.
 export const GITHUB_LEASE_TTL_MS = 15 * 60_000
 // `gh auth token` for github.com only (D104 source c).
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const GH_AUTH_TOKEN_ARGS: readonly string[] = ['auth', 'token', '--hostname', 'github.com']
 // GitHub's own limits on a pull request's title and description.
 export const PULL_REQUEST_TITLE_MAX_CHARS = 256
@@ -3162,7 +3152,6 @@ export const TEAM_NEW_ROLE_CEILING_GROUPS: readonly TeamToolGroup[] = ['read', '
 /** The repository's lowering file (PLAN.md D75): workspace-relative segments. */
 export const TEAM_JSON_SEGMENTS = ['.muse', 'team.json'] as const
 /** An unmerged task keeps its working copy and branch until the user acts; then this offers to discard it.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_UNMERGED_NOTICE_DAYS = 7
 
 /** Each group's plain words for the charter's "You may" line, generated from the one definition. */
@@ -7491,7 +7480,6 @@ export const TEAM_READ_ONLY_REFUSED_OPTIONS = [
   '--exec-path',
 ] as const
 // A role's `when-to-use` and `done` keys fit in this many characters (D75).
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_ROLE_TEXT_MAX_CHARS = 240
 // Each role's base effort, shifted by the intensity level and clamped to the
 // model's tiers (D75's role defaults).
@@ -7596,7 +7584,6 @@ export const TEAM_THROTTLE_HEADROOM_LOW = 0.1
 export const TEAM_THROTTLE_RECOVER_MS = 60_000
 // A subscription's usage-limit refusal with no reset time marks the agent
 // until this passes (D75).
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_USAGE_LIMIT_COOLDOWN_MS = 1_800_000
 
 // Delegation depth: 1, or 2 through a role's `delegates`, never more (D75).
@@ -7615,15 +7602,11 @@ export { TEAM_RUBRIC_REASON_CODES as TEAM_REASON_CODES }
 export type TeamReasonCode = (typeof TEAM_RUBRIC_REASON_CODES)[number]
 // Per-role defaults (D75): tasks per orchestrator turn, minutes per task,
 // the exhausted policy, and `continue on next`.
-/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_TASKS_PER_TURN_DEFAULT = 6
-/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_TASK_MINUTES_DEFAULT = 30
 export const TEAM_EXHAUSTED_POLICIES = ['ask', 'queue', 'self'] as const
 export type TeamExhaustedPolicy = (typeof TEAM_EXHAUSTED_POLICIES)[number]
-/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_EXHAUSTED_DEFAULT: TeamExhaustedPolicy = 'ask'
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 // eslint-disable-next-line unicorn/consistent-boolean-name -- the Team region names every setting default TEAM_<SETTING>_DEFAULT (D75); a boolean prefix would break the scheme lane X reads.
 export const TEAM_CONTINUE_ON_NEXT_DEFAULT = false
 // `queue` waits for headroom until it recovers, however many tasks wait and
@@ -7651,16 +7634,12 @@ export const TEAM_BRIEF_FILES_MAX_BYTES = 65_536
 export const TEAM_COLLECT_PAGE_CHARS = 16_000
 // An attempt's request ceiling: a stall past it is `outOfSteps` (D75).
 // Writers get more; the rest get the default.
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_TASK_MAX_REQUESTS_DEFAULT = 20
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_TASK_MAX_REQUESTS_WRITER = 40
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_TASK_MAX_REQUESTS_WRITER_ROLES = ['engineering', 'qa'] as const
 // A ledger row is written when its task starts, again at each state change,
 // on usage at most this often, and when the task ends, so partial usage
 // survives a crash (D75).
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_LEDGER_FLUSH_MS = 2000
 /** Failed periodic publications retry exponentially, capped at one minute. */
 export const TEAM_LEDGER_RETRY_MAX_MS = 60_000
@@ -7676,22 +7655,18 @@ export const TEAM_SHARED_RESOURCE_DEFAULT_LIMIT = 2
 // Engine workers' shell commands that run at once, per window (D75): half
 // the logical CPUs, at least this. Lane K applies the formula; this floor
 // is the constant part.
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_MAX_CONCURRENT_COMMANDS = 1
 // Every worker of one role and entry shares this cache-key prefix, which no
 // conversation ever uses (D75, SoL-Pi rule 1).
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_PROMPT_CACHE_KEY_PREFIX = 'muse-team'
 // A writing task's branch in the user's repository, and the extension's own
 // `agents/` refs the task's end-of-task commit is fetched into (D75).
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_BRANCH_PREFIX = 'agents/'
 // The fenced block a report arrives in, holding JSON parsed with zod (D75),
 // as M70's `muse-review` is.
 export const TEAM_REPORT_FENCE = 'muse-team-report'
 // Each built-in role's report shape (D75): `summary` by default, `review`
 // for code review (its findings use M70's shape), `qa` for test runs.
-/** @unwired M70 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_ROLE_REPORT_SHAPES = {
   research: 'summary',
   design: 'summary',
@@ -7716,25 +7691,18 @@ export const TEAM_RUBRIC_REASON_CODES = [
   'context_size',
   'long_running',
 ] as const
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export type TeamRubricReason = (typeof TEAM_RUBRIC_REASON_CODES)[number]
 // The machine's daily team budget, bounding every window of the editor as a
 // scope of D78's shared paid ledger (D75). At $0, key tasks never start.
 // The intensity level sets each workspace's own budget beneath it.
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_DAILY_BUDGET_USD = 50
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_DAILY_BUDGET_TOKENS = 25_000_000
 // `museSpark.teamMaxProcessWorkers`' default is the lowest of this, the
 // logical CPUs less this headroom, and the free memory at activation less
 // this reserve divided by this per worker, and never below 1 (D75).
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_MAX_PROCESS_WORKERS = 4
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_PROCESS_WORKERS_CPU_HEADROOM = 2
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_PROCESS_WORKERS_MEM_RESERVE_BYTES = 4 * 1024 * 1024 * 1024
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_PROCESS_WORKERS_MEM_PER_WORKER_BYTES = 1.5 * 1024 * 1024 * 1024
 
 // Lane K's process lifetime, hints and load guard (M96, D75). Every team
@@ -7742,21 +7710,13 @@ export const TEAM_PROCESS_WORKERS_MEM_PER_WORKER_BYTES = 1.5 * 1024 * 1024 * 102
 // container; every launch is journalled before its spawn; windows warn each
 // other through hint files, never locks; the load guard backs every window
 // off when the machine is busy.
-/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_KILL_GRACE_MS = 5000
-/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_HINT_WRITE_MS = 10_000
-/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_HINT_FRESH_MS = 60_000
-/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_LANDING_LOCK_WAIT_MS = 30_000
-/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_LOAD_SAMPLE_MS = 5000
-/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_LOAD_CPU_HIGH = 0.85
-/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_LOAD_WINDOW_MS = 30_000
-/** @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export const TEAM_LOAD_FREE_MEMORY_MIN = 2 * 1024 * 1024 * 1024
 
 // Lane A's durable ledger bounds; all role and provider limits use the shared definitions above.

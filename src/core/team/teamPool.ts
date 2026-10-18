@@ -573,7 +573,6 @@ export type TeamExhaustedAnswer =
  * (room under `concurrent`, a rate limit, a usage-limit cooldown, or a day
  * cap at midnight); a spent `lifetime` cap never recovers, so it asks. An
  * empty pool answers "not staffed" before any policy.
- * @unwired M96 exhausted-pool answer
  */
 export function answerExhausted(
   pool: TeamRolePool,
@@ -643,7 +642,6 @@ export interface QueuedTeamTask {
  * however many wait and however long it takes (NOLIMITS4 C9: no 16-task,
  * 1-hour bounds of ours). Starting a task when headroom frees is the
  * scheduler's (M96c); the queue holds the wait.
- * @unwired M96 team task queue
  */
 export class TeamTaskQueue {
   private readonly tasks: QueuedTeamTask[] = []
