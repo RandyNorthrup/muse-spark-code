@@ -192,4 +192,22 @@ describe('acquireCredentialLock', () => {
     const release = await acquireCredentialLock(lockDir)
     await release()
   })
+
+  it('reclaims a crashed CLI lock instead of wedging every later command', async () => {
+    const base = await freshDir()
+    const file = path.join(base, 'providers.json')
+    const { withUserFileLock } = userFileIo(file)
+    // A CLI killed after its owner write but before its release: the lock
+    // directory survives with a proven-dead owner.
+    await acquireCredentialLock(`${file}.lock`, { pid: DEAD_PID })
+    // The next terminal command reclaims the dead lock and runs inside it
+    // (the old unconditional mkdir failed here with EEXIST indefinitely).
+    const ran: number[] = []
+    const result = await withUserFileLock(() => {
+      ran.push(1)
+      return Promise.resolve(7)
+    })
+    expect(result).toBe(7)
+    expect(ran).toEqual([1])
+  })
 })
