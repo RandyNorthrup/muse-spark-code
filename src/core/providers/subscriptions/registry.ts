@@ -248,7 +248,13 @@ export function chatGptFailureText(code: ChatGptSignInError['code'], reason?: st
   }
 }
 
-async function planRequestError(response: Response): Promise<ChatgptPlanRequestError> {
+/**
+ * The sentence for a refused plan answer, from a real `Response`: OpenAI's
+ * own error message or admission detail where it sent one, the HTTP status
+ * where it sent none, and the standing retry sentence only for the
+ * documented transient (503 / retryable code).
+ */
+export async function planRequestError(response: Response): Promise<ChatgptPlanRequestError> {
   let body: unknown
   try {
     body = await response.json()
@@ -274,8 +280,15 @@ async function planRequestError(response: Response): Promise<ChatgptPlanRequestE
   let detail = ''
   if (envelope.success) detail = envelope.data.error.message
   else if (admission.success) detail = admission.data.detail
+  if (detail === '') {
+    // No words from OpenAI: the HTTP status is the cause, never a generic outage.
+    return new ChatgptPlanRequestError(
+      fill(UI_TEXT.planUi.requestFailed, { message: `HTTP ${String(response.status)}` }),
+      code ?? 'request-failed',
+    )
+  }
   return new ChatgptPlanRequestError(
-    detail === '' ? UI_TEXT.planUi.retry : fill(UI_TEXT.planUi.requestFailed, { message: detail }),
+    fill(UI_TEXT.planUi.requestFailed, { message: detail }),
     code ?? 'request-failed',
   )
 }

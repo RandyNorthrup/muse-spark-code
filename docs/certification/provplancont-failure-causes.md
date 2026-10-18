@@ -15,10 +15,10 @@ The two observed sentences map to these paths. "Now" is this worktree
 | 3   | same                                                                                | host preparation catch (`src/runtime/chatGptHost.ts:139`)                                              | untyped failure opening the lock or reading the host id             | local file/lock problem (`EACCES`, …)                                                                                 | `local-failed` + OS code (fixed in snapshot)                                              |
 | 4   | same                                                                                | OS-store refusal (`src/runtime/chatGptHost.ts:26`, `src/host/providers/chatgptSignIn.ts:267`)          | SecretStorage / Credential Manager refuses get/store                | store down, locked, or size refusal (F14/F78)                                                                         | `store-unavailable` (fixed in snapshot)                                                   |
 | 5   | same                                                                                | `createRuntimeChatGptHost` / VS Code `createChatGptSignIn`                                             | host-id entry corrupt, lock dir unusable, listener bind fails       | `host-id-unreadable`, `lock-unavailable`, `local-failed: listen`                                                      | each its own sentence (fixed in snapshot)                                                 |
-| 6   | same                                                                                | plan refusal, empty/unparseable body (`src/core/providers/subscriptions/registry.ts:277`)              | non-503 refusal with no error envelope and no admission detail      | the HTTP status (e.g. 429/500 with empty body)                                                                        | STILL GENERIC — fix in this lane                                                          |
+| 6   | same                                                                                | plan refusal, empty/unparseable body (`src/core/providers/subscriptions/registry.ts:277`)              | non-503 refusal with no error envelope and no admission detail      | the HTTP status (e.g. 429/500 with empty body)                                                                        | FIXED in this lane (commit below)                                                         |
 | 7   | same                                                                                | plan 503 / documented retry codes (`registry.ts:263`) and retryable stream events (`registry.ts:619`)  | OpenAI answers 503 or a documented retry code                       | OpenAI says try again (`subscription_sharing_usage_unavailable`, …); turn retries bounded                             | correct as-is                                                                             |
 | 8   | `ChatGPT sign-in could not be completed. Try again or remove it and sign in again.` | old `acpChatGpt.failure` catch-all (0.18.2 app lane / `openBrowser` reject, `src/runtime/backends.ts`) | any session-side sign-in failure                                    | grant unreadable, refresh refused (`invalid_grant`), store down, providers file bad                                   | replaced by per-cause sentences (snapshot); `openBrowser` reject is `browser-unavailable` |
-| 9   | `That did not work (the Muse Spark log has the details).`                           | session client file read (`src/runtime/chatGptProviderCommands.ts:62`)                                 | providers file unparseable/invalid when a session builds its client | `unparseable` vs `invalid`                                                                                            | STILL GENERIC — fix in this lane                                                          |
+| 9   | `That did not work (the Muse Spark log has the details).`                           | session client file read (`src/runtime/chatGptProviderCommands.ts:62`)                                 | providers file unparseable/invalid when a session builds its client | `unparseable` vs `invalid`                                                                                            | FIXED in this lane (commit below)                                                         |
 | 10  | same as 9                                                                           | Models panel `fail()` (`src/host/models/modelsPanel.ts:212`)                                           | a NON-`ChatGptSignInError` escapes the ChatGPT flow                 | n/a: sign-in core and both hosts convert everything to typed errors; the generic is the credential-redacting boundary | keep; unreachable for this flow                                                           |
 
 Causes with their own sentence already (each names its cause):
@@ -60,3 +60,33 @@ owner's PC are rows 4/5 (store/lock/listener), `sign-in-required invalid_grant`
 4. Never dump the stored grant or a key: the sentence already says which of
    the above it is. If the sentence is still the retry one, copy it with the
    command and the journal around it — that is the remaining bug.
+
+## Fixes in this lane (commit below)
+
+1. Empty plan refusal names its HTTP status
+   (`src/core/providers/subscriptions/registry.ts`, `planRequestError`,
+   now exported for the test). Proof: `test/unit/chatgptPlanErrors.test.ts`
+   drives the real function with real `Response` objects — HTTP 500 with an
+   empty body reads "The ChatGPT plan request failed: HTTP 500"
+   (failed before the fix with the retry sentence); empty 503 keeps the
+   retry sentence; the captured 400 keeps OpenAI's message.
+2. A session names its unreadable providers file
+   (`src/runtime/chatGptProviderCommands.ts`). Proof:
+   `test/unit/chatGptLocalFailures.test.ts` drives the real command layer
+   with a real corrupt temp file — `unparseable` and `invalid` each read
+   "The providers file could not be read ({reason})" (failed before with
+   "That did not work"). The wrapped Meta client is a tripwire, never
+   consulted; secrets are the real product memory store; PLAN.md §8 holds
+   the cast row.
+3. The packed agent no longer crashes where the account check fails
+   (`src/host/backend/subscriptionsEntry.ts` re-exports `chatGptFailureOf`;
+   the snapshot's `src/runtime/backends.ts` already called it). Proof: the
+   bundle-split gate fired before
+   ("runtimeEngine.js reads chatGptFailureOf from subscriptions.js, which
+   does not export it") and passes after; `dist/subscriptions.js` carries
+   the export.
+4. A garbage host-identifier file in the editor reads as that
+   (`src/host/providers/chatgptHostId.ts`: `invalid-token` →
+   `host-id-unreadable` with the file name). Proof: the snapshot's own
+   `test/unit/chatGptHostId.test.ts` case was red before and passes after;
+   it finishes the half of the snapshot the stopped agent left undone.

@@ -9,6 +9,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Every ChatGPT plan-route failure now names its cause. A plan refusal with
+  no error words from OpenAI said "temporarily unavailable"; it now says
+  "The ChatGPT plan request failed: HTTP {status}". A session whose
+  providers file cannot be read said "That did not work"; it now says which
+  fault (`unparseable`, `invalid`). A garbage host-identifier file in the
+  editor said OpenAI's token answer was malformed; it now says the stored
+  host identifier could not be read. The packed agent also crashed with a
+  `TypeError` instead of the sentence where the account check failed: the
+  account check's failure-text helper was never exported from the
+  subscriptions bundle, and now is.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

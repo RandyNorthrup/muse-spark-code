@@ -1118,7 +1118,8 @@ export const EN = {
     reportContent: 'Report Harmful Content',
     // {description}: the catalogue's own words for the priority tier.
     fastDetail: '{description}. Off by default: it uses more of your plan allowance.',
-    // {message}: OpenAI's own error message for the failed plan request.
+    // {message}: OpenAI's own error message for the failed plan request,
+    // or the HTTP status where it sent none.
     requestFailed: 'The ChatGPT plan request failed: {message}',
     // OpenAI's 403 subscription_sharing_user_not_eligible: retrying or signing in again cannot fix it.
     notEligible:
@@ -5259,10 +5260,12 @@ export const EN = {
     callbackInvalid: 'The browser’s answer did not match this ChatGPT sign-in. Try again.',
     callbackTimeout:
       'No answer from the browser reached this app in time, so the ChatGPT sign-in stopped. Try again.',
-    stateMismatch: 'The browser’s answer belonged to a different ChatGPT sign-in attempt. Try again.',
+    stateMismatch:
+      'The browser’s answer belonged to a different ChatGPT sign-in attempt. Try again.',
     tokenAnswerInvalid:
       'OpenAI’s token answer for this ChatGPT sign-in was not in the documented form. Try again.',
-    idTokenInvalid: 'OpenAI’s identity token for this ChatGPT sign-in could not be verified. Try again.',
+    idTokenInvalid:
+      'OpenAI’s identity token for this ChatGPT sign-in could not be verified. Try again.',
     missingPlanScope:
       'This ChatGPT sign-in does not allow plan use: OpenAI did not grant chatgpt.tokens.use.direct. Remove ChatGPT, sign in again and allow plan use.',
     originMismatch:
@@ -5279,12 +5282,14 @@ export const EN = {
       'The ChatGPT host identifier stored on this computer ({reason}) could not be read, so no ChatGPT sign-in can start. Delete it to start over.',
     // {reason}: the HTTP status and OpenAI's own error code.
     catalogueRefused: 'OpenAI refused the ChatGPT plan’s model list ({reason}).',
-    catalogueUnreadable: 'OpenAI’s model list for this ChatGPT plan was not in the documented form.',
+    catalogueUnreadable:
+      'OpenAI’s model list for this ChatGPT plan was not in the documented form.',
     catalogueEmpty: 'OpenAI lists no model this ChatGPT plan can use in this app.',
     addedModelsUnlisted:
       'None of the ChatGPT models added here is in the plan’s current model list. Remove ChatGPT and add it again to choose from the current list.',
     // {model}: the model reference asked for, as written.
-    modelNotAdded: '{model} is not among the plan models added here. Choose one from the plan’s list.',
+    modelNotAdded:
+      '{model} is not among the plan models added here. Choose one from the plan’s list.',
     // {reason}: the HTTP status, or Node's own network codes.
     requestFailed: 'A request to OpenAI failed ({reason}). Try again.',
     storeUnavailable:

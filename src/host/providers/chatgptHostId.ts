@@ -20,7 +20,8 @@ export async function loadChatGptHostId(directory: string): Promise<string> {
   try {
     const stored = await readFile(file, 'utf8')
     if (isChatGptHostId(stored)) return stored
-    if (!isPkceState(stored)) throw new ChatGptSignInError('invalid-token')
+    // A garbage file is this machine's unreadable host id, never OpenAI's token answer.
+    if (!isPkceState(stored)) throw new ChatGptSignInError('host-id-unreadable', HOST_ID_FILE)
     const migrated = createChatGptHostId()
     await writeFile(file, migrated)
     return migrated

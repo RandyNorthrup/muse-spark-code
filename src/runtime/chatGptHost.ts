@@ -141,9 +141,7 @@ export async function createRuntimeChatGptHost(
     // Preparing the host is local work (lock, store): an untyped failure is
     // this machine's, named by its own code or name.
     const code = error instanceof Error && 'code' in error ? error.code : undefined
-    throw new ChatGptSignInError(
-      'local-failed',
-      typeof code === 'string' ? code : error instanceof Error ? error.name : 'unknown',
-    )
+    const name = error instanceof Error ? error.name : 'unknown'
+    throw new ChatGptSignInError('local-failed', typeof code === 'string' ? code : name)
   }
 }

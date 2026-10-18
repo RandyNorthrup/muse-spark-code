@@ -3,14 +3,21 @@
 // temp folder, the real grant lock and the real failure-text function; the
 // cases below use codes and malformed wire bytes as data, never a store,
 // provider or browser stand-in.
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import type { ProviderClient } from '../../src/core/backends/modelapi/client'
 import { type ChatGptSignInError } from '../../src/core/providers/subscriptions/chatgpt'
 import {
   createResponsesCodec,
   ResponsesDecodeError,
 } from '../../src/core/backends/modelapi/codecs/responses'
 import { chatGptFailureText } from '../../src/core/providers/subscriptions/registry'
-import { chatGptCommandText } from '../../src/runtime/chatGptProviderCommands'
+import {
+  chatGptCommandText,
+  runtimeSubscriptionClient,
+} from '../../src/runtime/chatGptProviderCommands'
+import { memorySecretStoreFor } from '../../src/runtime/exec/keyInput'
 import { UI_TEXT } from '../../src/shared/constants'
 
 /** What a person reads when a command ends in this failure. */
@@ -50,6 +57,50 @@ describe('local causes get their own sentence', () => {
   it('keeps the temporary-outage sentence for what is really OpenAI or the network', () => {
     expect(sentence('request-failed')).toBe(retry)
   })
+
+  it.each([
+    ['{not json', 'unparseable'],
+    ['{"v":0,"providers":[]}', 'invalid'],
+  ])(
+    'a session names its unreadable providers file (%s reads as %s), never a generic failure',
+    async (contents, reason) => {
+      const temp = path.resolve('temp')
+      await mkdir(temp, { recursive: true })
+      const folder = await mkdtemp(path.join(temp, 'm95b-x-providers-'))
+      try {
+        const configFile = path.join(folder, 'providers.json')
+        await writeFile(configFile, contents, 'utf8')
+        const factory = runtimeSubscriptionClient({
+          // The real product memory store, empty: the corrupt file throws
+          // before any secret, browser, network or client is consulted.
+          secrets: memorySecretStoreFor({}),
+          fetch: globalThis.fetch,
+          configFile,
+          openBrowser: () => Promise.reject(new Error('no browser opens on this path')),
+          callbackText: () => '',
+        })
+        // Tripwire, not a stand-in: the unused client below must never be
+        // consulted (the file read throws first), so any access explodes.
+        // The cast is test-only: a Proxy cannot carry the client shape.
+        const untouchedMeta = new Proxy(
+          {},
+          {
+            get() {
+              throw new Error('createClient consulted meta before reading the providers file')
+            },
+          },
+        ) as unknown as ProviderClient
+        const failure = await failureOf(factory.createClient(untouchedMeta))
+        expect(failure).toBeInstanceOf(Error)
+        const message = failure instanceof Error ? failure.message : ''
+        expect(message).toContain(reason)
+        expect(message).toContain('providers file could not be read')
+        expect(message).not.toContain('did not work')
+      } finally {
+        await rm(folder, { recursive: true, force: true })
+      }
+    },
+  )
 
   it('tells this app’s own refusal to build the request from what the provider streamed', async () => {
     const codec = createResponsesCodec({

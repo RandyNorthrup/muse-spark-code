@@ -59,7 +59,9 @@ export function runtimeSubscriptionClient(
         const result = await readProvidersFile(options.configFile)
         if (result.ok) return result.file
         if (result.reason === 'missing') return emptyProvidersFile()
-        throw new Error(UI_TEXT.actionFailed)
+        // A session reads its cause here, not through the command layer:
+        // the file's own fault, never a generic failure.
+        throw new Error(chatGptFailureText('providers-file-unreadable', result.reason))
       }
       const file = await read()
       const subscribed = file.providers.some((entry) => entry.id === 'chatgpt')
