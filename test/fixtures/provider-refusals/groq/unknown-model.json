@@ -1,0 +1,29 @@
+{
+  "id": "unknown-model",
+  "provider": "groq",
+  "sentAt": "2026-10-13T01:28:27.468Z",
+  "method": "POST",
+  "url": "https://api.groq.com/openai/v1/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "model": "no-such-model-real-life",
+    "max_tokens": 16,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with the one word OK."
+      }
+    ]
+  },
+  "status": 404,
+  "responseHeaders": {
+    "x-request-id": "req_01m4se04vaekg81z051cdmrpga"
+  },
+  "response": {
+    "error": {
+      "message": "The model `no-such-model-real-life` does not exist or you do not have access to it.",
+      "type": "invalid_request_error",
+      "code": "model_not_found"
+    }
+  }
+}

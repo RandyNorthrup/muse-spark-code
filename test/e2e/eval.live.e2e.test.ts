@@ -45,16 +45,14 @@ import { runPairedEval, type EvalArm } from '../../src/core/eval/runner'
 import { EVAL_TASKS } from '../../src/core/eval/tasks'
 import { fileContextIo } from '../../src/host/backend/contextIo'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
-import { createLogger } from '../../src/host/logger'
+import { stderrLogger } from '../../src/runtime/stderrLog'
 import { liveFetch } from '../../src/host/networkPosture'
 import {
   EVAL_REPORT_VERSION,
   MODEL_API_BASE_URL,
   SEARCH_WORKER_FILE,
 } from '../../src/shared/constants'
-import { FakeLogOutputChannel } from '../unit/helpers/fakes'
 import { readJobSource } from '../unit/helpers/jobSource'
-import { logLines } from '../unit/helpers/logText'
 import { filesUnder, removeFolder } from '../unit/helpers/temporaryFolders'
 import {
   assertNoLiveKeyEnvironment,
@@ -93,8 +91,11 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
       const { tasks, reportPath } = liveEvalSelection(process.env, IS_ENABLED)
       expect(existsSync(SEARCH_WORKER) ? 'built' : 'run npm run build:dev first').toBe('built')
       const credentials = await loadEvalLiveCredentials(IS_ENABLED)
-      const channel = new FakeLogOutputChannel()
-      const log = createLogger(channel)
+      // The agent's own logger (src/runtime/stderrLog.ts), its lines kept here.
+      const logged: string[] = []
+      const log = stderrLogger((line) => {
+        logged.push(line)
+      }, 'trace')
       const leaks: string[] = []
       // Each Windows command in a job object of its own (M27), as in activate;
       // the helper is compiled once for the run, outside every task's folder.
@@ -155,7 +156,7 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
       // written, so neither artifact says pass for a run that never packed.
       const report = withPackingEngagement(result, OBSERVATION_PACKING_ARM.name, tasks)
       const markdown = formatEvalReportMarkdown(report)
-      if (logLines(channel).some((line) => credentials.contains(line))) {
+      if (logged.some((line) => credentials.contains(line))) {
         leaks.push('the log')
       }
       if (credentials.contains(`${formatEvalReportJson(report)}${markdown}`)) {
