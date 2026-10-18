@@ -6003,9 +6003,18 @@ export class ModelApiSession implements ScheduledAgentSession {
         }
         // Lane RETRYLIMITS: the selected model's own retry limit (the
         // provider's documented maximum, or the person's setting when set;
-        // unbounded when neither sets one, so the provider governs).
-        const { client } = this.selectedModel()
-        const allowed = client.maxRetries()
+        // unbounded when neither sets one, so the provider governs). A
+        // failure to resolve the model here (it can be the very failure
+        // being handled, before any send) must never mask the original
+        // error, so it rethrows that error instead (review RVRETRYLIMITS).
+        let client: ResolvedModel['client']
+        let allowed: number | undefined
+        try {
+          client = this.selectedModel().client
+          allowed = client.maxRetries()
+        } catch {
+          throw error
+        }
         if (
           !hasRecoveredMedia &&
           !signal.aborted &&
