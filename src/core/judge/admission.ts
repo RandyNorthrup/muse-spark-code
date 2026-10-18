@@ -149,8 +149,10 @@ export interface JudgeLedgerClaim {
 /**
  * D78's daily limit as lane A requires it (D121): `undefined` from either
  * method when the person set no daily limit, so nothing is checked or
- * recorded. A method throws JudgeLedgerError (or a ledger error this module
- * wraps) on an unreadable store or any other fault: admission then refuses.
+ * recorded. A method throws JudgeLedgerError on an unreadable store or any
+ * other ledger fault, and admission refuses it; a paid stop passes through,
+ * and any other failure is wrapped with its cause and rethrown, never
+ * refused as unavailable.
  */
 export interface JudgeDailyLedger {
   remainingUsd(): Promise<UsdAmount | undefined>
