@@ -1097,10 +1097,9 @@ async function formatWritten(
   let formatted: string | undefined
   try {
     formatted = await formatter?.format(target, written)
-  } catch (error: unknown) {
-    formatter?.warn(
-      `Format on edit failed; the edit stays as written: ${error instanceof Error ? error.message : String(error)}`,
-    )
+  } catch {
+    // The record names the outcome, never the formatter failure's text.
+    formatter?.warn('Format on edit failed; the edit stays as written')
     return written
   }
   if (formatter === undefined || formatted === undefined || formatted === written) {
@@ -1137,10 +1136,9 @@ async function formatWritten(
       )
       return written
     }
-  } catch (error: unknown) {
-    formatter.warn(
-      `Format on edit could not write ${target.relative}; the edit stays as written: ${error instanceof Error ? error.message : String(error)}`,
-    )
+  } catch {
+    // The record names the file and the outcome, never the failure's text.
+    formatter.warn(`Format on edit could not write ${target.relative}; the edit stays as written`)
     return written
   }
   return formatted
@@ -2112,7 +2110,8 @@ export async function executeTool(
   let raw: unknown
   try {
     raw = JSON.parse(argsJson)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return failure('arguments are not valid JSON')
   }
   switch (name) {
@@ -2168,7 +2167,8 @@ export function parseQuestions(argsJson: string): readonly Question[] | string {
     return parsed.success
       ? parsed.data.questions
       : `invalid arguments: ${z.prettifyError(parsed.error)}`
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return 'arguments are not valid JSON'
   }
 }

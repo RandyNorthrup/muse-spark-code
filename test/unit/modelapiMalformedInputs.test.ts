@@ -14,6 +14,7 @@ import { jsonOutput } from '../../src/core/backends/modelapi/hookFormats/core'
 import { functionParameters } from '../../src/core/backends/modelapi/mcp/functions'
 import { placeMemoryCall } from '../../src/core/backends/modelapi/memoryTools'
 import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
+import { parseQuestions } from '../../src/core/backends/modelapi/tools'
 import {
   isExtensionMatch,
   parseExtensionHookAnswer,
@@ -312,6 +313,12 @@ describe('extension hook configuration and answers', () => {
       ),
     ).toBe(false)
     expect(warnings[0]!).toContain('is invalid')
+  })
+})
+
+describe('ask_user questions that are not JSON', () => {
+  it('refuses instead of asking nothing', () => {
+    expect(parseQuestions('{oops')).toBe('arguments are not valid JSON')
   })
 })
 
