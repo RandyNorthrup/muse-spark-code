@@ -445,7 +445,8 @@ so it does not claim deletion or forget ownership without its resource owner.
 - **The paid features (off unless you turn them on).** Each is billed to
   your Model API key, never to your Muse Code subscription, and each asks
   you to accept its price when you turn it on, then asks again in a popup
-  before each use (web search once per prompt): Allow once, Allow always in
+  before each use (web search once per prompt; Muse Voice once before the
+  first recording in a window): Allow once, Allow always in
   this workspace (a trusted workspace with a folder open only), or Deny.
   These five, and the Auto reviewer and best-of-N, work on the Model
   API backend; image generation and Muse Voice also work on the Muse Code
