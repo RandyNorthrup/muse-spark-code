@@ -54,7 +54,14 @@ function hold(session: AgentSession, host: AgentHost): ReviewHold {
     session,
     host: () => Promise.resolve(host),
     modelId: 'model',
-    request: { scope: 'uncommitted', focus: 'general' },
+    request: {
+      userRequest: undefined,
+      recentCalls: [],
+      tool: 'bash',
+      action: '{}',
+      workspaceRoot: '',
+      platform: process.platform,
+    },
   }
 }
 
