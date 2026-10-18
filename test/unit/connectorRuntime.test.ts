@@ -12,8 +12,8 @@ import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { afterEach, describe, expect, it } from 'vitest'
 import { CONNECTOR_LIMITS, CONNECTOR_SCHEMA_VERSION } from '../../src/shared/constants'
-import type { ConnectorGrant } from '../../src/shared/connector'
-import { SharedLimits } from '../../src/core/connector/policy'
+import { Operation, OperationTable, type OperationEnv } from '../../src/core/connector/operations'
+import { refusal } from '../../src/core/connector/policy'
 import { parseConnectorCommand, runConnectorCommand } from '../../src/runtime/connector/command'
 import { ConnectorStore } from '../../src/runtime/connector/store'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -37,23 +37,16 @@ async function folder(): Promise<string> {
   return created
 }
 
-/** A valid grant of `generation` for the default connection. */
-function savedGrant(generation: number): ConnectorGrant {
-  return {
-    schemaVersion: CONNECTOR_SCHEMA_VERSION,
-    connectionId: 'default',
-    generation,
-    createdAt: '2026-10-09T00:00:00.000Z',
-    revoked: false,
-    scopes: ['prompts:read'],
-    userLibrary: true,
-    paidCapMicrousd: 0,
-    workspaces: [],
-  }
+/**
+ * A staged operation's world: nothing ever stops it, every receipt sticks.
+ * Real `Operation` instances through the real table, never a stand-in.
+ */
+const operationEnv: OperationEnv = {
+  now: Date.now,
+  stopCause: () => undefined,
+  journal: () => Promise.resolve(true),
+  refusalOf: () => refusal('unavailable', 'stop'),
 }
-
-/** A clock that never moves: limits spent stay spent. */
-const fixedNow = () => Date.parse('2026-10-09T12:00:00.000Z')
 
 describe('M124 owner-only store and commands', () => {
   it('grants nothing without a grant, fails the kill switch closed and keeps the audit bounded', async () => {
@@ -90,10 +83,50 @@ describe('M124 owner-only store and commands', () => {
       )
   })
 
+  it('rolls the audit over an existing older segment (Windows rename)', async () => {
+    const data = await folder()
+    const store = new ConnectorStore(data)
+    const audit = store.audit('default', Date.now)
+    await audit.append('{"a":1}\n')
+    // A first rollover leaves an older segment behind.
+    await audit.append(`${'x'.repeat(CONNECTOR_LIMITS.auditSegmentBytes)}\n`)
+    const dir = path.join(data, 'connector', 'audit')
+    expect(await readFile(path.join(dir, 'default.1.jsonl'), 'utf8')).toBe('{"a":1}\n')
+    // A second rollover while that segment still exists must still land: on
+    // Windows rename does not replace, so the store clears it first (Codex
+    // on PR #227; Linux replaces, so this also locks the double-rollover
+    // order here).
+    await audit.append(`${'y'.repeat(CONNECTOR_LIMITS.auditSegmentBytes)}\n`)
+    const older = await readFile(path.join(dir, 'default.1.jsonl'), 'utf8')
+    expect(older).toContain('xxx')
+    expect(older).not.toContain('yyy')
+    const live = await readFile(path.join(dir, 'default.jsonl'), 'utf8')
+    expect(live).toContain('yyy')
+    expect(live).not.toContain('xxx')
+  })
+
   it('keeps the live authority current: another process’s revocation is seen (round 4 P1)', async () => {
     const data = await folder()
     const store = new ConnectorStore(data)
-    await store.saveGrant(savedGrant(1))
+    const printed: string[] = []
+    const io = {
+      isInteractive: true,
+      now: Date.now,
+      print: (line: string) => {
+        printed.push(line)
+      },
+      printError: (line: string) => {
+        printed.push(line)
+      },
+      confirm: () => Promise.resolve(true),
+    }
+    // The grant on disk is the owner's real command output, never a staged
+    // object: parsed from real words, run through the real command, read by
+    // the real store (Codex on PR #227 P1).
+    const grant = parseConnectorCommand(['grant', '--workspace', data])
+    if (grant?.kind !== 'grant') throw new Error('grant parse')
+    expect(await runConnectorCommand(store, grant, io)).toBe(0)
+    expect(printed.join('\n')).toContain('default')
     const authority = store.authority('default')
     // Switched off until its first reading (fail closed).
     expect(authority.current()).toEqual({ grant: undefined, killed: true })
@@ -105,7 +138,13 @@ describe('M124 owner-only store and commands', () => {
       await authority.refresh()
       expect(authority.current()).toMatchObject({ killed: false, grant: { generation: 1 } })
       // The owner's `mcp revoke`, in another process, rewrites the grant: the watch reads it.
-      await new ConnectorStore(data).saveGrant({ ...savedGrant(2), revoked: true })
+      expect(
+        await runConnectorCommand(
+          new ConnectorStore(data),
+          { kind: 'revoke', connectionId: 'default' },
+          io,
+        ),
+      ).toBe(0)
       // The watch may take a moment to deliver: read until it has, within 3 seconds.
       const deadline = Date.now() + 3000
       while (authority.current().grant?.revoked !== true && Date.now() < deadline) await sleep(25)
@@ -121,20 +160,28 @@ describe('M124 owner-only store and commands', () => {
   // no real file staging can hold one reading open, so the case is covered
   // only by the store's reading-number drop in authority() itself.
 
-  it('keeps the limits of one grant across server processes and restarts (RVM124 P2-7)', async () => {
-    const data = await folder()
-    // Two stores on one folder stand for two server processes: no memory is shared.
-    // A fixed clock: no token refills while twenty updates take turns at the lock.
-    const first = new SharedLimits(new ConnectorStore(data).limits('default'), fixedNow)
-    const second = new SharedLimits(new ConnectorStore(data).limits('default'), fixedNow)
-    const taken = await Promise.all(
-      Array.from({ length: 2 * CONNECTOR_LIMITS.burst }, (_, index) =>
-        (index % 2 === 0 ? first : second).take(),
-      ),
-    )
-    expect(taken.filter(Boolean)).toHaveLength(CONNECTOR_LIMITS.burst)
-    const restarted = new SharedLimits(new ConnectorStore(data).limits('default'), fixedNow)
-    expect(await restarted.take()).toBe(false)
+  it('keeps no fixed call budget: settled history evicts, only all-live work refuses (Codex on PR #227 P1)', () => {
+    const table = new OperationTable()
+    // More finished writes than the table keeps: every claim lands by
+    // evicting settled history, so no count of past calls ever refuses a new one.
+    for (let index = 0; index < CONNECTOR_LIMITS.operationsKept + 10; index += 1) {
+      const finished = new Operation(`finished-${String(index)}`, undefined, operationEnv)
+      expect(table.claim(finished, `finished-${String(index)}`, 'digest').kind).toBe('new')
+      finished.refuse(refusal('denied', 'settled'))
+    }
+    // Full of live work, the table refuses rather than forgetting it (operations.ts).
+    const live = new OperationTable()
+    for (let index = 0; index < CONNECTOR_LIMITS.operationsKept; index += 1)
+      expect(
+        live.claim(
+          new Operation(`live-${String(index)}`, undefined, operationEnv),
+          `live-${String(index)}`,
+          'digest',
+        ).kind,
+      ).toBe('new')
+    expect(
+      live.claim(new Operation('live-extra', undefined, operationEnv), 'live-extra', 'digest').kind,
+    ).toBe('full')
   })
 
   it('parses only its own words and needs a terminal confirmation to widen authority', async () => {
