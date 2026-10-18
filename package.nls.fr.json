@@ -230,7 +230,7 @@
   "config.accounts.severalOnThisDevice.description": "Conservée pour la compatibilité ; cette préférence est sans effet dans cette version.",
   "command.vault.title": "Coffre-fort",
   "command.lockVault.title": "Verrouiller le coffre-fort maintenant",
-  "config.vault.description": "Conservée pour la compatibilité ; cette préférence est sans effet dans cette version.",
+  "config.vault.enabled.description": "Active ou désactive le coffre d’identifiants personnel. Une valeur existante de l’option museSpark.vault reste en vigueur jusqu’à ce que ce paramètre soit configuré.",
   "config.vault.protection.description": "Conservée pour la compatibilité ; cette préférence est sans effet dans cette version.",
   "config.vault.agentFence.description": "Contrôle l’isolation des identifiants pour les commandes shell interactives de Model API. La vérification, les planifications, les workers et les hooks restent isolés.",
   "config.vault.lockAfterIdleMinutes.description": "Conservée pour la compatibilité ; cette préférence est sans effet dans cette version.",

@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { VAULT_PROTOCOL_VERSION, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
 import { vaultBrokerLockSchema } from '../../../shared/vaultProtocol'
 import { UnixVaultPrivateFiles, isVaultFileMissing, type VaultPrivateFilesPort } from './files'
-import { type VaultProcessIdentity } from './peer'
+import type { VaultProcessIdentity } from './peer'
 
 export interface VaultBrokerLocation {
   lock: ReturnType<typeof vaultBrokerLockSchema.parse>
@@ -23,6 +23,13 @@ export class VaultBrokerDiscovery {
     this.directory = path.join(runDirectory, `broker-v${String(VAULT_PROTOCOL_VERSION)}-${session}`)
     this.lockPath = path.join(this.directory, 'broker.lock')
     this.tokenPath = path.join(this.directory, 'boot-token')
+  }
+  /** The published claim files, for a starter retiring a provably dead holder. */
+  get lockFile(): string {
+    return this.lockPath
+  }
+  get tokenFile(): string {
+    return this.tokenPath
   }
   async discover(
     identity: (pid: number) => Promise<VaultProcessIdentity>,

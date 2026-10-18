@@ -230,7 +230,7 @@
   "config.accounts.severalOnThisDevice.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",
   "command.vault.title": "保管庫",
   "command.lockVault.title": "今すぐ保管庫をロック",
-  "config.vault.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",
+  "config.vault.enabled.description": "ユーザーごとの認証情報の保管庫をオンまたはオフにします。保存済みの古い museSpark.vault 値は、この設定が構成されるまで適用されます。",
   "config.vault.protection.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",
   "config.vault.agentFence.description": "インタラクティブなModel APIシェルコマンドの認証情報保護を制御します。検証、スケジュール、ワーカー、フックは保護されたままです。",
   "config.vault.lockAfterIdleMinutes.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",

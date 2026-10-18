@@ -123,6 +123,7 @@ export async function restoreEncryptedBackup(
   bytes: Uint8Array,
   maxBytes: number,
   isConfirmed = false,
+  recovery?: string,
 ): Promise<VaultStore> {
   if (!isConfirmed) throw new VaultError('invalid')
   const backup = parseBackup(bytes, maxBytes)
@@ -158,7 +159,7 @@ export async function restoreEncryptedBackup(
       document.data.generation !== backup.generation
     )
       throw new VaultError('invalid')
-    return await VaultStore.restore(options, shape.data, [backup.slot], isConfirmed)
+    return await VaultStore.restore(options, shape.data, [backup.slot], isConfirmed, recovery)
   } catch (error) {
     // A restore failure reads invalid either way, but the cause stays on
     // the error for the caller (D119).

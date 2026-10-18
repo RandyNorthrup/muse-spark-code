@@ -803,8 +803,9 @@
     {
       "id": "M109",
       "title": "Credential vault for agents",
-      "summary": "Credential vault for agents is in progress.",
-      "area": "security"
+      "summary": "A credential vault gives agents approved, logged uses through session-owned POSIX brokers: setup, home imports, confirmed reset with damaged-document retention, a crash-recoverable writer lease, and a mounted panel with window commands.",
+      "area": "security",
+      "release": "0.17.0"
     },
     {
       "id": "M110",
@@ -905,6 +906,11 @@
       "id": "BADGEFIX",
       "public": false,
       "note": "store badge accuracy"
+    },
+    {
+      "id": "BCSTART",
+      "public": false,
+      "note": "browser check start on Windows (CI repair)"
     },
     {
       "id": "CI0150A",

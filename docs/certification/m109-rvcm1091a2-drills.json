@@ -1,0 +1,95 @@
+{
+  "rig": "kubuntu",
+  "results": [
+    {
+      "id": "A2-1 no unlock after a Lock overtook the confirmation",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/rvcm1091a2.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 5 passed (6)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a2.test.ts > RVCM1091A2 > P2: a Lock after the vault is written leaves it locked, never unlocked"
+      ],
+      "sha256": {
+        "before": "db9245f34ec10802f47ed4d6a55205debe149f96d783fa31f2af4fbf4e56d39b",
+        "after": "db9245f34ec10802f47ed4d6a55205debe149f96d783fa31f2af4fbf4e56d39b",
+        "restored": true
+      }
+    },
+    {
+      "id": "A2-2 no vault created after a Lock during the wrap",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/rvcm1091a2.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 5 passed (6)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a2.test.ts > RVCM1091A2 > P2: a Lock during the wrap of I Saved It creates no vault and unlocks nothing"
+      ],
+      "sha256": {
+        "before": "db9245f34ec10802f47ed4d6a55205debe149f96d783fa31f2af4fbf4e56d39b",
+        "after": "db9245f34ec10802f47ed4d6a55205debe149f96d783fa31f2af4fbf4e56d39b",
+        "restored": true
+      }
+    },
+    {
+      "id": "A2-3 recovery stops at the await after a Lock",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/rvcm1091a2.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 5 passed (6)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a2.test.ts > RVCM1091A2 > P2: a Lock during recovery offers no key and unlocks nothing"
+      ],
+      "sha256": {
+        "before": "db9245f34ec10802f47ed4d6a55205debe149f96d783fa31f2af4fbf4e56d39b",
+        "after": "db9245f34ec10802f47ed4d6a55205debe149f96d783fa31f2af4fbf4e56d39b",
+        "restored": true
+      }
+    },
+    {
+      "id": "A2-4 a Lock withdraws the reset challenge",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/rvcm1091a2.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 5 passed (6)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a2.test.ts > RVCM1091A2 > P2: a Lock between the two reset steps withdraws the challenge"
+      ],
+      "sha256": {
+        "before": "db9245f34ec10802f47ed4d6a55205debe149f96d783fa31f2af4fbf4e56d39b",
+        "after": "db9245f34ec10802f47ed4d6a55205debe149f96d783fa31f2af4fbf4e56d39b",
+        "restored": true
+      }
+    },
+    {
+      "id": "A2-5 an import overtaken by a Lock commits nothing",
+      "file": "src/core/vault/broker/management.ts",
+      "test": "test/unit/vault/rvcm1091a2.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 5 passed (6)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a2.test.ts > RVCM1091A2 > P2: a Lock during an import commits nothing"
+      ],
+      "sha256": {
+        "before": "db9245f34ec10802f47ed4d6a55205debe149f96d783fa31f2af4fbf4e56d39b",
+        "after": "db9245f34ec10802f47ed4d6a55205debe149f96d783fa31f2af4fbf4e56d39b",
+        "restored": true
+      }
+    },
+    {
+      "id": "A2-6 a headless open cancelled during registration gets no session",
+      "file": "src/runtime/vault/vaultRuntimeEntry.ts",
+      "test": "test/unit/vault/rvcm1091a2.test.ts",
+      "exit": 1,
+      "summary": "Tests  1 failed | 5 passed (6)",
+      "failing": [
+        "FAIL  test/unit/vault/rvcm1091a2.test.ts > RVCM1091A2 > P3: a headless open cancelled during registration returns no session and closes"
+      ],
+      "sha256": {
+        "before": "77ddb66138660e0f06be0adca5e94b70ba75c95da206a060db0b83c80e19849a",
+        "after": "77ddb66138660e0f06be0adca5e94b70ba75c95da206a060db0b83c80e19849a",
+        "restored": true
+      }
+    }
+  ]
+}

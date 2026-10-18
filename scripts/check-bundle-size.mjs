@@ -213,12 +213,28 @@ const BUDGETS = [
   { path: 'dist/museCodeReviewer.js', budgetKiB: 75 },
   // M91 E: both-backend hooks, 45.4 KiB + 15%, rounded up to 25 KiB.
   { path: 'dist/extensionHooks.js', budgetKiB: 75 },
-  // M109 lane W: the vault's window (the panel host and the native editor),
+  // M109 lane W: the vault's window (the panel host and the broker client),
   // loaded on the first vault command: 32.4 KiB when split out. Measured
   // size plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/vault.js', budgetKiB: 50 },
+  // RVAPP-CM1091D5 BYTES: the vault's explicit-action code; measured below,
+  // plus D6 headroom.
+  { path: 'dist/vaultActions.js', budgetKiB: 25 },
   // INT0180: shared vault boundary closure; measured plus D6 headroom.
   { path: 'dist/vaultBoundaries.js', budgetKiB: 50 },
+  // MSM109: 120,644 bytes measured on linuxlt after the joined lease/store
+  // reviews (owner-death-only takeover, staged publication, confirmed
+  // recovery); exactly 15% headroom, rounded to one byte.
+  // VAULTPARITY: 168,477 bytes measured on linuxlt with the Windows broker
+  // channel, host and file anchor wired in; exactly 15% headroom.
+  { path: 'dist/vaultBroker.js', budgetKiB: 193_749 / 1024 },
+  // VAULTPARITY: 33,159 bytes measured on linuxlt with the OS-store/file
+  // anchor choice; exactly 15% headroom.
+  { path: 'dist/vaultBrokerBindings.js', budgetKiB: 38_133 / 1024 },
+  // MSM109: 58,130 bytes measured on linuxlt after the joined lease/store
+  // reviews; exactly 15% headroom, rounded to one byte.
+  { path: 'dist/vaultStore.js', budgetKiB: 66_850 / 1024 },
+  { path: 'dist/vaultPosix.js', budgetKiB: 25 },
   // The report dialog (M93): the builder, its second scrub, the export paths
   // and the handler, loaded on the first open. 63.6 KiB when split out (its
   // own zod), plus 15%, rounded up to 25 KiB (PLAN.md D6).
@@ -302,6 +318,10 @@ const BUDGETS = [
   // serve through. Loads only on the first accounts, developer or keyed
   // headless command. Measured 246.5 KiB; plus 15%, rounded up to 25 KiB.
   { path: 'dist/runtimeAccounts.js', budgetKiB: 300 },
+  // C-M109-1 (lead decision 5): the vault for the CLI, the ACP agent and
+  // headless runs, loaded on the first vault need. Measured 18.9 KiB; plus
+  // 15%, rounded up to 25 KiB.
+  { path: 'dist/vaultRuntime.js', budgetKiB: 25 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

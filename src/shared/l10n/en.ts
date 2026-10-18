@@ -443,10 +443,12 @@ export const EN = {
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
-  referenceVault: 'In progress.',
-  referenceVaultHelp: 'In progress.',
-  referenceVaultPanel: 'In progress.',
-  referenceVaultLock: 'In progress.',
+  referenceVault:
+    'Work with the per-user credential vault from a terminal: setup, recover, reset, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them. Reset can also replace unknown writer ownership after explicit confirmation.',
+  referenceVaultHelp: 'Show the per-user credential vault command usage.',
+  referenceVaultPanel:
+    'Open the per-user credential vault in the Models & Agents panel: set it up or unlock it, manage items and grants, and lock it. Not yet available on Windows.',
+  referenceVaultLock: 'Lock the per-user credential vault now, ending every use in every window.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus:
     'List the stored keys (the Model API key and every configured provider key); the exit code reports whether any key is stored.',
@@ -5260,6 +5262,10 @@ export const EN = {
   modelsPanelUnavailable: 'Models & Agents is not available in this build.',
   providersSectionTitle: 'Providers',
   modelsSectionTitle: 'Models',
+  // The Models & Agents section nav paints before the vault surface loads,
+  // so its title is startup English like the other section titles; the
+  // vault group's own title stays with the deferred surface.
+  vaultSectionTitle: 'Vault',
   providerSearchPlaceholder: 'Search providers…',
   modelsSearchPlaceholder: 'Search models…',
   // The provider dropdown's filter chips.
@@ -6561,6 +6567,11 @@ export const EN = {
     title: 'Vault',
     locked: 'Locked',
     unlocked: 'Unlocked',
+    // RVCM1091D P2: every vault state has its own true heading, so no state
+    // falls through to 'Locked'.
+    stateUncreated: 'Not set up',
+    stateSetupPending: 'Setup pending',
+    stateUnavailable: 'Unavailable',
     empty: 'No vault items yet.',
     add: 'Add to Vault',
     edit: 'Edit Item',
@@ -6574,6 +6585,7 @@ export const EN = {
     manage: 'Manage in Vault',
     requirePresence: 'Require Presence for Each Use',
     unattended: 'Unattended Allowed',
+    silentUnlock: 'Silent Unlock',
     hidden: 'Hidden From Agents',
     firstParty: 'First-Party Only',
     askEveryTime: 'Ask Every Time',
@@ -6588,7 +6600,12 @@ export const EN = {
     password: 'Password',
     seed: 'One-Time Code Seed',
     roles: 'Roles',
+    // RVCM1091D P3: grant-form hints are code vocabularies (field names and
+    // keywords the form parses back), so they stay English in every table via
+    // l10n/untranslated.json; the label words beside them stay translated.
+    rolesHint: 'any / orchestrator / subagent / headless / role:name / hook:name / mcp:name',
     workspaces: 'Workspaces',
+    workspacesHint: 'any',
     target: 'Target',
     command: 'Command',
     cwd: 'Working Folder',
@@ -6597,7 +6614,10 @@ export const EN = {
     expires: 'Expires',
     timeWindow: 'Time Window',
     days: 'Days',
+    daysHint: '0–6',
     hours: 'Hours',
+    startHourHint: 'startHour',
+    endHourHint: 'endHour',
     remoteUser: 'Remote User',
     hostKey: 'Host Key',
     origin: 'Origin',
@@ -6605,6 +6625,7 @@ export const EN = {
     requester: 'Requester',
     outcome: 'Outcome',
     tier: 'Protection Tier',
+    provider: 'Provider',
     publicKey: 'Public Key',
     fingerprint: 'Fingerprint',
     signInYourself: 'Sign In Yourself',
@@ -6618,6 +6639,9 @@ export const EN = {
     apiKey: 'API Key',
     oauth: 'OAuth Tokens',
     sshKey: 'SSH Key',
+    generateSshKey: 'Generate New Key',
+    importSshKeyFile: 'Import Key File',
+    sshKeyPassphrase: 'Key file passphrase (empty for none)',
     webLogin: 'Web Login',
     totp: 'One-Time Code',
     session: 'Session Cookies',
@@ -6636,8 +6660,14 @@ export const EN = {
     rollback: 'This vault is older than its recorded generation. Restore a current backup.',
     basicText:
       'The basic_text backend provides no secure encryption and cannot protect a vault slot.',
+    brokerDisabled:
+      'The credential vault is switched off in this build pending integration checks. First-party keys still work; agent uses are refused.',
     brokerBlocked:
       'The broker cannot start. First-party keys still work; agent uses are refused. Repair the broker installation.',
+    // The person switched the vault off in settings (museSpark.vault.enabled,
+    // or the legacy museSpark.vault boolean): commands refuse with this.
+    switchedOff:
+      'The credential vault is switched off in settings. Turn museSpark.vault.enabled on to use it.',
     noUnattended:
       '{item} needs an unattended grant for {use}. Add one in the vault or run interactively.',
     nopasswd:
@@ -6652,6 +6682,56 @@ export const EN = {
       'Passkeys stay with your authenticator. Sign in yourself; the vault stores session cookies only.',
     recoveryWarning:
       'Keep the recovery code somewhere safe. It is shown only once and unlocks the vault.',
+    // C-M109-1: the setup flow and the CLI (lead decision 8).
+    setUp: 'Set Up Vault',
+    savedIt: 'I Saved It',
+    copyCode: 'Copy',
+    cancelSetup: 'Cancel Setup',
+    setupNeeded: 'Set up the vault before you store a secret in it.',
+    setupExists: 'A vault already exists for this user.',
+    // RVCM1091D P2: an item or path collision is not a setup failure.
+    itemConflict:
+      'An item with the same name is already in the vault, or the source changed during the import. Nothing was added.',
+    // RVCM1091E P2: a Delete refused because the source changed after a
+    // successful import is not told that nothing was added.
+    deleteConflict:
+      'The original file changed after its credentials were imported. Nothing was deleted; the imported items stay in the vault.',
+    setupPending: 'Save the recovery code, then confirm to finish setting up the vault.',
+    setupCancelled: 'Vault setup was cancelled. Nothing was saved.',
+    setupHeadless:
+      'Vault setup and recovery need an interactive terminal; headless runs cannot do them.',
+    recoveryShownOnce: 'Recovery code (shown only now): {code}',
+    savedItPrompt: 'Have you saved the recovery code somewhere safe?',
+    writerRecoveryWarning:
+      '{holder} If another program is still writing this vault, resetting or restoring it will lose that program’s changes. Continue only with explicit confirmation.',
+    busy: 'The vault is busy in another window. Try again.',
+    busyHolder:
+      'The vault is held by process {pid} since {since}. Try again after that process exits.',
+    busyOtherMachine:
+      'The vault is held on another machine by process {pid} since {since}. Its death cannot be established here.',
+    ownerUnknown:
+      'The vault cannot acquire a writer because this process’s exact operating-system birth could not be established. Try again.',
+    unreadable: 'The writer lock is unreadable and will not clear. Reset the vault to start again.',
+    filesystemUnsupported:
+      'This folder’s filesystem cannot publish vault updates: hard links are not supported here. Move the vault to a filesystem that supports them and try again.',
+    // C-M109-1: import and Reset Vault (lead decisions, 2026-10-10).
+    importedLabel: 'Imported {source} credential {number}',
+    importedSummary: 'Imported into the vault: {names}',
+    importKeepOrDelete:
+      'Keep the original file, or delete it now that its credentials are in the vault?',
+    resetVault: 'Reset Vault',
+    resetHeadless:
+      'Resetting the vault needs an interactive terminal; headless runs cannot reset it.',
+    resetContinue: 'Continue',
+    resetWarning:
+      'Resetting erases this vault for good: every stored secret is gone, and rollback protection restarts with a new anchor when you set the vault up again.',
+    resetTypeWord: 'Type {word} to reset the vault.',
+    resetDone: 'The vault was reset. Set it up again to store secrets.',
+    vaultLost:
+      'The vault cannot be opened because files are missing or damaged, or writer ownership cannot be established. Review Reset to start again.',
+    // RVCM1091B 4: the OS store's fixed repair, never native text.
+    storeUnavailable:
+      "The operating system's credential store is not available. On Linux, sign in to a desktop session with an unlocked keyring (the Secret Service); on macOS, unlock the login Keychain; on Windows, sign in interactively. Then try again.",
     remoteWarning:
       'Only a signature or a one-time code may be requested from another device. Its user must approve each use there.',
     approvalExpired: 'This approval expired. Request the use again.',
@@ -6660,6 +6740,9 @@ export const EN = {
       'Protected by your operating system’s credential store. Programs running as you may unlock it too.',
     unknownTierWarning:
       'The protection tier is unknown because the vault is locked. Unlock to see how it is protected.',
+    // RVCM1091D P2: an open vault with no observed slot names no protection
+    // and never asks for an unlock.
+    tierUnknown: 'The protection tier is unknown.',
     hardwareWarning:
       'Protected by this device’s hardware. It unlocks silently, so programs running as you can unlock it too.',
     presenceTierWarning:
@@ -6686,6 +6769,12 @@ export const EN = {
     presence: 'User Presence',
     osStore: 'OS Credential Store',
     secretStorage: 'Editor Secret Storage',
+    windowsTpm: 'Windows TPM',
+    secureEnclave: 'Secure Enclave',
+    linuxTpm2: 'Linux TPM',
+    windowsDpapi: 'Windows DPAPI',
+    loginKeychain: 'Login Keychain',
+    secretService: 'Secret Service',
     passphrase: 'Passphrase Protection',
     recovery: 'Recovery Protection',
     autoProtection: 'Automatic Protection',
@@ -6695,7 +6784,34 @@ export const EN = {
     seUnavailable: 'Secure Enclave protection is unavailable. Use a passphrase for presence.',
     passphraseWarning:
       'A passphrase is required to unlock. It protects a copied disk and prevents silent unlock by programs running as you.',
-    operationFailed: 'The vault operation failed. Unlock the vault and try again.',
+    // RVCM1091E P3: never names an unlock; the section showing Unlocked
+    // after a failed operation would otherwise be told to unlock it.
+    operationFailed: 'The vault operation failed. Try again.',
+    // RVCM1091F REDESIGN: the person's own Retry after a transient failure
+    // spent the bounded auto-retries.
+    retry: 'Retry',
+    // RVCM1091G P3: true whether the leftover record was cleared or is
+    // still stuck — the file is gone either way, there is nothing to retry,
+    // and the imported credentials stay in the vault.
+    sourceGone:
+      'The original file is already gone; there is nothing to retry. The imported credentials stay in the vault.',
+    // RVCM1091G P2: a Delete whose source cannot be read (permissions). The
+    // import record is kept and nothing is deleted.
+    sourceUnreadable:
+      'The original file could not be read. Check its permissions and try again; the import record was kept and nothing was deleted.',
+    // RVAPP-CM1091D5 P3-1: the source's location is not available (a drive
+    // down or away). Never "gone": the import record is kept and nothing
+    // is deleted.
+    sourceUnavailable:
+      'The original file’s location is not available. Try again later; the import record was kept and nothing was deleted.',
+    // RVAPP-CM1091D5 P2-2: imports whose receipt was kept or orphaned,
+    // finishable here with Keep or Delete.
+    pendingImports: 'Unfinished imports',
+    // RVAPP-CM1091D5 P2-2: the terminal lists the same finishable receipts.
+    noPendingImports: 'No unfinished imports.',
+    // RVCM1091G P3: the kept view shown while a bounded auto-retry is
+    // scheduled or in flight.
+    retrying: 'Retrying the last request. The view shown may be stale.',
     invalidFields: 'Check the grant fields and its target.',
     grantHelp:
       'Every scope below limits this grant. Empty count, expiry or time window means no limit.',
@@ -6716,6 +6832,7 @@ export const EN = {
     sessionScope: 'Session',
     taskScope: 'Task',
     ceiling: 'Access Ceiling',
+    ceilingHint: 'none / ask / secret://',
     enabledDescription: 'Enable the per-user credential vault shared by editors.',
     protectionDescription:
       'Choose vault key protection. Automatic uses available hardware plus the operating system store.',

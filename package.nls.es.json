@@ -230,7 +230,7 @@
   "config.accounts.severalOnThisDevice.description": "Se conserva por compatibilidad; esta preferencia no tiene efecto en esta compilación.",
   "command.vault.title": "Bóveda",
   "command.lockVault.title": "Bloquear la bóveda ahora",
-  "config.vault.description": "Se conserva por compatibilidad; esta preferencia no tiene efecto en esta compilación.",
+  "config.vault.enabled.description": "Activa o desactiva la bóveda de credenciales personal. Un valor heredado almacenado de museSpark.vault se aplica hasta que se configure este ajuste.",
   "config.vault.protection.description": "Se conserva por compatibilidad; esta preferencia no tiene efecto en esta compilación.",
   "config.vault.agentFence.description": "Controla el aislamiento de credenciales para los comandos de shell interactivos de Model API. La verificación, las programaciones, los trabajadores y los hooks siguen aislados.",
   "config.vault.lockAfterIdleMinutes.description": "Se conserva por compatibilidad; esta preferencia no tiene efecto en esta compilación.",

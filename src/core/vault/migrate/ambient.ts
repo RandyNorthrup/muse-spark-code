@@ -3,7 +3,7 @@ import nodePath from 'node:path'
 import { lstatIdentity } from '../../fs/fileIdentity'
 import { VAULT_LIMITS } from '../../../shared/constants'
 import { type VaultPanelState } from '../../../shared/vaultPanel'
-import { VaultMigrationFault } from './ports'
+import { VaultMigrationFault } from './fault'
 
 export type AmbientFile = VaultPanelState['ambientFiles'][number]
 
@@ -59,7 +59,7 @@ async function isPlainFile(home: string, relativePath: string): Promise<boolean>
   return true
 }
 
-/** @unwired M109 ambient vault file discovery */
+/** Ambient vault file discovery, served through the panel service's import flow. */
 export async function discoverAmbientFiles(home: string): Promise<readonly AmbientFile[]> {
   const names = ['.git-credentials', '.netrc', '.npmrc', '.aws/credentials', '.docker/config.json']
   try {

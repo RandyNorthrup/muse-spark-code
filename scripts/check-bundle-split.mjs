@@ -30,11 +30,16 @@
 //   hold and edit review) is in dist/extension.js, dist/modelApi.js or
 //   dist/acp.js, or missing from dist/review.js, which dist/extension.js
 //   requires the first time one is used.
-// - the vault's window (M109: the panel host and the native editor) is in
+// - the vault's window (M109: the panel host and the broker client) is in
 //   dist/extension.js, dist/modelApi.js or dist/acp.js, or missing from
 //   dist/vault.js, which dist/extension.js requires on the first vault
 //   command. Only types and the loader (vaultPanelBundle.ts) stay at
-//   activation.
+//   activation. The vault's explicit-action code (RVAPP-CM1091D5: the native
+//   editor, the write-only crypto, the action dialogs) is in
+//   dist/extension.js, dist/modelApi.js, dist/acp.js or dist/vault.js, or
+//   missing from dist/vaultActions.js, which dist/vault.js requires on the
+//   first action that needs it. Only types and the loader
+//   (vaultActionsBundle.ts) stay in the opening bundle.
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
@@ -701,10 +706,17 @@ for (const file of REVIEW_ONLY) {
 // loads on the first vault command. Only types and the loader
 // (vaultPanelBundle.ts) stay at activation.
 const VAULT = { output: 'dist/vault.js', metafile: 'dist/meta/vault.json' }
-const VAULT_ONLY = [
-  'src/host/vault/vaultPanelEntry.ts',
-  'src/host/vault/vaultPanelHost.ts',
+const VAULT_ONLY = ['src/host/vault/vaultPanelEntry.ts', 'src/host/vault/vaultPanelHost.ts']
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action code (the native editor,
+// the write-only crypto, the action dialogs) loads on the first action that
+// needs it as dist/vaultActions.js. The fault class moved to its own small
+// module so ambient discovery no longer pulls the migration record schema.
+const VAULT_ACTIONS = { output: 'dist/vaultActions.js', metafile: 'dist/meta/vaultActions.json' }
+const VAULT_ACTIONS_ONLY = [
+  'src/host/vault/vaultActionsEntry.ts',
+  'src/host/vault/vaultActionDialogs.ts',
   'src/host/vault/vaultNativeEditor.ts',
+  'src/core/vault/crypto.ts',
 ]
 const vault = inputsOf(VAULT)
 for (const file of VAULT_ONLY) {
@@ -716,6 +728,76 @@ for (const file of VAULT_ONLY) {
   if (!vault.has(file)) {
     problems.push(`${VAULT.output} no longer carries ${file}`)
   }
+}
+// C-M109-1b: portable broker composition and POSIX native adapters load in their child only.
+const VAULT_BROKER = { output: 'dist/vaultBroker.js', metafile: 'dist/meta/vaultBroker.json' }
+const vaultBroker = inputsOf(VAULT_BROKER)
+for (const file of [
+  'src/runtime/vault/vaultBrokerEntry.ts',
+  'src/runtime/vault/brokerProcess.ts',
+  'src/runtime/vault/posixNative.ts',
+  'src/runtime/vault/slots/osStoreVaultSlot.ts',
+  'src/runtime/vault/slots/linuxVaultSlots.ts',
+  'src/runtime/vault/slots/macVaultSlots.ts',
+  'src/runtime/vault/slots/windowsVaultSlots.ts',
+]) {
+  if (!vaultBroker.has(file)) problems.push(`${VAULT_BROKER.output} no longer carries ${file}`)
+  for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]])
+    if (inputs.has(file))
+      problems.push(`${output} carries ${file}, which belongs to the broker child`)
+}
+const VAULT_BINDINGS = {
+  output: 'dist/vaultBrokerBindings.js',
+  metafile: 'dist/meta/vaultBrokerBindings.json',
+}
+const vaultBindings = inputsOf(VAULT_BINDINGS)
+if (!vaultBindings.has('src/runtime/vault/brokerBindings.ts'))
+  problems.push(`${VAULT_BINDINGS.output} no longer carries the installed binding factory`)
+for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]])
+  if (inputs.has('src/runtime/vault/brokerBindings.ts'))
+    problems.push(`${output} carries the child-only vault binding factory`)
+const VAULT_STORE = { output: 'dist/vaultStore.js', metafile: 'dist/meta/vaultStore.json' }
+const vaultStore = inputsOf(VAULT_STORE)
+for (const file of ['src/core/vault/store.ts', 'src/core/vault/crypto.ts']) {
+  if (!vaultStore.has(file)) problems.push(`${VAULT_STORE.output} no longer carries ${file}`)
+  for (const [output, inputs] of [
+    [VAULT.output, vault],
+    [VAULT_BROKER.output, vaultBroker],
+    [VAULT_BINDINGS.output, vaultBindings],
+  ])
+    if (inputs.has(file))
+      problems.push(`${output} duplicates the shared vault store/error identity`)
+}
+const VAULT_POSIX = { output: 'dist/vaultPosix.js', metafile: 'dist/meta/vaultPosix.json' }
+const vaultPosix = inputsOf(VAULT_POSIX)
+if (!vaultPosix.has('src/runtime/vault/posixClientPlatform.ts'))
+  problems.push(`${VAULT_POSIX.output} no longer carries POSIX discovery and launch`)
+for (const [output, inputs] of [...loaders, [VAULT.output, vault]])
+  if (inputs.has('src/runtime/vault/posixClientPlatform.ts'))
+    problems.push(`${output} duplicates the first-use POSIX vault platform`)
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action code loads on the first
+// action that needs it, never with the panel, the activation or the agents.
+const vaultActions = inputsOf(VAULT_ACTIONS)
+for (const file of VAULT_ACTIONS_ONLY) {
+  for (const [output, inputs] of [
+    ...loaders,
+    [BUNDLES.modelApi.output, modelApi],
+    [VAULT.output, vault],
+  ]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which loads only on first action`)
+    }
+  }
+  if (!vaultActions.has(file)) {
+    problems.push(`${VAULT_ACTIONS.output} no longer carries ${file}`)
+  }
+}
+// The migration record schema stays broker-side: the opening bundle names
+// only the fault class from its own small module.
+if (vault.has('src/core/vault/migrate/ports.ts')) {
+  problems.push(
+    `${VAULT.output} carries src/core/vault/migrate/ports.ts, which loads only broker-side`,
+  )
 }
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [

@@ -53,7 +53,9 @@ const NLS_FILES = readdirSync('.').filter((file) => /^package\.nls(?:\.[\w-]+)?\
 
 /** The keyring binding's version, as this repository locks it. */
 function lockedVersion(manifest) {
-  const version = manifest.devDependencies?.[NATIVE_DEPENDENCY]
+  // A runtime dependency (the vault's OS store loads it in every product);
+  // never a devDependency.
+  const version = manifest.dependencies?.[NATIVE_DEPENDENCY]
   if (typeof version !== 'string') {
     throw new TypeError(`package.json does not lock ${NATIVE_DEPENDENCY}`)
   }
@@ -129,11 +131,17 @@ const screenBundle = path.join('native', 'darwin', 'muse-dictate-screen.app')
 if (existsSync(screenBundle)) {
   cpSync(screenBundle, path.join(STAGE, screenBundle), { recursive: true })
 }
-const vaultHelper = path.join('dist', 'native', 'darwin', 'muse-vault')
-if (existsSync(vaultHelper)) {
-  const target = path.join(STAGE, vaultHelper)
+for (const helper of [
+  path.join('dist', 'native', 'darwin', 'muse-vault'),
+  path.join('native', 'darwin', 'muse-vault-peer'),
+]) {
+  if (!existsSync(helper)) {
+    continue
+  }
+
+  const target = path.join(STAGE, helper)
   mkdirSync(path.dirname(target), { recursive: true })
-  copyFileSync(vaultHelper, target)
+  copyFileSync(helper, target)
 }
 cpSync(RUNNER_HELPERS, path.join(STAGE, RUNNER_HELPERS), { recursive: true })
 const tables = readdirSync('l10n')

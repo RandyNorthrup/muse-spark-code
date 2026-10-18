@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { buildLinuxHelper } from './build-linux-helper.mjs'
+import { buildVaultPeer } from './build-vault-peer.mjs'
 import { resourceBrowserValidation, webviewEntryMetafile } from './lib/webviewBundles.mjs'
 import { listIntegrationTests } from './lib/integrationTests.mjs'
 // Bundles the extension host entry, the Model API backend, the review, the search worker,
@@ -83,6 +84,8 @@ import {
   sharedModelApiBoundaries,
   englishZodLocales,
   sharedRedaction,
+  sharedVaultStore,
+  sharedVaultPosix,
 } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -98,6 +101,7 @@ cpSync('src/core/legal/data/provenance.json', 'dist/legal-data/provenance.json',
 
 const args = new Set(process.argv.slice(2))
 buildLinuxHelper()
+buildVaultPeer()
 
 const isProduction = args.has('--production')
 const isWatch = args.has('--watch')
@@ -219,12 +223,18 @@ const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
 const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
-// M109 lane W: the vault's window (the panel host and the native editor),
+// M109 lane W: the vault's window (the panel host and the broker client),
 // loaded on the first vault command. `vscode` stays external, provided by
 // the host, as for the import. The broker client joins it once the
-// broker-backed service lands (docs/certification/m109.md).
+// broker-backed service lands (docs/certification/m109.md). The native
+// editor, the write-only crypto and the action dialogs load later from
+// dist/vaultActions.js (RVAPP-CM1091D5 BYTES).
 const VAULT_ENTRY = 'src/host/vault/vaultPanelEntry.ts'
 const VAULT_OUTFILE = 'dist/vault.js'
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action code (dist/vaultActions.js),
+// loaded on the first action that needs it instead of when the panel opens.
+const VAULT_ACTIONS_ENTRY = 'src/host/vault/vaultActionsEntry.ts'
+const VAULT_ACTIONS_OUTFILE = 'dist/vaultActions.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
@@ -262,6 +272,10 @@ const PLAYBOOK_ENTRY = 'src/runtime/playbook/playbookEntry.ts'
 const PLAYBOOK_OUTFILE = 'dist/acpPlaybook.js'
 const RUNTIME_ACCOUNTS_ENTRY = 'src/runtime/providers/accountsEntry.ts'
 const RUNTIME_ACCOUNTS_OUTFILE = 'dist/runtimeAccounts.js'
+// C-M109-1 (lead decision 5): the vault for the CLI, the ACP agent and
+// headless runs, loaded on the first vault need; no `vscode` import.
+const VAULT_RUNTIME_ENTRY = 'src/runtime/vault/vaultRuntimeEntry.ts'
+const VAULT_RUNTIME_OUTFILE = 'dist/vaultRuntime.js'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
 // The data module uses the same verified solid archive loader as lazy bundles.
@@ -763,9 +777,32 @@ const agentImportOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const vaultOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    sharedWire,
+    sharedModelApiBoundaries,
+    deferredCohort,
+    sharedResourceAdmission,
+    sharedVaultStore,
+    sharedVaultPosix,
+  ],
   entryPoints: [VAULT_ENTRY],
   outfile: VAULT_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+// RVAPP-CM1091D5 BYTES: the vault's explicit-action code, loaded on the first
+// action that needs it. Same shape as the opening bundle above.
+const vaultActionsOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+  entryPoints: [VAULT_ACTIONS_ENTRY],
+  outfile: VAULT_ACTIONS_OUTFILE,
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
@@ -1026,6 +1063,12 @@ const runtimeAccountsOptions = {
   entryPoints: [RUNTIME_ACCOUNTS_ENTRY],
   outfile: RUNTIME_ACCOUNTS_OUTFILE,
 }
+const vaultRuntimeOptions = {
+  ...acpQuestionsOptions,
+  plugins: [...acpQuestionsOptions.plugins, sharedVaultStore, sharedVaultPosix],
+  entryPoints: [VAULT_RUNTIME_ENTRY],
+  outfile: VAULT_RUNTIME_OUTFILE,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -1058,6 +1101,33 @@ const validationOptions = {
   plugins: [],
   entryPoints: [VALIDATION_ENTRY],
   outfile: VALIDATION_OUTFILE,
+}
+
+const vaultBrokerOptions = {
+  ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, sharedVaultStore],
+  entryPoints: ['src/runtime/vault/vaultBrokerEntry.ts'],
+  outfile: 'dist/vaultBroker.js',
+  external: ['@napi-rs/keyring'],
+}
+
+const vaultPosixOptions = {
+  ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, sharedVaultStore],
+  entryPoints: ['src/runtime/vault/posixEntry.ts'],
+  outfile: 'dist/vaultPosix.js',
+}
+
+const vaultStoreOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/runtime/vault/storeEntry.ts'],
+  outfile: 'dist/vaultStore.js',
+}
+
+const vaultBrokerBindingsOptions = {
+  ...vaultBrokerOptions,
+  entryPoints: ['src/runtime/vault/brokerBindings.ts'],
+  outfile: 'dist/vaultBrokerBindings.js',
 }
 
 const vaultBoundariesOptions = {
@@ -1319,6 +1389,11 @@ if (isWatch) {
     esbuild.context(usagePanelOptions),
     esbuild.context(extensionHooksOptions),
     esbuild.context(vaultOptions),
+    esbuild.context(vaultBrokerOptions),
+    esbuild.context(vaultStoreOptions),
+    esbuild.context(vaultPosixOptions),
+    esbuild.context(vaultBrokerBindingsOptions),
+    esbuild.context(vaultActionsOptions),
     esbuild.context(reportOptions),
     esbuild.context(estimatorOptions),
     esbuild.context(recorderOptions),
@@ -1450,6 +1525,11 @@ if (isWatch) {
     usagePanel: () => esbuild.build(usagePanelOptions),
     extensionHooks: () => esbuild.build(extensionHooksOptions),
     vault: () => esbuild.build(vaultOptions),
+    vaultBroker: () => esbuild.build(vaultBrokerOptions),
+    vaultStore: () => esbuild.build(vaultStoreOptions),
+    vaultPosix: () => esbuild.build(vaultPosixOptions),
+    vaultBrokerBindings: () => esbuild.build(vaultBrokerBindingsOptions),
+    vaultActions: () => esbuild.build(vaultActionsOptions),
     report: () => esbuild.build(reportOptions),
     estimator: () => esbuild.build(estimatorOptions),
     recorder: () => esbuild.build(recorderOptions),
@@ -1485,6 +1565,7 @@ if (isWatch) {
     ['fontInstall', () => esbuild.build(fontInstallOptions)],
     ['playbook', () => esbuild.build(playbookOptions)],
     ['runtimeAccounts', () => esbuild.build(runtimeAccountsOptions)],
+    ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
   ]
   if (!isProduction) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -1498,6 +1579,7 @@ if (isWatch) {
   let fontInstall
   let playbook
   let runtimeAccounts
+  let vaultRuntime
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -1509,6 +1591,7 @@ if (isWatch) {
       fontInstall,
       playbook,
       runtimeAccounts,
+      vaultRuntime,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -1536,6 +1619,11 @@ if (isWatch) {
     const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
     const { metafile: playbookMetafile } = await playbook
     const { metafile: runtimeAccountsMetafile } = await runtimeAccounts
+    const { metafile: vaultRuntimeMetafile } = await vaultRuntime
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'vaultRuntime.json'),
+      JSON.stringify(vaultRuntimeMetafile, null, 2),
+    )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),
       JSON.stringify(runtimeQuestionsMetafile, null, 2),
@@ -1597,6 +1685,9 @@ if (isWatch) {
   reportSize('dist/usagePanel.js')
   reportSize(EXTENSION_HOOKS_OUTFILE)
   reportSize(VAULT_OUTFILE)
+  reportSize('dist/vaultBroker.js')
+  reportSize('dist/vaultBrokerBindings.js')
+  reportSize(VAULT_ACTIONS_OUTFILE)
   reportSize(REPORT_OUTFILE)
   reportSize(ESTIMATOR_OUTFILE)
   reportSize(RECORDER_OUTFILE)

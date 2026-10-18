@@ -15,7 +15,15 @@ import {
 import { pathToFileURL } from 'node:url'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
 import { assertNoVsixFonts } from './notices-fonts.mjs'
+import { assertPackagedBundles } from './check-packaged-bundles.mjs'
 import { renderPackageReadme } from './check-badges.mjs'
+import {
+  VSIX_TARGETS,
+  requiredNativeFiles,
+  targetFromArgs,
+  vsixArtifactName,
+  isVsixTargetFile,
+} from './lib/vsixTargets.mjs'
 
 const RECENT_RELEASES = 2
 const HISTORY = 'https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md'
@@ -78,11 +86,18 @@ export function packagedChangelog(text, releases, plan, repository) {
   return `${header}${shipped.join('\n\n')}\n\n[Complete release history](${HISTORY}).\n`
 }
 
-export async function stageVsix(root, stage) {
+export async function stageVsix(root, stage, target) {
   // The stage is build output in this worktree, never a user-selected folder.
   if (stage !== path.join(root, 'dist', 'vsix-package')) throw new Error('Invalid VSIX stage')
-  const files = await listFiles({ cwd: root, dependencies: false })
-  assertNoVsixFonts(files)
+  if (target !== undefined && !VSIX_TARGETS.includes(target))
+    throw new Error(`Unknown VSIX target: ${target}`)
+  const listed = await listFiles({ cwd: root, dependencies: false })
+  assertNoVsixFonts(listed)
+  assertPackagedBundles(root, listed)
+  // One package per platform (PLAN.md D123): a targeted package stages
+  // only its own platform's native pieces; the universal stage keeps all.
+  const files =
+    target === undefined ? listed : listed.filter((file) => isVsixTargetFile(target, file))
   for (const page of [
     'webview',
     'modelsWebview',
@@ -96,9 +111,9 @@ export async function stageVsix(root, stage) {
       if (!files.includes(file)) throw new Error(`Webview output excluded from VSIX: ${file}`)
     }
   }
-  for (const arch of ['x64', 'arm64'])
-    if (files.every((file) => file.replaceAll('\\', '/') !== `native/linux/${arch}/muse-created`))
-      throw new Error(`Required Linux created-path helper excluded from VSIX: ${arch}`)
+  for (const required of requiredNativeFiles(target))
+    if (files.every((file) => file.replaceAll('\\', '/') !== required))
+      throw new Error(`Required native helper excluded from VSIX: ${required}`)
   if (!files.includes('dist/validation.js'))
     throw new Error('Shared validation runtime excluded from VSIX')
   rmSync(stage, { recursive: true, force: true })
@@ -152,8 +167,9 @@ export async function stageVsix(root, stage) {
 
 async function main() {
   const root = process.cwd()
+  const target = targetFromArgs(process.argv.slice(2))
   const stage = path.join(root, 'dist', 'vsix-package')
-  await stageVsix(root, stage)
+  await stageVsix(root, stage, target)
   // The same strict localization gate reads the exact staged bytes too.
   execFileSync(process.execPath, ['scripts/check-l10n.mjs', '--packaged', stage], {
     cwd: root,
@@ -168,8 +184,15 @@ async function main() {
     stdio: 'inherit',
   })
   const manifest = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
-  const archive = path.join(root, `${manifest.name}-${manifest.version}.vsix`)
-  const result = await pack({ cwd: stage, dependencies: false, packagePath: archive })
+  // vsce's own targeted name (`<name>-<target>-<version>.vsix`); the
+  // TargetPlatform travels in the packed manifest beside the files.
+  const archive = path.join(
+    root,
+    target === undefined
+      ? `${manifest.name}-${manifest.version}.vsix`
+      : vsixArtifactName(manifest.name, manifest.version, target),
+  )
+  const result = await pack({ cwd: stage, dependencies: false, packagePath: archive, target })
   await compactVsix(archive, result.files)
   execFileSync(process.execPath, ['scripts/compress-vsix.mjs', archive], {
     cwd: root,
