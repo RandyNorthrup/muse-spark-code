@@ -21,6 +21,7 @@ const { parseModelRef } = modelRef
 import {
   CHATGPT_TOKEN_MIN_VALIDITY_MS,
   MILLISECONDS_PER_SECOND,
+  STILL_WAITING_NOTICE_MS,
   SUBSCRIPTION_STREAM_MAX_BYTES,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -31,7 +32,14 @@ import {
   whenAborted,
 } from '../../backends/modelapi/transport'
 import { fill } from '../../../shared/l10n/text'
-import { DeadlineError, withDeadline } from '../../timeouts'
+import {
+  DeadlineError,
+  startStillWaiting,
+  stillWaitingText,
+  withDeadline,
+  type StillWaitingSubject,
+} from '../../timeouts'
+import type { CoreLogger } from '../../logging'
 import type { ProvidersFile } from '../providersFile'
 import { type ChatGptSignIn, ChatGptSignInError, chatGptRecordSchema } from './chatgpt'
 import type { PlanUsageRow } from './planUsage'
@@ -145,6 +153,43 @@ export interface SubscriptionRegistryDeps {
    * no limit on its total.
    */
   readonly streamIdleMs?: number
+  /**
+   * Where indefinite stream waits say so (PR #214 review): without a
+   * provider-named idle nothing else ends the silence, so the wait would
+   * otherwise look hung until Stop. Unnamed, the branch stays silent.
+   */
+  readonly log?: CoreLogger
+}
+
+/**
+ * Periodic still-waiting notices for an indefinite provider wait (PR #214
+ * review): each notice restarts the silence clock, as the transport does
+ * for its own streams. A named log with a provider-named idle, or no log
+ * at all, notices nothing — the idle ends silence itself.
+ */
+export function silentWaitNotices(
+  log: CoreLogger | undefined,
+  idleMs: number | undefined,
+  everyMs: number = STILL_WAITING_NOTICE_MS,
+): {
+  notice(subject: StillWaitingSubject): void
+  stop(): void
+} {
+  let stopNoticing: (() => void) | undefined
+  return {
+    notice(subject: StillWaitingSubject): void {
+      stopNoticing?.()
+      stopNoticing = undefined
+      if (log === undefined || idleMs !== undefined) return
+      stopNoticing = startStillWaiting((elapsedMs) => {
+        log.info(stillWaitingText(subject, elapsedMs))
+      }, everyMs)
+    },
+    stop(): void {
+      stopNoticing?.()
+      stopNoticing = undefined
+    },
+  }
 }
 
 /** Routes the existing canonical tool loop; image extras still use the separate Meta key. */
@@ -224,6 +269,11 @@ export function createSubscriptionClient(
         return
       }
       const ref = await configured(body.model)
+      // Declared at function scope (PR #214 review): the ChatGPT section's
+      // finally below stops the notices, and a declaration inside the try
+      // is not visible there on every path the generator can take.
+      const idleMs = deps.streamIdleMs
+      const notices = silentWaitNotices(deps.log, idleMs)
       let isDispatched = false
       let usage: Usage | undefined
       const note = (event: StreamEvent) => {
@@ -280,7 +330,8 @@ export function createSubscriptionClient(
         // codec decodes. Bytes that decode to no event, such as SSE comments
         // and empty lines, do not restart it, so keep-alive traffic cannot
         // hold a reply open past a named idle.
-        const idleMs = deps.streamIdleMs
+        // An unnamed wait says so out loud (PR #214 review): the provider
+        // answer while the send is out, the reply between its bytes after.
         let lastEventAt = Date.now()
         const withinIdle = async <T>(waiting: Promise<T>): Promise<T> => {
           if (idleMs === undefined) {
@@ -322,6 +373,7 @@ export function createSubscriptionClient(
         noteConfirmedRequestStarted(confirmed, admitAttempt)
         isDispatched = true
         lastEventAt = Date.now()
+        notices.notice({ key: 'providerAnswer' })
         const response = await withinIdle(
           deps.fetch(RESPONSES_URL, {
             method: 'POST',
@@ -332,6 +384,7 @@ export function createSubscriptionClient(
           }),
         )
         lastEventAt = Date.now()
+        notices.notice({ key: 'modelReply' })
         if (!response.ok || response.body === null) throw new Error(UI_TEXT.acpChatGpt.failure)
         // The captured endpoint streams SSE without Content-Type. Never branch on that header.
         const reader = response.body.getReader()
@@ -368,6 +421,7 @@ export function createSubscriptionClient(
           })
           for await (const event of stream) {
             lastEventAt = Date.now()
+            notices.notice({ key: 'modelReply' })
             note(event)
             yield event
           }
@@ -417,6 +471,7 @@ export function createSubscriptionClient(
           message,
         }
       } finally {
+        notices.stop()
         if (isDispatched && (ref.providerId !== 'copilot' || deps.copilotUsage === undefined)) {
           tallies = recordPlanUsage(tallies, {
             providerId: ref.providerId,

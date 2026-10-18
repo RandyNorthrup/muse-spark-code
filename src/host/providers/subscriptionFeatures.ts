@@ -85,6 +85,9 @@ export function createSubscriptionFeatures(options: {
       configFile: options.configFile,
       catalogFile: options.catalogFile ?? path.resolve(__dirname, 'providerCatalog.json'),
       secrets: options.secrets,
+      // The transport's still-waiting notices reach the product log
+      // (PR #214 review); per-request timing still goes nowhere.
+      log: options.log,
       hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
       loadUsage: () => tallies.filter((row) => !['chatgpt', 'copilot'].includes(row.providerId)),
       saveUsage: (rows) => {
@@ -161,6 +164,9 @@ export function createSubscriptionFeatures(options: {
             hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
             chatgpt,
             accountId,
+            // Indefinite ChatGPT stream waits say so on the product log
+            // (PR #214 review) instead of looking hung until Stop.
+            log: options.log,
             providers: async () =>
               providersFile.providersFileSchema.parse({ v: 1, providers: await seam.store.list() }),
             copilot: () => (options.isConfidential() ? new Map() : copilot),
