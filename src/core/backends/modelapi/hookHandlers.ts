@@ -78,7 +78,8 @@ export type HookHttpPost = (
   signal: AbortSignal,
 ) => Promise<HookHttpResult>
 
-/** The fixed headers an http hook sends: nothing configured, nothing secret. */
+/** The fixed headers an http hook sends: nothing configured, nothing secret.
+ * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function hookHttpHeaders(): Readonly<Record<string, string>> {
   return {
     'content-type': 'application/json',

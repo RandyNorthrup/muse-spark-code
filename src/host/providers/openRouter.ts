@@ -50,6 +50,7 @@ export function openRouterAuthorizeUrl(request: OpenRouterAuthorizeRequest): str
  * The key's own spend-limit page, deep-linked by the key's SHA-256
  * (research §1.8, [OR2-oauth]): a key's limit is set on OpenRouter's site,
  * never here. The hash names the page; only the key's owner can open it.
+ * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes)
  */
 export function openRouterSpendPage(key: string): string {
   const hash = createHash('sha256').update(key, 'utf8').digest('hex')
