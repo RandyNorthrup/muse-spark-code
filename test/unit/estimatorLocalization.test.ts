@@ -7,8 +7,10 @@ import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { BASE_LOCALE, fill, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 
 const strings = z.record(z.string(), z.string())
+const isEstimateString = ([key, value]: [string, unknown]): boolean =>
+  key.startsWith('estimate') && typeof value === 'string'
 const enRegion = strings.parse(
-  Object.fromEntries(Object.entries(EN).filter(([key]) => key.startsWith('estimate'))),
+  Object.fromEntries(Object.entries(EN).filter((entry) => isEstimateString(entry))),
 )
 const here = import.meta.dirname
 function regionFor(locale: string): Record<string, string> {
@@ -17,8 +19,20 @@ function regionFor(locale: string): Record<string, string> {
     .record(z.string(), z.unknown())
     .parse(JSON.parse(readFileSync(path.join(here, `../../l10n/ui.${locale}.json`), 'utf8')))
   return strings.parse(
-    Object.fromEntries(Object.entries(table).filter(([key]) => key.startsWith('estimate'))),
+    Object.fromEntries(Object.entries(table).filter((entry) => isEstimateString(entry))),
   )
+}
+// `estimateMissingMore` is plural forms, not a string (the estimate handoff
+// reads it through the locale's plural rules); every table carries it.
+const pluralEntry = z.record(z.string(), z.string())
+function missingMoreFor(locale: string): Record<string, string> {
+  const source: Readonly<Record<string, unknown>> =
+    locale === BASE_LOCALE
+      ? { ...EN }
+      : z
+          .record(z.string(), z.unknown())
+          .parse(JSON.parse(readFileSync(path.join(here, `../../l10n/ui.${locale}.json`), 'utf8')))
+  return pluralEntry.parse(source['estimateMissingMore'])
 }
 
 afterEach(() => {
@@ -73,6 +87,11 @@ describe('M117 localized estimator consent and manifest handoff', () => {
       }
       if (locale !== BASE_LOCALE)
         expect(UI_TEXT.estimateConfirmServer).not.toBe(EN.estimateConfirmServer)
+      // The omitted-lane count is plural forms in every table, filled with
+      // `{count}` through the locale's own plural rules.
+      const missingMore = missingMoreFor(locale)
+      expect(missingMore['other']).toContain('{count}')
+      if (locale !== BASE_LOCALE) expect(missingMore).not.toEqual(missingMoreFor(BASE_LOCALE))
     },
   )
 })
