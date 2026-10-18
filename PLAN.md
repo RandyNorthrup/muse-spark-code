@@ -15762,6 +15762,22 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### BCSTART — The browser check's start on Windows (2026-10-18)
+
+**Status 2026-10-18: built.** Status evidence: `docs/certification/bcstart.md`.
+
+- **Rule.** The browser check's contract read (M81) waits for the browser to
+  start its network service, asking again every 50 ms, before it reads the
+  service's id, and reads the startup targets after that wait. The wait has
+  no cap of its own (AGENTS.md, "Limits"): the check's lifetime (its life,
+  the person's Stop, admission) ends it, so a service that never starts ends
+  the check `timedOut` or `cancelled`. The contract is unchanged: an
+  out-of-process service, its id the restart tripwire, read before any
+  request, and exactly one `about:blank` page.
+- **Why.** The service starts after the browser already answers on the
+  pipe; one early read ended Windows checks `unrecognized` at random (8 of
+  200 checks measured; hosted run 39083561745).
+
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
@@ -39620,7 +39636,10 @@ merged fifth, with its CHANGELOG entries under `[0.19.0]`. PR #220
 (`fix/windows-process-birth`: the Windows birth reader each process
 builds with the C# compiler and seals, replacing PowerShell for the
 timed birth read; the vault's exact evidence path is unchanged) merged
-sixth, with its CHANGELOG entry under `[0.19.0]`. The `0.19.0 released (…)` line is written by the lead after the tag's
+sixth, with its CHANGELOG entry under `[0.19.0]`. PR #222
+(`fix/browser-check-route`: the browser check waits for the network
+service before the contract read, within the check's own time and Stop)
+merged seventh, with its CHANGELOG entry under `[0.19.0]`. The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
