@@ -663,45 +663,61 @@ loss. Four modify/delete conflicts (companionMediaTransport,
 fileSessionStore, moneyDisplay, sessionBudget) kept main-now's deletions,
 per the overhaul rule that deleted tests stay deleted.
 
-Stand-in files (main's eslint refuses vi.fn/vi.spyOn/vi.mocked/mock*
-and hand-written ports of our modules; never weaken the rule):
+Stand-in files (main's eslint refuses vi.fn/vi.spyOn/vi.mocked/mock*;
+the owner's rule refuses hand-written ports too; no rule weakened):
 
 - test/unit/accountReadFailures.test.ts: hand-written host `connection()`
-  port. Plan: delete; the boundary it proved (host failure reads
-  unsigned-in with kind in words) moves to docs/real-life/unproven.md.
-- test/unit/fileSessionStore.test.ts: already gone via the merge (kept
-  main-now's deletion). Plan: withdraw its claim to unproven.md.
-- test/unit/mcpOAuthDenied.test.ts: hand-written dispatch port
-  (`allowEndpoint`/`fetch` literals). Plan: keep only the port-free
-  `oauthDenied` cause-identity case rewritten without the port, delete the
-  rest; or delete whole and withdraw.
-- test/unit/modelsThresholdEditor.test.tsx: two `vi.fn()` onSave props.
-  Plan: rewrite with a real collecting callback (plain closure, no vi).
-- test/unit/moneyDisplay.test.tsx: already gone via the merge. Plan:
-  withdraw its claim to unproven.md.
-- test/unit/sessionBudget.test.ts: already gone via the merge. Plan:
-  withdraw its claim to unproven.md.
-- test/unit/subscriptionStreamFailures.test.ts: new on this branch, absent
-  on main. Plan: inspect; rewrite port-free or delete and withdraw.
+  port. DELETED; its three titles withdrawn to
+  docs/real-life/unproven.md ("Withdrawn on lane PR161FIX").
+- test/unit/fileSessionStore.test.ts, moneyDisplay.test.tsx,
+  sessionBudget.test.ts: gone via the merge (kept main-now's deletions);
+  main's unproven.md already lists all three, so nothing to add.
+- test/unit/mcpOAuthDenied.test.ts: dispatch-port halves DELETED
+  (titles withdrawn to unproven.md); the port-free `oauthDenied`
+  cause-identity case stays, byte-identical, no port, no vi.
+  Suite green (1 test).
+- test/unit/modelsThresholdEditor.test.tsx: two `vi.fn()` onSave props
+  rewritten as plain collecting closures; eslint clean, suite green
+  (2 tests).
+- test/unit/subscriptionStreamFailures.test.ts: `meta` double plus
+  provider/fetch/account doubles. DELETED; its four titles withdrawn to
+  unproven.md.
+- The four PR161FIN §8 escape-hatch rows died with their probes and were
+  removed from PLAN.md §8 (empty table removed with them).
 
-Review threads (each verified present in the merged tree, then proven by
-its suite):
+Review threads (fixes verified present in the merged tree, proven by
+their suites; no new test where the proof would need a stand-in):
 
-- catch-inventory P1 (existential NARROW): `classifyHandler` already
-  requires `paths.every(...)` with branch-state analysis
-  (`scripts/lib/catch-inventory.mjs` `handlerPaths`/`expectedBranch`).
-  Plan: add a planted-violation test for the two thread examples if the
-  suite lacks them, run the inventory suite.
-- catch-inventory P2 line 728 (site identities): the gate already keys
-  accepted sites by file+class+identity AND keeps the area ratchet.
-  Plan: red-drill a same-area swap if uncovered, run the suite.
+- catch-inventory P1 (existential NARROW): `classifyHandler` requires
+  `paths.every(...)` over branch states. The suite already plants both
+  thread examples (`if (error instanceof Error) throw error` and
+  `if (!(error instanceof Error)) throw error; return fallback`) and
+  expects GENERIC. Suite green (13 tests).
+- catch-inventory P2 (site identities): the gate keys accepted sites by
+  file+class+identity AND keeps the area ratchet; the suite already
+  drills a same-area swap/relocation. Suite green (same 13).
 - damageNotice (durable marker): `noteDamaged` consults the durable
-  marker first; no in-memory `seen` suppresses it. Plan: run the damage
-  suite; add a cross-instance clear-then-recur case if missing.
-- paidConsent (not-kept notice): the `onNotKept` call for an order
-  failure already sits after the `isCurrent()` fence. Plan: run the paid
-  suite; add a revoke-during-order case if missing.
-- httpHostBridge (queue poisoning): the catch already settles with a
-  fixed `usage/error` reply and never rejects the tail. Plan: run the
-  bridge suite; add a non-Error rejection + follow-up post case if
-  missing.
+  marker first; no in-memory `seen` exists. The suite already plays the
+  thread's window-A/window-B clear-then-recur script. Suite green
+  (1 test).
+- paidConsent (not-kept notice): the order-failure `onNotKept` already
+  sits after the `isCurrent()` fence. No fake store/popup test
+  reinstated (per the T4 record above); composition proof stays with the
+  lead's real-life scenario.
+- httpHostBridge (queue poisoning): the catch already settles every
+  rejection as fixed `usage/error: readFailed` with no rethrow, so the
+  tail always resolves. No substitute-port test reinstated (per the T5
+  record above); composition proof stays with the lead's real-life
+  scenario.
+
+Catch baseline after the merge: main carries no catch apparatus (no
+script, no baseline, no gate), so the branch's gate stayed. The merge
+made `check:catches` red with 12 new GENERIC sites, all byte-identical
+main provider code (`git diff main-now HEAD` empty on every flagged
+file: modelapi client/ModelApiHost/providerClient/transport,
+configured.ts x5, providersCommands) plus dropped identities for code
+main rewrote. Regenerated with the byte-identical classifier under the
+same identity rule: 1,347 sites before and after (per-area counts
+unchanged), gate green. No branch debt baselined: the only
+conflict-resolved catch (configured.ts) took main's text verbatim.
+`docs/catches-burndown.md` counts stand.
