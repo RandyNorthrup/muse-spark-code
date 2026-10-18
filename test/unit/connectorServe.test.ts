@@ -4,11 +4,11 @@
 // plain HTTP for the person's clicks. The browser opener is the runtime's
 // own dependency: here it hands the launch URL to the test's HTTP client
 // instead of an OS browser, and the page's own login, event stream and
-// decision post do the rest. (RVMSM124: replaces connectorRegistry's
-// fake-port harness and connectorEntry's vi.mock of the approval page,
-// deleted under the owner's testing rules; schedules and reports are not
-// called by these cases and their ports stay unbound here — their wiring
-// is proven by test/e2e/connectorStdio.e2e.test.ts on the built product.)
+// decision post do the rest. (RVMSM124: the earlier cases that staged the
+// registry ports and the approval page without the real ones are deleted
+// under the owner's testing rules; schedules and reports are not called by
+// these cases and their ports stay unbound here — their wiring is proven
+// by test/e2e/connectorStdio.e2e.test.ts on the built product.)
 import { request } from 'node:http'
 import { mkdtemp, readFile } from 'node:fs/promises'
 import { createConnection } from 'node:net'
