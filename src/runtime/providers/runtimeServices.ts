@@ -11,7 +11,11 @@ import { hostname } from 'node:os'
 import { AccountStore, type AccountsMetadataPort } from '../../core/providers/accounts'
 import { AccountStoreError } from '../../core/providers/accountCredentialRecord'
 import type { Account, AccountThresholds } from '../../shared/accounts'
-import { AccountSwitchRefusedError, isInvalidProvidersFileError } from '../../acp/accountText'
+import {
+  AccountSwitchRefusedError,
+  RevokeUnsupportedError,
+  isInvalidProvidersFileError,
+} from '../../acp/accountText'
 import {
   AccountSecrets,
   secretStorageAccountVault,
@@ -39,9 +43,10 @@ import {
 
 /** No M95b revoker exists outside VS Code: removing a sign-in refuses loudly
  * rather than orphan it. API keys delete normally; revoke is never called
- * for them. */
+ * for them. The refusal is branded so `AccountSecrets.remove` preserves it
+ * instead of reporting a generic store outage. */
 export function runtimeRevokeSignIn(): Promise<void> {
-  return Promise.reject(new Error(UI_TEXT.accounts.revokeUnsupported))
+  return Promise.reject(new RevokeUnsupportedError())
 }
 
 export interface RuntimeAccountServicesInput {

@@ -13,9 +13,12 @@ happened, not what was planned; superseded entries are kept.
   unavailable until this runtime is connected to the shared account
   service" while the runtime is connected: a refused providers file is
   refused by name, a missing selection says no account is selected,
-  a change racing an update says to try again, and store, credential-store
-  and disk failures name the failure. Only a runtime with no account
-  service bound still says it is not connected.
+  a change racing an update says to try again, removing a sign-in this
+  runtime cannot revoke says so, and the terminal names a retained store,
+  credential-store or disk failure. A refusal that kept no cause, and any
+  unenumerated failure over ACP, stays on the fixed unavailable sentence;
+  raw service text never crosses the ACP boundary. Only a runtime with no
+  account service bound still says it is not connected.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
