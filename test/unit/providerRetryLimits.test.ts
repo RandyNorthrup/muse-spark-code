@@ -40,32 +40,37 @@ const limitsOf = (preset: string) => quirksOf(presetById(preset)!).retryLimits
 /** When the overflow test's Stop comes; any time well past 1 ms proves it. */
 const STOP_AFTER_MS = 200
 
+/**
+ * The platform's own timer, unreferenced so a wait left pending by a Stop
+ * never holds the test process open.
+ */
+const platformSleep = async (ms: number): Promise<void> => {
+  await timer(ms, undefined, { ref: false })
+}
+
+/** The deps every transport in this suite shares; callers add the address and limits. */
+const baseTransportDeps = (sleep: (ms: number, signal?: AbortSignal) => Promise<void>) => ({
+  fetch: globalThis.fetch,
+  sleep,
+  now: Date.now,
+  random: Math.random,
+  log: stderrLogger((line) => process.stderr.write(`${line}\n`), 'warn'),
+})
+
 /** The product's transport over one provider's documented limits. */
 const transportFor = (retryLimits: RetryLimits) =>
   new RequestTransport({
-    fetch: globalThis.fetch,
+    ...baseTransportDeps(platformSleep),
     baseUrl: MODEL_API_BASE_URL,
     retryLimits,
-    // The platform's own timer, unreferenced so a wait left pending by a
-    // Stop never holds the test process open.
-    sleep: async (ms) => {
-      await timer(ms, undefined, { ref: false })
-    },
-    now: Date.now,
-    random: Math.random,
-    log: stderrLogger((line) => process.stderr.write(`${line}\n`), 'warn'),
   })
 
 /** The product's transport with the chunk sleep under test. */
 const transportWithSleep = (sleep: (ms: number, signal?: AbortSignal) => Promise<void>) =>
   new RequestTransport({
-    fetch: globalThis.fetch,
+    ...baseTransportDeps(sleep),
     baseUrl: MODEL_API_BASE_URL,
     retryLimits: limitsOf('openrouter'),
-    sleep,
-    now: Date.now,
-    random: Math.random,
-    log: stderrLogger((line) => process.stderr.write(`${line}\n`), 'warn'),
   })
 
 /**
@@ -101,17 +106,11 @@ const transportToNowhere = (
   personMaxRetries?: () => number | undefined,
 ) =>
   new RequestTransport({
-    fetch: globalThis.fetch,
+    ...baseTransportDeps(platformSleep),
     baseUrl: `http://127.0.0.1:${String(port)}`,
     retryLimits,
     ...(personMaxRetries !== undefined && { personMaxRetries }),
     apiKey: () => Promise.resolve('retry-limit-test-key'),
-    sleep: async (ms) => {
-      await timer(ms, undefined, { ref: false })
-    },
-    now: Date.now,
-    random: Math.random,
-    log: stderrLogger((line) => process.stderr.write(`${line}\n`), 'warn'),
   })
 
 const postNowhere = (
