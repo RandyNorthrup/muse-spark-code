@@ -5,4 +5,12 @@ export * from './admission'
 export * from './launcher'
 
 // Process identities belong to this process-wide admission boundary too.
-export { currentProcessOwner, isProcessOwnerGone, processOwnerSchema } from '../locks/processOwner'
+// The vault store reads the exact-birth members from the shared bundle
+// (sharedResourceAdmission), so they are re-exported here with the rest.
+export {
+  currentProcessOwner,
+  exactCurrentProcessOwner,
+  exactProcessBirth,
+  isProcessOwnerGone,
+  processOwnerSchema,
+} from '../locks/processOwner'
