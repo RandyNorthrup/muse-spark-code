@@ -334,8 +334,10 @@ const totalsSchema = z
 /** Fixed-unit boundaries refuse a decimal that cannot be represented exactly. */
 function microUsd(value: UsdAmount): bigint | undefined {
   try {
+    // No upper bound: a person's amount is honored as given and carried as an
+    // exact BigInt. Negative input stays unrepresentable here.
     const units = Usd.from(value).units(EXEC_USD_DECIMALS)
-    return units >= USD_DECIMAL_ZERO && units <= BigInt(Number.MAX_SAFE_INTEGER) ? units : undefined
+    return units >= USD_DECIMAL_ZERO ? units : undefined
   } catch {
     return undefined
   }

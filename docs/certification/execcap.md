@@ -98,3 +98,15 @@ the owner's Limits rule the ceiling is removed, not kept.
 - `src/shared/l10n/en.ts` and all 14 `l10n/ui.*.json` — no string named a
   dollar ceiling (`check:l10n` gates this); `src/shared/featureCatalog.ts`
   has no `max-budget` entry.
+
+## PR228FIX amends (this lane, see `pr228fix.md`)
+
+- `previewResponseReservation` no longer builds its throwaway ledger with the
+  run's own cap: it quotes the reservation without any cap admission, so a
+  valid low budget reaches `runExec`'s minimum comparison (`budget_exceeded`
+  with the required minimum) instead of throwing `execModelUnpriced`.
+- Ledger (`runLedger.ts`) and protocol (`execProtocol.ts`) validation carry
+  exact BigInt micro-USD with no `MAX_SAFE_INTEGER` upper bound.
+- `docs/ci.md` CLI, grammar and Action entries are positive-only with no
+  upper bound; `test/unit/execArgs.test.ts` above-$20 cases cite the recorded
+  CLI exchange in `pr228fix.md`.
