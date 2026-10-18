@@ -3016,10 +3016,6 @@ export const EN = {
   reject: 'Reject',
   modelApiStalled:
     'The Model API sent nothing for {seconds} s, so the reply was ended; send the message again to retry',
-  // {wait}: the Retry-After the provider asked for, in seconds; {cap}: the
-  // wait past which a request fails at once instead of waiting it out.
-  modelApiRetryAfterTooLong:
-    'The provider asked to wait {wait} s before retrying, past the {cap} s limit, so the request was not retried.',
   queuedTurnDropped: 'Not sent: Stop cleared the queued messages',
   compactionStopped: 'the compaction was stopped',
   compactionEmpty: 'The summary was empty; the conversation is unchanged.',
@@ -4294,6 +4290,89 @@ export const EN = {
   providerProbeUnparseable: 'The model list could not be read.',
   providerProbeNoKey: 'No key was supplied.',
   providerProbeRebinding: 'The address changed networks; the request was refused.',
+  // Lane PROVERR: what a person reads when a configured provider answers a
+  // request with a refusal. {provider}: the provider's display name;
+  // {detail}: the provider's own words, quoted as theirs; {wait}: '' or the
+  // localized wait the provider named; {status}: the HTTP status.
+  providerRefusalCredit:
+    '{provider} refused the request: its account is out of credit. Add credit at {provider}; nothing reached a model and nothing was charged for this request. {provider} said: {detail}',
+  providerRefusalAuthentication:
+    '{provider} refused the request: the stored key was rejected. Store a new {provider} key from Models & Agents; nothing reached a model and nothing was charged. {provider} said: {detail}',
+  providerRefusalPermission:
+    '{provider} refused the request: the key has no permission for this. Check the key’s permissions at {provider}; nothing reached a model and nothing was charged. {provider} said: {detail}',
+  providerRefusalNotFound:
+    '{provider} refused the request: it has no such model. Pick a model {provider} lists; nothing reached a model and nothing was charged. {provider} said: {detail}',
+  providerRefusalContentFilter:
+    '{provider} refused the request: its content filter blocked it. Rephrase without the flagged content and try again; nothing reached a model and nothing was charged for this request. {provider} said: {detail}',
+  providerRefusalRateLimited:
+    '{provider} refused the request for now: too many requests{wait}. Try again shortly; nothing was charged for this refusal. {provider} said: {detail}',
+  // Lane PROVERRORS: a usage window, fair-use limit or expired plan (Z.ai's
+  // 1308-1321). The provider's own words carry the reset time it names.
+  providerRefusalUsageLimit:
+    '{provider} refused the request: the account’s plan or usage limit does not allow it now, so it was not retried. Nothing was charged for this refusal. {provider} said: {detail}',
+  providerRefusalOverloaded:
+    '{provider} refused the request: it is overloaded{wait}. Try again shortly; nothing was charged for this refusal. {provider} said: {detail}',
+  providerRefusalInvalidRequest:
+    '{provider} refused the request: the request was invalid; nothing was charged. {provider} said: {detail}',
+  providerRefusalTooLarge:
+    '{provider} refused the request: it was too large. Shorten the conversation or attachments and try again; nothing was charged. {provider} said: {detail}',
+  providerRefusalServerError:
+    '{provider} failed to answer: a server error on its side. Try again shortly. {provider} said: {detail}',
+  providerRefusalStreamError:
+    '{provider} stopped answering with an error. Try again; the request may have been charged — check usage at {provider}. {provider} said: {detail}',
+  providerRefusalUnrecognised:
+    '{provider} answered with an error this build does not recognise (HTTP {status}). Try again; the request may have been charged — check usage at {provider}. The answer began: {detail}',
+  // {seconds}: the wait the provider named, in seconds.
+  providerRefusalWait: ' (retry after {seconds})',
+  // {id}: the provider's request id, for its support (lane PROVERRORS).
+  providerRefusalRequestId: ' (request id {id})',
+  // {provider}: the provider's display name; {detail}: Node's own failure
+  // codes (ECONNRESET, ENOTFOUND, …), never what a server wrote.
+  // Round 2, finding 7: the connection failed, and whether the request
+  // arrived is unknown — never "nothing was sent".
+  providerUnreachable:
+    'Could not reach {provider}: the connection failed ({detail}), so whether the request arrived is unknown; check the network and the provider address.',
+  // Lane PROVERRORS: {provider} answered 200 and the connection was lost
+  // while its reply came; {detail}: Node's own failure codes.
+  providerConnectionLost:
+    'The connection to {provider} was lost after it accepted the request ({detail}). The reply is incomplete, and the request may have been charged — check usage at {provider}.',
+  // Round 2, finding 6: each cause a person can meet has its own sentence;
+  // slots carry technical values only (ids, origins, paths), never prose.
+  // {entry}: the provider entry id; {preset}: the preset id as typed.
+  configuredProviderUnknownPreset:
+    'The {entry} provider entry names the preset {preset}, which does not exist. Pick a preset in Models & Agents.',
+  // {entry}: the provider entry id; {auth}: the auth kind as stored.
+  configuredProviderUnsupportedAuth:
+    'The {entry} provider entry uses {auth}, which this build does not support. Set an API key in Models & Agents.',
+  // {entry}: the provider entry id.
+  configuredProviderMissingAddress:
+    'The {entry} provider entry has no address. Enter the provider address in Models & Agents.',
+  // {entry}: the provider entry id.
+  configuredProviderStoredKeyMissing:
+    'The {entry} provider entry has no stored key. Store the key in Models & Agents.',
+  // {entry}: the provider entry id; {model}: the model id as listed.
+  configuredProviderUnusableModelsEntry:
+    'The {entry} provider entry lists the model {model} with no usable data. Scan again in Models & Agents.',
+  // {model}: the model id as entered.
+  configuredProviderContextWindowUnset:
+    'The {model} model needs its context window set. Set it in Models & Agents.',
+  // {entry}: the provider entry id; {address}: the offending origin or path.
+  configuredProviderAddress:
+    'The {entry} provider entry points at {address}, which cannot be used here. Check the address in Models & Agents.',
+  // {entry}: the provider entry id.
+  configuredProviderChangedDuringRequest:
+    'The {entry} provider entry changed while the request was prepared. Try again in Models & Agents.',
+  // {entry}: the provider entry id; {detail}: the technical invariant.
+  configuredProviderDefect:
+    'The {entry} provider entry cannot be used because of a product defect ({detail}). Report it with Models & Agents.',
+  mainServiceUnavailable:
+    'The main Muse Spark service is not set up in this run, so that model cannot be answered here.',
+  // {provider}: the provider's display name.
+  providerStreamTooLarge:
+    'The {provider} answer was larger than this build reads, so the request was stopped.',
+  modelApiProvidersMissing: 'Models & Agents providers were not included in this build.',
+  modelsPanelPartMissing:
+    'That Models & Agents action is not wired into this panel; use the full panel.',
   providerSaveSecretFailed: 'The credential store operation failed.',
   providerSaveWriteConflict: 'The file could not be written or changed during saving; retry.',
   providerEditConflict: 'A field you edited changed elsewhere. Reload the form before saving.',
