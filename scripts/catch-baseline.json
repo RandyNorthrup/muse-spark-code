@@ -13,7 +13,7 @@
     },
     "host": {
       "SWALLOW": 41,
-      "GENERIC": 296,
+      "GENERIC": 298,
       "CLEANUP": 62
     },
     "root": {
@@ -4289,6 +4289,11 @@
       "class": "GENERIC"
     },
     {
+      "file": "src/host/commands/museConfigCommands.ts",
+      "identity": "a5273301094435a67392f47f75519b215fc436800cca98497943bece948de876",
+      "class": "GENERIC"
+    },
+    {
       "file": "src/host/conversation/conversationCheckpoints.ts",
       "identity": "a4efde52a467d0c22bb2ad5b9cefc0d024cc553a00745325df3c67e5dfab375d",
       "class": "GENERIC"
@@ -5386,6 +5391,11 @@
     {
       "file": "src/host/resources/museResourceLaunch.ts",
       "identity": "4cefd167667f6e6fd96875344722f69d284e09c72de1caa3e1634d51a9eff666",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/review/reviewCollector.ts",
+      "identity": "372a1f1d5c5fe7af0d243c575abfe7d2e9247fc92eff302e4827a047ca54738d",
       "class": "GENERIC"
     },
     {

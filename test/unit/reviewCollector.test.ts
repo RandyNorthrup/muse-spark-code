@@ -1,9 +1,10 @@
 // The review collector's failure reads (src/host/review/reviewCollector.ts):
 // a folder that vanished mid-review reviews nothing (cancelled); a folder
 // that cannot be read at all keeps the review closed as git failing, never
-// as cancelled; only git's own exit 1 reads as an empty filter inventory.
+// as cancelled and never thrown; only git's own exit 1 reads as an empty
+// filter inventory.
 import { execFile } from 'node:child_process'
-import { chmod, mkdir } from 'node:fs/promises'
+import { chmod, mkdir, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { describe, expect, it } from 'vitest'
@@ -59,6 +60,31 @@ describe('createReviewCollector', () => {
       }
     })
   })
+
+  // A real link loop on disk: resolving the workspace root fails outside
+  // git, so the review stays closed as git failing with the code for the
+  // log, and nothing raw reaches the person. POSIX-only: making a link
+  // needs a privilege Windows CI does not grant.
+  it.skipIf(process.platform === 'win32')(
+    'refuses a looped folder as git failing, never thrown',
+    async () => {
+      await usingTempDir('review-collector-', async (folder) => {
+        const loop = path.join(folder, 'loop')
+        await symlink(loop, loop)
+        const collect = createReviewCollector({
+          workspaceRoot: loop,
+          runGit: realGit,
+          pickOne: neverPick,
+        })
+        const collection = await collect({ scope: 'uncommitted', focus: 'general' }, () => true)
+        expect(collection).toEqual({
+          kind: 'refused',
+          refusal: 'gitFailed',
+          failure: 'workspace identity unreadable (ELOOP)',
+        })
+      })
+    },
+  )
 
   it('reads git exit 1 as an empty filter inventory and reviews on', async () => {
     await usingTempDir('review-collector-', async (folder) => {

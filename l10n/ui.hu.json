@@ -1421,6 +1421,7 @@
     "other": "{count} hook itt: {file}"
   },
   "hooksSparkAbout": "A Muse Code soha nem olvassa ezt a fájlt. Azokat az eseményeket tartalmazza, amelyeket csak ez a bővítmény futtat, valamint a más ügynökökből importált hookokat.",
+  "hooksFileUnreadable": "Ez a fájl nem olvasható:",
   "hooksBackendMuseCode": "A Muse Code futtatja",
   "hooksBackendBoth": "A Muse Code futtatja, a Model API háttérrendszeren pedig ez az ablak",
   "hooksBackendSpark": "Ez az ablak futtatja: a Model API háttérrendszeren, a bővítmény által kezelt eseményeknél pedig mindkét háttérrendszeren",

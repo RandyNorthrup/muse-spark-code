@@ -1434,6 +1434,7 @@
     "many": "{count} de ganchos em {file}"
   },
   "hooksSparkAbout": "O Muse Code nunca lê este arquivo. Ele contém os eventos que só esta extensão executa e os ganchos importados de outros agentes.",
+  "hooksFileUnreadable": "Não foi possível ler este arquivo:",
   "hooksBackendMuseCode": "Executados pelo Muse Code",
   "hooksBackendBoth": "Executados pelo Muse Code e, no back-end da Model API, por esta janela",
   "hooksBackendSpark": "Executados por esta janela: no back-end da Model API e, para os eventos que a própria extensão trata, nos dois back-ends",

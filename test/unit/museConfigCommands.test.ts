@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { chmod, writeFile } from 'node:fs/promises'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   type McpAction,
@@ -7,6 +10,7 @@ import {
 } from '../../src/host/commands/museConfigCommands'
 import type { PickItem } from '../../src/host/commands/pickItem'
 import type { McpPoolSnapshot } from '../../src/core/backends/modelapi/mcp/pool'
+import { usingTempDir } from './helpers/temporaryFolders'
 
 const SETTINGS = '/home/u/.config/muse/settings.json'
 const HOOKS = '/ws/.muse/hooks.json'
@@ -622,11 +626,60 @@ describe('showHooks', () => {
     expect(t.opened).toEqual([HOOKS])
   })
 
-  it('does not hide a hooks file that cannot be read', async () => {
+  it('lists an unreadable hooks file as unreadable instead of failing the panel', async () => {
     const denied = Object.assign(new Error('EACCES: permission denied, open it'), {
       code: 'EACCES',
     })
     const t = harness({ settings: '{}', existing: [SETTINGS, HOOKS], files: { [HOOKS]: denied } })
-    await expect(showHooks(t.deps)).rejects.toThrow('EACCES: permission denied')
+    await showHooks(t.deps)
+    const project = t.picks[0]?.items.find((item) => item.id === 'hooks:project')
+    expect(project?.detail).toBe('This file could not be read: EACCES')
+    expect(t.picks[0]?.items.map((item) => item.id)).toEqual([
+      'hooks:project',
+      'hooks:sparkProject',
+      'hooks:user',
+      'hooks:sparkUser',
+      'hooks:managed',
+      'action:docs',
+    ])
+  })
+
+  // A real permission-denied hooks file on disk (src/host/commands/museConfigCommands.ts):
+  // the panel still opens and names the file unreadable with its code, never
+  // the operating system's text. POSIX-only: Windows read-only files stay readable.
+  it.skipIf(process.platform === 'win32')('opens over a real unreadable hooks file', async () => {
+    await usingTempDir('hooks-unreadable-', async (folder) => {
+      const spark = path.join(folder, 'spark-hooks.json')
+      await writeFile(spark, JSON.stringify({ hooks: {} }), 'utf8')
+      await chmod(spark, 0)
+      try {
+        const picks: { items: readonly PickItem[] }[] = []
+        const deps: MuseConfigDeps = {
+          settingsPath: path.join(folder, 'settings.json'),
+          readSettings: () => '{}',
+          projectHooksPath: undefined,
+          sparkProjectPath: spark,
+          sparkUserPath: undefined,
+          readTextFile: (fsPath) => readFileSync(fsPath, 'utf8'),
+          fileExists: existsSync,
+          isWorkspaceTrusted: () => true,
+          pick: (items) => {
+            picks.push({ items })
+            return Promise.resolve(undefined)
+          },
+          openFile: () => Promise.resolve(),
+          openDocs: () => undefined,
+          runMcpCommand: () => true,
+          restart: () => Promise.resolve(),
+          showInformation: () => undefined,
+          showWarning: () => undefined,
+        }
+        await showHooks(deps)
+        const row = picks[0]?.items.find((item) => item.id === 'hooks:sparkProject')
+        expect(row?.detail).toBe('This file could not be read: EACCES')
+      } finally {
+        await chmod(spark, 0o644)
+      }
+    })
   })
 })

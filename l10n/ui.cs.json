@@ -1447,6 +1447,7 @@
     "many": "{count} hooku v souboru {file}"
   },
   "hooksSparkAbout": "Muse Code tento soubor nikdy nečte. Obsahuje události, které spouští jen toto rozšíření, a hooky importované z jiných agentů.",
+  "hooksFileUnreadable": "Tento soubor se nepodařilo přečíst:",
   "hooksBackendMuseCode": "Spouští Muse Code",
   "hooksBackendBoth": "Spouští Muse Code a na back-endu Model API také toto okno",
   "hooksBackendSpark": "Spouští toto okno: na back-endu Model API a u událostí, které obsluhuje samo rozšíření, na obou back-endech",

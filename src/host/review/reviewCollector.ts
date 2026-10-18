@@ -27,7 +27,7 @@ import {
 } from '../../shared/constants'
 import type { ReviewRequest } from '../../shared/reviewCommand'
 import type { PickOne } from '../commands/pickItem'
-import { isMissingPath } from '../canonicalPath'
+import { errnoCode, isMissingPath } from '../canonicalPath'
 import { gitExitCode, gitFilterOptions, isGitExitError } from '../git'
 import { captureWorkspaceIdentity, type WorkspaceIdentity } from '../workspaceIdentity'
 
@@ -155,6 +155,11 @@ function exitOf(error: unknown): string {
   return code === undefined ? UNKNOWN_EXIT : String(code)
 }
 
+/** How an unreadable workspace folder reads in the log: its code, never its text, which names a path. */
+function identityFailure(error: unknown): string {
+  return `workspace identity unreadable (${errnoCode(error) ?? 'error'})`
+}
+
 /** The collector the conversation asks: git's material for a request, the pickers included. */
 export function createReviewCollector(
   deps: ReviewCollectorDeps,
@@ -169,12 +174,11 @@ export function createReviewCollector(
     } catch (error: unknown) {
       // A folder that vanished mid-review reviews nothing; a folder that
       // cannot be read at all (a permission error, a link loop) keeps the
-      // review closed through the git-failure refusal below, never as
-      // cancelled and never with git's own words.
-      if (!isMissingPath(error)) {
-        throw error
-      }
-      return { kind: 'cancelled' }
+      // review closed as a git failure, never as cancelled and never with
+      // git's or the operating system's own words.
+      return isMissingPath(error)
+        ? { kind: 'cancelled' }
+        : { kind: 'refused', refusal: 'gitFailed', failure: identityFailure(error) }
     }
     if (root === undefined) {
       return { kind: 'cancelled' }

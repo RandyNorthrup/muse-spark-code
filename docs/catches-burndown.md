@@ -113,6 +113,22 @@ Designed baselines with reasons (accepted, not forgotten):
   `src/host/providers/copilotClient.ts` tokenizer-race `.catch(() => null)`
   marks: the waiter (respectively the race) below receives the outcome;
   the mark only silences the handled rejection.
+- `src/host/review/reviewCollector.ts` identity catch (REVCATCHD): a folder
+  that cannot be read at all (a permission error, a link loop) keeps the
+  review closed as a refused git failure with the code for the log, never as
+  cancelled and never thrown — the collector's typed return channel is the
+  report, which the classifier cannot see (GENERIC by shape, narrowed and
+  reported by meaning). Evidence: `test/unit/reviewCollector.test.ts`
+  ("refuses a looped folder as git failing, never thrown", observed failing
+  on the throwing handler).
+- `src/host/commands/museConfigCommands.ts` hook-file catch (REVCATCHD): a
+  hooks file that cannot be read stays visible as an unreadable row with
+  fixed words and its code, and the panel still lists every other source —
+  the row's typed return channel is the report, which the classifier cannot
+  see (GENERIC by shape, narrowed and reported by meaning). Evidence:
+  `test/unit/museConfigCommands.test.ts` ("lists an unreadable hooks file
+  as unreadable instead of failing the panel", "opens over a real
+  unreadable hooks file", both observed failing on the throwing handler).
 - Everything else below: pre-existing, grouped for area-by-area lanes.
 
 | Folder                 | GENERIC | SWALLOW |
@@ -159,7 +175,7 @@ Designed baselines with reasons (accepted, not forgotten):
 | src/host/bestOfN       | 1       | 0       |
 | src/host/browser       | 2       | 0       |
 | src/host/checkpoints   | 1       | 0       |
-| src/host/commands      | 0       | 0       |
+| src/host/commands      | 1       | 0       |
 | src/host/conversation  | 111     | 9       |
 | src/host/editor        | 9       | 0       |
 | src/host/estimator     | 1       | 0       |
@@ -172,7 +188,7 @@ Designed baselines with reasons (accepted, not forgotten):
 | src/host/prompts       | 4       | 0       |
 | src/host/providers     | 5       | 3       |
 | src/host/resources     | 1       | 2       |
-| src/host/review        | 0       | 0       |
+| src/host/review        | 1       | 0       |
 | src/host/runners       | 4       | 0       |
 | src/host/skills        | 3       | 0       |
 | src/host/support       | 18      | 1       |

@@ -1421,6 +1421,7 @@
     "other": "{file} dosyasında {count} kanca"
   },
   "hooksSparkAbout": "Muse Code bu dosyayı asla okumaz. Dosya, yalnızca bu uzantının çalıştırdığı olayları ve diğer aracılardan içe aktarılan kancaları içerir.",
+  "hooksFileUnreadable": "Bu dosya okunamadı:",
   "hooksBackendMuseCode": "Muse Code tarafından çalıştırılır",
   "hooksBackendBoth": "Muse Code tarafından ve Model API arka ucunda bu pencere tarafından çalıştırılır",
   "hooksBackendSpark": "Bu pencere tarafından çalıştırılır: Model API arka ucunda ve uzantının kendisinin işlediği olaylar için her iki arka uçta",

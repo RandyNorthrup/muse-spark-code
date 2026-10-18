@@ -1408,6 +1408,7 @@
     "other": "{file} のフック {count} 個"
   },
   "hooksSparkAbout": "Muse Code はこのファイルを読み込みません。このファイルには、この拡張機能だけが実行するイベントと、他のエージェントからインポートしたフックが含まれます。",
+  "hooksFileUnreadable": "このファイルを読み取れませんでした:",
   "hooksBackendMuseCode": "Muse Code が実行します",
   "hooksBackendBoth": "Muse Code が実行し、Model API バックエンドではこのウィンドウも実行します",
   "hooksBackendSpark": "このウィンドウが実行します: Model API バックエンドで実行し、拡張機能自体が処理するイベントは両方のバックエンドで実行します",

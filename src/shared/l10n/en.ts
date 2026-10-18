@@ -1763,6 +1763,7 @@ export const EN = {
   }),
   hooksSparkAbout:
     'Muse Code never reads this file. It holds the events only this extension runs, and hooks imported from other agents.',
+  hooksFileUnreadable: 'This file could not be read:',
   // Which backend runs a file's hooks, under its row.
   hooksBackendMuseCode: 'Run by Muse Code',
   hooksBackendBoth: 'Run by Muse Code, and by this window on the Model API backend',
