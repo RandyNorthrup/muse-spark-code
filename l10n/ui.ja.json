@@ -452,6 +452,7 @@
   "sessionDeleteHostExited": "削除が確認される前にMuse Codeが終了しました。セッションは履歴に残ります。",
   "sessionDeleteHostClosed": "削除が確認される前にホストが閉じられました。セッションは履歴に残ります。",
   "sessionDeleteTimedOut": "削除確認の待機時間を超過しました。セッションは履歴に残ります。",
+  "sessionDeleteUnsupported": "Muse Code {version} では会話を削除できません。",
   "playbookTitle": "オーケストレーターの手引き",
   "playbookStatus": "状態",
   "playbookRecord": "記録",
@@ -2304,6 +2305,10 @@
   "historyShowArchived": "アーカイブ済みを表示",
   "historyArchive": "アーカイブ",
   "historyUnarchive": "アーカイブ解除",
+  "historyDeleteConfirm": "会話 {name} を削除しますか?",
+  "historyDeleteConfirmDetail": "履歴から完全に削除されます。この操作は元に戻せません。",
+  "historyDeleted": "{name} を削除しました",
+  "historyDeleteFailed": "会話を削除できませんでした",
   "historyCurrent": "現在",
   "historyForkMark": "フォーク",
   "historyTurns": {

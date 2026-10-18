@@ -288,6 +288,8 @@ export interface UiState {
   readonly sessionId: string | undefined
   /** False where the host refuses rename and fork (D26: Muse Code 1.3.0 on Windows). */
   readonly canEditSessions: boolean
+  /** False where the host cannot delete a stored session (D26: no Muse Code CLI from 1.4.4 on). */
+  readonly canDeleteSessions: boolean
   readonly checkpoints: CheckpointView
   /** The workspace's stored sessions, once the History dialog asked (M6). */
   readonly sessions: readonly SessionRow[] | undefined
@@ -681,6 +683,7 @@ export const initialUiState: UiState = {
   title: undefined,
   sessionId: undefined,
   canEditSessions: true,
+  canDeleteSessions: true,
   checkpoints: {
     availability: CHECKPOINT_INITIAL_AVAILABILITY,
     canRestore: false,
@@ -2546,6 +2549,7 @@ function clearedAccountView(state: UiState): UiState {
     ...clearedConversation(state),
     auth: initialUiState.auth,
     canEditSessions: initialUiState.canEditSessions,
+    canDeleteSessions: initialUiState.canDeleteSessions,
     checkpoints: initialUiState.checkpoints,
     sessions: [],
     openQuestionCounts: {},
@@ -3029,6 +3033,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         sessions: message.sessions,
         archivedIds: message.archivedIds,
         openQuestionCounts: { ...state.openQuestionCounts, ...message.openQuestionCounts },
+        canDeleteSessions: message.canDeleteSessions ?? true,
       }
     }
     case 'sessionBoard': {
