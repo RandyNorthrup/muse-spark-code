@@ -52,6 +52,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Choosing an account in a session whose current account was removed now
+  answers that accounts are unavailable, instead of saying the session stays
+  on the removed account (RVMSM108).
+
 - One default-off account certification switch also refuses direct request
   admission and fences a held lease after closure. It controls the native
   account UI, backend bindings and request-ownership Help detail together.
