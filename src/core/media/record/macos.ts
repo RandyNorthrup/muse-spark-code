@@ -5,10 +5,10 @@ import { chmod, lstat, mkdtemp, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import * as z from 'zod/mini'
+import { isCredentialVariable } from '../../../shared/credentialEnvironment'
 import {
   DICTATION_QUIT_GRACE_MS,
   BYTES_PER_MIB,
-  HOOK_FORBIDDEN_ENV_NAMES,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
@@ -112,17 +112,12 @@ function unavailable(reason: string): ScreenRecordingResult & { readonly ok: fal
   return { ok: false, reason: fill(UI_TEXT.media.recordingUnavailable, { reason }) }
 }
 
-/** No model credential or inherited disclaim marker reaches the helper/converters. */
+/** No credential of any shape, or inherited disclaim marker, reaches the helper/converters. */
 function childEnvironment(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return Object.fromEntries(
-    Object.entries(base).filter(([name]) => {
-      const upper = name.toUpperCase()
-      return (
-        !upper.endsWith('_API_KEY') &&
-        !HOOK_FORBIDDEN_ENV_NAMES.has(upper) &&
-        upper !== 'MUSE_DICTATE_DISCLAIMED'
-      )
-    }),
+    Object.entries(base).filter(
+      ([name]) => !isCredentialVariable(name) && name.toUpperCase() !== 'MUSE_DICTATE_DISCLAIMED',
+    ),
   )
 }
 
