@@ -15,8 +15,10 @@
 // observed gone (RVCM352B P1-b): a stop acknowledgement retires the
 // recording, but idle is reported only after the process exits (bounded;
 // then it is killed and that is said). No helper is reused across presses,
-// so a trailing event or a refused stop can never touch the next recording,
-// and after any end no recorder process exists. This module never imports
+// so a trailing event or a refused stop can never touch the next recording.
+// A kill the platform refuses keeps its reaping instead: presses queue
+// behind the observed exit and the kill is retried, so a second recorder
+// never starts alongside the still-live first one. This module never imports
 // `vscode` or `child_process`: the host injects the spawn.
 
 import { Buffer } from 'node:buffer'
@@ -434,6 +436,7 @@ export class Dictation {
   /** A failed recording's end: the failure is said once its process is gone. */
   private async finishFail(helper: RunningHelper, reason: string): Promise<void> {
     this.reaping = helper
+    let isRetained = false
     try {
       const reaped = this.awaitHelperExit(helper, true)
       this.killHelper(helper)
@@ -442,6 +445,13 @@ export class Dictation {
         this.deps.log.warn(
           `Dictation helper exit was not observed${helper.stopRefused ? ' (its stop was refused)' : ''}; it may still hold the microphone: ${reason}`,
         )
+        // The process may still be recording: keep the reaping, queue
+        // presses behind its observed exit, and retry the kill until
+        // that exit arrives. No fresh recorder starts meanwhile.
+        this.deps.listener.onError(reason)
+        isRetained = true
+        void this.retainUntilExit(helper)
+        return
       }
       const hasPending = helper.isStartPending && !this.isDisposed
       helper.isStartPending = false
@@ -456,9 +466,31 @@ export class Dictation {
         this.spawnNext()
       }
     } finally {
-      if (this.reaping === helper) {
+      if (!isRetained && this.reaping === helper) {
         this.reaping = undefined
       }
+    }
+  }
+
+  /**
+   * A refused kill's aftermath: the kill is retried until the helper's
+   * process is observed gone (or the driver is disposed). Only then is
+   * the reaping released, idle reported, and a queued press spawned, so
+   * at most one recorder process ever exists.
+   */
+  private async retainUntilExit(helper: RunningHelper): Promise<void> {
+    for (;;) {
+      this.killHelper(helper)
+      if ((await this.awaitHelperExit(helper, true)) || this.isDisposed) break
+    }
+    const hasPending = helper.isStartPending && !this.isDisposed
+    helper.isStartPending = false
+    if (this.reaping === helper) {
+      this.reaping = undefined
+    }
+    this.setStatus('idle')
+    if (hasPending) {
+      this.spawnNext()
     }
   }
 
@@ -490,6 +522,14 @@ export class Dictation {
     if (this.isDisposed) {
       return
     }
+    // A retired recording's process still winding down — or a refused
+    // kill still retained — queues behind its observed exit, never onto
+    // a dying process, whatever the button shows.
+    if (this.reaping !== undefined) {
+      this.reaping.isStartPending = true
+      this.setStatus('starting')
+      return
+    }
     if (this.status !== 'idle') {
       // A press while the previous stop is still unacknowledged queues
       // behind it: the next recording spawns only after the old process is
@@ -497,13 +537,6 @@ export class Dictation {
       const stopping = this.helper
       if (stopping?.isStopping === true) {
         stopping.isStartPending = true
-        this.setStatus('starting')
-        return
-      }
-      // A press while the retired recording's process winds down queues
-      // behind its observed exit, never onto a dying process.
-      if (this.reaping !== undefined) {
-        this.reaping.isStartPending = true
         this.setStatus('starting')
       }
       return
