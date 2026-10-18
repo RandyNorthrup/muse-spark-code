@@ -551,7 +551,11 @@ export function createConfiguredProviderServices(
               )
             }
           } catch (error: unknown) {
-            if (!connection.isConnected)
+            // An injected send reports no dispatch, so a failure after it
+            // was called may have reached the provider: it keeps ambiguous
+            // liability below instead of `not_sent`, which would release
+            // the run's ticket and record zero.
+            if (!connection.isConnected && options.send === undefined)
               throw new UserRefusalError(
                 isUserRefusal(error) ? error.message : UI_TEXT.providerProbeUnreachable,
                 'not_sent',
