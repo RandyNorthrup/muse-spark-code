@@ -56,7 +56,10 @@ function parseObject(text: string): Record<string, unknown> | undefined {
   let value: unknown
   try {
     value = JSON.parse(text) as unknown
-  } catch {
+  } catch (error: unknown) {
+    // JSON.parse throws only SyntaxError for text input: an unparsable
+    // reply decodes to nothing, and anything else is a caller bug.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
   return typeof value === 'object' && value !== null && !Array.isArray(value)

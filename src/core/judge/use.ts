@@ -185,7 +185,10 @@ export function startApprovalJudge(
   let args: unknown
   try {
     args = JSON.parse(rawArgs)
-  } catch {
+  } catch (error: unknown) {
+    // JSON.parse throws only SyntaxError for text input: unparsable
+    // arguments start no judge, and anything else is a caller bug.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
   return judge.start({ ...action, args }, stateText)
