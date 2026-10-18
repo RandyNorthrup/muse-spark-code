@@ -1,6 +1,7 @@
-// The Action sets no request limit unless the person sets max-requests, and
-// honors any positive budget, count or deadline: the 30 default, the 500 and
-// 360 maxima and the $20 ceiling were ours, not a provider's. Real Action
+// The Action sets no request limit unless the person sets max-requests, no
+// deadline unless they set timeout-minutes, and honors any positive budget,
+// count or deadline: the 30 default, the 20-minute default, the 500 and 360
+// maxima and the $20 ceiling were ours, not a provider's. Real Action
 // modules only: no stand-ins.
 import { describe, expect, it } from 'vitest'
 import { InputError, parseActionInputs } from '../../action/lib/tools.mjs'
@@ -32,11 +33,18 @@ describe('action exec bounds', () => {
       expect(() => parseActionInputs({ MUSE_INPUT_MAX_BUDGET_USD: value })).toThrow(InputError)
   })
 
-  it('keeps the 20-minute deadline default and accepts any positive minutes', () => {
-    expect(parseActionInputs(baseEnv()).timeoutMinutes).toBe(20)
-    expect(
-      parseActionInputs({ ...baseEnv(), MUSE_INPUT_TIMEOUT_MINUTES: '1000' }).timeoutMinutes,
-    ).toBe(1000)
+  it('treats a missing or empty timeout-minutes input as no deadline', () => {
+    expect(parseActionInputs(baseEnv()).timeoutMinutes).toBe(null)
+    expect(parseActionInputs({ ...baseEnv(), MUSE_INPUT_TIMEOUT_MINUTES: '' }).timeoutMinutes).toBe(
+      null,
+    )
+  })
+
+  it('accepts any positive timeout-minutes input with no maximum', () => {
+    for (const value of ['1', '20', '1000'])
+      expect(
+        parseActionInputs({ ...baseEnv(), MUSE_INPUT_TIMEOUT_MINUTES: value }).timeoutMinutes,
+      ).toBe(Number(value))
     for (const value of ['0', '-1', 'abc'])
       expect(() => parseActionInputs({ ...baseEnv(), MUSE_INPUT_TIMEOUT_MINUTES: value })).toThrow(
         InputError,
@@ -64,5 +72,28 @@ describe('action exec bounds', () => {
     const at = set.indexOf('--max-requests')
     expect(at).toBeGreaterThan(-1)
     expect(set.slice(at, at + 2)).toEqual(['--max-requests', '1000000'])
+  })
+
+  it('forwards --timeout only when the person set timeout-minutes', () => {
+    const paths = {
+      checkout: '/work',
+      prompt: '/out/prompt.txt',
+      diff: '/out/diff.patch',
+      meta: '/out/meta.json',
+    }
+    const unset = execArguments({
+      agentJs: '/agent/dist/acp.js',
+      paths,
+      inputs: parseActionInputs(baseEnv()),
+    })
+    expect(unset).not.toContain('--timeout')
+    const set = execArguments({
+      agentJs: '/agent/dist/acp.js',
+      paths,
+      inputs: parseActionInputs({ ...baseEnv(), MUSE_INPUT_TIMEOUT_MINUTES: '20' }),
+    })
+    const at = set.indexOf('--timeout')
+    expect(at).toBeGreaterThan(-1)
+    expect(set.slice(at, at + 2)).toEqual(['--timeout', '1200'])
   })
 })

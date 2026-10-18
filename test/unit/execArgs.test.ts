@@ -60,7 +60,7 @@ describe('M80 args (A1–A10, F1)', () => {
       backend: 'museCode',
       mode: 'plan',
       output: 'text',
-      timeoutMs: 1_800_000,
+      timeoutMs: undefined,
       prompt: { kind: 'text', text: 'hi' },
       maxRequests: undefined,
       paidFeatures: [],
@@ -135,7 +135,7 @@ describe('M80 args (A1–A10, F1)', () => {
     { backend: 'auto' },
     { output: 'xml' },
     { effort: 'unknown' },
-    { timeout: '9' },
+    { timeout: '0' },
     { timeout: '10.1' },
     { backend: ['modelApi'] },
     { unknown: true },
@@ -164,10 +164,17 @@ describe('M80 args (A1–A10, F1)', () => {
       expect(accepted.options.maxRequests).toBe(Number(value))
     }
   })
-  it('accepts a set deadline past 21600 seconds with no maximum', () => {
-    // No provider publishes a run deadline, so the product sets none; the
-    // 10-second floor stays.
-    for (const value of ['21601', '1000000']) {
+  it('leaves no deadline without --timeout and honors any positive duration', () => {
+    // No provider publishes a run deadline, so the product sets neither a
+    // default nor a maximum; 0, negatives and non-numbers are not a time.
+    const unset = parseExec({}, ['hi'])
+    expect(unset.ok).toBe(true)
+    if (!unset.ok) throw new Error(unset.reason)
+    expect(unset.options.timeoutMs).toBeUndefined()
+    for (const value of ['0', '-1', 'abc', '10x']) {
+      expect(parseExec({ timeout: value }, ['hi']).ok).toBe(false)
+    }
+    for (const value of ['1', '9', '10', '21601', '1000000']) {
       const accepted = parseExec({ timeout: value }, ['hi'])
       expect(accepted.ok).toBe(true)
       if (!accepted.ok) throw new Error(accepted.reason)

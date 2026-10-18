@@ -22,7 +22,6 @@ const SHA256_HEX = /^[0-9a-f]{64}$/
 const MODEL = /^[A-Za-z0-9._-]{1,100}$/
 const EFFORTS = new Set(['minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
 const USD_UNITS = 1_000_000n
-const DEFAULT_TIMEOUT_MINUTES = 20
 const TRIGGER_MAX_CHARS = 100
 const DEFAULT_TRIGGER = '@muse-spark'
 const NO_PROXY_MAX_CHARS = 4096
@@ -310,9 +309,11 @@ export function parseActionInputs(env) {
     // No default: an empty max-requests input sets no request limit (null).
     // A set value is any positive safe integer, like the CLI's --max-requests.
     maxRequests: positiveCount(env, 'MUSE_INPUT_MAX_REQUESTS', null),
-    // A set deadline is any positive number of minutes: no provider publishes
-    // a run deadline, so the product sets no maximum, like the CLI's --timeout.
-    timeoutMinutes: positiveCount(env, 'MUSE_INPUT_TIMEOUT_MINUTES', DEFAULT_TIMEOUT_MINUTES),
+    // No default: an empty timeout-minutes input sets no run deadline (null),
+    // like the CLI's --timeout. A set deadline is any positive number of
+    // minutes: no provider publishes a run deadline, so the product sets no
+    // maximum.
+    timeoutMinutes: positiveCount(env, 'MUSE_INPUT_TIMEOUT_MINUTES', null),
     model,
     effort,
     allowContributorModels: exactBoolean(env, 'MUSE_INPUT_ALLOW_CONTRIBUTOR_MODELS', false),

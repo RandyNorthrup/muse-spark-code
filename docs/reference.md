@@ -3734,7 +3734,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
 - `exec: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
 - `exec: --max-requests <value>`: Set the maximum number of model requests. `{"type":"string","repeatable":false,"minimum":1,"purpose":"maxRequests"}`
-- `exec: --timeout <value>`: Set the run deadline in seconds. `{"type":"string","repeatable":false,"default":1800,"minimum":10,"unit":"seconds","purpose":"timeoutMs"}`
+- `exec: --timeout <value>`: Set the run deadline in seconds (any positive integer); without it the run has no deadline of its own. `{"type":"string","repeatable":false,"minimum":1,"unit":"seconds","purpose":"timeoutMs"}`
 - `exec: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"muse-binary"}`
 - `exec: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"shell-sandbox"}`
 - `exec: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"allow-contributor-models"}`

@@ -325,7 +325,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   const limits = {
     budgetUsd: options.budgetUsd ?? null,
     maxRequests: options.maxRequests ?? null,
-    timeoutSeconds: options.timeoutMs / MILLISECONDS_PER_SECOND,
+    timeoutSeconds:
+      options.timeoutMs === undefined ? null : options.timeoutMs / MILLISECONDS_PER_SECOND,
   }
   let resolvedOutputCap: number | undefined
   const outputCap = (policy?: ModelPolicy): number =>
@@ -1187,7 +1188,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               lastResponse: totals.lastResponse,
             },
       limits,
-      durationMs: Math.max(0, deps.now() - (lifecycle.deadlineMs - options.timeoutMs)),
+      durationMs: Math.max(0, deps.now() - lifecycle.startMs),
       error: status === 'completed' ? null : { kind: status, message: error },
     }
     return result

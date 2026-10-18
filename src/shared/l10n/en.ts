@@ -427,7 +427,8 @@ export const EN = {
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
     'max-requests': 'Set the maximum number of model requests.',
-    timeout: 'Set the run deadline in seconds.',
+    timeout:
+      'Set the run deadline in seconds (any positive integer); without it the run has no deadline of its own.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
     ephemeral: 'Keep the session in memory without saving it.',
     'key-stdin':

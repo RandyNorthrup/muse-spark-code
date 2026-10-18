@@ -4303,14 +4303,14 @@ export const EXEC_PAID_FEATURES = ['imageGeneration'] as const
 // read these (RVM80A P2-2).
 export const EXEC_PROHIBITED_UPDATE_PATTERN = '^(?:agent_(?:message|thought)_chunk|tool)'
 export const EXEC_RAW_TOOL_FIELDS = ['rawInput', 'rawOutput', 'toolCallId'] as const
-export const EXEC_DEFAULT_TIMEOUT_SECONDS = 1800
-export const EXEC_MIN_TIMEOUT_SECONDS = 10
 // No maximum on a set --timeout, --max-requests or --max-budget-usd, and no
-// default request limit: the only hard-coded limits are a provider's own
-// published ones, and no provider publishes a run deadline, a request count
-// or a run budget (owner's Limits rule). Without --max-requests a run has no
-// request limit; --timeout keeps its 1800-second default and 10-second floor.
-// A set value is any positive safe integer and is honored as given.
+// default deadline or request limit: the only hard-coded limits are a
+// provider's own published ones, and no provider publishes a run deadline, a
+// request count or a run budget (owner's Limits rule). Without --timeout a run
+// has no deadline of its own; without --max-requests it has no request limit.
+// A set --timeout is any positive safe integer of seconds and is honored as
+// given; 0, negatives and non-numbers are refused as not a time, not as a
+// limit.
 // Node fires a setTimeout after 1 ms when the delay passes 2^31 - 1, so the
 // exec deadline timer re-arms at this platform ceiling instead of
 // overflowing; it is not a product limit.

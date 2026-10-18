@@ -54,7 +54,7 @@ interface ActionChildInput {
   stdin?: Uint8Array
   stdoutPath?: string
   stdoutPrefixMaxBytes?: number
-  withinMs: number
+  withinMs: number | undefined
   stdoutMaxBytes: number
   stderrMaxBytes: number
 }
@@ -86,7 +86,7 @@ interface ActionInputs {
   maxBudgetUsd: string
   imageGeneration: boolean
   maxRequests: number | null
-  timeoutMinutes: number
+  timeoutMinutes: number | null
   model: string
   effort: string
   allowContributorModels: boolean
@@ -231,7 +231,7 @@ declare module '*/action/lib/lifecycle.mjs' {
   export function createLauncherOwner(input: {
     paths: Partial<ActionPaths>
     dropSecrets: () => void
-    totalMs: number
+    totalMs: number | undefined
     bounds?: ActionBounds
     onSignal?: (signal: 'SIGINT' | 'SIGTERM', run: () => void) => () => void
     temporaryFiles?: readonly string[]
@@ -269,6 +269,7 @@ declare module '*/action/lib/ci-adapters.mjs' {
 declare module '*/action/lib/ci-run.mjs' {
   export function takeCiKey(env: Record<string, string | undefined>): string | undefined
   export function parseCiInputs(env: Record<string, string | undefined>, system: string): CiInputs
+  export function ownerTotalMs(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number | undefined
   export function requiredJobMinutes(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number
   export function requiredRunMs(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number
   export function jobMinutes(env: Record<string, string | undefined>, system: string): number

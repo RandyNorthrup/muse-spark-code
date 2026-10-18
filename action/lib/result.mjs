@@ -93,7 +93,6 @@ export const PROHIBITED_UPDATE = /^(?:agent_(?:message|thought)_chunk|tool)/
 export const RAW_TOOL_FIELDS = Object.freeze(['rawInput', 'rawOutput', 'toolCallId'])
 const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/
 const USD_DECIMALS = 6
-const MIN_TIMEOUT_SECONDS = 10
 const HTTP_MIN = 100
 const HTTP_MAX = 599
 const PRIVATE_FILE = 0o600
@@ -240,8 +239,9 @@ function isLimits(value) {
     isObject(value, ['budgetUsd', 'maxRequests', 'timeoutSeconds']) &&
     (value.budgetUsd === null || isCap(value.budgetUsd)) &&
     (value.maxRequests === null || (isCounter(value.maxRequests) && value.maxRequests >= 1)) &&
-    isCounter(value.timeoutSeconds) &&
-    value.timeoutSeconds >= MIN_TIMEOUT_SECONDS
+    // Null without --timeout; a set deadline is any positive duration.
+    (value.timeoutSeconds === null ||
+      (isCounter(value.timeoutSeconds) && value.timeoutSeconds >= 1))
   )
 }
 

@@ -336,10 +336,15 @@ export function createLauncherOwner({
     current?.terminate(cause, isRepeat && next.kind === 'signal')
   }
 
-  const totalTimer = setTimeout(() => {
-    stop({ kind: 'phase_timeout', phase: 'owner' })
-  }, totalMs)
-  totalTimer.unref?.()
+  // No total of ours without a run deadline (undefined): the run ends with
+  // the person's deadline, a signal, or the job's own timeout.
+  const totalTimer =
+    totalMs === undefined
+      ? undefined
+      : setTimeout(() => {
+          stop({ kind: 'phase_timeout', phase: 'owner' })
+        }, totalMs)
+  totalTimer?.unref?.()
   const unsubscribe = ['SIGINT', 'SIGTERM'].map((signal) =>
     onSignal(signal, () => {
       stop({ kind: 'signal', signal })
@@ -414,9 +419,14 @@ export function createLauncherOwner({
         return
       }
       record.attach(spawned, fail)
-      const timer = setTimeout(() => {
-        stop({ kind: 'phase_timeout', phase: 'child' })
-      }, input.withinMs)
+      // No child deadline of ours when withinMs is undefined: the child ends
+      // on its own, on a stop, or with the job.
+      const timer =
+        input.withinMs === undefined
+          ? undefined
+          : setTimeout(() => {
+              stop({ kind: 'phase_timeout', phase: 'child' })
+            }, input.withinMs)
       const stdout = boundedSink(
         spawned.stdout,
         input.stdoutMaxBytes,

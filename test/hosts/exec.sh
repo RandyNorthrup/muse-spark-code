@@ -76,5 +76,6 @@ past_bound() {
 }
 past_bound '--max-requests' exec --backend modelApi --max-budget-usd 1 --max-requests 1000000
 past_bound '--timeout' exec --timeout 1000000
+past_bound '' exec --timeout 9
 past_bound '--max-budget-usd' exec --backend modelApi --max-budget-usd 250.5
 past_bound '' exec --backend modelApi --max-budget-usd 1

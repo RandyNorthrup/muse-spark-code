@@ -8,8 +8,6 @@ import {
   type EffortLevel,
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
-  EXEC_DEFAULT_TIMEOUT_SECONDS,
-  EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MODES,
   EXEC_OUTPUTS,
   EXEC_PROMPT_MAX_BYTES,
@@ -59,7 +57,8 @@ export interface ExecOptions {
   /** Exact canonical budget; admission uses integer micro-units internally (F1). */
   readonly budgetUsd: UsdAmount | undefined
   readonly maxRequests: number | undefined
-  readonly timeoutMs: number
+  /** No deadline of ours without `--timeout`: the run ends with the turn, the person, or the provider. */
+  readonly timeoutMs: number | undefined
   readonly paidFeatures: readonly ExecPaidFeature[]
   readonly failOnDenial: boolean
   readonly ephemeral: boolean
@@ -227,15 +226,15 @@ export function parseExec(
   if (shellSandbox === undefined) return invalidFlagValue('shell-sandbox', values['shell-sandbox'])
   if (effort === undefined && values['effort'] !== undefined)
     return invalidFlagValue('effort', values['effort'])
-  // A set deadline is any positive safe integer: no provider publishes a run
-  // deadline, so the product sets no maximum (the deadline timer re-arms
-  // past Node's setTimeout ceiling instead of overflowing).
-  const timeout = integer(
-    values['timeout'],
-    EXEC_DEFAULT_TIMEOUT_SECONDS,
-    EXEC_MIN_TIMEOUT_SECONDS,
-    Number.MAX_SAFE_INTEGER,
-  )
+  // No default: without `--timeout` the run has no deadline of ours. A set
+  // deadline is any positive safe integer of seconds: no provider publishes a
+  // run deadline, so the product sets no maximum (the deadline timer re-arms
+  // past Node's setTimeout ceiling instead of overflowing). Zero, negatives
+  // and non-numbers are refused as not a time.
+  const timeout =
+    values['timeout'] === undefined
+      ? undefined
+      : integer(values['timeout'], 0, 1, Number.MAX_SAFE_INTEGER)
   // No default: without `--max-requests` the run has no request limit. A set
   // value is any positive safe integer; no provider publishes a maximum.
   const maxRequests =
@@ -243,7 +242,8 @@ export function parseExec(
       ? undefined
       : integer(values['max-requests'], 0, 1, Number.MAX_SAFE_INTEGER)
   const budgetUsd = budgetUnits(values['max-budget-usd'])
-  if (timeout === undefined) return invalidFlagValue('timeout', values['timeout'])
+  if (timeout === undefined && values['timeout'] !== undefined)
+    return invalidFlagValue('timeout', values['timeout'])
   if (maxRequests === undefined && values['max-requests'] !== undefined)
     return invalidFlagValue('max-requests', values['max-requests'])
   if (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
@@ -328,7 +328,7 @@ export function parseExec(
       ...(values['output-schema-outside'] === true && { outputSchemaOutside: true }),
       budgetUsd,
       maxRequests: backend === 'modelApi' ? maxRequests : undefined,
-      timeoutMs: timeout * MILLISECONDS_PER_SECOND,
+      timeoutMs: timeout === undefined ? undefined : timeout * MILLISECONDS_PER_SECOND,
       paidFeatures: values['image-generation'] === true ? ['imageGeneration'] : [],
       failOnDenial: values['fail-on-denial'] === true,
       ephemeral: values['ephemeral'] === true,

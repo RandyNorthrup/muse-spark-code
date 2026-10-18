@@ -18,20 +18,29 @@ happened, not what was planned; superseded entries are kept.
   `serve`, the run ledger, the protocol schemas, the generated reference
   and the Action's input and result validation. The 20 USD ceiling was
   ours, not a provider's.
-- Headless `--timeout` no longer stops at 21,600 seconds: a set deadline
-  is any positive safe integer of seconds (the 1800-second default and the
-  10-second floor stay), in `exec`, the protocol schemas, the generated
-  reference and the Action's `timeout-minutes`. The deadline timer re-arms
-  past Node's timer ceiling instead of overflowing. The 21,600-second
-  maximum was ours, not a provider's.
+- Headless `--timeout` has no default: without it an `exec` run has no
+  deadline of ours (it ends with the turn, the person, or the provider),
+  reported as null `timeoutSeconds` in the result and event limits. A set
+  deadline is any positive safe integer of seconds — the 1800-second
+  default and the 10-second floor are gone — in `exec`, the protocol
+  schemas, the generated reference and the Action's `timeout-minutes`. 0,
+  negatives and non-numbers are refused as not a time. The deadline timer
+  re-arms past Node's timer ceiling instead of overflowing. The
+  21,600-second maximum was ours, not a provider's.
 - The GitHub Action no longer caps a run at 30 requests unless the person
   asks: with no `max-requests` input the Action sets no request limit, and
   a set value allows any positive number of billable HTTP attempts,
   retries included.
+- The GitHub Action no longer stops a run after 20 minutes unless the
+  person asks: with no `timeout-minutes` input the Action forwards no
+  `--timeout` and arms no wrapper deadline of its own (the run ends with
+  the person's deadline, a signal, or the job's own timeout), and a set
+  value allows any positive number of minutes.
 - The published headless v2 event/result schemas state no request-count
   maximum for a set `maxRequests` and no deadline maximum for a set
-  `timeoutSeconds`: any positive safe integer is accepted. The 500-request
-  and 21,600-second maxima were ours, not a provider's.
+  `timeoutSeconds`: any positive safe integer is accepted, and
+  `timeoutSeconds` is null without `--timeout`. The 500-request and
+  21,600-second maxima were ours, not a provider's.
 
 ## [0.19.0] - 2026-10-17
 

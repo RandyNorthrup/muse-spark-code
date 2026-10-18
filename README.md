@@ -5048,7 +5048,7 @@ takes no USD budget.
 
 `exec` takes one literal prompt, `--prompt-file <path>` or `-` for stdin, plus
 up to eight `--untrusted-file <path>` resources. `--output` is `text`, `json`
-or `jsonl`; `--timeout` is the process deadline. Model API requires
+or `jsonl`; `--timeout` is an optional process deadline in seconds (any positive integer) — without it the run has no deadline of ours. Model API requires
 `--max-budget-usd` and accepts `--max-requests`, `--ephemeral` and
 `--key-stdin`; without `--key-stdin` it reads the local OS store. The stdin key
 stays in memory and conflicts with a stdin prompt. CI never runs `auth set` or

@@ -1,7 +1,8 @@
 // The exec deadline timer honors a set --timeout with no maximum of ours: a
 // delay past Node's setTimeout ceiling re-arms instead of firing after 1 ms.
-// Drives the real createLifecycle; only the clock and the timer plumbing its
-// signature requires are controlled (main.ts passes the setTimeout versions).
+// Without --timeout no timer is armed at all. Drives the real
+// createLifecycle; only the clock and the timer plumbing its signature
+// requires are controlled (main.ts passes the setTimeout versions).
 import { describe, expect, it } from 'vitest'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
 import { NODE_SET_TIMEOUT_MAX_MS } from '../../src/shared/constants'
@@ -14,7 +15,7 @@ interface Timer {
 
 const ignore = () => undefined
 
-function harness(timeoutMs: number) {
+function harness(timeoutMs: number | undefined) {
   let now = 0
   const timers: Timer[] = []
   const lifecycle = createLifecycle({
@@ -72,6 +73,16 @@ describe('exec deadline with no maximum', () => {
     const { lifecycle, timers } = harness(5000)
     lifecycle.dispose()
     expect(timers[0]?.cleared).toBe(true)
+    expect(lifecycle.cause).toBeNull()
+  })
+
+  it('arms no timer without a deadline and never latches timeout', () => {
+    const { lifecycle, timers, advance } = harness(undefined)
+    expect(timers).toHaveLength(0)
+    expect(lifecycle.deadlineMs).toBeNull()
+    advance(NODE_SET_TIMEOUT_MAX_MS + 5000)
+    expect(lifecycle.cause).toBeNull()
+    lifecycle.dispose()
     expect(lifecycle.cause).toBeNull()
   })
 })
