@@ -134,7 +134,9 @@ happened, not what was planned; superseded entries are kept.
   Diagnostics command's report text loads with the report dialog's bundle
   (dist/report.js) on the command's first run instead of at activation.
   Activation growth over the pre-K baseline goes from 4,529 bytes (over the
-  3,072-byte allowance) to 760 bytes. No behaviour change.
+  3,072-byte allowance) to 760 bytes on that merge, and measures 1,018
+  bytes after merging main 81dacaf5a in the RVPR185RED review. No
+  behaviour change.
 
 - Invariants lane: `test/unit/invariants.test.ts` re-guards the SoL-Pi
   request-shape and savings invariants through real modules with real inputs

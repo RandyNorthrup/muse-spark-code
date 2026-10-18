@@ -335,3 +335,19 @@ activation used that module's values.
   answers ("not checked (the shell sandbox is off or this is not Linux)").
 - Real-life step for the lead: run "Muse Spark: Diagnostics" in the packed
   product; the log shows the full report, the readiness line included.
+
+## RVPR185RED review addendum (2026-10-17, macmini)
+
+Merging main 81dacaf5a (PR #184) into this branch: only CHANGELOG.md
+conflicted; both sides kept. Re-measured on the merged tree:
+`modelsActivationBudget` prints baseline 561,352, current 562,370,
+growth 1,018 bytes (allowance 3,072) — the 760 above was true of the
+821566c0f merge, and current main adds the difference at activation.
+dist/report.js is 23,882 bytes and its `sandboxReadinessLine` answers
+in Node as recorded above. `npm run build`, typecheck, lint,
+format:check, check:l10n, check:reference, check:host-api,
+check:roadmap, check:plan, check:badges, check:tokens,
+check:lazy-registry, deadcode, cycles and duplication all exit 0;
+`sandbox` (20) and `supportReport` (12) pass at the default timeout.
+The macOS dictation helper builds and its disclaim and vault checks
+pass on this rig; the branch does not touch native/.
