@@ -1726,6 +1726,24 @@ export class VaultStore implements VaultStorePort {
       )
     })
   }
+  /**
+   * The cross-process Keep/Delete claim: atomically removes the receipt and
+   * throws `invalid` when another broker already claimed it, so exactly one
+   * side wins. `forgetReceipt` stays idempotent for best-effort cleanup.
+   */
+  async takeReceipt(id: string, authorize: () => void): Promise<void> {
+    await this.withWriter(async () => {
+      const { snapshot, index } = await this.load()
+      if (index.receipts.every((entry) => entry.id !== id)) throw new VaultError('invalid')
+      await this.publish(
+        { ...index, receipts: index.receipts.filter((entry) => entry.id !== id) },
+        snapshot.document.items,
+        snapshot.slots,
+        null,
+        authorize,
+      )
+    })
+  }
   async setSlots(records: readonly VaultSlotRecord[]): Promise<void> {
     const parsed = z.array(vaultSlotRecordSchema).safeParse(records)
     if (!parsed.success) throw new VaultError('invalid')

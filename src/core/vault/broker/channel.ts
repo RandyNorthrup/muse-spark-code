@@ -557,6 +557,13 @@ export class VaultChannelServer {
         isWatching = true
         const unsubscribe = this.deps.manage.subscribe((event) => {
           if (socket.destroyed || !socket.writable) return
+          // A wedged watcher must not grow the shared broker's heap without
+          // bound: past one frame's worth of queued bytes the watcher is
+          // closed and the client starts a fresh watch.
+          if (socket.writableLength > VAULT_LIMITS.frameBytes) {
+            socket.destroy()
+            return
+          }
           const frame = vaultBrokerEventFrameSchema.parse({ v: VAULT_PROTOCOL_VERSION, event })
           socket.write(`${JSON.stringify(frame)}\n`)
         })

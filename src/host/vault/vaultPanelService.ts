@@ -28,7 +28,16 @@ export function vaultPanelService(
       const snapshot = await session.snapshot()
       const isUnlocked = snapshot.status.state === 'unlocked'
       const audit = isUnlocked ? await session.audit() : []
-      const ambientFiles = isUnlocked ? await deps.ambientFiles() : []
+      // Import discovery is optional: an unreadable ambient location must
+      // not hide an otherwise healthy vault behind a failed snapshot.
+      let ambientFiles: readonly AmbientFile[] = []
+      if (isUnlocked) {
+        try {
+          ambientFiles = await deps.ambientFiles()
+        } catch {
+          ambientFiles = []
+        }
+      }
       return {
         status: snapshot.status,
         items: snapshot.items,

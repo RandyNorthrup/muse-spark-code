@@ -111,6 +111,9 @@ function importPort(store: VaultStore): VaultFileImportPort {
     forgetReceipt: async (id, authorize) => {
       await store.forgetReceipt(id, authorize)
     },
+    takeReceipt: async (id, authorize) => {
+      await store.takeReceipt(id, authorize)
+    },
   }
 }
 /** One spelling per file: resolved, and case-insensitive on Windows (any drive). */

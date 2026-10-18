@@ -59,6 +59,11 @@ export interface VaultFileImportPort {
   /** Every kept or orphaned receipt's id and opaque record, for the finish sweep. */
   listReceipts(): Promise<readonly { id: string; record: unknown }[]>
   forgetReceipt(id: string, authorize: () => void): Promise<void>
+  /**
+   * Atomically removes the receipt, throwing when another broker already
+   * claimed it: the Keep/Delete serialization across processes.
+   */
+  takeReceipt(id: string, authorize: () => void): Promise<void>
 }
 
 /** A kept or orphaned import receipt that can still be finished (RVAPP-CM1091D5 P2-2). */
@@ -315,9 +320,17 @@ export class VaultFileImporter {
       this.assertActive(lease)
       if (!receiptSchema.safeParse(await this.vault.readReceipt(receipt)).success)
         throw new VaultMigrationFault('invalid')
-      await this.vault.forgetReceipt(receipt, () => {
-        this.assertActive(lease)
-      })
+      // Claim the receipt across processes: a concurrent Delete that already
+      // claimed it makes this throw instead of reporting a false Keep.
+      try {
+        await this.vault.takeReceipt(receipt, () => {
+          this.assertActive(lease)
+        })
+      } catch (error: unknown) {
+        if (error instanceof VaultError && error.code === 'invalid')
+          throw new VaultMigrationFault('invalid')
+        throw error
+      }
     })
   }
   /**
@@ -440,6 +453,18 @@ export class VaultFileImporter {
           throw new VaultMigrationFault('conflict')
         assertReceipt()
         parents.assertPath(read.identity)
+        // Claim the receipt across processes before removing the source: a
+        // concurrent Keep that already claimed it makes this throw, so the
+        // source is never unlinked after Keep succeeded.
+        try {
+          await this.vault.takeReceipt(receipt, () => {
+            this.assertActive(lease)
+          })
+        } catch (error: unknown) {
+          if (error instanceof VaultError && error.code === 'invalid')
+            throw new VaultMigrationFault('invalid')
+          throw error
+        }
         unlinkSync(saved.path)
         assertReceipt()
         try {
