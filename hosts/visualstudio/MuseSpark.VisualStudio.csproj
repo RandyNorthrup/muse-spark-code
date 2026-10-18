@@ -2,7 +2,7 @@
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
   <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
-    <Version>0.17.1</Version>
+    <Version>0.18.2</Version>
     <AssemblyName>MuseSpark.VisualStudio</AssemblyName>
     <RootNamespace>MuseSpark.VisualStudio</RootNamespace>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
