@@ -451,8 +451,7 @@ export function commandTimeoutMs(method: string, timeouts: CommandTimeouts): num
  * themselves keep waiting.
  */
 export class HostLiveness {
-  private readonly startedAt = Date.now()
-  private lastHeardAt = this.startedAt
+  private lastHeardAt = Date.now()
   private misses = 0
   private isSilent = false
   /** The notice period that last counted a still-waiting notice; -1 for none since a frame. */
@@ -462,7 +461,7 @@ export class HostLiveness {
     private readonly silenceMs: number,
     private readonly log: CoreLogger,
     private readonly onUnresponsive: () => void,
-    private readonly noticeEveryMs: number = STILL_WAITING_NOTICE_MS,
+    private readonly noticeEveryMs: number,
   ) {}
 
   public get isUnresponsive(): boolean {
@@ -486,7 +485,10 @@ export class HostLiveness {
    * command tells once a notice period, so the period counts once.
    */
   public stillWaiting(method: string): void {
-    const period = Math.floor((Date.now() - this.startedAt) / this.noticeEveryMs)
+    // Periods count from the last frame heard: a frame resets both the
+    // clock and the dedup, so a period counts once however many commands
+    // wait in it, before a frame as after.
+    const period = Math.floor((Date.now() - this.lastHeardAt) / this.noticeEveryMs)
     if (period === this.lastNoticePeriod) return
     this.lastNoticePeriod = period
     this.missed(method)
@@ -797,18 +799,22 @@ async function requestWithin<T>(
   method: string,
   timeoutMs: number | undefined,
   request: () => Promise<T>,
+  signal?: AbortSignal,
 ): Promise<T> {
   if (channel.liveness.isUnresponsive) {
     channel.log.info(`${method} was not sent: Muse Code is not answering`)
     throw new Error(UI_TEXT.museCodeNotAnswering)
   }
   channel.assertCurrent(generation)
+  // A caller's stop (PR #214 review) ends the wait like the channel going.
+  const stopSignal =
+    signal === undefined ? channel.signal : AbortSignal.any([channel.signal, signal])
   let onAbort: (() => void) | undefined
   const cancelled = new Promise<never>((_resolve, reject) => {
     onAbort = () => {
       reject(new Error(UI_TEXT.questionCancelled))
     }
-    channel.signal.addEventListener('abort', onAbort, { once: true })
+    stopSignal.addEventListener('abort', onAbort, { once: true })
   })
   const stopNoticing =
     timeoutMs === undefined
@@ -833,7 +839,7 @@ async function requestWithin<T>(
     throw error
   } finally {
     stopNoticing?.()
-    if (onAbort !== undefined) channel.signal.removeEventListener('abort', onAbort)
+    if (onAbort !== undefined) stopSignal.removeEventListener('abort', onAbort)
   }
 }
 
@@ -847,14 +853,20 @@ async function commandWithin(
   generation: number,
   method: string,
   params: Record<string, unknown>,
+  signal?: AbortSignal,
   commandId: string = channel.connection.mintCommandId(),
 ): Promise<unknown> {
   const { log, timeouts } = channel
   const timeoutMs = commandTimeoutMs(method, timeouts)
   const startedAt = Date.now()
   try {
-    const answer = await requestWithin(channel, generation, method, timeoutMs, () =>
-      sendCommand(channel, generation, method, params, commandId),
+    const answer = await requestWithin(
+      channel,
+      generation,
+      method,
+      timeoutMs,
+      () => sendCommand(channel, generation, method, params, commandId),
+      signal,
     )
     log.trace(`${method} answered in ${String(Date.now() - startedAt)} ms`)
     return answer
@@ -2061,6 +2073,7 @@ export class MuseCodeHost implements AgentHost {
             },
           )
         },
+        STILL_WAITING_NOTICE_MS,
       ),
     }
     const parsed = initializeResultSchema.parse(host.initializeResult)
@@ -2229,8 +2242,12 @@ export class MuseCodeHost implements AgentHost {
     }
   }
 
-  private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
-    return await commandWithin(this.channel, this.channel.generation, method, params)
+  private async command(
+    method: string,
+    params: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    return await commandWithin(this.channel, this.channel.generation, method, params, signal)
   }
 
   /**
@@ -2710,35 +2727,24 @@ export class MuseCodeHost implements AgentHost {
     sessionId?: string,
     signal?: AbortSignal,
   ): Promise<readonly MuseCodeModelSummary[]> {
-    const answer = (async (): Promise<readonly MuseCodeModelSummary[]> => {
-      const result = await this.command('model/list', {
+    // The caller's stop joins the channel's own cancel in the shared wait
+    // (PR #214 review); the read-only listing still settles underneath.
+    signal?.throwIfAborted()
+    const result = await this.command(
+      'model/list',
+      {
         ...(sessionId !== undefined && { sessionId }),
-      })
-      return modelListResultSchema.parse(result).models.map((model) => ({
-        modelId: model.modelId,
-        displayLabel: model.displayLabel,
-        contextLimit: model.contextLimit ?? undefined,
-        isDefault: model.isDefault,
-        isActive: model.isActive ?? false,
-        ...this.features.modelEfforts?.parseModel(model),
-      }))
-    })()
-    if (signal === undefined) return await answer
-    // The local socket has no per-call cancel: Stop unblocks the caller
-    // while the read-only listing still settles (PR #214 review).
-    signal.throwIfAborted()
-    let onAbort: (() => void) | undefined
-    const stopped = new Promise<never>((_resolve, reject) => {
-      onAbort = () => {
-        reject(new Error(UI_TEXT.questionCancelled))
-      }
-      signal.addEventListener('abort', onAbort, { once: true })
-    })
-    try {
-      return await Promise.race([answer, stopped])
-    } finally {
-      if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)
-    }
+      },
+      signal,
+    )
+    return modelListResultSchema.parse(result).models.map((model) => ({
+      modelId: model.modelId,
+      displayLabel: model.displayLabel,
+      contextLimit: model.contextLimit ?? undefined,
+      isDefault: model.isDefault,
+      isActive: model.isActive ?? false,
+      ...this.features.modelEfforts?.parseModel(model),
+    }))
   }
 
   /** Registered literal secrets remain in the host; only the scrubbed note is previewed. */
