@@ -21,6 +21,15 @@ function errorCode(error: unknown): string | undefined {
     ? error.code
     : undefined
 }
+
+/**
+ * The catch-gate-visible form of the expected usage-FS condition: `is`-named
+ * so the inventory reads it as the one handled case, with exactly the same
+ * answer as `errorCode` on every input.
+ */
+function isUsageErrorCode(error: unknown, code: string): boolean {
+  return errorCode(error) === code
+}
 // A quarantined entry: `.removing-<epoch ms>.<uuid>.<original name>`, or an
 // earlier build's `.removing-<uuid>` (RVM107W2H P2-1): no time (always stale)
 // and no original name (it may be any entry of its folder).
@@ -39,7 +48,7 @@ async function lstatEntry(file: string): Promise<BigIntStats | undefined> {
   try {
     return await lstatIdentity(file)
   } catch (error) {
-    if (errorCode(error) === 'ENOENT') return undefined
+    if (isUsageErrorCode(error, 'ENOENT')) return undefined
     throw error
   }
 }
@@ -72,15 +81,34 @@ async function restore(from: string, to: string, isDirectory: boolean): Promise<
     return
   }
   await mkdir(to)
-  try {
-    await rename(from, to)
-  } catch (error) {
+  // A failed rename gives the claim back; a claim that is no longer ours
+  // is left as it is.
+  const releaseClaim = async (): Promise<void> => {
     try {
       await rmdir(to)
     } catch {
       // No longer our empty claim: left as it is.
     }
+  }
+  try {
+    await rename(from, to)
+  } catch (error) {
+    await releaseClaim()
     throw error
+  }
+}
+/**
+ * Puts a quarantined entry back under its name, never over a replacement;
+ * best-effort, like the inline restore below it. The fence refuses with its
+ * own error either way; a restore that fails too leaves the entry under its
+ * quarantine name for the sweep.
+ */
+async function restoreQuarantinedEntry(trash: string, source: string): Promise<void> {
+  try {
+    const moved = await lstatEntry(trash)
+    if (moved !== undefined) await restore(trash, source, moved.isDirectory())
+  } catch {
+    // Left under its quarantine name; the refusal below still stands.
   }
 }
 /**
@@ -132,7 +160,7 @@ export class NodeUsageFs implements UsageFs {
         const stat = await lstat(current)
         if (stat.isSymbolicLink()) throw new Error('linkedUsagePath')
       } catch (error) {
-        if (errorCode(error) !== 'ENOENT') throw error
+        if (!isUsageErrorCode(error, 'ENOENT')) throw error
       }
     }
   }
@@ -239,7 +267,7 @@ export class NodeUsageFs implements UsageFs {
     try {
       entries = await readdir(file, { withFileTypes: true })
     } catch (error) {
-      if (errorCode(error) === 'ENOENT') return []
+      if (isUsageErrorCode(error, 'ENOENT')) return []
       throw error
     }
     if (entries.some((entry) => this.isStale(trashEntry(entry.name)))) {
@@ -270,7 +298,7 @@ export class NodeUsageFs implements UsageFs {
       if (!stat.isFile()) throw new Error('invalidUsageFile')
       return { size: stat.size, mtimeMs: stat.mtimeMs }
     } catch (error) {
-      if (errorCode(error) === 'ENOENT') return undefined
+      if (isUsageErrorCode(error, 'ENOENT')) return undefined
       throw error
     }
   }
@@ -385,7 +413,7 @@ export class NodeUsageFs implements UsageFs {
             await rename(source, trash)
           } catch (error) {
             // Already gone, from a parent that is still the validated one.
-            if (errorCode(error) !== 'ENOENT') throw error
+            if (!isUsageErrorCode(error, 'ENOENT')) throw error
             await proveParent()
             return
           }
@@ -395,8 +423,13 @@ export class NodeUsageFs implements UsageFs {
             await proveParent()
             if (moved.isSymbolicLink() || fileIdentityKey(moved) !== targetIdentity)
               refusal = new Error('usagePathChanged')
-          } catch {
-            refusal = new Error('usagePathChanged')
+          } catch (error: unknown) {
+            // The fence refuses with its own error (RVM107W2L): only an
+            // identity or parent change is reported as usagePathChanged,
+            // with its cause. The entry goes back first, never over a
+            // replacement.
+            await restoreQuarantinedEntry(trash, source)
+            throw new Error('usagePathChanged', { cause: error })
           }
           // The fence refuses with its own error (RVM107W2L): only an identity
           // or parent change is reported as usagePathChanged.
@@ -452,7 +485,7 @@ export class NodeUsageFs implements UsageFs {
         const content = await readFile(await this.resolve(previous.claim), 'utf8')
         previousToken = content.trim()
       } catch (error) {
-        if (errorCode(error) === 'ENOENT') return undefined
+        if (isUsageErrorCode(error, 'ENOENT')) return undefined
         throw error
       }
       if (previousToken !== '' && !/^[\w-]+$/.test(previousToken))
@@ -474,7 +507,7 @@ export class NodeUsageFs implements UsageFs {
         await handle.close()
       }
     } catch (error) {
-      if (errorCode(error) === 'EEXIST') return undefined
+      if (isUsageErrorCode(error, 'EEXIST')) return undefined
       throw error
     }
     const isHeld = async (): Promise<boolean> => {
@@ -487,7 +520,7 @@ export class NodeUsageFs implements UsageFs {
           (await this.stat(`${claim}.${token}.released`)) === undefined
         )
       } catch (error) {
-        if (errorCode(error) === 'ENOENT') return false
+        if (isUsageErrorCode(error, 'ENOENT')) return false
         throw error
       }
     }

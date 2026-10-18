@@ -170,17 +170,22 @@ export function lazyUsageAdapter(
         void observeClose(started)
       }
       const current = page
-      try {
-        const server = await current
-        return usageCompanionUrl(server.launchUrl?.() ?? server.url)
-      } catch (error: unknown) {
-        if (page === current) page = undefined
+      // A failed start still closes its companion quietly; the original
+      // start/URL error below stays the refusal.
+      const closeStartedQuietly = async (): Promise<void> => {
         try {
           const server = await current
           await server.close()
         } catch {
           /* The original start/URL error is the refusal. */
         }
+      }
+      try {
+        const server = await current
+        return usageCompanionUrl(server.launchUrl?.() ?? server.url)
+      } catch (error: unknown) {
+        if (page === current) page = undefined
+        await closeStartedQuietly()
         throw error
       }
     },

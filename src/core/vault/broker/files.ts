@@ -68,6 +68,23 @@ export async function readVaultFile(
     if (!hasTransferred) result?.fill(0)
   }
 }
+/** Remove only the temporary this write created; a consumed rename is already gone. */
+async function dropTemporary(temporary: string): Promise<void> {
+  try {
+    await unlink(temporary)
+  } catch {
+    /* The rename may already have consumed this private temporary. */
+  }
+}
+
+/** Remove only the temporary this write created; a consumed rename is already gone. */
+function dropTemporarySync(temporary: string): void {
+  try {
+    unlinkSync(temporary)
+  } catch {
+    /* Rename may have consumed this owned file. */
+  }
+}
 export async function writeVaultFile(
   path: string,
   bytes: Uint8Array,
@@ -96,11 +113,7 @@ export async function writeVaultFile(
     }
   } catch (error: unknown) {
     await file.close()
-    try {
-      await unlink(temporary)
-    } catch {
-      /* The rename may already have consumed this private temporary. */
-    }
+    await dropTemporary(temporary)
     throw error
   }
 }
@@ -219,11 +232,7 @@ function privateWriter(path: string): VaultFileWriter {
         }
       } catch (error: unknown) {
         if (descriptor !== fd) closeSync(fd)
-        try {
-          unlinkSync(temporary)
-        } catch {
-          /* Rename may have consumed this owned file. */
-        }
+        dropTemporarySync(temporary)
         throw error
       }
     },

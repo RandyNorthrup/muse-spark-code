@@ -25,7 +25,16 @@
     },
     {
       "path": "snapshot.json",
-      "sha256": "a11ab805f385bbd789589a3f6af856380578f4af2dc1511de90dffa274638b62"
+      "sha256": "a7e65a2bb1d7dd0f79f4ebbc086ad2c352fee0143bc2ee448b74b7ae19ce2cd8"
+    }
+  ],
+  "additions": [
+    {
+      "id": "claude-haiku-5-5",
+      "addedAt": "2026-10-11",
+      "source": "EXECPROV owner brief; docs/certification/exec-provider.md",
+      "price": "unknown",
+      "capabilities": "unknown"
     }
   ]
 }

@@ -9,6 +9,7 @@ import {
   assertConfirmedAllowed,
   ignoreClosingError,
   redactModelApiError,
+  rethrowStreamError,
   ModelApiError,
   parseJsonResponse,
   type TransportDeps,
@@ -273,7 +274,7 @@ export class CodecClient implements ProviderClient {
           admitAttempt?.mediaAccounting !== undefined ||
           retries.retriesUsed >= MODEL_API_MAX_RETRIES
         )
-          throw failure
+          await rethrowStreamError(error, redact, response.status)
         const attempt = retries.retriesUsed
         retries.retriesUsed = attempt + 1
         const delayMs = this.retryDelayMs(attempt)

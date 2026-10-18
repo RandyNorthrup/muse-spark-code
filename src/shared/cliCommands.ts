@@ -1,7 +1,93 @@
 // Public runtime command table. The localized usage table owns descriptions.
-import { ACP_AGENT_NAME, REFERENCE_DOCS_URL, UI_TEXT, SLASH_COMMAND_NAMES } from './constants'
+import {
+  ACP_AGENT_NAME,
+  REFERENCE_DOCS_URL,
+  UI_TEXT,
+  SLASH_COMMAND_NAMES,
+  REPORT_KINDS,
+} from './constants'
 
 export function cliCommands() {
+  // Executable examples enumerate deep help routes; the help regression walks
+  // this same public table, including future commands, rather than a test list.
+  const invocations: Readonly<Record<string, readonly (readonly string[])[]>> = {
+    usage: ['summary', 'daily', 'models', 'limits', 'export', 'open', 'serve'].map((action) => [
+      'usage',
+      action,
+    ]),
+    legal: [['legal'], ['exec', 'legal-scan']],
+    providersList: [['providers', 'list']],
+    providersAdd: [['providers', 'add']],
+    providersTest: [['providers', 'test']],
+    providersRemove: [['providers', 'remove']],
+    chatGptProvider: ['add', 'remove', 'status'].map((action) => ['providers', action, 'chatgpt']),
+    serve: [[]],
+    login: [['login']],
+    setup: [['setup']],
+    authSet: [['auth', 'set']],
+    authClear: [['auth', 'clear']],
+    authStatus: [['auth', 'status']],
+    exec: [['exec']],
+    'scan-secrets': [['scan-secrets']],
+    schedule: [
+      ...[
+        'add',
+        'list',
+        'remove',
+        'run-now',
+        'pause',
+        'resume',
+        'fire',
+        'timeline',
+        'run-due',
+        'background-maintain',
+      ].map((action) => ['schedule', action]),
+      ['schedule', 'background', 'off'],
+      ['schedule', 'background', 'status'],
+    ],
+    accounts: ['list', 'add', 'remove', 'order', 'thresholds'].map((action) => [
+      'providers',
+      'accounts',
+      action,
+    ]),
+    developer: ['status', 'enable', 'disable', 'reset', 'add', 'remove'].map((action) => [
+      'developer',
+      action,
+    ]),
+    playbook: ['status', 'record', 'settings'].map((action) => ['playbook', action]),
+    estimate: [['estimate']],
+    report: [['report'], ['report', 'problem']],
+    reports: [
+      ...REPORT_KINDS.map((kind) => ['report', kind]),
+      ['report', 'history'],
+      ...REPORT_KINDS.map((kind) => ['report', 'history', kind]),
+    ],
+    fontsInstall: [['fonts', 'install']],
+    help: [['help'], ['help', 'reference']],
+    share: [['share', 'chat']],
+    prompts: ['save', 'list', 'use', 'share'].map((action) => ['prompts', action]),
+    resources: [
+      ...['status', 'history', 'resume'].map((action) => ['resources', action]),
+      ['usage', 'resources'],
+    ],
+    vault: [
+      'status',
+      'unlock',
+      'lock',
+      'list',
+      'add',
+      'remove',
+      'grant',
+      'revoke',
+      'audit',
+      'import',
+      'public-key',
+      'watch',
+    ].map((action) => ['vault', action]),
+    vaultHelp: [['vault']],
+    acp: [],
+    version: [],
+  }
   return [
     {
       route: 'usage',
@@ -41,7 +127,7 @@ export function cliCommands() {
     },
     {
       route: 'chatGptProvider',
-      name: 'providers add|remove|status chatgpt',
+      name: 'providers add|remove|status chatgpt [--new-account]',
       description: UI_TEXT.referenceProviders,
       text: { ui: 'referenceProviders' },
     },
@@ -135,6 +221,12 @@ export function cliCommands() {
       text: { ui: 'reportCliUsage' },
     },
     {
+      route: 'playbook',
+      name: 'playbook [status|record|settings]',
+      description: UI_TEXT.playbookCommandUsage,
+      text: { ui: 'playbookCommandUsage' },
+    },
+    {
       route: 'fontsInstall',
       name: 'fonts install [--from <directory>]',
       description: UI_TEXT.acpFontsUsage,
@@ -142,7 +234,7 @@ export function cliCommands() {
     },
     {
       route: 'help',
-      name: 'help --all',
+      name: 'help reference / help --all',
       description: UI_TEXT.referenceIntro,
       text: { ui: 'referenceIntro' },
     },
@@ -219,7 +311,7 @@ export function cliCommands() {
       description: UI_TEXT.referenceVaultHelp,
       text: { ui: 'referenceVaultHelp' },
     },
-  ]
+  ].map((entry) => ({ ...entry, invocations: invocations[entry.route] ?? [[entry.route]] }))
 }
 
 /** ACP's available local commands and installed skills; panel commands live in the page. */

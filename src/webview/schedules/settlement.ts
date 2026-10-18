@@ -16,7 +16,9 @@ export function parseScheduleSettlement(
   try {
     const parsed = settlementSchema.safeParse(JSON.parse(output))
     return parsed.success ? { ok: true, fire: parsed.data.fire } : { ok: false }
-  } catch {
+  } catch (error: unknown) {
+    // Unparseable output settles nothing: anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return { ok: false }
   }
 }

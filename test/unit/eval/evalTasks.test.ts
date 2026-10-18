@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   EVAL_FLOOR_ACCEPT_PASS_RATE,
   EVAL_FLOOR_HELDOUT_PASS_RATE,
@@ -127,8 +127,12 @@ describe('eval workspace and verifier', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, 
   })
 
   it('starts the verifier with none of the run’s environment', async () => {
-    vi.stubEnv('MUSE_EVAL_PROBE', 'inherited')
-    vi.stubEnv('META_API_KEY', 'not-a-real-eval-credential')
+    // The run's own environment, set for real and put back afterwards.
+    const inherited = { MUSE_EVAL_PROBE: 'inherited', META_API_KEY: 'not-a-real-eval-credential' }
+    const before = Object.fromEntries(
+      Object.keys(inherited).map((name) => [name, process.env[name]] as const),
+    )
+    Object.assign(process.env, inherited)
     try {
       // CoreFoundation generates this even with env:{} and no parent value.
       const posixAllowed = process.platform === 'darwin' ? ['__CF_USER_TEXT_ENCODING'] : []
@@ -146,7 +150,13 @@ describe('eval workspace and verifier', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, 
       )
       expect(verdict).toEqual({ passed: true, detail: '' })
     } finally {
-      vi.unstubAllEnvs()
+      for (const [name, value] of Object.entries(before)) {
+        if (value === undefined) {
+          Reflect.deleteProperty(process.env, name)
+        } else {
+          process.env[name] = value
+        }
+      }
     }
   })
 

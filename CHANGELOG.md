@@ -34,6 +34,16 @@ happened, not what was planned; superseded entries are kept.
   namespace here and says so once on every surface, naming the two ways
   out, without ever switching the sandbox off on its own.
 
+### Added
+
+- JSON headless runs report request starts, token totals and cost on stderr while stdout remains one JSON result.
+- Headless Model API runs accept `--max-output-tokens <n>` as an optional
+  lowering limit: absent is the model's policy cap, present never exceeds it
+  (a larger value is refused at parsing). The limit is carried into the
+  request and its reservation, so a small budget can size a run down.
+- Claude Haiku 5.5 is listed with an unknown price pending a documented receipt.
+- `help reference` explicitly opens the full terminal reference.
+
 ### Fixed
 
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
@@ -63,12 +73,179 @@ happened, not what was planned; superseded entries are kept.
   named no bundle and then hang. Bundles now run through a bounded pool
   of 8; a failure names its bundle, in-flight bundles settle, and the
   process exits with the true error.
+- A team task waiting for a busy exclusive resource (for example browser
+  control) could wait forever instead of being told the resource is busy:
+  its wait timer could fire a moment before the deadline and was never
+  re-armed. The waiter now re-arms for the remainder and is answered at
+  the deadline.
 
+- A spending limit exists only when you set one (D121). The editor's
+  `museSpark.paidDailyBudgetUsd` and the agent's `paidDailyBudgetUsd` in its
+  `settings.json` are none by default, so the ACP agent no longer stops a job
+  on a daily budget it was never given. With no limit there is no spending
+  check on the request path: nothing is reserved, locked or written before a
+  send.
+- Under a limit you set, the session and daily budgets keep running totals
+  from the usage each call reported, saved after the call, so a resume
+  continues from them. A request whose estimate would pass the limit is not
+  sent and the reason says so; one warning comes when what is left no longer
+  fits a request like the last one. A response that ended without its usage
+  counts as cost unknown instead of its whole reservation: one job's thirteen
+  failed responses had counted $352.66 of reservations as spent.
+- The atomic claim ledger is gone: its journal files, cross-process lock, the
+  100 ms admission bound and its benchmark.
+- A request the provider refused before answering (an invalid key, for
+  example) books nothing: `exec` no longer keeps its reservation as
+  uncertain or fails to write its JSON result, and the next run does not
+  count it as used.
+- Initial provider rejections release their holds; incomplete responses with final
+  usage settle at the reported cost. Unresolved liability is shown separately
+  from spend, and terminal startup prices each real request instead of the
+  whole context window. Output-cap remedies are accepted by the parser.
+
+- Session, editor daily and terminal daily spend admission uses one atomic
+  versioned ledger. Refused requests publish no hold; dead locks recover by
+  process identity, and each ambiguous attempt retains its full reservation.
+- Concurrent spend checks inside one process queue instead of refusing each
+  other as busy, a model whose context equals its output limit no longer ends
+  a full answer as over budget (including media requests' daily reservation),
+  and an invalid `--max-output-tokens`, `--timeout` or `--max-requests` value
+  names that flag instead of the USD budget's decimal places.
+- Anthropic token estimates reserve a 25% margin; Gemini uses the size bound
+  until its complete count shape is verified. Overages are recorded before
+  another request, and refusal remedies stay within accepted flag limits.
+
+- A headless budget refusal names both remedies with numbers: the run cap
+  that admits the request (rounded up to the cent) and the largest
+  `--max-output-tokens` value that fits the remaining cap (or that even the
+  input alone does not fit). ACP and the editor show the same reason with
+  the budget remedy only.
+- A headless provider run counts the request's exact input tokens where the
+  provider documents a same-body count call (the OpenAI Responses
+  `input_tokens` call), instead of reserving every body byte as a token at
+  the uncached price; entries keep the byte bound with
+  `"exactInputCount": false`, and any failed count falls back to it with an
+  info line. A capped run states its next reservation and what is left before
+  it spends; a budget stop that produced nothing says the run was still
+  reading and no answer exists, and the JSON result carries the refused
+  request's numbers in typed `budget` fields.
+- The same-body count now covers every wire that documents one: Anthropic
+  Messages (`POST /v1/messages/count_tokens`) and Google Gemini
+  (`models/<model>:countTokens`) join the OpenAI Responses call, each built
+  from the already-built native request on the request's own origin, never
+  retried, never recorded as a model call, and a count larger than the byte
+  bound falls back to the byte bound. Wires with no counter (OpenAI
+  compatible chat completions and the other presets without one) keep the
+  byte bound and say so on the start line; the refusal already names the
+  higher cap and the lower `--max-output-tokens` that admit the request.
+- Closing a stale spend hold no longer locks capped runs out for the rest of
+  the day. A settled unknown cost (a hold closed at its full reservation, a
+  sent request whose answer was lost) stays counted as an upper bound and
+  admits later capped runs; only money no record bounds (history written
+  without fees, an open unbounded claim, an unverified tariff) refuses one,
+  with a sentence naming the ledger and its counted spend and remedies that
+  work.
+- A headless run refused for a model with no known tariff no longer reports
+  a budget stop: it returns its own `unpriced` status (exit 4) with a
+  sentence naming the model and the providers file where a price is added,
+  or a priced model to choose instead.
+- Holds left by older builds with no recorded owner close by age once older
+  than the longest a request can be in flight, settling at their reservation
+  as unknown cost; each run logs one info line with the count and total, and
+  the usage output keeps showing the unknown-cost share of the day's total.
+- A paid limit refusal names the limit with its numbers instead of a generic failure.
+- A budget hold left by a run that died is released instead of leaking into the daily ledger.
+- A turn stopped by its budget keeps the work produced so far instead of withholding it.
+- Stopped headless runs retain the redacted partial answer and its cost with an explicit incomplete marker.
+- Bounded uncertain daily liability keeps its full amount without blocking all later requests as an unknown historical fee.
+
+- Deep command `--help` stays in the terminal’s command, including prompts, provider accounts, named reports, schedules and ChatGPT maintenance; authentication help shows its own flags.
+
+- Headless daily claims recover killed owners, refund interrupted DNS checks, and durably retain sent requests whose usage is unknown.
+
+- ACP and headless runs offer each provider model’s recorded effort levels, including Opus `xhigh`, and list allowed values when a choice is refused.
+
+- ACP sign-in choices include ChatGPT Add; Remove and Status remain terminal commands.
+
+- Headless provider runs accept configured native model IDs containing slashes; provider setup accepts repeated `--model` flags.
+
+- Exec and ACP honor the configured provider default and refuse a missing default
+  instead of silently choosing another model.
+- Provider setup errors name terminal flags and available model IDs. Models absent
+  from this build’s catalogue have a specific refusal.
+- Ephemeral exec omits durable usage history and says so in its JSON record.
+- Command `--help` stays within that command’s own usage and options.
+- An invalid usage-history settings file pauses recording with a specific repair
+  warning instead of the generic write warning on every run.
+- `estimate --help` lists its deadline and export formats from the route’s own
+  reference words instead of the shared flag placeholders.
+- Bare `--help` prints the compact agent help with the machine flags instead of
+  the default launch’s options.
+
+- Provider and headless Meta requests reserve their actual conservative input
+  and output cap instead of a full context window. Budget refusals show the
+  arithmetic, and configured provider JSONL records show admission and settlement.
+- Catalogue price cards retain cache-write premiums and long-context rates.
+
+- Configured providers keep budget, consent, model, codec and stale-confirmation
+  refusals visible instead of reporting that Models & Agents is unavailable.
+  Provider diagnostics still pass through credential redaction.
+
+- Unsent headless requests refund both their daily and run reservations, including
+  their request count. New unsent daily claims recover after their owner exits;
+  requests that may have reached the provider retain their liability.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
+
+- Every ChatGPT plan-route failure now names its cause. A plan refusal with
+  no error words from OpenAI said "temporarily unavailable"; it now says
+  "The ChatGPT plan request failed: HTTP {status}". A session whose
+  providers file cannot be read said "That did not work"; it now says which
+  fault (`unparseable`, `invalid`). A garbage host-identifier file in the
+  editor said OpenAI's token answer was malformed; it now says the stored
+  host identifier could not be read. The packed agent also crashed with a
+  `TypeError` instead of the sentence where the account check failed: the
+  account check's failure-text helper was never exported from the
+  subscriptions bundle, and now is. An editor starting a session with an
+  unreadable providers file now gets that sentence as the error's message
+  instead of a bare "Internal error", and `providers list`
+  and `exec --provider` print the reason instead of "Test failed: {detail}".
+
+- Account errors now say their real cause instead of "Accounts are
+  unavailable until this runtime is connected to the shared account
+  service" while the runtime is connected: a refused providers file is
+  refused by name, a missing selection says no account is selected,
+  a change racing an update says to try again, removing a sign-in this
+  runtime cannot revoke says so, and the terminal names a retained store,
+  credential-store or disk failure. A refusal that kept no cause, and any
+  unenumerated failure over ACP, stays on the fixed unavailable sentence;
+  raw service text never crosses the ACP boundary. Only a runtime with no
+  account service bound still says it is not connected.
+
+- In the ACP agent, only a legal scanner that fails to load says "The legal
+  scanner could not be loaded". A scan that fails or a lost update now
+  carries its own cause instead of blaming the scanner installation.
+  Denying the registry permission prompt still returns the scan with the
+  registry marked offline, as before.
+- In the ACP agent, `/agents retry` no longer blames the backend's missing
+  checkpoint for everything. An agent entry with no subagent behind it says
+  it has nothing to retry; a refusal from a backend that has checkpoints
+  names the agent's own missing checkpoint or the real refusal. Only the
+  Muse Code backend, which provides no isolated worktree checkpoint, says
+  that.
+- `/playbook` no longer says the playbook is unavailable when a loaded
+  playbook's command fails. A command that cannot be completed says so; only
+  a missing playbook bundle or surface says it is unavailable in the
+  session.
+
+- Retrying or continuing an agent from the Agent map after its row left the
+  conversation no longer blames a missing worktree checkpoint: the panel now
+  says the agent is no longer in the conversation. The checkpoint sentence is
+  said only by a backend that truly has no checkpoint, and every other retry
+  failure carries its own cause.
 
 ### Packaging
 
@@ -82,8 +259,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Release infrastructure
 
-- Every fake test is gone (the owner's order: "there can be no more fakes at
-  all"). Deleted: the tests that used stand-ins or invented data (`vi.fn`
+- The fake tests are being removed (the owner's order: "there can be no more
+  fakes at all"). Deleted so far: the tests that used stand-ins or invented
+  data (`vi.fn`
   answers, the hand-written `vscode` module and its alias, the fake Muse Code
   CLI, the fake Model API, Git, GitHub and MCP helpers, the Action's fake
   agent), the tests that only checked that some text, key or file exists, the
@@ -91,7 +269,14 @@ happened, not what was planned; superseded entries are kept.
   JupyterLab, Emacs, Neovim), the fake-only Action check and its test package
   (`scripts/package-acp-test.mjs`), and the Model API live sweep built on
   fakes. No product code was deleted. What each deleted test covered is in
-  `docs/real-life/unproven.md`, the backlog for proof by real use.
+  `docs/real-life/unproven.md`, the backlog for proof by real use. Stand-ins
+  remain and are next to go: the test-driven clock
+  (`test/unit/helpers/manualClock.ts`), hand-written function stand-ins in
+  `test/unit/teamPreview.test.ts` and `test/unit/modelApiLegalScan.test.ts`,
+  the `vscode` stand-in in `test/harness/reporting/verify.mjs`, the
+  `vi.stubEnv` environment in `test/unit/eval/evalTasks.test.ts`, the WinRT
+  stand-ins in `test/unit/helpers/vault/*.cs` and the pending-operation
+  stand-in in `test/unit/helpers/windowsScreenRecorderChecks.cs`.
 - Pull requests can borrow the organization `scnetsolutions`'s CI runners
   (D122). Once the owner has installed the organization's GitHub App and set
   `ORG_CI` to `on` (CONTRIBUTING.md, "The capacity repository (D122)"), a
@@ -110,6 +295,60 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- The HTTP usage bridge settles every failed request with a read-failed
+  reply, including non-Error rejections, so later refreshes and exports are
+  not blocked behind a rejected queue.
+
+- A revoked paid-search request no longer says that an unsaved Always
+  choice applied this time. Order and grant-save failures notify only
+  after the request's currentness check.
+
+- A window reports recurring file damage again after another window has
+  observed a repair; a stale in-memory cache no longer hides the warning.
+
+- The catch baseline now identifies individual handlers and their work,
+  so repairing one failure cannot conceal a new one in the same area.
+
+- The catch audit now checks every handler branch before calling a failure
+  handled. A bare `Error` fallback, a conditional report and a partial
+  rethrow no longer pass as a named-condition handler.
+
+- Startup stays lean: the sign-in gate (AuthService and the three-valued
+  credential read) and the paid gate, consent, usage and quote authority now
+  load from `dist/auth.js` and `dist/paid.js` the first time a credential,
+  money, consent or paid path needs them, instead of at activation. Every
+  sentence, notice and scan result is unchanged.
+- A failure is never turned into a different fact. When saved credentials
+  cannot be read, sign-out keeps its safety hold, no sign-in lifts it, and
+  the person is told what could not be read and what to do (once per kind
+  of failure, and again if it comes back after the store reads again). A damaged
+  history choice, quote folder or schedule consent is announced once per
+  damage (again if it changes or comes back after a repair), with what is
+  damaged, what the product does, and the next step. A refused upload shows
+  the refusal reason, a stop clears, and a refused recording permission
+  names itself. A panel failure with no known cause says only that it did
+  not work.
+
+- Money, consent and credential failures say what happened, once, where the
+  person sees it. An "always" a store cannot keep still allows the current
+  use once, and the person is told at once (an editor warning, a session
+  message, the terminal console) instead of only the log. An unreadable
+  quote folder still asks again, but the question says the saved choices
+  could not be read and names the kind. One unreadable provider entry no
+  longer hides a working provider later in the list; each is recorded with
+  its kind. A stopped OAuth flow stays a stop only for the caller's own
+  stop; any other failure racing it denies. A corrupt history choice is
+  announced once per damaged file across windows and restarts. A schedule
+  consent file that cannot be read says what kind of problem stopped it
+  instead of reading as corrupt, and a failure with no known kind keeps
+  its kind. A failed panel
+  message reaches its draft with the fixed sentence and the queue keeps
+  going; a foreign sampler failure is recorded and dropped. Vault decoding
+  wipes copied fields on every exit, including an unexpected mid-decode
+  failure. A credential snapshot the store cannot produce says the store
+  failed instead of asking for a key that would not help, and a broken
+  account host or secret store reads as "could not say" instead of "no
+  account" or assumed presence.
 - Provider refusals read as the provider's refusal (lane PROVERR): when a
   configured provider answers with an error — out of credit, a rejected key,
   rate-limited, overloaded, an invalid request and the rest — the turn ends
@@ -143,7 +382,6 @@ happened, not what was planned; superseded entries are kept.
   the provider's request id, and a rejected key, missing permission or
   unknown model says nothing reached a model, no longer that nothing was
   sent. Record: `docs/certification/provider-refusals.md`.
-
 - All fourteen translated settings tables now say Muse Code asks before a
   command unless a permission rule allows it, matching the English modes.
 
@@ -233,8 +471,9 @@ happened, not what was planned; superseded entries are kept.
   clock or spy replacements. Covers daylight-saving gaps/folds, skipped
   dates, sparse cron and preview/admission end bounds.
 
-- Test overhaul (not a user feature): the unit suite now runs real code
-  only — about 800 fake-driven test files deleted, the screenshot
+- Test overhaul (not a user feature): the unit suite moves to real code
+  only — about 800 fake-driven test files deleted (the stand-ins still left
+  are named under Release infrastructure above), the screenshot
   comparison system removed (a UI change gets one small local look,
   `npm run ui:look -- <scene>`), the coverage gate dropped, and the
   accessibility check moved off the pull-request path. The packed
@@ -252,8 +491,8 @@ happened, not what was planned; superseded entries are kept.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
-  The shared retry classifier refuses known quota codes and excessive
-  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
+  The shared retry classifier refuses known quota codes; a provider's
+  `Retry-After` is honoured as given, never refused for its length. Provider-specific retry-table binding remains pending for non-Meta transports;
   this does not certify endpoint quota refusal.
   One-shot OAuth callbacks retain every parameter and destroy keep-alive
   connections on settlement. Custom servers accept validated compatibility
@@ -282,8 +521,11 @@ happened, not what was planned; superseded entries are kept.
   requests `display: summarized` so newer models stream thinking text.
   Lone surrogates are removed from every BYO encoder; parsed JSON retains
   own `__proto__` keys as data, including Anthropic tool arguments.
-  Fakes only; no live
-  or paid model call.
+  It landed with fake tests only. The Gemini parts (thought signatures,
+  tool-result images, `parametersJsonSchema`, the usage checks) now have no
+  test behind them, since `test/unit/geminiCodec.test.ts` was deleted; the
+  other rules still run through the real encoders in the remaining codec
+  suites. No live or paid model call has proved any of it.
 
 - Provider-specific retry-table binding remains pending for non-Meta transports;
   the shared retry classifier does not certify endpoint quota refusal.
@@ -324,8 +566,9 @@ happened, not what was planned; superseded entries are kept.
   nothing changes for users yet. No GitHub setting is offered, and an
   editor built on VS Code without its Git extension (Arduino IDE 2, some
   forks) keeps its earlier behaviour. Merged: the GitHub token-source
-  contracts with fakes of GitHub, the device flow, `gh` and Git remotes
-  (lane 0); the runtime's native Git service (status, the commit form,
+  contracts (`src/core/git/tokenSource.ts`, lane 0), whose tests ran on
+  fakes of GitHub, the device flow, `gh` and Git remotes and were deleted,
+  so nothing tests those contracts now; the runtime's native Git service (status, the commit form,
   commit, a push confirmed with every URL Git will use and the same
   refusals as VS Code, never a force-push, commit-message drafts),
   revalidated after every wait and serialized per repository across
@@ -440,6 +683,16 @@ happened, not what was planned; superseded entries are kept.
   of the Marketplace icon replaces the Meta logo silhouette.
 
 ### Added
+
+- **Catch inventory and ratchet (tooling).** `scripts/catch-inventory.mjs`
+  walks every `try/catch` and promise `.catch(` under `src` and classifies
+  each as NARROW, REPORTED, SWALLOW, GENERIC or CLEANUP; `npm run
+  check:catches` (wired into `npm run quality`) fails when any SWALLOW or
+  GENERIC count rises against `scripts/catch-baseline.json`. Every
+  SWALLOW and GENERIC in `src/acp` and `src/webview` is now NARROW or
+  REPORTED with per-handler tests, and `docs/certification/
+  catch-inventory.md` ranks the 40 worst remaining handlers in core, host
+  and runtime for the per-area fix lanes.
 
 - **Several accounts per provider, in the terminal and in ACP** (M108,
   CM108ACC). `providers accounts` lists, adds, removes and orders a

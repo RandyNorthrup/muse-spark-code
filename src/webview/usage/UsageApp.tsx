@@ -9,6 +9,7 @@ import {
   type UsageQuery,
 } from '../../shared/usagePage'
 import type { HostBridge } from '../hostBridge'
+import { webviewErrorReport } from '../errorReport'
 import { Header } from './Header'
 import { KpiTiles } from './KpiTiles'
 import { LimitsSection } from './LimitsSection'
@@ -70,11 +71,21 @@ export function UsageApp({
       }
       try {
         host.post(message)
-      } catch {
+      } catch (error: unknown) {
+        // An unposted message reads failed: only a non-error keeps its kind
+        // past the page. The failure also reaches the host's record; when
+        // the bridge itself is down that post throws to the boundary instead.
+        if (!(error instanceof Error)) throw error
         if ('requestId' in message) pending.current.delete(message.requestId)
         if (message.type === 'usage/query') wanted.current = undefined
         setBusy(false)
         setError(USAGE_TEXT.readFailed)
+        try {
+          host.post(webviewErrorReport('hostMessage', error))
+        } catch {
+          // The usage bridges carry usage messages only, so a refused
+          // action report must never hide the failure already shown above.
+        }
       }
     },
     [host],

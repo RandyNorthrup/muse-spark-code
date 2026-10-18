@@ -65,6 +65,12 @@
     "src/host/backend/subscriptionsEntry.ts",
     "src/host/backend/configuredProvidersEntry.ts",
     "src/host/models/modelsPanelEntry.ts",
+    // The sign-in gate's own bundle (CIFIX161B), required by path on the
+    // first credential, money or consent read.
+    "src/host/auth/authEntry.ts",
+    // The paid features' own bundle (CIFIX161B), required by path on the
+    // first paid consent, gate or usage read.
+    "src/host/paid/paidEntry.ts",
     "src/host/models/modelsSubscriptionsEntry.ts",
 
     // The Node-only team schema proxy selected by the production resolver (M96, D6).
@@ -161,6 +167,9 @@
     "test/harness/usageHost.mjs",
     // Native loader regression child, run by both package scripts after build.
     "test/packaging/moduleExports.test.mjs",
+    // The badge Worker; wrangler deploys worker.js by path (lane STANDINS:
+    // its only in-repo importer was the deleted KV-stand-in test).
+    "infra/marketplace-hook/worker.js",
     "test/e2e/**/*.test.ts",
     // The reports e2e bundles this entry with esbuild by path
     // (test/e2e/reports.e2e.test.ts), which knip does not trace.

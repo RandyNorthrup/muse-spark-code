@@ -9,6 +9,7 @@ import {
 import machineClasses from '../../shared/machineClasses.json'
 import { ESTIMATE_MAX_ITEMS } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
+import { isStoreErrorCode } from '../../host/backend/storeErrors'
 import { compareEstimateIds } from './goal'
 
 const priceSchema =
@@ -77,7 +78,9 @@ function isPublicUrl(text: string): boolean {
   try {
     const url = new URL(text)
     return url.protocol === 'https:' && !url.username && !url.password && !url.hash
-  } catch {
+  } catch (error: unknown) {
+    // Only a malformed URL is not public: anything else keeps its kind.
+    if (!(error instanceof TypeError)) throw error
     return false
   }
 }
@@ -125,7 +128,11 @@ export async function lookupEstimatePrices(
     let wasCacheUnavailable = false
     try {
       rawCache = await port.cached(catalogUrl)
-    } catch {
+    } catch (error: unknown) {
+      // A missing cache entry is a cold cache: the reason stays
+      // 'unavailable' while the refresh below retries over the network. Any
+      // other store failure keeps its kind for the caller (D119).
+      if (!isStoreErrorCode(error, 'ENOENT')) throw error
       wasCacheUnavailable = true
     }
     const parsed = documentSchema.safeParse(rawCache)

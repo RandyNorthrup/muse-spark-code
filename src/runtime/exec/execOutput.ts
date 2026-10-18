@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 import { isInvalidProvidersFileError } from '../../acp/accountText'
 import { redactSecrets } from '../../core/redact'
 import type { Logger } from '../../host/logger'
@@ -10,7 +11,7 @@ import {
   REDACTED_MARK,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill, formatNumber } from '../../shared/l10n/text'
+import { fill, formatNumber, plural } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import { stderrLogger } from '../stderrLog'
 import type { ExecOutput } from './execArgs'
@@ -172,11 +173,40 @@ export function createExecSink(input: {
       schema,
     )
     seq += 1
+    if (input.format === 'json' && redacted.type === 'attempt') {
+      const tokens = redacted.totals.tokens
+      input.summary(
+        redactWhole(
+          fill(
+            redacted.phase === 'admitted'
+              ? UI_TEXT.execProgressStarted
+              : UI_TEXT.execProgressSettled,
+            {
+              request: formatNumber(redacted.n),
+              reserved: formatUsd(redacted.reservedUsd, EXEC_USD_DECIMALS),
+              input:
+                redacted.outcome === 'priced'
+                  ? plural(UI_TEXT.execProgressTokens, tokens.inputTokens)
+                  : UI_TEXT.reportLabels.unknown,
+              output:
+                redacted.outcome === 'priced'
+                  ? plural(UI_TEXT.execProgressTokens, tokens.outputTokens)
+                  : UI_TEXT.reportLabels.unknown,
+              settled: formatUsd(redacted.totals.settledUsd, EXEC_USD_DECIMALS),
+              uncertain: formatUsd(redacted.totals.uncertainUsd, EXEC_USD_DECIMALS),
+            },
+          ),
+          input.literals(),
+        ),
+      )
+    }
     if (input.format === 'jsonl') write(`${JSON.stringify(redacted)}\n`)
   }
   const finishOnce = (result: ExecResult) => {
     const raw = validateResult(
-      lastMessage === undefined || result.finalMessage === UI_TEXT.execMessageWithheld
+      lastMessage === undefined ||
+        result.finalMessage === UI_TEXT.execMessageWithheld ||
+        result.finalMessageComplete === false
         ? result
         : { ...result, finalMessage: lastMessage },
     )
@@ -240,6 +270,12 @@ export function createExecSink(input: {
       },
     )
     input.summary(redactWhole(summary, input.literals()))
+    if (cost !== null && Usd.from(cost.uncertain).compare(Usd.from(0)) > 0)
+      input.summary(
+        fill(UI_TEXT.sessionBudgetUnknownCharge, {
+          amount: formatUsd(cost.uncertain, EXEC_USD_DECIMALS),
+        }),
+      )
     if (schema !== undefined && input.outputValidation?.() === 'local')
       input.summary(UI_TEXT.outputSchemaLocalValidation)
   }
