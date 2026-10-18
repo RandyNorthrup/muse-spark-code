@@ -419,7 +419,10 @@ export function createConfiguredProviderServices(
     let value: unknown
     try {
       value = JSON.parse(stored)
-    } catch {
+    } catch (error) {
+      // Only malformed stored text reads unreadable; anything else is not
+      // the secret and reaches the caller.
+      if (!(error instanceof SyntaxError)) throw error
       throw new ModelApiError(
         fill(UI_TEXT.providerSecretUnreadable, { provider: entry.id }),
         0,
@@ -1236,9 +1239,8 @@ export function createConfiguredProviderServices(
           // and type, so the caller and the ledger see what stopped the
           // request and a refusal of ours is never retried (lane PROVERRORS:
           // a budget stop that read as "not available in this build" was
-          // retried until the job died).
-          if (error instanceof Error) throw error
-          throw new ModelApiError(UI_TEXT.actionFailed, 0, undefined, undefined)
+          // retried until the job died). A non-Error keeps its kind too.
+          throw error
         } finally {
           if (presets.planKeyPresetById(entry.preset) !== undefined)
             for (let index = 0; index < dispatch.attempts; index++)
