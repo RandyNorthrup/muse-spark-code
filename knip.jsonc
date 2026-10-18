@@ -37,6 +37,9 @@
     "src/host/usage/usagePanelEntry.ts",
     "src/webview/usage/usage.tsx",
     "src/host/conversation/conversationEntry.ts",
+    // CONVBUDGET: the session-transfer flows, required by path on the first
+    // export, import or share-file preview.
+    "src/host/conversation/conversationTransferEntry.ts",
     "src/shared/validationEntry.ts",
     // Help data: separate lazy runtime and generator build entries.
     "src/shared/reference/referenceEntry.ts",

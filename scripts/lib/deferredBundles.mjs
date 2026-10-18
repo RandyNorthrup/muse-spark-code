@@ -576,7 +576,25 @@ export const ON_FIRST_USE = [
     files: [
       'src/host/conversation/conversationEntry.ts',
       'src/host/conversation/conversationController.ts',
+    ],
+  },
+  // CONVBUDGET: the conversation's session-transfer flows (the export, the
+  // transfer parse, the import refusal and the message count), required on
+  // the first export, import or share-file preview; the first chat surface
+  // keeps no transfer implementation.
+  {
+    output: 'dist/conversationTransfer.js',
+    metafile: 'dist/meta/conversationTransfer.json',
+    use: 'the first session export, import or share-file preview',
+    parents: [
+      BUNDLES.activation,
+      { output: 'dist/conversation.js', metafile: 'dist/meta/conversation.json' },
+    ],
+    files: [
+      'src/host/conversation/conversationTransferEntry.ts',
+      'src/host/conversation/exportConversation.ts',
       'src/host/conversation/sessionImport.ts',
+      'src/core/export/sessionTransfer.ts',
       'src/core/export/transcriptMarkdown.ts',
     ],
   },
@@ -1075,6 +1093,10 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/backends/modelapi/codeIntelEntry.ts'), 'dist/modelApiCodeIntel.js'],
   [path.resolve('src/runtime/schedules/backgroundEntry.ts'), 'dist/scheduleBackground.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
+  [
+    path.resolve('src/host/conversation/conversationTransferEntry.ts'),
+    'dist/conversationTransfer.js',
+  ],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
   [path.resolve('src/core/team/teamEntry.ts'), 'dist/team.js'],
@@ -1130,7 +1152,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|conversationTransferEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (
