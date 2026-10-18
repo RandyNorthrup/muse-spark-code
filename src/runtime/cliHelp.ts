@@ -29,6 +29,7 @@ import {
   REPORT_EXIT_CODES,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
+  THINKING_OFF_EFFORT,
 } from '../shared/constants'
 import type { UiText } from '../shared/l10n/en'
 import { fill } from '../shared/l10n/text'
@@ -114,7 +115,10 @@ function factFor(name: string): CliOptionFact | undefined {
       return { kind: 'enum', values: EXEC_OUTPUTS, default: EXEC_DEFAULT_OUTPUT }
     }
     case 'effort': {
-      return { kind: 'enum', values: EFFORT_LEVELS }
+      // `none` (Thinking off) rides beside the tiers: execArgs and the
+      // session config both take it (lane REASONSHAPESR2), so the help
+      // table and its refusal gate must list it too.
+      return { kind: 'enum', values: [...EFFORT_LEVELS, THINKING_OFF_EFFORT] }
     }
     case 'max-requests': {
       return {
@@ -316,6 +320,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'output', shape: '', fact: factFor('output') },
       { name: 'max-budget-usd', shape: '<amount>', fact: factFor('max-budget-usd') },
       { name: 'max-requests', shape: '<count>', fact: factFor('max-requests') },
+      { name: 'max-tool-output-bytes', shape: '<bytes>' },
       { name: 'timeout', shape: '<seconds>', fact: factFor('timeout') },
       { name: 'cwd', shape: '<directory>' },
       { name: 'prompt-file', shape: '<file>' },

@@ -847,7 +847,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     },
     questions: { actions: ['submit', 'explain', 'cancel'] },
     'mcp-elicitation': { actions: ['accept', 'decline', 'cancel'], answers: 'requestingServer' },
-    effort: { enum: source.EFFORT_LEVELS },
+    effort: { enum: [...source.EFFORT_LEVELS, source.THINKING_OFF_EFFORT] },
     'max-requests': {
       default: source.EXEC_DEFAULT_MAX_REQUESTS,
       minimum: 1,

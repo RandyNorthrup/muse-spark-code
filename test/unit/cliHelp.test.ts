@@ -178,6 +178,14 @@ describe('wrong options and values', () => {
     expect(refusalFor(['--backend', 'secret-canary'])).not.toContain('secret-canary')
   })
 
+  it('parses exec --effort none past the help-table gate (lane REASONSHAPESR2)', () => {
+    // The runner takes `none` for Thinking off and the model's record
+    // decides per model; the option check must not refuse it first. This
+    // fails while the help table lists only the tiers.
+    const parsed = parseCommandLine(['exec', '--effort', 'none', 'hi'])
+    expect(parsed).toMatchObject({ command: 'exec', options: { effort: 'none' } })
+  })
+
   it('names the exec option a wrong value belongs to, never the budget sentence', () => {
     for (const [argv, option] of [
       [['exec', '--backend', 'auto', 'hi'], '--backend'],

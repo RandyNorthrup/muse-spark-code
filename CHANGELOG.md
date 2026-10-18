@@ -188,6 +188,15 @@ happened, not what was planned; superseded entries are kept.
   pushing the What's New page over its size bound and failing the build;
   each claim stays recorded once, under the version that shipped it.
 
+- `exec --effort none` (Thinking off) died at the terminal's own option
+  check although the runner takes it. The help table lists `none` beside
+  the tiers now, so the option parses and the model's record decides:
+  it rides for a configured-provider id and is refused before dispatch
+  where the model does not take it (lane REASONSHAPESR2).
+- `exec --max-tool-output-bytes` was missing from `exec --help` although
+  the runner takes it. It is listed now, with its per-run byte-guard
+  description (lane TOOLCAP).
+
 ### Documentation
 
 - Headless `exec` runs reported every result sentence in English whatever the
@@ -613,6 +622,10 @@ happened, not what was planned; superseded entries are kept.
   notice, editor-protocol session update, terminal log) naming the two ways
   out, without ever switching the sandbox off on its own. The model hears it
   once too. Diagnostics reports the posture and the check.
+
+- Panel notices wrap long unbroken text now: the sandbox notice's second
+  `sysctl` name was cut off at the notice's edge, hiding its value. No
+  word of a notice can overflow its box anymore.
 
 - Activation budget, after merging main into the F91 change: the
   Diagnostics command's report text loads with the report dialog's bundle
