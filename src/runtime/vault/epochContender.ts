@@ -165,8 +165,8 @@ async function settleEpochWriter(
 
 // A live holder releases its writer within quanta: guardian loss already
 // failed its authorize, so it can only unwind. Bounded always.
-const EPOCH_WRITER_SETTLE_ROUNDS = 10
-const EPOCH_WRITER_SETTLE_WAIT_MS = 50
+export const EPOCH_WRITER_SETTLE_ROUNDS = 10
+export const EPOCH_WRITER_SETTLE_WAIT_MS = 50
 
 /**
  * Publish one epoch under the shared kernel mutex. A contender that finds the
