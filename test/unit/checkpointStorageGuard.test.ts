@@ -5,7 +5,7 @@
 // returned as a refused entry, never thrown.
 import { describe, expect, it } from 'vitest'
 import { ShellEntryError } from '../../src/core/shellResult'
-import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import { ShellTimeLimit, type ToolIo } from '../../src/core/backends/modelapi/tools'
 import {
   withCheckpointStorageGuard,
   type CheckpointPort,
@@ -35,7 +35,14 @@ async function runThrowing(
   guarded: ReturnType<typeof withCheckpointStorageGuard>,
 ): Promise<unknown> {
   try {
-    await guarded.runShell('true', '/ws', 1000, new AbortController().signal, 1000, () => undefined)
+    await guarded.runShell(
+      'true',
+      '/ws',
+      1000,
+      new AbortController().signal,
+      new ShellTimeLimit(),
+      () => undefined,
+    )
   } catch (error: unknown) {
     return error
   }
@@ -76,7 +83,7 @@ describe('withCheckpointStorageGuard', () => {
       '/ws',
       1000,
       new AbortController().signal,
-      1000,
+      new ShellTimeLimit(),
       () => {
         throw new Error('resource is busy')
       },

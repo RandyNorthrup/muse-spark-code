@@ -4,7 +4,7 @@
 // fails still reports every completed, failed and skipped step.
 import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
-import type { CredentialStore } from '../../src/host/auth/credentialStore'
+import type { ProviderCredentialStore } from '../../src/host/providers/credentialRecords'
 import type { ProviderEntry, ProvidersStore } from '../../src/host/providers/providerPorts'
 import {
   saveWizardDraft,
@@ -47,7 +47,7 @@ function stores(options: { failCredential?: Error } = {}) {
       options.failCredential === undefined
         ? Promise.resolve()
         : Promise.reject(options.failCredential),
-  } as unknown as CredentialStore
+  } as unknown as ProviderCredentialStore
   const deps: WizardSaveDeps = {
     store,
     credentials,
