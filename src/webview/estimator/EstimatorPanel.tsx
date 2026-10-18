@@ -2,7 +2,6 @@ import { estimateFailureText, type EstimateViewState } from '../../shared/estima
 import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import {
   estimateRequestSchema,
-  collectEstimateView,
   parseEstimateGoal,
   type CatalogPrice,
   type EstimateRequest,
@@ -175,11 +174,17 @@ export default function EstimatorPanel({
     active.current = structuredClone(parsed.data)
     latestAsOf.current = parsed.data.asOf
     setView({ status: 'loading' })
-    const next = await collectEstimateView(
-      parsed.data,
-      () => port.estimate(parsed.data, controller.signal),
-      controller.signal,
-    )
+    let next: EstimateViewState
+    try {
+      const boundary = await import('../../shared/estimateDiagnostic')
+      next = await boundary.collectEstimateView(
+        parsed.data,
+        () => port.estimate(parsed.data, controller.signal),
+        controller.signal,
+      )
+    } catch {
+      next = { status: 'failed', diagnostic: { estimateDiagnostic: 'source-unavailable' } }
+    }
     if (controller.signal.aborted) return
     setView(next)
     if (next.status === 'showing') setSelected(chooseSetup(next.section, selected))
