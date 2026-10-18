@@ -35,8 +35,10 @@ happened, not what was planned; superseded entries are kept.
   helper, the Hosts/Forks checks and the Windows/macOS browser captures) in
   `scnetsolutions/muse-spark-code-ci` while only the Ubuntu legs and the
   aggregates run here, and the same seven required checks wait for that run's
-  result. The Windows and macOS static gates and the Windows browser capture
-  take larger runners there while its `LARGE_RUNNERS` variable is `on`.
+  result. The Windows static gates and the Windows browser capture
+  take the larger runner there while its `LARGE_RUNNERS` variable is `on`
+  (macOS stays standard: the GitHub-owned macOS larger labels need a Team
+  or Enterprise plan and the capacity organization is free).
   Pull requests, merges and releases stay in this repository; forks and
   Dependabot keep every job here.
 - The capacity wait survives the documented queue (D122 review). The `org`

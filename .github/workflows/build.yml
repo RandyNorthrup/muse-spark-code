@@ -60,10 +60,16 @@ jobs:
     # Windows and macOS gates in the only run that holds them.
     # Larger runners (CISHARDS2): in the capacity repository's own run
     # (`org`), and only while its `LARGE_RUNNERS` variable is `on`, the
-    # Windows and macOS gates take the larger labels. `vars` resolves in the
-    # repository that owns the run, so a fork's `pull_request` run (part
-    # `all` on its own repository) can never take this branch.
-    runs-on: ${{ inputs.part == 'org' && vars.LARGE_RUNNERS == 'on' && (matrix.os == 'windows-latest' && 'msc-windows-8core' || matrix.os == 'macos-latest' && 'macos-latest-xlarge' || matrix.os) || matrix.os }}
+    # Windows gates take the larger label. macOS stays standard: the
+    # GitHub-owned macOS larger labels need a Team or Enterprise plan and
+    # the capacity organization is free, so `macos-latest-xlarge` would
+    # queue forever there; the macOS browser capture stays standard for the
+    # same reason. `vars` is read when each job starts, so the variable must
+    # be set before the pull request is pushed: jobs already started keep
+    # their labels. `vars` resolves in the repository that owns the run, so
+    # a fork's `pull_request` run (part `all` on its own repository) can
+    # never take this branch.
+    runs-on: ${{ inputs.part == 'org' && vars.LARGE_RUNNERS == 'on' && matrix.os == 'windows-latest' && 'msc-windows-8core' || matrix.os }}
     # One serial job outgrew its 25 minutes on macOS (CIFIX017R3, run
     # 37992331755: 21.8 min in round 2, cancelled at 25 in round 3 during
     # check:host-api, no hang): type-aware ESLint alone took 17.7 min there

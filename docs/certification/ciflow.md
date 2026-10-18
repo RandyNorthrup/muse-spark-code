@@ -685,23 +685,23 @@ run 39078180972 (PR #210, part `home`) for CI jobs, run 39080679626 (hosts),
 run 39078180976 (browser-check) and run 39069570743 (forks). The longest
 unit test shard is 2.9 min (Windows shard, merge-train run 39070870774).
 
-| #   | Job (workflow)                                      | Runner today   | Before (min)      | Moves to                            | Label there                                      |
-| --- | --------------------------------------------------- | -------------- | ----------------- | ----------------------------------- | ------------------------------------------------ |
-| 1   | static gates, lint (build.yml `checks`)             | windows-latest | 5.0               | org run, `part` `org`               | larger (`msc-windows-8core`)                     |
-| 2   | static gates, unit lint (build.yml `checks`)        | windows-latest | 1.8               | org run                             | larger (named in the brief with the other gates) |
-| 3   | static gates, build (build.yml `checks`)            | windows-latest | 4.8               | org run                             | larger                                           |
-| 4   | static gates, lint (build.yml `checks`)             | macos-latest   | 3.7               | org run                             | larger (`macos-latest-xlarge`)                   |
-| 5   | static gates, unit lint (build.yml `checks`)        | macos-latest   | 1.3               | org run                             | larger (named in the brief)                      |
-| 6   | static gates, build (build.yml `checks`)            | macos-latest   | 3.9               | org run                             | larger                                           |
-| 7   | unit shards 1–16 (build.yml `unit`)                 | windows/macos  | moved by CISHARDS | stays in the org run                | standard (brief: shards stay free)               |
-| 8   | integration (build.yml, windows)                    | windows-latest | 2.0               | org run                             | standard (under the 2.9 min shard bar)           |
-| 9   | compile dictation helper (build.yml `native-build`) | macos-latest   | 2.2               | org run                             | standard (under the bar)                         |
-| 10  | package helper, darwin (hosts.yml `native-helpers`) | macos-latest   | 0.8               | moves with its workflow (see below) | standard                                         |
-| 11  | agent package (hosts.yml, windows)                  | windows-latest | 1.1               | moves with its workflow             | standard                                         |
-| 12  | agent package (hosts.yml, macos)                    | macos-latest   | 0.6               | moves with its workflow             | standard                                         |
-| 13  | package helper, darwin (forks.yml `native-helpers`) | macos-latest   | 0.8               | moves with its workflow             | standard                                         |
-| 14  | captures (browser-check.yml, windows)               | windows-latest | 3.1               | org run, per-OS split               | larger (over the 2.9 min bar)                    |
-| 15  | captures (browser-check.yml, macos)                 | macos-latest   | 2.4               | org run, per-OS split               | standard (under the bar)                         |
+| #   | Job (workflow)                                      | Runner today   | Before (min)      | Moves to                            | Label there                                               |
+| --- | --------------------------------------------------- | -------------- | ----------------- | ----------------------------------- | --------------------------------------------------------- |
+| 1   | static gates, lint (build.yml `checks`)             | windows-latest | 5.0               | org run, `part` `org`               | larger (`msc-windows-8core`)                              |
+| 2   | static gates, unit lint (build.yml `checks`)        | windows-latest | 1.8               | org run                             | larger (named in the brief with the other gates)          |
+| 3   | static gates, build (build.yml `checks`)            | windows-latest | 4.8               | org run                             | larger                                                    |
+| 4   | static gates, lint (build.yml `checks`)             | macos-latest   | 3.7               | org run                             | standard (PR218FIX: no larger macOS runner on a free org) |
+| 5   | static gates, unit lint (build.yml `checks`)        | macos-latest   | 1.3               | org run                             | standard (as row 4)                                       |
+| 6   | static gates, build (build.yml `checks`)            | macos-latest   | 3.9               | org run                             | standard (as row 4)                                       |
+| 7   | unit shards 1–16 (build.yml `unit`)                 | windows/macos  | moved by CISHARDS | stays in the org run                | standard (brief: shards stay free)                        |
+| 8   | integration (build.yml, windows)                    | windows-latest | 2.0               | org run                             | standard (under the 2.9 min shard bar)                    |
+| 9   | compile dictation helper (build.yml `native-build`) | macos-latest   | 2.2               | org run                             | standard (under the bar)                                  |
+| 10  | package helper, darwin (hosts.yml `native-helpers`) | macos-latest   | 0.8               | moves with its workflow (see below) | standard                                                  |
+| 11  | agent package (hosts.yml, windows)                  | windows-latest | 1.1               | moves with its workflow             | standard                                                  |
+| 12  | agent package (hosts.yml, macos)                    | macos-latest   | 0.6               | moves with its workflow             | standard                                                  |
+| 13  | package helper, darwin (forks.yml `native-helpers`) | macos-latest   | 0.8               | moves with its workflow             | standard                                                  |
+| 14  | captures (browser-check.yml, windows)               | windows-latest | 3.1               | org run, per-OS split               | larger (over the 2.9 min bar)                             |
+| 15  | captures (browser-check.yml, macos)                 | macos-latest   | 2.4               | org run, per-OS split               | standard (under the bar)                                  |
 
 Ubuntu jobs (static gates, unit shards 1–8, integration, helpers,
 packages, aggregates) and the `org` wait itself stay on the personal
@@ -736,7 +736,8 @@ schedule and push run (part `all`, as now).
   hold: `part == 'org'`, the repository variable `LARGE_RUNNERS == 'on'`,
   and the job's row above says larger. `vars` resolves in the repository
   that owns the run, so the variable lives on the organization repository
-  alone (lead step: `gh variable set LARGE_RUNNERS --body on` there); a
+  alone (lead step: `gh variable set LARGE_RUNNERS --body on` there, before
+  pushing the pull request — it is read when each job starts); a
   fork's `pull_request` run is part `all` on its own repository and can
   never satisfy the first condition. Standard runners stay free for this
   public repository; only the rows above marked larger bill the
@@ -749,14 +750,15 @@ schedule and push run (part `all`, as now).
 
 ### Expected cost per pull-request run (arithmetic, before-minutes as estimate)
 
-Prices: Windows 8-core $0.042/min, macOS xlarge $0.102/min; standard
-runners $0. Larger-runner minutes on a typical pull request (no
-browser-path files): Windows gates 5.0 + 1.8 + 4.8 = 11.6 min × 0.042 =
-$0.487; macOS gates 3.7 + 1.3 + 3.9 = 8.9 min × 0.102 = $0.908; total
-**≈ $1.40 per run**. A browser-path pull request adds the Windows capture
-3.1 × 0.042 = $0.130, total ≈ $1.53. At $40 a month that is about 28
-typical runs before the budget stops paid usage (the lead switches
-`LARGE_RUNNERS` off first). Larger runners should finish the same gates
+Prices: Windows 8-core $0.042/min; standard runners $0.
+Larger-runner minutes on a typical pull request (no browser-path files):
+Windows gates 5.0 + 1.8 + 4.8 = 11.6 min × 0.042 = **≈ $0.49 per run**.
+A browser-path pull request adds the Windows capture 3.1 × 0.042 = $0.130,
+total ≈ $0.62. At $40 a month that is about 81 typical runs before the
+budget stops paid usage (the lead switches `LARGE_RUNNERS` off first).
+macOS stays on free standard runners: the GitHub-owned macOS larger labels
+need a Team or Enterprise plan and the capacity organization is free
+(PR218FIX, below). Larger runners should finish the same gates
 faster; the after-minutes replace these estimates once the first hosted
 run lands, in the implementation record below.
 
@@ -829,15 +831,16 @@ all of this, recorded on the pull request:
   its first parent), succeeds with the forty shard rows plus the gate,
   integration and helper legs, and re-uploads `muse-dictate-darwin` and
   `muse-vault-darwin`; `packages` consumes them unchanged.
-- There, the `ci/pr-<n>` run's `route` picks `org`; the Windows and macOS
-  static gates run on `msc-windows-8core` / `macos-latest-xlarge` (once the
-  lead sets `LARGE_RUNNERS` to `on` there; before that, standard labels),
-  every other moved leg on standard runners; all succeed.
+- There, the `ci/pr-<n>` run's `route` picks `org`; the Windows static
+  gates run on `msc-windows-8core` (once the lead sets `LARGE_RUNNERS` to
+  `on` there before pushing; before that, standard labels), the macOS gates
+  on standard `macos-latest`, every other moved leg on standard runners;
+  all succeed.
 - **No job running on `windows-latest` or `macos-latest` remains on the
   personal run**: its jobs list shows Ubuntu legs, `route`, the `org` wait
   (Ubuntu), the aggregates and the Linux helpers/packages only. Hosts,
-  Forks and browser-check personal runs of the pull request show `route`
-  plus skipped jobs (Hosts/Forks) or the Ubuntu capture only
+  Forks and browser-check personal runs of the pull request show `route`,
+  the `relay` job, skipped jobs (Hosts/Forks) or the Ubuntu capture only
   (browser-check).
 - The required `quality (ubuntu/windows/macos-latest)`, `dictation helper
 (macos)` and `package (.vsix)` are green here with the ruleset unchanged.
@@ -874,29 +877,66 @@ The hosted proof above must additionally show the Windows and macOS
 `static gates (...)` jobs present and green in the capacity run, and a
 push to `main` here still running the full Hosts workflow.
 
-### Review fixes (PR218FIX, 2026-10-18, this rig — first result)
+### Review fixes (PR218FIX, 2026-10-18, this rig)
 
-Six Codex threads on PR #218 (branch `ci/more-shards2`), one line each:
+Six Codex threads on PR #218 (branch `ci/more-shards2`): three were already
+fixed by RVCISHARDS2 and are verified present, not redone; three applied.
 
-- build.yml:77 (static gates skipped in org builds): already fixed in
-  RVCISHARDS2 (`ed4feb907`); the job-level guard is gone, verified present.
-- forks.yml:90 (relay offloaded results): APPLIES — no source-side waiter
-  exists for the capacity Forks/Hosts/Browser runs; adding one `relay` job
-  to each of the three workflows.
-- hosts.yml:70 (Hosts skipped on source main pushes): already fixed in
-  RVCISHARDS2 (`54b617125`); every job carries `!cancelled()`, verified
-  present.
+- build.yml:77 (static gates skipped in org builds): already fixed
+  (`ed4feb907`) — no job-level guard; the matrix picks each part's systems.
+- forks.yml:90 (relay offloaded results): FIXED (`a1d6a761d`) — hosts.yml,
+  forks.yml and browser-check.yml each gain a `relay` job that runs only in
+  a `home` run, polls the capacity repository's run of the same workflow on
+  the pushed merge commit, and takes its result (failure there fails here).
+  When no run appears within ten minutes, the capacity push matched none of
+  that workflow's paths, so no run was started: the job succeeds with a
+  warning instead of failing a pull request whose latest push touched none
+  of those paths (a docs-only follow-up push to a src pull request must stay
+  green). build.yml's `org` job already fails closed when the push itself is
+  missing, so a genuinely lost push still goes red there.
+- hosts.yml:70 (Hosts skipped on source main pushes): already fixed
+  (`54b617125`) — every job carries `!cancelled()`.
 - browser-check.yml:44 (path filtering on capacity pushes): already fixed
-  in RVCISHARDS2 (`684a9f091`); both push triggers mirror their
-  `pull_request` paths, verified present.
-- build.yml:417 (artifact downloads): APPLIES — the relay uses the source
-  repo's `github.token` against the capacity repo; minting a fresh
-  capacity-scoped token after the wait for the two `gh run download` calls.
-- hosts.yml:106 (fast PR runs): APPLIES — the three auxiliary routes lack
-  `ci.yml`'s fast-tier condition and would select `home` with no capacity
-  push to replace the skipped jobs; mirroring the `FAST` condition.
-- Lead measurement (org run 39083598004, `LARGE_RUNNERS=on`, static gates
-  on standard labels): under investigation; the Windows browser capture in
-  the same window did take `msc-windows-8core`, so the variable read worked
-  there. `runs-on` is evaluated when each job starts, so a variable set
-  after the run starts reaches late jobs only.
+  (`684a9f091`) — both push triggers mirror their `pull_request` paths.
+- build.yml:417 (artifact downloads): FIXED (`9d6232c68`) — the relay mints
+  a fresh App token after the wait (actions read on the capacity repository
+  alone) and the two `gh run download` calls use it instead of this run's
+  own `github.token`, which is scoped to this repository; the push token is
+  not reused because it may have expired during the wait.
+- hosts.yml:106 (fast PR runs): FIXED (`a1d6a761d`) — the three auxiliary
+  routes gain `ci.yml`'s fast-tier condition (`FAST`, `pull_request` with
+  `CI_MERGE_QUEUE == 'on'` → `all`), so a fast-tier pull request keeps every
+  Hosts/Forks job and every browser capture local, matching the build,
+  which pushes no capacity branch in that tier.
+
+Drill `temp/pr218fix-drill.mjs` (local only, not committed) drives the steps
+out of the committed files under GitHub's `bash --noprofile --norc -eo
+pipefail`, 18/18 green: each of the three routes gives `all` with
+`FAST=true` and `home` with `FAST=false`, and the pre-fix step gives `home`
+for a fast pull request (the bug); each `relay` step exits 0 on a successful
+capacity run, 1 on a failed one, and 0 with a warning when no run appears.
+`bash -n` passes on all three relay steps. Hosted runs are the proof (below).
+
+Lead measurement (org run 39083598004 with `LARGE_RUNNERS=on`, static gates
+on standard labels): two causes, both fixed in this lane. First, `runs-on`
+is read when each job starts, so a variable set after the push reaches only
+jobs that start later — the early static gates kept standard labels while
+the later Windows browser capture (run 39083598068) took
+`msc-windows-8core`. CONTRIBUTING.md step 7 now says to set the variable
+before pushing. Second, the macOS gates can never take a larger label on
+this free organization: the GitHub-owned macOS larger labels
+(`macos-latest-xlarge`) need a Team or Enterprise plan
+([Actions runner pricing](https://docs.github.com/en/enterprise-cloud@latest/billing/reference/actions-runner-pricing):
+"Larger runners are only available for organizations and enterprises using
+the GitHub Team or GitHub Enterprise Cloud plans"), so that label would
+queue forever; `msc-windows-8core` works because it is the organization's
+own runner (proven by run 39083598068). build.yml now selects the larger
+label for Windows gates only, macOS stays standard like the macOS browser
+capture; the inventory rows 4–6, the cost arithmetic (≈ $0.49 typical,
+≈ $0.62 browser-path, ≈ 81 runs per $40) and PLAN.md/CONTRIBUTING.md/
+CHANGELOG.md say so. The next hosted run (variable set before the push)
+must show: the capacity run's three Windows `static gates` jobs on
+`msc-windows-8core`, the two macOS `static gates` jobs on standard
+`macos-latest`, all green; the home run's `org` relay step green
+(capacity-scoped download); and each auxiliary `relay` job green with its
+capacity run linked in the summary.
