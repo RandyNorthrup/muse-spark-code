@@ -354,3 +354,49 @@ workflowDetails, reportCommandAck, composerFocusOwnership (21). No
 `--testTimeout` anywhere in a final run. No CHANGELOG lines: like the
 other PR214FIX commits, these fix unreleased PR #214 content whose
 changelog lines already landed on the branch.
+
+## PR214W1 first result (2026-10-18, branch `fix/nolimits-2-w1`)
+
+One line per thread (18) and per CI failure, each verified against this
+tree just now. The 13 threads the PR214FIX2 lane covered still hold:
+`transport.ts:769` sleeps Retry-After through chunked `pause()`;
+`mcp/connection.ts:434` arms entry timeouts with `setLongTimeout`;
+`pacing.ts` clamps an over-bucket estimate so a full bucket admits;
+`timeouts.ts:121` types every notice subject as `StillWaitingSubject`;
+M81 reads "as many steps as the check needs" (`ROADMAP.md:138`);
+`MuseCodeHost.ts:488` counts one miss per silent notice period;
+`importIo.ts:52` threads the window signal into both git children; and
+the five PR214FIX2 fixes are the HEAD commits (`e5a578cd08`,
+`03ce1ed0f5`, `0ad2057188`, `8ae6b2142c`, `5ec90de177`).
+
+- `client.ts:366` (model discovery with no signal): confirmed at cause
+  — `listModels()` passes `undefined` as the request signal, and the
+  only Stop check (`sendInvalidationEpoch`) runs after the listing
+  resolves, so a hung `/models` cannot be cancelled; fix follows.
+- `webFetch.ts:712` (fixed 5 MiB page refusal): confirmed at cause —
+  `readPage` refuses past `WEB_FETCH_MAX_BODY_BYTES`
+  (`webFetch.ts:711`) even for a plain uncompressed page; fix follows
+  (spool past memory to disk / person-set cap, no hard-coded refusal).
+- `webFetchBomb.test.ts:31` (canned bomb): confirmed at cause — the
+  gzip body is `Buffer.alloc(n, 'a')` with no capture date or command;
+  fix follows (recorded real exchange as the fixture).
+- `webFetch.ts:824` (redirect contract): confirmed at cause —
+  `fetchHops` follows same-host redirects to the fetch deadline while
+  `SECURITY.md:471` still promises "at most five"; fix follows (policy
+  text updated alongside the behavior).
+- `copilotClient.ts:283` (standalone token count ignores Stop):
+  confirmed at cause — `countInputTokens` builds a local
+  `CancellationTokenSource` never tied to the turn signal, unlike
+  `streamResponse`; fix follows.
+- CI `check:host-api`: reproduced locally — the committed
+  `docs/ide-compatibility/host-api.md` undercounts
+  `node:timers/promises` (25 vs 27); regenerate and review.
+- CI `invariants.test.ts` (19 failures): reproduced locally
+  (`test/unit/invariants.test.ts`, 19 failed / 23 passed) — the golden
+  fixtures' tool descriptions no longer match what the real builders
+  produce (edit_file/bash/todo_write wording); cause under
+  investigation.
+- CI `modelsActivationBudget.test.ts`: reproduced locally — 3398 B
+  over the 3072 B cap; cause under investigation (never raised).
+- All other listed CI failures are downstream of these (require every
+  selected-tier job / wait for the capacity repository).
