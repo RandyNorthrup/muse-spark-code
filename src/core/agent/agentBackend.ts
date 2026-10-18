@@ -497,9 +497,9 @@ export interface AgentSession {
   /**
    * A `/playback` turn stating the agent's own understanding from working
    * memory, with no tools (D203). The Model API backend offers none and
-   * refuses every call in code; Muse Code, which has no such turn, holds an
-   * ordinary turn in Plan mode instead (the surface stops it at the first
-   * tool use), so sessions without it use `sendTurn` under a hold.
+   * refuses every call in code; Muse Code has no such turn (no approval
+   * mode denies reads, let alone the file tools' edits), so sessions
+   * without it have no playback and the surfaces refuse it there.
    */
   readonly playback?: (parts: readonly TurnPart[], displayText: string) => Promise<TurnSubmission>
   /**
