@@ -733,9 +733,10 @@ grows the receipts.
 
 - usage.tsx boot report: FIXED at 49543e7 (PR161FIX2) — the report is
   built first and posted best-effort in a guarded send, so a refused
-  report never kills the `Unavailable` fallback. This lane additionally
-  renders the fallback for a non-`Error` boot throw instead of rethrowing
-  past it, so the fallback truly always runs.
+  report never kills the `Unavailable` fallback. Verified in the tree;
+  this lane changes nothing here. (A non-`Error` boot throw still
+  rethrows past the fallback; that pre-existing path is outside this
+  thread's named cause — the refused-report kill — and is left alone.)
 - paidConsent non-`Error` store writes: FIXED at 49543e7 — `remember()`,
   `searchApprovalOrder()` and the quote-save path all classify every
   rejection with `paidStoreFailureKind` (`unknown` for a non-`Error`),
@@ -766,6 +767,54 @@ grows the receipts.
   healthy read, so another window's marker survives the repair and
   suppresses the next recurrence announcement. `noteHealthy()` must
   consult the durable marker, not only its own flag. Fix in this lane.
+
+## PR161FIX3 receipts (2026-10-18, lane PR161FIX3)
+
+- damageNotice:53 (commit `651cce0c1`): `noteHealthy()` now clears
+  whenever a marker is present, not only on its first healthy read, so
+  another window's marker cannot survive the repair. The existing
+  real-code test (`test/unit/damageNotice.test.ts`, real temp folder,
+  two real `DamageNoter`s, `fileDamageMarkers`) is extended with the
+  thread's script — C healthy, D damages, C healthy, recurrence — and
+  fails before the fix (5 announcements, recurrence suppressed) and
+  passes after (6). Suite green (1 test) at the repo timeout. The extra
+  read per healthy sample lands on quote-list and choice-read paths,
+  never on a hot loop.
+- paidConsent:429 (commit `43cef3efc`): `remember()` no longer emits
+  `onNotKept` for a `StaleEpochError`; it carries the classified
+  failure on the consent and `AccountPaidUseConsent.allows()` settles it
+  at the epoch fence — dropped on refusal, told only after the fence
+  passes. Plain store failures still allow once and tell at once
+  (TBL-07); non-`Error` rejections still read `unknown` (thread 2
+  holds). Proof is a deleted-after-run scratch probe through the real
+  `AccountPaidUseConsent`/`PaidUseConsent` with a Map-backed store
+  shared by two instances (probe file removed after the run, never
+  committed): stale race refuses with zero notices; plain failure
+  allows once with one notice; foreign rejection allows once with kind
+  `unknown`; clean save allows silently — 8/8. No fake store/popup test
+  is reinstated (main removed paidConsent's suite). Composition proof
+  waits for M108 wiring (no production host constructs the account
+  consent yet): with two sessions sharing one binding, answer Always in
+  one while the other revokes mid-popup, and observe no dispatch and no
+  "applied this time" notice; without revocation the grant is kept.
+  No model/provider call was made in this lane.
+- credentialReadFailures:59 (commit `9b443c5d5`): the fabricated
+  warn-once case is deleted, its title withdrawn to
+  `docs/real-life/unproven.md` ("Withdrawn on lane PR161FIX3"), and the
+  remaining suite is green (4 tests). Warn-once proof moves to the
+  lead's real-life run: on Linux without a usable keyring, trigger two
+  operational key reads and observe exactly one warning in the runtime
+  log; restore the keyring for one healthy read (re-arm), break it
+  again, and observe exactly one more warning.
+- Threads 1–4 are answered with `49543e7` (verified present in the
+  tree, above); this lane changes none of those files.
+
+Follow-up (observed, not a thread): a same-instance revoke landing
+between the popup answer and `keepBindingFeature`'s queued write throws
+`invalidAccount` (not `StaleEpochError`), which `remember()` still
+tells at once before the outer fence refuses. Same notice-before-fence
+shape through a different error; carrying it changes what a revoked
+user is told, so it needs the lead's call, not this lane.
 
 ## PR161FIX2: Codex re-review threads (2026-10-18, lane PR161FIX2)
 
