@@ -443,6 +443,16 @@ happened, not what was planned; superseded entries are kept.
   small bundles stop carrying them: usagePanel.js back under its cap with
   room to spare. Recorded in `docs/certification/train-bundle-diet.md`.
 
+- Older-fixes train bundle split (repository only, no user-visible change):
+  the verify loop's session side (the loop, its ledger and the diagnostics
+  history, with their 23 exclusive model-text keys in a `VERIFY_MODEL_TEXT`
+  block of their own) loads as `dist/modelApiTools.js`'s sibling
+  `dist/modelApiVerify.js` on the first turn that verifies tool edits, so
+  `dist/modelApi.js` is back under its unchanged 525 KiB cap with room to
+  spare. A bundle that cannot load fails the turn or check run that needed
+  it, never a silent skip. Recorded in
+  `docs/certification/train-older-fixes.md`.
+
 - A confirmed run on a ChatGPT or Copilot plan model (hook model, review,
   scheduled prompt) no longer fails with "the model changed" before it is
   sent. The subscription client proceeds while the confirmation is still

@@ -60,6 +60,7 @@ const HOST_BUNDLES = [
   'dist/extensionHooks.js',
   'dist/pluginHooks.js',
   'dist/modelApiTools.js',
+  'dist/modelApiVerify.js',
   'dist/planMarkdown.js',
   'dist/checkpointStore.js',
   'dist/browserCheck.js',

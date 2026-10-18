@@ -32,6 +32,8 @@
     "src/core/backends/modelapi/modelApiMcpEntry.ts",
     // The deferred per-call helpers, built as dist/modelApiTools.js (MODELAPIDIET).
     "src/core/backends/modelapi/modelApiToolsEntry.ts",
+    // The verify loop's session side, built as dist/modelApiVerify.js (M68).
+    "src/core/backends/modelapi/modelApiVerifyEntry.ts",
     "src/runtime/usage/usageServiceEntry.ts",
     "src/runtime/usage/usageCompanionEntry.ts",
     "src/host/usage/usagePanelEntry.ts",

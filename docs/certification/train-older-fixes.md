@@ -168,19 +168,37 @@ bundle overage below, which is cumulative (no single PR at fault).
   the synchronous per-request definition path (tools.ts keeps
   runChecksDefinition from verifyTools.ts, which stays, as do the
   activation-shared checkCommands.ts, codeFiles.ts and workspaceEdits.ts
-  and the host's type-only imports). Rejected alternatives measured on
+  and the host's type-only imports). The session requires the chunk
+  through one cached loader (ensureVerify at runTurn, startHooks which
+  fronts session start/revive/import/fork, drainSteered and verifyRound;
+  verifyFunctions locals at the seven function sites, the toolAssist shape
+  the export gate can follow). Rejected alternatives measured on
   the same table: browserTool.ts 6,269 and goals.ts 6,248 feed the
   synchronous toolDefinitions(); paidAuthority.ts 7,539 sits behind
   transport.ts/client.ts per request; mcp/functions.ts 4,207 runs at
   reviewer.ts module scope; sessionOwner.ts 4,308, MediaBudget and
   sessionBudget.ts are per-session/per-request; imageGeneration.ts 3,566
   alone covers 61% of the 5,859-byte gap. Failure mode: the cached
-  `import('./modelApiVerifyEntry.js')` (same loader shape as
-  dist/hookRuntime.js) propagates its load error — the turn or check run
-  that needed it fails naming the chunk, never a silent skip and never a
-  default. No new UI text: existing turn error paths surface it.
-  New budget follows D6 (measured +15%, rounded up to 25 KiB); the 525
-  KiB cap is unchanged. Proof due: a real packed-product turn that runs
-  check verification through dist/ as built, on the contributor model
-  (at most 10 model calls, $0.50 cap, counted from the product's own
-  records).
+  `import('./modelApiVerifyEntry.js')` propagates its load error — the
+  turn or check run that needed it fails naming the chunk, never a silent
+  skip and never a default. No new UI text: existing turn error paths
+  surface it. Pre-turn misses are harmless by construction (no run is
+  recorded before the first ensure, so no verdict can go stale); the
+  shared workspace-edits registry replays in-progress writes to the late
+  ledger. New budget follows D6 (measured +15%, rounded up to 25 KiB);
+  the 525 KiB cap is unchanged.
+  Measured (linuxlt, this lane): dist/modelApi.js 530.7 KiB → 523.4 KiB
+  (7.3 KiB shed, 1.6 KiB under budget); dist/modelApiVerify.js 51,213 B
+  against its new 75 KiB budget (51,213 × 1.15 = 58,894.95, next 25 KiB
+  multiple). Gate-fire proof: the first build with the chunk failed the
+  split gate four ways (a namespace stored in an object the export
+  follower cannot track; the chunk carrying MODEL_API_MODEL_TEXT) and the
+  DEFERRED row fired on a planted nonexistent file — all fixed/reverted,
+  gate quiet. Suites: diagnosticsReport, checkCommands, invariants (61
+  tests), agentOutcome + modelApiLoopContracts (23), sessions (12) — all
+  green. Static gates: format, eslint zero warnings, all five typechecks,
+  check:plan 0 drift, knip, cycles, duplication, check:l10n,
+  check:reference, check:host-api, full `npm run build` exit 0.
+  Proof due: a real packed-product turn that runs check verification
+  through dist/ as built, on the contributor model (at most 10 model
+  calls, $0.50 cap, counted from the product's own records).

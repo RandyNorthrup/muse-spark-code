@@ -883,6 +883,21 @@ rounded up to the next 25 KiB multiple (51,200 B). Certify the removed-VSIX-line
 red drill with byte-exact restoration and run all dependent suites at the
 repository deadlines; full quality remains the integration lead's gate.
 
+**VERIFYCHUNK (2026-10-18, linuxlt).** The older-fixes train put
+`dist/modelApi.js` 5,859 bytes over its unchanged 525 KiB cap with inline
+logic from all six fix PRs combined. The verify loop's session side (M68:
+the loop, its ledger and the diagnostics history, with the 23
+`MODEL_API_MODEL_TEXT` keys only they read in a `VERIFY_MODEL_TEXT` block
+of their own) now loads as **`dist/modelApiVerify.js`** (51,213 B; new 75
+KiB budget, 51,213 × 1.15 = 58,894.95 B, rounded up to the next 25 KiB
+multiple), required through the session's cached loader on the first turn
+that verifies tool edits; `dist/modelApi.js` is 523.4 KiB with every budget
+unchanged. The synchronous tool definitions keep `runChecksDefinition`
+from `verifyTools.ts`, and activation keeps the shared `checkCommands.ts`,
+`codeFiles.ts` and `workspaceEdits.ts`. A bundle that cannot load fails
+the turn or check run that needed it, never a silent skip and never a
+default. Evidence: `docs/certification/train-older-fixes.md`.
+
 **HOTFIX0181, cross-bundle members (2026-10-12, kubuntu).** The build points
 every import of `transport.ts`, `sse.ts` and `ndjson.ts` outside
 `dist/modelApi.js` at that bundle (`deferredCohort`), which exports what
