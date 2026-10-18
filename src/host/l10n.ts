@@ -21,7 +21,9 @@ import {
   tableLocaleFor,
 } from '../shared/l10n/locales'
 import { BASE_LOCALE, setUiText } from '../shared/l10n/text'
+import { failureForLog } from '../core/backends/musecode/logText'
 import type { Logger } from './logger'
+import { describeStoreError } from './backend/storeErrors'
 import { readArchivedUiTable } from '../shared/l10n/tableArchive'
 
 /** The installed table and its language, as the webviews receive them. */
@@ -42,10 +44,6 @@ export interface UiTableDeps {
 
 // A damaged table can differ in hundreds of keys; the log names the first few.
 const PROBLEMS_LOGGED = 5
-
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
 
 /** Whether the parsed file has English's shape; what differs is added to `problems`. */
 function isTableShape(value: unknown, locale: string, problems: string[]): value is UiText {
@@ -76,7 +74,9 @@ export async function loadUiTable(deps: UiTableDeps): Promise<UiTable> {
   try {
     parsed = unpackUiTable(JSON.parse(await deps.readExtensionFile([TABLE_DIRECTORY, fileName])))
   } catch (error: unknown) {
-    deps.log.warn(`${file} could not be read, so the panel stays in English: ${describe(error)}`)
+    deps.log.warn(
+      `${file} could not be read, so the panel stays in English: ${describeStoreError(error)} (${failureForLog(error)})`,
+    )
     return english
   }
   const problems: string[] = []

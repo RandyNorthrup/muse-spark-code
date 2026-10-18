@@ -54,6 +54,7 @@ import {
 } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { forgetFile, requireFile } from '../lazyBundle'
+import { describeStoreError } from './storeErrors'
 import type { Logger } from '../logger'
 import type { SpendClaim } from '../../core/paid/spendClaim'
 import {
@@ -240,8 +241,11 @@ interface HostVariant {
   readonly readyMessage: string
 }
 
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+/** Runs every edit's completion after a failed begin, before its error travels on. */
+function cancelExternalEdits(completions: readonly (() => void)[]): void {
+  for (const complete of completions) {
+    complete()
+  }
 }
 
 export class ModelApiBackendManager {
@@ -294,7 +298,7 @@ export class ModelApiBackendManager {
       loaded = loadBundle(bundlePath)
     } catch (error: unknown) {
       this.deps.log.error(
-        `The Model API bundle ${bundlePath} could not be loaded: ${describe(error)}`,
+        `The Model API bundle ${bundlePath} could not be loaded: ${describeStoreError(error)}`,
       )
       throw new Error(this.unavailableText(), { cause: error })
     }
@@ -678,9 +682,7 @@ export class ModelApiBackendManager {
         completions.push(this.workspaceEdits.beginEdit(file, [file.relative]))
       }
     } catch (error: unknown) {
-      for (const complete of completions) {
-        complete()
-      }
+      cancelExternalEdits(completions)
       throw error
     }
     return (wasWritten) => {

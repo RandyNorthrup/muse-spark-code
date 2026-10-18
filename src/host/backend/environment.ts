@@ -15,7 +15,7 @@ import { contentHash } from '../../core/schedules/provenance'
 import type { EnvironmentFacts } from '../../core/backends/modelapi/instructions'
 import { ENVIRONMENT_RECENT_COMMITS, UI_TEXT } from '../../shared/constants'
 import { failureForLog } from '../../core/backends/musecode/logText'
-import { metadataGit } from '../git'
+import { gitExitCode, isGitExitError, metadataGit } from '../git'
 import type { Logger } from '../logger'
 
 export interface EnvironmentDeps {
@@ -27,6 +27,8 @@ export interface EnvironmentDeps {
 }
 
 const LINE_BREAK = /\r?\n/
+// git's fatal exit: `log` answers it for a branch with no commits yet.
+const GIT_FATAL_EXIT = 128
 
 function nonEmptyLines(text: string): readonly string[] {
   return text.split(LINE_BREAK).filter((line) => line.trim() !== '')
@@ -37,9 +39,13 @@ async function recentCommits(
 ): Promise<readonly string[]> {
   try {
     return nonEmptyLines(await run(['log', '--oneline', `-${String(ENVIRONMENT_RECENT_COMMITS)}`]))
-  } catch {
-    // A repository before its first commit has a branch but no log.
-    return []
+  } catch (error: unknown) {
+    // A branch with no commits yet has a name but no log; anything else
+    // (a revoked trust included) reaches the outer handler instead.
+    if (isGitExitError(error) && gitExitCode(error) === GIT_FATAL_EXIT) {
+      return []
+    }
+    throw error
   }
 }
 
@@ -93,8 +99,7 @@ export async function describeEnvironment(deps: EnvironmentDeps): Promise<Enviro
   } catch (error: unknown) {
     // Outside a repository, without git, or git timing out: the log says
     // which (M39); the prompt only says there are no git facts.
-    const reason = failureForLog(error)
-    deps.log.info(`No git facts for the prompt: ${reason}`)
+    deps.log.info(`No git facts for the prompt: ${failureForLog(error)}`)
     return { git: undefined }
   }
 }
