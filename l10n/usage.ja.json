@@ -106,6 +106,9 @@
   "certaintyUnpriced": "価格未設定",
   "certaintyEstimated": "推定値",
   "uncertainNote": "リクエストは送信されましたが、使用量が返されませんでした。そのコスト負担は保持されます。",
+  "unknownCalls": {
+    "other": "コスト不明のリクエスト{count}件"
+  },
   "unpricedNote": "価格カードがありません。不明なコストはゼロではありません。",
   "estimatedNote": "トークン数は推定値です。",
   "localNote": "ローカルモデル：API料金はかかりません。",

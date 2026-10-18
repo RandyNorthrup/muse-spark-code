@@ -298,12 +298,18 @@ export function createPaidDailyBudget(deps: {
       cap = readLimit(scope, true)
     }
     if (!isPositiveUsd(cap)) return Promise.resolve([])
+    const total = spend.read(scope)
     return Promise.resolve([
       {
         budget: {
           id: scope,
           kind: 'paidDaily',
-          spentUsd: spend.read(scope).spentUsd,
+          spentUsd: total.spentUsd,
+          // Calls that went out and reported no usage stay visible here:
+          // the settled total below them is only what providers reported.
+          ...(total.unknownChargeCalls > 0 && {
+            unknownChargeCalls: total.unknownChargeCalls,
+          }),
           capUsd: cap,
           stopped: isStopped,
           raisedToday: Usd.from(cap).compare(Usd.from(deps.capUsd())) > 0,

@@ -123,6 +123,10 @@ export const USAGE_EN = {
   certaintyUnpriced: 'Unpriced',
   certaintyEstimated: 'Estimated',
   uncertainNote: 'The request was sent, but usage was not returned. Its liability is retained.',
+  unknownCalls: forms({
+    one: '{count} call with unknown cost',
+    other: '{count} calls with unknown cost',
+  }),
   unpricedNote: 'No price card is available. Unknown cost is not zero.',
   estimatedNote: 'Token counts are estimates.',
   localNote: 'Local model: no API charge.',

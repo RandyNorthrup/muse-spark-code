@@ -184,6 +184,12 @@ export function BudgetCard({
           {USAGE_TEXT.certaintyUncertain}: {money(budget.uncertainUsd)} · {USAGE_TEXT.uncertainNote}
         </p>
       )}
+      {budget.unknownChargeCalls === undefined ? null : (
+        <p>
+          {USAGE_TEXT.certaintyUncertain}:{' '}
+          {plural(USAGE_TEXT.unknownCalls, budget.unknownChargeCalls)}
+        </p>
+      )}
       {budget.resetsAt === undefined ? null : (
         <p>
           {budget.resetsAt <= now

@@ -115,6 +115,10 @@
   "certaintyUnpriced": "Ohne Preis",
   "certaintyEstimated": "Geschätzt",
   "uncertainNote": "Die Anfrage wurde gesendet, aber keine Nutzung zurückgemeldet. Die Verbindlichkeit bleibt bestehen.",
+  "unknownCalls": {
+    "one": "{count} Anfrage mit unbekannten Kosten",
+    "other": "{count} Anfragen mit unbekannten Kosten"
+  },
   "unpricedNote": "Keine Preiskarte verfügbar. Unbekannte Kosten sind nicht null.",
   "estimatedNote": "Token-Anzahlen sind Schätzungen.",
   "localNote": "Lokales Modell: keine API-Gebühr.",

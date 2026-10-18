@@ -87,6 +87,8 @@ export const usageBudgetSchema = /* @__PURE__ */ z.strictObject({
   capUsd: z.optional(usageUsdSchema),
   uncertainUsd: z.optional(usageUsdSchema),
   reservedUsd: z.optional(usageUsdSchema),
+  /** Calls that went out and reported no usage: counted, never costed. */
+  unknownChargeCalls: z.optional(usageCountSchema),
   stopped: z.boolean(),
   raisedToday: z.optional(z.boolean()),
   projectedUsd: z.optional(usageUsdSchema),
