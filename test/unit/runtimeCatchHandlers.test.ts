@@ -15,6 +15,7 @@ import { parseAccountsCommand } from '../../src/runtime/providers/accountArgs'
 import { runtimeSharingConfidential } from '../../src/runtime/sharing/sharingEntry'
 import { runUsageCommand } from '../../src/runtime/usage/usageCli'
 import { serveUsageStdio } from '../../src/runtime/usage/usageServiceEntry'
+import { resourceMachineStore } from '../../src/runtime/resources/settings'
 import {
   checkDeveloperAccount,
   createRuntimeAccountServices,
@@ -543,5 +544,48 @@ describe('usage stdio service boundary', () => {
     )
     await serveUsageStdio(service, ports)
     expect(sent).toEqual([`${JSON.stringify({ type: 'usage/error', code: 'invalidMessage' })}\n`])
+  })
+})
+
+function machineStore(dir: string) {
+  return resourceMachineStore({
+    settingsFile: path.join(dir, 'settings.json'),
+    resumeFile: path.join(dir, 'resume.json'),
+    sleep: () => Promise.resolve(),
+  })
+}
+
+describe('resource machine settings read', () => {
+  it('reads defaults without a settings file', async () => {
+    const store = machineStore(folder())
+    await expect(store.readSettings()).resolves.toBeDefined()
+    await expect(store.readResumeUntil()).resolves.toBeNull()
+  })
+
+  it('refuses a corrupt settings file as unavailable with its cause', async () => {
+    const dir = folder()
+    writeFileSync(path.join(dir, 'settings.json'), '{oops', 'utf8')
+    try {
+      await machineStore(dir).readSettings()
+      expect.unreachable('a corrupt settings file must refuse the read')
+    } catch (error) {
+      if (!(error instanceof Error)) throw error
+      expect(error.message).toBe(UI_TEXT.resourceUnavailable)
+      expect(error.cause).toMatchObject({ name: 'SyntaxError' })
+    }
+  })
+
+  it.runIf(isPosix)('refuses a locked settings file as unavailable with its kind', async () => {
+    const dir = folder()
+    writeFileSync(path.join(dir, 'settings.json'), '{}', 'utf8')
+    chmodSync(path.join(dir, 'settings.json'), 0o000)
+    try {
+      await machineStore(dir).readSettings()
+      expect.unreachable('a locked settings file must refuse the read')
+    } catch (error) {
+      if (!(error instanceof Error)) throw error
+      expect(error.message).toBe(UI_TEXT.resourceUnavailable)
+      expect(error.cause).toMatchObject({ code: 'EACCES' })
+    }
   })
 })
