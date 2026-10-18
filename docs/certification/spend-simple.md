@@ -244,16 +244,58 @@ plus `test/e2e/reports.e2e.test.ts` (Windows symlink permission).
 
 ## Codex threads on PR #217 (lane PR217FIX, 2026-10-17): disposition
 
-One line per thread; fixes land below, answers cite the measurement.
+One line per thread; fixes and red drills below, answers with the
+measurement that decides them.
 
-- `dailySpend.ts:6` concurrent admission — ANSWER: D121 supersedes the cross-process admission lock ("the atomic claim journal, its cross-process admission lock …", PLAN.md D121); the daily total is lock-free by design, and the next request is the one stopped.
-- `paidDailyBudget.ts:106` unknown charge blocks — ANSWER: D121 ("a response without usage is cost unknown and adds nothing") plus the resolved LEDGER question in PLAN.md §3 (the owner chose not to count an unresolved reservation at all); blocking or bounded liability is the removed behaviour.
+- `dailySpend.ts:6` concurrent admission — ANSWER: D121 supersedes the cross-process admission lock; the daily total is lock-free by design.
+- `paidDailyBudget.ts:106` unknown charge blocks — ANSWER: D121 counts cost unknown as nothing; blocking or bounded liability is the removed behaviour.
 - `runtimeAccountingEntry.ts:625` swallowed settle failure — FIX: preserve the rejection instead of the no-op retry.
 - `fileSessionStore.ts:497` concurrent session-spend increments — FIX: merge deltas instead of keeping the larger snapshot.
-- `execArgs.ts:248` output-token floor — FIX: parse at 1; the selected model's own policy minimum applies at admission (`runLedger.admitResponse` already floors qualified refs at 1).
+- `execArgs.ts:248` output-token floor — FIX: parse at 1; the selected model's own policy minimum applies at admission and at the send.
 - `configured.ts:554` injected-transport dispatch state — FIX: an injected-send failure keeps ambiguous liability instead of `not_sent`.
 - `dailySpend.ts:43` legacy current-day journal — FIX: compatibility read of the legacy current-day total.
 - `paidDailyBudget.ts:306` unknown charges in Account & usage — FIX: surface the unknown-charge count in `readToday`.
+
+### Answers, measured
+
+- **Concurrent admission (`dailySpend.ts:6`).** PLAN.md D121: "A daily
+  budget's total is lock-free: each process adds to its own file in the
+  day's folder, and a read sums the files", and D121 "supersedes the
+  LEDGER design (§3, §6, §7): the atomic claim journal, its
+  cross-process admission lock, the 100 ms admission bound and its
+  benchmark." Cross-process admission coordination IS that removed lock.
+  The accepted bound is stated in the same decision: "A reply may cost
+  more than its estimate; the next request is then the one stopped."
+  Changed nothing.
+- **Unknown charge blocks (`paidDailyBudget.ts:106`).** PLAN.md D121:
+  "A reservation is never spend. A response that ended without its
+  usage counts as cost unknown, with what is known, and adds nothing
+  to the total", and §3's resolved LEDGER question: "the owner chose
+  not to count an unresolved reservation at all". Both asks — block
+  admission on unknown, retain bounded liability — restore the
+  unresolved-liability blocking the lane removed. Verified in code
+  that admission consults only settled dollars: `isWithinLimit`
+  (`paidDailyBudget.ts`), `check` (`runtimeAccountingEntry.ts`) and
+  `judgeLedger.remainingUsd` all read `spentUsd` alone. Changed
+  nothing.
+
+### Fixes, with red drills
+
+All drills: the break made, the failure seen, the code restored, green rerun.
+
+| Thread                          | Fix                                                                                                                                                                                                                                             | Test                                                                                                                                                                                            | While broken                                                                                                                                                       |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `runtimeAccountingEntry.ts:625` | The stream `finally` awaits `settle()` once; its rejection propagates instead of a second no-op `settle()` swallowing the write error                                                                                                           | `runtimeDailyBudget.test.ts`: a settlement the disk refuses rejects with `SpendLedgerError` (real files; a file stands where the day's folder belongs)                                          | No wrapper drill: driving the stream needs a provider stand-in, which the testing rules forbid. The daily-layer contract above plus the spend suites are the proof |
+| `fileSessionStore.ts:497`       | Each store instance keeps its loaded/saved total as its base and adds only its snapshot's delta onto the file's total                                                                                                                           | `fileSessionSpend.test.ts`: two windows from 1 save 3 and 5, the file holds 7; an older snapshot never lowers the file                                                                          | `expected '5' to be '7'`, the thread's own example                                                                                                                 |
+| `execArgs.ts:248`               | `--max-output-tokens` parses at 1; Meta's 16 still applies at its own send path (`execFetch.ts`), a configured provider's own minimum at its send (`configured.ts:1175`) with its sentence, and run-ledger admission floors qualified refs at 1 | `execArgs.test.ts`: 1 and 15 parse, 0 does not                                                                                                                                                  | `docs/acp.md` minimum updated alongside                                                                                                                            |
+| `configured.ts:554`             | An injected-send failure skips the `not_sent` branch and keeps the uncertain mapping, so accounting holds liability instead of releasing the ticket at zero                                                                                     | `configuredInjectedSend.test.ts`: the real key probe over the real transport with a failing injected send returns the uncertain sentence, through no network and no lookup (IP-literal address) | Old mapping returns the probe's `providerProbeUnparseable` fallback instead                                                                                        |
+| `dailySpend.ts:43`              | The day's read adds the pre-D121 `budget-journal/<account>/<day>` total (seed plus settled, open reservations as the old total counted them), read-only                                                                                         | `dailySpend.test.ts`: legacy 2.5 + 1.25 + 0.5 reads 4.25 and a new 0.75 settles to 5; another day's journal is ignored and a mismatched seed refuses as damaged                                 | `expected '4.25'` reads `'0'`; the mismatched seed reads clean instead of damaged                                                                                  |
+| `paidDailyBudget.ts:306`        | `readToday` carries `unknownChargeCalls` (new optional `usageBudgetSchema` field) when above zero; the budget card and the text summary name the count beside the settled total, in all 15 usage tables                                         | `usageLiability.test.ts`: `Uncertain: 2 calls with unknown cost` beside `$0.25 of $1.00`; `usageL10nTables`/`usageL10nGate` green (the gate caught three tables missing the `other` form first) | Row removed: the count line is gone; tables without `other` fail the gate                                                                                          |
+
+D121 holds throughout: with no limit set nothing new is read or
+written before a send (every addition above runs only under a limit the
+person set), no default limit exists, and no reservation, journal or
+lock came back.
 
 ## Left undone, named plainly
 
