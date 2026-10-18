@@ -81,3 +81,47 @@ First result: what the person sees now → what they will see after this lane.
 - Sites 1–2 (`runLegalScan`, `agentCommand`) have no committed test: no
   test builds the ACP agent, and scaffolding one would be stand-ins. Verified
   by typecheck, eslint, and reading; drills below.
+
+## Real-use drills (packed `dist/acp.js`, scratch HOME, removed after)
+
+- `playbook status` on a fresh journal: full settings table, exit 0.
+- `playbook settings offload off "Truth drill reason."`: persisted and
+  re-rendered with owner stamp, exit 0.
+- Journal `.jsonl` corrupted (trailing garbage): `playbook status` fails
+  while the surface binds — "The playbook is unavailable in this session.",
+  exit 1. That is the surface failing to load, not a loaded playbook's
+  command failing, so unavailable is the truthful answer there (out of the
+  named scope; journal restored from backup afterwards).
+- Journal directory read-only, `playbook settings offload on`: the loaded
+  playbook's write fails — "The playbook command could not be completed.",
+  exit 1. Before this lane the same failure said the playbook was
+  unavailable (proven by the unit drill: reverting `command.ts` fails the
+  new test with the unavailable text).
+- Sites 1–2 through a live ACP session (`/legal`, `/agents retry`) need an
+  editor-side client and a backend session, not runnable headless here:
+  person steps for the lead — open the packed product on the Model API
+  backend, run `/legal` with the scanner bundle removed (expect the
+  could-not-be-loaded message with the cause in the log), then with the
+  bundle present but the registry prompt denied (expect the denial's own
+  cause); list `/agents`, `retry` an entry with no subagent (expect the
+  no-subagent message) and one refused by the backend (expect the agent's
+  own missing-checkpoint message, never the backend one).
+
+## Gate exit codes (final tree, macmini)
+
+- `npm run typecheck` (all five projects): 0.
+- eslint on all changed files: 0 errors, 0 warnings (one
+  `unicorn/prefer-ternary` found and fixed in `agentCommand`).
+- prettier check on changed files + cert + changelog: clean.
+- `node scripts/check-l10n.mjs`: 0 problems (3 new keys × 14 languages).
+- `npm run check:plan`: 0 drift. `npm run check:reference`: matches.
+- `npm run build` (production + size/split budgets): 0.
+- `npm run deadcode`: 0 (only pre-existing hints elsewhere).
+- `npm run cycles`: no circular dependency. `npm run duplication`: 0 clones.
+- `npm run check:host-api`: 0 problems.
+- `npm run security:audit`: 0 blocking (2 advisories, 1 in exceptions file).
+- `npx vitest related --run` on the five changed src files: 14 files
+  passed, 2 skipped files, 359 tests passed.
+- `security:sast`: NOT RUN — semgrep crashes in this sandbox
+  (`Fatal error: exception Failure: ca-certs: empty trust anchors`,
+  exit 2) before reading any source. Environmental; lead to run outside.
