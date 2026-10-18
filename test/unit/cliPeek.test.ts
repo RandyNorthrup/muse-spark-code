@@ -1,15 +1,15 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { CliAccount } from '../../src/host/auth/cliAccount'
 import type { Logger } from '../../src/host/logger'
 
 const log: Logger = {
-  trace: vi.fn(),
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
+  trace: () => undefined,
+  info: () => undefined,
+  warn: () => undefined,
+  error: () => undefined,
 }
 
 const dirs: string[] = []
@@ -38,10 +38,11 @@ describe('credential file peek', () => {
   it('reads signed-in from a captured inline shape, without asking the CLI', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'peek-'))
     dirs.push(dir)
-    // The parse keeps presence only (`0` stands in for the value, which the
-    // parse replaces; no credential ever lands in a test).
+    // The value is a dummy placeholder, never a credential (F94: the parse
+    // reads a sign-in only from a string `api_key`; a non-string is left to
+    // the CLI).
     const file = path.join(dir, 'auth.json')
-    writeFileSync(file, '{"schema_version":1,"providers":{"meta":{"api_key":0}}}')
+    writeFileSync(file, '{"schema_version":1,"providers":{"meta":{"api_key":"key-for-tests"}}}')
     expect(accountFor(file).peekFile()).toBe('signedIn')
   })
 

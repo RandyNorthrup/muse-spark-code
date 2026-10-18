@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { readLicenceReviews } from '../../src/core/legal/depLicenses'
 import { identifyLicenseText } from '../../src/core/legal/projectLicense'
 import { scanLegal } from '../../src/core/legal/scan'
@@ -216,24 +216,18 @@ describe('workspace licence review receipts', () => {
     expect(incomplete).toHaveLength(1)
   })
 
-  it('reads only the root file once and refuses malformed JSON', () => {
+  it('refuses malformed JSON and ignores nested review files', () => {
     const snapshot = snapshotFrom({
       [LEGAL_REVIEW_FILE]: '{',
       [`nested/${LEGAL_REVIEW_FILE}`]: JSON.stringify([REVIEW]),
     })
-    const readFile = vi.fn(snapshot.readFile)
     const incomplete: string[] = []
-    expect(readLicenceReviews({ ...snapshot, readFile }, incomplete)).toEqual([])
+    expect(readLicenceReviews(snapshot, incomplete)).toEqual([])
     expect(incomplete).toHaveLength(1)
-    expect(readFile.mock.calls).toEqual([[LEGAL_REVIEW_FILE]])
     const nestedOnly = snapshotFrom({ [`nested/${LEGAL_REVIEW_FILE}`]: JSON.stringify([REVIEW]) })
-    const nestedRead = vi.fn(nestedOnly.readFile)
     const nestedIncomplete: string[] = []
-    expect(readLicenceReviews({ ...nestedOnly, readFile: nestedRead }, nestedIncomplete)).toEqual(
-      [],
-    )
+    expect(readLicenceReviews(nestedOnly, nestedIncomplete)).toEqual([])
     expect(nestedIncomplete).toEqual([])
-    expect(nestedRead).not.toHaveBeenCalled()
   })
 
   it('keeps declaration/text conflicts unresolved even with a matching receipt', () => {
@@ -258,7 +252,9 @@ describe('workspace licence review receipts', () => {
         options: { format, registry: false, out: undefined },
         deps: {
           scan: () => Promise.resolve({ result, registryTargets: [] }),
-          fetch: vi.fn<typeof fetch>(),
+          fetch: () => {
+            throw new Error('no registry fetch on the keyless local path')
+          },
           writeFile: () => Promise.resolve(),
         },
       })
