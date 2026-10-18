@@ -369,6 +369,11 @@ export const DEFERRED = [
       ...MODEL_API_VERIFY_CORE,
     ],
   },
+  {
+    output: 'dist/legalFix.js',
+    metafile: 'dist/meta/legalFix.json',
+    files: ['src/core/legal/legalFixEntry.ts', 'src/core/legal/headerFix.ts'],
+  },
 ]
 
 // POSTSPAWN: the governed launcher's own modules, required by the admission
@@ -467,7 +472,6 @@ export const ON_FIRST_USE = [
       'src/core/legal/ecosystems/toml.ts',
       'src/core/legal/entry.ts',
       'src/core/legal/files.ts',
-      'src/core/legal/headerFix.ts',
       'src/core/legal/headers.ts',
       'src/core/legal/markdown.ts',
       'src/core/legal/projectLicense.ts',
@@ -1090,6 +1094,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/backends/modelapi/pluginHooksEntry.ts'), 'dist/pluginHooks.js'],
   [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
   [path.resolve('src/core/backends/modelapi/modelApiVerifyEntry.ts'), 'dist/modelApiVerify.js'],
+  [path.resolve('src/core/legal/legalFixEntry.ts'), 'dist/legalFix.js'],
   [path.resolve('src/host/commands/commandsEntry.ts'), 'dist/commands.js'],
 ])
 /** @type {import('esbuild').Plugin} */
@@ -1119,7 +1124,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|webFetchEntry|commandsEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|legalFixEntry|webFetchEntry|commandsEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

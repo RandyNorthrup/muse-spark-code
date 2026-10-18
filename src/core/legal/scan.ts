@@ -29,7 +29,7 @@ import {
   type LegalHeaderPolicy,
 } from '../../shared/constants'
 import { legalScanResultSchema, type LegalScanResult } from '../../shared/legal'
-import { prepareLegalHeaderPatches } from './headerFix'
+
 import { evaluateCompatibility } from './compat'
 import { SPDX_DATA_VERSION } from './data'
 import { evaluateDependencyLicenses, readLicenceReviews } from './depLicenses'
@@ -58,6 +58,8 @@ import { readNpm } from './ecosystems/npm'
 import { readNuGet } from './ecosystems/nuget'
 import { readPython } from './ecosystems/python'
 import type { LegalFindingDraft } from './finding'
+import type * as LegalFix from './legalFixEntry'
+import type { LegalPreparedPatch } from '../../shared/legalScanEntry'
 import {
   assertWorkspaceRelative,
   baseNameOf,
@@ -825,12 +827,27 @@ export async function scanLegal(
   })
   results.sort((a, b) => compareLegalText(a.id, b.id))
 
-  const repairable = new Set(
-    prepareLegalHeaderPatches(
-      bounded,
-      results.filter((finding) => finding.fixable),
-    ).map((entry) => entry.patch.path),
-  )
+  // The header-fix planner loads with the fix chunk (dist/legalFix.js,
+  // D6): a scan with nothing fixable never loads it. A scan that needs it
+  // and cannot load it is refused, never silently unfixable.
+  const fixable = results.filter((finding) => finding.fixable)
+  let patched: readonly LegalPreparedPatch[] = []
+  if (fixable.length > 0) {
+    let prepare: typeof LegalFix.prepareLegalHeaderPatches
+    try {
+      const fix = await import('./legalFixEntry.js')
+      prepare = fix.prepareLegalHeaderPatches
+    } catch (error) {
+      throw new LegalScanError(
+        fill(UI_TEXT.legalScanFailed, {
+          reason: error instanceof Error ? error.message : String(error),
+        }),
+        { cause: error },
+      )
+    }
+    patched = prepare(bounded, fixable)
+  }
+  const repairable = new Set(patched.map((entry) => entry.patch.path))
   for (const finding of results) {
     if (finding.fixable && (finding.file === undefined || !repairable.has(finding.file)))
       finding.fixable = false
