@@ -427,7 +427,10 @@ const WIRED_EVENTS = new Set<HookEvent>([
   'Notification',
   'Interrupt',
   'SessionFork',
-  'ToolUseStart',
+  // ToolUseStart (MSP `toolUseStart`, D-HOOKREF: observe-only) stays
+  // parsed but unwired: no tool-start firing point exists, so keeping it
+  // here would silently ignore a configured hook. Configuring it warns
+  // `not wired on the Model API backend` until that firing point lands.
 ])
 
 function isRecord(value: unknown): value is HookRecord {

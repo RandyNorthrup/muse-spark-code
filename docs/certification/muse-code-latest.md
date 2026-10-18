@@ -425,4 +425,117 @@ commits that already fixed it, re-verified below):
   `noneReason` parsed, dropped; fix carries it in the notice.
 - CI (VSIX 3,797,152 B over the 3,788,800 B budget by 8,352 B): OPEN —
   reproduced with `npm run package`, fixed by shrinking, never by
-  raising the budget.
+  raising the budget. Current state in "PR206W1 VSIX budget" below:
+  cause measured, SDK-import diet banked, ~7 KB remainder OPEN.
+
+### Resolutions (lane PR206W1, branch `feat/muse-code-latest-w1`)
+
+- T1/T2/T3/T4/T5/T6: re-verified at this head, no new change. T1: `toolIo
+runHook` passes the configured cap per process (`toolIo.ts:1084-1087`),
+  `dispatchHooks` and `runPluginHandler` take the dispatch's cap, and all
+  three `createToolIo` sites wire the getter (`extension.ts:2019,2807`,
+  runtime defaults). T2: `onAbort` drains via `wakeEligibleWaiters`
+  (`hooks.ts:1237-1244`). T3: optionals on both contracts
+  (`agentBackend.ts:667-806`), enforced by typecheck. T4: README
+  settings table plus Hooks/Subagents sections. T5: `HOOK_MAX_TASK_REFUSALS`
+  / `TEAMMATE_MAX_IDLE_KEEPS` own the non-Stop loops. T6:
+  `plugin-list-1.4.10.json` nonempty. Re-verified in this lane at the
+  repo default timeout, no overrides: `museCodeLatest` 40/40 (process
+  gate, defaults, refusal scope, retry, view-health),
+  `pluginDispatch` + `teamCeilings` 41 passed / 2 skipped,
+  `mapNotification` 39/39, `sandbox` 17/17, plus two `vitest related`
+  sweeps over every changed module (hooks + ModelApiHost: 12 files,
+  1069 passed; mapNotification + sandbox + manager + settings +
+  agentEvents: 46 files, 891 passed after the one expectation the
+  `nextAttempt` fix intentionally moved).
+- T7: `hooksMaxStopContinuations` is 1–8 everywhere. Schema `lte(8)`
+  (`settings.ts`), manifest `"maximum": 8` (`package.json`), and an
+  unoverrideable `Math.min(..., 8)` at the single use site
+  (`ModelApiHost.ts:2918`) so programmatic getters never pass Muse Code's
+  own bound either. Descriptions (`package.nls.json`, README table +
+  Hooks paragraph) name the 1–8 bound and the refusal; reference
+  regenerated (`check:reference` green). New test refuses 1000 (warns
+  once, default in effect) and accepts 3. Red drill: without the `lte`
+  the test fails; restored.
+- T8: `ToolUseStart` leaves `WIRED_EVENTS` (stays parsed in
+  `HOOK_EVENTS`); configuring it warns `not wired on the Model API
+backend` and keeps no handler. A tool-start firing point would span
+  every tool path (verify commands, the main loop, code-intel, subagents)
+  with observe-only semantics to invent — explicitly deferred by the
+  thread's own alternative. Test asserts the warning plus zero handlers.
+  Red drill: re-adding it to the set fails the test; restored. Cert
+  drill entry "`ToolUseStart` removed from the wired set" now describes
+  intended behavior (the gate is the not-wired warning test).
+- T9: the payload is member-for-member the pinned SDK 1.4.10
+  `TurnModelRetryScheduledParams` (which folds live
+  `turn/modelRetryScheduled` frames in `session-fold.js`) and the CLI
+  1.4.10's own schema export, regenerated on this rig 2026-10-18
+  (`muse schema generate-json-schema`, fingerprint
+  `sha256:5d3b43e5…914c` — identical to the lane's recorded 1.4.9):
+  required attempt/maxAttempts/nextAttempt/retryDelayMs/sessionId/turnId
+  (+ envelope sourceRange/viewCursor, which the non-strict parser
+  ignores) with optional errorKind/httpStatus/system — exactly the zod
+  schema. The test payload is annotated
+  `Omit<TurnModelRetryScheduledParams, 'sourceRange' | 'viewCursor'>`,
+  so a wire-contract move fails compilation. Same export caught one real
+  adjacent bug: `TurnRetryScheduledParams` requires `nextAttempt`, which
+  the turn-level parser dropped — schema, mapping, domain comment and
+  both tests now carry it (red drill: without the mapping line the
+  facets test fails; restored). A live provider-retry frame needs a real
+  rate-limit event — no live model calls in this lane — and stays
+  lead-owned real-life proof.
+- T10: `sandboxAvailabilityWarning` (pure, `sandbox.ts`) decides from the
+  window posture plus the handshake report: warns only when configured-on
+  meets `unavailable` (host reason spliced when sent, generic otherwise
+  — never inferred), silent for available/unknown/future/off. The
+  manager calls it after host construction (`museCodeBackendManager.ts`),
+  covering direct and account spawns. Three tests over the real
+  function; red drill (flipped comparison) fails all three; restored.
+- T11: `session/viewHealthChanged` keeps `noneReason`
+  (`(unavailable: projectionUnavailable)`); reasonless shape unchanged
+  (the old gate-fire drill still holds for it). New test; red drill
+  (reason dropped) fails it; restored.
+- Red-drill log: T7 (schema), T8 (wired set), T9 mapping, T10 (pure
+  function), T11 (mapping) — each watched failing, each restored
+  byte-exact before the final green run below.
+
+## PR206W1 VSIX budget (2026-10-18, rig macbook)
+
+- Symptom (hosted CI): `VSIX is 3797152 bytes; budget is 3788800 bytes
+(3700 KiB)` — over by 8,352 B. `npm run package` on this Mac stops
+  earlier at the helper gate (`Required Linux created-path helper
+excluded from VSIX: x64`): the Linux helpers are gitignored artifacts
+  compiled only on Linux (`scripts/build-linux-helper.mjs` returns
+  off-Linux), so the absolute packed proof stays CI-owned.
+- Cause, measured with a base worktree at the merge base (`81dacaf5a`,
+  `npm run build` there, `temp/vsix-rig.mjs` driving the repo's own
+  `packRuntimeArchive` over each tree's real `dist` + `l10n`): staged
+  solid-brotli archives base→head — code `1073989 → 1082639`
+  (**+8,650 B**), ui tables `857923 → 859148` (**+1,225 B**), usage
+  unchanged. Staged README/CHANGELOG slices are branch-identical
+  (rendered marketplace doc; sliced recent releases, no Unreleased
+  Highlights); staged `package.json`/`package.nls.json` grow ~1 KB
+  compacted. So the branch ships ~+10–11 KB against ~2 KB of headroom:
+  the new `dist/museCode.js` bundle (+100,299 raw) net of the activation
+  split (−82,383), the headless runtime's backend growth (+6,310 output
+  bytes: the wrappers and notices it also serves), the five translated
+  UI keys and the three manifest settings. Every byte audited is a
+  feature or its translation — no leak (ship-list audit), no duplicated
+  module across the split, minified production output, no stray console
+  calls, gates untouched.
+- Diet banked in this lane: SDK barrel imports become deep imports
+  (`MuseCodeHost.ts`, `museCodeEntry.ts`, `processLifetime.ts` — the
+  established `connection.js`/`fingerprint.js`/`spawn.js` precedent),
+  cutting unreachable facade/fold/pending modules from the bundle graph
+  (SDK inputs per bundle 227,831 → 49,641 source bytes;
+  `museCode.js` −2,623 B, `runtimeEngine.js` −2,627 B raw). Same modules,
+  same side effects, only direct paths. All bundle guards green
+  (`check-bundle-size`, `check-bundle-split`, `modelsActivationBudget`
+  — activation stays SDK-free — plus the loader/shape suites).
+- Remainder: roughly a further ~7 KB of shipped bytes still has no
+  legitimate cut inside this lane's scope — every remaining candidate
+  is a whole feature (backend, notices, translations) or architecture
+  (shared chunks, another lazy split). OPEN for the lead: a dedicated
+  diet lane, or the release's headroom decision. Budget untouched,
+  no test weakened. Rig kept at `temp/vsix-rig.mjs` (gitignored) for
+  re-measurement; base worktree removed.

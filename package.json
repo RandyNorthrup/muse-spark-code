@@ -929,7 +929,8 @@
           "default": 8,
           "scope": "machine",
           "description": "%config.hooksMaxStopContinuations.description%",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 8
         },
         "museSpark.hooksMaxRunningCommands": {
           "type": "number",

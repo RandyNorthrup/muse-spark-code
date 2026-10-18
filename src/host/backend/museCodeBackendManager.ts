@@ -41,6 +41,7 @@ import {
 import {
   isSandboxNetworkApplied,
   resolveShellSandbox,
+  sandboxAvailabilityWarning,
   serveArguments,
   type ShellSandboxPosture,
 } from '../../core/backends/musecode/sandbox'
@@ -417,6 +418,15 @@ export class MuseCodeBackendManager {
       this.deps.log.warn(
         `muse serve did not grant ${IDE_MCP_CAPABILITY}; the IDE diagnostics tool is unavailable (granted: ${host.info.grantedCapabilities.join(', ')})`,
       )
+    }
+    // The handshake result overrules the configuration log above: a host
+    // that cannot enforce the sandbox says so, with its reason when sent.
+    const sandboxWarning = sandboxAvailabilityWarning(posture, {
+      availability: host.info.sandboxAvailability,
+      unavailableReason: host.info.sandboxUnavailableReason,
+    })
+    if (sandboxWarning !== undefined) {
+      this.deps.log.warn(sandboxWarning)
     }
     this.deps.log.info(
       `Connected to ${host.info.serverName} ${host.info.serverVersion} in ${String(Date.now() - spawnedAt)} ms (museHome ${host.info.museHome})`,

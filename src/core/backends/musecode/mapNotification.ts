@@ -112,6 +112,9 @@ const schemas = {
     ...sessionScoped,
     turnId: z.string(),
     attempt: z.number(),
+    // Required by the CLI's own schema export (1.4.10) but optional here so
+    // a 1.4.5/1.4.6 host that omits it still parses.
+    nextAttempt: z.optional(z.number()),
     maxAttempts: z.number(),
     retryDelayMs: z.number(),
     reason: z.string(),
@@ -355,6 +358,7 @@ function rawNotification(notification: WireNotification): MapOutcome {
           maxAttempts,
           retryDelayMs,
           reason,
+          ...(facets.nextAttempt !== undefined && { nextAttempt: facets.nextAttempt }),
           ...(facets.errorKind !== undefined && { errorKind: facets.errorKind }),
           ...(facets.httpStatus !== undefined && { httpStatus: facets.httpStatus }),
           ...(facets.system !== undefined && { system: facets.system }),
@@ -437,13 +441,20 @@ function rawNotification(notification: WireNotification): MapOutcome {
       }
     }
     case 'session/viewHealthChanged': {
-      const { sessionId, health } = params as z.infer<(typeof schemas)['session/viewHealthChanged']>
+      const { sessionId, health, noneReason } = params as z.infer<
+        (typeof schemas)['session/viewHealthChanged']
+      >
       return {
         sessionId,
         event: {
           type: 'backendNotice',
           level: 'info',
-          text: `${UI_TEXT.sessionViewHealthChanged} (${health})`,
+          // The reason is the actionable half: it says why the view cannot
+          // be used (SDK `SessionViewHealthChangedParams.noneReason`).
+          text:
+            noneReason === undefined
+              ? `${UI_TEXT.sessionViewHealthChanged} (${health})`
+              : `${UI_TEXT.sessionViewHealthChanged} (${health}: ${noneReason})`,
         },
       }
     }

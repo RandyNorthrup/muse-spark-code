@@ -49,6 +49,20 @@ happened, not what was planned; superseded entries are kept.
   their required `reason`: the receipt parser read both through one shape
   with an optional singular reason, so a real quarantine's reasons were
   silently dropped.
+- `museSpark.hooksMaxStopContinuations` never passes Muse Code's own bound
+  of 8: higher values are refused at the settings boundary and clamped at
+  the use site, so no workspace (a dev-container definition can write
+  machine settings) raises billed Stop-hook spending past what Muse Code
+  itself spends.
+- A configured `ToolUseStart` hook warns that it is not wired on the Model
+  API backend instead of being silently ignored: no tool-start firing
+  point exists yet.
+- A session view that reports `unavailable` keeps the host's `noneReason`
+  in its notice, and a host that reports its sandbox `unavailable` while
+  the shell sandbox is on now warns with the host's reason instead of
+  leaving the configured "sandbox on" standing.
+- Turn-level `turn/retryScheduled` frames keep their scheduled attempt:
+  the parser dropped the `nextAttempt` the CLI's schema requires.
 
 ### Release infrastructure
 
