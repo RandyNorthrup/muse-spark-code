@@ -1,18 +1,14 @@
 // The usage journal's corrupt-line tally (D119): undecodable bytes and
 // malformed JSON each count a line invalid while the scan keeps the valid
 // records around them; the failures never escape the read.
-import { appendFileSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { appendFileSync } from 'node:fs'
+import { describe, expect, it } from 'vitest'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
 import { createUsageRecord, type UsageRecordContext } from '../../src/core/usage/journalRecord'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
+import { fileRoots, findOnlyJsonlFile } from './helpers/tempDirs'
 
-const roots: string[] = []
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
-})
+const { fresh: freshRoot } = fileRoots()
 
 function contextAt(at: number): UsageRecordContext {
   return {
@@ -28,25 +24,8 @@ function contextAt(at: number): UsageRecordContext {
   }
 }
 
-/** The one day file the store just wrote, found by shape rather than by path. */
-function findJournalFile(root: string): string {
-  const found: string[] = []
-  const visit = (directory: string): void => {
-    for (const name of readdirSync(directory)) {
-      const file = path.join(directory, name)
-      if (statSync(file).isDirectory()) visit(file)
-      else if (name.endsWith('.jsonl')) found.push(file)
-    }
-  }
-  visit(root)
-  if (found.length !== 1)
-    throw new Error(`expected one journal file, found ${String(found.length)}`)
-  return found[0]!
-}
-
 async function journalAfterCorrupt(corrupt: (file: string) => void): Promise<UsageJournalStore> {
-  const root = mkdtempSync(path.join(tmpdir(), 'muse-journal-invalid-'))
-  roots.push(root)
+  const root = await freshRoot('muse-journal-invalid-')
   const writeErrors: string[] = []
   const store = new UsageJournalStore(new NodeUsageFs(root), {
     writerId: 'test-writer',
@@ -58,7 +37,7 @@ async function journalAfterCorrupt(corrupt: (file: string) => void): Promise<Usa
   })
   store.append(createUsageRecord(undefined, contextAt(Date.now())))
   await store.flush()
-  corrupt(findJournalFile(root))
+  corrupt(findOnlyJsonlFile(root))
   return store
 }
 

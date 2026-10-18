@@ -1,18 +1,13 @@
 // The resource journal's corrupt-file refusal (D119): undecodable bytes and
-// malformed JSON each refuse the read in fixed words, while a failure no
-// named condition covers keeps its own kind; a clean file still reads.
-import { appendFileSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+// malformed JSON each refuse the read in fixed words; a clean file reads.
+import { appendFileSync } from 'node:fs'
+import { describe, expect, it } from 'vitest'
 import type { ResourceEvent, ResourceRecord } from '../../src/shared/resources'
 import { ResourceJournal, ResourceJournalError } from '../../src/core/usage/resourceJournal'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
+import { fileRoots, findOnlyJsonlFile } from './helpers/tempDirs'
 
-const roots: string[] = []
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
-})
+const { fresh: freshRoot } = fileRoots()
 
 const event: ResourceEvent = {
   type: 'levelChanged',
@@ -22,25 +17,8 @@ const event: ResourceEvent = {
   reason: 'cpu',
 }
 
-/** The one collector file the journal just wrote, found by shape not by path. */
-function findCollectorFile(root: string): string {
-  const found: string[] = []
-  const visit = (directory: string): void => {
-    for (const name of readdirSync(directory)) {
-      const file = path.join(directory, name)
-      if (statSync(file).isDirectory()) visit(file)
-      else if (name.endsWith('.jsonl')) found.push(file)
-    }
-  }
-  visit(root)
-  if (found.length !== 1)
-    throw new Error(`expected one collector file, found ${String(found.length)}`)
-  return found[0]!
-}
-
 async function journalAfterCorrupt(corrupt?: (file: string) => void): Promise<ResourceJournal> {
-  const root = mkdtempSync(path.join(tmpdir(), 'muse-resource-journal-'))
-  roots.push(root)
+  const root = await freshRoot('muse-resource-journal-')
   const atMs = Date.now()
   const journal = new ResourceJournal(new NodeUsageFs(root), {
     writerId: 'test-writer',
@@ -49,8 +27,18 @@ async function journalAfterCorrupt(corrupt?: (file: string) => void): Promise<Re
   })
   const record: ResourceRecord = { type: 'resource', atMs, minute: null, event, work: [] }
   await journal.append(record)
-  if (corrupt !== undefined) corrupt(findCollectorFile(root))
+  if (corrupt !== undefined) corrupt(findOnlyJsonlFile(root))
   return journal
+}
+
+/** The read's failure, or undefined when the read succeeds. */
+async function readFailure(journal: ResourceJournal): Promise<unknown> {
+  try {
+    await journal.read()
+  } catch (error: unknown) {
+    return error
+  }
+  return undefined
 }
 
 describe('resource journal corrupt files', () => {
@@ -65,12 +53,7 @@ describe('resource journal corrupt files', () => {
     const journal = await journalAfterCorrupt((file) => {
       appendFileSync(file, Buffer.from([0xff, 0xfe, 0x0a]))
     })
-    let failure: unknown
-    try {
-      await journal.read()
-    } catch (error: unknown) {
-      failure = error
-    }
+    const failure = await readFailure(journal)
     expect(failure).toBeInstanceOf(ResourceJournalError)
     expect((failure as ResourceJournalError).code).toBe('resourceHistoryCorrupt')
   })
@@ -79,12 +62,7 @@ describe('resource journal corrupt files', () => {
     const journal = await journalAfterCorrupt((file) => {
       appendFileSync(file, '{"broken":\n')
     })
-    let failure: unknown
-    try {
-      await journal.read()
-    } catch (error: unknown) {
-      failure = error
-    }
+    const failure = await readFailure(journal)
     expect(failure).toBeInstanceOf(ResourceJournalError)
     expect((failure as ResourceJournalError).code).toBe('resourceHistoryCorrupt')
   })
