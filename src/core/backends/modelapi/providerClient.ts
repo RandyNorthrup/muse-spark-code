@@ -82,7 +82,7 @@ export interface ProviderClient {
    * provider maximum caps it, so the turn loop can tell a person-set cap
    * stop from a provider refusal (PR #225).
    */
-  personMaxRetries(): number | undefined
+  personCap(): number | undefined
 }
 
 export interface ProviderModel {
@@ -178,9 +178,9 @@ export class CodecClient implements ProviderClient {
     return this.transport.maxRetries()
   }
 
-  /** The person's live retry limit, uncapped (see `ProviderClient.personMaxRetries`). */
-  public personMaxRetries(): number | undefined {
-    return this.transport.personMaxRetries()
+  /** The person's live retry limit, uncapped (see `ProviderClient.personCap`). */
+  public personCap(): number | undefined {
+    return this.transport.personCap()
   }
   public async listModels(): Promise<readonly string[]> {
     const result = await this.transport.request(

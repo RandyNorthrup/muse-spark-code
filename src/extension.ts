@@ -888,8 +888,7 @@ async function activateWindow(
   // Lane RETRYLIMITS: the person's retry limit, read live wherever a retry
   // limit is needed; null stays unset. One reader for the three clients
   // below keeps the activation bundle small (modelsActivationBudget).
-  const personMaxRetries = (): number | undefined =>
-    currentSettings().modelApiMaxRetries ?? undefined
+  const personCap = (): number | undefined => currentSettings().modelApiMaxRetries ?? undefined
   const updateSetting = (key: string, value: unknown) =>
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
@@ -1083,7 +1082,7 @@ async function activateWindow(
       l10n,
       catalogFile: vscode.Uri.joinPath(context.extensionUri, 'dist', 'providerCatalog.json').fsPath,
       configFile: providerConfigFile,
-      personMaxRetries,
+      personCap,
       isRemote: vscode.env.remoteName !== undefined,
       isConfidential: () => currentSettings().confidentialWorkspace,
       access: context.languageModelAccessInformation,
@@ -2054,7 +2053,7 @@ async function activateWindow(
       fetch: liveFetch,
       baseUrl: MODEL_API_BASE_URL,
       apiKey: () => credentials.getApiKey(),
-      personMaxRetries,
+      personCap,
       // Lane PR225W1: no `sleep` here — the transport waits with
       // `abortableSleep`, so a Stop clears the wait's own timer.
       now: () => Date.now(),
@@ -2626,7 +2625,7 @@ async function activateWindow(
     // VS Code's proxy-aware fetch, as it stands at each request (M56, D43).
     fetch: liveFetch,
     // PR #225: the conversation client reads it too, not only the stored-key one.
-    personMaxRetries,
+    personCap,
     newId: () => crypto.randomUUID(),
     now: () => Date.now(),
     // Lane PR225W1: no `sleep` here — the transport waits with

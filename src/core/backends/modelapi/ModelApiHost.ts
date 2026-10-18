@@ -6065,7 +6065,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           signal.aborted ||
           budget.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
         ) {
-          this.notifyRetryCap(error, signal, client.personMaxRetries(), allowed)
+          this.notifyRetryCap(error, signal, client.personCap(), allowed)
           throw error
         }
         const attempt = budget.retriesUsed
@@ -14663,7 +14663,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) ||
           budget.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
         ) {
-          this.notifyRetryCap(error, signal, retryClient.personMaxRetries(), allowed)
+          this.notifyRetryCap(error, signal, retryClient.personCap(), allowed)
           throw error
         }
         const retry = budget.retriesUsed

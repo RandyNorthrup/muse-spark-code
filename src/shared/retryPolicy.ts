@@ -175,13 +175,13 @@ export const META_DOCUMENTED_RETRY_LIMITS: RetryLimits = { maxRetries: 4 }
  * waits and stop answers govern the loop) where neither sets one.
  */
 export function effectiveMaxRetries(
-  personMaxRetries: number | undefined,
+  personCap: number | undefined,
   documented: RetryLimits | undefined,
 ): number | undefined {
   const providerMaxRetries = documented?.maxRetries
-  return personMaxRetries !== undefined && providerMaxRetries !== undefined
-    ? Math.min(personMaxRetries, providerMaxRetries)
-    : (personMaxRetries ?? providerMaxRetries)
+  return personCap !== undefined && providerMaxRetries !== undefined
+    ? Math.min(personCap, providerMaxRetries)
+    : (personCap ?? providerMaxRetries)
 }
 
 /**
@@ -193,10 +193,10 @@ export function effectiveMaxRetries(
  * a provider refusal.
  */
 export function isPersonRetryCap(
-  personMaxRetries: number | undefined,
+  personCap: number | undefined,
   allowed: number | undefined,
 ): boolean {
-  return personMaxRetries !== undefined && allowed === personMaxRetries
+  return personCap !== undefined && allowed === personCap
 }
 
 /**

@@ -107,13 +107,13 @@ const closedLoopbackPort = async (): Promise<number> => {
 const transportToNowhere = (
   port: number,
   retryLimits: RetryLimits,
-  personMaxRetries?: () => number | undefined,
+  personCap?: () => number | undefined,
 ) =>
   new RequestTransport({
     ...baseTransportDeps(platformSleep),
     baseUrl: `http://127.0.0.1:${String(port)}`,
     retryLimits,
-    ...(personMaxRetries !== undefined && { personMaxRetries }),
+    ...(personCap !== undefined && { personCap }),
     apiKey: () => Promise.resolve('retry-limit-test-key'),
   })
 
@@ -343,7 +343,7 @@ const subscriptionClient = (person: number | undefined) => {
     now: Date.now,
     random: Math.random,
     log,
-    ...(person !== undefined && { personMaxRetries: () => person }),
+    ...(person !== undefined && { personCap: () => person }),
   })
   return createSubscriptionClient(meta, {
     fetch: globalThis.fetch,
@@ -352,7 +352,7 @@ const subscriptionClient = (person: number | undefined) => {
       throw new Error('sign-in unused by a limit read')
     },
     accountId: () => Promise.resolve(undefined),
-    ...(person !== undefined && { personMaxRetries: () => person }),
+    ...(person !== undefined && { personCap: () => person }),
   })
 }
 
@@ -377,8 +377,8 @@ describe('each subscription route answers its own retry limit', () => {
   it('the raw setting rides along for the cap stop, unset stays unset', () => {
     // The turn loop reads this (not the capped limit) to tell a person-set
     // cap stop from a provider refusal on the orchestrator's feed.
-    expect(subscriptionClient(undefined).personMaxRetries()).toBeUndefined()
-    expect(subscriptionClient(1).personMaxRetries()).toBe(1)
+    expect(subscriptionClient(undefined).personCap()).toBeUndefined()
+    expect(subscriptionClient(1).personCap()).toBe(1)
   })
 })
 
@@ -409,7 +409,7 @@ describe('a live retry cap is rechecked after the wait', () => {
       ...baseTransportDeps(platformSleep),
       baseUrl: `http://127.0.0.1:${String(await closedLoopbackPort())}`,
       retryLimits: limitsOf('anthropic'),
-      personMaxRetries: () => person,
+      personCap: () => person,
       apiKey: () => Promise.resolve('retry-limit-test-key'),
       fetch: (input: string | URL | Request, init?: RequestInit) => {
         sends += 1

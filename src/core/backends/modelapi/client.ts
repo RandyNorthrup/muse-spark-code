@@ -152,7 +152,7 @@ export interface ModelApiClientDeps {
    * read live so a change applies without a restart; undefined (or absent)
    * leaves Meta's documented 3–5 attempts in force.
    */
-  readonly personMaxRetries?: (() => number | undefined) | undefined
+  readonly personCap?: (() => number | undefined) | undefined
   /** Absent, the transport waits with `abortableSleep` (see `TransportDeps.sleep`). */
   readonly sleep?: ((ms: number) => Promise<void>) | undefined
   /** Epoch ms, for a `Retry-After` given as a date. */
@@ -358,9 +358,9 @@ export class ModelApiClient implements TransportProviderClient {
     return this.transport.maxRetries()
   }
 
-  /** The person's live retry limit, uncapped (see `RequestTransport.personMaxRetries`). */
-  public personMaxRetries(): number | undefined {
-    return this.transport.personMaxRetries()
+  /** The person's live retry limit, uncapped (see `RequestTransport.personCap`). */
+  public personCap(): number | undefined {
+    return this.transport.personCap()
   }
 
   /** Waits `ms`, or rejects as soon as the turn's Stop aborts `signal`. */
