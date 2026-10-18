@@ -75,10 +75,13 @@ headless `EXEC_EXIT`/`LEGAL_EXIT` codes). `--help` exits 0 everywhere.
   notice instead of failing silently.
 - `src/runtime/providers/accountsEntry.ts`: `developer` misuse exits 2
   with the usage before any store is touched.
-- `test/unit/cliHelpConsistency.test.ts`: 37 checks on the real parser and
-  the real help renderer (no stand-ins). CI unit shards run without `dist/`,
-  so the committed test drives the same functions `dist/acp.js` bundles;
-  the built-binary sweep above is the recorded real-use drill.
+- `test/unit/cliHelpConsistency.test.ts`: 47 checks with no stand-ins —
+  the real parser and renderer in-process, plus a block that spawns the
+  built `dist/acp.js` itself for misuse (exit 2 plus flag naming) and help
+  (exit 0) cases. That block needs a build first: CI unit shards run
+  `vitest` without `dist/`, so it fails there with `built binary is
+missing` until the pipeline builds before testing; the lead owns that
+  call. The built-binary sweep above is the recorded real-use drill.
 
 ## Open (not fixed here)
 
