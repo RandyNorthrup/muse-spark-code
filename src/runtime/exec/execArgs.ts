@@ -10,7 +10,6 @@ import {
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
   EXEC_DEFAULT_TIMEOUT_SECONDS,
-  EXEC_MAX_BUDGET_USD,
   EXEC_MAX_REQUESTS,
   EXEC_MAX_TIMEOUT_SECONDS,
   EXEC_MIN_TIMEOUT_SECONDS,
@@ -129,9 +128,7 @@ function budgetUnits(value: unknown): UsdAmount | undefined {
   const units =
     BigInt(whole) * BigInt(EXEC_USD_UNITS) + BigInt(fraction.padEnd(EXEC_USD_DECIMALS, '0'))
   const ZERO_UNITS = 0n
-  return units > ZERO_UNITS && units <= BigInt(EXEC_MAX_BUDGET_USD * EXEC_USD_UNITS)
-    ? Usd.fromUnits(units, EXEC_USD_DECIMALS).toAmount()
-    : undefined
+  return units > ZERO_UNITS ? Usd.fromUnits(units, EXEC_USD_DECIMALS).toAmount() : undefined
 }
 
 function invalid(reason: string): { readonly ok: false; readonly reason: string } {

@@ -266,7 +266,11 @@ describe('M80 ledger integer admission and retained liability', () => {
         price: { ...price, cachedInput: Usd.from(1).toAmount() },
       }),
     ).toEqual({ refused: 'unpriced' })
-    for (const cap of [0, -1, 20.000001, 0.0000001, 0.1081351, Infinity])
+    for (const cap of [0, -1, 0.0000001, 0.1081351, Infinity])
       expect(() => createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 })).toThrow()
+    for (const cap of [20.000001, 1000])
+      expect(() =>
+        createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 }),
+      ).not.toThrow()
   })
 })

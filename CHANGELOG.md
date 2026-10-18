@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Headless `--max-budget-usd` no longer stops at 20 USD: a person's amount is
+  honored as given (validated only as a positive number), in `exec`, `serve`,
+  the run ledger, the protocol schemas, the generated reference and the
+  Action's input. The 20 USD ceiling was ours, not a provider's.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

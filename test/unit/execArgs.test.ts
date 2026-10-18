@@ -81,7 +81,6 @@ describe('M80 args (A1–A10, F1)', () => {
     '0',
     '-1',
     'abc',
-    '20.01',
     'Infinity',
     '+1',
     '1e0',
@@ -110,6 +109,8 @@ describe('M80 args (A1–A10, F1)', () => {
     ['0.108135', 108_135],
     ['1.409024', 1_409_024],
     ['20.000000', 20_000_000],
+    ['20.01', 20_010_000],
+    ['250.5', 250_500_000],
     ['0001.000001', 1_000_001],
   ])('F1 parses %s directly into exact micro-USD', (value, units) => {
     const parsed = parseExec({ backend: 'modelApi', 'max-budget-usd': value }, ['hi'])

@@ -12,7 +12,6 @@ import {
   EXEC_PROTOCOL_VERSION,
   EXEC_RAW_TOOL_FIELDS,
   EXEC_USD_DECIMALS,
-  EXEC_MAX_BUDGET_USD,
   EXEC_MAX_REQUESTS,
   EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MAX_TIMEOUT_SECONDS,
@@ -225,13 +224,7 @@ const PROHIBITED_UPDATE = new RegExp(EXEC_PROHIBITED_UPDATE_PATTERN)
 const RAW_TOOL_FIELDS = new Set<string>(EXEC_RAW_TOOL_FIELDS)
 const counter = z.number().check(z.gte(0), z.int(), z.lte(Number.MAX_SAFE_INTEGER))
 const amount = nonnegativeUsdSchema.check(z.refine((value) => microUsd(value) !== undefined))
-const capAmount = amount.check(
-  z.refine(
-    (value) =>
-      Usd.from(value).compare(Usd.from(0)) > 0 &&
-      Usd.from(value).compare(Usd.from(EXEC_MAX_BUDGET_USD)) <= 0,
-  ),
-)
+const capAmount = amount.check(z.refine((value) => Usd.from(value).compare(Usd.from(0)) > 0))
 const nullableText = z.nullable(z.string())
 const relativePath = z.string().check(
   z.minLength(1),
