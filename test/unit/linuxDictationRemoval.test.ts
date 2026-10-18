@@ -6,12 +6,17 @@ import { describe, expect, it } from 'vitest'
 import { removeLinuxDictationModel } from '../../src/host/voice/voiceLinuxEntry'
 import { LINUX_DICTATION } from '../../src/shared/linuxDictationConstants'
 
+async function stagedDictationDir(): Promise<{ root: string; directory: string }> {
+  const root = await mkdtemp(path.join(tmpdir(), 'pr224fix-cleanup-'))
+  const directory = path.join(root, LINUX_DICTATION.directory)
+  await mkdir(directory, { recursive: true })
+  return { root, directory }
+}
+
 describe('Linux dictation cleanup', () => {
   it('removes the directory itself once its managed files are gone', async () => {
-    const root = await mkdtemp(path.join(tmpdir(), 'pr224fix-cleanup-'))
-    const directory = path.join(root, LINUX_DICTATION.directory)
+    const { root, directory } = await stagedDictationDir()
     try {
-      await mkdir(directory, { recursive: true })
       await writeFile(path.join(directory, LINUX_DICTATION.modelFile), 'stale')
       await writeFile(path.join(directory, LINUX_DICTATION.partialFile), 'stale')
       await removeLinuxDictationModel(directory)
@@ -31,10 +36,8 @@ describe('Linux dictation cleanup', () => {
   })
 
   it('fails loudly while an unmanaged file keeps the directory', async () => {
-    const root = await mkdtemp(path.join(tmpdir(), 'pr224fix-cleanup-'))
-    const directory = path.join(root, LINUX_DICTATION.directory)
+    const { root, directory } = await stagedDictationDir()
     try {
-      await mkdir(directory, { recursive: true })
       await writeFile(path.join(directory, 'user-note.txt'), 'not ours')
       await expect(removeLinuxDictationModel(directory)).rejects.toThrow()
       expect(existsSync(directory)).toBe(true)

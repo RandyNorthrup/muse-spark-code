@@ -106,6 +106,17 @@ async function listening(h: ReturnType<typeof harness>): Promise<ScriptChild> {
 // The failure settles only after two sequential quit-grace waits (2 s each).
 const FAILURE_SETTLE_TIMEOUT_MS = 9000
 
+/** A recording retired through `stopped` and asked to quit. */
+async function stoppedThroughQuit(h: ReturnType<typeof harness>): Promise<ScriptChild> {
+  const first = await listening(h)
+  h.driver.stop()
+  expect(first.sent).toContain(DICTATION_HELPER_COMMANDS.stop)
+  first.feed(JSON.stringify({ type: 'stopped' }))
+  await delay(10)
+  expect(first.sent).toContain(DICTATION_HELPER_COMMANDS.quit)
+  return first
+}
+
 /** Either the retained retry kill (fixed) or the idle report (broken). */
 async function awaitFailureSettled(
   first: ScriptChild,
@@ -119,6 +130,47 @@ async function awaitFailureSettled(
   )
 }
 
+/**
+ * A refused kill's settlement: the quit kill and at least one retry were
+ * refused, yet no second recorder started, idle was not reported, and the
+ * failure was said.
+ */
+function expectRetainedKill(
+  h: ReturnType<typeof harness>,
+  first: ScriptChild,
+  error: string,
+): void {
+  expect(first.kills).toBeGreaterThanOrEqual(2)
+  expect(h.spawned).toHaveLength(1)
+  expect(h.statuses).not.toContain('idle')
+  expect(h.errors).toEqual([error])
+}
+
+/**
+ * A press queued behind the retained exit spawns exactly one recorder once
+ * the exit is observed, and the new helper starts on its ready signal.
+ */
+async function expectQueuedPressSpawnsOne(
+  h: ReturnType<typeof harness>,
+  first: ScriptChild,
+): Promise<void> {
+  h.driver.start()
+  await delay(25)
+  expect(h.spawned).toHaveLength(1)
+  expect(h.statuses.at(-1)).toBe('starting')
+  first.exit('gone')
+  await vi.waitFor(
+    () => {
+      expect(h.spawned).toHaveLength(2)
+    },
+    { timeout: 1000, interval: 25 },
+  )
+  const second = h.spawned[1]
+  if (second === undefined) throw new Error('the queued press spawned no helper')
+  second.feed(ready)
+  expect(second.sent).toEqual([DICTATION_HELPER_COMMANDS.start])
+}
+
 describe('a twice-refused dictation kill', () => {
   it(
     'queues presses behind the observed exit instead of starting a second recorder',
@@ -129,31 +181,12 @@ describe('a twice-refused dictation kill', () => {
       expect(h.statuses).toEqual(['starting', 'listening'])
       first.feed(JSON.stringify({ type: 'error', reason: 'boom' }))
       await awaitFailureSettled(first, h.statuses)
-      // The failure kill and at least one retry were refused: the failure
-      // is said, but no second recorder starts and idle is not reported.
-      expect(first.kills).toBeGreaterThanOrEqual(2)
-      expect(h.spawned).toHaveLength(1)
-      expect(h.statuses).not.toContain('idle')
-      expect(h.errors).toEqual(['boom'])
-      // A press meanwhile queues behind the observed exit.
-      h.driver.start()
-      await delay(25)
-      expect(h.spawned).toHaveLength(1)
-      expect(h.statuses.at(-1)).toBe('starting')
-      // The observed exit releases the reaping onto exactly one recorder.
-      first.exit('gone')
-      await vi.waitFor(
-        () => {
-          expect(h.spawned).toHaveLength(2)
-        },
-        { timeout: 1000, interval: 25 },
-      )
+      expectRetainedKill(h, first, 'boom')
+      // A press meanwhile queues behind the observed exit, which releases
+      // the reaping onto exactly one recorder.
+      await expectQueuedPressSpawnsOne(h, first)
       expect(h.statuses.at(-1)).toBe('starting')
       expect(h.errors).toEqual(['boom'])
-      const second = h.spawned[1]
-      if (second === undefined) throw new Error('the queued press spawned no helper')
-      second.feed(ready)
-      expect(second.sent).toEqual([DICTATION_HELPER_COMMANDS.start])
     },
   )
 
@@ -183,51 +216,23 @@ describe('a twice-refused dictation kill', () => {
     { timeout: FAILURE_SETTLE_TIMEOUT_MS + 1000 },
     async () => {
       const h = harness()
-      const first = await listening(h)
-      h.driver.stop()
-      expect(first.sent).toContain(DICTATION_HELPER_COMMANDS.stop)
-      first.feed(JSON.stringify({ type: 'stopped' }))
-      await delay(10)
-      expect(first.sent).toContain(DICTATION_HELPER_COMMANDS.quit)
+      const first = await stoppedThroughQuit(h)
       await awaitFailureSettled(first, h.statuses)
-      // The quit kill and at least one retry were refused: the failure is
-      // said, but the retired recording is not ended — no idle, no second
-      // recorder, and the stopped report waits for the observed exit.
-      expect(first.kills).toBeGreaterThanOrEqual(2)
-      expect(h.spawned).toHaveLength(1)
-      expect(h.statuses).not.toContain('idle')
-      expect(h.errors).toEqual(['The dictation helper stopped responding'])
+      // The retired recording is not ended — no idle, no second recorder,
+      // and the stopped report waits for the observed exit.
+      expectRetainedKill(h, first, 'The dictation helper stopped responding')
       expect(h.stopped()).toBe(0)
-      // A press meanwhile queues behind the observed exit.
-      h.driver.start()
-      await delay(25)
-      expect(h.spawned).toHaveLength(1)
-      expect(h.statuses.at(-1)).toBe('starting')
-      // The observed exit ends the retired recording onto one recorder.
-      first.exit('gone')
-      await vi.waitFor(
-        () => {
-          expect(h.spawned).toHaveLength(2)
-        },
-        { timeout: 1000, interval: 25 },
-      )
+      // A press meanwhile queues behind the observed exit, which ends the
+      // retired recording onto one recorder.
+      await expectQueuedPressSpawnsOne(h, first)
       expect(h.stopped()).toBe(1)
       expect(h.errors).toEqual(['The dictation helper stopped responding'])
-      const second = h.spawned[1]
-      if (second === undefined) throw new Error('the queued press spawned no helper')
-      second.feed(ready)
-      expect(second.sent).toEqual([DICTATION_HELPER_COMMANDS.start])
     },
   )
 
   it('still ends a clean recording through quit and its observed exit', async () => {
     const h = harness()
-    const first = await listening(h)
-    h.driver.stop()
-    expect(first.sent).toContain(DICTATION_HELPER_COMMANDS.stop)
-    first.feed(JSON.stringify({ type: 'stopped' }))
-    await delay(10)
-    expect(first.sent).toContain(DICTATION_HELPER_COMMANDS.quit)
+    const first = await stoppedThroughQuit(h)
     first.exit('gone')
     await delay(10)
     expect(h.spawned).toHaveLength(1)
