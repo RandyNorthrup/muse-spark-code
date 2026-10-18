@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 import { parseForeignHooks } from '../../src/core/backends/modelapi/hooks'
 import {
   type ImportCandidate,
+  type ImportScan,
   type ImportScanInput,
   scanAgentImports,
 } from '../../src/core/import/agentImport'
@@ -40,6 +41,11 @@ function input(
     ...overrides,
     io: memoryImportIo(tree),
   }
+}
+
+/** An Amp-only scan of a tree with failing reads or listings. */
+function scanFailingAmp(tree: MemoryImportTree): Promise<ImportScan> {
+  return scanAgentImports(input(tree, {}, ['amp']))
 }
 
 function summary(candidates: readonly ImportCandidate[]): readonly string[] {
@@ -200,18 +206,13 @@ describe('scanAgentImports: Amp and OpenCode plugins', () => {
   })
 
   it('warns and continues when a plugin file cannot be read', async () => {
-    const setup = input(
-      {
-        files: {
-          [`${HOME}/.config/amp/plugins/guard.ts`]: AMP_GUARD,
-          [`${HOME}/.config/amp/plugins/locked.ts`]: 'unreadable',
-        },
-        failing: { [`${HOME}/.config/amp/plugins/locked.ts`]: 'EACCES' },
+    const scan = await scanFailingAmp({
+      files: {
+        [`${HOME}/.config/amp/plugins/guard.ts`]: AMP_GUARD,
+        [`${HOME}/.config/amp/plugins/locked.ts`]: 'unreadable',
       },
-      {},
-      ['amp'],
-    )
-    const scan = await scanAgentImports(setup)
+      failing: { [`${HOME}/.config/amp/plugins/locked.ts`]: 'EACCES' },
+    })
     // The readable plugin still imports; the unreadable one warns and skips.
     expect(summary(scan.candidates).some((line) => line.includes('guard.ts'))).toBe(true)
     expect(summary(scan.candidates).some((line) => line.includes('locked.ts'))).toBe(false)
@@ -219,18 +220,13 @@ describe('scanAgentImports: Amp and OpenCode plugins', () => {
   })
 
   it('warns and continues when a plugin folder cannot be listed', async () => {
-    const setup = input(
-      {
-        files: {
-          [`${HOME}/.config/amp/plugins/guard.ts`]: AMP_GUARD,
-          [`${WS}/.amp/plugins/team.js`]: `export default function (amp) { amp.on('session.start', () => {}) }`,
-        },
-        failing: { [`${WS}/.amp/plugins`]: 'EACCES' },
+    const scan = await scanFailingAmp({
+      files: {
+        [`${HOME}/.config/amp/plugins/guard.ts`]: AMP_GUARD,
+        [`${WS}/.amp/plugins/team.js`]: `export default function (amp) { amp.on('session.start', () => {}) }`,
       },
-      {},
-      ['amp'],
-    )
-    const scan = await scanAgentImports(setup)
+      failing: { [`${WS}/.amp/plugins`]: 'EACCES' },
+    })
     expect(summary(scan.candidates).some((line) => line.includes('guard.ts'))).toBe(true)
     expect(summary(scan.candidates).some((line) => line.includes('team.js'))).toBe(false)
     expect(scan.warnings.some((warning) => warning.includes('could not be listed'))).toBe(true)
