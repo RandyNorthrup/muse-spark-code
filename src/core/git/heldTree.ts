@@ -126,7 +126,7 @@ function pathOf(record: string): string {
  * buffered read's replacement character does (`UNDECODABLE`, below).
  */
 export class ListingRecords {
-  private rest = Buffer.alloc(0)
+  private rest: Buffer = Buffer.alloc(0)
 
   /** The complete records a stdout chunk ends, in order. */
   public take(chunk: Buffer): string[] {
