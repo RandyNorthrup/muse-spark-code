@@ -250,20 +250,35 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     void panel.webview.postMessage(parsed.data)
   }
-  // The gate: no factory, no vault section. A factory that throws leaves
-  // the panel without the section too, refusing exactly as 0.17.0 does.
+  // The gate: no factory, no vault section. The binding is built on first
+  // vault use (navigation or message), never for an unrelated panel action,
+  // so opening Models & Agents never connects to or launches the broker. A
+  // factory that throws leaves the panel without the section too, refusing
+  // exactly as 0.17.0 does.
   let vault: ModelsVaultBinding | undefined
-  if (deps.vault !== undefined) {
-    try {
-      vault = deps.vault(publishVault)
-    } catch {
-      log.warn('Vault section unavailable')
-      vault = undefined
-    }
-  }
+  let hasVaultFailed = false
   const publish = (): void => {
-    state.vaultOffered = vault !== undefined
+    state.vaultOffered = !hasVaultFailed && (vault !== undefined || deps.vault !== undefined)
     post({ type: 'modelsPanel/state', state })
+  }
+  const ensureVault = (): ModelsVaultBinding | undefined => {
+    if (vault === undefined && !hasVaultFailed && deps.vault !== undefined) {
+      try {
+        vault = deps.vault(publishVault)
+      } catch {
+        log.warn('Vault section unavailable')
+        hasVaultFailed = true
+        vault = undefined
+        publish()
+      }
+    }
+    return vault
+  }
+  // A vault navigation builds the binding first; when the factory throws,
+  // the section falls back to providers and hides, as if never offered.
+  const vaultSection = (section: string | undefined): 'providers' | 'models' | 'vault' => {
+    if (section !== 'vault') return navigateSection(section ?? 'providers', false)
+    return ensureVault() === undefined ? 'providers' : 'vault'
   }
   const fail = (draft?: PanelDraft, error?: unknown): void => {
     // Exception text can contain a bare key even before it is retained.
@@ -752,7 +767,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (navigation !== undefined) {
           post({
             type: 'modelsPanel/navigate',
-            section: navigateSection(navigation.section ?? 'providers', vault !== undefined),
+            section: vaultSection(navigation.section),
             itemId: navigation.presetId,
           })
         }
@@ -1290,13 +1305,16 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
     // The vault's own messages ride the same webview; its host validates
     // them again before acting. Without the binding they fall through to
-    // the panel's parser, which drops them.
-    if (vault !== undefined && vaultClientMessageSchema.safeParse(raw).success) {
-      const binding = vault
-      void binding.handle(raw).catch(() => {
-        log.warn('Vault panel operation failed')
-      })
-      return
+    // the panel's parser, which drops them. A first vault message builds
+    // the binding, so the broker stays untouched until the vault is used.
+    if (vaultClientMessageSchema.safeParse(raw).success) {
+      const binding = ensureVault()
+      if (binding !== undefined) {
+        void binding.handle(raw).catch(() => {
+          log.warn('Vault panel operation failed')
+        })
+        return
+      }
     }
     const parsed = parsePanelToHostMessage(raw)
     if (!parsed.ok) {
@@ -1333,7 +1351,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       if (navigate !== undefined) {
         post({
           type: 'modelsPanel/navigate',
-          section: navigateSection(navigate.section ?? 'providers', vault !== undefined),
+          section: vaultSection(navigate.section),
           itemId: navigate.presetId,
         })
       }

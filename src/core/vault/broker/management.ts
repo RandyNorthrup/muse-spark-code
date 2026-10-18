@@ -698,14 +698,28 @@ export class VaultManagement implements VaultManagementPort {
       this.confirming = pending
       let isCreated = false
       try {
+        // Retained for the whole commit: a Lock between wrap and creation
+        // must delete the native credential the wrap just created.
+        const slot = this.deps.slots.osStore(pending.vaultId, newId())
         let osStore: VaultSlotRecord
         try {
-          osStore = await this.deps.slots.osStore(pending.vaultId, newId()).wrap(pending.key)
+          osStore = await slot.wrap(pending.key)
         } catch (error: unknown) {
           throw storeRefusal(error)
         }
-        // Locked while wrapping: nothing is created and the key is erased below.
-        this.assertSameLock(generation)
+        try {
+          // Locked while wrapping: nothing is created and the key is erased below.
+          this.assertSameLock(generation)
+        } catch (error: unknown) {
+          // Nothing references the wrapped credential yet, so remove it
+          // instead of leaking a randomly named key in the OS store.
+          try {
+            await slot.remove?.()
+          } catch {
+            // The cancellation owns the outcome; cleanup is best effort.
+          }
+          throw error
+        }
         let store: VaultStore
         try {
           store = await VaultStore.create(

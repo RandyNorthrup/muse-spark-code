@@ -348,7 +348,6 @@ import {
   registerVaultCommands,
   vaultBundleLoader,
 } from './host/vault/vaultPanelBundle'
-import { type VaultHostMessage } from './shared/hostApi/vaultMessages'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
@@ -4104,7 +4103,6 @@ async function activateWindow(
     VAULT_BUNDLE_FILE,
   ).fsPath
   const vaultBundle = vaultBundleLoader({ bundlePath: vaultBundlePath, log })
-  let vaultPublish: ((message: VaultHostMessage) => void) | undefined
   let modelsFeatures: ModelsPanelFeatures | undefined
   const ensureModelsFeatures = (): ModelsPanelFeatures => {
     if (modelsFeatures === undefined) {
@@ -4128,14 +4126,12 @@ async function activateWindow(
           // around this panel's publisher, built in dist/vault.js on first
           // mount. Without it the section stays hidden; a factory that
           // throws leaves the panel without the section too.
-          createVault: (publish) => {
-            vaultPublish = publish
-            return vaultBundle().createModelsVaultBinding(
+          createVault: (publish) =>
+            vaultBundle().createModelsVaultBinding(
               { distDir: vaultDistDir, now: () => Date.now(), publish, log },
               UI_TEXT,
               uiLocale(),
-            )
-          },
+            ),
           onKeyUsage: (snapshot) => {
             usageRecording.limit({
               backend: 'modelApi',
@@ -4177,10 +4173,6 @@ async function activateWindow(
       (id, run) => registerLoggedCommand(log, id, run),
       () =>
         loadVaultControls({ bundlePath: vaultBundlePath, distDir: vaultDistDir, log }, () => ({
-          now: () => Date.now(),
-          publish: (message) => {
-            vaultPublish?.(message)
-          },
           openPanel: () => {
             ensureModelsFeatures().openPanel({ section: 'vault' })
             return Promise.resolve()

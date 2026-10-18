@@ -831,6 +831,9 @@ async function serve(
             .execute(text, context),
       },
       paid: runtime.paid,
+      // The vault's asker: broker approvals route back as
+      // session/request_permission, and /vault commands work in sessions.
+      vault: acpVault,
       playbookBundle: () => {
         const bundle = loadPlaybook()
         return {

@@ -36,6 +36,8 @@ import { vaultClientPlatform } from './clientPlatform'
 import { HeadlessVaultSession, type ExecVaultContext, type ExecVaultSession } from './execVault'
 import type { VaultCommandPort } from './vaultCommand'
 import type { RuntimeVaultBinding, RuntimeVaultContext } from './vaultRuntime'
+import type { AcpVault } from '../../acp/vault'
+import type { VaultApprovalRequest } from '../../shared/vault'
 
 const newId = (): string => randomBytes(VAULT_LIMITS.idBytes).toString('hex')
 
@@ -201,6 +203,57 @@ export async function openHeadlessVault(
   }
 }
 
+/**
+ * Approvals from any requester reach the ACP editor while one is attached:
+ * each broker approval becomes a `session/request_permission` round trip,
+ * and the editor's answer is submitted back to the management session.
+ * Without an attached asker (terminal, headless) approvals are left for
+ * `vault watch`; answering deny here would steal them.
+ */
+function routeBrokerApprovals(
+  session: VaultManageSession,
+  acp: AcpVault,
+  signal: AbortSignal,
+): void {
+  const pending: VaultApprovalRequest[] = []
+  let isPumping = false
+  const pump = async (): Promise<void> => {
+    if (isPumping) return
+    isPumping = true
+    try {
+      while (pending.length > 0) {
+        const request = pending.shift()
+        if (request === undefined || isCancelled(signal)) break
+        // A requester outside any editor session has no session to ask in.
+        const sessionId = request.requester.conversationId
+        if (sessionId === null || !acp.attached) continue
+        try {
+          const answer = await acp.ask(sessionId, request)
+          if (isCancelled(signal)) break
+          await session.answer(answer)
+        } catch {
+          // Fail closed at the broker: the request expires unanswered, and
+          // a lost editor never blocks the watch.
+        }
+      }
+    } finally {
+      isPumping = false
+    }
+  }
+  const onApproval = (request: VaultApprovalRequest): void => {
+    pending.push(request)
+    void pump()
+  }
+  void session
+    .watch((event) => {
+      if (event.kind === 'approval') onApproval(event.request)
+    }, signal)
+    .catch(() => {
+      // A broken watch ends approval routing; commands open their own
+      // connections and keep working.
+    })
+}
+
 export async function createRuntimeVault(
   context: RuntimeVaultContext,
 ): Promise<RuntimeVaultBinding> {
@@ -217,6 +270,9 @@ export async function createRuntimeVault(
   const connect: VaultConnect = async () =>
     await broker.connect(hostId, hostSession, platform.peers)
   const session = new VaultManageSession(connect, encodeVaultMaterial)
+  // Process lifetime: the runtime binding owns no close, so routing runs
+  // until the broker or the process goes away.
+  routeBrokerApprovals(session, context.acp, new AbortController().signal)
   return {
     commands: () => Promise.resolve(vaultCommandPort(session)),
     exec: {

@@ -61,6 +61,10 @@ export class AcpVault {
   attach(asker: VaultAsker): void {
     this.asker = asker
   }
+  /** Whether an editor session can currently be asked (serve attached it). */
+  get attached(): boolean {
+    return this.asker !== undefined
+  }
   async ask(sessionId: string, raw: VaultApprovalRequest): Promise<VaultApprovalAnswer> {
     const request = vaultApprovalRequestSchema.parse(structuredClone(raw))
     const deny: VaultApprovalAnswer = {
