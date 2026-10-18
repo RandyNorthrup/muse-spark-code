@@ -127,22 +127,27 @@ function subcommandOf(args: readonly string[]): string {
 }
 
 /**
- * git's absolute path, found once per PATH value; a miss is not cached, so
- * git installed while the window is open is found on the next call.
+ * git's absolute path, found once per PATH value and workspace; a miss is
+ * not cached, so git installed while the window is open is found on the
+ * next call. The run's working directory is the workspace: entries inside
+ * it are never probed, so a planted git there never resolves
+ * (docs/certification/pathguard.md).
  */
 function gitLocator(
   deps: Pick<GitRunnerDeps, 'platform' | 'env' | 'fileExists'>,
-): () => string | undefined {
-  let cache: { readonly pathValue: string | undefined; readonly git: string } | undefined
-  return () => {
+): (workspaceRoot?: string) => string | undefined {
+  let cache: { readonly key: string; readonly git: string } | undefined
+  return (workspaceRoot) => {
     const pathValue = environmentValue(deps.env, deps.platform, PATH_VARIABLE)
-    if (cache === undefined || cache.pathValue !== pathValue) {
+    const key = JSON.stringify([pathValue, workspaceRoot])
+    if (cache?.key !== key) {
       const git = resolveExecutable(GIT, {
         platform: deps.platform,
         pathVariable: pathValue,
         fileExists: deps.fileExists,
+        ...(workspaceRoot !== undefined && { workspaceRoot }),
       })
-      cache = git === undefined ? undefined : { pathValue, git }
+      cache = git === undefined ? undefined : { key, git }
     }
     return cache?.git
   }
@@ -217,7 +222,7 @@ export function createGitRunner(
   const gitPath = gitLocator(deps)
   let supportedVersion: { readonly git: string; readonly checked: Promise<void> } | undefined
   return async (args, cwd, timeoutMs = GIT_TIMEOUT_MS, input, beforeRun) => {
-    const git = gitPath()
+    const git = gitPath(cwd)
     if (git === undefined) {
       throw new GitMissingError()
     }
@@ -406,9 +411,10 @@ export interface GitProcessDeps {
   /**
    * The git to run instead of a PATH search (M123's native route: the git
    * the host resolved, absolute only, `fixedGitLocator`), or undefined
-   * when there is none, so the run fails as git missing (D24).
+   * when there is none, so the run fails as git missing (D24). The run's
+   * working directory is passed so a searching locator can exclude it.
    */
-  readonly locate?: (() => string | undefined) | undefined
+  readonly locate?: ((workspaceRoot?: string) => string | undefined) | undefined
 }
 
 /**
@@ -467,7 +473,7 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         resource === undefined || deps.platform !== 'win32' ? undefined : await resourceWindowsJob()
       options.beforeRun?.()
       return await new Promise<Buffer>((resolve, reject) => {
-        const git = gitPath()
+        const git = gitPath(options.cwd)
         if (git === undefined) {
           resource?.complete(true)
           reject(new GitMissingError())

@@ -9,6 +9,7 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildChildEnvironment } from '../../src/core/backends/musecode/launch'
 import { resolveExecutable, sanitizePathForWorkspace } from '../../src/core/executables'
+import { processGitRunner } from '../../src/host/git'
 
 const PLATFORM = process.platform
 const SEPARATOR = PLATFORM === 'win32' ? ';' : ':'
@@ -306,6 +307,34 @@ describe('planted workspace program (real filesystem)', () => {
       const blocked = spawnSync(PLANTED, [], { cwd: root, env: { ...child }, encoding: 'utf8' })
       expect(blocked.status).toBeNull()
       expect(blocked.error?.message).toContain('ENOENT')
+    },
+  )
+
+  it.runIf(PLATFORM !== 'win32')(
+    'a planted git in the workspace never runs with the workspace as cwd',
+    async () => {
+      // A real planted `git` beside the probe program, and the real git run
+      // through the real runner: with the workspace as the working directory
+      // the planting is excluded from the lookup and the real git answers.
+      const plantedGit = path.join(binDir, 'git')
+      await writeFile(plantedGit, '#!/bin/sh\necho planted\n')
+      chmodSync(plantedGit, 0o755)
+      const realGit = resolveExecutable('git', {
+        platform: PLATFORM,
+        pathVariable: process.env['PATH'],
+        fileExists: existsSync,
+      })
+      if (realGit === undefined) {
+        throw new Error('the rig has no git on PATH to compare against')
+      }
+      const pathValue = [binDir, path.dirname(realGit)].join(':')
+      const run = processGitRunner({ env: { PATH: pathValue } })
+      const version = await run(['--version'], root)
+      expect(version.trim()).toMatch(/^git version /u)
+      // The same PATH from another directory still finds the planting
+      // first: the exclusion is scoped to the directory the child runs in.
+      const planted = await run(['--version'], outsideDir)
+      expect(planted.trim()).toBe('planted')
     },
   )
 
