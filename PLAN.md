@@ -35666,9 +35666,11 @@ before a repaired one loads (2026-09-30).
 | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/shared/constants.ts` (5 lines), `src/shared/browserCheckConstants.ts` (1 line) | `eslint-disable-next-line unicorn/prefer-string-raw` on plain-string Windows paths and one git regexp | `String.raw` is a call and pins the whole initialiser into every bundle importing the module; the plain strings are byte-identical (verified with node) and drop when unused. `test/unit/bundleDiet.test.ts` fails on any new non-droppable initialiser. | 2026-10-11 |
 
-| STANDINS location                                       | Escape hatch                                                                                       | Reason                                                                                                                                                                                                                                                                      | Date       |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/packaging/moduleExports.test.mjs` (worker loader) | Two `eslint-disable-next-line no-restricted-syntax`: `new Proxy` for `vscode`, `Module._load` trap | Load isolation only: VS Code-bound bundles must import in bare Node so every dist file's exports compare against the packaged build. No exercised call reaches the trap — the remaining branches drive real schemas/parsers whose sources never import `vscode`. Test-only. | 2026-10-17 |
+(2026-10-17, lane PR223FIX: the STANDINS loader row for
+`test/packaging/moduleExports.test.mjs` is withdrawn — the `Module._load`
+trap, the `vscode` Proxy and both suppressions are deleted; VS Code-bound
+bundles compare as identical bare-Node refusals and worker entries boot as
+real threads. No escape hatch remains from that lane.)
 
 ## 9. Security assumptions and accepted residual risk
 
