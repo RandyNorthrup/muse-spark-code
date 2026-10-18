@@ -137,7 +137,6 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     'handoff',
     'browser',
     'tab',
-    'support',
   ].map((id): [string, readonly string[]] => [id, ['vscode:museCode', 'vscode:modelApi']]),
   ...['acp'].map((id): [string, readonly string[]] => [id, ['acp:museCode', 'acp:modelApi']]),
   ...['prompt-library', 'chat-sharing', 'resources', 'agent-outcomes', 'windows-paths'].map(
@@ -149,6 +148,8 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M99: ACP answers /whatsnew locally with the same release notes.
+  ['support', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   // M124: the MCP connector is a runtime command, the same for every editor.
   ['mcp-connector', ['acp:museCode', 'acp:modelApi']],
   // M116: CLI/ACP journal commands work; the VS Code panel has no mount.

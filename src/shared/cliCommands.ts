@@ -214,6 +214,12 @@ export function cliCommands() {
       text: { ui: 'shareReviewPrivacy' },
     },
     {
+      route: 'acp',
+      name: '/whatsnew',
+      description: UI_TEXT.paletteTips.whatsNew,
+      text: { ui: 'whatsNewOpen' },
+    },
+    {
       route: 'resources',
       name: 'resources [status|history|resume] [--json]; usage resources [--json]',
       description: UI_TEXT.resourceGovernorDescription,

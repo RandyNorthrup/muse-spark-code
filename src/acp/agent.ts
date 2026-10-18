@@ -1989,8 +1989,12 @@ class AcpSession {
       }
       // A reserved command, decided on the one typed text like the others:
       // anything after the name stays a local answer, never a skill or a
-      // model turn (the reserved-command rule below).
-      if (parsed.parts.length === 1 && part?.type === 'text' && /^\/whatsnew(?:\s|$)/.test(typed)) {
+      // model turn (the reserved-command rule below). Attached files,
+      // images or resources never ride along to the model: they are
+      // refused instead of starting a billed turn (Codex on PR #212).
+      if (/^\/whatsnew(?:\s|$)/.test(typed)) {
+        if (parsed.parts.some((part) => part.type !== 'text'))
+          throw RequestError.invalidParams(undefined, UI_TEXT.whatsNewAttachmentsRefused)
         await this.announceCommands()
         if ('error' in preparing) throw preparing.error
         if (!preparing.isCancelled)

@@ -1109,6 +1109,9 @@ export function featureCatalog(): readonly Feature[] {
       ['showLogs', 'diagnostics', 'reportProblem', 'openWalkthrough', 'showWhatsNew', 'openHelp'],
       ['showWhatsNewOnUpdate'],
       'help-and-reference',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
     ),
     feature(
       'vault',

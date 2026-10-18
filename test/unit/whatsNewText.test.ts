@@ -75,11 +75,11 @@ describe('formatWhatsNewText', () => {
         '',
         '### Highlights',
         '',
-        '- New mark. The panel shows it.',
+        String.raw`- New mark\. The panel shows it\.`,
         '',
         '### Fixed',
         '',
-        '- A crash on `oops`; see web <https://example.com/note> and https://example.com/bare',
+        '- A crash on `oops`; see web <https://example.com/note> and https://example\\.com/bare',
         '  next line',
         '',
         '- Second fix',
@@ -151,6 +151,47 @@ describe('formatWhatsNewText', () => {
     } finally {
       setUiText(EN, BASE_LOCALE)
     }
+  })
+
+  it('says the notes stay English under a non-English locale, and stays quiet in English', () => {
+    expect(textOf()).not.toContain(EN.whatsNewNotesInEnglish)
+    setUiText({ ...EN }, 'de')
+    try {
+      expect(textOf()).toContain(EN.whatsNewNotesInEnglish)
+    } finally {
+      setUiText(EN, BASE_LOCALE)
+    }
+  })
+
+  it('keeps literal note text literal for Markdown renderers', () => {
+    const text = formatWhatsNewText({
+      releases: [
+        {
+          version: '0.18.2',
+          date: '2026-10-12',
+          highlights: [],
+          sections: [
+            {
+              heading: '1. <b>Head</b>',
+              blocks: [
+                {
+                  t: 'p',
+                  c: [
+                    { t: 'text', v: 'Run *now* with ' },
+                    { t: 'code', v: '`x`' },
+                    { t: 'text', v: ' and <script>.' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      from: undefined,
+      current: '0.18.2',
+    })
+    expect(text).toContain(String.raw`### 1\. \<b\>Head\</b\>`)
+    expect(text).toContain('Run \\*now\\* with `` `x` `` and \\<script\\>\\.')
   })
 
   it('renders checked content for the installed version', () => {
