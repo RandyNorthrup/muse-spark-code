@@ -1,5 +1,11 @@
+import { Buffer } from 'node:buffer'
 import { describe, expect, it } from 'vitest'
-import { foldName, heldTree } from '../../src/core/git/heldTree'
+import {
+  ListingRecords,
+  foldName,
+  heldTree,
+  heldTreeFromRecords,
+} from '../../src/core/git/heldTree'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 
@@ -168,5 +174,41 @@ describe('heldTree (M71): what a held pull request writes', () => {
     expect(foldName('Docs/E\u{301}', 'win32')).toBe('docs/\u{E9}')
     expect(foldName('Docs/E\u{301}', 'darwin')).toBe('docs/\u{E9}')
     expect(foldName('Docs/E\u{301}', 'linux')).toBe('Docs/E\u{301}')
+  })
+
+  it('streams records whole across chunk cuts, even mid-character', () => {
+    const listing = new ListingRecords()
+    // A multibyte name cut between its bytes, then two records in one chunk.
+    const first = Buffer.from(record('100644', 'caf\u{E9}.txt'), 'utf8')
+    // Cut inside the two-byte e-acute: no record ends before its NUL.
+    expect(listing.take(first.subarray(0, -6))).toEqual([])
+    const rest = Buffer.concat([first.subarray(-6), Buffer.from(files('b.txt', 'c.txt'), 'utf8')])
+    expect(listing.take(rest)).toEqual([
+      record('100644', 'caf\u{E9}.txt').slice(0, -1),
+      record('100644', 'b.txt').slice(0, -1),
+      record('100644', 'c.txt').slice(0, -1),
+    ])
+    expect(listing.finish()).toEqual([])
+  })
+
+  it('validates streamed records exactly as the whole listing', () => {
+    const whole = [record('100644', 'a.txt'), record('100755', 'bin/run.sh', 10)].join('')
+    const bytes = Buffer.from(whole, 'utf8')
+    const listing = new ListingRecords()
+    const records = [...listing.take(bytes.subarray(0, 7)), ...listing.take(bytes.subarray(7))]
+    expect(heldTreeFromRecords([...records, ...listing.finish()], 'linux')).toEqual(
+      heldTree(whole, 'linux'),
+    )
+    // Undecodable bytes refuse the listing, as a buffered read’s
+    // replacement character does.
+    const bad = new ListingRecords()
+    const poisoned = Buffer.concat([
+      Buffer.from(record('100644', 'ok.txt'), 'utf8'),
+      Buffer.from([0xff, 0x00]),
+    ])
+    expect(heldTreeFromRecords([...bad.take(poisoned), ...bad.finish()], 'linux')).toEqual({
+      ok: false,
+      reason: unsafe('\u{FFFD}'),
+    })
   })
 })
