@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- The schedules bundle defers its editor-delivery binding: `dist/schedules.js`
+  falls from 200.5 KiB to 172.1 KiB under its unchanged 200 KiB cap, and the
+  binding (workspace targets, run dispatch, grant checks) loads as the new
+  `dist/scheduleDelivery.js` (50 KiB budget) on the first delivery. Terminal
+  runs without editor delivery never load it. The schedule billing popup also
+  loads past the activation split, through the paid entry, instead of an
+  eager host import (record: `docs/certification/schedule-delivery-diet.md`).
+
 - Terminal schedule management is merged with the no-hold money model: a
   schedule fire admits against the schedule's own caps and the person's
   daily limit as one claim, and the reservation journal is gone. Management

@@ -1086,7 +1086,10 @@ const TEXT_BLOCKS = [
   {
     block: 'SCHEDULE_MODEL_TEXT',
     sentinels: ['unattendedNote', 'eventUntrusted'],
-    readers: ['dist/schedules.js', 'dist/runtimeEngine.js'],
+    // SCHEDULEDELIVERY: the deferred editor delivery carries the block with
+    // the unattended run; dist/schedules.js no longer does once the binding
+    // loads beside it instead of inside it.
+    readers: ['dist/runtimeEngine.js', 'dist/scheduleDelivery.js'],
   },
   {
     block: 'MCP_POOL_MODEL_TEXT',

@@ -309,6 +309,22 @@ export const DEFERRED = [
     ],
   },
   {
+    // SCHEDULEDELIVERY: the schedules' editor-delivery binding, loaded by
+    // dist/schedules.js on the first delivery. Only the entry and the
+    // host-owned binding are pinned here; the shared grant, unattended-run
+    // and shell-syntax machinery it also carries stays unlisted (only files
+    // owned by the schedules feature are pinned above, and modelApi.js
+    // carries those shared sources itself).
+    output: 'dist/scheduleDelivery.js',
+    metafile: 'dist/meta/scheduleDelivery.json',
+    use: 'the first schedule delivery',
+    files: [
+      'src/host/schedules/scheduleDeliveryEntry.ts',
+      'src/host/schedules/deliveryBinding.ts',
+      'src/host/schedules/backgroundTarget.ts',
+    ],
+  },
+  {
     output: 'dist/scheduleBackground.js',
     metafile: 'dist/meta/scheduleBackground.json',
     use: 'the first native schedule wake or maintenance',
@@ -1081,6 +1097,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/team/teamSchedulerEntry.ts'), 'dist/teamScheduler.js'],
   [path.resolve('src/host/runners/teamRunnersEntry.ts'), 'dist/teamRunners.js'],
   [path.resolve('src/core/backends/modelapi/schedulesEntry.ts'), 'dist/schedules.js'],
+  [path.resolve('src/host/schedules/scheduleDeliveryEntry.ts'), 'dist/scheduleDelivery.js'],
   [path.resolve('src/core/backends/modelapi/reviewerEntry.ts'), 'dist/reviewer.js'],
   [path.resolve('src/core/backends/modelapi/foreignHooksEntry.ts'), 'dist/foreignHooks.js'],
   [path.resolve('src/core/backends/modelapi/hookRuntimeEntry.ts'), 'dist/hookRuntime.js'],
@@ -1130,7 +1147,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|scheduleDeliveryEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

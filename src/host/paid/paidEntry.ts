@@ -8,6 +8,9 @@ import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { createPaidFeatures, type PaidFeatures, type PaidFeaturesDeps } from './paidHost'
 
+/** The paid-use popup, for hosts that reach it past the activation split. */
+export { askPaidUse } from './paidHost'
+
 /** Paid features in the calling deps' display language. */
 export function createPaid(
   deps: PaidFeaturesDeps & { readonly l10n?: { readonly table: UiText; readonly locale: string } },

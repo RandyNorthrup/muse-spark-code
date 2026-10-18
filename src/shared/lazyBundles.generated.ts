@@ -423,6 +423,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'paid.js',
     side: 'vscode',
     requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
       { importer: 'src/shared/constants.ts', symbol: 'PAID_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
@@ -674,6 +675,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'scheduleBackground.js',
     side: 'acp',
     requestedBy: [{ importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] }],
+  },
+  {
+    file: 'scheduleDelivery.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/runtime/schedules/runtimeEntry.ts',
+        symbol: 'loadDelivery',
+        side: ['acp', 'vscode'],
+      },
+    ],
   },
   {
     file: 'schedules.js',

@@ -708,12 +708,10 @@ export class ModelApiClient implements TransportProviderClient {
                           { ...modelPricedUsage(usage), images: requestImageCount(body) },
                           { cost: usage.provider_cost_usd },
                         )
-                  tokenCostUsd =
-                    this.scheduledPrice === undefined
-                      ? hasSearch
-                        ? this.knownSearchTokenCostUsd(billable, body.model)
-                        : estimateCostUsd(billable, body.model)
-                      : scheduled
+                  if (this.scheduledPrice !== undefined) tokenCostUsd = scheduled
+                  else if (hasSearch)
+                    tokenCostUsd = this.knownSearchTokenCostUsd(billable, body.model)
+                  else tokenCostUsd = estimateCostUsd(billable, body.model)
                 }
                 await claim.settle(
                   tokenCostUsd === undefined ? undefined : sumUsd(tokenCostUsd, returnedFees()),
