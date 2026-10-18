@@ -49,11 +49,11 @@ export function registerVaultCommands(
 }
 
 /**
- * What dist/vault.js exports: the panel factory. Only types come from the
- * panel's side here: a value imported from there would carry the host, the
- * editor and the broker client back into dist/extension.js, which the
- * bundle-split gate refuses.
- */
+What dist/vault.js exports: the panel factory. Only types come from the
+panel's side here: a value imported from there would carry the host, the
+editor and the broker client back into dist/extension.js, which the
+bundle-split gate refuses.
+*/
 export interface VaultBundle {
   readonly createVaultPanelHost: (
     deps: VaultPanelEntryDeps,
@@ -81,10 +81,10 @@ export interface VaultBundleLoaderDeps {
 }
 
 /**
- * The bundle, required the first time it is asked for and kept from then on.
- * A missing or corrupt bundle throws `vault.brokerBlocked` and is tried again
- * on the next call (the log has the cause, never a credential).
- */
+The bundle, required the first time it is asked for and kept from then on.
+A missing or corrupt bundle throws `vault.brokerBlocked` and is tried again
+on the next call (the log has the cause, never a credential).
+*/
 export function vaultBundleLoader(deps: VaultBundleLoaderDeps): () => VaultBundle {
   return lazyBundleLoader({
     ...deps,
@@ -101,20 +101,20 @@ export function vaultBundleLoader(deps: VaultBundleLoaderDeps): () => VaultBundl
 
 export interface VaultControlsDeps extends VaultBundleLoaderDeps {
   /**
-   * The panel's broker-backed service. W has no implementation yet (the C/B/P/M
-   * adapter over the broker channel is an open handoff in
-   * docs/certification/m109.md): while it is missing the commands refuse
-   * closed with `vault.brokerBlocked` instead of opening an empty vault.
-   */
+  The panel's broker-backed service. W has no implementation yet (the C/B/P/M
+  adapter over the broker channel is an open handoff in
+  docs/certification/m109.md): while it is missing the commands refuse
+  closed with `vault.brokerBlocked` instead of opening an empty vault.
+  */
   readonly service: VaultPanelService | undefined
 }
 
 /**
- * The window controls, or an explicit refusal while the service is missing.
- * `connect` supplies the entry's live host bindings (panel opener, native
- * prompts, clock, webview publisher) and runs only once the service exists,
- * so activation registers no placeholder for them.
- */
+The window controls, or an explicit refusal while the service is missing.
+`connect` supplies the entry's live host bindings (panel opener, native
+prompts, clock, webview publisher) and runs only once the service exists,
+so activation registers no placeholder for them.
+*/
 export function loadVaultControls(
   deps: VaultControlsDeps,
   connect: () => Omit<VaultPanelEntryDeps, 'service'>,

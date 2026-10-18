@@ -29,9 +29,9 @@ export interface ChangelogSourceRange {
   /** Body span ends with the whole section. */
   readonly bodyEnd: number
   /**
-   * Start offset of the `### Highlights` subsection (heading line
-   * included); undefined when the release has no Highlights section.
-   */
+  Start offset of the `### Highlights` subsection (heading line
+  included); undefined when the release has no Highlights section.
+  */
   readonly highlightsStart: number | undefined
   /** End offset of the `### Highlights` subsection; undefined without one. */
   readonly highlightsEnd: number | undefined
@@ -39,19 +39,19 @@ export interface ChangelogSourceRange {
 
 export interface ParsedRelease extends ReleaseNotes {
   /**
-   * The release's source range: non-enumerable metadata, never serialized
-   * into an envelope, an artifact or any JSON.
-   */
+  The release's source range: non-enumerable metadata, never serialized
+  into an envelope, an artifact or any JSON.
+  */
   readonly range: ChangelogSourceRange
 }
 
 export interface ParsedChangelog extends Array<ParsedRelease> {
   /**
-   * The `[Unreleased]` section's Highlights content span (bullets only,
-   * untrimmed); undefined when there is no such section, both offsets
-   * undefined when it carries no Highlights. Non-enumerable metadata, like
-   * the release ranges.
-   */
+  The `[Unreleased]` section's Highlights content span (bullets only,
+  untrimmed); undefined when there is no such section, both offsets
+  undefined when it carries no Highlights. Non-enumerable metadata, like
+  the release ranges.
+  */
   readonly unreleased:
     | {
         readonly highlightsStart: number | undefined

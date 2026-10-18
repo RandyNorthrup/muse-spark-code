@@ -5,7 +5,7 @@ export interface TeamWait {
 export type WaitResult = { kind: 'accepted' } | { kind: 'cycle'; cycle: string[] }
 
 /** All four kinds share one graph. Refusal is atomic: the existing waits
- * remain intact when a newer wait would close a cycle. */
+remain intact when a newer wait would close a cycle. */
 export class WaitForGraph {
   private readonly waits = new Map<string, readonly TeamWait[]>()
 

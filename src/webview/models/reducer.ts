@@ -17,11 +17,11 @@ export interface PanelUiState {
   /** The host has sent a wizard draft since the wizard opened. */
   readonly wizardHasDraft: boolean
   /**
-   * The wizard draft's generation (STARTUP017): each open starts a new one
-   * (a provider pick or a save opens the wizard on a new draft), and a
-   * closed wizard has none current, so work begun for one draft never
-   * lands on another.
-   */
+  The wizard draft's generation (STARTUP017): each open starts a new one
+  (a provider pick or a save opens the wizard on a new draft), and a
+  closed wizard has none current, so work begun for one draft never
+  lands on another.
+  */
   readonly wizardGeneration: number
   readonly importOpen: boolean
   readonly highlighted: PanelHighlight | undefined
@@ -73,12 +73,12 @@ function reduceNavigation(state: PanelUiState, action: PanelUiAction): PanelUiSt
 }
 
 /**
- * One action through the panel. Navigation and the highlight are the
- * panel's; every section folds its own overlay actions (the registry's
- * `reduceSection`, so M96's sections bring their own). A host state that
- * cleared the wizard draft or the import preview closes that overlay:
- * the host owns the draft, so a gone draft cannot stay open.
- */
+One action through the panel. Navigation and the highlight are the
+panel's; every section folds its own overlay actions (the registry's
+`reduceSection`, so M96's sections bring their own). A host state that
+cleared the wizard draft or the import preview closes that overlay:
+the host owns the draft, so a gone draft cannot stay open.
+*/
 export function panelUiReducer(state: PanelUiState, action: PanelUiAction): PanelUiState {
   // A deep link names a registered section: the host's schema rejects any
   // other before this reducer ever sees it.

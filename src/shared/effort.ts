@@ -18,19 +18,19 @@ export function effortLabel(effort: EffortLevel): string {
 }
 
 /**
- * The MSP `ReasoningEffort` for the session: the chosen tier while Thinking
- * is on, `none` while it is off. The chosen tier is kept so switching
- * Thinking back on restores it.
- */
+The MSP `ReasoningEffort` for the session: the chosen tier while Thinking
+is on, `none` while it is off. The chosen tier is kept so switching
+Thinking back on restores it.
+*/
 export function effortForThinking(effort: EffortLevel, isThinkingEnabled: boolean): string {
   return isThinkingEnabled ? effort : THINKING_OFF_EFFORT
 }
 
 /**
- * The tiers a model serves (verified live per model family, see
- * MODEL_EFFORT_LEVELS); the full UI range when the model is unknown or not
- * yet reported, so the slider never offers less than the CLI does.
- */
+The tiers a model serves (verified live per model family, see
+MODEL_EFFORT_LEVELS); the full UI range when the model is unknown or not
+yet reported, so the slider never offers less than the CLI does.
+*/
 export function effortLevelsFor(
   modelId: string | undefined,
   supported?: readonly EffortLevel[],
@@ -55,10 +55,10 @@ export function effortAt(levels: readonly EffortLevel[], index: number): EffortL
 }
 
 /**
- * What the selected model is sent for one requested reasoning setting (lane
- * DSTHINK3): a level it lists, its documented Thinking-off switch, nothing
- * (the model's default), or the typed refusal `unsupported_reasoning_effort`.
- */
+What the selected model is sent for one requested reasoning setting (lane
+DSTHINK3): a level it lists, its documented Thinking-off switch, nothing
+(the model's default), or the typed refusal `unsupported_reasoning_effort`.
+*/
 export type ReasoningDecision =
   | { readonly kind: 'effort'; readonly effort: string }
   | { readonly kind: 'off' }
@@ -72,22 +72,22 @@ export interface ReasoningControl {
   /** The record affirms Thinking can be disabled (`canDisable` yes). */
   readonly canDisable: boolean
   /**
-   * The model's documented Thinking-off switch from its preset. Undefined:
-   * none is declared and the codec keeps owning effort `none` exactly as
-   * before this resolver, so those requests stay byte-identical.
-   */
+  The model's documented Thinking-off switch from its preset. Undefined:
+  none is declared and the codec keeps owning effort `none` exactly as
+  before this resolver, so those requests stay byte-identical.
+  */
   readonly thinkingOff: 'thinking-switch' | undefined
 }
 
 const REFUSED: ReasoningDecision = { kind: 'refuse', code: 'unsupported_reasoning_effort' }
 
 /**
- * The one mapping from a requested setting to a model's request. With a
- * declared switch: off only where the record affirms `canDisable`, an
- * unlisted on-level moves to the nearest listed on-level (a tie takes the
- * higher), never to off; no listed on-level sends nothing. Without one, a
- * listed level rides as named and anything else is the codec's `none`.
- */
+The one mapping from a requested setting to a model's request. With a
+declared switch: off only where the record affirms `canDisable`, an
+unlisted on-level moves to the nearest listed on-level (a tie takes the
+higher), never to off; no listed on-level sends nothing. Without one, a
+listed level rides as named and anything else is the codec's `none`.
+*/
 export function resolveReasoning(model: ReasoningControl, requested: string): ReasoningDecision {
   const listed = model.effortLevels ?? []
   if (model.thinkingOff === undefined) {

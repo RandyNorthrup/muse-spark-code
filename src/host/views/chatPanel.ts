@@ -115,9 +115,9 @@ export function openChatPanel(
 }
 
 /**
- * A panel VS Code rebuilt after a window reload: wired like a new one, and
- * resuming the session the webview had stored, if the state is one of ours.
- */
+A panel VS Code rebuilt after a window reload: wired like a new one, and
+resuming the session the webview had stored, if the state is one of ours.
+*/
 export function restoreChatPanel(
   panel: vscode.WebviewPanel,
   state: unknown,

@@ -42,10 +42,10 @@ function isWithin(root: string, candidate: string): boolean {
 }
 
 /**
- * Admit a bounded, local workspace, excluding links and special files.
- * Reads are UTF-8 only; undecodable/binary material remains incomplete.
- * The directory-entry budget also bounds trees containing only empty dirs.
- */
+Admit a bounded, local workspace, excluding links and special files.
+Reads are UTF-8 only; undecodable/binary material remains incomplete.
+The directory-entry budget also bounds trees containing only empty dirs.
+*/
 export function createLegalSnapshot(
   rootPath: string,
   signal?: AbortSignal,

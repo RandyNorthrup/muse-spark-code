@@ -45,9 +45,9 @@ export const processOwnerSchema = z.object({
   host: z.string(),
   pid: z.number(),
   /**
-   * The process's birth: clock ticks since boot on Linux (with `bootId`),
-   * epoch milliseconds on Windows and macOS.
-   */
+  The process's birth: clock ticks since boot on Linux (with `bootId`),
+  epoch milliseconds on Windows and macOS.
+  */
   processStart: z.number(),
   /** Linux: the boot the process ran in. */
   bootId: z.optional(z.string()),
@@ -131,11 +131,11 @@ async function windowsStartTime(pid: number): Promise<number | undefined> {
 }
 
 /**
- * Process `pid`'s birth as the system recorded it: clock ticks since boot
- * on Linux, epoch milliseconds on Windows and macOS; undefined when it
- * cannot say (no such process, no permission, an unsupported system).
- * Never throws.
- */
+Process `pid`'s birth as the system recorded it: clock ticks since boot
+on Linux, epoch milliseconds on Windows and macOS; undefined when it
+cannot say (no such process, no permission, an unsupported system).
+Never throws.
+*/
 export async function processStartTime(
   pid: number,
   platform: NodeJS.Platform = process.platform,
@@ -225,12 +225,12 @@ export interface ProcessOwnerProbe {
 }
 
 /**
- * Whether `owner` is provably gone: on this host, no process has its id;
- * or it was born in another boot (Linux); or the process that has its id
- * now was born at another time (the system gave the id to someone else).
- * Another host's process, or a live id whose birth cannot be read or
- * compared, is never provably gone.
- */
+Whether `owner` is provably gone: on this host, no process has its id;
+or it was born in another boot (Linux); or the process that has its id
+now was born at another time (the system gave the id to someone else).
+Another host's process, or a live id whose birth cannot be read or
+compared, is never provably gone.
+*/
 export async function isProcessOwnerGone(
   owner: ProcessOwner,
   probe?: Partial<ProcessOwnerProbe>,

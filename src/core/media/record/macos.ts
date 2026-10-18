@@ -45,9 +45,9 @@ export interface MacosScreenRecordingDeps {
   readonly environment: NodeJS.ProcessEnv
   readonly fileExists: (file: string) => boolean
   /** REDM104L3's installed-root/link verifier, bound at integration. Absence refuses.
-   * The requirement comes from trusted release metadata: expected Team ID and
-   * designated requirement, or the exact ad-hoc CDHash; never workspace settings.
-   */
+  The requirement comes from trusted release metadata: expected Team ID and
+  designated requirement, or the exact ad-hoc CDHash; never workspace settings.
+  */
   readonly verifyTrustedHelper?: (file: string) => Promise<
     | {
         readonly path: string
@@ -99,8 +99,8 @@ const probeSchema = z.strictObject({
 })
 
 /** Called only from the recovery action the user chose.
- * @unwired M105 macOS recording permission recovery
- */
+@unwired M105 macOS recording permission recovery
+*/
 export async function openMacosRecordingPermissions(
   permission: Permission,
   openExternal: (uri: string) => Promise<void>,

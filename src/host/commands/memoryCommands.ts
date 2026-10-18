@@ -18,10 +18,10 @@ import { fill, plural } from '../../shared/l10n/text'
 import type { PickItem, PickOne } from './pickItem'
 
 /**
- * One mutation of the notes. A scope whose notes lie under the workspace
- * folder holds the pure checkpoint lease until `work` settles; `work` gets
- * the guard to honour right before each native write.
- */
+One mutation of the notes. A scope whose notes lie under the workspace
+folder holds the pure checkpoint lease until `work` settles; `work` gets
+the guard to honour right before each native write.
+*/
 export type MemoryEdit = <T>(
   scope: MemoryScope,
   work: (assertCanWrite: () => void) => Promise<T>,

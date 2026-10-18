@@ -1,5 +1,5 @@
 /** One capability-gated `<option>` list shared by the schedule editors: kinds,
- * targets, sources and every other choice the host marks available or not. */
+targets, sources and every other choice the host marks available or not. */
 export interface CapabilityOptionItem {
   readonly id: string
   readonly label: string

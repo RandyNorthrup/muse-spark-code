@@ -6,13 +6,13 @@ import { UI_TEXT } from '../shared/constants'
 import { fill, formatDateTime } from '../shared/l10n/text'
 
 /** A port refused adoption: the switch did not happen and the session keeps its
- * current account. Carries the user-facing text, already filled, so later
- * layers can repeat it instead of reporting a generic failure. */
+current account. Carries the user-facing text, already filled, so later
+layers can repeat it instead of reporting a generic failure. */
 export class AccountSwitchRefusedError extends Error {
   /** Stable cross-bundle brand: the producer bundle (runtime accounts) and
-   * the consumer bundles (engine, ACP) each carry their own copy of this
-   * constructor, so `instanceof` is false across the boundary. Guards check
-   * this code, never the constructor. */
+  the consumer bundles (engine, ACP) each carry their own copy of this
+  constructor, so `instanceof` is false across the boundary. Guards check
+  this code, never the constructor. */
   public readonly code = 'accountSwitchRefused'
   public constructor(provider: string, account: string) {
     super(fill(UI_TEXT.accounts.switchUnavailable, { provider, account }))
@@ -21,7 +21,7 @@ export class AccountSwitchRefusedError extends Error {
 }
 
 /** A refused adoption, recognized across bundle boundaries by its brand
- * rather than its constructor (see the `code` field above). */
+rather than its constructor (see the `code` field above). */
 export function isAccountSwitchRefusedError(error: unknown): error is AccountSwitchRefusedError {
   return (
     error instanceof Error &&
@@ -32,8 +32,8 @@ export function isAccountSwitchRefusedError(error: unknown): error is AccountSwi
 }
 
 /** A refused providers file, recognized across bundle boundaries by its
- * brand rather than its constructor (each bundle carries its own copy of
- * the store error, like the refused switch above). */
+brand rather than its constructor (each bundle carries its own copy of
+the store error, like the refused switch above). */
 export function isInvalidProvidersFileError(error: unknown): boolean {
   return (
     error instanceof Error &&

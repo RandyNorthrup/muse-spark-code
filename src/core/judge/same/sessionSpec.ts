@@ -29,10 +29,10 @@ export function isJudgeTurnItemAllowed(kind: string): boolean {
 }
 
 /**
- * The `session/start` options for one judge batch: the batch's own empty
- * temporary folder, the conversation's model (never another model), and Plan
- * mode. No MCP servers are passed at all, so the session gets none.
- */
+The `session/start` options for one judge batch: the batch's own empty
+temporary folder, the conversation's model (never another model), and Plan
+mode. No MCP servers are passed at all, so the session gets none.
+*/
 export function judgeSessionOptions(modelId: string, workspaceRoot: string): StartSessionOptions {
   return {
     workspaceRoot,

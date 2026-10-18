@@ -20,13 +20,13 @@ import { uiLocale } from '../../shared/l10n/text'
 import { deferredDriver, type VoiceBundle } from './voiceBundle'
 
 /**
- * The remote this extension host runs on, or undefined on the user's own
- * machine. `env.remoteName` alone is not enough: it is also set in the local
- * extension host of a remote window ("defined in all extension hosts (local
- * and remote) in case a remote extension host exists", vscode.d.ts), where
- * a user's `remote.extensionKind` override could run this extension; the
- * extension's kind says which side it is on.
- */
+The remote this extension host runs on, or undefined on the user's own
+machine. `env.remoteName` alone is not enough: it is also set in the local
+extension host of a remote window ("defined in all extension hosts (local
+and remote) in case a remote extension host exists", vscode.d.ts), where
+a user's `remote.extensionKind` override could run this extension; the
+extension's kind says which side it is on.
+*/
 function remoteHostName(): string | undefined {
   const kind = extensions.getExtension(EXTENSION_QUALIFIED_ID)?.extensionKind
   return kind === ExtensionKind.UI ? undefined : env.remoteName
@@ -68,11 +68,11 @@ export interface MuseVoiceSetupDeps {
 }
 
 /**
- * Muse Voice (M35, PLAN.md D30): the paid engine's recorder for this
- * platform and the stream to Meta, or why it cannot run here. Whether it is
- * the microphone's engine (the setting, the accepted price, the Model API
- * backend) is the caller's to decide.
- */
+Muse Voice (M35, PLAN.md D30): the paid engine's recorder for this
+platform and the stream to Meta, or why it cannot run here. Whether it is
+the microphone's engine (the setting, the accepted price, the Model API
+backend) is the caller's to decide.
+*/
 export function createMuseVoiceSetup(
   probe: Omit<
     CaptureProbe,

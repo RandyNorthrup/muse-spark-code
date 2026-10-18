@@ -265,10 +265,10 @@ export class MuseCodeReviewer {
   }
 
   /**
-   * The side session for this review: the one there is, once the turn the
-   * last review sent has ended (its reply comes first, and Muse Code's own
-   * reminders finish after it), or a new one.
-   */
+  The side session for this review: the one there is, once the turn the
+  last review sent has ended (its reply comes first, and Muse Code's own
+  reminders finish after it), or a new one.
+  */
   private async sideFor(
     job: MuseCodeReviewJob,
     deadline: number,
@@ -439,9 +439,9 @@ export class MuseCodeReviewer {
   }
 
   /**
-   * What `check` finds, once it finds it; undefined when the deadline
-   * passes, the approval stops waiting or the side session is gone first.
-   */
+  What `check` finds, once it finds it; undefined when the deadline
+  passes, the approval stops waiting or the side session is gone first.
+  */
   private until<T>(
     side: SideSession,
     check: () => T | undefined,
@@ -513,9 +513,9 @@ export class MuseCodeReviewer {
   }
 
   /**
-   * One conversation's approvals: its own breaker; the side session and the
-   * queue are the window's, and so is the notice of its first review.
-   */
+  One conversation's approvals: its own breaker; the side session and the
+  queue are the window's, and so is the notice of its first review.
+  */
   public conversation(deps: ReviewedApprovalsDeps): ReviewedApprovals {
     return new ReviewedApprovals(
       deps,

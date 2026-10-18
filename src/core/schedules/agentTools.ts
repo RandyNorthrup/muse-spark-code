@@ -39,7 +39,7 @@ export interface AgentScheduleAuthority {
   readonly depth: number
   readonly sourceScheduleId?: string
   /** Host-owned explicit user permission for this source schedule only.
-   * A child's schema flag is never itself a new rescheduling permission. */
+  A child's schema flag is never itself a new rescheduling permission. */
   readonly reschedulePermissionFor?: string
 }
 
@@ -72,26 +72,26 @@ type AgentScheduleResult =
   | { readonly outcome: 'cancelled'; readonly id: string }
 
 /** S/U implement a durable cross-process transaction. Every agent admission,
- * policy edit, creator-cap allocation and pin/expiry mutation shares it.
- * commit atomically allocates out of the creator's remaining daily cap and
- * persists via store.create, or refuses without a record/allocation. Recheck
- * live authority, target and paid model/account/tier immediately before the
- * commit; failures retain their actual reason. Crash recovery retains
- * allocations for any committed schedule, including uncertain spent money. */
+policy edit, creator-cap allocation and pin/expiry mutation shares it.
+commit atomically allocates out of the creator's remaining daily cap and
+persists via store.create, or refuses without a record/allocation. Recheck
+live authority, target and paid model/account/tier immediately before the
+commit; failures retain their actual reason. Crash recovery retains
+allocations for any committed schedule, including uncertain spent money. */
 export interface AgentScheduleAdmission {
   readonly store: ScheduleStoreV2
   exclusive<T>(workspaceKey: string, operation: () => Promise<T>): Promise<T>
   policy(authority: AgentScheduleAuthority): Promise<AgentSchedulePolicy>
   /** Read the durable ledger for this workspace/orchestrator and the host-local
-   * day containing atMs, under exclusive. Include removed schedules' settled
-   * spend and uncertain liability; exclude unspent configured-cap allocations.
-   * commit rechecks the current day and totals atomically before allocating. */
+  day containing atMs, under exclusive. Include removed schedules' settled
+  spend and uncertain liability; exclude unspent configured-cap allocations.
+  commit rechecks the current day and totals atomically before allocating. */
   dailyUsage(
     authority: AgentScheduleAuthority,
     atMs: number,
   ): Promise<{ readonly settledUsd: UsdAmount; readonly uncertainUsd: UsdAmount }>
   /** CAS against policy.revision; increment only on a match. Never replace a
-   * newer revocation or cap edit with an older open consent's decision. */
+  newer revocation or cap edit with an older open consent's decision. */
   remember(authority: AgentScheduleAuthority, policy: AgentSchedulePolicy): Promise<boolean>
   commit(
     schedule: ScheduleV2,
@@ -106,13 +106,13 @@ export interface AgentScheduleAdmission {
 export interface AgentScheduleToolsDeps {
   readonly admission: AgentScheduleAdmission
   /** Re-read the authenticated caller's host identity, charter, permissions
-   * and lifetime. Bind to its session, never the currently visible panel. */
+  and lifetime. Bind to its session, never the currently visible panel. */
   authority(): Promise<AgentScheduleAuthority>
   canTarget(authority: AgentScheduleAuthority, target: ScheduleTarget): Promise<boolean>
   /** U applies mode, canonical paths, protected paths and hard denials before intersection. */
   effectiveGrant(authority: AgentScheduleAuthority): Promise<ScheduleGrant>
   /** T proves the minimum occurrence spacing, E's event coalescing included.
-   * undefined means unavailable/unprovable; Never substitute a guessed floor. */
+  undefined means unavailable/unprovable; Never substitute a guessed floor. */
   minimumSpacing(draft: ScheduleDraft): Promise<number | undefined>
   consent(
     request: {
@@ -125,7 +125,7 @@ export interface AgentScheduleToolsDeps {
     signal: AbortSignal,
   ): Promise<'allow' | 'never' | { readonly alwaysPaidCapUsd: UsdAmount }>
   /** U uses D48, price/shared budget and schedule scope; no popup unattended.
-   * commit revalidates model/account/tier and reserves against D78 as well. */
+  commit revalidates model/account/tier and reserves against D78 as well. */
   paidConsent(
     draft: ScheduleDraft,
     authority: AgentScheduleAuthority,
@@ -179,7 +179,7 @@ function hasEnded(schedule: ScheduleV2, now: number): boolean {
 }
 
 /** Both transports call this one admission path. Model arguments never supply
- * identity, consent, pinning, permission mode or rescheduling authority. */
+identity, consent, pinning, permission mode or rescheduling authority. */
 export class AgentScheduleTools {
   private readonly intersection = new AgentScheduleNoEscalation()
   public constructor(private readonly deps: AgentScheduleToolsDeps) {}
@@ -459,7 +459,7 @@ export class AgentScheduleTools {
   }
 
   /** S invokes this before due admission, and on session/team disposal.
-   * The shared transaction also covers user pinning: no remove-after-pin race. */
+  The shared transaction also covers user pinning: no remove-after-pin race. */
   public async expire(workspaceKey: string): Promise<readonly string[]> {
     return await this.deps.admission.exclusive(workspaceKey, async () => {
       const expired: string[] = []

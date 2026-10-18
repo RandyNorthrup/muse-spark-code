@@ -163,11 +163,11 @@ function unavailable(cause?: unknown): Error {
 }
 
 /**
- * Whether `mkdir`'s refusal says the reservation lock is held right now, so
- * the caller waits for it within its bound: the name exists, or, on Windows,
- * its last holder is still removing it. Anything else is a failure of the
- * store and is reported at once.
- */
+Whether `mkdir`'s refusal says the reservation lock is held right now, so
+the caller waits for it within its bound: the name exists, or, on Windows,
+its last holder is still removing it. Anything else is a failure of the
+store and is reported at once.
+*/
 export function isReservationLockHeld(
   code: string | undefined,
   platform: NodeJS.Platform,

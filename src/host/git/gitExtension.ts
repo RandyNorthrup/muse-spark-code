@@ -57,9 +57,9 @@ export interface GitRepository {
   /** The staged changes with `cached`, else the unstaged ones. */
   diff(isCached?: boolean): Promise<string>
   /**
-   * `all: true` stages every change first; `postCommitCommand: null` runs
-   * nothing after (VS Code's `git.postCommitCommand` could push or sync).
-   */
+  `all: true` stages every change first; `postCommitCommand: null` runs
+  nothing after (VS Code's `git.postCommitCommand` could push or sync).
+  */
   commit(
     message: string,
     options: { readonly all?: boolean; readonly postCommitCommand: null },
@@ -150,8 +150,8 @@ export async function openOwnedRepository(
 }
 
 /** A workspace may name its repository through a link; an ancestor repository is still refused.
- * @unwired M123 repository root check
- */
+@unwired M123 repository root check
+*/
 export async function isRepositoryRoot(
   repository: GitRepository,
   root: string,
@@ -234,11 +234,11 @@ export class GitUnavailableError extends Error {
 }
 
 /**
- * Whether this VS Code-family host ships the `vscode.git` extension at all.
- * Without it (Arduino IDE 2, some forks) conversations take M123's native
- * route in-process (PLAN.md D104); a git extension the user disabled keeps
- * its own answer.
- */
+Whether this VS Code-family host ships the `vscode.git` extension at all.
+Without it (Arduino IDE 2, some forks) conversations take M123's native
+route in-process (PLAN.md D104); a git extension the user disabled keeps
+its own answer.
+*/
 export function isGitExtensionInstalled(): boolean {
   return vscode.extensions.getExtension(GIT_EXTENSION_ID) !== undefined
 }

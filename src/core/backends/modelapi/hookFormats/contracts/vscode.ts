@@ -17,10 +17,10 @@ const COMMON: readonly FieldSpec[] = [
 ]
 
 /**
- * V:84-121 common output (continue/stopReason/systemMessage on every event;
- * continue:false wins over any permission) and V:106-110 exit codes: 0 parses
- * stdout, 2 blocks with stderr to the model, others warn and continue.
- */
+V:84-121 common output (continue/stopReason/systemMessage on every event;
+continue:false wins over any permission) and V:106-110 exit codes: 0 parses
+stdout, 2 blocks with stderr to the model, others warn and continue.
+*/
 function local(
   event: string,
   specific: Readonly<Record<string, z.ZodMiniType>>,

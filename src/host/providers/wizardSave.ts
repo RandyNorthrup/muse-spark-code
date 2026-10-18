@@ -158,9 +158,9 @@ function editedProvider(
 }
 
 /**
- * Validates before writing; later failures return an honest partial outcome.
- * Completed writes stay saved. No compensating writes or inverse recovery.
- */
+Validates before writing; later failures return an honest partial outcome.
+Completed writes stay saved. No compensating writes or inverse recovery.
+*/
 export async function saveWizardDraft(
   deps: WizardSaveDeps,
   draft: WizardDraft,

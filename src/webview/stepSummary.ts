@@ -170,10 +170,10 @@ export function stepSummary(steps: readonly StepEntry[]): StepSummary {
 }
 
 /**
- * The summary in the display language: each part's plural form, the
- * failures last, joined as the language lists units, the first letter
- * raised. A run of thoughts alone reads as a thought's row does.
- */
+The summary in the display language: each part's plural form, the
+failures last, joined as the language lists units, the first letter
+raised. A run of thoughts alone reads as a thought's row does.
+*/
 export function stepSummaryText(summary: StepSummary): string {
   const forms = UI_TEXT.stepSummary
   const parts = summary.parts.map((part) => plural(forms[part.kind], part.count))

@@ -105,10 +105,10 @@ export interface PaletteItem {
   readonly widget?: PaletteWidget
   readonly action: PaletteAction
   /**
-   * The row's name in the prompt's "/" list (M38), without the slash, for a
-   * row whose label is not already `/name`: Claude Code's names where it has
-   * one.
-   */
+  The row's name in the prompt's "/" list (M38), without the slash, for a
+  row whose label is not already `/name`: Claude Code's names where it has
+  one.
+  */
   readonly slashName?: string
   /** Slider rows step their value on Left/Right instead of activating. */
   readonly isSlider?: boolean

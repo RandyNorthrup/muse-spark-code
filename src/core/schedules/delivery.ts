@@ -18,7 +18,7 @@ export interface ScheduleDeliverySession extends ScheduleSessionPort {
   /** False if the target closes. Abort only withdraws a scheduler-held fire. */
   waitUntilIdle(signal: AbortSignal): Promise<boolean>
   /** Atomically enqueue after existing user turns. Undefined proves Skip won
-   * before backend dispatch; the signal also fences asynchronous admission. */
+  before backend dispatch; the signal also fences asynchronous admission. */
   queueWhenIdle(
     prompt: string,
     context: ScheduleRunContext,
@@ -44,8 +44,8 @@ export type ScheduleRunSettlement = Pick<
 >
 
 /** U binds context before dispatch and retains facts by run id, including
- * withdrawal and failures after admission. An admission ack is not settlement.
- * No implementation may infer a free success from turnCompleted alone. */
+withdrawal and failures after admission. An admission ack is not settlement.
+No implementation may infer a free success from turnCompleted alone. */
 export interface ScheduleDeliveryRuns {
   run(
     session: ScheduleSessionPort,
@@ -56,7 +56,7 @@ export interface ScheduleDeliveryRuns {
 }
 
 /** M96c admits role/team tasks under the charter; G/M110 bind workers/nodes.
- * RA binds reports. All return complete final settlements, never task admission. */
+RA binds reports. All return complete final settlements, never task admission. */
 export interface ScheduleExternalDelivery {
   deliver: ScheduleHostPort['deliver']
 }
@@ -99,11 +99,11 @@ export class ScheduleDelivery implements ScheduleHostPort {
   >()
   private readonly queued = new Map<string, { session: ScheduleSessionPort; messageId: string }>()
   /** In-memory run ledger for S's scheduler: admitted at dispatch, settled at
-   * final settlement. S's store owns durability across processes; a throw
-   * keeps the admitted marker (like the fake host) so a concurrent duplicate
-   * refuses instead of refiring while the target still owns recovery. This
-   * host never reports uncertain: lost-response ambiguity is settled by S's
-   * outbox reconciliation, never guessed here. */
+  final settlement. S's store owns durability across processes; a throw
+  keeps the admitted marker (like the fake host) so a concurrent duplicate
+  refuses instead of refiring while the target still owns recovery. This
+  host never reports uncertain: lost-response ambiguity is settled by S's
+  outbox reconciliation, never guessed here. */
   private readonly ledger = new Map<string, ScheduleDeliveryState>()
 
   constructor(private readonly deps: ScheduleDeliveryDeps) {}

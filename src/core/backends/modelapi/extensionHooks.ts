@@ -83,10 +83,10 @@ const DECISION_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
   'TeammateIdle',
 ])
 /**
- * The turn-bound events whose `additionalContext` is appended at the tail of
- * the turn (SoL-Pi rule 2). Anywhere else a hook sends context, the answer is
- * refused: outside a turn it has nowhere to go.
- */
+The turn-bound events whose `additionalContext` is appended at the tail of
+the turn (SoL-Pi rule 2). Anywhere else a hook sends context, the answer is
+refused: outside a turn it has nowhere to go.
+*/
 const CONTEXT_EVENTS: ReadonlySet<ExtensionHookEvent> = new Set([
   'InstructionsLoaded',
   'UserPromptExpansion',
@@ -328,10 +328,10 @@ export interface SparkHookConfigResult {
 }
 
 /**
- * Parse one spark-hooks.json file. A Muse Code event name is refused with a
- * warning (it belongs in `.muse/hooks.json`, where it runs once); an unknown
- * name warns and is skipped while the rest of the file stays in effect.
- */
+Parse one spark-hooks.json file. A Muse Code event name is refused with a
+warning (it belongs in `.muse/hooks.json`, where it runs once); an unknown
+name warns and is skipped while the rest of the file stays in effect.
+*/
 export function parseSparkHooksConfig(
   text: string | undefined,
   source: Extract<HookSource, 'user' | 'project'>,
@@ -482,21 +482,21 @@ type SparkHookSource = Extract<HookSource, 'user' | 'project'>
 export interface SparkHookSnapshot {
   readonly hooks: readonly ExtensionHookDefinition[]
   /**
-   * The scopes whose spark-hooks.json is present but did not load whole:
-   * unreadable, too large, not text, linked out of the workspace, or with
-   * any diagnostic (RVM94KR 1). Other events keep what loaded; Tab's read
-   * guard refuses while one is listed, so a broken file never reads as none.
-   */
+  The scopes whose spark-hooks.json is present but did not load whole:
+  unreadable, too large, not text, linked out of the workspace, or with
+  any diagnostic (RVM94KR 1). Other events keep what loaded; Tab's read
+  guard refuses while one is listed, so a broken file never reads as none.
+  */
   readonly invalidSources: readonly SparkHookSource[]
 }
 
 /**
- * Load spark-hooks.json beside Muse Code's sources: the user's file next to
- * Muse Code's settings.json, then the project's inside the workspace. The
- * same gates as M51 hold: an untrusted workspace loads nothing, and the
- * caller keeps the per-session snapshot (this function reads the files, it
- * does not watch them).
- */
+Load spark-hooks.json beside Muse Code's sources: the user's file next to
+Muse Code's settings.json, then the project's inside the workspace. The
+same gates as M51 hold: an untrusted workspace loads nothing, and the
+caller keeps the per-session snapshot (this function reads the files, it
+does not watch them).
+*/
 export async function loadSparkHookSnapshot(deps: HookLoadDeps): Promise<SparkHookSnapshot> {
   if (!deps.isWorkspaceTrusted()) {
     return { hooks: [], invalidSources: [] }
@@ -557,12 +557,12 @@ export async function loadSparkHookDefinitions(
 // --- Payloads ---
 
 /**
- * What every extension hook receives: Claude Code's documented envelope
- * (`hook_event_name`, `session_id`, `cwd`, `transcript_path`,
- * `permission_mode`), plus this runtime's additions: `turn_id` on a
- * turn-bound event, and `model` with `model_provider`, so a hook sees which
- * model it advises.
- */
+What every extension hook receives: Claude Code's documented envelope
+(`hook_event_name`, `session_id`, `cwd`, `transcript_path`,
+`permission_mode`), plus this runtime's additions: `turn_id` on a
+turn-bound event, and `model` with `model_provider`, so a hook sees which
+model it advises.
+*/
 export interface ExtensionHookContext {
   readonly sessionId: string
   readonly workspaceRoot: string
@@ -673,11 +673,11 @@ export function directoryAddedFields(relativePath: string): Readonly<Record<stri
 }
 
 /**
- * What the user answered. A project hook sees the action and the field
- * names only; `values` are passed for user-scope hooks alone (the caller
- * decides the scope; lane M validates the answer against the schema).
- * @unwired M91 project hook elicitation fields
- */
+What the user answered. A project hook sees the action and the field
+names only; `values` are passed for user-scope hooks alone (the caller
+decides the scope; lane M validates the answer against the schema).
+@unwired M91 project hook elicitation fields
+*/
 export function elicitationResultFields(options: {
   readonly server: string
   readonly action: 'accept' | 'decline' | 'cancel'
@@ -779,10 +779,10 @@ function isAnswerRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Parse one command answer. Anything outside the closed per-event schema
- * fails the hook, never the operation: an observation hook cannot block, and
- * a refusal carries the hook's own reason.
- */
+Parse one command answer. Anything outside the closed per-event schema
+fails the hook, never the operation: an observation hook cannot block, and
+a refusal carries the hook's own reason.
+*/
 export function parseExtensionHookAnswer(
   event: ExtensionHookEvent,
   exitCode: number | null,
@@ -1090,12 +1090,12 @@ async function runExtensionHandler(
 }
 
 /**
- * Execute the matching extension hooks, one at a time: extension events are
- * rare, and sequential runs never exceed the host-wide hook cap from `hooks.ts`.
- * An async hook runs without waiting and its output is dropped. A refused
- * operation keeps the first reason; display text and tool narrowings take the
- * last answer, like `updatedInput` does.
- */
+Execute the matching extension hooks, one at a time: extension events are
+rare, and sequential runs never exceed the host-wide hook cap from `hooks.ts`.
+An async hook runs without waiting and its output is dropped. A refused
+operation keeps the first reason; display text and tool narrowings take the
+last answer, like `updatedInput` does.
+*/
 export async function dispatchExtensionHooks(options: {
   readonly hooks: readonly ExtensionHookDefinition[]
   readonly event: ExtensionHookEvent
@@ -1209,11 +1209,11 @@ export interface FileChangedThrottle {
 }
 
 /**
- * One FileChanged run per path per quiet window, at most
- * `HOOK_FILE_CHANGED_MAX_PER_MINUTE` runs a minute; the rest report
- * `capped` so the caller drops and counts them in the log. Pure time comes
- * from the caller, so tests drive it with a fake clock.
- */
+One FileChanged run per path per quiet window, at most
+`HOOK_FILE_CHANGED_MAX_PER_MINUTE` runs a minute; the rest report
+`capped` so the caller drops and counts them in the log. Pure time comes
+from the caller, so tests drive it with a fake clock.
+*/
 export function createFileChangedThrottle(): FileChangedThrottle {
   const minuteMs = SECONDS_PER_MINUTE * MILLISECONDS_PER_SECOND
   let windowStart = 0

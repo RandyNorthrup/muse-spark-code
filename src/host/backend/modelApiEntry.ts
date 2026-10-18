@@ -67,11 +67,11 @@ import { setUiText, uiLocale } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
 
 /**
- * Whether a spark-hooks.json exists, user's or project's, in a trusted
- * workspace: only then do its readers' bundles load (M91, D6). Hooks are on
- * by default (D78), so a session without the file never loads them. One byte
- * at most is read; the readers confine and check the file themselves.
- */
+Whether a spark-hooks.json exists, user's or project's, in a trusted
+workspace: only then do its readers' bundles load (M91, D6). Hooks are on
+by default (D78), so a session without the file never loads them. One byte
+at most is read; the readers confine and check the file themselves.
+*/
 async function hasSparkHooksFile(sources: HookLoadDeps): Promise<boolean> {
   if (!sources.isWorkspaceTrusted()) return false
   const { user, project } = sparkHooksFiles(sources)
@@ -82,11 +82,11 @@ async function hasSparkHooksFile(sources: HookLoadDeps): Promise<boolean> {
 }
 
 /**
- * Hooks imported in another agent's format, read by the adapters' own bundle
- * (dist/foreignHooks.js, M91 lane W) when a spark-hooks.json exists. A bundle
- * that cannot load leaves them out and says so in the log, as an unreadable
- * file does.
- */
+Hooks imported in another agent's format, read by the adapters' own bundle
+(dist/foreignHooks.js, M91 lane W) when a spark-hooks.json exists. A bundle
+that cannot load leaves them out and says so in the log, as an unreadable
+file does.
+*/
 async function loadForeignHooks(sources: HookLoadDeps): Promise<readonly HookDefinition[]> {
   if (!(await hasSparkHooksFile(sources))) return []
   let entry

@@ -23,9 +23,9 @@ export interface MuseSettingsDeps extends CredentialPathInput {
 }
 
 /**
- * Only the `run` block; each member the extension reads is checked on its
- * own, so one of another type costs that fact alone, never the other.
- */
+Only the `run` block; each member the extension reads is checked on its
+own, so one of another type costs that fact alone, never the other.
+*/
 const settingsSchema = z.object({ run: z.optional(z.record(z.string(), z.unknown())) })
 
 export function museSettingsPath(input: CredentialPathInput): string {

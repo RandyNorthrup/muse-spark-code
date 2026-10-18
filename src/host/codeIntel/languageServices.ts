@@ -91,9 +91,9 @@ const markedCodeSchema = z.object({ language: z.string(), value: z.string() })
 const markdownSchema = z.object({ value: z.string() })
 
 /**
- * A hover part as Markdown, code fenced. A shape VS Code does not document
- * is shown as it came, never dropped (AGENTS rule 13).
- */
+A hover part as Markdown, code fenced. A shape VS Code does not document
+is shown as it came, never dropped (AGENTS rule 13).
+*/
 function hoverText(part: unknown): string {
   if (typeof part === 'string') {
     return part

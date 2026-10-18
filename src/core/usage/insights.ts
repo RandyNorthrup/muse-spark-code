@@ -108,10 +108,10 @@ export function parseTraceLog(text: string): TraceLogFacts {
 }
 
 /**
- * A subagent's child run is named by the CLI (its own `run_kind="turn"` in
- * the child session, so the turn flag alone cannot tell); a run with no
- * surface line is the turn's own; a one-tool child is a reminder.
- */
+A subagent's child run is named by the CLI (its own `run_kind="turn"` in
+the child session, so the turn flag alone cannot tell); a run with no
+surface line is the turn's own; a one-tool child is a reminder.
+*/
 export function classifyRun(run: TraceRun | undefined): AttemptClass {
   if (run === undefined) {
     return 'turn'
@@ -188,9 +188,9 @@ export interface BillableUsage {
 }
 
 /**
- * Dollars for one conversation's tokens at Meta's published per-token
- * prices (the tier is the model's: contributor models carry the suffix).
- */
+Dollars for one conversation's tokens at Meta's published per-token
+prices (the tier is the model's: contributor models carry the suffix).
+*/
 export function estimateCostUsd(usage: BillableUsage, modelId: string): UsdAmount {
   const tier = modelApiPaidTier(modelId)
   if (tier === undefined) throw new Error(UI_TEXT.subagentTariffUnknown)

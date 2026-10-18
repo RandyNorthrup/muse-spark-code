@@ -278,12 +278,12 @@ export function runGoalTool(
 }
 
 /**
- * A user's verb (MSP `goal/<verb>`) applied to the goal, or the refusal
- * Muse Code gives (captured live 2026-09-25): none to act on (`noGoal`), or
- * a pause of a goal that is not active, a resume of one that is not paused,
- * an edit of a finished one (`wrongState`). A set replaces whatever was
- * there; an edit keeps the status.
- */
+A user's verb (MSP `goal/<verb>`) applied to the goal, or the refusal
+Muse Code gives (captured live 2026-09-25): none to act on (`noGoal`), or
+a pause of a goal that is not active, a resume of one that is not paused,
+an edit of a finished one (`wrongState`). A set replaces whatever was
+there; an edit keeps the status.
+*/
 export function applyGoalCommand(
   goal: GoalRecord | undefined,
   command: GoalCommand,
@@ -352,10 +352,10 @@ export function toSessionGoal(goal: GoalRecord): SessionGoal {
 }
 
 /**
- * The section pinned into the instructions while the goal is active (D38):
- * only the objective and rules. Mutable progress travels in a request-only
- * trailing message, outside the cached prefix (M101, D81).
- */
+The section pinned into the instructions while the goal is active (D38):
+only the objective and rules. Mutable progress travels in a request-only
+trailing message, outside the cached prefix (M101, D81).
+*/
 export function goalInstructions(goal: GoalRecord | undefined): string | undefined {
   if (!isGoalActive(goal)) {
     return undefined

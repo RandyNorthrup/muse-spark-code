@@ -50,12 +50,12 @@ const IDENTIFIER_CHARACTER = /[\w$]/u
 const LOAD_CALL = /(\bimport\(|\brequire\()/u
 
 /**
- * Loads whose file name is worked out at run time, each with the reason the
- * registry still knows the file: where the name is a literal the scan reads.
- * `call` is the callee and its first argument without white space. Any other
- * computed load fails the check, and so does an entry here that no longer
- * matches a load in the source.
- */
+Loads whose file name is worked out at run time, each with the reason the
+registry still knows the file: where the name is a literal the scan reads.
+`call` is the callee and its first argument without white space. Any other
+computed load fails the check, and so does an entry here that no longer
+matches a load in the source.
+*/
 export const COMPUTED_SOURCE_LOADS = Object.freeze([
   Object.freeze({
     importer: 'src/host/lazyBundle.ts',
@@ -90,14 +90,14 @@ export const COMPUTED_SOURCE_LOADS = Object.freeze([
 ])
 
 /**
- * File names the sources spell that the process holding the source does not
- * load, each with its reason and the package that must carry the file. The
- * generator takes no load from such a name (it gives no side to the file and
- * asks nothing of the other package), checks that the build emits the file
- * and that the named package carries it, and fails on an entry the source no
- * longer holds. The line scan skipped this form by its shape and said
- * nothing; here it is listed.
- */
+File names the sources spell that the process holding the source does not
+load, each with its reason and the package that must carry the file. The
+generator takes no load from such a name (it gives no side to the file and
+asks nothing of the other package), checks that the build emits the file
+and that the named package carries it, and fails on an entry the source no
+longer holds. The line scan skipped this form by its shape and said
+nothing; here it is listed.
+*/
 export const NAMED_NOT_LOADED = Object.freeze([
   Object.freeze({
     importer: 'src/runtime/schedules/wake.ts',
@@ -110,10 +110,10 @@ export const NAMED_NOT_LOADED = Object.freeze([
 ])
 
 /**
- * Whether the text reads the constant as a whole name: no identifier
- * character on either side. A search, never an expression built from the
- * name: the name comes out of scanned source.
- */
+Whether the text reads the constant as a whole name: no identifier
+character on either side. A search, never an expression built from the
+name: the name comes out of scanned source.
+*/
 export function hasIdentifier(text, identifier) {
   if (identifier === '') return false
   let at = text.indexOf(identifier)
@@ -243,10 +243,10 @@ function requireNames(tree) {
 }
 
 /**
- * The argument naming the file when the node loads one: a dynamic import, a
- * require (Node's, or one made by createRequire) or a worker start. `null`
- * for a load with no argument, `undefined` for any other node.
- */
+The argument naming the file when the node loads one: a dynamic import, a
+require (Node's, or one made by createRequire) or a worker start. `null`
+for a load with no argument, `undefined` for any other node.
+*/
 function loadArgument(node, requires) {
   if (ts.isCallExpression(node)) {
     const callee = node.expression
@@ -320,11 +320,11 @@ function isInLoadCall(node, requires) {
 }
 
 /**
- * The function, method or module-level declaration a node stands in:
- * `ModelApiHost.toolAssist`, `agentFileBeside`, `WEB_FETCH_BUNDLE_FILE`.
- * A registry row names this instead of a line number, so an unrelated edit
- * of the file does not make the registry stale.
- */
+The function, method or module-level declaration a node stands in:
+`ModelApiHost.toolAssist`, `agentFileBeside`, `WEB_FETCH_BUNDLE_FILE`.
+A registry row names this instead of a line number, so an unrelated edit
+of the file does not make the registry stale.
+*/
 function symbolOf(node) {
   for (let at = node.parent; at !== undefined; at = at.parent) {
     const isMember =
@@ -351,30 +351,30 @@ function symbolOf(node) {
 }
 
 /**
- * @typedef {object} LazyRequest
- * @property {string} importer root-relative source with forward slashes
- * @property {number} line 1-based line of the naming literal
- * @property {string} value the dist name as spelled (dist/, relative or bare)
- * @property {string} symbol the function, method or constant it stands in
- * @property {string|undefined} identifier the const holding it, when assigned
- *
- * @typedef {object} ComputedLoad
- * @property {string} importer root-relative source with forward slashes
- * @property {number} line 1-based line of the load
- * @property {string} call the callee and its first argument, no white space
- *
- * @typedef {object} LazyScan
- * @property {LazyRequest[]} requests
- * @property {Map<string, string>} definitions bundle-name constant to defining file
- * @property {Map<string, string[]>} uses constant to every other mentioning file
- * @property {Map<string, string[]>} usesLoad constant to files loading by it
- * @property {ComputedLoad[]} computed loads whose file name is not a literal
- */
+@typedef {object} LazyRequest
+@property {string} importer root-relative source with forward slashes
+@property {number} line 1-based line of the naming literal
+@property {string} value the dist name as spelled (dist/, relative or bare)
+@property {string} symbol the function, method or constant it stands in
+@property {string|undefined} identifier the const holding it, when assigned
+
+@typedef {object} ComputedLoad
+@property {string} importer root-relative source with forward slashes
+@property {number} line 1-based line of the load
+@property {string} call the callee and its first argument, no white space
+
+@typedef {object} LazyScan
+@property {LazyRequest[]} requests
+@property {Map<string, string>} definitions bundle-name constant to defining file
+@property {Map<string, string[]>} uses constant to every other mentioning file
+@property {Map<string, string[]>} usesLoad constant to files loading by it
+@property {ComputedLoad[]} computed loads whose file name is not a literal
+*/
 
 /**
- * One parsed source: the tree, its comment-free lines, and the literals that
- * start on each line (for the rules that read what stands beside a name).
- */
+One parsed source: the tree, its comment-free lines, and the literals that
+start on each line (for the rules that read what stands beside a name).
+*/
 function parseSource(file, text) {
   const tree = ts.createSourceFile(
     file,
@@ -478,21 +478,21 @@ function isRead(node) {
 }
 
 /**
- * Every dist name the sources load by file name, with the constants that
- * hold such names, where each constant is read and loaded, and every load
- * whose file name is not a literal.
- *
- * A literal counts when it names the file: an entry-relative path always; a
- * dist/ path unless it stands alone in a list; a bare `name.js` when a
- * constant holds it or it stands beside a loader hint or another path; an
- * extensionless relative name only as the argument of a load. Module names in
- * `import ... from` never count (the bundler inlines those). A template with
- * no substitution is a literal like any other; a load whose argument is
- * anything else is recorded in `computed`.
- * @param {string} root repository root
- * @param {string} generatedFile root-relative generated registry to skip
- * @returns {LazyScan}
- */
+Every dist name the sources load by file name, with the constants that
+hold such names, where each constant is read and loaded, and every load
+whose file name is not a literal.
+
+A literal counts when it names the file: an entry-relative path always; a
+dist/ path unless it stands alone in a list; a bare `name.js` when a
+constant holds it or it stands beside a loader hint or another path; an
+extensionless relative name only as the argument of a load. Module names in
+`import ... from` never count (the bundler inlines those). A template with
+no substitution is a literal like any other; a load whose argument is
+anything else is recorded in `computed`.
+@param {string} root repository root
+@param {string} generatedFile root-relative generated registry to skip
+@returns {LazyScan}
+*/
 export function scanRequests(root, generatedFile) {
   const files = sourceFiles(path.join(root, 'src'), path.join(root, generatedFile))
   const relative = (file) => path.relative(root, file).replaceAll('\\', '/')
@@ -596,12 +596,12 @@ export function scanRequests(root, generatedFile) {
 }
 
 /**
- * The computed loads the registry cannot stand behind: every one that is not
- * listed with its reason, and every listed one the source no longer holds.
- * @param {readonly ComputedLoad[]} computed
- * @param {readonly {importer: string, call: string, reason: string}[]} [listed]
- * @returns {string[]} one sentence per failure, empty when all are listed
- */
+The computed loads the registry cannot stand behind: every one that is not
+listed with its reason, and every listed one the source no longer holds.
+@param {readonly ComputedLoad[]} computed
+@param {readonly {importer: string, call: string, reason: string}[]} [listed]
+@returns {string[]} one sentence per failure, empty when all are listed
+*/
 export function computedLoadFailures(computed, listed = COMPUTED_SOURCE_LOADS) {
   const failures = []
   const matched = new Set()
@@ -626,15 +626,15 @@ export function computedLoadFailures(computed, listed = COMPUTED_SOURCE_LOADS) {
 }
 
 /**
- * What one request loads: { mapped } for a redirect-map target, { file }
- * for a dist basename, { bundled: true } for an import the bundler inlines
- * (an entry-relative name whose source exists and the map does not cover).
- * dist/ prefixes and bare basenames always name dist files.
- * @param {string} root repository root
- * @param {Map<string, string>} deferredOutfiles absolute source entry to dist output
- * @param {LazyRequest} request
- * @returns {{ mapped?: string, file?: string, bundled?: true }}
- */
+What one request loads: { mapped } for a redirect-map target, { file }
+for a dist basename, { bundled: true } for an import the bundler inlines
+(an entry-relative name whose source exists and the map does not cover).
+dist/ prefixes and bare basenames always name dist files.
+@param {string} root repository root
+@param {Map<string, string>} deferredOutfiles absolute source entry to dist output
+@param {LazyRequest} request
+@returns {{ mapped?: string, file?: string, bundled?: true }}
+*/
 export function resolveRequest(root, deferredOutfiles, request) {
   const { importer, value } = request
   if (value.startsWith('dist/')) return { file: value.slice('dist/'.length) }

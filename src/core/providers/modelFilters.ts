@@ -47,10 +47,10 @@ export interface ModelFilter {
 }
 
 /**
- * A model's family for the family facet: the last path segment up to its
- * first separator (`openai/gpt-oss-20b` → `gpt`, `deepseek-flash` →
- * `deepseek`, `qwen3:8b` → `qwen3`), lowercased.
- */
+A model's family for the family facet: the last path segment up to its
+first separator (`openai/gpt-oss-20b` → `gpt`, `deepseek-flash` →
+`deepseek`, `qwen3:8b` → `qwen3`), lowercased.
+*/
 export function familyOf(modelId: string): string {
   const last = modelId.split('/').at(-1) ?? modelId
   return (last.split(/[-_:.\s]/, 1)[0] ?? last).toLowerCase()
@@ -68,10 +68,10 @@ function isSearchMatch(row: ModelRow, search: string): boolean {
 }
 
 /**
- * The rows passing every set facet. Range bounds are inclusive; an
- * unpriced model passes no price facet but passes when no price facet is
- * set; a model with an unknown window passes no context facet.
- */
+The rows passing every set facet. Range bounds are inclusive; an
+unpriced model passes no price facet but passes when no price facet is
+set; a model with an unknown window passes no context facet.
+*/
 export function filterModels(rows: readonly ModelRow[], filter: ModelFilter): ModelRow[] {
   return rows.filter((row) => {
     if (!isSearchMatch(row, filter.search ?? '')) {
@@ -167,11 +167,11 @@ export interface ModelBadges {
 }
 
 /**
- * The badges for one row among its peers. Cheapest capable needs tool
- * calling, the harness's minimum context, a price and a runnable model —
- * a tool-less or unpriced model never wins it. Largest context needs the
- * widest known window. New comes from the scan diff.
- */
+The badges for one row among its peers. Cheapest capable needs tool
+calling, the harness's minimum context, a price and a runnable model —
+a tool-less or unpriced model never wins it. Largest context needs the
+widest known window. New comes from the scan diff.
+*/
 export function badgesFor(row: ModelRow, all: readonly ModelRow[]): ModelBadges {
   const capable = all.filter(
     (peer) =>

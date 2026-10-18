@@ -31,9 +31,9 @@ export interface RuntimeScheduleHostDeps {
 export class RuntimeScheduleHost implements ScheduleHostPort {
   private readonly workspaces = new Map<string, number>()
   /** In-memory run ledger for S's scheduler: admitted at dispatch, settled at
-   * final settlement. The injected engine owns durability across processes; a
-   * throw keeps the admitted marker (like the fake host) so a concurrent
-   * duplicate refuses instead of refiring while dispatch still owns recovery. */
+  final settlement. The injected engine owns durability across processes; a
+  throw keeps the admitted marker (like the fake host) so a concurrent
+  duplicate refuses instead of refiring while dispatch still owns recovery. */
   private readonly ledger = new Map<string, ScheduleDeliveryState>()
   constructor(private readonly deps: RuntimeScheduleHostDeps) {}
   lookupRun(runId: string): Promise<ScheduleDeliveryState> {

@@ -54,7 +54,7 @@ const INPUT_FORMATS: Readonly<Record<MediaFileInfo['mediaType'], string>> = {
 }
 
 /** REDM104L3's StrictModes/safe_path seam. The binding must realpath and check
- * every component's owner/mode and reject symlinks on the canonical path. */
+every component's owner/mode and reject symlinks on the canonical path. */
 interface TrustedPathVerifier {
   readonly verify: (
     file: string,
@@ -187,7 +187,7 @@ async function hasKnownVersion(
 }
 
 /** Documented installs or explicit configuration only; never consult PATH.
- * No verifier means no offer. Every version probe is itself a verified launch. */
+No verifier means no offer. Every version probe is itself a verified launch. */
 export async function locateMediaConverter(
   options: ConverterDiscoveryOptions = {},
 ): Promise<
@@ -231,13 +231,13 @@ export interface MediaConversionOptions extends ConverterVerification {
   readonly signal?: AbortSignal
   readonly timeoutMs?: number
   /** Native/kernel sampler for the encoder PID. Required off Linux until the
-   * M107 process-ticket binding is available; absent monitoring refuses. */
+  M107 process-ticket binding is available; absent monitoring refuses. */
   readonly readRssBytes?: (pid: number) => Promise<number>
   /** Fresh owner-only directory. Required on Windows: chmod cannot set its ACL.
-   * The host/native runtime creates the directory; conversion owns its cleanup. */
+  The host/native runtime creates the directory; conversion owns its cleanup. */
   readonly createPrivateDirectory?: () => Promise<string>
   /** Injected process boundary for other hosts and fake-only tests. It must
-   * enforce the supplied output/RSS/deadline limits and await child close. */
+  enforce the supplied output/RSS/deadline limits and await child close. */
   readonly run?: (
     command: string,
     args: readonly string[],

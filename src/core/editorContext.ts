@@ -9,10 +9,10 @@ import type { EditorContextSummary } from '../shared/protocol'
 
 export interface EditorContext extends EditorContextSummary {
   /**
-   * The highlighted text, or undefined when the file's content must not be
-   * shared (excluded from the workspace index, as Claude Code treats
-   * `files.exclude` / gitignored files: path only).
-   */
+  The highlighted text, or undefined when the file's content must not be
+  shared (excluded from the workspace index, as Claude Code treats
+  `files.exclude` / gitignored files: path only).
+  */
   readonly selectedText: string | undefined
 }
 

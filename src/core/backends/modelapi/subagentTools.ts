@@ -179,18 +179,18 @@ export function isSubagentTool(name: string): boolean {
 }
 
 /**
- * Which delegation family a conversation declares (M96, PLAN.md D75): a team
- * conversation declares the team's five tools and none of M48's six; every
- * other conversation declares exactly what it declares today. Never both.
- */
+Which delegation family a conversation declares (M96, PLAN.md D75): a team
+conversation declares the team's five tools and none of M48's six; every
+other conversation declares exactly what it declares today. Never both.
+*/
 export function delegationFamily(teamMode: 'single-model' | 'team'): 'team' | 'subagents' {
   return teamMode === 'team' ? 'team' : 'subagents'
 }
 
 /** M116: bind immediately before a new child/follow-up actually starts, after paid
- * consent and ordinary tool admission. Idempotent spawn retries start no work.
- * @unwired M116 playbook subagent dispatch
- * Muse Code's native spawn owner binds this same port at its dispatch boundary. */
+consent and ordinary tool admission. Idempotent spawn retries start no work.
+@unwired M116 playbook subagent dispatch
+Muse Code's native spawn owner binds this same port at its dispatch boundary. */
 export async function dispatchPlaybookSubagent<T>(
   playbook: PanelPlaybookPort,
   sessionId: string,

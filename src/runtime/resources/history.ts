@@ -27,9 +27,9 @@ export interface ResourceHistoryReader extends ResourceHistoryPort {
   /** Every stored entry, for Delete history's confirmation count. */
   count(): Promise<number>
   /**
-   * Delete history: holding the journal write lock, write the reset boundary and
-   * run `removeUsage` (the usage journal's reset), so no write lands in between.
-   */
+  Delete history: holding the journal write lock, write the reset boundary and
+  run `removeUsage` (the usage journal's reset), so no write lands in between.
+  */
   deleteHistory(removeUsage: () => Promise<void>): Promise<void>
 }
 
@@ -91,10 +91,10 @@ export interface ResourceHistoryRecorder {
 }
 
 /**
- * Feeds the governor's own samples and events into the journal. Nothing here
- * is awaited by admission: a slow or failing disk delays only history, and a
- * failure is reported once, never replaced by invented readings.
- */
+Feeds the governor's own samples and events into the journal. Nothing here
+is awaited by admission: a slow or failing disk delays only history, and a
+failure is reported once, never replaced by invented readings.
+*/
 export function resourceHistoryRecorder(
   binding: ResourceHistoryBinding,
   work: ResourceRecordWorkSource,
@@ -125,11 +125,11 @@ export function resourceHistoryRecorder(
   let liveAt = -Infinity
   let isSampling = false
   /**
-   * Consent and Delete history are checked when a reading is collected
-   * (RVM107W2 P2): while history is off, or once a delete has happened, the
-   * collector and everything it holds are dropped, so nothing from an off or
-   * deleted period can be written later.
-   */
+  Consent and Delete history are checked when a reading is collected
+  (RVM107W2 P2): while history is off, or once a delete has happened, the
+  collector and everything it holds are dropped, so nothing from an off or
+  deleted period can be written later.
+  */
   const isAdmitted = (): boolean => {
     const reset = readResourceReset(binding.dataFolder)
     const isOn = isConsented()

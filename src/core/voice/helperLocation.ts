@@ -31,16 +31,16 @@ export interface HelperProbe {
   /** `%ProgramFiles%`; undefined off Windows (then derived from `systemRoot`). */
   readonly programFiles: string | undefined
   /**
-   * The remote this extension host runs on (`vscode.env.remoteName` when the
-   * extension runs as a workspace extension in a remote window); undefined
-   * when the extension host is on the user's own machine.
-   */
+  The remote this extension host runs on (`vscode.env.remoteName` when the
+  extension runs as a workspace extension in a remote window); undefined
+  when the extension host is on the user's own machine.
+  */
   readonly remoteName: string | undefined
   /**
-   * The editor's own name (`vscode.env.appName`, "Visual Studio Code"): the
-   * app macOS would ask for the helper's microphone and speech permissions
-   * where the helper cannot disclaim it and ask under its own name (M28).
-   */
+  The editor's own name (`vscode.env.appName`, "Visual Studio Code"): the
+  app macOS would ask for the helper's microphone and speech permissions
+  where the helper cannot disclaim it and ask under its own name (M28).
+  */
   readonly appName: string
   /** The extension's `native/` folder. */
   readonly helperDir: string
@@ -63,13 +63,13 @@ const WINDOWS_SCRIPT_ARGS = [
 ] as const
 
 /**
- * Windows PowerShell 5.1 running one bundled script, in Windows paths
- * whatever the host (the unit tests run on all three). It gets exactly
- * Windows PowerShell's own module directories: 5.1 loads (or fails to load)
- * pwsh 7's modules when an extension host started from a PowerShell 7
- * terminal hands it pwsh 7's `PSModulePath`, the trap
- * `buildChildEnvironment` closes for `muse serve` (PLAN.md D1a).
- */
+Windows PowerShell 5.1 running one bundled script, in Windows paths
+whatever the host (the unit tests run on all three). It gets exactly
+Windows PowerShell's own module directories: 5.1 loads (or fails to load)
+pwsh 7's modules when an extension host started from a PowerShell 7
+terminal hands it pwsh 7's `PSModulePath`, the trap
+`buildChildEnvironment` closes for `muse serve` (PLAN.md D1a).
+*/
 function windowsScript(
   probe: HelperProbe,
   systemRoot: string,
@@ -85,12 +85,12 @@ function windowsScript(
 }
 
 /**
- * The bundled macOS helper with these flags and the app it names, or why
- * this build has none. macOS charges the helper's permission requests to the
- * app that started it (the extension host is VS Code's own process), so the
- * helper names that app in its refusals; a helper that dies before "ready"
- * died at a permission step or at Gatekeeper (M26, D29).
- */
+The bundled macOS helper with these flags and the app it names, or why
+this build has none. macOS charges the helper's permission requests to the
+app that started it (the extension host is VS Code's own process), so the
+helper names that app in its refusals; a helper that dies before "ready"
+died at a permission step or at Gatekeeper (M26, D29).
+*/
 function darwinHelper(
   probe: HelperProbe,
   flags: readonly string[],
@@ -111,10 +111,10 @@ function darwinHelper(
 }
 
 /**
- * The bundled helper on Windows or macOS, with this script or these flags,
- * or why it cannot run here; undefined on the other platforms, which each
- * locator answers for itself.
- */
+The bundled helper on Windows or macOS, with this script or these flags,
+or why it cannot run here; undefined on the other platforms, which each
+locator answers for itself.
+*/
 function bundledHelper(
   probe: HelperProbe,
   windowsScriptSegments: readonly string[],
@@ -152,14 +152,14 @@ export function locateDictationHelper(probe: HelperProbe): HelperLocation {
 }
 
 /**
- * The helper's environment: a copy of the extension host's own with the
- * invocation's variables set. On Windows a name is case-insensitive and
- * Node passes only the first spelling in sort order when a child's
- * environment holds two ("only first (in lexicographic order) entry will be
- * passed to the subprocess", the child_process docs), so an inherited
- * `PSMODULEPATH` would beat our `PSModulePath`; `setEnvironmentVariable`
- * drops the other spellings first.
- */
+The helper's environment: a copy of the extension host's own with the
+invocation's variables set. On Windows a name is case-insensitive and
+Node passes only the first spelling in sort order when a child's
+environment holds two ("only first (in lexicographic order) entry will be
+passed to the subprocess", the child_process docs), so an inherited
+`PSMODULEPATH` would beat our `PSModulePath`; `setEnvironmentVariable`
+drops the other spellings first.
+*/
 export function helperEnvironment(
   base: NodeJS.ProcessEnv,
   invocation: HelperInvocation,
@@ -192,10 +192,10 @@ export interface CaptureProbe extends HelperProbe {
 }
 
 /**
- * The capture helper for Muse Voice (M35): Windows PowerShell running the
- * bundled capture script, the Swift helper in capture mode, or on Linux the
- * system's recorder. A remote window records nothing, as for the free engine.
- */
+The capture helper for Muse Voice (M35): Windows PowerShell running the
+bundled capture script, the Swift helper in capture mode, or on Linux the
+system's recorder. A remote window records nothing, as for the free engine.
+*/
 export function locateCaptureHelper(probe: CaptureProbe): CaptureLocation {
   const helper = bundledHelper(probe, DICTATION_WINDOWS_CAPTURE_SEGMENTS, [
     DICTATION_DARWIN_CAPTURE_FLAG,

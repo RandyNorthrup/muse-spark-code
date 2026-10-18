@@ -109,12 +109,12 @@ async function withSessionWriter<T>(
 }
 
 /**
- * The header fields a listing validates (M101 BYO 16): the scalars the
- * history row needs, with the full schema's own field schemas (one source
- * for the constraints), plus the turn ids, whose items are never validated
- * here — only their count becomes the turn count. The replay and transcript
- * items themselves are never read.
- */
+The header fields a listing validates (M101 BYO 16): the scalars the
+history row needs, with the full schema's own field schemas (one source
+for the constraints), plus the turn ids, whose items are never validated
+here — only their count becomes the turn count. The replay and transcript
+items themselves are never read.
+*/
 const {
   version,
   sessionId,
@@ -198,12 +198,12 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
   }
 
   /**
-   * A session's header without its conversation (M101 BYO 16): listing
-   * parses the file's JSON once but validates only the header fields, so
-   * a history of large sessions lists without paying for every replay and
-   * transcript. A file whose header does not read is skipped with a log
-   * line, as before; the session itself is read whole when it is opened.
-   */
+  A session's header without its conversation (M101 BYO 16): listing
+  parses the file's JSON once but validates only the header fields, so
+  a history of large sessions lists without paying for every replay and
+  transcript. A file whose header does not read is skipped with a log
+  line, as before; the session itself is read whole when it is opened.
+  */
   const readHeader = async (name: string): Promise<StoredSessionHeader | undefined> => {
     const raw = await readRaw(name)
     if (raw === undefined) {

@@ -58,15 +58,15 @@ export interface HelperInvocation {
   readonly command: string
   readonly args: readonly string[]
   /**
-   * Variables set for the helper on top of the extension host's environment,
-   * replacing an inherited variable of the same name (`helperEnvironment`).
-   */
+  Variables set for the helper on top of the extension host's environment,
+  replacing an inherited variable of the same name (`helperEnvironment`).
+  */
   readonly environment?: Readonly<Record<string, string>>
   /**
-   * Said after the exit report when the helper ends before its "ready" line
-   * without being asked to: the operating system refused to run it or
-   * stopped it at a permission check (M26, PLAN.md D29).
-   */
+  Said after the exit report when the helper ends before its "ready" line
+  without being asked to: the operating system refused to run it or
+  stopped it at a permission check (M26, PLAN.md D29).
+  */
   readonly earlyExitHint?: string
 }
 

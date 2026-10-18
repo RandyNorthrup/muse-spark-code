@@ -61,11 +61,11 @@ export type OutputMatch = Readonly<Record<string, string | boolean | readonly st
 
 export type ResultRule =
   /**
-   * A documented veto: blocked. `stop` keeps the reason as stopReason;
-   * `approval` also denies the approval; `interrupt` names a boolean field that
-   * turns the veto into a stop. Checked on the raw output BEFORE strict
-   * validation, so an invalid sibling field never erases the veto.
-   */
+  A documented veto: blocked. `stop` keeps the reason as stopReason;
+  `approval` also denies the approval; `interrupt` names a boolean field that
+  turns the veto into a stop. Checked on the raw output BEFORE strict
+  validation, so an invalid sibling field never erases the veto.
+  */
   | {
       readonly kind: 'veto'
       readonly match: OutputMatch
@@ -174,9 +174,9 @@ export interface VendorContract {
   readonly common: readonly FieldSpec[]
   readonly rows: readonly EventRow[]
   /**
-   * Vendor code the table cannot express, run before the build: skip or
-   * refuse, or undefined to continue (Kiro's file-trigger path scope).
-   */
+  Vendor code the table cannot express, run before the build: skip or
+  refuse, or undefined to continue (Kiro's file-trigger path scope).
+  */
   readonly gate?: (
     payload: Readonly<Record<string, unknown>>,
     options: AdapterOptions | undefined,

@@ -59,9 +59,9 @@ function fileTools(hasUnsavedChanges: (absolutePath: string) => boolean = () => 
 const io = createMemoryIo(fileTools(), { warn: () => undefined })
 
 /**
- * A note located in a workspace of its own, whose notes folder is then
- * swapped for a junction to a folder outside before the note is written.
- */
+A note located in a workspace of its own, whose notes folder is then
+swapped for a junction to a folder outside before the note is written.
+*/
 async function locatedThenSwapped(
   name: string,
   note: string,

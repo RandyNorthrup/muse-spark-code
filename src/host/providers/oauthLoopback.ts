@@ -13,12 +13,12 @@ const LOOPBACK_HOST = '127.0.0.1'
 const CALLBACK_PATH = '/callback'
 
 /**
- * What the provider's callback carried (M101 BYO 12): the code plus every
- * callback parameter, so a sign-in that answers with more than a code
- * (ChatGPT's plan sign-in) keeps what it needs for the exchange and the
- * refresh. The waiter takes no abort signal: a token refresh runs outside
- * the turn's abort, and stopping a turn must never break a sign-in.
- */
+What the provider's callback carried (M101 BYO 12): the code plus every
+callback parameter, so a sign-in that answers with more than a code
+(ChatGPT's plan sign-in) keeps what it needs for the exchange and the
+refresh. The waiter takes no abort signal: a token refresh runs outside
+the turn's abort, and stopping a turn must never break a sign-in.
+*/
 export interface OAuthCallback {
   /** The `code` the exchange sends. */
   readonly code: string
@@ -32,10 +32,10 @@ export interface OAuthLoopback {
   /** The redirect URI to register (`http://127.0.0.1:<port>/callback`). */
   readonly redirectUri: string
   /**
-   * The provider's callback, once. Rejects on a wrong `state`, a provider
-   * refusal, the ten-minute end, or `close`. The server is closed however
-   * this settles.
-   */
+  The provider's callback, once. Rejects on a wrong `state`, a provider
+  refusal, the ten-minute end, or `close`. The server is closed however
+  this settles.
+  */
   waitForCode(): Promise<OAuthCallback>
   /** Stops listening; a pending `waitForCode` rejects. Idempotent. */
   close(): void
@@ -47,10 +47,10 @@ function answer(response: ServerResponse, status: number, body: string): void {
 }
 
 /**
- * Starts the one-shot callback server for one connect flow. `state` is the
- * flow's unguessable value (lane P's `pkce.ts` makes it); only a callback
- * carrying it releases the code.
- */
+Starts the one-shot callback server for one connect flow. `state` is the
+flow's unguessable value (lane P's `pkce.ts` makes it); only a callback
+carrying it releases the code.
+*/
 export async function startOAuthLoopback(
   state: string,
   timeoutMs: number = OAUTH_LOOPBACK_TIMEOUT_MS,

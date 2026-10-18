@@ -42,12 +42,12 @@ const textSchema = z.string().check(z.minLength(1), z.maxLength(LEGAL_TEXT_MAX_C
 const identifierSchema = z.string().check(z.minLength(1), z.maxLength(LEGAL_FINDING_ID_MAX_CHARS))
 
 /**
- * One evidence-based finding (D76): its severity and category, where it was
- * seen, what declared it, why it matters, what to do, and whether the
- * selected-fix handoff may offer it. Missing evidence stays unknown: every
- * applicable field is optional except the id, severity, category,
- * explanation, recommendation and fixable flag.
- */
+One evidence-based finding (D76): its severity and category, where it was
+seen, what declared it, why it matters, what to do, and whether the
+selected-fix handoff may offer it. Missing evidence stays unknown: every
+applicable field is optional except the id, severity, category,
+explanation, recommendation and fixable flag.
+*/
 export const legalFindingSchema = z.strictObject({
   id: idSchema,
   severity: z.enum(LEGAL_SEVERITIES),
@@ -73,11 +73,11 @@ export const legalFindingSchema = z.strictObject({
 export type LegalFinding = z.infer<typeof legalFindingSchema>
 
 /**
- * What the `legal_scan` tool takes (D76): nothing by default, which scans
- * the whole workspace under the configured header policy. `paths` names an
- * explicit subset; `headerPolicy` overrides the setting for this scan only.
- * It never exposes a write operation.
- */
+What the `legal_scan` tool takes (D76): nothing by default, which scans
+the whole workspace under the configured header policy. `paths` names an
+explicit subset; `headerPolicy` overrides the setting for this scan only.
+It never exposes a write operation.
+*/
 export const legalScanInputSchema = z.strictObject({
   paths: z.optional(z.array(pathSchema).check(z.maxLength(LEGAL_SCAN_PATHS_MAX))),
   headerPolicy: z.optional(z.enum(LEGAL_HEADER_POLICIES)),
@@ -85,10 +85,10 @@ export const legalScanInputSchema = z.strictObject({
 export type LegalScanInput = z.infer<typeof legalScanInputSchema>
 
 /**
- * The versioned, deterministic result (D76): rule/data versions, scan scope,
- * distribution assumptions, exclusions, incomplete checks and sorted
- * evidence. Changing only the model or backend never changes these facts.
- */
+The versioned, deterministic result (D76): rule/data versions, scan scope,
+distribution assumptions, exclusions, incomplete checks and sorted
+evidence. Changing only the model or backend never changes these facts.
+*/
 export const legalScanResultSchema = z.strictObject({
   disclaimer: z.optional(textSchema),
   paidExplanation: z.optional(textSchema),
@@ -117,12 +117,12 @@ export const legalScanResultSchema = z.strictObject({
 export type LegalScanResult = z.infer<typeof legalScanResultSchema>
 
 /**
- * The deterministic scanner (lane S) as lanes B, W and R call it: lane 0's
- * input in, lane 0's result out, stopped by the signal. A type only, so both
- * the activation bundle and the Model API bundle name the same contract
- * without either carrying the scanner. It never writes, runs a command or
- * installs; it reads the workspace under lane 0's limits.
- */
+The deterministic scanner (lane S) as lanes B, W and R call it: lane 0's
+input in, lane 0's result out, stopped by the signal. A type only, so both
+the activation bundle and the Model API bundle name the same contract
+without either carrying the scanner. It never writes, runs a command or
+installs; it reads the workspace under lane 0's limits.
+*/
 export type LegalScanRunner = (
   input: LegalScanInput,
   signal: AbortSignal,

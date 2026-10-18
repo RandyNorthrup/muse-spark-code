@@ -21,10 +21,10 @@ export class FifoLimiter {
   }
 
   /**
-   * Runs `task` once a slot is free, in the order `run` was called. When its
-   * turn comes, a task no longer wanted (`isWanted` says so) is not run at
-   * all: `run` rejects with `dropped()` and the slot goes to the next.
-   */
+  Runs `task` once a slot is free, in the order `run` was called. When its
+  turn comes, a task no longer wanted (`isWanted` says so) is not run at
+  all: `run` rejects with `dropped()` and the slot goes to the next.
+  */
   public async run<T>(
     task: () => Promise<T>,
     isWanted: () => boolean,

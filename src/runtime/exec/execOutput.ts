@@ -81,7 +81,7 @@ export function redactWhole(text: string, literals: readonly string[]): string {
 }
 
 /** A refused providers file is its own refusal: the crash line carries its
- * sentence, never a raw stack. Anything else keeps the crash stack. */
+sentence, never a raw stack. Anything else keeps the crash stack. */
 export function crashTextForLog(error: unknown): string {
   if (error instanceof Error && isInvalidProvidersFileError(error)) return error.message
   return error instanceof Error ? (error.stack ?? error.message) : String(error)

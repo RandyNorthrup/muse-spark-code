@@ -138,10 +138,10 @@ export interface SubscriptionRegistryDeps {
   readonly saveUsage?: (rows: readonly PlanUsageRow[]) => void
   readonly copilotUsage?: () => readonly PlanUsageRow[]
   /**
-   * How long the ChatGPT stream may send nothing, headers or frames, before
-   * it is ended (MODEL_API_STREAM_IDLE_MS when absent). It is the only time
-   * limit on that stream: there is no limit on its total.
-   */
+  How long the ChatGPT stream may send nothing, headers or frames, before
+  it is ended (MODEL_API_STREAM_IDLE_MS when absent). It is the only time
+  limit on that stream: there is no limit on its total.
+  */
   readonly streamIdleMs?: number
 }
 

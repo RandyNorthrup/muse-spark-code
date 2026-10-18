@@ -29,10 +29,10 @@ export interface JudgeTokenPrices {
 }
 
 /**
- * The verified tariff for a model, or undefined when the extension knows no
- * price for it. Unpriced models are refused, never estimated (a suffix
- * display fallback is not a verified tariff or capped spending).
- */
+The verified tariff for a model, or undefined when the extension knows no
+price for it. Unpriced models are refused, never estimated (a suffix
+display fallback is not a verified tariff or capped spending).
+*/
 export function judgePriceOf(modelId: string): JudgeTokenPrices | undefined {
   const tier = modelApiPaidTier(modelId)
   if (tier === undefined) return undefined
@@ -83,11 +83,11 @@ function verifiedPrices(
 }
 
 /**
- * The worst-case uncached price of one judge call: the estimated input at
- * the full input rate plus the whole output allowance at the output rate,
- * with no cache discount assumed. Throws JudgeUnpricedError for a model
- * with no verified tariff, TypeError for caller-bug counts.
- */
+The worst-case uncached price of one judge call: the estimated input at
+the full input rate plus the whole output allowance at the output rate,
+with no cache discount assumed. Throws JudgeUnpricedError for a model
+with no verified tariff, TypeError for caller-bug counts.
+*/
 export function worstCaseJudgeCostUsd(args: {
   readonly modelId: string
   readonly estimatedInputTokens: number
@@ -117,10 +117,10 @@ export type JudgeAdmissionEngine = 'auto' | 'same'
 export type JudgeAdmissionConsent = 'granted' | 'not-required' | 'needed' | 'declined'
 
 /**
- * What a dispatch is bound to. After every wait (a held consent modal, a
- * delayed dispatch) the claim is re-bound to the current binding, and any
- * change refuses the dispatch while keeping the liability.
- */
+What a dispatch is bound to. After every wait (a held consent modal, a
+delayed dispatch) the claim is re-bound to the current binding, and any
+change refuses the dispatch while keeping the liability.
+*/
 interface JudgeBindingIdentity {
   readonly ownerId: string
   readonly modelId: string
@@ -139,10 +139,10 @@ export type JudgeAdmissionBinding = JudgeBindingIdentity &
   )
 
 /**
- * One durable claim in the daily ledger. Settlement is idempotent by claim
- * id for the same value; a conflicting re-settle throws JudgeLedgerError.
- * A store failure throws JudgeLedgerError: fail closed, never forgiven.
- */
+One durable claim in the daily ledger. Settlement is idempotent by claim
+id for the same value; a conflicting re-settle throws JudgeLedgerError.
+A store failure throws JudgeLedgerError: fail closed, never forgiven.
+*/
 export interface JudgeLedgerClaim {
   readonly claimId: string
   readonly reservedUsd: UsdAmount
@@ -152,22 +152,22 @@ export interface JudgeLedgerClaim {
 }
 
 /**
- * D78's daily ledger as lane A requires it. The reservation is committed
- * durably before dispatch; `remainingUsd` already excludes open
- * reservations. A method throws JudgeLedgerError (or a ledger error this
- * module wraps) on an unreadable store, a lock failure or any other fault:
- * admission then refuses and settlement keeps the liability.
- */
+D78's daily ledger as lane A requires it. The reservation is committed
+durably before dispatch; `remainingUsd` already excludes open
+reservations. A method throws JudgeLedgerError (or a ledger error this
+module wraps) on an unreadable store, a lock failure or any other fault:
+admission then refuses and settlement keeps the liability.
+*/
 export interface JudgeDailyLedger {
   remainingUsd(): Promise<UsdAmount>
   reserve(costUsd: UsdAmount): Promise<JudgeLedgerClaim>
 }
 
 /**
- * Where the call is billed. On the Model API the `judge` paid feature bills
- * each call to the Model API key through the daily ledger; on Muse Code the
- * subscription covers it and no claim is made.
- */
+Where the call is billed. On the Model API the `judge` paid feature bills
+each call to the Model API key through the daily ledger; on Muse Code the
+subscription covers it and no claim is made.
+*/
 export type JudgeBilling =
   | { readonly kind: 'metered'; readonly ledger: JudgeDailyLedger }
   | { readonly kind: 'subscription' }
@@ -200,12 +200,12 @@ export interface JudgeKnownUsage {
 }
 
 /**
- * One admitted call. `settleKnown` settles the verified actual cost (cached
- * tokens discounted, as reported); `refundNonSend` settles zero for a call
- * known never sent. There is deliberately no third way out: a timeout, a
- * lost response or any other uncertain outcome keeps the full reservation
- * as liability by simply doing nothing.
- */
+One admitted call. `settleKnown` settles the verified actual cost (cached
+tokens discounted, as reported); `refundNonSend` settles zero for a call
+known never sent. There is deliberately no third way out: a timeout, a
+lost response or any other uncertain outcome keeps the full reservation
+as liability by simply doing nothing.
+*/
 export interface JudgeAdmissionClaim {
   readonly claimId: string
   readonly reservedUsd: UsdAmount
@@ -373,13 +373,13 @@ function createClaim(args: {
 }
 
 /**
- * Admit one judge call: reserve its worst-case uncached price before
- * dispatch. Fail-closed order: an invalid binding, a missing or declined
- * paid consent, an unpriced model, a call over the remaining budget, and an
- * unreadable ledger each refuse. Any owned known nonsent reservation is
- * refunded on refusal; a failed refund retains liability. A batch is one
- * call; a retry admits again for a new claim.
- */
+Admit one judge call: reserve its worst-case uncached price before
+dispatch. Fail-closed order: an invalid binding, a missing or declined
+paid consent, an unpriced model, a call over the remaining budget, and an
+unreadable ledger each refuse. Any owned known nonsent reservation is
+refunded on refusal; a failed refund retains liability. A batch is one
+call; a retry admits again for a new claim.
+*/
 export async function admitJudgeCall(request: JudgeAdmissionRequest): Promise<JudgeAdmission> {
   assertUsableCount(request.estimatedInputTokens, 'estimated input tokens')
   assertUsableCount(request.maxOutputTokens, 'max output tokens')
@@ -508,11 +508,11 @@ export type JudgeRebindRefusal =
   | 'ledger-unavailable'
 
 /**
- * Re-bind a claim after a wait to the current owner, backend, model, engine,
- * confidential flag and consent. Pure: any change refuses, so the caller
- * keeps the liability (refunding only a known non-send) instead of
- * dispatching under a stale binding.
- */
+Re-bind a claim after a wait to the current owner, backend, model, engine,
+confidential flag and consent. Pure: any change refuses, so the caller
+keeps the liability (refunding only a known non-send) instead of
+dispatching under a stale binding.
+*/
 export function rebindJudgeClaim(
   claim: JudgeAdmissionClaim,
   current: JudgeAdmissionBinding,
@@ -547,12 +547,12 @@ function rebindBinding(
 }
 
 /**
- * The last check before dispatch, after every wait (a held consent modal, a
- * delayed batch): the binding is current, the claim is still open, and the
- * ledger is still reachable. Anything else refuses the dispatch; the
- * liability stays reserved until a known settlement or non-send refund.
- * Subscription claims need no ledger: pass none.
- */
+The last check before dispatch, after every wait (a held consent modal, a
+delayed batch): the binding is current, the claim is still open, and the
+ledger is still reachable. Anything else refuses the dispatch; the
+liability stays reserved until a known settlement or non-send refund.
+Subscription claims need no ledger: pass none.
+*/
 export async function verifyJudgeDispatch(
   claim: JudgeAdmissionClaim,
   current: JudgeAdmissionBinding | (() => JudgeAdmissionBinding),

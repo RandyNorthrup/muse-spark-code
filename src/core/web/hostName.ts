@@ -9,10 +9,10 @@ const IPV6_CLOSE = ']'
 export const LABEL_SEPARATOR = '.'
 
 /**
- * The host as a lookup takes it: `[::1]` → `::1`, and every trailing dot
- * dropped (`example.com.` and `localhost..` → `example.com`, `localhost`),
- * so no spelling slips past the reserved-name check.
- */
+The host as a lookup takes it: `[::1]` → `::1`, and every trailing dot
+dropped (`example.com.` and `localhost..` → `example.com`, `localhost`),
+so no spelling slips past the reserved-name check.
+*/
 export function bareHost(hostname: string): string {
   if (hostname.startsWith(IPV6_OPEN) && hostname.endsWith(IPV6_CLOSE)) {
     return hostname.slice(1, -1)
@@ -25,9 +25,9 @@ export function bareHost(hostname: string): string {
 }
 
 /**
- * What a per-host approval is keyed on (M69): the host, its trailing dots
- * dropped, and a port other than 443.
- */
+What a per-host approval is keyed on (M69): the host, its trailing dots
+dropped, and a port other than 443.
+*/
 export function approvalHost(url: URL): string {
   const host = url.hostname.toLowerCase()
   const name = host.startsWith(IPV6_OPEN) ? host : bareHost(host)

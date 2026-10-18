@@ -85,10 +85,10 @@ const COMPLETED_TERMINAL = 'completed'
 const EMPTY_STATE_JSON = '{}'
 
 /**
- * Git's words for the panel: the whole text redacted first, then cut to
- * size, so a cut can never strip the name that marks a credential and
- * leave its value.
- */
+Git's words for the panel: the whole text redacted first, then cut to
+size, so a cut can never strip the name that marks a credential and
+leave its value.
+*/
 function nativeFailureText(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error)
   return redactSecrets(text).slice(-STDERR_SHOWN_CHARS)
@@ -153,10 +153,10 @@ interface PendingDraft {
 }
 
 /**
- * The runtime Git adapter. Owns one conversation's forms, drafts and
- * link display; the service owns git itself. Trust, session and lifetime
- * are rechecked after every await, as the VS Code adapter does.
- */
+The runtime Git adapter. Owns one conversation's forms, drafts and
+link display; the service owns git itself. Trust, session and lifetime
+are rechecked after every await, as the VS Code adapter does.
+*/
 export class RuntimeGit implements ConversationGitPort {
   private readonly service: NativeGitService
   private operationEpoch = 0
@@ -209,9 +209,9 @@ export class RuntimeGit implements ConversationGitPort {
   }
 
   /**
-   * A consent belongs to this conversation and trust state, never to a
-   * later one. The service runs this after every await and at the spawn.
-   */
+  A consent belongs to this conversation and trust state, never to a
+  later one. The service runs this after every await and at the spawn.
+  */
   private activityCheck(): () => void {
     const watched = { epoch: this.operationEpoch, session: this.surface.sessionId() }
     return () => {
@@ -402,11 +402,11 @@ export class RuntimeGit implements ConversationGitPort {
   }
 
   /**
-   * Only git's own failure of the confirmed push, while this conversation
-   * still owns a trusted operation, names the remote and offers the same
-   * command (the same `git`, the bound root) in the editor's terminal
-   * (D104). A refusal, a lost trust or owner, Cancel or a timeout never does.
-   */
+  Only git's own failure of the confirmed push, while this conversation
+  still owns a trusted operation, names the remote and offers the same
+  command (the same `git`, the bound root) in the editor's terminal
+  (D104). A refusal, a lost trust or owner, Cancel or a timeout never does.
+  */
   private async pushFailed(
     plan: NativePushPlan,
     error: unknown,
@@ -535,10 +535,10 @@ export class RuntimeGit implements ConversationGitPort {
   }
 
   /**
-   * Runs `operation` unless another commit, push or pull request operation
-   * is running for this conversation: a second press is ignored, and a
-   * form's press is answered as failed, so its buttons come back.
-   */
+  Runs `operation` unless another commit, push or pull request operation
+  is running for this conversation: a second press is ignored, and a
+  form's press is answered as failed, so its buttons come back.
+  */
   private async exclusively(
     operation: (running: NativeGitOperation) => Promise<void>,
     form?: 'commit' | 'pullRequest',
@@ -589,10 +589,10 @@ export class RuntimeGit implements ConversationGitPort {
   }
 
   /**
-   * The new files' bytes appended to the diff, within the prompt's budget,
-   * each read confined to the bound root by the identity of every
-   * directory on its way (never through a swapped link or junction).
-   */
+  The new files' bytes appended to the diff, within the prompt's budget,
+  each read confined to the bound root by the identity of every
+  directory on its way (never through a swapped link or junction).
+  */
   private async withNewFiles(
     diff: string,
     untracked: readonly string[],
@@ -766,9 +766,9 @@ export class RuntimeGit implements ConversationGitPort {
   }
 
   /**
-   * What the model needs beside the user's own message asking for `kind`.
-   * Throws with the reason in words when it cannot be built.
-   */
+  What the model needs beside the user's own message asking for `kind`.
+  Throws with the reason in words when it cannot be built.
+  */
   public async promptFor(kind: GitDraftKind): Promise<string> {
     const reason = this.unavailableReason()
     if (reason !== undefined) {
@@ -902,11 +902,11 @@ export class RuntimeGit implements ConversationGitPort {
   }
 
   /**
-   * The hold card and the pull request strip, sent when they change;
-   * `isSurfaceReady` for a surface that starts with none of them. Lane G
-   * shows the linked pull request; the hold and the worktree line arrive
-   * with lane P.
-   */
+  The hold card and the pull request strip, sent when they change;
+  `isSurfaceReady` for a surface that starts with none of them. Lane G
+  shows the linked pull request; the hold and the worktree line arrive
+  with lane P.
+  */
   public postState(isSurfaceReady = false): void {
     if (this.isDisposed) {
       return
@@ -957,11 +957,11 @@ export class RuntimeGit implements ConversationGitPort {
 }
 
 /**
- * The runtime Git adapter behind lane 0's `RuntimeGitDeps`: status, the
- * commit form, commit, push and commit-message drafts in every editor.
- * `options.run` only for tests; production runs the user's own `git`
- * through the bounded runner.
- */
+The runtime Git adapter behind lane 0's `RuntimeGitDeps`: status, the
+commit form, commit, push and commit-message drafts in every editor.
+`options.run` only for tests; production runs the user's own `git`
+through the bounded runner.
+*/
 export function createRuntimeGit(
   surface: GitSurface,
   deps: RuntimeGitDeps,

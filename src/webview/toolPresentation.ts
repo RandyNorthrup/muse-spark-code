@@ -151,9 +151,9 @@ function parseArgs(args: string): ParsedArgs {
 }
 
 /**
- * The row label the table gives a wire tool name; undefined for a tool it
- * does not name (only the table's own keys, never `Object.prototype`'s).
- */
+The row label the table gives a wire tool name; undefined for a tool it
+does not name (only the table's own keys, never `Object.prototype`'s).
+*/
 export function toolLabel(tool: string): string | undefined {
   const labels: Readonly<Record<string, string>> = UI_TEXT.toolLabels
   return Object.hasOwn(labels, tool) ? labels[tool] : undefined
@@ -318,9 +318,9 @@ export function changeSummary(summary: PatchSummary | undefined): string | undef
 }
 
 /**
- * "Fetched 48.2 kB (text/html)" for a web fetch's row (M69), read from the
- * first line of its result; undefined for a result that is not a page.
- */
+"Fetched 48.2 kB (text/html)" for a web fetch's row (M69), read from the
+first line of its result; undefined for a result that is not a page.
+*/
 export function fetchedSize(output: string): string | undefined {
   const facts = parseWebPageHeader(output)
   return facts === undefined

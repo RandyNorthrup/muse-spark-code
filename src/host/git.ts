@@ -79,13 +79,13 @@ export function gitFilterOptions(output: string): readonly string[] {
 }
 
 /**
- * git for an automatic metadata read in `cwd` (the prompt's facts, D15; the
- * session board, M77): no fsmonitor, maintenance, replacement refs or
- * signature program (GIT_METADATA_OPTIONS), and each configured filter
- * driver's clean and process emptied by name, its command never read. The
- * runner's `GIT_OPTIONAL_LOCKS=0` takes no index lock, so status writes no
- * index and no index hook runs. Rejects when the names cannot be read.
- */
+git for an automatic metadata read in `cwd` (the prompt's facts, D15; the
+session board, M77): no fsmonitor, maintenance, replacement refs or
+signature program (GIT_METADATA_OPTIONS), and each configured filter
+driver's clean and process emptied by name, its command never read. The
+runner's `GIT_OPTIONAL_LOCKS=0` takes no index lock, so status writes no
+index and no index hook runs. Rejects when the names cannot be read.
+*/
 export async function metadataGit(
   runGit: (args: readonly string[], cwd: string, timeoutMs?: number) => Promise<string>,
   cwd: string,
@@ -127,9 +127,9 @@ function subcommandOf(args: readonly string[]): string {
 }
 
 /**
- * git's absolute path, found once per PATH value; a miss is not cached, so
- * git installed while the window is open is found on the next call.
- */
+git's absolute path, found once per PATH value; a miss is not cached, so
+git installed while the window is open is found on the next call.
+*/
 function gitLocator(
   deps: Pick<GitRunnerDeps, 'platform' | 'env' | 'fileExists'>,
 ): () => string | undefined {
@@ -158,12 +158,12 @@ export interface GitRunnerDeps {
   readonly env: NodeJS.ProcessEnv
   readonly fileExists: (filePath: string) => boolean
   /**
-   * Arguments put before each command's own once the runner found git:
-   * only the untrusted lane that lists, adds and indexes someone else's
-   * pull request before its separate trust confirmation (git/untrustedGit.ts,
-   * heldCheckout.ts). It may run git itself with the call's options, and
-   * calls `beforeRun` where a check must precede a process.
-   */
+  Arguments put before each command's own once the runner found git:
+  only the untrusted lane that lists, adds and indexes someone else's
+  pull request before its separate trust confirmation (git/untrustedGit.ts,
+  heldCheckout.ts). It may run git itself with the call's options, and
+  calls `beforeRun` where a check must precede a process.
+  */
   readonly argsBefore?: GitArgsBefore | undefined
   /** Best-of-N's automatic local snapshots, never ordinary user Git commands. */
   readonly isAutomatic?: boolean
@@ -201,9 +201,9 @@ export function hasGitProgramControls(output: string, minimumMinor: number): boo
 }
 
 /**
- * A git runner; rejects when git is not on the absolute PATH. A call that
- * does real work (a worktree's checkout, M32) passes its own timeout.
- */
+A git runner; rejects when git is not on the absolute PATH. A call that
+does real work (a worktree's checkout, M32) passes its own timeout.
+*/
 export function createGitRunner(
   deps: GitRunnerDeps,
 ): (
@@ -274,9 +274,9 @@ export function createGitRunner(
 }
 
 /**
- * The runner over this process's own environment and Node's `execFile`: the
- * one the extension uses, and the one tests use to drive real git (M32).
- */
+The runner over this process's own environment and Node's `execFile`: the
+one the extension uses, and the one tests use to drive real git (M32).
+*/
 export function processGitRunner(
   options: {
     readonly isAutomatic?: boolean
@@ -319,14 +319,14 @@ export function processGitRunner(
 }
 
 /**
- * A failed git call's exit code, however the runner reported it: a
- * `GitExitError` carries it in `exitCode`, which is -1 when a signal ended
- * git (the runner's own sentinel, never a real exit code); a Node
- * child-process error carries a numeric `code`. Undefined when the call
- * produced no exit at all (git missing, a timeout, a capped buffer): never a
- * guess. A caller that acts on one specific code compares for that code and
- * treats every other value, -1 included, as a failure.
- */
+A failed git call's exit code, however the runner reported it: a
+`GitExitError` carries it in `exitCode`, which is -1 when a signal ended
+git (the runner's own sentinel, never a real exit code); a Node
+child-process error carries a numeric `code`. Undefined when the call
+produced no exit at all (git missing, a timeout, a capped buffer): never a
+guess. A caller that acts on one specific code compares for that code and
+treats every other value, -1 included, as a failure.
+*/
 export function gitExitCode(error: unknown): number | undefined {
   if (isGitExitError(error)) {
     return error.exitCode
@@ -368,14 +368,14 @@ export interface GitProcessOptions {
   /** Checkpoint Git bypasses temp pressure and checks this storage volume instead. */
   readonly checkpointDestination?: string | undefined
   /**
-   * D104's named exception (M123): a confirmed push or a pull request fetch
-   * keeps the user's own Git environment (credential helpers, SSH agent and
-   * token variables, as a terminal would), with `GIT_TERMINAL_PROMPT=0`.
-   * Everything else keeps the quiet environment. The process never gains
-   * anything of ours either way: no `http.extraHeader`, no credential
-   * helper of ours, no token variable. The caller hands the very list
-   * (GIT_PUSH_CREDENTIAL_VARIABLES), so activation does not carry it.
-   */
+  D104's named exception (M123): a confirmed push or a pull request fetch
+  keeps the user's own Git environment (credential helpers, SSH agent and
+  token variables, as a terminal would), with `GIT_TERMINAL_PROMPT=0`.
+  Everything else keeps the quiet environment. The process never gains
+  anything of ours either way: no `http.extraHeader`, no credential
+  helper of ours, no token variable. The caller hands the very list
+  (GIT_PUSH_CREDENTIAL_VARIABLES), so activation does not carry it.
+  */
   readonly credentialRoutes?: typeof GIT_PUSH_CREDENTIAL_VARIABLES | undefined
   readonly beforeRun?: BestOfNGitGuard | undefined
   readonly cwd: string
@@ -387,10 +387,10 @@ export interface GitProcessOptions {
   /** Aborting ends the command (the window closing). */
   readonly signal?: AbortSignal
   /**
-   * Takes stdout as it comes instead of collecting it (M71's held checkout):
-   * git waits until each chunk's promise settles, a rejection ends the
-   * command with that error, and the result is empty.
-   */
+  Takes stdout as it comes instead of collecting it (M71's held checkout):
+  git waits until each chunk's promise settles, a rejection ends the
+  command with that error, and the result is empty.
+  */
   readonly onStdout?: (chunk: Buffer) => Promise<void>
 }
 
@@ -404,19 +404,19 @@ export interface GitProcessDeps {
   readonly fileExists: (filePath: string) => boolean
   readonly spawn: typeof spawn
   /**
-   * The git to run instead of a PATH search (M123's native route: the git
-   * the host resolved, absolute only, `fixedGitLocator`), or undefined
-   * when there is none, so the run fails as git missing (D24).
-   */
+  The git to run instead of a PATH search (M123's native route: the git
+  the host resolved, absolute only, `fixedGitLocator`), or undefined
+  when there is none, so the run fails as git missing (D24).
+  */
   readonly locate?: (() => string | undefined) | undefined
 }
 
 /**
- * One environment for both launch routes, an allow-list per operation
- * (RVM123G2 R3): no credential variable at all, or for D104's exception
- * (a confirmed push, a pull request fetch) only the Git routes
- * GIT_PUSH_CREDENTIAL_VARIABLES names, never a model or provider key.
- */
+One environment for both launch routes, an allow-list per operation
+(RVM123G2 R3): no credential variable at all, or for D104's exception
+(a confirmed push, a pull request fetch) only the Git routes
+GIT_PUSH_CREDENTIAL_VARIABLES names, never a model or provider key.
+*/
 function childGitEnvironment(options: GitProcessOptions): NodeJS.ProcessEnv {
   return options.credentialRoutes === undefined
     ? withoutCredentials(options.env)
@@ -427,11 +427,11 @@ function childGitEnvironment(options: GitProcessOptions): NodeJS.ProcessEnv {
 }
 
 /**
- * The stderr kept for an error: once the cap cut it, the last (partial)
- * word goes too, so a credential cut short at the cap, no longer in a shape
- * the redactor knows, is never shown, logged or returned (redact before
- * truncate).
- */
+The stderr kept for an error: once the cap cut it, the last (partial)
+word goes too, so a credential cut short at the cap, no longer in a shape
+the redactor knows, is never shown, logged or returned (redact before
+truncate).
+*/
 export function cappedStderr(stderr: string, wasCut: boolean): string {
   if (!wasCut) {
     return stderr
@@ -441,13 +441,13 @@ export function cappedStderr(stderr: string, wasCut: boolean): string {
 }
 
 /**
- * git with stdin and binary stdout (M72's checkpoints, M71's held checkout):
- * found as the other runner finds it, no console window, collected stdout
- * capped at GIT_OUTPUT_MAX_BYTES (a taker bounds its own) and stderr at
- * GIT_STDERR_MAX_CHARS, killed at its timeout. The caller
- * passes the complete environment, so nothing of the extension host's own
- * (a `GIT_DIR`, a `GIT_INDEX_FILE`) reaches it unless the caller says so.
- */
+git with stdin and binary stdout (M72's checkpoints, M71's held checkout):
+found as the other runner finds it, no console window, collected stdout
+capped at GIT_OUTPUT_MAX_BYTES (a taker bounds its own) and stderr at
+GIT_STDERR_MAX_CHARS, killed at its timeout. The caller
+passes the complete environment, so nothing of the extension host's own
+(a `GIT_DIR`, a `GIT_INDEX_FILE`) reaches it unless the caller says so.
+*/
 export function createGitProcess(deps: GitProcessDeps): GitProcess {
   const gitPath = deps.locate ?? gitLocator(deps)
   return async (args, options) => {

@@ -86,9 +86,9 @@ export const EVAL_CANONICAL_FIXES: Readonly<Record<string, readonly EvalFix[]>> 
 }
 
 /**
- * The same fixes in another spelling a model might choose: the verifiers
- * judge behaviour, so these pass too.
- */
+The same fixes in another spelling a model might choose: the verifiers
+judge behaviour, so these pass too.
+*/
 export const EVAL_OTHER_FIXES: Readonly<Record<string, readonly EvalFix[]>> = {
   'accept-off-by-one': [
     {

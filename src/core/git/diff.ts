@@ -29,10 +29,10 @@ export interface TruncatedDiff {
 }
 
 /**
- * At most `maxBytes` of `output`, cut back to the last whole line. A
- * single line longer than the cap is cut hard (its tail decodes with
- * replacements); an empty output is never "truncated".
- */
+At most `maxBytes` of `output`, cut back to the last whole line. A
+single line longer than the cap is cut hard (its tail decodes with
+replacements); an empty output is never "truncated".
+*/
 export function truncateDiffBytes(output: Buffer, maxBytes: number): TruncatedDiff {
   if (output.length <= maxBytes) {
     return { bytes: output, truncated: false }

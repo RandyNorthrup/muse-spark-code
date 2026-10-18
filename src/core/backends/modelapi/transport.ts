@@ -312,9 +312,9 @@ async function describeFailure(
 }
 
 /**
- * `Retry-After` in milliseconds: a delay in seconds, or an HTTP date (RFC
- * 9110 §10.2.3 allows both; PLAN.md D25), measured from `now`.
- */
+`Retry-After` in milliseconds: a delay in seconds, or an HTTP date (RFC
+9110 §10.2.3 allows both; PLAN.md D25), measured from `now`.
+*/
 export function retryAfterMs(header: string | null, now: number): number | undefined {
   if (header === null || header.trim() === '') {
     return undefined
@@ -337,10 +337,10 @@ export interface RetryNotice {
 }
 
 /**
- * The retries one model call has used (the review of PR #28): a stream sent
- * again whole and the HTTP retries inside each of its requests draw on the
- * same MODEL_API_MAX_RETRIES.
- */
+The retries one model call has used (the review of PR #28): a stream sent
+again whole and the HTTP retries inside each of its requests draw on the
+same MODEL_API_MAX_RETRIES.
+*/
 export interface RetryBudget {
   retriesUsed: number
 }
@@ -352,10 +352,10 @@ export interface ConfirmedModelRequest {
   readonly providerId?: string | undefined
   readonly origin?: string | undefined
   /**
-   * Which confirmed run this identity belongs to. Stale-identity refusals
-   * keep the schedule guidance for scheduled prompts and name the hook call
-   * for model-hook runs.
-   */
+  Which confirmed run this identity belongs to. Stale-identity refusals
+  keep the schedule guidance for scheduled prompts and name the hook call
+  for model-hook runs.
+  */
   readonly runKind?: 'scheduled' | 'review' | 'hookModel' | undefined
   /** The paid gate and session model must still match before every HTTP try. */
   readonly isStillAllowed: () => boolean
@@ -364,9 +364,9 @@ export interface ConfirmedModelRequest {
 }
 
 /**
- * A stale-identity refusal that names the confirmed run: scheduled prompts
- * keep the schedule guidance, model-hook runs name the hook call.
- */
+A stale-identity refusal that names the confirmed run: scheduled prompts
+keep the schedule guidance, model-hook runs name the hook call.
+*/
 export function staleConfirmedError(confirmed: ConfirmedModelRequest): Error {
   return new Error(
     confirmed.runKind === 'hookModel'
@@ -376,11 +376,11 @@ export function staleConfirmedError(confirmed: ConfirmedModelRequest): Error {
 }
 
 /**
- * Whether an error is a lapsed-confirmation refusal carrying the run's own
- * guidance. Branches whose catch maps failures to branch text (the plan
- * retry sentence, the adapter's failure text) let these through unchanged,
- * so a lapsed hook, schedule or review says what lapsed.
- */
+Whether an error is a lapsed-confirmation refusal carrying the run's own
+guidance. Branches whose catch maps failures to branch text (the plan
+retry sentence, the adapter's failure text) let these through unchanged,
+so a lapsed hook, schedule or review says what lapsed.
+*/
 export function isStaleConfirmedError(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -390,13 +390,13 @@ export function isStaleConfirmedError(error: unknown): boolean {
 }
 
 /**
- * The one confirmed-dispatch gate every provider branch runs: proceed while
- * the confirmation names this model and is still allowed, and refuse with
- * the run's own guidance otherwise. Branches that accept more than the bare
- * session model id (a catalogue id, a provider, an origin) check those
- * fields themselves and pass `isSameModel` for the model half, so a future
- * branch cannot miss a step by hand-copying the condition.
- */
+The one confirmed-dispatch gate every provider branch runs: proceed while
+the confirmation names this model and is still allowed, and refuse with
+the run's own guidance otherwise. Branches that accept more than the bare
+session model id (a catalogue id, a provider, an origin) check those
+fields themselves and pass `isSameModel` for the model half, so a future
+branch cannot miss a step by hand-copying the condition.
+*/
 export function assertConfirmedAllowed(
   requestModel: string,
   confirmed: ConfirmedModelRequest | undefined,
@@ -412,11 +412,11 @@ export function assertConfirmedAllowed(
 }
 
 /**
- * Mark a confirmed dispatch started: the start receipt and the
- * scheduled-prompt use tally run exactly once, adjacent to the send, with
- * the admission observer right after. Call sites invoke this once per
- * dispatch, after the final gate re-check.
- */
+Mark a confirmed dispatch started: the start receipt and the
+scheduled-prompt use tally run exactly once, adjacent to the send, with
+the admission observer right after. Call sites invoke this once per
+dispatch, after the final gate re-check.
+*/
 export function noteConfirmedRequestStarted(
   confirmed: ConfirmedModelRequest | undefined,
   admitAttempt: Pick<ResponseAttemptGuard, 'onRequestStarted'> | undefined,
@@ -788,9 +788,9 @@ export class RequestTransport {
   }
 
   /**
-   * One request with the documented retry policy. The response is handed
-   * back unread on success; a non-2xx status becomes a `ModelApiError`.
-   */
+  One request with the documented retry policy. The response is handed
+  back unread on success; a non-2xx status becomes a `ModelApiError`.
+  */
   public async request(
     path: string,
     init: {
@@ -801,11 +801,11 @@ export class RequestTransport {
       readonly estimatedTokens?: number
       readonly accept: string
       /**
-       * `rateLimitOnly` for a request that bills per call (M34, the review
-       * of PR #27): a 429 was refused before any work and is retried; a
-       * lost connection or a server error may have been done and billed,
-       * so it is not.
-       */
+      `rateLimitOnly` for a request that bills per call (M34, the review
+      of PR #27): a 429 was refused before any work and is retried; a
+      lost connection or a server error may have been done and billed,
+      so it is not.
+      */
       readonly headers?: Readonly<Record<string, string>>
       readonly retries?: 'all' | 'rateLimitOnly'
       readonly paid?: {

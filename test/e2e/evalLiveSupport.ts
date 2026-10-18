@@ -28,10 +28,10 @@ const STORE_UNAVAILABLE =
   'No Model API key is available from the operating system credential store. Use muse-spark-code-acp auth set before enabling live tests.'
 
 /**
- * Reject the old transport without reading, echoing or deleting its value.
- * Only an enabled run starts processes the model steers, so only it refuses:
- * a stale variable must not fail the default test run, which collects these files.
- */
+Reject the old transport without reading, echoing or deleting its value.
+Only an enabled run starts processes the model steers, so only it refuses:
+a stale variable must not fail the default test run, which collects these files.
+*/
 export function assertNoLiveKeyEnvironment(env: NodeJS.ProcessEnv, isEnabled: boolean): void {
   if (isEnabled && Object.hasOwn(env, LEGACY_KEY_VARIABLE)) {
     throw new Error(
@@ -109,13 +109,13 @@ export interface LiveToolIoOptions {
 }
 
 /**
- * The tools' file and shell access for a live harness. A shell command the
- * model asks for is allowed without a person reading it, so it gets the
- * environment without any credential variable (`*_API_KEY` and the named
- * ones), as every process the ACP agent starts does: another provider's key
- * the owner keeps in his shell must not reach a tool's output, Meta or the
- * report.
- */
+The tools' file and shell access for a live harness. A shell command the
+model asks for is allowed without a person reading it, so it gets the
+environment without any credential variable (`*_API_KEY` and the named
+ones), as every process the ACP agent starts does: another provider's key
+the owner keeps in his shell must not reach a tool's output, Meta or the
+report.
+*/
 export function liveToolIo(options: LiveToolIoOptions): ToolIo {
   return createToolIo({
     platform: process.platform,
@@ -142,10 +142,10 @@ export interface LiveEvalSelection {
 }
 
 /**
- * What an enabled live run evaluates; an unknown task id stops it. Read only
- * inside the enabled test, never while the suite is skipped: a stale or
- * mistyped selection must not fail the default run, which collects this file.
- */
+What an enabled live run evaluates; an unknown task id stops it. Read only
+inside the enabled test, never while the suite is skipped: a stale or
+mistyped selection must not fail the default run, which collects this file.
+*/
 export function liveEvalSelection(env: NodeJS.ProcessEnv, isEnabled: boolean): LiveEvalSelection {
   if (!isEnabled) {
     throw new Error(NOT_ENABLED)
@@ -169,11 +169,11 @@ export function liveEvalSelection(env: NodeJS.ProcessEnv, isEnabled: boolean): L
 }
 
 /**
- * The long-output tasks on which an arm never sent a packed placeholder
- * (M73): a packing run that passes its floors without packing proves
- * nothing about packing, so its acceptance needs every one of them to have
- * packed. The arm missing from the report counts as never engaged.
- */
+The long-output tasks on which an arm never sent a packed placeholder
+(M73): a packing run that passes its floors without packing proves
+nothing about packing, so its acceptance needs every one of them to have
+packed. The arm missing from the report counts as never engaged.
+*/
 export function unengagedLongOutputTasks(
   report: EvalReport,
   armName: string,
@@ -190,12 +190,12 @@ export function unengagedLongOutputTasks(
 }
 
 /**
- * The report with M73's packing acceptance recorded in it (PLAN.md M73):
- * the arm's engagement on the run's long-output tasks, and the verdict
- * `fail` when it never packed on one, whatever the floors say. Applied
- * before the report is printed or written, so both artifacts say what the
- * run's acceptance decided.
- */
+The report with M73's packing acceptance recorded in it (PLAN.md M73):
+the arm's engagement on the run's long-output tasks, and the verdict
+`fail` when it never packed on one, whatever the floors say. Applied
+before the report is printed or written, so both artifacts say what the
+run's acceptance decided.
+*/
 export function withPackingEngagement(
   report: EvalReport,
   armName: string,

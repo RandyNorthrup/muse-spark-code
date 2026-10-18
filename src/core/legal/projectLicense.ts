@@ -63,9 +63,9 @@ const GPL_OR_LATER = /\bany later version\b/i
 const BSD_SOURCE_BINARY = /\bredistribution and use in source and binary forms\b/i
 
 /**
- * The license a file's text reads as. Shared with the ecosystem readers,
- * which meet the same prose inside vendored packages.
- */
+The license a file's text reads as. Shared with the ecosystem readers,
+which meet the same prose inside vendored packages.
+*/
 export function identifyLicenseText(text: string): LicenseTextMatch | undefined {
   const title = topLines(text).join('\n')
   const firstTitle = title.split('\n').find((line) => line.trim() !== '') ?? ''
@@ -224,11 +224,11 @@ interface ManifestAssessment {
 }
 
 /**
- * Read the project's license declarations. `manifests` carries the license
- * fields the ecosystem readers already parsed (one per manifest), so no
- * manifest is read twice. `snapshot.files` must already be sorted and
- * workspace-confined.
- */
+Read the project's license declarations. `manifests` carries the license
+fields the ecosystem readers already parsed (one per manifest), so no
+manifest is read twice. `snapshot.files` must already be sorted and
+workspace-confined.
+*/
 export function scanProjectLicense(
   snapshot: LegalFileSnapshot,
   manifests: readonly ManifestLicenseDeclaration[] = [],

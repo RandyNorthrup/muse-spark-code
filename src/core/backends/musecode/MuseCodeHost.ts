@@ -434,13 +434,13 @@ const DEFAULT_TIMEOUTS: CommandTimeouts = {
 }
 
 /**
- * Whether `muse serve` still answers at all (the unresponsive-host watchdog,
- * CLI recovery 2026-10-03). Every frame from it (an answer, an event, a
- * server request) is heard here and clears the count. A command that
- * misses its deadline counts once; at `MSP_UNRESPONSIVE_MISSES` in a row
- * with nothing heard for the silence, Muse Code is not answering: that is
- * logged and told once, and new commands fail at once until a frame comes.
- */
+Whether `muse serve` still answers at all (the unresponsive-host watchdog,
+CLI recovery 2026-10-03). Every frame from it (an answer, an event, a
+server request) is heard here and clears the count. A command that
+misses its deadline counts once; at `MSP_UNRESPONSIVE_MISSES` in a row
+with nothing heard for the silence, Muse Code is not answering: that is
+logged and told once, and new commands fail at once until a frame comes.
+*/
 class HostLiveness {
   private lastHeardAt = Date.now()
   private misses = 0
@@ -639,10 +639,10 @@ function isRetryableRefusal(error: unknown): boolean {
 }
 
 /**
- * A card that waits on the user, an approval or a question: shown again to a
- * later surface, it is marked replayed, so it is never approved on its own
- * and raises no new notice (M82).
- */
+A card that waits on the user, an approval or a question: shown again to a
+later surface, it is marked replayed, so it is never approved on its own
+and raises no new notice (M82).
+*/
 function isPendingPrompt(
   event: AgentEvent,
 ): event is Extract<AgentEvent, { type: 'approvalRequested' | 'questionRequested' }> {
@@ -656,10 +656,10 @@ function pause(ms: number): Promise<void> {
 }
 
 /**
- * A turn's parts as MSP takes them. `TurnInputPart` is text, image or skill
- * in 1.3.0. Text files are named text parts; PDFs are refused because an
- * unknown type is `invalidParams` (msp.d.ts, M54, sdk issue #48).
- */
+A turn's parts as MSP takes them. `TurnInputPart` is text, image or skill
+in 1.3.0. Text files are named text parts; PDFs are refused because an
+unknown type is `invalidParams` (msp.d.ts, M54, sdk issue #48).
+*/
 function mspInput(parts: readonly TurnPart[]): readonly TurnPart[] {
   const input: TurnPart[] = []
   let attachmentBytes = 0
@@ -689,16 +689,16 @@ function mspInput(parts: readonly TurnPart[]): readonly TurnPart[] {
 }
 
 /**
- * `Connection.command` without its memory (PLAN.md D26). Up to SDK 1.4.2 it
- * kept the canonical payload of every command for the connection's life,
- * an image turn's base64 included, to check replays across reconnects this
- * extension never makes (#35). 1.4.4 keeps a SHA-256 per command instead,
- * still never evicted; this stays because each attempt here is also fenced
- * by the host generation and heard by the watchdog (SDK144). The same
- * contract otherwise: the command id rides in the params, the ack must echo
- * it, and a refusal that admitted nothing (`overloaded`, `backpressured`)
- * is retried with the same id after a short, growing, jittered wait.
- */
+`Connection.command` without its memory (PLAN.md D26). Up to SDK 1.4.2 it
+kept the canonical payload of every command for the connection's life,
+an image turn's base64 included, to check replays across reconnects this
+extension never makes (#35). 1.4.4 keeps a SHA-256 per command instead,
+still never evicted; this stays because each attempt here is also fenced
+by the host generation and heard by the watchdog (SDK144). The same
+contract otherwise: the command id rides in the params, the ack must echo
+it, and a refusal that admitted nothing (`overloaded`, `backpressured`)
+is retried with the same id after a short, growing, jittered wait.
+*/
 async function sendCommand(
   channel: CommandChannel,
   generation: number,
@@ -735,9 +735,9 @@ async function sendCommand(
 }
 
 /**
- * One request's answer, heard by the watchdog: a result, or an error the
- * host wrote. A late answer, after its deadline, is heard too.
- */
+One request's answer, heard by the watchdog: a result, or an error the
+host wrote. A late answer, after its deadline, is heard too.
+*/
 async function answered(
   channel: CommandChannel,
   generation: number,
@@ -760,9 +760,9 @@ async function answered(
 }
 
 /**
- * A request with a deadline, refused at once while Muse Code is not
- * answering (the watchdog); a missed deadline counts toward that.
- */
+A request with a deadline, refused at once while Muse Code is not
+answering (the watchdog); a missed deadline counts toward that.
+*/
 async function requestWithin<T>(
   channel: CommandChannel,
   generation: number,
@@ -802,10 +802,10 @@ async function requestWithin<T>(
 }
 
 /**
- * One MSP command with a deadline. `sessionNotLoaded` (the host evicted or
- * closed the session) becomes a `SessionNotLoadedError` the controller
- * answers by resuming the session.
- */
+One MSP command with a deadline. `sessionNotLoaded` (the host evicted or
+closed the session) becomes a `SessionNotLoadedError` the controller
+answers by resuming the session.
+*/
 async function commandWithin(
   channel: CommandChannel,
   generation: number,
@@ -946,11 +946,11 @@ export class MuseSession implements ScheduledAgentSession {
   /** A stage's callers share its eventual result, and Stop waits for it. */
   private readonly decisionsInFlight = new Map<string, Promise<void>>()
   /**
-   * What arrived before anyone listened (D26): the events right after
-   * `session/resume` (the re-issued prompts, a running turn's stream) land
-   * before the surface that asked for the session has attached. Held until
-   * the first listener, released with the handle.
-   */
+  What arrived before anyone listened (D26): the events right after
+  `session/resume` (the re-issued prompts, a running turn's stream) land
+  before the surface that asked for the session has attached. Held until
+  the first listener, released with the handle.
+  */
   private early: AgentEvent[] | undefined = []
   /** The surfaces holding this handle (PLAN.md D25): the last release disposes it. */
   private holders = 1
@@ -958,9 +958,9 @@ export class MuseSession implements ScheduledAgentSession {
   /** Told when Muse Code reports this session's event log failed (CLI recovery). */
   private readonly logDamagedListeners = new Set<() => void>()
   /**
-   * Queued turns `turn/unqueued` withdrew (M87): MSP's authoritative removal,
-   * which a lost or failed `turn/unqueue` ack does not undo.
-   */
+  Queued turns `turn/unqueued` withdrew (M87): MSP's authoritative removal,
+  which a lost or failed `turn/unqueue` ack does not undo.
+  */
   private readonly unqueuedTurns = new Set<string>()
   private readonly log: CoreLogger
   private readonly timeouts: CommandTimeouts
@@ -1118,10 +1118,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Muse Code 1.4.2 answers every message of a session whose event log
-   * failed with that failure (the owner's session of 2026-10-02/03): the
-   * conversation is told, which takes no new message in it after this.
-   */
+  Muse Code 1.4.2 answers every message of a session whose event log
+  failed with that failure (the owner's session of 2026-10-02/03): the
+  conversation is told, which takes no new message in it after this.
+  */
   private noteLogFault(error: unknown): void {
     if (!(error instanceof MspError) || !error.message.includes(MUSE_EVENT_LOG_FAULT)) {
       return
@@ -1144,12 +1144,12 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * A Stop under a multi-stage approval with a stage already decided rejects
-   * its waiting stage first, through `approval/decide`: a turn cancelled
-   * under such an approval leaves Muse Code 1.4.2 refusing every later
-   * `turn/start` of the session (the `approvalReplay` fault, captured live
-   * 2026-10-02), while one whose approval was rejected first runs on.
-   */
+  A Stop under a multi-stage approval with a stage already decided rejects
+  its waiting stage first, through `approval/decide`: a turn cancelled
+  under such an approval leaves Muse Code 1.4.2 refusing every later
+  `turn/start` of the session (the `approvalReplay` fault, captured live
+  2026-10-02), while one whose approval was rejected first runs on.
+  */
   private async rejectPartlyDecided(): Promise<void> {
     // A click locks the stage before its command settles. Let the host's
     // answer and stage update land before deciding what Stop must reject.
@@ -1265,10 +1265,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Whether the host, which answered the decision with a refusal, still
-   * waits on this very stage: then the decision did not apply and may be
-   * made again. A check that fails cannot tell, and the stage stays decided.
-   */
+  Whether the host, which answered the decision with a refusal, still
+  waits on this very stage: then the decision did not apply and may be
+  made again. A check that fails cannot tell, and the stage stays decided.
+  */
   private async isStillWaiting(requirementId: RequirementRef): Promise<boolean> {
     let pending: z.infer<typeof listPendingResultSchema>
     try {
@@ -1288,13 +1288,13 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * What a failed `turn/steer` means for its message (CLI recovery,
-   * 2026-10-03). On 2026-10-02 a steer Muse Code answered after the 60 s
-   * deadline had been taken for a refusal and sent again as a new turn, and
-   * Muse Code applied both. So only a refusal that says no turn was there is
-   * a `SteerRefusedError`; no answer (the deadline, a closed connection) is
-   * said as such; any other refusal keeps its own words.
-   */
+  What a failed `turn/steer` means for its message (CLI recovery,
+  2026-10-03). On 2026-10-02 a steer Muse Code answered after the 60 s
+  deadline had been taken for a refusal and sent again as a new turn, and
+  Muse Code applied both. So only a refusal that says no turn was there is
+  a `SteerRefusedError`; no answer (the deadline, a closed connection) is
+  said as such; any other refusal keeps its own words.
+  */
   private steerFailure(expectedTurnId: string, error: unknown): unknown {
     if (error instanceof MspError) {
       const reason = error.data['reason']
@@ -1376,10 +1376,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * The first listener gets what arrived before it; a later one (a second
-   * surface on the same session) gets the prompts still open, which the
-   * host will not announce again.
-   */
+  The first listener gets what arrived before it; a later one (a second
+  surface on the same session) gets the prompts still open, which the
+  host will not announce again.
+  */
   public onEvent(listener: SessionEventListener): () => void {
     this.listeners.add(listener)
     const backlog = this.early ?? this.prompts.open()
@@ -1595,10 +1595,10 @@ export class MuseSession implements ScheduledAgentSession {
 
   /** Submit one user turn; queued behind a running turn by host default. */
   /**
-   * Submit a turn. `displayText` is the transcript's presentation form of the
-   * prompt (MSP: durable, never model-visible), used when the parts carry
-   * more than the user typed (editor context, M5).
-   */
+  Submit a turn. `displayText` is the transcript's presentation form of the
+  prompt (MSP: durable, never model-visible), used when the parts carry
+  more than the user typed (editor context, M5).
+  */
   public async sendTurn(
     parts: readonly TurnPart[],
     displayText?: string,
@@ -1625,12 +1625,12 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Inject input into the turn believed to be running. The host rejects the
-   * steer when that turn is no longer the running one, so input meant for one
-   * turn never leaks into the next. That refusal is a `SteerRefusedError`,
-   * after which the caller may send the input as a new turn; a steer with no
-   * answer may still reach the turn, and fails in words that say so.
-   */
+  Inject input into the turn believed to be running. The host rejects the
+  steer when that turn is no longer the running one, so input meant for one
+  turn never leaks into the next. That refusal is a `SteerRefusedError`,
+  after which the caller may send the input as a new turn; a steer with no
+  answer may still reach the turn, and fails in words that say so.
+  */
   public async steer(
     expectedTurnId: string,
     parts: readonly TurnPart[],
@@ -1652,17 +1652,17 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Take back a submit acknowledged `queued` before it launches (M87, PLAN.md
-   * D66): MSP `turn/unqueue`. A steered message is in the running turn
-   * already, which `turn/unqueue` does not reach: too late. As captured live
-   * on 2026-10-04 (docs/certification/m87-c.md), the ack is admission and the
-   * race at once (`turn/unqueued` follows, or comes first); a reclaim after
-   * the launch is refused `run_active`, and one already won `already_applied`
-   * (it will not run either way). Once `turn/unqueued` named the turn, a
-   * timed-out or failed ack still reports the withdrawal (the review of lane
-   * C); any other failure or refusal fails as Muse Code said it. Muse Code
-   * keeps no image bytes, so none come back.
-   */
+  Take back a submit acknowledged `queued` before it launches (M87, PLAN.md
+  D66): MSP `turn/unqueue`. A steered message is in the running turn
+  already, which `turn/unqueue` does not reach: too late. As captured live
+  on 2026-10-04 (docs/certification/m87-c.md), the ack is admission and the
+  race at once (`turn/unqueued` follows, or comes first); a reclaim after
+  the launch is refused `run_active`, and one already won `already_applied`
+  (it will not run either way). Once `turn/unqueued` named the turn, a
+  timed-out or failed ack still reports the withdrawal (the review of lane
+  C); any other failure or refusal fails as Muse Code said it. Muse Code
+  keeps no image bytes, so none come back.
+  */
   public async withdrawQueued(ref: QueuedMessageRef): Promise<WithdrawOutcome> {
     if (ref.disposition !== QUEUED_DISPOSITION) {
       return TOO_LATE
@@ -1728,12 +1728,12 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Answer a gated tool call: one decision per stage (PLAN.md D26).
-   * `requirementId` is the stage token from the request; a stale one is
-   * rejected by the host, never silently applied. A second decision for a
-   * stage already decided is not sent (a repeated click, a re-rendered card,
-   * a second surface), nor one for a stage the approval has left.
-   */
+  Answer a gated tool call: one decision per stage (PLAN.md D26).
+  `requirementId` is the stage token from the request; a stale one is
+  rejected by the host, never silently applied. A second decision for a
+  stage already decided is not sent (a repeated click, a re-rendered card,
+  a second surface), nor one for a stage the approval has left.
+  */
   public async decideApproval(decision: ApprovalDecision): Promise<void> {
     const { approvalId, requirementId } = decision
     const key = `${approvalId}\u{0}${String(requirementId.sourceIndex)}`
@@ -1840,9 +1840,9 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * `session/userShell` (M46): the command runs at once, outside any turn;
-   * its row and output arrive as a `userShell` item.
-   */
+  `session/userShell` (M46): the command runs at once, outside any turn;
+  its row and output arrive as a `userShell` item.
+  */
   public async runUserShell(command: string): Promise<void> {
     if (!this.canRunUserShell) {
       throw new Error(UI_TEXT.userShellNotGranted)
@@ -1876,11 +1876,11 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * `goal/set`, `edit`, `pause`, `resume` or `clear` (M45, PLAN.md D38).
-   * An idle set, edit or resume wakes a goal-driving turn, which then
-   * arrives as its own `turn/started`; the goal arrives as
-   * `session/goalChanged`.
-   */
+  `goal/set`, `edit`, `pause`, `resume` or `clear` (M45, PLAN.md D38).
+  An idle set, edit or resume wakes a goal-driving turn, which then
+  arrives as its own `turn/started`; the goal arrives as
+  `session/goalChanged`.
+  */
   public async controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
     let ack: unknown
     try {
@@ -1906,10 +1906,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Set the durable session name; resolves to the canonical name the host
-   * settled, or undefined when it will arrive as `session/nameChanged`.
-   * Muse Code 1.3.0 refuses this on Windows (UnsupportedPlatform, PLAN.md M6).
-   */
+  Set the durable session name; resolves to the canonical name the host
+  settled, or undefined when it will arrive as `session/nameChanged`.
+  Muse Code 1.3.0 refuses this on Windows (UnsupportedPlatform, PLAN.md M6).
+  */
   public async rename(name: string): Promise<string | undefined> {
     const result = sessionRenameResultSchema.parse(await this.command('session/rename', { name }))
     return result.name
@@ -1971,12 +1971,12 @@ export class MuseCodeHost implements AgentHost {
   private isClosing = false
   private readonly commandOwner: MuseCodeCommandOwner
   /**
-   * Session starts, resumes and forks in flight (D26). The SDK hands every
-   * frame of one read to the handlers before the awaiting command resumes,
-   * so the prompts re-issued right after a resume answer arrive before the
-   * handle exists. While one is in flight, events for an unknown session
-   * wait here for `track`.
-   */
+  Session starts, resumes and forks in flight (D26). The SDK hands every
+  frame of one read to the handlers before the awaiting command resumes,
+  so the prompts re-issued right after a resume answer arrive before the
+  handle exists. While one is in flight, events for an unknown session
+  wait here for `track`.
+  */
   private opening = 0
   private readonly unclaimed = new Map<string, MappedNotification[]>()
   /** Methods already logged as unshown or malformed: one line each per host (D26). */
@@ -2173,9 +2173,9 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Runs a session start, resume or fork with early events held for its
-   * handle (D26); whatever no handle claimed by the end is logged and dropped.
-   */
+  Runs a session start, resume or fork with early events held for its
+  handle (D26); whatever no handle claimed by the end is logged and dropped.
+  */
   private async opened<T>(open: () => Promise<T>): Promise<T> {
     this.opening += 1
     try {
@@ -2198,11 +2198,11 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Host-level notifications bypass the per-session routing: the list
-   * stream (`sessionListStream` grant) is about stored sessions, loaded here
-   * or not, and `usage/changed` is about the account. True when the method
-   * was one of them.
-   */
+  Host-level notifications bypass the per-session routing: the list
+  stream (`sessionListStream` grant) is about stored sessions, loaded here
+  or not, and `usage/changed` is about the account. True when the method
+  was one of them.
+  */
   private dispatchHostEvent(method: string, params: unknown): boolean {
     if (
       this.features.lifecycle !== undefined &&
@@ -2334,11 +2334,11 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * The pending prompts a resume's pointers name, pulled with
-   * `approval/listPending` (the documented dual of the re-issued requests,
-   * tdd SS5.7), so the cards appear however the re-issue was delivered; the
-   * ledger shows each once (D26).
-   */
+  The pending prompts a resume's pointers name, pulled with
+  `approval/listPending` (the documented dual of the re-issued requests,
+  tdd SS5.7), so the cards appear however the re-issue was delivered; the
+  ledger shows each once (D26).
+  */
   private async presentPending(sessionId: string): Promise<void> {
     try {
       const pending = listPendingResultSchema.parse(
@@ -2442,10 +2442,10 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Told once each time Muse Code stops answering (the watchdog): commands
-   * missed their deadlines and nothing came from it for a while. It answers
-   * again on its own only if a frame arrives; the window restarts it.
-   */
+  Told once each time Muse Code stops answering (the watchdog): commands
+  missed their deadlines and nothing came from it for a while. It answers
+  again on its own only if a frame arrives; the window restarts it.
+  */
   public onUnresponsive(listener: () => void): () => void {
     this.unresponsiveListeners.add(listener)
     return () => {
@@ -2578,12 +2578,12 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Load a stored session on this connection with its history as a folded
-   * snapshot where the host's budget allows (the served mode is reported):
-   * the items, and the name, todo list and goal beside them (M45).
-   * `modelId` is the caller's standing selection: the record's own
-   * `modelId` is the metadata fold's and not to be trusted (PLAN.md M6).
-   */
+  Load a stored session on this connection with its history as a folded
+  snapshot where the host's budget allows (the served mode is reported):
+  the items, and the name, todo list and goal beside them (M45).
+  `modelId` is the caller's standing selection: the record's own
+  `modelId` is the metadata fold's and not to be trusted (PLAN.md M6).
+  */
   public async resumeSession(
     sessionId: string,
     modelId: string,
@@ -2644,10 +2644,10 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Copy a session's completed turns (through `lastTurnId`, or all of them)
-   * into a new session, loaded here. Muse Code 1.3.0 refuses this on
-   * Windows ("invalid fork boundary ... WriteFailed", PLAN.md M6).
-   */
+  Copy a session's completed turns (through `lastTurnId`, or all of them)
+  into a new session, loaded here. Muse Code 1.3.0 refuses this on
+  Windows ("invalid fork boundary ... WriteFailed", PLAN.md M6).
+  */
   public async forkSession(
     sessionId: string,
     modelId: string,

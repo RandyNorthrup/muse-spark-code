@@ -45,11 +45,11 @@ export interface ProviderQuickPickDeps {
   readonly isRemote: boolean
   readonly ui: ProviderQuickPickUi
   /**
-   * The conversation spending limit setting: the budget answer below is
-   * prefilled with its effective value and, when changed, written back at
-   * its scope through the shared wizard function. Backed by VS Code's
-   * configuration in production, by memory in tests.
-   */
+  The conversation spending limit setting: the budget answer below is
+  prefilled with its effective value and, when changed, written back at
+  its scope through the shared wizard function. Backed by VS Code's
+  configuration in production, by memory in tests.
+  */
   readonly sessionBudget: SessionBudgetConfig
 }
 
@@ -85,9 +85,9 @@ function parseTokenCount(value: string): number | undefined {
 }
 
 /**
- * Asks one token count, re-asking after an invalid answer until the user
- * answers validly or dismisses. `max` caps the longest reply at the window.
- */
+Asks one token count, re-asking after an invalid answer until the user
+answers validly or dismisses. `max` caps the longest reply at the window.
+*/
 async function askTokenCount(
   ui: ProviderQuickPickUi,
   title: string,
@@ -118,9 +118,9 @@ async function askTokenCount(
 }
 
 /**
- * Adds one provider through the quick pick. The outcome, or undefined when
- * cancelled at any step (nothing written).
- */
+Adds one provider through the quick pick. The outcome, or undefined when
+cancelled at any step (nothing written).
+*/
 export async function runAddProviderQuickPick(
   deps: ProviderQuickPickDeps,
 ): Promise<ProviderQuickPickOutcome | undefined> {

@@ -146,10 +146,10 @@ function readProjectAssets(text: string): Map<string, string> {
 }
 
 /**
- * Read NuGet evidence from the snapshot. License expressions come from
- * present `.nuspec` files only; lock and asset versions resolve
- * coordinates but never licenses.
- */
+Read NuGet evidence from the snapshot. License expressions come from
+present `.nuspec` files only; lock and asset versions resolve
+coordinates but never licenses.
+*/
 export function readNuGet(snapshot: LegalFileSnapshot): EcosystemResult {
   const incomplete: string[] = []
   const projectLicenses: ManifestLicenseDeclaration[] = []

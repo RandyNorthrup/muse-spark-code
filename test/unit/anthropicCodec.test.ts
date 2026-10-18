@@ -70,10 +70,10 @@ function golden(name: string): string {
 }
 
 /**
- * The golden file parsed and re-serialized: key order (the assertion) and
- * values survive, file formatting does not, so the goldens stay
- * prettier-clean without weakening the reorder drill.
- */
+The golden file parsed and re-serialized: key order (the assertion) and
+values survive, file formatting does not, so the goldens stay
+prettier-clean without weakening the reorder drill.
+*/
 function goldenBytes(name: string): string {
   return `${JSON.stringify(JSON.parse(golden(name)), null, 2)}\n`
 }

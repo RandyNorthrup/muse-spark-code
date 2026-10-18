@@ -49,8 +49,8 @@ export interface RetirementDependencies {
 }
 
 /** Cancellation acknowledgements, direct exits and process groups prove nothing.
- * @unwired M96c scheduler attempt retirement
- */
+@unwired M96c scheduler attempt retirement
+*/
 export class AttemptRetirement {
   constructor(
     private readonly deps: RetirementDependencies,

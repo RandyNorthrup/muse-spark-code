@@ -162,10 +162,10 @@ function readVendoredLicense(
 const noProjectLicenses: ManifestLicenseDeclaration[] = []
 
 /**
- * Read Go module evidence from the snapshot. `go.mod` requirements pin
- * versions; `go.sum` alone proves a version existed, never its license;
- * vendored license texts are identified where present.
- */
+Read Go module evidence from the snapshot. `go.mod` requirements pin
+versions; `go.sum` alone proves a version existed, never its license;
+vendored license texts are identified where present.
+*/
 export function readGo(snapshot: LegalFileSnapshot): EcosystemResult {
   const incomplete: string[] = []
   const requirements: (GoRequirement & { readonly file: string })[] = []

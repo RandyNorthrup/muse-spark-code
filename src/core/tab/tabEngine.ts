@@ -48,9 +48,9 @@ export interface TabEngineRequest {
   /** The lines below the cursor's line. */
   readonly linesBelow: readonly string[]
   /**
-   * Read when the debounce ends, and last synchronously at the HTTP send
-   * (RVM94KR2 4): a cancelled trigger sends nothing.
-   */
+  Read when the debounce ends, and last synchronously at the HTTP send
+  (RVM94KR2 4): a cancelled trigger sends nothing.
+  */
   readonly isCancelled: () => boolean
 }
 
@@ -58,19 +58,19 @@ export interface TabEngineAnswer {
   /** The filtered suggestion; undefined means none. */
   readonly completion: string | undefined
   /**
-   * The request's reported usage, when it ends. Zero when nothing was sent
-   * (a cache hit, or a trigger replaced or cancelled while it waited).
-   * Rejects when a sent request ends without usage: its reservation stands.
-   */
+  The request's reported usage, when it ends. Zero when nothing was sent
+  (a cache hit, or a trigger replaced or cancelled while it waited).
+  Rejects when a sent request ends without usage: its reservation stands.
+  */
   readonly usage: Promise<TabEngineUsage>
 }
 
 /**
- * The key client's stream, with the retry budget and the attempt guard the
- * engine hands it. The client calls the guard synchronously after its last
- * wait (credentials, pacing, admission), right before the HTTP send: a throw
- * there POSTs nothing. `onRequestStarted` runs adjacent to the send.
- */
+The key client's stream, with the retry budget and the attempt guard the
+engine hands it. The client calls the guard synchronously after its last
+wait (credentials, pacing, admission), right before the HTTP send: a throw
+there POSTs nothing. `onRequestStarted` runs adjacent to the send.
+*/
 export type TabStream = (
   body: CreateResponseBody,
   signal: AbortSignal,

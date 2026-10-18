@@ -55,12 +55,12 @@ export function ruleDirectoriesFor(relativePath: string): readonly string[] {
 }
 
 /**
- * The rules file of one directory: `AGENTS.md`, else `CLAUDE.md`, else none.
- * Over the size limit the file is skipped with Muse Code's warning; a file
- * that cannot be read as text, or leads outside the workspace, is skipped
- * with the reason. Either way the other name is not tried: the first one
- * present governs the directory.
- */
+The rules file of one directory: `AGENTS.md`, else `CLAUDE.md`, else none.
+Over the size limit the file is skipped with Muse Code's warning; a file
+that cannot be read as text, or leads outside the workspace, is skipped
+with the reason. Either way the other name is not tried: the first one
+present governs the directory.
+*/
 export async function loadRuleFile(
   deps: RulesLoaderDeps,
   directory: string,

@@ -41,12 +41,12 @@ export interface CodeIntelIo extends RealPathIo {
 }
 
 /**
- * The path of the editor holding unsaved changes to the file, or undefined:
- * one naming it as the tools or the language service do, or naming another
- * path whose real path is the file's. A workspace opened through a link
- * has the editor name a file by the link and the language service by its
- * real path (D27 by the file, not by its name).
- */
+The path of the editor holding unsaved changes to the file, or undefined:
+one naming it as the tools or the language service do, or naming another
+path whose real path is the file's. A workspace opened through a link
+has the editor name a file by the link and the language service by its
+real path (D27 by the file, not by its name).
+*/
 export async function unsavedDocumentPath(
   io: Pick<CodeIntelIo, 'unsavedFiles' | 'realPath'>,
   file: Pick<PlacedFile, 'absolute' | 'checkedAbsolute'>,
@@ -140,10 +140,10 @@ export function checkName(field: string, value: string): string {
 }
 
 /**
- * A symbol's name as code spells it: TypeScript's workspace symbols name a
- * function or a method with its call parentheses (`greet()`), which the
- * code never spells that way. Shown as it came; matched without them.
- */
+A symbol's name as code spells it: TypeScript's workspace symbols name a
+function or a method with its call parentheses (`greet()`), which the
+code never spells that way. Shown as it came; matched without them.
+*/
 export function bareName(symbol: CodeSymbol): string {
   return symbol.name.endsWith(CALL_PARENTHESES)
     ? symbol.name.slice(0, -CALL_PARENTHESES.length)
@@ -283,10 +283,10 @@ export class CodeIntelQuery {
   }
 
   /**
-   * The file's lines as the language service read them: the editor's when
-   * it holds unsaved changes (the answer then says so), else the disk's;
-   * undefined when it is missing or not UTF-8 text.
-   */
+  The file's lines as the language service read them: the editor's when
+  it holds unsaved changes (the answer then says so), else the disk's;
+  undefined when it is missing or not UTF-8 text.
+  */
   private async readLines(file: PlacedFile): Promise<readonly string[] | undefined> {
     let text: string | undefined
     try {
@@ -494,12 +494,12 @@ export class CodeIntelQuery {
   }
 
   /**
-   * Where a result is in the workspace, or undefined when it is outside (a
-   * library's declarations, another folder, a virtual document). A file is
-   * inside when its path is, or when its real path is inside the real root
-   * (a workspace opened through a link, whose files the server reports by
-   * their real paths).
-   */
+  Where a result is in the workspace, or undefined when it is outside (a
+  library's declarations, another folder, a virtual document). A file is
+  inside when its path is, or when its real path is inside the real root
+  (a workspace opened through a link, whose files the server reports by
+  their real paths).
+  */
   public async place(path: string | undefined): Promise<PlacedFile | undefined> {
     if (path === undefined) {
       return undefined
@@ -528,10 +528,10 @@ export class CodeIntelQuery {
   }
 
   /**
-   * Where a symbol's name starts, found in its range on disk: a provider's
-   * range may start before the name (TypeScript's workspace symbols start at
-   * `export`). The range's own start when the name is not found there.
-   */
+  Where a symbol's name starts, found in its range on disk: a provider's
+  range may start before the name (TypeScript's workspace symbols start at
+  `export`). The range's own start when the name is not found there.
+  */
   public async nameStart(file: PlacedFile, symbol: CodeSymbol): Promise<CodePosition> {
     const { start, end } = symbol.selection
     const lines = (await this.linesOf(file)) ?? []
@@ -560,10 +560,10 @@ export class CodeIntelQuery {
   }
 
   /**
-   * The file's document as the language service reads it: an editor's with
-   * unsaved changes, by the editor's path, when one holds the file (the file
-   * is then asked about at that path), else the file's own.
-   */
+  The file's document as the language service reads it: an editor's with
+  unsaved changes, by the editor's path, when one holds the file (the file
+  is then asked about at that path), else the file's own.
+  */
   public async openAsEdited(
     file: PlacedFile,
   ): Promise<{ readonly file: PlacedFile; readonly document: OpenedDocument }> {
@@ -595,9 +595,9 @@ export class CodeIntelQuery {
   }
 
   /**
-   * Whether an answer may show what a result says about its file: a file in
-   * the workspace, or one under a language's library folder.
-   */
+  Whether an answer may show what a result says about its file: a file in
+  the workspace, or one under a language's library folder.
+  */
   public async isDescribable(path: string | undefined): Promise<boolean> {
     return (
       path !== undefined &&
@@ -618,10 +618,10 @@ export class CodeIntelQuery {
   }
 
   /**
-   * What an empty answer means: nothing of the kind at the position when
-   * the file's language service answers for it (it lists the file's
-   * symbols), else no language service at all.
-   */
+  What an empty answer means: nothing of the kind at the position when
+  the file's language service answers for it (it lists the file's
+  symbols), else no language service at all.
+  */
   public async nothingAt(what: string, target: Target): Promise<string> {
     const symbols = await ask(this.service.documentSymbols(target.file.absolute))
     if (symbols.length === 0) {

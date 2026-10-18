@@ -70,10 +70,10 @@ export function isSafeCheckPath(relativePath: string, platform: NodeJS.Platform)
 }
 
 /**
- * The line a check runs: its command as the user wrote it, and for a scoped
- * check with files to check, `--` and each path quoted. A scoped check with
- * no files runs as written (the whole project).
- */
+The line a check runs: its command as the user wrote it, and for a scoped
+check with files to check, `--` and each path quoted. A scoped check with
+no files runs as written (the whole project).
+*/
 export function checkCommandLine(
   check: CheckCommandSetting,
   paths: readonly string[],
@@ -100,12 +100,12 @@ export function checkListText(checks: readonly CheckCommandSetting[]): string {
 }
 
 /**
- * What Muse Code is told with each turn (M68): check the diagnostics of the
- * files it edits through the `ide` server (only when the session has it),
- * and run the user's checks. It reads them itself and runs the checks
- * through its own shell and approvals; undefined when there is nothing to
- * say.
- */
+What Muse Code is told with each turn (M68): check the diagnostics of the
+files it edits through the `ide` server (only when the session has it),
+and run the user's checks. It reads them itself and runs the checks
+through its own shell and approvals; undefined when there is nothing to
+say.
+*/
 export function verifyGuidance(
   isDiagnosticsOn: boolean,
   checks: readonly CheckCommandSetting[],

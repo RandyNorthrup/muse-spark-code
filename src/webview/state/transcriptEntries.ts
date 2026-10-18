@@ -51,16 +51,16 @@ const pendingApprovalSchema = z.object({
   /** Why the card asks beyond the mode (M78), as the host said it. */
   note: z.optional(z.string()),
   /**
-   * The stage the user has already decided, so the card locks until the host
-   * moves to the next stage or resolves. The host may repeat
-   * `approval/updated` for a decided stage (seen live 2026-09-22), so the
-   * update alone cannot unlock it.
-   */
+  The stage the user has already decided, so the card locks until the host
+  moves to the next stage or resolves. The host may repeat
+  `approval/updated` for a decided stage (seen live 2026-09-22), so the
+  update alone cannot unlock it.
+  */
   decidedSourceIndex: z.optional(z.number()),
   /**
-   * A decision was refused as stale (D26): the card says, on itself, that
-   * the request moved to the step it now shows, until the user chooses there.
-   */
+  A decision was refused as stale (D26): the card says, on itself, that
+  the request moved to the step it now shows, until the user chooses there.
+  */
   hasMovedOn: z.optional(z.boolean()),
 })
 export type PendingApproval = z.infer<typeof pendingApprovalSchema>
@@ -80,11 +80,11 @@ const pendingQuestionSchema = z.object({
 export type PendingQuestion = z.infer<typeof pendingQuestionSchema>
 
 /**
- * An MCP elicitation form waiting on the user (M91 lane M): the server's
- * message and the schema to fill. Values live only in the card's draft
- * while it is open: settling clears the form, so nothing typed survives in
- * the saved transcript.
- */
+An MCP elicitation form waiting on the user (M91 lane M): the server's
+message and the schema to fill. Values live only in the card's draft
+while it is open: settling clears the form, so nothing typed survives in
+the saved transcript.
+*/
 const pendingElicitationSchema = z.object({
   elicitationId: z.string(),
   server: z.string(),
@@ -99,9 +99,9 @@ export type OutputRef = z.infer<typeof outputRefSchema>
 export type PatchSummary = z.infer<typeof patchSummarySchema>
 
 /**
- * An image chip on a user card: what was attached now, or what the durable
- * log echoes for a replayed message (media type and pixel size only, M6).
- */
+An image chip on a user card: what was attached now, or what the durable
+log echoes for a replayed message (media type and pixel size only, M6).
+*/
 const userAttachmentSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -120,10 +120,10 @@ export const STEERED_DISPOSITION = 'steered'
 const recordedAtSchema = z.iso.datetime({ offset: true })
 
 /**
- * A recorded time as epoch milliseconds (M87, PLAN.md D66), or undefined for
- * none or one that does not parse: an invalid value costs the time, never the
- * row, and no other time stands in for it.
- */
+A recorded time as epoch milliseconds (M87, PLAN.md D66), or undefined for
+none or one that does not parse: an invalid value costs the time, never the
+row, and no other time stands in for it.
+*/
 export function recordedAtMs(recordedAt: string | undefined): number | undefined {
   if (recordedAt === undefined || !recordedAtSchema.safeParse(recordedAt).success) {
     return undefined
@@ -160,18 +160,18 @@ const userEntrySchema = z.object({
   seq: z.number(),
   text: z.string(),
   /**
-   * `queued` (M87, PLAN.md D66): accepted, but the model does not have it
-   * yet; it lasts until the message reaches a request or its turn starts.
-   */
+  `queued` (M87, PLAN.md D66): accepted, but the model does not have it
+  yet; it lasts until the message reaches a request or its turn starts.
+  */
   status: z.enum(['pending', 'queued', 'sent', 'failed']),
   reason: z.optional(z.string()),
   /** What the backend did with it (`turnAccepted.disposition`): `queued` or `steered` matter here. */
   disposition: z.optional(z.string()),
   /**
-   * When it was sent (M87): the backend's recorded time (`recordedAt`), or
-   * the moment the host accepted it until that time arrives. Absent where
-   * nothing recorded one (a Model API session stored before M87).
-   */
+  When it was sent (M87): the backend's recorded time (`recordedAt`), or
+  the moment the host accepted it until that time arrives. Absent where
+  nothing recorded one (a Model API session stored before M87).
+  */
   atMs: z.optional(z.number()),
   attachments: z.readonly(z.array(userAttachmentSchema)),
   /** The open-file chip that went with the message (M5). */
@@ -183,9 +183,9 @@ const userEntrySchema = z.object({
   /** The Model API replay item's ID; live cards keep their local `id` for UI updates. */
   replayItemId: z.optional(z.string()),
   /**
-   * The Muse Code user item whose recorded time this live card took (M87),
-   * matched by turn and text: that item no longer stamps another card.
-   */
+  The Muse Code user item whose recorded time this live card took (M87),
+  matched by turn and text: that item no longer stamps another card.
+  */
   recordedItemId: z.optional(z.string()),
   /** Sent from this panel in Plan mode (M79): the reply it gets may be a plan. */
   isPlanTurn: z.optional(z.boolean()),
@@ -203,9 +203,9 @@ const assistantEntrySchema = z.object({
   usage: z.optional(tokenUsageSchema),
   costUsd: z.optional(legacyUsdSchema),
   /**
-   * When it was received (M87): the backend's recorded time, or the moment
-   * it began arriving until that time comes with its completion.
-   */
+  When it was received (M87): the backend's recorded time, or the moment
+  it began arriving until that time comes with its completion.
+  */
   atMs: z.optional(z.number()),
 })
 
@@ -237,11 +237,11 @@ const toolEntrySchema = z.object({
   patchRef: z.optional(outputRefSchema),
   outputRef: z.optional(outputRefSchema),
   /**
-   * The arrival-order number the row took when it completed (M20): the
-   * order its edit landed on disk, across the conversation and its agents.
-   * A subagent's row read back from its session sits just after the agent's
-   * own number (M25), since nothing tells when it really landed.
-   */
+  The arrival-order number the row took when it completed (M20): the
+  order its edit landed on disk, across the conversation and its agents.
+  A subagent's row read back from its session sits just after the agent's
+  own number (M25), since nothing tells when it really landed.
+  */
   completedSeq: z.optional(z.number()),
   /** Durably backgrounded (M14): the turn went on without waiting for it. */
   isBackground: z.boolean(),
@@ -249,10 +249,10 @@ const toolEntrySchema = z.object({
   /** A call billed on top of tokens (M33, PLAN.md D30): the row says it is paid. */
   paid: z.optional(z.enum(PAID_FEATURES)),
   /**
-   * A worker's own card, routed to the main panel (M96 lane U2): the role,
-   * the agent and the task, drawn by the panel's chrome, never by the
-   * worker (D75, threat T8).
-   */
+  A worker's own card, routed to the main panel (M96 lane U2): the role,
+  the agent and the task, drawn by the panel's chrome, never by the
+  worker (D75, threat T8).
+  */
   teamWorker: z.optional(teamWorkerLabelSchema),
   /** Pictures the tool reported the model saw (`modelVisibleContent`, M43), by path. */
   images: z.optional(z.readonly(z.array(z.string()))),
@@ -283,18 +283,18 @@ const toolEntrySchema = z.object({
     }),
   ),
   /**
-   * Move to the background or Stop was pressed (M46): the button waits for
-   * the host's word, the row's next update or a refusal, as a decided
-   * approval card does (M25).
-   */
+  Move to the background or Stop was pressed (M46): the button waits for
+  the host's word, the row's next update or a refusal, as a decided
+  approval card does (M25).
+  */
   taskRequest: z.optional(z.enum(TASK_REQUESTS)),
 })
 
 /**
- * The user's own shell command, the TUI's `!` (M46, MSP `userShell`,
- * captured live 2026-09-25): outside any turn, its exit code or signal and
- * its run time beside what it printed.
- */
+The user's own shell command, the TUI's `!` (M46, MSP `userShell`,
+captured live 2026-09-25): outside any turn, its exit code or signal and
+its run time beside what it printed.
+*/
 const userShellEntrySchema = z.object({
   kind: z.literal('userShell'),
   id: z.string(),
@@ -315,9 +315,9 @@ const subagentEntrySchema = z.object({
   kind: z.literal('subagent'),
   id: z.string(),
   /**
-   * The arrival number the row took when it first appeared (M25): the
-   * anchor for the agent's rows read back from its own session.
-   */
+  The arrival number the row took when it first appeared (M25): the
+  anchor for the agent's rows read back from its own session.
+  */
   seq: z.number(),
   role: z.optional(z.string()),
   objective: z.optional(z.string()),
@@ -336,12 +336,12 @@ const subagentEntrySchema = z.object({
 })
 
 /**
- * One agent of a workflow run (MSP `WorkflowChild`, captured live
- * 2026-09-25), keyed by `childId`; `attempt` is the number it reports.
- * Captured revisions carried a `children` list but omitted some fields as
- * a child moved on (the label after `scheduled`, tokens after `usage`).
- * The row keeps previously reported fields within that attempt.
- */
+One agent of a workflow run (MSP `WorkflowChild`, captured live
+2026-09-25), keyed by `childId`; `attempt` is the number it reports.
+Captured revisions carried a `children` list but omitted some fields as
+a child moved on (the label after `scheduled`, tokens after `usage`).
+The row keeps previously reported fields within that attempt.
+*/
 export const workflowChildSchema = z.object({
   agentEvidence: z.optional(agentEvidenceSchema),
   childId: z.string(),
@@ -379,11 +379,11 @@ const itemEntrySchema = z.object({
 })
 
 /**
- * The team's transcript cards (M96 lane U2, PLAN.md D75): the delegation
- * card and plan, the switch row, the "waiting for you" card, the merge
- * card and each task's report row. Lanes T/A/W create these from the
- * orchestrator's tools; the webview renders them from these fields.
- */
+The team's transcript cards (M96 lane U2, PLAN.md D75): the delegation
+card and plan, the switch row, the "waiting for you" card, the merge
+card and each task's report row. Lanes T/A/W create these from the
+orchestrator's tools; the webview renders them from these fields.
+*/
 const teamPlanEntrySchema = z.object({
   kind: z.literal('teamPlan'),
   id: z.string(),
@@ -426,10 +426,10 @@ const errorEntrySchema = z.object({
   id: z.string(),
   text: z.string(),
   /**
-   * The sanitized handoff when the host recorded this failure (M93 lane W):
-   * which journal event the row means, never its text. The row offers
-   * "Report This" only while it is present.
-   */
+  The sanitized handoff when the host recorded this failure (M93 lane W):
+  which journal event the row means, never its text. The row offers
+  "Report This" only while it is present.
+  */
   reportRef: z.optional(reportEventRefSchema),
   errorKind: z.optional(z.string()),
 })
@@ -448,15 +448,15 @@ const noticeEntrySchema = z.object({
   /** A Muse Code fault's way on (D26): its buttons. */
   actions: z.optional(z.readonly(z.array(z.enum(NOTICE_ACTIONS)))),
   /**
-   * The sanitized handoff when the host recorded this failure (M93 lane W):
-   * which journal event the row means, never its text. The row offers
-   * "Report This" only while it is present.
-   */
+  The sanitized handoff when the host recorded this failure (M93 lane W):
+  which journal event the row means, never its text. The row offers
+  "Report This" only while it is present.
+  */
   reportRef: z.optional(reportEventRefSchema),
   /**
-   * How many times the same notice was said (D26), set from the second: the
-   * repeats are this one row. Optional, so a snapshot saved before it reads.
-   */
+  How many times the same notice was said (D26), set from the second: the
+  repeats are this one row. Optional, so a snapshot saved before it reads.
+  */
   repeatCount: z.optional(z.number()),
 })
 

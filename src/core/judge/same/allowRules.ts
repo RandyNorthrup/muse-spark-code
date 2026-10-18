@@ -35,9 +35,9 @@ export type StandingAllowVerdict =
   { readonly allowed: true } | { readonly allowed: false; readonly reason: StandingAllowBlocker }
 
 /**
- * Why the judge stays off. Reason codes, not user text: lane U says them
- * through lane 0's strings.
- */
+Why the judge stays off. Reason codes, not user text: lane U says them
+through lane 0's strings.
+*/
 export type StandingAllowBlocker =
   /** No settings text to read (no file): no evidence of standing rules. */
   | 'no-settings'
@@ -147,11 +147,11 @@ function isRestrictive(profile: Readonly<Record<string, unknown>>): boolean {
 }
 
 /**
- * Whether the Muse Code judge may run under the user's CLI settings text
- * (undefined when the file is missing). Missing settings mean the CLI's own
- * defaults, which hold no standing allows. Anything unverifiable, or any
- * standing always-allow for shell, write or network, turns the judge off.
- */
+Whether the Muse Code judge may run under the user's CLI settings text
+(undefined when the file is missing). Missing settings mean the CLI's own
+defaults, which hold no standing allows. Anything unverifiable, or any
+standing always-allow for shell, write or network, turns the judge off.
+*/
 export function checkStandingAllowRules(settingsText: string | undefined): StandingAllowVerdict {
   if (settingsText === undefined) {
     return { allowed: true }

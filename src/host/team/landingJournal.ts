@@ -60,9 +60,9 @@ export type LandingRecord = z.infer<typeof recordSchema>
 export type LandingFile = z.infer<typeof fileSchema>
 
 /**
- * Lane K supplies the window's atomic, flushed journal. Its adapter retains the
- * referenced before/after blobs for the record's Recover/Undo lifetime.
- */
+Lane K supplies the window's atomic, flushed journal. Its adapter retains the
+referenced before/after blobs for the record's Recover/Undo lifetime.
+*/
 export interface LandingJournalStore {
   readonly read: (id: string) => Promise<unknown>
   readonly write: (record: LandingRecord) => Promise<void>

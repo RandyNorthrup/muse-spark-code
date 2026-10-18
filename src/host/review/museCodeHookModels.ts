@@ -263,10 +263,10 @@ export class MuseCodeHookModels {
   }
 
   /**
-   * One turn of a hidden side session: the turn's reply text, or undefined
-   * when the hook must fail (no reply in time, a tool was used, the turn or
-   * the session ended first). Failed turns discard the session.
-   */
+  One turn of a hidden side session: the turn's reply text, or undefined
+  when the hook must fail (no reply in time, a tool was used, the turn or
+  the session ended first). Failed turns discard the session.
+  */
   public async runHookModelTurn(job: MuseCodeHookModelJob): Promise<string | undefined> {
     if (!this.isWanted(job)) return undefined
     job = { ...job, signal: AbortSignal.any([job.signal, this.closed.signal]) }

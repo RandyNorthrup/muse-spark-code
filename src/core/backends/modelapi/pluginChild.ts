@@ -302,7 +302,7 @@ const CHILD_LINES = [
 ]
 
 /** The entry source pluginHost.ts spawns. Joined here so the host, the tests
- * and (later) the bundle all read the same bytes. */
+and (later) the bundle all read the same bytes. */
 export function pluginChildSource(): string {
   return CHILD_LINES.join('\n')
 }

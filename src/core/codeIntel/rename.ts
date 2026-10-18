@@ -61,10 +61,10 @@ function staleRefusal(file: PlacedFile): CodeIntelRefusal {
 }
 
 /**
- * The file's text with the edits applied, or why the plan cannot use it.
- * `expected` is the text the rename's position was read from, for the file
- * that holds it: the document must still be that text.
- */
+The file's text with the edits applied, or why the plan cannot use it.
+`expected` is the text the rename's position was read from, for the file
+that holds it: the document must still be that text.
+*/
 async function plannedFile(
   query: CodeIntelQuery,
   planned: { readonly file: PlacedFile; readonly edits: readonly TextEdit[] },
@@ -156,9 +156,9 @@ function checkFileOperations(edit: RenameEdits): void {
 }
 
 /**
- * The old name: what the edit at the position replaces, in the text the
- * position was read from. Every other range of the edit must cover it too.
- */
+The old name: what the edit at the position replaces, in the text the
+position was read from. Every other range of the edit must cover it too.
+*/
 function oldName(
   target: Target,
   placed: readonly { file: PlacedFile; edits: readonly TextEdit[] }[],

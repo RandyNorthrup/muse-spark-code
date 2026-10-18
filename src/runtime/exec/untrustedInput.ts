@@ -14,11 +14,11 @@ import { fill, plural } from '../../shared/l10n/text'
 import type { ExecInputRecord } from './execProtocol'
 
 /**
- * A file name as it stands in the lead, outside the markers: a JSON string
- * (quotes, backslashes and C0 controls escaped), with every other control,
- * format or separator character percent-encoded, so a name cannot leave its
- * line or pass for the lead's own words.
- */
+A file name as it stands in the lead, outside the markers: a JSON string
+(quotes, backslashes and C0 controls escaped), with every other control,
+format or separator character percent-encoded, so a name cannot leave its
+line or pass for the lead's own words.
+*/
 function quotedName(name: string): string {
   return JSON.stringify(name).replaceAll(/[\p{C}\p{Zl}\p{Zp}]/gu, (char) =>
     encodeURIComponent(char),

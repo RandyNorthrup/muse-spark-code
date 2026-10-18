@@ -158,9 +158,9 @@ export interface PlacedMemoryCall {
 }
 
 /**
- * The call's arguments checked and its note placed, before any card: a
- * refused path costs the user no question (as an edit's does, D24).
- */
+The call's arguments checked and its note placed, before any card: a
+refused path costs the user no question (as an edit's does, D24).
+*/
 export async function placeMemoryCall(
   store: MemoryStore,
   name: string,
@@ -176,9 +176,9 @@ export async function placeMemoryCall(
 }
 
 /**
- * Runs a placed call; the result is Muse Code's JSON for the model and the
- * row alike. `writes` are the turn's own, which record what it writes (M86).
- */
+Runs a placed call; the result is Muse Code's JSON for the model and the
+row alike. `writes` are the turn's own, which record what it writes (M86).
+*/
 export async function runMemoryCall(
   store: MemoryStore,
   placed: PlacedMemoryCall,

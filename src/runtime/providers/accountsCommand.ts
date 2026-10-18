@@ -74,7 +74,7 @@ export async function runAccountsCommand(
 }
 
 /** Only the terminal's hidden stdin reader supplies a secret. No environment,
- * argument, file or child-process port exists in this flow. */
+argument, file or child-process port exists in this flow. */
 export async function runAccountAuthSet(
   target: AccountTarget,
   deps: AccountsCommandDeps & Pick<AuthCommandDeps, 'readSecret' | 'storeName'>,

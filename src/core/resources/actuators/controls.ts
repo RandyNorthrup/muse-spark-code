@@ -34,7 +34,7 @@ export interface ResourceActuatorPort {
 }
 
 /** Lane T2's registered, birth-bound state. Exited includes zombie/defunct members;
- * a failed scan or lost membership alone must return unknown, never exited. */
+a failed scan or lost membership alone must return unknown, never exited. */
 export interface ResourceMemberStatePort {
   state(
     ticket: ResourceTicket,

@@ -34,9 +34,9 @@ export const evalTaskSchema = z.object({
   /** The verifier's body, after `EVAL_VERIFY_PRELUDE`. */
   verify: z.string(),
   /**
-   * Built so one tool output is long enough to pack and is needed again
-   * after it would be (M73): a packing arm must engage on it.
-   */
+  Built so one tool output is long enough to pack and is needed again
+  after it would be (M73): a packing arm must engage on it.
+  */
   isLongOutput: z.optional(z.literal(true)),
 })
 export type EvalTask = z.infer<typeof evalTaskSchema>
@@ -50,10 +50,10 @@ export function isEvalPath(path: string): boolean {
 }
 
 /**
- * What every verifier starts with. It runs with the workspace as its first
- * argument and its own folder (beside the workspace) as the working folder,
- * where it may write scratch files.
- */
+What every verifier starts with. It runs with the workspace as its first
+argument and its own folder (beside the workspace) as the working folder,
+where it may write scratch files.
+*/
 export const EVAL_VERIFY_PRELUDE = [
   "import assert from 'node:assert/strict'",
   "import { existsSync, readFileSync, writeFileSync } from 'node:fs'",
@@ -69,10 +69,10 @@ export const EVAL_VERIFY_PRELUDE = [
 const PACKAGE_JSON = { path: 'package.json', content: '{\n  "type": "module"\n}\n' }
 
 /**
- * A long evidence file (M73): numbered records padded to one width, with
- * the one that matters in the middle, outside the first and last lines a
- * packed placeholder keeps.
- */
+A long evidence file (M73): numbered records padded to one width, with
+the one that matters in the middle, outside the first and last lines a
+packed placeholder keeps.
+*/
 function evidenceFile(middle: string): string {
   const lines = Array.from({ length: EVAL_LONG_EVIDENCE_LINES }, (_, index) =>
     (index + 1 === EVAL_LONG_EVIDENCE_MIDDLE_LINE
@@ -353,7 +353,7 @@ export const EVAL_TASKS: readonly EvalTask[] = [
 ]
 
 /** The task set's slice for one split, in task-set order.
- * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
+@unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function evalTasksOfSplit(split: EvalSplit): readonly EvalTask[] {
   return EVAL_TASKS.filter((task) => task.split === split)
 }

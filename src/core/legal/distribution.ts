@@ -176,10 +176,10 @@ function noticesMention(
 }
 
 /**
- * Work out what ships: the distributed file set from existing bundle
- * inputs or package inventories. Only material in the shipped set counts;
- * scope alone never decides, and a dev dependency can still ship.
- */
+Work out what ships: the distributed file set from existing bundle
+inputs or package inventories. Only material in the shipped set counts;
+scope alone never decides, and a dev dependency can still ship.
+*/
 export function computeShipped(
   snapshot: LegalFileSnapshot,
   dependencies: readonly LegalDependency[],
@@ -262,11 +262,11 @@ export function computeShipped(
 }
 
 /**
- * Check the shipped set's notice obligations. `evaluated` carries
- * canonical license ids per dependency; Apache-2.0 entries with a present
- * upstream NOTICE need attribution, and every shipped dependency needs a
- * notices entry.
- */
+Check the shipped set's notice obligations. `evaluated` carries
+canonical license ids per dependency; Apache-2.0 entries with a present
+upstream NOTICE need attribution, and every shipped dependency needs a
+notices entry.
+*/
 export function checkNotices(
   snapshot: LegalFileSnapshot,
   evaluated: readonly EvaluatedDependency[],

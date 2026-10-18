@@ -57,10 +57,10 @@ export interface MuseConfigDeps {
   readonly showInformation: (message: string) => void
   readonly showWarning: (message: string) => void
   /**
-   * The Model API backend's servers as this window runs them (M50):
-   * undefined while the window runs Muse Code, which starts its own; the
-   * function answers undefined until they have been started.
-   */
+  The Model API backend's servers as this window runs them (M50):
+  undefined while the window runs Muse Code, which starts its own; the
+  function answers undefined until they have been started.
+  */
   readonly modelApiServers?: (() => McpPoolSnapshot | undefined) | undefined
   /** The extension's log, where a server's stderr goes. */
   readonly openLog?: (() => void) | undefined
@@ -341,10 +341,10 @@ function hookFile(deps: MuseConfigDeps, fsPath: string | undefined): HookFileVie
 }
 
 /**
- * Who runs a Muse Code file, and what it says about its events (M91, D70):
- * Muse Code 1.4.2 never runs StopFailure or SessionFork hooks, and an
- * extension event belongs in spark-hooks.json, so Muse Code skips it here.
- */
+Who runs a Muse Code file, and what it says about its events (M91, D70):
+Muse Code 1.4.2 never runs StopFailure or SessionFork hooks, and an
+extension event belongs in spark-hooks.json, so Muse Code skips it here.
+*/
 function museFileNotes(view: HookFileView | undefined): readonly string[] {
   const misplaced = view?.events.find((event) => EXTENSION_EVENTS.has(event))
   return [
@@ -362,10 +362,10 @@ function isFormatName(format: string): format is keyof typeof HOOK_FORMAT_NAME_K
 }
 
 /**
- * A spark-hooks.json's notes: this window runs it, an imported hook only on
- * the Model API backend (its formats named), and a native group on a Muse
- * Code event is refused, since it would run twice.
- */
+A spark-hooks.json's notes: this window runs it, an imported hook only on
+the Model API backend (its formats named), and a native group on a Muse
+Code event is refused, since it would run twice.
+*/
 function sparkFileNotes(view: HookFileView): readonly string[] {
   const refused = view.nativeEvents.find((event) => !EXTENSION_EVENTS.has(event))
   const formats = view.formats.map((format) =>
@@ -445,10 +445,10 @@ async function openSpark(deps: MuseConfigDeps, scope: SparkScope): Promise<void>
 }
 
 /**
- * On the Model API backend no hook source loads in an untrusted workspace, so
- * a configured user or managed source says it waits for trust, as the project
- * source does. Muse Code applies its own rules, so its view is unchanged.
- */
+On the Model API backend no hook source loads in an untrusted workspace, so
+a configured user or managed source says it waits for trust, as the project
+source does. Muse Code applies its own rules, so its view is unchanged.
+*/
 function withTrustNote(deps: MuseConfigDeps, detail: string): string {
   return deps.modelApiHooks !== undefined && !deps.isWorkspaceTrusted()
     ? `${detail} · ${UI_TEXT.hooksProjectUntrusted}`

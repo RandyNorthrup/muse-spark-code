@@ -74,10 +74,10 @@ const HTTPS_PROTOCOL = 'https'
 const FILE_PROTOCOL = 'file'
 
 /**
- * Refuses unless every configuration name outside this command's own
- * overrides is inert. `output` is ACTION_CONFIG_LIST_ARGS's: malformed
- * output fails closed, and the error names neither a key nor a value.
- */
+Refuses unless every configuration name outside this command's own
+overrides is inert. `output` is ACTION_CONFIG_LIST_ARGS's: malformed
+output fails closed, and the error names neither a key nor a value.
+*/
 export function checkConfigNames(output) {
   const fields = output === '' ? [] : output.split(PAIR_SEPARATOR)
   if (fields.at(-1) === '') fields.pop()
@@ -128,14 +128,14 @@ function authorizationHeader(token) {
 }
 
 /**
- * Git's environment: the owner's allow-list environment with every GIT_*
- * name removed (GIT_CONFIG_PARAMETERS and GIT_CONFIG_COUNT included), then
- * the isolated global configuration, no system configuration or
- * attributes, no repository discovery above `cwd`, one allowed transport,
- * no terminal prompt, optional locks off for read-only commands, and
- * http.extraHeader reset (then, for the one authenticated command, set to
- * its one-shot token header).
- */
+Git's environment: the owner's allow-list environment with every GIT_*
+name removed (GIT_CONFIG_PARAMETERS and GIT_CONFIG_COUNT included), then
+the isolated global configuration, no system configuration or
+attributes, no repository discovery above `cwd`, one allowed transport,
+no terminal prompt, optional locks off for read-only commands, and
+http.extraHeader reset (then, for the one authenticated command, set to
+its one-shot token header).
+*/
 export function gitEnvironment({ baseEnv, paths, readOnly, auth, cwd, protocol = HTTPS_PROTOCOL }) {
   const env = Object.fromEntries(
     Object.entries(baseEnv).filter(([name]) => !name.toUpperCase().startsWith('GIT_')),
@@ -168,13 +168,13 @@ export function subcommandOf(args) {
 }
 
 /**
- * Runs one Git command under the owner. Every effective configuration name
- * is listed again before every command, so configuration changed by an
- * earlier step (an apply, an agent's edit) refuses the command instead of
- * selecting a program. `protocol` is the one transport a network command
- * may use (remoteProtocol). Returns the child's outcome; callers treat a
- * nonzero code as a fixed failure.
- */
+Runs one Git command under the owner. Every effective configuration name
+is listed again before every command, so configuration changed by an
+earlier step (an apply, an agent's edit) refuses the command instead of
+selecting a program. `protocol` is the one transport a network command
+may use (remoteProtocol). Returns the child's outcome; callers treat a
+nonzero code as a fixed failure.
+*/
 export async function safeGit({
   owner,
   git,

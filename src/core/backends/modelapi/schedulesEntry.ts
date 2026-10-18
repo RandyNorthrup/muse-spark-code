@@ -699,13 +699,13 @@ function appendVerificationNote(
 }
 
 /**
- * The edited files' diagnostics, compared with their previous check (M68).
- * At most VERIFY_SHOWN_FILES_MAX files are shown and read, none once the
- * conversation wrote a file the editor's tools run as code (the M68
- * review); the others are "not checked" with the reason. Diagnostics that
- * cannot be read at all are said so, to the model and the log, rather than
- * reported clean.
- */
+The edited files' diagnostics, compared with their previous check (M68).
+At most VERIFY_SHOWN_FILES_MAX files are shown and read, none once the
+conversation wrote a file the editor's tools run as code (the M68
+review); the others are "not checked" with the reason. Diagnostics that
+cannot be read at all are said so, to the model and the log, rather than
+reported clean.
+*/
 async function editDiagnostics(
   context: VerificationContext,
   verify: VerifyHooks,

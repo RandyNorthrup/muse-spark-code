@@ -46,10 +46,10 @@ function keyOf(repositoryRoot: string): string {
 }
 
 /**
- * The lane 0 port in memory: per repository root, the newest
- * PULL_REQUEST_LINKS_KEPT links. The runtime owns persistence (its
- * per-user store); session export and import carry a link through it.
- */
+The lane 0 port in memory: per repository root, the newest
+PULL_REQUEST_LINKS_KEPT links. The runtime owns persistence (its
+per-user store); session export and import carry a link through it.
+*/
 export function createMemoryPullRequestLinkStore(): PullRequestLinkStore {
   const roots = new Map<string, Map<string, PullRequestLinkRecord>>()
   return {

@@ -65,10 +65,10 @@ async function paidTeamRuntime() {
 export type PaidUseAnswer = 'once' | 'always' | 'deny'
 
 /**
- * What an allowing answer granted: `always` kept in this workspace, `window`
- * a window-once feature's once, `once` this use only (an "always" that could
- * not be kept, or a feature without a window once).
- */
+What an allowing answer granted: `always` kept in this workspace, `window`
+a window-once feature's once, `once` this use only (an "always" that could
+not be kept, or a feature without a window once).
+*/
 export type PaidUseScope = 'once' | 'window' | 'always'
 
 /** A verified selected-model tariff, not a provider-name assumption. No credential value. */
@@ -104,8 +104,8 @@ export function isScheduleConsentCurrent(
 }
 
 /** Creation/renewal only. No workspace-wide grant can silently authorize a schedule.
- * @unwired M58 schedule-run paid consent
- */
+@unwired M58 schedule-run paid consent
+*/
 export async function askSchedulePaidConsent(deps: {
   readonly schedule: ScheduleV2
   readonly identity: SchedulePaidIdentity
@@ -164,8 +164,8 @@ export async function askSchedulePaidConsent(deps: {
 }
 
 /** The run's paid port: live identity/gates plus a hard, noninteractive reservation.
- * @unwired M58 schedule paid scope
- */
+@unwired M58 schedule paid scope
+*/
 export function createSchedulePaidScope(deps: {
   readonly backend: 'modelApi' | 'museCode'
   readonly schedule: ScheduleV2
@@ -274,18 +274,18 @@ export interface PaidUseConsentDeps {
   /** Whether the feature may be used at all: its setting on and its price accepted. */
   readonly isOn: (feature: PaidFeature) => boolean
   /**
-   * Features whose "Allow Once" covers this window until it closes (Tab and
-   * hosted search, D48): kept in memory only, never stored, so nothing persists
-   * past the window. "Allow always" stays workspace-scoped for every
-   * feature, window-once ones included.
-   */
+  Features whose "Allow Once" covers this window until it closes (Tab and
+  hosted search, D48): kept in memory only, never stored, so nothing persists
+  past the window. "Allow always" stays workspace-scoped for every
+  feature, window-once ones included.
+  */
   readonly windowOnceFeatures?: ReadonlySet<PaidFeature>
   /**
-   * The feature's shared price-acceptance generation, as workspace grants
-   * are checked against (M58). A window-once grant holds only while the
-   * generation it was given under is current, so a price withdrawn and
-   * accepted again in another window makes this window ask again.
-   */
+  The feature's shared price-acceptance generation, as workspace grants
+  are checked against (M58). A window-once grant holds only while the
+  generation it was given under is current, so a price withdrawn and
+  accepted again in another window makes this window ask again.
+  */
   readonly windowOnceGeneration?: (feature: PaidFeature) => number
   /** Judge defaults on; its first actual paid use accepts price in this same popup. */
   readonly isJudgeEnabled?: (() => boolean) | undefined
@@ -296,8 +296,8 @@ export interface PaidUseConsentDeps {
   readonly readGrants: () => ReadonlySet<PaidFeature>
   readonly writeGrants: (grants: ReadonlySet<PaidFeature>) => Promise<void>
   /** Valid workspace scopes, invalidated with price acceptance/setting changes like ordinary grants.
-   * Both stores are required to offer team Always; a feature-only legacy grant never authorizes it.
-   */
+  Both stores are required to offer team Always; a feature-only legacy grant never authorizes it.
+  */
   readonly readTeamGrants?: () => ReadonlySet<string>
   readonly writeTeamGrants?: (grants: ReadonlySet<string>) => Promise<void>
   /** Account owner performs the read/merge/write inside its serialized mutation. */
@@ -318,16 +318,16 @@ export class PaidUseConsent {
   private revocation = 0
   private readonly listeners = new Set<() => void>()
   /**
-   * Window-once grants this instance gave, each with the price-acceptance
-   * generation it was given under: memory only, never stored.
-   */
+  Window-once grants this instance gave, each with the price-acceptance
+  generation it was given under: memory only, never stored.
+  */
   private readonly windowOnce = new Map<PaidFeature, number | undefined>()
   /** Each feature's local revocations; Ask again also moves the shared `revocation`. */
   private readonly windowOnceRevocations = new Map<PaidFeature, number>()
   /**
-   * A window-once feature's first question while it is open: ordinary uses
-   * that arrive meanwhile share it and its answer instead of asking again.
-   */
+  A window-once feature's first question while it is open: ordinary uses
+  that arrive meanwhile share it and its answer instead of asking again.
+  */
   private readonly pendingWindowOnce = new Map<PaidFeature, Promise<boolean>>()
   private readonly searchWindowOnce = new Set<string>()
   private readonly pendingSearchWindowOnce = new Map<string, Promise<PaidUseAnswer>>()
@@ -348,9 +348,9 @@ export class PaidUseConsent {
   }
 
   /**
-   * Whether an "Allow Once" for the feature covers this window: given here,
-   * under the price acceptance that is still current in every window.
-   */
+  Whether an "Allow Once" for the feature covers this window: given here,
+  under the price acceptance that is still current in every window.
+  */
   private isWindowOnce(feature: PaidFeature): boolean {
     return (
       this.isWindowOnceFeature(feature) &&
@@ -366,10 +366,10 @@ export class PaidUseConsent {
   }
 
   /**
-   * Keeps "always" for the feature. A store that cannot be written is
-   * logged and leaves this use allowed once, so the next one asks again
-   * instead of this one failing.
-   */
+  Keeps "always" for the feature. A store that cannot be written is
+  logged and leaves this use allowed once, so the next one asks again
+  instead of this one failing.
+  */
   private async remember(feature: PaidFeature): Promise<boolean> {
     try {
       if (this.deps.rememberGrant === undefined)
@@ -392,11 +392,11 @@ export class PaidUseConsent {
   }
 
   /**
-   * The approval order a search "always" is kept under. A store that cannot
-   * hand one out (read-only or corrupt) is treated like one that cannot save
-   * the grant: none is returned, so the approved use goes ahead once and the
-   * next one asks again.
-   */
+  The approval order a search "always" is kept under. A store that cannot
+  hand one out (read-only or corrupt) is treated like one that cannot save
+  the grant: none is returned, so the approved use goes ahead once and the
+  next one asks again.
+  */
   private async searchApprovalOrder(
     quote: PaidQuote,
     prior: PaidGrant | undefined,
@@ -632,13 +632,13 @@ export class PaidUseConsent {
   }
 
   /**
-   * Whether this use may be billed: allowed always here, or allowed in the
-   * popup now. `requiresAsking` (a hook that demands a question) asks even when the
-   * use is allowed always. A feature turned off while the popup was open is
-   * refused whatever the answer. A window-once feature asks once per window:
-   * ordinary uses that arrive while its question is open wait for that
-   * answer; a use that requires asking still gets its own question.
-   */
+  Whether this use may be billed: allowed always here, or allowed in the
+  popup now. `requiresAsking` (a hook that demands a question) asks even when the
+  use is allowed always. A feature turned off while the popup was open is
+  refused whatever the answer. A window-once feature asks once per window:
+  ordinary uses that arrive while its question is open wait for that
+  answer; a use that requires asking still gets its own question.
+  */
   public allows(
     request: Exclude<PaidUseRequest, { feature: 'webSearch' }>,
     requiresAsking?: boolean,
@@ -702,10 +702,10 @@ export class PaidUseConsent {
   }
 
   /**
-   * Asks now, whatever is kept, and names what the answer granted (Tab's
-   * keyed consent, RVM94KR2): the caller binds the scope to its own key, so
-   * no grant kept for the feature alone answers for it.
-   */
+  Asks now, whatever is kept, and names what the answer granted (Tab's
+  keyed consent, RVM94KR2): the caller binds the scope to its own key, so
+  no grant kept for the feature alone answers for it.
+  */
   public async askScope(
     request: Exclude<PaidUseRequest, { feature: 'webSearch' | 'teamWorkers' }>,
   ): Promise<PaidUseScope | undefined> {
@@ -720,10 +720,10 @@ export class PaidUseConsent {
   }
 
   /**
-   * The feature's window once as a token, undefined while none holds. It
-   * changes whenever that once is revoked, so a grant taken under an older
-   * once never counts under a newer one.
-   */
+  The feature's window once as a token, undefined while none holds. It
+  changes whenever that once is revoked, so a grant taken under an older
+  once never counts under a newer one.
+  */
   public windowOnceToken(feature: PaidFeature): string | undefined {
     return this.isWindowOnce(feature)
       ? JSON.stringify([this.revocations(feature), this.windowOnce.get(feature)])
@@ -731,11 +731,11 @@ export class PaidUseConsent {
   }
 
   /**
-   * A price acceptance changed in this window (the host calls this from
-   * `writeAccepted`): this window's once was given under the old price, so
-   * it asks again. A change in another window shows through
-   * `windowOnceGeneration`.
-   */
+  A price acceptance changed in this window (the host calls this from
+  `writeAccepted`): this window's once was given under the old price, so
+  it asks again. A change in another window shows through
+  `windowOnceGeneration`.
+  */
   public revokeWindowOnce(feature: PaidFeature): void {
     if (feature === 'webSearch') this.searchWindowOnce.clear()
     this.windowOnceRevocations.set(feature, (this.windowOnceRevocations.get(feature) ?? 0) + 1)
@@ -781,13 +781,13 @@ export interface AccountBindingGrants {
 }
 
 /**
- * The store lost a grant race: the durable revocation epoch moved under an
- * in-flight ask or revoke. Consent code retries `advanceEpoch` by re-reading
- * and refuses a stale `saveGrantIf`/`saveQuoteGrantIf` instead of downgrading
- * it to Allow once. Stores throw exactly this class on an epoch conflict, so
- * consent code can tell a revocation from a disk failure; any other failure
- * keeps the previous behaviour (Allow once, honest revoke error).
- */
+The store lost a grant race: the durable revocation epoch moved under an
+in-flight ask or revoke. Consent code retries `advanceEpoch` by re-reading
+and refuses a stale `saveGrantIf`/`saveQuoteGrantIf` instead of downgrading
+it to Allow once. Stores throw exactly this class on an epoch conflict, so
+consent code can tell a revocation from a disk failure; any other failure
+keeps the previous behaviour (Allow once, honest revoke error).
+*/
 export class StaleEpochError extends Error {
   public constructor(bindingKey: string) {
     super(`Paid grant store raced for binding ${bindingKey}`)
@@ -806,31 +806,31 @@ export interface AccountPaidUseConsentDeps extends Omit<
 > {
   readonly readGrants: (bindingKey: string) => AccountBindingGrants | undefined
   /**
-   * The account's durable revocation epoch, persisted per binding in the
-   * same store as the grants. `revoke()` advances it before clearing, so a
-   * leftover grant from a failed clear stays stale on every instance, after
-   * a restart too. Missing means never revoked.
-   */
+  The account's durable revocation epoch, persisted per binding in the
+  same store as the grants. `revoke()` advances it before clearing, so a
+  leftover grant from a failed clear stays stale on every instance, after
+  a restart too. Missing means never revoked.
+  */
   readonly readRevocationEpoch: (bindingKey: string) => number | undefined
   /**
-   * Atomic compare-and-set for the revocation epoch: moves the durable epoch
-   * from `expected` to `expected + 1`, and throws `StaleEpochError` when the
-   * durable epoch is no longer `expected`. The future production store must
-   * serialize this per binding against `saveGrantIf`, `saveQuoteGrantIf`
-   * and the clears, so concurrent revokes produce strictly increasing epochs
-   * and a delayed writer can never move the epoch backwards or republish an
-   * older value. Consent code never reads the epoch and writes it back
-   * itself; it retries only by re-reading and calling this again.
-   */
+  Atomic compare-and-set for the revocation epoch: moves the durable epoch
+  from `expected` to `expected + 1`, and throws `StaleEpochError` when the
+  durable epoch is no longer `expected`. The future production store must
+  serialize this per binding against `saveGrantIf`, `saveQuoteGrantIf`
+  and the clears, so concurrent revokes produce strictly increasing epochs
+  and a delayed writer can never move the epoch backwards or republish an
+  older value. Consent code never reads the epoch and writes it back
+  itself; it retries only by re-reading and calling this again.
+  */
   readonly advanceEpoch: (bindingKey: string, expected: number) => Promise<void>
   /**
-   * Atomic conditional grant write: persists `grants` only while the durable
-   * epoch still equals `epoch`, and throws `StaleEpochError` otherwise. The
-   * future production store must serialize this per binding against
-   * `advanceEpoch`, so a grant approved under a revoked epoch is never
-   * stored. Consent code always passes the epoch captured before its popup,
-   * never a freshly re-read one.
-   */
+  Atomic conditional grant write: persists `grants` only while the durable
+  epoch still equals `epoch`, and throws `StaleEpochError` otherwise. The
+  future production store must serialize this per binding against
+  `advanceEpoch`, so a grant approved under a revoked epoch is never
+  stored. Consent code always passes the epoch captured before its popup,
+  never a freshly re-read one.
+  */
   readonly saveGrantIf: (
     bindingKey: string,
     epoch: number,
@@ -844,18 +844,18 @@ export interface AccountPaidUseConsentDeps extends Omit<
   /** Registry checks account membership/credential generation and the accepted tariff. */
   readonly isCurrent: (binding: PaidAccountBinding) => boolean
   /**
-   * The account's approved search quotes. Required: an unversioned grant
-   * cannot prove its vintage (0.18 rule), so no account consent exists
-   * without a store and a generation. The host scopes all three to this
-   * account binding; grants for another account must never be visible here.
-   */
+  The account's approved search quotes. Required: an unversioned grant
+  cannot prove its vintage (0.18 rule), so no account consent exists
+  without a store and a generation. The host scopes all three to this
+  account binding; grants for another account must never be visible here.
+  */
   readonly readQuoteGrant: (quote: PaidQuote) => PaidGrant | undefined
   /**
-   * Atomic conditional quote-grant write: persists `grant` only while the
-   * binding's durable epoch still equals `epoch`, throwing
-   * `StaleEpochError` otherwise. Same per-binding serialization requirement
-   * as `saveGrantIf`.
-   */
+  Atomic conditional quote-grant write: persists `grant` only while the
+  binding's durable epoch still equals `epoch`, throwing
+  `StaleEpochError` otherwise. Same per-binding serialization requirement
+  as `saveGrantIf`.
+  */
   readonly saveQuoteGrantIf: (bindingKey: string, epoch: number, grant: PaidGrant) => Promise<void>
   readonly quoteGeneration: () => string
   /** Clears this account's quote grants. `revoke()` runs it in the owner queue. */
@@ -873,12 +873,12 @@ export function paidAccountQuestion(binding: PaidAccountBinding): string {
 }
 
 /**
- * The revocation epoch a persisted quote generation was approved under.
- * Only the versioned durable encoding counts: an instance-counter-era
- * `[counter, hostGeneration]` array (or anything else unversioned) fails the
- * schema, so a legacy grant can never match a durable epoch and is asked
- * again instead.
- */
+The revocation epoch a persisted quote generation was approved under.
+Only the versioned durable encoding counts: an instance-counter-era
+`[counter, hostGeneration]` array (or anything else unversioned) fails the
+schema, so a legacy grant can never match a durable epoch and is asked
+again instead.
+*/
 const durableQuoteGenerationSchema = z.object({
   v: z.literal(ACCOUNT_QUOTE_GRANT_VERSION),
   epoch: z.number(),
@@ -896,20 +896,20 @@ function quoteGrantEpoch(generation: string): number | undefined {
 }
 
 /**
- * One instance per account/tariff. Legacy single-account consent stays
- * unchanged. No production host constructs this yet: per-account wiring is
- * M108 lane P's, so hosts keep their workspace-scoped consent until then.
- *
- * Grant authority is bound to a durable revocation epoch persisted per
- * account binding: `revoke()` advances it first with an atomic
- * compare-and-set and every grant is saved only under the epoch captured
- * before its popup, so a failed clear leaves only stale grants and a
- * concurrent revoke can never be overwritten with an older value. The final
- * decision is fenced against the captured epoch too, so a revocation during
- * the ask refuses even when persistence downgrades to Allow once. The
- * instance-local generation fences in-flight asks inside one instance only.
- * @unwired M58 account paid-use consent
- */
+One instance per account/tariff. Legacy single-account consent stays
+unchanged. No production host constructs this yet: per-account wiring is
+M108 lane P's, so hosts keep their workspace-scoped consent until then.
+
+Grant authority is bound to a durable revocation epoch persisted per
+account binding: `revoke()` advances it first with an atomic
+compare-and-set and every grant is saved only under the epoch captured
+before its popup, so a failed clear leaves only stale grants and a
+concurrent revoke can never be overwritten with an older value. The final
+decision is fenced against the captured epoch too, so a revocation during
+the ask refuses even when persistence downgrades to Allow once. The
+instance-local generation fences in-flight asks inside one instance only.
+@unwired M58 account paid-use consent
+*/
 export class AccountPaidUseConsent {
   private readonly binding: PaidAccountBinding
   private readonly key: string
@@ -918,12 +918,12 @@ export class AccountPaidUseConsent {
   private revocations = 0
   private shouldIgnoreStored = false
   /**
-   * The durable epoch captured before each open popup, keyed by feature so
-   * concurrent answers for different features carry their own. One ask per
-   * feature is in flight at a time (the inner consent shares a concurrent
-   * same-feature question), so the entry a `rememberGrant` consumes is the
-   * one its own answer was asked under.
-   */
+  The durable epoch captured before each open popup, keyed by feature so
+  concurrent answers for different features carry their own. One ask per
+  feature is in flight at a time (the inner consent shares a concurrent
+  same-feature question), so the entry a `rememberGrant` consumes is the
+  one its own answer was asked under.
+  */
   private readonly askEpochs = new Map<PaidFeature, number>()
   private writes: Promise<void> = Promise.resolve()
   private consent: PaidUseConsent
@@ -971,12 +971,12 @@ export class AccountPaidUseConsent {
   }
 
   /**
-   * Merges one feature into the binding's kept set inside the owner queue,
-   * under the epoch captured before the popup. The conditional save is the
-   * fence: when another instance revoked meanwhile it throws
-   * `StaleEpochError` and nothing is stored, so the answer can never be
-   * persisted as approval under the new epoch.
-   */
+  Merges one feature into the binding's kept set inside the owner queue,
+  under the epoch captured before the popup. The conditional save is the
+  fence: when another instance revoked meanwhile it throws
+  `StaleEpochError` and nothing is stored, so the answer can never be
+  persisted as approval under the new epoch.
+  */
   private async keepBindingFeature(
     feature: PaidFeature,
     generation: number,
@@ -996,12 +996,12 @@ export class AccountPaidUseConsent {
   }
 
   /**
-   * Persists an approved search quote inside the owner queue, under the
-   * epoch its generation was approved under. A save from a revoked epoch
-   * throws `StaleEpochError` instead of resurrecting the grant after
-   * `revoke()` advanced past it, on this instance or another sharing the
-   * store. A legacy unversioned generation is refused outright.
-   */
+  Persists an approved search quote inside the owner queue, under the
+  epoch its generation was approved under. A save from a revoked epoch
+  throws `StaleEpochError` instead of resurrecting the grant after
+  `revoke()` advanced past it, on this instance or another sharing the
+  store. A legacy unversioned generation is refused outright.
+  */
   private async keepQuoteGrant(grant: PaidGrant, generation: number): Promise<void> {
     await this.write(async () => {
       if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
@@ -1104,16 +1104,16 @@ export class AccountPaidUseConsent {
   }
 
   /**
-   * Advances the durable revocation epoch first, then removes the
-   * account/tariff's workspace grant and its quote grants, in the owner
-   * queue. The advance is a compare-and-set: a concurrent revoke that moved
-   * the epoch first makes this one re-read and advance again, so concurrent
-   * revokes produce strictly increasing epochs and a delayed writer can
-   * never move the epoch backwards or republish an older value. A failed
-   * clear still leaves every leftover grant stale, on every instance and
-   * after a restart. A failed advance rejects honestly with nothing cleared
-   * and the grants still working.
-   */
+  Advances the durable revocation epoch first, then removes the
+  account/tariff's workspace grant and its quote grants, in the owner
+  queue. The advance is a compare-and-set: a concurrent revoke that moved
+  the epoch first makes this one re-read and advance again, so concurrent
+  revokes produce strictly increasing epochs and a delayed writer can
+  never move the epoch backwards or republish an older value. A failed
+  clear still leaves every leftover grant stale, on every instance and
+  after a restart. A failed advance rejects honestly with nothing cleared
+  and the grants still working.
+  */
   public async revoke(): Promise<void> {
     this.revocations++
     this.isRevoking = true

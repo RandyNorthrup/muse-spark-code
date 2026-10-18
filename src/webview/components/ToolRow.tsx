@@ -144,9 +144,9 @@ export interface ToolRowProps {
   /** Edit review (M5): the stored patch of a completed edit-family item in the diff editor. */
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
   /**
-   * The edit's Revert in the row's menu (M87, D66 item 17), after the host's
-   * confirmation; absent where nothing may write the workspace's files.
-   */
+  The edit's Revert in the row's menu (M87, D66 item 17), after the host's
+  confirmation; absent where nothing may write the workspace's files.
+  */
   readonly onRevertEdit?: ((itemId: string, outputRef: string) => void) | undefined
   /** The row's path: the file at its change (M16). */
   readonly onOpenFile: (path: string, range: LineRange | undefined) => void
@@ -218,10 +218,10 @@ function EditBody({
 }
 
 /**
- * A shell call's IN and OUT. One Muse Code moved to the background answers
- * with JSON about the run instead of the command's text (M43): its OUT is
- * what the command printed so far, and a line says it still runs.
- */
+A shell call's IN and OUT. One Muse Code moved to the background answers
+with JSON about the run instead of the command's text (M43): its OUT is
+what the command printed so far, and a line says it still runs.
+*/
 function ShellBody({
   entry,
   command,
@@ -265,10 +265,10 @@ function outcomeText(status: string): string {
 }
 
 /**
- * A running shell call's Move to background, or a background task's Stop
- * (M46, PLAN.md D39). Pressed, it waits for the host: the row's next update
- * or a refusal frees it.
- */
+A running shell call's Move to background, or a background task's Stop
+(M46, PLAN.md D39). Pressed, it waits for the host: the row's next update
+or a refusal frees it.
+*/
 function TaskAction({
   entry,
   presentation,
@@ -318,20 +318,20 @@ function TaskAction({
 }
 
 /**
- * Fetch the stored patch while the row is open: the first page once, then
- * each next page until the document is whole (M25; a patch past one page of
- * OUTPUT_PAGE_BYTES used to stop at a partial document and fall back to the
- * unnumbered diff), within the host's own page budget.
- *
- * Automatic reads wait for the conversation's turn to end, keeping Muse
- * Code's command queue clear for approvals. Reopening a row reads on demand;
- * a missing page gets one more attempt when the turn ends.
- * Only once the edit has finished: Muse Code 1.4.2 names the patch while the
- * edit is still in progress, and a read then can answer "item or attached
- * output ref was not found" (captured 2026-10-02). A page asked for and not
- * come by the time the row is collapsed is asked for again when it is
- * expanded: the retry on demand after a failed or slow read (D26).
- */
+Fetch the stored patch while the row is open: the first page once, then
+each next page until the document is whole (M25; a patch past one page of
+OUTPUT_PAGE_BYTES used to stop at a partial document and fall back to the
+unnumbered diff), within the host's own page budget.
+
+Automatic reads wait for the conversation's turn to end, keeping Muse
+Code's command queue clear for approvals. Reopening a row reads on demand;
+a missing page gets one more attempt when the turn ends.
+Only once the edit has finished: Muse Code 1.4.2 names the patch while the
+edit is still in progress, and a read then can answer "item or attached
+output ref was not found" (captured 2026-10-02). A page asked for and not
+come by the time the row is collapsed is asked for again when it is
+expanded: the retry on demand after a failed or slow read (D26).
+*/
 function usePatchPages(
   entry: ToolEntry,
   isOpen: boolean,

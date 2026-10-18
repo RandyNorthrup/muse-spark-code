@@ -49,9 +49,9 @@ export interface ConversationExports {
   /** Asks where to save the portable JSON and writes it; resolves unwritten when dismissed. */
   readonly saveJson: (fileName: string, content: string) => Promise<void>
   /**
-   * The preview (M84): opens the redacted file read-only, never on disk, and
-   * asks whether to save it redacted, save it without redaction, or not at all.
-   */
+  The preview (M84): opens the redacted file read-only, never on disk, and
+  asks whether to save it redacted, save it without redaction, or not at all.
+  */
   readonly previewExport: (preview: ExportPreview) => Promise<ExportPreviewChoice>
   /** This machine's own folders, redacted wherever they appear: the workspace folders and the home folder. */
   readonly localRoots: () => readonly string[]
@@ -69,8 +69,8 @@ export interface ConversationSharing {
 }
 
 /** Sharing reads the same history as export, without writing or opening a destination.
- * @unwired M118 conversation share preview
- */
+@unwired M118 conversation share preview
+*/
 export async function previewConversationShare(
   host: Pick<AgentHost, 'readSession'>,
   session: Pick<AgentSession, 'sessionId'>,
@@ -92,12 +92,12 @@ export async function previewConversationShare(
 }
 
 /**
- * `historyUnavailable`: Muse Code answered with history mode `none` (a
- * conversation past its replay budget), so an export would hold nothing but
- * its header; the session log still has everything. `empty`: nothing has
- * been said yet. `tooLarge`: the portable file would be past what an import
- * reads, so it is not written. `dismissed`: the preview was closed.
- */
+`historyUnavailable`: Muse Code answered with history mode `none` (a
+conversation past its replay budget), so an export would hold nothing but
+its header; the session log still has everything. `empty`: nothing has
+been said yet. `tooLarge`: the portable file would be past what an import
+reads, so it is not written. `dismissed`: the preview was closed.
+*/
 export type ExportOutcome =
   'exported' | 'logUnavailable' | 'historyUnavailable' | 'empty' | 'tooLarge' | 'dismissed'
 

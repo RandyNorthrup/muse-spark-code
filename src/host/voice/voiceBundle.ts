@@ -51,11 +51,11 @@ export function voiceLoader(deps: VoiceLoaderDeps): () => VoiceBundle {
 }
 
 /**
- * A driver whose implementation is made on the first `start`, so the bundle
- * loads with the first recording rather than with the panel. A load that
- * fails is the listener's `onError` (the status is still idle), and the next
- * `start` tries again; `stop` and `dispose` reach the driver once there is one.
- */
+A driver whose implementation is made on the first `start`, so the bundle
+loads with the first recording rather than with the panel. A load that
+fails is the listener's `onError` (the status is still idle), and the next
+`start` tries again; `stop` and `dispose` reach the driver once there is one.
+*/
 export function deferredDriver(
   listener: DictationListener,
   make: () => DictationHandle,

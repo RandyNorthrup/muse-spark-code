@@ -139,21 +139,21 @@ export function outputLimitFor(policy: ModelPolicy, ceiling: number): number {
 }
 
 /**
- * The smallest max_output_tokens the provider accepts (Meta's live capture
- * is 16). Requests below it are rejected by the provider, so a budget that
- * cannot fit it refuses instead of sending. Unknown keeps 1.
- */
+The smallest max_output_tokens the provider accepts (Meta's live capture
+is 16). Requests below it are rejected by the provider, so a budget that
+cannot fit it refuses instead of sending. Unknown keeps 1.
+*/
 export function minOutputTokensForPolicy(policy: Pick<ModelPolicy, 'output'>): number {
   return policy.output.minTokens ?? 1
 }
 
 /**
- * The selected model's request effort, from the one resolver (lane
- * DSTHINK3). Off sends `none`; without a declared switch so does anything
- * unlisted, exactly as before. With one, a default or refused setting rides
- * unchanged to the model's codec, which resolves it again from the same
- * record: nothing is sent, or the typed refusal is raised before dispatch.
- */
+The selected model's request effort, from the one resolver (lane
+DSTHINK3). Off sends `none`; without a declared switch so does anything
+unlisted, exactly as before. With one, a default or refused setting rides
+unchanged to the model's codec, which resolves it again from the same
+record: nothing is sent, or the typed refusal is raised before dispatch.
+*/
 export function effortForPolicy(policy: ModelPolicy, requested: string): string {
   if (policy.identity.provider === 'meta') {
     return requested === 'none' ? 'minimal' : requested

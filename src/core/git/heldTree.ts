@@ -121,9 +121,9 @@ function pathOf(record: string): string {
 }
 
 /**
- * The entries of `git ls-tree -r -z --full-tree --long <commit>` to write,
- * in its order, or why none is.
- */
+The entries of `git ls-tree -r -z --full-tree --long <commit>` to write,
+in its order, or why none is.
+*/
 export function heldTree(listing: string, platform: NodeJS.Platform): HeldTree {
   // Every folder and file the paths name, folded: what is already there.
   const names = new Map<string, { readonly spelling: string; readonly isFolder: boolean }>()

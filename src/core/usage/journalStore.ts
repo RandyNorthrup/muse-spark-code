@@ -60,10 +60,10 @@ export interface UsageFs {
   /** No length: read the complete file through one handle, for atomic rollups. */
   read(file: string, offset: number, length?: number): Promise<Uint8Array>
   /**
-   * `isDurable` flushes the appended bytes to disk before resolving. `commit`,
-   * a fence (here and below), runs at the last step before the change lands and
-   * refuses it by throwing.
-   */
+  `isDurable` flushes the appended bytes to disk before resolving. `commit`,
+  a fence (here and below), runs at the last step before the change lands and
+  refuses it by throwing.
+  */
   append(
     file: string,
     line: string,
@@ -210,14 +210,14 @@ const USAGE_LEGACY_MONEY_KEYS: ReadonlySet<string> = new Set([
   'remainingUsd',
 ])
 /**
- * Parse stored JSON. A version 1 dollar is exact only when the number it
- * parses to has the same decimal value as the digits written: 0.17 wrote
- * JSON.stringify's shortest spelling, which always does; digits beyond a
- * double (an edited or foreign file) do not, and `isExact` is false so the
- * reader refuses the record instead of rounding it. The written digits come
- * from `parseJsonWithExactNumbers`, never the reviver's source text, so the
- * refusal holds on Node 20 as well as newer runtimes (M121 P2-1).
- */
+Parse stored JSON. A version 1 dollar is exact only when the number it
+parses to has the same decimal value as the digits written: 0.17 wrote
+JSON.stringify's shortest spelling, which always does; digits beyond a
+double (an edited or foreign file) do not, and `isExact` is false so the
+reader refuses the record instead of rounding it. The written digits come
+from `parseJsonWithExactNumbers`, never the reviver's source text, so the
+refusal holds on Node 20 as well as newer runtimes (M121 P2-1).
+*/
 function parseUsageJson(text: string): { readonly value: unknown; readonly isExact: boolean } {
   return parseJsonWithExactNumbers(text, USAGE_LEGACY_MONEY_KEYS)
 }
@@ -242,9 +242,9 @@ export interface UsageJournalRead {
   readonly tornLines: number
   readonly invalidLines: number
   /**
-   * Version 1 records (lines, or a month's rollup rows) whose written dollars
-   * a number cannot carry: refused and named on the page, never rounded (M121).
-   */
+  Version 1 records (lines, or a month's rollup rows) whose written dollars
+  a number cannot carry: refused and named on the page, never rounded (M121).
+  */
   readonly inexactRecords: number
 }
 export interface UsageJournalOptions {

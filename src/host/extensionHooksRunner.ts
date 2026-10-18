@@ -65,10 +65,10 @@ export interface ExtensionHookRunnerDeps {
   readonly isHooksEnabled: () => boolean
   readonly now: () => number
   /**
-   * Whether the path is listed (not gitignored, excluded or capped): the
-   * mention index answers in production. False drops the change, so a save
-   * storm in ignored output never spawns a process.
-   */
+  Whether the path is listed (not gitignored, excluded or capped): the
+  mention index answers in production. False drops the change, so a save
+  storm in ignored output never spawns a process.
+  */
   readonly isIndexed?: ((relativePath: string) => Promise<boolean>) | undefined
   /** A hook's own message, shown as a notice. */
   readonly notice: (level: 'info' | 'warning', text: string) => void
@@ -154,11 +154,11 @@ export class ExtensionHookRunner {
   }
 
   /**
-   * (Re)read spark-hooks.json beside Muse Code's sources, under the same
-   * trust gate and opt-in as the Model API snapshot. Commands reload before
-   * running, so an edit followed by Run Hook runs the new file; watchers run
-   * the snapshot a config change left behind.
-   */
+  (Re)read spark-hooks.json beside Muse Code's sources, under the same
+  trust gate and opt-in as the Model API snapshot. Commands reload before
+  running, so an edit followed by Run Hook runs the new file; watchers run
+  the snapshot a config change left behind.
+  */
   private async fire(
     event: ExtensionHookEvent,
     fields: Readonly<Record<string, unknown>>,
@@ -183,10 +183,10 @@ export class ExtensionHookRunner {
   }
 
   /**
-   * A hook file or setting changed: the policy epoch moves now, before any
-   * observer is awaited, and Tab refuses until the returned release runs
-   * after the reload (RVM94KR2 3).
-   */
+  A hook file or setting changed: the policy epoch moves now, before any
+  observer is awaited, and Tab refuses until the returned release runs
+  after the reload (RVM94KR2 3).
+  */
   private detect(): () => void {
     this.version += 1
     this.detections += 1
@@ -251,10 +251,10 @@ export class ExtensionHookRunner {
   }
 
   /**
-   * What the snapshot in force says about a Tab event (RVM94KR 1): a hook
-   * file present but not loaded whole is `invalid`, and Tab reads nothing
-   * until it is fixed; only no Tab hook at all is `absent`.
-   */
+  What the snapshot in force says about a Tab event (RVM94KR 1): a hook
+  file present but not loaded whole is `invalid`, and Tab reads nothing
+  until it is fixed; only no Tab hook at all is `absent`.
+  */
   public async tabHookState(event: TabHookRun['event']): Promise<TabHookState> {
     if (this.detections > 0) return 'reloading'
     await this.waitForReload()
@@ -314,12 +314,12 @@ export class ExtensionHookRunner {
   }
 
   /**
-   * A workspace file changed (M91 lane E): observation only, debounced per
-   * path and capped per minute, matcher-required, and it never starts a
-   * model request. Drops what the hooks cannot want before any process
-   * starts: paths outside the workspace, under .git or node_modules, on a
-   * protected path, or unlisted (gitignored, excluded, capped).
-   */
+  A workspace file changed (M91 lane E): observation only, debounced per
+  path and capped per minute, matcher-required, and it never starts a
+  model request. Drops what the hooks cannot want before any process
+  starts: paths outside the workspace, under .git or node_modules, on a
+  protected path, or unlisted (gitignored, excluded, capped).
+  */
   public async noteWorkspaceFile(absolutePath: string): Promise<void> {
     if (!this.isArmed() || this.hooks.length === 0) {
       return
@@ -352,10 +352,10 @@ export class ExtensionHookRunner {
   }
 
   /**
-   * A settings or hook file changed (M91 lane E): observation only. The
-   * change is observed under the config in effect when it happened; the new
-   * config governs the next event.
-   */
+  A settings or hook file changed (M91 lane E): observation only. The
+  change is observed under the config in effect when it happened; the new
+  config governs the next event.
+  */
   public async noteConfigFile(absolutePath: string, reason: ConfigChangeReason): Promise<void> {
     if (!this.isArmed()) {
       return
@@ -381,10 +381,10 @@ export class ExtensionHookRunner {
   }
 
   /**
-   * A folder added to the window, or a trusted workspace activating (M91
-   * lane E): observation only. A folder outside the first root is reported
-   * as it is spelled, so an exact matcher still matches.
-   */
+  A folder added to the window, or a trusted workspace activating (M91
+  lane E): observation only. A folder outside the first root is reported
+  as it is spelled, so an exact matcher still matches.
+  */
   public async noteDirectoryAdded(absolutePath: string): Promise<void> {
     if (!this.isArmed() || this.hooks.length === 0) {
       return
@@ -395,11 +395,11 @@ export class ExtensionHookRunner {
   }
 
   /**
-   * Run the Setup hooks for one trigger (M91 lane E): **Run Setup Hooks**
-   * runs `init`, the ACP agent's `setup` runs `init` or `--maintenance`.
-   * Observation; the bounded output is shown. Reloads first, so it runs
-   * what the files say now.
-   */
+  Run the Setup hooks for one trigger (M91 lane E): **Run Setup Hooks**
+  runs `init`, the ACP agent's `setup` runs `init` or `--maintenance`.
+  Observation; the bounded output is shown. Reloads first, so it runs
+  what the files say now.
+  */
   public async runSetup(trigger: SetupTrigger): Promise<SetupRunResult> {
     await this.reload()
     if (!this.isArmed() || this.hooks.length === 0) {
@@ -430,10 +430,10 @@ export class ExtensionHookRunner {
   }
 
   /**
-   * Run one Manual hook by its command, or by its description for
-   * `/hook run <name>` (M91 lane E). The user starts it; observation; the
-   * bounded output is shown. Reloads first, like Setup.
-   */
+  Run one Manual hook by its command, or by its description for
+  `/hook run <name>` (M91 lane E). The user starts it; observation; the
+  bounded output is shown. Reloads first, like Setup.
+  */
   public async runManual(name: string): Promise<ManualRunResult> {
     await this.reload()
     const hook = manualHooks(this.isArmed() ? this.hooks : []).find(

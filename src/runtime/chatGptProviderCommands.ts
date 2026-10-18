@@ -96,7 +96,7 @@ export interface ChatGptCommandText {
 export interface ChatGptProviderCommandDeps {
   createHost(): Promise<ChatGptHostPort>
   /** Nonsecret file/catalogue wiring commits atomically before success.
-   * Both calls run under the grant's process lock. */
+  Both calls run under the grant's process lock. */
   readonly providers: {
     add(host: ChatGptHostPort): Promise<void>
     remove(): Promise<void>

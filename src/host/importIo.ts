@@ -200,10 +200,10 @@ async function isDirectoryLink(absolutePath: string): Promise<boolean> {
 }
 
 /**
- * Read through one verified handle, at most maxBytes plus one sentinel
- * byte. A scan's project read is bound to the workspace root by path; a
- * plan-bound read (`project`) also compares the root's identity.
- */
+Read through one verified handle, at most maxBytes plus one sentinel
+byte. A scan's project read is bound to the workspace root by path; a
+plan-bound read (`project`) also compares the root's identity.
+*/
 async function readImportFile(
   absolutePath: string,
   maxBytes: number,

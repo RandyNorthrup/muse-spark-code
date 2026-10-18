@@ -205,10 +205,10 @@ function renderText(result: LegalScanResult, registry: LegalRegistryReport): str
 }
 
 /**
- * Runs the read-only scan with no backend and no auth. stdout carries only
- * the rendered report (or nothing with `--out`); every other word goes to
- * stderr in the display language.
- */
+Runs the read-only scan with no backend and no auth. stdout carries only
+the rendered report (or nothing with `--out`); every other word goes to
+stderr in the display language.
+*/
 export async function runLegalCommand(input: {
   readonly options: LegalOptions
   readonly deps: RunLegalDeps

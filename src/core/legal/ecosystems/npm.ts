@@ -203,10 +203,10 @@ function readYarnLock(snapshot: LegalFileSnapshot, file: string): readonly YarnE
 }
 
 /**
- * A minimal `pnpm-lock.yaml` reader: the `packages:` keys (`name@version`,
- * scoped names keep their leading `@`) carry versions; resolutions are
- * not license evidence. Anything else in the file is not read.
- */
+A minimal `pnpm-lock.yaml` reader: the `packages:` keys (`name@version`,
+scoped names keep their leading `@`) carry versions; resolutions are
+not license evidence. Anything else in the file is not read.
+*/
 function readPnpmLock(
   snapshot: LegalFileSnapshot,
   file: string,
@@ -289,10 +289,10 @@ function licenseFieldOf(manifest: Record<string, unknown>): string | undefined {
 }
 
 /**
- * Read npm, pnpm and Yarn evidence from the snapshot. Requirement ranges
- * without a resolving lock, and lock entries without license or installed
- * metadata, become `not checked` coverage entries, never silent gaps.
- */
+Read npm, pnpm and Yarn evidence from the snapshot. Requirement ranges
+without a resolving lock, and lock entries without license or installed
+metadata, become `not checked` coverage entries, never silent gaps.
+*/
 export function readNpm(snapshot: LegalFileSnapshot): EcosystemResult {
   const incomplete: string[] = []
   const manifests: LegalDependency[] = []

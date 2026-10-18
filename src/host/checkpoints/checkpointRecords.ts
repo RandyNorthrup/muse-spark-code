@@ -50,10 +50,10 @@ const unitRecordSchema = z.object({
   status: z.enum(['complete', 'incomplete']),
   ranProcesses: z.boolean(),
   /**
-   * Its journal says writes may exist that no intent describes: the unit
-   * passed its intent budget, or a journal line of it could not be read. Any
-   * range that holds it is refused whole.
-   */
+  Its journal says writes may exist that no intent describes: the unit
+  passed its intent budget, or a journal line of it could not be read. Any
+  range that holds it is refused whole.
+  */
   isMarkedIncomplete: z.boolean(),
   /** Retention keeps identity/sequence only, so old journal owners are explained. */
   isRetired: z.optional(z.boolean()),

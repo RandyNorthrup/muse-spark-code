@@ -49,10 +49,10 @@ export interface ExecOptions {
   readonly untrustedFiles: readonly string[]
   readonly mode: ExecMode
   /**
-   * The BYO provider to run on (M95, PLAN.md D74): resolved only from the
-   * runner's own user file or a built-in preset's fixed origin, never a
-   * repository file. `model` is then the qualified `<provider>/<model>` ref.
-   */
+  The BYO provider to run on (M95, PLAN.md D74): resolved only from the
+  runner's own user file or a built-in preset's fixed origin, never a
+  repository file. `model` is then the qualified `<provider>/<model>` ref.
+  */
   readonly provider: string | undefined
   readonly model: string | undefined
   readonly effort: EffortLevel | undefined
@@ -139,12 +139,12 @@ function invalid(reason: string): { readonly ok: false; readonly reason: string 
 }
 
 /**
- * The model for a provider run: a bare id (no slash) qualifies to
- * `<provider>/<model>`; a ref must name this provider in full
- * (`openrouter/deepseek/…`, since a model id may itself hold a slash).
- * Without a provider the model passes through untouched. Undefined for a
- * ref aimed elsewhere.
- */
+The model for a provider run: a bare id (no slash) qualifies to
+`<provider>/<model>`; a ref must name this provider in full
+(`openrouter/deepseek/…`, since a model id may itself hold a slash).
+Without a provider the model passes through untouched. Undefined for a
+ref aimed elsewhere.
+*/
 export function qualifyProviderModel(
   provider: string | undefined,
   model: string | undefined,

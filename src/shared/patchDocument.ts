@@ -21,9 +21,9 @@ export const patchFileSchema = z.object({
   path: z.string(),
   hunks: z.array(patchHunkSchema),
   /**
-   * Whether the edit created the file (PLAN.md D27). The Model API's tools
-   * say so; Muse Code's documents do not, and a whole-file add stands in.
-   */
+  Whether the edit created the file (PLAN.md D27). The Model API's tools
+  say so; Muse Code's documents do not, and a whole-file add stands in.
+  */
   created: z.optional(z.boolean()),
 })
 export type PatchFile = z.infer<typeof patchFileSchema>
@@ -118,9 +118,9 @@ export function parsePatchDocument(json: string): readonly FileDiff[] | undefine
 }
 
 /**
- * Rows from the edit tool's visible output: everything from the first `@@`
- * on, without line numbers. Undefined when there is no hunk at all.
- */
+Rows from the edit tool's visible output: everything from the first `@@`
+on, without line numbers. Undefined when there is no hunk at all.
+*/
 export function parseUnifiedText(text: string): readonly DiffRow[] | undefined {
   const lines = text.split(LINE_BREAK)
   const start = lines.findIndex((line) => line.startsWith(HUNK_HEADER))

@@ -20,18 +20,18 @@ export interface ContextIo {
   /** Same open file's bytes and fstat identity, with its original canonical path. */
   readSource?(absolutePath: string, maxBytes?: number): Promise<ContextSourceRead | undefined>
   /**
-   * The file's bytes; undefined when it does not exist. With `maxBytes` (the
-   * catalogs' caps) it reads at most one byte more than that, so a file over
-   * the cap is seen to be over it without being read whole, and it reads only
-   * a regular file: a pipe or a device would block or never end.
-   */
+  The file's bytes; undefined when it does not exist. With `maxBytes` (the
+  catalogs' caps) it reads at most one byte more than that, so a file over
+  the cap is seen to be over it without being read whole, and it reads only
+  a regular file: a pipe or a device would block or never end.
+  */
   readFile(absolutePath: string, maxBytes?: number): Promise<Uint8Array | undefined>
   /**
-   * The names of the entries of an absolute directory that are directories
-   * or links (symbolic links, junctions), whatever a link leads to, so a
-   * broken one is reported by the reader rather than dropped; empty when the
-   * directory is missing.
-   */
+  The names of the entries of an absolute directory that are directories
+  or links (symbolic links, junctions), whatever a link leads to, so a
+  broken one is reported by the reader rather than dropped; empty when the
+  directory is missing.
+  */
   listDirectory(absolutePath: string): Promise<readonly string[]>
   /** The canonical form of an absolute path (links resolved, PLAN.md D24). */
   realPath(absolutePath: string): Promise<string>
@@ -99,10 +99,10 @@ function decodeAs(encoding: Encoding, bytes: Uint8Array): string {
 }
 
 /**
- * A context file's text: UTF-16 (either byte order) by its mark, UTF-8
- * otherwise (its mark dropped); refused when the bytes are not valid in that
- * encoding or the text still holds NUL characters.
- */
+A context file's text: UTF-16 (either byte order) by its mark, UTF-8
+otherwise (its mark dropped); refused when the bytes are not valid in that
+encoding or the text still holds NUL characters.
+*/
 export function decodeContextText(bytes: Uint8Array): ContextText {
   const encoding = encodingOf(bytes)
   let text: string
@@ -115,12 +115,12 @@ export function decodeContextText(bytes: Uint8Array): ContextText {
 }
 
 /**
- * One context file as text; undefined when it does not exist. With
- * `confineTo` (the workspace root, for the files a repository ships) a path
- * whose canonical form leaves that root is refused before it is read. With
- * `maxBytes` a file over that size is refused with its reason, after at most
- * `maxBytes + 1` bytes were read.
- */
+One context file as text; undefined when it does not exist. With
+`confineTo` (the workspace root, for the files a repository ships) a path
+whose canonical form leaves that root is refused before it is read. With
+`maxBytes` a file over that size is refused with its reason, after at most
+`maxBytes + 1` bytes were read.
+*/
 export async function readContextText(
   deps: ContextReadDeps,
   absolutePath: string,

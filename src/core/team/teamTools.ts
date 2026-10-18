@@ -57,9 +57,9 @@ export function isTeamTool(name: string): name is TeamToolName {
 }
 
 /**
- * The tools a worker session is offered: none, unless its role names
- * `delegates`, and then the four without `merge`.
- */
+The tools a worker session is offered: none, unless its role names
+`delegates`, and then the four without `merge`.
+*/
 export function teamToolsForWorker(
   delegatesTo: readonly string[] | undefined,
 ): readonly TeamToolName[] {
@@ -250,9 +250,9 @@ export const TEAM_TOOL_SCHEMAS: Record<TeamToolName, TeamToolSchema> = {
 }
 
 /**
- * The Model API declaration, in `SUBAGENT_TOOL_DEFINITIONS` shape: name,
- * description, properties and required, in declaration order.
- */
+The Model API declaration, in `SUBAGENT_TOOL_DEFINITIONS` shape: name,
+description, properties and required, in declaration order.
+*/
 export const TEAM_TOOL_DEFINITIONS: readonly {
   readonly name: string
   readonly description: string
@@ -339,9 +339,9 @@ export const collectArgs = z.object({
 })
 
 /**
- * `wait_seconds` within the backend's bound: a larger wait is clamped, never
- * refused, so `collect` waits no longer than its bound (M96 acceptance 13).
- */
+`wait_seconds` within the backend's bound: a larger wait is clamped, never
+refused, so `collect` waits no longer than its bound (M96 acceptance 13).
+*/
 export function clampCollectWait(waitSeconds: number | undefined): number | undefined {
   return waitSeconds === undefined
     ? undefined
@@ -428,11 +428,11 @@ export function fingerprintDelegateTasks(tasks: readonly unknown[]): string {
 }
 
 /**
- * `command_id` claims, kept with the conversation (and restored from it on
- * resume). The same id with the same tasks replays the recorded answer; the
- * same id with other tasks is refused whole: without the id a dropped answer
- * would start the work twice (MCP 2026-07-28).
- */
+`command_id` claims, kept with the conversation (and restored from it on
+resume). The same id with the same tasks replays the recorded answer; the
+same id with other tasks is refused whole: without the id a dropped answer
+would start the work twice (MCP 2026-07-28).
+*/
 export class TeamCommandRegistry {
   private readonly records = new Map<string, TeamCommandRecord>()
   private saving: Promise<void> = Promise.resolve()
@@ -565,8 +565,8 @@ export function teamToolNotDeclared(tool: string): string {
 // idempotency and worker lifecycle remain in the injected M96 runtime.
 
 /** The base delegate must validate the whole batch and submit it to the board
- * before dispatch. In particular, dry runs and command-id retries must not
- * submit another batch, and a refused edge must start no worker. */
+before dispatch. In particular, dry runs and command-id retries must not
+submit another batch, and a refused edge must start no worker. */
 export interface TeamBaseTools {
   roster: McpTool
   delegate: McpTool
@@ -576,7 +576,7 @@ export interface TeamBaseTools {
 }
 
 /** Lane Q performs review/mode admission at enqueue and keeps landing's card
- * as the approval point. Enqueue never invokes the former immediate merge. */
+as the approval point. Enqueue never invokes the former immediate merge. */
 export interface TeamMergeEnqueue {
   enqueue(
     options: z.infer<typeof teamMergeOptionsSchema>,
@@ -585,7 +585,7 @@ export interface TeamMergeEnqueue {
 }
 
 /** S/X2 can journal the change before acknowledging it. This capability only
- * changes the board; it must not dispatch workers or buy a model request. */
+changes the board; it must not dispatch workers or buy a model request. */
 export interface TeamRescheduleBoard {
   reschedule(input: z.infer<typeof teamRescheduleSchema>, at: number): void | Promise<void>
 }
@@ -606,7 +606,7 @@ const enqueueResultSchema = z.strictObject({
 })
 
 /** Keep the M96 envelope and task fields, adding only scheduler properties.
- * Base validation is still required by the injected delegate implementation. */
+Base validation is still required by the injected delegate implementation. */
 function delegateInput(args: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
   const { tasks } = delegateInputSchema.parse(args)
   return { ...args, tasks }
@@ -632,8 +632,8 @@ function delegateDefinition(base: McpTool): McpTool['inputSchema'] {
 }
 
 /** Construct once per conversation. No provider probe or worker start occurs
- * here. X2 supplies the conversation's frozen base declarations and journalled
- * board; single-model conversations never call this factory. */
+here. X2 supplies the conversation's frozen base declarations and journalled
+board; single-model conversations never call this factory. */
 export function createSchedulerTeamTools(
   base: TeamBaseTools,
   board: TeamRescheduleBoard,

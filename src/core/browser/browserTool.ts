@@ -113,10 +113,10 @@ export function extraHostSet(entries: readonly string[]): ReadonlySet<string> {
 }
 
 /**
- * The hosts beyond loopback a check may reach once the user allowed it: the
- * setting as it stands now (a host taken out while the card was open is not
- * reached), and the URL's own host when the card or modal widened to it.
- */
+The hosts beyond loopback a check may reach once the user allowed it: the
+setting as it stands now (a host taken out while the card was open is not
+reached), and the URL's own host when the card or modal widened to it.
+*/
 export function allowedHostsFor(
   placement: Exclude<BrowserUrlPlacement, { readonly kind: 'refused' }>,
   extraHosts: readonly string[],
@@ -129,10 +129,10 @@ export function allowedHostsFor(
 }
 
 /**
- * What one modal shows and its answer covers: the host it says the check
- * widens to (none when the URL is local or in the setting), and every host
- * beyond loopback the check would reach, sorted.
- */
+What one modal shows and its answer covers: the host it says the check
+widens to (none when the URL is local or in the setting), and every host
+beyond loopback the check would reach, sorted.
+*/
 export interface BrowserCheckScope {
   readonly widenedHost: string | undefined
   readonly allowedHosts: readonly string[]
@@ -149,9 +149,9 @@ export function browserCheckScope(
 }
 
 /**
- * The key a modal is shared under: the URL and the scope it shows, so a call
- * whose widening or hosts differ never takes another call's answer.
- */
+The key a modal is shared under: the URL and the scope it shows, so a call
+whose widening or hosts differ never takes another call's answer.
+*/
 export function browserScopeKey(url: string, scope: BrowserCheckScope): string {
   return JSON.stringify([url, scope.widenedHost ?? null, scope.allowedHosts])
 }
@@ -303,9 +303,9 @@ function clip(text: string): string {
 }
 
 /**
- * What the model reads of a finished check: the counts, then what the page
- * produced between markers it cannot know (`marker`, fresh random hex).
- */
+What the model reads of a finished check: the counts, then what the page
+produced between markers it cannot know (`marker`, fresh random hex).
+*/
 export function browserReportText(url: string, report: BrowserCheckReport, marker: string): string {
   const facts = fill(MODEL_TEXT.browserCheckFacts, {
     url,

@@ -47,9 +47,9 @@ export function previewSampleName(sample: TeamPreviewSample): string {
 }
 
 /**
- * Each built-in flow's fixed plan: the roles it runs and how much of the
- * role's typical use one step takes.
- */
+Each built-in flow's fixed plan: the roles it runs and how much of the
+role's typical use one step takes.
+*/
 export interface TeamSampleStep {
   readonly role: string
   /** Fraction of the role's typical task tokens this step uses. */
@@ -77,10 +77,10 @@ export interface TeamPreviewPrice {
 }
 
 /**
- * Lane A's selection over the draft: the pool index that would take the
- * role's next step given what each entry already spent, or -1 when no
- * entry has headroom. Usage is in total tokens.
- */
+Lane A's selection over the draft: the pool index that would take the
+role's next step given what each entry already spent, or -1 when no
+entry has headroom. Usage is in total tokens.
+*/
 export type TeamPreviewSelect = (
   role: string,
   poolSize: number,
@@ -124,12 +124,12 @@ export interface TeamPreviewInput {
 }
 
 /**
- * Runs the sample's fixed plan over the draft. Token figures come from
- * each role's typical use; the low end prices input at the cached rate
- * (cached input is never priced at the full rate) and the high end at
- * the full rate. An active team's missing custom pool uses live Default
- * through the resolver; steps no entry can take are listed as unstaffed.
- */
+Runs the sample's fixed plan over the draft. Token figures come from
+each role's typical use; the low end prices input at the cached rate
+(cached input is never priced at the full rate) and the high end at
+the full rate. An active team's missing custom pool uses live Default
+through the resolver; steps no entry can take are listed as unstaffed.
+*/
 export function previewDraft(input: TeamPreviewInput): TeamPreview {
   const steps: TeamPreviewStep[] = []
   const unstaffed: string[] = []

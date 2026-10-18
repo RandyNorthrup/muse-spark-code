@@ -225,11 +225,11 @@ interface OpenInline {
 }
 
 /**
- * The paragraph being written, as parts: closing an inline element joins
- * only the parts inside it, so a long paragraph is never copied whole for
- * each `<b>` in it, and the open elements are capped (MAX_INLINE_DEPTH), so
- * the work stays linear in the page.
- */
+The paragraph being written, as parts: closing an inline element joins
+only the parts inside it, so a long paragraph is never copied whole for
+each `<b>` in it, and the open elements are capped (MAX_INLINE_DEPTH), so
+the work stays linear in the page.
+*/
 class InlineText {
   private parts: string[] = []
   /** The characters in the paragraph now, for the output bound. */
@@ -319,10 +319,10 @@ class MarkdownWriter {
   }
 
   /**
-   * A block, each line prefixed. Only as much of the text as the bound still
-   * allows is written, so a block of many short lines cannot multiply its
-   * size by its prefixes.
-   */
+  A block, each line prefixed. Only as much of the text as the bound still
+  allows is written, so a block of many short lines cannot multiply its
+  size by its prefixes.
+  */
   private emit(text: string): void {
     const budget = this.maxChars - this.written
     if (budget <= 0) {
@@ -813,10 +813,10 @@ function isHtml(node: ChildNode, name: string): node is Element {
 }
 
 /**
- * The document's base URL: the first `<base href>` in tree order, resolved
- * against the page's URL; the page's URL when there is none, when it does
- * not parse, or when it names a `data:` or `javascript:` URL.
- */
+The document's base URL: the first `<base href>` in tree order, resolved
+against the page's URL; the page's URL when there is none, when it does
+not parse, or when it names a `data:` or `javascript:` URL.
+*/
 function baseOf(document: ParentNode, pageUrl: URL): URL {
   for (const node of inTreeOrder(document)) {
     const href = isHtml(node, 'base') ? attributeOf(node, 'href') : undefined
@@ -839,10 +839,10 @@ function childNamed(parent: ParentNode | undefined, name: string): Element | und
 }
 
 /**
- * The page's title: the first `<title>` that is a child of `<head>`, white
- * space collapsed: the document's own metadata, not a `<title>` the parser
- * put somewhere in its body.
- */
+The page's title: the first `<title>` that is a child of `<head>`, white
+space collapsed: the document's own metadata, not a `<title>` the parser
+put somewhere in its body.
+*/
 function titleOf(document: ParentNode): string | undefined {
   const title = childNamed(childNamed(childNamed(document, 'html'), 'head'), 'title')
   if (title === undefined) {
@@ -916,19 +916,19 @@ function pageOf(document: ParentNode, pageUrl: URL, maxChars: number): MarkdownP
 }
 
 /**
- * The page as Markdown; links and images made absolute against its base
- * URL. The conversion stops once the Markdown passes `maxChars` (a hostile
- * page can expand, a relative link into a long absolute one), and says so.
- * @unwired M69 web-fetch page conversion
- */
+The page as Markdown; links and images made absolute against its base
+URL. The conversion stops once the Markdown passes `maxChars` (a hostile
+page can expand, a relative link into a long absolute one), and says so.
+@unwired M69 web-fetch page conversion
+*/
 export function htmlToMarkdown(html: string, pageUrl: URL, maxChars: number): MarkdownPage {
   return pageOf(parse(html), pageUrl, maxChars)
 }
 
 /**
- * The encoding the first `<meta>` in the tree declares (its `charset`, or
- * an `http-equiv="content-type"` content's charset), as the parser meets it.
- */
+The encoding the first `<meta>` in the tree declares (its `charset`, or
+an `http-equiv="content-type"` content's charset), as the parser meets it.
+*/
 function declaredEncodingOf(document: ParentNode): string | undefined {
   for (const node of inTreeOrder(document)) {
     if (!isHtml(node, 'meta')) {
@@ -949,11 +949,11 @@ function declaredEncodingOf(document: ParentNode): string | undefined {
 }
 
 /**
- * One fetched page, from its bytes: decoded as HTML decodes it, then
- * converted. When the encoding was only tentative and a `<meta>` the parser
- * meets declares another, the page is read again in that one, as a browser
- * reparses it.
- */
+One fetched page, from its bytes: decoded as HTML decodes it, then
+converted. When the encoding was only tentative and a `<meta>` the parser
+meets declares another, the page is read again in that one, as a browser
+reparses it.
+*/
 export function convertHtmlJob(job: HtmlJob): MarkdownPage {
   const decoded = decodeHtml(job.bytes, job.charset)
   let document = parse(decoded.text)

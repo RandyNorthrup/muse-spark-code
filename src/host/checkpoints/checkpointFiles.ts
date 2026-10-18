@@ -63,11 +63,11 @@ export interface FileStep {
 }
 
 /**
- * What became of one step: done; the file was not as the step expected
- * (changed while it ran, or an unsaved editor); a link or the workspace's
- * edge was on the way; the file is too large to compare; or the change
- * itself failed.
- */
+What became of one step: done; the file was not as the step expected
+(changed while it ran, or an unsaved editor); a link or the workspace's
+edge was on the way; the file is too large to compare; or the change
+itself failed.
+*/
 export type StepResult = 'done' | 'changed' | 'linked' | 'failed' | 'unsaved' | 'tooLarge'
 
 /** Fresh reads after awaits: TypeScript's readonly narrowing is not a live abort check. */
@@ -88,11 +88,11 @@ function pause(ms: number): Promise<void> {
 }
 
 /**
- * Whether a folder or the file on the requested spelling of a path is a link or
- * a junction. Letter case alone does not tell: a case-folding volume resolves
- * `readme.md` to `README.md` with no link, while on a case-sensitive one (macOS
- * offers both) `foo` may be a link to `Foo`.
- */
+Whether a folder or the file on the requested spelling of a path is a link or
+a junction. Letter case alone does not tell: a case-folding volume resolves
+`readme.md` to `README.md` with no link, while on a case-sensitive one (macOS
+offers both) `foo` may be a link to `Foo`.
+*/
 async function hasLinkOnTheWay(root: string, relative: string): Promise<boolean> {
   let current = root
   for (const segment of relative.split(/[\\/]/u)) {
@@ -126,9 +126,9 @@ async function hasGit(folder: string): Promise<boolean> {
 }
 
 /**
- * The nearest folder at or above the workspace holding `.git`; the workspace
- * when none does. An M72 record names its place by it.
- */
+The nearest folder at or above the workspace holding `.git`; the workspace
+when none does. An M72 record names its place by it.
+*/
 export async function repositoryTop(workspaceRoot: string): Promise<string> {
   for (let folder = workspaceRoot; ; folder = path.dirname(folder)) {
     if (await hasGit(folder)) {
@@ -141,10 +141,10 @@ export async function repositoryTop(workspaceRoot: string): Promise<string> {
 }
 
 /**
- * The path inside the workspace with no link or junction on the way (its
- * canonical form is the canonical root plus the path), or undefined with a
- * log line.
- */
+The path inside the workspace with no link or junction on the way (its
+canonical form is the canonical root plus the path), or undefined with a
+log line.
+*/
 async function unlinked(
   target: RestoreTarget,
   relative: string,
@@ -176,10 +176,10 @@ async function unlinked(
 }
 
 /**
- * A recorded path as it names a file now (spec 2: re-resolved at a restore,
- * so two keys that now name one file are one path), or undefined when a link
- * or junction is on the way or it leads outside the workspace.
- */
+A recorded path as it names a file now (spec 2: re-resolved at a restore,
+so two keys that now name one file are one path), or undefined when a link
+or junction is on the way or it leads outside the workspace.
+*/
 export async function resolvedPath(
   target: RestoreTarget,
   relative: string,
@@ -189,9 +189,9 @@ export async function resolvedPath(
 }
 
 /**
- * Whether the file is still what the step expects it to be, by bytes and
- * presence, never mode; or too large to tell.
- */
+Whether the file is still what the step expects it to be, by bytes and
+presence, never mode; or too large to tell.
+*/
 async function matchOf(
   absolute: string,
   expect: Expectation,
@@ -236,9 +236,9 @@ async function removeEmptiedFolders(
 }
 
 /**
- * Deletes the file, again while Windows says another program holds it, each
- * attempt only while the file is still as expected. True when it is gone.
- */
+Deletes the file, again while Windows says another program holds it, each
+attempt only while the file is still as expected. True when it is gone.
+*/
 async function didRemoveHeld(
   target: RestoreTarget,
   absolute: string,
@@ -264,11 +264,11 @@ async function didRemoveHeld(
 }
 
 /**
- * One step of a restore or a Redo: the file changed only when it is inside
- * the workspace with no link on the way and still as expected. A deletion
- * also removes the folders the step names, innermost first, while they are
- * empty.
- */
+One step of a restore or a Redo: the file changed only when it is inside
+the workspace with no link on the way and still as expected. A deletion
+also removes the folders the step names, innermost first, while they are
+empty.
+*/
 export async function applyFileStep(
   target: RestoreTarget,
   step: FileStep,

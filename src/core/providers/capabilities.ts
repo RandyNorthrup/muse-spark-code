@@ -100,10 +100,10 @@ export function isAgentCapable(capabilities: ModelCapabilities): boolean {
 }
 
 /**
- * Whether two capability sets use the same wire for tools: both call tools
- * with the same parallelism. The codecs read the fuller preset quirks; this
- * answers the picker's grouping only.
- */
+Whether two capability sets use the same wire for tools: both call tools
+with the same parallelism. The codecs read the fuller preset quirks; this
+answers the picker's grouping only.
+*/
 export function hasSameToolShape(a: ModelCapabilities, b: ModelCapabilities): boolean {
   return a.toolCalling === b.toolCalling && a.parallelToolCalls === b.parallelToolCalls
 }

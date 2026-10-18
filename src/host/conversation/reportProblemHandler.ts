@@ -144,9 +144,9 @@ function keptEvents(data: ReportData, choice: ReportChoice): readonly SelectedRe
 }
 
 /**
- * One place builds the builder's input from a snapshot and a choice (open,
- * update, stale re-preview): the preview always matches the sealed draft.
- */
+One place builds the builder's input from a snapshot and a choice (open,
+update, stale re-preview): the preview always matches the sealed draft.
+*/
 async function buildChoiceDraft(
   data: ReportData,
   choice: ReportChoice,
@@ -174,10 +174,10 @@ function localizedAge(ageMs: number): string {
 }
 
 /**
- * One removable row per included section and per record the draft carries:
- * exactly the builder's selection, never a record it would skip. Labels
- * carry a fixed kind and a relative age only, never a code or a path.
- */
+One removable row per included section and per record the draft carries:
+exactly the builder's selection, never a record it would skip. Labels
+carry a fixed kind and a relative age only, never a code or a path.
+*/
 function draftItems(data: ReportData, choice: ReportChoice): ReportDraftItem[] {
   const items: ReportDraftItem[] = []
   if (choice.isFactsIncluded) {

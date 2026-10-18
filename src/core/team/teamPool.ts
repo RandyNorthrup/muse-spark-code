@@ -32,8 +32,8 @@ export interface TeamCap {
 }
 
 /** The map key for a cap: `tokens/day`.
- * @unwired M96 team cap map key
- */
+@unwired M96 team cap map key
+*/
 export function teamCapKey(cap: Pick<TeamCap, 'measure' | 'window'>): string {
   return `${cap.measure}/${cap.window}`
 }
@@ -82,12 +82,12 @@ export function isDefaultEntry(agent: TeamPoolEntry['agent']): agent is TeamDefa
 }
 
 /**
- * The orchestrator slot (lane T owns the picker and the override): Default
- * resolves through it when each task starts, never from a snapshot, so a
- * picker change applies to the next delegation and a running task keeps
- * what it started on.
- * @unwired M96 lane T orchestrator slot
- */
+The orchestrator slot (lane T owns the picker and the override): Default
+resolves through it when each task starts, never from a snapshot, so a
+picker change applies to the next delegation and a running task keeps
+what it started on.
+@unwired M96 lane T orchestrator slot
+*/
 export interface TeamOrchestratorSlot {
   resolve(): TeamAgentProfile
 }
@@ -125,8 +125,8 @@ export interface TeamAgentSwitchPayload {
 }
 
 /** The payload for a switch, with both agent profiles' models.
- * @unwired M96 agent switch hook payload
- */
+@unwired M96 agent switch hook payload
+*/
 export function switchHookPayload(
   change: TeamSwitch,
   fromAgent: TeamAgentProfile,
@@ -180,8 +180,8 @@ export function switchReasonText(
 }
 
 /** The transcript's one row for a switch: "research: a → b, daily token cap met".
- * @unwired M96 agent switch transcript row
- */
+@unwired M96 agent switch transcript row
+*/
 export function formatSwitchRow(change: TeamSwitch, fromLabel: string, toLabel: string): string {
   return fill(UI_TEXT.teamSwitchRow, {
     role: change.roleId,
@@ -198,9 +198,9 @@ export interface TeamAgentMark {
 }
 
 /**
- * The rate-limit and usage-limit marks, per agent (a plan or a key is shared
- * by all its entries, so the mark is too). Expired marks read as absent.
- */
+The rate-limit and usage-limit marks, per agent (a plan or a key is shared
+by all its entries, so the mark is too). Expired marks read as absent.
+*/
 export class TeamAgentMarks {
   private readonly marks = new Map<string, TeamAgentMark>()
 
@@ -234,11 +234,11 @@ export class TeamAgentMarks {
 }
 
 /**
- * A worker failure classified by the wire shapes lane P captures (AGENTS
- * rule 13): a 429 with `Retry-After`, or a subscription's usage-limit
- * refusal. A shape that has not been captured is a plain failure, never a
- * switch, so the classifier answers undefined for it.
- */
+A worker failure classified by the wire shapes lane P captures (AGENTS
+rule 13): a 429 with `Retry-After`, or a subscription's usage-limit
+refusal. A shape that has not been captured is a plain failure, never a
+switch, so the classifier answers undefined for it.
+*/
 export type TeamLimitClassification =
   | { readonly kind: 'rateLimit'; readonly retryAfterMs: number }
   | { readonly kind: 'usageLimit'; readonly resetMs: number | undefined }
@@ -248,11 +248,11 @@ export interface TeamLimitClassifier {
 }
 
 /**
- * Records a worker failure on the agent's marks (lane W calls this with the
- * limit errors it sees). Returns the switch reason when the failure was a
- * limit, so the next task skips every entry on that agent until its time.
- * @unwired M96 team failure recorder
- */
+Records a worker failure on the agent's marks (lane W calls this with the
+limit errors it sees). Returns the switch reason when the failure was a
+limit, so the next task skips every entry on that agent until its time.
+@unwired M96 team failure recorder
+*/
 export function noteTeamFailure(
   marks: TeamAgentMarks,
   classifier: TeamLimitClassifier,
@@ -312,11 +312,11 @@ export interface TeamEntryExhaustion {
 }
 
 /**
- * Everything selection reads, resolved for this delegation: Default live
- * from the slot, meters from the ledger plus open reservations, running
- * counts from admission, availability from lane R/T's probes. Production
- * wires it from teamMeter, teamAdmission and the marks; tests fake it.
- */
+Everything selection reads, resolved for this delegation: Default live
+from the slot, meters from the ledger plus open reservations, running
+counts from admission, availability from lane R/T's probes. Production
+wires it from teamMeter, teamAdmission and the marks; tests fake it.
+*/
 export interface TeamSelectionSnapshot {
   readonly nowMs: number
   /** What Default resolves to right now: the picker's model or the override. */
@@ -401,14 +401,14 @@ function entryAgent(entry: TeamPoolEntry, snapshot: TeamSelectionSnapshot): Team
 }
 
 /**
- * The first entry with headroom, in pool order. Headroom means all of
- * D75's hold: `concurrent` has room, every `day` and `lifetime` cap (and
- * any `task` cap the entry sets) has room for the task's first request, the
- * agent is not marked or unavailable, and the per-agent, global, process,
- * turn and team limits have room. A pool with no entries answers
- * "not staffed" at once, under every policy.
- * @unwired M96 team entry selector
- */
+The first entry with headroom, in pool order. Headroom means all of
+D75's hold: `concurrent` has room, every `day` and `lifetime` cap (and
+any `task` cap the entry sets) has room for the task's first request, the
+agent is not marked or unavailable, and the per-agent, global, process,
+turn and team limits have room. A pool with no entries answers
+"not staffed" at once, under every policy.
+@unwired M96 team entry selector
+*/
 export function selectTeamEntry(
   pool: TeamRolePool,
   snapshot: TeamSelectionSnapshot,
@@ -491,12 +491,12 @@ function refuseEntry(
 }
 
 /**
- * Records the move from the role's last entry to the selected one: the
- * transcript row's data. Returning to an entry after a reset or a new day
- * is a switch too. Callers pass the last entry's refusal so the row names
- * why the role moved.
- * @unwired M96 agent switch recorder
- */
+Records the move from the role's last entry to the selected one: the
+transcript row's data. Returning to an entry after a reset or a new day
+is a switch too. Callers pass the last entry's refusal so the row names
+why the role moved.
+@unwired M96 agent switch recorder
+*/
 export function recordTeamSwitch(
   pool: TeamRolePool,
   fromEntryId: string,
@@ -569,12 +569,12 @@ export type TeamExhaustedAnswer =
   | { readonly decision: 'self'; readonly reasons: readonly TeamEntryExhaustion[] }
 
 /**
- * Applies the role's policy. `queue` waits only for a reason that recovers
- * (room under `concurrent`, a rate limit, a usage-limit cooldown, or a day
- * cap at midnight); a spent `lifetime` cap never recovers, so it asks. An
- * empty pool answers "not staffed" before any policy.
- * @unwired M96 exhausted-pool answer
- */
+Applies the role's policy. `queue` waits only for a reason that recovers
+(room under `concurrent`, a rate limit, a usage-limit cooldown, or a day
+cap at midnight); a spent `lifetime` cap never recovers, so it asks. An
+empty pool answers "not staffed" before any policy.
+@unwired M96 exhausted-pool answer
+*/
 export function answerExhausted(
   pool: TeamRolePool,
   reasons: readonly TeamEntryExhaustion[],
@@ -640,11 +640,11 @@ export interface QueuedTeamTask {
 }
 
 /**
- * One role's queue: at most TEAM_QUEUE_MAX tasks, each waiting at most
- * TEAM_QUEUE_MAX_WAIT_MS, then it asks. Starting a task when headroom frees
- * is the scheduler's (M96c); the queue holds the wait and its deadline.
- * @unwired M96 team task queue
- */
+One role's queue: at most TEAM_QUEUE_MAX tasks, each waiting at most
+TEAM_QUEUE_MAX_WAIT_MS, then it asks. Starting a task when headroom frees
+is the scheduler's (M96c); the queue holds the wait and its deadline.
+@unwired M96 team task queue
+*/
 export class TeamTaskQueue {
   private readonly tasks: QueuedTeamTask[] = []
 
@@ -694,14 +694,14 @@ export interface TeamHandoffFile {
 }
 
 /**
- * `continue on next`, set per role and off by default: the extension writes
- * a handoff brief, and the next entry with headroom continues the task on
- * the same branch, as a new task. The capped worker makes no extra call to
- * write it: the brief is composed here from the original brief, the capped
- * worker's last message (marked as data), the files changed so far and the
- * switch reason.
- * @unwired M96 agent handoff brief
- */
+`continue on next`, set per role and off by default: the extension writes
+a handoff brief, and the next entry with headroom continues the task on
+the same branch, as a new task. The capped worker makes no extra call to
+write it: the brief is composed here from the original brief, the capped
+worker's last message (marked as data), the files changed so far and the
+switch reason.
+@unwired M96 agent handoff brief
+*/
 export function buildHandoffBrief(brief: {
   readonly originalBrief: string
   readonly lastMessage: string
@@ -725,8 +725,8 @@ export function buildHandoffBrief(brief: {
 }
 
 /** The "not staffed" refusal for a role whose pool the user emptied, Default included.
- * @unwired M96 not-staffed refusal text
- */
+@unwired M96 not-staffed refusal text
+*/
 export function notStaffedText(roleId: string): string {
   return fill(UI_TEXT.teamPoolNotStaffed, { role: roleId })
 }

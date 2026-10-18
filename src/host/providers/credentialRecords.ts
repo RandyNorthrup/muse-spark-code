@@ -10,10 +10,10 @@ import { PROVIDER_SECRET_PREFIX } from '../../shared/constants'
 import { CredentialStore } from '../auth/credentialStore'
 
 /**
- * The three-method subset of `vscode.SecretStorage` records use. Spelled
- * out here (rather than importing `SecretStore` from `../auth`) so the two
- * modules stay acyclic: the store wraps these functions, structurally.
- */
+The three-method subset of `vscode.SecretStorage` records use. Spelled
+out here (rather than importing `SecretStore` from `../auth`) so the two
+modules stay acyclic: the store wraps these functions, structurally.
+*/
 export interface RecordStore {
   get(key: string): PromiseLike<string | undefined>
   store(key: string, value: string): PromiseLike<void>
@@ -65,10 +65,10 @@ export async function saveProviderCredential(
 }
 
 /**
- * The stored record, or undefined when none was entered. Throws when a
- * stored value is not a record: a damaged entry must ask for the credential
- * again, never read as absent and never used.
- */
+The stored record, or undefined when none was entered. Throws when a
+stored value is not a record: a damaged entry must ask for the credential
+again, never read as absent and never used.
+*/
 export async function readProviderCredential(
   secrets: RecordStore,
   id: string,
@@ -96,11 +96,11 @@ export async function deleteProviderCredential(secrets: RecordStore, id: string)
 }
 
 /**
- * Whether `requestOrigin` is the origin the record was entered for. Origins,
- * not hosts: `http` and `https` on one host, or two ports on one host, are
- * different origins, and either difference refuses the request (M95
- * acceptance 5).
- */
+Whether `requestOrigin` is the origin the record was entered for. Origins,
+not hosts: `http` and `https` on one host, or two ports on one host, are
+different origins, and either difference refuses the request (M95
+acceptance 5).
+*/
 export function isOriginBound(record: CredentialRecord, requestOrigin: string): boolean {
   let stored: string
   let request: string

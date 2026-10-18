@@ -23,10 +23,10 @@ function withoutTrailingSlash(normal: string): string {
 }
 
 /**
- * Whether a recorder-produced file may bypass workspace confinement in the
- * media open hook. Only the host's own recording temp root qualifies; a
- * workspace file never takes this path.
- */
+Whether a recorder-produced file may bypass workspace confinement in the
+media open hook. Only the host's own recording temp root qualifies; a
+workspace file never takes this path.
+*/
 export function isRecordingTempPath(recordingTempRoot: string, fsPath: string): boolean {
   const root = withoutTrailingSlash(normalPath(recordingTempRoot))
   const normal = normalPath(fsPath)
@@ -40,12 +40,12 @@ export interface LinuxLatestHost {
 }
 
 /**
- * Real fs-backed latest-recording discovery (R3's `latestLinuxRecording`
- * port): GNOME Screencasts and the Videos folder, nonrecursive, symlinks
- * and special files rejected, private owner-only copies under the host's
- * recording temp root, sniffed with M1 before return. Failures carry fixed
- * words only; the caller's reasons name no path.
- */
+Real fs-backed latest-recording discovery (R3's `latestLinuxRecording`
+port): GNOME Screencasts and the Videos folder, nonrecursive, symlinks
+and special files rejected, private owner-only copies under the host's
+recording temp root, sniffed with M1 before return. Failures carry fixed
+words only; the caller's reasons name no path.
+*/
 export function createLinuxLatestPort(host: LinuxLatestHost): LinuxLatestRecordingPort {
   const home = host.homeDir ?? homedir()
   const roots = [path.join(home, 'Videos', 'Screencasts'), path.join(home, 'Videos')]

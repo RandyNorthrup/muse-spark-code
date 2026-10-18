@@ -69,9 +69,9 @@ export function reviewerInput(request: ReviewRequest): string {
 }
 
 /**
- * The reviewer's reply read strictly: its first non-empty line must be
- * `ALLOW: reason` or `ASK: reason`. Anything else is not an answer.
- */
+The reviewer's reply read strictly: its first non-empty line must be
+`ALLOW: reason` or `ASK: reason`. Anything else is not an answer.
+*/
 export function parseReviewerAnswer(text: string): ReviewAnswer | undefined {
   const line = text.split('\n').find((candidate) => candidate.trim() !== '')
   const match = line === undefined ? null : ANSWER.exec(line)
@@ -89,10 +89,10 @@ export function parseReviewerAnswer(text: string): ReviewAnswer | undefined {
 }
 
 /**
- * The circuit breaker: after too many declines or failures, in a row or in
- * the last window of reviews, the reviewer is not asked again until the
- * user sends the next message (Codex: 3 in a row, 10 of the last 50).
- */
+The circuit breaker: after too many declines or failures, in a row or in
+the last window of reviews, the reviewer is not asked again until the
+user sends the next message (Codex: 3 in a row, 10 of the last 50).
+*/
 export class ReviewBreaker {
   private consecutive = 0
   private readonly recent: boolean[] = []

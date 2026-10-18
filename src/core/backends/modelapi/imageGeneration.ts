@@ -173,9 +173,9 @@ async function sourceOf(
 }
 
 /**
- * Everything checked before the question (M34, M44): the arguments, the
- * output path and every source. A refusal names why; nothing was bought.
- */
+Everything checked before the question (M34, M44): the arguments, the
+output path and every source. A refusal names why; nothing was bought.
+*/
 export async function prepareImageCall(
   kind: ImagePlan['kind'],
   rawArgs: unknown,

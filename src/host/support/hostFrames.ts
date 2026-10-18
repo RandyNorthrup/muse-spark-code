@@ -10,11 +10,11 @@ import { packageFramesOf, stackOf, type PackageFrame } from '../../shared/stackF
 const FILE_URL_PREFIX = 'file://'
 
 /**
- * A host stack frame's file as the package names it: a file under the
- * installed extension's root, one of REPORT_PACKAGE_FRAME_PATHS, with `/`
- * separators. Anything else (Node's own frames, other extensions, the user's
- * files) is undefined and dropped.
- */
+A host stack frame's file as the package names it: a file under the
+installed extension's root, one of REPORT_PACKAGE_FRAME_PATHS, with `/`
+separators. Anything else (Node's own frames, other extensions, the user's
+files) is undefined and dropped.
+*/
 export function hostPackagePath(location: string, extensionRoot: string): string | undefined {
   let file = location
   if (file.startsWith(FILE_URL_PREFIX)) {

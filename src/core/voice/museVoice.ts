@@ -350,11 +350,11 @@ interface VoiceBudgetState {
 }
 
 /**
- * The microphone on the paid engine: the capture helper records, each
- * recording is streamed as it is made, and its transcript is the listener's
- * text. A recording's stream finishes on its own after the release, so the
- * next press can start the next one at once.
- */
+The microphone on the paid engine: the capture helper records, each
+recording is streamed as it is made, and its transcript is the listener's
+text. A recording's stream finishes on its own after the release, so the
+next press can start the next one at once.
+*/
 export class MuseVoiceDictation implements DictationHandle {
   private readonly capture: DictationHandle
   /** The stream of the recording being made; undefined between recordings. */

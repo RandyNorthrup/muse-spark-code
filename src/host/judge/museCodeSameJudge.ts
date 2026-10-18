@@ -81,10 +81,10 @@ interface TrackedTurn {
 }
 
 /**
- * Track every turn of the batch session from its start (attached before the
- * turn is sent, so no frame is missed): the first completed reply per turn,
- * each turn's terminal, and the item guard's trip.
- */
+Track every turn of the batch session from its start (attached before the
+turn is sent, so no frame is missed): the first completed reply per turn,
+each turn's terminal, and the item guard's trip.
+*/
 function trackBatchTurns(
   session: AgentSession,
   onUsage: MuseCodeJudgeDeps['onUsage'],
@@ -149,10 +149,10 @@ function trackBatchTurns(
 }
 
 /**
- * The turn's first completed reply, once its turn ends as completed:
- * undefined when the turn tripped the item guard, ended otherwise, or the
- * wait was aborted first.
- */
+The turn's first completed reply, once its turn ends as completed:
+undefined when the turn tripped the item guard, ended otherwise, or the
+wait was aborted first.
+*/
 function awaitBatchReply(
   session: AgentSession,
   turns: Map<string, TrackedTurn>,
@@ -303,11 +303,11 @@ export class MuseCodeSameJudge {
   }
 
   /**
-   * Judge one held action: settle from the cache when judged before, stay
-   * off on standing always-allow rules, else judge each kind's batch in its
-   * own fresh hidden session in the background and return at once. Never
-   * rejects, never waits on the caller.
-   */
+  Judge one held action: settle from the cache when judged before, stay
+  off on standing always-allow rules, else judge each kind's batch in its
+  own fresh hidden session in the background and return at once. Never
+  rejects, never waits on the caller.
+  */
   public judge(job: MuseCodeJudgeJob): void {
     // The user-settings allow-rule check runs before any batch: a rule that
     // lands while earlier batches run stops the later ones at their own check

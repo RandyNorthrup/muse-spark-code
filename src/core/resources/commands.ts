@@ -24,12 +24,12 @@ function resolveCommand(command: string, env: NodeJS.ProcessEnv): string {
 }
 
 /**
- * Hand a URL, file or text to a fixed OS adapter (opener, clipboard). Waits for
- * the adapter's own exit inside RESOURCE_HANDOFF_TIMEOUT_MS; one still running
- * then is detached and counts as launched. Never waits for, or stops, what the
- * OS started for the user. `until: 'spawn'` is for a foreground handler
- * (xdg-open), launched once started; it takes no input.
- */
+Hand a URL, file or text to a fixed OS adapter (opener, clipboard). Waits for
+the adapter's own exit inside RESOURCE_HANDOFF_TIMEOUT_MS; one still running
+then is detached and counts as launched. Never waits for, or stops, what the
+OS started for the user. `until: 'spawn'` is for a foreground handler
+(xdg-open), launched once started; it takes no input.
+*/
 export async function handoffResourceFile(
   command: string,
   args: readonly string[],

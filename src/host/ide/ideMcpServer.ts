@@ -62,12 +62,12 @@ export class IdeMcpServer {
   ) {}
 
   /**
-   * Stops every call in flight under the key (M69). Muse Code 1.4.0 sends
-   * `notifications/cancelled` for a stopped turn's call and closes its
-   * request; either one stops the tool. The server has no session identity,
-   * so two sessions' calls with the same id are both stopped: a stopped call
-   * fails, which no call takes as success.
-   */
+  Stops every call in flight under the key (M69). Muse Code 1.4.0 sends
+  `notifications/cancelled` for a stopped turn's call and closes its
+  request; either one stops the tool. The server has no session identity,
+  so two sessions' calls with the same id are both stopped: a stopped call
+  fails, which no call takes as success.
+  */
   private cancel(key: McpRequestKey): void {
     const calls = this.inFlight.get(key) ?? []
     for (const controller of calls) {
@@ -215,10 +215,10 @@ export class IdeMcpServer {
   }
 
   /**
-   * Listens on an ephemeral loopback port; idempotent, and callable again
-   * after a failed start (PLAN.md D25: a first failure no longer leaves the
-   * diagnostics tool off for the window's life).
-   */
+  Listens on an ephemeral loopback port; idempotent, and callable again
+  after a failed start (PLAN.md D25: a first failure no longer leaves the
+  diagnostics tool off for the window's life).
+  */
   public start(): Promise<IdeMcpEndpoint> {
     if (this.endpoint !== undefined) {
       return Promise.resolve(this.endpoint)

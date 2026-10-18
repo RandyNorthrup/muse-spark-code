@@ -182,10 +182,10 @@ export function readmeImageRefs(readme) {
 }
 
 /**
- * Coverage of the README's images by the list: `{ missingEntries, unreferenced }`.
- * `missingEntries` are README images with neither a shot nor an exclusion;
- * `unreferenced` are listed files the README never shows.
- */
+Coverage of the README's images by the list: `{ missingEntries, unreferenced }`.
+`missingEntries` are README images with neither a shot nor an exclusion;
+`unreferenced` are listed files the README never shows.
+*/
 export function checkCoverage({ shots, excluded }, refs) {
   const listed = new Set([
     ...shots.map((shot) => shot.file),
