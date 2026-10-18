@@ -29,6 +29,16 @@ export interface LinuxPinnedTarget extends LinuxModelPin {
 function isMissing(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ENOENT'
 }
+
+/** The lock directory already exists under another name: someone owns it. */
+function isOwned(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    ['EEXIST', 'ENOTEMPTY', 'EPERM', 'EACCES'].includes(error.code)
+  )
+}
 async function removeFile(file: string): Promise<void> {
   try {
     await unlink(file)
@@ -71,31 +81,43 @@ export class PinnedFileDownload {
       try {
         await rename(stage, this.lock)
       } catch (error: unknown) {
-        if (!(
-          error instanceof Error &&
-          'code' in error &&
-          typeof error.code === 'string' &&
-          ['EEXIST', 'ENOTEMPTY', 'EPERM', 'EACCES'].includes(error.code)
-        ))
-          throw error
+        if (!isOwned(error)) throw error
         const lockInfo = await lstat(this.lock)
         if (!lockInfo.isDirectory())
           throw new Error(UI_TEXT.linuxDictationIntegrity, { cause: error })
         const owners = await readdir(this.lock)
-        const previous = owners[0] ?? ''
-        if (owners.length !== 1 || !/^\d+$/.test(previous))
-          throw new Error(UI_TEXT.linuxDictationBusy, { cause: error })
-        try {
-          process.kill(Number(previous), 0)
-          throw new Error(UI_TEXT.linuxDictationBusy, { cause: error })
-        } catch (error_: unknown) {
-          if (!(error_ instanceof Error && 'code' in error_ && error_.code === 'ESRCH'))
+        if (owners.length === 0) {
+          // The previous owner crashed after unlinking its marker but
+          // before removing the lock directory: nobody owns it, so
+          // reclaim it instead of reporting busy forever.
+          try {
+            await rmdir(this.lock)
+          } catch (error_: unknown) {
+            if (!isMissing(error_) && !isOwned(error_)) throw error_
+            if (isOwned(error_)) throw new Error(UI_TEXT.linuxDictationBusy, { cause: error_ })
+          }
+          try {
+            await rename(stage, this.lock)
+          } catch (error_: unknown) {
+            if (isOwned(error_)) throw new Error(UI_TEXT.linuxDictationBusy, { cause: error_ })
             throw error_
+          }
+        } else {
+          const previous = owners[0] ?? ''
+          if (owners.length !== 1 || !/^\d+$/.test(previous))
+            throw new Error(UI_TEXT.linuxDictationBusy, { cause: error })
+          try {
+            process.kill(Number(previous), 0)
+            throw new Error(UI_TEXT.linuxDictationBusy, { cause: error })
+          } catch (error_: unknown) {
+            if (!(error_ instanceof Error && 'code' in error_ && error_.code === 'ESRCH'))
+              throw error_
+          }
+          // Atomic publication includes its marker; only a dead owner's marker is removed.
+          await unlink(path.join(this.lock, previous))
+          await rmdir(this.lock)
+          await rename(stage, this.lock)
         }
-        // Atomic publication includes its marker; only a dead owner's marker is removed.
-        await unlink(path.join(this.lock, previous))
-        await rmdir(this.lock)
-        await rename(stage, this.lock)
       }
     } finally {
       await rm(stage, { recursive: true, force: true })
