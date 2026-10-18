@@ -78,6 +78,8 @@ import {
   type AgentHost,
   type ApprovalDecision,
   type CompactOutcome,
+  type ComputerUseSetup,
+  type ForeignSkillImport,
   type GoalCommand,
   type GoalCommandOutcome,
   type GoalRefusal,
@@ -98,6 +100,7 @@ import {
   type SessionMcpServer,
   type SessionPage,
   type SessionPluginRow,
+  type SessionRecap,
   type SkillSummary,
   type StartSessionOptions,
   type TurnPart,
@@ -347,60 +350,6 @@ export function toSkillSummary(
     description: skill.description,
     argumentHint: skill.argumentHint,
   }
-}
-
-/**
- * One `skill/import` candidate that could neither install nor quarantine:
- * `id` is null when the candidate never yielded one (present-but-null,
- * never omitted).
- */
-export interface ForeignSkillFailure {
-  readonly id: string | null
-  readonly reason: string
-}
-
-/** One quarantined `skill/import` candidate: kept, not loaded, with reasons. */
-export interface ForeignSkillQuarantine {
-  readonly id: string
-  readonly reasons: readonly string[]
-}
-
-/** A `skill/import` receipt: per-skill ids plus counts (M127). */
-export interface ForeignSkillImport {
-  readonly source: string
-  readonly dryRun: boolean
-  readonly status: string
-  readonly counts: {
-    readonly installed: number
-    readonly quarantined: number
-    readonly skipped: number
-    readonly failed: number
-  }
-  readonly installed: readonly string[]
-  readonly skipped: readonly string[]
-  readonly quarantined: readonly ForeignSkillQuarantine[]
-  readonly failed: readonly ForeignSkillFailure[]
-}
-
-/** A settled `recap/completed` (M127): outcome is an open vocabulary. */
-export interface SessionRecap {
-  readonly outcome: string
-  readonly title?: string | undefined
-  readonly text?: string | undefined
-  readonly reason?: string | undefined
-}
-
-/** One macOS grant as setup last saw it (open, like the phase). */
-export type ComputerUsePermission = string
-
-/** The host's computer-use setup state (M127, `computerUseSetup/check`). */
-export interface ComputerUseSetup {
-  readonly accessibility: ComputerUsePermission
-  readonly inputMonitoring: ComputerUsePermission
-  readonly screenRecording: ComputerUsePermission
-  readonly setup: string
-  readonly message?: string | undefined
-  readonly refused?: string | undefined
 }
 
 /** Exported for the M127 capture tests. */

@@ -315,6 +315,60 @@ export interface SessionPluginRow {
   readonly source: unknown
 }
 
+/** A settled `recap/completed` (M127): outcome is an open vocabulary. */
+export interface SessionRecap {
+  readonly outcome: string
+  readonly title?: string | undefined
+  readonly text?: string | undefined
+  readonly reason?: string | undefined
+}
+
+/** One macOS grant as setup last saw it (open, like the phase). */
+export type ComputerUsePermission = string
+
+/** The host's computer-use setup state (M127, `computerUseSetup/check`). */
+export interface ComputerUseSetup {
+  readonly accessibility: ComputerUsePermission
+  readonly inputMonitoring: ComputerUsePermission
+  readonly screenRecording: ComputerUsePermission
+  readonly setup: string
+  readonly message?: string | undefined
+  readonly refused?: string | undefined
+}
+
+/**
+ * One `skill/import` candidate that could neither install nor quarantine:
+ * `id` is null when the candidate never yielded one (present-but-null,
+ * never omitted).
+ */
+export interface ForeignSkillFailure {
+  readonly id: string | null
+  readonly reason: string
+}
+
+/** One quarantined `skill/import` candidate: kept, not loaded, with reasons. */
+export interface ForeignSkillQuarantine {
+  readonly id: string
+  readonly reasons: readonly string[]
+}
+
+/** A `skill/import` receipt: per-skill ids plus counts (M127). */
+export interface ForeignSkillImport {
+  readonly source: string
+  readonly dryRun: boolean
+  readonly status: string
+  readonly counts: {
+    readonly installed: number
+    readonly quarantined: number
+    readonly skipped: number
+    readonly failed: number
+  }
+  readonly installed: readonly string[]
+  readonly skipped: readonly string[]
+  readonly quarantined: readonly ForeignSkillQuarantine[]
+  readonly failed: readonly ForeignSkillFailure[]
+}
+
 /** A per-session MCP server over streamable HTTP (MSP `SessionMcpServerConfig`). */
 export interface SessionMcpHttpServer {
   readonly url: string
@@ -621,6 +675,23 @@ export interface AgentSession {
    * the backend keeps none.
    */
   readonly listSessionPlugins?: () => Promise<readonly SessionPluginRow[]>
+  /**
+   * Import foreign skills through the host seam (M127, MSP
+   * `skill/import`): `source` is `claude` or `codex`; `dryRun` previews
+   * without writing. Absent where the backend keeps no skill seam.
+   */
+  readonly importForeignSkills?: (
+    source: string,
+    options?: { readonly dryRun?: boolean; readonly force?: boolean },
+  ) => Promise<ForeignSkillImport>
+  /**
+   * Resume a paused workflow run (M127, MSP `workflow/resume`):
+   * host-driven, the reply names the driven turn. Absent where the
+   * backend runs no workflows.
+   */
+  readonly resumeWorkflowRun?: (
+    workflowRunId: string,
+  ) => Promise<{ readonly status: string; readonly turnId: string }>
   /** Resolves to the canonical name, or undefined when it arrives as an event. */
   rename(name: string): Promise<string | undefined>
   /**
@@ -715,6 +786,24 @@ export interface AgentHost {
         options: { readonly approvalMode: ApprovalMode; readonly modelId: string },
       ) => Promise<LoadedSession>)
     | undefined
+  /**
+   * A "while you were away" recap (M127, MSP `recap/request`): the ack
+   * admits, then the request settles on `recap/completed` matched by
+   * commandId. Absent where the backend keeps no recaps.
+   */
+  readonly requestSessionRecap?: (sessionId: string) => Promise<SessionRecap>
+  /**
+   * Cancel the session's in-flight recap (M127, MSP `recap/cancel`): it
+   * settles `cancelled`; idle is an accepted no-op. Absent where the
+   * backend keeps no recaps.
+   */
+  readonly cancelSessionRecap?: (sessionId: string) => Promise<string>
+  /**
+   * The host's computer-use setup state (M127, MSP
+   * `computerUseSetup/check`). Absent where the backend has no such
+   * setup.
+   */
+  readonly checkComputerUseSetup?: () => Promise<ComputerUseSetup>
   readonly sessionCount: number
   close(): Promise<void>
 }

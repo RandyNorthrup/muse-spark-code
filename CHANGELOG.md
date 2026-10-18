@@ -35,6 +35,20 @@ happened, not what was planned; superseded entries are kept.
   saved", although nothing was wrong with the ledger. Windows answers a lock
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
+- Hook processes and plugin hooks now honor `museSpark.hooksMaxRunningCommands`:
+  the production process gate and the plugin path used the fixed fallback of
+  4 no matter what the setting said, so 0 still queued the fifth hook
+  process. An aborted capped waiter now wakes the waiters queued behind it
+  instead of stalling them for a full hook timeout.
+- `museSpark.hooksMaxStopContinuations` governs only Stop-hook continuations,
+  as documented: refused task writes pause the turn after 8 in a row and an
+  idle teammate stops being kept working after 8 keeps, each on its own
+  bound, so lowering the setting no longer ends turns after the first
+  rejected todo update.
+- `skill/import` quarantine entries keep their `reasons` and failure entries
+  their required `reason`: the receipt parser read both through one shape
+  with an optional singular reason, so a real quarantine's reasons were
+  silently dropped.
 
 ### Release infrastructure
 
