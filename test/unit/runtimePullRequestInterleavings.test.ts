@@ -14,8 +14,7 @@
 // store never ends with a folder no record names, at most one window
 // succeeds, and no git runs for a window whose trust is gone.
 
-import type * as NodeCrypto from 'node:crypto'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import type { PullRequest } from '../../src/core/git/github'
 import { currentProcessOwner } from '../../src/core/locks/processOwner'
 import type { CoreLogger } from '../../src/core/logging'
@@ -36,21 +35,11 @@ import {
 } from '../../src/runtime/panel/pullRequests/records'
 import { PENDING_CHECKOUT_RECOVERY_MS } from '../../src/shared/constants'
 
-// Checkout ids name the window that made them, in order, so a state
-// reached again by another order reads the same.
-const ids = vi.hoisted(() => ({ running: 'setup', counts: new Map<string, number>() }))
-
-vi.mock('node:crypto', async (importOriginal) => {
-  const crypto = await importOriginal<typeof NodeCrypto>()
-  return {
-    ...crypto,
-    randomUUID: () => {
-      const count = (ids.counts.get(ids.running) ?? 0) + 1
-      ids.counts.set(ids.running, count)
-      return `${ids.running}-${String(count)}`
-    },
-  }
-})
+// Checkout ids stay real (`randomUUID`): the search never reads their
+// values. The head digest blinds them (see `setRecords`), so the same
+// logical head reads the same in every order, and the folder-maker link is
+// tracked by which window published each checkout id (see
+// `checkoutWriter`), not by an id prefix.
 
 const FOLDER = '/data/pr-worktrees/51-interleave'
 const SHA = 'c'.repeat(40)
@@ -103,7 +92,6 @@ class Scheduler {
         isEnabled,
         resume: () => {
           this.parked.delete(id)
-          ids.running = id
           resolve()
         },
       })
@@ -190,6 +178,8 @@ class World {
   public readonly offsets = new Map<string, number>()
   /** Each window's history: every value shared state handed it, folded into one digest. */
   public readonly histories = new Map<string, string>()
+  /** Which window first published each checkout id (the folder-maker link). */
+  public readonly checkoutWriter = new Map<string, string>()
   public readonly violations: string[] = []
   public readonly revoked = new Set<string>()
   /** The holds whose work is still running, a stale one (run out, still inside) included. */
@@ -232,7 +222,13 @@ class World {
 
   public setRecords(records: readonly WorktreeRecord[]): void {
     this.records = records
-    this.headDigest = digest(JSON.stringify(records))
+    // Checkout ids are random per run and name no state: blind them before
+    // digesting, so the same logical head reads the same in every order.
+    this.headDigest = digest(
+      JSON.stringify(records, (key, value: unknown): unknown =>
+        key === 'checkoutId' ? null : value,
+      ),
+    )
   }
 
   public isCurrent(hold: Hold): boolean {
@@ -285,6 +281,11 @@ class World {
               }
               this.generation += 1
               this.setRecords(next)
+              for (const entry of next) {
+                if (entry.checkoutId !== undefined && !this.checkoutWriter.has(entry.checkoutId)) {
+                  this.checkoutWriter.set(entry.checkoutId, id)
+                }
+              }
               this.headFence = hold.fence
               if (isFaulty) {
                 // Landed; then the I/O after it failed.
@@ -500,7 +501,6 @@ async function runOnce(
     world.generation = 1
     world.headFence = 0
   }
-  ids.counts.clear()
   const results = new Map<string, OpenPullRequestResult>()
   for (const window of config.windows) {
     world.trusted.set(window.id, true)
@@ -532,7 +532,6 @@ async function runOnce(
       openFolder: () => Promise.resolve(),
       repositoryRoot: '/repo',
     })
-    ids.running = id
     void (async () => {
       try {
         results.set(id, await protocol.reserveAndCheckout(FOLDER, REMOTE, 51, PULL, !isHeld))
@@ -689,9 +688,12 @@ function violationsOf(config: Config, run: Run): string[] {
   } else {
     // The folder is named by its maker's finished record, and its maker won.
     const maker = world.folder.maker
+    const writer =
+      record?.checkoutId === undefined ? undefined : world.checkoutWriter.get(record.checkoutId)
     if (
-      record?.isCheckoutPending === true ||
-      record?.checkoutId?.startsWith(`${maker}-`) !== true
+      record === undefined ||
+      record.isCheckoutPending === true ||
+      (writer !== maker && record.checkoutId !== 'seed-1')
     ) {
       found.push(`the folder ${maker} made is named by no finished record of its own`)
     }
