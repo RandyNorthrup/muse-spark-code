@@ -127,13 +127,28 @@ static int open_component(int parent, const char *name, int want_dir) {
   int flags = O_RDONLY | O_NOFOLLOW | O_CLOEXEC | (want_dir ? O_DIRECTORY : 0);
   return openat(parent, name, flags);
 }
-static void allow_literal(const char *path) {
-  dprintf(profile_fd, "(allow file-read* (literal \"");
+static void write_escaped(const char *path) {
   for (const char *p = path; *p; p++) {
     if (*p == '\\' || *p == '"') dprintf(profile_fd, "\\");
     dprintf(profile_fd, "%c", *p);
   }
+}
+static void allow_literal(const char *path) {
+  dprintf(profile_fd, "(allow file-read* (literal \"");
+  write_escaped(path);
   dprintf(profile_fd, "\"))\n");
+}
+// Seatbelt denies everything under (deny default), including executing the
+// verified target and mapping it with dyld: both need explicit rules. The
+// system reads below cover the loader and its shared cache only; /etc and
+// every other tree stay denied, and workspace reads stay literal.
+static void allow_exec(const char *path) {
+  dprintf(profile_fd, "(allow process-exec (literal \"");
+  write_escaped(path);
+  dprintf(profile_fd, "\"))\n");
+}
+static void allow_system(void) {
+  dprintf(profile_fd, "(allow file-read* (subpath \"/bin\") (subpath \"/sbin\") (subpath \"/usr\") (subpath \"/System\"))\n");
 }
 static void allow_absolute(const char *relative) {
   char absolute[PATH_MAX];
@@ -265,12 +280,13 @@ static void probe_child(const char *dir, const char *allowed, const char *denied
   if (n < 0 || (size_t)n >= sizeof(path)) refuse("request");
   errno = 0;
   int late_fd = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
-  if (late_fd >= 0 || errno != EACCES) refuse("postWalkRead");
+  // Seatbelt denials surface as EPERM, not EACCES; either proves the profile held.
+  if (late_fd >= 0 || (errno != EACCES && errno != EPERM)) refuse("postWalkRead");
   n = snprintf(path, sizeof(path), "%s/%s", dir, denied);
   if (n < 0 || (size_t)n >= sizeof(path)) refuse("request");
   errno = 0;
   int denied_fd = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
-  if (denied_fd >= 0 || errno != EACCES) refuse("postWalkRead");
+  if (denied_fd >= 0 || (errno != EACCES && errno != EPERM)) refuse("postWalkRead");
   n = snprintf(path, sizeof(path), "%s/%s", dir, allowed);
   if (n < 0 || (size_t)n >= sizeof(path)) refuse("request");
   int allowed_fd = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
@@ -355,6 +371,8 @@ static void probe(void) {
   open_profile(cwd_fd);
   close(cwd_fd);
   if (!realpath(".", root_absolute)) refuse("selfTest");
+  allow_system();
+  allow_exec(self);
   allow_literal(self);
   allow_absolute("probe-tree");
   allow_absolute("probe-tree/allowed");
@@ -406,6 +424,8 @@ int main(int argc, char **argv) {
   int se = system_file(B1_SANDBOX_EXEC, sandbox);
   close(se);
   allow_absolute(".");
+  allow_system();
+  allow_exec(resolved);
   allow_literal(resolved);
   if (clock_gettime(CLOCK_MONOTONIC, &started)) refuse("clock");
   int separator = 7;
