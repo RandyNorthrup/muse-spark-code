@@ -1,10 +1,13 @@
 // The preview (M96 lane F): roles, entries, forced switches and the cost
-// range for a sample task, from sample price inputs, with no model call.
-// `select` is previewDraft's own input: every case passes a constant
-// strategy, so each proof covers the preview's logic, never a selection
-// algorithm's.
+// range for a sample task, priced from the product's own Model API price
+// table (Meta's published rates, the constants every paid path reads), with
+// no model call. `select` is previewDraft's own input: every case passes a
+// constant strategy, so each proof covers the preview's logic, never a
+// selection algorithm's.
 
 import { describe, expect, it } from 'vitest'
+import { MODEL_API_PRICES_PER_MILLION } from '../../src/shared/constants'
+import { modelApiPaidTier } from '../../src/shared/paidBoundary'
 import { Usd } from '../../src/shared/usd'
 import {
   dryRunCostLabel,
@@ -18,27 +21,29 @@ import {
 } from '../../src/core/team/preview'
 import { buildTemplateDraft } from '../../src/core/team/templates'
 
-const PRICES: readonly TeamPreviewPrice[] = [
-  {
-    modelRef: 'muse-spark-1.3',
+const STANDARD = 'muse-spark-1.3'
+const CONTRIBUTOR = 'muse-spark-1.3-contributor'
+
+/** A model's published rates, read from the table its paid paths read. */
+function publishedPrice(modelRef: string): TeamPreviewPrice {
+  const tier = modelApiPaidTier(modelRef)
+  if (tier === undefined) throw new Error(`${modelRef} has no published Model API price`)
+  const rates = MODEL_API_PRICES_PER_MILLION[tier]
+  return {
+    modelRef,
     billable: true,
-    usdPerMTokInput: 3,
-    usdPerMTokOutput: 15,
-    usdPerMTokCachedInput: 0.3,
-  },
-  {
-    modelRef: 'codex-cli',
-    billable: true,
-    usdPerMTokInput: 5,
-    usdPerMTokOutput: 20,
-    usdPerMTokCachedInput: 1,
-  },
-]
+    usdPerMTokInput: Number(rates.input),
+    usdPerMTokOutput: Number(rates.output),
+    usdPerMTokCachedInput: Number(rates.cachedInput),
+  }
+}
+
+const PRICES: readonly TeamPreviewPrice[] = [publishedPrice(STANDARD), publishedPrice(CONTRIBUTOR)]
 
 function pairDraft() {
   return buildTemplateDraft('pair', [
-    { modelRef: 'muse-spark-1.3', vendor: 'meta', payKind: 'key' },
-    { modelRef: 'codex-cli', vendor: 'openai', payKind: 'key' },
+    { modelRef: STANDARD, vendor: 'meta', payKind: 'key' },
+    { modelRef: CONTRIBUTOR, vendor: 'meta', payKind: 'key' },
   ])
 }
 
@@ -63,9 +68,9 @@ describe('previewDraft', () => {
   it('selects live Default for a role without custom entries in an active team', () => {
     const selected: string[] = []
     const draft = buildTemplateDraft('pair', [
-      { modelRef: 'muse-spark-1.3', vendor: 'meta', payKind: 'key' },
+      { modelRef: STANDARD, vendor: 'meta', payKind: 'key' },
     ])
-    let currentDefault = 'codex-cli'
+    let currentDefault = CONTRIBUTOR
     const input = {
       draft,
       sample: 'feature-tests' as const,
@@ -79,14 +84,12 @@ describe('previewDraft', () => {
     }
     const preview = previewDraft(input)
     expect(preview.unstaffedRoles).toEqual([])
-    expect(preview.steps.map((step) => step.modelRef)).toEqual(['muse-spark-1.3', 'codex-cli'])
+    expect(preview.steps.map((step) => step.modelRef)).toEqual([STANDARD, CONTRIBUTOR])
     expect(selected).toEqual(['engineering', 'code-review'])
-    currentDefault = 'muse-spark-1.3'
-    expect(previewDraft(input).steps[1]?.modelRef).toBe('muse-spark-1.3')
-    expect(preview.steps[1]?.modelRef).toBe('codex-cli')
-    expect(previewDraft({ ...input, sample: 'research-library' }).steps[0]?.modelRef).toBe(
-      'muse-spark-1.3',
-    )
+    currentDefault = STANDARD
+    expect(previewDraft(input).steps[1]?.modelRef).toBe(STANDARD)
+    expect(preview.steps[1]?.modelRef).toBe(CONTRIBUTOR)
+    expect(previewDraft({ ...input, sample: 'research-library' }).steps[0]?.modelRef).toBe(STANDARD)
     expect(previewDraft({ ...input, select: () => -1 }).unstaffedRoles).toEqual([
       'engineering',
       'code-review',
@@ -107,13 +110,13 @@ describe('previewDraft', () => {
       sample: 'feature-tests',
       prices: PRICES,
       select: () => 1,
-      resolveDefault: () => 'muse-spark-1.3',
+      resolveDefault: () => STANDARD,
     })
-    expect(preview.steps.map((step) => step.modelRef)).toEqual(['muse-spark-1.3', 'muse-spark-1.3'])
+    expect(preview.steps.map((step) => step.modelRef)).toEqual([STANDARD, STANDARD])
     expect(preview.switchCount).toBe(2)
   })
 
-  it('estimates the cost range by hand from the sample prices', () => {
+  it('estimates the cost range by hand from the published prices', () => {
     const preview = previewDraft({
       draft: pairDraft(),
       sample: 'feature-tests',
@@ -125,12 +128,14 @@ describe('previewDraft', () => {
     expect(preview.unstaffedRoles).toEqual([])
     // Engineering: 400,000 tokens (280,000 in, 120,000 out);
     // review: 120,000 tokens (84,000 in, 36,000 out).
-    // Low prices input at the cached rate, high at the full rate.
-    // (280,000 × 0.3 + 120,000 × 15 + 84,000 × 1 + 36,000 × 20) / 1,000,000
-    // and (280,000 × 3 + 120,000 × 15 + 84,000 × 5 + 36,000 × 20) / 1,000,000,
+    // Low prices input at the cached rate, high at the full rate. Published
+    // per-million rates (verified 2026-09-26): standard 1.25 in, 0.15 cached,
+    // 4.25 out; contributor 0.1 in, 0.002 cached, 0.2 out.
+    // (280,000 × 0.15 + 120,000 × 4.25 + 84,000 × 0.002 + 36,000 × 0.2) / 1,000,000
+    // and (280,000 × 1.25 + 120,000 × 4.25 + 84,000 × 0.1 + 36,000 × 0.2) / 1,000,000,
     // exactly (M121: no binary dollars).
-    expect(preview.usdLow).toBe('2.688')
-    expect(preview.usdHigh).toBe('3.78')
+    expect(preview.usdLow).toBe('0.559368')
+    expect(preview.usdHigh).toBe('0.8756')
     const label = previewCostLabel(preview)
     expect(label).toContain('520,000')
   })
@@ -153,7 +158,7 @@ describe('previewDraft', () => {
         role.role === 'engineering'
           ? {
               ...role,
-              pool: [...role.pool, { modelRef: 'codex-cli', caps: [] }],
+              pool: [...role.pool, { modelRef: CONTRIBUTOR, caps: [] }],
             }
           : role,
       ),
@@ -201,20 +206,14 @@ describe('previewDraft', () => {
             role: 'research',
             mode: 'read-only',
             toolGroups: ['read'],
-            pool: [{ modelRef: 'm', caps: [] }],
+            pool: [{ modelRef: STANDARD, caps: [] }],
           },
         ],
       },
       sample: 'research-library',
-      prices: [
-        {
-          modelRef: 'm',
-          billable: true,
-          usdPerMTokInput: 10,
-          usdPerMTokOutput: undefined,
-          usdPerMTokCachedInput: undefined,
-        },
-      ],
+      // The published card with its output rate absent: M95's shape for a
+      // rate it never priced.
+      prices: [{ ...publishedPrice(STANDARD), usdPerMTokOutput: undefined }],
       select: () => 0,
     })
     expect(preview.hasUnknownPrice).toBe(true)
@@ -240,7 +239,7 @@ describe('previewDraft', () => {
     const preview = previewDraft({
       draft: pairDraft(),
       sample: 'feature-tests',
-      prices: PRICES.filter((price) => price.modelRef === 'muse-spark-1.3'),
+      prices: PRICES.filter((price) => price.modelRef === STANDARD),
       select: () => 0,
     })
     expect(preview.tokens).toBe(520_000)
@@ -263,10 +262,11 @@ describe('previewDraft', () => {
     const mixed = previewDraft({
       draft: pairDraft(),
       sample: 'feature-tests',
-      prices: PRICES.map((price) => ({ ...price, billable: price.modelRef === 'muse-spark-1.3' })),
+      prices: PRICES.map((price) => ({ ...price, billable: price.modelRef === STANDARD })),
       select: () => 0,
     })
-    expect(mixed.usdHigh).toBe('2.64')
+    // Engineering alone at the standard full rates: (280,000 × 1.25 + 120,000 × 4.25) / 1,000,000.
+    expect(mixed.usdHigh).toBe('0.86')
   })
 
   it('uses the known full input rate when a cached rate is absent', () => {
