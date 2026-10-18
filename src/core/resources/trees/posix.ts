@@ -8,6 +8,7 @@ import {
 } from '../../../shared/resources'
 import { processSampleSchema, type ProcessSample } from './posixTable'
 import type { ResourceActionResult, ResourceSignal } from './actions'
+import { isErrno } from '../errno'
 
 export interface PosixTreeSnapshot {
   /** Group sources include the full ancestry table; cgroups restrict by kernel membership. */
@@ -169,6 +170,15 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
     }
   }
 
+  /** Reads the accounting table without letting an unknown table fail enrollment. */
+  private async readAccounting(ticket: ResourceTicket): Promise<void> {
+    try {
+      await this.read(ticket)
+    } catch {
+      // Unknown accounting adds no descendants; targeted native launch authority is independent.
+    }
+  }
+
   private async enrollRoot(ticket: ResourceTicket): Promise<boolean> {
     if (
       ticket.scope.type === 'job' ||
@@ -191,17 +201,16 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
       )
         return false
       state.known.set(ticket.root.pid, ticket.root.startTime)
-      try {
-        await this.read(ticket)
-      } catch {
-        // Unknown accounting adds no descendants; targeted native launch authority is independent.
-      }
+      await this.readAccounting(ticket)
       isEnrolled =
         this.states.get(ticket.id) === state &&
         (await this.source.containsNow(ticket, ticket.root)) &&
         this.states.get(ticket.id) === state
       return isEnrolled
-    } catch {
+    } catch (error) {
+      // An unenrollable root is not enrolled. Only errno failures read that
+      // way; anything else is not an enrollment answer.
+      if (!isErrno(error)) throw error
       return false
     } finally {
       if (!isEnrolled && this.states.get(ticket.id) === state) this.states.delete(ticket.id)

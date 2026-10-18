@@ -34,6 +34,7 @@ import {
   type ResourceSignal,
   type ResourceTreeKillResult,
 } from './actions'
+import { isErrno } from '../errno'
 
 interface LinuxCgroupHandle {
   readonly path: string
@@ -199,13 +200,10 @@ class LinuxTreeSource implements PosixTreeSource {
       if (row?.pid !== pid) throw new Error('Invalid process stat')
       return row
     } catch (error: unknown) {
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        ['ENOENT', 'ESRCH'].includes(String(error.code))
-      )
-        return null
+      // A process that vanished mid-read is gone; anything else is not a
+      // stat answer.
+      if (isErrno(error) && error.code === 'ENOENT') return null
+      if (isErrno(error) && error.code === 'ESRCH') return null
       throw error
     }
   }
@@ -240,13 +238,8 @@ class LinuxTreeSource implements PosixTreeSource {
       return current === scope || current.startsWith(`${scope}/`)
     } catch (error: unknown) {
       // /proc rows may disappear after stat; other failures leave the whole sample unknown.
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        ['ENOENT', 'ESRCH'].includes(String(error.code))
-      )
-        return false
+      if (isErrno(error) && error.code === 'ENOENT') return false
+      if (isErrno(error) && error.code === 'ESRCH') return false
       throw error
     }
   }
@@ -317,13 +310,8 @@ class LinuxTreeSource implements PosixTreeSource {
       await (this.deps.write ?? writeFile)(`${home.handle.path}/cgroup.procs`, String(process.pid))
     } catch (error: unknown) {
       // A root-owned login scope denies even a no-op write; accept only its confirmed placement.
-      if (
-        typeof error !== 'object' ||
-        error === null ||
-        !('code' in error) ||
-        !['EACCES', 'EPERM'].includes(String(error.code))
-      )
-        throw error
+      if (!isErrno(error)) throw error
+      if (error.code !== 'EACCES' && error.code !== 'EPERM') throw error
       const member = /^0::(\/[^\r\n]*)$/m.exec(await this.read('/proc/self/cgroup'))?.[1]
       if (member === undefined || `/sys/fs/cgroup${member}` !== home.directory)
         throw new Error('Harness in cgroup', { cause: error })
@@ -358,7 +346,9 @@ class LinuxTreeSource implements PosixTreeSource {
   private async matches(handle: LinuxCgroupHandle): Promise<boolean> {
     try {
       return await handle.matches()
-    } catch {
+    } catch (error: unknown) {
+      // An unreadable handle proves no match. Anything else is not a match answer.
+      if (!isErrno(error)) throw error
       return false
     }
   }
@@ -371,6 +361,8 @@ class LinuxTreeSource implements PosixTreeSource {
       const handle = 'handle' in pinned ? pinned.handle : pinned
       await handle.close()
     } catch {
+      // Forgetting already dropped the handle: a close that fails now owns
+      // nothing and is never retried.
       return
     }
   }
@@ -461,7 +453,9 @@ class LinuxTreeSource implements PosixTreeSource {
       if (!/^populated 0$/m.test(events) || !/^frozen [01]$/m.test(events)) return false
       await this.removeCgroup(scope, isRegistered)
       return isRegistered()
-    } catch {
+    } catch (error: unknown) {
+      // Completion unproven is not completion. Only errno failures read that way.
+      if (!isErrno(error)) throw error
       return false
     }
   }
@@ -471,7 +465,9 @@ class LinuxTreeSource implements PosixTreeSource {
     try {
       const row = await this.stat(pid)
       return row === null || row.exited ? null : { pid: row.pid, startTime: row.startTime }
-    } catch {
+    } catch (error: unknown) {
+      // An unproven identity is not an identity. Only errno failures read that way.
+      if (!isErrno(error)) throw error
       return null
     }
   }
@@ -494,7 +490,9 @@ class LinuxTreeSource implements PosixTreeSource {
       return row?.pid === pid && !row.exited && row.pgid === pid && parent === String(parentPid)
         ? { pid: row.pid, startTime: row.startTime }
         : null
-    } catch {
+    } catch (error: unknown) {
+      // An unborn child is not a child. Only errno failures read that way.
+      if (!isErrno(error)) throw error
       return null
     }
   }
@@ -527,7 +525,9 @@ class LinuxTreeSource implements PosixTreeSource {
         )
       }
       return isEnrolled || current.pgid === ticket.scope.pgid
-    } catch {
+    } catch (error: unknown) {
+      // An unverified target is not verified. Only errno failures read that way.
+      if (!isErrno(error)) throw error
       return false
     }
   }
@@ -557,7 +557,9 @@ class LinuxTreeSource implements PosixTreeSource {
         if (scope === null || !(await this.inCgroup(identity.pid, scope))) return 'refused'
       }
       return signalVerifiedPosix(identity, latest, signal, isRegistered, this.deps.sendSignal)
-    } catch {
+    } catch (error: unknown) {
+      // An unsignalled target is not signalled. Only errno failures read that way.
+      if (!isErrno(error)) throw error
       return 'refused'
     }
   }
@@ -582,13 +584,10 @@ class LinuxTreeSource implements PosixTreeSource {
           if (!isRegistered()) throw new Error('Cgroup action retired')
           await write(`${scope}/cgroup.kill`, '1')
         } catch (error: unknown) {
-          if (
-            typeof error !== 'object' ||
-            error === null ||
-            !('code' in error) ||
-            !['ENOENT', 'EOPNOTSUPP'].includes(String(error.code))
-          )
-            throw error
+          // A kernel without cgroup.kill answers ENOENT or EOPNOTSUPP; freeze
+          // is the fallback. Anything else is not a kill answer.
+          if (!isErrno(error)) throw error
+          if (error.code !== 'ENOENT' && error.code !== 'EOPNOTSUPP') throw error
           isUseFreeze = true
         }
       }
@@ -628,10 +627,9 @@ class LinuxTreeSource implements PosixTreeSource {
         return { status: 'harness_in_tree', members: [], message: UI_TEXT.resourceHarnessInTree }
       if (error instanceof Error && error.message === 'Cgroup directory changed')
         return { status: 'cgroup_changed', members: [], message: UI_TEXT.resourceCgroupChanged }
-      return {
-        status: 'refused',
-        members: [],
-      }
+      // An unclassified kill failure is not a kill outcome: it reaches the
+      // registry, which owns the refused mapping, instead of inventing one here.
+      throw error
     } finally {
       const remaining = (this.activeKills.get(signature) ?? 1) - 1
       if (remaining > 0) this.activeKills.set(signature, remaining)
@@ -675,7 +673,9 @@ class LinuxTreeSource implements PosixTreeSource {
         cpuSeconds = Number(usec) / MICROSECONDS_PER_SECOND
       }
       return { rows, cpuSeconds }
-    } catch {
+    } catch (error: unknown) {
+      // No table without a readable sample. Only errno failures read that way.
+      if (!isErrno(error)) throw error
       return null
     }
   }

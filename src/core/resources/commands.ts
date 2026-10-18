@@ -96,8 +96,10 @@ export async function execResourceFile(
     const abort = () => {
       isFailed = true
       stopping ??= stop()
-      void stopping.catch(() => {
-        reject(new Error('Governed command tree stop failed'))
+      void stopping.catch((error: unknown) => {
+        // The abort already reached the waiter; the stop failure keeps its
+        // cause so the record names the cleanup that failed.
+        reject(new Error('Governed command tree stop failed', { cause: error }))
       })
     }
     // One named deadline covers admission and the run (the launch also stops on it).

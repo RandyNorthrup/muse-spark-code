@@ -46,6 +46,8 @@ import {
   WINDOWS_POWERSHELL_RELATIVE_PATH,
 } from '../../shared/constants'
 
+import { isErrno } from './errno'
+
 export interface ResourceHostSettings {
   /** Runtime shares its existing machine governor's queue with process launches. */
   readonly admission?: (
@@ -161,7 +163,10 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
                   const stats = await statfs(path.dirname(file), { bigint: true })
                   const bytes = Number(stats.bsize * stats.bavail)
                   return Number.isSafeInteger(bytes) && bytes >= 0 ? bytes : null
-                } catch {
+                } catch (error) {
+                  // A filesystem that cannot answer leaves unknown space. Only
+                  // errno failures read that way.
+                  if (!isErrno(error)) throw error
                   return null
                 }
               },
@@ -252,12 +257,10 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
             process.kill(-pgid, 0)
             return Promise.resolve(false)
           } catch (error: unknown) {
-            return Promise.resolve(
-              typeof error === 'object' &&
-                error !== null &&
-                'code' in error &&
-                error.code === 'ESRCH',
-            )
+            // Only a confirmed ESRCH proves the group gone; anything else is
+            // not a liveness answer.
+            if (!isErrno(error)) throw error
+            return Promise.resolve(error.code === 'ESRCH')
           }
         },
       }
