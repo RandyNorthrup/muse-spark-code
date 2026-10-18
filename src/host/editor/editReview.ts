@@ -131,8 +131,6 @@ function patchFilesOf(patchJson: string): readonly PatchFile[] | undefined {
 }
 
 const BOM = '\u{FEFF}'
-export { stripExtendedLengthPrefix } from './extendedLengthPath'
-
 /** Edit review (M5): each call returns the notices to show in the transcript. */
 export interface EditReviewActions {
   openDiff(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]>

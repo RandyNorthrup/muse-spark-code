@@ -12,12 +12,12 @@
 import * as vscode from 'vscode'
 import type { TabEngine, TabEngineRequest, TabStream } from '../../../core/tab/tabEngine'
 import type { TabReportedUsage, TabSpendGate } from '../../../core/tab/tabSpend'
-export type { TabReportedUsage, TabReservation, TabSpendGate } from '../../../core/tab/tabSpend'
+export type { TabReportedUsage, TabSpendGate } from '../../../core/tab/tabSpend'
 import type {
   TabFilesExclude,
   TabHookBridge as TabHookReadBridge,
 } from '../../../core/tab/tabEligibility'
-export type { TabAcceptedEdit, TabFilesExclude } from '../../../core/tab/tabEligibility'
+export type { TabFilesExclude } from '../../../core/tab/tabEligibility'
 import type { TabHookPolicy, TabHooksDeps } from '../../../core/tab/tabHooks'
 import type { ExtensionHookRunner } from '../../extensionHooksRunner'
 import {

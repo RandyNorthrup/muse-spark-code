@@ -4597,9 +4597,6 @@ export const HEARTBEAT_BEAM_LINE_WIDTH_PX = 1.5
 // dropped so a stalled frame never replays its debt as a burst.
 export const HEARTBEAT_BEAM_MAX_TICKS_PER_FRAME = 8
 export const MILLISECONDS_PER_SECOND = 1000
-// Integer USD accounting precision; conversion to a number is for the public display only.
-export const NANO_USD_DECIMALS = 9
-export const NANO_USD_UNITS = 1_000_000_000
 export const SECONDS_PER_MINUTE = 60
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 

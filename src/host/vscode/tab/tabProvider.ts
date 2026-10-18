@@ -20,17 +20,7 @@ import {
   isTabPathEligible,
   type TabFileCheckDeps,
 } from '../../../core/tab/tabEligibility'
-export {
-  TabIgnoreCache,
-  chooseTabMode,
-  isFilesExcluded,
-  isTabFileEligible,
-  isTabForbiddenName,
-  isTabPathEligible,
-  type TabFileCandidate,
-  type TabFileCheckDeps,
-  type TabIgnoreDeps,
-} from '../../../core/tab/tabEligibility'
+
 import { contextWindow, orderSnippets, type TabSnippet } from '../../../core/tab/tabContext'
 import type { TabHookContext } from '../../../core/tab/tabHooks'
 import { tabUserText } from '../../../core/tab/tabRequest'

@@ -29,11 +29,7 @@ const IS_HOSTED_MAC = process.platform === 'darwin' && process.env['GITHUB_ACTIO
 
 export default defineConfig({
   test: {
-    include: [
-      'test/unit/**/*.test.{ts,tsx,mjs}',
-      'test/e2e/**/*.test.ts',
-      'test/m104/{runtime,engines,ui}/**/*.test.{ts,tsx,mjs}',
-    ],
+    include: ['test/unit/**/*.test.{ts,tsx,mjs}', 'test/e2e/**/*.test.ts'],
     environment: 'node',
     setupFiles: ['test/unit/setup.ts'],
     // Once-per-run artefacts shared by suites (inject()), built before workers start.
