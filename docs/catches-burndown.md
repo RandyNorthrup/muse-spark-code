@@ -1,9 +1,10 @@
 # Catch burn-down list (D119)
 
 Every site the corrected catch classifier accepts lives in
-`scripts/catch-baseline.json` (1,347 identities after PR161FIN: 1,163 from
-the original reader plus the corrected reader's pre-existing finds, minus
-the sites PR161FIN fixed). New sites still fail `npm run check:catches`.
+`scripts/catch-baseline.json` (1,618 identities at the
+media/import/locks/judge lane regen: 1,347 after PR161FIN, plus the lanes'
+new reasoned sites; the join regenerates once for all areas, so this
+number moves until then). New sites still fail `npm run check:catches`.
 Fix an area by fixing its handlers (the failure reaches the person in
 words or the caller as an error with its cause), proving the test fires,
 then regenerating the lowered baseline with
@@ -42,6 +43,47 @@ Designed baselines with reasons (accepted, not forgotten):
 - `src/host/auth/authService.ts` sign-in restart, `src/core/developer`
   multi-account start/enable, `src/runtime/chatGptProviderCommands.ts`
   setup: fixed in PR161FIN (named closers, kind words, cause slots).
+- `src/core/import/agentImport.ts` scan, plan and apply fallbacks (463,
+  529, 1064, 1079, 1096, 1799, 1857, 2255, 2319, 2735): one unreadable
+  foreign file warns in fixed words and skips while the scan continues;
+  the write phase records the fixed code. Rethrowing would abort the whole
+  import over one file, and no logger crosses the host-built scan input.
+  Drills: `test/unit/pluginImport.test.ts` warn-and-continue cases through
+  the failing read/listing seam.
+- `src/core/import/pluginImport.ts:225`: a trust or environment check
+  failure yields no findings rather than hooks; throwing would abort the
+  plugin scan. Drills: the same scan suite's trust cases.
+- `src/core/judge/same/scheduler.ts:37`,
+  `src/core/judge/same/batches.ts:252`, `src/core/judge/use.ts:157`: the
+  failure itself crosses to the owner's documented error channel after the
+  entry settles failed; nothing is translated. These pure scheduling
+  modules own no log sink and their options are built by host code.
+  Drills: `test/unit/judgeSameSession.test.ts` exact-error forwarding cases.
+- `src/core/judge/fast/inspectExec.ts` (211, 325, 355, 369, 380): the
+  signal-decided refusal mapping stays refused (the driver settles a
+  result, never rejects); the self-test latches off by design; readiness
+  failures forward to the gate promise, and a non-Error now keeps its kind.
+  Drills: `test/unit/inspectNative.test.ts` (helper paths run on Linux CI;
+  the platform parts run everywhere).
+- `src/core/locks/fileLease.ts:365`: the module protocol says not proven
+  for any reason goes back and waits on (`kept`); only ENOENT retires.
+  Drills: `test/unit/fileLease.test.ts` wait and takeover cases.
+- `src/core/locks/nodeLeasePort.ts:35`: the port contract says any open
+  failure means not rewritten (false); renewal reports false fail-closed,
+  and the runtime caller treats a failed renewal as lost. Drills: the
+  fileLease renew cases.
+- `src/core/locks/processOwner.ts:220`: only ESRCH is provably gone;
+  anything else (including garbage pids from corrupt notes) reads alive so
+  takeover waits out the lease instead of throwing out of acquire. Drills:
+  the fileLease owner cases (birth reads need an unsandboxed rig).
+- `src/core/media/record/linux.ts` (156, 243, 459),
+  `src/core/media/record/macos.ts` (137, 192, 233, 293) and
+  `src/core/media/record/windows.ts` (127, 323, 353): setup and probe
+  failures become refused or unavailable runs, never rejections; the person
+  gets the true unavailable/refused sentences. Drills:
+  `test/unit/linuxRecording.test.ts`, `test/unit/macosRecording.test.ts`
+  and `test/unit/windowsRecording.test.ts` (unavailable probes, refused
+  setups, skipped directories, unverifiable copies).
 - Everything else below: pre-existing, grouped for area-by-area lanes.
 
 | Folder                 | GENERIC | SWALLOW |
@@ -60,11 +102,11 @@ Designed baselines with reasons (accepted, not forgotten):
 | src/core/events        | 0       | 1       |
 | src/core/export        | 1       | 0       |
 | src/core/git           | 2       | 0       |
-| src/core/import        | 10      | 8       |
-| src/core/judge         | 14      | 5       |
+| src/core/import        | 7       | 4       |
+| src/core/judge         | 8       | 0       |
 | src/core/legal         | 3       | 3       |
-| src/core/locks         | 8       | 7       |
-| src/core/media         | 11      | 17      |
+| src/core/locks         | 3       | 0       |
+| src/core/media         | 8       | 2       |
 | src/core/memory        | 5       | 0       |
 | src/core/orchestration | 10      | 2       |
 | src/core/plans         | 2       | 0       |
