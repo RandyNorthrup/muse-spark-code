@@ -87,8 +87,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Release infrastructure
 
-- Every fake test is gone (the owner's order: "there can be no more fakes at
-  all"). Deleted: the tests that used stand-ins or invented data (`vi.fn`
+- The fake tests are being removed (the owner's order: "there can be no more
+  fakes at all"). Deleted so far: the tests that used stand-ins or invented
+  data (`vi.fn`
   answers, the hand-written `vscode` module and its alias, the fake Muse Code
   CLI, the fake Model API, Git, GitHub and MCP helpers, the Action's fake
   agent), the tests that only checked that some text, key or file exists, the
@@ -96,7 +97,14 @@ happened, not what was planned; superseded entries are kept.
   JupyterLab, Emacs, Neovim), the fake-only Action check and its test package
   (`scripts/package-acp-test.mjs`), and the Model API live sweep built on
   fakes. No product code was deleted. What each deleted test covered is in
-  `docs/real-life/unproven.md`, the backlog for proof by real use.
+  `docs/real-life/unproven.md`, the backlog for proof by real use. Stand-ins
+  remain and are next to go: the test-driven clock
+  (`test/unit/helpers/manualClock.ts`), hand-written function stand-ins in
+  `test/unit/teamPreview.test.ts` and `test/unit/modelApiLegalScan.test.ts`,
+  the `vscode` stand-in in `test/harness/reporting/verify.mjs`, the
+  `vi.stubEnv` environment in `test/unit/eval/evalTasks.test.ts`, the WinRT
+  stand-ins in `test/unit/helpers/vault/*.cs` and the pending-operation
+  stand-in in `test/unit/helpers/windowsScreenRecorderChecks.cs`.
 - Pull requests can borrow the organization `scnetsolutions`'s CI runners
   (D122). Once the owner has installed the organization's GitHub App and set
   `ORG_CI` to `on` (CONTRIBUTING.md, "The capacity repository (D122)"), a
@@ -238,8 +246,9 @@ happened, not what was planned; superseded entries are kept.
   clock or spy replacements. Covers daylight-saving gaps/folds, skipped
   dates, sparse cron and preview/admission end bounds.
 
-- Test overhaul (not a user feature): the unit suite now runs real code
-  only — about 800 fake-driven test files deleted, the screenshot
+- Test overhaul (not a user feature): the unit suite moves to real code
+  only — about 800 fake-driven test files deleted (the stand-ins still left
+  are named under Release infrastructure above), the screenshot
   comparison system removed (a UI change gets one small local look,
   `npm run ui:look -- <scene>`), the coverage gate dropped, and the
   accessibility check moved off the pull-request path. The packed
@@ -257,8 +266,8 @@ happened, not what was planned; superseded entries are kept.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
-  The shared retry classifier refuses known quota codes and excessive
-  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
+  The shared retry classifier refuses known quota codes; a provider's
+  `Retry-After` is honoured as given, never refused for its length. Provider-specific retry-table binding remains pending for non-Meta transports;
   this does not certify endpoint quota refusal.
   One-shot OAuth callbacks retain every parameter and destroy keep-alive
   connections on settlement. Custom servers accept validated compatibility
@@ -287,8 +296,11 @@ happened, not what was planned; superseded entries are kept.
   requests `display: summarized` so newer models stream thinking text.
   Lone surrogates are removed from every BYO encoder; parsed JSON retains
   own `__proto__` keys as data, including Anthropic tool arguments.
-  Fakes only; no live
-  or paid model call.
+  It landed with fake tests only. The Gemini parts (thought signatures,
+  tool-result images, `parametersJsonSchema`, the usage checks) now have no
+  test behind them, since `test/unit/geminiCodec.test.ts` was deleted; the
+  other rules still run through the real encoders in the remaining codec
+  suites. No live or paid model call has proved any of it.
 
 - Provider-specific retry-table binding remains pending for non-Meta transports;
   the shared retry classifier does not certify endpoint quota refusal.
@@ -329,8 +341,9 @@ happened, not what was planned; superseded entries are kept.
   nothing changes for users yet. No GitHub setting is offered, and an
   editor built on VS Code without its Git extension (Arduino IDE 2, some
   forks) keeps its earlier behaviour. Merged: the GitHub token-source
-  contracts with fakes of GitHub, the device flow, `gh` and Git remotes
-  (lane 0); the runtime's native Git service (status, the commit form,
+  contracts (`src/core/git/tokenSource.ts`, lane 0), whose tests ran on
+  fakes of GitHub, the device flow, `gh` and Git remotes and were deleted,
+  so nothing tests those contracts now; the runtime's native Git service (status, the commit form,
   commit, a push confirmed with every URL Git will use and the same
   refusals as VS Code, never a force-push, commit-message drafts),
   revalidated after every wait and serialized per repository across
