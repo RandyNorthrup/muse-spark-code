@@ -543,7 +543,7 @@ export const EN = {
     'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
   referenceCiOtherTitle: 'Other CI systems',
   referenceCiOther:
-    'Digest-pinned headless review/fix templates for GitLab, Azure, Jenkins and Bitbucket. Node reads the key and publishes outside the checkout; Azure/Jenkins upload those files. GitLab/Bitbucket artifact transport and Bitbucket process isolation remain unqualified. Declare extra key binding names in MUSE_CI_KEY_ALIASES. Fake tests only; see docs/ci-other-systems.md.',
+    'Digest-pinned headless review/fix templates for GitLab, Azure, Jenkins and Bitbucket. Node reads the key and publishes outside the checkout; every template uploads those files. GitLab/Bitbucket external-temp copies and Bitbucket process isolation remain unqualified. Declare extra key binding names in MUSE_CI_KEY_ALIASES. Fake tests only; see docs/ci-other-systems.md.',
   referenceWebFetchTitle: 'Web Fetch',
   referenceWebFetchDetail:
     'Fetch public web pages as readable text, with permission and network checks.',

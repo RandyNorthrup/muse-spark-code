@@ -33,12 +33,17 @@ with `node scripts/sync-ci-bootstrap.mjs`; tests reject drift.
    holder names, retain their original values until Node reads them.
    Do not put undeclared credential copies in the job environment:
    POSIX shell cannot identify an arbitrary copied value without reading it.
-2. The sanitized subshell records bootstrap time, creates private scratch
-   under `TMPDIR`, downloads the pinned package with `curl --max-time 120`,
-   checks SHA-256 with `sha256sum`, and unpacks it with `tar`. It has bounded
-   failure cleanup (`timeout -s KILL 5 rm` with a plain-`rm` fallback where
-   `timeout` is missing or cannot run, so cleanup failure never changes the
-   exit status); no key file is created.
+2. The sanitized subshell maps the proxy inputs to the standard variables
+   `curl` reads (`MUSE_INPUT_HTTPS_PROXY`/`MUSE_INPUT_NO_PROXY`) and refuses
+   an unreadable `MUSE_INPUT_EXTRA_CA_CERTS` file before the network; vendor
+   proxy variables set on the job reach `curl` unchanged. It records
+   bootstrap time, creates private scratch under `TMPDIR`, downloads the
+   pinned package with `curl --max-time 120` (plus `--cacert` when a CA file
+   is configured), checks SHA-256 with `sha256sum`, and unpacks it with
+   `tar`. Failure cleanup is one bounded removal: `timeout` is probed once
+   before any trap is armed, so a missing `timeout` selects plain `rm` up
+   front and an overrunning removal is never retried without a bound; no key
+   file is created.
 3. The parent receives only a timestamp and directory path, then runs
    `node ci/lib/ci-entry.mjs <system>` with the vendor's original environment
    (plain invocation, not `exec`, so a missing Node keeps its 127 status on
@@ -61,12 +66,12 @@ does not erase that record or guarantee memory zeroization.
 
 ## Vendor setup and limits
 
-| System    | Secret and trust                                                                                                                                                                                                                    | Elapsed job time                                                                              | Upload                                                                                                                                                   |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GitLab    | Protected, Masked/Hidden **File-type** `MUSE_MODEL_API_KEY_FILE`. Rules exclude fork/untrusted merge requests, unprotected refs and tags; launcher checks again. Automatic source preparation sees the path.                        | `CI_JOB_STARTED_AT`, `CI_JOB_TIMEOUT`; earliest timestamp wins.                               | Built-in artifacts require paths inside `CI_PROJECT_DIR`; no repository fallback is configured. External-temp transport remains unqualified.             |
-| Azure     | Secret pipeline/variable-group `MUSE_MODEL_API_KEY`, mapped only into the run step. Keep fork secret access OFF. Job condition excludes forks and untrusted PRs; `True`/`False` are read without case.                              | Measured bootstrap time minus a 10-minute pre-bootstrap setup reserve; 45-minute job.         | Job-temp output, enabled only by the launcher's `MUSE_CI_OUTPUT_READY` marker after successful publication. Early failures select nothing.               |
-| Jenkins   | Secret text credential `muse-model-api-key`, bound around the guarded launcher step only. Multibranch fork discovery must use the target Jenkinsfile for untrusted forks.                                                           | `currentBuild.startTimeInMillis`, plus bootstrap time; 35 minutes.                            | Fresh UUID under `pwd(tmp: true)`, manifest checked, five fixed publisher filenames, `followSymlinks: false`. No checkout artifact path.                 |
-| Bitbucket | Secured **deployment** `MUSE_MODEL_API_KEY` in deployment environment `muse-spark`, with trusted-ref/user restrictions. Deployment scope is narrower than repository/workspace. Branch `main` and custom only, no fork PR pipeline. | Bootstrap elapsed time, or an explicitly supplied earlier `MUSE_CI_JOB_START_MS`; 35 minutes. | Built-in artifacts are clone-relative; no repository fallback is configured. External-temp transport and automatic process isolation remain unqualified. |
+| System    | Secret and trust                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Elapsed job time                                                                              | Upload                                                                                                                                                                                                                             |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitLab    | Protected, Masked/Hidden **File-type** `MUSE_MODEL_API_KEY_FILE`. Rules exclude fork/untrusted merge requests, unprotected refs and tags; launcher checks again. Automatic source preparation sees the path.                                                                                                                                                                                                                                                              | `CI_JOB_STARTED_AT`, `CI_JOB_TIMEOUT`; earliest timestamp wins.                               | The five fixed publisher filenames are copied into a fresh `muse-spark-out/` in the clone by `after_script` (planted names removed first) and uploaded as artifacts; the summary names the external-temp directory they came from. |
+| Azure     | `MUSE_MODEL_API_KEY` as a secret in variable group `muse-spark-secrets`, guarded by a branch-control check allowing only protected branches (Pipelines > Library; defined outside the repo, so pushed YAML cannot rebind the key). Mapped only into the run step. Keep fork secret access OFF. Job condition excludes forks and untrusted PRs as a second layer; `True`/`False` are read without case. `BatchedCI` builds are refused: Azure names no pre-batch revision. | Measured bootstrap time minus a 10-minute pre-bootstrap setup reserve; 45-minute job.         | Job-temp output, enabled only by the launcher's `MUSE_CI_OUTPUT_READY` marker after successful publication. Early failures select nothing.                                                                                         |
+| Jenkins   | Secret text credential `muse-model-api-key`, bound around the guarded launcher step only. Multibranch fork discovery must use the target Jenkinsfile for untrusted forks.                                                                                                                                                                                                                                                                                                 | `currentBuild.startTimeInMillis`, plus bootstrap time; 35 minutes.                            | Fresh UUID under `pwd(tmp: true)`, manifest checked, five fixed publisher filenames, `followSymlinks: false`. No checkout artifact path.                                                                                           |
+| Bitbucket | Secured **deployment** `MUSE_MODEL_API_KEY` in deployment environment `muse-spark`, with trusted-ref/user restrictions. Deployment scope is narrower than repository/workspace. Branch `main` and custom only, no fork PR pipeline.                                                                                                                                                                                                                                       | Bootstrap elapsed time, or an explicitly supplied earlier `MUSE_CI_JOB_START_MS`; 35 minutes. | The five fixed publisher filenames are copied into a fresh `muse-spark-out/` in the clone by `after-script` (planted names removed first) and uploaded as artifacts; automatic process isolation remains unqualified.              |
 
 Bitbucket's single user script does not establish what automatic clone/setup
 or upload processes receive. The review's additional P1 is confirmed as a
@@ -98,11 +103,13 @@ clone history is required. Same-repository PRs are trusted only with
 
 ## Run and lifecycle
 
-The launcher refuses unsupported events, forks, untrusted PRs, unprotected
-GitLab refs and images in review mode before installation/spending. Admission
-uses job duration minus measured elapsed time from the earliest supplied
-vendor or bootstrap start, reserving install, checkout, exec and every tail.
-Azure also subtracts its required 10-minute pre-bootstrap setup reserve.
+The launcher refuses unsupported events (including Azure `BatchedCI`
+batches, whose earlier commits no predefined variable names), forks,
+untrusted PRs, unprotected GitLab refs and images in review mode before
+installation/spending. Admission uses job duration minus measured elapsed
+time from the earliest supplied vendor or bootstrap start, reserving
+install, checkout, exec and every tail. Azure also subtracts its required
+10-minute pre-bootstrap setup reserve.
 
 The pinned tarball is checked again and installed with lifecycle scripts off,
 private npm config and a package identity/bin check. A fresh private repository
@@ -141,9 +148,12 @@ the existing hard dollar budget; subscription billing is unavailable.
 
 `MUSE_CI_KEY_ALIASES` declares extra key bindings by name. The optional
 `MUSE_CI_OUTPUT_ROOT` is an absolute job-temp directory outside the clone;
-Azure/Jenkins set it for their upload steps. Other templates generate a fresh
-random root and print the published path in the summary. Its parent must
-already exist; the launcher creates the root privately. An earlier measured
+every template sets a deterministic one so its upload step can find the
+published files (GitLab derives it from the job id, Bitbucket from the build
+number, Jenkins from a fresh UUID, Azure from the agent temp directory).
+Without it the launcher generates a fresh random root. Either way the run
+summary prints the published output directory. Its parent must already
+exist; the launcher creates the root privately. An earlier measured
 `MUSE_CI_JOB_START_MS` can be supplied when a vendor exposes one. Never put
 these roots inside the checkout or fall back there on a failed run.
 
@@ -155,6 +165,8 @@ validated success is 0. Facts/inputs/key refusals exit 1 before spending.
 ## Pending qualification
 
 Full integrated quality/build/host matrices and M80's L/LA/LR receipts remain
-lead-owned. GitLab/Bitbucket need external-temp artifact transport, and
-Bitbucket needs automatic-process secret-isolation and timeout-boundary
-receipts. No local fake test is presented as a hosted vendor receipt.
+lead-owned. Bitbucket needs automatic-process secret-isolation and
+timeout-boundary receipts. The GitLab/Bitbucket artifact copy, the Azure
+variable-group gate, the bootstrap proxy mapping and the BatchedCI refusal
+all need hosted receipts. No local fake test is presented as a hosted vendor
+receipt.

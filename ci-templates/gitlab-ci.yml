@@ -12,9 +12,11 @@
 # CI/CD variable. Node reads the vendor file directly; no copying child.
 # Automatic source preparation sees only its path. Rules exclude forks,
 # untrusted merge requests and unprotected refs. GitLab's built-in artifact
-# uploader only accepts paths under CI_PROJECT_DIR: it is deliberately
-# omitted here rather than selecting repository-planted files. External
-# temp-artifact transport remains a vendor qualification requirement.
+# uploader only accepts paths under CI_PROJECT_DIR, so after_script copies
+# the five fixed publisher filenames into a fresh muse-spark-out/ directory
+# in the clone (a planted directory or symlink of that name is removed
+# first, never uploaded) and declares them as artifacts. Only those
+# filenames are ever copied or uploaded, never a directory glob.
 
 # Pin MUSE_AGENT_VERSION to a release that carries ci/ (the first release
 # after 0.17.0) and MUSE_INPUT_AGENT_PACKAGE_SHA256 to that tarball's SHA-256.
@@ -55,8 +57,22 @@ muse-spark:
     - if: $CI_COMMIT_TAG
       when: never
     - when: on_success
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - muse-spark-out/outputs.json
+      - muse-spark-out/result.json
+      - muse-spark-out/events.jsonl
+      - muse-spark-out/fix.patch
+      - muse-spark-out/manifest.json
   script:
     - |
+      # The launcher publishes the five fixed result files under this job-temp
+      # root, outside the clone; the copy after the run carries them into the
+      # clone for the artifact uploader. A retry reuses the job id, and the
+      # launcher removes a stale destination and refuses before spending.
+      export MUSE_CI_OUTPUT_ROOT="${TMPDIR:-/tmp}/muse-spark-${CI_JOB_ID}"
       # BEGIN MUSE BOOTSTRAP (generated from ci-templates/bootstrap.sh - do not edit)
       # Muse Spark Code (Unofficial): shared POSIX bootstrap, generated into the
       # four templates by node scripts/sync-ci-bootstrap.mjs. The parent never
@@ -118,3 +134,15 @@ muse-spark:
       trap '(muse_ci_internal_rm_dir="$muse_ci_internal_dir"; unset MUSE_MODEL_API_KEY MUSE_SPARK_MODEL_API_KEY META_API_KEY MUSE_MODEL_API_KEY_FILE muse_key muse_key_file muse_setup muse_dir muse_start_ms muse_sum muse_alias; for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done; $muse_ci_internal_rm "$muse_ci_internal_rm_dir" 2>/dev/null)' EXIT HUP INT TERM
       MUSE_CI_TEMP="$muse_ci_internal_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_ci_internal_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_ci_internal_dir/agent.tgz" node "$muse_ci_internal_dir/launcher/package/ci/lib/ci-entry.mjs" gitlab
       # END MUSE BOOTSTRAP
+  after_script:
+    - |
+      # Carry the published result files into the clone for upload, even when
+      # the run failed: only the five fixed publisher filenames, never a
+      # glob. A planted directory or symlink of the destination name is
+      # removed first and never uploaded.
+      export MUSE_CI_OUTPUT_ROOT="${TMPDIR:-/tmp}/muse-spark-${CI_JOB_ID}"
+      rm -rf "$CI_PROJECT_DIR/muse-spark-out"
+      mkdir -p "$CI_PROJECT_DIR/muse-spark-out"
+      for muse_result_file in outputs.json result.json events.jsonl fix.patch manifest.json; do
+        if [ -f "$MUSE_CI_OUTPUT_ROOT/muse-spark-out/$muse_result_file" ]; then cp -f "$MUSE_CI_OUTPUT_ROOT/muse-spark-out/$muse_result_file" "$CI_PROJECT_DIR/muse-spark-out/"; fi
+      done

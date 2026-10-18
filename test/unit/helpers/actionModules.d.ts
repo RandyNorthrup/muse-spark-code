@@ -515,6 +515,10 @@ declare module '*/action/lib/run-exec.mjs' {
     owner: LauncherOwner,
     paths: ActionPaths,
   ): Record<string, string>
+  export function summaryFor(
+    report: Pick<ActionRunReport, 'execCode' | 'wrapperFailed' | 'patchWithheld'>,
+    outputs: Record<string, string>,
+  ): string
 }
 
 declare module '*/action/lib/post.mjs' {
