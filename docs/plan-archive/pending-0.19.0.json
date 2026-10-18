@@ -579,6 +579,34 @@
       "lastLine": "- [x] CHANGELOG and `docs/certification/agent-outcomes.md` repair receipts.",
       "linked": true,
       "reason": "Closed section's completed checklist follows its text into the archive; section already links to the archive. Status complete, no open items; certification record named in status. No test or script cites these lines."
+    },
+    {
+      "to": "gates",
+      "heading": "FIXM109B6 / RVM109B5 (2026-10-06)",
+      "firstLine": "**FIXM109B6 / RVM109B5 (2026-10-06, Mac mini).** Both findings are fixed;",
+      "pointer": true,
+      "reason": "Both findings fixed, 335 tests + 25 byte-exact drills, scoped gates exit 0 (W-owned host-API totals named); M109 train merged as PR #216 (ms/msm109); verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "FIXM109B review repair (2026-10-06)",
+      "firstLine": "**FIXM109B review repair (2026-10-06, Mac mini).** RVM109B's five P1 and",
+      "pointer": true,
+      "reason": "P1/P2 findings fixed with red drills, no deferral but named W-owned host-API totals; M109 train PR #216; verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "M124 round 6 lane verification (2026-10-09)",
+      "firstLine": "**M124 round 6 lane verification (2026-10-09, Windows 11).** The rig/common",
+      "pointer": true,
+      "reason": "Earlier round, superseded by round 7 (already listed); M124 connector reached the release in PR #227 (train/rc-2026-10-17, pr/188); verified, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "FIXM105E3 gate scope (second copy, 2026-10-07)",
+      "firstLine": "**FIXM105E3 gate scope (Kubuntu, 2026-10-07).** The rig brief/common rules",
+      "pointer": true,
+      "reason": "Remnant second copy of the M105 record archived 2026-10-14; M105 train merged as PR #226 (ms/msm105); verified, no longer worked on."
     }
   ],
   "duplicates": [
@@ -751,6 +779,42 @@
       "firstLine": "**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB",
       "kind": "near-duplicate-for-review",
       "reason": "The older sentence stands next to the newer D119 re-baseline that supersedes it, but the older block continues with unique R7 diagnostic-vocabulary text. The join keeps the newer sentence and re-homes the R7 continuation. Not counted in the byte proof."
+    },
+    {
+      "heading": "## 7. Gates",
+      "firstLine": "  The **Custom server** preset speaks any of the `chat`, `responses` and",
+      "kind": "byte-identical",
+      "reason": "\u00a77 copy of a \u00a76 Preserved-integration-notes paragraph (5/5 lines at \u00a76 25463\u201325467); the \u00a76 copy stays; nothing is lost."
+    },
+    {
+      "heading": "## 7. Gates",
+      "firstLine": "- **Lanes and file ownership.** One integration branch",
+      "kind": "byte-identical",
+      "reason": "\u00a77 copy of a \u00a76 Preserved-integration-notes paragraph (5/5 lines at \u00a76 25469\u201325473); the \u00a76 copy stays; nothing is lost."
+    },
+    {
+      "heading": "## 7. Gates",
+      "firstLine": "     The Providers section then lists each provider with its test state,",
+      "kind": "byte-identical",
+      "reason": "\u00a77 copy of a \u00a76 Preserved-integration-notes paragraph (5/5 lines at \u00a76 25592\u201325596); the \u00a76 copy stays; nothing is lost."
+    },
+    {
+      "heading": "## 7. Gates",
+      "firstLine": "Round-two cause fixes use a fixed Z.ai key pattern and localized plain-text",
+      "kind": "byte-identical",
+      "reason": "\u00a77 copy; all 27 lines stand in \u00a76 Preserved notes (head at \u00a76 25219); the pending items stay tracked in \u00a76."
+    },
+    {
+      "heading": "## 7. Gates",
+      "firstLine": "- **Golden requests**: one per codec per scenario (first turn, tool loop",
+      "kind": "byte-identical",
+      "reason": "\u00a77 copy; all 166 lines stand in \u00a76 Preserved notes modulo its two-space indent; the \u00a76 copy stays."
+    },
+    {
+      "heading": "## 7. Gates",
+      "firstLine": "| Lane                             | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |",
+      "kind": "near-duplicate-keep-newer",
+      "reason": "\u00a77 copy of the \u00a76 lanes table (25475\u201325492) modulo one drifted lane-I row; join keeps the newer row (\u00a77 37612 vs \u00a76 25486) and deletes this copy."
     }
   ],
   "releasedByThisRelease": [
@@ -777,6 +841,8 @@
     "Not listed as moves (deliberately). Test- or fixture-cited anchors: NOLIMITS, MINOUT, M121A, LEDGER, CIFIX017W, MSM58M69, C-M106-2, D69, D70, D1, D36, TOOLROUNDS records, and FIXM94L0 (an e2e comment names the lane). Price tables: D30, D34. Open-work records: D65, D84, D80, D86, D87, D88, D89, D90, D91, D92, D93, D94, D96, D97, D100, D103, D104, D106, D107, and the M95c/M96/M100\u2013M118 lane records (D118's own record IS listed; only its rule paragraph stays). Contaminated blocks: CM952 and TOOLCAP (fresh 0.19.0-lane content glued into the same block, cannot split). FIXM95G (its block is glued to the M95 \u00a77 paste until that repair lands). Every 0.19.0-lane \u00a77 record (MSM112, MSM80, PROVM95, PLAYBACK, MSM9M35, NOSTANDINS, SPENDSIMPLE, CATCHMONEY, DEPS, ACTROOM, VSIXROOM, TRAINS, SHARDS, MACPARITY, WINBIRTH, BROWROUTE, VSIXPLATFORM, SANDBOXSAY and kin: merged but the release is still open, revert risk as PR #203 showed). D119/D121 number collisions and M95K same-heading sections (join renumbers/unions, not deletions).",
     "D118's src comment cites D118 as authority; the heading and rule stay, so it keeps resolving. LEFT017's harness-theme hit names LEFT017B, a different lane.",
     "Measured on the scratch union (3,786,202 bytes, 90.3%, OVER by 221,044): duplicate deletions save 20,852 (3,765,350); the 79 moves move 154,360 more for a landing of 3,623,306 (86.4%, still OVER by 58,148). Reassembly is byte-identical, parsed facts change only in ENVFENCE/TRAIN15H/CI0150A/FIXAGENTOUT (closed checklists, --allow-fact-change), drift stays at the 3 pre-existing items. Target 3,524,198 (gate minus 40 KiB): shortfall 99,108 bytes. Named passages that would close it: the M95 \u00a77-paste repair (~18 KB) with FIXM95G unlocked (~2.9 KB); this release's \u00a77 lane records once the release tags (~20\u201330 KB post-tag, NOLIMITS excepted as test-cited); D30 (~11.5 KB) and D36 (~11.7 KB) on a lead call that their prices/rows are historical; M71 (~38 KB) only if its open items complete.",
-    "The prescribed commit message below names test/unit/planArchive.test.ts; that file does not exist (the suite is test/unit/planArchiveTool.test.mjs). The join proves with the script's byte-for-byte rebuild and the planArchiveTool suite."
+    "The prescribed commit message below names test/unit/planArchive.test.ts; that file does not exist (the suite is test/unit/planArchiveTool.test.mjs). The join proves with the script's byte-for-byte rebuild and the planArchiveTool suite.",
+    "PLANPREP3 v3 delta (lead decisions 1\u20132): +4 \u00a77 gate-record moves with PR numbers (FIXM109B6, FIXM109B via PR #216; M124 round 6 via PR #227 superseded by round 7; FIXM105E3 remnant second copy via PR #226). CM1091A3 needs no move: its standalone copy is already listed under duplicates for deletion. +6 M95 \u00a77-paste duplicates entries with per-block \u00a76 evidence: five byte-identical (Custom/Lanes-head/Providers paragraphs, Round-two block, Golden block \u2014 every line stands in \u00a76 Preserved integration notes) and the lanes table as near-duplicate-keep-newer (one drifted lane-I row for the join to reconcile). These precise the paste region the existing near-duplicate-for-review entry flags; that entry stays for the re-homing remainder (DEFLAKE3 tail, archive pointer, STAR/FIXM95T and open-finding tails, Phase-2 future work). FIXM95G is NOT moved (open lead-owned follow-up) and MINOUT/M121A/LEDGER/CIFIX017W/C-M106-2/TOOLCAP/TOOLROUNDS/FIXM94L0/CATCHMONEY/REPORTJOIN/0.19.0-lane records stay per the standing exclusions; PR #203 needs no entry (no \u00a77 record stands for it; its \u00a710 record stays by the \u00a710 rule).",
+    "PLANPREP3 v3 proof (scratch union 3,786,202 + sim deletions 33,554 across 75 ranges incl. 5 new byte-identical paste blocks and all 20 pre-existing byte-identical deletions + D6 keep-first + stale D140 heading = sim 3,752,640): 83-move batch dry-run moves 131,365 bytes, landing 3,634,019 (86.6%, OVER the 3,565,158 gate by 68,861); reassembly byte-identical; parsed facts change only in ENVFENCE/TRAIN15H/CI0150A/FIXAGENTOUT (accepted closed checklists, join uses --allow-fact-change); drift stays 3 pre-existing. Target 3,525,198: shortfall 108,821. Join-time upside outside this list: lanes-table reconciliation (~19.7 KB), tripled-\u00a73 drift repair (up to ~13.8 KB), FIXM95G only on a verified call (~2.9 KB), 0.19.0-lane \u00a77 records post-tag (~20\u201330 KB), D30/D36 on a lead call (~23 KB), M71 (~38 KB)."
   ]
 }
