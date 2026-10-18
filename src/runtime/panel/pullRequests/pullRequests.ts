@@ -13,6 +13,7 @@
 // passed in, and checkout's git runs through the injected port in
 // checkout.ts.
 
+import { describeStoreError } from '../../../host/backend/storeErrors'
 import { UI_TEXT } from '../../../shared/constants'
 import type { PullRequestView } from '../../../shared/git'
 import { fill } from '../../../shared/l10n/text'
@@ -133,6 +134,23 @@ function refused(reason: string): PullRequestServiceError {
   return new PullRequestServiceError(reason)
 }
 
+/** A cancellation, whatever threw it. */
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+}
+
+/**
+ * An expected pull request failure: GitHub's answer (the client wraps
+ * every one, network included, in `GitHubError`), a trust refusal or
+ * Cancel. Anything else is a bug above the service, and is not its
+ * `{ ok: false }` answer to give.
+ */
+function isExpectedPullRequestFailure(error: unknown): boolean {
+  return (
+    error instanceof GitHubError || error instanceof PullRequestServiceError || isAbortError(error)
+  )
+}
+
 /** @unwired M123 runtime pull requests */
 export class RuntimePullRequests {
   public constructor(private readonly deps: RuntimePullRequestDeps) {}
@@ -215,8 +233,11 @@ export class RuntimePullRequests {
     // Ownership loss stops linking, never changes success.
     try {
       this.checkTrust()
-    } catch {
-      return
+    } catch (error: unknown) {
+      // Ownership loss stops linking, never changes success.
+      if (error instanceof PullRequestServiceError) return
+      if (isAbortError(error)) return
+      throw error
     }
     try {
       await this.deps.links.set(this.deps.repositoryRoot, sessionId, {
@@ -231,9 +252,7 @@ export class RuntimePullRequests {
       // its creation into an apparent failure and a retried duplicate. The
       // number and URL go back with the success; only the log names the
       // missing link.
-      this.deps.log.warn(
-        `The pull request link could not be kept: ${redactSecrets(error instanceof Error ? error.message : String(error))}`,
-      )
+      this.deps.log.warn(`The pull request link could not be kept: ${describeStoreError(error)}`)
     }
   }
 
@@ -246,6 +265,9 @@ export class RuntimePullRequests {
     try {
       this.checkTrust()
     } catch (error: unknown) {
+      // A trust refusal or Cancel answers; anything else is not this
+      // call's `{ ok: false }` answer to give.
+      if (!isExpectedPullRequestFailure(error)) throw error
       return { ok: false, reason: error instanceof Error ? error.message : String(error) }
     }
     if (!isPlainRefName(input.head)) {
@@ -296,6 +318,7 @@ export class RuntimePullRequests {
         },
       }
     } catch (error: unknown) {
+      if (!isExpectedPullRequestFailure(error)) throw error
       return await this.failure(credential, error)
     }
   }
@@ -309,6 +332,9 @@ export class RuntimePullRequests {
     try {
       this.checkTrust()
     } catch (error: unknown) {
+      // A trust refusal or Cancel answers; anything else is not this
+      // call's `{ ok: false }` answer to give.
+      if (!isExpectedPullRequestFailure(error)) throw error
       return { ok: false, reason: error instanceof Error ? error.message : String(error) }
     }
     const title = input.title.trim()
@@ -346,6 +372,7 @@ export class RuntimePullRequests {
         return { ok: false, reason: UI_TEXT.gitOperationChanged }
       }
     } catch (error: unknown) {
+      if (!isExpectedPullRequestFailure(error)) throw error
       return await this.failure(credential, error)
     }
     const detail = [
@@ -380,6 +407,7 @@ export class RuntimePullRequests {
       )
       return { ok: true, number: created.number, url: created.url, title: created.title }
     } catch (error: unknown) {
+      if (!isExpectedPullRequestFailure(error)) throw error
       return await this.failure(credential, error)
     }
   }
@@ -400,6 +428,9 @@ export class RuntimePullRequests {
     try {
       this.checkTrust()
     } catch (error: unknown) {
+      // A trust refusal or Cancel answers; anything else is not this
+      // call's `{ ok: false }` answer to give.
+      if (!isExpectedPullRequestFailure(error)) throw error
       return { ok: false, reason: error instanceof Error ? error.message : String(error) }
     }
     const repository = repositoryFromFullName(link.repository)
@@ -434,6 +465,7 @@ export class RuntimePullRequests {
         },
       }
     } catch (error: unknown) {
+      if (!isExpectedPullRequestFailure(error)) throw error
       const { reason, needsSignIn } = await this.failure(credential, error)
       return {
         ok: true,
