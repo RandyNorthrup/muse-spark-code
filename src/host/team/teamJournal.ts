@@ -209,6 +209,8 @@ export function createTeamJournal(options: {
           await assertPath(foreignDirectory)
           names = await readdir(foreignDirectory)
         } catch {
+          // A foreign window that cannot be listed is unreadable evidence,
+          // not a fatal error: named, and the walk continues.
           unreadable.push(foreignDirectory)
           continue
         }
@@ -231,6 +233,8 @@ export function createTeamJournal(options: {
               throw new Error('TEAM_JOURNAL_OWNER_CHANGED')
             owner = envelope.owner
           } catch {
+            // A record that cannot be read is unreadable evidence: named,
+            // never trusted, and the walk continues.
             unreadable.push(file)
           }
         }

@@ -7,6 +7,7 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 // The status bar reads today's total synchronously, so the gate keeps the
 // last total the ledger answered and refreshes it after every change.
 
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { tabDayKey, tabSettleUsd } from '../../core/tab/tabSpend'
 import { estimateCostUsd } from '../../core/usage/insights'
 import type { Logger } from '../logger'
@@ -71,9 +72,7 @@ export function createTabSpendGate(deps: TabSpendGateDeps): TabSpendGate {
         .settle({ date: reservation.date, worstCaseUsd: reservation.worstCaseUsd }, actualUsd)
         .then(refreshTotal)
         .catch((error: unknown) => {
-          deps.log.warn(
-            `Tab ledger settlement failed: ${error instanceof Error ? error.name : 'unknown'}`,
-          )
+          deps.log.warn(`Tab ledger settlement failed: ${failureForLog(error)}`)
         })
     },
     todayTotalUsd: () => totalUsd,
