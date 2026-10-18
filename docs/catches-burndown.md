@@ -59,6 +59,12 @@ Designed baselines with reasons (accepted, not forgotten):
   is hidden (notice + failedStep reach the panel). Evidence:
   `test/unit/wizardSave.test.ts` ("reports a failed credential save step
   by step").
+- `src/host/checkpoints/checkpointHost.ts` run-guard catch: a thrown
+  guard is the refusal (toolIo's proven no-entry idiom); the fixed
+  refused entry is the designed outcome, and the finish failure still
+  throws with its cause. Evidence:
+  `test/unit/checkpointStorageGuard.test.ts` ("returns a refused entry
+  when the run guard throws").
 - Everything else below: pre-existing, grouped for area-by-area lanes.
 
 | Folder                 | GENERIC | SWALLOW |
