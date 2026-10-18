@@ -59,7 +59,9 @@ beforeAll(async () => {
     locale,
     JSON.parse(readFileSync(path.join(root, 'l10n', `ui.${locale}.json`), 'utf8')),
   ])
-  await packRuntimeArchive(fixture, path.join(stage.dir, 'stage'), [], tables)
+  // Decoded tables are quality-invariant; quality 1 packs in ~1 s instead
+  // of ~20 s at the production quality, inside the hook's 30 s budget.
+  await packRuntimeArchive(fixture, path.join(stage.dir, 'stage'), [], tables, 1)
   const l10n = await loadL10n(root)
   const archiveFile = path.join(
     stage.dir,

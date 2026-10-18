@@ -30,7 +30,7 @@ const CODE_ARCHIVE = 'runtime.bundles.json.br'
 const digest = (text) => createHash('sha256').update(text).digest('hex')
 const compressBrotli = promisify(brotliCompress)
 
-export async function packRuntimeArchive(root, stage, files, tables) {
+export async function packRuntimeArchive(root, stage, files, tables, compressionQuality) {
   const orderedTables = tables.toSorted(([left], [right]) => left.localeCompare(right, 'en'))
   const {
     EN,
@@ -174,10 +174,13 @@ module.readPackedRuntime=(()=>{
     [path.join(stage, 'dist', CODE_ARCHIVE), codeText],
     [path.join(stage, 'l10n', USAGE_TABLE_ARCHIVE_FILE), usageText],
   ]
+  // Parity tests pack with a low quality: they assert decoded tables, which
+  // are quality-invariant, while production keeps its own quality.
+  const quality = compressionQuality ?? L10N_COMPRESSION_QUALITY
   const packed = await Promise.all(
     members.map(([, contents]) =>
       compressBrotli(contents, {
-        params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
+        params: { [zlibConstants.BROTLI_PARAM_QUALITY]: quality },
       }),
     ),
   )
