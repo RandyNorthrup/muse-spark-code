@@ -2587,6 +2587,7 @@ export class MuseCodeHost implements AgentHost {
             this.channel.generation,
             'session/delete',
             { sessionId },
+            undefined,
             commandId,
           ),
           commandId,
