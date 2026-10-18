@@ -218,6 +218,27 @@ const NON_SERVE_OPTIONS = ['provider', ...PROVIDER_AUTH_OPTIONS] as const
 /** The strict parser's values, for the provider subcommands below. */
 type StrictValues = ReturnType<typeof parseCommandLineStrictly>['values']
 
+/**
+ * The non-Meta provider an `auth set` stores a key for, if any (M95,
+ * PLAN.md D74). Both spellings count: `auth set --provider <id>` parses
+ * without an account, and `--account default` names the same default
+ * slot. Anything else (Meta, a named account, no provider at all) is not
+ * a provider key set. One rule here, so the parser's two shapes cannot
+ * drift from the dispatch again.
+ */
+export function authSetProviderId(
+  command: Extract<RuntimeCommand, { command: 'authSet' }>,
+): string | undefined {
+  const targeted = command.target
+  if (targeted !== undefined) {
+    return targeted.provider !== 'meta' && targeted.account === ACCOUNT_DEFAULT_ID
+      ? targeted.provider
+      : undefined
+  }
+  const provider = command.provider
+  return provider !== undefined && provider !== 'meta' ? provider : undefined
+}
+
 /** `auth set|status|clear`: the key's three commands (D61). */
 function authCommand(name: string | undefined): 'authSet' | 'authStatus' | 'authClear' | undefined {
   switch (name) {

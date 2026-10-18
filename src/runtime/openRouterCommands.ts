@@ -138,9 +138,19 @@ export async function runOpenRouterConnect(
       startServer: () => Promise.reject(new Error(UI_TEXT.providerConnectFailed)),
       promptForPastedCode: () => deps.readSecret(UI_TEXT.providerPasteCode),
     })
-    // The exchange is over without a key (declined, cancelled, failed): the
-    // intent stays, so the next start reports what may have been created.
-    if (connection === undefined) return 1
+    // Pre-exchange cancellation only (dismissed or empty pasted code;
+    // exchange failures throw): the exchange never ran, so no key could
+    // have been created. Remove the staging intent, or the next start
+    // would recover it as a discarded created key. Ambiguous failures
+    // below keep the journal, so the next start reports what may exist.
+    if (connection === undefined) {
+      try {
+        await deps.secrets.delete(staging)
+      } catch {
+        deps.printError(UI_TEXT.providerConnectFailed)
+      }
+      return 1
+    }
     const written = formatStoredProviderSecret(
       {
         v: CREDENTIAL_RECORD_VERSION,
