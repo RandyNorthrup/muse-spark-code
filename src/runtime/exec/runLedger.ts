@@ -262,8 +262,16 @@ export function createRunLedger(input: {
           request.reserveUsd === undefined
             ? charge(price, MODEL_API_CONTEXT_WINDOW - m, m)
             : units(Usd.from(request.reserveUsd).toAmount())
-      } catch {
-        return refuse('unpriced')
+      } catch (error) {
+        // Anything unpriceable refuses as unpriced: an out-of-range
+        // amount or a decimal the parsers cannot take. Anything else is
+        // not this admission's answer to give.
+        if (error instanceof UserRefusalError) return refuse('unpriced')
+        if (error instanceof Error) {
+          if (error.message === 'USD amount must be a finite decimal') return refuse('unpriced')
+          if (error.message === 'USD amount is not representable') return refuse('unpriced')
+        }
+        throw error
       }
       const rejected = admit(amount)
       if (rejected !== undefined) return rejected
