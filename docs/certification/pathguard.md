@@ -290,3 +290,87 @@ Round-4 gates (lane PR249FIX3, same timeout rule):
   0 drift; `knip`: exit 0; `node scripts/cycles.mjs`: no cycles;
   `jscpd`: 0 clones (two introduced mid-lane fixed at the cause);
   `npm run build`: exit 0 with budgets unchanged.
+
+## Fix (round 6, lane PR249FIX5, Grok re-review of PR #249)
+
+Forgetting the guard is a type error, so the next forgotten call site is
+found by the compiler, not the reviewer:
+
+- `src/core/executables.ts`: `ExecutableProbe` takes a required
+  `scope: ExecutableScope` — a workspace root with its link resolver, or
+  the explicit `NO_WORKSPACE` sentinel (absolute entries only, links
+  followed) for a capability probe before any folder is known. No
+  optional `workspaceRoot`, no default resolver. `WorkspaceChild`
+  requires `realpath`; `workspaceChildEnvironment` and the new
+  `noWorkspaceChildEnvironment` return the branded `GuardedChildEnv`
+  only they can produce. `RunProgram`, `runTreeSync` (which also
+  requires `cwd`) and the plugin spawn take it, so a raw `process.env`
+  does not type-check there. `withoutCredentials` and
+  `resourceEnvironment` preserve the brand.
+- Every wrapper follows: `gitLocator`/`processGitPath`, the shell/hook
+  interpreters and environments (the explicit no-workspace scope where
+  no folder is open), `resolveServerCommand`, the `muse` launch probe
+  and child environment, the plugin `PluginRunDeps`, the capture probe,
+  and the report/schedule/sharing callers of the governed boundary.
+- Cause fixes through those types: the team probe never searches PATH
+  (fixed `/usr/bin/setpriv` + `/usr/bin/systemd-run` with an absolute
+  `/bin/true` under the no-workspace env; the launch still re-resolves
+  outside its own directory, links followed); the report's `gh` probe
+  carries the report workspace and `resolveCommand` refuses an absolute
+  path inside it like a bare name there (the schedule git reader and
+  the sharing adapters thread their workspace the same way);
+  `foreignHooksEntry.ts` passes `realpathSync` into the production
+  `PluginSession`; playbook effects sanitize the effect's cwd (a linked
+  worktree outside the main checkout) as well as the main workspace;
+  the Linux recorder child gets the guarded environment and cwd.
+- `test/unit/pathGuardRound6.test.ts` drives each cause fix against
+  real plantings on a temporary workspace (absolute refusal at the
+  governed boundary — seen to fail with the check broken — `gh`
+  resolved outside the workspace with the root threaded to the exec,
+  the recorder refusal, the linked-worktree double sanitize through
+  the real `PlaybookOutcomes`, and a real team driver start that never
+  executes a planted `setpriv`/`true`). The inventory scans
+  `execResourceFile`/`handoffResourceFile` and one-level aliases and
+  pins the branded signatures.
+
+## Proof (round 6)
+
+`test/unit/pathGuardRound6.test.ts` (5 tests), the updated
+`test/unit/pathGuard.test.ts` (17), `test/unit/executables.test.ts`
+(9), `test/unit/pathGuardRound4.test.ts` (19) and the extended
+`test/unit/pathGuardSpawns.test.ts` (6 tests: inventory, aliases,
+governed calls, type pins), all passing on the rig (round 6 adds 5 +
+the inventory pins):
+
+- The no-workspace scope drops relative/empty entries and still sets
+  `NoDefaultCurrentDirectoryInExePath` on Windows; `absolutePathEntries`
+  follows links for the workspace comparison.
+- A planted absolute `gh` is refused before any spawn; a real outside
+  `gh` answers with the workspace threaded through.
+- The linked worktree's child PATH excludes both checkouts; the team
+  probe runs fixed tools only and leaves planted markers untouched.
+- The refusal test fails with the check broken (reverted) and passes
+  with it; the inventory fails on an unlisted governed call and on a
+  loosened branded signature.
+
+Round-6 gates (lane PR249FIX5, repository's own timeout throughout,
+never `--testTimeout`):
+
+- `test/unit/pathGuardRound6.test.ts`: 5/5 pass.
+- Guard + inventory suites: `pathGuard` + `executables` +
+  `pathGuardRound4` (45 pass); `pathGuardSpawns` (6 pass);
+  `helperLocation` + `nativeGitCore` (41 pass).
+- Related suites of every touched file: `foreignHooks`,
+  `pluginDispatch` (with real children), `sandbox`, `playbookSurface`,
+  `schedules`, `mcpServers`, `reportProblem`, `supportReport`,
+  `diagnosticsReport`, `hookFormats`, `shellSyntax`, `teamResources`,
+  `gitState`, `gitText`, `nativeProcessDefaults`,
+  `credentialFile`, `sharingArtifacts`, `runnerHelperNative`,
+  `scheduleRegistration`, `resourcesContracts`, `githubRemote`: all
+  pass.
+- `npm run typecheck` (all five projects): exit 0.
+- eslint zero warnings; prettier clean; `node scripts/check-l10n.mjs`:
+  0 problems; `node scripts/check-plan.mjs`: 0 drift;
+  `node scripts/check-host-api.mjs`: exit 0; `knip`: exit 0;
+  `node scripts/cycles.mjs`: no cycles; `jscpd`: 0 clones;
+  `npm run build`: exit 0 with budgets unchanged.

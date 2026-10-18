@@ -126,7 +126,7 @@ describe('round-6 planted programs (real filesystem)', () => {
       const outcomes = new PlaybookOutcomes(root, {
         admit: () => true,
         runContained: (effect, options) => {
-          seen.push(options.env['PATH'] ?? '')
+          seen.push(options.env?.['PATH'] ?? '')
           const empty: SpawnSyncReturns<Buffer> = {
             pid: 0,
             output: [null, Buffer.alloc(0), Buffer.alloc(0)],
@@ -134,7 +134,6 @@ describe('round-6 planted programs (real filesystem)', () => {
             stderr: Buffer.alloc(0),
             status: 0,
             signal: null,
-            error: undefined,
           }
           if (effect.args.includes('worktree')) {
             return {
