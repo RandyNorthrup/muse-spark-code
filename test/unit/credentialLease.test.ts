@@ -13,7 +13,7 @@ import {
   CredentialLockBusyError,
   currentProcessStartTime,
 } from '../../src/core/credentialLease'
-import { credentialLeaseSecrets } from '../../src/host/models/modelsPanelBundle'
+import { credentialLeaseSecrets } from '../../src/host/models/credentialLeaseSecrets'
 import type { SecretStore } from '../../src/host/auth/credentialStore'
 import { UI_TEXT } from '../../src/shared/constants'
 import { userFileIo } from '../../src/runtime/providersCommands'

@@ -230,6 +230,8 @@ const ESTIMATOR_ENTRY = 'src/host/estimator/estimatorEntry.ts'
 const ESTIMATOR_OUTFILE = 'dist/estimator.js'
 const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
 const RECORDER_OUTFILE = 'dist/recorder.js'
+const CREDENTIAL_LEASE_ENTRY = 'src/core/credentialLeaseEntry.ts'
+const CREDENTIAL_LEASE_OUTFILE = 'dist/credentialLease.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
 const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
@@ -566,6 +568,28 @@ const recorderOptions = {
   ],
   entryPoints: [RECORDER_ENTRY],
   outfile: RECORDER_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The credential lease (M95 D74), required on the first guarded credential
+// write or Connect recovery; it reads no `vscode`, so a stray import fails
+// here.
+/** @type {import('esbuild').BuildOptions} */
+const credentialLeaseOptions = {
+  ...common,
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+    sharedModelApiBoundaries,
+  ],
+  entryPoints: [CREDENTIAL_LEASE_ENTRY],
+  outfile: CREDENTIAL_LEASE_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -1289,6 +1313,7 @@ if (isWatch) {
     esbuild.context(reportOptions),
     esbuild.context(estimatorOptions),
     esbuild.context(recorderOptions),
+    esbuild.context(credentialLeaseOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
     esbuild.context(scheduleBackgroundOptions),
@@ -1405,6 +1430,7 @@ if (isWatch) {
     report: esbuild.build(reportOptions),
     estimator: esbuild.build(estimatorOptions),
     recorder: esbuild.build(recorderOptions),
+    credentialLease: esbuild.build(credentialLeaseOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     judge: esbuild.build(judgeOptions),
     scheduleBackground: esbuild.build(scheduleBackgroundOptions),
@@ -1535,6 +1561,7 @@ if (isWatch) {
   reportSize(REPORT_OUTFILE)
   reportSize(ESTIMATOR_OUTFILE)
   reportSize(RECORDER_OUTFILE)
+  reportSize(CREDENTIAL_LEASE_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)
   reportSize(JUDGE_OUTFILE)

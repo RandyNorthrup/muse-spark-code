@@ -83,6 +83,7 @@ export const ACP_BUNDLES = [
   'providers.js',
   'subscriptions.js',
   'configuredProviders.js',
+  'credentialLease.js',
   'providerCatalog.json',
   'providerCatalog.js',
   'media.js',

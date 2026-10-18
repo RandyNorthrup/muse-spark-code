@@ -21,14 +21,8 @@
 // inside the same lease.
 import { mkdir, readFile, rmdir, rm, writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import path from 'node:path'
 import * as z from 'zod/mini'
-import {
-  MILLISECONDS_PER_SECOND,
-  PROVIDERS_CONFIG_DIR_NAME,
-  PROVIDERS_FILE_NAME,
-  PROVIDER_SECRET_PREFIX,
-} from '../shared/constants'
+import { MILLISECONDS_PER_SECOND, PROVIDER_SECRET_PREFIX } from '../shared/constants'
 
 /** The owner record inside a credential lease directory (shared with the CLI producer). */
 export const OWNER_FILE = 'owner.json'
@@ -66,29 +60,6 @@ export function isOwnerAlive(pid: number): boolean {
       String(error.code) !== 'ESRCH'
     )
   }
-}
-
-/** The lease directory beside a providers file. */
-export function credentialLockDir(providersFilePath: string): string {
-  return `${providersFilePath}.lock`
-}
-
-/**
- * Where the runner's own providers file lives (beside, never inside, Muse
- * Code's config folder). Windows joins with `\`; join keeps one dialect per
- * platform. Both the terminal and the panel derive the same lease directory
- * from it, so the one credential lease excludes writers on either side.
- */
-export function providerConfigFilePath(input: {
-  readonly platform: NodeJS.Platform
-  readonly homeDir: string
-  readonly xdgConfigHome: string | undefined
-}): string {
-  const base = path.join(
-    input.xdgConfigHome ?? path.join(input.homeDir, '.config'),
-    PROVIDERS_CONFIG_DIR_NAME,
-  )
-  return path.join(base, PROVIDERS_FILE_NAME)
 }
 
 /**

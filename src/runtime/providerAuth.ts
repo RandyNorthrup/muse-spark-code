@@ -3,7 +3,6 @@
 // plain `auth status` run crashed-Connect recovery inside the same lease
 // Connect itself holds, then read or write. Loaded lazily so the headless
 // entry's static bundle is untouched.
-import { CredentialLockBusyError, recoverCredentialJournal } from '../core/credentialLease'
 import { openRouterDiscardedKeyNotice } from '../host/backend/providersEntry'
 import { UI_TEXT } from '../shared/constants'
 import type { ProvidersFileRead } from '../core/providers/providersFile'
@@ -23,8 +22,14 @@ type CredentialLock = (operation: () => Promise<number>) => Promise<number>
  * directory lock's EEXIST while another writer (possibly crashed) holds it.
  */
 export function isCredentialLockBusy(error: unknown): boolean {
+  // The lease's class loads with its bundle, so this synchronous predicate
+  // matches the busy error by name instead of holding a static import of
+  // it; only the lease produces an error of this name.
   return (
-    error instanceof CredentialLockBusyError ||
+    (typeof error === 'object' &&
+      error !== null &&
+      'name' in error &&
+      String(error.name) === 'CredentialLockBusyError') ||
     (typeof error === 'object' &&
       error !== null &&
       'code' in error &&
@@ -66,6 +71,8 @@ async function recoverAccountJournal(
   }
   let recovery
   try {
+    // The lease's bundle loads on a recovery, never with the command's own bundle.
+    const { recoverCredentialJournal } = await import('../core/credentialLeaseEntry')
     recovery = await recoverCredentialJournal(store, account, `${account}.connect`)
   } catch {
     return { notices: [], committed: false, failed: true }

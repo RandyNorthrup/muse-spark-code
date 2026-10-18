@@ -144,6 +144,22 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  {
+    file: 'credentialLease.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
+      { importer: 'src/extension.ts', symbol: 'openUsagePage', side: ['vscode'] },
+      {
+        importer: 'src/host/models/credentialLeaseSecrets.ts',
+        symbol: 'guarded',
+        side: ['vscode'],
+      },
+      { importer: 'src/runtime/openRouterCommands.ts', symbol: 'transact', side: ['acp'] },
+      { importer: 'src/runtime/providerAuth.ts', symbol: 'recoverAccountJournal', side: ['acp'] },
+      { importer: 'src/runtime/providersCommands.ts', symbol: 'userFileIo', side: ['acp'] },
+    ],
+  },
   { file: 'estimateContracts.js', side: 'both', requestedBy: [] },
   {
     file: 'estimator.js',

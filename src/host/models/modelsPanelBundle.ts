@@ -8,63 +8,12 @@
 // the panel back into dist/extension.js, which the bundle-split gate
 // refuses.
 
-import { homedir } from 'node:os'
-import {
-  CredentialLockBusyError,
-  credentialLockDir,
-  OPENROUTER_JOURNAL_KEY_LABEL,
-  OPENROUTER_JOURNAL_KEYS_URL,
-  openRouterJournalKeys,
-  providerConfigFilePath,
-  recoverCredentialJournal,
-  withCredentialLock,
-} from '../../core/credentialLease'
 import { UI_TEXT } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as ModelsPanelEntry from './modelsPanelEntry'
 import { CredentialStore, type SecretStore } from '../auth/credentialStore'
 import type { ProviderEntry } from '../providers/providerPorts'
-
-/** The machine's credential lease directory (the terminal derives the same one). */
-export function credentialLeaseDir(): string {
-  return credentialLockDir(
-    providerConfigFilePath({
-      platform: process.platform,
-      homeDir: homedir(),
-      xdgConfigHome: process.env['XDG_CONFIG_HOME'],
-    }),
-  )
-}
-
-/**
- * The panel's secrets inside the one credential lease (M95 D74): every
- * provider-credential write or removal the panel performs (wizard save,
- * removal finish, Connect) runs through this store, so holding the same
- * lease the terminal Connect transaction holds excludes it. Reads stay
- * direct: a reader never fails on a live writer's lease. A held lease
- * refuses with the retry sentence instead of the lock path.
- */
-export function credentialLeaseSecrets(
-  secrets: SecretStore,
-  lockDir: string = credentialLeaseDir(),
-): SecretStore {
-  const guarded = async (run: () => PromiseLike<void>): Promise<void> => {
-    try {
-      await withCredentialLock(lockDir, () => Promise.resolve(run()))
-    } catch (error: unknown) {
-      if (error instanceof CredentialLockBusyError)
-        throw new Error(UI_TEXT.providerConnectBusy, { cause: error })
-      throw error
-    }
-  }
-  return {
-    get: (key) => secrets.get(key),
-    store: (key, value) => guarded(() => secrets.store(key, value)),
-    delete: (key) => guarded(() => secrets.delete(key)),
-  }
-}
 
 /** Activation and the panel share this store, including credential-free locals. */
 export function providerCredentials(
@@ -89,69 +38,6 @@ export function providerCredentials(
   )
 }
 
-/**
- * Surface a crashed terminal Connect at activation, without opening a
- * Models tab (RVCM952D R5). Runs inside the one credential lease, so it
- * never deletes a live attempt's journal: a held lease skips silently. A
- * committed journal reports the key in use (never a removal notice); a
- * discarded one reports the created key with its label and removal page.
- */
-export async function recoverOpenRouterConnect(
-  secrets: SecretStore,
-  showWarning: (message: string) => void,
-  showInformation: (message: string) => void,
-  log: Logger,
-  lock?: {
-    readonly withCredentialLock: <T>(operation: () => Promise<T>) => Promise<T>
-  },
-): Promise<void> {
-  // The activation bundle carries the lease statically (it has room) but
-  // never the OAuth flow: the notice is composed here from the journal
-  // binding's label and removal page.
-  const { account, staging } = openRouterJournalKeys()
-  const store = {
-    get: (key: string): Promise<string | undefined> => Promise.resolve(secrets.get(key)),
-    delete: (key: string): Promise<void> => Promise.resolve(secrets.delete(key)),
-  }
-  const acquire =
-    lock?.withCredentialLock ??
-    (async <T>(operation: () => Promise<T>): Promise<T> => {
-      return await withCredentialLock(credentialLeaseDir(), operation)
-    })
-  let recovery
-  try {
-    recovery = await acquire(() => recoverCredentialJournal(store, account, staging))
-  } catch (error: unknown) {
-    // A live attempt owns its journal; anything else is logged, never shown.
-    if (!(error instanceof CredentialLockBusyError)) log.warn('OpenRouter Connect recovery failed')
-    return
-  }
-  switch (recovery.decision.kind) {
-    case 'discarded':
-    case 'legacy': {
-      if (recovery.journalKept) {
-        log.warn('OpenRouter Connect recovery failed')
-        break
-      }
-      showWarning(
-        fill(UI_TEXT.providerCreatedKeyDiscarded, {
-          label: OPENROUTER_JOURNAL_KEY_LABEL,
-          url: OPENROUTER_JOURNAL_KEYS_URL,
-        }),
-      )
-      break
-    }
-    case 'committed': {
-      showInformation(UI_TEXT.providerConnectRecoveredStored)
-      break
-    }
-    case 'none':
-    case 'stale': {
-      break
-    }
-  }
-}
-
 /** Recover persisted deletion on activation, without opening a Models tab. */
 export async function recoverProviderRemovals(
   pending: unknown,
@@ -171,6 +57,7 @@ export async function recoverProviderRemovals(
 /** The panel bundle's one export. */
 export interface ModelsPanelBundle {
   readonly createModelsPanelFeatures: typeof ModelsPanelEntry.createModelsPanelFeatures
+  readonly credentialLeaseSecrets: typeof ModelsPanelEntry.credentialLeaseSecrets
   readonly setComposerModelConfirmed?: typeof ModelsPanelEntry.setComposerModelConfirmed
   readonly publishProviderSetup?: typeof ModelsPanelEntry.publishProviderSetup
 }
