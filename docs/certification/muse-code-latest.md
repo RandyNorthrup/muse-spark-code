@@ -385,3 +385,44 @@ fixed below at its cause.
     `computerUseUnavailable` even on this Mac (no grants for a headless
     CLI); `skill/import` receipts stay empty because foreign sources
     resolve outside this sandbox (`/Users/randy` reads denied).
+
+## PR206W1 review threads (2026-10-18, rig macbook, lane PR206W1)
+
+Codex review of 2026-10-18 on PR #206, 11 threads plus the VSIX budget
+failure. One line each (OPEN = fixed in this lane; citations are the
+commits that already fixed it, re-verified below):
+
+- T1 (P2, `hooks.ts:1279` process gate): fixed by `b0c7712e8` —
+  `toolIo runHook` passes the configured cap per process, dispatch and
+  the plugin path take the dispatch's cap.
+- T2 (P2, `hooks.ts:1203` abort wake): fixed by `b0c7712e8` — `onAbort`
+  reruns `wakeEligibleWaiters` after removing the entry.
+- T3 (P1, `MuseCodeHost.ts:2194` unreachable wrappers): fixed by
+  `1be8f0d14` — every wrapper sits on the `AgentSession`/`AgentHost`
+  contract as an optional (`agentBackend.ts`).
+- T4 (P1, `package.json:927` README): fixed by `1be8f0d14` — all three
+  settings documented with defaults, bounds and behavior.
+- T5 (P2, `ModelApiHost.ts` Stop-setting scope): fixed by `b0c7712e8` —
+  the three non-Stop loops keep their own 8-bounds, the setting governs
+  Stop only.
+- T6 (P1, `MuseCodeHost.ts:365` empty captures): fixed by `1453706f6` —
+  nonempty `plugin-list-1.4.10.json` plus CLI schema-export verification.
+- T7 (P2 security, `ModelApiHost.ts:2918` Stop hard cap): OPEN — the
+  setting accepts any integer ≥ 1; fix keeps Muse Code's own 8 as an
+  unoverrideable ceiling (schema `lte` plus a clamp at the use site).
+- T8 (P1, `hooks.ts:430` ToolUseStart): OPEN — still wired, still fires
+  nothing; fix keeps it unsupported (out of `WIRED_EVENTS`, honest
+  not-wired warning) until a tool-start firing point exists.
+- T9 (P1, `museCodeLatest.test.ts:157` retry frame): OPEN in part — the
+  members match the pinned SDK 1.4.10 `TurnModelRetryScheduledParams`
+  contract, which folds live frames; fix type-locks the test payload to
+  that contract and verifies it against a fresh CLI schema export (a
+  live provider-retry frame needs a real rate-limit event: lead-owned).
+- T10 (P1, `MuseCodeHost.ts:2340` sandbox availability): OPEN — parsed
+  into `HostInfo`, never consumed; fix warns after host construction
+  when configured-on but the CLI reports `unavailable`.
+- T11 (P1, `mapNotification.ts:446` view-health reason): OPEN —
+  `noneReason` parsed, dropped; fix carries it in the notice.
+- CI (VSIX 3,797,152 B over the 3,788,800 B budget by 8,352 B): OPEN —
+  reproduced with `npm run package`, fixed by shrinking, never by
+  raising the budget.
