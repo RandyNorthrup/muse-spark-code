@@ -3516,7 +3516,6 @@
   "execBudgetRemedyCap": "Emelje a --max-budget-usd értékét legalább {admitCap} értékre.",
   "execBudgetRemedyOutput": "Vagy ismételje meg --max-output-tokens {maxTokens} értékkel.",
   "execBudgetRemedyInput": "Önmagában a bemenet {inputCost} egységbe kerül, több mint a fennmaradó {remaining}.",
-  "execBudgetStartExact": "Korlátos futtatás: keret {cap}, fennmaradó {remaining}. A következő kérés legfeljebb {reservation} összeget foglal le.",
   "execBudgetStartRule": "Korlátos futtatás: keret {cap}, fennmaradó {remaining}. Minden kérés a megszámolt bemenetét plusz legfeljebb {output} kimeneti tokent foglal le.",
   "execBudgetStartBytes": "Korlátos futtatás: keret {cap}, fennmaradó {remaining}. Minden kérés a bájt-korlátos bemenetét plusz legfeljebb {output} kimeneti tokent foglal le.",
   "execBudgetStillReading": "A költségkeret olvasás közben állította le a futtatást, ezért még nincs válasz.",
@@ -3652,10 +3651,6 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "execSummary": "{status}; kérések {requests}; elszámolt {settled}; bizonytalan {uncertain}; képkérések {imageAttempts}; visszaadott {imagesReturned}; bizonytalan képek {imagesUncertain}",
-  "execStaleHoldsClosed": {
-    "one": "Lezárva {count} elavult foglalás ({total}).",
-    "other": "Lezárva {count} elavult foglalás ({total})."
-  },
   "execSummaryUpperBound": "{status}; kérések {requests}; elszámolt {settled}; bizonytalan {uncertain}; képkérések {imageAttempts}; visszaadott {imagesReturned}; bizonytalan képek {imagesUncertain}; A költség felső korlát.",
   "exportSessionLine": "Munkamenet: `{id}`",
   "exportBackendLine": "Háttérrendszer: {backend}",

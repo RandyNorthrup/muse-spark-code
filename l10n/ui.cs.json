@@ -3666,7 +3666,6 @@
   "execBudgetRemedyCap": "Zvyšte --max-budget-usd alespoň na {admitCap}.",
   "execBudgetRemedyOutput": "Nebo opakujte s --max-output-tokens {maxTokens}.",
   "execBudgetRemedyInput": "Samotný vstup stojí {inputCost}, více než zbývajících {remaining}.",
-  "execBudgetStartExact": "Limitovaný běh: strop {cap}, zbývá {remaining}. Další požadavek rezervuje nejvýše {reservation}.",
   "execBudgetStartRule": "Limitovaný běh: strop {cap}, zbývá {remaining}. Každý požadavek rezervuje svůj započtený vstup plus až {output} výstupních tokenů.",
   "execBudgetStartBytes": "Limitovaný běh: strop {cap}, zbývá {remaining}. Každý požadavek rezervuje svůj vstup omezený byty plus až {output} výstupních tokenů.",
   "execBudgetStillReading": "Rozpočet běh zastavil, když ještě četl, takže zatím neexistuje žádná odpověď.",
@@ -3812,12 +3811,6 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "execSummary": "{status}; požadavky {requests}; vyúčtováno {settled}; nejisté {uncertain}; pokusy o obrázky {imageAttempts}; vráceno {imagesReturned}; nejisté obrázky {imagesUncertain}",
-  "execStaleHoldsClosed": {
-    "one": "Uzavřena {count} zastaralá rezervace ({total}).",
-    "few": "Uzavřeny {count} zastaralé rezervace ({total}).",
-    "other": "Uzavřeno {count} zastaralých rezervací ({total}).",
-    "many": "Uzavřeno {count} zastaralých rezervací ({total})."
-  },
   "execSummaryUpperBound": "{status}; požadavky {requests}; vyúčtováno {settled}; nejisté {uncertain}; pokusy o obrázky {imageAttempts}; vráceno {imagesReturned}; nejisté obrázky {imagesUncertain}; Cena je horní mez.",
   "exportSessionLine": "Relace: `{id}`",
   "exportBackendLine": "Back-end: {backend}",

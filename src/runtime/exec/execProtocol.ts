@@ -320,12 +320,19 @@ const lastResponseSchema = z
   })
   .check(
     z.refine(
+      // A billed response need not have completed: with valid usage a
+      // terminal `incomplete` or `failed` response settled as priced, and
+      // the ledger prices every settled terminal alike (runLedger
+      // `settleResponse` prices unless the terminal is missing, queued or
+      // still in progress).
       (value) =>
         value.settlement !== 'priced' ||
-        (value.terminal === 'completed' &&
-          value.usage === 'valid' &&
+        (value.usage === 'valid' &&
           !value.endedWithoutTerminal &&
-          value.transportError === null),
+          value.transportError === null &&
+          value.terminal !== null &&
+          value.terminal !== 'in_progress' &&
+          value.terminal !== 'queued'),
     ),
   )
 const limitsSchema = z.strictObject({

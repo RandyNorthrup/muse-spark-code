@@ -3441,7 +3441,6 @@
   "execBudgetRemedyCap": "--max-budget-usd を少なくとも {admitCap} に引き上げてください。",
   "execBudgetRemedyOutput": "または --max-output-tokens {maxTokens} で再試行してください。",
   "execBudgetRemedyInput": "入力だけで {inputCost} かかり、残り {remaining} を上回っています。",
-  "execBudgetStartExact": "上限付き実行: 上限 {cap}、残り {remaining}。次のリクエストは最大 {reservation} を確保します。",
   "execBudgetStartRule": "上限付き実行: 上限 {cap}、残り {remaining}。各リクエストはカウント済み入力に加え、最大 {output} 出力トークンを確保します。",
   "execBudgetStartBytes": "上限付き実行: 上限 {cap}、残り {remaining}。各リクエストはバイト上限の入力に加え、最大 {output} 出力トークンを確保します。",
   "execBudgetStillReading": "予算により実行は読み取り中に停止したため、まだ回答は存在しません。",
@@ -3572,9 +3571,6 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "execSummary": "{status}; リクエスト {requests}; 確定額 {settled}; 不確定額 {uncertain}; 画像試行 {imageAttempts}; 返却 {imagesReturned}; 不確定画像 {imagesUncertain}",
-  "execStaleHoldsClosed": {
-    "other": "失効した予約 {count} 件を解消しました（{total}）。"
-  },
   "execSummaryUpperBound": "{status}; リクエスト {requests}; 確定額 {settled}; 不確定額 {uncertain}; 画像試行 {imageAttempts}; 返却 {imagesReturned}; 不確定画像 {imagesUncertain}; 費用は上限値です。",
   "exportSessionLine": "セッション: `{id}`",
   "exportBackendLine": "バックエンド: {backend}",

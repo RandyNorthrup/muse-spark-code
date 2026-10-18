@@ -3516,7 +3516,6 @@
   "execBudgetRemedyCap": "Erhöhen Sie --max-budget-usd auf mindestens {admitCap}.",
   "execBudgetRemedyOutput": "Oder wiederholen Sie den Lauf mit --max-output-tokens {maxTokens}.",
   "execBudgetRemedyInput": "Allein die Eingabe kostet {inputCost}, mehr als die verbleibenden {remaining}.",
-  "execBudgetStartExact": "Gedeckelter Lauf: Limit {cap}, {remaining} übrig. Die nächste Anfrage reserviert höchstens {reservation}.",
   "execBudgetStartRule": "Gedeckelter Lauf: Limit {cap}, {remaining} übrig. Jede Anfrage reserviert ihre gezählte Eingabe plus bis zu {output} Ausgabe-Token.",
   "execBudgetStartBytes": "Gedeckelter Lauf: Limit {cap}, {remaining} übrig. Jede Anfrage reserviert ihre Byte-begrenzte Eingabe plus bis zu {output} Ausgabe-Token.",
   "execBudgetStillReading": "Das Budget hat den Lauf beim Lesen gestoppt, daher gibt es noch keine Antwort.",
@@ -3652,10 +3651,6 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "execSummary": "{status}; Anfragen {requests}; abgerechnet {settled}; ungewiss {uncertain}; Bildversuche {imageAttempts}; zurückgegeben {imagesReturned}; ungewisse Bilder {imagesUncertain}",
-  "execStaleHoldsClosed": {
-    "one": "{count} veraltete Reservierung geschlossen ({total}).",
-    "other": "{count} veraltete Reservierungen geschlossen ({total})."
-  },
   "execSummaryUpperBound": "{status}; Anfragen {requests}; abgerechnet {settled}; ungewiss {uncertain}; Bildversuche {imageAttempts}; zurückgegeben {imagesReturned}; ungewisse Bilder {imagesUncertain}; Kosten sind eine Obergrenze.",
   "exportSessionLine": "Sitzung: `{id}`",
   "exportBackendLine": "Backend: {backend}",

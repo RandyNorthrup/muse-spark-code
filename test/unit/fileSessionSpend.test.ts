@@ -56,17 +56,23 @@ const session = (spend: string): StoredSession => ({
   budgetSpentUsd: Usd.from(spend).toAmount(),
 })
 
+const twoWindowsFrom = async (directory: string) => {
+  const first = storeIn(directory)
+  const second = storeIn(directory)
+  await first.save(session('1'))
+  // Each window opens the session at the same total, then spends apart.
+  const beforeFirst = await first.load('s1')
+  const beforeSecond = await second.load('s1')
+  if (beforeFirst === undefined || beforeSecond === undefined)
+    throw new Error('the session was not saved')
+  return { first, second, beforeFirst, beforeSecond }
+}
+
 describe('one session open in two windows', () => {
   it('keeps both spend increments instead of the larger snapshot', async () => {
-    const directory = path.join(root, 'two-windows')
-    const first = storeIn(directory)
-    const second = storeIn(directory)
-    await first.save(session('1'))
-    // Each window opens the session at the same total, then spends apart.
-    const beforeFirst = await first.load('s1')
-    const beforeSecond = await second.load('s1')
-    if (beforeFirst === undefined || beforeSecond === undefined)
-      throw new Error('the session was not saved')
+    const { first, second, beforeFirst, beforeSecond } = await twoWindowsFrom(
+      path.join(root, 'two-windows'),
+    )
     // 1 + 2 in the first window, 1 + 4 in the second: the file holds 7.
     await first.save({ ...beforeFirst, budgetSpentUsd: Usd.from('3').toAmount() })
     await second.save({ ...beforeSecond, budgetSpentUsd: Usd.from('5').toAmount() })
@@ -75,15 +81,9 @@ describe('one session open in two windows', () => {
   })
 
   it('keeps a window second increment after the merge instead of dropping it', async () => {
-    const directory = path.join(root, 'two-windows-second')
-    const first = storeIn(directory)
-    const second = storeIn(directory)
-    await first.save(session('1'))
-    // Each window opens the session at the same total, then spends apart.
-    const beforeFirst = await first.load('s1')
-    const beforeSecond = await second.load('s1')
-    if (beforeFirst === undefined || beforeSecond === undefined)
-      throw new Error('the session was not saved')
+    const { first, second, beforeFirst, beforeSecond } = await twoWindowsFrom(
+      path.join(root, 'two-windows-second'),
+    )
     // 1 + 2 in the first window, 1 + 4 in the second: the file holds 7.
     await first.save({ ...beforeFirst, budgetSpentUsd: Usd.from('3').toAmount() })
     await second.save({ ...beforeSecond, budgetSpentUsd: Usd.from('5').toAmount() })
@@ -111,39 +111,52 @@ describe('one session open in two windows', () => {
 // rebuilds the settled-only total from them (D121: a reservation is never
 // spend). Same directory layout the removed session journal wrote.
 const LEGACY_ACCOUNT = 'ab'.repeat(32)
+const LEGACY_SCOPE = '11111111-1111-1111-1111-111111111111'
+const SETTLED_CLAIM = '22222222-2222-2222-2222-222222222222'
+const OPEN_CLAIM = '44444444-4444-4444-4444-444444444444'
+const MISSING_CLAIM = '66666666-6666-6666-6666-666666666666'
+const RETAINED_CLAIM = '77777777-7777-7777-7777-777777777777'
 const legacySession = () => ({ ...session('10'), sessionId: 's9' })
+const claim = (claimId: string, amounts?: { settledUsd?: string; retainedUsd?: string }) =>
+  JSON.stringify({
+    version: 2,
+    scopeId: LEGACY_SCOPE,
+    sessionId: 's9',
+    accountId: LEGACY_ACCOUNT,
+    claimId,
+    ownerId: '33333333-3333-3333-3333-333333333333',
+    reservedUsd: '3',
+    ...amounts,
+  })
+const writeClaim = (
+  scope: string,
+  claimId: string,
+  amounts?: { settledUsd?: string; retainedUsd?: string },
+) => {
+  // Claim directories carry their claim id, as the removed journal wrote them.
+  mkdirSync(path.join(scope, 'claims', claimId), { recursive: true })
+  writeFileSync(path.join(scope, 'claims', claimId, 'claim.json'), claim(claimId, amounts))
+}
 const writeLegacyJournal = (directory: string) => {
   const scope = path.join(directory, 'budget-journal', LEGACY_ACCOUNT, 's9')
-  mkdirSync(path.join(scope, 'claims', 'c1'), { recursive: true })
+  mkdirSync(scope, { recursive: true })
   writeFileSync(
     path.join(scope, 'seed.json'),
     JSON.stringify({
       version: 2,
-      scopeId: '11111111-1111-1111-1111-111111111111',
+      scopeId: LEGACY_SCOPE,
       sessionId: 's9',
       accountId: LEGACY_ACCOUNT,
       spentUsd: '7',
       hasUnknownHistoricalFees: false,
     }),
   )
-  const claim = (settledUsd: string | undefined) =>
-    JSON.stringify({
-      version: 2,
-      scopeId: '11111111-1111-1111-1111-111111111111',
-      sessionId: 's9',
-      accountId: LEGACY_ACCOUNT,
-      claimId: '22222222-2222-2222-2222-222222222222',
-      ownerId: '33333333-3333-3333-3333-333333333333',
-      reservedUsd: '3',
-      ...(settledUsd !== undefined && { settledUsd }),
-    })
   // A settled charge enters the rebuilt total; an open one stays out.
-  writeFileSync(path.join(scope, 'claims', 'c1', 'claim.json'), claim('1.5'))
-  mkdirSync(path.join(scope, 'claims', 'c2'), { recursive: true })
-  writeFileSync(path.join(scope, 'claims', 'c2', 'claim.json'), claim(undefined))
+  writeClaim(scope, SETTLED_CLAIM, { settledUsd: '1.5' })
+  writeClaim(scope, OPEN_CLAIM)
   // A claim directory without its file (a dead process's, for example) is
   // unsettled too: held, never spent.
-  mkdirSync(path.join(scope, 'claims', 'c3'), { recursive: true })
+  mkdirSync(path.join(scope, 'claims', MISSING_CLAIM), { recursive: true })
 }
 
 describe('a legacy session total with an open reservation', () => {
@@ -181,6 +194,40 @@ describe('a legacy session total with an open reservation', () => {
     expect(loaded?.budgetSpentUsd).toBe(Usd.from('10').toAmount())
     expect(loaded?.spendSettledOnly).toBe(undefined)
   })
+
+  it('counts a retained liability an open claim kept past its reservation', async () => {
+    const directory = path.join(root, 'legacy-retained')
+    const window = storeIn(directory)
+    await window.save(legacySession())
+    writeLegacyJournal(directory)
+    // Bounded-search fees exceeded the reservation before final token
+    // settlement: the claim stayed open with the incurred liability
+    // retained, and the rebuild counts it instead of dropping it.
+    const scope = path.join(directory, 'budget-journal', LEGACY_ACCOUNT, 's9')
+    writeClaim(scope, RETAINED_CLAIM, { retainedUsd: '2' })
+    // Seed 7, settled 1.5, retained 2; the open 3 stays out.
+    const loaded = await window.load('s9')
+    expect(loaded?.budgetSpentUsd).toBe(Usd.from('10.5').toAmount())
+    expect(loaded?.spendSettledOnly).toBe(true)
+  })
+
+  it('keeps the stored total when a legacy claim is detached from its journal', async () => {
+    const directory = path.join(root, 'legacy-misplaced')
+    const window = storeIn(directory)
+    await window.save(legacySession())
+    writeLegacyJournal(directory)
+    // A row filed under another claim's directory is damage, never spend:
+    // the stored total stands and the file is not stamped migrated.
+    const scope = path.join(directory, 'budget-journal', LEGACY_ACCOUNT, 's9')
+    mkdirSync(path.join(scope, 'claims', 'stray'), { recursive: true })
+    writeFileSync(
+      path.join(scope, 'claims', 'stray', 'claim.json'),
+      claim(SETTLED_CLAIM, { settledUsd: '1.5' }),
+    )
+    const loaded = await window.load('s9')
+    expect(loaded?.budgetSpentUsd).toBe(Usd.from('10').toAmount())
+    expect(loaded?.spendSettledOnly).toBe(undefined)
+  })
 })
 
 describe('unknown-charge calls across a save', () => {
@@ -190,5 +237,22 @@ describe('unknown-charge calls across a save', () => {
     await window.save({ ...session('1'), sessionId: 's8', unknownChargeCalls: 3 })
     const loaded = await window.load('s8')
     expect(loaded?.unknownChargeCalls).toBe(3)
+  })
+
+  it('keeps both windows unknown-call increments instead of overwriting', async () => {
+    const directory = path.join(root, 'unknown-merge')
+    const first = storeIn(directory)
+    const second = storeIn(directory)
+    await first.save({ ...session('1'), unknownChargeCalls: 1 })
+    const beforeFirst = await first.load('s1')
+    const beforeSecond = await second.load('s1')
+    if (beforeFirst === undefined || beforeSecond === undefined)
+      throw new Error('the session was not saved')
+    // One more unknown call in each window past the shared base of 1:
+    // the file holds 3, not the later snapshot's 2.
+    await first.save({ ...beforeFirst, unknownChargeCalls: 2 })
+    await second.save({ ...beforeSecond, unknownChargeCalls: 2 })
+    const merged = await first.load('s1')
+    expect(merged?.unknownChargeCalls).toBe(3)
   })
 })

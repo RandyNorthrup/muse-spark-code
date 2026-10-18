@@ -1,11 +1,15 @@
 import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
+import { execEventSchema } from '../../src/runtime/exec/execProtocol'
 import {
   createExecOutputCap,
   createRunLedger,
   type ResponseTicket,
   type RunLedger,
 } from '../../src/runtime/exec/runLedger'
+// The Action's structural mirror of the exec schemas, which validates the
+// same settled attempt event before a result is staged.
+import { isExecEvent } from '../../action/lib/result.mjs'
 import { modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
 import {
   MODEL_API_MAX_OUTPUT_TOKENS,
@@ -199,6 +203,25 @@ describe('M80 ledger integer admission and retained liability', () => {
       .toAmount()
     expect(result).toEqual({ outcome: 'priced', chargedUsd: expected })
     expect(l.totals().uncertainUsd).toBe('0')
+    // A billed terminal response validates as a priced settlement, not
+    // only a completed one: the settled attempt event passes both the
+    // published schema and the Action's mirror of it.
+    const event = {
+      type: 'attempt' as const,
+      n: t.n,
+      endpoint: 'responses' as const,
+      phase: 'settled' as const,
+      reservedUsd: t.reserveUsd,
+      outcome: result.outcome,
+      chargedUsd: result.chargedUsd,
+      terminal: l.lastResponse?.terminal ?? null,
+      totals: l.totals(),
+      v: 2 as const,
+      seq: 1,
+      time: new Date().toISOString(),
+    }
+    expect(execEventSchema.safeParse(event).success).toBe(true)
+    expect(isExecEvent(event)).toBe(true)
   })
   it('a disconnect without final usage keeps liability separate from spent', () => {
     const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 30 })

@@ -1,5 +1,11 @@
 import { SpendLedgerError } from '../../core/paid/spendLedgerError'
-import { Usd, legacyUsdSchema, type UsdAmount } from '../../shared/usd'
+import { Usd, type UsdAmount } from '../../shared/usd'
+import {
+  legacyClaimIdentityError,
+  legacyClaimSpendUsd,
+  legacyClaimSchema,
+  legacySeedSchema,
+} from './legacyJournal'
 // The Model API session store on disk (PLAN.md D14): one JSON file per
 // session under the workspace storage directory VS Code gives the
 // extension (`context.storageUri`: per user, per workspace, outside the
@@ -74,18 +80,6 @@ const LEGACY_CLAIMS_DIRECTORY = 'claims'
 const LEGACY_SEED_FILE = 'seed.json'
 const LEGACY_CLAIM_FILE = 'claim.json'
 const LEGACY_ACCOUNT_PATTERN = /^[a-f0-9]{64}$/
-const legacyVersionSchema = z.union([z.literal(1), z.literal(2)])
-const legacySeedSchema = z.object({
-  version: legacyVersionSchema,
-  sessionId: z.string(),
-  accountId: z.string(),
-  spentUsd: legacyUsdSchema,
-})
-const legacyClaimSchema = z.object({
-  version: legacyVersionSchema,
-  reservedUsd: legacyUsdSchema,
-  settledUsd: z.optional(legacyUsdSchema),
-})
 // A session id names a file; only the UUID alphabet is allowed into a path.
 const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]+$/
 const UPLOAD_INTENT_SUFFIX = '.uploads'
@@ -202,8 +196,10 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
   // store instance last loaded or saved for the session. A save adds only
   // what its snapshot spent past that base onto the file's total, so two
   // windows saving from the same total keep both increments instead of the
-  // larger snapshot dropping the other's.
+  // larger snapshot dropping the other's. The unknown-charge count merges
+  // the same way, with a base of its own.
   const spendBases = new Map<string, UsdAmount>()
+  const unknownBases = new Map<string, number>()
 
   /** A session file's parsed JSON, or undefined with a log line when it does not read. */
   const readRaw = async (name: string): Promise<unknown> => {
@@ -239,12 +235,15 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
    * A file saved before the D121 legacy migration may hold an open
    * reservation in its total (the old snapshot added it); rebuild the
    * settled-only total from the legacy journal's seed plus settled claims
-   * (D121: a reservation is never spend). Runs once per file: new snapshots
-   * carry `spendSettledOnly`, so later loads skip the journal, and the
-   * save below lands the rebuild instead of merging onto the old total.
-   * Anything unreadable keeps the stored total with a log line — a resume
-   * never fails for a best-effort migration — and a session without a
-   * journal keeps what its file holds.
+   * (D121: a reservation is never spend). A claim the writer left open
+   * with a retained liability still counts that liability: fees its run
+   * incurred past the reservation, known before final token settlement.
+   * Runs once per file: new snapshots carry `spendSettledOnly`, so later
+   * loads skip the journal, and the save below lands the rebuild instead
+   * of merging onto the old total. Anything unreadable — including a
+   * claim row detached from its journal entry — keeps the stored total
+   * with a log line: a resume never fails for a best-effort migration,
+   * and a session without a journal keeps what its file holds.
    */
   const migrateLegacySpend = async (session: StoredSession): Promise<StoredSession> => {
     if (session.budgetSpentUsd === undefined || session.spendSettledOnly === true) return session
@@ -261,7 +260,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
         session.accountId !== undefined && LEGACY_ACCOUNT_PATTERN.test(session.accountId)
           ? [session.accountId]
           : accounts.filter((name) => LEGACY_ACCOUNT_PATTERN.test(name))
-      const seeds: { accountId: string; spentUsd: number | string }[] = []
+      const seeds: { accountId: string; scopeId: string; spentUsd: UsdAmount }[] = []
       for (const accountId of wanted) {
         let text: string
         try {
@@ -275,14 +274,12 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
         }
         const seed = legacySeedSchema.parse(JSON.parse(text))
         if (seed.sessionId !== session.sessionId || seed.accountId !== accountId) continue
-        if (typeof seed.spentUsd === 'number' && !Number.isFinite(seed.spentUsd))
-          throw new Error('legacy seed spend is not finite')
-        seeds.push({ accountId, spentUsd: seed.spentUsd })
+        seeds.push({ accountId, scopeId: seed.scopeId, spentUsd: seed.spentUsd })
       }
       // One conversation bills one account; two journals for it is evidence
       // this migration cannot read, so the stored total stands.
       if (seeds.length !== 1 || seeds[0] === undefined) return session
-      const { accountId } = seeds[0]
+      const { accountId, scopeId } = seeds[0]
       let spent = Usd.from(seeds[0].spentUsd)
       const claimsDir = path.join(
         journalRoot,
@@ -303,10 +300,19 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
           throw error
         }
         const claim = legacyClaimSchema.parse(JSON.parse(text))
-        if (claim.settledUsd === undefined) continue
-        if (typeof claim.settledUsd === 'number' && !Number.isFinite(claim.settledUsd))
-          throw new Error('legacy settled spend is not finite')
-        spent = spent.add(Usd.from(claim.settledUsd))
+        const identityError = legacyClaimIdentityError(claim, {
+          name,
+          scopeId,
+          sessionId: session.sessionId,
+          accountId,
+        })
+        if (identityError !== undefined)
+          throw new Error(`legacy claim ${name} is not its journal entry: ${identityError}`)
+        // An unsettled claim without retained liability holds its
+        // reservation but never spent it, so it stays out (D121).
+        const claimSpend = legacyClaimSpendUsd(claim)
+        if (claimSpend === undefined) continue
+        spent = spent.add(Usd.from(claimSpend))
       }
       return { ...session, budgetSpentUsd: spent.toAmount(), spendSettledOnly: true }
     } catch (error: unknown) {
@@ -581,6 +587,8 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       // This snapshot is the window's base for its next save's delta.
       if (current?.budgetSpentUsd === undefined) spendBases.delete(sessionId)
       else spendBases.set(sessionId, current.budgetSpentUsd)
+      if (current?.unknownChargeCalls === undefined) unknownBases.delete(sessionId)
+      else unknownBases.set(sessionId, current.unknownChargeCalls)
       return current
     },
     async save(session) {
@@ -638,6 +646,26 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
             )
               projected = { ...session, budgetSpentUsd: previousSpend }
           }
+          // Calls without usage merge the same way: past this window's own
+          // count base, what its snapshot recorded is added onto the
+          // file's count, so the later save keeps both windows' unknown
+          // calls instead of overwriting the other's increment.
+          const previousUnknown = previous?.unknownChargeCalls
+          const incomingUnknown = session.unknownChargeCalls
+          const unknownBase = unknownBases.get(session.sessionId)
+          if (previousUnknown !== undefined) {
+            if (
+              incomingUnknown !== undefined &&
+              unknownBase !== undefined &&
+              incomingUnknown >= unknownBase
+            )
+              projected = {
+                ...projected,
+                unknownChargeCalls: previousUnknown + (incomingUnknown - unknownBase),
+              }
+            else if (incomingUnknown === undefined || incomingUnknown < previousUnknown)
+              projected = { ...projected, unknownChargeCalls: previousUnknown }
+          }
           if (uploads !== undefined && projected.accountId !== undefined)
             await writeIntent(session.sessionId, projected.accountId, 'save')
           // Retain both snapshots until the durable rename; a failed save cannot
@@ -658,6 +686,8 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
           // next save of 6 would read as older than its stored base of 7.
           if (incomingSpend === undefined) spendBases.delete(session.sessionId)
           else spendBases.set(session.sessionId, incomingSpend)
+          if (incomingUnknown === undefined) unknownBases.delete(session.sessionId)
+          else unknownBases.set(session.sessionId, incomingUnknown)
           await uploads?.syncSession(session.sessionId, fileRefsOf(projected), isCurrent)
           if (isCurrent()) await rm(intentFor(session.sessionId), { force: true })
         },
