@@ -484,7 +484,7 @@ describe('packaging (M26)', () => {
       const workflow = read('.github', 'workflows', file)
       // A job that calls a reusable workflow (`uses:` at job level) takes no
       // timeout; every job that runs on a runner has one.
-      expect(count(workflow, /^ {4}timeout-minutes: \d+$/gm), file).toBe(
+      expect(count(workflow, /^ {4}timeout-minutes: .+$/gm), file).toBe(
         count(workflow, /^ {4}runs-on: /gm),
       )
       expect(count(workflow, /^ {6}- uses: actions\/checkout@/gm), file).toBe(
@@ -508,6 +508,12 @@ describe('packaging (M26)', () => {
       "marketplace: ['./node_modules/.bin/vsce', ['publish'",
     )
     expect(release).toContain('git merge-base --is-ancestor "${GITHUB_SHA}" origin/main')
+    // D122: the unit shards' bound names where they run (warm at home,
+    // cold in the capacity repository); it is the one expression the
+    // timeout count above accepts beside plain minutes.
+    expect(read('.github', 'workflows', 'build.yml')).toContain(
+      "timeout-minutes: ${{ inputs.part == 'org' && 25 || 20 }}",
+    )
   })
 
   it('takes the macOS helper’s version from package.json when it is built, never by hand', () => {
@@ -665,13 +671,25 @@ describe('tiered CI (CIFLOW)', () => {
     )
     expect(job('checks')).toContain('      - run: npx run-s ${{ matrix.part.gates }}\n')
     expect(job('unit')).toContain('npx vitest run\n')
+    // D122: the capacity repository's own run carries only the Windows and
+    // macOS unit shards; every other job stays out of its way.
     for (const id of ['integration', 'native-build', 'linux-native-build', 'packages']) {
-      expect(job(id)).toContain('if: ${{ !inputs.fast }}')
+      expect(job(id)).toContain("if: ${{ inputs.part != 'org' && !inputs.fast }}")
+    }
+    for (const id of ['checks', 'secrets', 'sast']) {
+      expect(job(id)).toContain("if: ${{ inputs.part != 'org' }}")
     }
     // Accessibility additionally leaves the pull-request path.
     expect(job('accessibility')).toContain(
-      "if: ${{ !inputs.fast && github.event_name != 'pull_request' }}",
+      "if: ${{ inputs.part != 'org' && !inputs.fast && github.event_name != 'pull_request' }}",
     )
+    // D122: at home the Windows and macOS unit shards move to the capacity
+    // repository through the `org` job; there only they run.
+    expect(job('unit')).toContain("inputs.part == 'home' && '[\"ubuntu-latest\"]'")
+    expect(job('unit')).toContain('inputs.part == \'org\' && \'["windows-latest","macos-latest"]\'')
+    expect(job('org')).toContain("if: ${{ inputs.part == 'home' }}")
+    expect(job('org')).toContain('scnetsolutions/muse-spark-code-ci')
+    expect(job('org')).toContain('test "$conclusion" = success')
     expect(job('accessibility')).toContain('runs-on: ubuntu-latest')
     expect(job('accessibility')).toContain('run: npm run test:a11y\n')
     expect(job('accessibility')).toContain('run: npm run test:legal-a11y\n')
@@ -706,7 +724,7 @@ describe('tiered CI (CIFLOW)', () => {
       "shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}",
     )
     expect(job('unit')).toContain(
-      `exclude: \${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}`,
+      `exclude: \${{ fromJSON((inputs.fast || inputs.part == 'org') && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}`,
     )
     expect(job('unit')).toContain("SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || 8 }}")
     expect(job('unit')).toContain('--shard="$SHARD/$SHARDS" --reporter=default')
@@ -746,6 +764,7 @@ describe('tiered CI (CIFLOW)', () => {
     ).toEqual([
       'checks',
       'unit',
+      'org',
       'accessibility',
       'integration',
       'native-build',
@@ -754,10 +773,20 @@ describe('tiered CI (CIFLOW)', () => {
       'secrets',
       'sast',
     ])
-    expect(job(id)).toContain('if: always()')
+    // The aggregate itself never runs in the capacity repository: that run
+    // carries only the Windows and macOS unit shards, and the home run's
+    // `org` job folds in their result.
+    expect(job(id)).toContain("if: ${{ always() && inputs.part != 'org' }}")
     for (const key of ['CHECKS', 'UNIT', 'SECRETS', 'SAST']) {
       expect(job(id)).toContain(`          test "$${key}" = success\n`)
     }
+    // D122: a home run's Windows and macOS unit shards ran in the capacity
+    // repository, so home additionally requires the `org` job; elsewhere its
+    // result is not read.
+    expect(job(id)).toContain('          ORG: ${{ needs.org.result }}\n')
+    expect(job(id)).toContain('          PART: ${{ inputs.part }}\n')
+    expect(job(id)).toContain('          if [ "$PART" = home ]; then\n')
+    expect(job(id)).toContain('            test "$ORG" = success\n')
     expect(job(id)).toContain('          if [ "$FAST" != true ]; then\n')
     for (const key of ['INTEGRATION', 'HELPER', 'LINUX_HELPER', 'PACKAGES']) {
       expect(job(id)).toContain(`            test "$${key}" = success\n`)
@@ -824,11 +853,16 @@ describe('tiered CI (CIFLOW)', () => {
         'linux-native-build',
         'packages',
       ]
-      expect(ids.toSorted(byText)).toEqual([...always, ...fullOnly].toSorted(byText))
+      // `org` is neither always- nor full-tier-required: only a home run
+      // reads its result (the verdict cases below carry the part).
+      expect(ids.toSorted(byText)).toEqual([...always, ...fullOnly, 'org'].toSorted(byText))
       expect(pairs.map(([expression]) => expression).toSorted(byText)).toEqual(
-        ['github.event_name', 'inputs.fast', ...ids.map((id) => `needs.${id}.result`)].toSorted(
-          byText,
-        ),
+        [
+          'github.event_name',
+          'inputs.fast',
+          'inputs.part',
+          ...ids.map((id) => `needs.${id}.result`),
+        ].toSorted(byText),
       )
       const key = (id: string) => env.get(`needs.${id}.result`) ?? ''
       const lines = required.split('\n')
@@ -843,9 +877,13 @@ describe('tiered CI (CIFLOW)', () => {
       const results = (
         isFast: boolean,
         event: string,
+        part = 'all',
         overrides: Readonly<Record<string, string>> = {},
       ) => {
         const verdictFor = (id: string): string => {
+          // D122: the capacity job runs (and gates) only at home; elsewhere
+          // it is skipped and its result is not read.
+          if (id === 'org') return part === 'home' ? 'success' : 'skipped'
           const isSkippedForTier = isFast && fullOnly.includes(id)
           const isSkippedForPath = id === 'accessibility' && event === 'pull_request'
           return isSkippedForTier || isSkippedForPath ? 'skipped' : 'success'
@@ -853,17 +891,28 @@ describe('tiered CI (CIFLOW)', () => {
         return {
           [env.get('inputs.fast') ?? '']: String(isFast),
           [env.get('github.event_name') ?? '']: event,
+          [env.get('inputs.part') ?? '']: part,
           ...Object.fromEntries(ids.map((id) => [key(id), verdictFor(id)])),
           ...overrides,
         }
       }
       const cases: readonly (readonly [string, Record<string, string>, boolean])[] = [
         ['full tier, every job green', results(false, 'merge_group'), true],
+        ['home tier, capacity run green', results(false, 'merge_group', 'home'), true],
+        [
+          'home tier, capacity run skipped',
+          results(false, 'merge_group', 'home', { [key('org')]: 'skipped' }),
+          false,
+        ],
         ...ids.map(
           (id) =>
             [
               `full, ${id} failed`,
-              results(false, 'merge_group', { [key(id)]: 'failure' }),
+              // The capacity job's failure only gates a home run: elsewhere
+              // its result is not read, so its failing case runs at home.
+              results(false, 'merge_group', id === 'org' ? 'home' : 'all', {
+                [key(id)]: 'failure',
+              }),
               false,
             ] as const,
         ),
@@ -871,19 +920,19 @@ describe('tiered CI (CIFLOW)', () => {
           (id) =>
             [
               `full, ${id} skipped`,
-              results(false, 'merge_group', { [key(id)]: 'skipped' }),
+              results(false, 'merge_group', 'all', { [key(id)]: 'skipped' }),
               false,
             ] as const,
         ),
         [
           'full, helper cancelled',
-          results(false, 'merge_group', { [key('native-build')]: 'cancelled' }),
+          results(false, 'merge_group', 'all', { [key('native-build')]: 'cancelled' }),
           false,
         ],
         ['full pull request, accessibility skipped', results(false, 'pull_request'), true],
         [
           'full pull request, checks failed',
-          results(false, 'pull_request', { [key('checks')]: 'failure' }),
+          results(false, 'pull_request', 'all', { [key('checks')]: 'failure' }),
           false,
         ],
         ['fast tier, its jobs green, the rest skipped', results(true, 'pull_request'), true],
@@ -891,13 +940,13 @@ describe('tiered CI (CIFLOW)', () => {
           (id) =>
             [
               `fast, ${id} skipped`,
-              results(true, 'pull_request', { [key(id)]: 'skipped' }),
+              results(true, 'pull_request', 'all', { [key(id)]: 'skipped' }),
               false,
             ] as const,
         ),
         [
           'fast, semgrep cancelled',
-          results(true, 'pull_request', { [key('sast')]: 'cancelled' }),
+          results(true, 'pull_request', 'all', { [key('sast')]: 'cancelled' }),
           false,
         ],
       ]
