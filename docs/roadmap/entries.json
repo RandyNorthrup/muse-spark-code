@@ -565,7 +565,7 @@
     {
       "id": "M81",
       "title": "Browser check",
-      "summary": "After a web change the model can open your local dev server in an isolated headless browser, click and type through a few steps, and read console errors and failed requests.",
+      "summary": "After a web change the model can open your local dev server in an isolated headless browser, click and type through as many steps as the check needs, and read console errors and failed requests.",
       "area": "agents",
       "release": "0.13.0"
     },
