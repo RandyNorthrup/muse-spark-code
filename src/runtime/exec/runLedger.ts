@@ -1,7 +1,7 @@
 import { UserRefusalError } from '../../core/refusal'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
-import type { ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
+import { modelPolicyFor, type ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import {
   EXEC_MAX_BUDGET_USD,
   EXEC_MAX_REQUESTS,
@@ -71,6 +71,32 @@ export interface SettlementResult {
   chargedUsd: UsdAmount
   latch?: 'accounting_invalid' | 'breach'
 }
+/**
+ * The run's one resolved output cap: the policy cap by default, lowered by an
+ * explicit `--max-output-tokens` that never exceeds it. A resolved provider
+ * policy always replaces the cached value: the first no-arg call runs before
+ * model resolution, when `modelPolicyFor` has no provider evidence and can
+ * only see the global Model API cap, while the model bind (`wrap`, through
+ * `modelOutputMaxTokens`) and every request body carry the resolved policy.
+ * Caching that first global would pin an oversized cap — and its reservation
+ * — onto a model whose provider maximum is lower.
+ */
+export function createExecOutputCap(input: {
+  readonly model: () => string | null
+  readonly maxOutputTokens: number | undefined
+}): (policy?: ModelPolicy) => number {
+  let resolved: number | undefined
+  return (policy?: ModelPolicy): number => {
+    if (policy === undefined) {
+      resolved ??= resolveExecOutputCap(modelPolicyFor(input.model() ?? ''))
+    } else {
+      resolved = resolveExecOutputCap(policy)
+    }
+    const flag = input.maxOutputTokens
+    return flag === undefined ? resolved : Math.min(flag, resolved)
+  }
+}
+
 /** Exec reserves the worst case before sending; its ceiling is a money policy. */
 export function resolveExecOutputCap(policy?: Pick<ModelPolicy, 'output'>): number {
   const maximum = policy?.output.maxTokens

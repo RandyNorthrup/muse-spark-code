@@ -80,9 +80,8 @@ import {
 } from './keyInput'
 import type { AssembledProviderRun } from './providerExec'
 
-import { createRunLedger, resolveExecOutputCap } from './runLedger'
+import { createExecOutputCap, createRunLedger } from './runLedger'
 import type { ExecBudgetRefusal } from './execProtocol'
-import { modelPolicyFor, type ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
 import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
@@ -393,19 +392,13 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     maxRequests: options.maxRequests ?? null,
     timeoutSeconds: options.timeoutMs / MILLISECONDS_PER_SECOND,
   }
-  let resolvedOutputCap: number | undefined
-  // The run's one resolved output cap: the policy cap by default, lowered by
-  // an explicit --max-output-tokens that never exceeds it (round 5). The
-  // same closure feeds the request body (via modelOutputMaxTokens) and the
-  // run ledger's admission, so what is reserved is what the provider may
-  // produce.
-  const outputCap = (policy?: ModelPolicy): number => {
-    const policyCap = (resolvedOutputCap ??= resolveExecOutputCap(
-      policy ?? modelPolicyFor(model ?? ''),
-    ))
-    const flag = options.maxOutputTokens
-    return flag === undefined ? policyCap : Math.min(flag, policyCap)
-  }
+  // The same closure feeds the request body (via modelOutputMaxTokens) and
+  // the run ledger's admission, so what is reserved is what the provider may
+  // produce. The model name resolves after setup; the closure reads it late.
+  const outputCap = createExecOutputCap({
+    model: () => model,
+    maxOutputTokens: options.maxOutputTokens,
+  })
   const ledger =
     options.backend === 'modelApi' &&
     options.budgetUsd !== undefined &&
