@@ -1325,9 +1325,11 @@ export function createConfiguredProviderServices(
             )
             if (format.success) return { format: format.data, contextTokens: windowTokens }
           }
-          // A readable file that no longer lists the ref ends here: the
-          // cached last listing below must not resurrect a removed window.
-          return
+          // A readable file that no longer lists the provider or the
+          // model ends here: the cached last listing below must not
+          // resurrect a removed window. A listed model without a manual
+          // window falls through to its catalogue record below.
+          if (entry?.models.includes(native) !== true) return
         }
       } catch {
         // An unreadable file keeps the last listing's answer below.

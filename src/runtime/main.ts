@@ -54,6 +54,7 @@ import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
 import { authClear, type AuthCommandDeps, authSet, login } from './authCommands'
 import {
+  authSetProviderId,
   isHeadlessCommand,
   parseCommandLine,
   type RuntimeCommand,
@@ -1396,19 +1397,22 @@ async function main(): Promise<number> {
       })
     }
     case 'authSet': {
-      const { target } = command
-      if (target === undefined) return await authSet(authDeps())
-      if (target.provider !== 'meta' && target.account === ACCOUNT_DEFAULT_ID) {
+      // A provider-only set (`auth set --provider <id>`, the ACP paste-key
+      // method) routes to the provider's own key shape, never Meta's.
+      const providerId = authSetProviderId(command)
+      if (providerId !== undefined) {
         const providersFile = await userProvidersFile()
         const { runAuthSetProvider } = await import('./providerAuth')
         return await runAuthSetProvider(
           authDeps(),
-          target.provider,
+          providerId,
           providersFile.readUserFile,
           providersFile.withUserFileLock,
         )
       }
-      return target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID
+      const { target } = command
+      return target === undefined ||
+        (target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID)
         ? await authSet(authDeps())
         : await loadAccountsBundle(log).runAccountAuthSet(target, {
             ...loadAccounts(log).commands,
