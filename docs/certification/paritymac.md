@@ -324,6 +324,47 @@ run outputs and the rewritten secret run refuses with `secret`. Nothing
 that must stay refused widens: writes, network, fork and the protected
 paths are still denied by `deny default` plus the unchanged walk.
 
+Proven in this sandbox 2026-10-18 (the live Seatbelt step itself still
+needs the lead's unsandboxed Mac, as before):
+
+- `native/confine/MuseSparkConfineMac.c`: new `allow_loader()` (cryptex
+  read/map, system `file-map-executable`, `/` + `/dev/*` reads,
+  `/etc`-family metadata stats, the `dyld-support.sb` bootstrap syscalls),
+  called from both `probe()` and `run()` next to `allow_system()`; and
+  `allow_exec()` now also grants `file-map-executable` on the verified
+  target literal (dyld maps the main image itself). No other line changed.
+- The fixed helper compiles clean under the repo's exact flags (`-std=c11
+-O2 -Wall -Wextra -Werror -Wconversion -Wshadow`) via the direct CLT cc
+  against the MacOSX SDK. `npm run build:confine` itself still fails here:
+  the script shells `/usr/bin/cc` with a scrubbed `PATH=/usr/bin:/bin`
+  env that drops `DEVELOPER_DIR`, so the shim resolves the rig's missing
+  Xcode.app (`can't exec .../XcodeDefault.xctoolchain/usr/bin/clang`);
+  environmental, not a repo cause — the script is unchanged.
+- The generated `profile.sb` for `cat allowed.txt` is now the 17-rule set
+  (version, deny-default, workspace literal, system reads, loader block,
+  process-exec + map + read literals for `/bin/cat`, walked literal).
+  `sandbox-exec -f` parses it clean: a deliberately broken control
+  profile exits 65 with a parse error (`unbound variable`), while ours
+  exits 71 `sandbox_apply: Operation not permitted` — this shell's nested
+  sandbox denies applying any profile, so the confined run itself cannot
+  execute here.
+- Refusal matrix on the fresh binary (fresh fixture per run): identity
+  `workspaceIdentity`, unknown program `program`, `.env` /
+  `x/../allowed.txt` / `C:outside` each `privateOperand`, symlink and
+  hardlink each `operand` — all exit 125 with empty stdout.
+- No widening in the generated profile: no `file-write*`, no `network*`,
+  no `process-fork`; the single `process-exec` is the verified target
+  literal; no `subpath` under the workspace (workspace grants are
+  literal-only); every other allow line is `file-read*`,
+  `file-test-existence`, `file-map-executable`, `file-read-metadata`,
+  `syscall-unix`, `system-fcntl` or `system-mac-syscall`.
+- Gates on the final tree: typecheck all five projects exit 0, `lint:js`
+  zero warnings, `check:plan` 0 drift, `npm run build` exit 0 with
+  budgets holding, `test/unit/inspectNative.test.ts` 10 skipped / 0
+  failed here at the repo default timeout (repo build path and
+  `sandbox_apply` both unavailable inside this sandbox, by the suite's
+  designed skip).
+
 ## Drills
 
 - Item 3 and item 2 drills ran live on this Mac (above).

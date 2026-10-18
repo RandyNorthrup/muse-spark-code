@@ -146,9 +146,40 @@ static void allow_exec(const char *path) {
   dprintf(profile_fd, "(allow process-exec (literal \"");
   write_escaped(path);
   dprintf(profile_fd, "\"))\n");
+  // dyld maps the main executable image itself, not just its dylibs: the
+  // read grant alone leaves the exec'd program dying in dyld (SIGABRT).
+  dprintf(profile_fd, "(allow file-map-executable (literal \"");
+  write_escaped(path);
+  dprintf(profile_fd, "\"))\n");
 }
 static void allow_system(void) {
   dprintf(profile_fd, "(allow file-read* (subpath \"/bin\") (subpath \"/sbin\") (subpath \"/usr\") (subpath \"/System\"))\n");
+}
+// What dyld needs to start any program, inlined from Apple's own
+// /System/Library/Sandbox/Profiles (system.sb imports dyld-support.sb for
+// every sandboxed process; a generated profile cannot import, so the rules
+// are spelled out with plain subpath/literal lines). All read, map or
+// metadata-only: no write, no network, no fork, no exec, no workspace
+// widening. system.sb:43-52 maps the system frameworks and dylibs (file-read*
+// alone does not grant MAP_EXEC); dyld-support.sb reads and maps the cryptex
+// graft points that carry the shared cache on macOS 13+ (plain subpaths, no
+// let/apply: the profile stays version 1; the ancestors are already covered
+// by the "/" literal and the /System read subpath), opens "/" as libignition's
+// openat root, and allows the bootstrap syscalls deny-default would refuse;
+// system.sb:78-104 grants the standard special files and symlink-resolution
+// stats every Apple process gets.
+static void allow_loader(void) {
+  dprintf(profile_fd, "(allow file-map-executable (subpath \"/System/Library/Frameworks\") (subpath \"/System/Library/PrivateFrameworks\") (subpath \"/usr/lib\"))\n");
+  dprintf(profile_fd, "(allow file-read* file-test-existence file-map-executable (subpath \"/System/Cryptexes/App\") (subpath \"/System/Cryptexes/OS\") (subpath \"/System/Volumes/Preboot/Cryptexes/App/System\") (subpath \"/System/Volumes/Preboot/Cryptexes/Incoming/OS\") (subpath \"/System/Volumes/Preboot/Cryptexes/OS\"))\n");
+  dprintf(profile_fd, "(allow file-read* file-test-existence (literal \"/\"))\n");
+  dprintf(profile_fd, "(allow file-read* file-test-existence (literal \"/dev/null\") (literal \"/dev/zero\") (literal \"/dev/random\") (literal \"/dev/urandom\"))\n");
+  dprintf(profile_fd, "(allow file-read-metadata file-test-existence (literal \"/etc\") (literal \"/tmp\") (literal \"/var\") (literal \"/private/etc/localtime\"))\n");
+  dprintf(profile_fd, "(allow syscall-unix (syscall-number SYS___mac_syscall) (syscall-number SYS_getfsstat SYS_getfsstat64) (syscall-number SYS_map_with_linking_np))\n");
+  dprintf(profile_fd, "(allow system-fcntl (fcntl-command F_ADDFILESIGS_RETURN F_CHECK_LV F_GETPATH))\n");
+  dprintf(profile_fd, "(with-filter (mac-policy-name \"Sandbox\") (allow system-mac-syscall (mac-syscall-number 2)))\n");
+  dprintf(profile_fd, "(allow syscall-unix (syscall-number SYS_open) (syscall-number SYS_openat))\n");
+  dprintf(profile_fd, "(allow syscall-unix (syscall-number SYS_fstatat SYS_fstatat64))\n");
+  dprintf(profile_fd, "(allow syscall-unix (syscall-number SYS_dup))\n");
 }
 static void allow_absolute(const char *relative) {
   char absolute[PATH_MAX];
@@ -372,6 +403,7 @@ static void probe(void) {
   close(cwd_fd);
   if (!realpath(".", root_absolute)) refuse("selfTest");
   allow_system();
+  allow_loader();
   allow_exec(self);
   allow_literal(self);
   allow_absolute("probe-tree");
@@ -425,6 +457,7 @@ int main(int argc, char **argv) {
   close(se);
   allow_absolute(".");
   allow_system();
+  allow_loader();
   allow_exec(resolved);
   allow_literal(resolved);
   if (clock_gettime(CLOCK_MONOTONIC, &started)) refuse("clock");
