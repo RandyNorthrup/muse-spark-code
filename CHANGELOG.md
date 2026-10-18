@@ -190,6 +190,12 @@ happened, not what was planned; superseded entries are kept.
 - Configured providers keep budget, consent, model, codec and stale-confirmation
   refusals visible instead of reporting that Models & Agents is unavailable.
   Provider diagnostics still pass through credential redaction.
+- `providers add` and `providers test` against a refused endpoint name the
+  connection's codes again ("Could not reach … (fetch failed: ECONNREFUSED),
+  so whether the request arrived is unknown"), instead of falling back to
+  "The provider could not be reached": the spend lane's endpoint pin answered
+  the refusal before the probe's reader could say it. A refusal with no codes
+  (a failed DNS lookup, a codeless local refusal) keeps the fixed sentence.
 
 - Unsent headless requests refund both their daily and run reservations, including
   their request count. New unsent daily claims recover after their owner exits;
