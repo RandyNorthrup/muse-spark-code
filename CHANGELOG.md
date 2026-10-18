@@ -93,6 +93,13 @@ happened, not what was planned; superseded entries are kept.
   activation (its own `dist/museCode.js`), so opening a window no longer
   carries the backend, its notification mapping or the Muse Code SDK;
   the backend behaves as before once started.
+- The Muse Code backend honours the person's contributor mode. While their
+  own Muse Code settings enable it (`contributor_mode_enabled`), `serve`
+  starts with `--contributor-mode on`, and the model picker, `exec --model`,
+  ACP `session/set_config_option` and the panel list each served model's
+  `-contributor` counterpart by name (the CLI serves no such row itself).
+  Choosing one keeps the existing contributor confirmation, and someone not
+  entitled hears the provider's own refusal. Nothing of ours defaults it on.
 
 ### Added
 
