@@ -3656,6 +3656,7 @@
   "announceApprovalFor": "Genehmigung erforderlich für {tool}",
   "turnFailed": "Der Durchgang ist fehlgeschlagen.",
   "turnRetrying": "Versuch {attempt} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s.",
+  "turnRetryingKnownTotal": "Versuch {attempt} von {total} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s.",
   "usageWindowHours": {
     "one": "{count}-Stunden-Zeitfenster",
     "other": "{count}-Stunden-Zeitfenster"

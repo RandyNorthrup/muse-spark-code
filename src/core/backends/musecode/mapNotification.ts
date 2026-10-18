@@ -276,12 +276,15 @@ function rawNotification(notification: WireNotification): MapOutcome {
       }
     }
     case 'turn/retryScheduled': {
-      const { sessionId, turnId, attempt, retryDelayMs, reason } = params as z.infer<
+      const { sessionId, turnId, attempt, maxAttempts, retryDelayMs, reason } = params as z.infer<
         (typeof schemas)['turn/retryScheduled']
       >
       return {
         sessionId,
-        event: { type: 'turnRetry', turnId, attempt, retryDelayMs, reason },
+        // The platform's ceiling survives the mapping (PR #214 review);
+        // the boundary schema above requires it, while Model API retries
+        // stay unbounded by leaving the shared event's own field unnamed.
+        event: { type: 'turnRetry', turnId, attempt, maxAttempts, retryDelayMs, reason },
       }
     }
     case 'session/tokenUsage': {

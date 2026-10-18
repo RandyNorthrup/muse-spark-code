@@ -242,6 +242,7 @@ describe('mapNotification', () => {
         type: 'turnRetry',
         turnId: 't1',
         attempt: 1,
+        maxAttempts: 3,
         retryDelayMs: 5000,
         reason: 'rate limited',
       },

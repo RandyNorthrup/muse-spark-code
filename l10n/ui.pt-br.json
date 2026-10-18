@@ -3736,6 +3736,7 @@
   "announceApprovalFor": "Aprovação necessária para {tool}",
   "turnFailed": "O turno falhou.",
   "turnRetrying": "A tentativa {attempt} falhou ({reason}); tentando novamente em {seconds} s.",
+  "turnRetryingKnownTotal": "A tentativa {attempt} de {total} falhou ({reason}); tentando novamente em {seconds} s.",
   "usageWindowHours": {
     "one": "janela de {count} hora",
     "other": "janela de {count} horas",

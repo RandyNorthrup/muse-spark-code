@@ -3736,6 +3736,7 @@
   "announceApprovalFor": "Approvazione necessaria per {tool}",
   "turnFailed": "Il turno non è riuscito.",
   "turnRetrying": "Tentativo {attempt} non riuscito ({reason}); nuovo tentativo tra {seconds} s.",
+  "turnRetryingKnownTotal": "Tentativo {attempt} di {total} non riuscito ({reason}); nuovo tentativo tra {seconds} s.",
   "usageWindowHours": {
     "one": "finestra di {count} ora",
     "other": "finestra di {count} ore",

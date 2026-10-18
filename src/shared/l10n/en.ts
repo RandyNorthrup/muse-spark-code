@@ -4455,6 +4455,9 @@ export const EN = {
   // A failed turn's card when the backend gave no reason.
   turnFailed: 'The turn failed.',
   turnRetrying: 'Attempt {attempt} failed ({reason}); retrying in {seconds} s.',
+  // The same card when the backend named the retry ceiling (PR #214 review).
+  turnRetryingKnownTotal:
+    'Attempt {attempt} of {total} failed ({reason}); retrying in {seconds} s.',
   // The subscription window's length (English writes the unit singular here).
   usageWindowHours: forms({ one: '{count}-hour window', other: '{count}-hour window' }),
   usageWindowMinutes: forms({ one: '{count}-minute window', other: '{count}-minute window' }),
