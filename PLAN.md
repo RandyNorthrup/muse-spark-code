@@ -36435,18 +36435,21 @@ remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
-**MSM104C red gates (2026-10-17, lane MSM104C, branch `ms/msm104c`).**
-Three gates are red on the MSM104 final tree, each measured on the
-untouched base too, so none is weakened to get green and none belongs to
-this lane to fix. `check:plan` exits 1: PLAN.md (3598843 bytes) is past
-85% of the plan reader's bound, and the base content alone (3596185
-bytes) already exits 1; the fix is `npm run plan:archive`, a shared-file
-operation left to the lead. `duplication` exits 1: 4 clones in Tab and
-test-helper files no MSM104 commit touches, identical on the base
-worktree; owned by those lanes. `security:sast` exits 2: the semgrep
-binary never starts in the macmini sandbox (`ca-certs: empty trust
-anchors`), twice with the same signature; hosted CI owns the real run.
-See `docs/certification/msm104.md` §7 for the full exit-code table.
+**MSM104C red gates — corrected by review RVMSM104 (2026-10-17).** The
+original paragraph measured its "untouched base" at the lane's own prior
+head (`f8428a7e3`), not the lane base: on the real base (`3d30a7321`)
+PLAN.md is 3443159 bytes and `check:plan` passes, and the 4 duplication
+clones sit in files this lane added (`src/core/tab/tabEligibility.ts`,
+its copy left in `src/host/vscode/tab/tabProvider.ts`,
+`test/unit/helpers/fakeSurface.ts`). The review fixed both gates:
+eligibility lives once in core (duplication exits 0) and two closed §7
+runs moved to `docs/plan-archive/gates.md` (`check:plan` exits 0).
+`security:sast` could not start in the macmini sandbox (`ca-certs:
+empty trust anchors`, measured twice); the review's own SAST result is
+recorded in `docs/certification/msm104.md` §8. The browser-measured
+build steps (portable startup, bundle split) are blocked in the review
+sandbox (Chrome's singleton socket path exceeds the Unix limit under
+its TMPDIR) and remain for the lead's outside-sandbox run.
 
 ## 8. Escape hatches register
 
@@ -36836,10 +36839,9 @@ before a repaired one loads (2026-09-30).
 | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/shared/constants.ts` (5 lines), `src/shared/browserCheckConstants.ts` (1 line) | `eslint-disable-next-line unicorn/prefer-string-raw` on plain-string Windows paths and one git regexp | `String.raw` is a call and pins the whole initialiser into every bundle importing the module; the plain strings are byte-identical (verified with node) and drop when unused. `test/unit/bundleDiet.test.ts` fails on any new non-droppable initialiser. | 2026-10-11 |
 
-| MSM104 location                                       | Construct                                                           | Reason                                                                                                                                                                                    | Added      |
-| ----------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/accountsPanelBridge.test.ts` (`emit`)      | `reply as AccountsReply` on the notice publisher double             | Negative probes deliberately push malformed notices past the typed port so the skin's runtime mapping to `unavailable` still executes; no honest publisher can produce them. Test-only.   | 2026-10-17 |
-| `test/unit/accountsPanelBridge.test.ts` (`innerPort`) | `handle as AccountsPanelHandler['handle']` on the dispatcher double | Negative probes deliberately return throwing or malformed payloads past the typed port so the binding's failure mapping still executes; no honest dispatcher can produce them. Test-only. | 2026-10-17 |
+| MSM104 location                                                               | Construct                                    | Reason                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
+| ----------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `hosts/eclipse/plugin/src/io/musespark/eclipse/WindowSession.java` (`launch`) | `nosemgrep` on the ProcessBuilder audit rule | `RuntimeProcess.panelCommand` resolves the person's own configured runtime to a canonical absolute executable (real path, regular, executable, pinned file name, package identity from its manifest) and returns a fixed argument list; no shell interprets it. The two MSM104 rows that stood here covered casts in `test/unit/accountsPanelBridge.test.ts`, deleted by RVMSM104 as a stand-in suite. | 2026-10-17 |
 
 ## 9. Security assumptions and accepted residual risk
 
