@@ -4627,6 +4627,12 @@ stopped and the next message resumes the same session.
 - **A Model API reply ends with "sent nothing for 300 s"** — the stream
   stalled, so the turn was ended rather than left running until **Stop**.
   Send the message again to retry.
+- **A Model API reply ends with "<provider> refused the request"** — the
+  provider answered but refused: its account is out of credit, the stored
+  key was rejected, the request was rate-limited, and so on. The sentence
+  names the provider, says what to do, and quotes the provider's own words.
+  A refusal answered before any processing is never billed: the turn's
+  result counts it with settled 0 and uncertain 0.
 - **The agent says a file is too large (Model API backend)** — the file tools
   read and edit text and images up to 10 MiB and read PDFs up to 32 MB; the
   search tool skips files over 1 MiB. The agent can read part of a larger

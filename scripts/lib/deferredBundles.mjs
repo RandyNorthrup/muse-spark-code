@@ -1055,16 +1055,6 @@ export const deferredCohort = {
   setup(build) {
     // The shared request/framing implementations stay in the existing backend
     // bundle; providers and ACP require its exported API only when used.
-    // The usage panel shares the portable journal with headless accounting.
-    build.onResolve({ filter: /\/sessionBudgetJournal(?:\.ts)?$/ }, (args) => {
-      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
-      if (
-        source !== path.resolve('src/host/backend/sessionBudgetJournal.ts') ||
-        path.resolve(build.initialOptions.outfile ?? '') !== path.resolve('dist/usagePanel.js')
-      )
-        return
-      return { path: './runtimeAccounting.js', external: true }
-    })
     // The refusal classifier rides the lazy provider bundle: the Model API
     // bundle reads it across the boundary only on an error, keeping its pin.
     // Static imports keep bundling it locally everywhere else.
@@ -1078,19 +1068,24 @@ export const deferredCohort = {
         return
       return { path: './configuredProviders.js', external: true }
     })
-    build.onResolve({ filter: /\/(?:transport|sse|ndjson|modelApiEntry)(?:\.ts)?$/ }, (args) => {
-      if (args.kind === 'entry-point') return
-      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
-      if (
-        (['transport.ts', 'sse.ts', 'ndjson.ts'].every(
-          (name) => source !== path.resolve(`src/core/backends/modelapi/${name}`),
-        ) &&
-          source !== path.resolve('src/host/backend/modelApiEntry.ts')) ||
-        path.resolve(build.initialOptions.outfile ?? '') === path.resolve('dist/modelApi.js')
-      )
-        return
-      return { path: './modelApi.js', external: true }
-    })
+    // Lane PROVERR's typed refusal rides the same way: one copy in the
+    // backend bundle, required from it by providers, configured and report.
+    build.onResolve(
+      { filter: /\/(?:transport|sse|ndjson|modelApiEntry|providerRefusal)(?:\.ts)?$/ },
+      (args) => {
+        if (args.kind === 'entry-point') return
+        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+        if (
+          (['transport.ts', 'sse.ts', 'ndjson.ts', 'providerRefusal.ts'].every(
+            (name) => source !== path.resolve(`src/core/backends/modelapi/${name}`),
+          ) &&
+            source !== path.resolve('src/host/backend/modelApiEntry.ts')) ||
+          path.resolve(build.initialOptions.outfile ?? '') === path.resolve('dist/modelApi.js')
+        )
+          return
+        return { path: './modelApi.js', external: true }
+      },
+    )
     build.onResolve(
       {
         filter:

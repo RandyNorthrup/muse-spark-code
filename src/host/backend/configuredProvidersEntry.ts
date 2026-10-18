@@ -1,4 +1,7 @@
-export { createConfiguredProviderServices } from '../../core/providers/configured'
+export {
+  createConfiguredProviderServices,
+  providerFailureReader,
+} from '../../core/providers/configured'
 export { setUiText } from '../../shared/l10n/text'
 export { ApiKeyAuthSource, NoAuthSource } from '../../core/backends/modelapi/authSource'
 // The refusal classifier rides this lazy bundle: the Model API bundle reads

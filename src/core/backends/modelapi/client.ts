@@ -22,7 +22,7 @@ import {
   type ResponseAttemptGuard,
   type RetryBudget,
   type RetryNotice,
-  retryAfterMs,
+  providerWaitMs,
 } from './transport'
 import type { SpendClaim } from '../../paid/spendClaim'
 export {
@@ -129,10 +129,7 @@ export interface ModelApiClientDeps {
   /** M95 binding: project the selected record's provider and captured header interpreter. */
   readonly pacingProvider?: (modelId: string | undefined) => PacingProvider
   /** M101 binding: FormatQuirks.retry's classification, after its quota fences. */
-  readonly isRetryableFailure?: (
-    failure: ModelApiError,
-    retryAfterMs: number | undefined,
-  ) => boolean
+  readonly isRetryableFailure?: (failure: ModelApiError) => boolean
   /** The host presents a 5xx banner with this public link; no response text crosses this port. */
   readonly onServiceFailure?: (status: number, statusUrl: string) => void
   /** Interactive VS Code extras only; ACP/headless clients omit this port. */
@@ -387,7 +384,7 @@ export class ModelApiClient implements TransportProviderClient {
         ]),
       })
       status = response.status
-      retryAfter = retryAfterMs(response.headers.get('retry-after'), this.deps.now())
+      retryAfter = providerWaitMs(response.headers, this.deps.now())
       if (!response.ok) {
         void response.body?.cancel().catch(ignoreClosingError)
         throw new Error(UI_TEXT.modelApiStatusUnavailable)
