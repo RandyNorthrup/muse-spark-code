@@ -19,7 +19,8 @@ const limitsSchema = z.strictObject({
   remainingRequests: z.int().check(z.gte(0)),
   tokens: z.int().check(z.gt(0)),
   remainingTokens: z.int().check(z.gte(0)),
-  windowMs: z.optional(z.int().check(z.gt(0))),
+  requestWindowMs: z.optional(z.int().check(z.gt(0))),
+  tokenWindowMs: z.optional(z.int().check(z.gt(0))),
 })
 export type PacingLimits = z.infer<typeof limitsSchema>
 
@@ -75,14 +76,18 @@ export function resetDurationMs(header: string | null): number | undefined {
 function pacingLimits(
   requests: { readonly limit: number; readonly remaining: number },
   tokens: { readonly limit: number; readonly remaining: number },
-  windowMs: number | undefined,
+  requestWindowMs: number | undefined,
+  tokenWindowMs: number | undefined,
 ): PacingLimits | undefined {
   const parsed = limitsSchema.safeParse({
     requests: requests.limit,
     remainingRequests: requests.remaining,
     tokens: tokens.limit,
     remainingTokens: tokens.remaining,
-    ...(windowMs !== undefined && windowMs > 0 && { windowMs: Math.floor(windowMs) }),
+    ...(requestWindowMs !== undefined &&
+      requestWindowMs > 0 && { requestWindowMs: Math.floor(requestWindowMs) }),
+    ...(tokenWindowMs !== undefined &&
+      tokenWindowMs > 0 && { tokenWindowMs: Math.floor(tokenWindowMs) }),
   })
   return parsed.success
     ? {
@@ -112,10 +117,10 @@ function derivedWindowMs(
 
 /**
  * OpenAI and Groq (captured 2026-10-04): request/token buckets with
- * Go-duration resets until each bucket is full again. The one shared
- * window takes the slower bucket's derived window (Groq's requests are
- * per day, its tokens per minute), so pacing never outruns either; no
- * derivable window keeps the default.
+ * Go-duration resets until each bucket is full again. Each bucket keeps
+ * its own derived window (Groq's requests are per day, its tokens per
+ * minute), so the token bucket refills at its own rate instead of the
+ * slower request one; no derivable window keeps the default.
  */
 export function openaiPacingLimits(headers: Headers): PacingLimits | undefined {
   const requests = limitPair(
@@ -124,13 +129,14 @@ export function openaiPacingLimits(headers: Headers): PacingLimits | undefined {
     'x-ratelimit-remaining-requests',
   )
   const tokens = limitPair(headers, 'x-ratelimit-limit-tokens', 'x-ratelimit-remaining-tokens')
-  const windows = [
-    derivedWindowMs(requests, resetDurationMs(headers.get('x-ratelimit-reset-requests'))),
-    derivedWindowMs(tokens, resetDurationMs(headers.get('x-ratelimit-reset-tokens'))),
-  ].filter((window) => window !== undefined)
   return requests === undefined || tokens === undefined
     ? undefined
-    : pacingLimits(requests, tokens, windows.length > 0 ? Math.max(...windows) : undefined)
+    : pacingLimits(
+        requests,
+        tokens,
+        derivedWindowMs(requests, resetDurationMs(headers.get('x-ratelimit-reset-requests'))),
+        derivedWindowMs(tokens, resetDurationMs(headers.get('x-ratelimit-reset-tokens'))),
+      )
 }
 
 /**
@@ -146,7 +152,7 @@ export function xaiPacingLimits(headers: Headers): PacingLimits | undefined {
   const tokens = limitPair(headers, 'x-ratelimit-limit-tokens', 'x-ratelimit-remaining-tokens')
   return requests === undefined || tokens === undefined
     ? undefined
-    : pacingLimits(requests, tokens, undefined)
+    : pacingLimits(requests, tokens, undefined, undefined)
 }
 
 /**
@@ -170,7 +176,7 @@ export function anthropicPacingLimits(headers: Headers): PacingLimits | undefine
   )
   return requests === undefined || tokens === undefined
     ? undefined
-    : pacingLimits(requests, tokens, undefined)
+    : pacingLimits(requests, tokens, undefined, undefined)
 }
 
 /**
@@ -216,7 +222,8 @@ export interface PacingDeps {
 }
 
 interface Bucket {
-  windowMs: number
+  requestWindowMs: number
+  tokenWindowMs: number
   requests: number
   remainingRequests: number
   tokens: number | undefined
@@ -261,7 +268,8 @@ export class ModelApiPacing implements RequestPacer {
     let bucket = this.buckets.get(account)
     if (bucket === undefined) {
       bucket = {
-        windowMs: PACING_WINDOW_MS,
+        requestWindowMs: PACING_WINDOW_MS,
+        tokenWindowMs: PACING_WINDOW_MS,
         requests: PACING_START_REQUESTS_PER_MINUTE,
         remainingRequests: PACING_START_REQUESTS_PER_MINUTE,
         tokens: undefined,
@@ -278,12 +286,12 @@ export class ModelApiPacing implements RequestPacer {
     const elapsed = Math.max(0, now - bucket.updatedAt)
     bucket.remainingRequests = Math.min(
       bucket.requests,
-      bucket.remainingRequests + (elapsed * bucket.requests) / bucket.windowMs,
+      bucket.remainingRequests + (elapsed * bucket.requests) / bucket.requestWindowMs,
     )
     if (bucket.tokens !== undefined && bucket.remainingTokens !== undefined) {
       bucket.remainingTokens = Math.min(
         bucket.tokens,
-        bucket.remainingTokens + (elapsed * bucket.tokens) / bucket.windowMs,
+        bucket.remainingTokens + (elapsed * bucket.tokens) / bucket.tokenWindowMs,
       )
     }
     bucket.updatedAt = now
@@ -322,7 +330,8 @@ export class ModelApiPacing implements RequestPacer {
         : Math.max(0, checked.requests - bucket.admittedRequests)
       const localTokens =
         bucket.remainingTokens ?? Math.max(0, checked.tokens - bucket.admittedTokens)
-      bucket.windowMs = checked.windowMs ?? PACING_WINDOW_MS
+      bucket.requestWindowMs = checked.requestWindowMs ?? PACING_WINDOW_MS
+      bucket.tokenWindowMs = checked.tokenWindowMs ?? PACING_WINDOW_MS
       bucket.requests = checked.requests
       bucket.remainingRequests = Math.max(
         0,
@@ -375,7 +384,7 @@ export class ModelApiPacing implements RequestPacer {
       // background work once full; foreground always bypasses this check.
       const requiredRequests = Math.min(2, bucket.requests)
       const requestWait =
-        (Math.max(0, requiredRequests - bucket.remainingRequests) * bucket.windowMs) /
+        (Math.max(0, requiredRequests - bucket.remainingRequests) * bucket.requestWindowMs) /
         bucket.requests
       const tokenWait =
         bucket.tokens === undefined || bucket.remainingTokens === undefined
@@ -386,7 +395,7 @@ export class ModelApiPacing implements RequestPacer {
                 bucket.tokens * (1 - PACING_BACKGROUND_TOKEN_FRACTION) -
                 bucket.remainingTokens,
             ) *
-              bucket.windowMs) /
+              bucket.tokenWindowMs) /
             bucket.tokens
       const delay = Math.ceil(Math.max(pause, requestWait, tokenWait))
       if (delay === 0) {

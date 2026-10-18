@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest'
 import {
   anthropicPacingLimits,
   azureRetryAfterMs,
+  ModelApiPacing,
   openaiPacingLimits,
   resetDurationMs,
   xaiPacingLimits,
@@ -61,15 +62,17 @@ describe('provider pacing readers', () => {
     // A reset is the time until the bucket is full again, not the window:
     // window = reset * limit / (limit - remaining). Groq requests:
     // 86.4 s * 1000 / 1 = 86_400_000 ms (one day); tokens:
-    // 15.254 s * 8000 / 2034 = about one minute. One shared window takes
-    // the slower bucket, so pacing never outruns the daily requests.
+    // 15.254 s * 8000 / 2034 = about one minute. Each bucket keeps its
+    // own window, so background work refills tokens per minute instead
+    // of stalling on the daily request window.
     const limits = openaiPacingLimits(capturedHeaders.groq)
     expect(limits).toMatchObject({
       requests: 1000,
       remainingRequests: 999,
       tokens: 8000,
       remainingTokens: 5966,
-      windowMs: 86_400_000,
+      requestWindowMs: 86_400_000,
+      tokenWindowMs: 59_996,
     })
   })
   it('derives OpenAI per-minute windows from the captured resets', () => {
@@ -81,7 +84,8 @@ describe('provider pacing readers', () => {
       remainingRequests: 499,
       tokens: 500_000,
       remainingTokens: 498_118,
-      windowMs: 60_000,
+      requestWindowMs: 60_000,
+      tokenWindowMs: 59_776,
     })
   })
   it('reads xAI limits with no reset, so the default window stands', () => {
@@ -92,7 +96,8 @@ describe('provider pacing readers', () => {
       tokens: 10_000_000,
       remainingTokens: 10_000_000,
     })
-    expect(limits?.windowMs).toBeUndefined()
+    expect(limits?.requestWindowMs).toBeUndefined()
+    expect(limits?.tokenWindowMs).toBeUndefined()
   })
   it('reads Anthropic request and total-token buckets from the captured frame', () => {
     // The captured resets are past, so the window stays default; the
@@ -104,7 +109,8 @@ describe('provider pacing readers', () => {
       tokens: 12_000_000,
       remainingTokens: 11_999_000,
     })
-    expect(limits?.windowMs).toBeUndefined()
+    expect(limits?.requestWindowMs).toBeUndefined()
+    expect(limits?.tokenWindowMs).toBeUndefined()
   })
   it('reads a future Anthropic reset as a timestamp, never as the window length', () => {
     const reset = new Date(Date.now() + 45_000).toISOString()
@@ -121,7 +127,8 @@ describe('provider pacing readers', () => {
     // Every captured Anthropic bucket resets at the same instant (a fixed
     // window boundary), so the reset names when, not how long: the window
     // stays the default instead of shrinking to the time left in it.
-    expect(anthropicPacingLimits(headers)?.windowMs).toBeUndefined()
+    expect(anthropicPacingLimits(headers)?.requestWindowMs).toBeUndefined()
+    expect(anthropicPacingLimits(headers)?.tokenWindowMs).toBeUndefined()
   })
   it('fails closed on partial, zero or unreadable limit headers', () => {
     expect(openaiPacingLimits(new Headers())).toBeUndefined()
@@ -154,6 +161,32 @@ describe('provider pacing readers', () => {
       }),
     )
     expect(clamped?.remainingRequests).toBe(10)
+  })
+})
+
+describe('ModelApiPacing refill windows', () => {
+  it('refills Groq tokens per minute while requests refill per day', () => {
+    // The captured Groq limits give requests a one-day window and tokens
+    // a one-minute window. After a minute the token bucket is full again
+    // while the request bucket has barely moved: a shared slower window
+    // used to stall background work for hours here.
+    let now = 1_800_000_000_000
+    const pacing = new ModelApiPacing({
+      now: () => now,
+      wait: (ms) => {
+        now += ms
+        return Promise.resolve()
+      },
+    })
+    const limits = openaiPacingLimits(capturedHeaders.groq)
+    expect(limits).toBeDefined()
+    pacing.observe('groq', limits)
+    const start = pacing.headroom('groq')
+    expect(start.remainingTokens).toBe(5966)
+    now += 61_000
+    const later = pacing.headroom('groq')
+    expect(later.remainingTokens).toBe(8000)
+    expect(later.remainingRequests).toBeLessThan(1000)
   })
 })
 
