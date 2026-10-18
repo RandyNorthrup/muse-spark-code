@@ -136,41 +136,19 @@ jobs:
       - name: the package is the ref's commit, installed outside the workspace, and startup traps are planted
         id: setup
         env:
-          PACKAGE_COMMIT: ${{ needs.package.outputs.commit }}
-          PACKAGE_NAME: ${{ needs.package.outputs.name }}
-          PACKAGE_SHA256: ${{ needs.package.outputs.sha256 }}
+          RU_PACKAGE_COMMIT: ${{ needs.package.outputs.commit }}
+          RU_PACKAGE_NAME: ${{ needs.package.outputs.name }}
+          RU_PACKAGE_SHA256: ${{ needs.package.outputs.sha256 }}
         run: |
           set -euo pipefail
-          test "$(git -C ref-src rev-parse HEAD)" = "$PACKAGE_COMMIT"
-          candidate="$RUNNER_TEMP/candidate/$PACKAGE_NAME"
-          test "$(find "$RUNNER_TEMP/candidate" -type f | wc -l)" -eq 1
-          test -f "$candidate"
-          sha="$(sha256sum "$candidate" | cut -d' ' -f1)"
-          test "$sha" = "$PACKAGE_SHA256"
-          npm install --prefix "$RUNNER_TEMP/agent" --ignore-scripts --no-audit --no-fund "$candidate"
-          agent_js="$(node -e '
-            const fs = require("node:fs");
-            const path = require("node:path");
-            const dir = fs.realpathSync.native(process.argv[1]);
-            const manifest = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
-            if (manifest.name !== "muse-spark-code-acp") throw new Error("package identity");
-            const bin = typeof manifest.bin === "string" ? manifest.bin : manifest.bin["muse-spark-code-acp"];
-            if (typeof bin !== "string") throw new Error("package bin");
-            const script = fs.realpathSync.native(path.resolve(dir, bin));
-            if (path.relative(dir, script).startsWith("..") || !fs.statSync(script).isFile()) throw new Error("package bin");
-            process.stdout.write(script);
-          ' "$RUNNER_TEMP/agent/node_modules/muse-spark-code-acp")"
-          test -n "$agent_js"
-          traps="$RUNNER_TEMP/ru-traps"
-          mkdir -p "$traps"
-          printf ': > "%s/fired-bash-env"\n' "$traps" > "$traps/bash-env.sh"
-          printf ': > "%s/fired-env"\n' "$traps" > "$traps/env.sh"
-          printf 'require("node:fs").writeFileSync(require("node:path").join(%s, "fired-node-options-" + process.pid), "")\n' "$(node -p 'JSON.stringify(process.argv[1])' "$traps")" > "$traps/trap.cjs"
-          {
-            echo "agent-js=$agent_js"
-            echo "traps=$traps"
-            echo "sha256=$sha"
-          } >> "$GITHUB_OUTPUT"
+          node workflow-src/scripts/real-use-setup.mjs \
+            --ref-root ref-src \
+            --candidate-dir "$RUNNER_TEMP/candidate" \
+            --package-commit "$RU_PACKAGE_COMMIT" \
+            --package-name "$RU_PACKAGE_NAME" \
+            --package-sha256 "$RU_PACKAGE_SHA256" \
+            --agent-dir "$RUNNER_TEMP/agent" \
+            --traps-dir "$RUNNER_TEMP/ru-traps"
       - name: RU
         id: ru
         env:

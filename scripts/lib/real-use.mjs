@@ -25,7 +25,21 @@ const STEP_ID = /^[a-z0-9][a-z0-9-]{0,63}$/
 // One step's wall clock: the live Action's recipe timeout.
 export const REAL_USE_STEP_TIMEOUT_SECONDS = 600
 const BUDGET_GRAMMAR = /^[0-9]+(?:\.[0-9]{1,6})?$/
-const MAX_BUDGET_USD = '20'
+/** The CLI budget range in micro-USD: over 0 through 20. */
+export const MAX_BUDGET_MICRO_USD = 20_000_000n
+
+/**
+ * The CLI budget grammar to integer micro-USD; undefined outside it. Unlike
+ * the canonical-dollar reader, this accepts trailing zeros (`1.00`), exactly
+ * as `exec --max-budget-usd` does.
+ */
+export function parseBudgetUsd(text) {
+  if (typeof text !== 'string' || !BUDGET_GRAMMAR.test(text)) {
+    return
+  }
+  const [whole, fraction = ''] = text.split('.', 2)
+  return BigInt(whole) * 1_000_000n + BigInt(`${fraction}000000`.slice(0, 6))
+}
 // Kept transcript prose stays readable: the Action's comment cap.
 const FINAL_MESSAGE_KEEP_CHARS = 60_000
 const STEP_MODES = Object.freeze({ plan: 'plan', acceptEdits: 'acceptEdits' })
@@ -143,13 +157,11 @@ export function parseStepsFile(text) {
     ) {
       throw new RealUseInputError(`${label} expect is 1 to 4000 characters`)
     }
+    const stepBudget =
+      step.maxBudgetUsd === undefined ? undefined : parseBudgetUsd(step.maxBudgetUsd)
     if (
       step.maxBudgetUsd !== undefined &&
-      (typeof step.maxBudgetUsd !== 'string' ||
-        !BUDGET_GRAMMAR.test(step.maxBudgetUsd) ||
-        microUsd(step.maxBudgetUsd) === undefined ||
-        microUsd(step.maxBudgetUsd) <= 0n ||
-        microUsd(step.maxBudgetUsd) > microUsd(MAX_BUDGET_USD))
+      (stepBudget === undefined || stepBudget <= 0n || stepBudget > MAX_BUDGET_MICRO_USD)
     ) {
       throw new RealUseInputError(`${label} maxBudgetUsd is unsigned decimal over 0 through 20`)
     }
@@ -281,7 +293,7 @@ export function checkRealUseRun({ runDir, transcript, steps, stated }) {
   check(calls === BigInt(transcript.actual?.calls ?? -1), 'transcript calls do not sum')
   check(microUsd(transcript.actual?.costUsd) === spent, 'transcript dollars do not sum')
   check(calls <= BigInt(stated.calls), 'actual calls pass the stated count')
-  const cap = microUsd(stated.budgetUsd)
+  const cap = parseBudgetUsd(stated.budgetUsd)
   check(cap !== undefined && spent <= cap, 'actual dollars pass the cap')
   check(transcript.ref === stated.refCommit, 'transcript ref is not the tested commit')
   return { failures, calls, spent }
