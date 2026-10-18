@@ -293,6 +293,62 @@ export default tseslint.config(
       // `() => undefined` in a fake spells out "no surface / no editor" and
       // satisfies the `T | undefined` return type explicitly.
       'unicorn/no-useless-undefined': 'off',
+      // No stand-ins, ever (owner, 2026-10-12 and 2026-10-17: "there can be no
+      // more fakes at all everything needs to be tested meaningfully or in
+      // actual use cases"). Tests drive real code; outside-world input is only
+      // a recorded real exchange with its capture date.
+      'no-restricted-properties': [
+        'error',
+        ...[
+          'mock',
+          'doMock',
+          'hoisted',
+          'mocked',
+          'stubGlobal',
+          'useFakeTimers',
+          'spyOn',
+          'fn',
+        ].map((property) => ({
+          object: 'vi',
+          property,
+          message: `vi.${property} is a stand-in. Test the real code (AGENTS.md: no fakes in tests).`,
+        })),
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'MemberExpression[property.name=/^mock(Return(Value|This)|ResolvedValue|RejectedValue|Implementation|Clear|Reset|Restore)(Once)?$/]',
+          message:
+            'A mock function is a stand-in. Test the real code (AGENTS.md: no fakes in tests).',
+        },
+      ],
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'node:test',
+              importNames: ['mock'],
+              message:
+                'node:test mock is a stand-in. Test the real code (AGENTS.md: no fakes in tests).',
+            },
+            ...['sinon', 'nock', 'msw', 'testdouble', 'jest-mock', 'mock-fs', 'memfs'].map(
+              (name) => ({
+                name,
+                message: `${name} builds stand-ins. Test the real code (AGENTS.md: no fakes in tests).`,
+              }),
+            ),
+          ],
+          patterns: [
+            {
+              group: ['**/mocks/**', '**/__mocks__/**', '**/fake*', '**/*Fake*', '**/stub*'],
+              message:
+                'Stand-in modules are not allowed. Test the real code (AGENTS.md: no fakes in tests).',
+            },
+          ],
+        },
+      ],
     },
   },
 

@@ -6,17 +6,7 @@ import { fill } from '../../src/shared/l10n/text'
 // local provider, a scanned model and the wizard at every step. Kept in
 // one file so the suites share builders instead of duplicating them.
 
-import type {
-  ModelRow,
-  ModelsPanelState,
-  PanelDraft,
-  PanelSuggestion,
-  PresetCard,
-  ProviderKeyUsage,
-  ProviderState,
-  ProviderTest,
-  SuggestionKind,
-} from '../../src/shared/modelsPanel'
+import type { ModelsPanelState, PanelDraft, PresetCard } from '../../src/shared/modelsPanel'
 
 export const OLLAMA_PRESET: PresetCard = {
   id: 'ollama',
@@ -46,73 +36,6 @@ export const OPENROUTER_PRESET: PresetCard = {
   docsUrl: 'https://openrouter.ai/docs',
   dataUseUrl: 'https://openrouter.ai/policy',
   privacyNote: 'Routing chooses who sees the prompt.',
-}
-
-export function makeProvider(overrides: Partial<ProviderState> = {}): ProviderState {
-  return {
-    id: 'ollama',
-    presetId: 'ollama',
-    label: 'Ollama',
-    address: 'http://127.0.0.1:11434',
-    format: 'ollama',
-    auth: 'none',
-    key: { state: 'missing' },
-    test: makeTest(),
-    models: ['ollama/qwen3:8b'],
-    pinned: [],
-    ...overrides,
-  }
-}
-
-export function makeRow(overrides: Partial<ModelRow> = {}): ModelRow {
-  return {
-    ref: 'ollama/qwen3:8b',
-    providerId: 'ollama',
-    modelId: 'qwen3:8b',
-    toolCalling: true,
-    vision: false,
-    reasoning: true,
-    contextTokens: 131_072,
-    inputPerMillion: 0,
-    outputPerMillion: 0,
-    cachedPerMillion: 0,
-    freeOrLocal: true,
-    ticked: true,
-    pinned: false,
-    priceNote: 'local',
-    badges: {
-      recommended: true,
-      cheapestCapable: false,
-      largestContext: true,
-      isNew: false,
-    },
-    ...overrides,
-  }
-}
-
-export function makeTest(overrides: Partial<ProviderTest> = {}): ProviderTest {
-  return { status: 'untested', ...overrides }
-}
-
-export function makeKeyUsage(overrides: Partial<ProviderKeyUsage> = {}): ProviderKeyUsage {
-  return {
-    dayUsd: Usd.from('1.2').toAmount(),
-    monthUsd: Usd.from('3.4').toAmount(),
-    limitUsd: Usd.from(10).toAmount(),
-    remainingUsd: Usd.from('6.6').toAmount(),
-    ...overrides,
-  }
-}
-
-export function makeSuggestion(kind: SuggestionKind): PanelSuggestion {
-  return kind === 'defaultModel'
-    ? {
-        kind,
-        modelRef: 'ollama/qwen3:8b',
-        reason: 'The cheapest tool-calling model.',
-        accepted: false,
-      }
-    : { kind, usd: Usd.from(2.5).toAmount(), reason: 'From your recent sessions.', accepted: false }
 }
 
 export function makeDraft(overrides: Partial<PanelDraft> = {}): PanelDraft {
