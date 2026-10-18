@@ -32,6 +32,11 @@ import type { RemoteFacts } from '../../src/core/git/pushPlan'
 import { createFixtureRepositories, type FixtureRepositories } from './helpers/github/repositories'
 
 const NUL = '\0'
+// Building the fixture repositories runs dozens of real git processes
+// (inits, clones, commits, pushes between local bare repositories); on a
+// loaded machine that passes the 10 s hook default while every case
+// still passes, so the build hook carries its own named budget.
+const FIXTURE_BUILD_TIMEOUT_MS = 60_000
 
 function contextFor(repos: FixtureRepositories, cwd: string): NativeGitContext {
   return { cwd, env: repos.environment }
@@ -288,7 +293,7 @@ describe('native Git against the fixture repositories', () => {
       fileExists: existsSync,
       spawn,
     })
-  })
+  }, FIXTURE_BUILD_TIMEOUT_MS)
 
   afterAll(() => {
     rmSync(root, { recursive: true, force: true })
