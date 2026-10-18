@@ -5450,7 +5450,7 @@
     "resetTypeWord": "Digite {word} para redefinir o cofre.",
     "resetDone": "O cofre foi redefinido. Configure-o novamente para guardar segredos.",
     "vaultLost": "Não é possível abrir o cofre: arquivos estão ausentes ou danificados, ou o proprietário do bloqueio de gravação é desconhecido. Revise a redefinição para começar de novo.",
-    "storeUnavailable": "O armazenamento de credenciais do sistema operacional não está disponível. No Linux, entre em uma sessão de desktop com o chaveiro desbloqueado (Secret Service); no macOS, desbloqueie as Chaves de início de sessão; no Windows, entre de forma interativa. Depois tente novamente.",
+    "storeUnavailable": "O armazenamento de credenciais do sistema operacional não está disponível: ou esta compilação não inclui seu componente de armazenamento de credenciais, ou o armazenamento está bloqueado. Onde o componente estiver ausente, o cofre só poderá usar um slot de hardware onde a máquina sele; caso contrário, no Linux entre em uma sessão de desktop com o chaveiro desbloqueado (Secret Service); no macOS desbloqueie as Chaves de início de sessão; no Windows entre de forma interativa. Depois tente novamente.",
     "remoteWarning": "Somente uma assinatura ou um código de uso único pode ser solicitado de outro dispositivo. O usuário deve aprovar cada uso naquele dispositivo.",
     "approvalExpired": "Esta aprovação expirou. Solicite o uso novamente.",
     "useChanged": "O uso mudou após a aprovação. Solicite aprovação para o novo uso.",
