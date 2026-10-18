@@ -27,7 +27,11 @@ import {
   recordPlanUsage,
   metaResolvedModel,
 } from '../../host/backend/providersEntry'
-import { outputTokenMinimumMessage, providerOutputMinimum } from '../../shared/providerRouting'
+import {
+  outputTokenMinimumMessage,
+  providerOutputMinimum,
+  pruneModelLimits,
+} from '../../shared/providerRouting'
 import { pinnedHttpsRequest, pinnedPostRequest } from '../../host/backend/modelApiEntry'
 import type { PinnedResponse, PinnedTarget } from '../web/webFetch'
 import type { ProviderClient } from '../backends/modelapi/client'
@@ -1305,7 +1309,11 @@ export function createConfiguredProviderServices(
         )
         if (parsed.providerId !== 'meta' && saved.success) {
           const entry = saved.data.providers.find((row) => row.id === parsed.providerId)
-          const windowTokens = entry?.modelLimits?.[native]?.contextTokens
+          // The load prunes limits for unlisted models for every other
+          // reader; this synchronous read applies the same rule instead of
+          // trusting a lingering map.
+          const windowTokens = pruneModelLimits(entry?.models ?? [], entry?.modelLimits)?.[native]
+            ?.contextTokens
           if (
             entry !== undefined &&
             windowTokens !== undefined &&
