@@ -14533,20 +14533,29 @@ and thats it." A thousand-test suite kept shipping broken code as
 
 ### D122 — CI capacity from a second account; the project stays here (owner, 2026-10-16; redesigned 2026-10-17)
 
-**D122 — The capacity repository runs the Windows and macOS unit shards; the
-project, its pull requests and main stay on the owner's account.** While
+**D122 — The capacity repository runs every Windows and macOS job (static
+gates, unit shards, Windows integration, the macOS dictation helper, the
+Hosts/Forks checks and the Windows/macOS browser captures); the project, its
+pull requests and main stay on the owner's account.** While
 `ORG_CI` is `on` and the organization GitHub App's key
 (`ORG_CI_APP_PRIVATE_KEY`, which GitHub never gives a fork's or Dependabot's
 run) reaches a same-repository pull request's full-tier run, that run is part
 `home`: build.yml's `org` job pushes the merge commit to
 `scnetsolutions/muse-spark-code-ci` as `ci/pr-<number>` with a one-hour token
-for that repository alone (contents and workflows write), the same `ci.yml`
-runs the sixteen Windows and macOS unit shards there (part `org`), and `org`
-succeeds only if that run did. The seven required names fold in its result, so
+for that repository alone (contents and workflows write), the same workflows
+run every Windows and macOS leg there (part `org`), and `org`
+succeeds only if that run did; the macOS helper artifacts come back through
+`org` for the `packages` job. The seven required names fold in its result, so
 the ruleset is unchanged; every other run keeps every job here (part `all`).
-The capacity repository stays public and holds no secret. Owner setup:
+The Windows static gates and the Windows browser capture take the
+larger runner there while that repository's `LARGE_RUNNERS` variable is
+`on` (owner, 2026-10-18, $40 monthly budget backstop); macOS stays standard
+(the GitHub-owned macOS larger labels need a Team or Enterprise plan and
+the capacity organization is free). Test shards stay on
+free standard runners. The capacity repository stays public and holds no
+secret. Owner setup:
 CONTRIBUTING.md, "The capacity repository (D122)"; proofs:
-`docs/certification/ciflow.md` (D122). Full record:
+`docs/certification/ciflow.md` (D122, CISHARDS2). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D140 — Claimed-shipped milestones: an `@unwired` tag is resolved by the user-visible promise (MSM58M69, 2026-10-17)
@@ -39639,7 +39648,11 @@ timed birth read; the vault's exact evidence path is unchanged) merged
 sixth, with its CHANGELOG entry under `[0.19.0]`. PR #222
 (`fix/browser-check-route`: the browser check waits for the network
 service before the contract read, within the check's own time and Stop)
-merged seventh, with its CHANGELOG entry under `[0.19.0]`. The `0.19.0 released (…)` line is written by the lead after the tag's
+merged seventh, with its CHANGELOG entry under `[0.19.0]`. PR #218
+(`ci/more-shards2`: sixteen Windows and macOS unit shards, every
+Windows/macOS leg relayed to the capacity repository on `home` runs,
+larger Windows runners, cumulative-PR path gating) merged eighth, with
+its CHANGELOG entries under `[0.19.0]`. The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**

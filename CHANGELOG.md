@@ -653,9 +653,15 @@ happened, not what was planned; superseded entries are kept.
 - Pull requests can borrow the organization `scnetsolutions`'s CI runners
   (D122). Once the owner has installed the organization's GitHub App and set
   `ORG_CI` to `on` (CONTRIBUTING.md, "The capacity repository (D122)"), a
-  pull request from a branch of this repository runs its Windows and macOS
-  unit shards in `scnetsolutions/muse-spark-code-ci` while every other job
-  runs here, and the same seven required checks wait for that run's result.
+  pull request from a branch of this repository runs every Windows and macOS
+  job (static gates, unit shards, Windows integration, the macOS dictation
+  helper, the Hosts/Forks checks and the Windows/macOS browser captures) in
+  `scnetsolutions/muse-spark-code-ci` while only the Ubuntu legs and the
+  aggregates run here, and the same seven required checks wait for that run's
+  result. The Windows static gates and the Windows browser capture
+  take the larger runner there while its `LARGE_RUNNERS` variable is `on`
+  (macOS stays standard: the GitHub-owned macOS larger labels need a Team
+  or Enterprise plan and the capacity organization is free).
   Pull requests, merges and releases stay in this repository; forks and
   Dependabot keep every job here.
 - The capacity wait survives the documented queue (D122 review). The `org`
@@ -665,6 +671,12 @@ happened, not what was planned; superseded entries are kept.
   branch starts with a cold npm cache, and a weekly seed keeps the capacity
   repository's default-branch cache warm so later pull requests share it
   (CONTRIBUTING.md, "The capacity repository (D122)").
+- The Hosts, Forks and browser-check capacity runs follow the pull request's
+  cumulative paths, not the latest push's (D122 review). Every capacity push
+  starts those workflows and a path gate re-applies their path list to the
+  cumulative merge diff, so a follow-up push that touches only an unrelated
+  file no longer passes with no Windows or macOS run anywhere; a capacity
+  run that never appears now fails its relay instead.
 
 ### Pending
 
