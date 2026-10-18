@@ -122,7 +122,9 @@
   changed files; prettier clean; `check:l10n` 0 problems; `check:reference`
   current (regenerated); `check:plan` 0 drift; `check:host-api` 0 problems;
   `check:roadmap` current; `cycles` none; `knip` exit 0; `jscpd` 0 clones;
-  `npm run build` green with budgets held.
+  `npm run build` green with budgets held; `security:audit` exit 0
+  (2 advisories, 1 exceptioned); `security:sast` 533 rules on 3265 files,
+  0 findings.
 - Suites: sessionDelete (3), sessionStore (21), sessions (12), sessionBoard
   (7), sessionRecords (11), sessionTransfer (25), byoProtocol,
   questionContracts, snapshot (38), questionUiState, paidMoneyStructure,
