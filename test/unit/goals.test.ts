@@ -227,6 +227,40 @@ describe('the user goal verbs on the Model API backend (M45)', () => {
     expect(goalObjectiveProblem({ verb: 'edit', objective: 'fine' })).toBeUndefined()
     expect(goalObjectiveProblem({ verb: 'pause' })).toBeUndefined()
   })
+
+  it('refuses an objective the selected model cannot pin, in verbs and tools', () => {
+    // The pinned section (objective plus the rules prose around it) past a
+    // 100-token window refuses; without a recorded window anything stands.
+    const big = 'x'.repeat(5000)
+    expect(goalObjectiveProblem({ verb: 'set', objective: big }, 100)).toBe('tooLarge')
+    expect(goalObjectiveProblem({ verb: 'edit', objective: big }, 100)).toBe('tooLarge')
+    expect(goalObjectiveProblem({ verb: 'set', objective: big })).toBeUndefined()
+    expect(goalObjectiveProblem({ verb: 'set', objective: ' ' }, 100)).toBe('empty')
+    const windowed: GoalContext = { ...context, contextTokens: 100 }
+    const refused = runGoalTool(
+      'create_goal',
+      JSON.stringify({ objective: big }),
+      undefined,
+      windowed,
+    )
+    expect(refused.outcome.failureReason).toBe(MODEL_API_MODEL_TEXT.goalObjectiveTooLarge)
+    expect(refused.goal).toBeUndefined()
+    // A short objective fits a larger window (its pinned section is about
+    // two hundred tokens), and the long one stands where the window is
+    // unknown.
+    const roomy: GoalContext = { ...context, contextTokens: 1000 }
+    const ok = runGoalTool(
+      'create_goal',
+      JSON.stringify({ objective: 'Say hello' }),
+      undefined,
+      roomy,
+    )
+    expect(ok.outcome.failureReason).toBeUndefined()
+    expect(ok.goal).toMatchObject({ objective: 'Say hello' })
+    expect(
+      runGoalTool('create_goal', JSON.stringify({ objective: big }), undefined, context).goal,
+    ).toMatchObject({ objective: big })
+  })
 })
 
 describe('the goal loop on the Model API backend (M45)', () => {

@@ -3387,6 +3387,7 @@
   "goalCannotResume": "Pokračovat lze jen v pozastaveném cíli.",
   "goalCannotEdit": "Změnit lze jen aktivní nebo pozastavený cíl; nový nastavte pomocí /goal <cíl>.",
   "goalObjectiveMissing": "Za /goal napište zadání cíle.",
+  "goalObjectiveTooLarge": "That objective is too long for the selected model’s context window. Shorten it or pick a model with a larger window.",
   "goalCommandFailed": "Příkaz pro cíl selhal",
   "goalOutcomeUnknown": "Během příkazu pro cíl se změnilo přihlášení nebo se back-end restartoval: příkaz se možná projevil, možná ne. Zkontrolujte cíl relace.",
   "announceGoalStatus": "Cíl: {status}",

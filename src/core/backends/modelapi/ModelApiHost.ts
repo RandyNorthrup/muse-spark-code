@@ -5215,7 +5215,12 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /** What a goal operation needs from the session (M45). */
   private goalContext(): GoalContext {
-    return { sessionId: this.sessionId, now: this.deps.now(), newId: this.deps.newId }
+    return {
+      sessionId: this.sessionId,
+      now: this.deps.now(),
+      newId: this.deps.newId,
+      contextTokens: contextModelFor(this.deps, this.modelId)?.contextTokens,
+    }
   }
 
   /**
@@ -16360,9 +16365,16 @@ export class ModelApiSession implements ScheduledAgentSession {
    * turn when nothing runs, as `goal/*` does; nothing else starts one.
    */
   public controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
-    const problem = goalObjectiveProblem(command)
+    const problem = goalObjectiveProblem(
+      command,
+      contextModelFor(this.deps, this.modelId)?.contextTokens,
+    )
     if (problem !== undefined) {
-      return Promise.reject(new Error(`goal/${command.verb}: ${UI_TEXT.goalObjectiveMissing}`))
+      return Promise.reject(
+        new Error(
+          `goal/${command.verb}: ${problem === 'empty' ? UI_TEXT.goalObjectiveMissing : UI_TEXT.goalObjectiveTooLarge}`,
+        ),
+      )
     }
     const applied = applyGoalCommand(this.goal, command, this.goalContext())
     if (typeof applied === 'string') {

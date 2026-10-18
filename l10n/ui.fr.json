@@ -3322,6 +3322,7 @@
   "goalCannotResume": "Seul un objectif en pause peut être repris.",
   "goalCannotEdit": "Seul un objectif actif ou en pause peut être modifié ; définissez-en un nouveau avec /goal <objectif>.",
   "goalObjectiveMissing": "Saisissez l’objectif après /goal.",
+  "goalObjectiveTooLarge": "That objective is too long for the selected model’s context window. Shorten it or pick a model with a larger window.",
   "goalCommandFailed": "La commande d’objectif a échoué",
   "goalOutcomeUnknown": "La connexion a changé ou le back-end a redémarré pendant la commande d’objectif : elle a pu être appliquée ou non. Vérifiez l’objectif de la session.",
   "announceGoalStatus": "Objectif : {status}",

@@ -3257,6 +3257,7 @@
   "goalCannotResume": "Nur ein pausiertes Ziel kann fortgesetzt werden.",
   "goalCannotEdit": "Nur ein aktives oder pausiertes Ziel kann geändert werden; setzen Sie mit /goal <Ziel> ein neues.",
   "goalObjectiveMissing": "Geben Sie das Ziel nach /goal ein.",
+  "goalObjectiveTooLarge": "That objective is too long for the selected model’s context window. Shorten it or pick a model with a larger window.",
   "goalCommandFailed": "Der Zielbefehl ist fehlgeschlagen",
   "goalOutcomeUnknown": "Während der Zielbefehl lief, hat sich die Anmeldung geändert oder das Backend wurde neu gestartet: Er wurde möglicherweise ausgeführt, möglicherweise nicht. Prüfen Sie das Sitzungsziel.",
   "announceGoalStatus": "Ziel: {status}",
