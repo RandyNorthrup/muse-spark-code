@@ -380,3 +380,51 @@ open and were re-verified against the current tree below.
   returns only settled `budgetSpentUsd` while `addSpend` records only the
   `hasUnknownBudgetCost` boolean; the schema (`usagePage.ts:91`) and both
   renderers already carry `unknownChargeCalls` for the daily row.
+
+## PR217FIX3 — fixes (2026-10-18, lane PR217FIX3)
+
+Threads 1–4 were fixed under PR217FIX2 (`11f98e72b`, `5b72b8607`). Threads
+5–7 were open; each was re-verified, fixed at its cause, and red-drilled
+(new tests fail on the unfixed tree with the quoted message, pass after).
+
+- `providerExec.ts:205` (P2, plan presets): `isModelUnpriced` returned true
+  for `mistral-plan` with an unpriced-only model, so add/test/list warned
+  for a model the run never refuses (`configured.ts:806` assigns
+  `{ kind: 'plan' }`). Plan-key presets now return false up front, read
+  from the same preset table the run resolves. Red drill for the new test:
+  `expected true to be false`; 4/4 pass after. Commit `d3b765e4b0`.
+- `ModelApiHost.ts:16603` (P1, legacy session totals): pre-D121
+  `snapshot()` added the open reservation into the saved `budgetSpentUsd`
+  (`b6ba938849^:16708-16713`, written mid-request by `persistSpend`), and
+  `adopt` took it whole. `fileSessionStore.load` now rebuilds seed plus
+  settled legacy claims (open reservations stay out; D121), stamps
+  `spendSettledOnly`, and the save lands the rebuild instead of merging
+  onto the phantom; later saves merge as before. Unreadable journals keep
+  the stored total with a log line, and sessions without a journal keep
+  what their file holds. Red drills: load `expected '10' to be '8.5'`,
+  save `expected '10' to be '9'`; the three older two-window tests stay
+  green on both trees. Commit `c99b90e4a1`.
+- `ModelApiHost.ts:16400` (P2, unknown charges row): `usageBudget()`
+  returned settled spend only while `addSpend` kept a boolean. The session
+  now counts unknown-charge calls, the conversation row carries
+  `unknownChargeCalls` (the schema and both renderers already did for the
+  daily row; admission still counts reported costs only), and
+  snapshot/adopt persist the count. Red drill: `expected undefined to be
+3` on a real save/load round trip. A full-session unit test is not
+  possible without stand-ins (no test builds a `ModelApiSession`), so the
+  counting half is covered by the persisted round trip plus typecheck.
+  Commit `c99b90e4a1`.
+
+Gates on the final tree: typecheck host+unit clean, eslint zero warnings
+on all six changed files, prettier clean, `check:plan` 0 drift,
+`check:l10n` 0 problems, `npm run build` green with a clean tree after.
+Suites with the repository's own timeout: `fileSessionSpend` (7),
+`providerUnpriced` (4), `dailySpend` (5), `sessionStore` (21),
+`sessionRecords` (11), `sessionImport` + `sessionTransfer` + `sessions`
+(39), `usageLiability` + `usageContracts` + `runLedger` (61) — all pass.
+
+Left named plainly: a legacy file with spend but no journal keeps its
+total (nothing to rebuild from); legacy retained liability (sent but
+usageless, once counted as spend) is dropped by the rebuild per D121 and
+is not back-counted as unknown calls; the migration assumes all writers
+are new builds (an old build's save keeps old merge behaviour).
