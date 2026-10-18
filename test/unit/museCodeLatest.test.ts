@@ -566,20 +566,45 @@ describe('session inventories (task/hook/plugin)', () => {
     expect(toSessionHookRow(rows[0]!).key).toContain('session_start')
   })
 
-  it('maps running task and installed plugin rows per the CLI schema', () => {
-    // No background task ran on the echo host and no plugin is installed
-    // in the scratch home; row shapes follow the CLI's own schema export.
-    expect(
-      toBackgroundTaskSummary({
-        taskId: 't1',
-        kind: 'shell',
-        status: 'running',
-        startedAt: '2026-10-17T18:20:00Z',
-      }),
-    ).toEqual({ taskId: 't1', kind: 'shell', status: 'running', startedAt: '2026-10-17T18:20:00Z' })
-    expect(
-      toSessionPluginRow({ id: 'p1', version: '1.0.0', enabled: true, source: { type: 'local' } }),
-    ).toEqual({ id: 'p1', version: '1.0.0', enabled: true, source: { type: 'local' } })
+  it('maps the recorded installed plugin row with its source word', () => {
+    // Recorded 2026-10-18 from Muse Code 1.4.10 (`plugin-list-1.4.10.json`):
+    // a locally installed Agent Plugins bundle serves `foreignImport` as
+    // the source word, carried through opaquely.
+    const rows = pluginListResultSchema.parse(fixture('plugin-list-1.4.10.json')).plugins
+    expect(rows).toHaveLength(1)
+    expect(toSessionPluginRow(rows[0]!)).toEqual({
+      id: 'capture-probe',
+      version: '1.0.0',
+      enabled: true,
+      source: 'foreignImport',
+    })
+  })
+
+  it('maps a running task row per the CLI schema', () => {
+    // No background task runs on the echo provider without a model turn
+    // (a running `session/userShell` is not listed, measured 2026-10-18);
+    // the shape below is the binary's own TaskListEntry contract from the
+    // same-day schema export: required taskId/kind/status,
+    // additive-optional startedAt/tool/backgroundInitiator, and
+    // `inProgress` the only status served.
+    const parsed = backgroundTaskListResultSchema.parse({
+      tasks: [
+        {
+          taskId: 't1',
+          kind: 'tool',
+          status: 'inProgress',
+          tool: 'shell',
+          backgroundInitiator: 'user',
+        },
+      ],
+    })
+    expect(toBackgroundTaskSummary(parsed.tasks[0]!)).toEqual({
+      taskId: 't1',
+      kind: 'tool',
+      status: 'inProgress',
+      tool: 'shell',
+      backgroundInitiator: 'user',
+    })
   })
 })
 
@@ -593,8 +618,11 @@ describe('skill/import receipt', () => {
     expect(receipt.installed).toEqual([])
   })
 
-  it('carries quarantine and failure entries with their reasons', () => {
-    // Empty on the echo dry run; entry shapes follow the CLI's own schema.
+  it('carries quarantine reasons and failure reasons per the CLI schema', () => {
+    // Empty on the echo dry run (foreign sources live outside this
+    // sandbox); entry shapes are the binary's own SkillImportQuarantine
+    // (`id` plus `reasons`) and SkillImportFailure (`id`, nullable, plus a
+    // required `reason`) from the same-day schema export.
     const receipt = toForeignSkillImport({
       source: 'claude',
       dryRun: false,
@@ -602,11 +630,13 @@ describe('skill/import receipt', () => {
       counts: { installed: 1, quarantined: 1, skipped: 1, failed: 1 },
       installed: ['ok-skill'],
       skipped: ['known-skill'],
-      quarantined: [{ id: 'q-skill', reason: 'unsigned' }],
+      quarantined: [{ id: 'q-skill', reasons: ['unsigned', 'unpinned-source'] }],
       failed: [{ id: null, reason: 'no frontmatter' }],
     })
     expect(receipt.installed).toEqual(['ok-skill'])
-    expect(receipt.quarantined).toEqual([{ id: 'q-skill', reason: 'unsigned' }])
+    expect(receipt.quarantined).toEqual([
+      { id: 'q-skill', reasons: ['unsigned', 'unpinned-source'] },
+    ])
     expect(receipt.failed).toEqual([{ id: null, reason: 'no frontmatter' }])
   })
 })

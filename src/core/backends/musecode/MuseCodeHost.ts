@@ -349,10 +349,20 @@ export function toSkillSummary(
   }
 }
 
-/** One `skill/import` candidate that installed, skipped, quarantined or failed. */
-export interface ForeignSkillEntry {
+/**
+ * One `skill/import` candidate that could neither install nor quarantine:
+ * `id` is null when the candidate never yielded one (present-but-null,
+ * never omitted).
+ */
+export interface ForeignSkillFailure {
   readonly id: string | null
-  readonly reason?: string | undefined
+  readonly reason: string
+}
+
+/** One quarantined `skill/import` candidate: kept, not loaded, with reasons. */
+export interface ForeignSkillQuarantine {
+  readonly id: string
+  readonly reasons: readonly string[]
 }
 
 /** A `skill/import` receipt: per-skill ids plus counts (M127). */
@@ -368,8 +378,8 @@ export interface ForeignSkillImport {
   }
   readonly installed: readonly string[]
   readonly skipped: readonly string[]
-  readonly quarantined: readonly ForeignSkillEntry[]
-  readonly failed: readonly ForeignSkillEntry[]
+  readonly quarantined: readonly ForeignSkillQuarantine[]
+  readonly failed: readonly ForeignSkillFailure[]
 }
 
 /** A settled `recap/completed` (M127): outcome is an open vocabulary. */
@@ -401,6 +411,8 @@ export const backgroundTaskListResultSchema = z.object({
       kind: z.string(),
       status: z.string(),
       startedAt: z.optional(z.string()),
+      tool: z.optional(z.string()),
+      backgroundInitiator: z.optional(z.string()),
     }),
   ),
 })
@@ -414,6 +426,10 @@ export function toBackgroundTaskSummary(
     kind: task.kind,
     status: task.status,
     ...(task.startedAt !== undefined && { startedAt: task.startedAt }),
+    ...(task.tool !== undefined && { tool: task.tool }),
+    ...(task.backgroundInitiator !== undefined && {
+      backgroundInitiator: task.backgroundInitiator,
+    }),
   }
 }
 
@@ -455,9 +471,14 @@ export function toSessionPluginRow(
   return { id: plugin.id, version: plugin.version, enabled: plugin.enabled, source: plugin.source }
 }
 
-const foreignSkillEntrySchema = z.object({
+const skillImportFailureSchema = z.object({
   id: z.nullable(z.string()),
-  reason: z.optional(z.string()),
+  reason: z.string(),
+})
+
+const skillImportQuarantineSchema = z.object({
+  id: z.string(),
+  reasons: z.array(z.string()),
 })
 
 /** Exported for the M127 capture tests. */
@@ -473,8 +494,8 @@ export const skillImportResultSchema = z.object({
   }),
   installed: z.array(z.string()),
   skipped: z.array(z.string()),
-  quarantined: z.array(foreignSkillEntrySchema),
-  failed: z.array(foreignSkillEntrySchema),
+  quarantined: z.array(skillImportQuarantineSchema),
+  failed: z.array(skillImportFailureSchema),
 })
 
 /** A recorded `skill/import` receipt as readers get it. */
@@ -490,12 +511,9 @@ export function toForeignSkillImport(
     skipped: result.skipped,
     quarantined: result.quarantined.map((entry) => ({
       id: entry.id,
-      ...(entry.reason !== undefined && { reason: entry.reason }),
+      reasons: entry.reasons,
     })),
-    failed: result.failed.map((entry) => ({
-      id: entry.id,
-      ...(entry.reason !== undefined && { reason: entry.reason }),
-    })),
+    failed: result.failed.map((entry) => ({ id: entry.id, reason: entry.reason })),
   }
 }
 
