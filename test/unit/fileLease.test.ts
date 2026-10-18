@@ -216,6 +216,29 @@ async function readersNamedFor(folder: string, pid: number): Promise<string[]> {
   return names.filter((name) => name.startsWith(`MuseSparkBirth-${String(pid)}-`))
 }
 
+/**
+ * Windows: whether this host runs elevated, so its birth reader is walled
+ * above a lower-integrity writer. Windows' own well-known SIDs (also named
+ * in `src/core/locks/processOwner.ts`); the level's name would localise,
+ * the SID never does.
+ */
+function isElevatedHost(): boolean {
+  const systemRoot = process.env['SystemRoot'] ?? ''
+  try {
+    const groups = execFileSync(
+      path.win32.join(systemRoot, 'System32', 'whoami.exe'),
+      ['/groups'],
+      {
+        encoding: 'utf8',
+        windowsHide: true,
+      },
+    )
+    return groups.includes('S-1-16-12288') || groups.includes('S-1-16-16384')
+  } catch {
+    return false
+  }
+}
+
 /** Windows: a program that prints 42 whatever it is asked. */
 async function impostorProgram(folder: string): Promise<string> {
   return await windowsProgram(
@@ -409,6 +432,39 @@ describe('process owners (M123 lane P)', () => {
       } finally {
         await rm(scratch, { recursive: true, force: true })
       }
+    },
+  )
+
+  it.runIf(process.platform === 'win32')(
+    'keeps its birth reader out of a lower-integrity writer’s reach when elevated',
+    async () => {
+      const born = await processStartTime(process.pid)
+      expect(born).toBeDefined()
+      const folder = birthReaderFolder()
+      const mine = await readersNamedFor(folder, process.pid)
+      expect(mine).toHaveLength(1)
+      const reader = path.join(folder, mine[0] ?? '')
+      // `icacls` names the label in the installed language, but its access
+      // mask does not localise: a mandatory label shows as `:(NW`, which a
+      // discretionary entry never carries.
+      const systemRoot = process.env['SystemRoot'] ?? ''
+      const listing = execFileSync(
+        path.win32.join(systemRoot, 'System32', 'icacls.exe'),
+        [reader],
+        {
+          encoding: 'utf8',
+          windowsHide: true,
+        },
+      )
+      if (isElevatedHost()) {
+        // Walled: a medium-integrity process of the same person can no
+        // longer write, replace or delete this file.
+        expect(listing).toMatch(/:\(NW/u)
+      } else {
+        // No higher token, no wall; the plain build still reads.
+        expect(listing).not.toMatch(/:\(NW/u)
+      }
+      expect(await processStartTime(process.pid)).toBe(born)
     },
   )
 
