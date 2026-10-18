@@ -340,6 +340,12 @@ const OPENAI_PRESET: ProviderPreset = {
     retry: { ...RETRY_TABLES.responses, errorKinds: ['server_error'] },
     // OpenAI's constrained decoding takes strict tool schemas.
     supportsStrictTools: true,
+    // Lane RETRYLIMITS review: OpenAI's API docs name no count ("limit
+    // retries"), but its official SDK documents the same default the
+    // Anthropic row already uses: "automatically retried 2 times by
+    // default, with a short exponential backoff" (openai-python README,
+    // read 2026-10-17). No documented backoff bounds, so only the count.
+    retryLimits: { maxRetries: 2 },
   },
   wireCapture: true,
 }

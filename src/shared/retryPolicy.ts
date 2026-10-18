@@ -139,9 +139,12 @@ export interface RetryLimits {
 /**
  * Each format's documented bounds (read 2026-10-17; the per-provider table
  * is `docs/certification/provider-refusals.md`, "Lane RETRYLIMITS").
- * `responses` and `chat` carry none: OpenAI documents only "limit retries"
- * (openai.md §4) and the other chat providers name no count or bounds, so
- * presets on those formats retry unbounded unless the person sets a limit.
+ * `responses` and `chat` carry none at the format level: OpenAI's API docs
+ * say only "limit retries" (openai.md §4; its SDK's documented 2 retries
+ * ride on the OpenAI preset's own override in `presets.ts`) and the other
+ * chat providers name no count or bounds, so presets on those formats
+ * retry unbounded unless the person sets a limit or the preset documents
+ * one of its own.
  * `anthropic` retries twice (the official SDK default, "twice by default";
  * its backoff has no documented bounds). `gemini` retries four times from
  * ~1 s up to 60 s (the official SDK default). `ollama` serves local models

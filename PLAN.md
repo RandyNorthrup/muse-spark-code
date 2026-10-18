@@ -14439,7 +14439,8 @@ pending the owner's decision (evidence in
 **Amended 2026-10-17 (lane RETRYLIMITS, owner's binding rule).** The single
 global retry count (4) and backoff (1 s to 60 s) are replaced by each
 provider's documented values (`docs/certification/provider-refusals.md`,
-"Lane RETRYLIMITS"): Anthropic 2 (SDK default), Gemini 4 with ~1 s to 60 s
+"Lane RETRYLIMITS"): Anthropic 2 (SDK default), OpenAI 2 (SDK default;
+review RVRETRYLIMITS), Gemini 4 with ~1 s to 60 s
 (SDK), Azure up to 10 (top of its documented 5–10 example range), xAI up to
 4 retries (5 attempts, 2^attempt s), Meta 4 (3–5 attempts). Anything a
 provider does not document is the person's `museSpark.modelApiMaxRetries`
