@@ -612,6 +612,19 @@ export async function readPickedFile(
   }
 }
 
+/**
+ * Picked bytes as text. Invalid UTF-8 is refused rather than read as
+ * replacement characters, in the panel's language (the decoder's own message
+ * is English); a byte-order mark is dropped. The refusal carries its cause.
+ */
+export function decodeTransferBytes(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch (error: unknown) {
+    throw new Error(UI_TEXT.textFileInvalid, { cause: error })
+  }
+}
+
 /** The VS Code tool-row preview uses the same checked read as Model API tools. */
 export function toolImagePreviewIo(
   toolIo: Pick<ToolIo, 'readBytes'>,
