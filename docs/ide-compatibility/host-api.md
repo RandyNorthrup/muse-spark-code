@@ -501,7 +501,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:dns/promises`      | 6     |
 | `node:events`            | 3     |
 | `node:fs`                | 78    |
-| `node:fs/promises`       | 118   |
+| `node:fs/promises`       | 119   |
 | `node:http`              | 15    |
 | `node:https`             | 2     |
 | `node:module`            | 2     |
