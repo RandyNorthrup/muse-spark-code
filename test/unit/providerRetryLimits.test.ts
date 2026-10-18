@@ -17,8 +17,9 @@ import {
 const limitsOf = (preset: string) => quirksOf(presetById(preset)!).retryLimits
 
 describe('each provider retries by its documented maximum', () => {
-  it('pins the documented counts (anthropic.md AB13, gemini SDK, azure-openai.md, xai.md, dev.meta.ai)', () => {
+  it('pins the documented counts (anthropic.md AB13, openai SDK, gemini SDK, azure-openai.md, xai.md, dev.meta.ai)', () => {
     expect(limitsOf('anthropic').maxRetries).toBe(2)
+    expect(limitsOf('openai').maxRetries).toBe(2)
     expect(limitsOf('gemini').maxRetries).toBe(4)
     expect(limitsOf('azure').maxRetries).toBe(10)
     expect(limitsOf('xai').maxRetries).toBe(4)
@@ -34,7 +35,6 @@ describe('each provider retries by its documented maximum', () => {
   })
   it('leaves every undocumented provider without a limit of ours', () => {
     for (const preset of [
-      'openai',
       'openrouter',
       'groq',
       'deepseek',

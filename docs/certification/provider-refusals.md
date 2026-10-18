@@ -372,25 +372,25 @@ PROVERRORS record for the SDK rows). "Not documented" means the provider
 names no maximum retry count / backoff on the pages read; per the owner's
 rule no limit of ours applies and the person's setting decides.
 
-| Provider                                       | Max retries          | Backoff                                | Source                     |
-| ---------------------------------------------- | -------------------- | -------------------------------------- | -------------------------- |
-| Anthropic                                      | 2 (SDK default)      | Exponential, honors Retry-After        | API errors page (ERR)      |
-| OpenAI                                         | Not documented       | Retry-After, else exp backoff + jitter | Error codes page (ERR)     |
-| Gemini                                         | 4 (SDK)              | ~1 s start, 60 s max (SDK)             | Troubleshooting + SDK      |
-| Azure                                          | 5-10 (example range) | retry-after-ms, else exp + jitter      | Learn QUOTAHOW             |
-| Meta                                           | 3-5 attempts         | Exp, honors Retry-After                | dev.meta.ai error handling |
-| xAI                                            | Up to 5              | 2^attempt s (docs examples)            | Rate limits page (RL)      |
-| OpenRouter                                     | Not documented       | Wait Retry-After                       | Errors / limits docs (ERR) |
-| Groq                                           | Not documented       | retry-after seconds only               | Rate limits page (RL)      |
-| DeepSeek                                       | Not documented       | Not documented                         | Rate limits page (RL)      |
-| Mistral                                        | Not documented       | Not documented                         | Pages read                 |
-| Together                                       | Not documented       | Exponential, no bounds                 | Rate limits page (RL)      |
-| Fireworks                                      | Not documented       | Not documented                         | Serverless page not read   |
-| HuggingFace                                    | Not documented       | Not documented                         | Router docs                |
-| Z.ai                                           | Not documented       | Wait until next_flush_time             | Errors page (ERR)          |
-| ChatGPT-Codex plan                             | Not documented       | Bounded backoff                        | SIWC errors page           |
-| Copilot                                        | Not documented       | Not documented                         | Pages read                 |
-| Ollama / LM Studio / vLLM / llama.cpp / custom | Not documented       | Not documented                         | Server docs                |
+| Provider                                       | Max retries          | Backoff                                | Source                       |
+| ---------------------------------------------- | -------------------- | -------------------------------------- | ---------------------------- |
+| Anthropic                                      | 2 (SDK default)      | Exponential, honors Retry-After        | API errors page (ERR)        |
+| OpenAI                                         | 2 (SDK default)      | Retry-After, else exp backoff + jitter | Error codes page (ERR) + SDK |
+| Gemini                                         | 4 (SDK)              | ~1 s start, 60 s max (SDK)             | Troubleshooting + SDK        |
+| Azure                                          | 5-10 (example range) | retry-after-ms, else exp + jitter      | Learn QUOTAHOW               |
+| Meta                                           | 3-5 attempts         | Exp, honors Retry-After                | dev.meta.ai error handling   |
+| xAI                                            | Up to 5              | 2^attempt s (docs examples)            | Rate limits page (RL)        |
+| OpenRouter                                     | Not documented       | Wait Retry-After                       | Errors / limits docs (ERR)   |
+| Groq                                           | Not documented       | retry-after seconds only               | Rate limits page (RL)        |
+| DeepSeek                                       | Not documented       | Not documented                         | Rate limits page (RL)        |
+| Mistral                                        | Not documented       | Not documented                         | Pages read                   |
+| Together                                       | Not documented       | Exponential, no bounds                 | Rate limits page (RL)        |
+| Fireworks                                      | Not documented       | Not documented                         | Serverless page not read     |
+| HuggingFace                                    | Not documented       | Not documented                         | Router docs                  |
+| Z.ai                                           | Not documented       | Wait until next_flush_time             | Errors page (ERR)            |
+| ChatGPT-Codex plan                             | Not documented       | Bounded backoff                        | SIWC errors page             |
+| Copilot                                        | Not documented       | Not documented                         | Pages read                   |
+| Ollama / LM Studio / vLLM / llama.cpp / custom | Not documented       | Not documented                         | Server docs                  |
 
 Notes:
 
@@ -400,7 +400,13 @@ Notes:
 - Gemini's API docs ask for "a maximum number of retry attempts to prevent
   infinite loops" without naming one; the count 4 with ~1 s to 60 s is the
   official SDK default.
-- OpenAI's docs say only "limit retries" (openai.md §4); no count exists.
+- OpenAI's API docs say only "limit retries" (openai.md §4), but its
+  official SDK documents the same basis the Anthropic row uses:
+  "automatically retried 2 times by default, with a short exponential
+  backoff" (openai-python README, read 2026-10-17 in review
+  RVRETRYLIMITS). The count 2 therefore rides on the OpenAI preset; the
+  lane as submitted left OpenAI unbounded, which was inconsistent with
+  the Anthropic and Gemini SDK rows.
 - Azure's docs give 5-10 as an example ("for example, 5–10"), not a fixed
   ceiling; `retry-after-ms` is read before `Retry-After` (done in PROVERRORS).
 - Meta's 3–5 attempts with exponential backoff and jitter honouring

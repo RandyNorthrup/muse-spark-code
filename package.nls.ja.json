@@ -195,7 +195,7 @@
   "config.modelApiStrictTools.description": "選択したモデルが対応している場合、厳密なツールスキーマを使用します。無効にすると従来のツール定義を維持します。",
   "config.modelApiParallelReads.description": "安全な読み取り専用のツール呼び出しを最大4件まで同時に実行します。その他の呼び出しは順番に実行します。",
   "config.webSearchMaxPerRequest.description": "回答あたりのサービス側ウェブ検索回数の上限（1～20、既定値5）。初回の課金前に料金と共有の1日予算が表示されます。",
-  "config.modelApiMaxRetries.description": "失敗したモデルAPIリクエストの再試行上限（初回以降の試行ごと、0は再試行しない）。既定では未設定です。各プロバイダーの文書化された上限が適用され（Anthropic 2、Gemini 4、Azure 10、xAI 4、Meta 4）、上限を文書化していないプロバイダーは、独自の待機または停止応答がやり取りを終了するまで再試行します。",
+  "config.modelApiMaxRetries.description": "失敗したモデルAPIリクエストの再試行上限（初回以降の試行ごと、0は再試行しない）。既定では未設定です。各プロバイダーの文書化された上限が適用され（Anthropic 2、OpenAI 2、Gemini 4、Azure 10、xAI 4、Meta 4）、上限を文書化していないプロバイダーは、独自の待機または停止応答がやり取りを終了するまで再試行します。",
   "config.modelApiTeamWorkers.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",
   "config.legalHeaderPolicy.description": "ライセンススキャン向けの著作権・SPDX ヘッダーチェック: 必須は対応するヘッダーのないプロジェクト所有のソースファイルすべてを指摘し、任意は検出したプロジェクト様式や REUSE 宣言に反するヘッダーのみを指摘し、オフはヘッダーチェックを省略します。既定は任意で、生成ファイルは常に除外されます。",
   "config.legalHeaderPolicy.enumDescriptions.required": "プロジェクト所有の各ソースファイルに対応する著作権・SPDX ヘッダーが必要です。",
