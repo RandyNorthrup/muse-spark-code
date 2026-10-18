@@ -7,6 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Security
+
+- Starting Muse Code no longer lets a program planted in the workspace run
+  from PATH. Every child environment built for `muse serve` (the VS Code
+  backend, the ACP agent and the CLI exec path) drops PATH entries that are
+  relative, empty, or inside the workspace (resolved through links), on
+  Windows, macOS and Linux alike; nothing else in PATH changes. Real use
+  showed Muse Code 1.4.9 running a planted `<workspace>/bin/bwrap` twice at
+  serve start, before any prompt or approval
+  (`docs/certification/pathguard.md`).
+
 ### Fixed
 
 - On Windows, two requests that reserve session spend at the same moment
