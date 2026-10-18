@@ -2453,6 +2453,7 @@
   "allowSessionPrefix": "このセッションでは常に許可:",
   "reject": "拒否",
   "modelApiStalled": "Model API から {seconds} 秒間何も送られてこなかったため、応答を終了しました。再試行するにはメッセージをもう一度送信してください",
+  "modelApiRetryCapReached": "再試行の上限に達しました（museSpark.modelApiMaxRetries: {count}）: リクエストは再送されませんでした。再試行を許可するには上限を引き上げてください。",
   "queuedTurnDropped": "未送信: 停止によりキュー内のメッセージがクリアされました",
   "compactionStopped": "圧縮は停止されました",
   "compactionEmpty": "要約が空でした。会話は変更されていません。",

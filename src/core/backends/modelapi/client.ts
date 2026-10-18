@@ -357,6 +357,11 @@ export class ModelApiClient implements TransportProviderClient {
     return this.transport.maxRetries()
   }
 
+  /** The person's live retry limit, uncapped (see `RequestTransport.personMaxRetries`). */
+  public personMaxRetries(): number | undefined {
+    return this.transport.personMaxRetries()
+  }
+
   /** Waits `ms`, or rejects as soon as the turn's Stop aborts `signal`. */
   public async waitBeforeRetry(ms: number, signal: AbortSignal): Promise<void> {
     await this.transport.pause(ms, signal)

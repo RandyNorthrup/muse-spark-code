@@ -2507,6 +2507,7 @@
   "allowSessionPrefix": "Bu oturumda her zaman izin ver:",
   "reject": "Reddet",
   "modelApiStalled": "Model API {seconds} sn boyunca hiçbir şey göndermedi, bu yüzden yanıt sonlandırıldı; yeniden denemek için mesajı tekrar gönderin",
+  "modelApiRetryCapReached": "Yeniden deneme sınırına ulaşıldı (museSpark.modelApiMaxRetries: {count}): istek tekrar gönderilmedi. Daha fazla yeniden denemeye izin vermek için sınırı yükseltin.",
   "queuedTurnDropped": "Gönderilmedi: Durdur düğmesi kuyruktaki mesajları temizledi",
   "compactionStopped": "sıkıştırma durduruldu",
   "compactionEmpty": "Özet boştu; konuşma değişmedi.",

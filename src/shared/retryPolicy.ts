@@ -185,6 +185,21 @@ export function effectiveMaxRetries(
 }
 
 /**
+ * Whether an exhausted retry budget is the person's own cap rather than a
+ * provider maximum (lane PR225W1): the effective limit equals the person's
+ * setting, which only happens when the person set one at or under the
+ * provider's documented maximum. The turn loop reports exactly this case on
+ * the orchestrator's feed, so an orchestrated run can tell a cap stop from
+ * a provider refusal.
+ */
+export function isPersonRetryCap(
+  personMaxRetries: number | undefined,
+  allowed: number | undefined,
+): boolean {
+  return personMaxRetries !== undefined && allowed === personMaxRetries
+}
+
+/**
  * The wait before try number `attempt` (0-based): the provider's own wait
  * whole when it named one (never shortened to our backoff), else
  * exponential from the documented base (1 s is the only documented initial

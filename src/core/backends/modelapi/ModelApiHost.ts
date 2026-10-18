@@ -319,6 +319,7 @@ import {
   type ResponseAttemptGuard,
 } from './client'
 import { isDefiniteRefusal, scrubRefusalLeak } from './providerRefusal'
+import { isPersonRetryCap } from '../../../shared/retryPolicy'
 import { UNBOUNDED_RETRIES, noRetryBudget } from './transport'
 import {
   applyGoalCommand,
@@ -5965,6 +5966,32 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
+   * Lane PR225W1: when the person's own cap — not a provider maximum —
+   * stops a whole-stream retry, the turn says so on the orchestrator's
+   * feed, so an orchestrated run can tell a cap stop from a provider
+   * refusal and assess whether to pause or move work.
+   */
+  private notifyRetryCap(
+    error: unknown,
+    signal: AbortSignal,
+    person: number | undefined,
+    allowed: number | undefined,
+  ): void {
+    if (
+      person !== undefined &&
+      error instanceof RetryableStreamError &&
+      !signal.aborted &&
+      isPersonRetryCap(person, allowed)
+    ) {
+      this.emit({
+        type: 'backendNotice',
+        level: 'warning',
+        text: fill(UI_TEXT.modelApiRetryCapReached, { count: person }),
+      })
+    }
+  }
+
+  /**
    * One model call: streams the reply into the transcript, returns the calls
    * to run. The HTTP retries inside each attempt and the whole-stream
    * retries share one budget (the review of PR #28), so a call never sends
@@ -6038,6 +6065,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           signal.aborted ||
           budget.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
         ) {
+          this.notifyRetryCap(error, signal, client.personMaxRetries(), allowed)
           throw error
         }
         const attempt = budget.retriesUsed
@@ -14635,6 +14663,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) ||
           budget.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
         ) {
+          this.notifyRetryCap(error, signal, retryClient.personMaxRetries(), allowed)
           throw error
         }
         const retry = budget.retriesUsed

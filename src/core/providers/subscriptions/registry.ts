@@ -192,6 +192,7 @@ export function createSubscriptionClient(
     // set and is unbounded otherwise; off-plan models are Meta's own.
     maxRetries: (model) =>
       model !== undefined && !isPlanModel(model) ? meta.maxRetries() : deps.personMaxRetries?.(),
+    personMaxRetries: () => deps.personMaxRetries?.(),
     createImage: (...args) => meta.createImage(...args),
     editImage: (...args) => meta.editImage(...args),
     listModels: async () => {
