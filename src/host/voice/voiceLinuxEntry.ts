@@ -8,6 +8,7 @@
 // from there would carry them back into dist/extension.js or
 // dist/voice.js, which the bundle-split gate refuses.
 
+import { rmdir } from 'node:fs/promises'
 import type { DictationHandle } from '../../core/voice/dictation'
 import { LinuxDictation, type LinuxDictationDeps } from '../../core/voice/linuxDictation'
 import { LinuxDictationHelper } from '../../core/voice/linuxHelper'
@@ -50,4 +51,12 @@ export async function removeLinuxDictationModel(directory: string): Promise<void
   // OFF removes the helper and the model with their partial downloads alike.
   await new LinuxDictationHelper({ directory, fetch, consent: never, arch: process.arch }).remove()
   await new LinuxDictationModel({ directory, fetch, consent: never }).remove()
+  // The setup keys its pending state off the directory itself: remove it
+  // once its managed files are gone, or every reload re-runs cleanup.
+  // Anything unexpected left inside keeps failing loudly instead.
+  try {
+    await rmdir(directory)
+  } catch (error: unknown) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
+  }
 }
