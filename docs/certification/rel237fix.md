@@ -84,3 +84,15 @@ namespace as a sandbox that can start`). A live success run needs a
    schema prescribes for clients that do not. Both shapes come from the
    vendored `@agentclientprotocol/sdk` schema (`Notice`,
    `ClientSessionCapabilities::notices`).
+
+## Review addendum — RVRVREL0190 (2026-10-18)
+
+One further fix on review (`aed1f67fe0`): item 1's refusal detail embedded
+the resolved bwrap path, and the spawn-failure detail embedded it through
+`error.message`; the detail reaches the Diagnostics report and the log
+carrying it, which may be pasted into a public issue, so both now use fixed
+words and the error code only. Proven by extending the refusal test to
+assert the detail carries neither the binary nor its folder (failed before,
+passes after). Item 7 stands as recorded: the healthy-machine success run
+(real-life scenario 4) is still owed and cannot be measured on a rig where
+user namespaces are blocked.
