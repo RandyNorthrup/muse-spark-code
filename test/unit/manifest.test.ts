@@ -83,15 +83,15 @@ describe('package.json manifest', () => {
     }
   })
 
-  it('offers paid Tab by default while retaining its machine scope and daily cap', () => {
+  it('offers paid Tab by default with machine scope and no daily cap unless set', () => {
     const properties = manifest.contributes.configuration.properties
     expect(properties['museSpark.modelApiTab']).toMatchObject({ default: true, scope: 'machine' })
     expect(properties['museSpark.tabDailyBudgetUsd']).toMatchObject({
-      default: 1,
-      minimum: 0.05,
-      maximum: 50,
+      default: 0,
+      minimum: 0,
       scope: 'machine',
     })
+    expect(properties['museSpark.tabDailyBudgetUsd']).not.toHaveProperty('maximum')
   })
 
   it('identifies the extension the way constants.ts expects', () => {

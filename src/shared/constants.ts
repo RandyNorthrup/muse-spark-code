@@ -834,6 +834,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiAutoCompaction',
   'modelApiStrictTools',
   'modelApiParallelReads',
+  // The per-provider retry cap decides how much is attempted and spent.
+  'modelApiMaxRetries',
   'webSearchMaxPerRequest',
   // What runs on every turn (git) and what is copied out of the workspace (M72).
   'turnCheckpoints',

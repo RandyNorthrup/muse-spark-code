@@ -254,33 +254,25 @@ happened, not what was planned; superseded entries are kept.
   The default is now 200 calls; an existing caller request allowance wins,
   including `exec --max-requests` above 200 (production ACP binds none).
   Money caps remain enforced.
-- A request that declares no tools (the wrap-up, compaction without
-  reused tools, the Git drafts, the reviewer and hook-model calls with no
-  tools) omits both the tools list and the tool choice on every wire
-  format. That omitted shape is the only one every provider accepts:
-  xAI answers 400 to a tool choice with no tools, which broke `/compact`,
-  automatic compaction, the Git drafts and the wrap-up on xAI — a person
-  on xAI can compact again. The instructions stay byte-identical
-  (golden `10-turn-limit-wrap-up`, re-recorded for the omitted shape).
-  The turn's first model call always runs with tools, even when it is also
-  the last one allowed: an answer completes the turn (exec exit 0), while a
-  tool request ends it at the request cap. A wrap-up answer always completes
-  with `max_turn_requests` (exec `request_cap`, exit 5), whatever ended the
-  wrap-up: a plain or truncated answer, a Stop hook blocking or answering
-  `continue: false`, or a hook cancelling the turn. Stop hooks still run on
-  a wrap-up turn; a hook asking for more work is answered with a notice.
-  Steering, scheduled-prompt steers and goal wakes arriving before the
-  wrap-up keep their own turn with tools, and never feed the wrap-up; the
-  wrap-up is never measured as the turn body, and compaction after a limit
-  stop reuses the last ordinary body. A hook-model call that would take the
-  turn's last call fails instead, before any paid popup or tally, so the
-  hook's own on-failure rule decides. Call-limit and
-  output-limit stops carry their own evidence stop reason instead of the
-  money stop, and the reference names the turn behavior on the Conversation
-  entry instead of the paid budget. `setModelCallAllowance` is required on
-  the attempt session surface, so best-of-N attempts reserve the wrap-up
-  through it. (Team-task ceilings return with the teams wiring lane: that
-  lane binds team tasks through the same member.)
+- A request that declares no tools (the wrap-up, tool-less compaction, Git
+  drafts, reviewer and hook-model calls) omits the tools list and tool
+  choice on every wire format — the only shape every provider accepts
+  (xAI answers 400 to a tool choice with no tools, which broke `/compact`,
+  automatic compaction, Git drafts and the wrap-up there). The instructions
+  stay byte-identical (golden `10-turn-limit-wrap-up`, re-recorded). The
+  turn's first model call always runs with tools: an answer completes the
+  turn (exec exit 0), a tool request ends it at the request cap. A wrap-up
+  answer always completes with `max_turn_requests` (exec `request_cap`,
+  exit 5), whatever ended it; Stop hooks still run, and one asking for more
+  work is answered with a notice. Late steering, steers and goal wakes keep
+  their own turn with tools and never feed the wrap-up; compaction after a
+  limit stop reuses the last ordinary body. A hook-model call that would
+  take the last call fails instead, before any paid popup or tally. Limit
+  stops carry their own evidence stop reason, and the reference names the
+  turn behavior on the Conversation entry. `setModelCallAllowance` is
+  required on the attempt session surface, so best-of-N attempts reserve the
+  wrap-up through it. (Team-task ceilings return with the teams wiring
+  lane.)
 - One `usableReply` rule decides whether a turn's reply may answer what was
   asked: only a turn that completed without a limit yields it. The
   same-model judge, the playbook review, both Git drafts, the reviewer, the
@@ -448,28 +440,20 @@ happened, not what was planned; superseded entries are kept.
   License List 3.28.0 templates under the SPDX matching guidelines (M97
   CM971-R3, reviews RVCM971 and RVCM971B). A text is an exact match only
   when every fixed word of a template is present in order and only the
-  template's variable and optional parts vary, each variable holding just
-  what it stands for (a copyright notice, a list marker, a name); a
-  sentence, a condition or prose in any language never vanishes into a
-  match. Anything else is reported as differing from the template at a
-  quoted span, for human review. The 21 templates ship beside the scanner,
-  byte-identical and verified by SHA-256 before use. GPL-family texts match
-  their version stem; `-only`/`-or-later` comes only from the project's own
-  grant (manifest, README, source `SPDX-License-Identifier` headers, GNU
-  "any later version" notices, a trailing `+`). Every licence text a
-  dependency names (Cargo `license-file`, `SEE LICENSE IN`, Python
-  `License-File`) and every vendored licence below the root keeps its
-  human-review limitation unless it matches exactly. Artifact freshness is
-  proven per bundle from SHA-256 hashes the production build captures from
-  the exact bytes it compiles; every listed output must exist and match,
+  template's variable and optional parts vary; anything else is reported
+  as differing at a quoted span, for human review. The 21 templates ship
+  beside the scanner, byte-identical and SHA-256-verified before use.
+  GPL-family texts match their version stem; `-only`/`-or-later` comes
+  only from the project's own grant (manifest, README, source license
+  headers, GNU "any later version" notices, a trailing `+`). Every
+  licence text a dependency names and every vendored licence below the
+  root keeps its human-review limitation unless it matches exactly.
+  Artifact freshness is proven per bundle from SHA-256 hashes the
+  production build captures; every listed output must exist and match,
   conflicting records fail, and inputs outside the workspace are named.
-  Plugin-generated modules, binary inputs and esbuild's disabled stand-ins
-  are hashed where the build hands them over, and `npm run build` now ends
-  by scanning this repository's own build records with the production
-  scanner (`scripts/check-legal-build-records.mjs`), failing on any
-  unverified input. Restriction words (noncommercial, nonprofit,
-  educational, only, personal, no, …) are never read as part of a
-  copyright holder's name, so such a notice keeps human review.
+  `npm run build` now ends by scanning this repository's own build
+  records with the production scanner, failing on any unverified input.
+  Restriction words are never read as part of a copyright holder's name.
 
 - A `/legal` scan now judges what the workspace distributes (M97 scan-scope
   ruling). Distribution is read from the build records first (inputs the
