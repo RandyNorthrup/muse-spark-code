@@ -39613,7 +39613,10 @@ native file, with its CHANGELOG entries under `[0.19.0]`. PR #236
 (`fix/attach-recording-parity`: Attach Latest Screen Recording on Windows
 and macOS) merged fourth; its release entry stays withheld until
 packed-product runs on both target OSs are recorded, per the branch's own
-rule. The `0.19.0 released (…)` line is written by the lead after the tag's
+rule. PR #244 (`fix/macos-parity`: macOS parity — protected names listed
+with contents denied, real GPU/disk/headroom readings, Darwin disk
+counters keyed by registry entry id, walk budget in entries visited)
+merged fifth, with its CHANGELOG entries under `[0.19.0]`. The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
