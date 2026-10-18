@@ -81,6 +81,23 @@ function unavailable(): string {
   return fill(UI_TEXT.media.recordingUnavailable, { reason: 'Windows.Graphics.Capture' })
 }
 
+/**
+ * Whether the removal failure is a lock a scanner may still hold: busy,
+ * denied, or not yet empty. Anything else is not worth the bounded wait.
+ */
+function isRemoveRetriable(error: unknown): boolean {
+  return (
+    isErrno(error, 'EBUSY') ||
+    isErrno(error, 'EPERM') ||
+    isErrno(error, 'EACCES') ||
+    isErrno(error, 'ENOTEMPTY')
+  )
+}
+
+function isErrno(error: unknown, code: string): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === code
+}
+
 export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenRecorder {
   let active: ScreenRecordingRun | undefined
   const remove = async (directory: string) => {
@@ -88,8 +105,11 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
       try {
         await deps.removeDirectory(directory)
         return
-      } catch (error) {
-        if (attempt >= SCREEN_RECORDING_REMOVE_ATTEMPTS) throw error
+      } catch (error: unknown) {
+        // Already removed is done. A scanner's lock retries bounded; any
+        // other failure surfaces at once instead of burning the attempts.
+        if (isErrno(error, 'ENOENT')) return
+        if (!isRemoveRetriable(error) || attempt >= SCREEN_RECORDING_REMOVE_ATTEMPTS) throw error
         await new Promise<void>((resolve) => setTimeout(resolve, SCREEN_RECORDING_REMOVE_RETRY_MS))
       }
     }
@@ -198,6 +218,8 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
         try {
           child.send(shouldCancel ? 'cancel' : 'stop')
         } catch {
+          // A dead helper channel counts as cancelled; the kill deadline
+          // below still ends the helper and settles the run.
           state.isCancelled = true
         }
       }
@@ -205,7 +227,10 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
         let value: unknown
         try {
           value = JSON.parse(line)
-        } catch {
+        } catch (error: unknown) {
+          // JSON.parse throws only SyntaxError for text input: a malformed
+          // helper line cancels the run, and anything else surfaces.
+          if (!(error instanceof SyntaxError)) throw error
           end(true)
           return
         }
@@ -247,6 +272,8 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
         try {
           onCountdown(remaining)
         } catch {
+          // A failing countdown ends the run instead of recording blind:
+          // the host owns the display, and a run without it must stop.
           end(true)
           return
         }
@@ -255,6 +282,7 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
           try {
             onCountdown(remaining)
           } catch {
+            // A failing tick ends the run instead of recording blind.
             end(true)
           }
           if (remaining === 0) end(false)
