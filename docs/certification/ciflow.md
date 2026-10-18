@@ -846,3 +846,30 @@ all of this, recorded on the pull request:
 - Dependabot, fork, merge-group and manual runs are unaffected (part `all`,
   standard labels); the lead's `LARGE_RUNNERS` step stays a variable flip,
   never a workflow edit.
+
+### Review fixes (RVCISHARDS2, 2026-10-17, this rig)
+
+Three defects the lane's matrix-only simulation could not see, each proved
+before its fix by `temp/rv-cishards2-drill.mjs` (parsed-workflow facts plus
+the `required` step executed under `bash -eo pipefail`; 15 failures before,
+all pass after):
+
+- build.yml's `checks` job kept `if: inputs.part != 'org'`, so the capacity
+  run — the only run whose `checks` matrix holds Windows and macOS — skipped
+  the static gates entirely, and a `home` run's `quality (windows-latest)` /
+  `quality (macos-latest)` could go green with those gates run nowhere (the
+  larger-runner `runs-on` branch was dead with it). The job-level condition
+  is gone; the matrix picks each part's operating systems.
+- hosts.yml's, forks.yml's and browser-check.yml's jobs all `needs: route`
+  with no status function in their conditions, so GitHub's implicit
+  `success()` over `needs` skipped every one of them whenever `route` itself
+  is skipped — a push to `main` here would have run the whole Hosts workflow
+  as an empty success. Each job now carries `!cancelled()`, and chained jobs
+  require their predecessor's success explicitly.
+- forks.yml's and browser-check.yml's new `ci/pr-*` push triggers had no
+  `paths`, so every capacity push would have run them in full; they now
+  mirror their `pull_request` paths, as hosts.yml already did.
+
+The hosted proof above must additionally show the Windows and macOS
+`static gates (...)` jobs present and green in the capacity run, and a
+push to `main` here still running the full Hosts workflow.
