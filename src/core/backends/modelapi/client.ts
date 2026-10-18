@@ -147,6 +147,12 @@ export interface ModelApiClientDeps {
   readonly baseUrl: string
   /** Read per request so a key pasted later applies without a restart. */
   readonly apiKey: () => Promise<string | undefined>
+  /**
+   * Lane RETRYLIMITS: the person's `museSpark.modelApiMaxRetries` setting,
+   * read live so a change applies without a restart; undefined (or absent)
+   * leaves Meta's documented 3–5 attempts in force.
+   */
+  readonly personMaxRetries?: () => number | undefined
   readonly sleep: (ms: number) => Promise<void>
   /** Epoch ms, for a `Retry-After` given as a date. */
   readonly now: () => number
@@ -340,6 +346,11 @@ export class ModelApiClient implements TransportProviderClient {
   /** The wait before retry number `attempt` (0-based): the same backoff and jitter as a request's. */
   public retryDelayMs(attempt: number): number {
     return this.transport.backoffMs(attempt, undefined)
+  }
+
+  /** This client's effective retry limit (see `ProviderClient.maxRetries`). */
+  public maxRetries(): number | undefined {
+    return this.transport.maxRetries()
   }
 
   /** Waits `ms`, or rejects as soon as the turn's Stop aborts `signal`. */

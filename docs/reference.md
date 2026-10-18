@@ -316,6 +316,14 @@ Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model us
 
 Commands: —. Settings: `museSpark.modelApiParallelReads`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
+### museSpark.modelApiMaxRetries
+
+Retry limit for failed Model API requests, per try after the first (0 never retries). Unset by default: each provider's documented maximum governs (Anthropic 2, Gemini 4, Azure 10, xAI 4, Meta 4), and a provider that documents none retries until its own wait or stop answer ends it.
+
+Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: `museSpark.modelApiMaxRetries`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
+
 ### Argument Preview
 
 Show validated, scrubbed tool arguments as they arrive, before the tool runs.
@@ -3125,6 +3133,20 @@ Type: `"number"`. Default: `5`. Scope: `machine`.
   "default": 5,
   "minimum": 1,
   "maximum": 20
+}
+```
+
+### museSpark.modelApiMaxRetries
+
+Retry limit for failed Model API requests, per try after the first (0 never retries). Unset by default: each provider's documented maximum governs (Anthropic 2, Gemini 4, Azure 10, xAI 4, Meta 4), and a provider that documents none retries until its own wait or stop answer ends it.
+
+Type: `["integer","null"]`. Default: `null`. Scope: `machine`.
+
+```json
+{
+  "type": ["integer", "null"],
+  "default": null,
+  "minimum": 0
 }
 ```
 

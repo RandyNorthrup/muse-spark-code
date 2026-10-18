@@ -3568,6 +3568,7 @@
   "announceApprovalFor": "{tool}에 대한 승인 필요",
   "turnFailed": "턴이 실패했습니다.",
   "turnRetrying": "시도 {attempt}/{maxAttempts} 실패({reason}). {seconds}초 후에 다시 시도합니다.",
+  "turnRetryingUncapped": "시도 {attempt} 실패({reason}). {seconds}초 후에 다시 시도합니다(재시도 제한 없음).",
   "usageWindowHours": {
     "other": "{count}시간 기간"
   },

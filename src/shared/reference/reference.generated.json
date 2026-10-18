@@ -455,6 +455,21 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "retry-limits",
+      "name": { "setting": "modelApiMaxRetries" },
+      "summary": { "setting": "modelApiMaxRetries" },
+      "description": { "setting": "modelApiMaxRetries" },
+      "commands": [],
+      "settings": ["museSpark.modelApiMaxRetries"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
       "id": "argument-preview",
       "name": { "ui": "toolArgumentPreviewLabel" },
       "summary": { "ui": "toolArgumentPreviewDescription" },
@@ -3871,6 +3886,17 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "number", "default": 5, "minimum": 1, "maximum": 20 }
+    },
+    {
+      "id": "museSpark.modelApiMaxRetries",
+      "name": "museSpark.modelApiMaxRetries",
+      "description": "Retry limit for failed Model API requests, per try after the first (0 never retries). Unset by default: each provider's documented maximum governs (Anthropic 2, Gemini 4, Azure 10, xAI 4, Meta 4), and a provider that documents none retries until its own wait or stop answer ends it.",
+      "descriptionKey": "config.modelApiMaxRetries.description",
+      "type": ["integer", "null"],
+      "default": null,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": ["integer", "null"], "default": null, "minimum": 0 }
     },
     {
       "id": "museSpark.usageHistory",

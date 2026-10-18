@@ -3808,6 +3808,7 @@
   "announceApprovalFor": "Je vyžadováno schválení pro {tool}",
   "turnFailed": "Kolo selhalo.",
   "turnRetrying": "Pokus {attempt}/{maxAttempts} selhal ({reason}); nový pokus za {seconds} s.",
+  "turnRetryingUncapped": "Pokus {attempt} selhal ({reason}); nový pokus za {seconds} s (bez omezení počtu pokusů).",
   "usageWindowHours": {
     "one": "{count}hodinové okno",
     "other": "{count}hodinové okno",

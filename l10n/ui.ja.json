@@ -3568,6 +3568,7 @@
   "announceApprovalFor": "{tool} の承認が必要です",
   "turnFailed": "ターンが失敗しました。",
   "turnRetrying": "試行 {attempt}/{maxAttempts} が失敗しました ({reason})。{seconds} 秒後に再試行します。",
+  "turnRetryingUncapped": "試行 {attempt} が失敗しました ({reason})。{seconds} 秒後に再試行します（再試行の上限なし）。",
   "usageWindowHours": {
     "other": "{count} 時間枠"
   },

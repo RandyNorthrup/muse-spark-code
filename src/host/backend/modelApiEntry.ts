@@ -1,9 +1,4 @@
-import {
-  IS_AUTO_COMPACTION_EVALUATED,
-  MODEL_API_MAX_RETRIES,
-  SETTING_DEFAULTS,
-  UI_TEXT,
-} from '../../shared/constants'
+import { IS_AUTO_COMPACTION_EVALUATED, SETTING_DEFAULTS, UI_TEXT } from '../../shared/constants'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import {
   type ResponseAttemptGuard,
@@ -35,11 +30,18 @@ export {
   parseJsonResponse,
   redactModelApiError,
   ignoreClosingError,
+  // Lane RETRYLIMITS: read by dist/configuredProviders.js
+  // (UNBOUNDED_RETRIES) and dist/reviewer.js and dist/tab.js
+  // (noRetryBudget), so the names exist here or they are `undefined` in the
+  // built product (HOTFIX0181).
+  UNBOUNDED_RETRIES,
+  noRetryBudget,
   redactSecrets,
   assertConfirmedAllowed,
   isStaleConfirmedError,
   noteConfirmedRequestStarted,
 } from '../../core/backends/modelapi/transport'
+import { noRetryBudget } from '../../core/backends/modelapi/transport'
 export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
 export { parseNdjson } from '../../core/backends/modelapi/ndjson'
 // Lane PROVERR: the typed refusal other bundles require from this bundle
@@ -304,12 +306,6 @@ export async function* streamLegalExplanation(
   locale: string,
 ): AsyncGenerator<StreamEvent> {
   setUiText(table, locale)
-  yield* new ModelApiClient(deps).streamResponse(
-    body,
-    signal,
-    undefined,
-    { retriesUsed: MODEL_API_MAX_RETRIES },
-    guard,
-  )
+  yield* new ModelApiClient(deps).streamResponse(body, signal, undefined, noRetryBudget(), guard)
 }
 export { setUiText } from '../../shared/l10n/text'

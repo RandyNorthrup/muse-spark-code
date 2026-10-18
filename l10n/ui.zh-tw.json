@@ -3568,6 +3568,7 @@
   "announceApprovalFor": "{tool} 需要核准",
   "turnFailed": "此回合失敗。",
   "turnRetrying": "第 {attempt}/{maxAttempts} 次嘗試失敗（{reason}）；{seconds} 秒後重試。",
+  "turnRetryingUncapped": "第 {attempt} 次嘗試失敗（{reason}）；{seconds} 秒後重試（未設定重試上限）。",
   "usageWindowHours": {
     "other": "{count} 小時時段"
   },

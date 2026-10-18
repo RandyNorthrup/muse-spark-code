@@ -3648,6 +3648,7 @@
   "announceApprovalFor": "Jóváhagyás szükséges: {tool}",
   "turnFailed": "A kör sikertelen volt.",
   "turnRetrying": "{attempt}/{maxAttempts}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva.",
+  "turnRetryingUncapped": "{attempt}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva (nincs beállítva újrapróbálkozási korlát).",
   "usageWindowHours": {
     "one": "{count} órás időablak",
     "other": "{count} órás időablak"

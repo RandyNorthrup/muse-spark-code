@@ -4445,6 +4445,10 @@ export const EN = {
   // A failed turn's card when the backend gave no reason.
   turnFailed: 'The turn failed.',
   turnRetrying: 'Attempt {attempt}/{maxAttempts} failed ({reason}); retrying in {seconds} s.',
+  // A retry notice with no retry limit (lane RETRYLIMITS): neither the
+  // provider nor the person sets one, so the provider governs.
+  turnRetryingUncapped:
+    'Attempt {attempt} failed ({reason}); retrying in {seconds} s (no retry limit set).',
   // The subscription window's length (English writes the unit singular here).
   usageWindowHours: forms({ one: '{count}-hour window', other: '{count}-hour window' }),
   usageWindowMinutes: forms({ one: '{count}-minute window', other: '{count}-minute window' }),

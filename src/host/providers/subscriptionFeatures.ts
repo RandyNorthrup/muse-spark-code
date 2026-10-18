@@ -31,6 +31,8 @@ export function createSubscriptionFeatures(options: {
   readonly globalStorageUri: vscode.Uri
   readonly catalogFile?: string
   readonly configFile: string
+  /** Lane RETRYLIMITS: the person's retry limit, read live per transport. */
+  readonly personMaxRetries?: () => number | undefined
   readonly l10n: UiTable
   readonly globalState: {
     get(key: string): unknown
@@ -85,6 +87,7 @@ export function createSubscriptionFeatures(options: {
       configFile: options.configFile,
       catalogFile: options.catalogFile ?? path.resolve(__dirname, 'providerCatalog.json'),
       secrets: options.secrets,
+      ...(options.personMaxRetries !== undefined && { personMaxRetries: options.personMaxRetries }),
       hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
       loadUsage: () => tallies.filter((row) => !['chatgpt', 'copilot'].includes(row.providerId)),
       saveUsage: (rows) => {

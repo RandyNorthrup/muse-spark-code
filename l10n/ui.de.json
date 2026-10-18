@@ -3648,6 +3648,7 @@
   "announceApprovalFor": "Genehmigung erforderlich für {tool}",
   "turnFailed": "Der Durchgang ist fehlgeschlagen.",
   "turnRetrying": "Versuch {attempt}/{maxAttempts} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s.",
+  "turnRetryingUncapped": "Versuch {attempt} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s (kein Wiederholungslimit festgelegt).",
   "usageWindowHours": {
     "one": "{count}-Stunden-Zeitfenster",
     "other": "{count}-Stunden-Zeitfenster"
