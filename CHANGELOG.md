@@ -43,10 +43,12 @@ happened, not what was planned; superseded entries are kept.
   pipe. The key comes from the system's secret store into the one
   credential step that each system's own mechanism keeps untrusted runs
   away from, leaves the environment under every name it travels by, and
-  reaches the agent over stdin only. Nothing comments or pushes. Tested
-  with fakes only; no live run and no release carrying `ci/` yet, so not
-  certified (see `docs/ci-other-systems.md`). `yaml` 2.9.1, already in the
-  lock, is now a declared development dependency for the template tests.
+  reaches the agent over stdin only. Nothing comments or pushes. The
+  launcher's pure logic and the shipped bootstrap are tested through the
+  real modules and shells; no vendor run is simulated, no live run and no
+  release carrying `ci/` yet, so not certified (see
+  `docs/ci-other-systems.md`). `yaml` 2.9.1, already in the lock, is now a
+  declared development dependency for the template tests.
 
 ### Changed
 
@@ -104,6 +106,14 @@ happened, not what was planned; superseded entries are kept.
   expression, including malformed syntax, and exercise alias cleanup under sh,
   dash and bash. Other CI systems help retains the launcher's `system` dimension.
   Fake-tested only; hosted/live receipts remain open.
+- **Other-CI fake-agent suites removed** (RVMSM80): the process suites that
+  ran the launcher and templates against the Action's fake agent inside
+  simulated vendor hosts are gone, and the template-text guards with them.
+  What remains tests the launcher's pure logic through its real modules,
+  the templates' defaults through its grammar, and the shipped bootstrap
+  under the real shells. The end-to-end vendor behaviours those suites
+  claimed are withdrawn to `docs/real-life/unproven.md` until a hosted run
+  proves them; no product code changed.
 - **Other-CI credential and publication boundaries** (CM80CI-R4,
   RVCM80CI3): the shell never reads/copies the key. A generated name list
   and declared aliases are unset in the download subshell; Node reads the

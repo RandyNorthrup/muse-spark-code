@@ -256,17 +256,6 @@ interface CiFacts {
 
 type CiInputs = ActionInputs & { trustPullRequests: boolean }
 
-interface CiOwnerOptions {
-  bounds?: ActionBounds
-  onSignal?: (signal: 'SIGINT' | 'SIGTERM', run: () => void) => () => void
-  // The owner calls Node's spawn with these; the test's wrapper returns its child.
-  spawnChild?: (
-    file: string,
-    args: string[],
-    options: { cwd: string; env: Record<string, string> },
-  ) => unknown
-}
-
 declare module '*/action/lib/ci-adapters.mjs' {
   export const CI_SYSTEMS: readonly string[]
   export function azureBoolean(value: string | undefined, name: string): boolean | undefined
@@ -278,17 +267,8 @@ declare module '*/action/lib/ci-adapters.mjs' {
 }
 
 declare module '*/action/lib/ci-run.mjs' {
-  export const CI_TEMPLATES_DIR: string
-  export const LAUNCHER_ROOT: string
-  export const CI_SECRET_VARIABLE: string
-  export const CI_KEY_FILE_VARIABLE: string
-  export const CI_OUT_DIR: string
-  export const CI_PUBLISHED_FILES: readonly string[]
-  export const CI_BOOTSTRAP_START_VARIABLE: string
-  export const CI_JOB_START_VARIABLE: string
   export function takeCiKey(env: Record<string, string | undefined>): string | undefined
   export function parseCiInputs(env: Record<string, string | undefined>, system: string): CiInputs
-  export function ownerTotalMs(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number
   export function requiredJobMinutes(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number
   export function requiredRunMs(inputs: Pick<ActionInputs, 'timeoutMinutes'>): number
   export function jobMinutes(env: Record<string, string | undefined>, system: string): number
@@ -305,41 +285,11 @@ declare module '*/action/lib/ci-run.mjs' {
     nowMs?: number,
   ): void
   export const CI_BOOTSTRAP_UNSET: readonly string[]
-  export const CI_KEY_VARIABLES: readonly string[]
-  export function refuseExistingOutput(
-    target: string,
-    execute?: CiFileOperation,
-    cleanupMs?: number,
-  ): Promise<void>
-  export function publishToWorkspace(
-    target: string,
-    paths: Record<string, string>,
-    outputs: Record<string, string>,
-    execute?: CiFileOperation,
-    publishMs?: number,
-  ): Promise<Record<string, string>>
   export function privateTemp(
     value: string | undefined,
     workspace: string,
     platform: string,
   ): string
-  export function changeResource(
-    facts: CiFacts,
-    shas: { headSha: string; baseSha: string },
-  ): { text: string; truncated: boolean }
-  export function runCi(input: {
-    system: string
-    env: Record<string, string | undefined>
-    held: { key: string | undefined }
-    write: (text: string) => void
-    log: (text: string) => void
-    platform?: NodeJS.Platform
-    execPath?: string
-    launcherRoot?: string
-    ownerOptions?: CiOwnerOptions
-    fileOperation?: CiFileOperation
-    finalBounds?: { publishMs?: number; cleanupMs?: number }
-  }): Promise<number>
 }
 
 declare module '*/action/lib/git.mjs' {
@@ -614,27 +564,4 @@ declare module '*/action/apply/lib/apply.mjs' {
     remote: string
     baseEnv: Record<string, string>
   }): Promise<{ ready: true; commitSha: string | null }>
-}
-
-interface CiFileInput {
-  kind: 'remove' | 'mkdir' | 'publish'
-  target: string
-  files?: string[]
-  outputs?: Record<string, string>
-}
-type CiFileOperation = (operation: CiFileInput, signal: AbortSignal) => Promise<void>
-declare module '*/action/lib/ci-files.mjs' {
-  import type { ChildProcess, SpawnOptions } from 'node:child_process'
-  // The worker calls Node's spawn with these; the test's wrapper returns its child.
-  export function fileOperation(
-    operation: CiFileInput,
-    signal: AbortSignal,
-    spawnChild?: (file: string, args: readonly string[], options: SpawnOptions) => ChildProcess,
-  ): Promise<void>
-  export function boundedFiles(
-    operation: CiFileInput,
-    withinMs: number,
-    what: string,
-    execute?: CiFileOperation,
-  ): Promise<void>
 }
