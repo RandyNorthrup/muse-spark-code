@@ -255,6 +255,8 @@ export interface ModelSummary {
   readonly modelId: string
   readonly displayLabel: string
   readonly contextLimit: number | undefined
+  /** The row's `outputLimit` (M127): `null` on the wire reads as absent. */
+  readonly outputLimit?: number | undefined
   readonly isDefault: boolean
   readonly isActive: boolean
   /**
@@ -277,8 +279,95 @@ export interface ModelSummary {
 export interface SkillSummary {
   readonly selector: string
   readonly displayName: string
+  /** The skill's declared human-readable name (1.4.7 `metadata.display-name`); absent when undeclared. */
+  readonly title?: string | undefined
   readonly description: string
   readonly argumentHint: string | undefined
+}
+
+/**
+ * One background-task row (M127, MSP `task/list`): `kind` is an open
+ * vocabulary, `status` the host's lifecycle word. `tool` names the
+ * running tool on item-visible rows; `backgroundInitiator` who
+ * backgrounded it: both additive-optional on the wire, never inferred.
+ */
+export interface BackgroundTaskSummary {
+  readonly taskId: string
+  readonly kind: string
+  readonly status: string
+  readonly startedAt?: string | undefined
+  readonly tool?: string | undefined
+  readonly backgroundInitiator?: string | undefined
+}
+
+/** One installed hook row (M127, MSP `hook/list`): `event` is open. */
+export interface SessionHookRow {
+  readonly key: string
+  readonly event: string
+  readonly handlerKind: string
+  readonly enabled: boolean
+}
+
+/** One installed plugin record (M127, MSP `plugin/list`); `source` stays opaque. */
+export interface SessionPluginRow {
+  readonly id: string
+  readonly version: string
+  readonly enabled: boolean
+  readonly source: unknown
+}
+
+/** A settled `recap/completed` (M127): outcome is an open vocabulary. */
+export interface SessionRecap {
+  readonly outcome: string
+  readonly title?: string | undefined
+  readonly text?: string | undefined
+  readonly reason?: string | undefined
+}
+
+/** One macOS grant as setup last saw it (open, like the phase). */
+export type ComputerUsePermission = string
+
+/** The host's computer-use setup state (M127, `computerUseSetup/check`). */
+export interface ComputerUseSetup {
+  readonly accessibility: ComputerUsePermission
+  readonly inputMonitoring: ComputerUsePermission
+  readonly screenRecording: ComputerUsePermission
+  readonly setup: string
+  readonly message?: string | undefined
+  readonly refused?: string | undefined
+}
+
+/**
+ * One `skill/import` candidate that could neither install nor quarantine:
+ * `id` is null when the candidate never yielded one (present-but-null,
+ * never omitted).
+ */
+export interface ForeignSkillFailure {
+  readonly id: string | null
+  readonly reason: string
+}
+
+/** One quarantined `skill/import` candidate: kept, not loaded, with reasons. */
+export interface ForeignSkillQuarantine {
+  readonly id: string
+  readonly reasons: readonly string[]
+}
+
+/** A `skill/import` receipt: per-skill ids plus counts (M127). */
+export interface ForeignSkillImport {
+  readonly source: string
+  readonly dryRun: boolean
+  readonly status: string
+  readonly counts: {
+    readonly installed: number
+    readonly quarantined: number
+    readonly skipped: number
+    readonly failed: number
+  }
+  readonly installed: readonly string[]
+  readonly skipped: readonly string[]
+  readonly quarantined: readonly ForeignSkillQuarantine[]
+  readonly failed: readonly ForeignSkillFailure[]
 }
 
 /** A per-session MCP server over streamable HTTP (MSP `SessionMcpServerConfig`). */
@@ -304,6 +393,12 @@ export interface StartSessionOptions {
   readonly mcpServers?: Readonly<Record<string, SessionMcpServer>>
   /** A new conversation kept in a side-chat surface (M53). */
   readonly sideChat?: boolean
+  /**
+   * The launch permission-profile pick (1.4.6): a profile id the host
+   * catalog already admits; select, never create. Omitted keeps the host's
+   * configured default.
+   */
+  readonly permissionProfile?: string | undefined
 }
 
 /**
@@ -589,6 +684,38 @@ export interface AgentSession {
   }
   readOutput(request: OutputPageRequest): Promise<OutputPage>
   listSkills(): Promise<readonly SkillSummary[]>
+  /**
+   * The session's live background-task inventory, oldest first (M127, MSP
+   * `task/list`). Absent where the backend keeps none.
+   */
+  readonly listBackgroundTasks?: () => Promise<readonly BackgroundTaskSummary[]>
+  /**
+   * The session's installed hook rows (M127, MSP `hook/list`). Absent
+   * where the backend keeps none.
+   */
+  readonly listSessionHooks?: () => Promise<readonly SessionHookRow[]>
+  /**
+   * The installed plugin records (M127, MSP `plugin/list`). Absent where
+   * the backend keeps none.
+   */
+  readonly listSessionPlugins?: () => Promise<readonly SessionPluginRow[]>
+  /**
+   * Import foreign skills through the host seam (M127, MSP
+   * `skill/import`): `source` is `claude` or `codex`; `dryRun` previews
+   * without writing. Absent where the backend keeps no skill seam.
+   */
+  readonly importForeignSkills?: (
+    source: string,
+    options?: { readonly dryRun?: boolean; readonly force?: boolean },
+  ) => Promise<ForeignSkillImport>
+  /**
+   * Resume a paused workflow run (M127, MSP `workflow/resume`):
+   * host-driven, the reply names the driven turn. Absent where the
+   * backend runs no workflows.
+   */
+  readonly resumeWorkflowRun?: (
+    workflowRunId: string,
+  ) => Promise<{ readonly status: string; readonly turnId: string }>
   /** Resolves to the canonical name, or undefined when it arrives as an event. */
   rename(name: string): Promise<string | undefined>
   /**
@@ -653,7 +780,7 @@ export interface AgentHost {
     sessionId: string,
     modelId: string,
     mcpServers?: Readonly<Record<string, SessionMcpServer>>,
-    options?: { readonly requireSideChat?: boolean },
+    options?: { readonly requireSideChat?: boolean; readonly permissionProfile?: string },
   ): Promise<LoadedSession>
   forkSession(
     sessionId: string,
@@ -683,6 +810,24 @@ export interface AgentHost {
         options: { readonly approvalMode: ApprovalMode; readonly modelId: string },
       ) => Promise<LoadedSession>)
     | undefined
+  /**
+   * A "while you were away" recap (M127, MSP `recap/request`): the ack
+   * admits, then the request settles on `recap/completed` matched by
+   * commandId. Absent where the backend keeps no recaps.
+   */
+  readonly requestSessionRecap?: (sessionId: string) => Promise<SessionRecap>
+  /**
+   * Cancel the session's in-flight recap (M127, MSP `recap/cancel`): it
+   * settles `cancelled`; idle is an accepted no-op. Absent where the
+   * backend keeps no recaps.
+   */
+  readonly cancelSessionRecap?: (sessionId: string) => Promise<string>
+  /**
+   * The host's computer-use setup state (M127, MSP
+   * `computerUseSetup/check`). Absent where the backend has no such
+   * setup.
+   */
+  readonly checkComputerUseSetup?: () => Promise<ComputerUseSetup>
   readonly sessionCount: number
   close(): Promise<void>
 }

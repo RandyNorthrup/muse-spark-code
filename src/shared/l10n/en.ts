@@ -3104,6 +3104,13 @@ export const EN = {
   turnUnqueued: 'Not sent: the queued message was withdrawn',
   turnRetracted:
     'Another Muse Code client withdrew a message from this conversation; reopen it from History to see it as stored.',
+  turnRetractDeclined:
+    'Withdrawing the message was declined, so the turn continues with it still in place.',
+  approvalReviewing: 'The Safety Check is reviewing this approval.',
+  sessionBranchChanged: "The session's version-control branch changed.",
+  sessionViewHealthChanged: 'The session view health changed.',
+  turnForegroundCompleted:
+    'The turn finished its visible work; background checks are still running.',
   modelRouteUnserved:
     'The signed-in account cannot serve this conversation’s model; choose another model from the model menu.',
   viewGapReloaded: 'Some updates from Muse Code were missed, so the conversation was reloaded.',
@@ -4159,6 +4166,10 @@ export const EN = {
   // The same in the ACP agent (D62), whose package ships the bundle.
   acpModelApiBundleUnavailable:
     'The Model API backend could not be loaded; reinstall muse-spark-code-acp and restart the agent. The agent’s log has the details.',
+  // The Muse Code backend's own bundle (PR206, PLAN.md D6), loaded when that
+  // backend first starts.
+  museCodeBundleUnavailable:
+    'The Muse Code backend could not be loaded; reinstall the extension and reload the window. The log has the details.',
   // Why the Muse Code CLI was not found, on the sign-in page and in warnings.
   cliNotFound: 'Muse Code is not installed in any known location.',
   cliPathNotAbsolute: 'museSpark.museBinaryPath must be an absolute path.',

@@ -15954,6 +15954,28 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### M127 — Muse Code at its latest release (2026-10-17)
+
+**Status 2026-10-17: building.** Lane `feat/muse-code-latest`. The owner's
+standing rule: the product tracks each model, provider and CLI at its latest
+release, every SDK drop, bugfix and feature update incorporated and tested.
+Numbered M126 until 2026-10-17, when that number was found already taken on
+the rig branches by simple settings (D110); M127 was the first number free on
+every branch.
+
+- **Goal.** `@muse-code/sdk` at the latest release; every MSP method,
+  notification, error kind, hook event, setting and behaviour change from
+  1.4.5 to the latest incorporated and proven; fixed numbers that are Muse
+  Code's own settings read from Muse Code instead.
+- **Sources.** The official changelog
+  (`https://dev.meta.ai/docs/muse-code/changelog`, read 2026-10-17), the
+  installed CLI's own schema export (`muse schema generate-json-schema`,
+  stable and experimental, captured 2026-10-17), and the SDK's published
+  types (installed 1.4.4 vs 1.4.10, published 2026-10-16).
+- **Record.** `docs/certification/muse-code-latest.md` names each capture's
+  date and source command.
+- **Depends on.** M106 (wire guarantees), M51 (hook limits).
+
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
@@ -36158,9 +36180,10 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | `src/runtime/main.ts`, `exitHeadless`                        | `eslint-disable-next-line unicorn/no-process-exit`   | A standalone headless command owns its process. It must end within the deadline/grace/force bounds even if a pipe or late backend setup never closes, including usage errors. Writes remain async and bounded before exit.                                                                                                                                                                                                                                                                                                                                             | 2026-10-02 |
 | `src/runtime/exec/execClient.ts`, constructor session router | Reflection of SDK 1.4.0's private `builder.handlers` | The SDK's constructor-installed session router validates a closed union before custom notification parsers, dropping future variants. This headless instance uses `request()` and no active-session helpers; remove only its single constructor handler after validating the exact descriptor `client-session-update-router`. The SDK's original builder and public handler/request/connection APIs remain in use. Structural checking fails closed if this pinned seam changes; real JSON-RPC and real-engine tests cover it. No dependency or SDK source is patched. | 2026-10-02 |
 
-| M108 lane X location                                  | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                    | Date       |
-| ----------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/core/developer/developerOptions.ts`, `serialize` | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the deferred gate uses `new Promise` with a synchronously assigned resolver instead. Every other lane (M62 pattern) does the same. Remove if the minimum host gains `withResolvers`. | 2026-10-06 |
+| M108 lane X location                                                | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                    | Date       |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/core/developer/developerOptions.ts`, `serialize`               | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the deferred gate uses `new Promise` with a synchronously assigned resolver instead. Every other lane (M62 pattern) does the same. Remove if the minimum host gains `withResolvers`. | 2026-10-06 |
+| `src/core/backends/musecode/MuseCodeHost.ts`, `requestSessionRecap` | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the recap waiter uses `new Promise` with a synchronously assigned resolver instead (M62 pattern). Remove if the minimum host gains `withResolvers`.                                  | 2026-10-17 |
 
 **INT0170 chat startup ratchet (lead decision, 2026-10-08).** The FIXDIET1
 review ratchet in `test/unit/webviewBundle.test.mjs` moves from 733.8 KiB
@@ -39856,6 +39879,11 @@ PR #226 (`ms/msm105`) merged onto the release as `Merge PR #226
 `referenceCliOptions['muse-voice']` resolved for PR #226's CLI-flag text
 (PR #224's companion-draft text shadowed and removed, same in all 14 packs);
 generated files regenerated.
+PR #206 (`feat/muse-code-latest`) merged onto the release as `Merge PR #206
+(feat/muse-code-latest) into release/0.19.0`, its CHANGELOG entries under
+`[0.19.0]`; `scripts/build.mjs` keeps the bounded pool with PR #206's
+`museCode` bundle as a thunk; the README settings table keeps the release
+wording with PR #206's three new rows; generated files regenerated.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
 Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from

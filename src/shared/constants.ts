@@ -643,6 +643,13 @@ export const SETTING_DEFAULTS = {
   // D78: inert without a hooks file; Restricted Mode loads and runs none.
   modelApiTeamWorkers: true,
   modelApiHooks: true,
+  // M127: Muse Code's own hook and subagent defaults as settings. Stop
+  // continuations 8 (min 1, no max); running hook commands 0 (unlimited,
+  // as Muse Code starts all matching handlers at once; min 0);
+  // concurrent subagents 8 (Muse Code's execution-capacity range 1–64).
+  hooksMaxStopContinuations: 8,
+  hooksMaxRunningCommands: 0,
+  subagentMaxConcurrent: 8,
   // The Model API shell keeps its directory between calls (M91 lane S, PLAN.md
   // D70). On by default, the owner's ruling of 2026-10-04 that enhancements
   // ship on; a machine setting turns it off.
@@ -819,6 +826,11 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiShellKeepsDirectory',
   'modelApiHookModels',
   'hookHttpAllowedHosts',
+  // M127: what runs hooks and subagents, and how much of each at once, is
+  // the user's choice, never a repository's.
+  'hooksMaxStopContinuations',
+  'hooksMaxRunningCommands',
+  'subagentMaxConcurrent',
   'modelApiCommandRules',
   'modelApiPermissionProfiles',
   'modelApiPermissionProfile',
@@ -912,7 +924,16 @@ export const HOOK_TOOL_OUTPUT_PREVIEW_CHARS = 1024
 export const HOOK_TOOL_NESTING_MAX = 4
 export const HOOK_TOOL_ENTRIES_MAX = 16
 export const MODEL_API_HOOK_PROVIDER = 'meta'
+// The default stop-hook continuation depth (Muse Code's own default 8,
+// M127): `museSpark.hooksMaxStopContinuations` overrides this.
 export const HOOK_MAX_STOP_CONTINUATIONS = 8
+// Independent safety pauses that never follow that setting (PR206FIX T5):
+// refused task writes pause the turn, and an idle teammate stops being
+// kept working, each after this many in a row. Both shared the bound
+// above before the M127 setting; the setting governs only Stop-hook
+// continuations, as its description says.
+export const HOOK_MAX_TASK_REFUSALS = 8
+export const TEAMMATE_MAX_IDLE_KEEPS = 8
 export const HOOK_CONTROL_CODE_LIMIT = 32
 export const HOOK_NEWLINE_CODE = 10
 export const HOOK_DELETE_CODE = 127
@@ -922,7 +943,18 @@ export const HOOK_MATCHER_TIMEOUT_MS = 25
 export const HOOK_MATCHER_COMPILE_TIMEOUT_MS = 250
 export const HOOK_SOURCE_MAX_HANDLERS = 64
 export const HOOK_TOTAL_MAX_HANDLERS = 64
+// The fallback cap when a dispatch passes no limit (M127): the setting
+// `museSpark.hooksMaxRunningCommands` defaults to 0 (unlimited, as Muse
+// Code starts all matching handlers at once).
 export const HOOK_MAX_RUNNING_COMMANDS = 4
+// The settings that replace the fixed numbers above with Muse Code's own
+// defaults (M127): stop continuations default 8, running commands default
+// 0 (unlimited: Muse Code starts all matching handlers at once),
+// subagents default 8 within Muse Code's 1–64 execution-capacity range.
+export const HOOK_STOP_CONTINUATIONS_MIN = 1
+export const HOOK_RUNNING_COMMANDS_MIN = 0
+export const SUBAGENT_CONCURRENT_MIN = 1
+export const SUBAGENT_CONCURRENT_MAX = 64
 export const HOOK_ON_FAILURE_MAX_DEPTH = 3
 export const HOOK_MANAGED_ENV_MAX_NAMES = 64
 export const HOOK_MANAGED_ENV_NAME_MAX_CHARS = 128
@@ -2633,7 +2665,7 @@ export const TAB_CACHE_ENTRIES = 64
 export const TAB_AUTOMATIC_LATENCY_CEILING_MS = 1500
 // Open requests at once (Zed's cap, L22).
 export const TAB_MAX_IN_FLIGHT = 2
-// Starts per window, under the contributor tier's 100 RPM team limit (A8).
+// Starts per window, under the contributor tier's 150 RPM team limit (A8).
 export const TAB_MAX_REQUESTS_PER_MINUTE = 20
 // Tab's own cache-key prefix, never a conversation's (SoL-Pi, A7).
 export const TAB_PROMPT_CACHE_KEY_PREFIX = 'muse-spark-tab-'
@@ -4055,6 +4087,10 @@ export const SEARCH_WORKER_FILE = 'searchWorker.js'
 // loaded when that backend first starts, not at activation.
 export const CONVERSATION_BUNDLE_FILE = 'conversation.js'
 export const MODEL_API_BUNDLE_FILE = 'modelApi.js'
+// The Muse Code backend's bundle (PR206, PLAN.md D6), beside dist/extension.js:
+// the host, its notification mapping and the SDK, loaded when that backend
+// first starts, not at activation.
+export const MUSE_CODE_BUNDLE_FILE = 'museCode.js'
 // Its session store (D14), required when that backend's host is first built.
 export const MODEL_API_SESSIONS_BUNDLE_FILE = 'modelApiSessions.js'
 // The Create AGENTS.md command (D15), required when that command runs, not at
@@ -4638,7 +4674,13 @@ export const MODEL_API_SUBAGENT_TOOLS = {
   readResult: 'subagent_read_result',
   cancel: 'subagent_cancel',
 } as const
+// The default concurrent subagents (Muse Code's own default 8, M127):
+// `museSpark.subagentMaxConcurrent` overrides this within 1–64.
 export const SUBAGENT_CAPACITY = 8
+// A `recap/request` settles exactly once on `recap/completed` with a
+// host-enforced 45 s timeout (ADR 45447): waiting past it keeps the late
+// settlement a notice instead of a hang.
+export const RECAP_SETTLE_TIMEOUT_MS = 60_000
 export const SUBAGENT_MAX_PER_CONVERSATION = 64
 export const SUBAGENT_DEPTH = 1
 export const SUBAGENT_ID_PREFIX = 'subagent-'
@@ -4876,7 +4918,14 @@ export const OUTPUT_DOCUMENTS_KEPT = 20
 // `session/listChanged` stream behind the History dialog (M6), and the
 // TUI's `!` escape, `session/userShell` (M46, PLAN.md D39). The first stays
 // first: the IDE server's warning names it.
-export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp', 'sessionListStream', 'userShell'] as const
+// `sessionRename` (1.4.8) lets the host say rename is unavailable (Windows)
+// up front; older hosts ignore unknown entries, so this stays safe there.
+export const MSP_REQUESTED_CAPABILITIES = [
+  'sessionMcp',
+  'sessionListStream',
+  'userShell',
+  'sessionRename',
+] as const
 export const MSP_USER_SHELL_CAPABILITY = 'userShell'
 // How long the extension waits on `muse serve` (PLAN.md D25; the SDK has no
 // timeouts of its own, INV-006): the handshake, an ordinary command, and the
@@ -4962,7 +5011,8 @@ export const MUSE_EVENT_LOG_FAULT = 'event log failed'
 export const MSP_READ_OUTPUT_CONCURRENCY = 4
 // The frame cap `muse serve` holds in both directions (the SDK's
 // DEFAULT_FRAME_LIMIT_BYTES): a command larger than this is refused here with
-// a message, where the host would drop the frame and never answer (D26).
+// a message, before the host answers `-32002 inputTooLarge` (or `-32700` with
+// a null id) and keeps the connection open (D26).
 export const MSP_FRAME_LIMIT_BYTES = 10 * 1024 * 1024
 // Leave room for the user's prompt, selected context, and command envelope.
 export const MSP_ATTACHMENT_FRAME_HEADROOM_BYTES = 2 * 1024 * 1024
@@ -4971,12 +5021,15 @@ export const MSP_ATTACHMENT_FRAME_BUDGET_BYTES =
 // `session/list` refuses a larger page (msp.d.ts SessionListParams.limit).
 export const MSP_SESSION_LIST_MAX_LIMIT = 200
 // The captured 1.4.4 build matches the SDK's own pin (SDK144, served
-// 2026-10-09 by 1.4.4-R5419.1). Keep its identity here; older fingerprints
-// (1.4.2-R4684.1 included) are no longer additive successors of this SDK
-// and must retain the mismatch warning. Future successors need a served
-// capture before they enter this map.
+// 2026-10-09 by 1.4.4-R5419.1). The 1.4.9 capture below (served 2026-10-17
+// by 1.4.9-R6297.1, `muse schema generate-json-schema`) equals the SDK
+// 1.4.10 pin (`EXPECTED_SCHEMA_FINGERPRINT`), so 1.4.10 serves it too.
+// Older fingerprints (1.4.2-R4684.1 included) are no longer additive
+// successors of this SDK and must retain the mismatch warning. Future
+// successors need a served capture before they enter this map.
 export const MSP_KNOWN_SCHEMA_FINGERPRINTS: Readonly<Record<string, string>> = {
   'sha256:7c94f153c41659cb3f1bd3c3e04438be254644cb2a97d65d48edc7449b74858a': '1.4.4-R5419.1',
+  'sha256:5d3b43e5ccdb7dc4f5a32c380f5f2cde0f10e3059b93610afb2e73f73b1d914c': '1.4.9-R6297.1',
 }
 // Muse Code's documented exit codes (SDK `classifyExit`) after which a
 // restart cannot help; what each code means is `UI_TEXT.museExitMeanings`.
@@ -6352,7 +6405,8 @@ export const MODEL_TEXT = {
     'A high-effort consult on a hard question: gives its judgement as advice, not action.',
   secondOpinionAgentPrompt:
     'You are a second opinion on a hard question: think carefully, check the relevant code with your tools, then give your judgement plainly: what you would do, why, and what you are unsure of. The parent agent decides; your reply is advice, not action.',
-  attachedTextFile: 'Attached text file {name}:\n\n{text}',
+  // A picked UTF-8 file's template moved to TEXT_ATTACHMENT_MODEL_TEXT (PR206):
+  // no source file of the activation bundle reads it anymore.
   // M49 (PLAN.md D41): the memory tools' results and refusals in Muse Code's
   // own words (its 1.3.0 binary's strings, and the live capture of 2026-09-25).
   memoryNoteWritten: 'memory note written',
@@ -6693,6 +6747,13 @@ export const JUDGE_MODEL_TEXT = {
 // server's answers for Muse Code (dist/codeIntel.js) and the Model API's
 // native tools (dist/modelApi.js); the bundle-split gate fails when
 // dist/extension.js or dist/acp.js carries them (PLAN.md D6).
+// A picked UTF-8 file carried as named text on both backends (M54, PLAN.md
+// D47): read by the backends' bundles and the conversation, never at
+// activation (PR206).
+export const TEXT_ATTACHMENT_MODEL_TEXT = {
+  attachedTextFile: 'Attached text file {name}:\n\n{text}',
+} as const
+
 export const CODE_INTEL_MODEL_TEXT = {
   renameChanged:
     '{path} changed after the rename was planned; nothing was changed, so call rename_symbol again',
@@ -7759,17 +7820,38 @@ export const TEAM_ROLE_TYPICAL_TASK_TOKENS = {
 export const TEAM_WORKER_RPM_ESTIMATE = 6
 export const TEAM_WORKER_TPM_ESTIMATE = 250_000
 export const TEAM_ORCHESTRATOR_HEADROOM = 0.8
-// The Model API's per-team limits (research 2026-10-04, D75).
+// The Model API's per-team limits (research 2026-10-04, D75; contributor
+// RPM corrected 2026-10-17 from Meta's pricing page: 150, not 100).
 export const TEAM_META_STANDARD_RPM = 3000
 export const TEAM_META_STANDARD_TPM = 4_000_000
-export const TEAM_META_CONTRIBUTOR_RPM = 100
+export const TEAM_META_CONTRIBUTOR_RPM = 150
 export const TEAM_META_CONTRIBUTOR_TPM = 3_000_000
+// Loaded sessions per `muse serve`, as Muse Code documents (M-CL 1.4.5, read
+// 2026-10-17): 32 through 1.4.4, 256 from 1.4.5. Past the limit the load is
+// refused naming the limit; the ceiling below reads it from the served
+// version instead of fixing one number.
+export const MUSE_CODE_LOADED_SESSIONS_THROUGH_1_4_4 = 32
+export const MUSE_CODE_LOADED_SESSIONS_FROM_1_4_5 = 256
+/** The loaded-session ceiling for a `muse serve` at this version; an unreadable version reads as the older documented bound. */
+export function museCodeLoadedSessionCeiling(serverVersion: string | undefined): number {
+  const match = /^(\d{1,9})\.(\d{1,9})\.(\d{1,9})/u.exec(serverVersion ?? '')
+  if (match === null) {
+    return MUSE_CODE_LOADED_SESSIONS_THROUGH_1_4_4
+  }
+  const [, major = '0', minor = '0', patch = '0'] = match
+  const isAtLeast145 =
+    Number(major) > 1 ||
+    (Number(major) === 1 && (Number(minor) > 4 || (Number(minor) === 4 && Number(patch) >= 5)))
+  return isAtLeast145
+    ? MUSE_CODE_LOADED_SESSIONS_FROM_1_4_5
+    : MUSE_CODE_LOADED_SESSIONS_THROUGH_1_4_4
+}
 // Our hard ceilings (D75): 20 on the Model API and M95's engines (the
-// owner's figure), 4 sessions per `muse serve`, 4 per external agent.
-// Unknown external agents start at 2, until refusals show their limits.
-// The engine ceiling is also the top of `museSpark.teamMaxWorkers`' default.
+// owner's figure), 4 per external agent. Unknown external agents start at
+// 2, until refusals show their limits. The engine ceiling is also the top
+// of `museSpark.teamMaxWorkers`' default. Muse Code's own ceiling is the
+// function above, read from the served version.
 export const TEAM_ENGINE_HARD_CEILING = 20
-export const TEAM_MUSE_CODE_HOST_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_DEFAULT = 2
 // A 429, or a remaining-requests or remaining-tokens header under this

@@ -69,6 +69,26 @@ happened, not what was planned; superseded entries are kept.
 - PORTM105 round 2: remove all 29 inherited duplication clones through shared
   media fixtures, receipt builders and RIFF chunk parsing, preserving existing
   behavior and the unchanged zero-clone gate.
+### Added
+
+- The Muse Code backend tracks the latest CLI and SDK (1.4.10): new
+  session-protocol notifications (model retries, Auto-review holds, plugin
+  changes, declined retracts, branch and view-health moves, foreground
+  completions) now reach the conversation. Per-model output limits, skill
+  titles and each host's sandbox posture are read from Muse Code onto the
+  backend's summaries (no surface displays them yet), a launch
+  permission-profile pick is forwarded when one is supplied, and
+  background-task, hook and plugin inventories, foreign skill import,
+  workflow resume, session recaps and the computer-use setup check are
+  wrapped on the Muse Code backend (their panels are owner design work,
+  still to come). Three machine settings replace fixed numbers with Muse
+  Code's own defaults: `museSpark.hooksMaxStopContinuations` (8),
+  `museSpark.hooksMaxRunningCommands` (0, starts them all at once, as Muse
+  Code does), and `museSpark.subagentMaxConcurrent` (8, within 1–64).
+- The Muse Code backend now loads on its first start instead of at
+  activation (its own `dist/museCode.js`), so opening a window no longer
+  carries the backend, its notification mapping or the Muse Code SDK;
+  the backend behaves as before once started.
 
 ### Fixed
 
@@ -391,6 +411,34 @@ happened, not what was planned; superseded entries are kept.
   saved", although nothing was wrong with the ledger. Windows answers a lock
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
+- Hook processes and plugin hooks now honor `museSpark.hooksMaxRunningCommands`:
+  the production process gate and the plugin path used the fixed fallback of
+  4 no matter what the setting said, so 0 still queued the fifth hook
+  process. An aborted capped waiter now wakes the waiters queued behind it
+  instead of stalling them for a full hook timeout.
+- `museSpark.hooksMaxStopContinuations` governs only Stop-hook continuations,
+  as documented: refused task writes pause the turn after 8 in a row and an
+  idle teammate stops being kept working after 8 keeps, each on its own
+  bound, so lowering the setting no longer ends turns after the first
+  rejected todo update.
+- `skill/import` quarantine entries keep their `reasons` and failure entries
+  their required `reason`: the receipt parser read both through one shape
+  with an optional singular reason, so a real quarantine's reasons were
+  silently dropped.
+- `museSpark.hooksMaxStopContinuations` never passes Muse Code's own bound
+  of 8: higher values are refused at the settings boundary and clamped at
+  the use site, so no workspace (a dev-container definition can write
+  machine settings) raises billed Stop-hook spending past what Muse Code
+  itself spends.
+- A configured `ToolUseStart` hook warns that it is not wired on the Model
+  API backend instead of being silently ignored: no tool-start firing
+  point exists yet.
+- A session view that reports `unavailable` keeps the host's `noneReason`
+  in its notice, and a host that reports its sandbox `unavailable` while
+  the shell sandbox is on now warns with the host's reason instead of
+  leaving the configured "sandbox on" standing.
+- Turn-level `turn/retryScheduled` frames keep their scheduled attempt:
+  the parser dropped the `nextAttempt` the CLI's schema requires.
 
 ### Packaging
 

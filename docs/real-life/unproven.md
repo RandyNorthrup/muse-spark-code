@@ -2675,6 +2675,7 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `team caps, intensity and machine values > sets each role base effort from D75`
 - `team caps, intensity and machine values > maps every intensity level to D75 counts, shifts and budgets`
 - `team caps, intensity and machine values > estimates a worker at 6 RPM and 250K TPM inside the researched limits`
+  - Pull request 206 (Muse Code SDK and CLI 1.4.10, M127) moved this claim before the deletion: the contributor tier's documented 150 requests a minute (was 100), and the fixed Muse Code host ceiling of 4 (`TEAM_MUSE_CODE_HOST_CEILING`) replaced by Muse Code's own loaded-session ceiling for the CLI's version (32 through 1.4.4, 256 from 1.4.5). `test/unit/museCodeLatest.test.ts` tests the ceiling function on those versions.
 - `team caps, intensity and machine values > recovers throttled entries one step a minute after a 30-minute usage mark`
 - `team caps, intensity and machine values > bounds delegation depth, call size and per-role defaults`
 - `team caps, intensity and machine values > bounds queues, requests, briefs, pages and leases from D75`
