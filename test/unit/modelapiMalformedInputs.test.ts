@@ -7,6 +7,7 @@
 import { realpathSync } from 'node:fs'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { Readable } from 'node:stream'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { parseNdjson } from '../../src/core/backends/modelapi/ndjson'
@@ -53,8 +54,13 @@ import { removeFolder } from './helpers/temporaryFolders'
 
 const encoder = new TextEncoder()
 
+/** The chunks as a real byte stream, the shape the decoders read. */
+function streamOf(chunks: readonly Uint8Array[]): AsyncIterable<Uint8Array> {
+  return Readable.from(chunks)
+}
+
 function collected(chunks: readonly Uint8Array[]): Promise<unknown[]> {
-  return Array.fromAsync(parseNdjson(chunks))
+  return Array.fromAsync(parseNdjson(streamOf(chunks)))
 }
 
 describe('a broken NDJSON stream line', () => {
@@ -115,7 +121,7 @@ describe('a broken SSE data line on the responses codec', () => {
 
   it('ends the turn with a decode error that names only the line length', async () => {
     await expect(
-      Array.fromAsync(codec.decodeStream([encoder.encode('data: {oops}\n\n')])),
+      Array.fromAsync(codec.decodeStream(streamOf([encoder.encode('data: {oops}\n\n')]))),
     ).rejects.toThrow(ResponsesDecodeError)
   })
 })
@@ -147,10 +153,14 @@ describe('verify tool arguments that are not JSON', () => {
 describe('a broken SSE data line on the Gemini codec', () => {
   it('ends the turn naming only the frame length', async () => {
     await expect(
-      Array.fromAsync(decodeGeminiStream([encoder.encode('data: {oops}\n\n')], 'gemini-2.5-flash')),
+      Array.fromAsync(
+        decodeGeminiStream(streamOf([encoder.encode('data: {oops}\n\n')]), 'gemini-2.5-flash'),
+      ),
     ).rejects.toThrow(/Malformed stream frame \(6 characters\)/)
     await expect(
-      Array.fromAsync(decodeGeminiStream([encoder.encode('data: {oops}\n\n')], 'gemini-2.5-flash')),
+      Array.fromAsync(
+        decodeGeminiStream(streamOf([encoder.encode('data: {oops}\n\n')]), 'gemini-2.5-flash'),
+      ),
     ).rejects.toThrow(ModelApiError)
   })
 
