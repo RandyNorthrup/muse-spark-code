@@ -81,7 +81,6 @@ describe('M80 args (A1–A10, F1)', () => {
     '0',
     '-1',
     'abc',
-    '20.01',
     'Infinity',
     '+1',
     '1e0',
@@ -110,6 +109,8 @@ describe('M80 args (A1–A10, F1)', () => {
     ['0.108135', 108_135],
     ['1.409024', 1_409_024],
     ['20.000000', 20_000_000],
+    ['20.01', 20_010_000],
+    ['250.5', 250_500_000],
     ['0001.000001', 1_000_001],
   ])('F1 parses %s directly into exact micro-USD', (value, units) => {
     const parsed = parseExec({ backend: 'modelApi', 'max-budget-usd': value }, ['hi'])
@@ -135,14 +136,43 @@ describe('M80 args (A1–A10, F1)', () => {
     { output: 'xml' },
     { effort: 'unknown' },
     { timeout: '9' },
-    { timeout: '21601' },
-    { backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': '501' },
     { timeout: '10.1' },
     { backend: ['modelApi'] },
     { unknown: true },
     { 'untrusted-file': ['x', 1] },
   ])('A4–A7 refuse unsafe/conflicting/unknown options %j', (values) => {
     expect(parseExec(values, ['hi']).ok).toBe(false)
+  })
+  it('leaves no request limit without --max-requests and accepts any positive count', () => {
+    // No provider publishes a request-count maximum, so a set value has none.
+    const parsed = parseExec({ backend: 'modelApi', 'max-budget-usd': '1' }, ['hi'])
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(parsed.reason)
+    expect(parsed.options.maxRequests).toBeUndefined()
+    for (const value of ['0', '-1', 'abc', '10x']) {
+      expect(
+        parseExec({ backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': value }, ['hi']).ok,
+      ).toBe(false)
+    }
+    for (const value of ['1', '500', '501', '1000000']) {
+      const accepted = parseExec(
+        { backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': value },
+        ['hi'],
+      )
+      expect(accepted.ok).toBe(true)
+      if (!accepted.ok) throw new Error(accepted.reason)
+      expect(accepted.options.maxRequests).toBe(Number(value))
+    }
+  })
+  it('accepts a set deadline past 21600 seconds with no maximum', () => {
+    // No provider publishes a run deadline, so the product sets none; the
+    // 10-second floor stays.
+    for (const value of ['21601', '1000000']) {
+      const accepted = parseExec({ timeout: value }, ['hi'])
+      expect(accepted.ok).toBe(true)
+      if (!accepted.ok) throw new Error(accepted.reason)
+      expect(accepted.options.timeoutMs).toBe(Number(value) * 1000)
+    }
   })
   it('accepts full bounded Model API options and the two alternate prompt sources', () => {
     const values = {

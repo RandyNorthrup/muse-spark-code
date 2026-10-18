@@ -65,8 +65,17 @@ describe('M80 ledger integer admission and retained liability', () => {
       settlement: 'full-reservation',
     })
   })
-  it.each([0, 501, 0.5, NaN, Infinity])('rejects invalid request cap %s', (maxRequests) => {
+  it.each([0, 0.5, NaN, Infinity])('rejects invalid request cap %s', (maxRequests) => {
     expect(() => createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests })).toThrow()
+  })
+  it('accepts a set request cap past 500 with no maximum', () => {
+    // No provider publishes a request-count maximum, so the product sets none.
+    for (const maxRequests of [501, 1_000_000]) {
+      const l = createRunLedger({ capUsd: Usd.from(20).toAmount(), maxRequests })
+      const ticket = response(l)
+      l.settleResponse(ticket, eof())
+      expect(l.totals().requests).toBe(1)
+    }
   })
   it('F1/L9 rounds contributor reservation upward and preserves isStandard minimum', () => {
     expect(
@@ -266,7 +275,16 @@ describe('M80 ledger integer admission and retained liability', () => {
         price: { ...price, cachedInput: Usd.from(1).toAmount() },
       }),
     ).toEqual({ refused: 'unpriced' })
-    for (const cap of [0, -1, 20.000001, 0.0000001, 0.1081351, Infinity])
+    for (const cap of [0, -1, 0.0000001, 0.1081351, Infinity])
       expect(() => createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 })).toThrow()
+  })
+  it('accepts a set budget past 20 USD with no maximum', () => {
+    // No provider publishes a run budget, so the product sets none.
+    for (const cap of [20.000001, 1000]) {
+      const l = createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 })
+      const ticket = response(l)
+      l.settleResponse(ticket, eof())
+      expect(l.totals().requests).toBe(1)
+    }
   })
 })
