@@ -1,0 +1,31 @@
+{
+  "id": "unknown-model",
+  "provider": "huggingface",
+  "sentAt": "2026-10-13T01:28:27.900Z",
+  "method": "POST",
+  "url": "https://router.huggingface.co/v1/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "model": "no-such-model-real-life",
+    "max_tokens": 16,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with the one word OK."
+      }
+    ]
+  },
+  "status": 400,
+  "responseHeaders": {
+    "x-cache": "Error from cloudfront",
+    "x-request-id": "Root=1-6acd893c-4c319b784310ed476aba66a3"
+  },
+  "response": {
+    "error": {
+      "message": "The requested model 'no-such-model-real-life' does not exist.",
+      "type": "invalid_request_error",
+      "param": "model",
+      "code": "model_not_found"
+    }
+  }
+}
