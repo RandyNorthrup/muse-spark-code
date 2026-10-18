@@ -126,7 +126,14 @@ export function createRuntimeDailyBudget(deps: {
           SETTING_DEFAULTS.paidDailyBudgetUsd,
       )
     } catch (error: unknown) {
-      throw new SpendLedgerError('damaged', { scope: 'daily', file: 'settings' }, error)
+      // Only malformed text or a misshapen record damages the file (the
+      // schema parser fails as $ZodError); anything else is not this
+      // file's answer to give.
+      if (error instanceof SyntaxError)
+        throw new SpendLedgerError('damaged', { scope: 'daily', file: 'settings' }, error)
+      if (error instanceof Error && error.name === '$ZodError')
+        throw new SpendLedgerError('damaged', { scope: 'daily', file: 'settings' }, error)
+      throw error
     }
   }
   const nextMidnight = (): number => {
