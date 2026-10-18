@@ -26,6 +26,7 @@ import * as z from 'zod/mini'
 import {
   CODEC_EMPTY_TOOL_OUTPUT,
   CODEC_IMAGE_WITHOUT_VISION,
+  EFFORT_PROVIDER_DEFAULT,
   THINKING_OFF_EFFORT,
   UI_TEXT,
 } from '../../../../shared/constants'
@@ -49,7 +50,7 @@ export const CHAT_CODEC_FORMAT = 'chat' as const
 // --- preset quirks (lane P's data) ---
 
 /** Which reasoning field a preset replays on its assistant messages. */
-export type ChatReplayField = 'details' | 'content' | 'text' | 'none'
+export type ChatReplayField = 'details' | 'content' | 'chunks' | 'text' | 'none'
 
 /**
  * The family's quirks as data, one value per preset from `presets.ts`:
@@ -80,11 +81,42 @@ export interface ChatPresetQuirks {
   readonly effortMap?: Readonly<Record<string, string>> | undefined
   /**
    * The preset's documented Thinking-off switch: `thinking: {type:
-   * "disabled"}` with no effort parameter. When set, the shared resolver
-   * (`resolveReasoning`) maps every effort with the two record facts below.
-   * Absent keeps the preset's existing bytes.
+   * "disabled"}` (DeepSeek, Z.ai) with no effort parameter, or
+   * `reasoning: {enabled: false}` (Together's hybrid toggle) with no
+   * effort parameter. When set, the shared resolver (`resolveReasoning`)
+   * maps every effort with the record facts below. Absent keeps the
+   * preset's existing bytes.
    */
-  readonly thinkingOff?: 'thinking-switch' | undefined
+  readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
+  /**
+   * The preset's documented reasoning presentation (`reasoning_format`),
+   * sent where the record affirms reasoning. Never beside
+   * `include_reasoning`, which keeps its default.
+   */
+  readonly reasoningFormat?: 'parsed' | 'raw' | 'hidden' | undefined
+  /**
+   * The preset documents its effort vocabulary for every model
+   * (llama.cpp): send the body's effort as named even when the record
+   * declares no levels. Absent keeps unknown models silent.
+   */
+  readonly sendUndeclaredEffort?: boolean | undefined
+  /**
+   * Whether the record lets this model call tools. False drops the tools,
+   * the tool choice and the parallelism flag (OpenRouter's
+   * `supported_parameters` enforcement); absent or true keeps them.
+   */
+  readonly sendTools?: boolean | undefined
+  /**
+   * The record's affirmed output formats. `json_object` sends the
+   * main-turn `response_format` where the body asks for a JSON schema.
+   */
+  readonly outputFormats?: readonly string[] | undefined
+  /**
+   * The preset opts into preserved thinking (Z.ai's `clear_thinking:
+   * false`): sent as `thinking: {type: "enabled", clear_thinking:
+   * false}` where the turn replays reasoning and thinking is not off.
+   */
+  readonly thinkingPreserved?: boolean | undefined
   /** The selected model's declared effort levels (capability record). */
   readonly effortLevels?: readonly string[] | undefined
   /** The selected model's record affirms Thinking can be disabled. */
@@ -166,9 +198,22 @@ export interface ChatToolCall {
   readonly function: { readonly name: string; readonly arguments: string }
 }
 
+/** Mistral's thinking chunk: the trace as a list of text chunks. */
+export interface ChatThinkingChunk {
+  readonly type: 'thinking'
+  readonly thinking: readonly { readonly type: 'text'; readonly text: string }[]
+}
+
+/** Mistral's answer chunk inside a chunk list. */
+export interface ChatContentTextChunk {
+  readonly type: 'text'
+  readonly text: string
+}
+
 export interface ChatAssistantMessage {
   readonly role: 'assistant'
-  readonly content: string | readonly ChatTextPart[] | null
+  readonly content:
+    string | readonly (ChatTextPart | ChatThinkingChunk | ChatContentTextChunk)[] | null
   readonly tool_calls?: readonly ChatToolCall[] | undefined
   /** OpenRouter: the streamed `reasoning_details`, unmodified, in order. */
   readonly reasoning_details?: readonly unknown[] | undefined
@@ -202,7 +247,8 @@ export interface ChatFunctionTool {
 /**
  * The native request body, built in this fixed key order: model, messages,
  * tools, tool_choice, parallel_tool_calls, stream, stream_options, the
- * output cap, provider, reasoning, thinking, prompt_cache_key, tool_stream.
+ * output cap, provider, reasoning, reasoning_effort, thinking,
+ * reasoning_format, response_format, prompt_cache_key, tool_stream.
  */
 export interface ChatCompletionRequest {
   readonly model: string
@@ -224,13 +270,23 @@ export interface ChatCompletionRequest {
         readonly allow_fallbacks?: boolean | undefined
       }
     | undefined
-  readonly reasoning?: { readonly effort: string } | undefined
+  /** OpenRouter's effort object, or Together's hybrid toggle (off only). */
+  readonly reasoning?: { readonly effort: string } | { readonly enabled: false } | undefined
   readonly reasoning_effort?: string | undefined
   /**
-   * The thinking-mode switch; only `disabled` is ever sent, for effort
-   * `none` on a preset that declares it. Never beside an effort value.
+   * The thinking-mode switch. `disabled` for effort `none` on a preset
+   * that declares it, never beside an effort value; `enabled` with
+   * `clear_thinking: false` where the preset opts into preserved
+   * thinking and the turn replays reasoning.
    */
-  readonly thinking?: { readonly type: 'disabled' } | undefined
+  readonly thinking?:
+    | { readonly type: 'disabled' }
+    | { readonly type: 'enabled'; readonly clear_thinking: false }
+    | undefined
+  /** Groq's reasoning presentation; never beside `include_reasoning`. */
+  readonly reasoning_format?: 'parsed' | 'raw' | 'hidden' | undefined
+  /** The main-turn JSON mode, where the record affirms it. */
+  readonly response_format?: { readonly type: 'json_object' } | undefined
 }
 
 /** What the transport sends: codec-owned headers plus the JSON body. */
@@ -529,7 +585,9 @@ export function encodeChatRequest(
 
   const nativeTools: ChatFunctionTool[] = []
   const shouldUseStrictTools = (options?.capabilities ?? quirks).supportsStrictTools === true
-  const tools = withStrictTools(body.tools, shouldUseStrictTools)
+  // The record refuses tools to this model (OpenRouter's
+  // `supported_parameters`): the turn goes without them, never refused.
+  const tools = quirks.sendTools === false ? [] : withStrictTools(body.tools, shouldUseStrictTools)
   for (const tool of tools) {
     if (tool.type !== 'function') {
       throw new Error('chat codec: hosted search never reaches a BYO model')
@@ -562,9 +620,10 @@ export function encodeChatRequest(
         tools: nativeTools,
         ...(quirks.toolChoice !== 'omit' && { tool_choice: 'auto' as const }),
       }),
-    ...(quirks.parallelToolCalls !== undefined && {
-      parallel_tool_calls: quirks.parallelToolCalls,
-    }),
+    ...(quirks.sendTools !== false &&
+      quirks.parallelToolCalls !== undefined && {
+        parallel_tool_calls: quirks.parallelToolCalls,
+      }),
     stream: true,
     ...(quirks.includeUsage && { stream_options: { include_usage: true as const } }),
     ...(quirks.outputCap === 'max_tokens'
@@ -583,8 +642,9 @@ export function encodeChatRequest(
  * reasoning, the turn's own payload back in its own field: OpenRouter's
  * `reasoning_details` unmodified and in order, DeepSeek's / Fireworks' /
  * Z.ai's `reasoning_content`, Groq's / Together's / Hugging Face's
- * `reasoning`. Anything else (another preset's payload, a foreign shape)
- * is dropped, never translated.
+ * `reasoning`, Mistral's chunk list (the thinking chunk plus the answer).
+ * Anything else (another preset's payload, a foreign shape) is dropped,
+ * never translated.
  */
 function assistantMessage(
   text: string | null,
@@ -602,6 +662,23 @@ function assistantMessage(
       content: text,
       ...toolCalls,
       ...(reasoning.details !== undefined && { reasoning_details: reasoning.details }),
+    }
+  }
+  if (quirks.replayField === 'chunks') {
+    // Mistral's docs: always replay the full message including the
+    // thinking chunk; with no trace the content stays a plain string.
+    if (reasoning.text === undefined || reasoning.text === '') {
+      return { role: 'assistant', content: text, ...toolCalls }
+    }
+    const thinkingText = cleanWireText(reasoning.text)
+    const chunks: (ChatThinkingChunk | ChatContentTextChunk)[] = [
+      { type: 'thinking', thinking: [{ type: 'text', text: thinkingText }] },
+    ]
+    if (text !== null) chunks.push({ type: 'text', text })
+    return {
+      role: 'assistant',
+      content: chunks,
+      ...toolCalls,
     }
   }
   if (reasoning.text === undefined || reasoning.text === '') {
@@ -644,7 +721,10 @@ export function isChatCodecError(error: unknown): boolean {
 function nativeReasoning(
   body: CreateResponseBody,
   quirks: ChatPresetQuirks,
-): Pick<ChatCompletionRequest, 'reasoning' | 'reasoning_effort' | 'thinking'> {
+): Pick<
+  ChatCompletionRequest,
+  'reasoning' | 'reasoning_effort' | 'thinking' | 'reasoning_format' | 'response_format'
+> {
   let requested = body.reasoning.effort
   if (quirks.thinkingOff !== undefined) {
     const decision = resolveReasoning(
@@ -655,8 +735,12 @@ function nativeReasoning(
       },
       requested,
     )
-    if (decision.kind === 'off') return { thinking: { type: 'disabled' } }
-    if (decision.kind === 'default') return {}
+    if (decision.kind === 'off') {
+      return quirks.thinkingOff === 'reasoning-enabled'
+        ? { reasoning: { enabled: false } }
+        : { thinking: { type: 'disabled' } }
+    }
+    if (decision.kind === 'default') return { ...preservedThinking(body, quirks) }
     if (decision.kind === 'refuse') {
       const reason =
         requested === THINKING_OFF_EFFORT
@@ -665,14 +749,67 @@ function nativeReasoning(
       throw new ChatCodecError(`${reason} (${decision.code})`)
     }
     requested = decision.effort
-  }
-  if (quirks.reasoningParam === 'none') {
+  } else if (quirks.sendUndeclaredEffort === true) {
+    if (requested === 'default') return {}
+  } else if (quirks.reasoningParam === 'none') {
     return {}
   }
+  // `default` (a level the record does not list) takes the provider
+  // default: no reasoning field is sent, never the neighbour and never
+  // off (lane REASONSHAPESR2, GAPANTH-G10).
+  if (requested === EFFORT_PROVIDER_DEFAULT) {
+    return {
+      ...preservedThinking(body, quirks),
+      ...(quirks.reasoningFormat !== undefined && { reasoning_format: quirks.reasoningFormat }),
+      ...jsonResponseFormat(body, quirks),
+    }
+  }
   const effort = quirks.effortMap?.[requested] ?? requested
-  return quirks.reasoningParam === 'effort-object'
-    ? { reasoning: { effort } }
-    : { reasoning_effort: effort }
+  if (quirks.reasoningParam === 'none') {
+    return {
+      reasoning_effort: effort,
+      ...preservedThinking(body, quirks),
+      ...(quirks.reasoningFormat !== undefined && { reasoning_format: quirks.reasoningFormat }),
+      ...jsonResponseFormat(body, quirks),
+    }
+  }
+  return {
+    ...(quirks.reasoningParam === 'effort-object'
+      ? { reasoning: { effort } }
+      : { reasoning_effort: effort }),
+    ...preservedThinking(body, quirks),
+    ...(quirks.reasoningFormat !== undefined && { reasoning_format: quirks.reasoningFormat }),
+    ...jsonResponseFormat(body, quirks),
+  }
+}
+
+/**
+ * Z.ai's preserved thinking (`thinking: {type: "enabled",
+ * clear_thinking: false}`): only where the preset opts in, thinking is
+ * not off, and the turn replays reasoning worth preserving.
+ */
+function preservedThinking(
+  body: CreateResponseBody,
+  quirks: ChatPresetQuirks,
+): Pick<ChatCompletionRequest, 'thinking'> {
+  if (quirks.thinkingPreserved !== true) return {}
+  const isReplays = body.input.some((item) => item.type === 'reasoning')
+  return isReplays ? { thinking: { type: 'enabled', clear_thinking: false } } : {}
+}
+
+/**
+ * The main-turn JSON mode (`response_format: {type: "json_object"}`):
+ * only where the body asks for a JSON schema and the record affirms
+ * `json_object`.
+ */
+function jsonResponseFormat(
+  body: CreateResponseBody,
+  quirks: ChatPresetQuirks,
+): Pick<ChatCompletionRequest, 'response_format'> {
+  return body.text?.format.type === 'json_schema' &&
+    (quirks.outputFormats ?? []).includes('json_object')
+    ? { response_format: { type: 'json_object' } }
+    : {}
 }
 
 // --- decode: native stream to canonical events ---
@@ -697,9 +834,21 @@ const chatReasoningDetailSchema = z.looseObject({
   index: z.optional(z.number()),
 })
 
+const chatThinkingPartSchema = z.looseObject({
+  type: z.optional(z.string()),
+  text: z.optional(z.nullable(z.string())),
+})
+
+/** Mistral's streamed chunk list: thinking chunks carry the trace as text parts. */
+const chatContentChunkSchema = z.looseObject({
+  type: z.optional(z.string()),
+  text: z.optional(z.nullable(z.string())),
+  thinking: z.optional(z.nullable(z.array(chatThinkingPartSchema))),
+})
+
 const chatDeltaSchema = z.object({
   role: z.optional(z.string()),
-  content: z.optional(z.nullable(z.string())),
+  content: z.optional(z.nullable(z.union([z.string(), z.array(chatContentChunkSchema)]))),
   reasoning: z.optional(z.nullable(z.string())),
   reasoning_content: z.optional(z.nullable(z.string())),
   reasoning_details: z.optional(z.nullable(z.array(chatReasoningDetailSchema))),
@@ -979,6 +1128,29 @@ export class ChatStreamDecoder {
   }
 
   /**
+   * Routes one streamed content chunk (Mistral's chunk list): thinking
+   * chunks join the reasoning trace, text chunks join the answer. Unknown
+   * chunk shapes without text are ignored, never failed.
+   */
+  private takeContentChunk(
+    chunk: z.infer<typeof chatContentChunkSchema>,
+    events: StreamEvent[],
+  ): void {
+    if (chunk.type === 'thinking') {
+      const parts = chunk.thinking ?? []
+      for (const part of parts) {
+        if (typeof part.text === 'string' && part.text !== '') {
+          this.pushReasoning(part.text, events)
+        }
+      }
+      return
+    }
+    if (typeof chunk.text === 'string' && chunk.text !== '') {
+      this.takeContent(chunk.text, events)
+    }
+  }
+
+  /**
    * Splits `<think>` blocks (research §1: unclosed ones too) out of answer
    * text into reasoning; local servers stream thought this way.
    */
@@ -1245,6 +1417,10 @@ export class ChatStreamDecoder {
       }
       if (typeof delta.content === 'string' && delta.content !== '') {
         this.takeContent(delta.content, events)
+      } else if (Array.isArray(delta.content)) {
+        for (const chunk of delta.content) {
+          this.takeContentChunk(chunk, events)
+        }
       }
       if (delta.tool_calls !== undefined && delta.tool_calls !== null) {
         for (const call of delta.tool_calls) {

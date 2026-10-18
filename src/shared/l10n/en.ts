@@ -3765,6 +3765,7 @@ export const EN = {
     high: 'High',
     xhigh: 'Extra High',
     max: 'Max',
+    ultra: 'Ultra',
   },
   // Tool names seen on the wire (Muse Code 1.3.0, live captures 2026-09-21/22)
   // and the label the row shows; unknown tools show their raw name. The IDE

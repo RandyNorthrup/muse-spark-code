@@ -315,6 +315,8 @@ const modelOptionSchema = z.object({
   /** Why this model cannot run the coding agent; the picker shows it (F83). */
   agentLimit: z.optional(stringSchema),
   effortLevels: z.optional(z.array(z.enum(EFFORT_LEVELS))),
+  /** Muse Code's default tier for this model (META-G05). */
+  defaultEffort: z.optional(z.enum(EFFORT_LEVELS)),
 })
 export type ModelOption = z.infer<typeof modelOptionSchema>
 

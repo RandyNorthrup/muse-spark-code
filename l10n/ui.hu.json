@@ -3145,7 +3145,8 @@
     "medium": "Közepes",
     "high": "Magas",
     "xhigh": "Nagyon magas",
-    "max": "Maximális"
+    "max": "Maximális",
+    "ultra": "Ultra"
   },
   "toolLabels": {
     "judge": "Értékelő",

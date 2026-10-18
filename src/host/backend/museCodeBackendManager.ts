@@ -23,6 +23,7 @@ import {
   type CommandTimeouts,
   type MuseCodeFeaturePorts,
   MuseCodeHost,
+  museCodeEffortPort,
   type spawnAccountMspConnection,
   type MspHost,
 } from '../../core/backends/musecode/MuseCodeHost'
@@ -370,7 +371,9 @@ export class MuseCodeBackendManager {
         mspHost,
         this.deps.log,
         this.deps.commandTimeouts,
-        this.deps.featurePorts,
+        // The per-model effort reader is always on (META-G05); an
+        // injected port still wins where it speaks.
+        { ...museCodeEffortPort, ...this.deps.featurePorts },
         undefined,
         this.deps.accountHome,
       )

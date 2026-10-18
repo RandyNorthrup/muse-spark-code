@@ -73,6 +73,20 @@ const reasoningSchema = z.strictObject({
   budget: z.optional(budgetSchema),
   summary: flag,
   replay: replaySchema,
+  /**
+   * The Thinking-off value the model takes instead of `disabled` (lane
+   * REASONSHAPESR2): Claude Sonnet 5.5's `between_tools`, which turns off
+   * up-front thinking where `disabled` answers 400. Absent means the
+   * product's off switch is `disabled` itself.
+   */
+  offSwitch: z.optional(z.enum(['disabled', 'between_tools'])),
+  /**
+   * The model's own default effort where its list names one (lane
+   * REASONSHAPESR2, XAI-G01): xAI's `default_reasoning_effort` (`low`
+   * for grok-4.3 in the recorded list). The picker falls back to the
+   * highest served tier without it.
+   */
+  defaultEffort: z.optional(z.string()),
 })
 const cacheSchema = z.strictObject({
   mode: z.enum(['none', 'implicit', 'breakpoints', 'explicit']),
@@ -189,9 +203,14 @@ export interface CapabilityEvidence {
   readonly source: CapabilitySource
   readonly fields: CapabilityOverrides
 }
+// Preset facts are dated provider-documentation citations reviewed in code
+// (lane REASONSHAPES); they shadow the pinned catalogue snapshot where they
+// speak, and lose to the live models list, a wire capture and the user's
+// own overrides. Re-check every `reasoningFacts` entry on each catalogue
+// sync, and prefer the catalogue the moment it carries the fact.
 const PRIORITY: Readonly<Record<CapabilitySource['kind'], number>> = {
-  preset: 0,
-  catalogue: 1,
+  catalogue: 0,
+  preset: 1,
   'models-list': 2,
   capture: 3,
   user: 4,

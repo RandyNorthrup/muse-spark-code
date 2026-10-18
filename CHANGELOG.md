@@ -600,6 +600,35 @@ happened, not what was planned; superseded entries are kept.
   a resend: the turn ends with the short sentence instead. A too-small
   `--max-tool-output-bytes` is refused with its translated reason.
 
+- Lane REASONSHAPES (provider reasoning gaps, all shapes UNVERIFIED until
+  the 26-request capture plan answers): DeepSeek `ultra` now rides as
+  `reasoning_effort: "max"` per its thinking-mode table instead of
+  refusing, and beta-base entries send strict tool schemas. Groq sends `reasoning_format: "parsed"` where the model
+  reasons. Together sends the hybrid toggle `reasoning: {enabled: false}`
+  for Thinking off. Z.ai sends the `thinking` switch (off only where the
+  model affirms it), preserved thinking where a turn replays reasoning,
+  and main-turn JSON mode where affirmed. llama.cpp sends
+  `reasoning_effort` as named (`none` disables). Mistral reads chunk-list
+  thinking and replays it as a thinking chunk. Ollama sends `think: "max"`.
+  OpenRouter drops tools for models that refuse them. The effort slider
+  offers each Muse Code model's own tiers (including Ultra where served)
+  and falls back to its default. Copilot drops past search calls instead
+  of failing the turn.
+
+- Lane REASONSHAPESR2 (Anthropic/OpenAI/xAI reasoning gaps, all shapes
+  UNVERIFIED until the 27-request capture plan answers): Thinking off
+  and each effort name now follow the model's own record — a value the
+  model does not take is refused before dispatch instead of sent, and an
+  unlisted level falls back to the provider default instead of a
+  neighbour. Thinking blocks replay between tool turns; Thinking off
+  sends each model's affirmed switch (`disabled`, Sonnet 5.5's
+  `between_tools`); manual-only models think with a tier-sized budget
+  and Opus 4.5 sends the interleaved-thinking header. Models with no
+  effort evidence (xAI's `grok-build-0.1` and the 4.20 pair) send no
+  reasoning field at all, so their turns go through. The composer
+  offers each configured model's own levels and default, and OpenAI
+  turns carry pro mode and reasoning context at the wire (no switch for
+  them yet). `exec --effort` accepts `none`.
 - After Muse Code restarted, a conversation could continue on a different
   model than the one shown (and at that model's price). It now keeps the
   model you chose: the choice is applied and read back from Muse Code before

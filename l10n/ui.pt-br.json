@@ -3210,7 +3210,8 @@
     "medium": "Médio",
     "high": "Alto",
     "xhigh": "Muito alto",
-    "max": "Máximo"
+    "max": "Máximo",
+    "ultra": "Ultra"
   },
   "toolLabels": {
     "judge": "Avaliador",

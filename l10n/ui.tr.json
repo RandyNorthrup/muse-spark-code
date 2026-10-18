@@ -3145,7 +3145,8 @@
     "medium": "Orta",
     "high": "Yüksek",
     "xhigh": "Çok yüksek",
-    "max": "Maksimum"
+    "max": "Maksimum",
+    "ultra": "Ultra"
   },
   "toolLabels": {
     "judge": "Değerlendirici",

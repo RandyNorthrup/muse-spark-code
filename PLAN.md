@@ -2142,7 +2142,11 @@ model served were learned by running a turn per tier. Since 1.4.1,
 `model/list` carries optional `reasoningEffortVariants` and
 `defaultReasoningEffort` (with `variants` added in 1.4.0). The extension
 still uses its verified family table; consuming catalog effort metadata
-is separate feature work. The original probe
+is separate feature work. Lane REASONSHAPES (2026-10-12) consumes the
+`model/list` rows: the host reads each row's tiers and default through
+the `modelEfforts` port, the controller posts them per model, and the
+slider offers the model's own steps (UNVERIFIED row shape until a 1.4.x
+live capture lands). The original probe
 (`scratchpad/live-effort.ts`, one "Reply with OK" turn per tier per Standard
 model, contributor tiers skipped) is recorded in `docs/certification/m3.md`.
 Outcome: `muse-spark-1.3` completes turns at every wire tier (`none` …
@@ -23274,6 +23278,45 @@ exactly, proven by a table over every preset model × every setting
 against a golden generated on 01ee6233b. Open for the owner: on a model
 without a switch an unlisted on-level still goes as `none`, kept for
 byte identity. Evidence: `docs/certification/m95-h.md`.
+
+**Lane REASONSHAPES (2026-10-12/13, macmini).** Fills the provider reasoning
+gaps (DS-G01, DS-G02, GQ-G02, TO-G01, LO-G03/G04/G05, MI-G03, OR-G02,
+ZAI-G01/G02/G04/G07, META-G05, CP-G02/CP-G04): one record-driven mechanism — documented effort aliases
+(DeepSeek's table, ultra rides as max), beta-gated strict tool schemas
+(DeepSeek entries pointed at `/beta` only), the Thinking-off switch on
+DeepSeek, Z.ai and Together's hybrid toggle (only where the record
+affirms reasoning), Groq's `reasoning_format: "parsed"`, llama.cpp's
+server-routed `reasoning_effort`, Mistral's chunk-list decode and replay,
+Z.ai's preserved thinking and main-turn JSON mode, OpenRouter tool
+refusal enforcement, Muse Code per-model tiers lighting the slider
+(D10's deferred work), and Copilot search-call drops. Dated per-model
+doc facts shadow the snapshot (preset beats catalogue; live list,
+capture and user still win). Every request shape is provider-doc-quoted
+and UNVERIFIED until the 26-request capture plan
+(`docs/certification/REASONSHAPES-capture-plan.json`) answers. Evidence:
+`docs/certification/REASONSHAPES.md`.
+
+**Lane REASONSHAPESR2 (2026-10-13, macmini).** Closes the eleven round-2
+reasoning gaps (GAPANTH-G01/G02/G10/G17, OPENAI-G01/G02/G07/G08,
+XAI-G01/G02/G14) plus the xAI-first defect the lead measured on 0.18.2
+(`grok-build-0.1` turns failed: the product sent `reasoning` where the
+provider answers 400): one rank-1 rule — what Thinking off and each
+effort name send is decided by the model's record, and a value the
+model does not take is never sent and never silently replaced. Listed
+levels ride as named; unlisted on-levels resolve to `default` (omit);
+off rides as `none` only where the record affirms disabling, else the
+typed refusal fires before dispatch; models with no usable levels send
+no reasoning field on any route. Thinking blocks replay by native model
+id; Thinking off sends each model's affirmed switch (`disabled`,
+Sonnet 5.5's `between_tools`); manual-only models ride tiers unnamed
+with tier-sized budgets and Opus 4.5 sends the interleaved-thinking
+header; the composer offers each configured model's own levels and
+default; OpenAI turns carry pro mode and reasoning context at the wire
+(no surface sets them yet: OPENAI-G07/G08 partly);
+`exec --effort` accepts `none`. Every shape is provider-doc-quoted and
+UNVERIFIED until the 27-request capture plan
+(`docs/certification/REASONSHAPESR2-capture-plan.json`) answers.
+Evidence: `docs/certification/REASONSHAPESR2.md`.
 
 | Finding                                                                                                                                                                                                                                                                                                                                                                   | Owner                                                             |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |

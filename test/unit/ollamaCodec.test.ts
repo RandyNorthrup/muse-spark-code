@@ -389,11 +389,12 @@ describe('encodeOllamaRequest', () => {
     ).toThrow(UI_TEXT.ollamaToolImageUnsupported)
   })
   it('maps effort and omits hosted search', () => {
+    // `max` is a documented think level (ollama api.md, read 2026-10-12).
     expect(
       ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'unknown'].map((effort) =>
         thinkForEffort(effort),
       ),
-    ).toEqual([false, 'low', 'low', 'medium', 'high', 'high', 'high', true])
+    ).toEqual([false, 'low', 'low', 'medium', 'high', 'high', 'max', true])
     expect(
       encodeOllamaRequest(
         {
