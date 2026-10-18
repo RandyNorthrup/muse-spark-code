@@ -38,6 +38,26 @@ const MISSING_ROOT = fileURLToPath(new URL('../fixtures/legal/no-such-workspace/
 
 const SIGNAL = new AbortController().signal
 
+/** Run the production scan and answer its schema-validated JSON. */
+async function validatedScan(
+  args: Readonly<Record<string, unknown>>,
+  workspaceRoot: string,
+  disclaimer = UI_TEXT.legalScanDisclaimer,
+) {
+  const outcome = await runLegalScanCall(
+    args,
+    productionRunner(workspaceRoot),
+    true,
+    SIGNAL,
+    disclaimer,
+  )
+  if (!outcome.ok) throw new Error(outcome.reason)
+  const parsed = legalScanResultSchema.safeParse(JSON.parse(outcome.json))
+  expect(parsed.success).toBe(true)
+  if (!parsed.success) throw new Error('legal_scan JSON failed its schema')
+  return parsed.data
+}
+
 describe('legal_scan definition', () => {
   it('is offered only with a scanner behind it, as a strict read', () => {
     expect(toolDefinitions('linux').map((tool) => tool.name)).not.toContain(
@@ -65,55 +85,27 @@ describe('legal_scan definition', () => {
 
 describe('runLegalScanCall', () => {
   it('runs the real scan and answers its validated JSON with the disclaimer', async () => {
-    const outcome = await runLegalScanCall(
-      { paths: ['package.json'] },
-      productionRunner(CLEAN_ROOT),
-      true,
-      SIGNAL,
-    )
-    if (!outcome.ok) throw new Error(outcome.reason)
-    const parsed = legalScanResultSchema.safeParse(JSON.parse(outcome.json))
-    expect(parsed.success).toBe(true)
-    if (!parsed.success) throw new Error('legal_scan JSON failed its schema')
-    expect(parsed.data).toMatchObject({
+    const data = await validatedScan({ paths: ['package.json'] }, CLEAN_ROOT)
+    expect(data).toMatchObject({
       version: 1,
       scope: 'package.json',
       findings: [],
       disclaimer: UI_TEXT.legalScanDisclaimer,
     })
-    const evidence = (parsed.data.evidenceFiles ?? []).map((entry) => entry.path)
+    const evidence = (data.evidenceFiles ?? []).map((entry) => entry.path)
     expect(evidence).toContain('package.json')
   })
 
   it('uses the caller’s installed disclaimer when the adapter is shared', async () => {
     const disclaimer = 'Technický přehled. Nejde o právní radu.'
-    const outcome = await runLegalScanCall(
-      {},
-      productionRunner(CLEAN_ROOT),
-      true,
-      SIGNAL,
-      disclaimer,
-    )
-    if (!outcome.ok) throw new Error(outcome.reason)
-    const parsed = legalScanResultSchema.safeParse(JSON.parse(outcome.json))
-    expect(parsed.success).toBe(true)
-    if (!parsed.success) throw new Error('legal_scan JSON failed its schema')
-    expect(parsed.data).toMatchObject({ version: 1, disclaimer })
-    expect((parsed.data.evidenceFiles ?? []).length).toBeGreaterThan(0)
+    const data = await validatedScan({}, CLEAN_ROOT, disclaimer)
+    expect(data).toMatchObject({ version: 1, disclaimer })
+    expect((data.evidenceFiles ?? []).length).toBeGreaterThan(0)
   })
 
   it('forwards the header policy to the production scan', async () => {
-    const outcome = await runLegalScanCall(
-      { headerPolicy: 'required' },
-      productionRunner(TREE_ROOT),
-      true,
-      SIGNAL,
-    )
-    if (!outcome.ok) throw new Error(outcome.reason)
-    const parsed = legalScanResultSchema.safeParse(JSON.parse(outcome.json))
-    expect(parsed.success).toBe(true)
-    if (!parsed.success) throw new Error('legal_scan JSON failed its schema')
-    expect(parsed.data.findings).toContainEqual(
+    const data = await validatedScan({ headerPolicy: 'required' }, TREE_ROOT)
+    expect(data.findings).toContainEqual(
       expect.objectContaining({
         category: 'copyrightHeader',
         file: 'src/noheader.js',

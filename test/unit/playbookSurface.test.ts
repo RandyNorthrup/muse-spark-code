@@ -18,15 +18,21 @@ import {
 import { createPlaybookSurface } from '../../src/runtime/playbook/surface'
 import { UI_TEXT } from '../../src/shared/constants'
 
-function surface() {
-  const directory = mkdtempSync(path.join(tmpdir(), 'm116w-surface-'))
+/** A scratch workspace/data pair, removed when the test finishes. */
+function scratchFolders(prefix: string) {
+  const directory = mkdtempSync(path.join(tmpdir(), prefix))
   onTestFinished(() => {
     rmSync(directory, { recursive: true, force: true })
   })
   const workspaceFolder = path.join(directory, 'workspace')
   mkdirSync(workspaceFolder, { recursive: true })
+  return { workspaceFolder, agentDataFolder: path.join(directory, 'data') }
+}
+
+function surface() {
+  const { workspaceFolder, agentDataFolder } = scratchFolders('m116w-surface-')
   return createPlaybookSurface({
-    agentDataFolder: path.join(directory, 'data'),
+    agentDataFolder,
     workspaceFolder,
     teamId: 'panel',
     laneId: 'surface',
@@ -114,13 +120,7 @@ describe('M116 playbook surface adapter (W)', () => {
   })
 
   it('a loaded playbook whose write fails says the command failed, never unavailable', async () => {
-    const directory = mkdtempSync(path.join(tmpdir(), 'm116w-writefail-'))
-    onTestFinished(() => {
-      rmSync(directory, { recursive: true, force: true })
-    })
-    const workspaceFolder = path.join(directory, 'workspace')
-    mkdirSync(workspaceFolder, { recursive: true })
-    const agentDataFolder = path.join(directory, 'data')
+    const { workspaceFolder, agentDataFolder } = scratchFolders('m116w-writefail-')
     const port = createPlaybookSurface({
       agentDataFolder,
       workspaceFolder,
@@ -145,13 +145,7 @@ describe('M116 playbook surface adapter (W)', () => {
   })
 
   it('a surface that cannot bind stays unavailable at the ACP layer', async () => {
-    const directory = mkdtempSync(path.join(tmpdir(), 'm116w-corrupt-'))
-    onTestFinished(() => {
-      rmSync(directory, { recursive: true, force: true })
-    })
-    const workspaceFolder = path.join(directory, 'workspace')
-    mkdirSync(workspaceFolder, { recursive: true })
-    const agentDataFolder = path.join(directory, 'data')
+    const { workspaceFolder, agentDataFolder } = scratchFolders('m116w-corrupt-')
     const deps = { agentDataFolder, workspaceFolder, teamId: 'panel', laneId: 'surface' }
     // Establish a real journal with a change, then corrupt it with trailing
     // garbage: the next bind reads the journal and throws, the
