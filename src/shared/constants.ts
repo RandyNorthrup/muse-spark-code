@@ -5617,6 +5617,10 @@ export const SHARE_PREFERENCES_KEY = 'museSpark.sharing.preferences.v1'
 export const PROMPT_STDIN_TIMEOUT_MS = 30_000
 export const PROMPT_SCHEMA_VERSION = 1
 export const PROMPT_FILE_EXTENSION = '.muse-prompt.md'
+// One filename component on every supported filesystem (NTFS, APFS, ext4)
+// holds 255 bytes; a suggested name longer than that fails with
+// ENAMETOOLONG before the person picks anything.
+export const FILENAME_COMPONENT_MAX_BYTES = 255
 export const PROMPT_USER_FOLDER = 'prompts'
 export const PROMPT_WORKSPACE_FOLDER = '.muse/prompts'
 export const PROMPT_COMMAND_IDS = {

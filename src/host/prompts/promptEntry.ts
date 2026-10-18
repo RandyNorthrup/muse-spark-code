@@ -23,6 +23,7 @@ import * as vscode from 'vscode'
 import { PromptLibrary } from '../../core/prompts/promptLibrary'
 import { PromptStore, readPromptFile } from '../../core/prompts/promptStore'
 import { PromptImporter, PromptSharer } from '../../core/prompts/promptImport'
+import { promptShareFilename } from '../../shared/prompts'
 import { promptPrivacy } from '../../core/prompts/promptPrivacy'
 import { agentDataFolder } from '../../runtime/dataFolder'
 import {
@@ -212,11 +213,10 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
         return
       }
       const uri = await vscode.window.showSaveDialog({
+        // The title stays unlimited; only the suggested filename is cut to
+        // the platform's component limit (PR229FIX T5).
         defaultUri: vscode.Uri.file(
-          path.join(
-            deps.workspaceRoot ?? home,
-            `${title.replaceAll(/[^\p{L}\p{N}_-]/gu, '-')}.muse-prompt.md`,
-          ),
+          path.join(deps.workspaceRoot ?? home, promptShareFilename(title)),
         ),
         filters: { Markdown: ['muse-prompt.md'] },
       })
