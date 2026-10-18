@@ -631,9 +631,11 @@ happened, not what was planned; superseded entries are kept.
   The reply opens with `My playback — my own understanding, from memory
   only:`, so the person can compare it with what they asked and correct it
   in the next message. On the Model API backend the turn is offered no
-  tools and every call is refused in code; on Muse Code it runs in Plan
-  mode and stops at the first tool use. It runs on the panel, the terminal
-  and ACP editors, in all fourteen languages.
+  tools and every call is refused in code. On Muse Code there is no
+  zero-tool turn, so `/playback` is refused there with the reason instead of
+  sent as an ordinary turn a reactive stop might reach too late. It runs on
+  the panel, the terminal and ACP editors (Model API backend), in all
+  fourteen languages.
 - Dictation setups leave the activation bundle: the window's dictation and
   Muse Voice setups with the helper probes ship as `dist/dictation.js`,
   required at their existing construction points, bringing the lane-K
