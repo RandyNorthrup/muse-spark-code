@@ -1,66 +1,55 @@
 // Linux process births for the worktree records' lock and pending
-// checkouts (M123 lane P, RVM123P5 finding 3): a fake `/proc` served
-// through `readFile`, so a wall-clock step (which moves `/proc/stat`'s
-// btime) can be stood on any host. A birth is the kernel's start time in
-// clock ticks since boot plus the boot id; neither moves with the clock.
+// checkouts (M123 lane P, RVM123P5 finding 3): the real `/proc` on a Linux
+// host. A spawned child process supplies a live birth the test parses
+// independently from the kernel's field 22, so the birth is pinned to start
+// ticks, never to the wall clock. The stepped-clock and foreign-boot
+// matrices the old file ran against a `readFile` stand-in for `/proc` are
+// withdrawn in MSM113FIX (see docs/certification/msm113.md): no unit
+// harness can step btime or reboot its host. Non-Linux hosts run only the
+// platform-refusal case; `/proc` exists only on Linux.
 
-import type * as NodeFsPromises from 'node:fs/promises'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { spawn, type ChildProcess } from 'node:child_process'
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { hostname, tmpdir } from 'node:os'
 import path from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
+  currentProcessOwner,
   isProcessOwnerGone,
   processStartTime,
   systemBootId,
   type ProcessOwner,
+  type ProcessOwnerProbe,
 } from '../../src/core/locks/processOwner'
 import { nodeLeasePort } from '../../src/core/locks/nodeLeasePort'
 import { acquireFileLease, LeaseBusyError } from '../../src/core/locks/fileLease'
 
-const proc = vi.hoisted(() => new Map<string, string>())
+const isLinuxHost = process.platform === 'linux'
 
-vi.mock('node:fs/promises', async (importOriginal) => {
-  const fs = await importOriginal<typeof NodeFsPromises>()
-  return {
-    ...fs,
-    readFile: async (...args: Parameters<typeof fs.readFile>) => {
-      const file = typeof args[0] === 'string' ? args[0] : ''
-      const text = proc.get(file)
-      if (text !== undefined) {
-        return text
-      }
-      if (file.startsWith('/proc/')) {
-        throw Object.assign(new Error(`ENOENT: ${file}`), { code: 'ENOENT' })
-      }
-      return await fs.readFile(...args)
-    },
-  }
-})
-
-const PID = 4242
-const BOOT = 'a3f1c0de-1111-4222-8333-944455556666'
-const BOOT_TIME = 1_790_000_000
-const HOUR_SECONDS = 3600
-
-/** `/proc/<pid>/stat` with field 22 (start ticks) set; the name holds `)` and spaces. */
-function statLine(startTicks: number): string {
-  const after = ['S', 1, 1, 1, 0, -1, 4_194_560, 100, 0, 0, 0, 1, 1, 0, 0, 20, 0, 7, 0]
-  return `${String(PID)} (node (worker) x) ${[...after, startTicks, 1_000_000, 500].join(' ')}\n`
+/** A live child that outlives the case; the caller kills it. */
+async function spawnedChild(): Promise<ChildProcess> {
+  const child = spawn(process.execPath, ['-e', 'setInterval(() => undefined, 1000)'], {
+    stdio: 'ignore',
+  })
+  await new Promise<void>((resolve) => {
+    child.once('spawn', () => {
+      resolve()
+    })
+  })
+  return child
 }
 
-function linuxSystem(startTicks: number, bootSeconds: number, bootId = BOOT): void {
-  proc.set(`/proc/${String(PID)}/stat`, statLine(startTicks))
-  proc.set('/proc/stat', `cpu 1 2 3 4\nbtime ${String(bootSeconds)}\nprocesses 99\n`)
-  proc.set('/proc/sys/kernel/random/boot_id', `${bootId}\n`)
+/** Field 22 of `/proc/<pid>/stat`, parsed independently of the source. */
+async function statStartTicks(pid: number): Promise<number> {
+  const stat = await readFile(`/proc/${String(pid)}/stat`, 'utf8')
+  const fields = stat
+    .slice(stat.lastIndexOf(')') + 1)
+    .trim()
+    .split(' ')
+  return Number(fields[19])
 }
 
-/** This window, on that Linux host and boot. */
-function selfIn(bootId = BOOT): ProcessOwner {
-  return { host: hostname(), pid: process.pid, processStart: 1, bootId }
-}
-
-function probe(self = selfIn()) {
+function probe(self: ProcessOwner): ProcessOwnerProbe {
   return {
     self,
     isAlive: () => true,
@@ -69,82 +58,88 @@ function probe(self = selfIn()) {
 }
 
 /** The owner as recorded when it took the lock or reserved its checkout. */
-async function recordedOwner(): Promise<ProcessOwner> {
-  return {
-    host: hostname(),
-    pid: PID,
-    processStart: (await processStartTime(PID, 'linux')) ?? -1,
-    bootId: BOOT,
+async function recordedOwner(pid: number): Promise<ProcessOwner> {
+  const processStart = await processStartTime(pid, 'linux')
+  const bootId = await systemBootId('linux')
+  if (processStart === undefined || bootId === undefined) {
+    throw new Error(`No readable birth for pid ${String(pid)}`)
   }
+  // The real host: a mismatched host is never provably gone, which would
+  // pass the cases below without comparing anything.
+  return { host: hostname(), pid, processStart, bootId }
 }
 
 describe('Linux process births (M123 lane P)', () => {
-  it('reads the kernel start ticks and the boot id', async () => {
-    linuxSystem(50_000, BOOT_TIME)
-    expect(await processStartTime(PID, 'linux')).toBe(50_000)
-    expect(await systemBootId('linux')).toBe(BOOT)
+  it('names no birth for an invalid pid or a foreign platform', async () => {
+    expect(await processStartTime(0, 'linux')).toBeUndefined()
+    expect(await processStartTime(-5, 'linux')).toBeUndefined()
     expect(await systemBootId('win32')).toBeUndefined()
   })
 
-  it('keeps a live owner alive when the wall clock steps either way', async () => {
-    // RVM123P5 finding 3: a clock step moves btime; an epoch birth computed
-    // from it moved with it and declared the live owner gone.
-    linuxSystem(50_000, BOOT_TIME)
-    const owner = await recordedOwner()
-    expect(await isProcessOwnerGone(owner, probe())).toBe(false)
-    for (const step of [HOUR_SECONDS, -HOUR_SECONDS]) {
-      linuxSystem(50_000, BOOT_TIME + step)
-      expect(await isProcessOwnerGone(owner, probe())).toBe(false)
+  it.runIf(isLinuxHost)('reads the kernel start ticks and the boot id', async () => {
+    const child = await spawnedChild()
+    try {
+      const pid = child.pid ?? 0
+      expect(pid).toBeGreaterThan(0)
+      // The birth is the kernel's raw start ticks: exactly field 22, so no
+      // wall-clock component can move it. The boot id is the file's content.
+      expect(await processStartTime(pid, 'linux')).toBe(await statStartTicks(pid))
+      const bootIdText = await readFile('/proc/sys/kernel/random/boot_id', 'utf8')
+      expect(await systemBootId('linux')).toBe(bootIdText.trim())
+    } finally {
+      child.kill()
     }
   })
 
-  it('names the owner gone when its id is another process’s, or it ran in another boot', async () => {
-    linuxSystem(50_000, BOOT_TIME)
-    const owner = await recordedOwner()
-    // The same id, born at another tick of the same boot: another process.
-    linuxSystem(50_001, BOOT_TIME)
-    expect(await isProcessOwnerGone(owner, probe())).toBe(true)
-    // The same ticks after a reboot: the recorded process ended with its boot.
-    linuxSystem(50_000, BOOT_TIME, 'b0000000-1111-4222-8333-944455556666')
-    expect(
-      await isProcessOwnerGone(owner, probe(selfIn('b0000000-1111-4222-8333-944455556666'))),
-    ).toBe(true)
+  it.runIf(isLinuxHost)('keeps a live owner alive', async () => {
+    const child = await spawnedChild()
+    try {
+      const owner = await recordedOwner(child.pid ?? 0)
+      expect(owner.processStart).toBeGreaterThan(0)
+      expect(await isProcessOwnerGone(owner, probe(await currentProcessOwner()))).toBe(false)
+    } finally {
+      child.kill()
+    }
   })
 
-  it('never takes a live owner’s lock early when the wall clock steps', async () => {
-    linuxSystem(50_000, BOOT_TIME)
-    const owner = await recordedOwner()
-    const folder = await mkdtemp(path.join(tmpdir(), 'm123p-birth-'))
-    const lockPath = path.join(folder, 'lock')
-    await writeFile(
-      lockPath,
-      JSON.stringify({
-        owner,
-        id: 'live-holder',
-        renewal: 0,
-        acquiredAt: Date.now(),
-        leaseMs: 30_000,
-      }),
-    )
-    linuxSystem(50_000, BOOT_TIME + HOUR_SECONDS)
-    await expect(
-      acquireFileLease(lockPath, {
-        port: nodeLeasePort,
-        now: Date.now,
-        monotonic: () => performance.now(),
-        sleep: (ms) =>
-          new Promise((resolve) => {
-            setTimeout(resolve, ms)
-          }),
-        owner: selfIn(),
-        isOwnerGone: (seen) => isProcessOwnerGone(seen, probe()),
-        leaseMs: 30_000,
-        honoredLeaseMs: 30_000,
-        unreadableMs: 2000,
-        timeoutMs: 200,
-        pollMs: 10,
-        watches: new Map(),
-      }),
-    ).rejects.toBeInstanceOf(LeaseBusyError)
+  it.runIf(isLinuxHost)('never takes a live owner’s lock early', async () => {
+    const child = await spawnedChild()
+    try {
+      const owner = await recordedOwner(child.pid ?? 0)
+      const folder = await mkdtemp(path.join(tmpdir(), 'm123p-birth-'))
+      const lockPath = path.join(folder, 'lock')
+      await writeFile(
+        lockPath,
+        JSON.stringify({
+          owner,
+          id: 'live-holder',
+          renewal: 0,
+          acquiredAt: Date.now(),
+          leaseMs: 30_000,
+        }),
+      )
+      const contender = await currentProcessOwner()
+      await expect(
+        acquireFileLease(lockPath, {
+          port: nodeLeasePort,
+          now: Date.now,
+          monotonic: () => performance.now(),
+          sleep: (ms) =>
+            new Promise((resolve) => {
+              setTimeout(resolve, ms)
+            }),
+          owner: contender,
+          isOwnerGone: (seen) => isProcessOwnerGone(seen, probe(contender)),
+          leaseMs: 30_000,
+          honoredLeaseMs: 30_000,
+          unreadableMs: 2000,
+          timeoutMs: 200,
+          pollMs: 10,
+          watches: new Map(),
+        }),
+      ).rejects.toBeInstanceOf(LeaseBusyError)
+    } finally {
+      child.kill()
+    }
   })
 })
