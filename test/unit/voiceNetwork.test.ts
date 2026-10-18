@@ -36,19 +36,48 @@ describe('voiceNetworkRefusal', () => {
   })
 
   // The wrapper marker alone still reads `routed` where the live settings
-  // leave the socket unrouted: `proxySupport` off, or
-  // `webSocketAdditionalSupport` off, refuses a set proxy all the same.
-  it('refuses a marker-routed socket the live settings leave unrouted', () => {
+  // leave the socket unrouted: each off setting refuses a set proxy with
+  // its own refusal, so the microphone names the setting at fault instead
+  // of blaming the VS Code version; `proxySupport` off wins when both are
+  // off. A genuinely unrouted socket keeps the version refusal.
+  it('refuses a marker-routed socket with the refusal naming the off setting', () => {
     expect(voiceNetworkRefusal('routed', true, SUPPORT_ON)).toBeUndefined()
     expect(
       voiceNetworkRefusal('routed', true, { proxySupport: 'off', isWebSocketSupportOn: true }),
-    ).toBe('proxy')
+    ).toBe('proxySupportOff')
     expect(
       voiceNetworkRefusal('routed', true, { proxySupport: 'on', isWebSocketSupportOn: false }),
-    ).toBe('proxy')
+    ).toBe('proxyWebSocketOff')
+    expect(
+      voiceNetworkRefusal('routed', true, { proxySupport: 'off', isWebSocketSupportOn: false }),
+    ).toBe('proxySupportOff')
+    expect(voiceNetworkRefusal('notRouted', true, SUPPORT_ON)).toBe('proxy')
     expect(
       voiceNetworkRefusal('routed', false, { proxySupport: 'off', isWebSocketSupportOn: false }),
     ).toBeUndefined()
+  })
+
+  // End to end through the posture the host reads live: real `http`
+  // settings values in, the refusal naming the off setting out.
+  it('names the off setting from the live posture the host reads', () => {
+    const off = readVoiceNetworkPosture(
+      settingsSource({
+        proxy: 'http://proxy:8080',
+        proxySupport: 'off',
+        webSocketAdditionalSupport: true,
+      }),
+    )
+    expect(voiceNetworkRefusal('routed', off.isProxySet, off.support)).toBe('proxySupportOff')
+    const sockets = readVoiceNetworkPosture(
+      settingsSource({
+        proxy: 'http://proxy:8080',
+        proxySupport: 'override',
+        webSocketAdditionalSupport: false,
+      }),
+    )
+    expect(voiceNetworkRefusal('routed', sockets.isProxySet, sockets.support)).toBe(
+      'proxyWebSocketOff',
+    )
   })
 })
 
