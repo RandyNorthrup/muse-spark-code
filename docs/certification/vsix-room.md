@@ -97,10 +97,12 @@ No `*.map`, no test/spec files, no fonts, no `media/social-preview.png`
    `chat.png` 42,356 -> `chat.webp` 18,676, `open.png` 44,039 -> 28,444,
    `sign-in.png` 27,395 -> 19,118, `welcome.png` 21,183 -> 14,952
    (`cwebp 1.5.0 -lossless -m 6`). Each decodes pixel-identical (dwebp round
-   trip, SHA-256 of decoded RGB equal, checked for all four). The walkthrough
-   markdown (`media.markdown`, rendered by VS Code's Chromium webview, which
-   reads WebP) points at the new names; no test names the PNG files. Nothing
-   the person sees changes by a single pixel.
+   trip, SHA-256 of decoded RGB equal, checked for all four). Re-encoding at
+   maximum lossless settings (`-m 6 -z 9`, PR230FIX) is byte-identical with
+   identical pixels: the shipped files are already optimal. The walkthrough
+   markdown points at the new names; no test names the PNG files. Nothing
+   the person sees changes by a single pixel — the live drill below shows
+   stable 1.142's Getting Started renders neither the PNGs nor the WebPs.
 
 ## Result
 
@@ -160,9 +162,31 @@ test/unit/vsixCompression.test.mjs --maxWorkers=3`: 10/10 pass.
   3,275,124 < 3,788,800, pass.
 - Drills: every walkthrough markdown image ref resolves to a staged file;
   all four WebPs decode pixel-identical in two independent decoders
-  (cwebp/dwebp 1.5.0 and PIL); walkthrough steps use `media.markdown`,
-  rendered by VS Code's Chromium webview. Live walkthrough open NOT RUN:
-  no editor on this rig — for the lead.
+  (cwebp/dwebp 1.5.0 and PIL); `npx vsce ls` confirms the package ships
+  exactly the five walkthrough `.md` files plus the four `.webp` files, no
+  PNG, no `PRIVACY.md`.
+- Live walkthrough open RUN (PR230FIX, 2026-10-17, linuxlt): this branch's
+  tree in VS Code stable 1.142 under `xvfb` (Extension Development Host via
+  the repo's own `vscode-test`; the `.vsix` container itself cannot be built
+  on this rig — the arm64 helper is CI-only and `package-vsix.mjs` fails
+  closed without it — but `vsce ls` above proves the container holds exactly
+  the files exercised here, and VS Code resolves walkthrough images from the
+  installed files, so the container changes nothing under test). The drill
+  opens `museSpark.gettingStarted` through the product's own qualified id,
+  asserts every step markdown and image resolves under the installed
+  extension dir, and holds the window for screenshots:
+  `docs/certification/vsix-room-walkthrough.png`. Result: all five steps
+  open with titles and descriptions rendered.
+- Measured renderer finding (same drill, PNG control plus a Chrome DevTools
+  Protocol DOM probe): the expanded step's whole DOM is title, description
+  and the description's link — the `media.markdown` body (image AND text)
+  is absent from the Getting Started DOM (`welcome.webp` mentioned zero
+  times; md-only text absent), identically for the long-shipped PNGs and the
+  new WebPs. So the format change alters nothing any person sees, in either
+  direction: the shipped images never displayed in stable 1.142's Getting
+  Started, before or after. Whether the markdown media is ignored by this
+  VS Code version or by our contribution is a separate product question for
+  a follow-up lane — this lane neither fixes it nor depends on it.
 - Production `npm run build` ran green on this tree's sources before the
   (sourceless) packaging changes; `dist/` is unchanged since.
 
@@ -172,22 +196,28 @@ One line per thread; each is fixed at its cause or answered with a commit
 below. Status `DONE` means fixed and measured on this lane; `OPEN` means
 the fix is being worked here.
 
-- **vsix-room.md:165 (packed WebP walkthrough proof)** — OPEN: the
-  `NOT RUN` stands; fix is a real open of the packed VSIX walkthrough in
-  VS Code stable under `xvfb` on this rig (pack, install, open
-  `museSpark.gettingStarted`, screenshot, record) — §Drills updated with
-  the result when it lands.
-- **chat.md:1 (README still names PNGs)** — OPEN, applies: `README.md`
-  documents the walkthrough scenes as `*.png`; fix updates the names to
-  the shipped `*.webp` and aligns the stated refresh workflow with the
-  script that actually produces them.
-- **vsix-room.md:98 (no Unreleased entry)** — OPEN, applies: fix adds the
-  packaging change to `CHANGELOG.md` under `[Unreleased]`.
-- **vsix-room.md:1 (no PLAN.md scope)** — OPEN, applies: fix registers
-  the VSIXROOM decision (WebP walkthrough, privacy-doc removal from the
-  package, headroom target) in `PLAN.md` §2.
-- **vsix-room.md:111 (78 KB short of the 150 KiB target)** — OPEN:
-  genuine further savings are measured first; whatever cannot be taken
-  becomes an explicit target revision with measured cause here and in
-  `PLAN.md` for the lead to approve at merge, so the record no longer
-  declares an unmet success.
+- **vsix-room.md:165 (packed WebP walkthrough proof)** — DONE: opened for
+  real in VS Code stable 1.142 under `xvfb` (Extension Development Host;
+  `vsce ls` proves the package holds exactly the exercised files — the
+  `.vsix` container itself cannot be built on this rig, CI-only arm64
+  helper). All five steps render; `docs/certification/vsix-room-walkthrough.png`
+  is the screenshot. PNG control + CDP DOM probe: the `media.markdown`
+  body never reaches the Getting Started DOM in either format, so the
+  change alters nothing any person sees. §Drills holds the full record.
+- **chat.md:1 (README still names PNGs)** — DONE: `README.md` names the
+  shipped `*.webp` files and the real capture path (harness scenes at
+  690×760 light, `cwebp -lossless -m 6`); `readme:shots` never produced
+  walkthrough shots, so the workflow no longer implies it does.
+- **vsix-room.md:98 (no Unreleased entry)** — DONE: `CHANGELOG.md`
+  `[Unreleased]` gains a `Packaging` entry for the WebP switch and the
+  privacy-doc removal from the package.
+- **vsix-room.md:1 (no PLAN.md scope)** — DONE: `PLAN.md` D6 registers
+  VSIXROOM (scope, headroom numbers, revised target) next to VSIXDIET2,
+  and no longer claims PNG filtering.
+- **vsix-room.md:111 (78 KB short of the 150 KiB target)** — DONE by
+  explicit revision: `-m 6 -z 9` re-encode is byte-identical (WebPs
+  optimal); `vsce ls` by-size ranking shows nothing the inventory missed;
+  even accepting every rejected cut reaches only ~129 KB within the
+  standing rules. `PLAN.md` D6 revises the 150 KiB aspiration with that
+  cause and defers the remaining ~78 KB; the record no longer declares an
+  unmet success. Approval is the lead's merge.
