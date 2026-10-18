@@ -186,13 +186,13 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
       })
       return { isPublished }
     } finally {
-      // Cleanup cannot turn a successful hard-link publication into
-      // failure: a persistent removal failure stays queued for the next
-      // write (which retries it and reports there) instead of rejecting a
-      // committed publication.
       try {
         await retireTemporary(temporary)
       } catch {
+        // Cleanup cannot turn a successful hard-link publication into
+        // failure: a persistent removal failure stays queued for the next
+        // write (which retries it and reports there) instead of rejecting
+        // a committed publication.
         cleanup.add(temporary)
       }
     }

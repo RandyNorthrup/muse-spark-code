@@ -114,13 +114,17 @@ export interface ResourceHistoryRecorder {
 export function resourceHistoryRecorder(
   binding: ResourceHistoryBinding,
   work: ResourceRecordWorkSource,
-  onError: () => void,
+  onError: (failure?: unknown) => void,
 ): ResourceHistoryRecorder {
   let hasReported = false
-  const report = () => {
+  // The pump's tails forward their rejection here instead of dropping it:
+  // the first failure reaches the host's error channel with its value, and
+  // later ones stay silent. Both channels record fixed words, never the
+  // raw value.
+  const report = (failure?: unknown) => {
     if (hasReported) return
     hasReported = true
-    onError()
+    onError(failure)
   }
   // One damaged choice is announced once per distinct damage, in every
   // window and after a restart (Part 2.1): the rule lives in one place, the
@@ -241,18 +245,19 @@ export function resourceHistoryRecorder(
     sample(status) {
       if (isSampling || !isAdmitted()) return
       isSampling = true
-      void sampleOnce(status).catch(() => {
-        // The pump owns this reading: a foreign failure has no consumer, so
-        // the tail records it once through report() and drops it, and the
-        // pump continues with the next reading.
-        report()
+      void sampleOnce(status).catch((error: unknown) => {
+        // The pump owns this reading: the rejection has no other consumer,
+        // so the tail forwards it to the recorder's error channel instead
+        // of dropping it, and the pump continues with the next reading.
+        report(error)
       })
     },
     event(event) {
       if (!isAdmitted()) return
-      void eventOnce(event).catch(() => {
-        // As above: a foreign event failure is recorded once and dropped.
-        report()
+      void eventOnce(event).catch((error: unknown) => {
+        // As above: a foreign event failure reaches the error channel with
+        // its value instead of being dropped after a prose comment.
+        report(error)
       })
     },
     flush: async () => {

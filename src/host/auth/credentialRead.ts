@@ -148,16 +148,21 @@ const apiKeyWarningsShown = new WeakSet<object>()
  */
 const scanWarningsShown = new WeakMap<object, Set<string>>()
 
-/** Warns once per owner and kind; repeats stay silent until a healthy scan re-arms. */
-function scanWarn(port: CredentialReadPort, kind: string, message: string): void {
+/**
+ * Marks a guarded-scan warning shown for this owner and kind: true on the
+ * first failure, false on repeats (silent until a healthy scan re-arms).
+ * Call sites keep their own `port.warn` with the redacted kind beside the
+ * check, so the failure still reaches the record through the warn call.
+ */
+function isScanWarnDue(port: CredentialReadPort, kind: string): boolean {
   let shown = scanWarningsShown.get(port.owner)
-  if (shown?.has(kind) === true) return
+  if (shown?.has(kind) === true) return false
   if (shown === undefined) {
     shown = new Set()
     scanWarningsShown.set(port.owner, shown)
   }
   shown.add(kind)
-  port.warn(message)
+  return true
 }
 
 /**
@@ -226,11 +231,10 @@ export async function readModelApiCredential(port: CredentialReadPort): Promise<
     // once per kind with its kind, never the raw error.
     isFailed = true
     unreadable = unreadableKindFor(error)
-    scanWarn(
-      port,
-      'key',
-      `${port.storeName} could not be read, so the Model API key's presence is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
-    )
+    if (isScanWarnDue(port, 'key'))
+      port.warn(
+        `${port.storeName} could not be read, so the Model API key's presence is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
+      )
   }
   let ids: readonly CredentialProviderId[] | undefined
   try {
@@ -240,11 +244,10 @@ export async function readModelApiCredential(port: CredentialReadPort): Promise<
     // a credential either. Every throw maps onto the closed kind.
     isFailed = true
     unreadable ??= unreadableKindFor(error)
-    scanWarn(
-      port,
-      'list',
-      `Provider credentials could not be listed, so their presence is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
-    )
+    if (isScanWarnDue(port, 'list'))
+      port.warn(
+        `Provider credentials could not be listed, so their presence is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
+      )
   }
   let isFound = false
   if (ids !== undefined) {
@@ -274,11 +277,10 @@ export async function readModelApiCredential(port: CredentialReadPort): Promise<
         // its kind, never as absence. Every throw maps onto the closed kind.
         isFailed = true
         unreadable ??= unreadableKindFor(error)
-        scanWarn(
-          port,
-          `provider:${id}`,
-          `${port.storeName} could not be read for provider ${id}, so its credential is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
-        )
+        if (isScanWarnDue(port, `provider:${id}`))
+          port.warn(
+            `${port.storeName} could not be read for provider ${id}, so its credential is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
+          )
       }
     }
   }
