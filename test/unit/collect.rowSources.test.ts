@@ -24,7 +24,7 @@ import {
 import { playbookSections } from '../../src/core/reporting/collect/playbook'
 import { estimateReportSections } from '../../src/core/reporting/collect/estimate'
 import { schedulesSections } from '../../src/core/reporting/collect/schedules'
-import { fakeEstimate } from './helpers/estimator/kindFixtures'
+import { sectionVector } from './helpers/estimator/sectionVectors'
 import { playbookProbeView, schedulesProbeView } from './helpers/reporting/reportKindFixtures'
 
 const root = path.resolve(import.meta.dirname, '../..')
@@ -180,7 +180,7 @@ beforeAll(async () => {
         import { playbookSections } from './src/core/reporting/collect/playbook';
         import { estimateReportSections } from './src/core/reporting/collect/estimate';
         import { schedulesSections } from './src/core/reporting/collect/schedules';
-        import { fakeEstimate } from './test/unit/helpers/estimator/kindFixtures';
+        import { sectionVector } from './test/unit/helpers/estimator/sectionVectors';
         import { playbookProbeView, schedulesProbeView } from './test/unit/helpers/reporting/reportKindFixtures';
         export { target, keys } from 'row-probe';
         import { suspend } from 'row-probe';
@@ -201,7 +201,7 @@ beforeAll(async () => {
               playbook: availableSource('playbook', playbookSections(playbookProbeView(), full)),
             } };
             if (kind === 'estimate') snapshot = { ...snapshot, sources: { ...snapshot.sources,
-              estimate: availableSource('estimate', estimateReportSections(fakeEstimate(), full)),
+              estimate: availableSource('estimate', estimateReportSections(sectionVector(), full)),
             } };
             if (kind === 'schedules') snapshot = { ...snapshot, sources: { ...snapshot.sources,
               schedules: availableSource('schedules', schedulesSections(schedulesProbeView(), full)),
@@ -337,7 +337,7 @@ function snapshotFor(source: string, kind: ReportKind) {
       ...snapshot,
       sources: {
         ...sources,
-        estimate: availableSource('estimate', estimateReportSections(fakeEstimate(), full)),
+        estimate: availableSource('estimate', estimateReportSections(sectionVector(), full)),
       },
     }
   if (kind === 'schedules')
