@@ -4042,6 +4042,9 @@ export const JUDGE_FAST_B1_WALK_MAX_MS = 100
 export const JUDGE_FAST_B1_WALK_MAX_DEPTH = 128
 export const JUDGE_FAST_B1_MAX_ABI = 8
 export const JUDGE_FAST_B1_MIN_ABI = 3
+// The Seatbelt confinement has no Landlock ABI: it reports its own generation,
+// below the Landlock range so the two can never be confused.
+export const JUDGE_FAST_B1_DARWIN_ABI = 1
 export const JUDGE_FAST_B1_REFUSED_EXIT = 125
 export const JUDGE_FAST_B1_PROTOCOL_MAX_BYTES = 1024
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
