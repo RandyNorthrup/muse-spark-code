@@ -110,9 +110,11 @@ helpers, and its `TargetPlatform` in the manifest.
   `[0.19.0]`.
 - Unchanged on purpose: the ACP npm package (runs on the person's machine,
   needs every platform's sources), `native/runner/*` (ships in every
-  target: the SSH runner copies the helper to the remote side), and the
+  target: the SSH runner copies the helper to the remote side), the
   `required` aggregate's `package (.vsix)` check name (release recovery
-  matches on it).
+  matches on it), and the universal `npm run package` path itself
+  (hosts.yml and forks.yml still install the all-platforms package into
+  test editors; the stores only ever receive the six targeted ones).
 
 No behaviour change for a person on any platform: same bundles, same
 helpers, same panel; only the store serves the matching package.

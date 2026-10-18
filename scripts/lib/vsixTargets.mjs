@@ -12,6 +12,19 @@ export const VSIX_TARGETS = [
   'linux-arm64',
 ]
 
+// The `--target` value of a packager command line, or undefined when the
+// flag is absent (the universal package). A present flag without a known
+// target — including a missing value — throws instead of silently packing
+// the wrong package.
+export function targetFromArgs(argv) {
+  const index = argv.indexOf('--target')
+  if (index === -1) return
+  const target = argv[index + 1]
+  if (target === undefined || !VSIX_TARGETS.includes(target))
+    throw new Error(`Unknown VSIX target: ${target}. Valid targets: ${VSIX_TARGETS.join(', ')}`)
+  return target
+}
+
 // vsce's own filename for a targeted package:
 // `<name>-<target>-<version>.vsix` (node_modules/@vscode/vsce/out/package.js).
 export function vsixArtifactName(name, version, target) {

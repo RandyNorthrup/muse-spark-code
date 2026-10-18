@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   VSIX_TARGETS,
   requiredNativeFiles,
+  targetFromArgs,
   targetOfVsix,
   vsixArtifactName,
   vsixKeepsFile,
@@ -98,5 +99,16 @@ describe('per-platform VSIX inventory', () => {
     expect(() => vsixArtifactName('muse-spark-code', '0.19.0', 'linux-armhf')).toThrow()
     expect(() => vsixKeepsFile('web', 'dist/extension.js')).toThrow()
     expect(targetOfVsix('muse-spark-code-linux-armhf-0.19.0.vsix')).toBeUndefined()
+  })
+
+  it('reads --target, defaulting to the universal package without the flag', () => {
+    expect(targetFromArgs([])).toBeUndefined()
+    for (const target of VSIX_TARGETS) expect(targetFromArgs(['--target', target])).toBe(target)
+  })
+
+  it('refuses an unknown or missing --target before staging anything', () => {
+    for (const argv of [['--target', 'linux-armhf'], ['--target'], ['--target', 'web']]) {
+      expect(() => targetFromArgs(argv)).toThrow('Unknown VSIX target')
+    }
   })
 })

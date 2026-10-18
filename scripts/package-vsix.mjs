@@ -19,6 +19,7 @@ import { renderPackageReadme } from './check-badges.mjs'
 import {
   VSIX_TARGETS,
   requiredNativeFiles,
+  targetFromArgs,
   vsixArtifactName,
   vsixKeepsFile,
 } from './lib/vsixTargets.mjs'
@@ -163,10 +164,7 @@ export async function stageVsix(root, stage, target) {
 
 async function main() {
   const root = process.cwd()
-  const targetIndex = process.argv.indexOf('--target')
-  const target = targetIndex === -1 ? undefined : process.argv[targetIndex + 1]
-  if (targetIndex !== -1 && (target === undefined || !VSIX_TARGETS.includes(target)))
-    throw new Error(`Unknown VSIX target: ${target}. Valid targets: ${VSIX_TARGETS.join(', ')}`)
+  const target = targetFromArgs(process.argv.slice(2))
   const stage = path.join(root, 'dist', 'vsix-package')
   await stageVsix(root, stage, target)
   // The same strict localization gate reads the exact staged bytes too.
