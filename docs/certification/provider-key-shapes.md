@@ -324,3 +324,42 @@ measured 0 rules violated, but 108 of 1,072 pages never became ready
 within 10 s (spread over all four themes and unrelated scenarios on
 this loaded rig; this branch changes no webview or harness file, and
 the gate does not run on pull requests).
+
+### PR159FIX Codex threads: triage against `1fe57ea8c` (2026-10-18, macmini rig, lane PR159FIX)
+
+Codex's first review (findings 4273569xxx). Each thread re-checked at
+this branch head: five were already fixed by later commits, two are
+open and worked below.
+
+- T1 (P2, exec stdin notice, `providerExec.ts:493`): FIXED by
+  `a64aebd4a` — the assembly inspects the piped key
+  (`providerExec.ts:501-505`), `runExec.ts:503` prints the notice, the
+  key still reaches the in-memory store; proven by
+  `test/unit/execProviderNotice.test.ts` (survives at this head).
+- T2 (P3, malformed UTF-8, `providerExec.ts`): FIXED by `39c295ec4` —
+  `providerKeyFailureText('invalid')` reads `providerKeyNotText`
+  (`keyInput.ts:190-192`), distinct from `providerKeyNotStored`; every
+  stdin reader (exec, `providers add`, `auth set`, per-account) shares
+  the mapping.
+- T3 (P1, D108 archive, `PLAN.md`): FIXED by `2f94472ea` plus the RED
+  renumber — the provider-keys decision is **D123** (main's D108 is the
+  test overhaul); the record lives under `## D123` in
+  `docs/plan-archive/decisions.md`, `PLAN.md` keeps the rule-in-force
+  summary; `check:plan` re-run in this lane's final gates.
+- T4 (P1, light+dark pictures, `modelsPanelEntry.ts:305`): OPEN —
+  record says "Panel look (pending)": the modal warning and password
+  box are native VS Code surfaces. Attempted on this rig below.
+- T5 (P2, stale providersX result, cert): FIXED by `d0eb81272` — the
+  record now names the deleted sub-case (`a4125641c`) and the renamed
+  test's measured result (34 passed, repo default timeout).
+- T6 (P2, locale install, `authCommands.ts:149`): FIXED by `a64aebd4a`
+  — `authSetProvider` (`authCommands.ts:141-150`), `providers add`
+  (`providersCommands.ts:650-656`) and the exec assembly all install
+  the caller's table through the providers bundle's own `setUiText`
+  before formatting; `providerKeyNoticeText` reads `UI_TEXT` at call
+  time (`keyInspection.ts:57-69`), and every call site imports both the
+  notice functions and `setUiText` from `providersEntry`
+  (`dist/providers.js`), one consistent bundle state.
+- T7 (P2, per-account notice, `accountsCommand.ts:104`): OPEN —
+  `runAccountAuthSet` reports non-text stdin but stores any trimmed
+  non-blank non-Meta key without `inspectProviderKey`. Fixed below.
