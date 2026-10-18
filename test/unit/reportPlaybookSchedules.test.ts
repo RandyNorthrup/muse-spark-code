@@ -16,7 +16,15 @@ import { workspaceKey } from '../../src/runtime/dataFolder'
 import { SCHEDULE_STORE_SUBFOLDER, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { installGerman } from './helpers/kindGermanTable'
-import { FakeLogOutputChannel } from './helpers/fakes'
+import { stderrLogger } from '../../src/runtime/stderrLog'
+
+// The agent's own logger (src/runtime/stderrLog.ts), its lines kept here.
+function agentLog() {
+  const logged: string[] = []
+  return stderrLogger((line) => {
+    logged.push(line)
+  }, 'warn')
+}
 import { reportOptions } from './helpers/reporting/kindFixtures'
 import { sectionById, fireFixture } from './helpers/reporting/reportKindFixtures'
 import { setUiText } from '../../src/shared/l10n/text'
@@ -61,7 +69,7 @@ function schedule(key: string) {
 
 describe('playbook and schedules inputs', () => {
   it('keeps overlapping German and English generations in their request language', async () => {
-    await installGerman(new FakeLogOutputChannel())
+    await installGerman(agentLog())
     const german = { ...UI_TEXT }
     const workspace = await dir('muse-language-ws-')
     const data = await dir('muse-language-data-')

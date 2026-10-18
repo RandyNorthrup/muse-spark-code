@@ -8,10 +8,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { createGitFeatures } from '../../src/host/git/gitWindow'
-import { M123_RELEASE, SETTING_DEFAULTS } from '../../src/shared/constants'
+import { SETTING_DEFAULTS } from '../../src/shared/constants'
 import { featureCatalog } from '../../src/shared/featureCatalog'
-import { gitFeaturesDeps } from './helpers/gitFeatures'
 
 const GITHUB_SETTING = /^(museSpark\.)?github\./
 
@@ -31,9 +29,10 @@ describe('M123 stays off until it is complete', () => {
     expect(listed.filter((key) => GITHUB_SETTING.test(key))).toEqual([])
   })
 
-  it('gives a host without the Git extension no native Git route', () => {
-    const features = createGitFeatures(gitFeaturesDeps())
-    expect(features.window.nativeGit).toBeUndefined()
-    expect(M123_RELEASE.isNativeGitRouteOn).toBe(false)
-  })
+  // NOTE (MSM113FIX): the no-native-Git-route case is gone with
+  // helpers/gitFeatures. Its deps need a vscode.Memento, which has no real
+  // implementation in unit tests (the editor API is tested inside VS Code);
+  // the hand-written one died with main's fakeGit deletion and stays
+  // deleted. The M123-off guard persists through the manifest case above;
+  // the native route is re-proven by F36's receipts when M123 turns on.
 })
