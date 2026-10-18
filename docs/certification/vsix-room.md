@@ -84,13 +84,27 @@ main's 3,783,387): `native/linux/arm64/muse-created`,
 No `*.map`, no test/spec files, no fonts, no `media/social-preview.png`
 (500,113), no `media/readme/`, no `dist/meta/` in the vsix file list.
 
-## Removal candidate with proof
+## Removals with proof (all stay in the repository)
 
-`docs/PRIVACY.md` (73,851 file / 27,280 compressed): the string
-`PRIVACY.md` appears in no built bundle (`dist/`, including all webview
-chunks) and no source file; no code joins a `docs/` path under the
-extension dir; the packaged readme links the privacy policy by its GitHub
-URL, not the local file; the CI required-entries list
-(`.github/workflows/build.yml` `packages` job) does not name it; no
-packaging test names it. It stays in the repository; only its `.vscodeignore`
-allowlist line goes.
+1. `docs/PRIVACY.md` (73,851 file / 27,280 compressed): the string
+   `PRIVACY.md` appears in no built bundle (`dist/`, including all webview
+   chunks) and no source file; no code joins a `docs/` path under the
+   extension dir; the packaged readme links the privacy policy by its GitHub
+   URL, not the local file; the CI required-entries list
+   (`.github/workflows/build.yml` `packages` job) does not name it; no
+   packaging test names it. Only its `.vscodeignore` allowlist line goes.
+2. Walkthrough PNGs become lossless WebP (135 KB -> 81 KB file bytes):
+   `chat.png` 42,356 -> `chat.webp` 18,676, `open.png` 44,039 -> 28,444,
+   `sign-in.png` 27,395 -> 19,118, `welcome.png` 21,183 -> 14,952
+   (`cwebp 1.5.0 -lossless -m 6`). Each decodes pixel-identical (dwebp round
+   trip, SHA-256 of decoded RGB equal, checked for all four). The walkthrough
+   markdown (`media.markdown`, rendered by VS Code's Chromium webview, which
+   reads WebP) points at the new names; no test names the PNG files. Nothing
+   the person sees changes by a single pixel.
+
+## Result so far
+
+Partial pack (same method, same absent CI-only binaries): 3,345,023 ->
+**3,275,124 bytes** (**69,899 saved**). Mapped onto main's universal
+3,783,387: about 3,713,488, i.e. about 75 KB of headroom. The 150 KB target
+needs about 80 KB more; the hunt continues on this branch.
