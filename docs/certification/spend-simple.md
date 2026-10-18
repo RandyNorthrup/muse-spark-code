@@ -534,18 +534,43 @@ tests fail with the quoted message, the fix restored, green rerun.
 - CI `duplication`: the two legacy schema blocks now live once in
   `legacyJournal.ts`; the repeated two-window setup and the repeated
   legacy-day seed are helpers. `jscpd`: 0 clones.
-- CI `packages` (VSIX 3801461 vs 3788800): measured, partly cut.
-  Shipped `dist/` is 4.7 KB smaller than the merge base; the growth is
-  `l10n/` (+87 KB raw, +23.2 KB gzip), i.e. the branch's feature
-  strings. Removed the only provably dead branch-added strings:
-  `execBudgetStartExact` (superseded by the Rule/Bytes start lines)
-  and `execStaleHoldsClosed` (the holds-aging feature is gone under
-  D121) — no reader anywhere in src, test, scripts or action, in any
-  of the 15 tables. `check:l10n` 0 problems; l10n suites green. The
-  rest is live feature text, so the remaining overrun cannot be cut
-  without cutting features or raising the budget — both forbidden. The
-  cap itself is provisional (its record says the hosted universal VSIX
-  on the release PR sets the final cap, a lead decision).
+- CI `packages` (VSIX 3801461 vs 3788800): staged and measured to
+  the byte, cut what is legitimately cuttable. A scratch harness
+  (`temp/scratch/stage-measure.mjs`, not committed) replicates the
+  repo's own staging, vsce pack, `compactVsix` and `compress-vsix`
+  for the final tree and the merge base (platform helpers excluded
+  on both sides — `native/` is unchanged, so they are byte-identical;
+  archive constants and version identical): head 3291895, base
+  3276124, branch delta **+15771 final bytes**, which reconciles with
+  the CI number (helpers contribute the same constant on both sides).
+  Per-member attribution: `l10n/ui.tables.json.br` +12099, code
+  archive +1757, eager bundles +1486 (English fallbacks carrying the
+  new strings), webview chunks +682, usage archive +345, nls −630,
+  everything else 0. Removed the only provably dead strings (4 keys,
+  zero readers repo-wide — src, test, scripts, action, native,
+  skills, exact and literal): `execBudgetStartExact` (superseded by
+  the Rule/Bytes start lines), `execStaleHoldsClosed` (holds-aging is
+  gone under D121), `execBudgetMinimum` (no run minimum remains under
+  D121) and `sessionBudgetWriteFailed` (the wizard reports through
+  `sessionBudgetPartialSave` only); `check:l10n` 0 problems, l10n
+  suites green. Re-staging after the removals measures the same total
+  within solid-compression noise (±200 B on the brotli archives),
+  which itself proves the point: only multi-KB content changes move
+  this gate. Exhausted every other lever and proved each empty: exact
+  duplicate values in `en.ts` are 4 trivial pairs in other features'
+  code; the 43 unread `estimate*` keys are forward-held translated
+  copy for the planned M117 provisioning flow (PLAN.md: provisioning
+  waits for M109/M110d/M110f; scope says strings in all 14 tables;
+  `estimatorLocalization.test.ts` guards them) — deleting them would
+  sabotage that milestone; `team*`/`playbook*`/`reference*` keys are
+  read through indirection (`UI_TEXT[x]`, `usageKey` tables) by live
+  features; the catalog ships once by design (the `.json` is removed
+  from stage); English fallbacks and archive regions are D6
+  architecture. The remaining +15 KB is live feature text and code,
+  so the gate cannot pass by cutting: that needs the lead's cap
+  decision (the cap record itself says the hosted universal VSIX on
+  the release PR sets the final cap) or structural packaging work.
+  Budget untouched, no gate weakened, no feature cut.
 
 ## PR217W1 — gates on the final tree (2026-10-18, lane PR217W1)
 
