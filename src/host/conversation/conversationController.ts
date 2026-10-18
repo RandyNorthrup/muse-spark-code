@@ -7706,8 +7706,9 @@ export class ConversationController {
       try {
         const patch = await this.fetchPatch(session, generation, edit.itemId, edit.outputRef)
         described = patch === undefined ? undefined : await this.deps.editReview.describe(patch)
-      } catch {
+      } catch (error: unknown) {
         if (!this.isCurrentSessionAction(session, generation)) {
+          this.deps.log.warn(`The review pane stopped while reading: ${failureForLog(error)}`)
           stopped()
           return
         }
@@ -7816,6 +7817,7 @@ export class ConversationController {
       }
       answer(outcome.isReverted, outcome.isReverted ? undefined : said)
     } catch (error: unknown) {
+      this.deps.log.warn(`A review hunk could not be reverted: ${failureForLog(error)}`)
       if (!this.isCurrentSessionAction(session, generation)) {
         stopped()
         return
@@ -7868,11 +7870,13 @@ export class ConversationController {
         result,
       })
     } catch (error: unknown) {
-      if (!stop.signal.aborted)
+      if (!stop.signal.aborted) {
+        this.deps.log.warn(`A legal explanation failed: ${failureForLog(error)}`)
         this.notice(
           'warning',
           fill(UI_TEXT.legalScanFailed, { reason: redactSecrets(describe(error)) }),
         )
+      }
     } finally {
       if (this.legalScanStop === stop) this.legalScanStop = undefined
     }
@@ -7953,7 +7957,9 @@ export class ConversationController {
       if (!this.isCurrentSessionAction(session, generation)) {
         throw error
       }
-      this.deps.log.info(`Session ${error.sessionId} was not loaded; resuming it`)
+      // Read off the narrowed error: the log names the session, never the failure text.
+      const missingSessionId: string = error.sessionId
+      this.deps.log.info(`Session ${missingSessionId} was not loaded; resuming it`)
       this.resumeTarget = { sessionId: error.sessionId, kind: host.info.kind }
       this.dropSession(false, true)
       const resumed = await this.ensureSession(this.deps.workspaceRoot)
@@ -8035,6 +8041,7 @@ export class ConversationController {
       this.noteActivity()
       result(true)
     } catch (error: unknown) {
+      this.deps.log.warn(`A goal command failed: ${failureForLog(error)}`)
       if (
         generation !== this.sendInvalidationEpoch ||
         this.accountStopsInFlight > 0 ||
@@ -8050,8 +8057,10 @@ export class ConversationController {
         return
       }
       if (isGoalRefusedError(error)) {
-        this.deps.log.info(`Goal ${verb} refused: ${error.refusal}`)
-        this.say('warning', goalRefusalText(verb, error.refusal))
+        // Read off the narrowed error: the log names the refusal, never the failure text.
+        const refusal: GoalRefusal = error.refusal
+        this.deps.log.info(`Goal ${verb} refused: ${refusal}`)
+        this.say('warning', goalRefusalText(verb, refusal))
         result(false)
         return
       }
@@ -8112,7 +8121,7 @@ export class ConversationController {
       }
       this.post({ type: 'agentEvent', event: { type: 'goalChanged', goal } })
     } catch (error: unknown) {
-      this.deps.log.warn(`goal refresh failed: ${describeForLog(error)}`)
+      this.deps.log.warn(`goal refresh failed: ${failureForLog(error)}`)
     }
   }
 
@@ -8136,6 +8145,7 @@ export class ConversationController {
         this.say('info', fill(UI_TEXT.scheduleCreated, { id: job.id }))
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A schedule could not be created: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
     }
   }
@@ -8148,6 +8158,7 @@ export class ConversationController {
         this.say('info', UI_TEXT.scheduleNone)
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`The schedules could not be listed: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
     }
   }
@@ -8164,6 +8175,7 @@ export class ConversationController {
         fill(isRemoved ? UI_TEXT.scheduleCancelled : UI_TEXT.scheduleUnknown, { id }),
       )
     } catch (error: unknown) {
+      this.deps.log.warn(`A schedule could not be cancelled: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
     }
   }
@@ -8193,6 +8205,7 @@ export class ConversationController {
         })
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A schedules message could not be answered: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
     }
   }
@@ -8303,6 +8316,7 @@ export class ConversationController {
       this.requireNonConfidentialModel(session.modelId)
       await session.schedules.run(id, occurrenceMs, confirmed)
     } catch (error: unknown) {
+      this.deps.log.warn(`A scheduled run could not start: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
         this.notice(
           'error',
@@ -8322,7 +8336,7 @@ export class ConversationController {
     try {
       await this.session.cancel()
     } catch (error: unknown) {
-      this.deps.log.warn(`turn/cancel failed: ${describeForLog(error)}`)
+      this.deps.log.warn(`turn/cancel failed: ${failureForLog(error)}`)
     }
   }
 
@@ -8366,7 +8380,10 @@ export class ConversationController {
           this.notice('warning', UI_TEXT.trainingBlocked)
           return false
         }
-      } catch {
+      } catch (error: unknown) {
+        this.deps.log.warn(
+          `The training check failed; the model is refused: ${failureForLog(error)}`,
+        )
         this.notice('warning', UI_TEXT.trainingBlocked)
         return false
       }
