@@ -108,6 +108,7 @@ import {
   isAccountSwitchRefusedError,
   type AccountsSessionPort,
 } from './accounts'
+import { isInvalidProvidersFileError } from './accountText'
 import {
   acpQuestionClock,
   questionDeferralLoader,
@@ -2391,9 +2392,20 @@ class AgentState {
       throw RequestError.invalidParams(undefined, cwd)
     }
     await this.requireReady()
-    const host = await this.deps.backend.hostFor(cwd)
-    this.watch(host)
-    const listed = await host.listModels()
+    let host: AgentHost
+    let listed: readonly ModelSummary[]
+    try {
+      host = await this.deps.backend.hostFor(cwd)
+      this.watch(host)
+      listed = await host.listModels()
+    } catch (error: unknown) {
+      // A providers file that cannot be read is the person's to fix: its own
+      // sentence is the message the editor shows, as the readiness check's
+      // is, never a bare "Internal error" with the sentence only in its data.
+      if (isInvalidProvidersFileError(error))
+        throw RequestError.internalError(undefined, error.message)
+      throw error
+    }
     const models = this.deps.options.allowsContributorModels
       ? listed
       : listed.filter((model) => !isContributorModel(model.modelId))

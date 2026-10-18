@@ -5,8 +5,10 @@
 // provider or browser stand-in.
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
-import type { ProviderClient } from '../../src/core/backends/modelapi/client'
+import { isInvalidProvidersFileError } from '../../src/acp/accountText'
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { type ChatGptSignInError } from '../../src/core/providers/subscriptions/chatgpt'
 import {
   createResponsesCodec,
@@ -18,7 +20,9 @@ import {
   runtimeSubscriptionClient,
 } from '../../src/runtime/chatGptProviderCommands'
 import { memorySecretStoreFor } from '../../src/runtime/exec/keyInput'
-import { UI_TEXT } from '../../src/shared/constants'
+import { stderrLogger } from '../../src/runtime/stderrLog'
+import { MODEL_API_BASE_URL, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 /** What a person reads when a command ends in this failure. */
 function sentence(code: ChatGptSignInError['code'], reason?: string): string {
@@ -61,8 +65,8 @@ describe('local causes get their own sentence', () => {
   it.each([
     ['{not json', 'unparseable'],
     ['{"v":0,"providers":[]}', 'invalid'],
-  ])(
-    'a session names its unreadable providers file (%s reads as %s), never a generic failure',
+  ] as const)(
+    'the account check and a session name an unreadable providers file (%s reads as %s) as the file’s refusal',
     async (contents, reason) => {
       const temp = path.resolve('temp')
       await mkdir(temp, { recursive: true })
@@ -70,32 +74,37 @@ describe('local causes get their own sentence', () => {
       try {
         const configFile = path.join(folder, 'providers.json')
         await writeFile(configFile, contents, 'utf8')
+        // The real product memory store, empty, as on a computer with no
+        // stored grant or key: the file is the only thing left to read.
+        const secrets = memorySecretStoreFor({})
         const factory = runtimeSubscriptionClient({
-          // The real product memory store, empty: the corrupt file throws
-          // before any secret, browser, network or client is consulted.
-          secrets: memorySecretStoreFor({}),
+          secrets,
           fetch: globalThis.fetch,
           configFile,
           openBrowser: () => Promise.reject(new Error('no browser opens on this path')),
           callbackText: () => '',
         })
-        // Tripwire, not a stand-in: the unused client below must never be
-        // consulted (the file read throws first), so any access explodes.
-        // The cast is test-only: a Proxy cannot carry the client shape.
-        const untouchedMeta = new Proxy(
-          {},
-          {
-            get() {
-              throw new Error('createClient consulted meta before reading the providers file')
-            },
-          },
-        ) as unknown as ProviderClient
-        const failure = await failureOf(factory.createClient(untouchedMeta))
-        expect(failure).toBeInstanceOf(Error)
-        const message = failure instanceof Error ? failure.message : ''
-        expect(message).toContain(reason)
-        expect(message).toContain('providers file could not be read')
-        expect(message).not.toContain('did not work')
+        const said = fill(UI_TEXT.acpChatGpt.providersFileUnreadable, { reason })
+        // The account check (the ACP readiness) reads the file through the
+        // configured providers; the refusal every surface checks for, with
+        // its own sentence, never a store outage, a generic failure or
+        // zod's words (finding 1, PR #180).
+        const checked = await failureOf(factory.accountId())
+        expect(isInvalidProvidersFileError(checked)).toBe(true)
+        expect(checked instanceof Error ? checked.message : '').toBe(said)
+        // A session reads it on its own path, beside the real Meta client.
+        const meta = new ModelApiClient({
+          fetch: globalThis.fetch,
+          baseUrl: MODEL_API_BASE_URL,
+          apiKey: async () => await secrets.get(SECRET_KEYS.modelApiKey),
+          sleep: (ms) => delay(ms),
+          now: Date.now,
+          random: Math.random,
+          log: stderrLogger((line) => process.stderr.write(`${line}\n`), 'warn'),
+        })
+        const session = await failureOf(factory.createClient(meta))
+        expect(isInvalidProvidersFileError(session)).toBe(true)
+        expect(session instanceof Error ? session.message : '').toBe(said)
       } finally {
         await rm(folder, { recursive: true, force: true })
       }

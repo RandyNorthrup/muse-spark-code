@@ -32,6 +32,7 @@ import type { ProviderClient } from '../backends/modelapi/client'
 import type { StreamEvent, Usage } from '../backends/modelapi/schemas'
 import type { ProviderEntry, ProviderFormat } from './providersFile'
 import type { RegistryModel } from './providerRegistry'
+import { providersFileUnreadable } from '../accountStoreError'
 import type { ModelCapabilityRecord } from './capabilityRecord'
 import type { NativeModelMetadata } from './modelMetadata'
 import { parseNdjson } from '../backends/modelapi/ndjson'
@@ -376,8 +377,9 @@ export function createConfiguredProviderServices(
     const result = await providersFile.readProvidersFile(options.configFile)
     if (!result.ok) {
       if (result.reason === 'missing') return providersFile.emptyProvidersFile()
-      if (result.reason === 'invalid') throw new RangeError(result.detail)
-      throw new ModelApiError(UI_TEXT.actionFailed, 0, undefined, undefined)
+      // The providers-file refusal, with its own sentence: the account check
+      // and the editor say the file's fault, never the credential store's.
+      throw providersFileUnreadable(result.reason)
     }
     revision = digest(JSON.stringify(result.file))
     return result.file

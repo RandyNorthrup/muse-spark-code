@@ -679,9 +679,10 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
           if ((await factory.accountId()) !== undefined) return { state: 'ready' }
         } catch (error: unknown) {
           // The providers file, a stored ChatGPT grant or the store: each in
-          // its own words, never all of them as the store.
+          // its own words, never all of them as the store. The file's refusal
+          // carries its own sentence (unparseable or invalid).
           if (isInvalidProvidersFileError(error))
-            return { state: 'unavailable', message: accountErrorText(error) }
+            return { state: 'unavailable', message: error.message }
           return {
             state: 'unavailable',
             message:
