@@ -33,21 +33,6 @@ happened, not what was planned; superseded entries are kept.
   each host start probes whether the bubblewrap sandbox can create a user
   namespace here and says so once on every surface, naming the two ways
   out, without ever switching the sandbox off on its own.
-- Honour the documented legacy vault switch: an explicitly stored `museSpark.vault` boolean stays effective until `museSpark.vault.enabled` is explicitly configured, and a switched-off vault refuses its commands and hides its panel section instead of launching. Vault audit views keep the newest 10,000 records once the log outgrows the consumer contract, and a setup retry reuses its failed attempt's OS slot instead of leaving another native credential behind (PR216W1).
-- Restore the vault translation key order the packaged gate requires: the `writerRecoveryWarning` row ships in its English position in every table, so `npm run package` passes its exact staged-bytes check again (PR216W1).
-
-- Connect the credential vault end to end on Linux and macOS: the Models & Agents panel mounts its vault section, the `Vault` command opens it, `Lock vault now` (Ctrl+Alt+Shift+L) ends every use, and SSH keys can be generated or imported when adding an item. The vault Help reference is published. Windows still waits on lane C-M109-1c's pipe helper, existing extension keys still live in SecretStorage until the key-store migration, and the companion page has no vault surface yet (RVMSM109).
-- Repair the POSIX vault epoch contender rule and the sampler warning classifier (RVCM109JD). A killed epoch guardian no longer costs the next starter its session: a contender holding the kernel mutex replaces a provably gone writer atomically and is refused with the fixed reason when the holder is live. The installed receipt whitelists only the exact sampler cause, matched whole with a counted allowance; any other sampler output fails.
-
-- Serialize the POSIX vault's shared lock epoch across session brokers with a kernel lock, keep lifecycle fixtures alive under explicit test ownership, and distinguish verified finished-helper sampler races from acceptance failures.
-
-
-- Treat orderly POSIX vault broker shutdown during discovery or connection as absence and retry a successor once across editor, CLI, ACP and headless hosts. Vault availability remains off pending the platform join.
-
-- Give Windows a working vault broker channel and slots: the broker serves over the guarded pipe helper with DPAPI/CNG storage and Windows Hello presence where present, selected by the same broker composition as POSIX. macOS wires the Secure Enclave slot with a real presence check beside Login Keychain, and Linux adds the TPM2/systemd-creds sealed slot where the machine has one.
-- Keep the vault working where the OS keyring binding is not installed: the broker starts its channel and anchors rollback state to its owner-only file record (same record, same rules), while the OS-store tier reports its fixed repair per use; the OS store stays preferred wherever its binding loads.
-- Package one `.vsix` per VS Code target platform (`node scripts/package-vsix.mjs --target <platform>`): each package carries only its own platform's native pieces within the unchanged size budget, and CI packs and checks all six. The keyring binaries stay out of every package (the target's own binary alone exceeds the remaining headroom), so the OS store loads where installed.
-
 
 ### Added
 
@@ -83,6 +68,13 @@ happened, not what was planned; superseded entries are kept.
   JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
   chip and status adapter once their M104 bridges bind them; none does yet.
   ACP and terminals keep `/resources` and `resources status|resume`.
+
+
+- Connect the credential vault end to end on Linux and macOS: the Models & Agents panel mounts its vault section, the `Vault` command opens it, `Lock vault now` (Ctrl+Alt+Shift+L) ends every use, and SSH keys can be generated or imported when adding an item. The vault Help reference is published. Windows still waits on lane C-M109-1c's pipe helper, existing extension keys still live in SecretStorage until the key-store migration, and the companion page has no vault surface yet (RVMSM109).
+
+- Serialize the POSIX vault's shared lock epoch across session brokers with a kernel lock, keep lifecycle fixtures alive under explicit test ownership, and distinguish verified finished-helper sampler races from acceptance failures.
+
+- Give Windows a working vault broker channel and slots: the broker serves over the guarded pipe helper with DPAPI/CNG storage and Windows Hello presence where present, selected by the same broker composition as POSIX. macOS wires the Secure Enclave slot with a real presence check beside Login Keychain, and Linux adds the TPM2/systemd-creds sealed slot where the machine has one.
 
 ### Changed
 
@@ -623,6 +615,17 @@ happened, not what was planned; superseded entries are kept.
   that service, within the check's own time and Stop, before it reads it;
   what it requires of the browser is unchanged.
 
+
+- Honour the documented legacy vault switch: an explicitly stored `museSpark.vault` boolean stays effective until `museSpark.vault.enabled` is explicitly configured, and a switched-off vault refuses its commands and hides its panel section instead of launching. Vault audit views keep the newest 10,000 records once the log outgrows the consumer contract, and a setup retry reuses its failed attempt's OS slot instead of leaving another native credential behind (PR216W1).
+
+- Restore the vault translation key order the packaged gate requires: the `writerRecoveryWarning` row ships in its English position in every table, so `npm run package` passes its exact staged-bytes check again (PR216W1).
+
+- Repair the POSIX vault epoch contender rule and the sampler warning classifier (RVCM109JD). A killed epoch guardian no longer costs the next starter its session: a contender holding the kernel mutex replaces a provably gone writer atomically and is refused with the fixed reason when the holder is live. The installed receipt whitelists only the exact sampler cause, matched whole with a counted allowance; any other sampler output fails.
+
+- Treat orderly POSIX vault broker shutdown during discovery or connection as absence and retry a successor once across editor, CLI, ACP and headless hosts. Vault availability remains off pending the platform join.
+
+- Keep the vault working where the OS keyring binding is not installed: the broker starts its channel and anchors rollback state to its owner-only file record (same record, same rules), while the OS-store tier reports its fixed repair per use; the OS store stays preferred wherever its binding loads.
+
 ### Packaging
 
 - The Get Started walkthrough's four screenshots ship as lossless WebP
@@ -634,9 +637,13 @@ happened, not what was planned; superseded entries are kept.
   its URL.
 - One package per platform (D123). The release ships six platform
   packages (win32-x64, win32-arm64, darwin-x64, darwin-arm64, linux-x64,
-  linux-arm64) instead of one universal package: each carries only its
-  own platform's native helpers, and each is checked against the same
-  unchanged size budget. No behaviour change on any platform.
+  linux-arm64) instead of one universal package (`node
+  scripts/package-vsix.mjs --target <platform>`): each carries only its
+  own platform's native pieces, and each is checked against the same
+  unchanged size budget. CI packs and checks all six. The keyring
+  binaries stay out of every package (the target's own binary alone
+  exceeds the remaining headroom), so the OS store loads where
+  installed. No behaviour change on any platform.
 
 ### Release infrastructure
 
