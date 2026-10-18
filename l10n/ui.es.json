@@ -4150,6 +4150,7 @@
   "playbackDetail": "Muse expresa su propia comprensión del objetivo, solo de memoria, sin herramientas.",
   "playbackUsage": "/playback no acepta argumentos: envíalo solo.",
   "playbackBusy": "Una reproducción comienza cuando termina el turno actual.",
+  "playbackOutputSchemaRefused": "Una repetición no puede usar salida estructurada: su respuesta debe comenzar con la línea marcadora, que un esquema JSON no puede contener.",
   "playbackStoppedTools": "La reproducción se detuvo: el agente recurrió a una herramienta, y una reproducción responde solo de memoria, sin herramientas.",
   "playbackPlanModeNotice": "Esta reproducción se ejecuta en modo Plan, y tu modo de permisos vuelve cuando termina. Muse Code aplica sus propias reglas de permiso en modo Plan, así que las lecturas pueden seguir ejecutándose; la reproducción se detiene con el primer uso de herramientas.",
   "playbackUnavailable": "No se pudo cargar la reproducción, así que no se puede iniciar ninguna; reinstale la extensión y vuelva a cargar la ventana. El registro tiene los detalles.",

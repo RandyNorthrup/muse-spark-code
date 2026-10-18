@@ -4252,6 +4252,7 @@
   "playbackDetail": "Muse popíše vlastní chápání cíle, pouze z paměti, bez nástrojů.",
   "playbackUsage": "Příkaz /playback nepřijímá argumenty: odešli ho samotný.",
   "playbackBusy": "Přehrání začne, jakmile skončí aktuální tah.",
+  "playbackOutputSchemaRefused": "Playback nemůže používat strukturovaný výstup: jeho odpověď musí začínat značkovým řádkem, který schéma JSON nemůže obsahovat.",
   "playbackStoppedTools": "Přehrání bylo zastaveno: agent sáhl po nástroji, a přehrání odpovídá pouze z paměti, bez nástrojů.",
   "playbackPlanModeNotice": "Toto přehrání běží v režimu Plan a předchozí režim oprávnění se po skončení vrátí. Muse Code v režimu Plan uplatňuje vlastní pravidla povolení, takže čtení tam mohou dále probíhat; přehrání se zastaví při prvním použití nástroje.",
   "playbackUnavailable": "Přehrání se nepodařilo načíst, takže nelze spustit žádné přehrání; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",

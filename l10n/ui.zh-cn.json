@@ -3946,6 +3946,7 @@
   "playbackDetail": "Muse 仅凭记忆、不借助工具，陈述自己对目标的理解。",
   "playbackUsage": "/playback 不接受参数：请单独发送。",
   "playbackBusy": "当前回合结束后开始回放。",
+  "playbackOutputSchemaRefused": "回放不能使用结构化输出：其回复必须以标记行开头，而 JSON 架构无法容纳该行。",
   "playbackStoppedTools": "回放已停止：智能体试图使用工具，而回放只能凭记忆作答，不使用工具。",
   "playbackPlanModeNotice": "本次回放在 Plan 模式下运行，结束后恢复之前的权限模式。Muse Code 在 Plan 模式下仍会应用自身的允许规则，因此读取操作仍可能执行；回放在首次使用工具时停止。",
   "playbackUnavailable": "无法加载回放功能，因此无法开始任何回放；请重新安装扩展并重新加载窗口。日志中有详细信息。",

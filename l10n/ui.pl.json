@@ -4252,6 +4252,7 @@
   "playbackDetail": "Muse przedstawia własne rozumienie celu, wyłącznie z pamięci, bez narzędzi.",
   "playbackUsage": "/playback nie przyjmuje argumentów: wyślij je same.",
   "playbackBusy": "Odtworzenie rozpocznie się, gdy zakończy się bieżąca tura.",
+  "playbackOutputSchemaRefused": "Odtworzenie nie może używać ustrukturyzowanego wyjścia: jego odpowiedź musi zaczynać się od wiersza znacznika, którego schemat JSON nie może pomieścić.",
   "playbackStoppedTools": "Odtworzenie zostało zatrzymane: agent sięgnął po narzędzie, a odtworzenie odpowiada wyłącznie z pamięci, bez narzędzi.",
   "playbackPlanModeNotice": "To odtworzenie działa w trybie Plan, a poprzedni tryb uprawnień wraca po jego zakończeniu. Muse Code stosuje w trybie Plan własne reguły zezwoleń, więc odczyty mogą nadal działać; odtworzenie zatrzymuje się przy pierwszym użyciu narzędzia.",
   "playbackUnavailable": "Nie udało się wczytać odtworzenia, więc nie można rozpocząć żadnego odtworzenia; zainstaluj ponownie rozszerzenie i przeładuj okno. Szczegóły są w dzienniku.",
