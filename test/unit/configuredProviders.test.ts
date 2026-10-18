@@ -438,7 +438,9 @@ describe('configured provider production transport', () => {
       send,
       resolve: () => Promise.resolve(['93.184.216.34']),
     })
-    const rows = await services.registry.list()
+    const { list } = services.registry
+    if (list === undefined) throw new Error('configured registry must list models')
+    const rows = await list()
     expect(rows.find((row) => row.modelId === 'az/gpt-5.4-nano')).toMatchObject({
       contextLimit: 400_000,
       displayLabel: 'GPT-5.4 Nano',
