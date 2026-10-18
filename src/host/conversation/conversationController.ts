@@ -5277,6 +5277,7 @@ export class ConversationController {
         loaded.session.dispose()
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A side chat could not be opened: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
         this.notice('error', `${UI_TEXT.sideChatFailed}: ${describe(error)}`, undefined, error)
       }
@@ -6233,6 +6234,7 @@ export class ConversationController {
         this.post({ type: 'agentEvent', event: { type: 'sessionNamed', name: canonical } })
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A session could not be renamed: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch && this.session === session) {
         this.notice('error', `${UI_TEXT.renameFailed}: ${describe(error)}`, undefined, error)
       }
@@ -6348,7 +6350,7 @@ export class ConversationController {
         message.turnId,
       )
     } catch (error: unknown) {
-      this.deps.log.warn(`The transcript for a restore could not be read: ${describeForLog(error)}`)
+      this.deps.log.warn(`The transcript for a restore could not be read: ${failureForLog(error)}`)
     }
     if (turnIds === undefined || this.session !== session || this.isTurnRunning()) {
       this.notice(
@@ -6413,7 +6415,7 @@ export class ConversationController {
         )
         return this.session === session && !this.isTurnRunning() ? ids : undefined
       } catch (error: unknown) {
-        this.deps.log.warn(`The transcript for a Redo could not be read: ${describeForLog(error)}`)
+        this.deps.log.warn(`The transcript for a Redo could not be read: ${failureForLog(error)}`)
         return
       }
     })
@@ -6561,7 +6563,7 @@ export class ConversationController {
       try {
         await this.deps.saveAll()
       } catch (error: unknown) {
-        this.deps.log.warn(`Autosave before the turn failed: ${describeForLog(error)}`)
+        this.deps.log.warn(`Autosave before the turn failed: ${failureForLog(error)}`)
       }
     }
     this.noteUnsaved()
@@ -6894,9 +6896,7 @@ export class ConversationController {
           question.outcome === 'notTaken'
             ? UI_TEXT.questionAnswerFailed
             : UI_TEXT.questionAnswerUncertain
-      this.deps.log.error(
-        `sendMessage failed: ${isComposerMessage ? describeForLog(error) : errorKind(error)}`,
-      )
+      this.deps.log.error(`sendMessage failed: ${failureForLog(error)}`)
       if (seededSession !== undefined) {
         this.takeBackTodos(seededSession)
       }
@@ -7356,6 +7356,7 @@ export class ConversationController {
         return
       }
       if (!this.deps.isWorkspaceTrusted()) {
+        this.deps.log.warn(`A legal scan was refused on untrusted content: ${failureForLog(error)}`)
         this.notice('warning', UI_TEXT.legalScanUntrusted)
         return
       }
@@ -7434,6 +7435,7 @@ export class ConversationController {
       try {
         ticket.cancel()
       } catch (error) {
+        this.deps.log.warn(`Cancelling a playbook review failed: ${failureForLog(error)}`)
         this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
       }
     }
@@ -7448,6 +7450,7 @@ export class ConversationController {
           ticket.observe(event)
           if (ticket.isClosed) stop()
         } catch (error) {
+          this.deps.log.warn(`A playbook review event could not be read: ${failureForLog(error)}`)
           failed(error)
         }
       })
@@ -7457,6 +7460,7 @@ export class ConversationController {
         ticket.bind(submission.turnId)
         if (ticket.isClosed) stop()
       } catch (error) {
+        this.deps.log.warn(`A playbook review turn could not be bound: ${failureForLog(error)}`)
         failed(error)
       }
       return submission
