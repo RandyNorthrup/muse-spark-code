@@ -79,6 +79,11 @@ happened, not what was planned; superseded entries are kept.
   `docs/PRIVACY.md`, which no code read; the file stays in the
   repository and the packaged readme still links the privacy policy by
   its URL.
+- One package per platform (D123). The release ships six platform
+  packages (win32-x64, win32-arm64, darwin-x64, darwin-arm64, linux-x64,
+  linux-arm64) instead of one universal package: each carries only its
+  own platform's native helpers, and each is checked against the same
+  unchanged size budget. No behaviour change on any platform.
 
 ### Release infrastructure
 

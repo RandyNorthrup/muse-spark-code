@@ -9,6 +9,7 @@ import { setTimeout } from 'node:timers/promises'
 import { pathToFileURL } from 'node:url'
 import { gunzipSync } from 'node:zlib'
 import { z } from 'zod'
+import { targetOfVsix } from './lib/vsixTargets.mjs'
 
 // The declared bin of pinned ovsx 1.2.0, run through Node without a shell shim.
 // Static resolution also lets the dependency gate see the actual tool use.
@@ -104,12 +105,21 @@ export async function verifyPublished(channel, artifact, manifest, deps = {}) {
     }
     return
   }
+  // One package per platform (PLAN.md D123): the registries serve each
+  // target under its own download, so a targeted artifact is verified
+  // against its own target's bytes. The target travels in vsce's artifact
+  // name; an untargeted artifact verifies the universal download as before.
+  const target = targetOfVsix(artifact)
   let url
   if (channel === 'marketplace') {
     url = `https://marketplace.visualstudio.com/_apis/public/gallery/publishers/${encodeURIComponent(publisher)}/vsextensions/${encodeURIComponent(name)}/${encodeURIComponent(version)}/vspackage`
+    if (target !== undefined) url += `?targetPlatform=${encodeURIComponent(target)}`
   } else if (channel === 'openvsx') {
+    const segments = [publisher, name]
+    if (target !== undefined) segments.push(target)
+    segments.push(version)
     const metadata = await response(
-      `https://open-vsx.org/api/${encodeURIComponent(publisher)}/${encodeURIComponent(name)}/${encodeURIComponent(version)}`,
+      `https://open-vsx.org/api/${segments.map((segment) => encodeURIComponent(segment)).join('/')}`,
       fetcher,
     )
     url = OPEN_VSX.parse(await metadata.json()).files.download
@@ -240,18 +250,22 @@ if (
   process.argv[1] !== undefined &&
   import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
 ) {
-  const [channel, artifact, ...extra] = process.argv.slice(2)
+  const [channel, ...artifacts] = process.argv.slice(2)
   try {
-    if (artifact === undefined || extra.length > 0) {
-      throw new Error('usage: publish-registry.mjs <marketplace|openvsx|npm> <one artifact>')
+    // One package per platform (PLAN.md D123): the release publishes every
+    // target's artifact to each registry, verifying each against its own
+    // target's download. npm still takes its single tarball.
+    if (artifacts.length === 0) {
+      throw new Error('usage: publish-registry.mjs <marketplace|openvsx|npm> <artifact...>')
     }
     const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
-    const visibility = await publishRegistry(channel, artifact, manifest)
+    for (const artifact of artifacts) {
+      reportVisibility(channel, await publishRegistry(channel, artifact, manifest))
+    }
     // Outside Actions there is no step output to write; the publish still succeeded.
     if (process.env.GITHUB_OUTPUT !== undefined) {
       appendFileSync(process.env.GITHUB_OUTPUT, 'outcome=published\n')
     }
-    reportVisibility(channel, visibility)
   } catch (error) {
     // CLI diagnostics may contain credentials. Print a fixed label only.
     console.error(`${channel}: ${failureReason(error)}; see docs/RELEASING.md`)
