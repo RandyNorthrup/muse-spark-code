@@ -3433,6 +3433,38 @@ decision became D65 at integration (2026-10-02).
 
 **The exception: headless runs in CI (M80, PLAN D65).** GitHub supplies the Model API key to the Action's own run-step process through its environment. The step directly execs the trusted launcher, which deletes that variable before it starts any child and holds the key only in memory until final cleanup. It sends the key only over private standard input to two trusted installed agent commands: `muse-spark-code-acp exec --key-stdin` for the run, and `muse-spark-code-acp scan-secrets --key-stdin` for the exact private staged patch. Both hold it in memory only, clear their references in finally, and never store it. No Git, tool, hook, check, install, apply or other child receives it in an environment, argument or file. The launcher's initial OS environment can remain inspectable by the same user; deleting the variable does not erase that record or guarantee memory zeroization. Nothing else is excepted.
 
+**Other-CI transport (CM80CI-R4, 2026-10-10).** The bootstrap shell never
+reads/copies the value or creates a key file. Its download subshell unsets
+names/aliases from the launcher's generated list; its parent execs Node with
+the original vendor environment. Node takes the vendor source first (GitLab
+File variable is read directly, never copied), refuses conflicting names,
+strips names and values before children and keeps the credential only in
+memory for private stdin and redaction. This replaces R2's environment
+handoff and R3's private key transport file. Vendor-managed secret-file
+creation and automatic phases remain vendor boundaries, not launcher
+children; their qualification limits are explicit in M80's record.
+
+**CM80CIR6 review repair (2026-10-10, RVCM80CI5).** Remove Azure's
+pipeline start-time expression and reader entirely: admission uses the
+bootstrap's measured epoch time with a fixed 10-minute pre-bootstrap setup
+allowance. This allowance covers job initialization, full-history checkout
+and UseNode on a qualified runner; it is a required worst-case setup bound,
+not a universal Azure guarantee. The Azure job becomes 45 minutes so its
+20-minute turn, measured bootstrap, 10-minute setup reserve and all launcher
+tails fit. Hosted qualification must prove setup stays within 10 minutes;
+runners that cannot meet that bound must not use this template. No organization
+timezone or vendor date expression participates in admission. Parent bootstrap
+holders and cleanup copies use the reserved `muse_ci_internal_` prefix;
+declared aliases using that prefix or the bootstrap configuration prefixes
+`MUSE_CI_`, `MUSE_INPUT_`, `MUSE_AGENT_` refuse before download and in Node,
+covering the temp/start/package transport bindings assigned at exec. Tests
+check the prefix against the generated unset list,
+exercise ordinary aliases matching every old holder, and prove missing-exec
+cleanup under sh, dash and bash with unsetting applied. Azure's final template
+test rejects vendor time expressions, including malformed ones. Every finding
+gets a regression and a byte-exact red drill in `docs/certification/cm80ci.md`.
+No new dependency, wider guard, paid/live call or hosted-support claim.
+
 Local OS-store authentication is unchanged. Stdin CI uses neither `auth set`
 nor a throwaway keyring nor an environment-key fallback inside the agent.
 One bounded launcher owns diff generation, exec, extraction, patch Git,
@@ -19189,7 +19221,7 @@ JSON ledger format; converting the project plan is outside this lane.
 
 ### M80 — Headless and CI (D49, D65)
 
-**Status 2026-10-05: building.** Status evidence: `docs/certification/m80.md`.
+**Status 2026-10-17: building.** Status evidence: `docs/certification/msm80.md`.
 
 **Contract:** scratchpad `m80/SPEC.md` v4 plus its F1/F2 lead rulings,
 2026-10-02. M80 builds on M63/D61, independently of M82. It adds one-turn
@@ -19297,6 +19329,77 @@ the obsolete bootstrap/reservation/paid policy wording below with v4's policy.
   argv and injected child-env hashes do not prove full environment-block audit.
 - **Size:** L. Existing bundle caps remain unchanged; final integrated-tree
   sizes and package/workflow hashes belong to the lead's closing receipt.
+
+**Lane CM80CI-R4, 2026-10-10 (other CI systems; built, not certified).**
+The other-CI templates share the GitHub Action's input grammar, installer,
+Git runner, proposal engine and scanner through `action/lib/ci-run.mjs`.
+RVCM80CI3's redesign supersedes R2/R3 credential transport:
+
+- The POSIX bootstrap never reads a key value or copies a key file. Download,
+  digest verification and unpacking run in a subshell that unsets the key
+  names and configured aliases generated from the launcher's single source.
+  The parent execs Node with the vendor's original credential environment.
+- Node first takes the GitLab File-variable value directly from its vendor
+  file, or the other vendors' environment value; conflicting named values
+  refuse. Every named key and alias, and every environment value containing
+  the credential, is deleted before children run. The value stays in memory
+  for private exec/scanner stdin and output scrubbing; no transport file.
+- Publication creates a fresh directory outside the repository under job
+  temp. Only publisher files are upload candidates; early bootstrap or
+  validation failures create no output. Repository artifact fallbacks are
+  forbidden. Vendors unable to upload outside the clone need an explicit
+  external qualification limit rather than an unsafe repository fallback.
+- Cleanup ownership begins at launcher entry, before facts/workspace/input
+  validation. Publication, stale-output removal and final cleanup receive
+  AbortSignals and terminate their filesystem worker at the deadline, so
+  timed-out work cannot resume later. Admission measures actual elapsed time
+  from GitLab job start or Jenkins build start, otherwise bootstrap start.
+  CM80CIR6 removes Azure vendor time expressions: Azure uses measured bootstrap
+  time minus a 10-minute worst-case pre-bootstrap setup allowance and a
+  45-minute job (20-minute turn). Hosted qualification must prove initialization,
+  full-history checkout and UseNode fit that allowance; it is not a universal
+  vendor guarantee. Parent holders use a reserved prefix that aliases cannot
+  unset or overwrite; sh/dash/bash cleanup and every old-holder alias are tested.
+  The owning CI suites share temporary-directory lifecycle in their existing
+  fixture helper, retaining per-test cleanup without duplicate setup.
+- Bitbucket's single-script claim did not prove isolation of vendor-managed
+  clone/setup/upload. Deployment variables are narrower than repository
+  variables. Without a hosted or runner receipt, process isolation remains
+  an external qualification limit, not a claim of support.
+
+The package carries `action/lib` and `action/prompts` as `ci/`. GitHub Action
+behavior remains unchanged. No paid/live calls or hosted vendor run in this
+lane; full quality and hosted/live L/LA/LR receipts remain lead-owned under
+the rig brief. Evidence: [cm80ci.md](docs/certification/cm80ci.md). Existing
+`yaml` 2.9.1 development pin is unchanged; no dependency or bundle-cap change.
+
+**Lane MSM80, 2026-10-17 (macmini finish on `ms/msm80`).** Merged
+`main-now` `821566c0f` (conflicts only in generated/roll-up files; main's
+test-overhaul deletion of `referenceGenerator.test.mjs` stands, its real
+R5-P3 case re-homed to `test/unit/ciReference.test.mjs`). First macOS runs
+of the other-CI process suites found two shell bugs kubuntu/dash never
+shows: macOS `sh` (bash 3.2) cannot parse a multiline `case` inside `$( )`
+(the alias shape check already ran before the subshell, so only value
+removals stay inside), and a failed bare `exec` reports exit 0 once an EXIT
+trap runs (the final launcher call is now plain invocation, so a missing
+Node keeps 127 on every shell). Each fix has a fast guard with a red drill
+(`ciTemplates.test.ts` no-case-in-substitution; the R6-P2-2 probe in its
+plain form). Static gates, typecheck, build and the pure-logic suites pass
+on the merged tree; the process suites' remaining failures are rig-load
+timeouts, with a quiet full-green run still wanted. No paid/live calls.
+Evidence: [msm80.md](docs/certification/msm80.md).
+
+**Review RVMSM80, 2026-10-17.** Merged current main (`81dacaf5a`). The
+other-CI process suites rested on the Action's fake agent (deleted on main
+with every fake test) inside simulated vendor hosts, with scripted
+filesystem operations; under the owner's no-stand-ins rule they are deleted
+(`ciTemplatesRun.test.ts`, `ciFixtures.ts`) or reduced to pure logic
+through the real modules (`ciRun.test.ts`), and the template-text guards
+are replaced by parsing the real defaults, the real deadline check and
+executing the shipped bootstrap under the real shells
+(`ciTemplates.test.ts`). The end-to-end vendor behaviours are withdrawn to
+`docs/real-life/unproven.md`; hosted receipts remain the only proof. The
+two macOS shell fixes stand, guarded by shell execution with a red drill.
 
 ### M81 — Browser check (D49)
 
@@ -40484,6 +40587,10 @@ PR #243 (`ms/msm113`) merged onto the release as `Merge PR #243
 `scripts/build.mjs` keeps the bounded pool with PR #243's `planSnapshot`
 bundle as a thunk and `vaultRuntime` in the extra specs; environment helpers
 follow PR #243's `childEnvironment` home; generated files regenerated.
+PR #231 (`rv/msm80`) merged onto the release as `Merge PR #231
+(rv/msm80) into release/0.19.0`, its CHANGELOG entries under `[0.19.0]`;
+`referenceAcp` keeps `/playback` with PR #231's CI-other keys added;
+generated files regenerated.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
 Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from

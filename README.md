@@ -5112,6 +5112,30 @@ See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
 results and what is still open.
 
+### Other CI systems
+
+GitLab, Azure, Jenkins and Bitbucket templates under
+[`ci-templates/`](ci-templates/gitlab-ci.yml) share the GitHub Action's
+budgeted review/fix engine. The shell downloads and verifies the pinned
+package without reading or copying the key; Node reads the vendor source,
+strips key names and value copies before children, and sends the key only
+through trusted private stdin. Declare extra secret binding names in
+`MUSE_CI_KEY_ALIASES`; `muse_ci_internal_`, `MUSE_CI_`, `MUSE_INPUT_` and
+`MUSE_AGENT_` are reserved prefixes and refuse.
+Azure uses measured bootstrap time with a 10-minute worst-case setup reserve
+and a 45-minute job; runner qualification must prove setup fits that reserve.
+Output is created outside the checkout under job temp;
+Azure/Jenkins upload those publisher files. GitLab/Bitbucket built-in
+artifact paths cannot upload external temp, so their templates omit that
+transport. Bitbucket's automatic-process secret isolation remains
+unqualified; deployment variables are narrower than repository variables.
+Nothing comments or pushes. **Fake-tested, not certified or supported**;
+no hosted/live run or release carrying the launcher is claimed. [The CI
+systems guide](docs/ci-other-systems.md) covers setup, inputs and limits.
+
+Regenerate the shared bootstrap after editing its source with
+`node scripts/sync-ci-bootstrap.mjs`.
+
 ## Keeping your machine responsive
 
 M107's integration candidate adds one portable governor per harness process.

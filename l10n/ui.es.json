@@ -202,11 +202,6 @@
   "estimateSeed": "Semilla de simulación",
   "estimateAsOf": "Hora de la instantánea",
   "estimateMarginal": "Tiempo ahorrado con esta máquina adicional",
-  "estimateMissingMore": {
-    "one": "y {count} más",
-    "many": "y {count} más",
-    "other": "y {count} más"
-  },
   "estimateHourly": "Precio por hora",
   "estimateCatalog": "Un precio de catálogo del {date}, no una cotización.",
   "estimateNoPrice": "No hay ningún precio de catálogo público disponible.",
@@ -233,6 +228,11 @@
   "estimateWaiting": "Esperando a {dependency}.",
   "estimateRunning": "Estimando…",
   "estimateFailed": "La estimación falló: {detail}",
+  "estimateMissingMore": {
+    "one": "y {count} más",
+    "many": "y {count} más",
+    "other": "y {count} más"
+  },
   "estimateSchedule": "Calendario de líneas de trabajo",
   "estimateGantt": "Calendario de {goal}, con la ruta crítica y las marcas de finalización P50 y P90.",
   "estimateOptimizeDescription": "Elige la configuración más barata que cumpla la fecha límite en P90, o la más rápida con ahorros marginales suficientes.",
@@ -429,6 +429,8 @@
   "referenceCodeOutput": "Copiar copia el código; Insertar escribe en el cursor; Aplicar reemplaza la selección del editor. Abre la salida para leerla completa; la salida recortada se puede paginar. Seleccionar texto de la conversación para citarlo en el cuadro de entrada, preguntar sobre él, comentar o copiarlo.",
   "referencePaidContexts": "Los extras interactivos de Model API preguntan antes de gastar y comparten el presupuesto diario. Las imágenes de Muse Code requieren una clave Model API guardada y activación explícita; su gasto queda fuera de ese registro diario. Muse Voice reserva el presupuesto diario compartido en ambos backends. Las funciones de pago ACP están desactivadas por defecto y requieren opciones de Model API y permiso del editor. Las solicitudes Model API de ACP y sin interfaz reservan el presupuesto diario del runtime; sin interfaz también se exige un presupuesto estricto por ejecución. Las imágenes sin interfaz requieren acceptEdits y la opción de imagen. Cuenta y uso permite olvidar los permisos de pago del espacio de trabajo.",
   "referenceAcp": "Las habilidades instaladas añaden comandos dinámicos que esta referencia estática no enumera. ACP solo gestiona /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents locales y habilidades instaladas; los comandos del panel, ajustes y diálogos de la referencia enlazada son flujos de la extensión.",
+  "referenceCiOtherTitle": "Otros sistemas de CI",
+  "referenceCiOther": "Plantillas de revisión y corrección sin interfaz para GitLab, Azure, Jenkins y Bitbucket con hash de paquete verificado. Node lee la clave y publica fuera de la copia de trabajo; Azure/Jenkins suben esos archivos. El transporte de artefactos de GitLab/Bitbucket y el aislamiento de procesos de Bitbucket siguen sin verificar. Declara los nombres adicionales de variables con la clave en MUSE_CI_KEY_ALIASES. Solo pruebas con simulaciones; consulta docs/ci-other-systems.md.",
   "referenceWebFetchTitle": "Lectura web",
   "referenceWebFetchDetail": "Obtener páginas web públicas como texto legible, con comprobaciones de permisos y red.",
   "referenceCodeIntelTitle": "Inteligencia de código",
@@ -2028,15 +2030,15 @@
     "history": "El historial de la sesión seleccionada no está disponible."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "El registro de uso contiene entradas dañadas, incompletas o de una versión más reciente; los totales las excluyen.",
+    "sessionUsageUnavailable": "El uso de esta sesión no se puede atribuir en el registro conservado; los totales de tokens y costes no están disponibles.",
+    "budgetsUnavailable": "Las instantáneas de presupuesto del periodo seleccionado no están disponibles.",
+    "sessionModelUnavailable": "El catálogo de la sesión no nombra ningún modelo activo, por lo que el modelo se informa como desconocido.",
     "sessionTurnsUnavailable": "El historial de la sesión no contiene identificadores de turno, por lo que no se pueden contar los turnos.",
     "sessionApprovalsUnavailable": "El historial de la sesión no contiene decisiones de aprobación.",
     "toolBreakdownUnavailable": "El uso por herramienta no se registra en el diario de uso.",
     "rolledUpBreakdownExcluded": "El historial acumulado está incluido en los totales pero no en este desglose.",
     "rolledUpSessionExcluded": "El historial acumulado está excluido de los totales y del desglose de esta sesión.",
-    "journalIncomplete": "El registro de uso contiene entradas dañadas, incompletas o de una versión más reciente; los totales las excluyen.",
-    "sessionUsageUnavailable": "El uso de esta sesión no se puede atribuir en el registro conservado; los totales de tokens y costes no están disponibles.",
-    "budgetsUnavailable": "Las instantáneas de presupuesto del periodo seleccionado no están disponibles.",
-    "sessionModelUnavailable": "El catálogo de la sesión no nombra ningún modelo activo, por lo que el modelo se informa como desconocido.",
     "accountsFacetsUnavailable": "Detalles de cuenta no disponibles: {facets}.",
     "securityVaultUnavailable": "El almacén está bloqueado o no disponible.",
     "securityDeveloperAuditUnavailable": "La auditoría de desarrollador no está disponible."

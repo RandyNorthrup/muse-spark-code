@@ -202,9 +202,6 @@
   "estimateSeed": "シミュレーションのシード",
   "estimateAsOf": "スナップショット時刻",
   "estimateMarginal": "このマシンの追加で短縮される時間",
-  "estimateMissingMore": {
-    "other": "あと {count} 件"
-  },
   "estimateHourly": "時間当たりの価格",
   "estimateCatalog": "{date} 時点のカタログ価格であり、見積価格ではありません。",
   "estimateNoPrice": "公開カタログ価格はありません。",
@@ -231,6 +228,9 @@
   "estimateWaiting": "{dependency} を待っています。",
   "estimateRunning": "見積もり中…",
   "estimateFailed": "見積もりに失敗しました: {detail}",
+  "estimateMissingMore": {
+    "other": "あと {count} 件"
+  },
   "estimateSchedule": "レーンのスケジュール",
   "estimateGantt": "{goal} のスケジュール。クリティカルパスと P50・P90 の完了目印を表示します。",
   "estimateOptimizeDescription": "P90 で期限を満たす最安の構成、または追加の時間短縮に十分な価値がある最速の構成を選択します。",
@@ -427,6 +427,8 @@
   "referenceCodeOutput": "コピーはコードをコピー、挿入はカーソル位置に書き込み、適用はエディターの選択範囲を置換します。ツール出力を開くと全文を読めます。省略された出力はページ単位で表示できます。 会話のテキストを選択すると、入力欄への引用、質問、コメントの追加、コピーができます。",
   "referencePaidContexts": "対話型の Model API 追加機能は支出前に確認し、日次予算を共有します。Muse Code の画像には保存済み Model API キーと明示的な有効化が必要で、その支出はこの日次台帳の対象外です。Muse Voice は両バックエンドで共有日次予算を予約します。ACP の有料機能は既定でオフになり、Model API フラグとエディターの許可が必要です。ACP とヘッドレスの Model API リクエストはランタイムの日次予算を予約し、ヘッドレスでは実行ごとの厳格な予算も必要です。ヘッドレスの画像には acceptEdits と画像フラグが必要です。アカウントと使用量でワークスペースの有料利用許可を取り消せます。",
   "referenceAcp": "インストール済みスキルは動的なスラッシュコマンドを追加しますが、この静的な資料には一覧がありません。ACP がローカルで処理するのは /help、/compact、/legal、/playback、/usage、/resources, /resources resume, /usage resources, /questions、/answer, /prompt, /share, /agents とスキルだけです。リンク先のパネルコマンド、設定、ダイアログは拡張機能の操作です。",
+  "referenceCiOtherTitle": "その他の CI システム",
+  "referenceCiOther": "パッケージのダイジェストを固定した GitLab、Azure、Jenkins、Bitbucket 向けヘッドレスレビュー・修正テンプレート。Node がキーを読み、チェックアウト外に結果を公開し、Azure/Jenkins がそのファイルをアップロードします。GitLab/Bitbucket の成果物転送と Bitbucket のプロセス分離は未検証です。追加のキー変数名は MUSE_CI_KEY_ALIASES に指定してください。模擬テストのみ。docs/ci-other-systems.md を参照。",
   "referenceWebFetchTitle": "ウェブ取得",
   "referenceWebFetchDetail": "権限とネットワークを確認し、公開ウェブページを読みやすいテキストとして取得します。",
   "referenceCodeIntelTitle": "コードインテリジェンス",
@@ -1968,15 +1970,15 @@
     "history": "選択したセッションの履歴は利用できません。"
   },
   "reportDetailReasons": {
+    "journalIncomplete": "使用状況の記録には破損、不完全、または新しいバージョンの項目が含まれています。合計からは除外されています。",
+    "sessionUsageUnavailable": "保存された記録ではこのセッションの使用状況を特定できないため、トークン数と費用の合計は利用できません。",
+    "budgetsUnavailable": "選択した期間の予算スナップショットは利用できません。",
+    "sessionModelUnavailable": "セッションカタログにアクティブなモデルがないため、モデルは不明として報告されます。",
     "sessionTurnsUnavailable": "セッション履歴にターン識別子がないため、ターンを数えられません。",
     "sessionApprovalsUnavailable": "セッション履歴に承認の決定がありません。",
     "toolBreakdownUnavailable": "ツール別の使用量は使用量ジャーナルに記録されません。",
     "rolledUpBreakdownExcluded": "集計済みの履歴は合計に含まれますが、この内訳には含まれません。",
     "rolledUpSessionExcluded": "ロールアップされた履歴は、このセッションの合計と内訳から除外されます。",
-    "journalIncomplete": "使用状況の記録には破損、不完全、または新しいバージョンの項目が含まれています。合計からは除外されています。",
-    "sessionUsageUnavailable": "保存された記録ではこのセッションの使用状況を特定できないため、トークン数と費用の合計は利用できません。",
-    "budgetsUnavailable": "選択した期間の予算スナップショットは利用できません。",
-    "sessionModelUnavailable": "セッションカタログにアクティブなモデルがないため、モデルは不明として報告されます。",
     "accountsFacetsUnavailable": "利用できないアカウントの詳細: {facets}。",
     "securityVaultUnavailable": "保管庫はロックされているか、利用できません。",
     "securityDeveloperAuditUnavailable": "開発者監査は利用できません。"

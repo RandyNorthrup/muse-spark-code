@@ -202,10 +202,6 @@
   "estimateSeed": "Szimulációs kezdőérték",
   "estimateAsOf": "Pillanatkép ideje",
   "estimateMarginal": "Az új gép által megtakarított idő",
-  "estimateMissingMore": {
-    "one": "és további {count}",
-    "other": "és további {count}"
-  },
   "estimateHourly": "Óránkénti ár",
   "estimateCatalog": "A {date} dátumú katalógusár, nem árajánlat.",
   "estimateNoPrice": "Nem érhető el nyilvános katalógusár.",
@@ -232,6 +228,10 @@
   "estimateWaiting": "Várakozás erre: {dependency}.",
   "estimateRunning": "Becslés folyamatban…",
   "estimateFailed": "A becslés sikertelen: {detail}",
+  "estimateMissingMore": {
+    "one": "és további {count}",
+    "other": "és további {count}"
+  },
   "estimateSchedule": "Munkasávok ütemezése",
   "estimateGantt": "A(z) {goal} ütemezése a kritikus úttal és a P50, illetve P90 befejezési jelölésekkel.",
   "estimateOptimizeDescription": "Válassza a P90 szerint határidőt tartó legolcsóbb összeállítást, vagy a leggyorsabbat, ahol a további időnyereség még számottevő.",
@@ -428,6 +428,8 @@
   "referenceCodeOutput": "A Másolás másolja a kódot; a Beszúrás a kurzornál ír; az Alkalmazás a szerkesztő kijelölését cseréli. Nyissa meg a teljes eszközkimenetet; a levágott kimenet lapozható. Jelöljön ki szöveget a beszélgetésben, hogy idézze az üzenetmezőben, kérdezzen róla, megjegyzést fűzzön hozzá vagy másolja.",
   "referencePaidContexts": "Az interaktív Model API-extrák költés előtt kérdeznek, és megosztják a napi keretet. A Muse Code képeihez tárolt Model API-kulcs és kifejezett bekapcsolás kell; költségük kívül esik ezen a napi naplón. A Muse Voice mindkét háttérrendszeren lefoglalja a közös napi keretet. A fizetős ACP-funkciók alapból ki vannak kapcsolva, Model API-jelzőket és szerkesztői engedélyt igényelnek. Az ACP és a felület nélküli Model API-kérések lefoglalják a futtatókörnyezet napi keretét; felület nélkül futásonként szigorú keret is szükséges. A felület nélküli képekhez acceptEdits és a képjelző kell. A Fiók és használat elfelejtheti a munkaterület fizetős engedélyeit.",
   "referenceAcp": "A telepített készségek dinamikus parancsokat adnak hozzá, amelyeket ez a statikus referencia nem sorol fel. Az ACP csak a helyi /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents és a telepített készségek parancsait kezeli; a hivatkozott panelparancsok, beállítások és párbeszédablakok a bővítmény folyamatai.",
+  "referenceCiOtherTitle": "Egyéb CI-rendszerek",
+  "referenceCiOther": "Csomaglenyomattal ellenőrzött, felület nélküli áttekintési/javítási sablonok GitLabhoz, Azure-hoz, Jenkinshez és Bitbuckethez. A kulcsot a Node olvassa be, és a munkapéldányon kívül teszi közzé az eredményt; az Azure/Jenkins feltölti ezeket a fájlokat. A GitLab/Bitbucket műterméktovábbítása és a Bitbucket folyamatelszigetelése még nincs igazolva. A további kulcsváltozók neveit a MUSE_CI_KEY_ALIASES értékében adja meg. Csak szimulált tesztek; lásd docs/ci-other-systems.md.",
   "referenceWebFetchTitle": "Weboldalak lekérése",
   "referenceWebFetchDetail": "Nyilvános weboldalak lekérése olvasható szövegként, jogosultság- és hálózatellenőrzéssel.",
   "referenceCodeIntelTitle": "Kódelemzés",
@@ -1998,15 +2000,15 @@
     "history": "A kiválasztott munkamenet előzményei nem érhetők el."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "A használati napló sérült, hiányos vagy újabb verziójú bejegyzéseket tartalmaz; az összesítés ezeket kizárja.",
+    "sessionUsageUnavailable": "A megőrzött naplóban a használat nem rendelhető ehhez a munkamenethez; a tokenek és költségek összesítése nem érhető el.",
+    "budgetsUnavailable": "A kiválasztott időszak költségkeret-pillanatképei nem érhetők el.",
+    "sessionModelUnavailable": "A munkamenet-katalógus nem nevez meg aktív modellt, ezért a modell ismeretlenként szerepel.",
     "sessionTurnsUnavailable": "A munkamenet-előzmények nem tartalmaznak körazonosítókat, ezért a körök nem számolhatók meg.",
     "sessionApprovalsUnavailable": "A munkamenet-előzmények nem tartalmaznak jóváhagyási döntéseket.",
     "toolBreakdownUnavailable": "Az eszközönkénti használat nincs rögzítve a használati naplóban.",
     "rolledUpBreakdownExcluded": "Az összesített előzmények a végösszegekben szerepelnek, de ebben a bontásban nem.",
     "rolledUpSessionExcluded": "Az összesített előzmények nem számítanak bele a munkamenet összesítéseibe és bontásába.",
-    "journalIncomplete": "A használati napló sérült, hiányos vagy újabb verziójú bejegyzéseket tartalmaz; az összesítés ezeket kizárja.",
-    "sessionUsageUnavailable": "A megőrzött naplóban a használat nem rendelhető ehhez a munkamenethez; a tokenek és költségek összesítése nem érhető el.",
-    "budgetsUnavailable": "A kiválasztott időszak költségkeret-pillanatképei nem érhetők el.",
-    "sessionModelUnavailable": "A munkamenet-katalógus nem nevez meg aktív modellt, ezért a modell ismeretlenként szerepel.",
     "accountsFacetsUnavailable": "Nem érhetők el a fiókadatok: {facets}.",
     "securityVaultUnavailable": "A tároló zárolt vagy nem érhető el.",
     "securityDeveloperAuditUnavailable": "A fejlesztői napló nem érhető el."

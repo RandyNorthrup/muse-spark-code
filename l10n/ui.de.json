@@ -202,10 +202,6 @@
   "estimateSeed": "Startwert der Simulation",
   "estimateAsOf": "Zeitpunkt der Bestandsaufnahme",
   "estimateMarginal": "Durch diesen zusätzlichen Rechner eingesparte Zeit",
-  "estimateMissingMore": {
-    "one": "und {count} weitere",
-    "other": "und {count} weitere"
-  },
   "estimateHourly": "Stundenpreis",
   "estimateCatalog": "Ein Katalogpreis vom {date}, kein Angebot.",
   "estimateNoPrice": "Kein öffentlicher Katalogpreis verfügbar.",
@@ -232,6 +228,10 @@
   "estimateWaiting": "Warten auf {dependency}.",
   "estimateRunning": "Schätzung läuft…",
   "estimateFailed": "Schätzung fehlgeschlagen: {detail}",
+  "estimateMissingMore": {
+    "one": "und {count} weitere",
+    "other": "und {count} weitere"
+  },
   "estimateSchedule": "Spurzeitplan",
   "estimateGantt": "Zeitplan für {goal} mit kritischem Pfad sowie P50- und P90-Abschlussmarken.",
   "estimateOptimizeDescription": "Wählen Sie die günstigste Ausstattung, die die Frist bei P90 einhält, oder die schnellste mit lohnenden zusätzlichen Zeitersparnissen.",
@@ -428,6 +428,8 @@
   "referenceCodeOutput": "Kopieren kopiert Code; Einfügen schreibt am Cursor; Anwenden ersetzt die Editor-Auswahl. Öffnen Sie Werkzeugausgaben vollständig; gekürzte Ausgaben können seitenweise gelesen werden. Text im Verlauf auswählen, um ihn im Eingabefeld zu zitieren, danach zu fragen, ihn zu kommentieren oder zu kopieren.",
   "referencePaidContexts": "Interaktive Model API-Extras fragen vor Ausgaben und nutzen das gemeinsame Tagesbudget. Muse Code-Bilder benötigen einen gespeicherten Model API-Schlüssel und ausdrückliche Aktivierung; ihre Ausgaben liegen außerhalb dieses Tagesjournals. Muse Voice reserviert auf beiden Backends das gemeinsame Tagesbudget. Kostenpflichtige ACP-Funktionen sind standardmäßig aus und benötigen Model API-Flags und Editor-Erlaubnis. ACP- und Headless-Model-API-Anfragen reservieren das Laufzeit-Tagesbudget; Headless benötigt zusätzlich ein hartes Budget pro Lauf. Headless-Bilder benötigen acceptEdits und das Bild-Flag. Konto und Nutzung kann gespeicherte Workspace-Zustimmungen vergessen.",
   "referenceAcp": "Installierte Skills ergänzen dynamische Slash-Befehle, die hier nicht aufgelistet sind. ACP verarbeitet nur lokale /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents und installierte Skills; Panel-Befehle, Einstellungen und Editor-Dialoge der verlinkten Referenz sind Erweiterungsabläufe.",
+  "referenceCiOtherTitle": "Andere CI-Systeme",
+  "referenceCiOther": "Vorlagen für unbeaufsichtigte Prüfung/Korrektur auf GitLab, Azure, Jenkins und Bitbucket mit geprüftem Paket-Hash. Node liest den Schlüssel und veröffentlicht außerhalb der Arbeitskopie; Azure/Jenkins laden diese Dateien hoch. Artefakttransport auf GitLab/Bitbucket und Prozessisolierung auf Bitbucket sind noch ungeprüft. Weitere Schlüsselvariablennamen in MUSE_CI_KEY_ALIASES angeben. Nur Tests mit Attrappen; siehe docs/ci-other-systems.md.",
   "referenceWebFetchTitle": "Webseiten abrufen",
   "referenceWebFetchDetail": "Öffentliche Webseiten als lesbaren Text abrufen, mit Berechtigungs- und Netzwerkprüfungen.",
   "referenceCodeIntelTitle": "Codeverständnis",
@@ -1998,15 +2000,15 @@
     "history": "Der Verlauf der ausgewählten Sitzung ist nicht verfügbar."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "Das Nutzungsjournal enthält beschädigte, unvollständige oder neuere Einträge; Summen schließen sie aus.",
+    "sessionUsageUnavailable": "Die Nutzung dieser Sitzung ist im gespeicherten Journal nicht zuordenbar; Token- und Kostensummen sind nicht verfügbar.",
+    "budgetsUnavailable": "Budgetaufnahmen für den gewählten Zeitraum sind nicht verfügbar.",
+    "sessionModelUnavailable": "Der Sitzungskatalog nennt kein aktives Modell, daher wird das Modell als unbekannt gemeldet.",
     "sessionTurnsUnavailable": "Der Sitzungsverlauf enthält keine Turn-Kennungen, daher können Turns nicht gezählt werden.",
     "sessionApprovalsUnavailable": "Der Sitzungsverlauf enthält keine Genehmigungsentscheidungen.",
     "toolBreakdownUnavailable": "Die Werkzeugnutzung wird im Nutzungsverlauf nicht erfasst.",
     "rolledUpBreakdownExcluded": "Zusammengefasste Verläufe sind in den Summen enthalten, aber nicht in dieser Aufschlüsselung.",
     "rolledUpSessionExcluded": "Zusammengefasste Verläufe sind in den Summen und der Aufschlüsselung dieser Sitzung nicht enthalten.",
-    "journalIncomplete": "Das Nutzungsjournal enthält beschädigte, unvollständige oder neuere Einträge; Summen schließen sie aus.",
-    "sessionUsageUnavailable": "Die Nutzung dieser Sitzung ist im gespeicherten Journal nicht zuordenbar; Token- und Kostensummen sind nicht verfügbar.",
-    "budgetsUnavailable": "Budgetaufnahmen für den gewählten Zeitraum sind nicht verfügbar.",
-    "sessionModelUnavailable": "Der Sitzungskatalog nennt kein aktives Modell, daher wird das Modell als unbekannt gemeldet.",
     "accountsFacetsUnavailable": "Nicht verfügbare Kontodetails: {facets}.",
     "securityVaultUnavailable": "Der Tresor ist gesperrt oder nicht verfügbar.",
     "securityDeveloperAuditUnavailable": "Die Entwicklerprüfung ist nicht verfügbar."

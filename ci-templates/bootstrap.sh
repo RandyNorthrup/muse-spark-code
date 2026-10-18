@@ -1,0 +1,42 @@
+# Muse Spark Code (Unofficial): shared POSIX bootstrap, generated into the
+# four templates by node scripts/sync-ci-bootstrap.mjs. The parent never
+# reads the credential. Only names/paths/timestamps cross this subshell.
+set +x
+set -efu
+umask 077
+# Parent holders own paths, never credentials. Reserve their namespace before
+# assigning the bootstrap result, so declared bindings cannot be overwritten.
+for muse_ci_internal_alias in ${MUSE_CI_KEY_ALIASES:-}; do
+  case "$muse_ci_internal_alias" in ''|[0-9]*|*[!A-Za-z0-9_]*|muse_ci_internal_*|MUSE_CI_*|MUSE_INPUT_*|MUSE_AGENT_*) echo 'muse-spark: invalid or reserved key alias name' >&2; exit 1;; esac
+done
+# Extra bindings must be declared by NAME, never by value. The launcher
+# reads this same name list and also scrubs every copy of the value. Every
+# name was validated by the reserved-prefix loop above (its shape check
+# subsumes the old inner one); macOS sh (bash 3.2) cannot parse case inside
+# $( ), so only the value removals stay in this subshell, keeping the
+# download children blind to every declared copy.
+muse_ci_internal_setup="$(
+  unset @MUSE_KEY_NAMES@
+  for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done
+  if [ -z "${MUSE_AGENT_VERSION:-}" ] || [ -z "${MUSE_INPUT_AGENT_PACKAGE_SHA256:-}" ]; then echo 'muse-spark: pin MUSE_AGENT_VERSION and MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+  muse_start_ms=$(($(date +%s) * 1000))
+  muse_dir="$(mktemp -d)"
+  # timeout(1) bounds the removal where it runs; a missing or broken
+  # timeout must not change the exit status, so plain rm is the fallback.
+  trap 'timeout -s KILL 5 rm -rf "$muse_dir" 2>/dev/null || rm -rf "$muse_dir"' EXIT HUP INT TERM
+  curl --fail --silent --show-error --location --max-time 120 --output "$muse_dir/agent.tgz" "${MUSE_AGENT_URL:-https://registry.npmjs.org/muse-spark-code-acp/-/muse-spark-code-acp-$MUSE_AGENT_VERSION.tgz}"
+  muse_sum="$(sha256sum "$muse_dir/agent.tgz")"
+  if [ "${muse_sum%% *}" != "$MUSE_INPUT_AGENT_PACKAGE_SHA256" ]; then echo 'muse-spark: the agent package does not match MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
+  mkdir "$muse_dir/launcher"
+  tar -xzf "$muse_dir/agent.tgz" -C "$muse_dir/launcher" --no-same-owner
+  printf '%s:%s' "$muse_start_ms" "$muse_dir"
+  trap - EXIT HUP INT TERM
+)"
+muse_ci_internal_start_ms="${muse_ci_internal_setup%%:*}"
+muse_ci_internal_dir="${muse_ci_internal_setup#*:}"
+# A launch failure still belongs to this shell: plain invocation (not exec)
+# keeps every shell's exit status, because macOS sh (bash 3.2) reports a
+# failed bare exec as success once an EXIT trap runs. The reserved holders
+# survive both generated and alias unsets.
+trap '(muse_ci_internal_rm_dir="$muse_ci_internal_dir"; unset @MUSE_KEY_NAMES@; for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done; timeout -s KILL 5 rm -rf "$muse_ci_internal_rm_dir" 2>/dev/null || rm -rf "$muse_ci_internal_rm_dir")' EXIT HUP INT TERM
+MUSE_CI_TEMP="$muse_ci_internal_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_ci_internal_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_ci_internal_dir/agent.tgz" node "$muse_ci_internal_dir/launcher/package/ci/lib/ci-entry.mjs" @MUSE_SYSTEM@
