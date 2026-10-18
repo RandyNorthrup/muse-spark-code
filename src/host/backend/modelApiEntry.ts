@@ -37,6 +37,7 @@ export {
   redactModelApiError,
   redactStreamDiagnostics,
   retryAfterMs,
+  providerWaitMs,
   ignoreClosingError,
   redactSecrets,
   assertConfirmedAllowed,
