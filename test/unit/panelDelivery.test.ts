@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { PanelDelivery } from '../../src/runtime/panel/delivery'
 import { MHP_PANEL } from '../../src/shared/constants'
 
@@ -13,20 +13,22 @@ describe('panel shared delivery budget', () => {
   it('pauses after a false write, resumes on drain without resending, and counts unfinished writes', () => {
     const delivery = new PanelDelivery()
     const callbacks: (() => void)[] = []
-    const write = vi.fn((_line: string, complete: () => void) => {
+    const lines: string[] = []
+    const write = (line: string, complete: () => void) => {
+      lines.push(line)
       callbacks.push(complete)
       return false
-    })
+    }
     delivery.connect(write)
     delivery.post({ one: 1 }, 'a')
     delivery.post({ two: 2 }, 'b')
-    expect(write).toHaveBeenCalledTimes(1)
+    expect(lines).toHaveLength(1)
     expect(delivery.totals.messages).toBe(2)
     callbacks[0]?.()
     expect(delivery.totals.messages).toBe(1)
     delivery.resume()
-    expect(write).toHaveBeenCalledTimes(2)
-    expect(write.mock.calls[1]?.[0]).toContain('two')
+    expect(lines).toHaveLength(2)
+    expect(lines[1]).toContain('two')
     callbacks[1]?.()
     expect(delivery.totals).toEqual({ bytes: 0, messages: 0 })
   })
@@ -52,13 +54,15 @@ describe('panel shared delivery budget', () => {
     delivery.post({ a: 1 }, 'a')
     delivery.post({ b: 1 }, 'b')
     const done: (() => void)[] = []
-    const write = vi.fn((_line: string, complete: () => void) => {
+    const lines: string[] = []
+    const write = (line: string, complete: () => void) => {
+      lines.push(line)
       done.push(complete)
       return true
-    })
+    }
     delivery.connect(write)
-    expect(write).toHaveBeenCalledTimes(1)
-    expect(write.mock.calls[0]?.[0]).toContain('b')
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toContain('b')
     expect(delivery.drop('b')).toBe(1)
     done[0]?.()
     expect(delivery.drop('b')).toBe(0)

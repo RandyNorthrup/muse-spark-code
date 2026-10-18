@@ -3,7 +3,7 @@ import { mkdtemp, realpath, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { lspTransport } from '../../src/runtime/lsp/transport'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import { LSP_LIMITS, RUNTIME_STOP } from '../../src/shared/constants'
@@ -42,7 +42,7 @@ describe('M104L real runtime factory without paid flags', () => {
       const firstClosed = closed(first)
       const secondClosed = closed(second)
       const clients = [first, second].map((process) =>
-        lspTransport(process.stdout, process.stdin, vi.fn()),
+        lspTransport(process.stdout, process.stdin, () => undefined),
       )
       try {
         for (const client of clients)
