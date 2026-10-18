@@ -68,6 +68,7 @@ describe('bundledSkillsInstall failures', () => {
       const linkStats = await lstat(link)
       expect(linkStats.isSymbolicLink()).toBe(true)
       expect(await readlink(link)).toContain('alpha')
+      // JSON.parse returns any; the file holds the marker this test's install wrote.
       const marker = JSON.parse(
         await readFile(
           path.join(area.sourcesRoot, 'high-quality-projects-skill', '.muse-spark-bundled.json'),

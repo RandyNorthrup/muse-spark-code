@@ -65,6 +65,54 @@ Designed baselines with reasons (accepted, not forgotten):
   throws with its cause. Evidence:
   `test/unit/checkpointStorageGuard.test.ts` ("returns a refused entry
   when the run guard throws").
+- `src/host/git/conversationGit.ts` fetch-fallback catch: the fetch ran
+  only after the log failed, so its own failure carries no new signal;
+  the outer handler reports the outcome. Evidence: the outer base-commit
+  handler is NARROW (typed rethrow plus the recorded kind).
+- `src/host/git/conversationGit.ts` post-success ownership catch: the
+  post completed, so success stands; only the linking reads stop.
+- `src/host/skills/bundledSkillsInstall.ts` install, outer-install and
+  remove tails: install and remove always return result data, never
+  throw — the activation side never catches and words `result.failure`
+  itself (`runBundledSkillsInstall`), and the outer install compensates
+  (undo) before returning. Evidence:
+  `test/unit/bundledSkillsInstall.test.ts` ("returns failure data, never
+  a throw, when the vendor record is missing", "undoes the copy and
+  returns failure data when the skills folder is blocked").
+- `src/host/browser/browserProcess.ts` `isRunning` catch: unknown counts
+  as running — a maybe-live owner's folder is never removed; the sweep
+  retries. Evidence: `test/unit/browserProcess.test.ts` ("sweeps a dead
+  owner folder and keeps a live one").
+- `src/host/browser/runtime/runtimeStore.ts` stage-owner kill catch: only
+  ESRCH (the owner is gone) removes the stage; any other kill failure
+  keeps it for a later sweep, since the owner may live.
+- `src/host/browser/browserProcess.ts` group-kill fallback catch: the
+  pipes' setup already failed, so ending the direct child stays
+  best-effort with nothing further to report.
+- `src/host/browser/browserProcess.ts` half-made removal catch: a later
+  sweep retries what stays.
+- `src/host/providers/chatgptSignIn.ts` loopback-listen catch: every
+  listen failure becomes the closed `local-failed` code carrying the
+  operating system's code, which the hosts word themselves; the raw
+  error never crosses (the class lives out of area, so no cause slot
+  can be added here).
+- `src/host/providers/chatgptSignIn.ts` callback-request catch: request
+  bytes must never enter a failure, so a non-typed parser failure reads
+  as `invalid-callback` by privacy design.
+- `src/host/providers/chatgptSignIn.ts` lock-owner kill catch:
+  permission and unrecognised OS failures mean uncertainty, not death —
+  the lock is kept. Fail-closed toward keeping.
+- `src/host/providers/chatgptSignIn.ts` credential-store catch: a
+  refusal is the editor's store and is said as such, never as a ChatGPT
+  outage (F14); the foreign error is deliberately not carried.
+- `src/host/providers/chatgptSignIn.ts` factory-outer catch: a typed
+  failure keeps its own sentence; anything else is a local file problem
+  said with the operating system's code on the closed `local-failed`
+  error the hosts word themselves.
+- `src/host/providers/chatgptSignIn.ts` callback-wait and
+  `src/host/providers/copilotClient.ts` tokenizer-race `.catch(() => null)`
+  marks: the waiter (respectively the race) below receives the outcome;
+  the mark only silences the handled rejection.
 - Everything else below: pre-existing, grouped for area-by-area lanes.
 
 | Folder                 | GENERIC | SWALLOW |
