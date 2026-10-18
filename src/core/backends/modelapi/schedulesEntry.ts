@@ -251,8 +251,9 @@ export class ModelApiSchedules {
     if (this.scheduleTimer === undefined && !this.port.isDisposed()) {
       this.scheduleTimer = setInterval(() => {
         if (!this.port.isDisposed()) {
-          void this.listSchedules().catch((error: unknown) => {
-            this.port.deps.log.warn(`Scheduled prompts could not be refreshed: ${describe(error)}`)
+          void this.listSchedules().catch(() => {
+            // The record names the stale view, never the refresh failure's text.
+            this.port.deps.log.warn('Scheduled prompts could not be refreshed')
           })
         }
       }, SCHEDULE_POLL_INTERVAL_MS)
@@ -437,9 +438,10 @@ export class ModelApiSchedules {
     this.port.touch()
     try {
       await this.listSchedules()
-    } catch (error: unknown) {
+    } catch {
       // A run already admitted and started must never be reported as rejected.
-      this.port.deps.log.warn(`Scheduled prompts could not be refreshed: ${describe(error)}`)
+      // The record names the stale view, never the refresh failure's text.
+      this.port.deps.log.warn('Scheduled prompts could not be refreshed')
     }
     return submission
   }
@@ -613,15 +615,24 @@ export async function verifyRound(
       }))
     }
   } catch (error: unknown) {
-    const isStopped = context.isAbortError(error) || isAbortRequested(signal)
-    const ended: ItemSnapshot = {
-      ...started,
-      status: isStopped ? CANCELLED : FAILED,
-      ...(!isStopped && { failureReason: describe(error) }),
+    // A stop cancels the item; any other failure fails it with its reason and
+    // reaches the caller unchanged. isAbortRequested(signal) is signal.aborted.
+    if (context.isAbortError(error)) {
+      const cancelled: ItemSnapshot = { ...started, status: CANCELLED }
+      context.emit({ type: 'itemCompleted', item: cancelled })
+      context.rerecordTranscript(cancelled)
+      throw context.abortError()
     }
+    if (signal.aborted) {
+      const cancelled: ItemSnapshot = { ...started, status: CANCELLED }
+      context.emit({ type: 'itemCompleted', item: cancelled })
+      context.rerecordTranscript(cancelled)
+      throw context.abortError()
+    }
+    const ended: ItemSnapshot = { ...started, status: FAILED, failureReason: describe(error) }
     context.emit({ type: 'itemCompleted', item: ended })
     context.rerecordTranscript(ended)
-    throw isStopped ? context.abortError() : error
+    throw error
   }
   const report = pending?.report
   const sections = [
