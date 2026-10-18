@@ -28,7 +28,6 @@ function failure(status: number, kind?: string, code?: string): RetryFailure {
     kind,
     code,
     message: "Missing required parameter: 'tools[0].description'.",
-    retryAfterMs: undefined,
   }
 }
 
