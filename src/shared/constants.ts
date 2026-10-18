@@ -2738,6 +2738,13 @@ export const NAT64_DISCOVERY_TRIES = 2
 // (dist/browserRuntime.js) do not carry the rest of this file; every other
 // module reads them from here.
 export * from './browserCheckConstants'
+// --- Linux offline dictation (M9, PLAN.md D140) ---
+//
+// Its tunables live in linuxDictationConstants.ts, a module with no imports,
+// so the dictation bundle (dist/dictation.js) and Linux's driver bundle
+// (dist/voiceLinux.js) read them without the rest of this file; every other
+// module reads them from here.
+export * from './linuxDictationConstants'
 // The image tools the extension's `ide` session server offers Muse Code
 // while paid image generation is on and a Model API key is stored (M44):
 // billed to the key, never to the subscription (D1, D30).
@@ -3925,6 +3932,10 @@ export const CHECKPOINT_STORE_BUNDLE_FILE = 'checkpointStore.js'
 // Code intelligence's answers for Muse Code's `ide` server (M67, D6), loaded
 // on the first call; the tool list stays in dist/extension.js.
 export const CODE_INTEL_BUNDLE_FILE = 'codeIntel.js'
+// Voice dictation's setups (M9, M35, D6): the window's dictation and Muse
+// Voice setups with the helper probes, required at their existing
+// construction points so the microphone's availability keeps its timing.
+export const DICTATION_BUNDLE_FILE = 'dictation.js'
 // Voice's drivers (M9, M35, D6): the dictation driver, Muse Voice's stream,
 // the helper process and the socket, loaded on the first recording.
 export const VOICE_BUNDLE_FILE = 'voice.js'
@@ -5952,6 +5963,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/codeIntel.js',
   'dist/voice.js',
   'dist/voiceLinux.js',
+  'dist/dictation.js',
   'dist/webFetch.js',
   'dist/museCodeReviewer.js',
   'dist/searchWorker.js',
@@ -8069,49 +8081,3 @@ export const VAULT_HOST_BUDGET_KIB = 50
 export const VAULT_UI_TICK_MS = 1000
 export const VAULT_ID_BYTES = 16
 export const VAULT_TOTP_PERIOD_SECONDS = 30
-
-// CM9LNX: only Linux uses this offline English engine; model bytes stay out of packages.
-export const LINUX_DICTATION = {
-  directory: 'dictation-linux',
-  modelFile: 'ggml-tiny.en.bin',
-  partialFile: 'ggml-tiny.en.partial',
-  lockDirectory: '.download-lock',
-  bytes: 77_704_715,
-  sha256: '921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f',
-  url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/c521a4b02f422512d734391fdf08bb08c0862f68/ggml-tiny.en.bin',
-  timeoutMs: 900_000,
-  redirectLimit: 5,
-  statusOk: 200,
-  statusPartial: 206,
-  redirects: [301, 302, 303, 307, 308],
-  directoryMode: 0o700,
-  fileMode: 0o600,
-  helperMode: 0o700,
-  setting: 'linuxDictationModel',
-  helperBinary: 'muse-dictate',
-  // Approximate first-download bytes shown on the consent card (measured
-  // x64 inventory, 2026-10-10; arm64 is similar). The pins enforce the
-  // exact per-file sizes at download; this is display only.
-  helperDownloadBytes: 7_623_768,
-  sampleRate: 16_000,
-  framesPerSecond: 5,
-  phraseSeconds: 10,
-  queueSeconds: 30,
-  wavSeconds: 60,
-  silenceThreshold: 0.004,
-  recognizerThreads: 3,
-  stopGraceMs: 30_000,
-  libraries: ['libwhisper.so.1', 'libggml.so', 'libggml-base.so'],
-  baseline: { x64: 'libggml-cpu-x64.so', arm64: 'libggml-cpu-armv8.0_1.so' },
-  environment: { LD_PRELOAD: '', LD_LIBRARY_PATH: '', LD_AUDIT: '', GGML_BACKEND_PATH: '' },
-  // Audio-server selectors the Linux helper must never inherit (RVCM9LNX
-  // P2): a network choice here would move capture to TCP. The launcher
-  // deletes them; the helper refuses a non-local server itself.
-  audioServerVariables: [
-    'PULSE_SERVER',
-    'PULSE_SINK',
-    'PULSE_SOURCE',
-    'PIPEWIRE_REMOTE',
-    'PIPEWIRE_CORE',
-  ],
-} as const

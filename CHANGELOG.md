@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Dictation setups leave the activation bundle: the window's dictation and
+  Muse Voice setups with the helper probes ship as `dist/dictation.js`,
+  required at their existing construction points, bringing the lane-K
+  activation growth (7,214 B) inside the 3,072 B cap with no behaviour
+  change (measured 13,032 B, 25 KiB budget; no existing cap changes).
 - Linux voice loads on first use: the offline driver, its helper/model
   acquisition and pins ship as `dist/voiceLinux.js` on the first Linux
   recording, keeping `dist/voice.js` inside its unchanged 50 KiB cap

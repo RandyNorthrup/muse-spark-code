@@ -71,7 +71,7 @@ m9-linux (`1437fc9c5`), m35-mic (`05a5636b6`).
   test builds `src/extension.ts` with the test's own externals, so only
   modules reachable from activation count. Rebuilding that bundle with
   each lane-changed activation file reverted to `main-now` `3d30a7321`
-  (minified bytes, `temp/attr-*.mjs`, scratch only) attributes the lane's
+  (minified bytes; scratch scripts, since removed) attributes the lane's
   4,351 B exactly (reverted tree builds 564,215 B, the recorded main-now
   number; lane tree 568,566 B). Single-file revert savings:
   `src/host/voice/dictationHost.ts` 1,507 (source 8,005 B:
@@ -138,15 +138,37 @@ m9-linux (`1437fc9c5`), m35-mic (`05a5636b6`).
 - New-gate fire proof: the `companionWav` red drills above; the l10n
   round-trip failures (15) caused by this lane's own merges, fixed by
   `4a8279e10`; knip's `linuxHelperBytes` flag from the fake-test deletion.
-- RED, deferred in PLAN §7 (no gate weakened, lead-owned):
+- GREEN since RVMSM9M35FIX (PLAN §7 deferral closed, no cap change):
   `test/unit/modelsActivationBudget.test.ts` — baseline 561,352 B,
-  current 568,566 B, growth 7,214 B vs the 3,072 B lane-K cap.
-  `main-now` 3d30a7321 alone measures 564,215 B (growth 2,863 B, passes
-  with 209 B headroom; verified in a scratch worktree at that ref, then
-  removed), so the lane's specified M9/M35 activation behaviour (Linux
-  probe, disabled-model cleanup, Linux loader, M35 paid scope, D140 pins)
-  adds 4,351 B no behaviour-adding milestone can fit. Lead either revisits
-  the cap (M78b precedent, Q-M78b) or accepts the deferral.
+  current 563,929 B, growth 2,577 B vs the 3,072 B lane-K cap (495 B
+  headroom). The setups moved off activation into the new
+  `dist/dictation.js` (13,032 B measured, 25 KiB budget by the
+  measured-plus-15% rule): `dictationEntry.ts` (entry),
+  `dictationHost.ts` (host capabilities as parameters, the M93 precedent —
+  deferred bundles keep no `vscode` import), `voiceBundle.ts` and
+  `helperLocation.ts` (whole, with their pre-existing bytes);
+  `LINUX_DICTATION` moved to `src/shared/linuxDictationConstants.ts`
+  (re-exported, the browser-check precedent). Per-module attribution came
+  from rebuilding the budget-test bundle with each lane-changed activation
+  file reverted to `main-now` (scratch scripts, since removed: reverting
+  all eight builds exactly the recorded 564,215 B; single-file savings
+  dictationHost 1,507, extension wiring 1,364, helperLocation 298,
+  settings 81, paidFeatures 21). Activation keeps only
+  `dictationBundle.ts` (loader, ~2.7 KB source) plus the same calls at the
+  same construction points with the installed table, so timing and
+  behaviour are unchanged; a bundle that cannot load leaves both
+  microphones unavailable (`dictationNotLoaded`, the log has the cause).
+  Split-gate fire drill: a value import of the entry from the activation
+  shim fails `npm run build` with "`dist/extension.js` carries
+  `src/host/voice/dictationEntry.ts`, which loads only on the window
+  dictation setup construction"; reverted byte-exact, green again.
+  Real-use proof (scratch Node script against the built bundles, since
+  removed; outputs: `DICTATION_BUNDLE_OK`): the built `dist/dictation.js`
+  required in Node constructs both setups — Linux without recorders reports
+  its honest unavailable reason, win32 reports available with a driver
+  factory, Muse Voice constructs; `dist/extension.js` carries none of
+  `removeLinuxDictationModel`, `createLinuxDictation`,
+  `locateDictationHelper`, `muse-dictate` or `dictation-linux`.
 - Final full `npm run test:unit` on the final tree (exit 1): 543 files
   passed, 5 failed; 9,265 tests passed, 9 failed, 91 skipped. The 9 are
   all outside the lane's touch surface (no lane file under

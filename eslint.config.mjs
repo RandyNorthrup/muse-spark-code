@@ -265,8 +265,13 @@ export default tseslint.config(
     // The constants module is the one place literals belong; the rule would be
     // unsatisfiable here. The browser check's tunables are its part, kept in a
     // module of their own that constants.ts re-exports (M81 A1: the check's
-    // 50 KiB bundle reads them without the rest).
-    files: ['src/shared/constants.ts', 'src/shared/browserCheckConstants.ts'],
+    // 50 KiB bundle reads them without the rest), as are Linux dictation's
+    // (D140: the dictation and voiceLinux bundles read them without the rest).
+    files: [
+      'src/shared/constants.ts',
+      'src/shared/browserCheckConstants.ts',
+      'src/shared/linuxDictationConstants.ts',
+    ],
     rules: { '@typescript-eslint/no-magic-numbers': 'off' },
   },
 

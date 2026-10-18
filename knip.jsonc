@@ -108,6 +108,9 @@
     // Linux's offline voice driver, required by path on the first Linux
     // recording (D6, D140).
     "src/host/voice/voiceLinuxEntry.ts",
+    // Voice dictation's setups, required by path at their construction
+    // points (D6).
+    "src/host/voice/dictationEntry.ts",
     // The window's web fetch (M69), required by path on the first fetch (D6, 2026-10-04).
     "src/host/web/webFetchEntry.ts",
     // The Auto reviewer on Muse Code (M90), required on the first review.

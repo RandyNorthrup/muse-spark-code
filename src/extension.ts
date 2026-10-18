@@ -1,5 +1,6 @@
 import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
 import { notify } from './core/events/notify'
+import { unlessAborted } from './core/timeouts'
 import {
   PAID_APPROVAL_ORDER_DIRECTORY,
   LEGAL_EXPLANATION_BUNDLE_FILE,
@@ -24,6 +25,7 @@ import {
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
   EXTENSION_NAME,
+  EXTENSION_QUALIFIED_ID,
   DICTATION_HELPER_DIR,
   FIND_FILES_GLOB,
   MODEL_API_BASE_URL,
@@ -51,6 +53,7 @@ import {
   LEGAL_SCAN_BUNDLE_FILE,
   EXTENSION_SKILLS_DIR,
   WEB_FETCH_BUNDLE_FILE,
+  DICTATION_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
   VOICE_LINUX_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
@@ -239,7 +242,7 @@ import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTool'
 
-import { fill as fillLegalNotice, fill, plural, uiLocale } from './shared/l10n/text'
+import { fill as fillLegalNotice, fill, formatBytes, plural, uiLocale } from './shared/l10n/text'
 import { legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
@@ -333,8 +336,8 @@ import type { ChatSurface } from './host/views/chatSurface'
 import type { WebviewHostContext } from './host/views/webviewSetup'
 import { loadUiTable, readUiTableFile } from './host/l10n'
 import type { InsightsReader } from './runtime/usage/traceLogs'
-import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
-import { ownedMetaVoiceBudgetScope, voiceLinuxLoader, voiceLoader } from './host/voice/voiceBundle'
+import type { DictationSetup } from './core/voice/dictation'
+import { dictationLoader, type DictationBundle } from './host/voice/dictationBundle'
 import {
   createMediaAttachDeps,
   createMediaSourceOpen,
@@ -1252,35 +1255,66 @@ async function activateWindow(
       judge.dispose()
     },
   })
-  // Both engines' drivers are dist/voice.js (D6), required on the first recording.
-  const voice = voiceLoader({
-    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_BUNDLE_FILE).fsPath,
+  // The remote this extension host runs on, or undefined on the user's own
+  // machine. `env.remoteName` alone is not enough: it is also set in the
+  // local extension host of a remote window, where a user's
+  // `remote.extensionKind` override could run this extension; the
+  // extension's kind says which side it is on.
+  const remoteHostNames = (() => {
+    const kind = vscode.extensions.getExtension(EXTENSION_QUALIFIED_ID)?.extensionKind
+    return {
+      remoteName: kind === vscode.ExtensionKind.UI ? undefined : vscode.env.remoteName,
+      appName: vscode.env.appName,
+    }
+  })()
+  // Voice dictation's setups (M9, M35) live in dist/dictation.js (D6),
+  // required at their existing construction points, so activation carries
+  // only this loader. A bundle that cannot load leaves both microphones
+  // unavailable (the log has the cause), as a helper that cannot be found
+  // does.
+  const loadDictation = dictationLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', DICTATION_BUNDLE_FILE).fsPath,
     log,
   })
+  let dictationServices: DictationBundle | undefined
+  try {
+    dictationServices = loadDictation()
+    dictationServices.installDictationText(UI_TEXT, uiLocale())
+  } catch {
+    dictationServices = undefined
+  }
+  const unavailableMicrophone = (): DictationSetup => ({
+    isAvailable: false,
+    reason: UI_TEXT.dictationNotLoaded,
+  })
+  // Both engines' drivers are dist/voice.js (D6), required on the first recording.
   // Linux's offline driver is dist/voiceLinux.js (D6, D140), required on the
   // first Linux recording, so the download machinery stays out of voice.js.
-  const voiceLinux = voiceLinuxLoader({
-    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_LINUX_BUNDLE_FILE).fsPath,
-    log,
-  })
   // Muse Voice (M35): the paid engine's recorder, used only while it is
   // on, its price accepted, and the window runs on the Model API key.
-  const museVoiceSetup = createMuseVoiceSetup(
-    {
-      platform: process.platform,
-      systemRoot: process.env['SystemRoot'],
-      helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
-    },
-    {
-      apiKey: () => credentials.getApiKey(),
-      reserveDaily: (costUsd) => dailyPaid.reserveExact(costUsd),
-      onSeconds: (seconds) => {
-        paid.usage.add('voice', seconds)
+  let museVoiceSetup: DictationSetup = unavailableMicrophone()
+  if (dictationServices !== undefined) {
+    museVoiceSetup = dictationServices.createMuseVoiceSetup(
+      {
+        platform: process.platform,
+        systemRoot: process.env['SystemRoot'],
+        helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
       },
-      log,
-      voice,
-    },
-  )
+      {
+        apiKey: () => credentials.getApiKey(),
+        reserveDaily: (costUsd) => dailyPaid.reserveExact(costUsd),
+        onSeconds: (seconds) => {
+          paid.usage.add('voice', seconds)
+        },
+        log,
+        voice: dictationServices.voiceLoader({
+          bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_BUNDLE_FILE).fsPath,
+          log,
+        }),
+      },
+      remoteHostNames,
+    )
+  }
   const broadcastPaidState = () => {
     registry.broadcast({ type: 'paidState', state: paid.state() })
     for (const controller of controllers.values()) {
@@ -1529,22 +1563,70 @@ async function activateWindow(
     context.subscriptions.push(disposable)
   }
   // Voice dictation (M9): the OS recogniser behind the composer's microphone.
-  const dictation = createDictationSetup(
-    {
-      platform: process.platform,
-      systemRoot: process.env['SystemRoot'],
-      helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
-    },
-    log,
-    voice,
-    voiceLinux,
-    {
-      storageRoot: context.globalStorageUri.fsPath,
-      register: (disposable) => {
-        context.subscriptions.push(disposable)
+  let dictation: DictationSetup = unavailableMicrophone()
+  if (dictationServices !== undefined) {
+    const services = dictationServices
+    dictation = services.createDictationSetup(
+      {
+        platform: process.platform,
+        systemRoot: process.env['SystemRoot'],
+        helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
       },
-    },
-  )
+      log,
+      services.voiceLoader({
+        bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_BUNDLE_FILE).fsPath,
+        log,
+      }),
+      services.voiceLinuxLoader({
+        bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_LINUX_BUNDLE_FILE)
+          .fsPath,
+        log,
+      }),
+      {
+        storageRoot: context.globalStorageUri.fsPath,
+        register: (disposable) => {
+          context.subscriptions.push(disposable)
+        },
+      },
+      {
+        ...remoteHostNames,
+        isLinuxModelEnabled: () => currentSettings().linuxDictationModel,
+        registerConfigListener: (listener) => {
+          const subscription = vscode.workspace.onDidChangeConfiguration((event) => {
+            if (event.affectsConfiguration(`${SETTINGS_SECTION}.linuxDictationModel`)) listener()
+          })
+          context.subscriptions.push(subscription)
+          return subscription
+        },
+        showError: (message) => {
+          void vscode.window.showErrorMessage(message)
+        },
+        askDownloadConsent: async (sizes, directory, signal) => {
+          if (signal.aborted) return false
+          const download = { title: UI_TEXT.browserRuntimeDownload }
+          const decline = { title: UI_TEXT.browserRuntimeNotNow, isCloseAffordance: true }
+          // One card for both downloads (PLAN.md D140): the helper's size is
+          // the measured first-download approximation; the pins enforce the
+          // exact per-file sizes at download.
+          const asked = vscode.window.showInformationMessage(
+            fill(UI_TEXT.linuxDictationDownloadTitle, {
+              helperSize: `~${formatBytes(sizes.helperDownloadBytes)}`,
+              size: formatBytes(sizes.bytes),
+            }),
+            {
+              modal: true,
+              detail: fill(UI_TEXT.linuxDictationDownloadDetail, { location: directory }),
+            },
+            download,
+            decline,
+          )
+          return (
+            (await unlessAborted(Promise.resolve(asked), signal)) === download && !signal.aborted
+          )
+        },
+      },
+    )
+  }
   const backend = new MuseCodeBackendManager({
     shellJobAssembly: () => windowsJobAssembly?.() ?? Promise.resolve(undefined),
     beforeWorkspaceHostStart: async () => {
@@ -3634,7 +3716,8 @@ async function activateWindow(
             const authGeneration = auth.admissionGeneration
             const key = await credentials.getApiKey()
             if (key === undefined) throw new Error(UI_TEXT.museVoiceNoKey)
-            return await ownedMetaVoiceBudgetScope({
+            if (dictationServices === undefined) throw new Error(UI_TEXT.dictationNotLoaded)
+            return await dictationServices.ownedMetaVoiceBudgetScope({
               journal: modelApiStore?.().budget,
               sessionId,
               accountId: createHash('sha256').update(key).digest('hex'),

@@ -24,6 +24,7 @@
     "src/host/ide/codeIntelEntry.ts",
     "src/host/voice/voiceEntry.ts",
     "src/host/voice/voiceLinuxEntry.ts",
+    "src/host/voice/dictationEntry.ts",
     "src/host/web/webFetchEntry.ts",
     "src/host/planMarkdownEntry.ts",
     "src/host/checkpoints/checkpointStoreEntry.ts",

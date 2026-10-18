@@ -1,7 +1,8 @@
 import { Dictation, type DictationDeps, type DictationHandle } from './dictation'
 import { LinuxDictationHelper, type LinuxHelperDeps } from './linuxHelper'
 import { LinuxDictationModel, type LinuxModelDeps } from './linuxModel'
-import { LINUX_DICTATION, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
+import { LINUX_DICTATION } from '../../shared/linuxDictationConstants'
 
 export interface LinuxDictationDeps extends DictationDeps {
   readonly model: LinuxModelDeps

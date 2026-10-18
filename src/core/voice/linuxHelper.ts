@@ -1,5 +1,6 @@
 import path from 'node:path'
-import { LINUX_DICTATION, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
+import { LINUX_DICTATION } from '../../shared/linuxDictationConstants'
 import {
   hasLinuxHelperPins,
   linuxHelperPins,
