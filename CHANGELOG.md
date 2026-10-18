@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- The production build ships the report inputs bundles again. The features
+  combine had dropped `dist/reportInputs.js` and
+  `dist/playbookSchedulesInputs.js` from the production bundle list, so the
+  first session, usage, playbook or schedules report had no inputs bundle to
+  load in the packaged product; the entries are back beside the other
+  reporting bundles.
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights
