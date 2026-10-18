@@ -1327,6 +1327,12 @@
       "id": "VSIXDIET2",
       "public": false,
       "note": "package size budget"
+    },
+    {
+      "id": "TOOLROUNDS",
+      "title": "Answers survive model-call limits",
+      "summary": "Long Model API turns retain a final summary at their call limit; headless request caps determine the turn allowance.",
+      "area": "chat"
     }
   ]
 }

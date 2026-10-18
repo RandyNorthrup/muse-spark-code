@@ -326,7 +326,7 @@
     "effort": "Muse'un her yanıta ayırdığı çabayı seçin.",
     "output": "Sonuç biçimini seçin: text, json veya jsonl.",
     "max-budget-usd": "Bu çalıştırma için USD cinsinden kesin harcama sınırı belirleyin.",
-    "max-requests": "Maksimum model isteği sayısını belirleyin.",
+    "max-requests": "En fazla istek sayısını belirler. Son model çağrısı araç kullanmadan son bir özet oluşturur.",
     "max-tool-output-bytes": "Bu çalıştırma için araç sonucu başına bayt sınırını yükseltin.",
     "timeout": "Çalıştırma süresi sınırını saniye olarak belirleyin.",
     "fail-on-denial": "İzin reddedilirse çalıştırmayı durdurun.",
@@ -2681,6 +2681,7 @@
   "agentStopReasons": {
     "normal": "Normal bitiş",
     "budget": "Bütçe tükendi",
+    "limit": "Çağrı sınırına ulaşıldı",
     "error": "Hata",
     "cancelled": "Kullanıcı durdurdu",
     "unknown": "Kullanılamıyor"
@@ -3528,6 +3529,27 @@
   "execTooManyFiles": {
     "one": "En fazla {count} girdi dosyasına izin verilir.",
     "other": "En fazla {count} girdi dosyasına izin verilir."
+  },
+  "referenceTurnLimit": "Model API turları varsayılan olarak 200 model çağrısı alır. Arayanların mevcut çağrı sınırları geçerlidir. İlk çağrı her zaman araçlarla çalışır: bir yanıt turu normal şekilde tamamlar, bir araç isteği onu istek sınırında bitirir. Araç çalıştıran bir turun son çağrısı araçsız bir özet üretir; devam etmek için bir mesaj gönderin.",
+  "modelApiWrapUpReserved": "Kalan istek son yanıt için ayrılmıştır. Görsel oluşturulmadı.",
+  "modelApiTurnLimit": {
+    "one": "Tur, {count} model çağrısından sonra durdu. Devam etmek için bir mesaj gönderin.",
+    "other": "Tur, {count} model çağrısından sonra durdu. Devam etmek için bir mesaj gönderin."
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "Tur, {count} model çağrısından sonra durdu ve nihai yanıt çıktı sınırıyla kesildi. Kısmi yanıt korunur. Devam etmek için bir mesaj gönderin.",
+    "other": "Tur, {count} model çağrısından sonra durdu ve nihai yanıt çıktı sınırıyla kesildi. Kısmi yanıt korunur. Devam etmek için bir mesaj gönderin."
+  },
+  "modelApiWrapUpHookBlocked": "Bir durdurma kancası daha fazla iş istedi, ancak tur model çağrısı sınırına ulaştı, bu yüzden nihai yanıt geçerlidir.",
+  "modelApiWrapUpFailed": {
+    "one": "Tur {count} model çağrısından sonra durdu, ancak nihai özet üretilemedi ({reason}).",
+    "other": "Tur {count} model çağrısından sonra durdu, ancak nihai özet üretilemedi ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "hız sınırı",
+    "modelError": "model hatası",
+    "budget": "bütçe durağı",
+    "stopped": "durduruldu"
   },
   "execRequestCapReached": {
     "one": "{count} denemelik istek sınırına ulaşıldı.",

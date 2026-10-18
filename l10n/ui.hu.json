@@ -326,7 +326,7 @@
     "effort": "Válassza ki, mennyi erőfeszítést tegyen a Muse az egyes válaszokba.",
     "output": "Az eredmény formátumának kiválasztása: text, json vagy jsonl.",
     "max-budget-usd": "A futtatás szigorú kiadási korlátjának megadása USD-ben.",
-    "max-requests": "A modellkérések maximális számának beállítása.",
+    "max-requests": "Beállítja a kérések maximális számát. Az utolsó modellhívás eszközök nélküli végső összefoglalót készít.",
     "max-tool-output-bytes": "Eszközkimenetenkénti bájt-korlát megemelése erre a futásra.",
     "timeout": "A futtatás határidejének beállítása másodpercben.",
     "fail-on-denial": "A futtatás leállítása elutasított engedélynél.",
@@ -2681,6 +2681,7 @@
   "agentStopReasons": {
     "normal": "Normál befejezés",
     "budget": "Keret kimerült",
+    "limit": "Híváskorlát elérve",
     "error": "Hiba",
     "cancelled": "Felhasználó leállította",
     "unknown": "Nem elérhető"
@@ -3528,6 +3529,27 @@
   "execTooManyFiles": {
     "one": "Legfeljebb {count} bemeneti fájl engedélyezett.",
     "other": "Legfeljebb {count} bemeneti fájl engedélyezett."
+  },
+  "referenceTurnLimit": "A Model API-körök alapértelmezésben 200 modellhívást kapnak. A hívók meglévő híváskorlátai az irányadók. Az első hívás mindig eszközökkel fut: a válasz normálisan lezárja a kört, az eszközhívás a kéréskorlátnál fejezi be. Az eszközöket futtató kör utolsó hívása eszközök nélküli összefoglalót ad; a folytatáshoz küldjön üzenetet.",
+  "modelApiWrapUpReserved": "A fennmaradó kérés a végső válaszhoz van fenntartva. A kép nem készült el.",
+  "modelApiTurnLimit": {
+    "one": "A kör {count} modellhívás után leállt. A folytatáshoz küldjön üzenetet.",
+    "other": "A kör {count} modellhívás után leállt. A folytatáshoz küldjön üzenetet."
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "A kör {count} modellhívás után leállt, a végső választ pedig a kimeneti korlát vágta le. A részleges válasz megmarad. A folytatáshoz küldjön üzenetet.",
+    "other": "A kör {count} modellhívás után leállt, a végső választ pedig a kimeneti korlát vágta le. A részleges válasz megmarad. A folytatáshoz küldjön üzenetet."
+  },
+  "modelApiWrapUpHookBlocked": "Egy leállítási hook további munkát kért, de a kör elérte a modellhívási korlátot, így a végső válasz érvényben marad.",
+  "modelApiWrapUpFailed": {
+    "one": "A kör {count} modellhívás után leállt, de a végső összefoglalót nem sikerült elkészíteni ({reason}).",
+    "other": "A kör {count} modellhívás után leállt, de a végső összefoglalót nem sikerült elkészíteni ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "sebességkorlát",
+    "modelError": "modellhiba",
+    "budget": "költségkeret-leállítás",
+    "stopped": "leállítva"
   },
   "execRequestCapReached": {
     "one": "A kérések elérték a(z) {count} próbás korlátot.",

@@ -326,7 +326,7 @@
     "effort": "選擇 Muse 在每則回答上投入的心力。",
     "output": "選擇結果格式：text、json或jsonl。",
     "max-budget-usd": "以USD設定本次執行的硬性支出上限。",
-    "max-requests": "設定模型請求次數上限。",
+    "max-requests": "設定請求數量上限。最後一次模型呼叫不使用工具並產生最終摘要。",
     "max-tool-output-bytes": "提高本次執行的單個工具結果位元組上限。",
     "timeout": "以秒設定執行時間上限。",
     "fail-on-denial": "權限遭拒時停止執行。",
@@ -2625,6 +2625,7 @@
   "agentStopReasons": {
     "normal": "正常結束",
     "budget": "預算耗盡",
+    "limit": "已達到呼叫上限",
     "error": "錯誤",
     "cancelled": "使用者停止",
     "unknown": "無法使用"
@@ -3454,6 +3455,24 @@
   },
   "execTooManyFiles": {
     "other": "最多允許 {count} 個輸入檔案。"
+  },
+  "referenceTurnLimit": "Model API 每輪預設可呼叫模型 200 次。呼叫方現有的請求上限優先。首次呼叫一律攜帶工具執行：有回答則本輪正常完成，有工具請求則在本輪達到請求上限時結束。執行過工具的輪次，其最後一次呼叫產生不帶工具的摘要；傳送訊息以繼續。",
+  "modelApiWrapUpReserved": "剩餘請求已保留用於最終回答。影像未產生。",
+  "modelApiTurnLimit": {
+    "other": "本輪在呼叫模型 {count} 次後停止。傳送訊息以繼續。"
+  },
+  "modelApiWrapUpTruncated": {
+    "other": "最終回答被輸出上限截斷，本輪在呼叫模型 {count} 次後停止。部分回答已保留。傳送訊息以繼續。"
+  },
+  "modelApiWrapUpHookBlocked": "停止鉤子要求了更多工作，但本輪已達到模型呼叫上限，因此最終回答保持不變。",
+  "modelApiWrapUpFailed": {
+    "other": "本輪在 {count} 次模型呼叫後停止，但未能產生最終摘要（{reason}）。"
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "速率受限",
+    "modelError": "模型錯誤",
+    "budget": "預算停止",
+    "stopped": "已停止"
   },
   "execRequestCapReached": {
     "other": "已達到 {count} 次請求嘗試的上限。"

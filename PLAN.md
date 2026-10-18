@@ -14507,6 +14507,16 @@ CONTRIBUTING.md, "The capacity repository (D122)"; proofs:
 `docs/certification/ciflow.md` (D122). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
+### D109 — Model-call turn limits preserve the answer (TOOLROUNDS, 2026-10-11; renumbered from D108 at merge, main took D108 for the test overhaul)
+
+The Model API turn cap is a limit, not a loop detector: default 200 model
+calls: ordinary reviews and coding jobs need more than fifty calls, while
+existing money caps protect spending. An existing caller request cap replaces that default with its remaining
+allowance. Reserve the last permitted call for a tools-disabled wrap-up; retain
+its answer and report a translated, typed request-limit stop in every host.
+Existing money caps, compaction accounting and queued-input promotion remain
+in force. Certification: [toolrounds](docs/certification/toolrounds.md).
+
 ## 3. Open questions (need the owner)
 
 **Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13).** GAPANTH-G11's scan row
@@ -15604,6 +15614,13 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
+
+**Status 2026-10-11: building.** Typed translated stop first; tools-disabled
+wrap-up second; caller-aware default of 200 third. Certification and dependent
+suites: [toolrounds](docs/certification/toolrounds.md). Next slice: release-train
+integration and cross-platform certification after these three pieces pass.
 
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
@@ -35321,8 +35338,25 @@ the two consistent mechanisms named. The rig brief forbids the full
 run, repository timeouts); the lead runs the aggregate gate and the
 loopback/socket suites this sandbox blocks (EPERM) before release. No
 threshold, ignore or timeout is weakened.
+**TOOLROUNDS duplication, resolved (2026-10-17, review merge).** The 42 jscpd pairs recorded in round 8 all sat in fake-harness suites; main's test overhaul (D108) deleted those suites and the review deleted the lane's three stranded ones. `npm run duplication` on the merged tree reports 0 clones, so the deferral this paragraph carried is closed.
 
 ## 8. Escape hatches register
+
+TOOLROUNDS, 2026-10-12: `// eslint-disable-next-line
+@typescript-eslint/no-empty-function` on `MuseSession.setModelCallAllowance`
+(`src/core/backends/musecode/MuseCodeHost.ts`). `AgentSession`
+requires the member so the compiler lists every implementer (round-3
+ruling P2-D/P3-6); Muse Code manages its own turn bounds over MSP, so the
+member intentionally binds nothing. Removal guard: the host typecheck,
+which fails without the member.
+
+TOOLROUNDS, 2026-10-11: `SIXTY_REQUEST_RUNTIME_TIMEOUT_MS` (30,000 ms) in
+`test/unit/execRun.test.ts` covers only sixty real runtime admissions and
+settlements writing private journals (11.413 s measured on macbook, load 10.52).
+The two matching packaged-process rows reuse their existing `TIMEOUT` (30,000 ms)
+for the same sixty-request OS operation. All ordinary tests retain the repository
+default; final runs use no `--testTimeout` flag. The default 200-call proof uses
+memory fixtures, and real ACP delivery uses a three-call caller allowance.
 
 | Location                                            | Residual / follow-up                                | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
 | --------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -35380,6 +35414,7 @@ INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/uni
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `test/unit/teamHintsAndLoad.test.ts` (`native owner-only folder`, `native Windows hint permissions`)                                                                                           | `NATIVE_WINDOWS_HINT_TIMEOUT_MS` (30 s) per-suite deadline instead of the 5 s unit default                                                                                   | Each native Windows hint read starts Windows PowerShell and compiles the C# hint reader (`windowHints.ts`); two or three per test land at about 5 s on a cold hosted runner (reproduced at 5,045 ms on a local Windows 11 host). The suites test real ACL and handle behaviour, so faking them would remove the evidence.                                                                                          | Precompile `MuseTeamHintReader` once into the cached, content-addressed job assembly (as `MuseSparkJob`), then return the suites to the default deadline. |
 | `test/unit/usageL10nGate.test.mjs` (`beforeAll`)                                                                                                                                               | `L10N_GATE_SETUP_TIMEOUT_MS` (30 s) setup deadline instead of the 10 s hook default                                                                                          | Setup runs one cold, complete localization gate over the copied sources: a TypeScript parse of every file naming a text table. Hosted macOS with coverage exceeded 10 s. The gate now caches parses by content and skips files without a table name, so later checks take about 2 s instead of 21 s; the duplicate cold CLI build was removed, since CI's static gates run that CLI on every OS.                   | Narrow the load-order scan to files that import a text table, or ship it as its own gate step, then return to the default hook deadline.                  |
+| `test/unit/l10nPackParity.test.mjs` (`beforeAll`)                                                                                                                                              | `PACK_SETUP_TIMEOUT_MS` (30 s) setup deadline instead of the 10 s hook default                                                                                               | Setup packs the real UI tables with `packRuntimeArchive` at production brotli quality into a temp folder (7.1 s measured on macbook without coverage); hosted runners with coverage need the headroom. The fourteen assertions compare one line each and stay on the default deadline.                                                                                                                             | Pack a smaller synthetic table for the mechanic and keep one real-tables case in the packaging job, then return to the default hook deadline.             |
 | `test/unit/teamNativeLifetime.test.ts` (`M96 K real native lifetime`)                                                                                                                          | `NATIVE_PROCESS_SUITE_TIMEOUT_MS` (20 s) per-suite and setup deadline                                                                                                        | Each case starts the team host, journals and the fake CLI as real processes over real pipes; the first case exceeded 5 s on hosted macOS with coverage, and the setup that compiles the Windows job helper exceeded 10 s in a loaded Windows shard.                                                                                                                                                                | Start one shared fake-CLI host per file in `beforeAll` and reuse it across cases, then return to the default deadline.                                    |
 | `test/unit/teamHarness.test.mjs` (`RVM96B browser regressions`)                                                                                                                                | `REAL_HARNESS_CASE_TIMEOUT_MS` (20 s) per-case deadline                                                                                                                      | Each case opens a fresh page and loads the full production webview bundle from a local server; one case passed 5 s in a loaded hosted Windows shard with coverage.                                                                                                                                                                                                                                                 | Reuse one page per theme with in-page scenario switching, then return to the default deadline.                                                            |
 | `package.json` `typecheck:unit`                                                                                                                                                                | `--max-old-space-size=4096` for the single unit TypeScript program                                                                                                           | Measured peak 2.48 GB (`--extendedDiagnostics`, 2026-10-07), above Node's default heap on hosted macOS; splitting the project instead re-checked shared sources and pushed the static gate past its 15-minute limit.                                                                                                                                                                                               | Remove when the unit project fits the default heap (smaller project references).                                                                          |

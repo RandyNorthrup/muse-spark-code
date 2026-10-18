@@ -1,0 +1,98 @@
+{
+  "vendor": "anthropic",
+  "model": "claude-haiku-5-5",
+  "variant": "3-wrap-up-tools-kept-choice-none",
+  "url": "https://api.anthropic.com/v1/messages",
+  "requestBody": {
+    "model": "claude-haiku-5-5",
+    "max_tokens": 120,
+    "tools": [
+      {
+        "name": "read_file",
+        "description": "Read a file.",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": ["path"]
+        }
+      }
+    ],
+    "tool_choice": {
+      "type": "none"
+    },
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "toolu_01WQeyM3RLx65T5mhJuqTibZ",
+            "name": "read_file",
+            "input": {
+              "path": "a.txt"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01WQeyM3RLx65T5mhJuqTibZ",
+            "content": "hello from a.txt"
+          },
+          {
+            "type": "text",
+            "text": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+          }
+        ]
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "model": "claude-haiku-5-5",
+    "id": "msg_011CfxvwuCnnfzYBmbr81Nar",
+    "type": "message",
+    "role": "assistant",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "",
+        "signature": "CAQSqgcKEAgSGAI4AUIIdGhpbmtpbmcSDIXzIcUo9c/kOO+tgBoMrVv274etJIM5OVbBIjA2f2n/8vpIm8w1GdKsmWQ8fOLD5t7jRCn/mIIEyg8nSN0AS7DzkrFwTMA9+CVLeZUqxwbuv5DxEYo6KhXUI+0a//XWDAnXn+1lwgiF3iq/gTc6jtZpHj74Dx9vxrqOH6Ma1ihsH8tQ9waTxVpDGAtEf6P7eGrYsAqgLMqnH3P1QsqRCRJXMTZ3jnhgLImcuFWCJivP/DnTEH2cLzde9ndX3okh2GIYgC1sZqf2vlDkPjWamAjC1/6gHx5I5Fa1Dc0vfHptADpL2K67NGvjlvMSryzAlcSWmFuZTd/ap7x1igv5JcnYLhNDdgqheyyhbHEfB6VmdttPXEzrm+8NWNMhI1YQIipa2U29OedHUXgVD4y2AoDR2BkDcvr7x5uv6FrO4+bz3ydyGgXzZNGi+MOEWMe3KLRy8m8y7PhNQZ6jLrW3vEIp+5jgUhAKPa/GTVq/GLHwBVDMhaQwhhVMHI8971PCT1W+uYqa5VAVBVb7Zv/oALNBJPtcY13Rtb0MMAVDpt0684omAdZnUK9dcGEfEeDDvT9eiHMKHBufyMrCg03UPl3MiKKupeKmyx9OxKpQ9AqWNbRnnfTqrYO2TDB868Rv2cAjU2WRqEAmtMVKEfszJMlnL0tfFCD6f8o0GrK7eReMAneLl1kfDeGXj6+vplw07DvCZVOBnRkIB24HkfvA/zxWY1NAOyklEnKtVU+KEJSSOwJwjz/b9v6SPXXQnVDQCDzFUkC/h4NrCuMon9aO2sNSNPAqxULY2otaCN66zKtFjFFJu0OyWqK8vBs4R0TTsOdVqRtKVjzKsi2KwUqP1tzDi5AYyu28LlxmYwnw/XZAOCS/8JeHvClse+zMdmosYnbOsABTusX1Fdxl2TJCfQbepWJ63B8w8OuCEU744Oc8b/V+fp1C7Eg4t8XZzLiJ1T2j5zBFQzAvHj8bFJYqxUWCmM/8Bx1mPFYsJuYhBzyvuEjp27TiRg7Jb1r314bqnwYSpjwP1Pj499FtmSpt8yDNnYJF1lvjvCZa2o86rfuqoz5RkdCz+uwnoOf2Pd/zxN8y1h6O6YAnQ01pSjycA40gzyBxq+himJioU+mn/UiOMsiwkKoCjKLDIQe8sMB7Z543CbIapevegCn51wpiXovMS2gumVr+3ntFaGDt1zTZ3Gfc5nU9mPRj/pe/NCUjrz62hi+cVxgB"
+      }
+    ],
+    "container": null,
+    "stop_reason": "max_tokens",
+    "stop_sequence": null,
+    "stop_details": null,
+    "usage": {
+      "input_tokens": 485,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+        "ephemeral_5m_input_tokens": 0,
+        "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 120,
+      "output_tokens_details": {
+        "thinking_tokens": 120
+      },
+      "service_tier": "standard",
+      "inference_geo": "global"
+    },
+    "diagnostics": null
+  }
+}

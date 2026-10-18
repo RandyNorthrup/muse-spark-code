@@ -491,6 +491,13 @@ export interface AgentSession {
    * the prompt, used when the parts carry more than the user typed (M5).
    */
   sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission>
+  /**
+   * Bind a caller's remaining model-call allowance for the running turn;
+   * the last call is reserved for the tools-disabled wrap-up. Required on
+   * every backend so the compiler lists each implementer: a backend that
+   * manages its own turn bounds keeps the member as a no-op.
+   */
+  setModelCallAllowance(remaining: (() => number) | undefined): void
   /** Formats and repairs a user-requested Git draft in this session, under its live guards. */
   readonly gitDraftOutput?: GitDraftOutputPort
   /**

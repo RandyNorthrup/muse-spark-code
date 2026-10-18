@@ -326,7 +326,7 @@
     "effort": "Escolha quanto esforço o Muse dedica a cada resposta.",
     "output": "Escolher o formato do resultado: text, json ou jsonl.",
     "max-budget-usd": "Definir o limite rígido de gastos em USD para esta execução.",
-    "max-requests": "Definir o máximo de solicitações ao modelo.",
+    "max-requests": "Define o número máximo de solicitações. A última chamada ao modelo produz um resumo final sem ferramentas.",
     "max-tool-output-bytes": "Elevar o limite de bytes por resultado da ferramenta para esta execução.",
     "timeout": "Definir o limite de duração em segundos.",
     "fail-on-denial": "Parar a execução se uma permissão for negada.",
@@ -2737,6 +2737,7 @@
   "agentStopReasons": {
     "normal": "Fim normal",
     "budget": "Orçamento esgotado",
+    "limit": "Limite de chamadas atingido",
     "error": "Erro",
     "cancelled": "Parado pelo usuário",
     "unknown": "Indisponível"
@@ -3602,6 +3603,30 @@
     "one": "É permitido no máximo {count} arquivo de entrada.",
     "other": "São permitidos no máximo {count} arquivos de entrada.",
     "many": "São permitidos no máximo {count} arquivos de entrada."
+  },
+  "referenceTurnLimit": "Os turnos da API de modelos têm 200 chamadas ao modelo por padrão. Os limites de chamada existentes dos chamadores prevalecem. A primeira chamada sempre executa com ferramentas: uma resposta conclui o turno normalmente, uma solicitação de ferramenta o encerra no limite de solicitações. A última chamada de um turno que executou ferramentas produz um resumo sem ferramentas; envie uma mensagem para continuar.",
+  "modelApiWrapUpReserved": "A solicitação restante está reservada para a resposta final. A imagem não foi gerada.",
+  "modelApiTurnLimit": {
+    "one": "O turno parou após {count} chamada ao modelo. Envie uma mensagem para continuar.",
+    "other": "O turno parou após {count} chamadas ao modelo. Envie uma mensagem para continuar.",
+    "many": "O turno parou após {count} chamadas ao modelo. Envie uma mensagem para continuar."
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "O turno parou após {count} chamada ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar.",
+    "other": "O turno parou após {count} chamadas ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar.",
+    "many": "O turno parou após {count} chamadas ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar."
+  },
+  "modelApiWrapUpHookBlocked": "Um hook de parada pediu mais trabalho, mas o turno atingiu seu limite de chamadas ao modelo, então a resposta final permanece.",
+  "modelApiWrapUpFailed": {
+    "one": "O turno parou após {count} chamada ao modelo, mas o resumo final não pôde ser produzido ({reason}).",
+    "other": "O turno parou após {count} chamadas ao modelo, mas o resumo final não pôde ser produzido ({reason}).",
+    "many": "O turno parou após {count} chamadas ao modelo, mas o resumo final não pôde ser produzido ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "limite de taxa",
+    "modelError": "erro do modelo",
+    "budget": "limite de orçamento",
+    "stopped": "interrompido"
   },
   "execRequestCapReached": {
     "one": "O limite de {count} tentativa foi atingido.",

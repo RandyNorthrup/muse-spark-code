@@ -126,6 +126,7 @@ import {
   MODEL_API_CONTEXT_BYTES_PER_TOKEN,
   MODEL_API_CONTINUATIONS_MAX,
   MODEL_API_CONTEXT_WINDOW,
+  HOOK_AGENT_MAX_STEPS,
   MODEL_API_HOOK_PROVIDER,
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
@@ -390,6 +391,9 @@ import {
   reserveRequest,
   type SessionBudgetClaim,
   SessionBudgetExceededError,
+  ModelCallLimitError,
+  type WrapUpFailedKind,
+  wrapUpFailedLimit,
 } from './sessionBudget'
 
 import { formatUsd } from '../../usage/insights'
@@ -747,6 +751,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly budgetScope?: OwnedSessionBudgetScope
   /** Extension-owned preflight/actual-attempt hooks, composed with budget and child admission. */
   readonly admitResponseAttempt?: ResponseAttemptGuard | undefined
+  /** Remaining caller request allowance; absent uses the default turn cap. */
+  readonly remainingModelCalls?: (() => number) | undefined
   /** The git facts for the prompt's environment section (D15), read once per session. */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   /** Whether a paid feature is on (M33–M35, PLAN.md D30): its setting, and its price accepted. */
@@ -1149,6 +1155,16 @@ interface PreparedAudioMessage {
 }
 
 export interface ActiveTurn {
+  modelCalls: number
+  modelCallLimit: number
+  /**
+   * The turn's phase: `undefined` is ordinary, set is the wrap-up. The next
+   * request answers without tools; held input (steered text, scheduled
+   * steers, goal wakes) is never consumed by it. Written only by
+   * `enterWrapUpPhase`; every other site reads it. The note is request-only,
+   * never persisted into conversation replay.
+   */
+  wrapUpLimit?: number | undefined
   readonly draft?: PreparedGitDraft
   scheduleRun?: UnattendedRun
   /** Immutable evidence of content already sent before this fire took authority. */
@@ -1177,6 +1193,13 @@ export interface ActiveTurn {
   modelFailure?: unknown
   /** A goal accepted after the current model request began needs another round. */
   goalWakePending: boolean
+  /**
+   * Whether the current request's last transport retry notice was a rate
+   * limit (HTTP 429 or pacing): names the kind when the wrap-up request
+   * itself cannot be completed. Reset on every request build, written only
+   * by the request's own retry notices.
+   */
+  lastRetryRateLimited?: boolean | undefined
   /** The prompt's answer to the web search popup (M58); false until it is asked. */
   isWebSearchAllowed: boolean
   /** Run as the Reviewer (M70): its prompt, and only the tools that read. */
@@ -1619,7 +1642,7 @@ class RetryableStreamError extends Error {
   }
 }
 
-class ContextOverflowError extends Error {
+export class ContextOverflowError extends Error {
   public constructor(
     public readonly kind: ContextOverflowKind,
     public readonly modelId: string,
@@ -1637,6 +1660,69 @@ class ContextOverflowError extends Error {
   }
 }
 
+/**
+ * The fixed kind a wrap-up request's failure names in the limit sentence, or
+ * undefined when the error keeps its own shape: an ordinary (already named)
+ * limit, the overflow's typed path, a child's refusal, or a non-error. Pure
+ * so the mapping is pinned without staging a whole turn.
+ */
+/**
+ * In-flight caller-ledger side calls holding a slot reservation, so two
+ * concurrent side calls (reviewer, hook-model, image) from parallel tool
+ * calls cannot both spend the turn's last request. Taken and released
+ * synchronously around the decision; JS runs each take to completion, so
+ * two racers cannot both pass.
+ */
+export interface SideSlotReservation {
+  reserved: number
+}
+
+/**
+ * A taken side slot: `give` releases exactly what its own `take` reserved,
+ * so a call that took nothing (the ledger-free case) releases nothing.
+ */
+export interface SideSlotToken {
+  readonly count: number
+}
+
+/**
+ * Take-or-refuse `count` caller-ledger side slots: pure, so the race
+ * decision is pinned without staging two side calls. Takes only when more
+ * than `count` calls would remain afterwards, keeping the turn's last
+ * request for the wrap-up builder; a multi-step hook agent reserves its
+ * maximum steps up front. The caller keeps the ledger-free case.
+ */
+export function takeSideSlotToken(
+  reservation: SideSlotReservation,
+  left: number,
+  count = 1,
+): SideSlotToken | undefined {
+  if (left - reservation.reserved <= count) return undefined
+  reservation.reserved += count
+  return { count }
+}
+
+/** Release exactly what the token's own take reserved. Pure. */
+export function releaseSideSlotToken(reservation: SideSlotReservation, token: SideSlotToken): void {
+  reservation.reserved = Math.max(0, reservation.reserved - token.count)
+}
+
+export function wrapUpFailedKindFor(error: unknown): WrapUpFailedKind | undefined {
+  if (
+    error instanceof ModelCallLimitError ||
+    error instanceof ContextOverflowError ||
+    error instanceof ChildTaskRefusedError ||
+    !(error instanceof Error)
+  )
+    return undefined
+  if (error instanceof HookCancelledError) return 'stopped'
+  // A 429 that reaches the loop unretried (quota, an over-cap Retry-After,
+  // or a status the format's table does not retry — see retryPolicy.ts) is
+  // still a rate limit, not a model error.
+  if (isModelApiError(error) && error.status === HTTP_TOO_MANY_REQUESTS) return 'rateLimited'
+  return error instanceof SessionBudgetExceededError ? 'budget' : 'modelError'
+}
+
 /** No Meta fallback for a BYO model with an unknown or invalid window. */
 function contextModelFor(deps: ModelApiHostDeps, modelId: string): ContextModel | undefined {
   let row = deps.contextModel?.(modelId)
@@ -1650,6 +1736,10 @@ function contextModelFor(deps: ModelApiHostDeps, modelId: string): ContextModel 
     contextTokens:
       window !== undefined && Number.isSafeInteger(window) && window > 0 ? window : undefined,
   }
+}
+
+class WrapUpRequiredError extends Error {
+  public override readonly name = 'WrapUpRequiredError'
 }
 
 class AbortedError extends Error {
@@ -1671,7 +1761,7 @@ class HookStoppedError extends Error {
  * on Muse Code 1.4.2 (M91 capture run 5), so Interrupt fires for it. Other
  * hook stops still fail the turn.
  */
-class HookCancelledError extends Error {
+export class HookCancelledError extends Error {
   public constructor(public readonly reason: string) {
     super(reason)
     this.name = 'HookCancelledError'
@@ -2067,7 +2157,7 @@ function refusedOutcome(
   }
 }
 
-class ChildTaskRefusedError extends Error {
+export class ChildTaskRefusedError extends Error {
   public readonly visible: string
 
   public constructor(public readonly kind: ChildTaskRefusal) {
@@ -2595,6 +2685,9 @@ export class ModelApiSession implements ScheduledAgentSession {
   private teamRosterStable: string | undefined
   /** The contributor-tier models the user said yes to for an agent's run, in this session (M76). */
   private readonly confirmedContributorModels = new Set<string>()
+  private modelCallAllowance: (() => number) | undefined
+  /** In-flight caller-ledger side calls holding a slot reservation. */
+  private sideReservation: SideSlotReservation = { reserved: 0 }
   private childTaskGrant: ChildTaskGrant | undefined
   /**
    * A child's top turn (M86, spec 3.2): the parent's turn that spawned it,
@@ -2780,6 +2873,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   private sendingModelId: string | undefined
   private sendingContextModel: ContextModel | undefined
   private isSendingCompaction = false
+  /** The request in flight is the wrap-up: its tokens never measure the turn body. */
+  private isSendingWrapUp = false
   private previousCacheUsage: { readonly modelId: string; readonly inputTokens: number } | undefined
   private approvedSearchQuote: PaidQuote | undefined
   private sendingSearchQuote: PaidQuote | undefined
@@ -3733,6 +3828,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             false,
             this.askingSessionId,
           )) === true,
+        isTurnCallReserved: () => this.isWrapUpSlotReserved(),
         noteHookModelRun: () => {
           this.notifyUsage(() => {
             this.deps.notePaidUse('hookModels', 1)
@@ -4492,6 +4588,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.sendingModelId = undefined
     this.sendingContextModel = undefined
     this.isSendingCompaction = false
+    this.isSendingWrapUp = false
     this.sendingSearchBound = undefined
     this.sendingSearchQuote = undefined
     this.sendingModel = undefined
@@ -4825,6 +4922,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     return cap
   }
 
+  /** The wrap-up note, with its count noun in the singular when the limit is 1. */
+  private wrapUpNote(limit: number): string {
+    return fill(MODEL_API_MODEL_TEXT.turnWrapUp, {
+      limit,
+      calls: limit === 1 ? 'model call' : 'model calls',
+    })
+  }
+
   private body(resolved: ResolvedModel, shouldFormatDraft = true): CreateResponseBody {
     this.active?.audioMessage?.assertCurrent()
     this.drainChildResults()
@@ -4863,13 +4968,36 @@ export class ModelApiSession implements ScheduledAgentSession {
         content: [{ type: 'input_text', text: progress }],
       })
     }
+    const prompt = this.promptAndTools(
+      this.getScheduledRun() === undefined ? this.promptDate : localPromptDate(this.deps.now()),
+      resolved,
+    )
+    const turn = this.active
+    // The request builder only reads the phase: `enterWrapUpPhase` (called
+    // wherever a request is built) is the one writer.
+    const wrapUpLimit = this.compacting === undefined ? turn?.wrapUpLimit : undefined
+    // The wrap-up keeps the production side-call shape (compaction, git
+    // draft): no tools declared and no choice field, instructions
+    // byte-identical, the note a trailing input item. Every wire exit
+    // omits both (see `hasDeclaredTools`): the direct Meta body in the
+    // client, the Responses codec for configured providers, while the
+    // chat, Anthropic, Gemini and Ollama codecs omit what their
+    // long-standing shapes omit. Golden 10-turn-limit-wrap-up.
     const body = this.keyed({
       model: resolved.ref,
-      input,
-      ...this.promptAndTools(
-        this.getScheduledRun() === undefined ? this.promptDate : localPromptDate(this.deps.now()),
-        resolved,
-      ),
+      input:
+        wrapUpLimit === undefined
+          ? input
+          : [
+              ...input,
+              {
+                type: 'message',
+                role: 'developer',
+                content: [{ type: 'input_text', text: this.wrapUpNote(wrapUpLimit) }],
+              } satisfies InputItem,
+            ],
+      ...prompt,
+      ...(wrapUpLimit !== undefined && { tools: [] }),
       tool_choice: 'auto',
       reasoning: {
         effort: effortForPolicy(resolved.policy, this.effort),
@@ -4881,7 +5009,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       max_output_tokens: this.outputCap(resolved),
       ...(this.outputFormat !== undefined && { text: this.outputFormat }),
     })
-    const draft = shouldFormatDraft ? this.active?.draft : undefined
+    const draft = shouldFormatDraft && wrapUpLimit === undefined ? this.active?.draft : undefined
     if (
       draft !== undefined &&
       (draft.signal.aborted ||
@@ -5277,7 +5405,19 @@ export class ModelApiSession implements ScheduledAgentSession {
     const expectedKeyDigest = this.modelKeyDigests.get(body.model)
     const revision = this.modelRevision
     const guard: ResponseAttemptGuard = (keyDigest) => {
+      const turn = this.active
+      if (
+        !isCompaction &&
+        directBudget === undefined &&
+        turn !== undefined &&
+        turn.modelCalls >= turn.modelCallLimit
+      )
+        throw new ModelCallLimitError(turn.modelCalls)
       this.isSendingCompaction = isCompaction
+      // The phase is read here, at the send: a wrap-up retry still sends the
+      // wrap-up, whatever the loop has done meanwhile.
+      this.isSendingWrapUp =
+        !isCompaction && directBudget === undefined && turn?.wrapUpLimit !== undefined
       // Compaction must remain reachable even when ordinary turns no longer fit (D49).
       this.sendingContextModel =
         !isCompaction && this.compacting === undefined
@@ -5432,18 +5572,61 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (reservation !== undefined && settlement.isTerminal)
           reservation.hasTerminalSearchCount = true
       },
+      beforeRetry: () => {
+        const turn = this.active
+        if (isCompaction || directBudget !== undefined || turn === undefined) return
+        const left = this.modelCallsLeft(turn)
+        // A retry with no call left ends the turn at its limit. On the
+        // wrap-up request itself that stop says the summary could not be
+        // produced, and why: the last retry notice named a rate limit, or
+        // the failure was the model's own.
+        if (left <= 0) {
+          if (turn.wrapUpLimit !== undefined) {
+            throw wrapUpFailedLimit(
+              turn.modelCalls,
+              turn.lastRetryRateLimited === true ? 'rateLimited' : 'modelError',
+            )
+          }
+          throw new ModelCallLimitError(turn.modelCalls)
+        }
+        // A retry spending the last slot rebuilds as the wrap-up, once a
+        // call went out; the first call always retries ordinary. The phase
+        // itself is decided where every request is built (`streamAttempt`);
+        // this only observes that a rebuild is required.
+        if (left !== 1) {
+          return
+        }
+
+        this.enterWrapUpPhase(turn)
+        if (turn.wrapUpLimit !== undefined) throw new WrapUpRequiredError()
+      },
       onRequestStarted: () => {
+        const currentTurn = this.active
+        if (
+          !isCompaction &&
+          directBudget === undefined &&
+          currentTurn !== undefined &&
+          currentTurn.turnId === turnId
+        )
+          currentTurn.modelCalls += 1
         this.noteVaultRequest(body)
         if (!isCompaction && directBudget === undefined) {
           const turnIds = this.replay.map((entry) => entry.turnId)
           // Request-only goal progress belongs to the retained owning turn.
           if (body.input.length === turnIds.length + 1 && this.active !== undefined)
             turnIds.push(this.active.turnId)
-          this.compactionPrefix = {
-            body: structuredClone(body),
-            turnIds,
+          // The wrap-up is never measured as the turn body. A wrap-up body
+          // is never the compaction prefix: compaction after a limit stop
+          // reuses the last ordinary body, with its sentence nowhere and
+          // the full tools. Its token count stays off the prefix (below),
+          // and it is not a compaction request either.
+          if (currentTurn?.wrapUpLimit === undefined) {
+            this.compactionPrefix = {
+              body: structuredClone(body),
+              turnIds,
+            }
+            this.autoCompact.noteRequest()
           }
-          this.autoCompact.noteRequest()
         }
         if (directBudget === undefined) this.wasCallSent = true
         if (this.isSubagent && this.childTaskGrant !== undefined) {
@@ -5693,7 +5876,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     const billable = { ...modelPricedUsage(usage), images: this.sendingImageCount }
     const sentModelId = this.sendingModelId ?? this.modelId
-    if (!this.isSendingCompaction && this.compactionPrefix?.body.model === sentModelId) {
+    // The wrap-up carries no tool schemas, so its token count is never the
+    // turn body's: compaction after a limit stop measures the last ordinary
+    // body instead.
+    if (
+      !this.isSendingCompaction &&
+      !this.isSendingWrapUp &&
+      this.compactionPrefix?.body.model === sentModelId
+    ) {
       this.compactionPrefix.contextTokens = usage.input_tokens + usage.output_tokens
     }
     const fields =
@@ -6223,8 +6413,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       case 'response.incomplete': {
         this.responseIncomplete = true
+        // An output limit is a limit stop, never a money stop.
         if (event.response.incomplete_details?.reason === 'max_output_tokens')
-          this.outcomeStopReason = 'budget'
+          this.outcomeStopReason = 'limit'
         this.deps.log.warn(
           `Model API response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
         )
@@ -6354,6 +6545,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         } else {
           this.settleCutShort(open, turnId)
         }
+        if (error instanceof WrapUpRequiredError && !signal.aborted) continue
         if (error instanceof PaidQuoteChangedError && !signal.aborted) {
           await this.refreshSearchConsent(signal)
           continue
@@ -6459,10 +6651,26 @@ export class ModelApiSession implements ScheduledAgentSession {
     step: number,
     confirmedRequest?: ConfirmedModelRequest,
   ): Promise<StreamedCall> {
+    // The phase is decided where every request is built: first attempts,
+    // HTTP-retry rebuilds, whole-stream retries, media recovery and overflow
+    // recovery all enter here, so the last permitted call is always the
+    // wrap-up whatever failure preceded it. The retry-kind flag is reset
+    // with it, so a stale notice never names a later failure.
+    if (this.active !== undefined) {
+      this.enterWrapUpPhase(this.active)
+      this.active.lastRetryRateLimited = undefined
+    }
     const revision = this.modelRevision
     const resolved = await this.resolveModel(this.active?.audioMessage?.modelId ?? this.modelId)
     const pending = this.owner.run(turnId)
-    if (pending !== undefined && this.active !== undefined && this.active.scheduleRun !== pending)
+    // The sibling drain: a scheduled-prompt steer arriving before the
+    // wrap-up is never consumed by it, but keeps its own turn with tools.
+    if (
+      pending !== undefined &&
+      this.active !== undefined &&
+      this.active.scheduleRun !== pending &&
+      this.active.wrapUpLimit === undefined
+    )
       await this.drainSteered(this.active)
     const requestId = this.deps.newId()
     const run = this.active?.scheduleRun
@@ -6497,6 +6705,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     const goalCommandRevision = this.goalCommandRevision
     // A retried request is announced in the transcript, as Muse Code's are (D25).
     const onRetry = (notice: RetryNotice) => {
+      // Names the kind if the wrap-up request itself cannot be completed: a
+      // rate limit (HTTP 429 or pacing) versus any other transport failure.
+      const active = this.active?.turnId === turnId ? this.active : undefined
+      if (active !== undefined) {
+        active.lastRetryRateLimited =
+          notice.phase === 'pacing' ||
+          notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)
+      }
       if (notice.phase === 'pacing') {
         this.emit({ type: 'backendNotice', level: 'info', text: notice.reason })
         return
@@ -7227,148 +7443,159 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (!this.deps.isPaidFeatureOn('autoReviewer') || this.isSubagent || this.isSideChat) {
       return undefined
     }
-    if (this.reviewBreaker.isTripped) {
-      return { decision: 'ask', note: UI_TEXT.autoReviewerPaused }
-    }
-    const action = query.command ?? call.arguments
-    const modelId = this.modelId
-    const revision = this.modelRevision
-    let resolved: ResolvedModel
-    try {
-      resolved = await unlessStopped(this.resolveModel(modelId), signal)
-    } catch {
-      if (signal.aborted) throw new AbortedError()
-      return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
-    }
-    if (resolved.policy.pricing.kind === 'unpriced') {
-      return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
-    }
-    const mode = this.permissions.currentMode
-    const active = this.active
-    const policy = this.policy()
-    const isCurrent = () =>
-      !this.isDisposed &&
-      !signal.aborted &&
-      this.active === active &&
-      this.modelId === modelId &&
-      this.modelRevision === revision &&
-      this.permissions.currentMode === mode &&
-      mode === 'onRequest' &&
-      this.deps.isWorkspaceTrusted() &&
-      this.deps.isPaidFeatureOn('autoReviewer') &&
-      this.policy() === policy &&
-      resolved.isCurrent()
-    let keyDigest: string
-    let budgetScope: OwnedSessionBudgetScope | undefined
-    try {
-      keyDigest = await unlessStopped(resolved.client.currentKeyDigest(), signal)
-      budgetScope = await unlessStopped(this.ownedBudgetScope(), signal)
-    } catch {
-      if (signal.aborted) throw new AbortedError()
-      return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
-    }
-    if (
-      !isCurrent() ||
-      (budgetScope === undefined &&
-        Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
-      budgetScope?.isStillAllowed(keyDigest) === false
-    ) {
-      return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
-    }
-    const isAllowed =
-      resolved.policy.pricing.kind === 'local' ||
-      resolved.policy.pricing.kind === 'plan' ||
-      (await unlessStopped(
-        this.deps.allowsPaidUse(
-          {
-            feature: 'autoReviewer',
-            modelId,
-            tool: call.name,
-            action,
-            ...(modelId.includes('/') && { pricing: resolved.policy.pricing }),
-          },
-          false,
-          this.askingSessionId,
-        ),
-        signal,
-      )) === true
-    if (!isAllowed || !isCurrent()) {
+    // A reviewer call must not spend the reserved wrap-up slot: the user
+    // decides instead. The take-or-refuse also holds across a racing second
+    // reviewer call from parallel tool calls.
+    const slot = this.takeSideSlot()
+    if (slot === undefined) {
       return undefined
     }
-    let reviewPaidCall: typeof ReviewPaidCall
     try {
-      const entry = await import('./reviewerEntry.js')
-      // The packaged function's signature comes from this same source build.
-      const exported: unknown = entry.reviewPaidCall
-      if (typeof exported !== 'function') throw new Error('Invalid Auto reviewer export')
-      reviewPaidCall = entry.reviewPaidCall
-    } catch {
-      if (signal.aborted) throw new AbortedError()
-      this.deps.log.warn('The Auto reviewer bundle could not be loaded; the user decides')
-      return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
+      if (this.reviewBreaker.isTripped) {
+        return { decision: 'ask', note: UI_TEXT.autoReviewerPaused }
+      }
+      const action = query.command ?? call.arguments
+      const modelId = this.modelId
+      const revision = this.modelRevision
+      let resolved: ResolvedModel
+      try {
+        resolved = await unlessStopped(this.resolveModel(modelId), signal)
+      } catch {
+        if (signal.aborted) throw new AbortedError()
+        return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
+      }
+      if (resolved.policy.pricing.kind === 'unpriced') {
+        return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
+      }
+      const mode = this.permissions.currentMode
+      const active = this.active
+      const policy = this.policy()
+      const isCurrent = () =>
+        !this.isDisposed &&
+        !signal.aborted &&
+        this.active === active &&
+        this.modelId === modelId &&
+        this.modelRevision === revision &&
+        this.permissions.currentMode === mode &&
+        mode === 'onRequest' &&
+        this.deps.isWorkspaceTrusted() &&
+        this.deps.isPaidFeatureOn('autoReviewer') &&
+        this.policy() === policy &&
+        resolved.isCurrent()
+      let keyDigest: string
+      let budgetScope: OwnedSessionBudgetScope | undefined
+      try {
+        keyDigest = await unlessStopped(resolved.client.currentKeyDigest(), signal)
+        budgetScope = await unlessStopped(this.ownedBudgetScope(), signal)
+      } catch {
+        if (signal.aborted) throw new AbortedError()
+        return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
+      }
+      if (
+        !isCurrent() ||
+        (budgetScope === undefined &&
+          Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
+        budgetScope?.isStillAllowed(keyDigest) === false
+      ) {
+        return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
+      }
+      const isAllowed =
+        resolved.policy.pricing.kind === 'local' ||
+        resolved.policy.pricing.kind === 'plan' ||
+        (await unlessStopped(
+          this.deps.allowsPaidUse(
+            {
+              feature: 'autoReviewer',
+              modelId,
+              tool: call.name,
+              action,
+              ...(modelId.includes('/') && { pricing: resolved.policy.pricing }),
+            },
+            false,
+            this.askingSessionId,
+          ),
+          signal,
+        )) === true
+      if (!isAllowed || !isCurrent()) {
+        return undefined
+      }
+      let reviewPaidCall: typeof ReviewPaidCall
+      try {
+        const entry = await import('./reviewerEntry.js')
+        // The packaged function's signature comes from this same source build.
+        const exported: unknown = entry.reviewPaidCall
+        if (typeof exported !== 'function') throw new Error('Invalid Auto reviewer export')
+        reviewPaidCall = entry.reviewPaidCall
+      } catch {
+        if (signal.aborted) throw new AbortedError()
+        this.deps.log.warn('The Auto reviewer bundle could not be loaded; the user decides')
+        return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
+      }
+      if (!isCurrent()) return undefined
+      const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
+      const caution = this.startJudge(call)
+      let outcome: ReviewedAsk
+      try {
+        outcome = await reviewPaidCall(
+          {
+            deps: this.deps,
+            resolved,
+            table: UI_TEXT,
+            locale: uiLocale(),
+            breaker: this.reviewBreaker,
+            userRequest: this.lastUserText(),
+            recentCalls: this.recentCalls(turnId),
+            ...this.paidModelObservers(turnId, resolved),
+            keyed: (request) => this.keyed(request),
+            guard: (body, budget) => this.responseAttemptGuard(body, resolved, budget),
+            isCountedUsage,
+            abortError: () => new AbortedError(),
+            // Lane PROVERR: the definite "nothing billed" refusal releases its
+            // reservation; anything else keeps its uncertain liability.
+            isRefused: (error) => isModelApiError(error) && isDefiniteRefusal(error.status),
+            emit: (event) => {
+              this.emit(event)
+            },
+            record: (item, isStarted) => {
+              if (isStarted) this.recordTranscript(turnId, item)
+              else this.rerecordTranscript(item)
+            },
+          },
+          call.name,
+          action,
+          turnId,
+          signal,
+          {
+            modelId,
+            providerId: resolved.policy.identity.provider,
+            origin: resolved.origin,
+            keyDigest,
+            runKind: 'review',
+            isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
+            onRequestStarted: () => {
+              this.notifyUsage(() => {
+                this.deps.notePaidUse('autoReviewer', 1)
+              })
+            },
+          },
+          budgetScope,
+          isCurrent,
+        )
+      } catch (error: unknown) {
+        caution?.discard()
+        throw error
+      }
+      const hasJudgeCaution = caution?.read() === 'caution'
+      return hasJudgeCaution
+        ? {
+            decision: 'ask',
+            note: outcome.decision === 'ask' ? outcome.note : undefined,
+            judgeCaution: true,
+          }
+        : outcome
+    } finally {
+      this.giveSideSlot(slot)
     }
-    if (!isCurrent()) return undefined
-    const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
-    const caution = this.startJudge(call)
-    let outcome: ReviewedAsk
-    try {
-      outcome = await reviewPaidCall(
-        {
-          deps: this.deps,
-          resolved,
-          table: UI_TEXT,
-          locale: uiLocale(),
-          breaker: this.reviewBreaker,
-          userRequest: this.lastUserText(),
-          recentCalls: this.recentCalls(turnId),
-          ...this.paidModelObservers(turnId, resolved),
-          keyed: (request) => this.keyed(request),
-          guard: (body, budget) => this.responseAttemptGuard(body, resolved, budget),
-          isCountedUsage,
-          abortError: () => new AbortedError(),
-          // Lane PROVERR: the definite "nothing billed" refusal releases its
-          // reservation; anything else keeps its uncertain liability.
-          isRefused: (error) => isModelApiError(error) && isDefiniteRefusal(error.status),
-          emit: (event) => {
-            this.emit(event)
-          },
-          record: (item, isStarted) => {
-            if (isStarted) this.recordTranscript(turnId, item)
-            else this.rerecordTranscript(item)
-          },
-        },
-        call.name,
-        action,
-        turnId,
-        signal,
-        {
-          modelId,
-          providerId: resolved.policy.identity.provider,
-          origin: resolved.origin,
-          keyDigest,
-          runKind: 'review',
-          isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
-          onRequestStarted: () => {
-            this.notifyUsage(() => {
-              this.deps.notePaidUse('autoReviewer', 1)
-            })
-          },
-        },
-        budgetScope,
-        isCurrent,
-      )
-    } catch (error: unknown) {
-      caution?.discard()
-      throw error
-    }
-    const hasJudgeCaution = caution?.read() === 'caution'
-    return hasJudgeCaution
-      ? {
-          decision: 'ask',
-          note: outcome.decision === 'ask' ? outcome.note : undefined,
-          judgeCaution: true,
-        }
-      : outcome
   }
 
   private startJudge(call: FunctionCallItem): JudgeFence | undefined {
@@ -8385,173 +8612,184 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
     admission: Admission,
   ): Promise<ToolOutcome> {
-    const revision = this.modelRevision
-    const selected = this.selectedModel()
-    const run = this.active?.scheduleRun
-    const touched: TouchedFiles = {
-      names: [plan.target, ...plan.sources].flatMap((file) => [file.relative, file.canonical]),
-      complete: true,
-    }
-    if (run !== undefined) {
-      const safe = await run.decide(
-        {
-          id: this.deps.newId(),
-          class: 'paidExtra',
-          tool: 'imageGeneration',
-          paths: [plan.target, ...plan.sources].map((file) => file.canonical),
-          requiresAsking: false,
-          protectedPath: false,
-        },
-        false,
-      )
-      if (!safe.allowed) return toolFailure(safe.reason ?? run.modelText.protectedRefused)
-    }
-    for (const path of [plan.target, ...plan.sources]) {
-      const current = await confineWorkspacePath(
-        this.deps.workspaceRoot,
-        path.absolute,
-        this.deps.platform,
-        this.deps.io,
-      )
-      if (!current.ok || current.checkedAbsolute !== path.checkedAbsolute) {
-        return toolFailure(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
-      }
-    }
-    // A scheduled fire reserves through its own ledger, never the session cap.
-    if (run === undefined) await this.refreshBudgetSpend()
-    const price = Usd.from(PAID_PRICES_USD.imageGeneration).toAmount()
-    const capUsd = run === undefined ? this.currentBudgetCap() : Usd.from(0).toAmount()
-    if (
-      Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
-      Usd.from(price).compare(Usd.from(capUsd).subtract(Usd.from(this.budgetSpentUsd))) > 0
-    ) {
-      throw new SessionBudgetExceededError(
-        fill(UI_TEXT.sessionBudgetStopped, {
-          estimate: formatUsd(price),
-          cap: formatUsd(capUsd),
-          spent: formatUsd(this.budgetSpentUsd),
-        }),
-      )
-    }
-    const owner = this.budgetOwner()
-    const scope = this.deps.budgetScope
-    const accountId = run?.paid?.accountId ?? scope?.accountId ?? owner.budgetAccountId
-    const journal = this.budgetJournal()
-    const metaKeyDigest = this.modelId.includes('/')
-      ? await this.deps.client.currentKeyDigest()
-      : accountId
-    const selectedKeyDigest = this.modelKeyDigests.get(selected.ref)
-    const claim =
-      run === undefined && accountId !== undefined && journal !== undefined
-        ? await journal.reserve(scope?.sessionId ?? owner.sessionId, accountId, price)
-        : undefined
-    const goalRevision = this.goalCommandRevision
-    const isTrusted = this.deps.isWorkspaceTrusted()
-    const imageState = { isSent: false, isBilled: false }
-    let startedAt: number | undefined
-    let isRefused = false
-    let hasReturned = false
-    let egressRefusal: ToolOutcome | undefined
+    // Images answer over the caller's ledger, like every other side call:
+    // the take-or-refuse keeps the turn's last request for the wrap-up even
+    // when two image calls race from parallel tool calls.
+    const slot = this.takeSideSlot()
+    if (slot === undefined)
+      return toolFailure(MODEL_API_MODEL_TEXT.wrapUpReserved, UI_TEXT.modelApiWrapUpReserved)
     try {
-      if (scope === undefined && Usd.from(capUsd).compare(Usd.from(0)) > 0) {
-        await this.onPersisted('budget')
+      const revision = this.modelRevision
+      const selected = this.selectedModel()
+      const run = this.active?.scheduleRun
+      const touched: TouchedFiles = {
+        names: [plan.target, ...plan.sources].flatMap((file) => [file.relative, file.canonical]),
+        complete: true,
       }
-      const outcome = await runImageCall(plan, {
-        client: this.client,
-        io: this.scheduledIo(this.toolWrites()?.io ?? this.deps.io),
-        signal,
-        isStillOn: () => this.deps.isPaidFeatureOn('imageGeneration'),
-        admitAttempt: Object.assign(
-          (keyDigest: string | undefined) => {
-            // Image transport retries only an explicit 429. The preceding
-            // attempt then admitted no work, including if this retry is refused.
-            imageState.isSent = false
-            if (
-              keyDigest !== metaKeyDigest ||
-              !selected.isCurrent() ||
-              this.deps.hasMetaCredential?.() === false ||
-              signal.aborted ||
-              this.isDisposed ||
-              revision !== this.modelRevision ||
-              goalRevision !== this.goalCommandRevision ||
-              isTrusted !== this.deps.isWorkspaceTrusted() ||
-              this.active?.scheduleRun !== run ||
-              run?.isActive() === false ||
-              !this.deps.isPaidFeatureOn('imageGeneration') ||
-              scope?.isStillAllowed(selected.ref.includes('/') ? selectedKeyDigest : keyDigest) ===
-                false
-            ) {
-              throw new AbortedError()
-            }
-            if (
-              run === undefined &&
-              claim === undefined &&
-              Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0
-            ) {
-              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-            }
-            claim?.check(this.currentBudgetCap())
-            // The egress fence, last: the client builds and sends with no await.
-            egressRefusal ??= this.policyRefusal(admission, touched.names)
-            if (egressRefusal !== undefined) {
-              throw new AbortedError()
-            }
-          },
+      if (run !== undefined) {
+        const safe = await run.decide(
           {
-            onRequestStarted: () => {
-              imageState.isSent = true
-              startedAt ??= this.deps.now()
-            },
+            id: this.deps.newId(),
+            class: 'paidExtra',
+            tool: 'imageGeneration',
+            paths: [plan.target, ...plan.sources].map((file) => file.canonical),
+            requiresAsking: false,
+            protectedPath: false,
           },
-        ),
-        onBilled: () => {
-          imageState.isBilled = true
-          this.notifyUsage(() => {
-            this.deps.notePaidUse('imageGeneration', 1)
-          })
-        },
-      })
-      hasReturned = true
-      return { ...outcome, touched }
-    } catch (error: unknown) {
-      if (egressRefusal !== undefined) {
-        return egressRefusal
+          false,
+        )
+        if (!safe.allowed) return toolFailure(safe.reason ?? run.modelText.protectedRefused)
       }
-      // Lane PROVERR: the definite "nothing billed" refusal releases its
-      // reservation; anything else keeps its uncertain liability.
-      isRefused = isModelApiError(error) && isDefiniteRefusal(error.status)
-      throw error
-    } finally {
-      const charged =
-        imageState.isBilled || (!hasReturned && !isRefused && imageState.isSent)
-          ? price
-          : Usd.from(0).toAmount()
+      for (const path of [plan.target, ...plan.sources]) {
+        const current = await confineWorkspacePath(
+          this.deps.workspaceRoot,
+          path.absolute,
+          this.deps.platform,
+          this.deps.io,
+        )
+        if (!current.ok || current.checkedAbsolute !== path.checkedAbsolute) {
+          return toolFailure(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
+        }
+      }
+      // A scheduled fire reserves through its own ledger, never the session cap.
+      if (run === undefined) await this.refreshBudgetSpend()
+      const price = Usd.from(PAID_PRICES_USD.imageGeneration).toAmount()
+      const capUsd = run === undefined ? this.currentBudgetCap() : Usd.from(0).toAmount()
       if (
-        startedAt !== undefined &&
-        this.deps.hasExternalPaidRecording !== true &&
-        !imageState.isBilled &&
-        isPositiveUsd(charged)
+        Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
+        Usd.from(price).compare(Usd.from(capUsd).subtract(Usd.from(this.budgetSpentUsd))) > 0
       ) {
-        recordPaidUse(this.deps.usageRecording, 'imageGeneration', 1, {
-          session: this.sessionId,
-          startedAt,
-          durationMs: Math.max(0, this.deps.now() - startedAt),
-          outcome: signal.aborted ? 'cancelled' : 'failed',
-          uncertain: true,
-          retainedLiabilityUsd: charged,
+        throw new SessionBudgetExceededError(
+          fill(UI_TEXT.sessionBudgetStopped, {
+            estimate: formatUsd(price),
+            cap: formatUsd(capUsd),
+            spent: formatUsd(this.budgetSpentUsd),
+          }),
+        )
+      }
+      const owner = this.budgetOwner()
+      const scope = this.deps.budgetScope
+      const accountId = run?.paid?.accountId ?? scope?.accountId ?? owner.budgetAccountId
+      const journal = this.budgetJournal()
+      const metaKeyDigest = this.modelId.includes('/')
+        ? await this.deps.client.currentKeyDigest()
+        : accountId
+      const selectedKeyDigest = this.modelKeyDigests.get(selected.ref)
+      const claim =
+        run === undefined && accountId !== undefined && journal !== undefined
+          ? await journal.reserve(scope?.sessionId ?? owner.sessionId, accountId, price)
+          : undefined
+      const goalRevision = this.goalCommandRevision
+      const isTrusted = this.deps.isWorkspaceTrusted()
+      const imageState = { isSent: false, isBilled: false }
+      let startedAt: number | undefined
+      let isRefused = false
+      let hasReturned = false
+      let egressRefusal: ToolOutcome | undefined
+      try {
+        if (scope === undefined && Usd.from(capUsd).compare(Usd.from(0)) > 0) {
+          await this.onPersisted('budget')
+        }
+        const outcome = await runImageCall(plan, {
+          client: this.client,
+          io: this.scheduledIo(this.toolWrites()?.io ?? this.deps.io),
+          signal,
+          isStillOn: () => this.deps.isPaidFeatureOn('imageGeneration'),
+          admitAttempt: Object.assign(
+            (keyDigest: string | undefined) => {
+              // Image transport retries only an explicit 429. The preceding
+              // attempt then admitted no work, including if this retry is refused.
+              imageState.isSent = false
+              if (
+                keyDigest !== metaKeyDigest ||
+                !selected.isCurrent() ||
+                this.deps.hasMetaCredential?.() === false ||
+                signal.aborted ||
+                this.isDisposed ||
+                revision !== this.modelRevision ||
+                goalRevision !== this.goalCommandRevision ||
+                isTrusted !== this.deps.isWorkspaceTrusted() ||
+                this.active?.scheduleRun !== run ||
+                run?.isActive() === false ||
+                !this.deps.isPaidFeatureOn('imageGeneration') ||
+                scope?.isStillAllowed(
+                  selected.ref.includes('/') ? selectedKeyDigest : keyDigest,
+                ) === false
+              ) {
+                throw new AbortedError()
+              }
+              if (
+                run === undefined &&
+                claim === undefined &&
+                Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0
+              ) {
+                throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+              }
+              claim?.check(this.currentBudgetCap())
+              // The egress fence, last: the client builds and sends with no await.
+              egressRefusal ??= this.policyRefusal(admission, touched.names)
+              if (egressRefusal !== undefined) {
+                throw new AbortedError()
+              }
+            },
+            {
+              onRequestStarted: () => {
+                imageState.isSent = true
+                startedAt ??= this.deps.now()
+              },
+            },
+          ),
+          onBilled: () => {
+            imageState.isBilled = true
+            this.notifyUsage(() => {
+              this.deps.notePaidUse('imageGeneration', 1)
+            })
+          },
         })
+        hasReturned = true
+        return { ...outcome, touched }
+      } catch (error: unknown) {
+        if (egressRefusal !== undefined) {
+          return egressRefusal
+        }
+        // Lane PROVERR: the definite "nothing billed" refusal releases its
+        // reservation; anything else keeps its uncertain liability.
+        isRefused = isModelApiError(error) && isDefiniteRefusal(error.status)
+        throw error
+      } finally {
+        const charged =
+          imageState.isBilled || (!hasReturned && !isRefused && imageState.isSent)
+            ? price
+            : Usd.from(0).toAmount()
+        if (
+          startedAt !== undefined &&
+          this.deps.hasExternalPaidRecording !== true &&
+          !imageState.isBilled &&
+          isPositiveUsd(charged)
+        ) {
+          recordPaidUse(this.deps.usageRecording, 'imageGeneration', 1, {
+            session: this.sessionId,
+            startedAt,
+            durationMs: Math.max(0, this.deps.now() - startedAt),
+            outcome: signal.aborted ? 'cancelled' : 'failed',
+            uncertain: true,
+            retainedLiabilityUsd: charged,
+          })
+        }
+        this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, charged)
+        if (imageState.isBilled) {
+          this.turnCostUsd = sumUsd(this.turnCostUsd, charged)
+        } else if (Usd.from(charged).compare(Usd.from(0)) > 0) {
+          this.warnUnknownCharge(charged)
+        }
+        if (run === undefined) this.recordBudgetCost(charged, claim)
+        await this.budgetWrites
+        if (claim !== undefined && scope === undefined) {
+          await this.onPersisted('refund')
+        }
       }
-      this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, charged)
-      if (imageState.isBilled) {
-        this.turnCostUsd = sumUsd(this.turnCostUsd, charged)
-      } else if (Usd.from(charged).compare(Usd.from(0)) > 0) {
-        this.warnUnknownCharge(charged)
-      }
-      if (run === undefined) this.recordBudgetCost(charged, claim)
-      await this.budgetWrites
-      if (claim !== undefined && scope === undefined) {
-        await this.onPersisted('refund')
-      }
+    } finally {
+      this.giveSideSlot(slot)
     }
   }
 
@@ -9254,35 +9492,51 @@ export class ModelApiSession implements ScheduledAgentSession {
       throw new Error('the hook model bundle could not be loaded')
     }
     if (!isCurrent()) throw new AbortedError()
-    // The run is tallied when the gate allowed it; the request observer below
-    // counts its attempts for the client's own budget, nothing more.
-    const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
-    return await runHookModel(
-      {
-        deps: this.deps,
-        tools: kind === 'agent' ? this.hookModelTools() : [],
-        table: UI_TEXT,
-        locale: uiLocale(),
-        executeReadOnlyTool: async (name, argsJson, toolSignal) =>
-          await this.executeHookModelTool(name, argsJson, toolSignal),
-        ...this.paidModelObservers(turnId),
-      },
-      { kind, system, user },
-      event,
-      turnId,
-      signal,
-      {
-        modelId,
-        keyDigest,
-        runKind: 'hookModel',
-        isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
-        onRequestStarted: () => {
-          // Hook runs are counted by the consenting dispatcher.
+    // Fail closed behind the policy gate above (`isTurnCallReserved`): a
+    // skipped call is a failed hook answer, never an empty success the hook
+    // parser would read as no objection. Reached only by a caller that
+    // bypassed the gate; `runModelHandler` turns the throw into `failed`,
+    // so the hook's own on-failure rule still decides. The take-or-refuse
+    // also holds across a racing second hook-model call. An agent hook
+    // reserves its maximum steps up front, so the caller's last call can
+    // only be spent by the wrap-up builder.
+    const slot = this.takeSideSlot(kind === 'agent' ? HOOK_AGENT_MAX_STEPS : 1)
+    if (slot === undefined) {
+      throw new Error('the hook model call would take the reserved final request')
+    }
+    try {
+      // The run is tallied when the gate allowed it; the request observer below
+      // counts its attempts for the client's own budget, nothing more.
+      const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
+      return await runHookModel(
+        {
+          deps: this.deps,
+          tools: kind === 'agent' ? this.hookModelTools() : [],
+          table: UI_TEXT,
+          locale: uiLocale(),
+          executeReadOnlyTool: async (name, argsJson, toolSignal) =>
+            await this.executeHookModelTool(name, argsJson, toolSignal),
+          ...this.paidModelObservers(turnId),
         },
-      },
-      budgetScope,
-      isCurrent,
-    )
+        { kind, system, user },
+        event,
+        turnId,
+        signal,
+        {
+          modelId,
+          keyDigest,
+          runKind: 'hookModel',
+          isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
+          onRequestStarted: () => {
+            // Hook runs are counted by the consenting dispatcher.
+          },
+        },
+        budgetScope,
+        isCurrent,
+      )
+    } finally {
+      this.giveSideSlot(slot)
+    }
   }
 
   /** The IDE tool in process, or the MCP server's tool over its connection (M50). */
@@ -13920,7 +14174,9 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /** A busy goal command was not in the request already in flight. */
   private drainGoalWake(turn: ActiveTurn): void {
-    if (!turn.goalWakePending) {
+    // The wrap-up never consumes a goal wake: the one exit re-queues it for
+    // its own turn.
+    if (!turn.goalWakePending || turn.wrapUpLimit !== undefined) {
       return
     }
     turn.goalWakePending = false
@@ -14025,6 +14281,215 @@ export class ModelApiSession implements ScheduledAgentSession {
       : this.team.appendTeamEvents(name, outcome, () => this.deps.takeTeamChanges?.(this.sessionId))
   }
 
+  private callerModelCallsLeft(): number | undefined {
+    // A paid child grant is not a turn-call allowance: admitChildAttempt
+    // refuses the attempt past the grant with ChildTaskRefusedError, so the
+    // grant's tool calls are never reserved for a wrap-up here and the stop
+    // stays the child's own typed refusal.
+    return this.modelCallAllowance?.() ?? this.deps.remainingModelCalls?.()
+  }
+
+  private modelCallsLeft(turn: ActiveTurn): number {
+    const own = turn.modelCallLimit - turn.modelCalls
+    return Math.min(own, this.callerModelCallsLeft() ?? own)
+  }
+
+  /**
+   * The exact reserved-slot condition: a caller allowance (exec's
+   * `remainingModelCalls`, a best-of-N attempt ceiling) exists, and the
+   * turn's remaining — its own limit folded with that allowance — is one
+   * call. Side work answered over the caller's ledger (recovery compaction,
+   * reviewer and hook-model calls, images) must not spend that last call:
+   * it is the turn's own next request, wrap-up or (before any call went
+   * out) first ordinary call. Reviewer and hook-model calls use the direct
+   * budget and never touch the turn's own count, so in a turn with no
+   * caller allowance they cannot take the slot and the gate stays off,
+   * whatever the turn's own limit says.
+   */
+  /**
+   * Calls remaining on the caller ledger for the turn's own next request:
+   * undefined while compacting or with no caller allowance (interactive
+   * turns), where side work is ledger-free and nothing is kept.
+   */
+  private callerTurnLeft(): number | undefined {
+    if (this.compacting !== undefined) return undefined
+    const callerLeft = this.callerModelCallsLeft()
+    if (callerLeft === undefined) return undefined
+    const turn = this.active
+    return turn === undefined ? callerLeft : this.modelCallsLeft(turn)
+  }
+
+  private isWrapUpSlotReserved(): boolean {
+    const left = this.callerTurnLeft()
+    return left !== undefined && left <= 1
+  }
+
+  /**
+   * Synchronous take-or-refuse for caller-ledger side work (reviewer,
+   * hook-model, image): the take and the refusal live in the same
+   * synchronous block, so two concurrent side calls from parallel tool
+   * calls cannot both pass with two calls left — the first takes the
+   * reservation and the second sees one left and refuses, keeping the
+   * turn's last request for the wrap-up. A multi-step hook agent reserves
+   * its maximum steps up front, so the caller's last call can only be
+   * spent by the wrap-up builder. Release the returned token with
+   * `giveSideSlot` in a `finally` around the side call; a ledger-free take
+   * returns a zero token that releases nothing.
+   */
+  private takeSideSlot(count = 1): SideSlotToken | undefined {
+    const left = this.callerTurnLeft()
+    return left === undefined ? { count: 0 } : takeSideSlotToken(this.sideReservation, left, count)
+  }
+
+  /** Release exactly what the token's own take reserved. */
+  private giveSideSlot(token: SideSlotToken): void {
+    releaseSideSlotToken(this.sideReservation, token)
+  }
+
+  /**
+   * Stop hooks for a turn that produced an answer, with a subagent reply
+   * replacement applied. Callers honour continuations only while the turn
+   * can still spend a call.
+   */
+  private async runAnswerStopHooks(
+    turn: ActiveTurn,
+    signal: AbortSignal,
+    isStopHookActive: boolean,
+  ): Promise<HookDispatch> {
+    const lastAssistantMessage =
+      this.transcript.findLast(
+        (entry) => entry.item.turnId === turn.turnId && entry.item.kind === 'agentMessage',
+      )?.item.text ?? ''
+    const stopEvent = this.isSubagent ? 'SubagentStop' : 'Stop'
+    const stop = await this.runHooks(
+      stopEvent,
+      turn.turnId,
+      {
+        stop_hook_active: isStopHookActive,
+        last_assistant_message: lastAssistantMessage,
+        ...(this.isSubagent &&
+          this.childSubagentId !== undefined && {
+            subagent_id: this.childSubagentId,
+            child_session_id: this.sessionId,
+          }),
+      },
+      undefined,
+      signal,
+    )
+    const requiredAfterStopHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
+    if (requiredAfterStopHook !== undefined) {
+      throw requiredAfterStopHook
+    }
+    // An imported SubagentStop hook's documented replacement of the
+    // child's reply (Copilot `modifiedResponse`): what the parent reads.
+    if (this.isSubagent && stop.replacement?.target === 'subagentResponse') {
+      const { value } = stop.replacement
+      this.hookReplies.set(turn.turnId, typeof value === 'string' ? value : JSON.stringify(value))
+    }
+    return stop
+  }
+
+  /**
+   * The one transition into the wrap-up phase, and the one writer of
+   * `wrapUpLimit`: every other site reads it. Given the calls already
+   * counted and every allowance that applies — the turn's own limit (bound
+   * at turn start from the caller's allowance), the live caller allowance,
+   * and the default cap folded together by `modelCallsLeft` — once a call
+   * went out and one remains, the next request answers without tools. The
+   * first call is always ordinary, even when it is also the last one
+   * allowed. Called wherever a request is built (`streamAttempt`, so first
+   * attempts, HTTP retries, whole-stream retries, media recovery and
+   * overflow recovery all pass through it); the loop top and `beforeRetry`
+   * only observe its consequence. `body()` reads the phase, never writes it.
+   */
+  private enterWrapUpPhase(turn: ActiveTurn): void {
+    if (turn.wrapUpLimit === undefined && turn.modelCalls >= 1 && this.modelCallsLeft(turn) <= 1) {
+      turn.wrapUpLimit = turn.modelCalls + Math.max(0, this.modelCallsLeft(turn))
+    }
+  }
+
+  /**
+   * The wrap-up phase's one exit. Whatever ended the wrap-up — a plain or
+   * truncated answer, a Stop hook blocking or answering `continue: false`,
+   * a hook cancelling the turn — the turn reports the same typed outcome
+   * (completed, `max_turn_requests`, stop reason `limit`), and input the
+   * wrap-up never consumed (steered text, scheduled-prompt steers, goal
+   * wakes) is re-queued for its own turn with tools. A user stop racing the
+   * request itself still cancels: no wrap-up answer exists then.
+   */
+  private async finishWrapUp(
+    turn: ActiveTurn,
+    signal: AbortSignal,
+    isStopHookActive: boolean,
+    limitError?: ModelCallLimitError,
+  ): Promise<never> {
+    let stop: HookDispatch | undefined
+    try {
+      // The turn ended with an answer, so Stop hooks still run.
+      stop = await this.runAnswerStopHooks(turn, signal, isStopHookActive)
+    } catch (error: unknown) {
+      // A hook cancelling the wrap-up ends the turn at its limit: the final
+      // answer already streamed, and nothing past the limit can be honoured.
+      if (!(error instanceof HookCancelledError)) throw error
+    }
+    // More work cannot be honoured past the limit, and the notice says so.
+    if (stop?.blockedReason !== undefined) {
+      this.emit({
+        type: 'backendNotice',
+        level: 'warning',
+        text: UI_TEXT.modelApiWrapUpHookBlocked,
+      })
+    }
+    // Input held out of the wrap-up keeps its own turn with tools.
+    this.requeueHeldInput(turn)
+    // A call limit is not a money stop: it carries its own stop reason.
+    this.outcomeStopReason = 'limit'
+    throw limitError ?? new ModelCallLimitError(turn.modelCalls)
+  }
+
+  /**
+   * Input held out of the wrap-up keeps its own turn with tools: steered
+   * messages belonged to this turn, so they run before separately queued
+   * messages; a goal cue follows them. Runs on the wrap-up's success exit
+   * and when the wrap-up request itself fails, so a held goal wake is never
+   * dropped with the failed summary.
+   */
+  private requeueHeldInput(turn: ActiveTurn): void {
+    // Idempotent: the wrap-up exits and turn finalization both land here,
+    // and a held wake must be queued exactly once. A user stop still
+    // cancels outright: no fresh goal turn is queued behind it.
+    if (turn.goalWakePending && isGoalActive(this.goal) && !isAbortRequested(turn.abort.signal)) {
+      turn.goalWakePending = false
+      this.queuedTurns.unshift(this.queuedGoalWake())
+    }
+    this.promoteSteered(turn)
+  }
+
+  /**
+   * A wrap-up request that itself could not be completed ends the turn at
+   * its limit all the same: the typed limit stop whose sentence says the
+   * summary could not be produced, and why. Rate limits name themselves; a
+   * money stop, a hook stopping the request, and any other model failure
+   * name their own fixed kind. Anything that is not the wrap-up's own
+   * failure (no wrap-up active, the user stopping the turn, the overflow's
+   * own typed path, a child's refusal) keeps its shape: undefined.
+   */
+  private wrapUpRequestFailed(
+    turn: ActiveTurn,
+    signal: AbortSignal,
+    error: unknown,
+  ): ModelCallLimitError | undefined {
+    if (turn.wrapUpLimit === undefined || isAbortRequested(signal)) return undefined
+    // The one exit: whatever ended the wrap-up re-queues every kind of held
+    // input first — including a 429/5xx that already carries the typed
+    // limit, which used to return before the re-queue and drop a held goal
+    // wake. A user stop racing the request still cancels outright above.
+    this.requeueHeldInput(turn)
+    if (error instanceof ModelCallLimitError) return error
+    const kind = wrapUpFailedKindFor(error)
+    return kind === undefined ? undefined : wrapUpFailedLimit(turn.modelCalls, kind)
+  }
+
   private async loop(turn: ActiveTurn): Promise<void> {
     this.repeatGuard.reset()
     const { signal } = turn.abort
@@ -14032,7 +14497,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     let isStopHookActive = false
     let stopContinuations = 0
     let outputContinuations = 0
-    for (let round = 0; round < MODEL_API_MAX_TOOL_ROUNDS; round += 1) {
+    const callLimit = turn.modelCallLimit
+    for (let round = 0; round < callLimit; round += 1) {
+      if (this.modelCallsLeft(turn) <= 0) break
       if (isAbortRequested(signal)) {
         throw new AbortedError()
       }
@@ -14040,8 +14507,15 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (requiredBeforeRound !== undefined) {
         throw requiredBeforeRound
       }
-      await this.drainSteered(turn)
-      this.drainGoalWake(turn)
+      // The phase is observed here, once per round, for the drain gate below:
+      // it is decided where every request is built (`streamAttempt`). Steering
+      // and goal wakes arriving before the wrap-up are not consumed by it,
+      // but keep their own turn with tools; the one exit re-queues them.
+      this.enterWrapUpPhase(turn)
+      if (turn.wrapUpLimit === undefined) {
+        await this.drainSteered(turn)
+        this.drainGoalWake(turn)
+      }
       const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
       let streamed: StreamedCall
       try {
@@ -14071,8 +14545,14 @@ export class ModelApiSession implements ScheduledAgentSession {
           // The resend steps run only for a proven overflow (counts, or the
           // recorded refusal with its numbers): an unrecorded wire shape
           // ends here with the short sentence, never a resend.
+          // Recovery must not spend the reserved wrap-up slot: without room
+          // for both, the overflow stands with what it kept — through the
+          // one exit, so held input is re-queued either way.
           if (!canRecoverOverflow(error.kind, error.promptTokens, error.promptMaximum)) {
-            throw error
+            throw this.wrapUpRequestFailed(turn, signal, error) ?? error
+          }
+          if (this.isWrapUpSlotReserved()) {
+            throw this.wrapUpRequestFailed(turn, signal, error) ?? error
           }
           // Step (a) for every proven kind, count-based included: a
           // restored session's oversized results are cut before any
@@ -14104,19 +14584,26 @@ export class ModelApiSession implements ScheduledAgentSession {
           }
           if (recovered === undefined) {
             if (turn.didRecoverOverflow) throw overflowError
-            const resent = await this.compactAndResend(
-              turn,
-              signal,
-              round,
-              wasBudgetLimited,
-              overflowError,
-            )
+            // The recovery rebuilds through `streamAttempt`, so a last-slot
+            // retry is the wrap-up; its own failure converts the same way.
+            let resent: Awaited<ReturnType<typeof this.compactAndResend>>
+            try {
+              resent = await this.compactAndResend(
+                turn,
+                signal,
+                round,
+                wasBudgetLimited,
+                overflowError,
+              )
+            } catch (resendError: unknown) {
+              throw this.wrapUpRequestFailed(turn, signal, resendError) ?? resendError
+            }
             if ('stopped' in resent) return
             recovered = resent.streamed
           }
           streamed = recovered
         } else {
-          throw error
+          throw this.wrapUpRequestFailed(turn, signal, error) ?? error
         }
       }
       const { calls, goalCommandRevision, postContexts } = streamed
@@ -14146,7 +14633,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           streamed.incompleteReason === 'max_output_tokens' &&
           this.outputContinuation &&
           outputContinuations < MODEL_API_CONTINUATIONS_MAX &&
-          round < MODEL_API_MAX_TOOL_ROUNDS - 1
+          this.modelCallsLeft(turn) > 0
         ) {
           outputContinuations += 1
           this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.modelApiContinuing })
@@ -14157,6 +14644,20 @@ export class ModelApiSession implements ScheduledAgentSession {
           })
           continue
         }
+        if (streamed.incompleteReason === 'max_output_tokens' && turn.wrapUpLimit !== undefined) {
+          // A wrap-up cut at the output limit is a limit stop, never
+          // "again": the partial answer is kept, through the one exit, with
+          // its own sentence.
+          await this.finishWrapUp(
+            turn,
+            signal,
+            isStopHookActive,
+            new ModelCallLimitError(
+              turn.modelCalls,
+              plural(UI_TEXT.modelApiWrapUpTruncated, turn.modelCalls),
+            ),
+          )
+        }
         if (streamed.incompleteReason === 'max_output_tokens' && this.outputContinuation) {
           this.emit({
             type: 'backendNotice',
@@ -14165,6 +14666,15 @@ export class ModelApiSession implements ScheduledAgentSession {
           })
         }
         return
+      }
+      if (turn.wrapUpLimit !== undefined) {
+        // A provider ignoring the tools-disabled request cannot execute work.
+        // Every ending converges on the one exit: a Stop hook answering
+        // `continue: false` stops the turn with the typed limit, never with
+        // a bare return that would lose it.
+        this.skipCalls(turn.turnId, calls, this.wrapUpNote(turn.wrapUpLimit))
+        await this.appendHookContexts(turn.turnId, postContexts)
+        await this.finishWrapUp(turn, signal, isStopHookActive)
       }
       // One more model call without progress toward the goal (the step probe, D38).
       if (isGoalActive(this.goal)) {
@@ -14175,39 +14685,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         // A message typed while the final answer streamed gets its own round
         // instead of being accepted and dropped (D26).
         if (turn.steered.length === 0 && !(turn.goalWakePending && isGoalActive(this.goal))) {
-          const lastAssistantMessage =
-            this.transcript.findLast(
-              (entry) => entry.item.turnId === turn.turnId && entry.item.kind === 'agentMessage',
-            )?.item.text ?? ''
-          const stopEvent = this.isSubagent ? 'SubagentStop' : 'Stop'
-          const stop = await this.runHooks(
-            stopEvent,
-            turn.turnId,
-            {
-              stop_hook_active: isStopHookActive,
-              last_assistant_message: lastAssistantMessage,
-              ...(this.isSubagent &&
-                this.childSubagentId !== undefined && {
-                  subagent_id: this.childSubagentId,
-                  child_session_id: this.sessionId,
-                }),
-            },
-            undefined,
-            signal,
-          )
-          const requiredAfterStopHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
-          if (requiredAfterStopHook !== undefined) {
-            throw requiredAfterStopHook
-          }
-          // An imported SubagentStop hook's documented replacement of the
-          // child's reply (Copilot `modifiedResponse`): what the parent reads.
-          if (this.isSubagent && stop.replacement?.target === 'subagentResponse') {
-            const { value } = stop.replacement
-            this.hookReplies.set(
-              turn.turnId,
-              typeof value === 'string' ? value : JSON.stringify(value),
-            )
-          }
+          const stop = await this.runAnswerStopHooks(turn, signal, isStopHookActive)
           if (stop.stopReason !== undefined) {
             return
           }
@@ -14225,7 +14703,8 @@ export class ModelApiSession implements ScheduledAgentSession {
             continue
           }
           if (stop.blockedReason !== undefined) {
-            this.deps.log.warn(`Model API ${stopEvent} hook reached its continuation limit`)
+            const limitedEvent = this.isSubagent ? 'SubagentStop' : 'Stop'
+            this.deps.log.warn(`Model API ${limitedEvent} hook reached its continuation limit`)
           }
           return
         }
@@ -14362,25 +14841,30 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.dropUndeliveredMedia(turn.turnId)
         return
       }
-      const verifyStop = await this.verifyRound(turn, round === MODEL_API_MAX_TOOL_ROUNDS - 1)
+      const verifyStop = await this.verifyRound(turn, this.modelCallsLeft(turn) <= 0)
       if (verifyStop !== undefined) {
         // A check's hook stopped the turn after the round, as PostToolBatch can.
         this.dropUndeliveredMedia(turn.turnId)
         return
       }
       this.autoCompact.noteToolWork()
+      // Automatic compaction never spends the reserved wrap-up slot.
+      if (this.modelCallsLeft(turn) <= 1) continue
       const compacted = await this.maybeAutoCompact(turn)
       if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return
     }
-    // Input accepted during the last permitted round still needs a request
-    // that sees it. Steered messages belonged to this turn, so run them
-    // before separately queued messages; a goal cue follows them.
-    if (turn.goalWakePending && isGoalActive(this.goal)) {
-      this.queuedTurns.unshift(this.queuedGoalWake())
+    // A loop that ends in the wrap-up phase leaves through the one exit,
+    // so the phase keeps its single typed outcome whatever spent the slot.
+    if (turn.wrapUpLimit !== undefined) {
+      await this.finishWrapUp(turn, signal, isStopHookActive)
     }
-    this.promoteSteered(turn)
-    this.outcomeStopReason = 'budget'
-    throw new Error(`stopped after ${String(MODEL_API_MAX_TOOL_ROUNDS)} tool rounds`)
+    // Input accepted during the last permitted round still needs a request
+    // that sees it, through the one re-queue every exit uses: it clears the
+    // held-wake flag, so turn finalization cannot queue the same wake again.
+    this.requeueHeldInput(turn)
+    // A call limit is not a money stop: it carries its own stop reason.
+    this.outcomeStopReason = 'limit'
+    throw new ModelCallLimitError(turn.modelCalls)
   }
 
   /** Child turns share checkpoint ownership with their top parent, even after it finishes. */
@@ -14503,6 +14987,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       inputParts: [...queued.parts],
       steered: [],
       acceptedTextAttachmentBytes: textAttachmentBytes(queued.parts),
+      modelCalls: 0,
+      modelCallLimit: this.callerModelCallsLeft() ?? MODEL_API_MAX_TOOL_ROUNDS,
       modelFailure: undefined,
       goalWakePending: false,
       isWebSearchAllowed: false,
@@ -14717,7 +15203,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       } else {
         terminal = FAILED
         if (
-          error instanceof SessionBudgetExceededError ||
+          (error instanceof SessionBudgetExceededError &&
+            !(error instanceof ModelCallLimitError)) ||
           (error instanceof ChildTaskRefusedError &&
             (error.kind === 'requestLimit' || error.kind === 'goalEnded'))
         ) {
@@ -14725,7 +15212,12 @@ export class ModelApiSession implements ScheduledAgentSession {
         }
         reason = error instanceof ChildTaskRefusedError ? error.visible : describe(error)
         if (this.isSubagent && this.outcomeStopReason === 'budget') terminal = COMPLETED
-        if (error instanceof ChildTaskRefusedError) {
+        if (error instanceof ModelCallLimitError) {
+          terminal = COMPLETED
+          errorKind = 'max_turn_requests'
+          this.outcomeStopReason = 'limit'
+          this.emit({ type: 'backendNotice', level: 'warning', text: reason })
+        } else if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
         } else if (error instanceof ContextOverflowError) {
           // TOOLCAP recovery (c): the true last word. With the provider's
@@ -14754,12 +15246,18 @@ export class ModelApiSession implements ScheduledAgentSession {
             errorKind = CHATGPT_PLAN_LIMIT_ERROR_KIND
           else errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
         }
-        this.deps.log.warn(
-          error instanceof HookStoppedError
-            ? `Model API turn ${turn.turnId} stopped by a hook`
-            : `Model API turn ${turn.turnId} failed: ${reason}`,
-        )
-        if (turn.modelFailure !== undefined && !(error instanceof ChildTaskRefusedError)) {
+        let turnEndMessage = `Model API turn ${turn.turnId} failed: ${reason}`
+        if (error instanceof ModelCallLimitError) {
+          turnEndMessage = `Model API turn ${turn.turnId} reached its model-call limit`
+        } else if (error instanceof HookStoppedError) {
+          turnEndMessage = `Model API turn ${turn.turnId} stopped by a hook`
+        }
+        this.deps.log.warn(turnEndMessage)
+        if (
+          turn.modelFailure !== undefined &&
+          !(error instanceof ChildTaskRefusedError) &&
+          !(error instanceof ModelCallLimitError)
+        ) {
           const lastAssistantMessage = this.transcript.findLast(
             (entry) => entry.item.turnId === turn.turnId && entry.item.kind === 'agentMessage',
           )?.item.text
@@ -14801,7 +15299,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     // Every exit preserves input the last request did not admit, including
     // incomplete replies and steering accepted while finalization awaited.
-    this.promoteSteered(turn)
+    // Held goal wakes re-queue here too: several loop exits (an incomplete
+    // reply, a required-MCP failure, a Stop hook throwing out of the
+    // wrap-up exit) never pass the wrap-up's own re-queue, and finalization
+    // is the one path every turn ending takes.
+    this.requeueHeldInput(turn)
     this.active = undefined
     const pendingRun = this.owner.run(turn.turnId)
     if (pendingRun !== undefined && turn.scheduleRun === undefined) {
@@ -16470,6 +16972,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     requestFor?: (turnId: string) => ConfirmedModelRequest,
   ): Promise<TurnSubmission> {
     return this.submitTurn(parts, displayText, false, requestFor)
+  }
+
+  /** Task adapters bind their existing allowance without adding a second cap. */
+  public setModelCallAllowance(remaining: (() => number) | undefined): void {
+    this.modelCallAllowance = remaining
   }
 
   /**

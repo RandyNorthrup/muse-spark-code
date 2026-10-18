@@ -1,0 +1,74 @@
+{
+  "vendor": "deepseek",
+  "model": "deepseek-flash",
+  "variant": "1-wrap-up-tools-omitted",
+  "url": "https://api.deepseek.com/chat/completions",
+  "requestBody": {
+    "model": "deepseek-flash",
+    "max_tokens": 300,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "index": 0,
+            "id": "call_00_TRBahweo6hni8l1H71fq4289",
+            "type": "function",
+            "function": {
+              "name": "read_file",
+              "arguments": "{\"path\": \"a.txt\"}"
+            }
+          }
+        ],
+        "reasoning_content": "We need to read file a.txt. Use tool call. Must output in tool block before final read_file all in one line of tool calls XML. We can do one call. Let's also maybe only one. After user says write final response exactly string, we can think, then call tool, then final. But \"as part of your reply to user\" means include tool call and then final. Let's do tool call first."
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_00_TRBahweo6hni8l1H71fq4289",
+        "content": "hello from a.txt"
+      },
+      {
+        "role": "user",
+        "content": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "id": "0040c66f-9dac-4f34-b55e-731faa0c8105",
+    "object": "chat.completion",
+    "created": 1791835033,
+    "model": "deepseek-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "I read a.txt, which says \"hello from a.txt,\" so nothing remains.",
+          "reasoning_content": "We need answer. Need comply: \"Without calling any tool, say in one sentence what you did and what remains.\" We have already called read_file, got content. Now need say in one sentence what I did and what remains. Maybe: \"I read a.txt, which says 'hello from a.txt', so nothing remains.\" That's one sentence. Ensure no tool."
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 128,
+      "completion_tokens": 94,
+      "total_tokens": 222,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 76
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 128
+    },
+    "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+  }
+}

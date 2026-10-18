@@ -31,6 +31,7 @@ import {
 } from '../../core/judge/same/batches'
 import { isJudgeTurnItemAllowed, judgeSessionOptions } from '../../core/judge/same/sessionSpec'
 import { judgeStandaloneTurn } from '../../core/judge/same/wording'
+import { usableReply } from '../../core/turns/usableReply'
 
 export interface MuseCodeJudgeDeps extends SameJudgeRunnerDeps {
   /** Host integration admits and accounts for the actual subscription dispatch. */
@@ -68,7 +69,6 @@ export interface MuseCodeJudgeJob {
 }
 
 const STARTED_DISPOSITION = 'started'
-const COMPLETED_TERMINAL = 'completed'
 const COMPLETED_STATUS = 'completed'
 const AGENT_MESSAGE = 'agentMessage'
 
@@ -76,6 +76,8 @@ const AGENT_MESSAGE = 'agentMessage'
 interface TrackedTurn {
   reply: string | undefined
   terminal: string | undefined
+  /** The turn's error kind, so a capped turn's reply is never a verdict. */
+  errorKind: string | undefined
   /** The M90 item guard tripped: a tool item ran in this turn. */
   tripped: boolean
 }
@@ -98,7 +100,12 @@ function trackBatchTurns(
     if (known !== undefined) {
       return known
     }
-    const fresh: TrackedTurn = { reply: undefined, terminal: undefined, tripped: false }
+    const fresh: TrackedTurn = {
+      reply: undefined,
+      terminal: undefined,
+      errorKind: undefined,
+      tripped: false,
+    }
     turns.set(turnId, fresh)
     return fresh
   }
@@ -141,9 +148,10 @@ function trackBatchTurns(
       }
       return
     }
-    if (event.type === 'turnCompleted') {
-      at(event.turnId).terminal = event.terminal
-    }
+    if (event.type !== 'turnCompleted') return
+    const tracked = at(event.turnId)
+    tracked.terminal = event.terminal
+    tracked.errorKind = event.errorKind
   })
   return { turns, stop }
 }
@@ -181,7 +189,13 @@ function awaitBatchReply(
       if (tracked.tripped) {
         finish(undefined)
       } else if (tracked.terminal !== undefined) {
-        finish(tracked.terminal === COMPLETED_TERMINAL ? tracked.reply : undefined)
+        // A capped turn's reply is never a verdict: only a turn that
+        // completed without a limit answers what was asked.
+        const usable = usableReply(
+          { terminal: tracked.terminal, errorKind: tracked.errorKind },
+          tracked.reply,
+        )
+        finish(usable.usable ? usable.reply : undefined)
       }
     }
     // The tracker above already holds every frame; this listener only wakes

@@ -28,6 +28,7 @@ import {
   usageSchema,
   webSearchCallItemSchema,
   withStrictTools,
+  hasDeclaredTools,
   type WebSearchToolDefinition,
 } from '../schemas'
 import { parseSse } from '../sse'
@@ -424,27 +425,42 @@ export function createResponsesCodec(
       if (mapped.length === 0) {
         throw new Error('responses codec: the request keeps no replayable input')
       }
+      // A request without tools omits tools and tool choice alike (see
+      // `hasDeclaredTools`): the side calls (wrap-up, compaction without
+      // reused tools, git drafts, reviewer and hook-model calls with no
+      // tools) all arrive here with no tools declared.
+      const hasTools = hasDeclaredTools(body.tools)
+      // A choice the model's record does not list never reaches the wire;
+      // unknown means auto only. Measured 2026-10-12
+      // (`docs/certification/toolrounds-captures/`): Sonnet 5.5 refuses a
+      // forced choice, DeepSeek thinking refuses `required`, Meta takes
+      // `auto` only.
+      const toolChoice =
+        capabilities?.toolChoiceModes?.includes(body.tool_choice) === true
+          ? body.tool_choice
+          : 'auto'
       return {
         model: body.model,
         input: isChatgpt ? body.input : mapped,
         instructions: isChatgpt ? body.instructions : cleanWireText(body.instructions),
-        tools: isChatgpt
-          ? [
-              {
-                type: 'namespace',
-                name: quirks.toolNamespace,
-                ...(quirks.toolNamespaceDescription !== undefined && {
-                  description: quirks.toolNamespaceDescription,
-                }),
-                tools: body.tools,
-              },
-            ]
-          : withStrictTools(
-              body.tools,
-              options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
-            ),
-
-        tool_choice: body.tool_choice,
+        ...(hasTools && {
+          tools: isChatgpt
+            ? [
+                {
+                  type: 'namespace',
+                  name: quirks.toolNamespace,
+                  ...(quirks.toolNamespaceDescription !== undefined && {
+                    description: quirks.toolNamespaceDescription,
+                  }),
+                  tools: body.tools,
+                },
+              ]
+            : withStrictTools(
+                body.tools,
+                options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
+              ),
+          tool_choice: toolChoice,
+        }),
         reasoning: body.reasoning,
         stream: body.stream,
         store: body.store,

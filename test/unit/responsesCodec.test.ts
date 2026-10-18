@@ -229,6 +229,26 @@ describe('responsesCodec encodeRequest', () => {
     }
   })
 
+  it.each([
+    { modes: undefined, want: 'auto' },
+    { modes: ['auto'], want: 'auto' },
+    { modes: ['auto', 'none'], want: 'none' },
+  ] as const)(
+    'sends only a listed tool choice, auto when the record is unknown ($want)',
+    ({ modes, want }) => {
+      // Measured 2026-10-12 (toolrounds-captures/): Sonnet 5.5 refuses a
+      // forced choice, DeepSeek thinking refuses `required`, Meta takes
+      // `auto` only — so unknown means auto only.
+      const body = { ...firstTurnBody(), tool_choice: 'none' as const }
+      const codec = createResponsesCodec(withRetention, () => ({
+        ...CONSERVATIVE_CAPABILITIES,
+        ...(modes !== undefined && { toolChoiceModes: modes }),
+      }))
+      expect(codec.encodeRequest(body)['tool_choice']).toBe(want)
+      expect(JSON.stringify(body)).toContain('"tool_choice":"none"')
+    },
+  )
+
   it('binds strict request schemas only to the injected supportsStrictTools gate (F4)', () => {
     const body = { ...firstTurnBody(), tools: toolDefinitions('linux') }
     for (const preset of PRESETS) {
