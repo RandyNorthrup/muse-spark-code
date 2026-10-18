@@ -44,6 +44,10 @@ happened, not what was planned; superseded entries are kept.
 
 - Treat orderly POSIX vault broker shutdown during discovery or connection as absence and retry a successor once across editor, CLI, ACP and headless hosts. Vault availability remains off pending the platform join.
 
+- Give Windows a working vault broker channel and slots: the broker serves over the guarded pipe helper with DPAPI/CNG storage and Windows Hello presence where present, selected by the same broker composition as POSIX. macOS wires the Secure Enclave slot with a real presence check beside Login Keychain, and Linux adds the TPM2/systemd-creds sealed slot where the machine has one.
+- Keep the vault working where the OS keyring binding is not installed: the broker starts its channel and anchors rollback state to its owner-only file record (same record, same rules), while the OS-store tier reports its fixed repair per use; the OS store stays preferred wherever its binding loads.
+- Package one `.vsix` per VS Code target platform (`node scripts/package-vsix.mjs --target <platform>`): each package carries only its own platform's native pieces within the unchanged size budget, and CI packs and checks all six. The keyring binaries stay out of every package (the target's own binary alone exceeds the remaining headroom), so the OS store loads where installed.
+
 
 ### Added
 

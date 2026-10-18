@@ -1,0 +1,101 @@
+import { VAULT_LIMITS } from '../../../shared/constants'
+import { VaultError } from '../../../core/vault/crypto'
+import type { VaultSlotProvider } from '../../../core/vault/broker/repository'
+import type { VaultSlotRecord } from '../../../shared/vault'
+import { OsStoreVaultSlot } from './osStoreVaultSlot'
+import { LinuxTpm2Slot, linuxTpm2Capabilities, type LinuxTpm2Runner } from './linuxTpm2Slot'
+
+type OpenEntry = ConstructorParameters<typeof OsStoreVaultSlot>[2]
+
+/**
+ * Linux slots: the Secret Service for the OS store (D89: labelled as
+ * protecting data at rest only) and the TPM2 sealed object where the machine
+ * has one. Presence has no platform prompter on Linux — a sealed object
+ * unseals silently — so it stays refused after a real capability probe: the
+ * person's presence mechanism on Linux is the vault passphrase, prompted per
+ * use by the host (a later lane owns that round-trip).
+ */
+export class LinuxVaultSlots implements VaultSlotProvider {
+  constructor(
+    private readonly deps: {
+      readonly runner?: LinuxTpm2Runner
+      readonly open?: OpenEntry
+      readonly platform?: NodeJS.Platform
+    } = {},
+  ) {
+    if ((deps.platform ?? process.platform) !== 'linux') throw new VaultError('invalid')
+  }
+  private get platform(): NodeJS.Platform {
+    return this.deps.platform ?? process.platform
+  }
+  slotFor(record: VaultSlotRecord): OsStoreVaultSlot | LinuxTpm2Slot | null {
+    if (record.tier === 'osStore' && record.provider === 'secretService')
+      return new OsStoreVaultSlot(
+        {
+          id: record.id,
+          vaultId: record.vaultId,
+          lastGeneration: record.lastGeneration,
+          auditGeneration: record.auditGeneration,
+          auditHead: record.auditHead,
+          createdAt: record.createdAt,
+        },
+        this.platform,
+        this.deps.open,
+      )
+    if (record.tier === 'hardware' && record.provider === 'linuxTpm2')
+      return new LinuxTpm2Slot(
+        {
+          id: record.id,
+          vaultId: record.vaultId,
+          lastGeneration: record.lastGeneration,
+          auditGeneration: record.auditGeneration,
+          auditHead: record.auditHead,
+          createdAt: record.createdAt,
+        },
+        this.deps.runner,
+        this.platform,
+      )
+    return null
+  }
+  osStore(vaultId: string, slotId: string): OsStoreVaultSlot {
+    return new OsStoreVaultSlot(
+      {
+        id: slotId,
+        vaultId,
+        lastGeneration: 0,
+        auditGeneration: 0,
+        auditHead: '0'.repeat(VAULT_LIMITS.sha256Hex),
+        createdAt: Date.now(),
+      },
+      this.platform,
+      this.deps.open,
+    )
+  }
+  hardware(vaultId: string, slotId: string): LinuxTpm2Slot {
+    return new LinuxTpm2Slot(
+      {
+        id: slotId,
+        vaultId,
+        lastGeneration: 0,
+        auditGeneration: 0,
+        auditHead: '0'.repeat(VAULT_LIMITS.sha256Hex),
+        createdAt: Date.now(),
+      },
+      this.deps.runner,
+      this.platform,
+    )
+  }
+  /** Refused after a real probe: nothing on Linux can prompt per-use presence. */
+  async presence(): Promise<boolean> {
+    try {
+      await linuxTpm2Capabilities(this.deps.runner)
+    } catch {
+      /* The probe's outcome never changes the refusal. */
+    }
+    return false
+  }
+  onScreenLock(): () => void {
+    // No screen-lock capture in this lane: callers must supply that binding before enabling it.
+    throw new VaultError('invalid')
+  }
+}

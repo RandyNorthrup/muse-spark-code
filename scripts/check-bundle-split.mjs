@@ -735,7 +735,9 @@ for (const file of [
   'src/runtime/vault/brokerProcess.ts',
   'src/runtime/vault/posixNative.ts',
   'src/runtime/vault/slots/osStoreVaultSlot.ts',
-  'src/runtime/vault/slots/posixVaultSlots.ts',
+  'src/runtime/vault/slots/linuxVaultSlots.ts',
+  'src/runtime/vault/slots/macVaultSlots.ts',
+  'src/runtime/vault/slots/windowsVaultSlots.ts',
 ]) {
   if (!vaultBroker.has(file)) problems.push(`${VAULT_BROKER.output} no longer carries ${file}`)
   for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]])

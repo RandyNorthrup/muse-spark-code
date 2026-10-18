@@ -144,6 +144,7 @@
 !native/windows/MuseSparkVaultCng.cs
 !native/windows/MuseSparkVaultHello.cs
 !native/windows/MuseSparkVaultLock.cs
+!native/windows/MuseSparkVaultPipe.cs
 
 # M114 F: optional WOFF2 pack and runtime installer belong to standalone installs.
 design/fonts/**

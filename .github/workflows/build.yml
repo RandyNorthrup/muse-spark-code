@@ -613,7 +613,8 @@ jobs:
             extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs
             extension/native/windows/MuseSparkMcpLauncher.cs extension/native/windows/MuseSparkScreenRecord.cs
             extension/native/windows/MuseSparkVault.cs extension/native/windows/MuseSparkVaultCng.cs
-            extension/native/windows/MuseSparkVaultHello.cs extension/native/windows/MuseSparkVaultLock.cs'
+            extension/native/windows/MuseSparkVaultHello.cs extension/native/windows/MuseSparkVaultLock.cs
+            extension/native/windows/MuseSparkVaultPipe.cs'
           darwin='extension/native/darwin/muse-dictate
             extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate
             extension/native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources
@@ -666,6 +667,7 @@ jobs:
             package/dist/vault.js package/dist/vaultBoundaries.js package/dist/vaultBroker.js package/dist/estimator.js package/dist/estimateContracts.js \
             package/native/windows/MuseSparkVault.cs package/native/windows/MuseSparkVaultCng.cs \
             package/native/windows/MuseSparkVaultHello.cs package/native/windows/MuseSparkVaultLock.cs \
+            package/native/windows/MuseSparkVaultPipe.cs \
             package/dist/native/darwin/muse-vault \
             package/dist/acp.js package/dist/sharingRuntime.js package/dist/modelApi.js package/dist/media.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
             package/dist/providers.js package/dist/subscriptions.js package/dist/configuredProviders.js package/dist/providerCatalog.js \
