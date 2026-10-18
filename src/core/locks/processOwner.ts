@@ -38,6 +38,8 @@ import {
 } from '../../shared/constants'
 
 const NO_SUCH_PROCESS = 'ESRCH'
+const NO_SUCH_FILE = 'ENOENT'
+const NOT_EXECUTABLE = 'ENOEXEC'
 // `/proc/<pid>/stat` after the command's closing parenthesis: field 3 is
 // the first, so field 22 (the start time, in clock ticks since boot) is the
 // twentieth.
@@ -244,18 +246,26 @@ async function windowsStartTime(pid: number): Promise<number | undefined> {
   try {
     reader = await ready
   } catch (error: unknown) {
-    // A failed build is not kept: the next read tries again.
-    windowsBirthReader.ready = undefined
+    // A failed build is not kept: the next read tries again. Only this
+    // build is forgotten, never a newer one another read already started.
+    if (windowsBirthReader.ready === ready) {
+      windowsBirthReader.ready = undefined
+    }
     throw error
   }
   let output: string
   try {
     output = await run(reader, [String(pid)], { SystemRoot: systemRoot })
   } catch (error: unknown) {
-    // A reader that could not start (removed, quarantined, damaged) is built
-    // again on the next read; an exit code is the reader's own answer.
-    if (isSpawnFailure(error)) {
-      windowsBirthReader.ready = undefined
+    // A reader that is gone or damaged is built again on the next read; one
+    // the machine's policy refuses to start stays, since building the same
+    // reader again would be refused the same way on every read. An exit
+    // code is the reader's own answer.
+    const code = errorCode(error)
+    if (isSpawnFailure(error) && (code === NO_SUCH_FILE || code === NOT_EXECUTABLE)) {
+      if (windowsBirthReader.ready === ready) {
+        windowsBirthReader.ready = undefined
+      }
       try {
         await rm(reader, { force: true })
       } catch {
