@@ -21,7 +21,8 @@ import type { AgentEvent } from '../../src/shared/agentEvents'
 import { PlanModeHold, type PlanModeRestore } from '../../src/core/review/planModeHold'
 import { reviewTurnText } from '../../src/core/review/reviewPrompt'
 import { REVIEW_FINDINGS_LANGUAGE } from '../../src/shared/constants'
-import { FakeLogOutputChannel } from '../unit/helpers/fakes'
+import type { Logger } from '../../src/host/logger'
+import { stderrLogger } from '../../src/runtime/stderrLog'
 import { countAttempts, LIVE_MODEL_ID, liveBackend, sessionLog, sleep } from './liveCli'
 
 const IS_ENABLED = process.env['MUSE_LIVE_E2E'] === '1'
@@ -32,9 +33,16 @@ const RESTORE_WAIT_MS = 30_000
 const RESTORE_POLL_MS = 250
 const PROMPT = 'Reply with exactly the word OK and nothing else.'
 
+/** The agent's own logger (src/runtime/stderrLog.ts): warnings and errors to stderr. */
+function agentLog(): Logger {
+  return stderrLogger((line) => {
+    process.stderr.write(`${line}\n`)
+  }, 'warn')
+}
+
 /** One turn on the real CLI: the session id and the streamed reply text. */
 async function runDrill(workspaceRoot: string): Promise<{ sessionId: string; text: string }> {
-  const backend = liveBackend(workspaceRoot, '0.0.0-live-e2e', new FakeLogOutputChannel())
+  const backend = liveBackend(workspaceRoot, '0.0.0-live-e2e', agentLog())
   const events: AgentEvent[] = []
   try {
     const host = await backend.ensureHost()
@@ -116,7 +124,7 @@ const REVIEW_REPLY_SHOWN_CHARS = 400
 
 /** One review turn in Plan mode on the real CLI (M70): the modes it went through, and the reply. */
 async function runReviewDrill(workspaceRoot: string) {
-  const backend = liveBackend(workspaceRoot, '0.0.0-live-e2e', new FakeLogOutputChannel())
+  const backend = liveBackend(workspaceRoot, '0.0.0-live-e2e', agentLog())
   const events: AgentEvent[] = []
   const restored: PlanModeRestore[] = []
   try {

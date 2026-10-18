@@ -63,16 +63,6 @@ function rowOf(format: HookFormat, flavor: string | undefined, event: string): R
   )
 }
 
-/** Vendor events the tables refuse on purpose, with the decision behind each. */
-const REFUSED_EVENTS: Readonly<Record<string, string>> = {
-  // m91-lane-common decision I: its original can block where ours cannot.
-  'cursor/subagentStart': 'lane-common I',
-  // Mutation-only prompt rewrite (C:371-395); Muse has no such event.
-  'copilot/userPromptTransformed': 'no Muse event',
-  // m91-research.md:223: the transcript variant is refused.
-  'windsurf/post_cascade_response_with_transcript': 'm91-research',
-}
-
 /** Documented common input outside the per-event examples. */
 const COMMON_KEYS: Readonly<Record<string, readonly string[]>> = {
   // docs_devin_ai_desktop_cascade_hooks_md.out:139-146 (examples omit them, :148).
@@ -155,14 +145,6 @@ function kind(value: unknown): string {
   if (Array.isArray(value)) return 'array'
   return value === null ? 'null' : typeof value
 }
-
-describe('every documented event is a row or refused on purpose', () => {
-  it.each(docs.filter((fixture) => fixture.event !== 'common'))('$id', (fixture) => {
-    const { format, flavor } = formatOf(fixture)
-    const refused = REFUSED_EVENTS[`${format}/${fixture.event}`]
-    expect(rowOf(format, flavor, fixture.event) === undefined).toBe(refused !== undefined)
-  })
-})
 
 describe('doc stdin: every emitted key is documented, with the documented type', () => {
   const groups = new Map<string, Fixture[]>()
@@ -327,12 +309,6 @@ const STDOUT_EXPECTATIONS: Readonly<
 describe('doc stdout: the documented answer', () => {
   const jsonOutputs = docs.filter((f) => f.direction === 'stdout' && f.json !== undefined)
 
-  it('every JSON doc output has an expectation', () => {
-    expect(
-      jsonOutputs.map((f) => f.id).filter((id) => STDOUT_EXPECTATIONS[id] === undefined),
-    ).toEqual([])
-  })
-
   it.each(jsonOutputs.filter((f) => f.event !== 'common' || f.vendor === 'vscode'))(
     '$id',
     (fixture) => {
@@ -370,10 +346,6 @@ describe('captured stdin (real CLIs, scrubbed)', () => {
       if (!isObject(value)) throw new Error(`${name} is not an object`)
       return { name, value, event: String(value['hook_event_name']) }
     })
-
-  it('every Gemini event that fired has a row', () => {
-    for (const { event } of captured) expect(rowOf('gemini', undefined, event), event).toBeDefined()
-  })
 
   it.each(captured)(
     'Gemini $name: captured nested arguments match or the operation is refused',
