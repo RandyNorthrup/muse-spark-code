@@ -713,3 +713,22 @@ Still open: `RetryableStreamError` resends in the host turn loops stay on the pr
 8. CI `tests (ubuntu-latest, shard 3)`: OPEN, reproduced locally (`test/unit/modelsActivationBudget.test.ts`: growth 3282 > 3072; base `81dacaf5a` grows 2901, so the branch adds 381 — all in the activation bundle: `extension.ts` +146, `settings.ts` +113, `modelApiBackendManager.ts` +86, `constants.ts` +24, `mapNotification.ts` +12). To fix in code; the budget stays 3072.
 9. CI `quality` (ubuntu/windows/macos), `package (.vsix)`, `dictation helper (macos)`: downstream of the unit-test failure (require every selected-tier job); expected green once item 8 is fixed.
 10. CI `tests (windows/macos)` in the capacity repository (push the merge commit): a CI-infra step with no local equivalent (`never push`); no code cause on this branch. For the lead to re-run.
+
+## Lane PR225W1 done (threads 4–7 fixed; threads 1–3 answered; budget green)
+
+Threads 1–3 were already fixed on the branch — answered with `413bf5658` (1 and 3) and `413bf5658` + `b4ae1e92b` (2) — and their tests still pass in `test/unit/providerRetryLimits.test.ts` (20 tests, exit 0).
+
+4. Subscription `maxRetries` (P1): fixed. `ProviderClient.maxRetries` takes the selected model (`client.ts`, `providerClient.ts`); the registry answers plan routes with the person's live setting when set, else undefined (neither plan route documents a maximum), and off-plan models with Meta's (`registry.ts`). `subscriptionFeatures` forwards the setting; headless passes none (unset). Unit test builds the real Meta client in front of the real registry (no stand-ins; sign-in, catalogue and account untouched by a limit read).
+5. `effectiveMaxRetries` (P1): fixed. The minimum when both the person and the provider set one (`retryPolicy.ts`); the person's value still decides alone where nothing is documented. Unit test pins the Azure-then-Anthropic case (10 stays 2) and a real refused send stopping at 2 with the person at 10.
+6. Live cap recheck (P2): fixed. `transport.request`'s `retry()`, `CodecClient`'s resend loop and both host loops (`streamOnce`, `collectText`) revalidate the live limit after the wait and refuse the dispatch with the original error when the cap now forbids it. Unit test lowers the cap to 0 mid-backoff on a real refused send: one send, one notice (two sends with the recheck removed).
+7. Orchestrator notice (P1): fixed. Both host loops emit a `backendNotice` warning (`UI_TEXT.modelApiRetryCapReached`, English + all 14 tables) exactly when the person's own cap — not a provider maximum — stops the retry (`isPersonRetryCap` in `retryPolicy.ts`, unit-tested; the host emission itself needs the editor's services, so the packed-product steps below are its proof).
+8. Activation budget: fixed in code, budget unchanged (3072). The branch added 381; dieted to 159: one shared live reader in `extension.ts`, `z.int()` schema, direct forward in the manager, and — the large one — `RequestTransport` waits with `abortableSleep` when no sleep is injected, so activation wires no sleep at all (as a side effect activation no longer eagerly requires `dist/modelApi.js`). The live person-set reader is now named `personCap` (it reads distinct from the effective `maxRetries()`). Growth `3060`, test exit 0. Items 9–10 above stand as recorded (downstream jobs unblocked; capacity-repo push for the lead).
+
+Gate-fire drills (each break reverted byte-identical): reverting the thread-4/5 fixes fails 4 (both new blocks), the thread-6 send count doubles without the recheck, the `isPersonRetryCap` table inverts on `!==`.
+
+Real-life runs (lead, packed product):
+
+1. Thread 4: a `chatgpt/...` model, setting unset, network cut mid-turn: provider-governed retries with no Meta-imposed stop; set the count to 1: exactly one retry notice.
+2. Thread 5: setting 10, Anthropic model, refused send: at most 2 retries.
+3. Thread 6: setting 1, a long `Retry-After` wait, set 0 mid-wait: no further request goes out.
+4. Thread 7: setting 1, two retryable stream errors: a warning names the person's cap (`museSpark.modelApiMaxRetries: 1`) on the run's feed.
