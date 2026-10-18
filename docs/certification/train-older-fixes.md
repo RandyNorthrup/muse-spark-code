@@ -147,3 +147,40 @@ bundle overage below, which is cumulative (no single PR at fault).
   modelApiSessions.js (self-contained outfiles duplicate shared code by
   architecture); imageGeneration.ts is the largest honest first piece of
   any future media split.
+
+- Bundle overage, chosen split (TRAINOLD2 lane, 2026-10-18, linuxlt rig):
+  the verify loop's session side (M68) moves out of dist/modelApi.js into
+  a new first-use chunk, dist/modelApiVerify.js, under D6's rules. Files
+  (dist/meta/modelApi.json `bytesInOutput` on this branch's build):
+  src/core/backends/modelapi/verifyLedger.ts 2,895,
+  src/core/backends/modelapi/verifyLoop.ts 1,114,
+  src/core/verify/diagnosticsReport.ts 1,894 — 5,903 bytes of code, plus
+  the 23 MODEL_API_MODEL_TEXT keys only these three files read
+  (checkDetail, checkPassed/Failed/TimedOut/NotRun, checkSkip* sans
+  Restricted, verifyChecksHeading, verifyDiagnosticsHeading,
+  verifyFile*, verifyUnchecked*), which move to a `VERIFY_MODEL_TEXT`
+  block of their own beside MODEL_API_MODEL_TEXT (D6: one object is
+  carried whole; a block only a lazy bundle reads belongs to it).
+  Shared keys stay: checkCancelled (reporting), checkSkipRestricted
+  (ModelApiHost), MODEL_TEXT.checkSkipUnsafePath (checkCommands).
+  Why first-use: the ledger, the loop's outcome/shape helpers and the
+  diagnostics history run only when a turn verifies tool edits — never in
+  the synchronous per-request definition path (tools.ts keeps
+  runChecksDefinition from verifyTools.ts, which stays, as do the
+  activation-shared checkCommands.ts, codeFiles.ts and workspaceEdits.ts
+  and the host's type-only imports). Rejected alternatives measured on
+  the same table: browserTool.ts 6,269 and goals.ts 6,248 feed the
+  synchronous toolDefinitions(); paidAuthority.ts 7,539 sits behind
+  transport.ts/client.ts per request; mcp/functions.ts 4,207 runs at
+  reviewer.ts module scope; sessionOwner.ts 4,308, MediaBudget and
+  sessionBudget.ts are per-session/per-request; imageGeneration.ts 3,566
+  alone covers 61% of the 5,859-byte gap. Failure mode: the cached
+  `import('./modelApiVerifyEntry.js')` (same loader shape as
+  dist/hookRuntime.js) propagates its load error — the turn or check run
+  that needed it fails naming the chunk, never a silent skip and never a
+  default. No new UI text: existing turn error paths surface it.
+  New budget follows D6 (measured +15%, rounded up to 25 KiB); the 525
+  KiB cap is unchanged. Proof due: a real packed-product turn that runs
+  check verification through dist/ as built, on the contributor model
+  (at most 10 model calls, $0.50 cap, counted from the product's own
+  records).
