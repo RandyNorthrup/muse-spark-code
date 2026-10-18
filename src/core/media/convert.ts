@@ -144,6 +144,8 @@ async function probeVersion(
     const stop = () => {
       hasFailed = true
       void stopTree().catch(() => {
+        // The probe already failed: a failed tree stop leaves settlement to
+        // the close handler, which reports the probe failure.
         reject(new Error('Version probe tree stop failed'))
       })
     }
@@ -252,7 +254,7 @@ export type MediaConversionResult =
       readonly info: Extract<MediaFileInfo, { kind: 'video' }>
       readonly dispose: () => Promise<void>
     }
-  | { readonly ok: false; readonly reason: string }
+  | { readonly ok: false; readonly reason: string; readonly cause?: unknown }
 
 async function runConverter(
   command: string,
@@ -287,6 +289,8 @@ async function runConverter(
       hasFailed = true
       if (!hasClosed)
         void stopTree().catch(() => {
+          // The conversion already failed: a failed tree stop leaves
+          // settlement to the close handler, which reports the failure.
           reject(new Error('Converter tree stop failed'))
         })
     }
@@ -305,6 +309,8 @@ async function runConverter(
         const rss = await options.readRssBytes(pid)
         if (!Number.isSafeInteger(rss) || rss < 0 || rss > options.maxRssBytes) stop()
       } catch {
+        // An unreadable sample cannot verify size, process or memory: stop
+        // the conversion instead of running unverified.
         stop()
       }
     }
@@ -332,6 +338,8 @@ async function runConverter(
       watcher = watch(options.cwd, requestCheck)
       watcher.on('error', stop)
     } catch {
+      // A watch that cannot start cannot pace sampling: stop the conversion
+      // instead of running unwatched.
       stop()
     }
     const watchdog = setInterval(requestCheck, MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS)
@@ -499,8 +507,10 @@ export async function convertToMp4(
     const dispose = () => rm(ownedDirectory, { recursive: true, force: true })
     directory = undefined
     return { ok: true, path: output, info: result.info, dispose }
-  } catch {
-    return failed()
+  } catch (error: unknown) {
+    // The conversion failed with no output: the reason stays the fixed
+    // sentence, and the failure itself crosses on the result for the caller.
+    return { ...failed(), cause: error }
   } finally {
     if (directory !== undefined) await rm(directory, { recursive: true, force: true })
   }

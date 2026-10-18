@@ -22,7 +22,7 @@ export interface MediaSource {
 
 export type SniffMediaResult =
   | { readonly ok: true; readonly info: MediaFileInfo }
-  | { readonly ok: false; readonly reason: string }
+  | { readonly ok: false; readonly reason: string; readonly cause?: unknown }
 
 export interface MediaLimits {
   readonly maxUploadBytes?: number
@@ -94,8 +94,10 @@ export async function sniffMedia(source: MediaSource): Promise<SniffMediaResult>
     if (tail.length !== lengths.tail) return refused()
     const info = inspect(head, source.sizeBytes, tail)
     return info === undefined ? refused() : { ok: true, info }
-  } catch {
-    return refused()
+  } catch (error: unknown) {
+    // The bytes could not be read: the reason stays the fixed sentence, and
+    // the failure itself crosses on the result for the caller.
+    return { ...refused(), cause: error }
   }
 }
 
