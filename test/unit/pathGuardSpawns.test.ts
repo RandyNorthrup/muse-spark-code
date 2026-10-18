@@ -22,11 +22,20 @@ const LAUNCH_NAME = 'spawnResourceProcess'
  * Wrappers that end in a process start, taking the program as their first
  * argument: `runProgram` (`execFile` with a timeout), `runTreeSync`
  * (`spawnSync` under the POSIX supervisor), `runResourceCommand` (the
- * governed runner). A bare call with a literal or a variable command alike
+ * governed runner), `execResourceFile` and `handoffResourceFile` (the
+ * governed command boundary in commands.ts: guarded lookup + child env for
+ * the run workspace). A bare call with a literal or a variable command alike
  * is a spawn the direct-start walk cannot see (round 5: the playbook's bare
- * `git` variable and the team probes' bare names stayed green).
+ * `git` variable and the team probes' bare names stayed green; round 6: the
+ * report's `gh` through an unscanned `execResourceFile`).
  */
-const WRAPPER_NAMES = new Set(['runProgram', 'runTreeSync', 'runResourceCommand'])
+const WRAPPER_NAMES = new Set([
+  'runProgram',
+  'runTreeSync',
+  'runResourceCommand',
+  'execResourceFile',
+  'handoffResourceFile',
+])
 
 interface KnownSpawn {
   /** Guarded in this file, or reviewed with the reason below. */
@@ -147,6 +156,43 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     kind: 'guarded',
     anchor: 'processGitPath',
     reason: 'git resolved outside the workspace + guarded child env for every effect',
+  },
+  'src/core/reporting/sources/github.ts': {
+    kind: 'guarded',
+    anchor: 'workspaceRoot',
+    reason:
+      'gh resolved with the report workspace scope (links followed) + exec workspaceRoot for it; an absolute gh inside it is refused',
+  },
+  'src/core/reporting/history.ts': {
+    kind: 'reviewed',
+    anchor: '/bin/ps',
+    reason:
+      'fixed absolute /bin/ps and SystemRoot powershell only; the governed boundary refuses a workspace-absolute path',
+  },
+  'src/core/schedules/events/git.ts': {
+    kind: 'guarded',
+    anchor: 'workspaceRoot',
+    reason: 'schedule git reads pass the schedule workspace into the governed exec',
+  },
+  'src/runtime/reporting/sources.ts': {
+    kind: 'guarded',
+    anchor: 'workspaceChildEnvironment',
+    reason: 'git resolved outside the report workspace (links followed) + guarded child env',
+  },
+  'src/runtime/schedules/nodeBackgroundIo.ts': {
+    kind: 'reviewed',
+    anchor: 'trustedBackgroundPath',
+    reason: 'trust-checked schedule launcher with the schedule env',
+  },
+  'src/runtime/main.ts': {
+    kind: 'guarded',
+    anchor: 'workspaceRoot',
+    reason: '`muse login`: guarded launch resolution + guarded child env',
+  },
+  'src/runtime/sharing/sharingEntry.ts': {
+    kind: 'guarded',
+    anchor: 'workspaceRoot',
+    reason: 'fixed clipboard/browser adapters handed off with the shared workspace',
   },
   'src/core/orchestration/playbook/modules.ts': {
     kind: 'guarded',
@@ -389,15 +435,35 @@ function directSpawns(
   return { starts, launches }
 }
 
-/** Bare calls of the process-start wrappers, literal or variable command alike. */
+/**
+ * Bare calls of the process-start wrappers, literal or variable command
+ * alike, including one-level aliases (`const exec = execResourceFile` in
+ * the schedule git reader, `const execFileAsync = execResourceFile` in the
+ * report history): an alias call is the same spawn under another name
+ * (round 6: both aliases hid a governed start from the wrapper walk).
+ */
 function wrapperSpawns(file: string, text: string): SpawnSite[] {
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
+  const aliases = new Set<string>()
+  const visitAlias = (node: ts.Node): void => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer !== undefined &&
+      ts.isIdentifier(node.initializer) &&
+      (WRAPPER_NAMES.has(node.initializer.text) || aliases.has(node.initializer.text))
+    ) {
+      aliases.add(node.name.text)
+    }
+    ts.forEachChild(node, visitAlias)
+  }
+  visitAlias(source)
   const sites: SpawnSite[] = []
   const visit = (node: ts.Node): void => {
     if (
       ts.isCallExpression(node) &&
       ts.isIdentifier(node.expression) &&
-      WRAPPER_NAMES.has(node.expression.text)
+      (WRAPPER_NAMES.has(node.expression.text) || aliases.has(node.expression.text))
     ) {
       const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1
       sites.push({ line, name: node.expression.text })
@@ -561,5 +627,28 @@ describe('PATHGUARD spawn inventory', () => {
     checkAnchors(KNOWN_LAUNCH)
     checkAnchors(KNOWN_WRAPPER)
     checkAnchors(KNOWN_SCRIPT)
+  })
+
+  it('forgetting the guard is a type error: lookups take a scope, spawns take a guarded env', () => {
+    // The compiler enforces every call site (`npm run typecheck` lists what
+    // breaks); this test pins the signatures the enforcement rests on, so
+    // loosening one fails here too.
+    const root = path.join(__dirname, '..', '..')
+    const executables = readFileSync(path.join(root, 'src/core/executables.ts'), 'utf8')
+    expect(executables).toContain('readonly scope: ExecutableScope')
+    expect(executables).toContain('NO_WORKSPACE')
+    expect(executables).toContain('GuardedChildEnv')
+    const processTree = readFileSync(path.join(root, 'src/host/processTree.ts'), 'utf8')
+    expect(processTree).toContain('GuardedChildEnv')
+    const pluginHost = readFileSync(
+      path.join(root, 'src/core/backends/modelapi/pluginHost.ts'),
+      'utf8',
+    )
+    expect(pluginHost).toContain('GuardedChildEnv')
+    // The only producers of the branded environment.
+    expect(executables.match(/export function (workspace|noWorkspace)ChildEnvironment/g)).toEqual([
+      'export function workspaceChildEnvironment',
+      'export function noWorkspaceChildEnvironment',
+    ])
   })
 })
