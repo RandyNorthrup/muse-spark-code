@@ -2,7 +2,7 @@
 // shared daily ledger and, under a cap, M82's session journal, asks through
 // the host's own paid-use question, and counts on the window's tally. The
 // real router (`prepareAudioAttachment`) drives the adapters end to end.
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { voiceBatchSeams, type PaidExtraClaim } from '../../src/core/voice/voiceBatchSeams'
@@ -89,9 +89,12 @@ const wav: AudioSource = {
 }
 
 function transcribe(seams: ReturnType<typeof voiceBatchSeams>, billedSeconds = 20) {
-  const send = vi.fn()
+  const sends: true[] = []
+  const send = () => {
+    sends.push(true)
+  }
   return {
-    send,
+    sends,
     run: prepareAudioAttachment(
       wav,
       'transcribe',
@@ -119,18 +122,25 @@ function transcribe(seams: ReturnType<typeof voiceBatchSeams>, billedSeconds = 2
 
 describe('Muse Voice batch consent and reserve adapters (M105 lane V seam 4)', () => {
   it('asks through the host question for this session and counts on the tally', async () => {
-    const allowsPaidUse = vi.fn(() => Promise.resolve(true as const))
-    const notePaidUse = vi.fn()
+    const asked: unknown[][] = []
+    const allowsPaidUse = (...args: unknown[]) => {
+      asked.push(args)
+      return Promise.resolve(true as const)
+    }
+    const noted: unknown[][] = []
+    const notePaidUse = (...args: unknown[]) => {
+      noted.push(args)
+    }
     const daily = ledger()
     const seams = voiceBatchSeams(
       deps({ allowsPaidUse, notePaidUse, reservePaidExtra: daily.reserve }),
     )
-    const { run, send } = transcribe(seams)
+    const { run, sends } = transcribe(seams)
     const prepared = await run
     expect(prepared.transcript?.text).toBe('Hello there.')
-    expect(allowsPaidUse).toHaveBeenCalledWith({ feature: 'voice' }, false, 'session-1')
-    expect(send).toHaveBeenCalledOnce()
-    expect(notePaidUse).toHaveBeenCalledWith('voice', 20)
+    expect(asked).toEqual([[{ feature: 'voice' }, false, 'session-1']])
+    expect(sends).toHaveLength(1)
+    expect(noted).toEqual([['voice', 20]])
     // Reserved and settled at exactly the billed seconds' price.
     expect(daily.reserved).toEqual([TWENTY_SECONDS_USD])
     expect(daily.checks.count).toBeGreaterThanOrEqual(2)
@@ -142,16 +152,16 @@ describe('Muse Voice batch consent and reserve adapters (M105 lane V seam 4)', (
     const seams = voiceBatchSeams(
       deps({ allowsPaidUse: () => Promise.resolve(false), reservePaidExtra: daily.reserve }),
     )
-    const { run, send } = transcribe(seams)
+    const { run, sends } = transcribe(seams)
     await expect(run).rejects.toThrow(UI_TEXT.museVoiceRefused)
     expect(daily.reserved).toHaveLength(0)
-    expect(send).not.toHaveBeenCalled()
+    expect(sends).toHaveLength(0)
   })
 
   it('refuses without a daily ledger: nothing billed outside a request goes unbudgeted', async () => {
-    const { run, send } = transcribe(voiceBatchSeams(deps()))
+    const { run, sends } = transcribe(voiceBatchSeams(deps()))
     await expect(run).rejects.toThrow(UI_TEXT.paidDailyLedgerUnavailable)
-    expect(send).not.toHaveBeenCalled()
+    expect(sends).toHaveLength(0)
   })
 
   it('reserves on the session journal too under an M82 cap, and settles both', async () => {
@@ -180,10 +190,10 @@ describe('Muse Voice batch consent and reserve adapters (M105 lane V seam 4)', (
         session: cappedSession(undefined),
       }),
     )
-    const { run, send } = transcribe(seams)
+    const { run, sends } = transcribe(seams)
     await expect(run).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
     expect(daily.settled).toEqual([{ amount: '0', unknown: undefined }])
-    expect(send).not.toHaveBeenCalled()
+    expect(sends).toHaveLength(0)
   })
 
   it('refunds both claims when the daily ledger refuses at admission', async () => {
@@ -195,11 +205,11 @@ describe('Muse Voice batch consent and reserve adapters (M105 lane V seam 4)', (
         session: cappedSession(session.journal),
       }),
     )
-    const { run, send } = transcribe(seams)
+    const { run, sends } = transcribe(seams)
     await expect(run).rejects.toThrow(UI_TEXT.paidDailyStopped)
     expect(daily.settled).toEqual([{ amount: '0', unknown: undefined }])
     expect(session.settled).toEqual([{ amount: '0', unknown: undefined }])
-    expect(send).not.toHaveBeenCalled()
+    expect(sends).toHaveLength(0)
   })
 
   it('keeps the full reservation as uncertain liability when no bill came back', async () => {
@@ -212,8 +222,7 @@ describe('Muse Voice batch consent and reserve adapters (M105 lane V seam 4)', (
   })
 
   it('reads the gate per call', () => {
-    const isPaidFeatureOn = vi.fn((feature: string) => feature === 'voice')
-    const seams = voiceBatchSeams(deps({ isPaidFeatureOn }))
+    const seams = voiceBatchSeams(deps({ isPaidFeatureOn: (feature) => feature === 'voice' }))
     expect(seams.gate.isOn('voice')).toBe(true)
     expect(seams.gate.isOn('webSearch')).toBe(false)
   })

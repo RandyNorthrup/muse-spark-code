@@ -3,7 +3,7 @@
 // gate; what it admits binds to the runtime's attached-media registry
 // (video and audio) or the established inline parts (images, PDFs).
 import { createHash } from 'node:crypto'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { runtimeMediaPort, type RuntimeMediaPortDeps } from '../../src/acp/mediaPort'
 import type { AcpMediaContext } from '../../src/acp/media'
 import {
@@ -32,7 +32,7 @@ function port(
   const attached = new AttachedMedia()
   const info = sniffMediaBytes(bytes)
   const chunk = Promise.resolve(bytes)
-  const readMedia = vi.fn((_absolute: string) =>
+  const readMedia = (_absolute: string) =>
     Promise.resolve(
       info === undefined
         ? { kind: 'other' as const, reason: 'not media', isPdf: false }
@@ -48,8 +48,7 @@ function port(
               },
             },
           },
-    ),
-  )
+    )
   const deps: RuntimeMediaPortDeps = {
     platform: 'linux',
     io: {
