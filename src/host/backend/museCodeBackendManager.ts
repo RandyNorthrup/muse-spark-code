@@ -72,6 +72,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { readCredentialFile } from '../auth/cliAccount'
+import { isContributorModeEnabled } from './museSettings'
 import type { UsageRecording } from '../../core/usage/recording'
 import type { Logger } from '../logger'
 import { museCodeBundleLoader, type MuseCodeBundle } from './museCodeBundle'
@@ -179,6 +180,20 @@ function readTextFileOrUndefined(log: Logger, filePath: string): string | undefi
 
 function listDirectoryOrEmpty(log: Logger, directory: string): readonly string[] {
   return unlessMissing(log, directory, () => readdirSync(directory), [])
+}
+
+/**
+ * The feature ports the host is built with: while contributor mode is on,
+ * the host's `serve` runs with `--contributor-mode on` (see `resolveLaunch`
+ * and `contributorModeEnabled`), so its catalogue carries each listed
+ * model's `-contributor` counterpart. Off leaves the caller's ports
+ * untouched.
+ */
+function withContributorMode(
+  ports: MuseCodeFeaturePorts | undefined,
+  isEnabled: boolean,
+): MuseCodeFeaturePorts | undefined {
+  return isEnabled ? { ...ports, contributorMode: true } : ports
 }
 
 export class MuseCodeBackendManager {
@@ -428,7 +443,7 @@ export class MuseCodeBackendManager {
         mspHost,
         this.deps.log,
         this.deps.commandTimeouts,
-        this.deps.featurePorts,
+        withContributorMode(this.deps.featurePorts, this.contributorModeEnabled()),
         undefined,
         this.deps.accountHome,
       )
@@ -602,6 +617,23 @@ export class MuseCodeBackendManager {
    * with one file probe, so an uninstall is noticed. `invalidateLaunch`
    * forgets the answer (a retry, a sign-in).
    */
+  /**
+   * Whether the person's own Muse Code settings enable contributor mode, as
+   * the `serve` this manager starts will see them: the settings file in the
+   * config home of the child's own environment (an account home moves it,
+   * like the credential file). Read at each spawn — a running host keeps
+   * its lifetime posture — and never defaulted on: missing, unreadable or
+   * malformed reads as off.
+   */
+  public contributorModeEnabled(): boolean {
+    return isContributorModeEnabled({
+      platform: process.platform,
+      homeDir: homedir(),
+      xdgConfigHome: environmentValue(this.childEnvironment(), process.platform, XDG_CONFIG_HOME),
+      readTextFile: (filePath) => readTextFileOrUndefined(this.deps.log, filePath),
+    })
+  }
+
   public resolveLaunch(): LaunchResolution {
     const env = process.env
     const pathValue = environmentValue(env, process.platform, 'PATH') ?? ''
@@ -610,6 +642,7 @@ export class MuseCodeBackendManager {
       this.shellSandboxPosture(),
       this.deps.isWorkspaceTrusted(),
       this.deps.getSandboxNetwork(),
+      this.contributorModeEnabled(),
     )
     const key = JSON.stringify([configuredPath, pathValue, serveArgs])
     const cached = this.launchCache

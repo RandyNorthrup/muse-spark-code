@@ -12,6 +12,8 @@
 import type { SessionMcpServer } from '../../agent/agentBackend'
 import type { ApprovalMode } from '../../../shared/permissionModes'
 import {
+  MUSE_CONTRIBUTOR_MODE_ARG,
+  MUSE_CONTRIBUTOR_MODE_ON,
   MUSE_DISABLE_SHELL_ARG,
   MUSE_DISABLE_WRITE_ARG,
   MUSE_SERVE_ARGS,
@@ -50,12 +52,19 @@ export function hostKindFor(role: WorkerRolePolicy): MuseWorkerHostKind {
  * its lifetime with `--disable-write` and `--disable-shell` (the 1.4.2
  * capture, research §4.7), so Muse Code itself refuses that worker's file
  * writes and shell. A trusted workspace loads its rules and skills.
+ * `isContributorMode` is the person's own Muse Code settings
+ * (`contributor_mode_enabled`); absent reads as off, never defaulted on.
  * @unwired M96 worker serve arguments
  */
-export function workerServeArgs(kind: MuseWorkerHostKind, isTrusted: boolean): readonly string[] {
+export function workerServeArgs(
+  kind: MuseWorkerHostKind,
+  isTrusted: boolean,
+  isContributorMode = false,
+): readonly string[] {
   return [
     ...MUSE_SERVE_ARGS,
     ...(kind === 'readOnly' ? [MUSE_DISABLE_WRITE_ARG, MUSE_DISABLE_SHELL_ARG] : []),
+    ...(isContributorMode ? [MUSE_CONTRIBUTOR_MODE_ARG, MUSE_CONTRIBUTOR_MODE_ON] : []),
     isTrusted ? MUSE_TRUST_WORKSPACE_ARG : MUSE_DISABLE_SHELL_ARG,
   ]
 }
