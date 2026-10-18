@@ -1781,8 +1781,8 @@ async function activateWindow(
           await runProcess(
             invocation,
             timeoutMs,
-            undefined,
-            undefined,
+            workspaceRoot,
+            backend.childEnvironment(),
             nativeStarts.signal,
             backend.workspaceActionGuard(nativeStarts.signal),
           ),

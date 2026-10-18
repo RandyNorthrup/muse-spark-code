@@ -515,6 +515,9 @@ export class MuseCodeBackendManager {
     ) {
       return cached.resolution
     }
+    // The workspace the child runs in: PATH entries inside it are never
+    // probed, so a planted `muse` on an absolute workspace PATH entry never
+    // resolves (docs/certification/pathguard.md).
     const resolution = resolveMuseLaunch({
       platform: process.platform,
       configuredPath,
@@ -525,6 +528,10 @@ export class MuseCodeBackendManager {
       readTextFile: (filePath) => readTextFileOrUndefined(this.deps.log, filePath),
       listDirectory: (directory) => listDirectoryOrEmpty(this.deps.log, directory),
       serveArgs,
+      ...(this.deps.workspaceRoot !== undefined && {
+        workspaceRoot: this.deps.workspaceRoot,
+        realpath: realpathSync,
+      }),
     })
     this.launchCache = { key, resolution }
     return resolution

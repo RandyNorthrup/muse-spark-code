@@ -26,7 +26,7 @@ export interface ExecutableProbe {
    * macOS and Linux branches are all unit-tested on any OS. Absent means
    * lexical comparison only.
    */
-  readonly realpath?: (filePath: string) => string
+  readonly realpath?: ((filePath: string) => string) | undefined
 }
 
 // `execFile` starts these directly; batch files need a shell.
@@ -59,7 +59,10 @@ export function isFullyQualifiedWindowsPath(entry: string): boolean {
 export function absolutePathEntries(
   platform: NodeJS.Platform,
   pathVariable: string | undefined,
-  workspace?: { readonly workspaceRoot: string; readonly realpath?: (filePath: string) => string },
+  workspace?: {
+    readonly workspaceRoot: string
+    readonly realpath?: ((filePath: string) => string) | undefined
+  },
 ): readonly string[] {
   const p = platform === 'win32' ? path.win32 : path.posix
   const separator = platform === 'win32' ? ';' : ':'
@@ -83,7 +86,10 @@ export function absolutePathEntries(
  */
 export function isWorkspacePath(
   platform: NodeJS.Platform,
-  workspace: { readonly workspaceRoot: string; readonly realpath?: (filePath: string) => string },
+  workspace: {
+    readonly workspaceRoot: string
+    readonly realpath?: ((filePath: string) => string) | undefined
+  },
   candidate: string,
 ): boolean {
   return isSameOrInsideDirectory(
@@ -144,7 +150,7 @@ function isSameOrInsideDirectory(
 }
 
 function resolveForCompare(
-  probe: { readonly realpath?: (filePath: string) => string },
+  probe: { readonly realpath?: ((filePath: string) => string) | undefined },
   filePath: string,
 ): string {
   if (probe.realpath === undefined) {
