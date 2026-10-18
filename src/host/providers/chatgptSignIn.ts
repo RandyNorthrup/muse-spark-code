@@ -53,7 +53,8 @@ export async function startChatGptCallback(
     completion.resolve = resolve
     completion.reject = reject
   })
-  void waiting.catch(() => null)
+  // The waiter below receives the callback's outcome; this only marks the rejection handled.
+  void waiting.catch(() => null) // The outcome reaches the waiter; handled here, said there.
   let isSettled = false
   const finish = (value: string | Error): void => {
     if (isSettled) return
@@ -304,10 +305,15 @@ export async function createChatGptSignIn(deps: ChatGptVsCodeDeps): Promise<Chat
       try {
         const parsed: unknown = JSON.parse(stored)
         return parsed
-      } catch {
-        throw new ChatGptSignInError(
-          account === key ? 'grant-unreadable' : 'registration-unreadable',
-        )
+      } catch (error: unknown) {
+        // Only the parser's own failure reads as an unreadable grant; anything
+        // else reaches the caller with its cause, never mislabelled.
+        if (error instanceof SyntaxError) {
+          throw new ChatGptSignInError(
+            account === key ? 'grant-unreadable' : 'registration-unreadable',
+          )
+        }
+        throw error
       }
     }
     return new ChatGptSignIn({

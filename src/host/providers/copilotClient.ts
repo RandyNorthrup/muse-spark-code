@@ -173,8 +173,8 @@ class CopilotClient implements ProviderClient {
     if (confirmed === undefined) return
     try {
       assertConfirmedAllowed(body.model, confirmed, isSameCopilotModel)
-    } catch {
-      throw this.fail('confirmation-expired')
+    } catch (error: unknown) {
+      throw this.fail('confirmation-expired', { cause: error })
     }
   }
   private check(): void {
@@ -207,8 +207,8 @@ class CopilotClient implements ProviderClient {
         let input: unknown
         try {
           input = JSON.parse(item.arguments)
-        } catch {
-          throw this.fail('unsupported-content')
+        } catch (error: unknown) {
+          throw this.fail('unsupported-content', { cause: error })
         }
         const parsed = callInputSchema.safeParse(input)
         if (!parsed.success) throw this.fail('unsupported-content')
@@ -245,7 +245,8 @@ class CopilotClient implements ProviderClient {
       completion.reject = reject
     })
     // A tokenizer can synchronously cancel and throw before the race is built.
-    void stopped.catch(() => null)
+    // The race below receives the rejection; this only marks it handled.
+    void stopped.catch(() => null) // The rejection reaches the race; handled here, said there.
     const listener = cancellation.token.onCancellationRequested(() => {
       completion.reject?.(this.fail('cancelled'))
     })
