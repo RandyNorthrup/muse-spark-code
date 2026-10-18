@@ -14575,7 +14575,7 @@ resolved against the plan's user-visible promise, not against the tag:
   both backends) must pass the role's answer through. MSM58M69 shipped
   no behaviour change for it.
 
-### D123 — One .vsix per platform, each within the unchanged budget (lane VSIXPLATFORM, 2026-10-18)
+### D123 — One .vsix per platform plus the universal fallback, each within the unchanged budget (lane VSIXPLATFORM, 2026-10-18; fallback and shared publish poll by lane PR246FIX)
 
 The universal .vsix carries every platform's native helpers and is near
 its 3,788,800-byte budget (D6) with 131 KB of open pull requests and
@@ -14591,11 +14591,20 @@ carry the same arch-independent sources (the .ps1 run directly, the .cs
 compiled on the person's machine), so win32-arm64 is supported today.
 The darwin binaries ship universal (both slices) in both darwin
 targets: splitting per-arch saves little against the megabytes the other
-platforms' pieces free, and keeps build.sh's single lipo output unchanged. No universal
-fallback ships: all six desktop targets VS Code runs on are covered, and
-linux-armhf, alpine and web never had native helpers. Every target is
-checked against the same D6 budget; CI builds and checks all six, and
-the release publishes all six to the Marketplace and Open VSX.
+platforms' pieces free, and keeps build.sh's single lipo output unchanged.
+Beside the six, the release ships the untargeted universal package (no
+`--target`): VS Code serves it as the fallback on every platform without
+its own package, so Alpine (`alpine-x64`, `alpine-arm64`) and `linux-armhf`
+servers — `extensionKind: ["workspace"]`, so a Dev Container or Remote SSH
+window installs the extension on the server — keep installing exactly what
+they ran before. (There is no `web` target to serve: the extension has no
+`browser` entry, so VS Code never installs it on web.) Every one of the
+seven packages is checked against the same D6 budget; CI builds and checks
+all seven, and the release publishes all seven to the Marketplace and Open
+VSX: every artifact is published before any visibility poll runs, all share
+one 30-minute poll deadline inside 60-minute jobs, and unfinished targets
+are re-checked in the same job, so a cancelled job never leaves only some
+targets published.
 Evidence: `docs/certification/vsix-platform.md`.
 
 ## 3. Open questions (need the owner)
