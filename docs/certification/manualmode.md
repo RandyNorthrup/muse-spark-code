@@ -75,9 +75,64 @@ muse_disable_approval_judge`): process-wide for the whole serve host, so
 
 ### What remains to prove
 
-1. `session/setPermissionProfile` on 1.4.7 with `experimentalApi`
-   (mode-switch path), and whether `session/read` serves `permissionState`.
+1. DONE — `session/setPermissionProfile` on 1.4.7 with `experimentalApi`:
+   accepted (`applyOutcome: completed`), `session/read` serves
+   `permissionState` (`profileId`, `reviewerAuthority`, live
+   `reviewerAttached`), `session/permissionProfileChanged` is broadcast, and
+   `session/setApprovalMode` leaves the profile alone (verified live,
+   `temp/probe-set-profile.mjs`, zero model calls). Without
+   `experimentalApi` the switch is refused `experimentalRequired` (code
+   -32601); on a host predating the method the answer is `methodNotFound`.
 2. A real session where a command produces an approval request in Manual —
    needs a model turn; no model calls from this lane (not in brief), so the
-   lead runs that drill in the real-life run. Up to that step, everything is
-   proven against the real pinned binary above.
+   lead runs that drill in the real-life run (steps below). Up to that step,
+   everything is proven against the real pinned binary above.
+
+## 2026-10-18 — the fix (PLAN.md D123)
+
+Interactive Manual and Edit-automatically sessions start with
+`permissionProfile: ':ask-me'`; interactive Auto sessions with
+`':auto-review'`; every other session omits it (host default, as before).
+Every mode switch re-syncs the profile through the one session-level
+`setApprovalMode` funnel. No mode string changed, so no l10n change.
+
+Files: `src/shared/permissionModes.ts` (`mspPermissionProfile` decision
+table), `src/shared/constants.ts` (profile ids),
+`src/core/agent/agentBackend.ts` (`StartSessionOptions.permissionProfile`),
+`src/core/backends/musecode/MuseCodeHost.ts` (start passthrough,
+`syncPermissionProfile` after each mode switch; `methodNotFound` tolerated
+once per session for older hosts, every other refusal surfaces),
+`src/host/backend/museCodeBackendManager.ts` (`experimentalApi: true`),
+`src/host/conversation/conversationController.ts` and `src/acp/agent.ts`
+(interactive starts). Headless sessions (schedules, reviewers, best-of-N,
+team workers, exec tap, eval) pass no profile and never switch modes, so
+they cannot stall on an unanswered approval.
+
+Proven live against the pinned 1.4.7 binary through the REAL
+`MuseCodeHost`/`MuseSession` code (esbuild bundle of the unchanged
+sources, `temp/probe-host.ts`, echo provider, zero model calls):
+
+- `startSession({approvalMode: 'promptUnmatched', permissionProfile:
+':ask-me'})` → `permissionState` `{profileId: ':ask-me',
+reviewerAuthority: 'human'}` (default start: `':auto-review' /
+'autoReview'`).
+- `session.setApprovalMode('onRequest')` → profile `:auto-review`;
+  back to `'promptUnmatched'` → `:ask-me`, each confirmed on
+  `session/read`.
+
+Unit test: `test/unit/permissionModes.test.ts`
+`mspPermissionProfile` (real module, no stand-ins) — seen to fail with the
+mapping broken (`promptUnmatched → undefined`: 1 failed, 10 passed) and to
+pass with it (11 passed).
+
+UNVERIFIED until the real-life run: a model-driven command raising
+`approval/request` in Manual. Drill for the lead (linuxlt, VS Code, Manual,
+Muse Code ≥ 1.4.7): ask Muse to run `touch manualmode-proof-<date>.txt` in
+the workspace — an approval card must appear and nothing is written until
+answered; repeat after switching Manual→Auto→Manual (the Auto turn may run
+judge-simple commands free; the second Manual turn must ask again).
+
+Floor: Muse Code older than 1.4.7 ignores `session/start.permissionProfile`
+(unknown keys ignored) and answers `session/setPermissionProfile` with
+`methodNotFound` (tolerated, one info log per session); Manual there behaves
+as before. The Modes menu words hold on 1.4.7 and later.
