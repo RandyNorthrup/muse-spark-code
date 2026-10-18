@@ -47,6 +47,11 @@ happened, not what was planned; superseded entries are kept.
   Model API run is not stopped after 30 requests. A set value caps the run
   at 1–500 requests, and a set `--max-budget-usd` is refused past $20.
 
+- A Model API turn no longer stops itself after 50 tool rounds. No provider
+  publishes a round count, so the product sets none: a turn runs until the
+  model answers without a tool call, you press Stop, a hook stops it, or a
+  budget you set is spent.
+
 ### Fixed
 
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
