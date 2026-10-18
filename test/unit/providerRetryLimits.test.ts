@@ -372,6 +372,38 @@ describe('each subscription route answers its own retry limit', () => {
   })
 })
 
+describe('a live retry cap is rechecked after the wait', () => {
+  it('a cap lowered to zero mid-wait stops the accepted retry from sending', async () => {
+    // PR #225: the loop accepted one retry, then the person set 0 during
+    // the backoff. The next request must not go out: one send, one notice,
+    // then the send failure (two sends without the recheck).
+    let person: number | undefined = 1
+    let sends = 0
+    const transport = new RequestTransport({
+      ...baseTransportDeps(platformSleep),
+      baseUrl: `http://127.0.0.1:${String(await closedLoopbackPort())}`,
+      retryLimits: limitsOf('anthropic'),
+      personMaxRetries: () => person,
+      apiKey: () => Promise.resolve('retry-limit-test-key'),
+      fetch: (input: string | URL | Request, init?: RequestInit) => {
+        sends += 1
+        return globalThis.fetch(input, init)
+      },
+    })
+    expect(transport.maxRetries()).toBe(1)
+    const notices: RetryNotice[] = []
+    const attempt = postNowhere(transport, undefined, notices)
+    const start = Date.now()
+    while (notices.length === 0 && Date.now() - start < 4000) {
+      await timer(10, undefined, { ref: false })
+    }
+    person = 0
+    await expect(attempt).rejects.toBeInstanceOf(ModelApiError)
+    expect(notices).toHaveLength(1)
+    expect(sends).toBe(1)
+  })
+})
+
 describe('single-attempt paths refuse every retry', () => {
   it("starts past every provider's documented cap and every count the person can set", () => {
     const budget = noRetryBudget()

@@ -6055,6 +6055,12 @@ export class ModelApiSession implements ScheduledAgentSession {
           `Model API stream ended with ${error.code}; sending the request again in ${String(delayMs)} ms`,
         )
         await client.waitBeforeRetry(delayMs, signal)
+        // Lane PR225W1: the person's limit is live — a change mid-wait (to
+        // 0 during a long wait) refuses the dispatch the check above had
+        // accepted, instead of sending one request past the new ceiling.
+        if (budget.retriesUsed > (client.maxRetries(this.modelId) ?? UNBOUNDED_RETRIES)) {
+          throw error
+        }
       }
     }
   }
@@ -14643,6 +14649,11 @@ export class ModelApiSession implements ScheduledAgentSession {
           reason: `${error.code}: ${error.message}`,
         })
         await unlessStopped(retryClient.waitBeforeRetry(delayMs, signal), signal)
+        // Lane PR225W1: the person's limit is live — a change mid-wait
+        // refuses the dispatch the check above had accepted.
+        if (budget.retriesUsed > (retryClient.maxRetries(attemptModel) ?? UNBOUNDED_RETRIES)) {
+          throw error
+        }
       }
     }
   }
