@@ -143,7 +143,7 @@ unbounded loop in `hookModelEntry.ts`) plus the real-life check below.
 | A13    | `HOOK_AGENT_MAX_STEPS` = 5                                     | removed                                 | Our bound on a model loop, no provider documents one; loops until the model stops calling tools (Stop aborts)                                                                                     | `a82c59e`                        |
 | A21    | Goal objective ≤4000 chars                                     | removed                                 | Invented (Muse Code states no limit); only a blank objective refuses                                                                                                                              | `e40fd20`                        |
 | A22    | Plan ≤50 steps, plan file ≤256 KiB                             | removed                                 | Not about a model; every step kept, plans and handoff briefs save/read at any size                                                                                                                | `2f2d7fb`                        |
-| A23    | Saved prompts ≤200/scope, title ≤80, body ≤10000               | removed                                 | Not about a model; only a blank title refuses; the prompt file bound stays                                                                                                                        | `cedd6b4` + correction `aa7517e` |
+| A23    | Saved prompts ≤200/scope, title ≤80, body ≤10000               | removed                                 | Not about a model; only a blank title refuses (the prompt file bound went too — A23fix)                                                                                                           | `cedd6b4` + correction `aa7517e` |
 | A23fix | Prompt file ≤128 KiB (`PROMPT_LIMITS.fileBytes`)               | removed (NOLIMITS1FIX §N1)              | Not about a model; files read/import/share at any size; link imports read under web fetch's own 5 MiB body bound; only a blank title refuses (`promptTitleRequired`)                              | see §N1                          |
 | A24    | Image prompt ≤4000 chars, ≤4 edit sources                      | removed (nothing local enforced)        | Meta documents no prompt length and 1–10 edit items (dev.meta.ai/docs/image-generation, read 2026-10-16); the capability record carries neither, so Meta's own refusal answers oversize calls     | `b02b72b`                        |
 | A25    | Accounts ≤64 per provider                                      | removed                                 | A count, not about a model; duplicate ids still refuse                                                                                                                                            | `be5e655`                        |
@@ -152,7 +152,7 @@ unbounded loop in `hookModelEntry.ts`) plus the real-life check below.
 | A28    | Team ≤6 tasks per `delegate`, engine ceiling 20                | removed                                 | Ours, not the platform's; engines are bounded by the documented Meta per-team limits, live 429 adaptation and the machine                                                                         | `f345149`                        |
 | A29    | Import replay ≈768 KiB                                         | SAFETY RULE — kept, listed for the lead | Window-minus-reserve against the model's documented 1 MiB window (dev.meta.ai/docs/models); removing it breaks every later message past the window instead of refusing once at import — see below | none (no change)                 |
 | A29fix | Import replay window-minus-reserve (≈768 KiB)                  | provider's window (NOLIMITS1FIX §N4)    | The reserve was ours; an import now refuses only past the provider's documented 1 MiB window (dev.meta.ai/docs/models), naming both sizes; per-model record wiring stays lane L2's                | see §N4                          |
-| A30    | Export/share ≤16 MiB                                           | removed                                 | A file size, not about a model; write and read back at any byte size; the transcript item count still bounds all three paths; the report reader keeps its bound as `REPORT_SOURCE_MAX_BYTES`      | `8fe5418`                        |
+| A30    | Export/share ≤16 MiB                                           | removed                                 | A file size, not about a model; write and read back at any byte size (the item count went too — A30fix; the report reader's bound went too — §N3)                                                 | `8fe5418`                        |
 | A30fix | Export/share/import ≤20,000 items (`SESSION_EXPORT_MAX_ITEMS`) | removed (NOLIMITS1FIX §N2)              | A count, not about a model; files write, render and parse at any item count; the `tooLarge` outcome and `shareTooLarge`/`exportTooLarge` are gone                                                 | see §N2                          |
 | A35    | Held PR checkout ≤20000 entries / ≤250 MB                      | removed                                 | Not about a model; tree parses and checkout writes at any size; unreadable listings, unsafe and colliding paths still refuse                                                                      | `1f9c0f5`                        |
 
@@ -170,8 +170,9 @@ the model's window — the removal the rule wants would trade one refusal
 at import for a permanently broken session. Sourcing the window from the
 per-model capability record (`record.limits.contextTokens`,
 `src/core/providers/configured.ts`) is lane L2's migration ("The legacy
-cap above stays until lane L2 applies each model's record"). So: kept
-unchanged for the lead to decide — rewire via L2, or accept the guard.
+cap above stays until lane L2 applies each model's record"). That was the
+kept state the review listed; NOLIMITS1FIX §N4 then removed the reserve
+(below), keeping the provider's own window.
 
 NOLIMITS1FIX (§N4): the formula is gone. The 256 KiB reserve was ours, not
 the provider's, so the import now refuses only past the provider's own
@@ -183,7 +184,8 @@ window to the per-model capability record stays lane L2's.
 
 Removed refusal texts went from English and all 14 tables in the same
 commits (A21, A22, A23, A35); `node scripts/check-l10n.mjs` is green.
-`shareTooLarge` stays: it still fires for the transcript item count.
+`shareTooLarge` stayed through the lane (it still fired for the transcript
+item count; NOLIMITS1FIX §N2 removed it with the count).
 `transferTooLarge` stays: the picker's size branch is now unreachable
 through size but the shape is unchanged.
 
@@ -224,7 +226,8 @@ test; the big read carries the sanctioned named per-test timeout
 - Open a held checkout of a very large pull request: writes at any size;
   unsafe/colliding paths still refuse before anything is written.
 - Import a conversation near the replay bound, and one just over it: the
-  first resumes and answers, the second refuses once at import (A29 kept).
+  first resumes and answers, the second refuses once at import (A29
+  repointed at the provider's own window, §N4).
 - NOLIMITS1FIX lead checks: save, import and share a prompt file past
   128 KiB; export, share and import a transcript past 20,000 items; read a
   report source past 16 MiB; import a conversation between the old
@@ -237,25 +240,24 @@ test; the big read carries the sanctioned named per-test timeout
 
 ## Kept bounds, listed for the lead (RVNOLIMITS1 review)
 
-The lane kept three bounds without an outcome-4 listing; they are now
-listed in PLAN.md D121 for the lead's keep-or-remove decision, unchanged
-in code: `PROMPT_LIMITS.fileBytes` (128 KiB per prompt file — so A23's
-"any title/body" holds only while the file fits), `SESSION_EXPORT_MAX_ITEMS`
-(20,000 transcript items — A30 removed the byte ceiling, not the count),
-and the report reader's 16 MiB bound renamed `REPORT_SOURCE_MAX_BYTES`
-(pre-existing under the removed constant's name, not a new cap).
+The lane had kept three bounds without an outcome-4 listing; they were
+listed in PLAN.md D121 for the lead's decision: `PROMPT_LIMITS.fileBytes`
+(128 KiB per prompt file), `SESSION_EXPORT_MAX_ITEMS` (20,000 transcript
+items — A30 had removed the byte ceiling, not the count), and the report
+reader's 16 MiB bound renamed `REPORT_SOURCE_MAX_BYTES` (pre-existing
+under the removed constant's name, not a new cap).
 
-NOLIMITS1FIX removes all three plus A29 in this lane's brief: the prompt
-file bound (§N1), the transcript item count (§N2) and the report reader
-bound (§N3) are already gone; A29 follows (§N4).
+NOLIMITS1FIX removed all three plus the A29 reserve: the prompt file
+bound (§N1), the transcript item count (§N2), the report reader bound
+(§N3) and the window-minus-reserve formula (§N4) are all gone; nothing of
+the three remains in code, English or any table.
 
 ## APP PROBLEMS
 
-None found in this lane's rows. Two neighbouring observations, not
-changed (out of scope): `shareTooLarge`'s wording still names "file
-size" although only the transcript item count can now trigger it, and the
-share-file picker's `tooLarge` branch is unreachable through size; both
-kept to avoid l10n churn and defensive-branch removal. The
+None found in this lane's rows. One neighbouring observation, not
+changed (out of scope): the share-file picker's `tooLarge` branch is
+unreachable through size (reads are unbounded); kept to avoid
+defensive-branch removal. (`shareTooLarge` went with §N2.) The
 `museSpark.teamMaxWorkers` name appears only in comments — no such
 setting exists yet.
 
