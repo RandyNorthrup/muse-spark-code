@@ -15,6 +15,7 @@ import {
   presetCardSchema,
   customFormatSchema,
   providerStateSchema,
+  providerKeyUsageSchema,
   wizardStepSchema,
   type ModelsPanelState,
   type PanelDraft,
@@ -26,7 +27,7 @@ import {
 import { buildWebviewHtml, createNonce } from '../html'
 import { fill } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
-import { modelLimitsSchema } from '../../shared/providerRouting'
+import { editedOutputTokens, modelLimitsSchema } from '../../shared/providerRouting'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import type { ImportPreview } from '../providers/importExport'
@@ -38,9 +39,14 @@ import type {
 } from '../providers/providerPorts'
 import type { ProvidersHost } from '../providers/providersHost'
 import { isOriginBound, type CredentialRecord } from '../providers/credentialRecords'
-import type { WizardSaveOutcome } from '../providers/wizardSave'
+import { scannedLocalModelLimits, type WizardSaveOutcome } from '../providers/wizardSave'
 import type { ScanOutcome } from '../providers/modelScans'
-import { OPENROUTER_ORIGIN } from '../providers/openRouter'
+import {
+  OPENROUTER_ORIGIN,
+  createOpenRouterPanelUsage,
+  clearOpenRouterPanelUsage,
+  createOpenRouterDraftDiscard,
+} from '../backend/providersEntry'
 import { Usd } from '../../shared/usd'
 import { redactSecrets } from '../../shared/redact'
 import { type SessionBudgetConfig } from './sessionBudget'
@@ -108,6 +114,8 @@ function newDraft(preset?: PresetInfo, entry?: ProviderEntry): PanelDraft {
         : `http://${loopbackProbe.host}:${String(loopbackProbe.port)}`),
     ...(loopbackProbe !== undefined && { loopbackPort: loopbackProbe.port }),
     auth: entry?.auth ?? preset?.auth ?? 'apiKey',
+    // An Azure edit reopens with its deployment; the resource stays in the address.
+    ...(entry?.deployment !== undefined && { deployment: entry.deployment }),
     keyPresent: false,
     keyShapeOk: false,
     connected: false,
@@ -161,7 +169,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     drafts: { edits: {} },
     pendingRemovals: [],
   }
-  const credentials = new Map<string, { secret: string; origin: string }>()
+  const credentials = new Map<string, { secret: string; origin: string; connected?: boolean }>()
+  const discardCredential = createOpenRouterDraftDiscard(
+    credentials,
+    providers.discardOpenRouterKey,
+  )
   const rows = new Map<string, readonly ProviderModelRow[]>()
   const newModels = new Set<string>()
   // A failed limit write can leave a saved provider. Retrying that draft
@@ -182,6 +194,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   >()
   const enteredCredentials = new WeakSet<PanelDraft>()
   let isDisposed = false
+  const lifetime = new AbortController()
+  let connectionRequest: AbortController | undefined
+  let usageRequest: AbortController | undefined
+  let isUsageQueued = false
   let navigation: ModelsPanelNavigate | undefined
   let operations = Promise.resolve()
   const post = (message: HostToPanelMessage): void => {
@@ -268,19 +284,20 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     if (preset === undefined) {
       throw new Error(UI_TEXT.actionFailed)
     }
-    // A custom entry saves only complete limits per chosen model; the
-    // blockers below keep Save disabled until each one is valid, and the
-    // production store rejects the entry if one is still missing.
+    // An entry saves only complete limits per chosen model; the blockers
+    // below keep Save disabled until each one is valid, and the production
+    // store rejects the entry if one is still missing. Custom entries always
+    // carry the validated map; other presets carry it only when at least one
+    // model validated, so a windowless draft keeps its existing entry shape.
+    const parsedModelLimits = Object.fromEntries(
+      draft.models.flatMap((model): [string, { contextTokens: number; outputTokens: number }][] => {
+        const parsed = modelLimitsSchema.safeParse(draft.modelLimits?.[model])
+        return parsed.success ? [[model, parsed.data]] : []
+      }),
+    )
     const modelLimits =
-      preset.id === 'custom'
-        ? Object.fromEntries(
-            draft.models.flatMap(
-              (model): [string, { contextTokens: number; outputTokens: number }][] => {
-                const parsed = modelLimitsSchema.safeParse(draft.modelLimits?.[model])
-                return parsed.success ? [[model, parsed.data]] : []
-              },
-            ),
-          )
+      preset.id === 'custom' || Object.keys(parsedModelLimits).length > 0
+        ? parsedModelLimits
         : undefined
     const snapshot = editSnapshots.get(draft)
     if (snapshot !== undefined) {
@@ -321,6 +338,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         ...(JSON.stringify(draft.modelLimits) !== JSON.stringify(initial.modelLimits) && {
           modelLimits: { ...base.modelLimits, ...editedLimits },
         }),
+        ...(base.preset === 'azure' &&
+          draft.deployment !== initial.deployment && { deployment: draft.deployment }),
         ...(preset.id === 'openrouter' &&
           (isPrivacyChanged || isOrderChanged || isFallbacksChanged) && {
             routing: {
@@ -342,6 +361,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       address: draft.address ?? preset.origin,
       auth: draft.auth,
       models: draft.models,
+      // The deployment rides the entry, never the models: records resolve
+      // by the model family the user ticked (PROVM95).
+      ...(preset.id === 'azure' &&
+        draft.deployment !== undefined && { deployment: draft.deployment }),
       ...(modelLimits !== undefined && { modelLimits }),
       ...(draft.customFormat !== undefined && { format: draft.customFormat }),
       ...(preset.id === 'openrouter' && {
@@ -393,7 +416,14 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     return record?.secret
   }
-  const refresh = async (): Promise<void> => {
+  const refreshUsage = createOpenRouterPanelUsage(providers, (usage) =>
+    providerKeyUsageSchema.parse(usage),
+  )
+  const refresh = async (shouldReadUsage = false): Promise<void> => {
+    usageRequest?.abort()
+    usageRequest = new AbortController()
+    const signal = AbortSignal.any([lifetime.signal, usageRequest.signal])
+    clearOpenRouterPanelUsage(state.providers)
     state.presets = providers.presetIds().flatMap((id) => {
       const preset = providers.preset(id)
       if (preset === undefined) {
@@ -505,10 +535,17 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           },
           test: { status: 'untested' },
           models: [...entry.models],
+          modelLimits: entry.modelLimits,
           pinned: [...(entry.pinned ?? [])],
         },
       ]
     })
+    await refreshUsage(
+      state.providers,
+      providerStates.map(({ entry }) => entry),
+      shouldReadUsage,
+      signal,
+    )
     const all: ModelRow[] = []
     const families = new Map<string, string>()
     for (const [providerId, models] of rows) {
@@ -527,7 +564,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           toolCalling: model.toolCapable,
           vision: model.vision,
           reasoning: model.reasoning,
-          contextTokens: model.context,
+          contextTokens:
+            draft?.modelLimits?.[model.id]?.contextTokens ??
+            saved?.modelLimits?.[model.id]?.contextTokens ??
+            model.context,
           inputPerMillion: model.inputPerMillion,
           outputPerMillion: model.outputPerMillion,
           cachedPerMillion: model.cachedPerMillion,
@@ -673,14 +713,14 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             ]
     }
   }
-  const handle = async (message: PanelToHostMessage): Promise<void> => {
+  const handle = async (message: PanelToHostMessage, shouldReadUsage: boolean): Promise<void> => {
     switch (message.type) {
       case 'modelsPanel/ready': {
         const cachedScans = await providers.cachedScans()
         for (const cached of cachedScans) {
           rows.set(cached.providerId, cached.rows)
         }
-        await refresh()
+        await refresh(true)
         publish()
         if (navigation !== undefined) {
           post({
@@ -736,7 +776,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           await scan(await entryOf(preset.id))
           break
         }
-        credentials.delete('wizard')
+        discardCredential('wizard')
         state.drafts.wizard = newDraft(preset)
         break
       }
@@ -745,7 +785,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           state.drafts.edits = Object.fromEntries(
             Object.entries(state.drafts.edits).filter(([id]) => id !== message.providerId),
           )
-          credentials.delete(message.providerId)
+          discardCredential(message.providerId)
         }
         await createEditDraft(message.providerId)
         break
@@ -773,7 +813,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         }
         if (oldAddress !== draft.address) {
           savedConnections.delete(draft)
-          credentials.delete(id ?? 'wizard')
+          discardCredential(id ?? 'wizard')
           draft.keyPresent = false
           draft.keyShapeOk = false
           draft.privateConfirmed = false
@@ -797,18 +837,32 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         ) {
           throw new Error(UI_TEXT.actionFailed)
         }
-        const connection =
-          message.type === 'providers/connect'
-            ? await providers.connectOpenRouter(deps.isRemote === true)
-            : undefined
+        let connection: { readonly key: string } | undefined
+        if (message.type === 'providers/connect') {
+          draft.connecting = true
+          publish()
+          try {
+            connection = await providers.connectOpenRouter(
+              deps.isRemote === true,
+              AbortSignal.any([
+                lifetime.signal,
+                ...(connectionRequest === undefined ? [] : [connectionRequest.signal]),
+              ]),
+            )
+          } finally {
+            draft.connecting = false
+          }
+        }
         const secret =
           message.type === 'providers/connect'
             ? connection?.key
             : await providers.promptForKey({ ...preset, origin: new URL(entry.address).origin })
         if (secret !== undefined && !isDisposed) {
           enteredCredentials.add(draft)
+          discardCredential(id ?? 'wizard')
           credentials.set(id ?? 'wizard', {
             secret,
+            connected: message.type === 'providers/connect',
             origin:
               message.type === 'providers/connect'
                 ? OPENROUTER_ORIGIN
@@ -820,6 +874,9 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           savedConnections.delete(draft)
           draft.test = undefined
         }
+        break
+      }
+      case 'providers/readUsage': {
         break
       }
       case 'providers/test': {
@@ -877,7 +934,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       case 'providers/wizard': {
         if (message.event === 'cancel') {
           state.drafts = { edits: {} }
-          credentials.clear()
+          discardCredential()
           break
         }
         const draft = draftOf()
@@ -894,7 +951,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         // Every outcome refreshes through this catch. Earlier outcome text survives.
         const finish = async (isSaved: boolean): Promise<void> => {
           try {
-            await refresh()
+            await refresh(true)
           } catch {
             hasRefreshFailed = true
             log.warn('Models panel could not refresh after provider save')
@@ -935,9 +992,23 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             await finish(false)
             return
           }
+          // Carry scanned windows; explicit saved or draft limits retain priority.
+          const scanned = rows.get(entry.id)
+          const carried =
+            scanned === undefined
+              ? undefined
+              : scannedLocalModelLimits(entry.auth, entry.models, scanned)
+          const carriedLimits =
+            carried === undefined && entry.modelLimits === undefined
+              ? undefined
+              : { ...carried, ...entry.modelLimits }
           outcome = await providers.saveDraft(
             {
-              provider: { ...entry, ...(verdict.kind === 'private' && { privateNetwork: true }) },
+              provider: {
+                ...entry,
+                ...(verdict.kind === 'private' && { privateNetwork: true }),
+                ...(carriedLimits !== undefined && { modelLimits: carriedLimits }),
+              },
               credential:
                 snapshot === undefined || enteredCredentials.has(draft)
                   ? draftSecret(entry, message.providerId)
@@ -965,6 +1036,13 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           return
         }
         savedDrafts.add(draft)
+        if (
+          outcome.receipts?.includes(UI_TEXT.providerKeySaved) ||
+          outcome.failedStep === undefined
+        ) {
+          const record = credentials.get(message.providerId ?? 'wizard')
+          if (record !== undefined) record.connected = false
+        }
         const snapshot = editSnapshots.get(draft)
         if (
           snapshot !== undefined &&
@@ -1013,7 +1091,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           if (outcome.budget?.status === 'conflict')
             draft.sessionBudgetExpectedUsd = outcome.budget.effectiveUsd
         } else {
-          credentials.delete(message.providerId ?? 'wizard')
+          discardCredential(message.providerId ?? 'wizard')
           enteredCredentials.delete(draft)
           if (message.providerId === undefined) state.drafts.wizard = undefined
           else
@@ -1029,6 +1107,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         return
       }
       case 'providers/remove': {
+        discardCredential(message.providerId)
+        state.drafts.edits = Object.fromEntries(
+          Object.entries(state.drafts.edits).filter(([id]) => id !== message.providerId),
+        )
         const entry = await entryOf(message.providerId)
         if (entry.auth === 'subscription') {
           if (deps.removeSubscription === undefined) throw new Error(UI_TEXT.actionFailed)
@@ -1117,21 +1199,70 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             ...draft.models.filter((value) => value !== model),
             ...(message.ticked ? [model] : []),
           ]
-          // An unticked model drops its custom limits with it.
-          if (!message.ticked && draft.modelLimits?.[model] !== undefined) {
-            draft.modelLimits = Object.fromEntries(
-              Object.entries(draft.modelLimits).filter(([id]) => id !== model),
+          // Limits exist only for ticked models. Unticking drops the
+          // manual window, so a later save cannot store (and a later
+          // re-tick cannot resurrect) a window for an unticked model.
+          if (!message.ticked && draft.modelLimits !== undefined) {
+            const kept = Object.fromEntries(
+              Object.entries(draft.modelLimits).filter(([key]) => key !== model),
             )
+            draft.modelLimits = Object.keys(kept).length > 0 ? kept : undefined
           }
         } else {
           const entry = await entryOf(id)
+          const models = [
+            ...entry.models.filter((value) => value !== model),
+            ...(message.ticked ? [model] : []),
+          ]
+          // C-M95-4 R3: a ticked scanned local model carries its window;
+          // an unticked one drops its stale limit.
+          const carried =
+            message.ticked && entry.auth === 'none'
+              ? (scannedLocalModelLimits(entry.auth, [model], rows.get(id) ?? []) ?? {})
+              : {}
+          const kept = Object.fromEntries(
+            Object.entries(entry.modelLimits ?? {}).filter(
+              ([key]) => message.ticked || key !== model,
+            ),
+          )
+          const modelLimits = { ...carried, ...kept }
           await providers.updateProvider({
             ...entry,
-            models: [
-              ...entry.models.filter((value) => value !== model),
-              ...(message.ticked ? [model] : []),
-            ],
+            models,
+            ...((entry.modelLimits !== undefined || Object.keys(modelLimits).length > 0) && {
+              modelLimits,
+            }),
           })
+        }
+        break
+      }
+      case 'models/contextWindow': {
+        const id = message.scope.providerId ?? draftOf().presetId ?? ''
+        const draft =
+          message.scope.scope === 'wizard' ? draftOf(message.scope.providerId) : undefined
+        const entry = draft === undefined ? await entryOf(id) : draftEntry(draft, id)
+        const prefix = `${id}/`
+        if (entry.auth !== 'none' || !message.ref.startsWith(prefix))
+          throw new Error(UI_TEXT.actionFailed)
+        const model = message.ref.slice(prefix.length)
+        if (!entry.models.includes(model) && rows.get(id)?.some((row) => row.id === model) !== true)
+          throw new Error(UI_TEXT.actionFailed)
+        // A scanned-but-unticked model is ticked atomically with its edit:
+        // the file reader prunes limits for unlisted models on refresh, so
+        // storing the window without selecting it would lose the edit.
+        const models = entry.models.includes(model) ? [...entry.models] : [...entry.models, model]
+        const previous = entry.modelLimits?.[model]
+        const modelLimits = {
+          ...entry.modelLimits,
+          [model]: {
+            contextTokens: message.contextTokens,
+            outputTokens: editedOutputTokens(previous, message.contextTokens),
+          },
+        }
+        if (draft === undefined) await providers.updateProvider({ ...entry, models, modelLimits })
+        else {
+          draft.models = models
+          draft.modelLimits = modelLimits
         }
         break
       }
@@ -1181,10 +1312,24 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       }
     }
     syncDraftBlockers()
-    await refresh()
+    if (
+      (message.type !== 'providers/wizard' || message.event === 'next') &&
+      !connectionRequest?.signal.aborted
+    )
+      await refresh(shouldReadUsage)
     publish()
   }
   const enqueue = (message: PanelToHostMessage): void => {
+    const shouldReadUsage =
+      message.type === 'providers/readUsage' || message.type === 'modelsPanel/ready'
+    if (shouldReadUsage) {
+      if (isUsageQueued) return
+      isUsageQueued = true
+    }
+    if (message.type === 'providers/connect') {
+      if (connectionRequest !== undefined) return
+      connectionRequest = new AbortController()
+    }
     let savingDraft: PanelDraft | undefined
     if (message.type === 'providers/save') {
       savingDraft =
@@ -1204,7 +1349,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         return
       }
       try {
-        await handle(message)
+        await handle(message, shouldReadUsage)
       } catch (error) {
         fail(
           message.type === 'providers/save' && message.providerId !== undefined
@@ -1213,6 +1358,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           error,
         )
       } finally {
+        if (shouldReadUsage) isUsageQueued = false
+        if (message.type === 'providers/connect') connectionRequest = undefined
         if (savingDraft !== undefined) {
           savingDraft.saving = false
           publish()
@@ -1230,11 +1377,21 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       providers.cancelScan(parsed.message.providerId)
       return
     }
+    if (
+      (parsed.message.type === 'providers/wizard' && parsed.message.event !== 'next') ||
+      ['providers/remove', 'providers/select', 'providers/enterKey', 'providers/edit'].includes(
+        parsed.message.type,
+      )
+    ) {
+      connectionRequest?.abort()
+      usageRequest?.abort()
+    }
     enqueue(parsed.message)
   })
   const cleanup = (): void => {
     isDisposed = true
-    credentials.clear()
+    lifetime.abort()
+    discardCredential()
     subscription.dispose()
   }
   panel.onDidDispose(cleanup)
@@ -1243,12 +1400,14 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       panel.reveal(vscode.ViewColumn.One)
       navigation = navigate
       if (navigate?.wizard === true) {
+        connectionRequest?.abort()
         state.drafts.wizard = newDraft()
-        credentials.clear()
+        discardCredential()
       }
       if (navigate?.presetId !== undefined) {
+        connectionRequest?.abort()
         state.drafts.wizard = newDraft(providers.preset(navigate.presetId))
-        credentials.clear()
+        discardCredential()
       }
       publish()
       if (navigate !== undefined) {

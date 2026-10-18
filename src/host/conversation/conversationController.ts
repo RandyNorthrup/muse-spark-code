@@ -1,8 +1,14 @@
+import {
+  EstimateDiagnosticError,
+  estimateDiagnostic,
+  estimateFailureText,
+} from '../../shared/estimateDiagnostic'
 import type { UsageRecording } from '../../core/usage/recording'
 import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../shared/usage'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
 import { recoveryStamp } from '../../shared/agentRecovery'
 import type { ReportQuestionsReader } from '../../core/reporting/sources/questions'
+import type { SessionHistoryInput } from '../../runtime/reporting/reportInputs'
 import { QuestionRegistry } from '../../core/questions/registry'
 import { compareVersions, isVersion } from '../../core/whatsNew/whatsNewVersions'
 import type { QuestionAnswerText } from '../../core/questions/lateAnswer'
@@ -36,6 +42,7 @@ import { AttachmentStore } from '../../core/attachments'
 import type { MediaAttachmentPort } from '../media/mediaAttach'
 import type { RecordingCommandDeps } from '../media/screenRecordBundle'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
+import type { StampedUploadedFilesPort } from '../backend/uploadedFilesBinding'
 import { isProtectedPath } from '../../core/protectedPaths'
 import {
   type AgentHost,
@@ -230,7 +237,7 @@ import type {
 import type { UsageInsightsReport } from '../../runtime/usage/traceLogs'
 import type { EstimateInputs } from '../../shared/estimate'
 import type { EstimatorRun } from '../estimator/estimatorBundle'
-import { uploadedFilesReportSchema, type UploadedFilesReport } from '../../shared/media'
+import { uploadedFilesReportSchema } from '../../shared/media'
 import type { AuthPort } from '../auth/authService'
 import type { CheckpointPort } from '../checkpoints/checkpointHost'
 import type { DescribedFile, EditReviewActions, ReviewNotice } from '../editor/editReview'
@@ -563,6 +570,7 @@ export interface ConversationDeps {
   readonly uploadedFiles?: ConversationUploadedFilesPort
   /** The usage modal's insights from the CLI's trace logs (M14); undefined without logs. */
   readonly usageInsights: () => Promise<UsageInsightsReport | undefined>
+  readonly readProviderKeyUsage?: () => Promise<readonly ProviderUsageRow[]>
   /** Whether this surface resumes its last session when it reopens (the sidebar). */
   readonly isRestorable: boolean
   /** Voice dictation (M9): the platform's helper, or why there is none. */
@@ -715,17 +723,13 @@ export interface ConversationDeps {
   readonly log: Logger
 }
 
-/** Lane W supplies the validated webview/MHP messages and the account-scoped ledger. */
-export interface ConversationUploadedFilesPort {
-  read(): Promise<unknown>
-  post(report: UploadedFilesReport): void
-  deleteFile(
-    fileId: string,
-    isForeignDeletionConfirmed: (name: string) => Promise<boolean>,
-  ): Promise<void>
-  deleteAllOurs(): Promise<void>
-  confirmForeign(question: string): Promise<boolean>
-}
+/**
+ * The conversation's uploaded-files port (M105 lane F): one core shape over
+ * the account ledger, bound per host. Lane W supplies the validated
+ * webview/MHP messages and the account-scoped ledger. The once-only backlog
+ * notice rides on the core port's optional `deleteNotice`.
+ */
+export type ConversationUploadedFilesPort = StampedUploadedFilesPort
 
 const IDLE_STATUS = 'idle'
 const NOOP_STATUS = 'noop'
@@ -805,6 +809,8 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'forkSession',
   'renameSession',
   'readUsage',
+  'deleteUploadedFile',
+  'deleteAllUploadedFiles',
   'setPaidFeature',
   'importSession',
   'savePlan',
@@ -834,6 +840,18 @@ function describe(error: unknown): string {
 /** CLI errors are logged by kind/code; their message is for the redacted panel only. */
 function describeForLog(error: unknown): string {
   return isMspFailure(error) ? failureForLog(error) : describe(error)
+}
+
+// The ledger's explicit deletion failure, read by its fixed name: the ledger
+// rides in another bundle, so instanceof would compare across class copies.
+// fileName carries the file's display name, never its id.
+export function isUploadDeleteFailed(error: unknown): error is Error & { fileName: string } {
+  return (
+    error instanceof Error &&
+    error.name === 'UploadDeleteFailedError' &&
+    'fileName' in error &&
+    typeof error.fileName === 'string'
+  )
 }
 
 // The two tables below are built when used, never at module load: the
@@ -1262,6 +1280,7 @@ export class ConversationController {
    * the transcript of what it already sent arrives or the panel closes.
    */
   private retiredDictation: DictationHandle | undefined
+  private readonly voiceDisposals = new Set<Promise<void>>()
   /**
    * Counts every microphone press (M58): a Muse Voice start waits for the
    * paid-use popup, and a stop pressed meanwhile cancels it.
@@ -1385,6 +1404,14 @@ export class ConversationController {
    * or refuses the next conversation.
    */
   private reviewStart: Promise<void> | undefined
+  /**
+   * A `/playback` on its way (D203): the agent states its own
+   * understanding from working memory, with no tools for the turn. One at
+   * a time; a message must not steer into its turn, so the send barrier
+   * waits for it as for a review starting. Panels sharing one session
+   * check each other's barrier in `runPlayback`, not only their own.
+   */
+  private playbackStart: Promise<void> | undefined
   /**
    * A `/legal` scan on its way (M97): the deterministic scan, no turn — one
    * at a time. Its signal stops when the session goes (`dropSession`), so a
@@ -1948,6 +1975,8 @@ export class ConversationController {
       // A review starting in the old conversation answers its own card; the
       // next conversation neither waits for it nor is refused because of it.
       this.reviewStart = undefined
+      // A playback starting there answers its own card too.
+      this.playbackStart = undefined
     }
     const { session } = this
     if (isTurnCancelled && session !== undefined && this.activeTurnId !== undefined) {
@@ -4337,6 +4366,7 @@ export class ConversationController {
     for (;;) {
       const held = this.planHold
       const starting = this.reviewStart
+      const playing = this.playbackStart
       const scanning = this.legalScanStart
       try {
         await this.reviewModeSettling
@@ -4344,6 +4374,7 @@ export class ConversationController {
         // The mode owner handles the failure and may retire this session.
       }
       await starting
+      await playing
       await scanning
       await held?.hold.waitForModeChange()
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
@@ -4352,6 +4383,7 @@ export class ConversationController {
       if (
         this.reviewModeSettling === undefined &&
         this.reviewStart === undefined &&
+        this.playbackStart === undefined &&
         this.legalScanStart === undefined &&
         (this.planHold === held || this.planHold === undefined)
       ) {
@@ -7020,6 +7052,78 @@ export class ConversationController {
   }
 
   /**
+   * A restricted turn's admission (a review's, a playback's): signed in
+   * with a folder, the backend reachable, and no turn, restricted start or
+   * mode hold in the way. A refusal is posted on the card; the workspace
+   * root is answered admitted. A review starting while a playback or scan
+   * starts is refused too.
+   */
+  private workspaceForRestrictedTurn(localId: string, busyReason: string): string | undefined {
+    // Says why when it refuses (signed out, no folder), as a message's card does.
+    const refusal = this.refuseAction(localId)
+    const { workspaceRoot } = this.deps
+    if (refusal !== undefined || workspaceRoot === undefined) {
+      return undefined
+    }
+    // Refused before any git or Muse Code command, as a message is (CLI recovery).
+    const damaged = this.damagedTarget()
+    if (damaged !== undefined) {
+      this.refuseDamaged(damaged, localId, true)
+      return undefined
+    }
+    if (
+      this.activeTurnId !== undefined ||
+      this.reviewStart !== undefined ||
+      this.playbackStart !== undefined ||
+      this.legalScanStart !== undefined ||
+      this.planHold !== undefined
+    ) {
+      this.post({ type: 'sendFailed', localId, reason: busyReason })
+      return undefined
+    }
+    // Revert owns turn admission until its file I/O settles (M87).
+    if (this.revertsInFlight > 0) {
+      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.restoreTurnRunning })
+      return undefined
+    }
+    return workspaceRoot
+  }
+
+  /**
+   * A restricted turn's submission stands (a review's, a playback's): it
+   * takes over the running mark and answers its own card.
+   */
+  private acceptRestrictedSubmission(
+    localId: string,
+    text: string,
+    checkpoint: PendingMark | undefined,
+    submission: TurnSubmission,
+  ): void {
+    this.checkpoints.accepted(
+      checkpoint,
+      submission.turnId,
+      submission.disposition !== QUEUED_DISPOSITION &&
+        submission.disposition !== STEERED_DISPOSITION,
+    )
+    this.acceptSubmission(localId, text, submission)
+  }
+
+  /**
+   * A restricted turn failed to start (a review's, a playback's): its card
+   * says why; the log keeps the kind, never text a backend chose.
+   */
+  private refuseRestrictedStart(
+    localId: string,
+    checkpoint: PendingMark | undefined,
+    error: unknown,
+    label: string,
+  ): void {
+    this.checkpoints.dropPending(checkpoint)
+    this.deps.log.error(`${label} failed: ${errorKind(error)}`)
+    this.post({ type: 'sendFailed', localId, reason: describe(error) })
+  }
+
+  /**
    * `/review` (M70, PLAN.md D49). Git's changes need a trusted workspace
    * (Restricted Mode runs no git); custom instructions do not. The material
    * goes between markers that call it untrusted. On the Model API the turn
@@ -7029,29 +7133,8 @@ export class ConversationController {
    * message's is: accepted, or failed with the reason.
    */
   private async startReview(localId: string, text: string, request: ReviewRequest): Promise<void> {
-    // Says why when it refuses (signed out, no folder), as a message's card does.
-    const refusal = this.refuseAction(localId)
-    const { workspaceRoot } = this.deps
-    if (refusal !== undefined || workspaceRoot === undefined) {
-      return
-    }
-    // Refused before any git or Muse Code command, as a message is (CLI recovery).
-    const damaged = this.damagedTarget()
-    if (damaged !== undefined) {
-      this.refuseDamaged(damaged, localId, true)
-      return
-    }
-    if (
-      this.activeTurnId !== undefined ||
-      this.reviewStart !== undefined ||
-      this.planHold !== undefined
-    ) {
-      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.reviewBusy })
-      return
-    }
-    // Revert owns turn admission until its file I/O settles (M87).
-    if (this.revertsInFlight > 0) {
-      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.restoreTurnRunning })
+    const workspaceRoot = this.workspaceForRestrictedTurn(localId, UI_TEXT.reviewBusy)
+    if (workspaceRoot === undefined) {
       return
     }
     const gitRefusal = isGitReview(request)
@@ -7181,19 +7264,9 @@ export class ConversationController {
       if (material !== undefined) {
         this.noteReviewMaterial(material)
       }
-      this.checkpoints.accepted(
-        checkpoint,
-        submission.turnId,
-        submission.disposition !== QUEUED_DISPOSITION &&
-          submission.disposition !== STEERED_DISPOSITION,
-      )
-      this.acceptSubmission(localId, text, submission)
+      this.acceptRestrictedSubmission(localId, text, checkpoint, submission)
     } catch (error: unknown) {
-      this.checkpoints.dropPending(checkpoint)
-      const reason = describe(error)
-      // The user's card says why; the log keeps the kind, never text a backend chose.
-      this.deps.log.error(`startReview failed: ${errorKind(error)}`)
-      refuse(reason)
+      this.refuseRestrictedStart(localId, checkpoint, error, 'startReview')
     }
   }
 
@@ -7215,6 +7288,7 @@ export class ConversationController {
       this.activeTurnId !== undefined ||
       this.turnSubmissionsInFlight > 0 ||
       this.reviewStart !== undefined ||
+      this.playbackStart !== undefined ||
       this.planHold !== undefined ||
       this.legalScanStart !== undefined
     ) {
@@ -7436,6 +7510,39 @@ export class ConversationController {
       )
     }
     const bypassEpoch = this.bypassRevocationEpoch
+    return await this.withPlaybookReview(
+      session,
+      parts,
+      reviewFiles,
+      async (admitted) =>
+        await this.sendHeldTurn(
+          session,
+          admitted,
+          text,
+          generation,
+          previousMode,
+          bypassEpoch,
+          isCurrent,
+        ),
+    )
+  }
+
+  /**
+   * A review turn held in Plan mode (M70): the hold, the mode the user
+   * had, the panel in Plan until it comes back. Auto is left for the held
+   * turn: what the Auto reviewer holds is the user's (M90). Plan mode was
+   * refused (nothing to put back), or the send failed and the hold put the
+   * mode back already.
+   */
+  private async sendHeldTurn(
+    session: AgentSession,
+    parts: readonly TurnPart[],
+    text: string,
+    generation: number,
+    previousMode: PermissionMode,
+    bypassEpoch: number,
+    isCurrent: () => boolean,
+  ): Promise<TurnSubmission> {
     const hold = this.takePlanHold(
       (holdDeps) => this.deps.review.createHold(holdDeps),
       session,
@@ -7443,22 +7550,13 @@ export class ConversationController {
       previousMode,
       bypassEpoch,
     )
-    // Auto is left for the review turn: what the Auto reviewer holds is the user's (M90).
     this.reviews?.release()
     try {
-      return await this.withPlaybookReview(
-        session,
-        parts,
-        reviewFiles,
-        async (admitted) =>
-          await hold.send(session, admitted, text, () => {
-            this.requireNonConfidentialModel(session.modelId)
-            return isCurrent()
-          }),
-      )
+      return await hold.send(session, parts, text, () => {
+        this.requireNonConfidentialModel(session.modelId)
+        return isCurrent()
+      })
     } catch (error: unknown) {
-      // Plan mode was refused (nothing to put back), or the send failed and
-      // the hold put the mode back already.
       this.dropFailedHold(hold, session, generation)
       throw error
     }
@@ -7520,6 +7618,129 @@ export class ConversationController {
       (!this.deps.isBypassAllowed() || bypassEpoch !== this.bypassRevocationEpoch)
       ? FALLBACK_MODE
       : mode
+  }
+
+  // --- Playback (D203) ---
+
+  /**
+   * `/playback` (D203). The card is the webview's own, as a message's is:
+   * accepted, or failed with the reason. The turn is the backend's own
+   * no-tools turn, so it runs only where the backend has one (the Model
+   * API's); elsewhere it is refused rather than sent as an ordinary turn
+   * a reactive stop might reach too late. Either way it is a turn of this
+   * conversation, part of the user's own, so nothing asks for payment.
+   */
+  private async startPlayback(localId: string, text: string): Promise<void> {
+    const workspaceRoot = this.workspaceForRestrictedTurn(localId, UI_TEXT.playbackBusy)
+    if (workspaceRoot === undefined) {
+      return
+    }
+    const running = this.runPlayback(localId, text, workspaceRoot)
+    this.playbackStart = running
+    try {
+      await running
+    } finally {
+      // A newer conversation's playback may hold the barrier by now.
+      if (this.playbackStart === running) {
+        this.playbackStart = undefined
+      }
+    }
+  }
+
+  /** The playback's asynchronous part: it answers its own failures on the card and never rejects. */
+  private async runPlayback(localId: string, text: string, workspaceRoot: string): Promise<void> {
+    const refuse = (reason: string) => {
+      this.post({ type: 'sendFailed', localId, reason })
+    }
+    const generation = this.sendInvalidationEpoch
+    // The running mark this playback's turn takes over (M72), dropped if it is not sent.
+    let checkpoint: PendingMark | undefined
+    try {
+      const session = await this.ensureSession(workspaceRoot)
+      if (!this.isCurrentSessionAction(session, generation)) {
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      const host = await this.deps.ensureHost()
+      if (
+        !this.isCurrentSessionAction(session, generation) ||
+        this.sessionKind !== host.info.kind
+      ) {
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      // One playback starts at a time per shared session (D203): two
+      // panels can share one AgentSession while admission above checked
+      // only this controller's barrier, so a start already in flight on
+      // another panel refuses this one. Each controller sets its barrier
+      // synchronously on start, so this check always sees a concurrent
+      // starter's. Past admission the host orders turns itself, and a
+      // playback is a backend no-tools turn.
+      const surfaces = sessionSurfaces.get(session)
+      if (surfaces !== undefined) {
+        for (const surface of surfaces) {
+          if (surface !== this && surface.playbackStart !== undefined) {
+            refuse(UI_TEXT.playbackBusy)
+            return
+          }
+        }
+      }
+      // A playback's turn is marked running before it is sent and takes over
+      // that mark, as a message's does (M72), so another window refuses a
+      // restore from the moment its turn can act.
+      if (!this.isSideChat) {
+        checkpoint = await this.checkpoints.beforeTurn(session.sessionId)
+      }
+      // A turn may have started while the mark was published.
+      if (this.isTurnRunning()) {
+        this.checkpoints.dropPending(checkpoint)
+        refuse(UI_TEXT.playbackBusy)
+        return
+      }
+      // The turn's text loads with the review bundle, as a review's does
+      // (M70): a playback that cannot load it is refused with the reason.
+      const parts: readonly TurnPart[] = [{ type: 'text', text: this.deps.review.playbackText() }]
+      this.deps.log.info('Playback starting')
+      let submittedSession = session
+      const submission = await this.runResuming(host, session, (current) => {
+        submittedSession = current
+        return this.submitPlayback(current, parts, text, generation)
+      })
+      // A dropped session's pending command may still acknowledge its turn.
+      if (!this.isCurrentSessionAction(submittedSession, generation)) {
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      this.acceptRestrictedSubmission(localId, text, checkpoint, submission)
+    } catch (error: unknown) {
+      this.refuseRestrictedStart(localId, checkpoint, error, 'startPlayback')
+    }
+  }
+
+  /**
+   * Submit the playback turn: the backend's own no-tools turn. A backend
+   * with none (Muse Code: MSP is select-never-create, and no approval mode
+   * denies reads, let alone the file tools' edits) cannot run one, so the
+   * playback is refused here instead of sent as an ordinary turn a
+   * reactive stop might reach too late.
+   */
+  private async submitPlayback(
+    session: AgentSession,
+    parts: readonly TurnPart[],
+    text: string,
+    generation: number,
+  ): Promise<TurnSubmission> {
+    const isCurrent = () => this.isCurrentSessionAction(session, generation)
+    // The panel's Plan label can precede its backend admission.
+    while (this.reviewModeSettling !== undefined) {
+      await this.reviewModeSettling
+    }
+    if (!isCurrent()) {
+      throw new Error(UI_TEXT.turnStoppedByRestart)
+    }
+    this.requireNonConfidentialModel(session.modelId)
+    const playback = session.playback
+    if (playback === undefined) {
+      throw new Error(UI_TEXT.playbackNeedsModelApi)
+    }
+    return await playback.call(session, parts, text)
   }
 
   /** Called only after the failed mode request's live session/generation fence. */
@@ -7941,9 +8162,11 @@ export class ConversationController {
         return
       }
       hasReachedHost = true
-      const outcome = await this.runResuming(host, session, (current) =>
-        current.controlGoal(command),
-      )
+      const outcome = await this.runResuming(host, session, (current) => {
+        // Preserve the parent goal fence on independently Meta-keyed voice.
+        this.voiceContextRevision += 1
+        return current.controlGoal(command)
+      })
       if (
         generation !== this.sendInvalidationEpoch ||
         !this.isAuthAdmitted() ||
@@ -8975,7 +9198,7 @@ export class ConversationController {
       if (!isCurrent()) return undefined
       if (port === undefined) {
         // No port is an unbound pipeline, not an unreadable file (M105 E1 review).
-        rejected(UI_TEXT.media.uploadStorageUnknown)
+        rejected(UI_TEXT.media.uploadUnavailable)
         return
       }
       this.mediaAttachments = port
@@ -8984,7 +9207,9 @@ export class ConversationController {
         rejected(UI_TEXT.attachmentUnreadable)
         return
       }
-      const prepared = await port.prepare(pathToken, host.info.kind, this.modelId)
+      const prepared = await port.prepare(pathToken, host.info.kind, this.modelId, {
+        isScreenRecording,
+      })
       if (!isCurrent()) return undefined
       if (!prepared.ok) {
         rejected(prepared.reason)
@@ -9011,11 +9236,11 @@ export class ConversationController {
       rejected(result.reason)
       return
     } catch (error: unknown) {
-      // The unbound pipeline (W's throwing bind until U6c) keeps its own
-      // words; only a genuine read failure is unreadable (M105 E1 review).
+      // An unbound pipeline keeps its own words; only a genuine read
+      // failure is unreadable (M105 E1 review).
       rejected(
-        error instanceof Error && error.message === UI_TEXT.media.uploadStorageUnknown
-          ? UI_TEXT.media.uploadStorageUnknown
+        error instanceof Error && error.message === UI_TEXT.media.uploadUnavailable
+          ? UI_TEXT.media.uploadUnavailable
           : UI_TEXT.attachmentUnreadable,
       )
       return
@@ -9305,6 +9530,24 @@ export class ConversationController {
       }
     }
     const insights = host.info.kind === 'museCode' ? await this.deps.usageInsights() : undefined
+    if (this.deps.readProviderKeyUsage !== undefined) {
+      try {
+        const observations = await this.deps.readProviderKeyUsage()
+        for (const observation of observations) {
+          const existing = providers.find((row) => row.providerId === observation.providerId)
+          if (existing === undefined) providers.push(observation)
+          else
+            Object.assign(existing, {
+              providerLabel: observation.providerLabel,
+              keyUsage: observation.keyUsage,
+              keyUsageError: observation.keyUsageError,
+            })
+        }
+      } catch {
+        // A fixed failure is logged; the existing token and spend rows still render.
+        this.deps.log.warn('Provider key usage could not be read')
+      }
+    }
     // An older read or a stopped host must not replace a newer observation.
     if (!this.canPostUsage(host) || this.latestUsage !== shown) {
       return
@@ -9484,18 +9727,26 @@ export class ConversationController {
   }
 
   private async handleEstimateMessage(
-    message: Extract<WebviewToHostMessage, { type: 'estimateRun' | 'estimateSpinUp' }>,
+    message: Extract<
+      WebviewToHostMessage,
+      { type: 'estimateRun' | 'estimateSpinUp' | 'estimateCommand' }
+    >,
   ): Promise<void> {
     const estimator = this.deps.estimator
     const generation = this.sendInvalidationEpoch
     const correlation = message.requestId === undefined ? {} : { requestId: message.requestId }
-    if (message.type === 'estimateRun') {
+    if (message.type !== 'estimateSpinUp') {
       this.invalidateEstimate()
       const pending = new AbortController()
       this.estimatePending = pending
       try {
-        if (estimator === undefined) throw new Error(UI_TEXT.estimateUnavailable)
-        const section = await estimator.estimate(message.request, pending.signal)
+        if (estimator === undefined) throw new EstimateDiagnosticError('estimate-unavailable')
+        const request =
+          message.type === 'estimateRun'
+            ? message.request
+            : estimator.parseCommand?.(message.command, message.context)
+        if (request === undefined) throw new EstimateDiagnosticError('estimate-unavailable')
+        const section = await estimator.estimate(request, pending.signal)
         if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
           return
         this.lastEstimateInputs = section.inputs
@@ -9504,9 +9755,10 @@ export class ConversationController {
       } catch (error: unknown) {
         if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
           return
-        const reason = describe(error)
+        const diagnostic = estimateDiagnostic(error)
+        const reason = estimateFailureText(diagnostic)
         this.deps.log.error(`The estimate failed: ${reason}`)
-        this.post({ type: 'estimatorFailure', ...correlation, reason })
+        this.post({ type: 'estimatorFailure', ...correlation, diagnostic })
         this.notice('warning', reason)
       } finally {
         if (this.estimatePending === pending) this.estimatePending = undefined
@@ -9514,7 +9766,7 @@ export class ConversationController {
       return
     }
     try {
-      if (estimator === undefined) throw new Error(UI_TEXT.estimateUnavailable)
+      if (estimator === undefined) throw new EstimateDiagnosticError('estimate-unavailable')
       const section = this.lastEstimateSection
       const kind = message.setup ?? 'current'
       const setup = section?.setups.find((setup) => setup.kind === kind)
@@ -9522,17 +9774,19 @@ export class ConversationController {
       let inputs = this.lastEstimateInputs
       if (fleet) inputs = { ...section.inputs, fleet }
       else if (kind !== 'current') inputs = undefined
-      if (inputs === undefined || setup === undefined) throw new Error(UI_TEXT.estimateUsage)
-      if (setup.provisioning !== 'existing') throw new Error(UI_TEXT.estimateAdvice)
+      if (inputs === undefined || setup === undefined) throw new EstimateDiagnosticError('usage')
+      if (setup.provisioning !== 'existing') throw new EstimateDiagnosticError('advice-only')
       const started = await estimator.startWave(inputs)
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) return
       this.post({ type: 'estimatorStarted', ...correlation })
       this.notice('info', fill(UI_TEXT.estimateWaveStarted, { lanes: started.join(', ') }))
     } catch (error: unknown) {
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) return
-      this.deps.log.error(`The first wave failed: ${describe(error)}`)
-      this.post({ type: 'estimatorStarted', ...correlation, error: describe(error) })
-      this.notice('warning', describe(error))
+      const diagnostic = estimateDiagnostic(error)
+      const reason = estimateFailureText(diagnostic)
+      this.deps.log.error(`The first wave failed: ${reason}`)
+      this.post({ type: 'estimatorStarted', ...correlation, diagnostic })
+      this.notice('warning', reason)
     }
   }
 
@@ -9728,16 +9982,6 @@ export class ConversationController {
   /** The engine the microphone uses now, and its setup (M35). */
   private dictationChoice(): { readonly engine: DictationEngine; readonly setup: DictationSetup } {
     const museVoice = this.deps.museVoice()
-    if (
-      museVoice !== undefined &&
-      this.voiceIsModelApi() &&
-      Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0
-    ) {
-      return {
-        engine: 'museVoice',
-        setup: { isAvailable: false, reason: UI_TEXT.sessionBudgetVoiceUnavailable },
-      }
-    }
     return museVoice === undefined
       ? { engine: 'system', setup: this.deps.dictation }
       : { engine: 'museVoice', setup: museVoice }
@@ -9755,11 +9999,11 @@ export class ConversationController {
     if (!this.voiceIsModelApi()) {
       return undefined
     }
-    if (Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0) {
-      throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
-    }
+    const requiresJournal = () =>
+      Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0
     const workspaceRoot = this.deps.workspaceRoot
     if (workspaceRoot === undefined) {
+      if (requiresJournal()) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
       return undefined
     }
     const generation = this.attachmentGeneration
@@ -9774,6 +10018,9 @@ export class ConversationController {
     this.requireCurrentOpening(generation)
     if (!this.isVoiceSessionCurrent(session)) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
+    }
+    if (scope === undefined && requiresJournal()) {
+      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
     }
     return scope === undefined
       ? undefined
@@ -9807,6 +10054,39 @@ export class ConversationController {
     )
   }
 
+  private disposeVoice(driver: DictationHandle | undefined): void {
+    if (driver === undefined) return
+    const disposal = (async () => {
+      try {
+        await driver.dispose()
+      } catch {
+        this.deps.log.warn('Voice cleanup failed')
+      }
+    })()
+    this.voiceDisposals.add(disposal)
+    void disposal.then(() => this.voiceDisposals.delete(disposal))
+  }
+
+  /**
+   * The backends are stopping (a restart, sign-out or shutdown): the owned
+   * driver and the retired one drain — capture stopped, sockets closed,
+   * admission and settlement writes waited for — and the button reads idle.
+   */
+  private async stopVoice(): Promise<void> {
+    const current = this.dictation
+    this.dictation = undefined
+    const retired = this.retiredDictation
+    this.retiredDictation = undefined
+    this.disposeVoice(current)
+    this.disposeVoice(retired)
+    await Promise.allSettled(this.voiceDisposals)
+    if (this.dictationStatus === 'idle') {
+      return
+    }
+    this.dictationStatus = 'idle'
+    this.postDictationState()
+  }
+
   /**
    * The driver of an engine that is no longer the microphone's (M35, the
    * review of PR #27): an idle one goes; a recording one stops at once, so
@@ -9820,11 +10100,11 @@ export class ConversationController {
     }
     this.dictation = undefined
     if (this.dictationStatus === 'idle') {
-      old.dispose()
+      this.disposeVoice(old)
       return
     }
     old.stop()
-    this.retiredDictation?.dispose()
+    this.disposeVoice(this.retiredDictation)
     this.retiredDictation = old
   }
 
@@ -9852,6 +10132,9 @@ export class ConversationController {
       },
       onError: (reason) => {
         this.notice('error', `${UI_TEXT.dictationFailed}: ${reason}`)
+      },
+      onVoiceUsage: (message) => {
+        this.notice('info', message)
       },
     })
     return this.dictation
@@ -9904,22 +10187,38 @@ export class ConversationController {
           throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
         }
         if (!isSending) return
-        if (isModelApi && Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0) {
-          throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
+        if (
+          isModelApi &&
+          scope === undefined &&
+          Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0
+        ) {
+          throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
         }
         const current = this.dictationChoice()
         if (current.engine !== 'museVoice' || !current.setup.isAvailable) {
           throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
         }
       }
-      if (!isCurrent() || scope?.isStillAllowed(accountId) === false) {
+      // A press a newer one superseded stays quiet; a dead scope never
+      // does: the press had consent and a key, so it hears why it stopped.
+      if (!isCurrent()) {
+        this.postDictationState()
+        return
+      }
+      if (scope?.isStillAllowed(accountId) === false) {
+        this.notice('warning', UI_TEXT.sessionBudgetVoiceContextChanged)
         this.postDictationState()
         return
       }
       consentFence(accountId, true)
-      // Each Muse Voice recording is paid: the popup first (M58, PLAN.md D48).
+      // Every paid recording asks; Allow once covers one recording (CM352).
       const isAllowed = (await this.deps.allowsPaidUse({ feature: 'voice' })) === true
-      if (!isAllowed || !isCurrent() || scope?.isStillAllowed(accountId) === false) {
+      if (!isAllowed || !isCurrent()) {
+        this.postDictationState()
+        return
+      }
+      if (scope?.isStillAllowed(accountId) === false) {
+        this.notice('warning', UI_TEXT.sessionBudgetVoiceContextChanged)
         this.postDictationState()
         return
       }
@@ -10231,6 +10530,10 @@ export class ConversationController {
       }
       case 'startReview': {
         await this.startReview(message.localId, message.text, message.request)
+        break
+      }
+      case 'startPlayback': {
+        await this.startPlayback(message.localId, message.text)
         break
       }
       case 'requestLegalScan': {
@@ -10547,6 +10850,14 @@ export class ConversationController {
         await this.readUsage()
         break
       }
+      case 'deleteUploadedFile': {
+        await this.deleteUploadedFiles(message.fileId)
+        break
+      }
+      case 'deleteAllUploadedFiles': {
+        await this.deleteUploadedFiles()
+        break
+      }
       case 'setPaidFeature': {
         await this.deps.setPaidFeature(message.feature, message.isOn)
         break
@@ -10574,6 +10885,7 @@ export class ConversationController {
         await this.handleReportMessage(message)
         break
       }
+      case 'estimateCommand':
       case 'estimateRun':
       case 'estimateSpinUp': {
         await this.handleEstimateMessage(message)
@@ -10704,41 +11016,89 @@ export class ConversationController {
     this.postStartupNotice()
   }
 
-  /** Kept independent of backend sign-in so a removed key still shows retained expiry. */
-  public async readUploadedFiles(): Promise<void> {
+  /**
+   * Kept independent of backend sign-in so a removed key still shows
+   * retained expiry. The list belongs to an account and a read generation:
+   * a report (or failure) from a previous account or generation is dropped
+   * on both paths, never posted over the new account's view.
+   */
+  public async readUploadedFiles(signal?: AbortSignal): Promise<void> {
     const port = this.deps.uploadedFiles
     if (port === undefined || !this.canPostUploadedFiles()) return
+    signal?.throwIfAborted()
+    const authGeneration = this.deps.auth.admissionGeneration
+    const accountId = await this.deps.voiceAccountId()
+    // The generation is compared after the account lookup resolves: a
+    // generation change that lands during that await still drops the stale
+    // read. The post carries the read's own immutable stamp, never the
+    // latest one a newer read may have set since.
+    const isCurrent = async () =>
+      (await this.deps.voiceAccountId()) === accountId &&
+      this.canPostUploadedFiles() &&
+      this.deps.auth.admissionGeneration === authGeneration
     try {
-      const report = uploadedFilesReportSchema.parse(await port.read())
-      if (this.canPostUploadedFiles()) port.post(report)
+      // THE CANCEL SIGNAL REACHES EVERY CLEANUP (round 4, P2-4): the read
+      // carries the turn's signal, so its retry and sweep delete nothing
+      // after a cancel.
+      const stamped = await port.readStamped(signal)
+      const report = uploadedFilesReportSchema.parse(stamped.report)
+      if (await isCurrent())
+        port.post(report, { accountId: stamped.accountId, generation: stamped.generation })
+      // Provider deletions that keep failing are told once, here, as a count
+      // only: no file name and no file id ever reaches this notice
+      // (ported RVAPP-PORTM105R4 P2-B).
+      const notice = await port.deleteNotice?.()
+      if (notice !== undefined && (await isCurrent()))
+        this.say(
+          'warning',
+          plural(UI_TEXT.media.uploadDeleteBacklog, notice.count, {
+            provider: notice.provider,
+          }),
+        )
     } catch (error: unknown) {
-      if (this.canPostUploadedFiles())
-        this.say('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
+      if (await isCurrent()) this.say('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
     }
   }
 
   /** Called only by the integration's explicit account UI/command action. */
-  public async deleteUploadedFiles(fileId?: string): Promise<void> {
+  public async deleteUploadedFiles(fileId?: string, signal?: AbortSignal): Promise<void> {
     if (!this.canPostUploadedFiles()) return
+    signal?.throwIfAborted()
     const port = this.deps.uploadedFiles
     if (port === undefined) {
       this.say('error', UI_TEXT.usageUnavailable)
       return
     }
     try {
-      if (fileId === undefined) await port.deleteAllOurs()
+      // A cancel that landed while the dialog or the command waited here
+      // deletes nothing.
+      signal?.throwIfAborted()
+      if (fileId === undefined) await port.deleteAllOurs(signal)
       else
-        await port.deleteFile(fileId, (name) =>
-          port.confirmForeign(fill(UI_TEXT.media.otherAppFileConfirmation, { name })),
+        await port.deleteFile(
+          fileId,
+          (name) => port.confirmForeign(fill(UI_TEXT.media.otherAppFileConfirmation, { name })),
+          signal,
         )
-      await this.readUploadedFiles()
+      // The listing after the delete carries the signal too (P2-4).
+      await this.readUploadedFiles(signal)
     } catch (error: unknown) {
+      // The notice names the file's display name, never its id, with a fixed
+      // reason: the provider's message echoes the id (RVAPP-PORTM105R4 P3-4).
       if (this.canPostUploadedFiles())
         this.say(
           'error',
           fill(UI_TEXT.media.uploadDeleteFailed, {
-            name: fileId ?? UI_TEXT.media.uploadedFiles,
-            reason: describe(error),
+            // The ledger lives in another bundle (D6 diet), so its failure is
+            // read by its fixed name rather than instanceof: each bundle
+            // carries its own copy of the class. The name is set by
+            // UploadDeleteFailedError and never minified away.
+            name: isUploadDeleteFailed(error)
+              ? error.fileName
+              : (fileId ?? UI_TEXT.media.uploadedFiles),
+            reason: isUploadDeleteFailed(error)
+              ? UI_TEXT.media.uploadDeleteProviderRefused
+              : describe(error),
           }),
         )
     }
@@ -11066,6 +11426,10 @@ export class ConversationController {
       this.bestOfNManager?.dispose()
       this.bestOfNManager = undefined
       this.lastBestOfNRun = undefined
+      // The microphone stops with the backends: the drain ends the recording
+      // (or the preparation still reserving it) and waits for its admission
+      // and settlement writes, so no open reservation outlives the window.
+      await this.stopVoice()
       this.gapReload = undefined
       this.unsubscribe?.()
       this.unsubscribe = undefined
@@ -11143,12 +11507,54 @@ export class ConversationController {
     await this.handleReportMessage({ type: 'openReport' })
   }
 
+  /**
+   * M113 C-M113-2: this surface's live conversation as the session report's
+   * M84 history. Other sessions resolve through the stored fallback the
+   * reporting window binds; this method never reads another session.
+   */
+  public async reportingSessionHistory(): Promise<SessionHistoryInput | null> {
+    const { session } = this
+    if (session === undefined || this.isDisposed) return null
+    const epoch = this.historyWatchEpoch
+    const host = await this.deps.ensureHost()
+    if (this.historyWatchEpoch !== epoch || this.session !== session) return null
+    const history = await host.readSession(session.sessionId)
+    if (history.mode === 'none' || this.historyWatchEpoch !== epoch || this.session !== session)
+      return null
+    return {
+      sessionId: session.sessionId,
+      backend: host.info.kind,
+      modelId: session.modelId,
+      ...(history.name !== undefined && { name: history.name }),
+      items: history.items,
+      turnIds: [],
+    }
+  }
+
   public reportingQuestions(): ReportQuestionsReader {
     return {
       read: (context) => {
+        if (
+          this.isDisposed ||
+          (context.options.sessionId !== undefined &&
+            context.options.sessionId !== this.session?.sessionId)
+        )
+          // An owned copy of the LocalSourceError brand (localFailureOf):
+          // the conversation bundle carries no runtime import of local.ts.
+          // Another session's questions (or a disposed controller's) are not
+          // missing history: this source is not bound for that read, so the
+          // reason says unbound (RVCM1132B finding 7).
+          return Promise.reject(
+            Object.assign(new Error('unbound'), { isLocalSourceError: true, code: 'unbound' }),
+          )
         const registry = this.session === undefined ? undefined : sessionQuestions.get(this.session)
         if (registry === undefined)
-          return Promise.reject(new Error(UI_TEXT.reportSourceReasons.unbound))
+          // Same owned brand as above: no open session (or no attached
+          // registry yet) leaves this source unbound, never a failed read
+          // (RVCM1132C finding 4).
+          return Promise.reject(
+            Object.assign(new Error('unbound'), { isLocalSourceError: true, code: 'unbound' }),
+          )
         const snapshot = registry.snapshot()
         return Promise.resolve({
           observedAt: context.asOf,
@@ -11255,12 +11661,18 @@ export class ConversationController {
     this.usageWatch.dispose()
     this.usageHost = undefined
     this.latestUsage = undefined
-    this.dictation?.dispose()
+    this.disposeVoice(this.dictation)
     this.dictation = undefined
-    this.retiredDictation?.dispose()
+    this.disposeVoice(this.retiredDictation)
     this.retiredDictation = undefined
     this.checkpoints.dispose()
     this.git.dispose()
+  }
+
+  /** Window ownership retains this drain even after a conversation tab closes. */
+  public async disposeAsync(): Promise<void> {
+    this.dispose()
+    await this.stopVoice()
   }
 
   /**

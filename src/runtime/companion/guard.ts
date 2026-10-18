@@ -59,6 +59,7 @@ export function secureHeaders(response: ServerResponse, nonce: string): void {
   response.setHeader('Cache-Control', 'no-store')
   response.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
   response.setHeader('Cross-Origin-Resource-Policy', 'same-origin')
+  response.setHeader('Permissions-Policy', 'microphone=(self), camera=()')
 }
 
 /** Fatal UTF-8 decoding and a byte cap precede every injected zod parser. */

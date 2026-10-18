@@ -59,7 +59,7 @@
       "details": [
         {
           "conditions": [
-            { "when": "openRouterServices=absent", "text": { "ui": "providerOpenRouterServices" } }
+            { "when": "provider=openrouter", "text": { "ui": "providerOpenRouterServices" } }
           ]
         },
         { "ui": "pricePerMillion" },
@@ -75,7 +75,8 @@
           "conditions": [
             { "when": "outputMinimum=known", "text": { "ui": "referenceOutputCapMinimum" } }
           ]
-        }
+        },
+        { "ui": "localContextWindowHint" }
       ],
       "facts": {
         "management": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
@@ -90,9 +91,10 @@
       "description": { "ui": "reportSlashDescription" },
       "commands": ["museSpark.showReport"],
       "settings": [
-        "museSpark.reports.network",
         "museSpark.reports.keepHistory",
-        "museSpark.reports.agentSources"
+        "museSpark.reports.agentSources",
+        "museSpark.usageHistory",
+        "museSpark.usageHistoryDays"
       ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#report",
       "backends": ["museCode", "modelApi"],
@@ -139,6 +141,21 @@
         "companion": "loopback",
         "credentials": "neverExported"
       },
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "uploads",
+      "name": { "ui": "uploadsName" },
+      "summary": { "ui": "referenceUploadedFiles" },
+      "description": { "ui": "referenceUploadedFiles" },
+      "commands": ["museSpark.deleteUploadedFiles"],
+      "settings": ["museSpark.mediaUploadExpiryDays"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#the-panel",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
       "editors": ["vscode", "acp"]
     },
     {
@@ -362,13 +379,14 @@
         "museSpark.mediaMaxUploadMiB",
         "museSpark.mediaUploadExpiryDays",
         "museSpark.screenRecordingMaxSeconds",
-        "museSpark.mediaAudioAction"
+        "museSpark.mediaAudioAction",
+        "museSpark.mediaConverterPath"
       ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#the-panel",
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
-      "details": [],
+      "details": [{ "setting": "mediaAudioAction" }],
       "facts": {
         "maxAttachments": 20,
         "textExtensions": [
@@ -720,6 +738,21 @@
       "editors": ["acp"]
     },
     {
+      "id": "ci-other-systems",
+      "name": { "ui": "referenceCiOtherTitle" },
+      "summary": { "conditions": [{ "when": "system", "text": { "ui": "referenceCiOther" } }] },
+      "description": { "conditions": [{ "when": "system", "text": { "ui": "referenceCiOther" } }] },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#other-ci-systems",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["acp"]
+    },
+    {
       "id": "web-fetch",
       "name": { "ui": "referenceWebFetchTitle" },
       "summary": { "ui": "referenceWebFetchDetail" },
@@ -825,13 +858,13 @@
         "conditions": [{ "when": "platform&localWindow", "text": { "ui": "referenceDictation" } }]
       },
       "commands": [],
-      "settings": [],
+      "settings": ["museSpark.linuxDictationModel"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#voice-dictation",
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
       "details": [],
-      "facts": { "platforms": ["win32", "darwin"], "remote": false },
+      "facts": { "platforms": ["win32", "darwin", "linux"], "remote": false },
       "editors": ["vscode"]
     },
     {
@@ -1069,7 +1102,9 @@
       "settings": [
         "museSpark.modelApiHooks",
         "museSpark.hookHttpAllowedHosts",
-        "museSpark.modelApiShellKeepsDirectory"
+        "museSpark.modelApiShellKeepsDirectory",
+        "museSpark.hooksMaxStopContinuations",
+        "museSpark.hooksMaxRunningCommands"
       ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#hooks",
       "backends": ["museCode", "modelApi"],
@@ -1150,6 +1185,21 @@
       "details": [],
       "facts": {},
       "editors": ["vscode"]
+    },
+    {
+      "id": "playback",
+      "name": { "ui": "playbackItem" },
+      "summary": { "ui": "playbackDetail" },
+      "description": { "ui": "playbackDetail" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#playback",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
     },
     {
       "id": "plans",
@@ -1301,18 +1351,27 @@
         ]
       },
       "commands": [],
-      "settings": ["museSpark.dictationEngine", "museSpark.modelApiVoice"],
+      "settings": [
+        "museSpark.dictationEngine",
+        "museSpark.modelApiVoice",
+        "museSpark.modelApiSessionBudgetUsd",
+        "museSpark.paidDailyBudgetUsd"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#voice-dictation",
-      "backends": ["museCode"],
+      "backends": ["museCode", "modelApi"],
       "paid": true,
-      "surfaces": ["vscode:museCode"],
+      "surfaces": ["vscode:museCode", "vscode:modelApi"],
       "details": [{ "ui": "referencePaidContexts" }],
       "facts": {
-        "modelApi": "unavailable",
-        "museCode": ["local", "storedModelApiKey", "explicitOptIn"],
+        "modelApi": ["local", "storedModelApiKey", "boundedBudgetAdmission"],
+        "museCode": ["local", "storedModelApiKey", "explicitOptIn", "boundedBudgetAdmission"],
         "platforms": ["win32", "darwin", "linux"],
         "remote": false,
         "linuxRecorders": ["arecord", "parec"],
+        "maximumRecordingSeconds": 180,
+        "frameMs": 80,
+        "reservedMs": 180080,
+        "settlement": "finalAudioProcessedMsWholeSeconds",
         "paidFeature": "voice",
         "paidSettings": ["museSpark.modelApiVoice"],
         "configuredDefaults": { "museSpark.modelApiVoice": true },
@@ -1334,6 +1393,12 @@
             "explicitOptIn": true,
             "consent": "use",
             "ledger": false
+          },
+          "vscode:modelApi": {
+            "defaultState": { "type": "boolean", "value": true },
+            "key": "SecretStorage",
+            "consent": "use",
+            "ledger": "paidDailyBudgetUsd"
           }
         }
       },
@@ -1488,7 +1553,7 @@
       "summary": { "tip": "paid:subagents" },
       "description": { "tip": "paid:subagents" },
       "commands": [],
-      "settings": ["museSpark.modelApiSubagents"],
+      "settings": ["museSpark.modelApiSubagents", "museSpark.subagentMaxConcurrent"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#session-board-and-best-of-n",
       "backends": ["modelApi"],
       "paid": true,
@@ -2483,7 +2548,7 @@
       "nameKey": "command.deleteUploadedFiles.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.",
+      "description": "List the uploaded files of this account and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.",
       "text": { "ui": "referenceUploadedFiles" },
       "enablement": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible",
       "canRun": false
@@ -2848,7 +2913,7 @@
       },
       "id": "museSpark.modelApiVoice",
       "name": "museSpark.modelApiVoice",
-      "description": "Offers Muse Voice ($0.18 per audio hour); free OS dictation remains the default. Muse Voice is unavailable under a finite budget. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.",
+      "description": "Muse Voice sends recordings to Meta, billed to your Model API key at $0.18 per hour of audio, on either backend. Recordings stop at three minutes and reserve the daily budget and any conversation cap before connecting. Allow once covers this window; Always covers this workspace until revoked. The provider’s bill cannot be read back.",
       "descriptionKey": "config.modelApiVoice.description",
       "type": "boolean",
       "default": true,
@@ -2952,6 +3017,50 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "text": {
+        "conditions": [{ "when": "hooks", "text": { "setting": "hooksMaxStopContinuations" } }]
+      },
+      "id": "museSpark.hooksMaxStopContinuations",
+      "name": "museSpark.hooksMaxStopContinuations",
+      "description": "How many times in a row Stop hooks may keep a finished turn going (1–8; Muse Code's own bound 8, the default). Past that the turn ends. Higher values are refused, so no workspace can raise it.",
+      "descriptionKey": "config.hooksMaxStopContinuations.description",
+      "type": "number",
+      "default": 8,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 8, "minimum": 1, "maximum": 8 }
+    },
+    {
+      "text": {
+        "conditions": [{ "when": "hooks", "text": { "setting": "hooksMaxRunningCommands" } }]
+      },
+      "id": "museSpark.hooksMaxRunningCommands",
+      "name": "museSpark.hooksMaxRunningCommands",
+      "description": "How many hook commands run at once (minimum 0). 0 starts them all at once, as Muse Code does.",
+      "descriptionKey": "config.hooksMaxRunningCommands.description",
+      "type": "number",
+      "default": 0,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 0, "minimum": 0 }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "sessionBoard&subagents", "text": { "setting": "subagentMaxConcurrent" } }
+        ]
+      },
+      "id": "museSpark.subagentMaxConcurrent",
+      "name": "museSpark.subagentMaxConcurrent",
+      "description": "How many subagents work at once (1–64, Muse Code's default 8). Later ones queue.",
+      "descriptionKey": "config.subagentMaxConcurrent.description",
+      "type": "number",
+      "default": 8,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 8, "minimum": 1, "maximum": 64 }
     },
     {
       "id": "museSpark.modelApiShellKeepsDirectory",
@@ -3093,7 +3202,7 @@
       },
       "id": "museSpark.modelApiSessionBudgetUsd",
       "name": "museSpark.modelApiSessionBudgetUsd",
-      "description": "Spend cap in US dollars for each Model API conversation; 0 means no cap. Shared durable reservations cover ordinary token requests and image fees before sending; a request that cannot fit what is left is not sent, and input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it.",
+      "description": "Spend cap in US dollars for each Model API conversation; 0 means no cap. Shared durable reservations cover ordinary token requests and image fees before sending; a request that cannot fit what is left is not sent, and input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it. Paid Muse Voice works on both backends in a local window with a stored Model API key; Muse Code requires explicit opt-in. Recordings stop at three minutes and reserve the daily budget and any conversation cap before connecting. Linux needs arecord or parec. Final reported seconds determine the estimate; the provider’s bill cannot be read back.",
       "descriptionKey": "config.modelApiSessionBudgetUsd.description",
       "type": "number",
       "default": 0,
@@ -3388,7 +3497,7 @@
     {
       "id": "museSpark.dictationEngine",
       "name": "museSpark.dictationEngine",
-      "description": "Dictation engine on Model API. Free OS recognizer is the default; choosing Muse Voice requires paid-use consent and verified budget admission. Muse Code’s explicit voice opt-in is unchanged.",
+      "description": "Dictation engine on Model API. Free dictation is the default; choosing Muse Voice requires paid-use consent and verified budget admission. Muse Code’s explicit voice opt-in is unchanged.",
       "descriptionKey": "config.dictationEngine.description",
       "type": "string",
       "default": "system",
@@ -3951,50 +4060,6 @@
       "schema": { "type": "boolean", "default": false }
     },
     {
-      "text": {
-        "conditions": [
-          { "when": "reportsNetwork&githubSignIn", "text": { "setting": "reports.network" } }
-        ]
-      },
-      "id": "museSpark.reports.network",
-      "name": "museSpark.reports.network",
-      "description": "Choose when reports may read GitHub. Terminal reports use the network only with --network.",
-      "descriptionKey": "config.reports.network.description",
-      "type": "string",
-      "default": "whenSignedIn",
-      "enum": ["whenSignedIn", "always", "off"],
-      "enumDescriptions": [
-        "Read GitHub while signed in to GitHub.",
-        "Allow network sources for reports.",
-        "Read local sources only."
-      ],
-      "enumDescriptionKeys": [
-        "config.reports.network.enumDescriptions.whenSignedIn",
-        "config.reports.network.enumDescriptions.always",
-        "config.reports.network.enumDescriptions.off"
-      ],
-      "enumTexts": {
-        "0": {
-          "conditions": [
-            {
-              "when": "reportsNetwork&githubSignIn",
-              "text": {
-                "fallbackKey": "config.reports.network.enumDescriptions.whenSignedIn",
-                "fallback": "Read GitHub while signed in to GitHub."
-              }
-            }
-          ]
-        }
-      },
-      "scope": "machine",
-      "refinements": [],
-      "schema": {
-        "type": "string",
-        "enum": ["whenSignedIn", "always", "off"],
-        "default": "whenSignedIn"
-      }
-    },
-    {
       "id": "museSpark.reports.keepHistory",
       "name": "museSpark.reports.keepHistory",
       "description": "Keep the newest 50 reports per kind on this machine for history and comparison.",
@@ -4067,6 +4132,17 @@
       "schema": { "type": "string", "enum": ["transcribe", "sendAudio"], "default": "transcribe" }
     },
     {
+      "id": "museSpark.mediaConverterPath",
+      "name": "museSpark.mediaConverterPath",
+      "description": "Absolute path to the ffmpeg this machine uses to convert attached audio and video for transcription. Empty by default: only documented install locations are used (Program Files and winget on Windows, Homebrew and MacPorts on macOS, /usr/bin and /usr/local/bin on Linux), never PATH. A path set here is the only candidate: it must pass the trusted-path check, or conversion is refused with the reason. Launcher shims are refused. Only this machine’s setting is used.",
+      "descriptionKey": "config.mediaConverterPath.description",
+      "type": "string",
+      "default": "",
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "string", "default": "", "maxLength": 4096 }
+    },
+    {
       "text": {
         "conditions": [
           {
@@ -4079,6 +4155,17 @@
       "name": "museSpark.vault.agentFence",
       "description": "Controls the credential fence for interactive Model API shell commands. Verification, schedules, workers and hooks remain fenced.",
       "descriptionKey": "config.vault.agentFence.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.linuxDictationModel",
+      "name": "museSpark.linuxDictationModel",
+      "description": "Enable free offline English dictation on local Linux x64/arm64. First use asks before downloading the 74 MiB model. Turning this off stops dictation and removes the model and partial download; turn it on and reload the window to enable it again. Windows/macOS are unchanged.",
+      "descriptionKey": "config.linuxDictationModel.description",
       "type": "boolean",
       "default": true,
       "scope": "machine",
@@ -4269,6 +4356,16 @@
       ]
     },
     {
+      "name": "playback",
+      "description": "Muse states its own understanding of the goal, from memory only, with no tools",
+      "descriptions": {
+        "museCode": { "ui": "playbackDetail" },
+        "modelApi": { "ui": "playbackDetail" }
+      },
+      "backends": ["museCode", "modelApi"],
+      "syntax": ["/playback"]
+    },
+    {
       "name": "legal",
       "description": "Scan the workspace for licensing, attribution and header findings",
       "descriptions": {
@@ -4413,6 +4510,22 @@
       "name": "providers list",
       "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
       "text": { "ui": "referenceProviders" }
+    },
+    {
+      "route": "openRouterConnect",
+      "name": "providers connect openrouter",
+      "description": "Connect your OpenRouter account and view the key’s usage, limit and remaining balance.",
+      "text": {
+        "conditions": [
+          { "when": "provider=openrouter", "text": { "ui": "providerOpenRouterServices" } }
+        ]
+      }
+    },
+    {
+      "route": "providerKeyUsage",
+      "name": "providers usage <id>",
+      "description": "API Key Usage",
+      "text": { "ui": "usageKeyUsage" }
     },
     {
       "route": "providersAdd",
@@ -4636,6 +4749,13 @@
     },
     {
       "route": "providersAdd",
+      "name": "providersAdd: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "providersAdd",
       "name": "providersAdd: --privacy <value>",
       "description": "--privacy: Any provider may be used, including ones that train on data.",
       "text": { "cli": "privacy" },
@@ -4822,6 +4942,13 @@
     },
     {
       "route": "serve",
+      "name": "serve: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "serve",
       "name": "serve: --privacy <value>",
       "description": "--privacy: Any provider may be used, including ones that train on data.",
       "text": { "cli": "privacy" },
@@ -4943,6 +5070,13 @@
     },
     {
       "route": "serve",
+      "name": "serve: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
       "name": "serve: --verbose",
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
@@ -5018,6 +5152,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": true, "refused": true }
+    },
+    {
+      "route": "login",
+      "name": "login: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "login",
@@ -5186,6 +5327,18 @@
     },
     {
       "route": "login",
+      "name": "login: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "login",
       "name": "login: --verbose",
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
@@ -5246,6 +5399,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": true, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "setup",
+      "name": "setup: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "setup",
@@ -5413,6 +5573,18 @@
     },
     {
       "route": "setup",
+      "name": "setup: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "setup",
       "name": "setup: --verbose",
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
@@ -5473,6 +5645,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": true, "refused": true }
+    },
+    {
+      "route": "authSet",
+      "name": "authSet: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "authSet",
@@ -5655,6 +5834,18 @@
     },
     {
       "route": "authSet",
+      "name": "authSet: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authSet",
       "name": "authSet: --verbose",
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
@@ -5720,6 +5911,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": true, "refused": true }
+    },
+    {
+      "route": "authStatus",
+      "name": "authStatus: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "authStatus",
@@ -5895,6 +6093,18 @@
     },
     {
       "route": "authStatus",
+      "name": "authStatus: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authStatus",
       "name": "authStatus: --verbose",
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
@@ -5960,6 +6170,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": true, "refused": true }
+    },
+    {
+      "route": "authClear",
+      "name": "authClear: --context-window <value>",
+      "description": "--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.",
+      "text": { "cli": "context-window" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
     {
       "route": "authClear",
@@ -6126,6 +6343,18 @@
       "name": "authClear: --image-generation",
       "description": "--image-generation               Offer paid image generation (Model API backend; its price is asked first)",
       "text": { "cli": "image-generation" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authClear",
+      "name": "authClear: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
       "contract": {
         "type": "boolean",
         "repeatable": false,

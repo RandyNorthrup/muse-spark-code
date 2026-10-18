@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { VAULT_PROTOCOL_VERSION, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
 import { vaultBrokerLockSchema } from '../../../shared/vaultProtocol'
 import { UnixVaultPrivateFiles, isVaultFileMissing, type VaultPrivateFilesPort } from './files'
-import { type VaultProcessIdentity } from './peer'
+import type { VaultProcessIdentity } from './peer'
 
 export interface VaultBrokerLocation {
   lock: ReturnType<typeof vaultBrokerLockSchema.parse>

@@ -122,6 +122,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'runtimeSubscriptionClient',
         side: ['acp', 'vscode'],
       },
+      { importer: 'src/runtime/main.ts', symbol: 'openRouterApi', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'probeProvider', side: ['acp'] },
     ],
   },
@@ -141,6 +142,29 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'CONVERSATION_GIT_BUNDLE_FILE',
         side: ['vscode'],
       },
+    ],
+  },
+  {
+    file: 'credentialLease.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
+      { importer: 'src/extension.ts', symbol: 'openUsagePage', side: ['vscode'] },
+      {
+        importer: 'src/host/models/credentialLeaseSecrets.ts',
+        symbol: 'guarded',
+        side: ['vscode'],
+      },
+      { importer: 'src/runtime/openRouterCommands.ts', symbol: 'transact', side: ['acp'] },
+      { importer: 'src/runtime/providerAuth.ts', symbol: 'recoverAccountJournal', side: ['acp'] },
+      { importer: 'src/runtime/providersCommands.ts', symbol: 'userFileIo', side: ['acp'] },
+    ],
+  },
+  {
+    file: 'dictation.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'DICTATION_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
   { file: 'estimateContracts.js', side: 'both', requestedBy: [] },
@@ -278,9 +302,14 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       {
         importer: 'src/host/media/recordingLatest.ts',
         symbol: 'createLinuxLatestPort',
-        side: ['vscode'],
+        side: ['acp', 'vscode'],
       },
     ],
+  },
+  {
+    file: 'mediaHost.js',
+    side: 'vscode',
+    requestedBy: [{ importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] }],
   },
   {
     file: 'modelApi.js',
@@ -344,7 +373,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'modelApiSessions.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
       {
         importer: 'src/shared/constants.ts',
@@ -383,6 +412,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'museCode.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'MUSE_CODE_BUNDLE_FILE',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
     file: 'museCodeReviewer.js',
     side: 'vscode',
     requestedBy: [
@@ -412,6 +452,29 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'planSnapshot.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'PLAN_SNAPSHOT_BUNDLE_FILE',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'playbookSchedulesInputs.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/host/reporting/reportPanelEntry.ts',
+        symbol: 'createReportingWindow',
+        side: ['vscode'],
+      },
+      { importer: 'src/runtime/main.ts', symbol: 'runtimeReports', side: ['acp'] },
+    ],
+  },
+  {
     file: 'pluginHooks.js',
     side: 'both',
     requestedBy: [
@@ -420,6 +483,37 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'ForeignHooks.preparePlugin',
         side: ['acp', 'vscode'],
       },
+    ],
+  },
+  {
+    file: 'productionAudio.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/host/backend/modelApiEntry.ts',
+        symbol: 'createModelApiHost',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'productionMedia.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'loadLastSessionUploads', side: ['vscode'] },
+      { importer: 'src/extension.ts', symbol: 'loadSessionUploads', side: ['vscode'] },
+      {
+        importer: 'src/host/backend/modelApiEntry.ts',
+        symbol: 'createModelApiHost',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/host/backend/productionAudioEntry.ts',
+        symbol: 'openLeased',
+        side: ['acp', 'vscode'],
+      },
+      { importer: 'src/runtime/backends.ts', symbol: 'modelApiManager', side: ['acp'] },
+      { importer: 'src/runtime/backends.ts', symbol: 'openUploadsLedger', side: ['acp'] },
     ],
   },
   {
@@ -521,6 +615,18 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'vscode',
     requestedBy: [{ importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] }],
   },
+  {
+    file: 'reportInputs.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/host/reporting/reportPanelEntry.ts',
+        symbol: 'createReportingWindow',
+        side: ['vscode'],
+      },
+      { importer: 'src/runtime/main.ts', symbol: 'runtimeReports', side: ['acp'] },
+    ],
+  },
   { file: 'resourceAdmission.js', side: 'both', requestedBy: [] },
   {
     file: 'resourceGovernor.js',
@@ -529,6 +635,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       {
         importer: 'src/core/resources/admission.ts',
         symbol: 'createHost',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/host/backend/productionAudioEntry.ts',
+        symbol: 'conversionBindings',
         side: ['acp', 'vscode'],
       },
       { importer: 'src/runtime/resources/load.ts', symbol: 'lazyRuntimeResources', side: ['acp'] },
@@ -552,6 +663,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       {
         importer: 'src/core/resources/launcher.ts',
         symbol: 'spawnResourceProcess',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/host/backend/productionAudioEntry.ts',
+        symbol: 'conversionBindings',
         side: ['acp', 'vscode'],
       },
     ],
@@ -596,6 +712,8 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'acp',
     requestedBy: [
       { importer: 'src/runtime/backends.ts', symbol: 'accountingEntry', side: ['acp'] },
+      { importer: 'src/runtime/backends.ts', symbol: 'createRuntimeBackend', side: ['acp'] },
+      { importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] },
     ],
   },
   {
@@ -616,6 +734,14 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'runtimeFor', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'serve', side: ['acp'] },
+    ],
+  },
+  {
+    file: 'runtimeMedia.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/runtime/backends.ts', symbol: 'createRuntimeBackend', side: ['acp'] },
+      { importer: 'src/runtime/exec/execFetch.ts', symbol: 'transport', side: ['acp'] },
     ],
   },
   {
@@ -802,7 +928,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/extension.ts', symbol: 'activate', side: ['vscode'] },
       { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] },
-      { importer: 'src/runtime/main.ts', symbol: 'serve', side: ['acp'] },
+      { importer: 'src/runtime/main.ts', symbol: 'runtimeRecording', side: ['acp'] },
       {
         importer: 'src/runtime/usage/usageAdapter.ts',
         symbol: 'lazyUsageAdapter',
@@ -813,22 +939,47 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   { file: 'validation.js', side: 'both', requestedBy: [] },
   {
     file: 'vault.js',
-    side: 'both',
+    side: 'vscode',
     requestedBy: [
-      {
-        importer: 'src/runtime/vault/vaultRuntime.ts',
-        symbol: 'runtimeVaultLoader',
-        side: ['acp'],
-      },
       { importer: 'src/shared/constants.ts', symbol: 'VAULT_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
   { file: 'vaultBoundaries.js', side: 'both', requestedBy: [] },
   {
+    file: 'vaultRuntime.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'VAULT_RUNTIME_BUNDLE_FILE', side: ['acp'] },
+    ],
+  },
+  {
     file: 'voice.js',
     side: 'vscode',
     requestedBy: [
       { importer: 'src/shared/constants.ts', symbol: 'VOICE_BUNDLE_FILE', side: ['vscode'] },
+    ],
+  },
+  {
+    file: 'voiceCompanion.js',
+    side: 'acp',
+    requestedBy: [
+      {
+        importer: 'src/runtime/companion/voiceEntry.ts',
+        symbol: 'openVoiceCompanion',
+        side: ['acp'],
+      },
+      {
+        importer: 'src/runtime/companion/voiceLoader.ts',
+        symbol: 'voiceCompanionLoader',
+        side: ['acp'],
+      },
+    ],
+  },
+  {
+    file: 'voiceLinux.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'VOICE_LINUX_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
   {
@@ -884,6 +1035,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  { file: 'webview/voiceCompanion.js', side: 'unreached', requestedBy: [] },
   {
     file: 'webview/whatsNew.js',
     side: 'vscode',

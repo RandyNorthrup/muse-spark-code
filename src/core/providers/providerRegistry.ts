@@ -10,6 +10,7 @@ import {
   type ResolvedModel,
 } from '../backends/modelapi/modelPolicy'
 import { TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
+import type { ModelCapabilityRecord } from './capabilityRecord'
 import { parseModelRef, sanitizeModelLabel } from './modelRef'
 import { reserveRequestAmount, settleUsageAmount, type ModelPricing } from './priceCard'
 
@@ -18,6 +19,8 @@ export interface RegistryModel {
   readonly origin: string
   readonly evidence: ModelPolicyEvidence
   readonly pricing: ModelPricing
+  /** The joined capability record, when the owning lane resolved one. */
+  readonly record?: ModelCapabilityRecord | undefined
   readonly displayLabel?: string | undefined
   readonly providerLabel?: string | undefined
   readonly contextTokens?: number | undefined
@@ -83,6 +86,9 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
         origin: model.origin,
         client,
         policy: modelPolicyFor(ref, { ...model.evidence, pricing }),
+        // The send path sizes fresh media against the model's own caps
+        // from this record; absent keeps today's provider-identity gating.
+        ...(model.record !== undefined && { capabilityRecord: model.record }),
         price: {
           reserve(usage) {
             if (pricing.kind === 'local' || pricing.kind === 'plan') return Usd.from(0).toAmount()

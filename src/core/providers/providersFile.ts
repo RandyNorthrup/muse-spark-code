@@ -22,6 +22,7 @@ import {
   outputTokenMinimumMessage,
   providerOutputMinimum,
   openRouterRoutingSchema,
+  pruneModelLimits,
 } from '../../shared/providerRouting'
 import { isProviderId, parseModelRef } from './modelRef'
 import type { PriceCard } from './priceCard'
@@ -84,6 +85,12 @@ export const providerEntrySchema = z
     routing: z.optional(openRouterRoutingSchema),
     // The context each Ollama model runs with (only on an `ollama` entry).
     numCtx: z.optional(z.record(z.string(), z.number())),
+    // The deployment name Azure sends as `model` (only on an `azure`
+    // entry); capability records resolve by the model family in `models`.
+    // Optional in the file: entries saved before the wizard persisted it
+    // (and terminal adds, which have no deployment option) must still
+    // load; `wireModelFor` requires it at send.
+    deployment: z.optional(z.string()),
     // Set once the user answers the private-network question for this entry.
     privateNetwork: z.optional(z.boolean()),
   })
@@ -243,13 +250,25 @@ export async function readProvidersFile(
     return { ok: false, reason: 'unparseable', detail: filePath }
   }
   const parsed = z.safeParse(providersFileSchema, value)
-  return parsed.success
-    ? { ok: true, file: parsed.data }
-    : {
-        ok: false,
-        reason: 'invalid',
-        detail: parsed.error.issues[0]?.message ?? UI_TEXT.actionFailed,
-      }
+  if (!parsed.success)
+    return {
+      ok: false,
+      reason: 'invalid',
+      detail: parsed.error.issues[0]?.message ?? UI_TEXT.actionFailed,
+    }
+  // C-M95-4 R5: a load prunes limits for models that are not listed,
+  // for every reader of this file: the panel, the wizard, the CLI, ACP,
+  // the registry.
+  return {
+    ok: true,
+    file: {
+      ...parsed.data,
+      providers: parsed.data.providers.map((entry) => ({
+        ...entry,
+        modelLimits: pruneModelLimits(entry.models, entry.modelLimits),
+      })),
+    },
+  }
 }
 
 export type ProvidersFileWrite =

@@ -7,10 +7,15 @@ import {
   type VaultClockPort,
   type VaultApprovalRequest,
   type VaultAuditRecord,
+  type VaultItem,
+  type VaultItemMetadata,
 } from '../../../shared/vault'
 import {
   type vaultPrivateReadSchema,
   type VaultAuthenticatedPeer,
+  type VaultBrokerResponse,
+  type VaultBrokerSnapshot,
+  type VaultBrokerEvent,
 } from '../../../shared/vaultProtocol'
 import { type VaultCeiling } from './policy'
 
@@ -95,6 +100,68 @@ export interface VaultBrokerDeps {
   onRevoked(requesterId: string, grantId: string | null): void
   /** T binds the real scrub service; every persisted target passes through it. */
   scrub(text: string): Promise<string>
+}
+
+/**
+ * The OS credential store (Secret Service, Keychain, Credential Manager or
+ * DPAPI) cannot be used here. Slots and the anchor throw it with no native
+ * text; every surface shows its fixed, localized repair (RVCM1091B 4).
+ */
+export class VaultStoreUnavailableError extends Error {
+  constructor() {
+    super('storeUnavailable')
+    this.name = 'VaultStoreUnavailableError'
+  }
+}
+/** Value-free: the receipt for Keep/Delete and the imported items' metadata. */
+export interface VaultImportReport {
+  receipt: string
+  items: readonly VaultItemMetadata[]
+}
+/** Why a v2 management call was refused; the channel answers `refused` with it. */
+export type VaultManagementRefusal = Extract<
+  VaultBrokerResponse['response'],
+  { kind: 'refused' }
+>['reason']
+export class VaultManagementError extends Error {
+  constructor(readonly reason: VaultManagementRefusal) {
+    super(reason)
+    this.name = 'VaultManagementError'
+  }
+}
+/**
+ * Protocol v2's management side (lead decision 2026-10-10), served only on
+ * manage connections. The broker process binds it to the store, the slots and
+ * the setup flow; values arrive and leave only through private frames.
+ */
+export interface VaultManagementPort {
+  snapshot(): Promise<VaultBrokerSnapshot>
+  /** Takes ownership of the item's material and erases it, committed or not. */
+  add(item: VaultItem): Promise<void>
+  edit(item: VaultItem): Promise<void>
+  editMetadata(metadata: VaultItemMetadata): Promise<void>
+  remove(itemId: string): Promise<void>
+  /**
+   * Imports one discovered credential file as a single all-or-none batch.
+   * `isCurrent` is false once the requester cancelled (its connection
+   * closed); it is checked at the commit, so a cancelled import writes nothing.
+   */
+  importFile(path: string, isCurrent: () => boolean): Promise<VaultImportReport>
+  keepImport(receipt: string): Promise<void>
+  deleteImport(receipt: string, isCurrent: () => boolean): Promise<void>
+  /** Reset Vault step 1: only when the anchored vault is lost. */
+  resetBegin(): Promise<{ resetId: string; word: string }>
+  /** Step 2: the typed word; writes the audit line, removes the files, clears the anchor. */
+  resetConfirm(resetId: string, word: string): Promise<void>
+  publicKey(itemId: string): Promise<string>
+  /** Generates the vault key and recovery code; nothing is written until confirmSetup. */
+  setup(): Promise<{ setupId: string; code: Buffer }>
+  confirmSetup(setupId: string): Promise<void>
+  cancelSetup(setupId: string): Promise<void>
+  /** Unlocks through the recovery slot; the caller erases `code` afterwards. */
+  recover(code: Uint8Array): Promise<void>
+  /** Lock, revoke, approval and committed-change events for `watch` connections. */
+  subscribe(listener: (event: VaultBrokerEvent) => void): () => void
 }
 
 export interface VaultConnectionIdentity {

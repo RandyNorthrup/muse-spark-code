@@ -8,7 +8,7 @@
 // compensate the secret change; crash/rollback limits are recorded in PLAN §9.
 
 import { lookup } from 'node:dns/promises'
-import { mkdir, rmdir } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import { isIP } from 'node:net'
 import * as z from 'zod/mini'
 import path from 'node:path'
@@ -36,11 +36,11 @@ import {
   HTTP_STATUS,
   PROVIDER_PROBE_MODEL_IDS_MAX,
   PROVIDER_PROBE_TIMEOUT_MS,
-  PROVIDERS_CONFIG_DIR_NAME,
-  PROVIDERS_FILE_NAME,
   UI_TEXT,
 } from '../shared/constants'
+import { credentialLockDir, providerConfigFilePath } from '../core/credentialPaths'
 import { fill, plural, uiLocale } from '../shared/l10n/text'
+import { modelLimitsSchema } from '../shared/providerRouting'
 import type { ProvidersAddOptions } from './cliArgs'
 import {
   formatStoredProviderSecret,
@@ -65,13 +65,10 @@ export function providersFilePath(input: {
   readonly homeDir: string
   readonly xdgConfigHome: string | undefined
 }): string {
-  const base = path.join(
-    input.xdgConfigHome ?? path.join(input.homeDir, '.config'),
-    PROVIDERS_CONFIG_DIR_NAME,
-  )
-  // Windows joins with `\`; join keeps one dialect per platform, as the
-  // skill and memory roots do.
-  return path.join(base, PROVIDERS_FILE_NAME)
+  // One implementation in `core/credentialPaths`: the terminal and the
+  // panel derive the same lease directory, so one credential lease excludes
+  // writers on either side.
+  return providerConfigFilePath(input)
 }
 
 /** DNS answers for an endpoint name; an IP literal is its own answer. */
@@ -119,13 +116,13 @@ export function userFileIo(filePath: string): {
     },
     withUserFileLock: async (operation) => {
       await mkdir(path.dirname(filePath), { recursive: true })
-      const lock = `${filePath}.lock`
-      await mkdir(lock)
-      try {
-        return await operation()
-      } finally {
-        await rmdir(lock)
-      }
+      // The shared dead-owner acquisition (the credential lease's bundle,
+      // loaded on the first guarded write): a lock whose owner is proven
+      // gone is reclaimed instead of failing with EEXIST on every later
+      // command; a live owner's lock still refuses with the busy error its
+      // callers already report.
+      const { withCredentialLock } = await import('../core/credentialLeaseEntry')
+      return await withCredentialLock(credentialLockDir(filePath), operation)
     },
   }
 }
@@ -167,6 +164,7 @@ async function commitProviderChange(
   change: (file: ProvidersFile) => ProvidersFile | undefined,
   isRemoving: boolean,
   secret?: string,
+  expectedSecret?: string,
 ): Promise<number> {
   const commit = async () => {
     const loaded = fileOrError(await deps.readUserFile())
@@ -180,7 +178,10 @@ async function commitProviderChange(
           provider: id,
         }),
       )
-    const account = isRemoving || secret !== undefined ? providerSecretAccount(id) : undefined
+    const account =
+      isRemoving || secret !== undefined || expectedSecret !== undefined
+        ? providerSecretAccount(id)
+        : undefined
     let previous: string | undefined
     if (account !== undefined) {
       try {
@@ -192,8 +193,12 @@ async function commitProviderChange(
         )
       }
     }
+    if (expectedSecret !== undefined && previous !== expectedSecret)
+      return failed(deps, UI_TEXT.providerEditConflict)
     const canRestore = async () => {
-      if (account === undefined) return true
+      // A borrowed credential is never written or restored: another actor
+      // may rotate/remove it even while a configuration write is failing.
+      if (account === undefined || (!isRemoving && secret === undefined)) return true
       try {
         if (previous === undefined) await deps.secrets.delete(account)
         else await deps.secrets.store(account, previous)
@@ -547,7 +552,7 @@ async function checkAddAddress(
     ok: true,
     origin: verdict.origin,
     address:
-      preset.id === 'custom'
+      preset.id === 'custom' || preset.origin.kind === 'azure-resource'
         ? `${verdict.origin}${url.pathname.replace(/\/+$/u, '')}`
         : verdict.origin,
     privateNetwork: verdict.kind === 'confirm-private',
@@ -562,6 +567,16 @@ export async function providersAdd(
   const preset = presetById(options.preset)
   if (preset === undefined) {
     return failed(deps, fill(UI_TEXT.providerUnknown, { provider: options.preset }))
+  }
+  if (
+    options.contextWindow !== undefined &&
+    (preset.category !== 'local' ||
+      !modelLimitsSchema.shape.contextTokens.safeParse(options.contextWindow).success)
+  ) {
+    return failed(deps, UI_TEXT.localContextWindowInvalid)
+  }
+  if (preset.category === 'local' && options.contextWindow === undefined) {
+    return failed(deps, fill(UI_TEXT.localModelWindowUnknown, { model: options.models.join(', ') }))
   }
   if (preset.id === 'custom' && options.as === undefined) {
     return failed(deps, fill(UI_TEXT.providerUnknown, { provider: 'custom (pass --as <id>)' }))
@@ -620,11 +635,29 @@ export async function providersAdd(
     return failed(deps, state.error)
   }
   let key: string | undefined
+  let reusedSecret: string | undefined
   if (preset.auth === 'apiKey') {
-    if (!options.keyFromStdin) {
-      return failed(deps, fill(UI_TEXT.providerKeyNeeded, { provider: id }))
+    let typed: string
+    if (options.keyFromStdin) {
+      typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: id }))
+    } else {
+      if (preset.id !== 'openrouter')
+        return failed(deps, fill(UI_TEXT.providerKeyNeeded, { provider: id }))
+      const account = providerSecretAccount(id)
+      const stored = account === undefined ? undefined : await deps.secrets.get(account)
+      let value: unknown
+      try {
+        value = stored === undefined ? undefined : JSON.parse(stored)
+      } catch {
+        return failed(deps, fill(UI_TEXT.providerSecretUnreadable, { provider: id }))
+      }
+      const parsed = parseStoredProviderSecret(value)
+      if (parsed === undefined || !isCredentialBound(parsed.record, address.origin)) {
+        return failed(deps, fill(UI_TEXT.providerKeyNeeded, { provider: id }))
+      }
+      typed = parsed.key
+      reusedSecret = stored
     }
-    const typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: id }))
     if (typed.trim() === '') {
       return failed(deps, UI_TEXT.providerKeyNotStored)
     }
@@ -715,6 +748,7 @@ export async function providersAdd(
       state.error ?? fill(UI_TEXT.providerTestFailed, { detail: blockers[0] ?? 'confirm' }),
     )
   }
+  const contextWindow = options.contextWindow
   const entry: ProviderEntry = {
     id,
     preset: preset.id,
@@ -722,6 +756,14 @@ export async function providersAdd(
     ...(preset.id === 'custom' && options.format !== undefined && { format: options.format }),
     auth: preset.auth,
     models: [...models],
+    ...(contextWindow !== undefined && {
+      modelLimits: Object.fromEntries(
+        models.map((model) => [
+          model,
+          { contextTokens: contextWindow, outputTokens: contextWindow },
+        ]),
+      ),
+    }),
     ...(preset.id === 'openrouter' && {
       routing: { privacy: options.privacy ?? 'zdr', allowFallbacks: true },
     }),
@@ -740,12 +782,13 @@ export async function providersAdd(
       }
     },
     false,
-    key === undefined
+    key === undefined || reusedSecret !== undefined
       ? undefined
       : formatStoredProviderSecret(
           { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin: address.origin },
           key,
         ),
+    reusedSecret,
   )
   if (committed !== EXIT_OK) return committed
   const summary = wizardSummary(state)
@@ -881,11 +924,11 @@ export async function keyTargetFor(
   | { readonly ok: false; readonly reason: string }
 > {
   const unknown = fill(UI_TEXT.providerUnknown, { provider: providerId })
-  const read = await readUserFile()
-  if (!read.ok) {
-    return { ok: false, reason: read.reason === 'missing' ? unknown : read.detail }
+  const loaded = fileOrError(await readUserFile())
+  if ('reason' in loaded) {
+    return { ok: false, reason: loaded.reason }
   }
-  const entry = read.file.providers.find((candidate) => candidate.id === providerId)
+  const entry = loaded.file.providers.find((candidate) => candidate.id === providerId)
   if (entry !== undefined) {
     const preset = presetById(entry.preset)
     if (preset === undefined) {

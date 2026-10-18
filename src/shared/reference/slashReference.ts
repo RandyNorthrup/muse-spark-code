@@ -100,6 +100,10 @@ export const SLASH_REFERENCE = {
     syntax: ['/compact'],
     descriptions: { museCode: { ui: 'compactDetail' }, modelApi: { ui: 'compactDetail' } },
   },
+  playback: {
+    syntax: ['/playback'],
+    descriptions: { museCode: { ui: 'playbackDetail' }, modelApi: { ui: 'playbackDetail' } },
+  },
   handoff: {
     syntax: ['/handoff [goal]'],
     descriptions: { museCode: { ui: 'handoffDetail' }, modelApi: { ui: 'handoffDetail' } },

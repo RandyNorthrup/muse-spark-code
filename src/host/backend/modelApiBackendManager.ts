@@ -107,6 +107,21 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
    */
   readonly store: SessionStore | (() => SessionStore) | undefined
   readonly scheduleStore?: ScheduleStore | undefined
+  /** Account upload ledger and calibration observations (MONEY017D, D85.2/D85.6). */
+  readonly uploadLedgerDir?: string | undefined
+  /** `museSpark.mediaUploadExpiryDays`, read per upload (M105 lane F). */
+  readonly uploadExpiryDays?: ModelApiHostDeps['uploadExpiryDays']
+  /** The window's attached-media registry (M105 lane V): the attach port writes it. */
+  readonly attachedMedia?: ModelApiHostDeps['attachedMedia']
+  /** D78's exact daily reservation for a paid extra outside a request (lane V seam 4). */
+  readonly reservePaidExtra?: ModelApiHostDeps['reservePaidExtra']
+  /** The machine-scoped converter path, read per use (lane V seam 3B). */
+  readonly mediaConverterPath?: ModelApiHostDeps['mediaConverterPath']
+  readonly mediaAudioAction?: ModelApiHostDeps['mediaAudioAction']
+  /** Windows: the converter's job launcher (lanes V and VB). */
+  readonly mediaJobExecutable?: ModelApiHostDeps['mediaJobExecutable']
+  /** The host's private media root (lane VB). */
+  readonly mediaPrivateRoot?: ModelApiHostDeps['mediaPrivateRoot']
   /** The git facts for the prompt's environment section (D15). */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   /** The same facts for a best-of-N worktree (M77): an attempt's own branch. */
@@ -120,6 +135,9 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly strictTools?: ModelApiHostDeps['strictTools']
   readonly parallelReads?: ModelApiHostDeps['parallelReads']
   readonly webSearchMaxPerRequest?: ModelApiHostDeps['webSearchMaxPerRequest']
+  readonly hookMaxStopContinuations?: ModelApiHostDeps['hookMaxStopContinuations']
+  readonly hookMaxRunningCommands?: ModelApiHostDeps['hookMaxRunningCommands']
+  readonly subagentMaxConcurrent?: ModelApiHostDeps['subagentMaxConcurrent']
   readonly modelFacts?: ModelApiHostDeps['modelFacts']
   readonly modelCapabilities?: ModelApiHostDeps['modelCapabilities']
   readonly argumentPreviewCapabilities?: ModelApiHostDeps['argumentPreviewCapabilities']
@@ -374,6 +392,28 @@ export class ModelApiBackendManager {
         confirmContributorModel: this.deps.confirmContributorModel,
         store: variant.store,
         scheduleStore: variant.scheduleStore,
+        ...(this.deps.uploadLedgerDir !== undefined && {
+          uploadLedgerDir: this.deps.uploadLedgerDir,
+        }),
+        ...(this.deps.uploadExpiryDays !== undefined && {
+          uploadExpiryDays: this.deps.uploadExpiryDays,
+        }),
+        ...(this.deps.attachedMedia !== undefined && { attachedMedia: this.deps.attachedMedia }),
+        ...(this.deps.reservePaidExtra !== undefined && {
+          reservePaidExtra: this.deps.reservePaidExtra,
+        }),
+        ...(this.deps.mediaConverterPath !== undefined && {
+          mediaConverterPath: this.deps.mediaConverterPath,
+        }),
+        ...(this.deps.mediaAudioAction !== undefined && {
+          mediaAudioAction: this.deps.mediaAudioAction,
+        }),
+        ...(this.deps.mediaJobExecutable !== undefined && {
+          mediaJobExecutable: this.deps.mediaJobExecutable,
+        }),
+        ...(this.deps.mediaPrivateRoot !== undefined && {
+          mediaPrivateRoot: this.deps.mediaPrivateRoot,
+        }),
         getAccountId: async () => {
           if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()
           const key = await this.deps.getApiKey()
@@ -398,6 +438,15 @@ export class ModelApiBackendManager {
         ...(this.deps.parallelReads !== undefined && { parallelReads: this.deps.parallelReads }),
         ...(this.deps.webSearchMaxPerRequest !== undefined && {
           webSearchMaxPerRequest: this.deps.webSearchMaxPerRequest,
+        }),
+        ...(this.deps.hookMaxStopContinuations !== undefined && {
+          hookMaxStopContinuations: this.deps.hookMaxStopContinuations,
+        }),
+        ...(this.deps.hookMaxRunningCommands !== undefined && {
+          hookMaxRunningCommands: this.deps.hookMaxRunningCommands,
+        }),
+        ...(this.deps.subagentMaxConcurrent !== undefined && {
+          subagentMaxConcurrent: this.deps.subagentMaxConcurrent,
         }),
         ...(this.deps.modelFacts !== undefined && { modelFacts: this.deps.modelFacts }),
         ...(this.deps.modelCapabilities !== undefined && {

@@ -30,15 +30,18 @@ import process from 'node:process'
 import { promisify } from 'node:util'
 import { renderPackageReadme } from './check-badges.mjs'
 import {
+  CI_LAUNCHER_SOURCES,
   DARWIN_HELPER,
   JOB_SOURCES,
   LINUX_HELPERS,
   RUNNER_HELPERS,
+  VOICE_WINDOWS_HELPERS,
 } from './lib/acpNativeSources.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
 import { ACP_BUNDLES as BUNDLES, acpUsageAssets } from './lib/acpBundles.mjs'
 
 const STAGE = path.join('dist', 'acp-package')
+
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const SCHEMAS = [
   'exec-result-v1.schema.json',
@@ -87,7 +90,11 @@ const NOTICES = 'THIRD_PARTY_NOTICES.txt'
 for (const helper of LINUX_HELPERS)
   if (!existsSync(helper) || !statSync(helper).isFile())
     throw new Error(`Required Linux created-path helper is missing: ${helper}`)
-const pageAssets = usageAssets()
+const pageAssets = [
+  ...usageAssets(),
+  'dist/webview/voiceCompanion.js',
+  'dist/webview/voiceCompanion.css',
+]
 // Every installed display language needs the usage family too (lane L).
 for (const table of readdirSync('l10n')) {
   if (!/^ui\..+\.json$/u.test(table)) continue
@@ -114,12 +121,15 @@ for (const bundle of BUNDLES) {
   copyFileSync(path.join('dist', bundle), path.join(STAGE, 'dist', bundle))
 }
 cpSync('dist/legal-data', path.join(STAGE, 'dist', 'legal-data'), { recursive: true })
+for (const source of CI_LAUNCHER_SOURCES) {
+  cpSync(source, path.join(STAGE, 'ci', path.basename(source)), { recursive: true })
+}
 for (const source of pageAssets) {
   const target = path.join(STAGE, source)
   mkdirSync(path.dirname(target), { recursive: true })
   copyFileSync(source, target)
 }
-for (const source of [...JOB_SOURCES, DARWIN_HELPER, ...LINUX_HELPERS]) {
+for (const source of [...JOB_SOURCES, DARWIN_HELPER, ...LINUX_HELPERS, ...VOICE_WINDOWS_HELPERS]) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
 }
@@ -196,6 +206,7 @@ const agentManifest = {
   ],
   bin: { [PACKAGE_NAME]: 'dist/acp.js' },
   files: [
+    'ci',
     'dist',
     'design',
     'native',

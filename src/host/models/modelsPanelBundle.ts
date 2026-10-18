@@ -57,6 +57,7 @@ export async function recoverProviderRemovals(
 /** The panel bundle's one export. */
 export interface ModelsPanelBundle {
   readonly createModelsPanelFeatures: typeof ModelsPanelEntry.createModelsPanelFeatures
+  readonly credentialLeaseSecrets: typeof ModelsPanelEntry.credentialLeaseSecrets
   readonly setComposerModelConfirmed?: typeof ModelsPanelEntry.setComposerModelConfirmed
   readonly publishProviderSetup?: typeof ModelsPanelEntry.publishProviderSetup
 }

@@ -80,6 +80,7 @@ import {
   MODEL_API_PRICES_PER_MILLION,
   TOKENS_PER_MILLION,
   SETTING_DEFAULTS,
+  type MEDIA_AUDIO_ACTION_OPTIONS,
   AUTH_REQUIRED_ERROR_KIND,
   CHATGPT_PLAN_LIMIT_ERROR_KIND,
   AUTO_REVIEW_ROW_TOOL,
@@ -110,6 +111,7 @@ import {
   GOAL_STATUS,
   type GoalCommandVerb,
   HOOK_MAX_STOP_CONTINUATIONS,
+  HOOK_MAX_TASK_REFUSALS,
   HOOK_MODEL_READ_TOOLS,
   HOOK_NOTIFICATION_DELAY_MS,
   HOOK_ON_FAILURE_MAX_DEPTH,
@@ -170,6 +172,7 @@ import {
   SUBAGENT_TASK_MAX_REQUESTS,
   SUBAGENT_WAIT_DEFAULT_MS,
   type SubagentAction,
+  TEAMMATE_MAX_IDLE_KEEPS,
   THEN_RUN_ARGUMENT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
@@ -255,8 +258,7 @@ import {
   skillBodyForModel,
 } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
-import type { CoreLogger } from '../../logging'
-import { wireWordForLog } from '../../logging'
+import { wireWordForLog, type CoreLogger } from '../../logging'
 import type { ModelRow } from '../../providers/modelFilters'
 import { textFileInput } from '../../textAttachment'
 import { withDeadline } from '../../timeouts'
@@ -408,6 +410,12 @@ import {
   reviewerInstructionsFor,
   reviewerToolRefusal,
 } from './reviewer'
+import {
+  checkPlaybackMarker,
+  ensurePlaybackMarker,
+  playbackInstructionsFor,
+  playbackToolRefusal,
+} from './playback'
 import { MediaBudget } from './mediaBudget'
 import { classifyContextOverflow } from '../../context/overflow'
 import {
@@ -426,7 +434,9 @@ import type {
   ContextOverflowKind,
 } from '../../providers/overflow'
 import type { MediaRequestAccounting } from '../../media/mediaCost'
-import type { MediaReplayPort } from '../../media/replayMedia'
+import type { MediaReplayPort, MediaReplaySession } from '../../media/replayMedia'
+import type { AttachedMediaPort, MediaClaim } from '../../media/attachedMedia'
+import type { ReservePaidExtra } from '../../voice/voiceBatchSeams'
 import type { UploadedMediaRef } from '../../../shared/media'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
 import {
@@ -619,6 +629,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
     readonly modelId: string
     readonly parts: readonly TurnPart[]
     readonly signal: AbortSignal
+    /** The model revision the turn began on; checked before any paid dispatch. */
+    readonly assertCurrent: () => void
   }) => Promise<PreparedAudioMessage | undefined>
   /** Trusted context adapters (issues, external agents, devices), never tool trust claims. */
   readonly vaultContextProvenance?: (sessionId: string) => VaultTaint
@@ -751,6 +763,21 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
     | undefined
   /** The configured bound is captured once for the session (D86.1). */
   readonly webSearchMaxPerRequest?: () => number
+  /**
+   * Stop-hook continuations in a row (M127, Muse Code's default 8):
+   * `museSpark.hooksMaxStopContinuations`, captured once for the session.
+   */
+  readonly hookMaxStopContinuations?: () => number
+  /**
+   * Running hook commands at once, 0 for all at once as Muse Code does
+   * (M127): `museSpark.hooksMaxRunningCommands`, read per dispatch.
+   */
+  readonly hookMaxRunningCommands?: () => number
+  /**
+   * Concurrent subagents (M127, Muse Code's 1–64 range, default 8):
+   * `museSpark.subagentMaxConcurrent`, captured once for the session.
+   */
+  readonly subagentMaxConcurrent?: () => number
   /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
   readonly showReplyUsage: () => boolean
   /** M106 L1: selected M95 record projection; absent/unknown leaves today's stream unchanged. */
@@ -790,7 +817,51 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   /** A smaller replay cap for focused media-budget verification. */
   readonly mediaBudgetMaxEncodedChars?: number
   /** W installs the portable lazy media implementation; absent preserves existing request bytes. */
-  readonly createMediaReplay?: (sessionId: string) => MediaReplayPort
+  readonly createMediaReplay?: (sessionId: string, session: MediaReplaySession) => MediaReplayPort
+  /**
+   * Where the production replay keeps its upload ledger and local
+   * calibration observations (MONEY017D, D85.2/D85.6). The bundle builds
+   * `createMediaReplay` from this; absent keeps the established refusal.
+   * VS Code supplies its global storage, the runtime its agent data folder.
+   */
+  readonly uploadLedgerDir?: string | undefined
+  /**
+   * `museSpark.mediaUploadExpiryDays` (the runtime's default), read per
+   * upload; absent keeps the 7-day default.
+   */
+  readonly uploadExpiryDays?: (() => number) | undefined
+  /**
+   * The host's attached-media registry (M105 lane V): the attach port writes
+   * video and audio `media` parts, the production replay resolves them to
+   * their records and approved sources. Absent: a `media` part refuses.
+   */
+  readonly attachedMedia?: AttachedMediaPort | undefined
+  /**
+   * D78's shared daily ledger, reserving an exact amount for a paid extra
+   * billed outside a Responses request: Muse Voice's batch transcription
+   * (lane V seam 4). VS Code and the runtime bind their own daily ledgers;
+   * absent, such an extra refuses.
+   */
+  readonly reservePaidExtra?: ReservePaidExtra | undefined
+  /**
+   * The machine-scoped converter path (`museSpark.mediaConverterPath`, the
+   * runtime's `--media-converter`), read per use; never a workspace value.
+   * Empty or absent: documented installs only (lane V seam 3B).
+   */
+  readonly mediaConverterPath?: (() => string | undefined) | undefined
+  readonly mediaAudioAction?: (() => (typeof MEDIA_AUDIO_ACTION_OPTIONS)[number]) | undefined
+  /**
+   * Windows: M50's kill-on-close job launcher, prepared on first use, that
+   * runs the converter under a kernel memory cap (lanes V and VB). Absent or
+   * undefined, Windows conversion refuses; never an unbounded launch.
+   */
+  readonly mediaJobExecutable?: (() => Promise<string | undefined>) | undefined
+  /**
+   * The host's private media root in its own storage (lane VB): opened and
+   * verified once, each conversion's owner-only folder made inside it.
+   * Absent, conversion refuses; never a shared temporary folder.
+   */
+  readonly mediaPrivateRoot?: string | undefined
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
   readonly scheduleStore?: ScheduleStore | undefined
   /** SHA-256 digest of the current SecretStorage key, never its plaintext. */
@@ -1101,6 +1172,10 @@ interface QueuedTurn {
   readonly goalCommandRevision?: number
   /** A `/review` (M70): the turn runs as the Reviewer, its prompt and read-only tools. */
   readonly isReview?: boolean
+  /** A `/playback` (D203): the turn answers from working memory, with no tools. */
+  readonly isPlayback?: boolean
+  /** Its attached media, held from acceptance (RVMEDIAV2): the bound never evicts it. */
+  readonly media?: MediaClaim | undefined
 }
 
 // MSP's words for a goal refusal (captured live 2026-09-25), in the error's text.
@@ -1133,6 +1208,8 @@ export interface ActiveTurn {
   pendingUserMessageId?: string | undefined
   readonly abort: AbortController
   readonly inputParts: TurnPart[]
+  /** The attached media this turn carries, released when it ends (RVMEDIAV 7). */
+  readonly mediaClaims: (MediaClaim | undefined)[]
   /** In-memory request choice, never the session's persisted model setting. */
   audioMessage?: PreparedAudioMessage
   confirmedRequest?: ConfirmedModelRequest
@@ -1141,6 +1218,8 @@ export interface ActiveTurn {
     readonly parts: readonly TurnPart[]
     readonly userMessageId: string
     readonly scheduleRun?: UnattendedRun
+    /** Held since the steer was accepted; in flight once a request takes it. */
+    readonly media?: MediaClaim | undefined
   }[]
   /** Named text accepted for this turn, including steers already drained into replay. */
   acceptedTextAttachmentBytes: number
@@ -1151,6 +1230,14 @@ export interface ActiveTurn {
   isWebSearchAllowed: boolean
   /** Run as the Reviewer (M70): its prompt, and only the tools that read. */
   readonly isReview: boolean
+  /** A playback turn (D203): its prompt, and no tools at all. */
+  readonly isPlayback: boolean
+  /**
+   * The playback marker is ensured on the turn's first text (D203): set once
+   * the streamed or stored reply is known to open with it, so later messages
+   * of the turn flow untouched.
+   */
+  playbackMarkerEnsured?: boolean
   /** Whether it is recorded (M86), and what its tools then write through; set once admitted. */
   checkpoint?: TurnCheckpoint | undefined
   /** It started a process, or one of the conversation's ran in the background (M86, spec 8). */
@@ -1641,6 +1728,31 @@ class HookCancelledError extends Error {
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+// Incomplete reasons the wire may carry, as the log names them (RVM105B
+// P2-1): the provider's free text never reaches the log. The Responses API
+// documents `max_output_tokens` and `content_filter`; the bundled codecs map
+// their own cut-short stops to the rest. Anything else is `other`, and a
+// missing reason stays `no reason`. The raw reason is used only in
+// model-visible skip text and exec records; the turn shows its partial text.
+// Only the log uses these words.
+const INCOMPLETE_REASONS_FOR_LOG: ReadonlySet<string> = new Set([
+  'max_output_tokens',
+  'content_filter',
+  'length',
+  'max_tokens',
+  'refusal',
+  'pause_turn',
+  'missing_stop_reason',
+  'stream_ended',
+  'stream_ended_without_finish_reason',
+])
+
+/** A provider incomplete reason as the log names it; never the raw text. */
+export function incompleteReasonForLog(reason: string | undefined): string {
+  if (reason === undefined) return 'no reason'
+  return INCOMPLETE_REASONS_FOR_LOG.has(reason) ? reason : 'other'
 }
 
 /**
@@ -2140,6 +2252,16 @@ function attachmentsOf(parts: readonly TurnPart[]): NonNullable<ItemSnapshot['at
           },
         ]
       }
+      case 'media': {
+        return [
+          {
+            type: 'file',
+            mediaType: part.info.mediaType,
+            name: part.name,
+            sizeBytes: part.info.sizeBytes,
+          },
+        ]
+      }
       default: {
         return []
       }
@@ -2162,6 +2284,11 @@ function contentPartsFor(
       case 'image':
       case 'file': {
         return mediaPartFor(part)
+      }
+      case 'media': {
+        // A stand-in the session's media service always replaces with the
+        // upload record's metadata, or refuses (`contentParts`): no bytes.
+        return { type: 'input_text', text: part.name }
       }
       case 'skill': {
         // An unknown selector (the catalogue changed under the palette) goes as typed.
@@ -2209,7 +2336,8 @@ function typedText(parts: readonly TurnPart[]): string {
         }
         case 'image':
         case 'file':
-        case 'textFile': {
+        case 'textFile':
+        case 'media': {
           return []
         }
       }
@@ -2435,6 +2563,9 @@ function modelOutputPage(content: string, request: OutputPageRequest): Promise<O
   })
 }
 
+// Exact zero is immutable; share it across the admission/refund path.
+const ZERO_BUDGET_COST = Usd.from(0)
+
 export class ModelApiSession implements ScheduledAgentSession {
   private lastJudgeBody: CreateResponseBody | undefined
   private readonly listeners = new Set<SessionEventListener>()
@@ -2629,8 +2760,9 @@ export class ModelApiSession implements ScheduledAgentSession {
   private toolSelection:
     { readonly turnId: string; readonly allowed: readonly string[] } | undefined
   /**
-   * Consecutive TaskCreated/TaskCompleted refusals (M91 lane E): past
-   * `HOOK_MAX_STOP_CONTINUATIONS` the turn ends; no refused task is admitted.
+   * Consecutive TaskCreated/TaskCompleted refusals (M91 lane E): past the
+   * stop-continuation limit (M127 setting, Muse Code's default 8) the turn
+   * ends; no refused task is admitted.
    */
   private taskRefusals = 0
   private readonly observedRules = new Set<string>()
@@ -2721,6 +2853,10 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** The reservation of the request in flight, until its usage is reported or it ends (M82). */
   private openReservation: OpenReservation | undefined
   private readonly searchMaxPerRequest: number
+  /** Stop-hook continuations in a row before the turn ends (M127 setting). */
+  private readonly stopContinuationLimit: number
+  /** Subagents working at once; later ones queue (M127 setting). */
+  private readonly subagentConcurrency: number
   /** What the requests since the last reply line used (M82), for the next line. */
   private unshownUsage: ReplyUsageTally | undefined
   /**
@@ -2891,13 +3027,30 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.workspaceEdits.add(this.ledger)
     this.modelId = modelId
     this.searchMaxPerRequest = deps.webSearchMaxPerRequest?.() ?? WEB_SEARCH_MAX_PER_REQUEST
+    // Muse Code's own hook and subagent defaults as settings (M127),
+    // captured once for the session like the search bound above. The Stop
+    // ceiling is unoverrideable: a programmatic getter is never validated
+    // by the settings schema, and machine settings are writable by a
+    // dev-container definition, so the effective bound never passes what
+    // Muse Code itself spends.
+    this.stopContinuationLimit = Math.min(
+      deps.hookMaxStopContinuations?.() ?? HOOK_MAX_STOP_CONTINUATIONS,
+      HOOK_MAX_STOP_CONTINUATIONS,
+    )
+    this.subagentConcurrency = deps.subagentMaxConcurrent?.() ?? SUBAGENT_CAPACITY
     this.sessionPermissions = new PermissionEngine(approvalMode)
     this.policies = new PolicyCache(
       deps.permissionSettings ?? (() => NO_PERMISSION_SETTINGS),
       deps.platform,
     )
     this.budget = new MediaBudget(deps.mediaBudgetMaxEncodedChars)
-    this.media = deps.createMediaReplay?.(sessionId)
+    // One production media service per session (M105 W): the session tells
+    // it, per request, whether spending is capped, so an unknown rate
+    // refuses only under a cap (D85.6).
+    this.media = deps.createMediaReplay?.(sessionId, {
+      isCapped: () => this.isMediaCapped(),
+      isClosed: () => this.isDisposed,
+    })
     if (agent !== undefined) {
       this.effort = agent.effort
     }
@@ -3393,6 +3546,8 @@ export class ModelApiSession implements ScheduledAgentSession {
             this.track(execution, false)
           }
         : undefined,
+      // 0 starts them all at once, as Muse Code does (M127 setting).
+      { maxRunningCommands: this.deps.hookMaxRunningCommands?.() ?? 0 },
     )
     if (shouldShowMessages) {
       for (const message of result.messages) {
@@ -3579,6 +3734,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
   ): Promise<void> {
     await this.selectToolsForTurn(turnId, body, signal)
+    // A playback answers from working memory only (D203): no PreLLMCall
+    // dispatch on its requests — a hook handler can start processes, call
+    // HTTP or MCP handlers, and append fetched context. (A tool-less request
+    // has nothing to narrow, so the selection above already stays quiet.)
+    if (this.isPlaybackTurn()) {
+      return
+    }
     const fields = await this.hookCallFields()
     const pre = await this.runHooks(
       'PreLLMCall',
@@ -3833,6 +3995,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     return (this.isReviewerChild && this.agent === undefined) || this.active?.isReview === true
   }
 
+  /** A playback turn (D203): its prompt, and no tools at all. */
+  private isPlaybackTurn(): boolean {
+    return this.active?.isPlayback === true
+  }
+
   /**
    * The body as the session budget lets it be sent (M82): with a cap, its
    * input estimated high from the last reported request and
@@ -3854,7 +4021,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.openReservation = undefined
     if (this.isSubagent || this.deps.client.isPlanModel?.(body.model) === true) return body
     const capUsd = this.currentBudgetCap()
-    if (Usd.from(capUsd).compare(Usd.from(0)) <= 0 && this.budgetJournal() === undefined) {
+    if (Usd.from(capUsd).compare(ZERO_BUDGET_COST) <= 0 && this.budgetJournal() === undefined) {
       return body
     }
     const estimate = estimateInput(
@@ -3863,7 +4030,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     const maxOutputTokens = body.max_output_tokens
     const reservation =
-      Usd.from(capUsd).compare(Usd.from(0)) > 0
+      Usd.from(capUsd).compare(ZERO_BUDGET_COST) > 0
         ? reserveRequest({
             capUsd,
             spentUsd: this.budgetSpentUsd,
@@ -3891,16 +4058,16 @@ export class ModelApiSession implements ScheduledAgentSession {
                 }) ?? 0,
               ).toAmount(),
               multiplyUsd(
-                this.approvedSearchQuote?.tariffUsd ?? Usd.from(0).toAmount(),
+                this.approvedSearchQuote?.tariffUsd ?? ZERO_BUDGET_COST.toAmount(),
                 body.max_tool_calls ?? 0,
               ),
             ),
           }
     this.openReservation = {
       ...reservation,
-      searchSpentUsd: Usd.from(0).toAmount(),
+      searchSpentUsd: ZERO_BUDGET_COST.toAmount(),
       searchReservedUsd: multiplyUsd(
-        this.approvedSearchQuote?.tariffUsd ?? Usd.from(0).toAmount(),
+        this.approvedSearchQuote?.tariffUsd ?? ZERO_BUDGET_COST.toAmount(),
         body.max_tool_calls ?? 0,
       ),
       hasTerminalSearchCount: false,
@@ -3909,7 +4076,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       goalRevision: this.goalCommandRevision,
       isWorkspaceTrusted: this.deps.isWorkspaceTrusted(),
       paidFeatures: PAID_FEATURES.filter((feature) => this.deps.isPaidFeatureOn(feature)),
-      hasCap: Usd.from(capUsd).compare(Usd.from(0)) > 0,
+      hasCap: Usd.from(capUsd).compare(ZERO_BUDGET_COST) > 0,
       hasUnknownCost:
         selected.policy.pricing.kind === 'unpriced' || selected.policy.pricing.kind === 'plan',
       hasAmbiguousAttempt: false,
@@ -3921,7 +4088,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       isSent: false,
       isRefused: false,
     }
-    return Usd.from(capUsd).compare(Usd.from(0)) > 0
+    return Usd.from(capUsd).compare(ZERO_BUDGET_COST) > 0
       ? { ...body, max_output_tokens: reservation.maxOutputTokens }
       : body
   }
@@ -4015,6 +4182,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     return this.isSubagent
       ? Usd.from(0).toAmount()
       : (this.deps.budgetScope?.capUsd() ?? this.deps.sessionBudgetUsd())
+  }
+
+  /** Whether media spends under a cap now: the M82 session cap, or a D95.3
+   * scheduled run, whose hard cap admits every request. */
+  private isMediaCapped(): boolean {
+    return (
+      this.getScheduledRun() !== undefined ||
+      Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0
+    )
   }
 
   private budgetJournal(): SessionStore['budget'] {
@@ -4307,7 +4483,32 @@ export class ModelApiSession implements ScheduledAgentSession {
     return this.teamRosterStable
   }
 
-  /** The agent's own instructions and tools, or the Reviewer's. */
+  /**
+   * The instructions that shape every turn of the conversation beyond the
+   * workspace's rules: the goal, the agent's role and the team's roster,
+   * each recorded as read where it is sent. A playback (D203) reports them
+   * as an ordinary turn sends them.
+   */
+  private standingInstructions(
+    read: (value: unknown, bytes: string, source: ContentSource) => void,
+  ): {
+    readonly goalSection: string | undefined
+    readonly role: AgentRuntime | undefined
+    readonly teamRoster: string | undefined
+  } {
+    const goalSection = goalInstructions(this.goal)
+    if (goalSection !== undefined)
+      read(goalSection, goalSection, { kind: 'harness', operation: 'goal-context' })
+    const role = this.agentRole()
+    if (role !== undefined)
+      read(role, JSON.stringify({ id: role.id, prompt: role.prompt }), {
+        kind: 'harness',
+        operation: 'agent-role',
+      })
+    return { goalSection, role, teamRoster: this.teamRosterForRequest() }
+  }
+
+  /** The agent's own instructions and tools, the Reviewer's, or a playback's (no tools). */
   private promptAndTools(
     today: string,
     resolved: ResolvedModel,
@@ -4345,11 +4546,15 @@ export class ModelApiSession implements ScheduledAgentSession {
       inputs.push({ bytes, source, ...(isFullyShown !== undefined && { isFullyShown }) })
     }
     const isReview = this.isReviewing()
+    const isPlayback = this.isPlaybackTurn()
+    // Neither restricted turn invites tool use: no agent catalogue, no
+    // memory tools, no skills.
+    const isUntooled = isReview || isPlayback
     const context = this.context.sections(
       inputs,
-      !isReview && this.isAgentCatalogueOffered(),
-      !isReview && this.toolFlags().hasMemory,
-      !isReview,
+      !isUntooled && this.isAgentCatalogueOffered(),
+      !isUntooled && this.toolFlags().hasMemory,
+      !isUntooled,
     )
     const environment = this.environment ?? NO_ENVIRONMENT
     if (environment.git !== undefined)
@@ -4357,6 +4562,25 @@ export class ModelApiSession implements ScheduledAgentSession {
         kind: 'harness',
         operation: 'git-facts',
       })
+    // A playback answers from working memory, with no tools at all: the
+    // goal, the rules, the agent's role and the team's instructions stay
+    // (they are what it reports), and every tool call is refused in code
+    // where the turn runs.
+    if (isPlayback) {
+      const standing = this.standingInstructions(read)
+      return {
+        instructions: playbackInstructionsFor({
+          workspaceRoot: this.deps.workspaceRoot,
+          platform: this.deps.platform,
+          today,
+          goalSection: standing.goalSection,
+          rules: context.rules,
+          teamRoster: standing.teamRoster,
+          agent: standing.role,
+        }),
+        tools: [],
+      }
+    }
     if (this.isReviewing()) {
       const tools = resolved.policy.tools.calling.state === 'yes' ? this.reviewerTools() : []
       return {
@@ -4378,22 +4602,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     const shell = shellToolFor(this.deps.platform)
     const flags = this.toolFlags()
     const { hasShell, hasMemory } = flags
-    const goalSection = goalInstructions(this.goal)
-    if (goalSection !== undefined)
-      read(goalSection, goalSection, { kind: 'harness', operation: 'goal-context' })
+    const { goalSection, role, teamRoster } = this.standingInstructions(read)
     const repoMap = this.promptRepoMap()
     if (repoMap !== undefined) read(repoMap, repoMap, { kind: 'harness', operation: 'repo-map' })
-    const role = this.agentRole()
     // M96 lane T: a team conversation declares the team's five tools and none
     // of M48's six; every other conversation declares exactly what it declares
     // today. The declared set is fixed for the conversation.
     const teamMode = this.teamModeForRequest()
-    const teamRoster = this.teamRosterForRequest()
-    if (role !== undefined)
-      read(role, JSON.stringify({ id: role.id, prompt: role.prompt }), {
-        kind: 'harness',
-        operation: 'agent-role',
-      })
     const checks = this.canRunVerifyCommands() ? this.checkCommands() : []
     if (checks.length > 0)
       read(checks, JSON.stringify(checks), { kind: 'harness', operation: 'verify-settings' }, false)
@@ -4459,6 +4674,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.deps.modelOutputMaxTokens?.(resolved.ref, resolved) ??
       (resolved.ref.includes('/') ? resolved.policy.output.maxTokens : undefined) ??
       MODEL_API_MAX_OUTPUT_TOKENS
+
     if (!Number.isSafeInteger(requested)) throw new RangeError('invalid output.maxTokens')
     // A cap below the provider's minimum refuses here with the minimum's own
     // sentence (MINOUT), zero and negative caps included.
@@ -4478,16 +4694,28 @@ export class ModelApiSession implements ScheduledAgentSession {
         source: { kind: 'harness', operation: 'media-input' },
       })),
       project: () => {
-        const mediaProjected = this.media?.project(original, this.modelId, this.budget) ?? original
+        const mediaProjected =
+          this.media?.project(
+            original,
+            this.modelId,
+            this.budget,
+            this.modelPolicy().identity.provider,
+          ) ?? original
         const fitted = this.budget.fit(
           mediaProjected,
-          undefined,
+          // The resolved model's own record, when its lane carried one:
+          // fresh attachments above its image/page caps are refused here
+          // instead of rejected remotely. Absent keeps the provider-identity
+          // gating (Meta's number never meets a configured provider).
+          resolved.capabilityRecord,
           this.media?.pending(mediaProjected),
+          resolved.policy.identity.provider,
         )
         // Packing projects per request only: the replay keeps the originals, so
         // a later request (or a restore) packs from the full outputs again.
-        // Reviewer tools cannot recall packed output: retain the full observations.
-        return this.isReviewing() || !this.canPack()
+        // Reviewer tools cannot recall packed output, and a playback reports
+        // it: retain the full observations.
+        return this.isReviewing() || this.isPlaybackTurn() || !this.canPack()
           ? fitted
           : (this.packing?.project(fitted) ?? fitted)
       },
@@ -4663,6 +4891,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         delegationFamily(teamMode) === 'subagents' &&
         !isSubagent &&
         this.deps.isPaidFeatureOn('subagents'),
+      subagentCapacity: this.subagentConcurrency,
       ...(delegationFamily(teamMode) === 'team' &&
         !isSubagent && {
           teamTools: this.team.TEAM_TOOL_DEFINITIONS,
@@ -4872,7 +5101,7 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private async prepareMcp(signal: AbortSignal): Promise<void> {
     const servers = this.deps.mcpServers
-    if (servers === undefined || this.isReviewing()) {
+    if (servers === undefined || this.isReviewing() || this.isPlaybackTurn()) {
       return
     }
     await unlessStopped(servers.start(), signal)
@@ -4891,8 +5120,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private requiredMcpFailure(snapshot: McpPoolSnapshot | undefined): Error | undefined {
-    // The Reviewer deliberately offers no external MCP tool (M70).
-    if (this.isReviewing()) {
+    // The Reviewer deliberately offers no external MCP tool (M70), and a playback offers none at all.
+    if (this.isReviewing() || this.isPlaybackTurn()) {
       return undefined
     }
     const required = snapshot?.servers.find(
@@ -5749,6 +5978,21 @@ export class ModelApiSession implements ScheduledAgentSession {
   ): void {
     // A reply's time is the moment it completed, as Muse Code records one (M87).
     if (entry.kind === 'agentMessage') {
+      // A playback reply opens with the verbatim marker line (D203): the
+      // model is asked, and the stream injects it, but a reply that arrived
+      // whole (or past a retried stream) is prefixed here instead, so the
+      // stored transcript keeps the contract whatever the model emitted. An
+      // empty message stays empty; the turn's first text carries the marker.
+      const turn = this.active
+      if (
+        turn?.turnId === turnId &&
+        turn.isPlayback &&
+        turn.playbackMarkerEnsured !== true &&
+        entry.text.trim() !== ''
+      ) {
+        entry.text = ensurePlaybackMarker(entry.text)
+        turn.playbackMarkerEnsured = true
+      }
       entry.recordedAt ??= this.recordedNow()
     }
     const item = this.completedSnapshot(entry, turnId)
@@ -5838,6 +6082,30 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       case 'response.output_text.delta': {
         const entry = this.openItem(open, event.item_id, 'agentMessage', turnId)
+        // A playback reply opens with the verbatim marker line (D203): the
+        // host prefixes it before the diverging delta when the model does
+        // not emit it, so the streamed reply keeps the contract. A marker
+        // prefix still in progress flows untouched; later messages of the
+        // turn do too, once the flag is set.
+        const turn = this.active
+        if (
+          turn?.turnId === turnId &&
+          turn.isPlayback &&
+          turn.playbackMarkerEnsured !== true &&
+          entry.text === ''
+        ) {
+          const marker = checkPlaybackMarker(entry.text, event.delta)
+          if (marker.inject !== '') {
+            entry.text = marker.inject
+            this.emit({
+              type: 'textDelta',
+              itemId: entry.ourId,
+              field: TEXT_FIELD,
+              delta: marker.inject,
+            })
+          }
+          if (marker.ensured) turn.playbackMarkerEnsured = true
+        }
         entry.text += event.delta
         this.emit({ type: 'textDelta', itemId: entry.ourId, field: TEXT_FIELD, delta: event.delta })
         return undefined
@@ -5869,7 +6137,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (event.response.incomplete_details?.reason === 'max_output_tokens')
           this.outcomeStopReason = 'budget'
         this.deps.log.warn(
-          `Model API response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
+          `Model API response ${wireWordForLog(event.response.id)} incomplete: ${incompleteReasonForLog(event.response.incomplete_details?.reason)}`,
         )
         return event.response
       }
@@ -5979,7 +6247,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const modelRevision = this.modelRevision
     const budget: RetryBudget = { retriesUsed: 0 }
     let hasRecoveredMedia = false
-    this.media?.beginRequest()
+    await this.media?.beginRequest(this.replay.map((entry) => entry.item))
     for (;;) {
       if (this.modelRevision !== modelRevision) throw new AbortedError()
       const open = new Map<string, OpenItem>()
@@ -6303,17 +6571,31 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     // The finished reasoning blocks observe first: they completed before the
     // response did (M91 lane E). Their context joins the tail ahead of the
-    // post-call context, oldest operation first.
-    const thoughtContexts = await this.noteThoughts(turnId, open, signal)
+    // post-call context, oldest operation first. A playback answers from
+    // working memory only (D203): no AfterAgentThought fan-out for its
+    // reasoning and no PostLLMCall dispatch on its responses — the model's
+    // own text still flows to the turn, but no hook handler runs for it.
+    const isPlaybackResponse = this.isPlaybackTurn()
+    const thoughtContexts = isPlaybackResponse ? [] : await this.noteThoughts(turnId, open, signal)
     const callFields = await this.hookCallFields()
-    const post = await this.runHooks(
-      'PostLLMCall',
-      turnId,
-      callFields.postModelCallFields(body, final, requestId, attempt, step, this.sessionId),
-      replayProducer(body.model).provider,
-      signal,
-      false,
-    )
+    const post: HookDispatch = isPlaybackResponse
+      ? {
+          blockedReason: undefined,
+          contexts: [],
+          messages: [],
+          updatedInput: undefined,
+          forceApproval: false,
+          stopReason: undefined,
+          approvalDecision: undefined,
+        }
+      : await this.runHooks(
+          'PostLLMCall',
+          turnId,
+          callFields.postModelCallFields(body, final, requestId, attempt, step, this.sessionId),
+          replayProducer(body.model).provider,
+          signal,
+          false,
+        )
     const requiredAfterPostHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
     if (requiredAfterPostHook !== undefined) {
       this.skipCalls(turnId, calls, MODEL_API_MODEL_TEXT.mcpRequiredUnavailable)
@@ -7344,8 +7626,9 @@ export class ModelApiSession implements ScheduledAgentSession {
    * Replace the task list (M91 lane E): each added item runs TaskCreated,
    * each newly completed one TaskCompleted, with the bounded subject and
    * description. A refusal keeps the old list and tells the model why; after
-   * `HOOK_MAX_STOP_CONTINUATIONS` refusals in a row the turn ends, keeping the
-   * old list. A new user turn may try again, through every hook.
+   * the stop-continuation limit (M127 setting) refusals in a row the turn
+   * ends, keeping the old list. A new user turn may try again, through
+   * every hook.
    */
   private async writeTodos(
     call: FunctionCallItem,
@@ -7408,7 +7691,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** A refused task write: the old list stands, and the refusal counts toward the pause. */
   private taskRefused(kind: 'created' | 'completed', subject: string, reason: string): ToolOutcome {
     this.taskRefusals += 1
-    if (this.taskRefusals >= HOOK_MAX_STOP_CONTINUATIONS) {
+    if (this.taskRefusals >= HOOK_MAX_TASK_REFUSALS) {
       this.deps.log.warn(
         `Model API extension hooks: task continuation limit after ${String(this.taskRefusals)} refusals`,
       )
@@ -7516,19 +7799,29 @@ export class ModelApiSession implements ScheduledAgentSession {
     const content = contentPartsFor(parts, (selector) => this.context.skill(selector)).map(
       (inline, index) => {
         const part = parts[index]
-        return part === undefined
-          ? inline
-          : (this.media?.content(part, inline, this.modelId, this.budget) ?? inline)
+        if (part === undefined) return inline
+        // An attached video or audio file needs the session's media service:
+        // without one (no Files transport, no storage) it refuses, never
+        // reaching the model as its bare name.
+        if (part.type === 'media' && this.media === undefined)
+          throw new Error(UI_TEXT.media.uploadUnavailable)
+        return this.media?.content(part, inline, this.modelId, this.budget) ?? inline
       },
     )
     // The budget learns each PDF's pages from its attachment, not its bytes (M54).
+    // A provider-held reference carries no new bytes; the replay noted it.
     for (const [index, part] of parts.entries()) {
       const sent = content[index]
-      if (part.type === 'file' && sent?.type === 'input_file') {
+      if (part.type === 'file' && sent?.type === 'input_file' && 'file_data' in sent) {
         this.budget.note(sent, part.pageCount)
       }
     }
-    this.media?.assertPendingFits(content, this.budget)
+    this.media?.assertPendingFits(
+      content,
+      this.budget,
+      undefined,
+      this.modelPolicy().identity.provider,
+    )
     return content
   }
 
@@ -7812,7 +8105,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   private canQueueMedia(chars: number, slots: number): boolean {
     const queued = this.queuedMediaUsage()
     const limit = this.deps.mediaBudgetMaxEncodedChars ?? MAX_ENCODED_MEDIA_CHARS
-    return queued.chars + chars <= limit && queued.slots + slots <= MODEL_API_MEDIA_PER_REQUEST
+    // The slot count is Meta's per-request budget; a configured provider
+    // answers for its own counts, so only the byte bound queues its media.
+    const isSlotsFit =
+      this.modelPolicy().identity.provider !== 'meta' ||
+      queued.slots + slots <= MODEL_API_MEDIA_PER_REQUEST
+    return queued.chars + chars <= limit && isSlotsFit
   }
 
   /** Reserve all current-batch visual outputs before their tool row reports success. */
@@ -7829,7 +8127,12 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   private canQueueSteeredMedia(parts: readonly TurnPart[]): boolean {
     if (this.media !== undefined) {
-      this.media.assertPendingFits(this.contentParts(parts), this.budget, this.queuedMediaUsage())
+      this.media.assertPendingFits(
+        this.contentParts(parts),
+        this.budget,
+        this.queuedMediaUsage(),
+        this.modelPolicy().identity.provider,
+      )
       return true
     }
     let chars = 0
@@ -8592,7 +8895,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const run = this.getScheduledRun()
       const decisionId = await this.workspaceAccess(path, 'mcp')
       const read = io.readMedia
-      if (read === undefined) throw new Error(UI_TEXT.media.uploadStorageUnknown)
+      if (read === undefined) throw new Error(UI_TEXT.media.uploadUnavailable)
       let source: Extract<ContentSource, { kind: 'file' }> | undefined
       const media = await read(path, maxBytes, expected, signal, (captured) => {
         source = captured
@@ -8734,6 +9037,13 @@ export class ModelApiSession implements ScheduledAgentSession {
               this.modelId,
               toolSignal ?? signal,
             ),
+          // An image/PDF read is admitted through the same path as an
+          // attachment before the model is told the file follows: priced at
+          // the seeded bound, refused with the honest reason when capped and
+          // unmeasurable. It stays an inline record, never an upload.
+          admitVisual: (visual: ImagePart | DocumentPart) => {
+            media.admitInline(mediaPartFor(visual), this.modelId)
+          },
         },
       }),
     }
@@ -9112,7 +9422,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (
       siblings === 0 ||
       grant === undefined ||
-      keeps >= HOOK_MAX_STOP_CONTINUATIONS ||
+      keeps >= TEAMMATE_MAX_IDLE_KEEPS ||
       grant.remainingAttempts <= 0 ||
       !this.canContinueChild(child, grant)
     )
@@ -9668,7 +9978,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     }
     for (const child of this.children.values()) {
-      if (active >= SUBAGENT_CAPACITY) {
+      if (active >= this.subagentConcurrency) {
         return
       }
       if (child.state !== 'queued' || child.session.activeTurnId !== undefined) {
@@ -11843,6 +12153,14 @@ export class ModelApiSession implements ScheduledAgentSession {
         isRejected: false,
       }
     }
+    // A playback names no tool (D203): every call is refused, offered or
+    // not, in every mode, Bypass included, and answered to the model.
+    if (this.isPlaybackTurn()) {
+      return {
+        outcome: toolFailure(playbackToolRefusal(call.name)),
+        isRejected: true,
+      }
+    }
     // The Reviewer only reads (M70): a tool it names that is not one of its
     // own is refused, offered or not, in every mode, Bypass included.
     if (this.isReviewing() && !isReviewerTool(call.name)) {
@@ -12627,8 +12945,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       selection === undefined || isToolAllowedBySelection(call.name, selection)
         ? undefined
         : `${call.name}: ${UI_TEXT.hookToolRemoved}`
+    // A playback names no tool (D203): a call it refuses in code below runs
+    // no PreToolUse dispatch — a hook handler must neither observe nor shape
+    // a call the turn refuses. The refusal itself still answers the model.
+    const isPlaybackRefusal = this.isPlaybackTurn()
     const pre: HookDispatch =
-      selectionReason === undefined
+      selectionReason === undefined && !isPlaybackRefusal
         ? await this.runHooks(
             'PreToolUse',
             turnId,
@@ -12642,7 +12964,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             false,
           )
         : {
-            blockedReason: selectionReason,
+            blockedReason: isPlaybackRefusal ? undefined : selectionReason,
             contexts: [],
             messages: [],
             updatedInput: undefined,
@@ -12960,7 +13282,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (
         effectiveCall.name === MODEL_API_TOOLS.todoWrite &&
         outcome.failureReason !== undefined &&
-        this.taskRefusals >= HOOK_MAX_STOP_CONTINUATIONS
+        this.taskRefusals >= HOOK_MAX_TASK_REFUSALS
       ) {
         throw new HookStoppedError(outcome.failureReason)
       }
@@ -12981,30 +13303,43 @@ export class ModelApiSession implements ScheduledAgentSession {
     } catch {
       // A failed proof leaves this call eligible to run again.
     }
-    const post = await this.runHooks(
-      outcome.failureReason === undefined ? 'PostToolUse' : 'PostToolUseFailure',
-      turnId,
-      outcome.failureReason === undefined
-        ? {
-            tool_name: effectiveCall.name,
-            tool_input: toolHookInput(argumentsOf(effectiveCall)),
-            tool_use_id: itemId,
-            tool_response: toolHookOutput(outcome.output),
-          }
-        : {
-            tool_name: effectiveCall.name,
-            tool_input: toolHookInput(argumentsOf(effectiveCall)),
-            tool_use_id: itemId,
-            error: toolHookOutput(outcome.failureReason),
-            is_interrupt: false,
-            duration_ms: this.deps.now() - startedAt,
-          },
-      toolMatcherNames(effectiveCall.name),
-      signal,
-      true,
-      true,
-      { fileOperation: fileOperationOf(outcome) },
-    )
+    // A playback names no tool (D203): its refused calls settle with no
+    // PostToolUse dispatch, as they ran with no PreToolUse one — the refusal
+    // outcome itself still reaches the model.
+    const post: HookDispatch = this.isPlaybackTurn()
+      ? {
+          blockedReason: undefined,
+          contexts: [],
+          messages: [],
+          updatedInput: undefined,
+          forceApproval: false,
+          stopReason: undefined,
+          approvalDecision: undefined,
+        }
+      : await this.runHooks(
+          outcome.failureReason === undefined ? 'PostToolUse' : 'PostToolUseFailure',
+          turnId,
+          outcome.failureReason === undefined
+            ? {
+                tool_name: effectiveCall.name,
+                tool_input: toolHookInput(argumentsOf(effectiveCall)),
+                tool_use_id: itemId,
+                tool_response: toolHookOutput(outcome.output),
+              }
+            : {
+                tool_name: effectiveCall.name,
+                tool_input: toolHookInput(argumentsOf(effectiveCall)),
+                tool_use_id: itemId,
+                error: toolHookOutput(outcome.failureReason),
+                is_interrupt: false,
+                duration_ms: this.deps.now() - startedAt,
+              },
+          toolMatcherNames(effectiveCall.name),
+          signal,
+          true,
+          true,
+          { fileOperation: fileOperationOf(outcome) },
+        )
     checkStopped()
     if (executed.value.isParallelExecution) commit()
     if (
@@ -13355,6 +13690,10 @@ export class ModelApiSession implements ScheduledAgentSession {
           this.recordTranscript(turn.turnId, refused)
           turn.steered.shift()
           turn.acceptedTextAttachmentBytes -= textAttachmentBytes(parts)
+          // A refused steer never reaches a request: its claim ends here, as a
+          // withdrawal's does, or the token stays claimed until the attach
+          // bound fills and later attachments are refused.
+          steer.media?.release()
           this.emit({ type: 'itemCompleted', item: refused })
         }
         throw error
@@ -13365,6 +13704,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         continue
       }
       turn.inputParts.push(...parts)
+      steer.media?.start()
+      turn.mediaClaims.push(steer.media)
       this.recordTranscript(turn.turnId, row)
       turn.steered.shift()
       // It is in the request now (M87): an Edit can no longer take it back.
@@ -13376,7 +13717,7 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /** Accepted steering that missed this turn's last request becomes user turns. */
   private promoteSteered(turn: ActiveTurn): void {
-    const promoted = turn.steered.map(({ parts, userMessageId, scheduleRun }) => {
+    const promoted = turn.steered.map(({ parts, userMessageId, scheduleRun, media }) => {
       // A fire whose paid authority lapsed stays unconfirmed: runTurn refuses
       // it at admission, so finalization never throws here.
       const confirmedRequest =
@@ -13387,6 +13728,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         displayText: undefined,
         userMessageId,
         isGoalWake: false,
+        media,
         ...(scheduleRun !== undefined && { resourceClass: 'background' as const, scheduleRun }),
         ...(confirmedRequest !== undefined && { confirmedRequest }),
       }
@@ -13412,6 +13754,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (queued === undefined) {
       return undefined
     }
+    queued.media?.release()
     this.emit({ type: 'turnWithdrawn', turnId: queued.turnId, reason: UI_TEXT.turnUnqueued })
     return queued.parts
   }
@@ -13431,12 +13774,18 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (steer === undefined) {
       return undefined
     }
+    this.dropSteer(turn, steer)
+    return steer.parts
+  }
+
+  /** A steer leaves its turn unsent (withdrawn, or its session disposed): what it holds goes. */
+  private dropSteer(turn: ActiveTurn, steer: ActiveTurn['steered'][number]): void {
     if (steer.scheduleRun !== undefined) {
       const effect = this.owner.withdraw(steer.scheduleRun)
       if (effect !== undefined) this.owner.modeApplied(effect, true)
     }
     turn.acceptedTextAttachmentBytes -= textAttachmentBytes(steer.parts)
-    return steer.parts
+    steer.media?.release()
   }
 
   /** A busy goal command was not in the request already in flight. */
@@ -13693,7 +14042,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           if (stop.stopReason !== undefined) {
             return
           }
-          if (stop.blockedReason !== undefined && stopContinuations < HOOK_MAX_STOP_CONTINUATIONS) {
+          if (stop.blockedReason !== undefined && stopContinuations < this.stopContinuationLimit) {
             isStopHookActive = true
             stopContinuations += 1
             this.replay.push({
@@ -13952,6 +14301,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       // A refused occurrence's lease must not hold the slot for later runs.
       this.releaseScheduledResource(queued.turnId)
+      queued.media?.release()
       this.emit({
         type: 'turnCompleted',
         turnId: queued.turnId,
@@ -13964,6 +14314,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     this.owner.startAcknowledged(claim, queued.turnId, true)
     if (queued.scheduleRun !== undefined) this.owner.admitted(claim, queued.turnId)
+    queued.media?.start()
     const turn: ActiveTurn = {
       ...(queued.scheduleRun !== undefined && {
         scheduleRun: queued.scheduleRun,
@@ -13975,12 +14326,14 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(queued.userMessageId !== undefined && { pendingUserMessageId: queued.userMessageId }),
       abort: new AbortController(),
       inputParts: [...queued.parts],
+      mediaClaims: [queued.media],
       steered: [],
       acceptedTextAttachmentBytes: textAttachmentBytes(queued.parts),
       modelFailure: undefined,
       goalWakePending: false,
       isWebSearchAllowed: false,
       isReview: queued.isReview === true,
+      isPlayback: queued.isPlayback === true,
       ...(queued.draft !== undefined && { draft: queued.draft }),
       ranProcesses: this.hasLiveCommands(),
       ...(queued.confirmedRequest !== undefined && {
@@ -14002,10 +14355,19 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.emit({ type: 'turnStarted', turnId: turn.turnId })
     this.emit({ type: 'sessionStatus', status: RUNNING })
     // The context comes first so a skill invocation can be expanded (D13);
-    // it never throws, so the user message always follows.
-    await this.context.load()
-    this.environment ??= await this.loadEnvironment()
-    await this.loadRepoMap(turn.abort.signal)
+    // it never throws, so the user message always follows. A playback
+    // reports only what the session already holds (D203): loading here
+    // would read the root rules and scan the skill and agent roots for a
+    // first-turn playback, and the fresh rules would enter its answer.
+    if (queued.isPlayback !== true) {
+      await this.context.load()
+    }
+    // A playback reports working memory only (D203): no git describe and no
+    // repo-map scan on its path; neither result is in its prompt.
+    if (queued.isPlayback !== true) {
+      this.environment ??= await this.loadEnvironment()
+      await this.loadRepoMap(turn.abort.signal)
+    }
     // Pending background output and user shell commands precede this turn.
     this.settleNotes(turn.turnId)
     this.touch()
@@ -14043,10 +14405,15 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       turn.abort.signal.throwIfAborted()
       await this.startHooks()
-      for (const message of this.pendingHookMessages.splice(0)) {
-        this.emit({ type: 'backendNotice', level: 'info', text: message })
+      // A playback answers from working memory only (D203): hook contexts
+      // and messages stay pending for the next ordinary turn instead of
+      // entering its turn, so nothing a hook fetched shapes its answer.
+      if (queued.isPlayback !== true) {
+        for (const message of this.pendingHookMessages.splice(0)) {
+          this.emit({ type: 'backendNotice', level: 'info', text: message })
+        }
+        this.appendHookContexts(turn.turnId, this.pendingHookContexts.splice(0))
       }
-      this.appendHookContexts(turn.turnId, this.pendingHookContexts.splice(0))
       if (this.hookStartStopReason !== undefined) {
         const stopReason = this.hookStartStopReason
         this.hookStartStopReason = undefined
@@ -14070,20 +14437,31 @@ export class ModelApiSession implements ScheduledAgentSession {
         !queued.isGoalWake &&
         queued.isHookContinuation !== true &&
         queued.isReview !== true &&
+        queued.isPlayback !== true &&
         queued.confirmedRequest === undefined &&
         !this.isSubagent &&
         this.deps.prepareAudioMessage !== undefined
       ) {
         const revision = this.modelRevision
+        const assertCurrent = () => {
+          if (revision !== this.modelRevision) throw new AbortedError()
+        }
+        // The first transcription can spend before the chat request seeds
+        // this conversation's journal. Seed its owned budget before that use.
+        if (parts.some((part) => part.type === 'media') && this.isMediaCapped())
+          await this.refreshBudgetSpend()
         const prepared = await this.deps.prepareAudioMessage({
           sessionId: this.sessionId,
           turnId: turn.turnId,
           modelId: this.modelId,
           parts,
           signal: turn.abort.signal,
+          // A model change during consent or conversion refuses before the
+          // transcription spends, not after (RVMEDIAV 4).
+          assertCurrent,
         })
         turn.abort.signal.throwIfAborted()
-        if (revision !== this.modelRevision) throw new AbortedError()
+        assertCurrent()
         if (prepared !== undefined) {
           prepared.assertCurrent()
           const acceptedBytes =
@@ -14094,7 +14472,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           turn.audioMessage = {
             ...prepared,
             assertCurrent: () => {
-              if (revision !== this.modelRevision) throw new AbortedError()
+              assertCurrent()
               prepared.assertCurrent()
             },
           }
@@ -14115,41 +14493,53 @@ export class ModelApiSession implements ScheduledAgentSession {
       } else {
         const replayStart = this.replay.length
         await this.appendUserMessage(turn.turnId, parts, queued.displayText, queued.userMessageId)
-        await this.expandSkillsForHooks(
-          turn.turnId,
-          parts,
-          replayStart,
-          turn.abort.signal,
-          queued.displayText,
-        )
+        // A playback carries no skill and expands none (D203): its fixed
+        // turn text names no invocation, and expansion would run extension
+        // hooks for a turn that answers from working memory only.
+        if (queued.isPlayback !== true) {
+          await this.expandSkillsForHooks(
+            turn.turnId,
+            parts,
+            replayStart,
+            turn.abort.signal,
+            queued.displayText,
+          )
+        }
       }
       if (!queued.isGoalWake && queued.isHookContinuation !== true) {
-        await this.noteLoadedRules(turn.turnId, 'rules', turn.abort.signal)
-        const replayBeforeSubmit = this.replay.length
-        const submitted = await this.runHooks(
-          'UserPromptSubmit',
-          turn.turnId,
-          { prompt: typedText(parts) },
-          undefined,
-          turn.abort.signal,
-        )
-        if (submitted.blockedReason !== undefined) {
-          // A rejected prompt stays visible in History, but never reaches a
-          // later model request through the replay (M51). On Muse Code the
-          // turn ends cancelled with the hook's reason and Interrupt fires
-          // (M91 capture run 5), so this turn does the same.
-          this.replay.splice(replayBeforeSubmit)
-          const userIndex = this.replay.findLastIndex(
-            (entry) =>
-              entry.turnId === turn.turnId &&
-              entry.item.type === 'message' &&
-              entry.item.role === 'user',
+        // A playback runs no turn hooks at all (D203): no
+        // InstructionsLoaded fan-out for its rules, and no UserPromptSubmit
+        // dispatch — a hook handler can start processes, call HTTP or MCP
+        // handlers, and append fetched context, which a memory-only turn
+        // must neither cause nor report.
+        if (queued.isPlayback !== true) {
+          await this.noteLoadedRules(turn.turnId, 'rules', turn.abort.signal)
+          const replayBeforeSubmit = this.replay.length
+          const submitted = await this.runHooks(
+            'UserPromptSubmit',
+            turn.turnId,
+            { prompt: typedText(parts) },
+            undefined,
+            turn.abort.signal,
           )
-          if (userIndex !== -1) {
-            this.replay.splice(userIndex, 1)
+          if (submitted.blockedReason !== undefined) {
+            // A rejected prompt stays visible in History, but never reaches a
+            // later model request through the replay (M51). On Muse Code the
+            // turn ends cancelled with the hook's reason and Interrupt fires
+            // (M91 capture run 5), so this turn does the same.
+            this.replay.splice(replayBeforeSubmit)
+            const userIndex = this.replay.findLastIndex(
+              (entry) =>
+                entry.turnId === turn.turnId &&
+                entry.item.type === 'message' &&
+                entry.item.role === 'user',
+            )
+            if (userIndex !== -1) {
+              this.replay.splice(userIndex, 1)
+            }
+            this.fireInterrupt()
+            throw new HookCancelledError(submitted.blockedReason)
           }
-          this.fireInterrupt()
-          throw new HookCancelledError(submitted.blockedReason)
         }
         // Admitted: a user's message starts the verify loop afresh (M68). A
         // goal's wake carries on, and a parent model's message to a subagent
@@ -14162,7 +14552,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       // The Reviewer never searches (M70): nothing to ask about.
       if (this.modelId.includes('/')) await this.resolveModel()
       turn.isWebSearchAllowed =
-        !this.isReviewing() && (await this.webSearchConsent(turn.abort.signal))
+        !this.isReviewing() &&
+        !this.isPlaybackTurn() &&
+        (await this.webSearchConsent(turn.abort.signal))
       if (
         this.deps.autoCompaction?.() === true &&
         !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED) &&
@@ -14175,7 +14567,13 @@ export class ModelApiSession implements ScheduledAgentSession {
           text: UI_TEXT.autoCompactionAwaitingEvaluation,
         })
       }
-      await this.loop(turn)
+      // RULE 1: the turn's media bracket drains however the turn
+      // settles — each round's requests pin, this end unpins.
+      try {
+        await this.loop(turn)
+      } finally {
+        await this.media?.endRequest()
+      }
     } catch (error: unknown) {
       const pendingRun = turn.scheduleRun === undefined ? this.owner.run(turn.turnId) : undefined
       const released = pendingRun === undefined ? undefined : this.owner.withdraw(pendingRun)
@@ -14216,12 +14614,22 @@ export class ModelApiSession implements ScheduledAgentSession {
             errorKind = CHATGPT_PLAN_LIMIT_ERROR_KIND
           else errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
         }
+        // Fixed words and a reason code only: the user-facing reason can
+        // carry an attachment's file name (RVM105 4), which never reaches a
+        // log. The detailed sentence still reaches the user with the turn.
         this.deps.log.warn(
           error instanceof HookStoppedError
             ? `Model API turn ${turn.turnId} stopped by a hook`
-            : `Model API turn ${turn.turnId} failed: ${reason}`,
+            : `Model API turn ${turn.turnId} failed: ${errorKind}`,
         )
-        if (turn.modelFailure !== undefined && !(error instanceof ChildTaskRefusedError)) {
+        // A failed playback runs no StopFailure dispatch either (D203): a
+        // hook handler must not run for a turn that answers from working
+        // memory only, even to observe its failure.
+        if (
+          turn.modelFailure !== undefined &&
+          !turn.isPlayback &&
+          !(error instanceof ChildTaskRefusedError)
+        ) {
           const lastAssistantMessage = this.transcript.findLast(
             (entry) => entry.item.turnId === turn.turnId && entry.item.kind === 'agentMessage',
           )?.item.text
@@ -14264,6 +14672,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     // Every exit preserves input the last request did not admit, including
     // incomplete replies and steering accepted while finalization awaited.
     this.promoteSteered(turn)
+    // Its one-use media tokens end with it: a later turn attaches again.
+    for (const media of turn.mediaClaims.splice(0)) media?.release()
     this.active = undefined
     const pendingRun = this.owner.run(turn.turnId)
     if (pendingRun !== undefined && turn.scheduleRun === undefined) {
@@ -14370,7 +14780,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       case 'response.incomplete': {
         this.noteUsage(event.response.usage, chargedGoalId, 'incomplete', event.response.model)
         this.deps.log.warn(
-          `Model API compaction response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
+          `Model API compaction response ${wireWordForLog(event.response.id)} incomplete: ${incompleteReasonForLog(event.response.incomplete_details?.reason)}`,
         )
         throw new ModelApiError('response.incomplete', 0, undefined, 'response_incomplete')
       }
@@ -14766,6 +15176,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED) ||
       this.active !== turn ||
       this.isReviewing() ||
+      this.isPlaybackTurn() ||
       this.isSubagent ||
       isAbortRequested(turn.abort.signal) ||
       !this.hasCompactableHistory()
@@ -14780,7 +15191,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
       return false
     const sent = this.compactionPrefix
-    const window = contextModelFor(this.deps, this.modelId)?.contextTokens
+    // C-M95-4 R5: a registry (`provider/model`) window comes from the
+    // turn's fresh resolution (the turn resolved this same ref before the
+    // loop); anything else keeps the synchronous seam, whose static Meta
+    // window a stored resolution must never shadow.
+    const window =
+      (this.modelId.includes('/')
+        ? this.resolvedModels.get(this.modelId)?.contextTokens
+        : undefined) ?? contextModelFor(this.deps, this.modelId)?.contextTokens
     if (
       window === undefined ||
       sent?.body.model !== this.modelId ||
@@ -15005,12 +15423,17 @@ export class ModelApiSession implements ScheduledAgentSession {
         ...(cached !== undefined && {
           instructions: cached.instructions,
         }),
-        input: this.budget.fit([
-          ...(this.media?.summaryInput(current.input) ?? current.input).filter(
-            (item) => canReplayReasoning || !isReasoningItem(item),
-          ),
-          append,
-        ]),
+        input: this.budget.fit(
+          [
+            ...(this.media?.summaryInput(current.input) ?? current.input).filter(
+              (item) => canReplayReasoning || !isReasoningItem(item),
+            ),
+            append,
+          ],
+          undefined,
+          [],
+          resolved.policy.identity.provider,
+        ),
         tools: canReuse ? current.tools : [],
         include: ['reasoning.encrypted_content'],
       })
@@ -15338,6 +15761,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     isHookContinuation = false,
     draft?: PreparedGitDraft,
     scheduleRun?: UnattendedRun,
+    isPlayback = false,
   ): Promise<TurnSubmission> {
     if (this.isDisposed) {
       return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
@@ -15380,7 +15804,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(draft !== undefined && { draft }),
       ...(isHookContinuation && { isHookContinuation: true }),
       ...(isReview && { isReview }),
+      ...(isPlayback && { isPlayback }),
       ...(confirmedRequest !== undefined && { confirmedRequest }),
+      media: this.deps.attachedMedia?.claim(parts),
     }
     // A compaction is a turn too (D26): a message sent during one waits for it.
     if (this.active === undefined && this.compacting === undefined) {
@@ -15598,6 +16024,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.active.steered.push({
       parts,
       userMessageId,
+      media: this.deps.attachedMedia?.claim(parts),
       ...(scheduleRun !== undefined && { scheduleRun }),
     })
     return Promise.resolve({ turnId: expectedTurnId, disposition: 'steered', userMessageId })
@@ -15914,6 +16341,21 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
+   * A `/playback` the user asked for (D203): a turn of this conversation
+   * that answers from working memory only, with no tools at all. Every
+   * tool call is refused in code, answered to the model. It is part of the
+   * user's own turn, so it asks for no payment. A headless output schema
+   * is refused here, before dispatch: a schema-compliant JSON reply cannot
+   * open with the playback's verbatim marker line, so the combination is
+   * rejected rather than sent half-held under either constraint.
+   */
+  public playback(parts: readonly TurnPart[], displayText: string): Promise<TurnSubmission> {
+    return this.outputFormat === undefined
+      ? this.submitTurn(parts, displayText, false, undefined, false, undefined, undefined, true)
+      : Promise.reject(new Error(UI_TEXT.playbackOutputSchemaRefused))
+  }
+
+  /**
    * Input for the running turn. Each refusal takes nothing (a
    * `SteerRefusedError`), so the conversation may send it as a new turn.
    */
@@ -15951,6 +16393,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.resourceAdmissionStop = new AbortController()
     this.deps.judge?.discardSession(this.sessionId)
     for (const dropped of this.queuedTurns.splice(0)) {
+      dropped.media?.release()
       this.emit({
         type: 'turnWithdrawn',
         turnId: dropped.turnId,
@@ -16468,7 +16911,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     return entry.item.content.flatMap((part) => {
       if (this.media?.isUploaded(part) === true) return []
-      const parsed = part.type === 'input_image' ? DATA_URL.exec(part.image_url) : null
+      // A provider-held reference has no bytes to put back in the composer.
+      const parsed =
+        part.type === 'input_image' && 'image_url' in part ? DATA_URL.exec(part.image_url) : null
       const [, mediaType, base64Data] = parsed ?? []
       return mediaType === undefined || base64Data === undefined ? [] : [{ mediaType, base64Data }]
     })
@@ -16514,6 +16959,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     void this.scheduleRuntime?.then((runtime) => {
       runtime.dispose()
     })
+    // Steering still waiting goes with the session, its media released,
+    // never promoted into a turn that would upload it (RVMEDIAV3 2).
+    const { active } = this
+    if (active !== undefined)
+      for (const steer of active.steered.splice(0)) this.dropSteer(active, steer)
     void this.cancel()
     // Let this close's Interrupt enter before aborting its owned queue and
     // processes. The handlers are tracked, so host close waits for cleanup.
@@ -17301,7 +17751,9 @@ export class ModelApiHost implements AgentHost {
           this.stored.set(sessionId, pending.header)
         }
       } catch (error: unknown) {
-        this.deps.log.warn(`Session ${sessionId} was not saved: ${describe(error)}`)
+        // Fixed words only: a save can fail on an upload-ownership refusal
+        // that names the attachment (RVM105 4). The waiter keeps the detail.
+        this.deps.log.warn(`Session ${sessionId} was not saved: save_failed`)
         this.settleSaveWaiters(state, coveredThrough, error)
         continue
       }

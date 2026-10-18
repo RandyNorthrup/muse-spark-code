@@ -6,7 +6,11 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { MuseCodeBackendManager } from '../../src/host/backend/museCodeBackendManager'
-import { CONTRIBUTOR_MODEL_SUFFIX, DEFAULT_MODEL_ID } from '../../src/shared/constants'
+import {
+  CONTRIBUTOR_MODEL_SUFFIX,
+  DEFAULT_MODEL_ID,
+  MUSE_CODE_BUNDLE_FILE,
+} from '../../src/shared/constants'
 import type { Logger } from '../../src/host/logger'
 
 const TRACE_DIR = path.join(homedir(), '.local', 'share', 'muse', 'local-tracing', 'bootstrap')
@@ -63,6 +67,7 @@ export function liveBackend(
 ): MuseCodeBackendManager {
   return new MuseCodeBackendManager({
     // Opt-in independent CLI drill: no VS Code checkpoint namespace or restore surface.
+    bundlePath: path.resolve('dist', MUSE_CODE_BUNDLE_FILE),
     beforeWorkspaceHostStart: () => Promise.resolve(),
     log,
     extensionVersion,

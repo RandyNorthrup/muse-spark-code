@@ -1,0 +1,20 @@
+{
+  "capturedAt": "2026-10-17T18:20:00Z",
+  "cli": "Muse Code 1.4.9 (1.4.9-R6297.1)",
+  "sdk": "@muse-code/sdk 1.4.10",
+  "provider": "echo (the CLI's own local provider; no model call, no sign-in)",
+  "commands": [
+    "muse schema generate-json-schema --out temp/muse-captures/schema-1.4.9",
+    "muse schema generate-json-schema --out temp/muse-captures/schema-1.4.9-exp --experimental",
+    "muse serve --provider echo --no-session-log (child process; initialize, model/list, session/start, skill/list, task/list, computerUseSetup/check, recap/request, skill/import dryRun, turn/start over stdio)",
+    "muse serve --provider echo --no-session-log (hook/list, plugin/list over stdio)"
+  ],
+  "isolation": "XDG_CONFIG_HOME and HOME pointed at a scratch dir holding one user skill (titled-skill, nested metadata.display-name); --no-session-log so nothing persisted",
+  "notes": [
+    "sessionRename was requested and NOT granted by this host",
+    "skill/list rows carry title only when the skill declares metadata.display-name",
+    "model/list rows on this host carry variants 'unknown' with no reasoningEffortVariants/defaultReasoningEffort",
+    "recap/request was accepted and settled providerFailed on the echo provider",
+    "hook/list row recorded with a scratch workspace .muse/hooks.json (SessionStart command hook; served disabled/untrusted); plugin list empty: no plugin installed in the scratch home"
+  ]
+}

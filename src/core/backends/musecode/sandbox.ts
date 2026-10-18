@@ -309,6 +309,33 @@ export interface ShellSandboxPosture {
   readonly isUnsupportedWorkspace: boolean
 }
 
+export interface SandboxAvailabilityReport {
+  /** `sandboxAvailability` from the `initialize` result; unknown on older hosts. */
+  readonly availability: string | undefined
+  /** `sandboxUnavailableReason`; sent only while unavailable, never inferred. */
+  readonly unavailableReason: string | undefined
+}
+
+/**
+ * What the backend manager warns after the handshake (PR206W1 T10): the
+ * window asked for the sandbox but this host cannot enforce it. Available
+ * and unknown (older hosts predate the field) stay silent, as does a
+ * window that turned the sandbox off (its own warning already fired).
+ */
+export function sandboxAvailabilityWarning(
+  posture: ShellSandboxPosture,
+  report: SandboxAvailabilityReport,
+): string | undefined {
+  // The known words are the SDK's `SandboxAvailability` (1.4.7); a future
+  // word reads as unknown, never as unavailable.
+  if (!posture.isSandboxed || report.availability !== 'unavailable') {
+    return undefined
+  }
+  return report.unavailableReason === undefined
+    ? 'muse serve reports the sandbox is unavailable on this host while the shell sandbox is on: commands run without sandbox enforcement'
+    : `muse serve reports the sandbox is unavailable on this host while the shell sandbox is on (${report.unavailableReason}): commands run without sandbox enforcement`
+}
+
 /** The `muse serve` posture for this window (fixed for the host's lifetime). */
 export function resolveShellSandbox(probe: ShellSandboxProbe): ShellSandboxPosture {
   const isUnsupportedWorkspace =

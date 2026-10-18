@@ -382,6 +382,8 @@ export type VaultItemMetadata = z.infer<typeof vaultItemMetadataSchema>
 export const vaultMaterialSchema = z.union([
   z.strictObject({
     kind: z.literal('apiKey'),
+    // Private import review identity; encrypted with material, never metadata.
+    importTarget: z.optional(text),
     value: bytes,
     auth: z.enum(['bearer', 'apiKey', 'header']),
     origin,
@@ -406,7 +408,12 @@ export const vaultMaterialSchema = z.union([
     keyReference: text,
     algorithm: z.literal('ecdsa-p256'),
   }),
-  z.strictObject({ kind: z.literal('password'), username: z.nullable(bytes), password: bytes }),
+  z.strictObject({
+    kind: z.literal('password'),
+    importTarget: z.optional(text),
+    username: z.nullable(bytes),
+    password: bytes,
+  }),
   z.strictObject({
     kind: z.literal('webLogin'),
     origins: z.array(httpsOrigin).check(z.minLength(1), z.maxLength(VAULT_LIMITS.names)),
@@ -427,7 +434,7 @@ export const vaultMaterialSchema = z.union([
     cookies: bytes,
     expiresAt: time,
   }),
-  z.strictObject({ kind: z.literal('secret'), value: bytes }),
+  z.strictObject({ kind: z.literal('secret'), importTarget: z.optional(text), value: bytes }),
   z.strictObject({ kind: z.literal('devicePair'), value: bytes }),
   z.strictObject({ kind: z.literal('internal'), value: bytes }),
 ])

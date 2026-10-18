@@ -1,3 +1,4 @@
+import { COMPANION_VOICE_RELEASE } from '../companionVoice'
 // The generator's build entry: its imports are visible to the dead-code gate.
 export {
   featureCatalog,
@@ -16,6 +17,9 @@ export { fill } from '../l10n/text'
 export { Usd } from '../usd'
 export {
   ACP_AGENT_NAME,
+  MUSE_VOICE_MAX_SECONDS,
+  MUSE_VOICE_FRAME_MS,
+  MUSE_VOICE_RESERVED_MS,
   PAID_FEATURE_SETTINGS,
   PAID_FEATURES,
   MUSE_CODE_PAID_FEATURES,
@@ -63,7 +67,11 @@ export { parseHandoffPrompt } from '../handoff'
 
 // Reviewed host capability inventory: pairs are explicit, never a Cartesian claim.
 // The tooling gate also checks tool/action coverage and host admission witnesses.
+const companionCapabilities: [string, readonly string[]][] = COMPANION_VOICE_RELEASE.isReady
+  ? [['companion-dictation', ['acp:museCode', 'acp:modelApi']]]
+  : []
 const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
+  ...companionCapabilities,
   ['resources', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi']],
   ...['strict-tools', 'parallel-reads', 'cut-short-tools', 'structured-side-calls'].map(
@@ -75,7 +83,10 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['argument-preview', ['vscode:modelApi', 'acp:modelApi']],
   ...['service-status'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi']]),
   ['native-deletion', ['vscode:museCode']],
+  ['voice', ['vscode:museCode', 'vscode:modelApi']],
   ['output-schema', ['acp:modelApi']],
+  // CM80CI: the four non-GitHub CI templates run headless Model API turns.
+  ['ci-other-systems', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['usage', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
@@ -101,13 +112,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // C-X-1: the shared daily budget also binds headless/ACP runs through the
   // runtime ledger, which reads the same paidDailyBudgetUsd setting.
   ['budget', ['vscode:modelApi', 'acp:modelApi']],
-  ...[
-    'auto-subscription',
-    'native-agents',
-    'native-search-cron',
-    'voice',
-    'judge-subscription',
-  ].map((id): [string, readonly string[]] => [id, ['vscode:museCode']]),
+  ...['auto-subscription', 'native-agents', 'native-search-cron', 'judge-subscription'].map(
+    (id): [string, readonly string[]] => [id, ['vscode:museCode']],
+  ),
   ...[
     'attachments',
     'effort',
@@ -148,6 +155,8 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ),
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // D203: /playback runs on every surface and backend, answering from memory only.
+  ['playback', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   // M116: CLI/ACP journal commands work; the VS Code panel has no mount.
   ['orchestrator-playbook', ['acp:museCode', 'acp:modelApi']],
@@ -164,6 +173,12 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   ]),
   ...['search'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']]),
+  // M105 lane F: Delete Uploaded Files and ACP /uploads over the account
+  // ledger, where the Model API backend runs.
+  ...['uploads'].map((id): [string, readonly string[]] => [
+    id,
+    ['vscode:modelApi', 'acp:modelApi'],
+  ]),
 ]
 export const REFERENCE_CAPABILITIES = Object.fromEntries<readonly string[]>(capabilityPairs)
 export const REFERENCE_FEATURE_IDS = Object.keys(REFERENCE_CAPABILITIES)
@@ -260,6 +275,7 @@ export const REFERENCE_ACTION_FEATURES = {
   decideApproval: 'chat',
   cancelQuestion: 'questions',
   estimateRun: 'estimator',
+  estimateCommand: 'estimator',
   estimateSpinUp: 'estimator',
   elicitationAnswer: 'mcp-elicitation',
   answerQuestion: 'questions',
@@ -281,6 +297,7 @@ export const REFERENCE_ACTION_FEATURES = {
   startReview: 'review',
   readReviewChanges: 'review',
   revertReviewHunk: 'review',
+  startPlayback: 'playback',
   restoreFiles: 'chat',
   redoRestore: 'chat',
   listSessions: 'conversation-actions',
@@ -302,6 +319,8 @@ export const REFERENCE_ACTION_FEATURES = {
   showPlans: 'plans',
   renameSession: 'conversation-actions',
   readUsage: 'chat',
+  deleteUploadedFile: 'uploads',
+  deleteAllUploadedFiles: 'uploads',
   dictation: 'chat',
   setPaidFeature: 'budget',
   forgetPaidUse: 'budget',

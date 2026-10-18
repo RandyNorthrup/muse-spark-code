@@ -9,14 +9,25 @@ import {
 import manifest from '../../package.json'
 import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { createRuntimeReports } from '../../src/runtime/reporting/reportsEntry'
-import { parseReportsArguments } from '../../src/runtime/reporting/reportsArgs'
+import { parseReportsArguments, reportsUsage } from '../../src/runtime/reporting/reportsArgs'
+import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { parseReportRequest } from '../../src/host/reporting/reportRequest'
 import { EN } from '../../src/shared/l10n/en'
-import { REPORT_KINDS } from '../../src/shared/constants'
+import { REPORT_KINDS, REPORT_WORKING_KINDS } from '../../src/shared/constants'
 import { currentWhatsNewText } from './helpers/currentWhatsNew'
 
 function repoFile(name: string): string {
   return readFileSync(new URL(`../../${name}`, import.meta.url), 'utf8')
+}
+
+function tableOf(language: string): Record<string, unknown> {
+  return JSON.parse(repoFile(`l10n/ui.${language}.json`)) as Record<string, unknown>
+}
+
+function at(table: Record<string, unknown>, path: string): string {
+  let value: unknown = table
+  for (const part of path.split('.')) value = (value as Record<string, unknown>)[part]
+  return value as string
 }
 
 const changelog = repoFile('CHANGELOG.md')
@@ -26,7 +37,21 @@ const releases = parseChangelog(
   repositoryUrl(manifest),
 )
 
-const WORKING_REPORT_KINDS = ['project', 'milestone', 'release', 'changes', 'quality']
+const WORKING_REPORT_KINDS = [
+  'project',
+  'milestone',
+  'release',
+  'changes',
+  'quality',
+  'usage',
+  'session',
+  'keybindings',
+  'accounts',
+  'security',
+  'estimate',
+  'playbook',
+  'schedules',
+]
 const DORMANT_REPORT_KINDS = REPORT_KINDS.filter(
   (kind) => !(WORKING_REPORT_KINDS as readonly string[]).includes(kind),
 )
@@ -103,12 +128,32 @@ describe('CX1R4 F2: previews claim is historical, strict-tool facts stay current
   })
 })
 
-describe('CX1R4 F3: live Help and pickers list only the five working kinds', () => {
-  it('the real ACP report entry lists the five kinds and none of the dormant ten', async () => {
+describe('CX1R4 F3: live Help and pickers list only the thirteen working kinds', () => {
+  it('the working set is exactly the thirteen sourced kinds', () => {
+    expect([...REPORT_WORKING_KINDS]).toEqual(WORKING_REPORT_KINDS)
+    expect(DORMANT_REPORT_KINDS).toHaveLength(2)
+  })
+
+  it('the real ACP report entry lists the thirteen kinds and none of the dormant two', async () => {
     const { text } = await acpReports().acp.execute('', acpContext)
     for (const kind of WORKING_REPORT_KINDS) expect(text).toContain(`/report ${kind}`)
     for (const kind of DORMANT_REPORT_KINDS) expect(text).not.toContain(`/report ${kind}`)
     expect(text).toContain('/report history')
+  })
+
+  it('the terminal usage lists every working kind with its required argument (RVMSM113)', () => {
+    const usage = reportsUsage(EN)
+    for (const kind of WORKING_REPORT_KINDS) expect(usage).toContain(kind)
+    expect(usage).toContain('milestone <id>')
+    expect(usage).toContain('release <version|latest>')
+    expect(usage).toContain('estimate <milestone>')
+  })
+
+  it('report --help reaches the report command, not the whole help reference (RVMSM113)', () => {
+    expect(parseCommandLine(['report', '--help'])).toEqual({
+      command: 'reports',
+      args: ['--help'],
+    })
   })
 
   it('parsers and history keep accepting every kind', () => {
@@ -126,4 +171,46 @@ describe('CX1R4 F3: live Help and pickers list only the five working kinds', () 
     }
     expect(parseReportRequest('', '2026-10-10T12:00:00Z')).toEqual({ action: 'pick' })
   })
+})
+describe('CX1R4 F5: corrected English keys ship fresh translations', () => {
+  const corrected: Readonly<Record<string, string>> = {
+    resourceRelocationNoRoute:
+      'Relocation requires a paired device or runner route. Work stays on this machine.',
+    resourceRelocateDescription:
+      'Relocation requires a paired device or runner route. Work stays on this machine.',
+    'reportUi.unsupportedKind': 'Report kind {kind} is unavailable.',
+    'reportSourceReasons.unbound': 'This source integration is unavailable.',
+    providerOpenRouterServices:
+      'Connect your OpenRouter account and view the key’s usage, limit and remaining balance.',
+  }
+  // Stale markers from the superseded translations: any table value still
+  // matching its language marker keeps the old translation for that key.
+  const stale: Readonly<Record<string, RegExp>> = {
+    cs: /zatím/,
+    de: /noch nicht verfügbar/,
+    es: /aún no están? disponible/,
+    fr: /pas encore disponibles?/,
+    hu: /még nem/,
+    it: /ancora/,
+    ja: /まだ/,
+    ko: /아직/,
+    pl: /jeszcze/,
+    'pt-br': /ainda/,
+    ru: /пока/,
+    tr: /henüz/,
+    'zh-cn': /尚不可用|暂不可用/,
+    'zh-tw': /尚無法使用|尚未/,
+  }
+
+  it('English holds the corrected wording', () => {
+    for (const [path, text] of Object.entries(corrected)) expect(at(EN, path)).toBe(text)
+  })
+
+  it.each(Object.entries(stale))(
+    'the %s table carries no stale wording for a corrected key',
+    (language, marker) => {
+      const table = tableOf(language)
+      for (const path of Object.keys(corrected)) expect(at(table, path)).not.toMatch(marker)
+    },
+  )
 })

@@ -1,0 +1,862 @@
+{
+  "format": "report-v1",
+  "moneyVersion": 2,
+  "header": {
+    "kind": "security",
+    "scope": "fixture-workspace",
+    "asOf": "2026-10-06T12:00:00+00:00",
+    "generatorVersion": "0.14.2",
+    "contentHash": "e656eb2e6f4323c7d2f80093d261b86e40cbc2131de273dc1642cdc8914bf801"
+  },
+  "needsYou": {
+    "id": "needsYou",
+    "label": "needsYou",
+    "sortKey": "key",
+    "columns": [
+      {
+        "key": "name",
+        "label": "name"
+      },
+      {
+        "key": "reason",
+        "label": "reason"
+      },
+      {
+        "key": "status",
+        "label": "status"
+      }
+    ],
+    "rows": [
+      {
+        "key": "0-question/5bf82977a18fd6fb79a465197aa1c7b1_df2c6fe57d526bed2ba6d8b3d6ebe184",
+        "cells": {
+          "name": {
+            "type": "text",
+            "value": "Q-M12"
+          },
+          "reason": {
+            "type": "text",
+            "value": "Choose the target"
+          },
+          "status": {
+            "type": "label",
+            "value": "open"
+          }
+        },
+        "sourceIds": [
+          "plan"
+        ]
+      },
+      {
+        "key": "1-channel/7799827d12b5f75f97bfe0c942be1daa_8fb2938b22be7e42722dfdacfd1ba371",
+        "cells": {
+          "name": {
+            "type": "text",
+            "value": "npm"
+          },
+          "reason": {
+            "type": "text",
+            "value": "Waiting for publication"
+          },
+          "status": {
+            "type": "label",
+            "value": "lagging"
+          }
+        },
+        "sourceIds": [
+          "stores"
+        ]
+      },
+      {
+        "key": "2-ci/5d1f1dc2a9a760f5385b50bf57599530_52430720a8678a2de882f419e57a16fd",
+        "cells": {
+          "name": {
+            "type": "text",
+            "value": "Quality"
+          },
+          "reason": {
+            "type": "text",
+            "value": "https://example.invalid/actions/runs/2"
+          },
+          "status": {
+            "type": "label",
+            "value": "failed"
+          }
+        },
+        "sourceIds": [
+          "github"
+        ]
+      }
+    ],
+    "omittedRows": 0
+  },
+  "sections": [
+    {
+      "id": "security/vault",
+      "label": "vault",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "kind",
+          "label": "kind"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        }
+      ],
+      "rows": [
+        {
+          "key": "vault/0d0f16ef6c8f602c690779f88dcbb982_3874c5ca2db224fb59e0e1a60d86935d",
+          "cells": {
+            "kind": {
+              "type": "text",
+              "value": "unlocked"
+            },
+            "name": {
+              "type": "text",
+              "value": "state"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "security"
+          ]
+        },
+        {
+          "key": "vault/1ecbd35d8488215f992349559c86a10d_b7a06fd1f527280b586bfa06126a3024",
+          "cells": {
+            "kind": {
+              "type": "text",
+              "value": "2"
+            },
+            "name": {
+              "type": "text",
+              "value": "items"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "security"
+          ]
+        },
+        {
+          "key": "vault/e9b4afbd5cd5f79decb8c65c508b4a6c_fb1ca39b1d46316a844a95afdadc7c0a",
+          "cells": {
+            "kind": {
+              "type": "text",
+              "value": "osStore"
+            },
+            "name": {
+              "type": "text",
+              "value": "tier"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "security"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "security/breakdown",
+      "label": "breakdown",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "kind",
+          "label": "kind"
+        },
+        {
+          "key": "count",
+          "label": "count"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        }
+      ],
+      "rows": [
+        {
+          "key": "vault-kind/0af738ebe5a1756672858bec86af01f6_9d451bd005d0d20e201c91fa1cb8fab5",
+          "cells": {
+            "count": {
+              "type": "count",
+              "value": 1
+            },
+            "kind": {
+              "type": "text",
+              "value": "password"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "security"
+          ]
+        },
+        {
+          "key": "vault-kind/fbe58363b7828016568d27b0049d4c93_029aa3fbe28071133fe4460f97ac0c71",
+          "cells": {
+            "count": {
+              "type": "count",
+              "value": 1
+            },
+            "kind": {
+              "type": "text",
+              "value": "apiKey"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "security"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "security/grants",
+      "label": "grants",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "kind",
+          "label": "kind"
+        },
+        {
+          "key": "count",
+          "label": "count"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        }
+      ],
+      "rows": [
+        {
+          "key": "vault-grant/f7f0c762780bf8d2c7cda952bdb897cc_c87ca065ebfba1b71bfeaf79ce7c324c",
+          "cells": {
+            "count": {
+              "type": "count",
+              "value": 1
+            },
+            "kind": {
+              "type": "text",
+              "value": "named/named"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "security"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "security/usage",
+      "label": "usage",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "kind",
+          "label": "kind"
+        },
+        {
+          "key": "outcome",
+          "label": "outcome"
+        },
+        {
+          "key": "count",
+          "label": "count"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        }
+      ],
+      "rows": [
+        {
+          "key": "vault-use/229edbcd2af2e819a3810229337defe1_d71da3f9fcd2717b58f22e64bfdb0ed7",
+          "cells": {
+            "count": {
+              "type": "count",
+              "value": 1
+            },
+            "kind": {
+              "type": "text",
+              "value": "ssh"
+            },
+            "outcome": {
+              "type": "text",
+              "value": "locked"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "security"
+          ]
+        },
+        {
+          "key": "vault-use/482f8609894e33e1ed6ef0dc722f0575_a558da8095eb4613d4f57ebe621558f8",
+          "cells": {
+            "count": {
+              "type": "count",
+              "value": 1
+            },
+            "kind": {
+              "type": "text",
+              "value": "environment"
+            },
+            "outcome": {
+              "type": "text",
+              "value": "succeeded"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "security"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "security/denials",
+      "label": "denials",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "kind",
+          "label": "kind"
+        },
+        {
+          "key": "outcome",
+          "label": "outcome"
+        },
+        {
+          "key": "count",
+          "label": "count"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        }
+      ],
+      "rows": [
+        {
+          "key": "vault-denial/058814b6adb03a0000af0ea1f0da5452_7be04c6ba039d06f4775b8ff45e6dbae",
+          "cells": {
+            "count": {
+              "type": "count",
+              "value": 1
+            },
+            "kind": {
+              "type": "text",
+              "value": "environment"
+            },
+            "outcome": {
+              "type": "text",
+              "value": "denied"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "security"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "security/locks",
+      "label": "locks",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "kind",
+          "label": "kind"
+        },
+        {
+          "key": "outcome",
+          "label": "outcome"
+        },
+        {
+          "key": "count",
+          "label": "count"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        }
+      ],
+      "rows": [
+        {
+          "key": "vault-lock/39449bc531c1fec9ab6cca9b063d339e_38e29b9c2aabd139f5b73ddd5dffa011",
+          "cells": {
+            "count": {
+              "type": "count",
+              "value": 1
+            },
+            "kind": {
+              "type": "text",
+              "value": "ssh"
+            },
+            "outcome": {
+              "type": "text",
+              "value": "locked"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "security"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "security/developerAudit",
+      "label": "developerAudit",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "kind",
+          "label": "kind"
+        },
+        {
+          "key": "count",
+          "label": "count"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        }
+      ],
+      "rows": [
+        {
+          "key": "developer-audit/1926b7249caba6a55f12ba9c73d53080_29c4919a9e290c071c901459b52b6c23",
+          "cells": {
+            "count": {
+              "type": "count",
+              "value": 1
+            },
+            "kind": {
+              "type": "text",
+              "value": "page"
+            },
+            "name": {
+              "type": "text",
+              "value": "enable"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "security"
+          ]
+        },
+        {
+          "key": "developer-audit/abf151d8426fccb7e62f9685b2071dfc_5b82d84ada69c042754a57211ad36095",
+          "cells": {
+            "count": {
+              "type": "count",
+              "value": 1
+            },
+            "kind": {
+              "type": "text",
+              "value": "palette"
+            },
+            "name": {
+              "type": "text",
+              "value": "unlock"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "security"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    },
+    {
+      "id": "planFormat",
+      "label": "planFormat",
+      "sortKey": "key",
+      "columns": [
+        {
+          "key": "name",
+          "label": "name"
+        },
+        {
+          "key": "count",
+          "label": "count"
+        },
+        {
+          "key": "reason",
+          "label": "reason"
+        },
+        {
+          "key": "status",
+          "label": "status"
+        }
+      ],
+      "rows": [
+        {
+          "key": "format/1625bfce34d55fad4a16006ed9f0c744_fc55ffb61266ead88443fcd8e294f7f3",
+          "cells": {
+            "count": {
+              "type": "label",
+              "value": "unknown"
+            },
+            "name": {
+              "type": "text",
+              "value": "plan-format-v1"
+            },
+            "reason": {
+              "type": "text",
+              "value": ""
+            },
+            "status": {
+              "type": "label",
+              "value": "ok"
+            }
+          },
+          "sourceIds": [
+            "plan"
+          ]
+        }
+      ],
+      "omittedRows": 0
+    }
+  ],
+  "sources": [
+    {
+      "id": "accounts",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "agentUsage",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "certification",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "changelog",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "checkRuns",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "estimate",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "fleet",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "git",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "github",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "issues",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "keybindings",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "package",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "plan",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "playbook",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "questions",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "schedules",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "security",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "session",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "stores",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    },
+    {
+      "id": "usage",
+      "observedAt": "2026-10-06T12:00:00.000+00:00",
+      "freshness": {
+        "state": "fresh",
+        "ageMs": 0
+      },
+      "status": "ok",
+      "reason": null
+    }
+  ],
+  "footer": {
+    "rendererVersion": "1",
+    "icuVersion": "77.1",
+    "locale": "en"
+  }
+}

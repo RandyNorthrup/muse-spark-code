@@ -9,6 +9,8 @@ import {
   type ProviderClient,
   type ResponseAttemptGuard,
 } from '../core/backends/modelapi/client'
+import { paidDailyToday } from '../core/usage/reportingAmount'
+import type { UsageBudgetRead } from '../core/usage/usageService'
 import {
   metaResolvedModel,
   modelPricedUsage,
@@ -20,6 +22,7 @@ import type { SessionBudgetClaim } from '../core/backends/modelapi/sessionBudget
 import type { ResponseObject } from '../core/backends/modelapi/schemas'
 import {
   EXEC_USD_DECIMALS,
+  MEDIA_CONVERTER_PATH_MAX_CHARS,
   HTTP_TOO_MANY_REQUESTS,
   PAID_DAILY_BUDGET,
   RUNTIME_SETTINGS_FILE,
@@ -37,9 +40,48 @@ const settingsSchema = z.strictObject({
       .number()
       .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
   ),
+  // M105 lane V: the converter path shares this machine file (runtimeConverterPath.ts).
+  mediaConverterPath: z.optional(z.string().check(z.maxLength(MEDIA_CONVERTER_PATH_MAX_CHARS))),
 })
 const dailyLimitSchema = z.object({ limitUsd: legacyUsdSchema, stopped: z.boolean() })
 const ceilUsd = (cost: UsdAmount) => Usd.from(cost).ceiling(EXEC_USD_DECIMALS).toAmount()
+
+/** The machine-local day scope, the same calendar the usage page buckets by. */
+function dailyScope(now: number): string {
+  const date = new Date(now)
+  return [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-')
+}
+
+function settingsCapUsd(dataFolder: string): UsdAmount {
+  try {
+    return Usd.from(
+      settingsSchema.parse(
+        JSON.parse(readFileSync(path.join(dataFolder, RUNTIME_SETTINGS_FILE), 'utf8')),
+      ).paidDailyBudgetUsd ?? SETTING_DEFAULTS.paidDailyBudgetUsd,
+    ).toAmount()
+  } catch (error: unknown) {
+    if (storeErrorCode(error) === 'ENOENT')
+      return Usd.from(SETTING_DEFAULTS.paidDailyBudgetUsd).toAmount()
+    throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+  }
+}
+
+/**
+ * The shared daily paid budget for report Limits sections, without starting
+ * a backend (RVCM1132B finding 3): the same ledger the runtime reserves
+ * against, read only. A missing ledger reads as zero spend under the
+ * configured cap.
+ */
+export function readRuntimeDailyBudget(deps: {
+  readonly dataFolder: string
+  readonly now: () => number
+}): Promise<readonly UsageBudgetRead[]> {
+  return createRuntimeDailyBudget({
+    dataFolder: deps.dataFolder,
+    now: deps.now,
+    sleep: () => Promise.resolve(),
+  }).readToday()
+}
 
 export function createRuntimeDailyBudget(deps: {
   readonly dataFolder: string
@@ -52,22 +94,8 @@ export function createRuntimeDailyBudget(deps: {
     initialBudget: () =>
       Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   })
-  const day = () => {
-    const date = new Date(deps.now())
-    return [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-')
-  }
-  const capUsd = () => {
-    try {
-      return (
-        settingsSchema.parse(
-          JSON.parse(readFileSync(path.join(deps.dataFolder, RUNTIME_SETTINGS_FILE), 'utf8')),
-        ).paidDailyBudgetUsd ?? SETTING_DEFAULTS.paidDailyBudgetUsd
-      )
-    } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT') return SETTING_DEFAULTS.paidDailyBudgetUsd
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
-    }
-  }
+  const day = () => dailyScope(deps.now())
+  const capUsd = () => settingsCapUsd(deps.dataFolder)
   const dailyCapUsd = (scope: string) => {
     const directory = path.join(deps.dataFolder, PAID_DAILY_BUDGET.directory, scope)
     let isStopped = true
@@ -99,6 +127,7 @@ export function createRuntimeDailyBudget(deps: {
   }
   return {
     capUsd: () => dailyCapUsd(day()),
+
     async reserve(costUsd: UsdAmount, signal: AbortSignal): Promise<SessionBudgetClaim> {
       signal.throwIfAborted()
       const scope = day()
@@ -123,6 +152,23 @@ export function createRuntimeDailyBudget(deps: {
           return claim.check(dailyCapUsd(scope))
         },
       }
+    },
+
+    /**
+     * Today's shared budget for report Limits sections: the same shape as
+     * VS Code's dailyPaid.readToday, without the editor's stop/raise state
+     * (the standalone runtime never raises a day or records a stop, so both
+     * stay at their defaults).
+     */
+    async readToday(): Promise<readonly UsageBudgetRead[]> {
+      return await paidDailyToday({
+        readExisting: (id, account) => journal.readExisting(id, account),
+        accountId: PAID_DAILY_BUDGET.accountId,
+        scope: day(),
+        now: deps.now(),
+        capUsd: capUsd(),
+        stopped: false,
+      })
     },
   }
 }
@@ -304,6 +350,14 @@ export function withRuntimeAccounting(
     waitBeforeRetry: client.waitBeforeRetry.bind(client),
     createImage: client.createImage.bind(client),
     editImage: client.editImage.bind(client),
+    // Production media (D85.2): the Files transport rides through runtime
+    // accounting untouched; a wrapped client without it keeps the refusal.
+    ...(client.requestFile !== undefined && {
+      requestFile: client.requestFile.bind(client),
+    }),
+    ...(client.requestTranscription !== undefined && {
+      requestTranscription: client.requestTranscription.bind(client),
+    }),
     hasPaidDailyBudget: client.hasPaidDailyBudget,
     ...(client.provider !== undefined && { provider: client.provider }),
     ...(client.modelContextLimit !== undefined && {

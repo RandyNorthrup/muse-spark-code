@@ -29,10 +29,7 @@ import { stopResourceTree } from '../core/resources/admission'
 import type { ResourceLease } from '../core/resources/launch'
 import { withoutCredentials } from '../core/credentialEnvironment'
 import path from 'node:path'
-import {
-  setEnvironmentVariable,
-  windowsPowerShellModulePath,
-} from '../core/backends/musecode/launch'
+import { setEnvironmentVariable, windowsPowerShellModulePath } from '../core/childEnvironment'
 import { powerShellQuoted } from '../core/shellQuote'
 import {
   GIT_OUTPUT_MAX_BYTES,

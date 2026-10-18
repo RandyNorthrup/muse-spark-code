@@ -422,6 +422,13 @@ const agentEventSchema = z.discriminatedUnion('type', [
     maxAttempts: numberSchema,
     retryDelayMs: numberSchema,
     reason: stringSchema,
+    // The scheduled attempt (both retry layers serve it; the CLI's own
+    // 1.4.10 schema export requires it) and the failing attempt's provider
+    // facets. Absent only on older hosts.
+    nextAttempt: optionalNumber,
+    system: optionalString,
+    errorKind: optionalString,
+    httpStatus: optionalNumber,
   }),
   // The session's totals on both backends (PLAN.md D26): prompt tokens counted
   // once and output tokens. Cached and reasoning totals only where the

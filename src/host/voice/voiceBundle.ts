@@ -8,19 +8,25 @@
 // any recording fails, through the listener's `onError` ("Voice dictation
 // failed: …", the log has the cause), and the next press tries again.
 
+import type {
+  OwnedSessionBudgetScope,
+  SessionBudgetJournal,
+} from '../../core/backends/modelapi/sessionBudget'
+import type { UsdAmount } from '../../shared/usd'
 import type { DictationHandle, DictationListener } from '../../core/voice/dictation'
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as VoiceEntry from './voiceEntry'
+import type * as VoiceLinuxEntry from './voiceLinuxEntry'
 
-/** The bundle's two drivers, shipped and loaded together. */
+/** The bundle's drivers, shipped and loaded together. */
 export interface VoiceBundle {
   readonly createDictation: typeof VoiceEntry.createDictation
   readonly createMuseVoice: typeof VoiceEntry.createMuseVoice
 }
 
-/** Whether a required module exports both drivers. */
+/** Whether a required module exports every voice entry point. */
 export function isVoiceBundle(value: unknown): value is VoiceBundle {
   return (
     typeof value === 'object' &&
@@ -29,6 +35,24 @@ export function isVoiceBundle(value: unknown): value is VoiceBundle {
     typeof value.createDictation === 'function' &&
     'createMuseVoice' in value &&
     typeof value.createMuseVoice === 'function'
+  )
+}
+
+/** Linux dictation's driver and model removal, shipped and loaded together. */
+export interface VoiceLinuxBundle {
+  readonly createLinuxDictation: typeof VoiceLinuxEntry.createLinuxDictation
+  readonly removeLinuxDictationModel: typeof VoiceLinuxEntry.removeLinuxDictationModel
+}
+
+/** Whether a required module exports every Linux voice entry point. */
+export function isVoiceLinuxBundle(value: unknown): value is VoiceLinuxBundle {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'createLinuxDictation' in value &&
+    typeof value.createLinuxDictation === 'function' &&
+    'removeLinuxDictationModel' in value &&
+    typeof value.removeLinuxDictationModel === 'function'
   )
 }
 
@@ -46,6 +70,16 @@ export function voiceLoader(deps: VoiceLoaderDeps): () => VoiceBundle {
     ...deps,
     isBundle: isVoiceBundle,
     label: 'voice bundle',
+    unavailable: () => UI_TEXT.dictationNotLoaded,
+  })
+}
+
+/** The Linux bundle, required on the first Linux recording and kept from then on. */
+export function voiceLinuxLoader(deps: VoiceLoaderDeps): () => VoiceLinuxBundle {
+  return lazyBundleLoader({
+    ...deps,
+    isBundle: isVoiceLinuxBundle,
+    label: 'Linux voice bundle',
     unavailable: () => UI_TEXT.dictationNotLoaded,
   })
 }
@@ -82,7 +116,38 @@ export function deferredDriver(
     },
     dispose() {
       isDisposed = true
-      driver?.dispose()
+      return driver?.dispose()
     },
   }
+}
+
+/** Meta voice owns a Meta-key scope, independent of the conversation's provider credential. */
+export async function ownedMetaVoiceBudgetScope(deps: {
+  readonly journal: SessionBudgetJournal | undefined
+  readonly sessionId: string
+  readonly accountId: string
+  readonly capUsd: () => UsdAmount
+  readonly isCurrent: () => boolean
+  /**
+   * The parent session's durable save, awaited before the journal is read
+   * (RVCM352B P2): the same refresh the host-owned scope awaited. A first
+   * microphone press racing that save must wait for it, never report
+   * unavailable storage for a session that is still being written.
+   */
+  readonly awaitSessionSave: () => Promise<void>
+}): Promise<OwnedSessionBudgetScope | undefined> {
+  if (deps.journal === undefined) return undefined
+  // The session file seeds the journal: read it only once its save is
+  // durable, or a fresh session looks like missing storage.
+  await deps.awaitSessionSave()
+  // Seed/read the same parent journal before reserving; unknown history stays refused.
+  await deps.journal.read(deps.sessionId, deps.accountId)
+  if (!deps.isCurrent()) throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
+  return Object.freeze({
+    sessionId: deps.sessionId,
+    accountId: deps.accountId,
+    journal: deps.journal,
+    capUsd: deps.capUsd,
+    isStillAllowed: (digest: string | undefined) => digest === deps.accountId && deps.isCurrent(),
+  })
 }

@@ -16,6 +16,17 @@
 import { forms } from './forms'
 
 export const EN = {
+  companionVoiceCancel: 'Cancel',
+  companionVoiceFailed:
+    'Dictation failed or was refused. Check microphone permission, the selected engine and the daily budget, then record again. A paid request already sent may still be charged.',
+  companionVoiceFree: 'Operating system (free)',
+  companionVoiceLimit: '{seconds} seconds maximum. Audio is removed after transcription.',
+  companionVoiceOpen: 'Open dictation companion',
+  companionVoicePaidSummary: 'Paid audio: {duration}.',
+  companionVoiceReference:
+    'Dictate in the browser and review before sending to your owning ACP session or terminal. System recognition is free on Windows and macOS; paid Muse Voice asks for consent and shares the daily budget.',
+  companionVoiceReview: 'Review transcript before sending',
+  companionVoiceTitle: 'Dictate',
   // M107 / D87: resource surfaces and manifest-ready settings text.
   resourceTitle: 'Resources',
   resourceHarnessInTree:
@@ -143,6 +154,7 @@ export const EN = {
   feedbackFailed: 'Could not submit feedback.',
   // M102: the shared usage page; its full table is a separate lazy family.
   usagePageTitle: 'Usage & Cost',
+  uploadsName: 'Uploaded Files',
   paletteUsagePage: 'Track cost, tokens and limits across editors.',
   openUsagePage: 'Open Usage Page',
   acpUsageDescription: 'Show usage and cost across models, or open the usage page.',
@@ -272,6 +284,9 @@ export const EN = {
   estimateWaiting: 'Waiting for {dependency}.',
   estimateRunning: 'Estimating…',
   estimateFailed: 'Estimate failed: {detail}',
+  // A refused estimate's omitted lanes: {count} is the lanes the estimator
+  // did not name, rendered in the report's language from that number.
+  estimateMissingMore: forms({ one: 'and {count} more', other: 'and {count} more' }),
   estimateSchedule: 'Lane Schedule',
   estimateGantt: 'Schedule for {goal}, with the critical path and P50 and P90 finish marks.',
   estimateOptimizeDescription:
@@ -348,6 +363,8 @@ export const EN = {
   referenceProviders:
     'List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.',
   referenceCliOptions: {
+    'context-window':
+      '--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.',
     'resource-governor':
       '--resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default.',
     'cpu-max': '--cpu-max <percent>: Throttle when CPU stays above this percentage for 30 seconds.',
@@ -385,6 +402,8 @@ export const EN = {
       '--web-search                     Offer paid web search (Model API backend; its price is asked first)',
     'image-generation':
       '--image-generation               Offer paid image generation (Model API backend; its price is asked first)',
+    'muse-voice':
+      '--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)',
     'scheduled-prompts':
       '--scheduled-prompts              Offer paid scheduled prompts (Model API backend; its price is asked first)',
     verbose: '--verbose                        Log every detail on stderr',
@@ -428,6 +447,7 @@ export const EN = {
     'estimate-by': '--by <date>: Deadline',
     fleet: '--fleet current|minimum|optimum: Current / Minimum / Optimum',
     'estimate-format': '--format md|html|json|text: Output format',
+    'estimate-check-plan': '--check-plan: List every plan problem instead of estimating',
     seed: '--seed <seed>: Simulation seed',
   },
   referenceScanSecrets:
@@ -480,9 +500,9 @@ export const EN = {
   referenceSetup: 'Run Setup hooks for init from spark-hooks.json in a trusted workspace.',
   referenceSkills: "SKILL.md. museCode: Turn Muse Code's skills on or off. modelApi: SKILL.md.",
   referenceDictation:
-    'Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine. Voice dictation is not available in a remote window (SSH, WSL, a container, a tunnel or a codespace): the extension runs on the remote machine, which cannot hear this computer’s microphone. Open the folder in a local window to dictate.',
+    'Free dictation uses the OS engine on Windows and macOS. Local Linux x64/arm64 uses offline English Whisper tiny.en after consent to download its model; linuxDictationModel=false removes it. Remote workspace hosts cannot hear the local microphone.',
   referenceVoice:
-    'Paid voice is unavailable on Model API in this version. Muse Code needs a local window, a stored Model API key and explicit opt-in. Linux also needs arecord or parec.',
+    'Paid Muse Voice works on both backends in a local window with a stored Model API key; Muse Code requires explicit opt-in. Recordings stop at three minutes and reserve the daily budget and any conversation cap before connecting. Linux needs arecord or parec. Final reported seconds determine the estimate; the provider’s bill cannot be read back.',
   referenceBestOfN:
     'Best of N Apply and stage exactly the selected preview. No commit is created; ignored files are excluded.',
   referenceNativeAgentsConditions:
@@ -496,7 +516,7 @@ export const EN = {
   referenceLatestRecording:
     'Attach the most recent screen recording again without recording a new one. Requires a readable recording and verified video upload support.',
   referenceUploadedFiles:
-    'List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.',
+    'List the uploaded files of this account and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.',
   referenceConversationActions:
     'Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.',
   referenceQuestions:
@@ -538,9 +558,12 @@ export const EN = {
   referenceCodeOutput:
     'Copy copies code; Insert writes at the editor cursor; Apply replaces the editor selection. Open tool output to read the full result; clipped output can be paged. Select transcript text to quote it in the composer, ask about it, add a comment or copy it.',
   referencePaidContexts:
-    'Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
+    'Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
   referenceAcp:
-    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+  referenceCiOtherTitle: 'Other CI systems',
+  referenceCiOther:
+    'Digest-pinned headless review/fix templates for GitLab, Azure, Jenkins and Bitbucket. Node reads the key and publishes outside the checkout; Azure/Jenkins upload those files. GitLab/Bitbucket artifact transport and Bitbucket process isolation remain unqualified. Declare extra key binding names in MUSE_CI_KEY_ALIASES. Fake tests only; see docs/ci-other-systems.md.',
   referenceWebFetchTitle: 'Web Fetch',
   referenceWebFetchDetail:
     'Fetch public web pages as readable text, with permission and network checks.',
@@ -577,7 +600,10 @@ export const EN = {
   referenceDiagnostics: 'Show local backend and extension diagnostics.',
   referenceReport: 'Preview a scrubbed problem report before saving or sending it.',
   referenceInProgress: 'In progress.',
-  referenceEstimate: 'In progress.',
+  estimateDiagnosticHelp:
+    'Plan and engine refusals show the same named diagnostic in the panel, CLI and ACP; external errors hide private details. A refused estimate, refresh or start replaces the previous forecast with that diagnostic.',
+  referenceEstimate:
+    'Ship-date forecast for a goal from the current fleet, or the setup a target date needs.',
   referenceTerminal: 'Open the Muse Code CLI in the editor’s terminal.',
   referenceRules: 'Create or open AGENTS.md in the workspace root.',
   referenceWalkthrough: 'Open the Getting Started walkthrough.',
@@ -995,6 +1021,9 @@ export const EN = {
     sizeExceeded: 'This file exceeds {size}.',
     convertToMp4: 'Convert to mp4',
     converterUnavailable: 'No converter is available. Choose an mp4 file.',
+    converterConfiguredRefused: 'The configured converter was refused: {reason}',
+    converterSharedFolder:
+      'A converter was found, but a folder above it can be changed by other users ({reason}). Set the converter path to one in a folder only you or the system can change.',
     transcribeSound: 'Transcribe the Sound',
     transcribe: 'Transcribe',
     useSoundtrackModel: 'Use {model} for This Message',
@@ -1006,6 +1035,12 @@ export const EN = {
     cappedRateUnknown: 'This capped session needs a calibrated media rate for {model}.',
     contributorWarning: 'Contributor models may use this media for training.',
     contributorQuestion: 'Send {name} to a Contributor model? It may be used for training.',
+    contributorDeclined: '{name} was not attached.',
+    audioWillTranscribe:
+      '{model} does not hear audio, so Muse Voice will transcribe it before sending. Transcription is a paid extra and asks first.',
+    useStandardThenAttach: 'Switch to {model}, then attach {name} again.',
+    uploadUnavailable:
+      'This session has no file upload service, so video and audio cannot be sent. Use the Model API backend with a Meta key.',
     recordingWarning: 'This recording includes whatever was on your screen.',
     send: 'Send',
     useStandard: 'Use the Standard Model',
@@ -1016,6 +1051,8 @@ export const EN = {
     uploadFailed: 'Upload failed: {reason}',
     uploadExpired: 'The upload expired. Attach {name} again.',
     sourceChanged: '{name} changed since upload. Attach it again.',
+    attachedLimit:
+      'Too many video and audio attachments are in use. Wait for a reply to finish, then attach again.',
     uploadedFiles: 'Uploaded Files',
     filesOurs: 'Uploaded by This App',
     filesOtherApp: 'From Another App',
@@ -1023,6 +1060,8 @@ export const EN = {
     fileNoExpiry: 'No expiry set',
     fileSessions: 'Sessions: {sessions}',
     filesInUse: 'Remove this file from its sessions before deleting it.',
+    filesInUseRequest:
+      'This file is in use by a running request. Try again when the reply finishes.',
     deleteUploadedFiles: 'Delete Uploaded Files…',
     deleteAllOurs: 'Delete All Ours',
     otherAppFileConfirmation: 'Another app may still use {name}. Delete it anyway?',
@@ -1061,6 +1100,17 @@ export const EN = {
     recordingStart: 'Start Recording',
     recordingStop: 'Stop Recording',
     uploadDeleteFailed: 'Could not delete {name}: {reason}',
+    deleteUploadedFilesPick: 'Checked files are deleted from the provider',
+    uploadsDescription: 'List uploaded files and delete them early',
+    uploadsUsage: '/uploads [delete <file> | delete-all]',
+    uploadNotFound: 'No uploaded file {id} is listed.',
+    uploadForeignKept: 'Kept {name}: another app may still use it.',
+    uploadDeleteProviderRefused: 'the provider refused the deletion',
+    uploadDeleteBacklog: forms({
+      one: '{count} uploaded file could not be deleted from {provider}. Deletion will be retried.',
+      other:
+        '{count} uploaded files could not be deleted from {provider}. Deletion will be retried.',
+    }),
     conversionFailed: 'Conversion failed: {reason}',
     replayMetadata: 'Media: {name} ({duration}, {size})',
     replayMetadataNoDuration: 'Media: {name} ({size})',
@@ -1333,6 +1383,7 @@ export const EN = {
     reviewCommit: 'Muse reviews one recent commit you pick.',
     reviewSecurity: 'Muse checks your uncommitted changes for security problems.',
     reviewChanges: 'Accept or revert each edit this conversation made.',
+    playback: 'Muse states its own understanding of the goal, from memory only, with no tools.',
     // Scheduled prompts v2 (M115): the reference reuses these; the palette
     // rows keep their translated editor tips until these are translated.
     schedule: 'Review schedules and their standing grants in this workspace.',
@@ -2158,6 +2209,8 @@ export const EN = {
     fires: 'Fires',
     keybindings: 'Key Bindings',
     conflicts: 'Conflicts',
+    shortcut: 'Shortcut',
+    command: 'Command',
     diff: 'Difference',
     sources: 'Sources',
     planFormat: 'Plan Format',
@@ -2197,6 +2250,7 @@ export const EN = {
     merged: 'Merged',
     released: 'Released',
     complete: 'Complete',
+    ended: 'Ended',
     superseded: 'Superseded',
     waiting: 'Waiting',
     blocked: 'Blocked',
@@ -2214,6 +2268,20 @@ export const EN = {
     removed: 'Removed',
     changed: 'Changed',
     unchanged: 'Unchanged',
+    paused: 'Paused',
+    active: 'Active',
+    all: 'All',
+    total: 'Total',
+    once: 'Once',
+    user: 'User',
+    hookVerification: 'Hook verification',
+  },
+  reportScheduleCells: {
+    triggerInterval: 'every {everyMs} ms',
+    triggerDaily: 'every {everyDays}d {times}x daily',
+    triggerWeekdays: '{times}x on weekdays',
+    triggerWeekly: '{days}d weekly',
+    scheduleGrant: '{rules} rules, {destinations} destinations, cap {cap}',
   },
   reportKinds: {
     project: 'Project',
@@ -2306,9 +2374,32 @@ export const EN = {
     unbound: 'This source integration is unavailable.',
     history: 'History for the selected session is unavailable.',
   },
+  reportDetailReasons: {
+    journalIncomplete:
+      'The usage journal contains damaged, incomplete or newer-version entries; totals exclude them.',
+    sessionUsageUnavailable:
+      'Usage for this session is not attributable in the retained journal; token and cost totals are unavailable.',
+    budgetsUnavailable: 'Budget snapshots for the selected period are unavailable.',
+    sessionModelUnavailable:
+      'The session catalogue names no active model, so the model is reported as unknown.',
+
+    sessionTurnsUnavailable:
+      'The session history records no turn identifiers, so turns cannot be counted.',
+    sessionApprovalsUnavailable: 'The session history records no approval decisions.',
+    toolBreakdownUnavailable: 'Per-tool usage is not recorded in the usage journal.',
+    rolledUpBreakdownExcluded: 'Rolled-up history is included in totals but not in this breakdown.',
+    rolledUpSessionExcluded:
+      'Rolled-up history is excluded from this session’s totals and breakdown.',
+    accountsFacetsUnavailable: 'Unavailable account details: {facets}.',
+    securityVaultUnavailable: 'The vault is locked or unavailable.',
+    securityDeveloperAuditUnavailable: 'The developer audit is unavailable.',
+  },
   reportRowsMore: forms({ one: '{count} more', other: '{count} more' }),
+  reportProblemsMore: forms({ one: '{count} more problem', other: '{count} more problems' }),
   reportCliUsage:
     'Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n',
+  reportCliKinds:
+    'Kinds: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n',
   reportIssue: 'Report an Issue…',
   // Report a problem (M93, PLAN.md D72): the crash offer, the report
   // dialog's labels and actions, and the export outcomes. The preview shows
@@ -2978,6 +3069,25 @@ export const EN = {
   announceQuestion: 'Muse asked a question',
   announceResumed: 'Conversation resumed',
   // Voice dictation (M9).
+  linuxDictationDownloadTitle:
+    'Download the offline English dictation helper ({helperSize}) and model ({size})?',
+  linuxDictationDownloadDetail:
+    'Whisper tiny.en is free and recognizes English on this computer, using only the CPU. Download the helper from the extension release assets and the model from huggingface.co into {location}. Audio stays in memory. Turn linuxDictationModel off to stop dictation and remove the helper and model.',
+  linuxDictationIntegrity:
+    'The dictation helper or model failed its size or SHA-256 check. No recognition started.',
+  linuxDictationBusy:
+    'Another window is using the dictation helper or model. Stop its recording or download and try again.',
+  linuxDictationRemoved:
+    'Linux dictation is off and its helper and model are removed. Turn linuxDictationModel on and reload the window to enable it.',
+  linuxDictationRemovalPending:
+    'Linux dictation is off and its helper and model are being removed. Reload the window to retry removal, or turn linuxDictationModel on and reload the window to enable it.',
+  linuxDictationDisabled:
+    'Linux dictation is off. Turn linuxDictationModel on and reload the window to enable it.',
+  linuxDictationRemoveFailed:
+    'The offline dictation helper or model could not be removed. Check storage permissions and stop downloads in other windows, then reload this window to retry.',
+  linuxDictationFailed: 'Linux dictation failed',
+  linuxDictationDownloadFailed:
+    'The dictation helper or model could not be downloaded. Press the microphone to retry; an interrupted download can resume.',
   dictationTitle: 'Tap or hold to record (Ctrl+D)',
   dictationStopTitle: 'Stop recording (Ctrl+D)',
   dictationLabel: 'Record Voice',
@@ -2986,7 +3096,7 @@ export const EN = {
   dictationFailed: 'Voice dictation failed',
   dictationUnavailable: 'Voice dictation is not available on this platform.',
   dictationUnavailableLinux:
-    'Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine.',
+    'Linux dictation needs an x64 or arm64 computer with PulseAudio or PipeWire running.',
   dictationUnavailableWindows:
     'Voice dictation needs Windows PowerShell, which was not found (SystemRoot is not set).',
   dictationUnavailableDarwin:
@@ -3044,6 +3154,13 @@ export const EN = {
   turnUnqueued: 'Not sent: the queued message was withdrawn',
   turnRetracted:
     'Another Muse Code client withdrew a message from this conversation; reopen it from History to see it as stored.',
+  turnRetractDeclined:
+    'Withdrawing the message was declined, so the turn continues with it still in place.',
+  approvalReviewing: 'The Safety Check is reviewing this approval.',
+  sessionBranchChanged: "The session's version-control branch changed.",
+  sessionViewHealthChanged: 'The session view health changed.',
+  turnForegroundCompleted:
+    'The turn finished its visible work; background checks are still running.',
   modelRouteUnserved:
     'The signed-in account cannot serve this conversation’s model; choose another model from the model menu.',
   viewGapReloaded: 'Some updates from Muse Code were missed, so the conversation was reloaded.',
@@ -3099,7 +3216,7 @@ export const EN = {
   sessionBudgetUnknownCharge:
     'Usage was not verified. {amount} remains reserved as a possible charge; this is not a confirmed bill.',
   sessionBudgetVoiceUnavailable:
-    'Muse Voice is unavailable under a finite spend cap: its billed audio duration has no verified bound. Use free system dictation.',
+    'Muse Voice file transcription is unavailable under a finite spend cap: its billed audio duration has no verified bound. Use free system dictation.',
   sessionBudgetVoiceContextChanged:
     'Muse Voice stopped because the conversation or its permissions changed. Start a new recording in the current conversation.',
   sessionBudgetUnpriced:
@@ -4099,6 +4216,10 @@ export const EN = {
   // The same in the ACP agent (D62), whose package ships the bundle.
   acpModelApiBundleUnavailable:
     'The Model API backend could not be loaded; reinstall muse-spark-code-acp and restart the agent. The agent’s log has the details.',
+  // The Muse Code backend's own bundle (PR206, PLAN.md D6), loaded when that
+  // backend first starts.
+  museCodeBundleUnavailable:
+    'The Muse Code backend could not be loaded; reinstall the extension and reload the window. The log has the details.',
   // Why the Muse Code CLI was not found, on the sign-in page and in warnings.
   cliNotFound: 'Muse Code is not installed in any known location.',
   cliPathNotAbsolute: 'museSpark.museBinaryPath must be an absolute path.',
@@ -4153,7 +4274,7 @@ export const EN = {
     '  {command} [options] login        Sign in to Muse Code in this terminal',
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
     '  {command} auth set|status|clear --provider <id>  Store, check or remove a provider key (read from stdin)',
-    '  {command} providers list|add|test|remove  Manage model providers',
+    '  {command} providers list|add|test|remove|connect|usage  Manage model providers',
     '  {command} exec [options] <prompt>  Run one headless turn',
     '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
     '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
@@ -4170,6 +4291,7 @@ export const EN = {
     '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
+    '  --muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
     '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',
@@ -4530,7 +4652,7 @@ export const EN = {
     'Muse may search the web while it answers. Each search is billed to your Model API key at {price}, on top of the tokens its results add. Deny sends the prompt without web search.',
   paidUseVoiceTitle: 'Record with Muse Voice?',
   paidUseVoiceDetail:
-    'Muse Voice transcribes this recording, billed to your Model API key at {price}. Deny leaves the microphone off.',
+    'Muse Voice is a Meta service and bills your Meta Model API key at {price}, regardless of the conversation model. Recordings stop at three minutes. Allow once covers one recording; Always covers this workspace until revoked. Duration and estimated cost are shown; the provider’s bill cannot be read back. Deny leaves the microphone off.',
   paidWebSearchPrice: '{price} per 1,000 searches',
   paidImagePrice: '{price} per image',
   paidVoicePrice: '{price} per hour of audio',
@@ -4542,7 +4664,7 @@ export const EN = {
   paidConfirmImage:
     'The model may create image files in the workspace, or edit workspace images into new ones. Each image is billed to your Model API key at {price}, and you are asked before every one, in every permission mode, unless you allow images always in this workspace. Used on the Model API backend, and on the Muse Code backend while a key is stored (never billed to the subscription).',
   paidConfirmVoice:
-    'The microphone will send what you record to Meta’s Muse Voice Transcribe instead of your computer’s own recogniser, billed to your Model API key at {price}. Each recording asks first, unless you allow Muse Voice always in this workspace. Used on the Model API backend, and on the Muse Code backend while a key is stored.',
+    'Muse Voice sends recordings to Meta, billed to your Model API key at {price}, on either backend. Recordings stop at three minutes and reserve the daily budget and any conversation cap before connecting. Allow once covers one recording; Always covers this workspace until revoked. The provider’s bill cannot be read back.',
   paidConfirmScheduled:
     'A due scheduled prompt waits for you to run it. Each run asks before any Model API call, unless you allow scheduled runs always in this workspace. {price}. Billed to your Model API key; total varies with tokens used.',
   paidConfirmSubagents:
@@ -4804,8 +4926,19 @@ export const EN = {
   dictationPaidTitle:
     'Muse Voice, paid: {price}, billed to your Model API key. Tap or hold to record (Ctrl+D)',
   // Why Muse Voice cannot record or transcribe.
-  museVoiceNoKey: 'Muse Voice needs a Model API key; sign in with one first.',
+  museVoiceNoKey:
+    'Muse Voice needs a Meta Model API key; add one even when your conversation uses another provider or a local model.',
   museVoiceNoAnswer: 'Muse Voice did not answer; check the connection and try again.',
+  museVoiceIdle:
+    'Muse Voice closed the recording because audio stopped arriving at real-time pace.',
+  museVoiceTransportFailed: 'The Muse Voice connection failed; the recording stopped.',
+  museVoiceInvalidDuration: 'Muse Voice reported an invalid audio duration; the recording stopped.',
+  museVoiceUsageReported:
+    'Muse Voice: {duration}, estimated {cost} from the reported duration. The provider’s bill cannot be read back.',
+  museVoiceUsageEstimated:
+    'Muse Voice: {duration}, estimated {cost} from audio sent. No final duration arrived; the full reservation remains uncertain. The provider’s bill cannot be read back.',
+  museVoiceUsageEmpty:
+    'Muse Voice: {duration}, estimated {cost}. No audio was sent; no audio charge is expected. The provider’s bill cannot be read back.',
   museVoiceNoFinal: 'Muse Voice did not send the transcript in time; try again.',
   museVoiceMalformed: 'Muse Voice sent something that is not JSON, so the recording was dropped.',
   museVoiceRefused: 'Muse Voice refused the recording',
@@ -4956,6 +5089,22 @@ export const EN = {
   },
   // {location}: a file and line, such as src/a.ts:12.
   reviewOpenFinding: 'Open {location}',
+  // D203: /playback. The agent states its own understanding of the goal and
+  // instructions from its working memory, with no tools for the turn.
+  playbackItem: '/playback',
+  playbackDetail: 'Muse states its own understanding of the goal, from memory only, with no tools',
+  playbackUsage: '/playback takes no arguments: send it bare.',
+  // Why a playback did not start, on its card.
+  playbackBusy: 'A playback starts once the current turn has ended.',
+  playbackOutputSchemaRefused:
+    'A playback cannot use structured output: its reply must open with the marker line, which a JSON schema cannot hold.',
+  // No backend no-tools turn (Muse Code): refused instead of sent as an
+  // ordinary turn a reactive stop might reach too late.
+  playbackNeedsModelApi:
+    'A playback needs the Model API backend: Muse Code offers no turn without tools, so no playback can start there.',
+  // The playback's turn text loads with the review's module (dist/review.js), which could not be loaded.
+  playbackUnavailable:
+    'The playback could not be loaded, so no playback can start; reinstall the extension and reload the window. The log has the details.',
   // M78 (PLAN.md D49): command rules, permission profiles and the Auto
   // reviewer on the Model API backend. Why a card asks beyond the mode:
   approvalProfileNote: 'A permission profile is on. Calls outside its file rules ask.',
@@ -5137,6 +5286,18 @@ export const EN = {
   // {detail}: what the provider answered, in its words.
   providerTestFailed: 'Test failed: {detail}',
   scanFailed: 'Scan failed: {detail}',
+  localContextWindow: 'Context window (tokens)',
+  localContextWindowHint:
+    'Enter the context window loaded on the local server. Manual values override scanned limits.',
+  localContextWindowInvalid: 'Enter a positive whole number of tokens.',
+  // {build}: the server build the llama.cpp quirks were captured against.
+  llamacppScanMissingWindow:
+    'The llama.cpp model list reports no live context window (captured build {build}).',
+  // {model}: a local model saved without its server's reported window.
+  localModelWindowUnknown:
+    'Model {model} has no known context window. Enter its loaded window in the provider wizard, Models panel or providers add --context-window.',
+  // {id}: the provider saved without its key.
+  providerNeedsKey: 'Provider {id} needs a key.',
   // The wizard's first step; the quick pick runs the same flow.
   wizardPickProvider: 'Pick a Provider',
   providerFields: {
@@ -5200,8 +5361,22 @@ export const EN = {
   providerImportPreviewTitle: 'Import Preview',
   importNeedsKey: 'needs a key',
   importNeedsKeyLabel: 'Needs a Key',
+  providerConnectReplaceKey:
+    'An OpenRouter key is already stored. Replace it? Type yes to continue.',
+  providerCreatedKeyDiscarded:
+    'OpenRouter created a key labelled {label}. It was not kept here. Remove it at {url}.',
+  providerConnectFailed: 'OpenRouter connection failed. Try connecting again.',
+  providerConnectBusy: 'Another provider change is in progress. Try again when it finishes.',
+  providerConnectRecoveredStored:
+    'A previous OpenRouter connection already stored its key. It is kept.',
+  providerConnectStoredNewKey:
+    'The new OpenRouter key is stored. The previous key could not be restored.',
+  providerUsageFailed: 'OpenRouter key usage could not be read. Try again.',
+  providerPasteCode: 'Paste the authorization code shown by OpenRouter.',
+  usageKeyTotal: 'Total Usage',
+  usageUnlimited: 'No Limit',
   providerOpenRouterServices:
-    'OpenRouter account connection and key usage are unavailable. Paste a key to use models.',
+    'Connect your OpenRouter account and view the key’s usage, limit and remaining balance.',
   refreshModels: 'Refresh Models',
   scanNewModels: forms({
     one: '{count} new model since the last scan',
@@ -6427,6 +6602,36 @@ export const EN = {
       'Passkeys stay with your authenticator. Sign in yourself; the vault stores session cookies only.',
     recoveryWarning:
       'Keep the recovery code somewhere safe. It is shown only once and unlocks the vault.',
+    // C-M109-1: the setup flow and the CLI (lead decision 8).
+    setUp: 'Set Up Vault',
+    savedIt: 'I Saved It',
+    copyCode: 'Copy',
+    cancelSetup: 'Cancel Setup',
+    setupNeeded: 'Set up the vault before you store a secret in it.',
+    setupExists: 'A vault already exists for this user.',
+    setupPending: 'Save the recovery code, then confirm to finish setting up the vault.',
+    setupCancelled: 'Vault setup was cancelled. Nothing was saved.',
+    setupHeadless:
+      'Vault setup and recovery need an interactive terminal; headless runs cannot do them.',
+    recoveryShownOnce: 'Recovery code (shown only now): {code}',
+    savedItPrompt: 'Have you saved the recovery code somewhere safe?',
+    busy: 'The vault is busy in another window. Try again.',
+    // C-M109-1: import and Reset Vault (lead decisions, 2026-10-10).
+    importedLabel: 'Imported {source} credential {number}',
+    importedSummary: 'Imported into the vault: {names}',
+    importKeepOrDelete:
+      'Keep the original file, or delete it now that its credentials are in the vault?',
+    resetVault: 'Reset Vault',
+    resetContinue: 'Continue',
+    resetWarning:
+      'Resetting erases this vault for good: every stored secret is gone, and rollback protection restarts with a new anchor when you set the vault up again.',
+    resetTypeWord: 'Type {word} to reset the vault.',
+    resetDone: 'The vault was reset. Set it up again to store secrets.',
+    vaultLost:
+      'This vault can no longer be opened: its files are missing or damaged. Reset it to start again.',
+    // RVCM1091B 4: the OS store's fixed repair, never native text.
+    storeUnavailable:
+      "The operating system's credential store is not available. On Linux, sign in to a desktop session with an unlocked keyring (the Secret Service); on macOS, unlock the login Keychain; on Windows, sign in interactively. Then try again.",
     remoteWarning:
       'Only a signature or a one-time code may be requested from another device. Its user must approve each use there.',
     approvalExpired: 'This approval expired. Request the use again.',

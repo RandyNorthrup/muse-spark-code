@@ -1,3 +1,4 @@
+import type { SourceReadContext } from '../core/reporting/sources/types'
 import { legalScanLoader } from '../host/ide/legalScanBundle'
 import { failureForLog } from '../core/backends/musecode/logText'
 // `muse-spark-code-acp` (PLAN.md D62): the Muse Spark agent for editors that
@@ -8,7 +9,7 @@ import { failureForLog } from '../core/backends/musecode/logText'
 
 import { spawnResourceProcess, handoffResourceFile } from '../core/resources/launcher'
 import { isResourcePaused } from '../core/resources/launch'
-import { randomBytes, randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { open, writeFile, realpath, lstat } from 'node:fs/promises'
 import { createInterface } from 'node:readline'
@@ -18,11 +19,15 @@ import process from 'node:process'
 import { Writable } from 'node:stream'
 import type { SignInMethod } from '../acp/agent'
 import { runtimeQuestionsLoader } from './questions/questionRegistryBundle'
+import { voiceCompanionLoader } from './companion/voiceLoader'
+import type { VoiceCompanionContext } from './companion/voiceEntry'
+import { COMPANION_VOICE_RELEASE } from '../shared/companionVoice'
 import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
   ESTIMATOR_BUNDLE_FILE,
+  PLAN_SNAPSHOT_BUNDLE_FILE,
   RUNTIME_QUESTIONS_BUNDLE_FILE,
   PLAYBOOK_BUNDLE_FILE,
   RUNTIME_ACCOUNTS_BUNDLE_FILE,
@@ -46,23 +51,16 @@ import {
   USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
   REFERENCE_BUNDLE_FILE,
+  SCHEDULE_STORE_SUBFOLDER,
   SESSION_EXPORT_MAX_BYTES,
   REPORT_SOURCE_TIMEOUT_MS,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
+import { authClear, type AuthCommandDeps, authSet, login } from './authCommands'
 import {
-  authClear,
-  authClearProvider,
-  type AuthCommandDeps,
-  authSet,
-  authSetProvider,
-  authStatus,
-  authStatusProvider,
-  login,
-} from './authCommands'
-import {
+  authSetProviderId,
   isHeadlessCommand,
   parseCommandLine,
   type RuntimeCommand,
@@ -76,11 +74,16 @@ import { boundedAcpStream } from '../shared/acpStream'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
 import { formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
-import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
+import {
+  createRuntimeEstimate,
+  runRuntimeEstimateCommand,
+  runtimeEstimatorPorts,
+} from './estimator/ports'
+import { lazyEstimator } from '../host/estimator/estimatorBundle'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
-import { agentDataFolder } from './dataFolder'
+import { agentDataFolder, workspaceKey, workspaceSessionsFolder } from './dataFolder'
 import { fontsBundle } from './fonts/bundle'
 import { playbookLoader } from './playbook/playbookBundle'
 import { runReportCommand } from './reportCommand'
@@ -88,6 +91,8 @@ import { readSecretLine } from './hiddenInput'
 import {
   credentialStoreName,
   keyringSecretStore,
+  parseStoredProviderSecret,
+  providerSecretAccount,
   StoreUnavailableError,
   type KeyringEntry,
 } from './keyStore'
@@ -114,6 +119,7 @@ import {
   isUsageWriterBundle,
   type UsageRecording,
 } from '../core/usage/recording'
+import type { UsageBudgetRead } from '../core/usage/usageService'
 import { requireFile } from '../host/lazyBundle'
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
 import { fileContextIo } from '../host/backend/contextIo'
@@ -123,6 +129,8 @@ import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { reportsLoader } from './reporting/reportsLoader'
+import { reportInputsLoader } from './reporting/reportInputsLoader'
+import { playbookSchedulesInputsLoader } from './reporting/playbookSchedulesInputsLoader'
 import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding } from './schedules/binding'
 import { settleScheduleCommand } from './schedules/settle'
@@ -139,7 +147,7 @@ import type {
 import { AcpVault } from '../acp/vault'
 import { runtimeVaultLoader } from './vault/vaultRuntime'
 import { runVaultCommand, vaultUsage } from './vault/vaultCommand'
-import { chooseVaultDecision, readVaultMaterial } from './vault/vaultInput'
+import { chooseVaultDecision, readVaultLine, readVaultMaterial } from './vault/vaultInput'
 
 const EXIT_FAILED = 1
 // Keep only presence for reports, before credential variables leave the process.
@@ -399,6 +407,20 @@ async function providersDeps(): Promise<ProvidersDeps> {
   }
 }
 
+async function openRouterApi() {
+  const entry = await import('../host/backend/configuredProvidersEntry')
+  entry.setUiText(UI_TEXT, uiLocale())
+  return entry.createConfiguredProviderServices(undefined, {
+    configFile: path.join(
+      process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
+      PROVIDERS_CONFIG_DIR_NAME,
+      PROVIDERS_FILE_NAME,
+    ),
+    catalogFile: path.join(distDir, 'providerCatalog.json'),
+    secrets,
+  })
+}
+
 function signInMethod(options: ServeOptions): SignInMethod {
   if (options.backend === 'modelApi') {
     const { id, args } = ACP_AUTH_METHODS.modelApiKey
@@ -466,9 +488,55 @@ function resourcesFor(
   })
 }
 
+/**
+ * Owned LocalSourceError brand (localFailureOf), like the conversation
+ * bundle's: a failed report read is a failure with its reason, never a
+ * silent miss (RVCM1132B finding 4).
+ */
+function reportReadFailed(): Error {
+  return Object.assign(new Error('failed'), { isLocalSourceError: true, code: 'failed' })
+}
+
 /** No account or backend is touched; W ships this entry in its own lazy chunk. */
-function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeReports> {
+function runtimeReports(
+  log: Logger,
+  current?: Awaited<ReturnType<typeof runtimeFor>>,
+  recording?: UsageRecording,
+  /** One-shot CLI reports have no live runtime but still show the shared daily budget. */
+  reportBudgets?: () => Promise<readonly UsageBudgetRead[]>,
+): () => ReturnType<typeof createRuntimeReports> {
   const load = reportsLoader({ bundlePath: path.join(distDir, 'reporting.js'), log })
+  // M113 C-M113-2: the session and usage inputs ride their own lazy chunk.
+  const inputs = reportInputsLoader({
+    bundlePath: path.join(distDir, 'reportInputs.js'),
+    log,
+  })
+  // M113 C-M113-4: the playbook and schedules inputs ride a second chunk
+  // beside it; the journal replay and schedule store would overflow the
+  // session/usage chunk's budget.
+  const playbookSchedules = playbookSchedulesInputsLoader({
+    bundlePath: path.join(distDir, 'playbookSchedulesInputs.js'),
+    log,
+  })
+  // M113 C-M113-4: one estimator per requesting workspace root, like the
+  // headless estimate command; the estimate report kind runs the same run.
+  const reportEstimators = new Map<string, ReturnType<typeof lazyEstimator>>()
+  const reportEstimatorFor = (cwd: string): ReturnType<typeof lazyEstimator> => {
+    const known = reportEstimators.get(cwd)
+    if (known !== undefined) return known
+    const estimator = lazyEstimator({
+      bundlePath: path.join(distDir, ESTIMATOR_BUNDLE_FILE),
+      log,
+      ports: () =>
+        runtimeEstimatorPorts({
+          snapshotBundlePath: path.join(distDir, PLAN_SNAPSHOT_BUNDLE_FILE),
+          log,
+          root: cwd,
+        }),
+    })
+    reportEstimators.set(cwd, estimator)
+    return estimator
+  }
   let reports: ReturnType<typeof createRuntimeReports> | undefined
   return () => {
     reports ??= load().createRuntimeReports({
@@ -477,21 +545,169 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
       table: UI_TEXT,
       now: () => new Date().toISOString(),
       roots: [homedir()],
-      servicesFor: (cwd, _sessionId, language) =>
-        Promise.resolve({
+      servicesFor: (cwd, _sessionId, language) => {
+        const l10n = language ?? { table: UI_TEXT, locale: uiLocale() }
+        const dataFolder = agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        })
+        let journalReader:
+          ReturnType<ReturnType<typeof inputs>['createReportJournalReader']> | undefined
+        const readJournal = (context: SourceReadContext) => {
+          const readBudgets = reportBudgets ?? current?.readUsageBudgets
+          journalReader ??= inputs().createReportJournalReader({
+            dataFolder,
+            ...(recording !== undefined && { beforeRead: () => recording.flush() }),
+            ...(readBudgets !== undefined && { readBudgets }),
+            // One offset per report: the budget stamp shares the usage
+            // period's sample through the run, like M102's page (RVCM1132B
+            // finding 2, RVCM1132C finding 3).
+            timezoneOffsetMins: inputs().reportTimezoneOffset,
+          })
+          return journalReader(context)
+        }
+        return Promise.resolve({
           keepHistory: true,
           services: load().createReportingServices({
             workspaceRoot: cwd,
             log,
-            storageRoot: agentDataFolder({
-              platform: process.platform,
-              env: process.env,
-              homeDir: homedir(),
-            }),
-            l10n: language ?? { table: UI_TEXT, locale: uiLocale() },
+            storageRoot: dataFolder,
+            l10n,
             generatorVersion: packageVersion(),
             keepHistory: true,
             enabledAgents: [],
+            session: {
+              read: (context) =>
+                inputs()
+                  .createSessionReportReader(
+                    {
+                      resolveSession: async (sessionId, reportContext) => {
+                        if (sessionId === undefined) return null
+                        // A failed read is a failure with its reason, never a
+                        // silent miss: precise stored/host brands propagate,
+                        // and anything else becomes a failure (RVCM1132B
+                        // finding 4). Only null means no session was found.
+                        try {
+                          const stored = await inputs().readStoredReportSession(
+                            workspaceSessionsFolder(
+                              { platform: process.platform, env: process.env, homeDir: homedir() },
+                              cwd,
+                            ),
+                            sessionId,
+                          )
+                          if (stored !== null) return stored
+                          // Default serve options for the on-demand CLI runtime;
+                          // ACP serve reuses its live runtime through `current`.
+                          const parsed = parseCommandLine([])
+                          if (parsed.command !== 'serve') return null
+                          let runtime = current
+                          try {
+                            runtime ??= await runtimeFor(parsed.options, log)
+                            const host = await runtime.backend.hostFor(cwd)
+                            return await inputs().readHostReportSession(
+                              host,
+                              sessionId,
+                              reportContext.reportText,
+                            )
+                          } finally {
+                            if (current === undefined) await runtime?.close()
+                          }
+                        } catch (error) {
+                          if (
+                            typeof error === 'object' &&
+                            error !== null &&
+                            (error as { isLocalSourceError?: unknown }).isLocalSourceError === true
+                          )
+                            throw error
+                          throw reportReadFailed()
+                        }
+                      },
+                      readJournal,
+                    },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(context),
+            },
+            usage: (context) =>
+              inputs().createUsageReportReader(
+                {
+                  dataFolder,
+                  readJournal,
+                  // The machine-local day, like M102's page and the journal's
+                  // own day stamps; the contract carries it explicitly (D93).
+                  // The shared per-run sample keeps the period on the budget
+                  // stamp's day (RVCM1132C finding 3).
+                  timezoneOffsetMins: inputs().reportTimezoneOffset,
+                },
+                l10n.table,
+                l10n.locale,
+              )(context),
+            // M113 C-M113-5: this install's manifest, like the panel's, so
+            // the CLI and the ACP agent report the same installed bindings.
+            keybindings: () =>
+              inputs().keybindingsManifestReader(path.join(packageRoot, 'package.json'))(),
+
+            // C-M113-3: the registry and developer audit read from the same
+            // data folder. M108's use/swaps adapters and an unlock-capable
+            // vault view bind here when their owning lanes land; until then
+            // those facets stay empty and named.
+            accounts: {
+              read: (context) =>
+                inputs()
+                  .createAccountsReportReader({ dataDir: dataFolder }, l10n.table, l10n.locale)
+                  .read(context),
+            },
+            security: {
+              read: (context) =>
+                inputs()
+                  .createSecurityReportReader({ dataDir: dataFolder }, l10n.table, l10n.locale)
+                  .read(context),
+            },
+            // M113 C-M113-4: the playbook journal and the schedules store
+            // live under the same agent data folder as the usage journal.
+            // The schedules key matches the delivery engine's own workspace
+            // key (schedulesBridge keyFor), not the report storage key.
+            playbook: {
+              read: (context) =>
+                playbookSchedules()
+                  .createPlaybookReportReader(
+                    { agentDataFolder: dataFolder, workspaceRoot: cwd },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(context),
+            },
+            schedules: {
+              read: (context) =>
+                playbookSchedules()
+                  .createSchedulesReportReader(
+                    {
+                      storeRoot: path.join(dataFolder, SCHEDULE_STORE_SUBFOLDER),
+                      workspaceKey: workspaceKey(path.resolve(cwd)),
+                    },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(context),
+            },
+            // M113 C-M113-4: the estimate report kind runs the headless
+            // estimator for the report's workspace root. Only estimate
+            // reports load it; networked reads stay off headless (D65).
+            estimate: {
+              read: (request, context) =>
+                inputs()
+                  .createEstimateReportReader(
+                    {
+                      run: (runRequest, signal) =>
+                        reportEstimatorFor(cwd).estimate(runRequest, signal),
+                    },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(request, context),
+            },
             network: {
               policy: {
                 surface: 'terminal',
@@ -501,7 +717,8 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
               },
             },
           }),
-        }),
+        })
+      },
       resolveSaved: async (cwd, file) => {
         const target = path.resolve(cwd, file)
         const info = await lstat(target)
@@ -566,6 +783,7 @@ async function setupHooks(
             },
           })
         : undefined,
+    hookMaxRunningCommands: () => SETTING_DEFAULTS.hooksMaxRunningCommands,
   })
   const runHook = io.runHook?.bind(io)
   if (runHook === undefined) throw new Error(UI_TEXT.hooksNotRunnable)
@@ -609,6 +827,31 @@ async function setupHooks(
   return 0
 }
 
+/**
+ * The stored credential's identity for a provider id, or undefined when none
+ * is stored, unreadable or damaged. The usage service shows only the budgets
+ * of the key in use, so a rotated or removed key's numbers disappear.
+ */
+async function currentProviderCredentialId(providerId: string): Promise<string | undefined> {
+  const account = providerSecretAccount(providerId)
+  if (account === undefined) return undefined
+  let stored: string | undefined
+  try {
+    stored = await secrets.get(account)
+  } catch {
+    return undefined
+  }
+  if (stored === undefined) return undefined
+  let value: unknown
+  try {
+    value = JSON.parse(stored)
+  } catch {
+    return undefined
+  }
+  const parsed = parseStoredProviderSecret(value)
+  return parsed === undefined ? undefined : createHash('sha256').update(parsed.key).digest('hex')
+}
+
 function usageFor(
   log: Logger,
   recording?: UsageRecording,
@@ -629,12 +872,16 @@ function usageFor(
     historySettings: () => ({ enabled: isHistoryEnabled, days: USAGE_HISTORY_DAYS_DEFAULT }),
     ...(recording !== undefined && {
       beforeRead: () => recording.flush(),
-      live: {
-        readBudgets: runtime?.readUsageBudgets ?? (() => Promise.resolve([])),
-        readLiveLimits: () => Promise.resolve(recording.limits?.() ?? []),
-        providerConsoles: () => [],
-      },
     }),
+    live: {
+      readBudgets:
+        recording === undefined
+          ? () => Promise.resolve([])
+          : (runtime?.readUsageBudgets ?? (() => Promise.resolve([]))),
+      readLiveLimits: () => Promise.resolve(recording?.limits?.() ?? []),
+      providerConsoles: () => [],
+      currentCredentialId: currentProviderCredentialId,
+    },
   })
 }
 
@@ -660,17 +907,16 @@ async function openUsageBrowser(input: string): Promise<void> {
   }
 }
 
-async function serve(
-  options: ServeOptions,
+function runtimeRecording(
   log: Logger,
-  loadAccounts: () => RuntimeAccountServices,
-): Promise<number> {
-  let clientName = 'ACP'
-  const recording = createUsageRecording({
-    client: () => clientName,
+  client: () => string,
+  isEnabled: () => boolean,
+): UsageRecording {
+  return createUsageRecording({
+    client,
     now: Date.now,
     newId: randomUUID,
-    isEnabled: () => options.usageHistory ?? true,
+    isEnabled,
     log,
     writer: async (onWriteError) => {
       const bundle = requireFile(path.join(distDir, 'usageService.js'))
@@ -683,11 +929,24 @@ async function serve(
         }),
         writerId: randomUUID(),
         now: Date.now,
-        isEnabled: () => options.usageHistory ?? true,
+        isEnabled,
         onWriteError,
       })
     },
   })
+}
+
+async function serve(
+  options: ServeOptions,
+  log: Logger,
+  loadAccounts: () => RuntimeAccountServices,
+): Promise<number> {
+  let clientName = 'ACP'
+  const recording = runtimeRecording(
+    log,
+    () => clientName,
+    () => options.usageHistory ?? true,
+  )
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
   const restoreRecording = engine.installUsageRecording(recording)
@@ -726,12 +985,16 @@ async function serve(
     // "Allow always" lapses for a paid feature started without its flag (M58).
     await runtime.forgetUnflaggedGrants()
     const providerCommands = await chatGptDeps()
+    const openRouterCommands = await import('./openRouterCommands')
+    const openRouterSignIns = openRouterCommands.openRouterAuthenticationMethods(
+      await providersDeps(),
+    )
     const legalRegistryNotices = new Map<string, Set<string>>()
     const agentLegalBundle = legalScanLoader({
       bundlePath: path.join(distDir, LEGAL_SCAN_BUNDLE_FILE),
       log,
     })
-    const reports = runtimeReports(log)
+    const reports = runtimeReports(log, runtime, recording)
     // Model API sessions only: the Muse Code backend runs on its
     // subscription. Meta's entry is built in, so the metadata reads without
     // a providers file; a refused file or a loader failure leaves the
@@ -744,6 +1007,7 @@ async function serve(
         log.warn(`ACP accounts unavailable: ${failureForLog(error)}`)
       }
     }
+    const dictationLifetime = new AbortController()
     const agent = engine.createAcpAgent({
       schedules: {
         isAvailable: false,
@@ -807,6 +1071,11 @@ async function serve(
         clientName = name
       },
       backend: runtime.backend,
+      // Lane V seam 5: `/attach`, resource links and embedded media, bound
+      // to the same registry the Model API sessions resolve.
+      ...(runtime.media !== undefined && { media: runtime.media }),
+      // M105 lane F: /uploads over the runtime's account ledger.
+      ...(runtime.uploads !== undefined && { uploads: runtime.uploads }),
       version: packageVersion(),
       options: {
         canBypass: options.canBypass,
@@ -821,7 +1090,7 @@ async function serve(
         }),
       },
       signIn: signInMethod(options),
-      providerSignIns: providerCommands.signIns,
+      providerSignIns: [...providerCommands.signIns, ...openRouterSignIns],
       defaultCwd: process.cwd(),
       sharing: {
         commands: acpSharingCommands,
@@ -859,6 +1128,19 @@ async function serve(
       },
       log,
       usage,
+      ...(COMPANION_VOICE_RELEASE.isReady && {
+        dictation: async (context: VoiceCompanionContext) =>
+          await runtimeDictation(
+            log,
+            options.companionVoice === true,
+            options.trustWorkspace,
+            recording,
+          )({
+            ...context,
+            signal: AbortSignal.any([context.signal, dictationLifetime.signal]),
+            isCurrent: () => !dictationLifetime.signal.aborted && context.isCurrent(),
+          }),
+      }),
       resources,
       reportError: (fact) => {
         void journal.record(fact)
@@ -875,6 +1157,7 @@ async function serve(
     try {
       await connection.closed
     } finally {
+      dictationLifetime.abort()
       await Promise.allSettled(
         registries.map((registry) => {
           registry.dispose()
@@ -913,6 +1196,36 @@ function sharingDeps(): SharingPortsDeps {
     credentialValues: sharingCredentials.map(({ value }) => value),
     readModelApiKey: () => secrets.get(SECRET_KEYS.modelApiKey),
   }
+}
+
+function runtimeDictation(
+  log: Logger,
+  isOn: boolean,
+  isWorkspaceTrusted: boolean,
+  recording?: UsageRecording,
+) {
+  return voiceCompanionLoader({
+    packageRoot,
+    dataFolder: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    temporaryRoot: tmpdir(),
+    platform: process.platform,
+    systemRoot: process.env['SystemRoot'],
+    programFiles: process.env['ProgramFiles'],
+    isVoiceOn: () => isOn,
+    canRemember: () => isWorkspaceTrusted,
+    getKey: async () => await secrets.get(SECRET_KEYS.modelApiKey),
+    fetch: globalThis.fetch.bind(globalThis),
+    sleep: (ms) =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, ms)
+      }),
+    log,
+    ...(recording !== undefined && { recording }),
+  })
 }
 
 function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
@@ -1144,6 +1457,47 @@ async function main(): Promise<number> {
   })
   setProviderPolicyText(UI_TEXT, uiLocale())
   switch (command.command) {
+    case 'dictate': {
+      const recording = runtimeRecording(
+        log,
+        () => 'CLI',
+        () => true,
+      )
+      const openPage = runtimeDictation(log, command.paid, command.trustWorkspace, recording)
+      let complete!: () => void
+      // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Host type project targets Node 20; the resolver is assigned synchronously (PLAN.md §8).
+      const sent = new Promise<void>((resolve) => {
+        complete = resolve
+      })
+      const outcome = { hasSent: false }
+      const server = await openPage({
+        cwd: process.cwd(),
+        signal: new AbortController().signal,
+        isCurrent: () => !outcome.hasSent,
+        send: async (text, signal) => {
+          signal.throwIfAborted()
+          await new Promise<void>((resolve, reject) => {
+            process.stdout.write(`${text}\n`, (error) => {
+              if (error == null) resolve()
+              else reject(error)
+            })
+          })
+          outcome.hasSent = true
+          setImmediate(complete)
+        },
+      })
+      try {
+        writeLine(process.stderr, `${UI_TEXT.companionVoiceOpen}: ${server.launchUrl()}`)
+        await Promise.race([sent, server.closed])
+        return outcome.hasSent ? 0 : EXIT_FAILED
+      } finally {
+        try {
+          await server.close()
+        } finally {
+          await recording.flush()
+        }
+      }
+    }
     case 'resources': {
       const resources = resourcesFor(log)
       try {
@@ -1314,6 +1668,10 @@ async function main(): Promise<number> {
         return await runVaultCommand(command.options, {
           open: openVaultCommands,
           readMaterial: (signal) => readVaultMaterial(process.stdin, process.stderr, signal),
+          readLine: (prompt, signal) =>
+            readVaultLine(process.stdin, process.stderr, prompt, signal),
+          // The one-time recovery code must reach a person, never a redirected file.
+          isInteractive: process.stdin.isTTY && process.stdout.isTTY,
           choose: (title, choices, signal) =>
             chooseVaultDecision(process.stdin, process.stderr, title, choices, signal),
           print: (text) => {
@@ -1356,13 +1714,22 @@ async function main(): Promise<number> {
       })
     }
     case 'authSet': {
-      const { target } = command
-      if (target === undefined) return await authSet(authDeps())
-      if (target.provider !== 'meta' && target.account === ACCOUNT_DEFAULT_ID) {
+      // A provider-only set (`auth set --provider <id>`, the ACP paste-key
+      // method) routes to the provider's own key shape, never Meta's.
+      const providerId = authSetProviderId(command)
+      if (providerId !== undefined) {
         const providersFile = await userProvidersFile()
-        return await authSetProvider(authDeps(), target.provider, providersFile.readUserFile)
+        const { runAuthSetProvider } = await import('./providerAuth')
+        return await runAuthSetProvider(
+          authDeps(),
+          providerId,
+          providersFile.readUserFile,
+          providersFile.withUserFileLock,
+        )
       }
-      return target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID
+      const { target } = command
+      return target === undefined ||
+        (target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID)
         ? await authSet(authDeps())
         : await loadAccountsBundle(log).runAccountAuthSet(target, {
             ...loadAccounts(log).commands,
@@ -1398,18 +1765,40 @@ async function main(): Promise<number> {
       return result.exitCode
     }
     case 'authStatus': {
+      // Every provider command and `auth status` runs the crashed-Connect
+      // recovery first and reports it (R5).
+      const providersFile = await userProvidersFile()
+      const { runAuthStatusProvider, runAuthStatusWithRecovery } = await import('./providerAuth')
+      const deps = authDeps()
       return command.provider === undefined
-        ? await authStatus(authDeps())
-        : await authStatusProvider(authDeps(), command.provider)
+        ? await runAuthStatusWithRecovery(deps, providersFile.withUserFileLock)
+        : await runAuthStatusProvider(deps, command.provider, providersFile.withUserFileLock)
     }
     case 'authClear': {
-      return command.provider === undefined
-        ? await authClear(authDeps())
-        : await authClearProvider(authDeps(), command.provider)
+      if (command.provider === undefined) return await authClear(authDeps())
+      const providersFile = await userProvidersFile()
+      const { runAuthClearProvider } = await import('./providerAuth')
+      return await runAuthClearProvider(
+        authDeps(),
+        command.provider,
+        providersFile.withUserFileLock,
+      )
     }
     case 'providersList': {
       const { providersList } = await import('./providersCommands')
       return await providersList(await providersDeps())
+    }
+    case 'openRouterConnect': {
+      const { runOpenRouterConnect } = await import('./openRouterCommands')
+      return await runOpenRouterConnect(await providersDeps(), await openRouterApi())
+    }
+    case 'providerKeyUsage': {
+      const { runOpenRouterUsage } = await import('./openRouterCommands')
+      return await runOpenRouterUsage(
+        await providersDeps(),
+        await openRouterApi(),
+        command.provider,
+      )
     }
     case 'providersAdd': {
       const { providersAdd } = await import('./providersCommands')
@@ -1506,7 +1895,18 @@ async function main(): Promise<number> {
     }
     case 'reports': {
       try {
-        return await runtimeReports(log)().run(command.args)
+        // The one-shot CLI has no live runtime, but its usage reports still
+        // show the shared daily paid budget, exactly like VS Code and ACP
+        // serve (RVCM1132B finding 3). The ledger read never starts a backend.
+        const dataFolder = agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        })
+        const { readRuntimeDailyBudget } = await import('./runtimeAccountingEntry.js')
+        return await runtimeReports(log, undefined, undefined, () =>
+          readRuntimeDailyBudget({ dataFolder, now: () => Date.now() }),
+        )().run(command.args)
       } catch {
         writeLine(process.stderr, UI_TEXT.reportUi.generationFailed)
         return EXIT_FAILED
