@@ -452,6 +452,7 @@
   "sessionDeleteHostExited": "Muse Code skončil před potvrzením smazání. Relace zůstává v historii.",
   "sessionDeleteHostClosed": "Hostitel se zavřel před potvrzením smazání. Relace zůstává v historii.",
   "sessionDeleteTimedOut": "Časový limit pro potvrzení smazání vypršel. Relace zůstává v historii.",
+  "sessionDeleteUnsupported": "Muse Code {version} nemůže odstranit konverzace.",
   "playbookTitle": "Příručka orchestrátoru",
   "playbookStatus": "Stav",
   "playbookRecord": "Záznam",
@@ -2448,6 +2449,10 @@
   "historyShowArchived": "Zobrazit archivované",
   "historyArchive": "Archivovat",
   "historyUnarchive": "Zrušit archivaci",
+  "historyDeleteConfirm": "Odstranit konverzaci {name}?",
+  "historyDeleteConfirmDetail": "Navždy zmizí z historie. Tuto akci nelze vzít zpět.",
+  "historyDeleted": "Odstraněno: {name}",
+  "historyDeleteFailed": "Konverzaci se nepodařilo odstranit",
   "historyCurrent": "Aktuální",
   "historyForkMark": "Rozvětvení",
   "historyTurns": {

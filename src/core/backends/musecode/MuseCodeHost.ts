@@ -60,12 +60,15 @@ import {
   MSP_USER_SHELL_CAPABILITY,
   MUSE_APPROVAL_LEDGER_FAULT,
   MUSE_APPROVAL_REPLAY_FAULT,
+  MUSE_DELETE_FIRST_VERSION,
+  MUSE_DELETE_REMOVED_VERSION,
   MUSE_EVENT_LOG_FAULT,
   MUSE_EXIT_PERSISTENT_CODES,
   type SubagentAction,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
+import { compareVersions, isVersion } from '../../whatsNew/whatsNewVersions'
 import { DeadlineError, withDeadline } from '../../timeouts'
 import { textFileInput } from '../../textAttachment'
 import {
@@ -202,6 +205,27 @@ const initializeResultSchema = z.object({
 
 const WINDOWS_OS = 'windows'
 const DURABLE_SESSIONS = 'durable'
+// Installed build labels (`1.4.4-R5419.1`) name the same release, not a
+// semver prerelease (the controller strips them the same way for D26).
+const BUILD_LABEL_SUFFIX = /-R\d+\.\d+$/
+
+/**
+ * Whether History may offer Delete on a Muse Code host: its CLI serves
+ * `session/delete` (new in 1.4.0, gone from 1.4.4 on, PLAN.md D26) and the
+ * lifecycle reader that waits for its terminal notification is injected.
+ * Unknown versions stay refused: nothing is sent that the CLI cannot answer.
+ */
+export function canDeleteMuseSession(serverVersion: string, hasLifecycleReader: boolean): boolean {
+  if (!hasLifecycleReader) {
+    return false
+  }
+  const version = serverVersion.replace(BUILD_LABEL_SUFFIX, '')
+  return (
+    isVersion(version) &&
+    compareVersions(version, MUSE_DELETE_FIRST_VERSION) >= 0 &&
+    compareVersions(version, MUSE_DELETE_REMOVED_VERSION) < 0
+  )
+}
 
 const approvalDecideResultSchema = z.object({ terminal: z.optional(z.boolean()) })
 
@@ -2042,6 +2066,11 @@ export class MuseCodeHost implements AgentHost {
       // is limited there until one is verified (D26). A 1.3.0 ceiling showed
       // the failing actions again on 1.4.0 (0.9.1, release-0.9.1.md).
       canEditSessions: parsed.platformOs !== WINDOWS_OS,
+      // `session/delete` is gone from 1.4.4 on (PLAN.md D26): the 1.4.4
+      // probe answered `methodNotFound` (docs/certification/sdk144.md), and
+      // the 1.4.10 probe and schema export of 2026-10-18 agree. Nothing is
+      // sent there; the reader's injection opens Delete below that floor.
+      canDeleteSessions: canDeleteMuseSession(serverVersion, this.features.lifecycle !== undefined),
     }
     this.log.info(
       `MSP host on ${parsed.platformOs ?? 'an unreported OS'}, schema v${String(parsed.schema?.version ?? 'unreported')} ${parsed.schema?.fingerprint ?? ''}, sessions ${parsed.sessionDurability ?? DURABLE_SESSIONS}`,
@@ -2487,10 +2516,16 @@ export class MuseCodeHost implements AgentHost {
     }
   }
 
-  /** The caller confirms permanent deletion before invoking this operation. */
-  public async deleteSession(sessionId: string): Promise<MuseCodeLifecycleEvent> {
+  /**
+   * The caller confirms permanent deletion before invoking this operation.
+   * Resolves once the terminal `deleteCompleted` notification arrives; that
+   * terminal itself reaches `onMuseCodeLifecycleEvent` listeners.
+   */
+  public async deleteSession(sessionId: string): Promise<void> {
     const reader = this.features.lifecycle
-    if (reader === undefined) throw new Error(UI_TEXT.memoryDeleteAction)
+    if (reader === undefined) {
+      throw new Error(fill(UI_TEXT.sessionDeleteUnsupported, { version: this.info.serverVersion }))
+    }
     const signal = this.deletionStopped.signal
     signal.throwIfAborted()
     const commandId = this.channel.connection.mintCommandId()
@@ -2527,7 +2562,7 @@ export class MuseCodeHost implements AgentHost {
       signal.addEventListener('abort', onAbort, { once: true })
     })
     try {
-      return await withDeadline(
+      await withDeadline(
         Promise.race([
           (async () => {
             reader.parseDeleteAdmission(
@@ -2549,7 +2584,7 @@ export class MuseCodeHost implements AgentHost {
       )
     } catch (error: unknown) {
       // Dispatch validated the terminal before shutdown; async admission may still be resuming.
-      if (deletion.state.phase === 'terminalValidated') return deletion.state.event
+      if (deletion.state.phase === 'terminalValidated') return
       throw error
     } finally {
       deletion.state = { phase: 'reported' }

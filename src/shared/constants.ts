@@ -4739,6 +4739,13 @@ export const MUSE_APPROVAL_LEDGER_FAULT = 'approval ledger durability fence'
 // Upstream's #29 fix floor; the owner-authorized live probe accepted a
 // decision without the ledger fault (docs/certification/muse143.md).
 export const MUSE_APPROVAL_LEDGER_FIXED_VERSION = '1.4.3'
+// `session/delete` is new in 1.4.0 (release-0.9.1.md) and gone from 1.4.4
+// on: the 1.4.4 probe answered `methodNotFound`
+// (docs/certification/sdk144.md), and the 1.4.10 probe and schema export of
+// 2026-10-18 agree. History offers Delete between these floors only (PLAN.md
+// D26); the lifecycle reader's injection opens it there.
+export const MUSE_DELETE_FIRST_VERSION = '1.4.0'
+export const MUSE_DELETE_REMOVED_VERSION = '1.4.4'
 // A Stop under a part-decided approval rejects its waiting stage first
 // (MuseSession.cancel); a stage that moved on is rejected once more there.
 // Each try waits this long at most, then the Stop goes on: a decision takes

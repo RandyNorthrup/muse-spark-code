@@ -511,6 +511,7 @@ Installed skills add dynamic slash commands. This static reference does not list
     "session/resume",
     "session/list",
     "session/close",
+    "session/delete",
     "session/set_mode",
     "session/set_config_option",
     "session/prompt",
