@@ -50,6 +50,9 @@ npx --yes wrangler@4.146.0 deploy
 The KV namespace id in `wrangler.toml` is not a secret. The webhook secret
 lives only in Cloudflare and the GitHub listing, never in this repository.
 
-The counter routes are unit-tested against a fake KV
-(`test/unit/marketplaceHook.test.mjs`); the webhook needs the Workers runtime
-and is not.
+The counter routes have no unit proof: the KV-double test was deleted as a
+stand-in, so the purchased-minus-cancelled counter, the non-negative floor
+and the 404/405 answers are UNPROVEN (record:
+`../../docs/certification/badge017.md`). Proof needs the worker against a
+real KV namespace. The webhook needs the Workers runtime and is not proven
+either.
