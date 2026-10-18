@@ -362,7 +362,8 @@ export class ObservationPack {
     let raw: unknown
     try {
       raw = JSON.parse(argsJson)
-    } catch {
+    } catch (error: unknown) {
+      if (!(error instanceof SyntaxError)) throw error
       return failure(MODEL_API_MODEL_TEXT.packInvalidJson, UI_TEXT.packRecallInvalid)
     }
     const parsed = recallOutputArgs.safeParse(raw)

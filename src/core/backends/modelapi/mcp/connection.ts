@@ -93,10 +93,6 @@ const NOTIFICATION_TOOLS_CHANGED = 'notifications/tools/list_changed'
 const NOTIFICATION_LOG = 'notifications/message'
 const CANCELLED_BY_USER = 'the user stopped the turn'
 
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
 function seconds(ms: number): string {
   return String(Math.round(ms / MILLISECONDS_PER_SECOND))
 }
@@ -366,10 +362,9 @@ export class McpConnection {
   private async sendQuietly(message: OutgoingMessage): Promise<void> {
     try {
       await this.transport.send(message, new AbortController().signal)
-    } catch (error: unknown) {
-      this.options.log.warn(
-        `A message to MCP server ${this.options.name} was not delivered: ${describe(error)}`,
-      )
+    } catch {
+      // The record names the undelivered message, never the failure's text.
+      this.options.log.warn(`A message to MCP server ${this.options.name} was not delivered`)
     }
   }
 

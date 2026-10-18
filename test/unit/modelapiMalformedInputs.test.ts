@@ -1,7 +1,9 @@
 // Malformed outside-world input on the Model API backend: a broken NDJSON
-// stream line, a schema `$ref` with a bad percent-escape, and memory tool
-// arguments that are not JSON. Each reaches the typed outcome (never a crash
-// and never another fact) through the real parser.
+// stream line, a schema `$ref` with a bad percent-escape, memory tool
+// arguments that are not JSON, a packed-output recall with unparseable
+// arguments, a strict tool call whose arguments are not JSON, and a broken
+// SSE data line. Each reaches the typed outcome (never a crash and never
+// another fact) through the real parser.
 import { realpathSync } from 'node:fs'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -11,11 +13,25 @@ import { parseNdjson } from '../../src/core/backends/modelapi/ndjson'
 import { jsonOutput } from '../../src/core/backends/modelapi/hookFormats/core'
 import { functionParameters } from '../../src/core/backends/modelapi/mcp/functions'
 import { placeMemoryCall } from '../../src/core/backends/modelapi/memoryTools'
+import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
+import {
+  restoreOptionalToolArguments,
+  type FunctionToolDefinition,
+} from '../../src/core/backends/modelapi/schemas'
+import {
+  createResponsesCodec,
+  ResponsesDecodeError,
+} from '../../src/core/backends/modelapi/codecs/responses'
 import { MemoryStore } from '../../src/core/memory/memoryStore'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { writeFileAtomically } from '../../src/host/fsAtomic'
 import { createMemoryIo, systemPath } from '../../src/host/backend/memoryIo'
-import { MODEL_API_TOOLS } from '../../src/shared/constants'
+import {
+  CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+  MODEL_API_MODEL_TEXT,
+  MODEL_API_TOOLS,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const encoder = new TextEncoder()
@@ -48,6 +64,42 @@ describe('unparseable hook and schema input', () => {
     const result = functionParameters({ $ref: '#/$defs/%ZZ' })
     expect(result.isReplaced).toBe(false)
     expect(result.notes).toContain('an unresolved reference was cut')
+  })
+})
+
+describe('a packed-output recall with unparseable arguments', () => {
+  it('fails with the recall refusal, not with a lookup of nothing', () => {
+    const outcome = new ObservationPack().recall('{not json')
+    expect(outcome.output).toBe(`Error: ${MODEL_API_MODEL_TEXT.packInvalidJson}`)
+    expect(outcome.failureReason).toBe(UI_TEXT.packRecallInvalid)
+  })
+})
+
+describe('strict tool arguments that are not JSON', () => {
+  const tool: FunctionToolDefinition = {
+    type: 'function',
+    name: 'read',
+    description: 'read',
+    parameters: {},
+    strict: true,
+  }
+
+  it('pass through for the tool parser instead of becoming an empty object', () => {
+    expect(restoreOptionalToolArguments('{not json', tool)).toBe('{not json')
+  })
+})
+
+describe('a broken SSE data line on the responses codec', () => {
+  const codec = createResponsesCodec({
+    profile: 'chatgpt',
+    toolNamespace: 'functions',
+    toolNamespaceDescription: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+  })
+
+  it('ends the turn with a decode error that names only the line length', async () => {
+    await expect(
+      Array.fromAsync(codec.decodeStream([encoder.encode('data: {oops}\n\n')])),
+    ).rejects.toThrow(ResponsesDecodeError)
   })
 })
 
