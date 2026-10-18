@@ -1,22 +1,18 @@
 // Workspace confidentiality (Codex on PR #227): `.vscode/settings.json`
 // is JSONC, so comments and trailing commas must still read. Real files in a
 // real folder, through the real reader.
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
-import os from 'node:os'
+import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { runtimeSharingConfidential } from '../../src/runtime/sharing/confidential'
 import { SETTING_DEFAULTS } from '../../src/shared/constants'
-import { removeFolder } from './helpers/temporaryFolders'
+import { temporaryTracker } from './helpers/temporaryFolders'
 
-const folders: string[] = []
-afterEach(async () => {
-  await Promise.all(folders.splice(0).map((folder) => removeFolder(folder)))
-})
+const tracked = temporaryTracker()
+afterEach(() => tracked.cleanup())
 
 async function workspace(settings: string): Promise<string> {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'm118-confidential-'))
-  folders.push(dir)
+  const dir = await tracked.make('m118-confidential-')
   await mkdir(path.join(dir, '.vscode'), { recursive: true })
   await writeFile(path.join(dir, '.vscode', 'settings.json'), settings)
   return dir
@@ -43,8 +39,7 @@ describe('workspace confidentiality settings', () => {
   })
 
   it('falls back to the default when the file is missing or silent', async () => {
-    const missing = await mkdtemp(path.join(os.tmpdir(), 'm118-confidential-'))
-    folders.push(missing)
+    const missing = await tracked.make('m118-confidential-')
     expect(runtimeSharingConfidential(missing)).toBe(SETTING_DEFAULTS.confidentialWorkspace)
     expect(runtimeSharingConfidential(await workspace('{}'))).toBe(
       SETTING_DEFAULTS.confidentialWorkspace,

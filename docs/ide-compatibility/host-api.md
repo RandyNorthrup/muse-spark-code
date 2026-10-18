@@ -509,7 +509,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:https`             | 2     |
 | `node:module`            | 2     |
 | `node:net`               | 20    |
-| `node:os`                | 39    |
+| `node:os`                | 38    |
 | `node:path`              | 211   |
 | `node:perf_hooks`        | 4     |
 | `node:process`           | 12    |
@@ -518,7 +518,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:stream`            | 19    |
 | `node:stream/promises`   | 3     |
 | `node:string_decoder`    | 3     |
-| `node:timers/promises`   | 30    |
+| `node:timers/promises`   | 29    |
 | `node:tls`               | 1     |
 | `node:url`               | 9     |
 | `node:util`              | 11    |
