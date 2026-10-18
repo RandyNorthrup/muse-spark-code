@@ -14,8 +14,8 @@ import {
 import {
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
+  VAULT_BROKER_EMPTY_IDLE_MS,
   VAULT_BROKER_MAX_CONNECTIONS,
-  VAULT_BROKER_NATIVE_TIMEOUT_MS,
 } from '../../shared/constants'
 import { vaultBrokerLockSchema } from '../../shared/vaultProtocol'
 import type { WindowsVaultExecutable } from './slots/windowsVaultTransport'
@@ -220,7 +220,10 @@ export async function startWindowsVaultBrokerOnServe(
     })
     await channel.listen(pipe)
     lifecycle.isStarting = false
-    const idleMs = options.idleMs ?? VAULT_BROKER_NATIVE_TIMEOUT_MS
+    // The empty-socket shutdown is an idle, never the startup budget:
+    // the same 30 s the POSIX broker waits, so an unlocked broker never
+    // drops seconds after listen on Windows while macOS and Linux wait.
+    const idleMs = options.idleMs ?? VAULT_BROKER_EMPTY_IDLE_MS
     const interval = setInterval(() => {
       void (async () => {
         try {
