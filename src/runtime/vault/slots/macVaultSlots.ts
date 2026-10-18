@@ -96,7 +96,7 @@ export class MacVaultSlots implements VaultSlotProvider {
         this.transport,
       )
     } catch {
-      // A failed probe offers no hardware tier; the Keychain tier still serves.
+      // Without protection facts there is no Enclave tier; the Keychain tier still serves.
       return null
     }
   }
