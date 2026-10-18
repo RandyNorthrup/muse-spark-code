@@ -1,0 +1,28 @@
+{
+  "id": "unknown-model",
+  "provider": "mistral",
+  "sentAt": "2026-10-13T01:28:28.401Z",
+  "method": "POST",
+  "url": "https://api.mistral.ai/v1/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "model": "no-such-model-real-life",
+    "max_tokens": 16,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with the one word OK."
+      }
+    ]
+  },
+  "status": 400,
+  "responseHeaders": {},
+  "response": {
+    "object": "error",
+    "message": "Invalid model: no-such-model-real-life",
+    "type": "invalid_model",
+    "param": null,
+    "code": "1500",
+    "raw_status_code": 400
+  }
+}
