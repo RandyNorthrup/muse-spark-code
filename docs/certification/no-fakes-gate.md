@@ -50,6 +50,13 @@ test/unit/zzDrill.test.ts
 
 Both rules fire in `.ts` and `.mjs`. `test/packaging/moduleExports.test.mjs` reports no errors: its two scoped disables hold. After the planted files were removed, `npx eslint --max-warnings=0` on every touched file exited 0.
 
+Correction (review lane RVSTANDINS, 2026-10-17): the loader selector
+matched only the dotted spelling; `Module['_load'] = ...` passed lint
+(planted and measured). A computed-property selector now covers it:
+the same planted file reports both the computed `_load` and the dotted
+`_resolveFilename` assignments, and the packaging file's scoped disables
+still hold.
+
 ## Gates on the final tree
 
 - `npx eslint --max-warnings=0 test/ eslint.config.mjs`: exit 0
