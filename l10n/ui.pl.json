@@ -202,12 +202,6 @@
   "estimateSeed": "Ziarno symulacji",
   "estimateAsOf": "Czas migawki",
   "estimateMarginal": "Czas zaoszczędzony dzięki tej dodatkowej maszynie",
-  "estimateMissingMore": {
-    "one": "i {count} kolejny",
-    "few": "i {count} kolejne",
-    "many": "i {count} kolejnych",
-    "other": "i {count} kolejnych"
-  },
   "estimateHourly": "Cena za godzinę",
   "estimateCatalog": "Cena katalogowa z dnia {date}, nie oferta.",
   "estimateNoPrice": "Brak dostępnej publicznej ceny katalogowej.",
@@ -234,6 +228,12 @@
   "estimateWaiting": "Oczekiwanie na {dependency}.",
   "estimateRunning": "Szacowanie…",
   "estimateFailed": "Oszacowanie nie powiodło się: {detail}",
+  "estimateMissingMore": {
+    "one": "i {count} kolejny",
+    "few": "i {count} kolejne",
+    "many": "i {count} kolejnych",
+    "other": "i {count} kolejnych"
+  },
   "estimateSchedule": "Harmonogram torów pracy",
   "estimateGantt": "Harmonogram dla {goal}, ze ścieżką krytyczną oraz znacznikami ukończenia P50 i P90.",
   "estimateOptimizeDescription": "Wybierz najtańszą konfigurację dotrzymującą terminu przy P90 lub najszybszą z wystarczającymi dodatkowymi oszczędnościami czasu.",
@@ -430,6 +430,8 @@
   "referenceCodeOutput": "Kopiuj kopiuje kod; Wstaw pisze przy kursorze; Zastosuj zastępuje zaznaczenie edytora. Otwórz pełne wyjście narzędzia; skrócone wyjście można stronicować. Zaznacz tekst rozmowy, aby zacytować go w polu wiadomości, zapytać o niego, dodać komentarz lub skopiować.",
   "referencePaidContexts": "Interaktywne dodatki Model API pytają przed wydatkiem i dzielą budżet dzienny. Obrazy Muse Code wymagają zapisanego klucza Model API i jawnego włączenia; ich koszt pozostaje poza tym dziennym rejestrem. Muse Voice rezerwuje wspólny budżet dzienny w obu backendach. Płatne funkcje ACP są domyślnie wyłączone i wymagają flag Model API oraz zgody edytora. Żądania Model API przez ACP i bez interfejsu rezerwują dzienny budżet runtime; bez interfejsu wymagany jest też ścisły budżet wykonania. Obrazy bez interfejsu wymagają acceptEdits i flagi obrazów. Konto i użycie umożliwia zapomnienie zgód na płatne użycie w obszarze roboczym.",
   "referenceAcp": "Zainstalowane umiejętności dodają dynamiczne polecenia, których ta statyczna pomoc nie wymienia. ACP obsługuje tylko lokalne /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents i umiejętności; polecenia panelu, ustawienia i okna w połączonej pomocy to funkcje rozszerzenia.",
+  "referenceCiOtherTitle": "Inne systemy CI",
+  "referenceCiOther": "Szablony bezobsługowego przeglądu/poprawek dla GitLab, Azure, Jenkins i Bitbucket z przypiętym skrótem pakietu. Node odczytuje klucz i publikuje poza kopią roboczą; Azure/Jenkins przesyłają te pliki. Transport artefaktów GitLab/Bitbucket i izolacja procesów Bitbucket pozostają niezweryfikowane. Dodatkowe nazwy zmiennych z kluczem zadeklaruj w MUSE_CI_KEY_ALIASES. Tylko testy z atrapami; zob. docs/ci-other-systems.md.",
   "referenceWebFetchTitle": "Pobieranie stron",
   "referenceWebFetchDetail": "Pobieraj publiczne strony jako czytelny tekst, z kontrolą uprawnień i sieci.",
   "referenceCodeIntelTitle": "Analiza kodu",
@@ -2058,15 +2060,15 @@
     "history": "Historia wybranej sesji jest niedostępna."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "Dziennik zawiera uszkodzone, niepełne wpisy lub wpisy nowszej wersji; sumy je pomijają.",
+    "sessionUsageUnavailable": "Nie można przypisać użycia do tej sesji w zachowanym dzienniku; sumy tokenów i kosztów są niedostępne.",
+    "budgetsUnavailable": "Migawki budżetu dla wybranego okresu są niedostępne.",
+    "sessionModelUnavailable": "Katalog sesji nie wymienia żadnego aktywnego modelu, więc model jest zgłaszany jako nieznany.",
     "sessionTurnsUnavailable": "Historia sesji nie zawiera żadnych identyfikatorów tur, więc tur nie można policzyć.",
     "sessionApprovalsUnavailable": "Historia sesji nie zawiera żadnych decyzji zatwierdzających.",
     "toolBreakdownUnavailable": "Wykorzystanie według narzędzia nie jest rejestrowane w dzienniku użycia.",
     "rolledUpBreakdownExcluded": "Zagregowana historia jest uwzględniona w sumach, ale nie w tym podziale.",
     "rolledUpSessionExcluded": "Zbiorcza historia jest wykluczona z sum i podziału tej sesji.",
-    "journalIncomplete": "Dziennik zawiera uszkodzone, niepełne wpisy lub wpisy nowszej wersji; sumy je pomijają.",
-    "sessionUsageUnavailable": "Nie można przypisać użycia do tej sesji w zachowanym dzienniku; sumy tokenów i kosztów są niedostępne.",
-    "budgetsUnavailable": "Migawki budżetu dla wybranego okresu są niedostępne.",
-    "sessionModelUnavailable": "Katalog sesji nie wymienia żadnego aktywnego modelu, więc model jest zgłaszany jako nieznany.",
     "accountsFacetsUnavailable": "Niedostępne szczegóły konta: {facets}.",
     "securityVaultUnavailable": "Magazyn jest zablokowany lub niedostępny.",
     "securityDeveloperAuditUnavailable": "Audyt deweloperski jest niedostępny."

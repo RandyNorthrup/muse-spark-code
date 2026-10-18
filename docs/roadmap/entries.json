@@ -560,7 +560,7 @@
     {
       "id": "M80",
       "title": "Headless runs and a GitHub Action",
-      "summary": "Run one agent turn without an editor through the ACP agent's exec command, or let a GitHub Action review or propose a fix for a same-repository pull request, each under a hard dollar budget; both can be tried but are not certified or supported yet.",
+      "summary": "One budgeted headless turn with Node key intake, protected cleanup and job-temp outputs; Azure reserves 10 setup minutes in a 45-minute job; GitLab/Bitbucket transport and Bitbucket isolation unqualified; fake-tested, unsupported.",
       "area": "platform",
       "release": "0.12.0"
     },

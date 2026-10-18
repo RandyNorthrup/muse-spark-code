@@ -738,6 +738,21 @@
       "editors": ["acp"]
     },
     {
+      "id": "ci-other-systems",
+      "name": { "ui": "referenceCiOtherTitle" },
+      "summary": { "conditions": [{ "when": "system", "text": { "ui": "referenceCiOther" } }] },
+      "description": { "conditions": [{ "when": "system", "text": { "ui": "referenceCiOther" } }] },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#other-ci-systems",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["acp"]
+    },
+    {
       "id": "web-fetch",
       "name": { "ui": "referenceWebFetchTitle" },
       "summary": { "ui": "referenceWebFetchDetail" },

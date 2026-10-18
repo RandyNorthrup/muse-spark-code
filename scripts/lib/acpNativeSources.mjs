@@ -33,3 +33,7 @@ export const LINUX_HELPERS = ['x64', 'arm64'].map((arch) =>
 export const VOICE_WINDOWS_HELPERS = [path.join('native', 'windows', 'dictate.ps1')]
 // The governed runner's helper scripts, copied as a folder.
 export const RUNNER_HELPERS = path.join('native', 'runner')
+// The other CI systems' launcher (lane CM80CI-R2): the GitHub Action's own
+// Node-only scripts and prompt templates, shipped as ci/lib and ci/prompts and
+// run by ci-templates/ from the digest-pinned tarball as ci/lib/ci-run.mjs.
+export const CI_LAUNCHER_SOURCES = [path.join('action', 'lib'), path.join('action', 'prompts')]

@@ -30,6 +30,7 @@ import process from 'node:process'
 import { promisify } from 'node:util'
 import { renderPackageReadme } from './check-badges.mjs'
 import {
+  CI_LAUNCHER_SOURCES,
   DARWIN_HELPER,
   JOB_SOURCES,
   LINUX_HELPERS,
@@ -120,6 +121,9 @@ for (const bundle of BUNDLES) {
   copyFileSync(path.join('dist', bundle), path.join(STAGE, 'dist', bundle))
 }
 cpSync('dist/legal-data', path.join(STAGE, 'dist', 'legal-data'), { recursive: true })
+for (const source of CI_LAUNCHER_SOURCES) {
+  cpSync(source, path.join(STAGE, 'ci', path.basename(source)), { recursive: true })
+}
 for (const source of pageAssets) {
   const target = path.join(STAGE, source)
   mkdirSync(path.dirname(target), { recursive: true })
@@ -202,6 +206,7 @@ const agentManifest = {
   ],
   bin: { [PACKAGE_NAME]: 'dist/acp.js' },
   files: [
+    'ci',
     'dist',
     'design',
     'native',

@@ -85,6 +85,8 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['native-deletion', ['vscode:museCode']],
   ['voice', ['vscode:museCode', 'vscode:modelApi']],
   ['output-schema', ['acp:modelApi']],
+  // CM80CI: the four non-GitHub CI templates run headless Model API turns.
+  ['ci-other-systems', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['usage', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],

@@ -202,9 +202,6 @@
   "estimateSeed": "模拟种子",
   "estimateAsOf": "快照时间",
   "estimateMarginal": "添加这台机器节省的时间",
-  "estimateMissingMore": {
-    "other": "还有 {count} 个"
-  },
   "estimateHourly": "每小时价格",
   "estimateCatalog": "{date} 的目录价格，并非报价。",
   "estimateNoPrice": "没有可用的公开目录价格。",
@@ -231,6 +228,9 @@
   "estimateWaiting": "正在等待 {dependency}。",
   "estimateRunning": "正在估算…",
   "estimateFailed": "估算失败：{detail}",
+  "estimateMissingMore": {
+    "other": "还有 {count} 个"
+  },
   "estimateSchedule": "工作分支日程",
   "estimateGantt": "{goal} 的日程，包含关键路径以及 P50 和 P90 完成标记。",
   "estimateOptimizeDescription": "选择在 P90 下满足截止日期的最便宜配置，或边际时间收益足够的最快配置。",
@@ -427,6 +427,8 @@
   "referenceCodeOutput": "复制会复制代码；插入在编辑器光标处写入；应用替换编辑器选区。打开工具输出可阅读完整结果；截断的输出可分页读取。 选择对话文本，可在输入框中引用、提问、添加评论或复制。",
   "referencePaidContexts": "交互式 Model API 附加功能在消费前询问，并共用每日预算。Muse Code 图像需要已保存的 Model API 密钥及明确启用；其支出不计入此每日账本。Muse Voice 在两个后端上预留共用每日预算。ACP 付费功能默认关闭，需要 Model API 标志和编辑器许可。ACP 和无界面的 Model API 请求会预留运行时每日预算；无界面运行还需要严格的单次运行预算。无界面图像需要 acceptEdits 和图像标志。账户与用量可以忘记工作区的付费使用许可。",
   "referenceAcp": "已安装技能会添加动态斜杠命令，此静态参考不列出它们。ACP 仅处理本地 /help、/compact、/legal、/playback、/usage、/resources, /resources resume, /usage resources, /questions、/answer, /prompt, /share, /agents 和已安装技能；链接参考中的面板命令、设置和编辑器对话框属于扩展流程。",
+  "referenceCiOtherTitle": "其他 CI 系统",
+  "referenceCiOther": "为 GitLab、Azure、Jenkins 和 Bitbucket 固定包摘要的无界面审查/修复模板。Node 读取密钥并在工作副本外发布结果；Azure/Jenkins 上传这些文件。GitLab/Bitbucket 的产物传输和 Bitbucket 的进程隔离尚未验证。请在 MUSE_CI_KEY_ALIASES 中声明额外的密钥变量名称。仅运行模拟测试；参见 docs/ci-other-systems.md。",
   "referenceWebFetchTitle": "网页获取",
   "referenceWebFetchDetail": "将公共网页获取为可读文本，并检查权限和网络。",
   "referenceCodeIntelTitle": "代码智能",
@@ -1968,15 +1970,15 @@
     "history": "所选会话的历史记录不可用。"
   },
   "reportDetailReasons": {
+    "journalIncomplete": "使用日志包含损坏、不完整或较新版本的记录；总计不包含这些记录。",
+    "sessionUsageUnavailable": "保留的日志无法将使用量归属于此会话；令牌和费用总计不可用。",
+    "budgetsUnavailable": "所选期间的预算快照不可用。",
+    "sessionModelUnavailable": "会话目录没有列出任何活动模型，因此该模型报告为未知。",
     "sessionTurnsUnavailable": "会话历史记录中没有轮次标识符，因此无法统计轮次。",
     "sessionApprovalsUnavailable": "会话历史记录中没有审批决定。",
     "toolBreakdownUnavailable": "使用日志中不记录按工具划分的使用量。",
     "rolledUpBreakdownExcluded": "汇总历史计入总数，但不计入此明细。",
     "rolledUpSessionExcluded": "汇总历史不计入此会话的总数和明细。",
-    "journalIncomplete": "使用日志包含损坏、不完整或较新版本的记录；总计不包含这些记录。",
-    "sessionUsageUnavailable": "保留的日志无法将使用量归属于此会话；令牌和费用总计不可用。",
-    "budgetsUnavailable": "所选期间的预算快照不可用。",
-    "sessionModelUnavailable": "会话目录没有列出任何活动模型，因此该模型报告为未知。",
     "accountsFacetsUnavailable": "不可用的帐户详细信息：{facets}。",
     "securityVaultUnavailable": "保管库已锁定或不可用。",
     "securityDeveloperAuditUnavailable": "开发者审计不可用。"

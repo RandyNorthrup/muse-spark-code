@@ -202,11 +202,6 @@
   "estimateSeed": "Graine de simulation",
   "estimateAsOf": "Heure de l’instantané",
   "estimateMarginal": "Temps gagné avec cette machine supplémentaire",
-  "estimateMissingMore": {
-    "one": "et {count} autre",
-    "many": "et {count} autres",
-    "other": "et {count} autres"
-  },
   "estimateHourly": "Prix horaire",
   "estimateCatalog": "Un prix de catalogue au {date}, pas un devis.",
   "estimateNoPrice": "Aucun prix de catalogue public disponible.",
@@ -233,6 +228,11 @@
   "estimateWaiting": "En attente de {dependency}.",
   "estimateRunning": "Estimation en cours…",
   "estimateFailed": "Échec de l’estimation : {detail}",
+  "estimateMissingMore": {
+    "one": "et {count} autre",
+    "many": "et {count} autres",
+    "other": "et {count} autres"
+  },
   "estimateSchedule": "Planning des pistes",
   "estimateGantt": "Planning de {goal}, avec le chemin critique et les repères de fin P50 et P90.",
   "estimateOptimizeDescription": "Choisissez la configuration la moins chère respectant l’échéance à P90, ou la plus rapide avec des gains marginaux suffisants.",
@@ -429,6 +429,8 @@
   "referenceCodeOutput": "Copier copie le code ; Insérer écrit au curseur ; Appliquer remplace la sélection de l’éditeur. Ouvrez la sortie d’un outil pour tout lire ; une sortie tronquée peut être paginée. Sélectionner du texte dans la conversation pour le citer dans la zone de saisie, poser une question, commenter ou le copier.",
   "referencePaidContexts": "Les extras Model API interactifs demandent l’accord avant toute dépense et partagent le budget quotidien. Les images Muse Code exigent une clé Model API enregistrée et une activation explicite ; leurs dépenses ne font pas partie de ce registre quotidien. Muse Voice réserve le budget quotidien partagé sur les deux backends. Les fonctions ACP payantes sont désactivées par défaut et exigent des options Model API et l’autorisation de l’éditeur. Les requêtes Model API ACP et sans interface réservent le budget quotidien du runtime ; sans interface, un budget strict par exécution est également requis. Les images sans interface exigent acceptEdits et l’option d’image. Compte et utilisation permet d’oublier les accords payants de cet espace de travail.",
   "referenceAcp": "Les compétences installées ajoutent des commandes dynamiques, absentes de cette référence statique. ACP traite seulement /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents locaux et les compétences installées ; les commandes, paramètres et dialogues de l’éditeur dans la référence liée appartiennent à l’extension.",
+  "referenceCiOtherTitle": "Autres systèmes CI",
+  "referenceCiOther": "Modèles de révision/correction sans interface pour GitLab, Azure, Jenkins et Bitbucket avec empreinte du paquet vérifiée. Node lit la clé et publie hors de la copie de travail ; Azure/Jenkins téléversent ces fichiers. Le transport des artefacts GitLab/Bitbucket et l’isolation des processus Bitbucket restent non vérifiés. Déclarez les noms des variables supplémentaires contenant la clé dans MUSE_CI_KEY_ALIASES. Tests simulés uniquement ; voir docs/ci-other-systems.md.",
   "referenceWebFetchTitle": "Récupération web",
   "referenceWebFetchDetail": "Récupérer les pages web publiques en texte lisible, avec vérification des permissions et du réseau.",
   "referenceCodeIntelTitle": "Intelligence du code",
@@ -2028,15 +2030,15 @@
     "history": "L’historique de la session sélectionnée n’est pas disponible."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "Le journal contient des entrées endommagées, incomplètes ou de version plus récente ; les totaux les excluent.",
+    "sessionUsageUnavailable": "L’utilisation de cette session ne peut pas être attribuée dans le journal conservé ; les totaux de jetons et de coûts sont indisponibles.",
+    "budgetsUnavailable": "Les instantanés de budget pour la période sélectionnée sont indisponibles.",
+    "sessionModelUnavailable": "Le catalogue de session ne nomme aucun modèle actif ; le modèle est donc signalé comme inconnu.",
     "sessionTurnsUnavailable": "L'historique de la session ne contient aucun identifiant de tour ; les tours ne peuvent pas être comptés.",
     "sessionApprovalsUnavailable": "L'historique de la session ne contient aucune décision d'approbation.",
     "toolBreakdownUnavailable": "L'utilisation par outil n'est pas enregistrée dans le journal d'utilisation.",
     "rolledUpBreakdownExcluded": "L'historique cumulé est inclus dans les totaux mais pas dans cette répartition.",
     "rolledUpSessionExcluded": "L’historique cumulé est exclu des totaux et du détail de cette session.",
-    "journalIncomplete": "Le journal contient des entrées endommagées, incomplètes ou de version plus récente ; les totaux les excluent.",
-    "sessionUsageUnavailable": "L’utilisation de cette session ne peut pas être attribuée dans le journal conservé ; les totaux de jetons et de coûts sont indisponibles.",
-    "budgetsUnavailable": "Les instantanés de budget pour la période sélectionnée sont indisponibles.",
-    "sessionModelUnavailable": "Le catalogue de session ne nomme aucun modèle actif ; le modèle est donc signalé comme inconnu.",
     "accountsFacetsUnavailable": "Détails de compte indisponibles : {facets}.",
     "securityVaultUnavailable": "Le coffre est verrouillé ou indisponible.",
     "securityDeveloperAuditUnavailable": "L’audit développeur est indisponible."

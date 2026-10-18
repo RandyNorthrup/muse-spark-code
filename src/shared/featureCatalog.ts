@@ -24,9 +24,12 @@ export type ReferenceText =
     }
 
 // Conditional descriptions must opt into a typed field, never a content heuristic.
+// The other-CI paragraph explains the launcher's per-system states (M80 R5):
+// the condition names the system dimension the launcher branches on.
 const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
+  referenceCiOther: 'system',
   referenceScreenRecording: 'nativeRecorder=absent',
   referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
@@ -673,6 +676,19 @@ export function featureCatalog(): readonly Feature[] {
       [],
       'help-and-reference',
       undefined,
+      false,
+      ['acp'],
+    ),
+    // The linked guide owns the per-system contract: Azure's measured bootstrap,
+    // 10-minute setup reserve/45-minute job and the reserved alias namespaces.
+    feature(
+      'ci-other-systems',
+      { ui: 'referenceCiOtherTitle' },
+      { ui: 'referenceCiOther' },
+      [],
+      [],
+      'other-ci-systems',
+      ['modelApi'],
       false,
       ['acp'],
     ),

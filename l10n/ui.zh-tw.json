@@ -202,9 +202,6 @@
   "estimateSeed": "模擬種子",
   "estimateAsOf": "快照時間",
   "estimateMarginal": "新增這台機器節省的時間",
-  "estimateMissingMore": {
-    "other": "還有 {count} 個"
-  },
   "estimateHourly": "每小時價格",
   "estimateCatalog": "{date} 的目錄價格，並非報價。",
   "estimateNoPrice": "沒有可用的公開目錄價格。",
@@ -231,6 +228,9 @@
   "estimateWaiting": "正在等待 {dependency}。",
   "estimateRunning": "正在估算…",
   "estimateFailed": "估算失敗：{detail}",
+  "estimateMissingMore": {
+    "other": "還有 {count} 個"
+  },
   "estimateSchedule": "工作分支排程",
   "estimateGantt": "{goal} 的排程，包含關鍵路徑以及 P50 和 P90 完成標記。",
   "estimateOptimizeDescription": "選擇在 P90 下符合截止日期的最便宜組態，或邊際時間收益足夠的最快組態。",
@@ -427,6 +427,8 @@
   "referenceCodeOutput": "複製會複製程式碼；插入在編輯器游標處寫入；套用取代編輯器選取範圍。開啟工具輸出可閱讀完整結果；截斷的輸出可分頁閱讀。 選取對話文字，可在輸入框中引用、提問、新增評論或複製。",
   "referencePaidContexts": "互動式 Model API 附加功能在消費前詢問，並共用每日預算。Muse Code 圖像需要已儲存的 Model API 金鑰及明確啟用；其支出不計入此每日帳本。Muse Voice 在兩個後端上預留共用每日預算。ACP 付費功能預設關閉，需要 Model API 旗標和編輯器許可。ACP 和無介面的 Model API 要求會預留執行階段每日預算；無介面執行還需要嚴格的單次執行預算。無介面圖像需要 acceptEdits 和圖像旗標。帳戶與用量可以忘記工作區的付費使用許可。",
   "referenceAcp": "已安裝技能會新增動態斜線命令，此靜態參考不列出它們。ACP 僅處理本機 /help、/compact、/legal、/playback、/usage、/resources, /resources resume, /usage resources, /questions、/answer, /prompt, /share, /agents 和已安裝技能；連結參考中的面板命令、設定和編輯器對話方塊屬於擴充功能流程。",
+  "referenceCiOtherTitle": "其他 CI 系統",
+  "referenceCiOther": "為 GitLab、Azure、Jenkins 和 Bitbucket 固定套件摘要的無介面審查/修正範本。Node 讀取金鑰並在工作副本外發布結果；Azure/Jenkins 上傳這些檔案。GitLab/Bitbucket 的成品傳輸和 Bitbucket 的程序隔離尚未驗證。請在 MUSE_CI_KEY_ALIASES 中宣告額外的金鑰變數名稱。僅執行模擬測試；參見 docs/ci-other-systems.md。",
   "referenceWebFetchTitle": "網頁擷取",
   "referenceWebFetchDetail": "將公開網頁擷取為可讀文字，並檢查權限和網路。",
   "referenceCodeIntelTitle": "程式碼智慧",
@@ -1968,15 +1970,15 @@
     "history": "所選工作階段的歷程記錄無法使用。"
   },
   "reportDetailReasons": {
+    "journalIncomplete": "使用日誌包含損壞、不完整或較新版本的記錄；總計不包含這些記錄。",
+    "sessionUsageUnavailable": "保留的日誌無法將使用量歸屬於此工作階段；權杖與費用總計無法使用。",
+    "budgetsUnavailable": "所選期間的預算快照無法使用。",
+    "sessionModelUnavailable": "工作階段目錄未列出任何使用中模型，因此該模型回報為未知。",
     "sessionTurnsUnavailable": "工作階段歷程記錄中沒有回合識別碼，因此無法統計回合。",
     "sessionApprovalsUnavailable": "工作階段歷程記錄中沒有核准決定。",
     "toolBreakdownUnavailable": "使用日誌中不記錄按工具劃分的使用量。",
     "rolledUpBreakdownExcluded": "彙總歷程記錄計入總數，但不計入此明細。",
     "rolledUpSessionExcluded": "彙總歷史不計入此工作階段的總數和明細。",
-    "journalIncomplete": "使用日誌包含損壞、不完整或較新版本的記錄；總計不包含這些記錄。",
-    "sessionUsageUnavailable": "保留的日誌無法將使用量歸屬於此工作階段；權杖與費用總計無法使用。",
-    "budgetsUnavailable": "所選期間的預算快照無法使用。",
-    "sessionModelUnavailable": "工作階段目錄未列出任何使用中模型，因此該模型回報為未知。",
     "accountsFacetsUnavailable": "無法使用的帳戶詳細資訊：{facets}。",
     "securityVaultUnavailable": "保管庫已鎖定或無法使用。",
     "securityDeveloperAuditUnavailable": "開發人員稽核無法使用。"
