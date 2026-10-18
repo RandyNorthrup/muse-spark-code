@@ -24,7 +24,7 @@
 // - Commands become SKILL.md files, rules files AGENTS.md sections.
 // Pure; no `vscode` import.
 
-import { parse as parseToml } from 'smol-toml'
+import { parse as parseToml, TomlError } from 'smol-toml'
 import * as z from 'zod/mini'
 import {
   AGENT_IMPORT_CLAUDE_SPARK_EVENTS,
@@ -196,7 +196,9 @@ function httpEntry(
 ): Conversion<Record<string, unknown>> {
   try {
     new URL(url)
-  } catch {
+  } catch (error: unknown) {
+    // The URL constructor throws only TypeError for text input.
+    if (!(error instanceof TypeError)) throw error
     return { ok: false, reason: 'unsupported' }
   }
   return {
@@ -313,7 +315,9 @@ function parseJson(text: string): unknown {
   try {
     const value: unknown = JSON.parse(text)
     return value
-  } catch {
+  } catch (error: unknown) {
+    // JSON.parse throws only SyntaxError for text input.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }
@@ -379,7 +383,9 @@ export function readCodexConfig(text: string): readonly FoundServer[] | undefine
   let document: unknown
   try {
     document = parseToml(text)
-  } catch {
+  } catch (error: unknown) {
+    // smol-toml throws TomlError for malformed input, never for valid TOML.
+    if (!(error instanceof TomlError)) throw error
     return undefined
   }
   const parsed = codexConfigSchema.safeParse(document)
@@ -544,7 +550,9 @@ export function isCodexHooksOff(text: string): boolean {
   let document: unknown
   try {
     document = parseToml(text)
-  } catch {
+  } catch (error: unknown) {
+    // smol-toml throws TomlError for malformed input, never for valid TOML.
+    if (!(error instanceof TomlError)) throw error
     return false
   }
   const features = isJsonObject(document) ? document['features'] : undefined
@@ -1028,7 +1036,9 @@ export function readCodexHooksToml(text: string): readonly FoundHook[] | undefin
   let document: unknown
   try {
     document = parseToml(text)
-  } catch {
+  } catch (error: unknown) {
+    // smol-toml throws TomlError for malformed input, never for valid TOML.
+    if (!(error instanceof TomlError)) throw error
     return undefined
   }
   if (!isJsonObject(document)) {
@@ -1047,7 +1057,9 @@ export function hasCodexNotify(text: string): boolean {
   let document: unknown
   try {
     document = parseToml(text)
-  } catch {
+  } catch (error: unknown) {
+    // smol-toml throws TomlError for malformed input, never for valid TOML.
+    if (!(error instanceof TomlError)) throw error
     return false
   }
   return isJsonObject(document) && document[CODEX_NOTIFY_KEY] !== undefined
