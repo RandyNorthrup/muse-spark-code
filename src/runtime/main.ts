@@ -1357,6 +1357,12 @@ async function main(): Promise<number> {
     }
     case 'authSet': {
       const { target } = command
+      // `auth set --provider <id>` without `--account` carries `provider`,
+      // not `target`: route it to the provider path, never the Meta one.
+      if (target === undefined && command.provider !== undefined) {
+        const providersFile = await userProvidersFile()
+        return await authSetProvider(authDeps(), command.provider, providersFile.readUserFile)
+      }
       if (target === undefined) return await authSet(authDeps())
       if (target.provider !== 'meta' && target.account === ACCOUNT_DEFAULT_ID) {
         const providersFile = await userProvidersFile()

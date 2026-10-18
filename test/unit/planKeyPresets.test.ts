@@ -25,7 +25,6 @@ describe('captured plan-key presets', () => {
       limitsUrl: 'https://docs.mistral.ai/admin/billing-usage/subscriptions',
     })
     expect(plan?.keyPage).toBe(api?.keyPage)
-    expect(plan?.keyShape).toEqual(api?.keyShape)
     if (plan === undefined) throw new Error('missing Mistral plan')
     expect(Object.keys(plan.pricing)).toEqual(['kind'])
   })
@@ -34,7 +33,7 @@ describe('captured plan-key presets', () => {
     const api = presetById('mistral')
     setUiText(fr, 'fr')
     // The plan key has its own sentence (subscription credits, not
-    // pay-as-you-go); only the key shape and hint stay Mistral's.
+    // pay-as-you-go); only the hint stays Mistral's.
     expect(plan?.description).toBe(fr.providerText.descriptions.mistralPlan)
     expect(plan?.description).not.toBe(api?.description)
     expect(plan?.label).toBe(fr.providerText.labels.mistralPlan)

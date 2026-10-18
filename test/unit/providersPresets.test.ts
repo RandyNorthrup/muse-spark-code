@@ -17,7 +17,6 @@ import {
   presetsByCategory,
   PRESETS,
   quirksOf,
-  isKeyShape,
   FORMAT_QUIRKS,
   type ProviderPreset,
 } from '../../src/core/providers/presets'
@@ -106,22 +105,6 @@ describe('the preset table', () => {
     expect(preset('azure').authHeader).toBe('api-key')
     expect(preset('openai').authHeader).toBe('bearer')
     expect(preset('ollama').authHeader).toBeUndefined()
-  })
-
-  it('never refuses a key for its shape: every preset sends any non-blank key', () => {
-    // The released defect: a working Gemini key beginning `AQ.` failed the
-    // frozen `AIza` prefix. Every preset now accepts it for the key test.
-    const geminiShaped = 'AQ.synthetic-fixture-00001-no-frozen-prefix'
-    const wrongForAll = 'MADEUP-KEY-0001-NO-PREFIX'
-    for (const candidate of PRESETS) {
-      if (candidate.auth !== 'apiKey') {
-        continue
-      }
-      expect(isKeyShape(candidate.keyShape, geminiShaped)).toBe(true)
-      expect(isKeyShape(candidate.keyShape, wrongForAll)).toBe(true)
-      expect(isKeyShape(candidate.keyShape, '')).toBe(false)
-      expect(isKeyShape(candidate.keyShape, ' '.repeat(3))).toBe(false)
-    }
   })
 
   it('hints name where the key comes from, never a key shape', () => {

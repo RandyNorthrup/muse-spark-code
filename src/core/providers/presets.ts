@@ -1,6 +1,6 @@
 // The provider presets (M95, PLAN.md D74): each provider the panel lists
 // is a preset here — its format, fixed origin (or the fields the user
-// gives), auth header, key page and key shape, the free key test, the
+// gives), auth header, key page and key hint, the free key test, the
 // models-list parser, and the format's quirks as data (the output-cap
 // parameter, `parallel_tool_calls`, `tool_choice`, the reasoning field and
 // replay rule, usage in the stream, the cached-token field, the empty-tools
@@ -28,27 +28,11 @@ export type PresetOrigin =
 /** The authorization header a preset sends (captured 2026-10-04). */
 export type AuthHeader = 'bearer' | 'x-api-key' | 'x-goog-api-key' | 'api-key'
 
-/**
- * What a pasted key looks like: nothing per provider. The provider judges
- * a key through the free key test, never its looks (PLAN.md D123: a
- * working key is never refused for its shape), so every preset carries
- * the same open shape. `isKeyShape` stays as the surfaces' gate name.
- */
-export interface KeyShape {
-  readonly kind: 'any'
-}
-
-/**
- * Whether a pasted key may be sent: any non-blank value. This never
- * proves a key works — the free key test does — and it never refuses a
- * working key for its looks. Anything finer (`inspectProviderKey`) is a
- * question for the person, never a refusal.
- */
-export function isKeyShape(_shape: KeyShape, key: string): boolean {
-  return key.trim() !== ''
-}
-
-// The three universal checks live beside the presets' data in
+// What a pasted key looks like is nothing per provider (PLAN.md D123: a
+// working key is never refused for its shape). The provider judges a key
+// through the free key test; anything finer (`inspectProviderKey`) is a
+// question for the person, never a refusal. The three universal checks
+// live beside the presets' data in
 // `./keyInspection` (small, so the panel bundle reads it with the
 // password box); re-exported here for the runtime and the tests.
 export type { ProviderKeyInspection, ProviderKeyNotice } from './keyInspection'
@@ -243,8 +227,7 @@ export interface ProviderPreset {
   /** The provider's key page (**Get a key**); absent where none is known. */
   readonly keyPage?: string | undefined
   readonly docsUrl?: string | undefined
-  readonly keyShape: KeyShape
-  /** The shape as a hint beside the key field (never a key's characters). */
+  /** Where the key comes from, beside the key field (never a key's characters). */
   readonly keyHint: string
   readonly keyTest: KeyTest
   readonly modelsList: ModelsListSpec
@@ -309,7 +292,6 @@ const OPENAI_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://platform.openai.com/api-keys',
   docsUrl: 'https://platform.openai.com/docs',
-  keyShape: { kind: 'any' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'platform.openai.com' })
   },
@@ -335,7 +317,6 @@ const AZURE_PRESET: ProviderPreset = {
   origin: { kind: 'azure-resource' },
   auth: 'apiKey',
   authHeader: 'api-key',
-  keyShape: { kind: 'any' },
   get keyHint() {
     return UI_TEXT.providerText.hints.azure
   },
@@ -360,7 +341,6 @@ const XAI_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://console.x.ai',
-  keyShape: { kind: 'any' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'console.x.ai' })
   },
@@ -388,7 +368,6 @@ const ANTHROPIC_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://console.anthropic.com/settings/keys',
   docsUrl: 'https://docs.anthropic.com',
-  keyShape: { kind: 'any' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'console.anthropic.com' })
   },
@@ -411,7 +390,6 @@ const GEMINI_PRESET: ProviderPreset = {
   authHeader: 'x-goog-api-key',
   keyPage: 'https://aistudio.google.com/apikey',
   docsUrl: 'https://ai.google.dev/gemini-api/docs',
-  keyShape: { kind: 'any' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'AI Studio' })
   },
@@ -434,7 +412,6 @@ const OPENROUTER_PRESET: ProviderPreset = {
   authHeader: 'bearer',
   keyPage: 'https://openrouter.ai/keys',
   docsUrl: 'https://openrouter.ai/docs',
-  keyShape: { kind: 'any' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.router, { site: 'openrouter.ai' })
   },
@@ -476,7 +453,6 @@ const GROQ_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://console.groq.com/keys',
-  keyShape: { kind: 'any' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'console.groq.com' })
   },
@@ -501,7 +477,6 @@ const DEEPSEEK_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://platform.deepseek.com/api_keys',
-  keyShape: { kind: 'any' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'platform.deepseek.com' })
   },
@@ -530,7 +505,6 @@ const MISTRAL_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://console.mistral.ai/api-keys',
-  keyShape: { kind: 'any' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'console.mistral.ai' })
   },
@@ -567,7 +541,6 @@ export const PLAN_KEY_PRESETS: readonly PlanKeyPreset[] = [
     auth: MISTRAL_PRESET.auth,
     authHeader: MISTRAL_PRESET.authHeader,
     keyPage: MISTRAL_PRESET.keyPage,
-    keyShape: MISTRAL_PRESET.keyShape,
     get keyHint() {
       return MISTRAL_PRESET.keyHint
     },
@@ -597,7 +570,6 @@ const TOGETHER_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://api.together.ai/settings/api-keys',
-  keyShape: { kind: 'any' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'api.together.ai' })
   },
@@ -622,7 +594,6 @@ const FIREWORKS_PRESET: ProviderPreset = {
   origin: { kind: 'fixed', origin: 'https://api.fireworks.ai' },
   auth: 'apiKey',
   authHeader: 'bearer',
-  keyShape: { kind: 'any' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'fireworks.ai' })
   },
@@ -652,7 +623,6 @@ const HUGGINGFACE_PRESET: ProviderPreset = {
   auth: 'apiKey',
   authHeader: 'bearer',
   keyPage: 'https://huggingface.co/settings/tokens',
-  keyShape: { kind: 'any' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'huggingface.co' })
   },
@@ -677,7 +647,6 @@ const ZAI_PRESET: ProviderPreset = {
   origin: { kind: 'fixed', origin: 'https://api.z.ai' },
   auth: 'apiKey',
   authHeader: 'bearer',
-  keyShape: { kind: 'any' },
   get keyHint() {
     return fill(UI_TEXT.providerText.hints.site, { site: 'Z.ai' })
   },
@@ -700,7 +669,6 @@ const OLLAMA_PRESET: ProviderPreset = {
   format: 'ollama',
   origin: { kind: 'loopback', defaultPort: 11_434 },
   auth: 'none',
-  keyShape: { kind: 'any' },
   keyHint: '',
   // `/api/tags` is free; `/api/show` gives capabilities per model.
   keyTest: { kind: 'models-list' },
@@ -720,7 +688,6 @@ const LMSTUDIO_PRESET: ProviderPreset = {
   origin: { kind: 'loopback', defaultPort: 1234 },
   auth: 'none',
   optionalKey: true,
-  keyShape: { kind: 'any' },
   keyHint: '',
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', windowField: 'max_context_length', priceSource: 'none-local' },
@@ -744,7 +711,6 @@ const VLLM_PRESET: ProviderPreset = {
   origin: { kind: 'loopback', defaultPort: 8000 },
   auth: 'none',
   optionalKey: true,
-  keyShape: { kind: 'any' },
   keyHint: '',
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', windowField: 'max_model_len', priceSource: 'none-local' },
@@ -767,7 +733,6 @@ const LLAMACPP_PRESET: ProviderPreset = {
   format: 'chat',
   origin: { kind: 'loopback', defaultPort: 8080 },
   auth: 'none',
-  keyShape: { kind: 'any' },
   keyHint: '',
   keyTest: { kind: 'models-list' },
   // `/props` gives `n_ctx`; `/v1/models` gives `meta.n_ctx_train`.
@@ -795,7 +760,6 @@ const CUSTOM_PRESET: ProviderPreset = {
   origin: { kind: 'custom' },
   auth: 'apiKey',
   authHeader: 'bearer',
-  keyShape: { kind: 'any' },
   get keyHint() {
     return UI_TEXT.providerText.hints.custom
   },
