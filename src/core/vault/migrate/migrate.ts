@@ -340,6 +340,99 @@ export class VaultMigration {
       throw error
     }
   }
+  /**
+   * The legacy copy must still be the bytes this store call carries: a save
+   * that landed after the caller read refuses with `conflict` instead of
+   * being overwritten with the older value, and the next unlock heals the
+   * newer one. An absent copy refuses the same way.
+   */
+  private async assertLegacyMatches(
+    entry: MigrationCredential,
+    snapshot: Uint8Array,
+    lease: MigrationLease,
+  ): Promise<void> {
+    let live: Uint8Array | null = null
+    try {
+      live = await this.deps.legacy.read(entry.key)
+      lease.assertCurrent()
+      if (!areSameBytes(snapshot, live)) throw new VaultMigrationFault('conflict')
+    } finally {
+      live?.fill(0)
+    }
+  }
+  /**
+   * One store inside the caller's lease (never nested in `run`). Checks the
+   * legacy copy still matches before the vault write and again before the
+   * legacy write, so a newer save is never overwritten with older bytes.
+   */
+  private async storeInLease(
+    entry: MigrationCredential,
+    snapshot: Uint8Array,
+    lease: MigrationLease,
+  ): Promise<void> {
+    const old = await this.record(entry, lease)
+    if (old?.phase === 'undone' || old?.phase === 'copying')
+      throw new VaultMigrationFault('conflict')
+    let item: VaultItem | undefined
+    let legacy: Uint8Array | null = null
+    try {
+      item = entry.decode(snapshot)
+      validateMigrationItem(item, entry.itemId)
+      await this.assertLegacyMatches(entry, snapshot, lease)
+      const current = await this.deps.vault.list()
+      lease.assertCurrent()
+      const previous = current.find((metadata) => metadata.id === entry.itemId)
+      if (old && previous) {
+        item.metadata.dates = {
+          ...item.metadata.dates,
+          createdAt: previous.dates.createdAt,
+          rotatedAt: item.metadata.dates.createdAt,
+          lastUsedAt: previous.dates.lastUsedAt,
+        }
+        item.metadata.label = previous.label
+        item.metadata.requirePresence = previous.requirePresence
+      }
+      if (!old) {
+        const items = await this.deps.vault.list()
+        lease.assertCurrent()
+        if (
+          items.some(
+            (metadata) => metadata.id === entry.itemId || metadata.name === item?.metadata.name,
+          )
+        )
+          throw new VaultMigrationFault('conflict')
+        legacy = await this.deps.legacy.read(entry.key)
+        lease.assertCurrent()
+      }
+      const row = this.intent(
+        entry,
+        item,
+        'writing',
+        old?.retainLegacy ?? legacy !== null,
+        old?.startedRelease ?? this.currentRelease(),
+      )
+      if ((old?.phase === 'active' || old?.phase === 'retired') && old.digest !== null)
+        row.previous = { phase: old.phase, digest: old.digest }
+      await this.persistCopy(row, item, lease)
+      await this.assertLegacyMatches(entry, snapshot, lease)
+      if (row.retainLegacy) await this.mirror(entry, row, lease)
+      await this.save(
+        { ...row, previous: undefined, phase: row.retainLegacy ? 'active' : 'retired' },
+        lease,
+      )
+    } finally {
+      eraseItem(item)
+      legacy?.fill(0)
+    }
+  }
+  /** The journal's phase for a key, or null before its first copy. */
+  async journalPhase(key: string): Promise<MigrationRecord['phase'] | null> {
+    const entry = this.credential(key)
+    return await this.run(async (lease) => {
+      const row = await this.record(entry, lease)
+      return row?.phase ?? null
+    })
+  }
   /** Idempotent, including restart after copy or verification failure; source is never removed here. */
   async migrate(
     key: string,
@@ -348,7 +441,29 @@ export class VaultMigration {
     return await this.run(async (lease) => {
       const old = await this.record(entry, lease)
       if (old?.phase === 'active' || old?.phase === 'retired') {
-        await this.verified(old, lease)
+        try {
+          await this.verified(old, lease)
+        } catch (error: unknown) {
+          // The vault copy is gone or unreadable (a removal leaves the
+          // journal `active`): with a live legacy copy, write it again
+          // instead of pausing with the vault copy missing; with none,
+          // report the deletion behind the vault like any other.
+          if (
+            !(error instanceof VaultMigrationFault) ||
+            error.code !== 'invalid' ||
+            old.phase !== 'active'
+          )
+            throw error
+          const live = await this.deps.legacy.read(key)
+          lease.assertCurrent()
+          if (live === null) return 'legacyDeleted'
+          try {
+            await this.storeInLease(entry, live, lease)
+          } finally {
+            live.fill(0)
+          }
+          return 'active'
+        }
         // A legacy copy deleted behind an active slot is a change like an
         // overwrite: report it with its own typed state instead of `active`,
         // so undo cannot write the deleted key back. A retired slot without
@@ -424,58 +539,7 @@ export class VaultMigration {
     snapshot.set(value)
     try {
       await this.run(async (lease) => {
-        const old = await this.record(entry, lease)
-        if (old?.phase === 'undone' || old?.phase === 'copying')
-          throw new VaultMigrationFault('conflict')
-        let item: VaultItem | undefined
-        let legacy: Uint8Array | null = null
-        try {
-          item = entry.decode(snapshot)
-          validateMigrationItem(item, entry.itemId)
-          const current = await this.deps.vault.list()
-          lease.assertCurrent()
-          const previous = current.find((metadata) => metadata.id === entry.itemId)
-          if (old && previous) {
-            item.metadata.dates = {
-              ...item.metadata.dates,
-              createdAt: previous.dates.createdAt,
-              rotatedAt: item.metadata.dates.createdAt,
-              lastUsedAt: previous.dates.lastUsedAt,
-            }
-            item.metadata.label = previous.label
-            item.metadata.requirePresence = previous.requirePresence
-          }
-          if (!old) {
-            const items = await this.deps.vault.list()
-            lease.assertCurrent()
-            if (
-              items.some(
-                (metadata) => metadata.id === entry.itemId || metadata.name === item?.metadata.name,
-              )
-            )
-              throw new VaultMigrationFault('conflict')
-            legacy = await this.deps.legacy.read(key)
-            lease.assertCurrent()
-          }
-          const row = this.intent(
-            entry,
-            item,
-            'writing',
-            old?.retainLegacy ?? legacy !== null,
-            old?.startedRelease ?? this.currentRelease(),
-          )
-          if ((old?.phase === 'active' || old?.phase === 'retired') && old.digest !== null)
-            row.previous = { phase: old.phase, digest: old.digest }
-          await this.persistCopy(row, item, lease)
-          if (row.retainLegacy) await this.mirror(entry, row, lease)
-          await this.save(
-            { ...row, previous: undefined, phase: row.retainLegacy ? 'active' : 'retired' },
-            lease,
-          )
-        } finally {
-          eraseItem(item)
-          legacy?.fill(0)
-        }
+        await this.storeInLease(entry, snapshot, lease)
       })
     } finally {
       snapshot.fill(0)
@@ -677,6 +741,36 @@ export class VaultMigration {
         }
       } finally {
         eraseItem(copied)
+      }
+      // The interrupted store may have crashed between the vault commit and
+      // the legacy write, and a save may have landed since: mirroring the
+      // vault bytes back now would overwrite that newer save (or resurrect
+      // a legacy copy the person removed, which `undo` refuses to do).
+      // With no legacy copy, complete without touching it; with a changed
+      // one, rewind and migrate it, the way the missing-vault-item branch
+      // above already does.
+      const live = await this.deps.legacy.read(entry.key)
+      lease.assertCurrent()
+      if (live === null) {
+        await this.save(
+          { ...row, previous: undefined, phase: row.retainLegacy ? 'active' : 'retired' },
+          lease,
+        )
+        return false
+      }
+      try {
+        let legacyItem: VaultItem | undefined
+        try {
+          legacyItem = entry.decode(live)
+          if (itemDigest(legacyItem) !== row.digest) {
+            await this.save({ ...row, previous: undefined, phase: 'copying' }, lease)
+            return true
+          }
+        } finally {
+          eraseItem(legacyItem)
+        }
+      } finally {
+        live.fill(0)
       }
       if (row.retainLegacy) await this.mirror(entry, row, lease)
       await this.save(

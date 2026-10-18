@@ -32,7 +32,7 @@ import { providerSecretKey } from '../providers/credentialRecords'
 import { secretStorageLegacyPort } from './migrateSecretStorage'
 import type { SecretStore } from '../auth/credentialStore'
 import type { Logger } from '../logger'
-import type { MigrationMirror } from './migrationShell'
+import { withMigrationLock, type MigrationMirror } from './migrationShell'
 
 /** The ChatGPT subscription record owns its codec in its own lane; never taken here. */
 const CHATGPT_PROVIDER_ID = 'chatgpt'
@@ -149,39 +149,41 @@ function journalItem(key: string, record: MigrationRecord, now: number, label: s
 }
 
 /**
- * The owner the host binds. Work runs directly — no cross-window lock —
- * and an op a newer op overtook aborts at its next checkpoint instead of
- * committing over it. That stays safe because every engine op is
- * self-verifying: a persist writes the journal, commits the vault item,
- * then decrypts the committed bytes back and compares digests before it
- * records anything, so overlapping runs converge on the last verified
- * value and the aborted one retries at the next unlock. The broker's
- * serialized writer below still commits one write at a time.
+ * The owner every controller shares. Engine ops run one at a time under the
+ * shell's lock — a newer op never overlaps an older one, so an older op can
+ * never commit over it — and each op still carries its lease: an op a newer
+ * op overtook aborts at its next checkpoint instead of committing. That
+ * stays safe because every engine op is self-verifying: a persist writes the
+ * journal, commits the vault item, then decrypts the committed bytes back
+ * and compares digests before it records anything, and a store whose legacy
+ * copy moved underneath it refuses instead of writing the older bytes back.
+ * The generation only ever advances, so a finished op can never look
+ * current to a later check the way a counter that counts back down could.
  */
-function hostMigrationOwner(): MigrationOwnerPort {
-  let inFlight = 0
-  return {
-    async run<T>(work: (lease: MigrationLease) => Promise<T>): Promise<T> {
-      inFlight += 1
-      const held = inFlight
+class SharedMigrationOwner implements MigrationOwnerPort {
+  private generation = 0
+  async run<T>(work: (lease: MigrationLease) => Promise<T>): Promise<T> {
+    return await withMigrationLock(async () => {
+      this.generation += 1
+      const held = this.generation
       try {
         return await work({
           assertCurrent: () => {
-            if (held !== inFlight) throw new VaultMigrationFault('window')
+            if (held !== this.generation) throw new VaultMigrationFault('window')
           },
         })
       } catch (error: unknown) {
         if (error instanceof VaultMigrationFault) throw error
         throw new VaultMigrationFault('storage')
-      } finally {
-        inFlight -= 1
       }
-    },
+    })
   }
 }
 
+const sharedMigrationOwner = new SharedMigrationOwner()
+
 export class CredentialMigrationController implements MigrationMirror {
-  private readonly owner = hostMigrationOwner()
+  private readonly owner = sharedMigrationOwner
   private readonly skippedOpaque = new Set<string>()
   constructor(private readonly deps: CredentialMigrationDeps) {}
 
@@ -383,6 +385,23 @@ export class CredentialMigrationController implements MigrationMirror {
           }
           continue
         }
+        // A signed-out slot whose journal still says `deleted`: a live
+        // SecretStorage value is the sign-in's new key, and the vault copy
+        // is gone, so copy it again instead of asking `migrate`, which
+        // refuses a `deleted` row and would leave the new key unmigrated
+        // forever. An absent value is the signed-out state itself: nothing
+        // to do, and nothing worth warning about.
+        if ((await migration.journalPhase(key)) === 'deleted') {
+          const value = await this.deps.secrets.get(key)
+          if (value === undefined) continue
+          const bytes = Buffer.from(value, 'utf8')
+          try {
+            await migration.store(key, bytes)
+          } finally {
+            bytes.fill(0)
+          }
+          continue
+        }
         await migration.resume(key)
         const outcome = await migration.migrate(key)
         if (outcome === 'diverged') await this.healDiverged(migration, key)
@@ -401,6 +420,21 @@ export class CredentialMigrationController implements MigrationMirror {
     if (!listMigrationKeys(providerIds).includes(key)) return
     const bytes = Buffer.from(value, 'utf8')
     try {
+      // The journal phase decides, not `resolve`: provider codecs carry no
+      // first-party request, so `resolve` is null for them even on an
+      // `active` row, and asking `migrate` there would report `diverged`
+      // without ever writing the rotated key. A signed-out (`deleted`) row
+      // with a live value is re-seeded with `store`, which accepts it.
+      const phase = await migration.journalPhase(key)
+      if (phase === 'active' || phase === 'retired') {
+        await migration.store(key, bytes)
+        return
+      }
+      if (phase === 'deleted') {
+        if ((await this.deps.secrets.get(key)) === undefined) return
+        await migration.store(key, bytes)
+        return
+      }
       if ((await migration.resolve(key)) === null) {
         await migration.migrate(key)
         return
