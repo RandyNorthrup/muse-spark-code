@@ -26,6 +26,12 @@ describe('absolutePathEntries', () => {
     ])
     expect(absolutePathEntries('linux', undefined)).toEqual([])
   })
+
+  it('drops drive-relative Windows entries, which resolve on the working directory drive', () => {
+    expect(
+      absolutePathEntries('win32', String.raw`\Tools\bin;/Tools/bin;C:\Git\cmd;\\srv\share\bin`),
+    ).toEqual([String.raw`C:\Git\cmd`, String.raw`\\srv\share\bin`])
+  })
 })
 
 describe('resolveExecutable', () => {
