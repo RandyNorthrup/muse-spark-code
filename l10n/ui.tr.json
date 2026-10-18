@@ -2687,6 +2687,7 @@
   "agentRecoveryConfirm": "{action}: {objective}? Geçerli izinler ve bütçeler uygulanır.",
   "agentRetryUnavailable": "Yeniden deneme kullanılamıyor: bu arka uç yalıtılmış çalışma ağacı kontrol noktası sağlamıyor. Ortak çalışma alanındaki değişiklikler korunur.",
   "agentContinueUnavailable": "Bu ajan veya mevcut durumu için devam etme kullanılamıyor.",
+  "agentGone": "Bu ajan artık bu konuşmada yok.",
   "referenceAgentOutcomes": "Ajanlar etkinlik ve kanıta dayalı sonuçları gösterir. Sınırlı kayıt ve deneme geçmişi için bitmiş bir ajan seçin. Onaylanan devam işlemi oturumu ve değişiklikleri korur; yeniden deneme yalıtılmış kontrol noktası gerektirir. Eksik kanıt doğrulanmamış olarak gösterilir. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
   "agentMapHint": "ayrıntılar için bir aracıya tıklayın",
   "agentMapEmpty": "Bu konuşmada alt aracı yok.",

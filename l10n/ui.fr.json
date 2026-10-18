@@ -2743,6 +2743,7 @@
   "agentRecoveryConfirm": "{action} : {objective} ? Les autorisations et budgets actuels s’appliquent.",
   "agentRetryUnavailable": "Nouvelle tentative indisponible : ce backend ne fournit aucun point de contrôle isolé de l’arbre de travail. Les modifications de l’espace partagé sont conservées.",
   "agentContinueUnavailable": "La continuation est indisponible pour cet agent ou son état actuel.",
+  "agentGone": "Cet agent ne fait plus partie de cette conversation.",
   "referenceAgentOutcomes": "Les agents affichent leur activité et des résultats étayés. Sélectionnez un agent terminé pour son relevé limité et son historique. Continuer conserve la session et les modifications après confirmation ; réessayer exige un point de contrôle isolé. Les preuves manquantes restent non vérifiées. ACP : /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
   "agentMapHint": "cliquez sur un agent pour voir les détails",
   "agentMapEmpty": "Aucun sous-agent dans cette conversation.",
