@@ -568,11 +568,16 @@ export function createConfiguredProviderServices(
         // The entry's own header interpreter: Meta's reader is the
         // transport default, every other provider reads its own headers.
         // A preset with no limit headers omits the reader instead of
-        // sending undefined, so only a 429 pause applies.
+        // sending undefined, so only a 429 pause applies. The identity is
+        // the stable preset id, never the configurable entry id: aliases
+        // of one key (`providers add --as`) share what the account's
+        // quota observations and 429 pauses teach (the base URL and the
+        // credential digest in the account key disambiguate servers
+        // and keys).
         pacingProvider: () =>
           readLimits === undefined
-            ? { identity: { provider: entry.id } }
-            : { identity: { provider: entry.id }, readLimits },
+            ? { identity: { provider: preset.id } }
+            : { identity: { provider: preset.id }, readLimits },
         log: {
           trace: ignoreTransportLog,
           info: ignoreTransportLog,
@@ -1312,6 +1317,9 @@ export function createConfiguredProviderServices(
             )
             if (format.success) return { format: format.data, contextTokens: windowTokens }
           }
+          // A readable file that no longer lists the ref ends here: the
+          // cached last listing below must not resurrect a removed window.
+          return
         }
       } catch {
         // An unreadable file keeps the last listing's answer below.
