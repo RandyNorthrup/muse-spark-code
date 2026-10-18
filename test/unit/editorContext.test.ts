@@ -57,12 +57,10 @@ describe('editorContextText', () => {
     expect(text).not.toContain('const a')
   })
 
-  it('clips an oversized selection with a marker', () => {
-    const text = editorContextText({
-      ...selection,
-      selectedText: 'x'.repeat(SELECTION_TEXT_MAX_CHARS + 10),
-    })
-    expect(text).toContain('[selection clipped]')
-    expect(text.length).toBeLessThan(SELECTION_TEXT_MAX_CHARS + 200)
+  it('sends an oversized selection whole: the provider decides what fits', () => {
+    const selectedText = 'x'.repeat(SELECTION_TEXT_MAX_CHARS + 10)
+    const text = editorContextText({ ...selection, selectedText })
+    expect(text).toContain(selectedText)
+    expect(text).not.toContain('[selection clipped]')
   })
 })

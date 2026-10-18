@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readCompiledSource } from './compiledSources.mjs'
 import path from 'node:path'
 import { deflateSync } from 'node:zlib'
 import ts from 'typescript'
@@ -71,7 +71,7 @@ export function compressedEnglish(platform) {
     setup(build) {
       build.onLoad({ filter: /[/\\]shared[/\\]l10n[/\\]en\.ts$/ }, (args) => {
         if (path.resolve(args.path) !== ENGLISH_TABLE) return
-        const table = englishTableData(readFileSync(args.path, 'utf8'))
+        const table = englishTableData(readCompiledSource(args.path))
         const packed = deflateSync(JSON.stringify(table), { level: COMPRESSION_LEVEL }).toString(
           'base64',
         )

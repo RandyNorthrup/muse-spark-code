@@ -1,0 +1,525 @@
+{
+  "captureDate": "2026-10-13",
+  "lane": "REASONSHAPESR2",
+  "note": "No lane request may carry a key. Send each request with the owner's key out of band (Authorization header or the provider's own tool), then paste back the status code, the response body with any key redacted, and the date, under test/fixtures/provider-reasoning/<provider>/<ID>.json. Every fact below stays UNVERIFIED in docs/certification/REASONSHAPESR2.md until its answer lands. Chained requests (ANTH-REPLAY-2, ZAI-CLEAR-FOLLOWUP) paste verbatim blocks from their parent answer.",
+  "requests": [
+    {
+      "body": {
+        "max_tokens": 100,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "claude-sonnet-5",
+        "output_config": {
+          "effort": "minimal"
+        }
+      },
+      "gap": "GAPANTH-G10",
+      "id": "ANTH-MINIMAL",
+      "lookFor": "HTTP 400 naming the valid effort values (proves the client must map minimal to low), or 200 acceptance.",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "provider": "anthropic"
+    },
+    {
+      "body": {
+        "max_tokens": 100,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "claude-opus-4-6",
+        "output_config": {
+          "effort": "xhigh"
+        }
+      },
+      "gap": "GAPANTH-G10",
+      "id": "ANTH-XHIGH-46",
+      "lookFor": "HTTP 400 (xhigh is not in the documented list for Opus 4.6) or 200 acceptance. Settles whether the product must refuse xhigh on 4.6 models.",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "provider": "anthropic"
+    },
+    {
+      "body": {
+        "max_tokens": 100,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "claude-opus-5-5",
+        "output_config": {
+          "effort": "high"
+        },
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "gap": "GAPANTH-G02",
+      "id": "ANTH-DISABLE-OPUS55",
+      "lookFor": "HTTP 400 (the thinking table rejects disabled on Opus 5.5). Confirms the product must refuse Thinking off before dispatch on this model.",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "provider": "anthropic"
+    },
+    {
+      "body": {
+        "max_tokens": 100,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "claude-sonnet-5-5",
+        "output_config": {
+          "effort": "high"
+        },
+        "thinking": {
+          "type": "between_tools"
+        }
+      },
+      "gap": "GAPANTH-G02",
+      "id": "ANTH-BETWEEN-SONNET55",
+      "lookFor": "HTTP 200 (the thinking table accepts between_tools at high or below on Sonnet 5.5). Confirms the product's Thinking-off send for this model.",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "provider": "anthropic"
+    },
+    {
+      "body": {
+        "max_tokens": 100,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "claude-haiku-5-5",
+        "output_config": {
+          "effort": "high"
+        },
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "gap": "GAPANTH-G02",
+      "id": "ANTH-DISABLE-HAIKU55",
+      "lookFor": "HTTP 200 with a direct answer and 0 thinking (the table accepts disabled at high or below on Haiku 5.5).",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "provider": "anthropic"
+    },
+    {
+      "body": {
+        "max_tokens": 2000,
+        "messages": [
+          {
+            "content": "What is the weather in Paris? Use the tool.",
+            "role": "user"
+          }
+        ],
+        "model": "claude-sonnet-4-6",
+        "thinking": {
+          "display": "summarized",
+          "type": "adaptive"
+        },
+        "tools": [
+          {
+            "description": "Get the weather for a city.",
+            "input_schema": {
+              "properties": {
+                "city": {
+                  "type": "string"
+                }
+              },
+              "required": ["city"],
+              "type": "object"
+            },
+            "name": "get_weather"
+          }
+        ]
+      },
+      "gap": "GAPANTH-G01",
+      "id": "ANTH-REPLAY-1",
+      "lookFor": "HTTP 200 with thinking blocks (with signatures) plus a get_weather tool_use. Save the assistant content blocks verbatim: ANTH-REPLAY-2 pastes them back.",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "provider": "anthropic"
+    },
+    {
+      "body": "<chained: ANTH-REPLAY-1's assistant content blocks pasted verbatim as the second message, then {'role': 'user', 'content': [{'type': 'tool_result', 'tool_use_id': '<the tool_use id>', 'content': '20C and sunny'}]}, model claude-sonnet-4-6, same thinking block, max_tokens 2000>",
+      "gap": "GAPANTH-G01",
+      "id": "ANTH-REPLAY-2",
+      "lookFor": "HTTP 200 continuing the turn (proves replayed thinking blocks are accepted) as against today's product, which drops them.",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "provider": "anthropic"
+    },
+    {
+      "body": {
+        "input": "Say hi in five words.",
+        "model": "gpt-6-astra",
+        "reasoning": {
+          "effort": "none"
+        }
+      },
+      "gap": "OPENAI-G02",
+      "id": "OPENAI-NONE-ASTRA",
+      "lookFor": "HTTP 400 (the reasoning page documents that none returns 400 on gpt-6-astra). Confirms the product must refuse Thinking off before dispatch on this model.",
+      "method": "POST",
+      "path": "https://api.openai.com/v1/responses",
+      "provider": "openai"
+    },
+    {
+      "body": {
+        "input": "Say hi in five words.",
+        "model": "gpt-6.1-sol",
+        "reasoning": {
+          "effort": "none"
+        }
+      },
+      "gap": "OPENAI-G02",
+      "id": "OPENAI-NONE-SOL",
+      "lookFor": "HTTP 400 (the reasoning page documents that gpt-6.1-sol does not support none).",
+      "method": "POST",
+      "path": "https://api.openai.com/v1/responses",
+      "provider": "openai"
+    },
+    {
+      "body": {
+        "input": "Say hi in five words.",
+        "model": "gpt-6.1-sol",
+        "reasoning": {
+          "effort": "minimal"
+        }
+      },
+      "gap": "OPENAI-G02",
+      "id": "OPENAI-MINIMAL-SOL",
+      "lookFor": "HTTP 400 (minimal is also undocumented on gpt-6.1-sol) or 200 acceptance.",
+      "method": "POST",
+      "path": "https://api.openai.com/v1/responses",
+      "provider": "openai"
+    },
+    {
+      "body": {
+        "input": "Say hi in five words.",
+        "model": "gpt-6-astra",
+        "reasoning": {
+          "effort": "low",
+          "mode": "pro"
+        }
+      },
+      "gap": "OPENAI-G08",
+      "id": "OPENAI-PRO",
+      "lookFor": "HTTP 200 accepting reasoning.mode pro (the reasoning page documents standard and pro for GPT-6 models).",
+      "method": "POST",
+      "path": "https://api.openai.com/v1/responses",
+      "provider": "openai"
+    },
+    {
+      "body": {
+        "input": "Say hi in five words.",
+        "model": "gpt-6.1-sol",
+        "reasoning": {
+          "context": "all_turns",
+          "effort": "low"
+        }
+      },
+      "gap": "OPENAI-G07",
+      "id": "OPENAI-CONTEXT",
+      "lookFor": "HTTP 200 and the response's reasoning.context field (the effective mode). Confirms the product's context send.",
+      "method": "POST",
+      "path": "https://api.openai.com/v1/responses",
+      "provider": "openai"
+    },
+    {
+      "body": {
+        "input": "Say hi in five words.",
+        "model": "grok-4.5",
+        "reasoning": {
+          "effort": "none"
+        }
+      },
+      "gap": "XAI-G02",
+      "id": "XAI-NONE-45",
+      "lookFor": "HTTP 400 (refused: the product must refuse before dispatch) or HTTP 200 (ignored or honored: check usage reasoning_tokens and whether thinking text appears). xAI documents no none value.",
+      "method": "POST",
+      "path": "https://api.x.ai/v1/responses",
+      "provider": "xai"
+    },
+    {
+      "body": {
+        "input": "Say hi in five words.",
+        "model": "grok-4.7",
+        "reasoning": {
+          "effort": "none"
+        }
+      },
+      "gap": "XAI-G02",
+      "id": "XAI-NONE-47",
+      "lookFor": "Same as XAI-NONE-45, on grok-4.7 (which always returns encrypted reasoning).",
+      "method": "POST",
+      "path": "https://api.x.ai/v1/responses",
+      "provider": "xai"
+    },
+    {
+      "body": {
+        "input": "Say hi in five words.",
+        "model": "grok-4.20-0309-reasoning",
+        "reasoning": {
+          "effort": "high"
+        }
+      },
+      "gap": "XAI-G14",
+      "id": "XAI-EFFORT-420R",
+      "lookFor": "HTTP 200 (an effort rides) or 4xx naming the supported values (settles what the record may offer).",
+      "method": "POST",
+      "path": "https://api.x.ai/v1/responses",
+      "provider": "xai"
+    },
+    {
+      "body": {
+        "input": "Say hi in five words.",
+        "model": "grok-4.20-0309-non-reasoning"
+      },
+      "gap": "XAI-G14",
+      "id": "XAI-EFFORT-420N",
+      "lookFor": "HTTP 200 with a plain answer and no reasoning (the model takes no reasoning field).",
+      "method": "POST",
+      "path": "https://api.x.ai/v1/responses",
+      "provider": "xai"
+    },
+    {
+      "body": null,
+      "gap": "XAI-G01",
+      "id": "XAI-LIST",
+      "lookFor": "Each grok model's effort values and default_reasoning_effort (settles the dated-catalogue gaps: grok-4.3 and grok-4.5 xhigh, live defaults).",
+      "method": "GET",
+      "path": "https://api.x.ai/v1/models",
+      "provider": "xai"
+    },
+    {
+      "body": {
+        "max_tokens": 50,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash",
+        "reasoning_effort": "ultra",
+        "stream": false
+      },
+      "gap": "DS-G01",
+      "id": "DS-ULTRA-V4-FLASH",
+      "lookFor": "HTTP 200 with reasoning_effort ultra accepted as named (extends DS-ULTRA beyond deepseek-flash).",
+      "method": "POST",
+      "path": "https://api.deepseek.com/chat/completions",
+      "provider": "deepseek"
+    },
+    {
+      "body": {
+        "max_tokens": 50,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-pro",
+        "reasoning_effort": "ultra",
+        "stream": false
+      },
+      "gap": "DS-G01",
+      "id": "DS-ULTRA-V4-PRO",
+      "lookFor": "Same as DS-ULTRA-V4-FLASH, on deepseek-v4-pro.",
+      "method": "POST",
+      "path": "https://api.deepseek.com/chat/completions",
+      "provider": "deepseek"
+    },
+    {
+      "body": {
+        "max_tokens": 50,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "deepseek-v4-flash-vision-exp",
+        "reasoning_effort": "ultra",
+        "stream": false
+      },
+      "gap": "DS-G01",
+      "id": "DS-ULTRA-VISION",
+      "lookFor": "Same as DS-ULTRA-V4-FLASH, on deepseek-v4-flash-vision-exp.",
+      "method": "POST",
+      "path": "https://api.deepseek.com/chat/completions",
+      "provider": "deepseek"
+    },
+    {
+      "body": {
+        "max_tokens": 1000,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "glm-5.2",
+        "reasoning_effort": "xhigh",
+        "stream": false
+      },
+      "gap": "ZAI-G02",
+      "id": "ZAI-XHIGH-BIGCAP",
+      "lookFor": "HTTP 200 under a 1000-token cap: compare thinking length against ZAI-XHIGH (200-token cap) to read what xhigh changes.",
+      "method": "POST",
+      "path": "https://api.z.ai/api/paas/v4/chat/completions",
+      "provider": "zai"
+    },
+    {
+      "body": "<chained: ZAI-CLEAR's recorded assistant answer pasted as history, then a new user turn 'And now in three words?', thinking {clear_thinking: false, type: 'enabled'}, reasoning_effort high, max_tokens 200>",
+      "gap": "ZAI-G04",
+      "id": "ZAI-CLEAR-FOLLOWUP",
+      "lookFor": "HTTP 200 with a coherent continuation (settles what clear_thinking false changes in a following turn).",
+      "method": "POST",
+      "path": "https://api.z.ai/api/paas/v4/chat/completions",
+      "provider": "zai"
+    },
+    {
+      "body": {
+        "contents": [
+          {
+            "parts": [
+              {
+                "text": "Say hi in five words."
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "generationConfig": {
+          "maxOutputTokens": 100,
+          "thinkingConfig": {
+            "includeThoughts": true,
+            "thinkingBudget": 0
+          }
+        }
+      },
+      "gap": "thinking-off-record",
+      "id": "GEMINI-NONE-FLASH",
+      "lookFor": "HTTP 200 with no thought content (Thinking off works through budget 0: the product keeps sending it) or HTTP 400 (the product must refuse Thinking off before dispatch on this model). The catalogue lists low/medium/high with no none; round 1 sent budget 0 unverified.",
+      "method": "POST",
+      "path": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
+      "provider": "gemini"
+    },
+    {
+      "body": {
+        "contents": [
+          {
+            "parts": [
+              {
+                "text": "Say hi in five words."
+              }
+            ],
+            "role": "user"
+          }
+        ],
+        "generationConfig": {
+          "maxOutputTokens": 100,
+          "thinkingConfig": {
+            "includeThoughts": true,
+            "thinkingBudget": 0
+          }
+        }
+      },
+      "gap": "thinking-off-record",
+      "id": "GEMINI-NONE-LITE",
+      "lookFor": "Same as GEMINI-NONE-FLASH, on gemini-flash-lite-latest (whose thinking minimum may be above 0).",
+      "method": "POST",
+      "path": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent",
+      "provider": "gemini"
+    },
+    {
+      "body": {
+        "max_tokens": 100,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "claude-opus-5",
+        "output_config": {
+          "effort": "high"
+        },
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "gap": "GAPANTH-G02",
+      "id": "ANTH-DISABLE-OPUS5",
+      "lookFor": "HTTP 200 with a direct answer and 0 thinking (the table accepts disabled at high or below on Opus 5). Confirms the product's Thinking-off send for this model.",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "provider": "anthropic"
+    },
+    {
+      "body": {
+        "max_tokens": 100,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "claude-opus-4-5",
+        "output_config": {
+          "effort": "high"
+        },
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "gap": "GAPANTH-G02",
+      "id": "ANTH-DISABLE-OPUS45",
+      "lookFor": "HTTP 200 (every 4.x row of the thinking table ends in Thinking off: disabled is accepted at any effort there). Confirms the product's Thinking-off send for the 4.x models.",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "provider": "anthropic"
+    },
+    {
+      "body": {
+        "max_tokens": 100,
+        "messages": [
+          {
+            "content": "Say hi in five words.",
+            "role": "user"
+          }
+        ],
+        "model": "claude-fable-5",
+        "output_config": {
+          "effort": "high"
+        },
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "gap": "GAPANTH-G02",
+      "id": "ANTH-DISABLE-FABLE5",
+      "lookFor": "HTTP 400 (the thinking table rejects disabled on Fable 5). Confirms the product must refuse Thinking off before dispatch on this model.",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "provider": "anthropic"
+    }
+  ]
+}

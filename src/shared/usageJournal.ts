@@ -218,6 +218,9 @@ export function limitSchemaWith<
       source: z.enum(['museCode', 'openRouter', 'headers', 'chatgpt']),
       observedAt: usageCountSchema,
       windows: z.array(usageLimitWindowSchema),
+      // The subscription meter's own plan name, verbatim (Muse Code's
+      // `usage/changed` tier): plan rows say whose plan the spend rode on.
+      plan: z.optional(usageLabelSchema),
       account: z.optional(
         z.strictObject({
           usedUsd: z.optional(money),

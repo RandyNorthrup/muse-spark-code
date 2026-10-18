@@ -1,5 +1,13 @@
 import { isAutoCompactionEvaluated } from '../shared/constants'
 import { ESTIMATE_OPTIONS } from './estimator/options'
+import {
+  PROMPTS_LIST_FLAGS,
+  PROMPTS_SAVE_FLAGS,
+  PROMPTS_SCOPE_FLAG,
+  PROMPTS_USE_FLAGS,
+  SHARE_FLAGS,
+  SHARING_BASE_FLAGS,
+} from '../shared/sharingFlags'
 import type { UiText } from '../shared/l10n/en'
 import { sharingHelp } from '../shared/featureCatalog'
 import { fill } from '../shared/l10n/text'
@@ -104,11 +112,13 @@ const EXEC_OPTIONS = {
   output: { type: 'string' },
   'max-budget-usd': { type: 'string' },
   'max-requests': { type: 'string' },
+  'max-tool-output-bytes': { type: 'string' },
   timeout: { type: 'string' },
   'muse-binary': { type: 'string' },
   'shell-sandbox': { type: 'string' },
   'allow-contributor-models': { type: 'boolean' },
   'image-generation': { type: 'boolean' },
+  'auto-compaction': { type: 'boolean' },
   'fail-on-denial': { type: 'boolean' },
   ephemeral: { type: 'boolean' },
   'key-stdin': { type: 'boolean' },
@@ -143,6 +153,14 @@ const FONTS_OPTIONS = {
 
 export const CLI_OPTION_REGISTRY = {
   providersAdd: { options: PROVIDER_OPTIONS },
+  providersModels: {
+    options: {
+      add: { type: 'string', multiple: true },
+      remove: { type: 'string', multiple: true },
+      force: { type: 'string' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  },
   usage: {
     options: {
       range: { type: 'string' },
@@ -177,6 +195,24 @@ export const CLI_OPTION_REGISTRY = {
   resources: { options: { json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } } },
   fontsInstall: { options: FONTS_OPTIONS },
   estimate: { options: ESTIMATE_OPTIONS, text: { by: 'estimate-by', format: 'estimate-format' } },
+  // Help-only routes: parseCommandLine hands sharing argv to the owner
+  // parser before its own strict parse, so these entries drive help, the
+  // reference and the guard. The flags are the owner's own tables, spread
+  // in the same order the parser composes them.
+  share: {
+    options: { ...SHARING_BASE_FLAGS, ...SHARE_FLAGS },
+    text: { from: 'share-from', to: 'share-to', out: 'share-out', json: 'sharing-json' },
+  },
+  prompts: {
+    options: {
+      ...SHARING_BASE_FLAGS,
+      ...PROMPTS_SCOPE_FLAG,
+      ...PROMPTS_LIST_FLAGS,
+      ...PROMPTS_SAVE_FLAGS,
+      ...PROMPTS_USE_FLAGS,
+    },
+    text: { json: 'sharing-json' },
+  },
 } as const
 
 // The description map is exhaustive over the parser's option names. It never
@@ -229,6 +265,7 @@ export const CLI_OPTION_TEXT = {
   output: 'output',
   'max-budget-usd': 'max-budget-usd',
   'max-requests': 'max-requests',
+  'max-tool-output-bytes': 'max-tool-output-bytes',
   timeout: 'timeout',
   'fail-on-denial': 'fail-on-denial',
   ephemeral: 'ephemeral',
@@ -244,6 +281,23 @@ export const CLI_OPTION_TEXT = {
   'no-events': 'no-events',
   fleet: 'fleet',
   seed: 'seed',
+  add: 'add',
+  remove: 'remove',
+  force: 'force',
+  mode: 'mode',
+  destination: 'destination',
+  scope: 'scope',
+  search: 'search',
+  tag: 'tag',
+  title: 'title',
+  var: 'var',
+  chat: 'chat',
+  confirm: 'confirm',
+  diffs: 'diffs',
+  'no-code-blocks': 'no-code-blocks',
+  'no-attachment-names': 'no-attachment-names',
+  'attachment-content': 'attachment-content',
+  'exported-at': 'exported-at',
 } as const satisfies Readonly<
   Record<
     | keyof typeof COMMON_OPTIONS
@@ -253,8 +307,11 @@ export const CLI_OPTION_TEXT = {
     | keyof typeof REPORT_OPTIONS
     | keyof typeof CLI_OPTION_REGISTRY.usage.options
     | keyof typeof CLI_OPTION_REGISTRY.legal.options
+    | keyof typeof CLI_OPTION_REGISTRY.providersModels.options
     | keyof typeof FONTS_OPTIONS
-    | keyof typeof ESTIMATE_OPTIONS,
+    | keyof typeof ESTIMATE_OPTIONS
+    | keyof typeof CLI_OPTION_REGISTRY.share.options
+    | keyof typeof CLI_OPTION_REGISTRY.prompts.options,
     keyof UiText['referenceCliOptions']
   >
 >

@@ -191,6 +191,9 @@ hash verification and migrate when read.
 - **ACP and terminal.** Use local `/prompt` and `/share chat` commands in ACP
   editors, or `muse-spark-code-acp prompts` and `share chat` in the terminal.
   Help & Reference lists the commands and the opt-in prompt sync setting.
+  Terminal prompt commands print saved ids, matching prompts and prepared text;
+  add `--json` for their structured result. A terminal `use` prepares text only:
+  it does not insert into an editor or send a model request.
 
 ### Earlier in 0.14.3
 
@@ -556,8 +559,10 @@ stopped typing, and does not take the keyboard. After a fixes-only patch a
 quiet notification offers it instead. A fresh install shows nothing. **Muse
 Spark: What's New** (or **What's New** in the panel's palette) opens it any
 time; `museSpark.showWhatsNewOnUpdate` or the page's **Don't show on
-updates** box turns it off. The page's words follow your display language;
-the release notes are in English.
+updates** box turns it off. In an ACP editor (Zed, Neovim, Emacs and the
+others in [Muse Spark in other editors](docs/acp.md)) `/whatsnew` reads the
+same release notes as text, with no model turn. The page's words follow your
+display language; the release notes are in English.
 
 Each panel is its own conversation, started on the first message with the
 standard `muse-spark-1.3` model (never a contributor-tier model by default).
@@ -824,6 +829,47 @@ Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
 the extension, and Zed, Emacs (agent-shell), Neovim (CodeCompanion) and
 JupyterLab (Jupyter AI) with the agent.
 
+## MCP connector for other agents (M124)
+
+**In progress: the local phase.** `muse-spark-code-acp mcp` serves Muse
+Spark Code's tools to another agent on your machine over MCP on stdio:
+Codex, Claude Code and Gemini CLI can list and read your saved prompts,
+preview a prompt share, list schedules and pause one, and generate a
+deterministic report, within what you grant. A write (for now, saving a new
+prompt) waits for **you** to approve it on Muse Spark Code's own approval
+page in your browser; the other agent's Allow, Auto or Bypass cannot
+approve it. Stop never asks. Fleet status, agent outcomes, lanes, teams and
+new schedules answer `unavailable` until their owners expose them. The
+hosted connector for ChatGPT and claude.ai is not built.
+
+If the approval page closes on idle, the next save request opens a fresh
+page. A browser opener failure refuses that request and closes its page;
+after the opener recovers, a new save request can ask for approval again.
+
+Grant a connection in your own terminal, and control it from there:
+
+```sh
+muse-spark-code-acp mcp grant --workspace ~/code/my-project
+muse-spark-code-acp mcp status
+muse-spark-code-acp mcp revoke
+muse-spark-code-acp mcp kill
+muse-spark-code-acp mcp resume
+```
+
+Then add it to your agent. These client commands follow each vendor's
+documentation (read 2026-10-09) and **have not been run against a real
+client**: they write your global client configuration, which this project's
+checks never do, and no client is qualified against this server yet.
+
+```sh
+codex mcp add muse-spark-code -- muse-spark-code-acp mcp
+claude mcp add --transport stdio --scope user muse-spark-code -- muse-spark-code-acp mcp
+gemini mcp add -s user muse-spark-code muse-spark-code-acp mcp
+```
+
+[docs/mcp.md](docs/mcp.md) has every tool and its availability, the grant
+families, the client configuration, the limits and what is recorded.
+
 ## Subscriptions
 
 Subscription sign-in is being integrated under M95b; installed-editor and live
@@ -880,7 +926,8 @@ before sending. Configured API-key and local providers share the captured
 Responses, Chat Completions, Anthropic, Gemini and Ollama codecs; redirects
 are refused and each request pins checked DNS answers. ACP reads the same
 user-level `providers.json`, using its own OS credential store. The terminal
-offers `providers list`, `providers add`, `providers test`, `providers remove`
+offers `providers list`, `providers add`, `providers test`, `providers remove`,
+`providers models <entry> [--add <model>] [--remove <model>]`
 and `auth set|status|clear --provider <id>`. Free checks use the shared
 transport; keys are entered through stdin and stored with their origin.
 Headless `exec --provider` validates configuration, credentials and endpoints,
@@ -1011,7 +1058,8 @@ bundled.
 ## Developer options
 
 `muse-spark-code-acp developer` opens the terminal's machine-local Developer
-options after typed confirmation; `developer status` shows its state. Testing mode is badged and audited, expires, and Reset stops and removes only
+options after typed confirmation; `developer status` shows its state.
+`developer --help` prints its usage; any other misuse reports the usage with exit 2. Testing mode is badged and audited, expires, and Reset stops and removes only
 its recorded profiles. Profile start and cleanup report unavailable until their
 resource owner is bound; no successful cleanup is claimed in its absence.
 Revoking testing authority closes admission immediately and attempts to stop
@@ -1267,6 +1315,42 @@ character) starts in a mode that asks, Manual (Plan when that is your
 starting mode), and the panel names the mode. A handoff from a
 conversation in Plan mode stays in Plan.
 
+Automatic compaction, its exact todo continuation and the memory flush are
+implemented in the shared Model API engine and on by default: the M75
+binding run passed on 2026-10-12 (receipts in
+`docs/certification/m101-binding-report.json` and
+`docs/certification/m101-binding-report.md`).
+`museSpark.modelApiAutoCompaction` defaults to `true`; set it to `false` to
+turn the mechanism off. The ACP agent uses the same core: compaction is on
+by default and its first paid use asks once through the editor's permission
+request, naming the model, the price and the daily budget; `--no-auto-compaction`
+turns it off, and where the client cannot show the approval it stays off.
+Headless `exec` never asks, so it compacts only with `--auto-compaction`
+under `--max-budget-usd` (see `docs/ci.md`). Muse Code continues to compact
+itself. A team-worker (child) session never compacts automatically: the
+engine excludes child sessions before any admission is requested, so nobody
+is asked and nothing is charged, and a child that fills its context fails
+that child's turn with the route's context-full stop. A scheduled turn is an
+ordinary turn of its session for this policy and compacts under the same
+per-host rule above.
+
+With the M75 pair passed and the shared paid gate/ledger connected,
+compaction is considered inside your turn after a settled tool batch. A
+registered todo completion can trigger it when the expected token saving
+repays the summary call, cache-write premium and carried debt. Cost decisions
+require at least 50% context occupancy and two ordinary requests since the
+last compaction. At 90% occupancy, protection bypasses those economic guards;
+a classified overflow gets at most one automatic compact-and-retry per turn.
+The first paid charge requires the shared price/daily-budget consent, and
+every attempt is tallied. Stop and final account/key/budget checks still apply.
+
+The memory flush writes a labelled, untrusted host snapshot through the
+ordinary memory permission path: Manual asks; Plan and Restricted Mode refuse
+the write while compaction can continue. The next request restores the exact
+host todo list and goal as data, including completed items. It adds no separate
+model call to guess the list. An unsuccessful summary keeps the existing
+conversation; failed or refused automatic work clears economic debt.
+
 When a Model API turn fills its context window, it reports **Context window
 full: /compact or /handoff**. Ordinary requests are refused locally only when
 their lower input estimate exceeds the full window; a high upper estimate
@@ -1277,8 +1361,11 @@ each dispatched attempt retaining its admitted window and format. The documented
 Muse window applies only to verified legacy Muse ids without a registry resolver;
 an authoritative missing row stays unknown. Provider
 registry wiring must supply each BYO model's window; Ollama needs its loaded
-`num_ctx`, rather than its trained maximum. Automatic recovery remains inactive
-until the evaluation and paid-admission requirements above are satisfied.
+`num_ctx`, rather than its trained maximum. Automatic recovery is active after
+the passing evaluation: in the editor a classified overflow compacts once and
+retries inside the turn, as a paid model call under the paid-use consent; the
+ACP agent does the same after its one-time editor approval; headless `exec`
+does it only with `--auto-compaction` under `--max-budget-usd`.
 
 Handoff runs on the Model API backend only: on Muse Code the command says
 so, where Muse Code compacts its own conversations. It starts from the
@@ -1947,8 +2034,8 @@ trusted workspace, since git does not run in Restricted Mode.
 
 From finished work to an open pull request without leaving the panel, on
 both backends. The **Git and Pull Requests** group of the `/` palette
-(`/commit`, `/push`, `/pr`, `/checkout-pr`) opens each step above the
-composer.
+(`/commit`, `/push`, `/pr`, `/checkout-pr`, `/github-login`,
+`/github-logout`) opens each step above the composer.
 
 Open the repository or worktree root for these actions; an ancestor
 repository returned for a workspace subfolder is refused. Git actions are
@@ -1980,16 +2067,16 @@ also unavailable while a pull request worktree is held.
   prompts apply. It never force-pushes: a branch behind its upstream is
   refused (pull first), and so is a branch or remote whose name git would
   read as an option or a force.
-- **Open a pull request** on github.com, with VS Code's GitHub sign-in
-  (VS Code asks for it the first time). The form is the confirmation: the
+- **Open a pull request** on github.com, with the window's GitHub sign-in
+  ([below](#github-sign-in): VS Code's own the first time, where your editor
+  has it). The form is the confirmation: the
   repository, the remote, the branch, the base, the title and the
   description are all shown and editable, and the pull request opens as a
   draft unless you untick it. A branch not yet pushed is pushed first,
   asking as above. From a fork it opens on the repository the fork came
   from. A credential-shaped string in the title, description or commit
   message is masked and sent back to the form, so nothing goes out that you
-  have not seen. GitHub only: VS Code has no built-in sign-in for other
-  forges.
+  have not seen. GitHub only (github.com).
   The destination is bound to the form you saw: a changed remote, fork
   parent or branch stops creation instead of sending its body elsewhere.
 - **Cancellation and changes.** Busy forms freeze their editable fields;
@@ -2074,11 +2161,54 @@ also unavailable while a pull request worktree is held.
 - **Restricted Mode.** None of this runs there, and the panel says why:
   git can run programs a repository's configuration names.
 
-**The project's GitHub app (arriving with M123).** Editors without their own
-GitHub sign-in will sign in through the GitHub OAuth app "Muse Spark Code
-(Unofficial)", using GitHub's device flow (no client secret). Like the
-extension, the app is unofficial and not affiliated with or endorsed by Meta
-or GitHub. Its GitHub Marketplace listing is awaiting GitHub's review.
+### GitHub sign-in
+
+Every GitHub call (a pull request, its status and checks, someone else's
+pull request) takes its sign-in from three sources, in this order; the
+first one that already has a sign-in is used, and the panel names it:
+
+1. **Your editor's own GitHub sign-in.** VS Code and the forks that ship
+   VS Code's GitHub sign-in ask for it the first time, as before. The token
+   stays in the editor.
+2. **Muse Spark's own sign-in, with GitHub's device flow**, through the
+   project's GitHub OAuth app "Muse Spark Code (Unofficial)" (no client
+   secret; it asks for the `repo` scope only). Where the editor has no
+   GitHub sign-in of its own (Arduino IDE 2, some forks), **Sign In to
+   GitHub** starts it; anywhere, `/github-login` (**Sign In to GitHub With
+   a Code**) does. A card above the composer shows the code with **Copy
+   Code**, **Open GitHub** (only `https://github.com/login/device` is ever
+   opened, whatever a reply says) and **Cancel**, and when the code
+   expires. The token is kept in the editor's secret storage (the
+   operating system's keychain behind it), never in a file, a setting or a
+   log. In a terminal, `muse-spark-code-acp auth github login` prints the
+   same code and keeps the token in this computer's credential store
+   (Windows Credential Manager, the macOS login Keychain, or the Secret
+   Service on Linux); `auth github status` says whether one is stored.
+3. **Your existing `gh` login**, only after you turn on
+   `museSpark.github.useGhLogin` in your user or machine settings (a
+   repository's settings cannot): `gh auth token --hostname github.com`
+   runs for each GitHub call, and the token is kept for that call only.
+
+Below the pull request strip or form, a line names the GitHub account and
+the sign-in in use. **Sign Out** there (or `/github-logout`, or
+`auth github logout` in a terminal) deletes Muse Spark's own token and
+opens the app's page on GitHub, where **Revoke** ends the grant: GitHub's
+revocation API needs a client secret, which a public app does not have.
+Your editor's sign-in and `gh` keep theirs. A token GitHub refuses (401)
+is dropped, and you sign in again.
+
+Like the extension, the app is unofficial and not affiliated with or
+endorsed by Meta or GitHub. Its GitHub Marketplace listing is awaiting
+GitHub's review.
+
+**Without VS Code's Git extension.** An editor built on VS Code that does
+not ship its Git extension (Arduino IDE 2, some forks) gets the same
+commit, push and pull request steps through your own `git` on PATH: the
+same forms, confirmations and refusals (never a force-push), each change
+checked again after every wait, with one lock per repository across
+windows. **Open a Pull Request in a Conversation…** still needs VS Code's
+Git there. JetBrains IDEs, Visual Studio, Eclipse and the editors served
+through the editor protocol get these steps when their panels arrive.
 
 <!-- Marketplace listing (draft, pending GitHub review): https://github.com/marketplace/muse-spark-code-u
      Turn this into a link in the release that follows approval. -->
@@ -2879,7 +3009,11 @@ The panel follows your editor's theme and UI/code fonts. Shared tokens give
 our cards, menus and dialogs consistent radii, focus rings, elevation and
 control states; high contrast uses borders and opaque surfaces. Reduced
 motion stops interaction animations. Native editor prompts, including paid
-consent, keep the editor's appearance and existing behavior.
+consent, keep the editor's appearance and existing behavior. Panel words stay
+plain: the empty composer invites a message with only this machine's focus
+key, Getting Started keys never overlap their text, and the palette shows
+person-facing rows (skill titles, plain engine names) with each description
+once.
 
 The [token contract](design/tokens/README.md) is shared with other hosts.
 Standalone surfaces have an optional pinned OFL font pack (Inter, JetBrains
@@ -2952,11 +3086,8 @@ integration owners; editor font settings continue to decide inside editors.
   changes after confinement. Host file I/O also rejects an observed change
   to that checked path when a parent directory becomes a junction after the
   first check; paid image output reservations recheck before fill and cleanup.
-  Combined image
-  and PDF data URLs are capped at 48 million encoded characters per message;
-  an excess pasted or dropped attachment is refused before the browser reads
-  and encodes it. Replayed requests use the same cap and
-  keep newer media, announcing when older media is omitted from the request.
+  Replayed requests keep newer media within the provider's per-request image
+  budget, announcing when older media is omitted from the request.
   Paste/drop checks the first 1 KiB of image-labelled files: a PDF named
   `.png` or `.txt` uses the 32 MB PDF limit and PDF media type, while a real image over
   10 MiB is refused without encoding its full bytes. The check is discarded
@@ -3002,9 +3133,9 @@ integration owners; editor font settings continue to decide inside editors.
 
 - A path with a space, `#` or `"` is written in quotes,
   `@"my notes/a b.md"#5-10`, and the menu searches what you type after `@"`.
-- The model pill reads `model effort` (effort tiers Minimal to Max, each
-  verified per model); the mode button opens the Modes menu; the microphone
-  dictates.
+- The model pill reads `model effort` (effort tiers Minimal to Ultra, each
+  model offering the tiers it serves); the mode button opens the Modes menu;
+  the microphone dictates.
 - The **context meter** is a ring beside the mode button that fills
   clockwise with the share of the context window used, the whole percent
   inside it: rounded down, "<1" under one percent, "100" once the window is
@@ -3325,9 +3456,13 @@ side-chat request is ignored if the original tab has since changed sessions.
 On the Model API backend, the side branch keeps Plan mode after reopen,
 suppresses local hooks and refuses external MCP tools, including ones their
 server labels read only. It also refuses scheduled prompt creation, cancellation
-and paid runs before any job claim or Model API request. Muse Code applies its
-own project and session rules in Plan mode;
-review those rules before treating that branch as read only. Close the side
+and paid runs before any job claim or Model API request. On the Muse Code
+backend, the side branch stays in Plan mode and the panel refuses every
+approval it raises — answered with the card's own rejection, or, when the
+card has to be shown, by refusing any approving click on it — so the branch
+cannot approve a write. Writes the CLI's own project and session allow rules
+already cover still run without asking;
+review those rules before treating that branch as strictly read only. Close the side
 tab to return to the main one; its branch stays in History. It uses the
 selected backend's normal model allowance or key billing; it does not route
 Model API calls through a Muse subscription. In a side chat, `Shift+Tab`
@@ -4004,6 +4139,33 @@ ACP and headless Model API/BYO requests share a hard local-day budget in the age
 
 ## Limits
 
+Model API turns reserve their last permitted call for an answer without tools:
+what is done, what was found, and what remains. The phase is decided where every
+request is built, so every request sent after a call went out observes it: the
+last permitted call always goes out tools-less on every failure path — first
+attempt, HTTP retry, whole-stream retry, media recovery and overflow recovery
+alike — and a capped turn's reply is never reused as a verdict, review,
+draft or landing. The answer stays in the chat;
+a translated notice explains that sending a message continues it. If the wrap-up
+request itself cannot be completed (rate limit, model error, money stop, hook
+stop), the turn still ends at the limit but says the summary could not be
+produced and why. If the wrap-up itself overflows the window, the turn ends
+failed with "Context window full: /compact or /handoff" instead, and anything
+the turn was holding (a goal wake, steered input) is re-queued for its own
+turn. ACP returns
+`max_turn_requests`; headless exec reports `request_cap` (exit 5) with the answer.
+The default is 200 model calls per turn. Existing caller request allowances
+replace that default with what remains: `exec --max-requests` (default 30,
+range 1–500) and best-of-N attempts (production ACP binds none). The turn's first
+model call always runs with tools, even when it is also the last one allowed: an
+answer completes the turn (exec exit 0), while a tool request ends it at the
+request cap, said plainly. Stop hooks still run on a wrap-up turn; a hook
+asking for more work cannot be honoured past the limit, and the notice says so.
+A caller allowance above 200 remains usable. Paid child-task grants are the
+exception: all 4 attempts stay tool calls and exhaustion stays the child's
+typed request-limit stop. Retries spend calls; money caps
+and compaction's own admission and accounting still apply.
+
 The table below describes Meta Muse. M95's provider core resolves capabilities
 per configured provider and native model, with user overrides taking precedence
 over captures, model lists, the catalogue and presets. Unknown support does not
@@ -4027,6 +4189,17 @@ both `output.maxTokens` and `modelLimits.<model>.outputTokens` must meet it.
 Providers without a known minimum retain a one-token minimum. Editor settings,
 ACP configuration and CLI/exec flags currently expose no separate output-token
 cap; they share the provider entry and request validation.
+
+Tool results have their own bound on the Model API backend. One choke point
+cuts any result past 16,000 estimated tokens, any line past 8,000
+characters, or any result past a quarter of the model's remaining window, so
+one oversized result can never fill the window and end the conversation. A
+cut keeps the full text under `.muse-spark/tool-results/` (git-ignored) for
+paging and says what was cut and how to read more, to the model and on the
+row. The byte guard is `museSpark.modelApiMaxToolOutputBytes` (64,000 by
+default, machine-scoped; values below 1,024 bytes or past the model's window
+are refused with the reason); `exec --max-tool-output-bytes` raises it for
+one headless run.
 
 Custom models can declare `modelCapabilities` in their user-level
 `providers.json` entry, keyed by native model id. For example:
@@ -4063,7 +4236,7 @@ source cannot elevate their priority. See [M95 N's record contract](docs/certifi
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Images and PDFs                  | 20 attachments per message together; images 10 MiB each (PDFs: next row)                                                                                                                                                                                        |
 | PDFs on the Model API backend    | 32 MB each locally (Meta allows 50 MB per inline file); images and PDF page images together: 50 per message. Meta reads text from the first 100 pages and page images from the first 50 (Meta's [file-handling guide](https://dev.meta.ai/docs/file-handling)). |
-| Model API encoded media          | 48 million data URL characters total per new message and replay request; older replayed media is named but omitted when over the cap.                                                                                                                           |
+| Model API replayed media         | No aggregate character budget; the provider's per-request image budget decides, newest first, with older media named when left out. The platform refuses what it cannot take.                                                                                   |
 | Picked UTF-8 text attachments    | 1 MiB per-file read cap from trusted and indexed workspace paths; Model API also caps combined text and file-name wrappers at 768 KiB to leave context room.                                                                                                    |
 | A message to Muse Code           | 10 MiB. Attachment admission reserves 2 MiB for the prompt, context and frame; serialized text and base64 images count toward the rest. The exact outbound frame is checked at send.                                                                            |
 | Model API: tool rounds           | 50 per turn                                                                                                                                                                                                                                                     |
@@ -4071,7 +4244,7 @@ source cannot elevate their priority. See [M95 N's record contract](docs/certifi
 | Model API: retries               | Up to 5 attempts on 429, 500, 502 and 503, and when a reply stream ends because the server shut down or was overloaded, honouring `Retry-After`, shown in the transcript; Stop cuts the wait short                                                              |
 | Model API: a silent reply stream | Ended after 5 minutes with nothing from the server; send again to retry                                                                                                                                                                                         |
 | Model API: file tools            | Text and images up to 10 MiB, PDFs up to 32 MB; the search tool skips files over 1 MiB                                                                                                                                                                          |
-| Opened tool outputs              | 16 MiB each; the latest 20, and 33,554,432 characters together                                                                                                                                                                                                  |
+| Opened tool outputs              | 16 MiB each; every document is kept and stays readable                                                                                                                                                                                                          |
 
 ## Legal scan (M97)
 
@@ -4096,8 +4269,41 @@ The report groups evidence by severity and retains exclusions, uncertainty,
 recommendations and fixability. A recognized SPDX identifier or a low finding
 count does not establish legal compliance. Missing locks or license data,
 dynamic metadata, binary files, links, stale artifacts and bounded-out input
-remain incomplete. Identifier matching is pinned; license-text recognition is
-heuristic. **Not legal advice; for distribution decisions consult a lawyer.**
+remain incomplete. Identifier matching is pinned, and verbatim license texts
+match pinned SPDX License List texts exactly; excerpts, modified texts and
+unrecognized prose stay heuristic with named incomplete reasons. Holder and
+party slots accept names of at most eight normalized tokens, reject restriction vocabulary in every supported
+language after case and separator splitting, and keep suspicious slot text quoted
+for review. Copyright notices also accept the closed `and affiliates.` and
+`et al.` suffixes, a final period after a two-word capitalized name, and a parenthesized
+email/URL pair; these forms still pass the restriction guards. Coverage gaps for dependencies that provably do not ship are
+informational; a shipped declaration/text disagreement stays a named conflict. **Not legal
+advice; for distribution decisions consult a lawyer.**
+
+A reviewed notice-only difference can use an optional `licence-review.json`
+array in the scanned workspace root. Each entry names `package`, exact
+`version`, the licence file bytes' `sha256`, the found single `spdx` identifier,
+and a one-line `reason`. For example:
+
+```json
+[
+  {
+    "package": "lz-string",
+    "version": "1.5.0",
+    "sha256": "433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80",
+    "spdx": "MIT",
+    "reason": "MIT terms are unchanged; only the holder notice differs."
+  }
+]
+```
+
+The package, version, byte hash and found SPDX identifier must all agree with
+its declared single licence. Changed bytes or a version bump require review
+again. An applied receipt appears as **Reviewed by receipt** with its reason
+in the panel, text, JSON and Markdown reports; it resolves only that licence
+text check, leaving conflicts and other incomplete evidence visible. Malformed
+receipt files leave the scan incomplete. A receipt records a human decision;
+create one only after reviewing the actual file and its template comparison.
 
 Select findings or choose **Fix All Safe Ones** to review exact patches before
 applying them. Supported fixes add missing SPDX/copyright headers from the
@@ -4167,9 +4373,15 @@ ACP editors can send `/help` for the current installed-skill list and the
 [generated reference](docs/reference.md). ACP locally handles `/help`, `/compact`, `/legal`, `/usage`, `/questions`, `/answer` and
 installed skills; the linked panel slash commands and settings are extension
 workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
-reference in the installed language without a model call. `exec --help`,
-`report --help` and `scan-secrets --help` also print it; `--help` prints concise
-ACP usage. Terminal help states that VS Code current values are unavailable.
+reference in the installed language without a model call. Each command documents
+itself: `muse-spark-code-acp help <command>` (or `<command> --help`) prints that
+command's own usage, options with defaults and bounds, and two examples, for
+`serve`, `login`, `auth`, `providers`, `exec`, `scan-secrets`, `report`, `legal`,
+`fonts`, `playbook`, `setup`, `usage`, `resources`, `share` and `prompts`.
+`--help` prints concise ACP usage. `providers models <entry>` lists custom
+providers too, but custom model lists are read-only in the CLI: use the Models
+panel to set each model's context window and output cap. Terminal help states
+that VS Code current values are unavailable.
 
 Maintainers run `npm run reference:generate` after changes. The reference reads
 the complete contributed setting schema and palette conditions. The CLI parser,
@@ -4365,7 +4577,7 @@ Bypass at once.
 | `paidDailyBudgetUsd`              | `5`         | Shared interactive extras budget in USD, $0.50–$500; machine-scoped. Daily reservations persist across windows; Tab uses its own separate ledger.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `dictationEngine`                 | `"system"`  | Model API dictation engine: `system` (free default) or `museVoice` (paid, currently refused under the finite cap). Muse Code retains its explicit voice opt-in.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
-| `mediaMaxUploadMiB` | `200` | Uploaded media cap in MiB, 1–1024; machine-scoped. An attachment over it is refused before it is read |
+| `mediaMaxUploadMiB` | `200` | Uploaded media cap in MiB, minimum 1 and no maximum; machine-scoped. An attachment over it is refused before it is read |
 | `mediaUploadExpiryDays` | `7` | Uploaded media expiry in days, 1–30; machine-scoped. **Delete Uploaded Files…** removes them early |
 | `screenRecordingMaxSeconds` | `120` | Screen recording length cap in seconds, 10–600; machine-scoped. Shorter bounds are clamped, not refused |
 | `mediaAudioAction` | `"transcribe"` | What pasted or dropped audio becomes: `transcribe` (free text the model reads) or `sendAudio` (a playable clip); machine-scoped |
@@ -4611,6 +4823,18 @@ stopped and the next message resumes the same session.
   nonce, no remote origins, no inline styles); every message between host and
   webview is validated with a zod schema.
 
+### Safer Windows paths
+
+On Windows, ambiguous spellings are refused at workspace, checkpoint and
+worker admission: device paths and namespaces, alternate data streams,
+drive-relative paths, trailing dots or spaces, and reserved names. A
+flagged write asks for a one-time manual answer instead. Ordinary
+workspaces on any drive keep working, and a UNC path is admitted only
+inside a UNC workspace. Schedules, helpers and vault paths verify against
+the folder their caller owns: links at or above it are accepted by
+resolved identity (a relocated profile stays trusted), and everything
+below it must be a plain file or folder.
+
 ## Troubleshooting
 
 - **What happened, in order** — **Muse Spark: Show Logs** opens the log.
@@ -4744,13 +4968,16 @@ stopped and the next message resumes the same session.
   (worth trying if commands run for you); `off` never sandboxes.
 - **No Rename, conversation rewind or Side chat with Muse Code on Windows** —
   Muse Code refuses `session/rename` and `session/fork` on Windows (1.3.0,
-  1.4.0, 1.4.2-R4684.1 and 1.4.3-R5018.1, retested October 5;
+  1.4.0, 1.4.2-R4684.1, 1.4.3-R5018.1 and 1.4.4-R5419.1, retested October 10;
   [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
   [#31](https://github.com/meta-models/muse-code-sdk/issues/31)), so the
   panel does not offer fork-based actions there, whatever the version, until
   a release is verified to fix them; **Rewind Code to Here** still works
   (**Restore Files to Here** needs a Model API session on every platform),
   and the Model API backend offers all of them.
+  The [Windows 1.4.4 capture](docs/certification/m53.md#c-m53-1-windows-144-retest-2026-10-10)
+  includes completed-turn cuts, a second host, close/resume and TUI `/fork`;
+  all still fail. Rename's trace reports `unsupported_platform`.
 - **"Muse Code applies your approvals in this conversation but reports an
   error for each one"** — Muse Code on Windows can fail its own approval
   ledger after applying a decision ("approval ledger durability fence",
@@ -4881,6 +5108,11 @@ muse-spark-code-acp exec [options] -
 muse-spark-code-acp scan-secrets <file> [--key-stdin]
 ```
 
+| Exec flag                | Default / range        | Limit behavior                                                                                                                                                   |
+| ------------------------ | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--max-requests <count>` | 30 / 1–500 (Model API) | Uses the remaining allowance, reserves the last model call for a summary without tools, then returns `request_cap`, exit 5, with that summary in `finalMessage`. |
+| `--max-budget-usd <usd>` | Required on Model API  | Hard spending admission remains separate from the request allowance.                                                                                             |
+
 One turn runs through the existing ACP engine. Plan is the default and
 Accept edits the only other mode; trust, bypass and hosted search are refused.
 Every ordinary approval is denied and questions are declined. A Model API run
@@ -4913,6 +5145,26 @@ withheld whole.
 prints only a count and exits 0 when clean, 10 on matches or 2 on refusal or
 error. Its 30-second lifetime includes reading the key and flushing output.
 Only known literals and patterns are covered.
+
+`prompts use <id> [--chat active|new]` prints the prepared prompt text after
+one review of the filled variables; the terminal inserts nothing into an
+editor, so the review asks to print, not to insert. A script passes variables
+as repeatable `--var name=value` and confirms explicitly with `--confirm`:
+preview first without it (the run shows the text and stops, exit 7), then
+repeat with it.
+
+A ChatGPT plan model (`exec --backend modelApi --model chatgpt/…`) runs on
+the ChatGPT subscription sign-in through the same path as the editor
+protocol, with or without a Meta key; its attempts count against
+`--max-requests` at no USD reservation. Without a grant the refusal names
+the ChatGPT sign-in, never a Meta key.
+
+With no unlocked credential store (Linux without Secret Service) the agent
+still starts and the host opens: status commands and every refusal say
+stored keys cannot be checked. A session attributes its spend to an
+account, so with no readable store one starts only with a key passed for
+the run (`--key-stdin`) or a file-configured provider; nothing is ever
+written in plain text without an explicit choice.
 
 On Windows a forced stop (an output pipe closed, or output still queued when
 the cleanup grace runs out, or a distinct second signal's 300 ms grace ends)
@@ -5081,8 +5333,8 @@ Compatibility-only Settings values are retained without runtime reads. The
 schedule switch controls the legacy `/loop` shortcut in Muse Code chat;
 draft delivery selects the delivery carried in new drafts. `resourceRelocate`
 controls the missing-route note on resource pauses,
-and `modelApiAutoCompaction` controls the first-turn awaiting-evaluation notice,
-with automatic compaction inactive. `vault.agentFence` still controls the
+and `modelApiAutoCompaction` turns automatic compaction on and off.
+`vault.agentFence` still controls the
 credential fence for interactive Model API shell commands; verification,
 schedules, workers and hooks always remain fenced.
 
@@ -5341,7 +5593,7 @@ recorded in [the M78 certification](docs/certification/m78.md).
 | `npm run harness:pseudo`                  | Write the pseudo-locale (`test/harness/l10n/ui.pseudo.json`): every string accented, bracketed and lengthened by about a third, with its slots kept, so English left outside the table and text that overflows stand out in `ui:look -- <scene> --lang=pseudo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `npm run test:a11y`                       | The accessibility gate: axe-core checks every harness scenario in VS Code's four default themes against WCAG 2.2 AA and fails on any violation, on anything axe leaves undecided (except the contrast of text it could not see and of glyph-only content, which it counts), and on a page without a result or whose scenario threw; needs a build. `node scripts/capture-themes.mjs` refreshes the theme colours from a real VS Code; `--lang=<id>` checks the scenarios in a table from `l10n/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `npm run build`                           | Minified production bundles with chat, Models and What’s New sharing one browser splitting build, then enforces the size budgets in `scripts/check-bundle-size.mjs`, fails if the Model API backend's files, the review's, or web fetch's page converter (parse5 and its parts), are in the activation bundle, or an English fallback is in any Node bundle except its shared `dist/uiText.js` (`scripts/check-bundle-split.mjs`), or a host bundle reads `navigator`, and checks `THIRD_PARTY_NOTICES.txt` against the bundled packages. The provider catalogue keeps its exact JSON values in a CommonJS data module, staged through the existing verified Brotli runtime loader                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `npm run build`                           | Minified production bundles with chat, Models and What’s New sharing one browser splitting build, then enforces the size budgets in `scripts/check-bundle-size.mjs`, fails if the Model API backend's files, the review's, or web fetch's page converter (parse5 and its parts), are in the activation bundle, or an English fallback is in any Node bundle except its shared `dist/uiText.js` (`scripts/check-bundle-split.mjs`), or a host bundle reads `navigator`, checks `THIRD_PARTY_NOTICES.txt` against the bundled packages, and has the production legal scanner verify every bundle's build record (`scripts/check-legal-build-records.mjs`: each input, generated module and output attributed by its build-captured SHA-256) and scan the repository itself, failing if that scan is incomplete. The provider catalogue keeps its exact JSON values in a CommonJS data module, staged through the existing verified Brotli runtime loader                                                                                                                                                                                                                                                                                                                                                               |
 | `npm run notices`                         | Regenerates `THIRD_PARTY_NOTICES.txt` from the production bundles                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `npm run format` / `npm run format:check` | Prettier write / check                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `npm run lint`                            | `eslint --max-warnings=0` (type-aware), `stylelint --max-warnings=0`, and PSScriptAnalyzer 1.25.0 over `native/windows` (Windows only; a reported skip elsewhere)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -5568,6 +5820,34 @@ without rebuilding.
 
 #### M106 wire captures
 
+`node scripts/m101-e.mjs --plan` prints lane E's live capture plan and call
+estimate: 147 calls per arm, 588 total from independent measured task
+allowances, about $0.078 at the first run's token mix, with a $0.50 spend
+stop. Local overruns fail their task and continue; narrowed selections and
+global stops remain incomplete. `node scripts/m101-e.mjs --fake` runs request goldens, the fake
+M75 pair and automatic-compaction/overflow checks in bounded batches. The
+binding run passed on 2026-10-12 (274 of 588 ceiling calls, $0.06285, all
+four arms above both 0.75 floors with packing and compaction engaged;
+receipts in `docs/certification/m101-binding-report.json` and
+`docs/certification/m101-binding-report.md`); production automatic
+compaction is evaluated and on by default under the paid-use consent. The launcher's live
+M75 mode uses the existing OS-stored key and bills that key. It checks the
+certified freeze before opening credentials. The `--smoke-m75` mode is also
+paid and live; it defaults to one task and succeeds only with an incomplete
+narrowed-selection receipt whose selected task passed. Offline fake tests
+validate that contract. Re-freeze reviewed harness changes with the offline
+`--freeze` mode; it generates `src/core/eval/frozen.json`. Offline
+`--check-freeze` verifies that pin using the same before-call guard. Receipts
+include ledger reservations/settlements and sanitized request hashes with
+package module-fact visibility; they contain no prompt or file contents.
+The freeze includes runner configuration and setup/alias dependencies,
+compiler/package inputs, launch flags and the named environment allow-list.
+The live entry freshly bundles and freezes its search worker before credentials;
+it uses that snapshot rather than an existing `dist/searchWorker.js`.
+Returned tool names are recorded only when offered on that request; unknown
+names become counted `other` entries without their text.
+Every verifier must finish its declared assertions and return a fresh private
+completion token; a clean process exit alone cannot pass a task.
 `node scripts/capture-m106-meta.mjs --help` explains the developer capture
 tool; `node scripts/capture-m106-meta.mjs --plan` prints its six requests
 without network access. Live collection requires an explicit paid-capture
@@ -5772,9 +6052,11 @@ only the schema digest. The captured Meta contributor model uses its strict sche
 models use the explicitly reported local validator. Provider formats can be
 bound through the selected-record port. Schema mismatches exit with code 10. See
 [the ACP guide](docs/acp.md) and [the CI contract](docs/ci.md).
-Legal scanner limits: 20,000 files/directory entries, 1,000,000 UTF-8 bytes per
-file, 10,000,000 bytes per scan, 100 findings per rule (500 total), and 120
-seconds. Reaching a limit is reported as incomplete. License title and clause
+Legal scanner limits: 20,000 directory entries, 1,000,000 UTF-8 bytes per
+file, 10,000,000 bytes per scan, 100 findings per rule, and 120
+seconds. There is no stop at a file count and no truncation of the whole
+report at a finding count; reaching one of the limits above is reported
+as incomplete. License title and clause
 matching remains heuristic; review the original terms before distribution.
 
 Editor legal scans offer public npm/PyPI metadata lookup by default, after a

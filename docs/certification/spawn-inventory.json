@@ -367,6 +367,11 @@
     "reason": "Injected execFile is the host guarded Git command port; this module imports process types only."
   },
   {
+    "site": "src/host/git/githubSession.ts#call:execResourceFile:1",
+    "profile": "probe",
+    "reason": "gh auth token --hostname github.com for D104 source (c), only while museSpark.github.useGhLogin is on in user or machine settings: fixed arguments, credential-stripped environment, capped output; contained tree, no temp root."
+  },
+  {
     "site": "src/host/processTree.ts#call:execFile:1",
     "profile": "bootstrap",
     "reason": "runProgram: fixed bounded runner for containment-helper self-tests, OS identity probes and emergency termination; it cannot be admitted through the helpers it verifies."
@@ -467,6 +472,11 @@
     "site": "src/host/web/pageConverter.ts#worker:1",
     "profile": "contained",
     "reason": "Worker thread, not a process: the fixed bundled page converter (dist/pageWorker.js), never eval program text; resourceLimits heap cap and WEB_FETCH_CONVERT_TIMEOUT_MS, terminated by its owner. Listed because its options are not a literal."
+  },
+  {
+    "site": "src/runtime/github/ghLoginSource.ts#import:1",
+    "profile": "contained",
+    "reason": "Types only (ExecFileOptionsWithStringEncoding): the gh token source launches nothing itself; its caller passes the governed probe runner (src/host/git/githubSession.ts)."
   },
   {
     "site": "src/runtime/main.ts#call:handoffResourceFile:1",

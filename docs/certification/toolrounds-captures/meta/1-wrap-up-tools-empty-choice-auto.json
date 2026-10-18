@@ -1,0 +1,103 @@
+{
+  "vendor": "meta",
+  "model": "muse-spark-1.3-contributor",
+  "variant": "1-wrap-up-tools-empty-choice-auto",
+  "url": "https://api.meta.ai/v1/responses",
+  "requestBody": {
+    "model": "muse-spark-1.3-contributor",
+    "max_output_tokens": 400,
+    "store": false,
+    "tools": [],
+    "tool_choice": "auto",
+    "input": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "type": "reasoning",
+        "id": "rs_6acd3bc711516b4d15094682:rs_a3d76650-bf96-4f59-8136-402353278444",
+        "encrypted_content": "Q-PaDgHTM3YrFj1JFsdX8vRhjK8Tf2F1OtrDOGdR2FHXDipU3diJrzl51lTCAvu0X2wUXMiPl_EAQLjvBb8-epSjuHUWLcsciDRA7RLEUQW1PkW8sDZPWtSZsiyCtLkaI3eN6qvF5rEkeGTMNW2eOoXdW69pzSxOXBq8yYAgScRiWiwoH3B358-BXwxCyIZtPQPlnsHQyuLcSDoNfLP1sNEl-dyCNkJX70HpENQhG85sxDxZ-HFLThpEw61uvKPd_6MmUIDcfg38U8aiGTQHCILM1uKqsKztpThjr6CeNnw7Zq9kxnYMI5klMt3u9LAF8Fw-gopT7FrSSDfGfZ7m0niwCJyYB87LjBJXN1mGegRIy0PoDR2-uP9NiOYlbz5abPlVCQ4oYK5llBX4_-w72uHh4QFmkBZEqebrwnyaGDYnAniC2t6fQXp9z_pBnbvrrnuPVFB8gcjtxJ4Um6qkL7w2ISp_F8qBVdwYBSJmlBydn9PtoKxVyUADcXllGhySlyfTs1I6Q3KkHHMvglf47H2QQocR4T49EdkByeGzdAxs2vkiYJTc0qMooN331VN2aYeO4D_EqP7kVeUzfMjoxUfVZWgoingHn80NJo3oWdBk-XhZWXodX1jtRCDoFXrmlOXANtUEx4rLKis83ubfP0uhwxOPvy9NSImtAjeC8udjozT_Uo2wQcuoiNEop1LVgp_QV-WnyJ0Y8bcmHF4Xk_3imKHSEspxIXWxFlPa8oic6CP5FC-eLdjgZ28vbUUdR_kwdp4Yr2XsagNWaiFE07Zi4FKxywHpdeF9nc1-3DgCr5dLCX1FKcDQ7_SZuWO8sTgv3W_6nGsOWXSlPyoMAY67I1GoRpxnGSzDE5XYPP1WdE-qpx1qzRExcnkhuAkS5uqR6XBYOB17OEQGOAObDZUlVGEUJeZCtvF-6t_ego9kwmhSOMNfY8YiXRTKxtGKr30tgmz-0SY3T-DLoOhLeLyye-W5Og8wGsSnD5g0y3M-tQOfXnZQazldbbFCMixuqHvhImquPvhw0t6A07eTZ0ZaizQN4N9DJq3f2pXQI-Jw0DL_zs9nseZqeJ5IAuD-YcnRRV7bdVTVYjrKh4uhcELW2HNGrP26v3Ldm3-oEavGuvj9QXIiu4TGfhD5uKbFdOGnRKntyXuNtI7aJ10DjpuxoiFiENLUKdemKGYaquOMDa3RP7qqLu_MqXEK_bDUdz9A7GUZr6RY0WakCvc3gunVfgnqzREQwX3QsXzOlfMxIa9HpMf6ZDJhXqn8CRAg_rrJnbSSXH-qQNx2Ytzw6YX9V1VLls6wmbzhMGZXCTx8X3exQf2x7FWXq0t_OaYdPACv6UU-kgdcP9Vav49IK5wWd7vIK-f8wc11jHx5d-8_7S9pvHrAfmvhrmIdLeKZHeJmuLg6tnyuf-a6u8FtvtUh_gVdl4qm1k4Chhu_K5k2L3OrzJGKNWvvQVDEw60p_S3yr4nGLV1PI-_6hUNkIu-2_D2p0TvbAbyrDkEaqawC6B64axj-ox2XC2GowEPAWKRTwJfp_yMsZMvZYM078ajOUdZsnlAD0vmqD61Vatqokz-I3RxXO6zuEjlgW_PweqXbk9atdBIEyTOiEvj_J-vKuLbhUkictnvK6Mh-pDz7lxbPO-kTCV5eUUAHRocUk_j4zIS__lXcPhTOj1FUqKHg5i8IR6AxOICEOvD3P8ROfnQffPGo6E9GvkNcanWaml8wAJazJ3aqGiaKegp40b2yAHp-TXVgJ63oCaorA_r5NvWEBV06T9xaamuusu2ZWKvVn23-8ZDPDznS_J-RF6r_8nrl_VguK4Brlx4IUiPRoBQy1vVIsjSTudVAHcLWBaHBTN_kQlYOqzciMJUh5sTOb4_dVBsiN_UbUOhkt9bJ6_3R9wWF5lFVz74gcbhSdLD-iUeTuWEgWszBS9x0IHWxl8Hu5E49g6bR4dfnyvm6-NTY-pml7dtc56RlyOz1tbz7C2puGKRTKS6QY-YynKhidXM_Y_Qq7SPYewGRywjBLyEhDQPKqAztcGHRbunEg0FiP3cU55OmlVVRLJfofjCm_yQYrj7vOENbNiq7izhkN9NZl1NMHJ4pv2j6WSDfYe38sIELqhhj0ELRR-Zf-50dXGCyICmHyCqf6huwUe_LlajHozuqb1j4VFFPN_DzgACybVIliMJlOaclLX4MAPipv9ZjVyXyLczJtCfjvSI7qUoHHdS6vSSF8m5Z02DS00oaHVoZGnc4rbhOQL-HwZiXSWSbZfwKM62P1LvEP16OEItACd3tphjQHh1ZjyATXFQ6qF-Ffxgs6HzdZ2I7YG33yj6bye8s2QliIxrNP2hdMYF3OYb2149z8fedMNR6YXJEYcn-40yJuWu9T1YUf6TSe8WZDKGg5zq59ru_QGbXz9DNmgRjqTEvL7ntEfMrv9I7faqiucXLdDaGvJlDhbAY8E9UrlcAr6DIWqrs83jybGQjahhwBkX5yxBlW9vNqfJh0Z3PjfrLK4-Pxrrxkc3ivM1vDBawu9KeMOq5Bgh4pY2DrHAWwMhdIbnuOVdSiO_crsHf294p122haa7cDF7eiiwoPJnUVnU5R-xbRTfFU_QLHLG5-IRk5Qc4_Op_BWgOg8_V0qlNrumXZyEBPcle8rA2K2Jnu7qupJ2WTCb2KO18U1wLqG22oDIMmx8z75jJ6s78yt69DOLPCRTnIqM_ag84_zrvZWjVeqvLFJj8hfM4andwROZB0BekwRJ8pS0PVtfuJAq8ZmGLxgE1R-D2co6nBYAuHfmBUiM",
+        "summary": [],
+        "status": "completed"
+      },
+      {
+        "type": "function_call",
+        "id": "fc_bdc33355-65d7-4943-846a-f92f97d8e537",
+        "call_id": "call_bdc33355-65d7-4943-846a-f92f97d8e537",
+        "name": "read_file",
+        "arguments": "{\"path\":\"a.txt\"}",
+        "status": "completed"
+      },
+      {
+        "type": "function_call_output",
+        "call_id": "call_bdc33355-65d7-4943-846a-f92f97d8e537",
+        "output": "hello from a.txt"
+      },
+      {
+        "role": "developer",
+        "content": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "top_logprobs": 0,
+    "temperature": 1,
+    "top_p": 1,
+    "service_tier": "auto",
+    "model": "muse-spark-1.3-contributor",
+    "reasoning": {
+      "effort": "high"
+    },
+    "background": false,
+    "tools": [],
+    "tool_choice": "auto",
+    "truncation": "disabled",
+    "id": "resp_6acd3bcbe16c82bbcb4145ba",
+    "object": "response",
+    "status": "completed",
+    "created_at": 1791835083,
+    "completed_at": 1791835083,
+    "error": null,
+    "incomplete_details": null,
+    "output": [
+      {
+        "type": "reasoning",
+        "id": "rs_6acd3bcbe16c82bbcb4145ba:rs_589eb8a0-0dfd-4c98-92ed-2f32a2ec1c40",
+        "encrypted_content": "Q-PaDgGMxSY9X_18uGafrWf9iMw4uJxdCoRPab0g3ZZXyk4GKvfGjFnP_y5pvW6JKzO6-5ydyNIL51nrYOVj8CyKfF1Jf7u5G4OeYnOY-jwDyzcXFINiVk_TWYbWJItppgsKGUTe0diP23RKLlTseh5TNtsmpr7vs1XXtNKCNxeLdLwv2ZU2jk3cPuIDv9sut4g6LcrEbPKL0LeIX8cX686PteXLPfVqGWHqVfJ-iJPGqqvBcUESyxpdeuMgUdTeLgKaLWFbUmgldizVVpbI4CebyJb_v322YkMn8Y9qPTLcgQaI3MXs93LMCGuvg1UaknyKQLVB_Ut6eSRpV6hv_Sn48HxgZEBoZAt1I2Ik36jGaWCDHfrBRdP6YtwaK25g1cOFbcg7IkwjEJItJF-hbAG-RX1i3IPRm2W9B8c1qEnJgykRnK9demSwB88QaBFOgfnytTcbBX5QpFiw7DCtexUULfSHAcgyNoSvh6HVLHdVrwa9x87JHuD3nbeFkpIG8ym9-vLXundjNDUNUTUMO5IPu8bZ3Q4BJT2Y8_8pvJ62gWJBKiWRZqHTZVEZQWRzPgwFtfm1hS76U_ST5oRsvzSWZIQy4inBp2nJTi0z3OTzwDpWQW5kOraDN9Q_PUQLaEO7wTrtw2knL86ja5PFYBzlVHldPnwtOBEqX00JUl7ZwxmKBJQItIv3FrDJqTZJGkUUwqouPf4gRHQOcehNYG-NzrwICuPnYAWCnL9DoaOVQ3EWXGDzP5CJyXahX75f4VIjNyxlfo3VX7tRbdsAFdDwgAMQfd_dl8sxP7DRb70fDiqbEWJ17kpIfMdLE8rrYpOeFvlIS832ukddfCqIds6qrU8ovZ6XTsaU2FiG80QK1GprmrESNnX67sVBgNwVuxdn5h7dpnQVrKmVxw6LvACKzC68rIVImsc8NnquSStC_ICWRhnrcVsohGCR0GteTa_JihjNabX5c_Twj19X5rhSiyHYYrekyBMWOIMShvcDpgX1vQQFXduAQVP2DrEVjS9v5awBvWVIiH4AFal3-_PIQhcpKNdiePbHgyufklcGTrKJD0UoxNoCkr8Y5Di1RklGwMiGczts-hckgQTPraTQCjo2wMM0km3FJe78w5ZtDgU-01FqSEzIr44016TbZU4ldk6oOPhV549EKDpjlUh2T82IpvqfLW1xsj-0cAXJe97oNTPd2PDFgVmYpUvWBabyCL-F7HL_jmMKNraPBkud8Ud-kdAQazH5kDL591OAZ5U1B3Nem0ioNu-8L0yjsskf3MJvgGukcMloc3bepTLfaeJg4mWy_PgTL00AkLbRGfBQM3XetmD_AsQZYPCEb9kUM7bmk8Lsk4MW0-2jDFcxy-FlzqsLLBmPKzgb4pgPt45YCpt8awXOai70NlsrJubswDmo0yzbR2Dfrs_NMTn6h96iKGFgcLW5tUDO_Ph5MF8VTuJoC5GsatDrdBqKt5RnK3aAKBheDQgd5G5psCa8UdQJWZTAC88-2hvB3uqC1DnTYrf4zxCXHeea80aZp-xefHHd_QF6GjQ8QFMTBLpZPirtRtFmfU4xZ4-vf8zGo_5oVIWEfYFnQaQApZoM0wHUvwg0Hh9im6B0i3K6h-0xI1_0tSi0WRnzwZyds5L8_pwTBYuZyHnYzIdoEL-_o33kzehVzH3rW8KJJVUyfsAbDRmSpUyu8FTXDJc6pDsESI19K-CLIOcGuTl8df7-2ODWAY9Aa72b77XPCX1Y8N8ILo_m1RRCh6GivrKhohuMpu7hJ2BxMq2KcJsErNQdoRZOB2uqDmDyyrkkDbjBWyq9nzS634sRuzwckmc6OuymXHzXzEoz_Ddls_7e1LSJbFgF_SonJOvGpY52mJZlJpM1-OWaJFbhSd2ZkzCaIGMU2Rd_YoJGgVkYA9wOFtvZ6HkmOvAZUmyjtKpDJcYxkPVJCIGq0AQ8iLvcI0jcBlr_BBOc242uTE4v9OtD6IAuDPzkc3nAeL9SfMIoFZ6NH4LvF_xbYoawLSdDjJVMHqko4wJGRxtPbu9kj95FvGXOhokiVqfJhSQsbpx9f2WJ8y1KnChtJauFuBz1G81hbHCQuf1wHtSznikxSnOkFIG1jrj2x45q9L-xLeONgxr5i2tMq8t0e1HLpgyeIWrAznkO2g5-TstRr7Iwxs8uSArj-K0Lsuy5BJkfQyPBavbIzLXfkhRpgPIOw3SKu5uHKgx0IHDdE0mhQpWGkgk13lZIz6G-xAaiHaHpaYiBtshZCuOG4w04NmpreYrfVgVFxD48Egf-rX5x78lHU-20r1I6DoiSbaYWgzOTd8xfMFy48jamzjoauKs1dMZ38RrdSgU9IRyvm7q6zs7-O788kBvFeaCPDcCZsID-bcblO0enMDLvNlI95ScdRwx4PPsVBIv0Roi76UnJjgHm32MJllwdh5nrA9khfjg885QVE6b9LBTFZ_x-qcn7srEmp3AZN38imZUqqp5rf-g2dd6hy243geWEjnQzOO_721mu5VVA51jAwauWFVxNtx3S2AuP0lrN1QGxDUEN8gusAe4QTz-I7Jkt-VBLBzaud0vAUl5xFKY3OD1VToOlX0wKcEN4CTcrD0NR7glz__ji851v44-bWtkQjHHfOHq2OXWeAzMN1GAed2WgTg7HEGk9PWSGI2QMifZfzDm7p8a7beYAFS7EO7tatDi5kXLNbpiPVSDXbbYdW5MvU7zeOoeorz_H_JlPpXBaTUfC8XjyjZNxFGNfQeP3t0b0mYlfhiLyFqN2jNZeoMxCgFHzoZ302nY",
+        "summary": [],
+        "status": "completed"
+      },
+      {
+        "type": "message",
+        "id": "msg_824de5b1-7364-4e46-ba87-4e5e8c41b1a7",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "I read a.txt with the tool and now just need to tell you what it says.",
+            "annotations": [],
+            "logprobs": []
+          }
+        ],
+        "status": "completed"
+      }
+    ],
+    "instructions": null,
+    "usage": {
+      "input_tokens": 310,
+      "input_tokens_details": {
+        "cached_tokens": 0
+      },
+      "output_tokens": 277,
+      "output_tokens_details": {
+        "reasoning_tokens": 249
+      },
+      "total_tokens": 587
+    },
+    "parallel_tool_calls": true,
+    "store": false,
+    "max_output_tokens": 400
+  }
+}

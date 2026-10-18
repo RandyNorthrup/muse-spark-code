@@ -40,6 +40,18 @@ export function cliCommands() {
       text: { ui: 'referenceProviders' },
     },
     {
+      route: 'providersModels',
+      name: 'providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]',
+      description: UI_TEXT.referenceProviders,
+      text: { ui: 'referenceProviders' },
+    },
+    {
+      route: 'helpTopic',
+      name: 'help <command>',
+      description: UI_TEXT.referenceBriefHelp,
+      text: { ui: 'referenceBriefHelp' },
+    },
+    {
       route: 'chatGptProvider',
       name: 'providers add|remove|status chatgpt',
       description: UI_TEXT.referenceProviders,
@@ -74,6 +86,12 @@ export function cliCommands() {
       name: 'auth clear',
       description: UI_TEXT.referenceAuthClear,
       text: { ui: 'referenceAuthClear' },
+    },
+    {
+      route: 'authGitHub',
+      name: 'auth github login|logout|status',
+      description: UI_TEXT.referenceAuthGitHub,
+      text: { ui: 'referenceAuthGitHub' },
     },
     {
       route: 'setup',
@@ -194,6 +212,12 @@ export function cliCommands() {
       name: '/share chat [--mode full|conversation] [--format md|html|json]',
       description: UI_TEXT.shareReviewPrivacy,
       text: { ui: 'shareReviewPrivacy' },
+    },
+    {
+      route: 'acp',
+      name: '/whatsnew',
+      description: UI_TEXT.paletteTips.whatsNew,
+      text: { ui: 'whatsNewOpen' },
     },
     {
       route: 'resources',

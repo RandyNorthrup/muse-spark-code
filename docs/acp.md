@@ -111,10 +111,16 @@ are in `result`. No automatic fix is available. The reserved
 argument parsing. The older `legal --format json` invocation remains an alias.
 Both refuse prompt text and model/credential flags.
 
-The current scanner also lists human review, full license-text matching and
-artifact freshness as incomplete checks on every real run. Even a fixture
-with no findings therefore returns exit 2; the complete exit-0/1 branches are
-tested with injected reports and are not yet real-scanner CI receipts.
+License files match the pinned SPDX License List 3.28.0 templates exactly
+(only a template's variable and optional parts may vary), and per-bundle
+SHA-256 hashes captured by the build establish artifact freshness, so a fully
+evidenced scan with no findings returns exit 0 (exit 1 with a blocker).
+A text that differs from its template is quoted at the differing span for
+human review.
+Heuristic or unrecognized license texts, missing locks or license data,
+dynamic metadata, binary files, links, stale artifacts and bounded-out input
+stay named incomplete checks with exit 2; the absence of an ecosystem's
+manifests entirely is a complete observation, not a gap.
 
 Registry enrichment uses npm/PyPI HTTPS metadata, sends only package names and
 versions, refuses redirects and never reads private registry configuration.
@@ -133,6 +139,13 @@ command. The optional panel paid explanation uses a portable core executor;
 this ACP command itself stays free. Native editor UI adapters retain their
 existing compatibility milestones. **Not legal advice; for distribution
 decisions consult a lawyer.**
+
+An optional workspace-root `licence-review.json` array holds reviewed licence
+receipts: `package`, exact `version`, licence-byte `sha256`, the found single
+`spdx` identifier and a one-line `reason`. Applied receipts appear visibly as
+**Reviewed by receipt** in every report format and resolve only that text
+check. Changed versions or bytes need review again; conflicts and other gaps
+remain. See [the receipt example](../README.md#legal-scan-m97).
 
 ## Choose who pays
 
@@ -190,7 +203,8 @@ pinned request factory as VS Code, reading the user-level `providers.json`
 and origin-bound records from this agent's OS credential store. Mistral's
 captured plan-key preset is marked **plan**, links its limits, and records
 request/token tallies outside USD caps. No Meta key is needed for its
-inference. General `providers list|add|test|remove` commands and
+inference. General `providers list|add|test|remove` commands,
+`providers models <entry> [--add <model>] [--remove <model>]` and
 `auth set|status|clear --provider <id>` use the same origin-bound records.
 Free probes use the shared request transport. `exec --provider` validates its
 configuration and key, but refuses before dispatch: its production runner
@@ -340,6 +354,8 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 | `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                  |
 | `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price             |
 | `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                     |
+| `--auto-compaction`                    | Accepted; automatic compaction is already on by default once evaluated, so the flag changes nothing on its own          |
+| `--no-auto-compaction`                 | Turn the default-on automatic compaction off (also accepted by exec, where it wins over `--auto-compaction`)            |
 
 ## What the editor sees
 
@@ -361,6 +377,8 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   M108's `/accounts <list|current|thresholds [id]>` on the Model API
   backend, answered locally with no model turn; `/accounts use <id>` is
   refused and names the account the session keeps.
+  M99's `/whatsnew` reads this version's release highlights and full notes
+  from the package's own content file, answered locally with no model turn.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
@@ -501,6 +519,19 @@ answers are **Allow Once**, **Allow Always in This Workspace** and
 A cancelled prompt, an answer the prompt did not offer, or an editor
 that cannot ask counts as Deny.
 
+Automatic compaction is the exception to the flag rule: it is on by
+default like the panel once evaluated, so no flag is needed. Its first
+paid summary asks once through the same permission prompt, naming the
+model, that it is a paid request, and the daily budget; no answer counts
+as Deny. `--no-auto-compaction` turns it
+off. Where the client cannot show the approval (no permission
+capability), compaction does not run and the context-full stop says how
+to turn it on. A team-worker (child) session never compacts automatically:
+the engine excludes child sessions before any admission is requested, so
+nobody is asked and nothing is charged. A scheduled turn is an ordinary
+turn of its session for this policy; an approval nobody answers counts as
+Deny.
+
 **Allow Always in This Workspace** is offered only when the agent runs
 with `--trust-workspace`. It is kept for that folder in the agent's data
 folder (`paid-uses.json.d` under `%LOCALAPPDATA%\Muse Spark Code\acp`,
@@ -513,7 +544,8 @@ maps are ignored, so their next use asks again. Storage that cannot safely
 publish a generation keeps the explicit use as Allow once and asks next time.
 The grant lapses in every folder when a Model API agent (`--backend
 modelApi`, not `exec`) starts without that feature's flag, so turning the
-flag on again asks again. Every paid row names its
+flag on again asks again; automatic compaction's grant lapses instead when
+the agent starts with `--no-auto-compaction`. Every paid row names its
 price, and the agent log counts each billed use. Subagents,
 best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no flag for them
 (Muse Voice needs the VS Code panel's microphone).
@@ -766,10 +798,15 @@ workspace refuses; the standalone policy reads `.vscode/settings.json`, and
 malformed or unreadable policy refuses. Settings with JSON comments currently
 refuse rather than guessing. Full mode never disables privacy.
 
-A noninteractive share prints exact scrubbed content and a JSON cancelled
-preview, with exit 7. Review it, then repeat the identical command with an
-explicit `--destination`, the same `--exported-at`, `--out`, and
-`--confirm PREVIEW_ID`. The digest binds cwd, path/root, options, time and
+A noninteractive share prints exact scrubbed content and, with `--json`,
+a JSON cancelled preview, with exit 7. Review it, then repeat the identical
+command with an explicit `--destination`, the same `--exported-at`, `--out`,
+and `--confirm PREVIEW_ID`. Without `--json` no result JSON is printed;
+`prompts save`, `prompts list` and `prompts use` take the same `--json`
+flag for their machine-readable result. Without it, save prints the saved title
+and id, list prints the matching titles and ids, and use prints prepared text
+without inserting it into an editor or sending it to a model. Cancellation
+reasons go to stderr. The digest binds cwd, path/root, options, time and
 bytes. Any change needs a new preview; there is no blanket `--yes`. Interactive
 sharing asks for a final confirmation. No file/clipboard/browser operation
 occurs during preview. Private atomic writes recheck live policy and abort. Sharing also scrubs the
@@ -783,6 +820,18 @@ base. These wait for M104's validated host bridge, alongside native menus and
 the companion page. The TUI waits for M110a0 lane T. See the
 [M118 record](certification/m118.md) for exact actions and editor rows. Gist
 publishing, hosted links, team destinations and email remain phase 2/3.
+
+## MCP connector for other agents (M124, in progress)
+
+`muse-spark-code-acp mcp` is a separate mode: it speaks MCP, not ACP, on
+stdio, so an MCP client such as Codex, Claude Code or Gemini CLI can use
+Muse Spark Code's prompt library, share previews, schedules, reports and
+Stop within a grant you make with `muse-spark-code-acp mcp grant` in your
+own terminal. Writes wait for your approval on Muse Spark Code's loopback
+approval page; the client cannot approve them. The connector loads from
+`connector.js` only for this command. Setup per client, tools, limits and
+records:
+[docs/mcp.md](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/mcp.md).
 
 ## Help and reference
 

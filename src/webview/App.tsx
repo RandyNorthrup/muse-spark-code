@@ -416,6 +416,12 @@ function isGated(state: UiState): boolean {
 
 /** The pill reads `model effort`, as the Claude Code pill does. */
 export function modelLabelFor(state: UiState): string {
+  // While the sign-in facts are still being read the pill says so (F60):
+  // neither "Not signed in" (unknown yet) nor "Starting Muse Code…" (the
+  // backend is not what is waited for).
+  if (state.auth.status === 'checking') {
+    return UI_TEXT.checkingSignIn
+  }
   if (state.auth.status !== 'signedIn') {
     return UI_TEXT.notSignedIn
   }
@@ -2687,6 +2693,7 @@ export function App({
         onBack={onPaletteBack}
         onClose={slot.onClose}
         onRetryMoney={retrySurface}
+        label={UI_TEXT.paletteLabel}
         isAttached
         keepFocus
         keys={slashPaletteKeys}
@@ -2942,6 +2949,9 @@ export function App({
           onBack={onPaletteBack}
           onRetryMoney={retrySurface}
           onClose={closeOverlay}
+          // Names the deferred chunk's loading box (F60): "Models:
+          // Loading…" instead of a bare "Loading…".
+          label={overlay === 'models' ? UI_TEXT.modelListLabel : UI_TEXT.paletteLabel}
         />
       )
       break
@@ -3337,6 +3347,7 @@ export function App({
               onCreatePullRequest={onGitCreatePullRequest}
               onGenerate={onGitGenerate}
               onOpenLink={onOpenExternal}
+              onCopy={onCopy}
             />
           </>
         )}

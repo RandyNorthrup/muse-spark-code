@@ -19,7 +19,7 @@
         "ephemeral": { "type": "boolean" },
         "paidFeatures": {
           "type": "array",
-          "items": { "type": "string", "enum": ["imageGeneration"] }
+          "items": { "type": "string", "enum": ["imageGeneration", "autoCompaction"] }
         },
         "limits": {
           "type": "object",

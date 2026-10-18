@@ -1,3 +1,4 @@
+import { restoredToolText } from '../../src/core/backends/modelapi/schemas'
 import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
@@ -56,7 +57,10 @@ const full: StoredSession = {
         arguments: '{"path":"a"}',
       },
     },
-    { turnId: 't1', item: { type: 'function_call_output', call_id: 'c1', output: 'ok' } },
+    {
+      turnId: 't1',
+      item: { type: 'function_call_output', call_id: 'c1', output: restoredToolText('ok') },
+    },
     // An MCP tool's picture (M50): the output as content parts.
     {
       turnId: 't1',
@@ -316,7 +320,8 @@ describe('parseStoredSession', () => {
     const parsed = parseStoredSession(structuredClone(full))
     expect(parsed).toEqual({ ok: true, session: full })
     expect(parsed.ok && 'agent' in parsed.session).toBe(false)
-    expect(parseStoredSession({ ...full, agent: { ...agent, effort: 'ultra' } })).toMatchObject({
+    // Lane REASONSHAPES: `ultra` is a UI tier now; `turbo` is still rejected.
+    expect(parseStoredSession({ ...full, agent: { ...agent, effort: 'turbo' } })).toMatchObject({
       ok: false,
     })
     expect(

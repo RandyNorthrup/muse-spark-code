@@ -72,7 +72,12 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
   const resolve = (relative: string) => {
     const file = path.resolve(root, relative)
     const suffix = path.relative(root, file)
-    if (suffix === '' || suffix.startsWith('..') || path.isAbsolute(suffix))
+    if (
+      suffix === '' ||
+      suffix === '..' ||
+      suffix.startsWith(`..${path.sep}`) ||
+      path.isAbsolute(suffix)
+    )
       throw new Error('scheduleStoragePathRefused')
     return file
   }

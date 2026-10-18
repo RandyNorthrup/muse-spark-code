@@ -11,7 +11,7 @@ import {
 } from '../../shared/constants'
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
 import { fill, formatDateTime, formatPercent, formatUnit, plural } from '../../shared/l10n/text'
-import { formatDuration } from '../../shared/usage'
+import { formatDuration, planLabel } from '../../shared/usage'
 import type { UsageLimitSnapshot } from '../../shared/usageJournal'
 import type { UsagePageState } from '../../shared/usagePage'
 import { money, percentOf, remainingUsd, type PostUsage } from './display'
@@ -101,7 +101,7 @@ export function LimitCard({
   return (
     <article className="usage-limit-card">
       <h3>
-        {snapshot.provider}: {label}
+        {snapshot.plan === undefined ? snapshot.provider : planLabel(snapshot.plan)}: {label}
       </h3>
       <p>{fill(USAGE_TEXT.asOf, { date: formatDateTime(snapshot.observedAt) })}</p>
       {isStale ? <p className="usage-warning">{USAGE_TEXT.stale}</p> : null}

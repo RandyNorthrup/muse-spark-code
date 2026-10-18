@@ -3,6 +3,7 @@
 // every gap stays a named `not checked` entry, never a silent zero.
 
 import { describe, expect, it } from 'vitest'
+import { evaluateDependencyLicenses } from '../../src/core/legal/depLicenses'
 import { readNpm } from '../../src/core/legal/ecosystems/npm'
 import { snapshotFrom } from './legal/helpers'
 
@@ -41,9 +42,12 @@ describe('readNpm', () => {
     expect(names.get('express')).toMatchObject({ version: '4.21.0', licenseRaw: undefined })
     expect(names.get('vitest')).toMatchObject({ version: '5.0.0', scope: 'development' })
     expect(result.projectLicenses).toEqual([{ raw: 'MIT', file: 'package.json' }])
+    // CM971-R3: a lock entry without licence data is named per dependency
+    // by the dependency reader (only when it ships, once distribution is
+    // known), not by an aggregate reader note.
     expect(
-      result.incomplete.some(
-        (entry) => entry.includes('express') || entry.includes('no license metadata'),
+      evaluateDependencyLicenses(result.dependencies, () => true).incomplete.some((entry) =>
+        entry.includes('express'),
       ),
     ).toBe(true)
   })

@@ -73,6 +73,23 @@ describe('stderrForLog', () => {
       'tbh serve: startup model-catalog fetch failed (failed to fetch model catalog: transport error: error sending request for url (https://api.meta.ai/muse-code/models)); no cached default — composing the logged-out fallback',
       'the startup model-catalog fetch failed',
     ],
+    // As captured from `muse serve` 1.4.10-R6427.1 on 2026-10-17 (F94):
+    // a meta entry without the fields the CLI requires exits 3 before
+    // `initialize` with this line (throwaway homes, dummy values).
+    [
+      'compose serve model client: malformed auth file at C:\\Users\\someone\\cfg\\muse\\auth.json: missing field `obtained_via`',
+      'the credential file is malformed (missing field `obtained_via`)',
+    ],
+    [
+      'compose serve model client: malformed auth file at /home/someone/.config/muse/auth.json: providers.meta.api_key must be a string',
+      'the credential file is malformed (providers.meta.api_key must be a string)',
+    ],
+    // A POSIX path may itself contain ": ": the reason still names the
+    // file's fault, never a fragment of the path.
+    [
+      'compose serve model client: malformed auth file at /home/a: b/.config/muse/auth.json: missing field `obtained_via`',
+      'the credential file is malformed (missing field `obtained_via`)',
+    ],
   ])('names the captured line %s in fixed words', (line, logged) => {
     expect(stderrForLog(`${line}\n`)).toBe(logged)
   })
@@ -83,5 +100,15 @@ describe('stderrForLog', () => {
       `a line of ${String(PERSONAL.length)} characters (not logged: it may name a path or an account); a line of 6 characters (not logged: it may name a path or an account)`,
     )
     expect(logged).not.toContain('someone')
+  })
+
+  it('never copies a malformed-auth reason outside the captured diagnostics', () => {
+    const line =
+      'compose serve model client: malformed auth file at /home/someone/.config/muse/auth.json: account someone123 needs attention'
+    const logged = stderrForLog(`${line}\n`)
+    expect(logged).toBe(
+      `a line of ${String(line.length)} characters (not logged: it may name a path or an account)`,
+    )
+    expect(logged).not.toContain('someone123')
   })
 })

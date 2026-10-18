@@ -70,6 +70,15 @@ export interface GitRepository {
   diffBetween(ref1: string, ref2: string): Promise<readonly GitChange[]>
 }
 
+/**
+ * The part of a repository the pull request checkout reads: VS Code's Git
+ * extension's, or the user's own git where the extension is missing (M123,
+ * nativeRepository.ts).
+ */
+export type CheckoutRepository = Pick<GitRepository, 'rootUri' | 'status' | 'fetch'> & {
+  readonly state: Pick<GitRepository['state'], 'HEAD' | 'remotes'>
+}
+
 /** A request's physical directory; observing loss never rebinds it to a later root. */
 export interface GitRepositoryOwner {
   readonly cwd: string
@@ -114,10 +123,10 @@ export const captureGitOwner: CaptureGitOwner = async (root, check) => {
 }
 
 /** The selected directory and a cached Git API repository must keep the same physical owner. */
-export async function openOwnedRepository(
+export async function openOwnedRepository<R extends Pick<GitRepository, 'rootUri' | 'status'>>(
   root: string,
   platform: NodeJS.Platform,
-  repositoryAtRoot: (root: string) => Promise<GitRepository>,
+  repositoryAtRoot: (root: string) => Promise<R>,
   captureOwner: CaptureGitOwner,
   check: () => void,
 ) {

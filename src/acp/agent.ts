@@ -13,8 +13,11 @@ import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // paid.ts). Every update of a turn goes out before the turn's response.
 
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import type { UsageAdapter } from '../runtime/usage/usageAdapter'
 import { agentListingText, listedAgents, listedAgentId } from '../core/agent/agentListing'
+import { parseWhatsNewContent } from '../core/whatsNew/whatsNewContent'
+import { whatsNewTextForContent } from '../core/whatsNew/whatsNewText'
 import { buildAgentReceipt } from '../shared/agentReceipt'
 import { recoveryStamp } from '../shared/agentRecovery'
 import { agentStateText } from '../shared/agentOutcome'
@@ -22,6 +25,7 @@ import { compactReference } from '../shared/cliCommands'
 import type { AcpSchedulePort } from './schedules'
 import path from 'node:path'
 import { type AcpPlaybookBundle, acpPlaybook } from './playbook'
+import { signInLossFailure } from './signInLoss'
 import type { PlaybookSurfacePort } from '../runtime/playbook/command'
 import {
   agent as acpAgent,
@@ -74,6 +78,7 @@ import {
   ACP_QUESTIONS_BUNDLE_FILE,
   ACP_SESSION_LIST_LIMIT,
   type AcpBackendKind,
+  AUTH_REQUIRED_ERROR_KIND,
   type ReportEventKind,
   CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_EFFORT,
@@ -86,7 +91,9 @@ import {
   SANDBOX_CANNOT_START_MODEL_NOTE,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
+  WHATS_NEW_CONTENT_FILE,
 } from '../shared/constants'
+import { isCredentialStoreDown } from '../host/auth/credentialStore'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
 import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
@@ -143,14 +150,23 @@ const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
 /** Whether the backend can start a session now, and what the user must do if not. */
 export type BackendReadiness =
   | { readonly state: 'ready' }
-  | { readonly state: 'signedOut'; readonly message: string }
+  | {
+      readonly state: 'signedOut'
+      readonly message: string
+      /**
+       * The credential store itself cannot be read, so no stored key could
+       * be checked. A session may still open: only a step that needs a
+       * stored key refuses, in this message's words.
+       */
+      readonly storeDown?: true
+    }
   | { readonly state: 'unavailable'; readonly message: string }
 
 /** The backend the agent was started on (the runtime builds it, D62). */
 export interface AcpBackend {
   readonly kind: AcpBackendKind
   /** `isRecheck`: the user says they signed in, so nothing said before counts (`authenticate`). */
-  readonly readiness: (isRecheck: boolean) => Promise<BackendReadiness>
+  readonly readiness: (isRecheck: boolean, modelHint?: string) => Promise<BackendReadiness>
   /** The host for a folder, started on first use. */
   readonly hostFor: (cwd: string) => Promise<AgentHost>
   /**
@@ -317,9 +333,16 @@ function accountRequestError(error: unknown): RequestError {
     : RequestError.internalError(undefined, text)
 }
 
-/** The model a new session starts on: the backend's default, else the first listed. */
+/**
+ * The model a new session starts on: the backend's default, else the first
+ * listed — among models that can run the coding agent (F83). A limited
+ * model starts a session only when nothing usable is listed, where its
+ * first turn is refused with the limit's own sentence.
+ */
 function startingModel(models: readonly ModelSummary[]): string {
-  const model = models.find((candidate) => candidate.isDefault) ?? models[0]
+  const usable = models.filter((candidate) => candidate.agentLimit === undefined)
+  const pool = usable.length > 0 ? usable : models
+  const model = pool.find((candidate) => candidate.isDefault) ?? pool[0]
   if (model === undefined) {
     throw RequestError.internalError(undefined, UI_TEXT.acpNoModels)
   }
@@ -330,6 +353,37 @@ function startingModel(models: readonly ModelSummary[]): string {
 function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
   const levels = effortLevelsFor(modelId)
   return levels.includes(wanted) ? wanted : (levels.at(-1) ?? DEFAULT_EFFORT)
+}
+
+/**
+ * One announced command per skill. The CLI lists a plugin's lone skill
+ * twice (the bare plugin name and the self-qualified `name:name` selector
+ * with the same text), and may repeat a selector. Keep the first entry
+ * for each exact selector; collapse a self-qualified alias only when its
+ * bare form reads the same. Distinct selectors with different text stay.
+ */
+export function dedupeSkillSelectors(skills: readonly SkillSummary[]): readonly SkillSummary[] {
+  const kept: SkillSummary[] = []
+  const seen = new Set<string>()
+  for (const skill of skills) {
+    if (seen.has(skill.selector)) continue
+    seen.add(skill.selector)
+    kept.push(skill)
+  }
+  return kept.filter((skill) => {
+    const separator = skill.selector.indexOf(':')
+    if (separator === -1) return true
+    const plugin = skill.selector.slice(0, separator)
+    if (skill.selector.slice(separator + 1) !== plugin) return true
+    // A self-qualified pair reads once when its bare form reads the same.
+    return kept.every(
+      (other) =>
+        other === skill ||
+        other.selector !== plugin ||
+        other.description !== skill.description ||
+        (other.argumentHint ?? '') !== (skill.argumentHint ?? ''),
+    )
+  })
 }
 
 /** One ACP session over one AgentSession. */
@@ -404,13 +458,21 @@ class AcpSession {
             clock: questionClock,
             deliver: (message) => this.getQuestions().deliver(message),
           })
-    this.translator = new UpdateTranslator(cwd, false)
+    this.translator = new UpdateTranslator(
+      cwd,
+      false,
+      undefined,
+      'museCode',
+      clientCapabilities.session?.notices != null,
+    )
     this.unsubscribeResources = deps.resources?.subscribe(this.sessionId, (notice) => {
-      const updates = acpResourceUpdates(notice)
+      const updates = acpResourceUpdates(notice, this.areNoticesSupported)
       const isPause = notice.event.type === 'levelChanged' && notice.event.to === 'pause'
       for (const update of updates) {
         if (isPause && this.hasShownResourcePause && update.sessionUpdate === 'agent_message_chunk')
           update.content = { type: 'text', text: resourceStatusText(notice.status) }
+        if (isPause && this.hasShownResourcePause && update.sessionUpdate === 'notice')
+          update.title = resourceStatusText(notice.status)
         this.send(update)
       }
       if (isPause) this.hasShownResourcePause = true
@@ -430,11 +492,24 @@ class AcpSession {
               })
             },
             (text, event) => {
-              this.send({
-                sessionUpdate: 'agent_message_chunk',
-                _meta: { accountNotice: event },
-                content: { type: 'text', text },
-              })
+              // An account swap or stop is the app's own status, never the
+              // model's words: its own notice where the client can show
+              // one, the agent-message fallback otherwise (F82's class).
+              // The structured event rides `_meta` either way.
+              this.send(
+                this.areNoticesSupported
+                  ? {
+                      sessionUpdate: 'notice',
+                      severity: event.type === 'stop' ? 'warning' : 'info',
+                      title: text,
+                      _meta: { accountNotice: event },
+                    }
+                  : {
+                      sessionUpdate: 'agent_message_chunk',
+                      _meta: { accountNotice: event },
+                      content: { type: 'text', text },
+                    },
+              )
             },
           )
   }
@@ -483,6 +558,11 @@ class AcpSession {
   /** Cancellation/release callbacks can change the prompt across await. */
   private wasEstimateCancelled(preparing: PreparingPrompt): boolean {
     return preparing.isCancelled || this.isDisposed
+  }
+
+  /** The client advertised `session.notices`: app statuses go out as notices. */
+  private get areNoticesSupported(): boolean {
+    return this.clientCapabilities.session?.notices != null
   }
 
   /** Queues an update behind the ones before it: the client sees them in order. */
@@ -558,6 +638,7 @@ class AcpSession {
         ?.commands()
         .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
       { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
+      { name: 'whatsnew', description: UI_TEXT.paletteTips.whatsNew, input: null },
       ...(this.deps.vault === undefined
         ? []
         : [
@@ -635,7 +716,7 @@ class AcpSession {
               input: { hint: UI_TEXT.estimateUsage },
             },
           ]),
-      ...this.skills
+      ...dedupeSkillSelectors(this.skills)
         .filter(
           (skill) =>
             skill.selector !== SLASH_COMMAND_NAMES.help &&
@@ -654,6 +735,7 @@ class AcpSession {
               'record',
               'accounts',
               'vault',
+              'whatsnew',
             ].includes(skill.selector) &&
             ((this.deps.usage === undefined && this.deps.resources === undefined) ||
               skill.selector !== 'usage') &&
@@ -942,12 +1024,38 @@ class AcpSession {
       return
     }
     if (event.terminal === FAILED_TERMINAL) {
+      // A restarted backend whose replacement lost the sign-in says so
+      // loudly (F94): an `authRequired` turn names the restart and the way
+      // back, instead of failing as just another turn.
+      const restartCause =
+        event.errorKind === AUTH_REQUIRED_ERROR_KIND ? this.host.peekRestartCause?.() : undefined
+      const loud =
+        restartCause === undefined
+          ? undefined
+          : signInLossFailure({
+              errorKind: event.errorKind,
+              reason: event.reason,
+              restartCause,
+            })
+      if (loud !== undefined && restartCause !== undefined) {
+        // The loud words go to the client, never to the log as sent: they
+        // carry the turn's reason, which is text the CLI chose (AGENTS.md
+        // rule 8, as `markAuthRequired` logs only a protocol word).
+        this.deps.log.warn(
+          `ACP session ${this.sessionId}: sign-in lost across a backend restart (${restartCause})`,
+        )
+        pending.reject(loud)
+        return
+      }
       pending.reject(
         RequestError.internalError(undefined, event.reason ?? event.errorKind ?? event.terminal),
       )
       return
     }
-    pending.resolve('end_turn')
+    // A turn that ran to completion proves the host: no later failure blames
+    // the restart this host replaced.
+    this.host.clearRestartCause?.()
+    pending.resolve(event.errorKind === 'max_turn_requests' ? 'max_turn_requests' : 'end_turn')
   }
 
   private async askPermission(event: ApprovalRequest): Promise<void> {
@@ -1243,6 +1351,27 @@ class AcpSession {
     } finally {
       if (this.legalStop === stop) this.legalStop = undefined
       if (this.preparing === preparing) this.preparing = undefined
+    }
+  }
+
+  /**
+   * What's New in another editor (M99): this version's release notes as
+   * text, read from the package's own content file beside the agent bundle
+   * and checked before use. A missing or unreadable file is logged with its
+   * path and answered with the generic failure, never an empty success.
+   */
+  private whatsNewText(): string {
+    const file = path.join(__dirname, WHATS_NEW_CONTENT_FILE)
+    try {
+      return whatsNewTextForContent(
+        parseWhatsNewContent(readFileSync(file, 'utf8')),
+        this.deps.version,
+      )
+    } catch (error: unknown) {
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: What's New unavailable: ${failureForLog(error)} (${file})`,
+      )
+      return UI_TEXT.actionFailed
     }
   }
 
@@ -1547,7 +1676,11 @@ class AcpSession {
         category: 'model',
         type: 'select',
         currentValue: this.modelId,
-        options: this.models.map((model) => ({ value: model.modelId, name: model.displayLabel })),
+        options: this.models.map((model) => ({
+          value: model.modelId,
+          name: model.displayLabel,
+          ...(model.agentLimit !== undefined && { description: model.agentLimit }),
+        })),
       },
       {
         id: ACP_CONFIG_IDS.effort,
@@ -1680,8 +1813,15 @@ class AcpSession {
       return
     }
     if (configId === ACP_CONFIG_IDS.model) {
-      if (this.models.every((model) => model.modelId !== value)) {
+      const chosen = this.models.find((model) => model.modelId === value)
+      if (chosen === undefined) {
         throw RequestError.invalidParams(undefined, value)
+      }
+      // Refused in the protocol's own error with the limit's sentence
+      // (F83): a plain backend error would reach the client as a bare
+      // "Internal error" with the sentence buried in its data.
+      if (chosen.agentLimit !== undefined) {
+        throw RequestError.invalidParams(undefined, chosen.agentLimit)
       }
       this.ensureHeld()
       const revision = this.modelChangeRevision
@@ -1957,6 +2097,24 @@ class AcpSession {
               type: 'text',
               text: compactReference(this.availableCommands().map((command) => command.name)),
             },
+          })
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
+      // A reserved command, decided on the one typed text like the others:
+      // anything after the name stays a local answer, never a skill or a
+      // model turn (the reserved-command rule below). Attached files,
+      // images or resources never ride along to the model: they are
+      // refused instead of starting a billed turn (Codex on PR #212).
+      if (/^\/whatsnew(?:\s|$)/.test(typed)) {
+        if (parsed.parts.some((part) => part.type !== 'text'))
+          throw RequestError.invalidParams(undefined, UI_TEXT.whatsNewAttachmentsRefused)
+        await this.announceCommands()
+        if ('error' in preparing) throw preparing.error
+        if (!preparing.isCancelled)
+          this.send({
+            sessionUpdate: 'agent_message_chunk',
+            content: { type: 'text', text: this.whatsNewText() },
           })
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
@@ -2357,14 +2515,18 @@ class AgentState {
       : { id, name, description: fill(UI_TEXT.acpSignInByHand, { command }) }
   }
 
-  private async requireReady(isRecheck = false): Promise<void> {
+  private async requireReady(
+    isRecheck = false,
+    isStoreDownAllowed = false,
+  ): Promise<BackendReadiness> {
     const readiness = await this.deps.backend.readiness(isRecheck)
-    if (readiness.state === 'signedOut') {
+    if (readiness.state === 'signedOut' && !(isStoreDownAllowed && readiness.storeDown === true)) {
       throw RequestError.authRequired(undefined, readiness.message)
     }
     if (readiness.state === 'unavailable') {
       throw RequestError.internalError(undefined, readiness.message)
     }
+    return readiness
   }
 
   private async openHost(
@@ -2373,10 +2535,22 @@ class AgentState {
     if (!path.isAbsolute(cwd)) {
       throw RequestError.invalidParams(undefined, cwd)
     }
-    await this.requireReady()
+    // A dead credential store does not stop the session from opening: only
+    // a step that needs a stored key refuses, in the store-down words.
+    const readiness = await this.requireReady(false, true)
     const host = await this.deps.backend.hostFor(cwd)
     this.watch(host)
-    const listed = await host.listModels()
+    let listed: readonly ModelSummary[]
+    try {
+      listed = await host.listModels()
+    } catch (error: unknown) {
+      if (!isCredentialStoreDown(error)) throw error
+      throw RequestError.authRequired(undefined, UI_TEXT.acpStoreDown)
+    }
+    // No models without a readable store or key: the catalogue, the grant
+    // and the key all need the store. Say so instead of offering no model.
+    if (listed.length === 0 && readiness.state === 'signedOut' && readiness.storeDown === true)
+      throw RequestError.authRequired(undefined, UI_TEXT.acpStoreDown)
     const models = this.deps.options.allowsContributorModels
       ? listed
       : listed.filter((model) => !isContributorModel(model.modelId))
@@ -2599,6 +2773,8 @@ class AgentState {
     const { host, models } = await this.openHost(cwd)
     const modelId = startingModel(models)
     const mcpServers = this.forwardedMcp(host, requestedMcp)
+    // The start carries no account identity: a step that needs a stored key
+    // refuses then, in the one store sentence, never at the open.
     const session = await host.startSession({
       workspaceRoot: cwd,
       modelId,

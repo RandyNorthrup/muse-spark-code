@@ -5,6 +5,7 @@
 // webview validates every message with these schemas.
 
 import * as z from 'zod/mini'
+import { GITHUB_TOKEN_SOURCE_ORDER } from './constants'
 
 export const GIT_ACTIONS = [
   'openCommit',
@@ -12,6 +13,12 @@ export const GIT_ACTIONS = [
   'openPullRequest',
   'refreshPullRequest',
   'signInGitHub',
+  // M123 (PLAN.md D104 §2): sign in with GitHub's device flow even where the
+  // editor has its own sign-in; stop a sign-in waiting for its code; sign
+  // out of Muse Spark's own sign-in.
+  'signInGitHubWithCode',
+  'cancelGitHubSignIn',
+  'signOutGitHub',
   'trustWorktree',
   'cancel',
 ] as const
@@ -35,7 +42,6 @@ const checksViewSchema = z.object({
   cancelled: z.number(),
   failedNames: z.array(z.string()),
   other: z.array(z.string()),
-  notRead: z.number(),
 })
 
 const pullRequestViewSchema = z.object({
@@ -79,10 +85,24 @@ const worktreeViewSchema = z.object({
   pullRequestNumber: z.optional(z.number()),
 })
 
+/** The window's GitHub sign-in as the panel shows it (M123, D104 §2); never a token. */
+const githubViewSchema = z.object({
+  /** A device-flow code waiting for the user: the code, GitHub's page, and when it expires (epoch ms). */
+  code: z.optional(
+    z.object({ userCode: z.string(), verificationUri: z.string(), expiresAt: z.number() }),
+  ),
+  /** The source the last GitHub call used, and the account's login when known. */
+  account: z.optional(
+    z.object({ source: z.enum(GITHUB_TOKEN_SOURCE_ORDER), login: z.optional(z.string()) }),
+  ),
+})
+export type GitHubView = z.infer<typeof githubViewSchema>
+
 export const gitStateSchema = z.object({
   hold: z.optional(holdViewSchema),
   worktree: z.optional(worktreeViewSchema),
   pullRequest: z.optional(pullRequestViewSchema),
+  github: z.optional(githubViewSchema),
 })
 export type GitState = z.infer<typeof gitStateSchema>
 

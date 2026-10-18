@@ -386,7 +386,7 @@
     {
       "id": "M53",
       "title": "Conversation rewind and side chat",
-      "summary": "Rewind a conversation to an earlier message and branch from it, or open a Plan-mode side chat in its own panel, except with Muse Code on Windows.",
+      "summary": "Rewind a conversation to an earlier message and branch from it, or open a Plan-mode side chat in its own panel, except with Muse Code on Windows, where the fork still fails on version 1.4.4.",
       "area": "chat",
       "release": "0.9.0"
     },
@@ -723,7 +723,7 @@
     {
       "id": "M97",
       "title": "Legal and licence scan",
-      "summary": "Run /legal to scan licences, copyright headers and source provenance without a model call, export the report and apply only the header fixes you confirm, without any claim that a project is legally compliant.",
+      "summary": "Run /legal to scan shipped licences, headers and provenance without a model call, recognize benign notices, record reviewed package versions and licence hashes by receipt, export reports and confirm header fixes, without claiming legal compliance.",
       "area": "platform",
       "release": "0.15.0"
     },
@@ -737,7 +737,7 @@
     {
       "id": "M99",
       "title": "What's New after updates",
-      "summary": "After an update, a What's New tab opens once while you are idle with each release's highlights and Try it buttons, and a fixes-only update shows a quiet notification instead.",
+      "summary": "After an update, a What's New tab opens once while you are idle with each release's highlights and Try it buttons, a fixes-only update shows a quiet notification instead, and ACP editors read the same notes with /whatsnew.",
       "area": "platform",
       "release": "0.13.0"
     },
@@ -750,14 +750,14 @@
     {
       "id": "M101",
       "title": "Long-task context upgrades",
-      "summary": "Prompts stay cache-stable, the model can search and recall packed tool output exactly, and manual compaction works in ACP editors; automatic compaction is in progress.",
+      "summary": "Ships cache-stable prompts, packed-output recall and manual ACP compaction; automatic compaction evaluated and on after the binding run passed, while remaining upstream ports are in progress.",
       "area": "agents",
       "release": "0.15.0"
     },
     {
       "id": "M102",
       "title": "Usage and cost page",
-      "summary": "A local Usage & Cost page shows each model call's cost, tokens, time, limits and budgets by provider, model and client, with charts, tables and exports, and the history never leaves your machine.",
+      "summary": "A local Usage & Cost page shows each model call's cost, tokens, time, limits and budgets by provider, model and client, with charts, tables and exports, limit cards named for your subscription plan, and the history never leaves your machine.",
       "area": "usage-billing",
       "release": "0.15.0"
     },
@@ -890,16 +890,22 @@
       "note": "this roadmap's generator and gate (project documentation tooling)"
     },
     {
-      "id": "M125",
-      "title": "A faster, more accurate agent through a fast judge",
-      "summary": "A fast judge checks the agent's work and small decisions, with setup and command confinement, including protected paths and cancellation, being certified internally for Linux and macOS before reviewer skips are enabled; Windows keeps its existing reviewer.",
-      "area": "agents"
-    },
-    {
       "id": "M123",
       "title": "Git and pull requests in every editor",
       "summary": "Commit drafts, confirmed pushes, pull requests and held checkouts of other people's pull requests in every supported editor, signing in to GitHub through your editor, a one-time code or your gh login.",
       "area": "editors"
+    },
+    {
+      "id": "M124",
+      "title": "MCP connector for other agents",
+      "summary": "Codex, Claude Code and Gemini CLI can read fleet evidence, reports, schedules and prompts and request actions you approve in Muse Spark Code, with approval pages restarting after idle or failed openers and disconnects closing their local server.",
+      "area": "agents"
+    },
+    {
+      "id": "M125",
+      "title": "A faster, more accurate agent through a fast judge",
+      "summary": "A fast judge checks the agent's work and small decisions, with setup and command confinement, including protected paths and cancellation, being certified internally for Linux and macOS before reviewer skips are enabled; Windows keeps its existing reviewer.",
+      "area": "agents"
     },
     {
       "id": "BADGEFIX",
@@ -1327,6 +1333,12 @@
       "id": "VSIXDIET2",
       "public": false,
       "note": "package size budget"
+    },
+    {
+      "id": "TOOLROUNDS",
+      "title": "Answers survive model-call limits",
+      "summary": "Long Model API turns retain a final summary at their call limit; headless request caps determine the turn allowance.",
+      "area": "chat"
     }
   ]
 }

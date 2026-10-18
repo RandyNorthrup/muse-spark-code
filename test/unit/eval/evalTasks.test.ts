@@ -1,14 +1,20 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   EVAL_FLOOR_ACCEPT_PASS_RATE,
   EVAL_FLOOR_HELDOUT_PASS_RATE,
   EVAL_MODEL_ID,
 } from '../../../src/shared/constants'
 import { modelApiPaidTier } from '../../../src/shared/paid'
-import { EVAL_TASKS, evalTaskSchema, isEvalPath, type EvalTask } from '../../../src/core/eval/tasks'
+import {
+  EVAL_TASKS,
+  evalTaskSchema,
+  evalTasksOfSplit,
+  isEvalPath,
+  type EvalTask,
+} from '../../../src/core/eval/tasks'
 import {
   createEvalWorkspace,
   listWorkspaceFiles,
@@ -59,10 +65,30 @@ async function verdictOf(task: EvalTask, timeoutMs?: number): Promise<EvalVerdic
 }
 
 function probeTask(verify: string, files = [{ path: 'a.js', content: 'export const a = 1\n' }]) {
-  return { id: 'probe', title: 'probe', split: 'accept', prompt: 'probe', files, verify } as const
+  return {
+    id: 'probe',
+    title: 'probe',
+    split: 'accept',
+    prompt: 'probe',
+    files,
+    verify,
+    assertions: (verify.match(/assert\.(?:equal|deepEqual|rejects)\(/gu) ?? []).length,
+  } as const
 }
 
 describe('eval task set', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
+  it('holds nine accept and seven held-out tasks: a long output, a long context and a multi-edit per split (M73, M101)', () => {
+    expect(evalTasksOfSplit('accept')).toHaveLength(9)
+    expect(evalTasksOfSplit('heldout')).toHaveLength(7)
+    expect(EVAL_TASKS).toHaveLength(16)
+    expect(
+      EVAL_TASKS.filter((task) => task.isLongOutput === true).map((task) => task.split),
+    ).toEqual(['accept', 'heldout'])
+    expect(EVAL_TASKS.filter((task) => task.isLongContext === true).map((task) => task.id)).toEqual(
+      ['accept-long-compaction', 'heldout-long-compaction'],
+    )
+  })
+
   it('has unique ids, complete definitions and safe paths', () => {
     const ids = EVAL_TASKS.map((task) => task.id)
     expect(new Set(ids).size).toBe(ids.length)
@@ -75,7 +101,7 @@ describe('eval task set', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
     }
   })
 
-  it('runs on the contributor model, with floors of six of seven and four of five', () => {
+  it('runs on the contributor model, with floors of seven of nine and six of seven', () => {
     expect(modelApiPaidTier(EVAL_MODEL_ID)).toBe('contributor')
     expect(EVAL_FLOOR_ACCEPT_PASS_RATE).toBe(0.75)
     expect(EVAL_FLOOR_HELDOUT_PASS_RATE).toBe(0.75)
@@ -100,6 +126,49 @@ describe('eval task set', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
 })
 
 describe('eval workspace and verifier', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
+  it.each([
+    ['bare exit', 'process.exit(0)'],
+    [
+      'fake completion line',
+      'console.log(JSON.stringify({ token: "guessed", assertions: 2 })); process.exit(0)',
+    ],
+    ['throw at import', 'throw new Error("import failed")'],
+    [
+      'caught assertion error',
+      'process.on("uncaughtException", () => process.exit(0)); export function sumAll() { return 0 }',
+    ],
+    [
+      'override exit',
+      'process.exit = () => {}; process.exit(0); export function sumAll(items) { return items.reduce((a, b) => a + b, 0) }',
+    ],
+    [
+      'exit before last assertion',
+      'export function sumAll(items) { if (items.length === 0) process.exit(0); return 6 }',
+    ],
+  ])('rejects %s from the solution', async (_label, content) => {
+    const task = EVAL_TASKS.find((candidate) => candidate.id === 'accept-off-by-one')!
+    const verdict = await verdictOf(withFixes(task, [{ path: 'total.js', content }]))
+    expect(verdict.passed).toBe(false)
+  })
+
+  it('kills a solution that hangs and handles the ordinary termination signal', async () => {
+    const task = probeTask("await load('a.js')\nassert.equal(1, 1)", [
+      {
+        path: 'a.js',
+        content: "process.on('SIGTERM', () => {}); while (true) {}",
+      },
+    ])
+    const verdict = await verdictOf(task, SHORT_TIMEOUT_MS)
+    expect(verdict.passed).toBe(false)
+  })
+
+  it('rejects a caught assertion failure and a wrong completion count', async () => {
+    const caught = await verdictOf(probeTask('try { assert.equal(1, 2) } catch {}'))
+    const wrongCount = await verdictOf({ ...probeTask('assert.equal(1, 1)'), assertions: 2 })
+    expect(caught.passed).toBe(false)
+    expect(wrongCount.passed).toBe(false)
+  })
+
   it('writes the fixture files and nothing else, and lists them', async () => {
     const task = probeTask('', [
       { path: 'package.json', content: '{}\n' },
@@ -127,8 +196,12 @@ describe('eval workspace and verifier', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, 
   })
 
   it('starts the verifier with none of the run’s environment', async () => {
-    vi.stubEnv('MUSE_EVAL_PROBE', 'inherited')
-    vi.stubEnv('META_API_KEY', 'not-a-real-eval-credential')
+    // The verifier must not inherit these, so they are set on the real
+    // environment for the run and restored afterwards.
+    const savedProbe = process.env['MUSE_EVAL_PROBE']
+    const savedCredential = process.env['META_API_KEY']
+    process.env['MUSE_EVAL_PROBE'] = 'inherited'
+    process.env['META_API_KEY'] = 'not-a-real-eval-credential'
     try {
       // CoreFoundation generates this even with env:{} and no parent value.
       const posixAllowed = process.platform === 'darwin' ? ['__CF_USER_TEXT_ENCODING'] : []
@@ -146,7 +219,10 @@ describe('eval workspace and verifier', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, 
       )
       expect(verdict).toEqual({ passed: true, detail: '' })
     } finally {
-      vi.unstubAllEnvs()
+      if (savedProbe === undefined) delete process.env['MUSE_EVAL_PROBE']
+      else process.env['MUSE_EVAL_PROBE'] = savedProbe
+      if (savedCredential === undefined) delete process.env['META_API_KEY']
+      else process.env['META_API_KEY'] = savedCredential
     }
   })
 

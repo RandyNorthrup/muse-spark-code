@@ -20,7 +20,11 @@ import {
   readOllamaLines,
   thinkForEffort,
 } from '../../src/core/backends/modelapi/codecs/ollama'
-import { isFunctionCallItem, isReasoningItem } from '../../src/core/backends/modelapi/schemas'
+import {
+  isFunctionCallItem,
+  isReasoningItem,
+  restoredToolText,
+} from '../../src/core/backends/modelapi/schemas'
 import type {
   CreateResponseBody,
   ResponseObject,
@@ -155,7 +159,11 @@ function toolLoop(): CreateResponseBody {
         name: 'read_file',
         arguments: '{"path":"notes.md"}',
       },
-      { type: 'function_call_output', call_id: 'session-turn-1:call:0', output: 'hello' },
+      {
+        type: 'function_call_output',
+        call_id: 'session-turn-1:call:0',
+        output: restoredToolText('hello'),
+      },
     ],
   }
 }
@@ -233,7 +241,7 @@ describe('encodeOllamaRequest', () => {
         {
           type: 'function_call_output',
           call_id: 'session-turn-1:call:0',
-          output: 'Packed: two lines. Recall with recall_output(output-1).',
+          output: restoredToolText('Packed: two lines. Recall with recall_output(output-1).'),
         },
       ],
     })
@@ -269,7 +277,7 @@ describe('encodeOllamaRequest', () => {
         .map((call) => ({
           type: 'function_call_output' as const,
           call_id: call.call_id,
-          output: 'synthetic result',
+          output: restoredToolText('synthetic result'),
         })),
     ]
     const firstBytes = encodeOllamaRequest({ ...firstTurn(), input: oldInput }, encodeOptions).body
@@ -381,11 +389,12 @@ describe('encodeOllamaRequest', () => {
     ).toThrow(UI_TEXT.ollamaToolImageUnsupported)
   })
   it('maps effort and omits hosted search', () => {
+    // `max` is a documented think level (ollama api.md, read 2026-10-12).
     expect(
       ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'unknown'].map((effort) =>
         thinkForEffort(effort),
       ),
-    ).toEqual([false, 'low', 'low', 'medium', 'high', 'high', 'high', true])
+    ).toEqual([false, 'low', 'low', 'medium', 'high', 'high', 'max', true])
     expect(
       encodeOllamaRequest(
         {
@@ -410,7 +419,7 @@ describe('M101 lane P1 history hardening (BYO items 1, 13)', () => {
           name: 'read_file',
           arguments: '{"path":"notes.md"}',
         },
-        { type: 'function_call_output', call_id: 'c1', output: '' },
+        { type: 'function_call_output', call_id: 'c1', output: restoredToolText('') },
       ],
     }
     const marked = recordSchema.parse(JSON.parse(encodeOllamaRequest(body, encodeOptions).body))

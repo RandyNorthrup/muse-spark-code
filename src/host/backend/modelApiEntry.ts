@@ -157,7 +157,7 @@ function autoCompactionAdmission(
             },
       allowsPaidUse: host.allowsPaidUse,
       isOn: () => host.isPaidFeatureOn('autoCompaction') && host.autoCompaction?.() !== false,
-      isTrusted: host.isWorkspaceTrusted,
+      isTrusted: config.autoCompactionTrusted ?? host.isWorkspaceTrusted,
       isEvaluated: () => host.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED,
       paidUseFence: (sessionId) =>
         config.paidUseFence?.('autoCompaction', sessionId) ?? (() => false),

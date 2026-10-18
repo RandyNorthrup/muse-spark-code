@@ -1,0 +1,86 @@
+{
+  "vendor": "anthropic-sonnet",
+  "model": "claude-sonnet-5-5",
+  "variant": "2-wrap-up-tools-empty-list",
+  "url": "https://api.anthropic.com/v1/messages",
+  "requestBody": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 120,
+    "tools": [],
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "toolu_01WikVSFL26DkKoLkHUuv4Xe",
+            "name": "read_file",
+            "input": {
+              "path": "a.txt"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01WikVSFL26DkKoLkHUuv4Xe",
+            "content": "hello from a.txt"
+          },
+          {
+            "type": "text",
+            "text": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+          }
+        ]
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "model": "claude-sonnet-5-5",
+    "id": "msg_011Cfxw3u9V4RQWQ3tAoM8oP",
+    "type": "message",
+    "role": "assistant",
+    "content": [
+      {
+        "type": "thinking",
+        "thinking": "",
+        "signature": "CAQSwAYKEAgSGAI4AUIIdGhpbmtpbmcSDMWAgUdf1s8bh3JU+hoMjPGKgLeli75Msv3sIjDoEr+xeUjNs7S/j5ZLiomWZQY8eMIco2j+/8975DSk+hM7tW/ii9dpf1RUbQutd80q3QWJHXX708y8fXS19AR4QeGsgvU1BW/B1rrY2oMKPUzflGM4o2hQgS8eo0A7h2tINCZQ88amZwd7wIBBT0OnB+uhEbGjdUVYgwgsPVUvxzfIkPPGcP5j0M+aHPaUoKws/Ke74/mb5BuYILwr9LWxLpos+9WHnuSmpqV6WouHR2yCsysJ28GLs8O/JZNzO6tT8NC5IV6/1yIuBn6dhwBcr8HsAi3vYXIyhJChcr4bz06tGnU7ZqFDOYP+quWQpW37iHE48eEjtGUMep6VF3agXJK2BbDj1nnCKeIH1rSKSCer/C69lUH4+umaqn5MrdxvMCc5aoSj7Z+5Y+lkyg8tf/Ct+U6+kLyi+6cv/ggnQMT1cYnt8YOI0Sb0KOC9zXH0t+bJ97tsqWMnY2V9XR2d46RA7pkRuZLg+aUtqs/zlXcXCvmTe0RE1OOCh0uJzL9NK0/dHjeUiJ8zVAj0NyFCrd/IydMCZSi5rQGv3BTlUIokh+PcZizz3sZiMQo+54bHRlWnTpwe/Xzkt0Do3HdqLmsdbBZ3KRwU3k1FWkwoGL5FtZlPIGG5oDNiyoXVvaFZHACOpfkdziBSWyhDqT7CS9WjcB7eZ4DuK9Zu2NtuER4Z/fAV2IR8x8Wa6rFl65nkFbzT4K7i6YFx7lnUq++FrOBaBWsljNFpc8tSK+aIyR9u6VI/ffSpJ033mGhU3xEvwZEihiMWaowHdB8XFRVT+KaZByVz9CcLn8cEhi+gFUXCWL/vazn0gAH4OSAAPKiL1H6JOMCXkS8AwSPRdev1g/Lg3W2KLaF+RUbo5HjHT964zlrvZ6G/7B0W7Hz0+x5iR+7EQGbqAIeQ0c8/ZJHofboj99B/L0Z72g//RjnT0CRBwGiZPq0Qt65CAer9mXjtncDFTdkg55XJAsMZPVkXaugRuaYgNLadxmC5VxD8CKTtUDZTxeAYv1LaTtyIxxgc7KwpjaR36H44XgRSJLmPGAE="
+      },
+      {
+        "type": "thinking",
+        "thinking": "",
+        "signature": "CAQSggYKEQgSGAI4AUIJbmFycmF0aW9uEgw20ZVVOfg8obMf7AUaDKVNe4mxUyLTR+cOcSIwyitIDBkkbZgvqHlqt5ZzaxuTsQklWJwoepbXdzEskdFIjHOu01Sadko2whNUyyJaKp4FcnH4MQofFwWeJDzyEfduAglPAZsGlDgYMWnfuBW/CTbmXSEMSs0X4cpsuO2tI/ufYwtIHaGQDl/Iq+vFEDv/0N2Fn3Gh+r9rFq/3RhvQpnx1k/xjVocAJLAZqkfoKHCduw/tBF7NDg9iJAQE/Xxi7dENp2nRRiZ9JJOX/0EeclSELkdRWZJU2Mypln6nkvcQ1KG6NEwdyetBQrrmC/DE9VT8ekfVhNTToDa6rMY3D2vf5zKWpYByLEO7G0/8L4OwCe4rQYyc7i60tWF1PPJpjyMitiP2LkeRvIiy2hkgV9/QzKAsjkMsN4V3gToONF1aZXYtnIblM5zC8V0peIrhEh+nJaUCwmrSnmw6IuM9ZHfh9YObzizlipWKfVbYQcDAjf2HuAR2yf1WhxR6AiKzQRptG0Wd/wucP2myMJ05L9USDi4N5/V7trzdeiB9IBuEPz95qXMiFz4Isn86qR9qs7hVEwCB4cGvVwQ+ePNvBlQJjYyM04pjW4xUHlbCCPLlss81GXnPwDn8JvXFxc9mwKv9bqTj97BeCvhmo7hjwg/BkhHpQBqpLKtRHuzuwMLRWRZeqnMNLqUNHLDpbpjNCvJBZuavZm/iybOHCR7jRo1D+bcEL0ifHykm39Fa50MVRExYVAptk6qfmj9ufnY7pRDGlS08hGXhTvfrOtKikVT0IS7ggtMau0fP4XGAauG/X3gf6GJJn1ZlEaF/Er/v+LpjM4FmdzFyv3AxXSfCgmRgylp0b83EXHz0nz8IBRsVenosV68IQ1KeqbmEmTtg3JwZVwcclKB03rLFPR27XkwBgvdUJiBWY8l6gVDwRSIoA3ruTExAJ+U7zQ0fk+JnyKKTbTQrzy3sBUk8VgCquUUxRazI8NW6Zd7arvh4cRgB"
+      }
+    ],
+    "container": null,
+    "stop_reason": "max_tokens",
+    "stop_sequence": null,
+    "stop_details": null,
+    "usage": {
+      "input_tokens": 133,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation": {
+        "ephemeral_5m_input_tokens": 0,
+        "ephemeral_1h_input_tokens": 0
+      },
+      "output_tokens": 120,
+      "output_tokens_details": {
+        "thinking_tokens": 120
+      },
+      "service_tier": "standard",
+      "inference_geo": "global"
+    },
+    "diagnostics": null
+  }
+}
