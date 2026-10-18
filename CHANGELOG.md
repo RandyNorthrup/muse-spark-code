@@ -7,6 +7,33 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-17
+
+### Highlights
+
+- **Provider refusals read as the provider's refusal.** A wrong key reads as
+  a rejected key and an unknown model as no such model at every recorded
+  provider; a quota or spend-cap refusal is never retried while a bare rate
+  limit still is; a session-budget stop ends the turn with its own sentence
+  instead of "Models & Agents is not available in this build"; and
+  `providers add` and `providers test` name a failed connection's network
+  codes and say whether the request arrived is unknown.
+- **The conversation keeps the model you chose.** After a restart the next
+  message goes out on the model shown, the panel shows the model each
+  request really used, and a message that would run on another model is not
+  sent.
+- **The chat no longer takes the keyboard from a file you just opened.**
+  A panel that finishes loading never pulls the focus in, and a question
+  that arrives while you are elsewhere waits with its badge.
+- **Muse Voice stays silent with its reason past an unrouted proxy.** On
+  VS Code 1.101 to 1.111 with `http.proxy` set, the microphone stays
+  unavailable with the reason instead of recording audio that cannot be
+  sent.
+- **The Linux sandbox says why it cannot start.** While sandboxed on Linux,
+  each host start probes whether the bubblewrap sandbox can create a user
+  namespace here and says so once on every surface, naming the two ways
+  out, without ever switching the sandbox off on its own.
+
 ### Fixed
 
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
