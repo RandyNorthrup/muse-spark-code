@@ -62,8 +62,7 @@ const SETTING_PREFIX = `${SETTINGS_SECTION}.`
 
 /**
  * Whether a Try it names a command the extension registers or a setting it
- * declares (the manifest test keeps both lists equal to package.json's).
- * Anything else is never rendered and never run.
+ * declares. Anything else is never rendered and never run.
  */
 export function isAllowedTry(entry: TryIt): boolean {
   return entry.kind === 'command'

@@ -52,12 +52,6 @@ const SHELL_ITEM = {
   args: '{"command":"Start-Sleep -Seconds 40; Write-Output done-m46","description":"Run delayed output command"}',
 }
 
-/** The model's foreground shell call, running. */
-export const SHELL_CALL_STARTED = {
-  sessionId: SESSION,
-  item: { ...SHELL_ITEM, revision: 1, status: 'inProgress' },
-}
-
 /** `task/background` on it: this update arrived before the command's ack. */
 export const SHELL_CALL_BACKGROUNDED = {
   sessionId: SESSION,
@@ -65,21 +59,6 @@ export const SHELL_CALL_BACKGROUNDED = {
     ...SHELL_ITEM,
     revision: 2,
     status: 'inProgress',
-    background: true,
-    backgroundInitiator: 'user',
-  },
-}
-
-/** `task/stop` on it: cancelled, its result the background envelope. */
-export const SHELL_CALL_STOPPED = {
-  sessionId: SESSION,
-  item: {
-    ...SHELL_ITEM,
-    revision: 3,
-    status: 'cancelled',
-    failureReason: 'cancelled by runtime client',
-    visibleOutput:
-      '{\n  "chunk_id": "exec-1-1",\n  "command": "Start-Sleep -Seconds 40; Write-Output done-m46",\n  "execution_state": "background_running",\n  "session_id": 1,\n  "work_id": "work.v1.managed_bash.sha256.c2adc75ef58ea2095e0abb7cc858d4044e86476e164cf60e45e0f9d0108b0e4f",\n  "output": "",\n  "truncated": false\n}',
     background: true,
     backgroundInitiator: 'user',
   },
