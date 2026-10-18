@@ -6,6 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
+import { createRequire } from 'node:module'
 import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
 
 // A staged package carries no node_modules, so the OS keyring binding is
@@ -16,6 +17,13 @@ const children = new Set<ChildProcess>()
 beforeAll(async () => {
   if (process.platform === 'win32') return
   fixture.root = await mkdtemp(path.join(tmpdir(), 'vs-nokeyring-'))
+  // The test proves nothing if the binding resolves from an ancestor
+  // install: fail fast instead of passing against the real keyring.
+  expect(() =>
+    createRequire(path.join(fixture.root, 'dist', 'vaultBrokerNoKeyring.js')).resolve(
+      '@napi-rs/keyring',
+    ),
+  ).toThrow()
   // The socket base must verify owner-only and stay within the bind limit,
   // so it lives in the lane's short runtime directory (XDG_RUNTIME_DIR),
   // never under the fixture root: the fixture must stand clear of every
