@@ -37058,6 +37058,19 @@ remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
+**MSM104C red gates (2026-10-17, lane MSM104C, branch `ms/msm104c`).**
+Three gates are red on the MSM104 final tree, each measured on the
+untouched base too, so none is weakened to get green and none belongs to
+this lane to fix. `check:plan` exits 1: PLAN.md (3598843 bytes) is past
+85% of the plan reader's bound, and the base content alone (3596185
+bytes) already exits 1; the fix is `npm run plan:archive`, a shared-file
+operation left to the lead. `duplication` exits 1: 4 clones in Tab and
+test-helper files no MSM104 commit touches, identical on the base
+worktree; owned by those lanes. `security:sast` exits 2: the semgrep
+binary never starts in the macmini sandbox (`ca-certs: empty trust
+anchors`), twice with the same signature; hosted CI owns the real run.
+See `docs/certification/msm104.md` §7 for the full exit-code table.
+
 ## 8. Escape hatches register
 
 | M104L location                        | Escape hatch                               | Reason                                                                                                                                                                                                            | Date       |
