@@ -98,32 +98,45 @@ export class QuestionRegistry {
     await this.publish()
   }
 
+  /** A failed question restores the publishable state above, timers stopped. */
+  private restoreRolledBack(rollback: {
+    entries: [string, OpenQuestion][]
+    requests: [string, QuestionRequest & { cardId: string }][]
+    replying: [string, OpenQuestion][]
+    endedTurns: string[]
+  }): void {
+    this.entries.clear()
+    this.requests.clear()
+    this.replying.clear()
+    this.endedTurns.clear()
+    for (const turn of rollback.endedTurns) this.endedTurns.add(turn)
+    for (const [id, entry] of rollback.entries) this.entries.set(id, entry)
+    for (const [id, request] of rollback.requests) this.requests.set(id, request)
+    for (const [id, entry] of rollback.replying) this.replying.set(id, entry)
+    for (const id of this.timers.keys()) this.stopTimer(id)
+    for (const entry of this.entries.values())
+      if (entry.deadlineAt !== undefined && entry.deadlineAt > this.deps.now()) this.armTimer(entry)
+  }
+
   private run<T>(work: () => Promise<T> | T): Promise<T> {
     const previous = this.tail
     const result = (async () => {
       await previous
       await this.loading
       if (this.isDisposed) throw new Error(UI_TEXT.questionAnswerFailed)
-      const entries = structuredClone([...this.entries])
-      const requests = structuredClone([...this.requests])
-      const replying = structuredClone([...this.replying])
-      const endedTurns = [...this.endedTurns]
+      const rollback = {
+        entries: structuredClone([...this.entries]),
+        requests: structuredClone([...this.requests]),
+        replying: structuredClone([...this.replying]),
+        endedTurns: [...this.endedTurns],
+      }
       const publication = this.publication
       try {
         return await work()
       } catch (error: unknown) {
-        this.entries.clear()
-        this.requests.clear()
-        this.replying.clear()
-        this.endedTurns.clear()
-        for (const turn of endedTurns) this.endedTurns.add(turn)
-        for (const [id, entry] of entries) this.entries.set(id, entry)
-        for (const [id, request] of requests) this.requests.set(id, request)
-        for (const [id, entry] of replying) this.replying.set(id, entry)
-        for (const id of this.timers.keys()) this.stopTimer(id)
-        for (const entry of this.entries.values())
-          if (entry.deadlineAt !== undefined && entry.deadlineAt > this.deps.now())
-            this.armTimer(entry)
+        // The publishable state above is restored first; the caller still
+        // receives the failure, and later operations still run in order.
+        this.restoreRolledBack(rollback)
         if (this.publication !== publication) {
           await this.deps.store.save(this.sessionId, this.snapshot(false).questions)
           this.deps.changed(this.snapshot())

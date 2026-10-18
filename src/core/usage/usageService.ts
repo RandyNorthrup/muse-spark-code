@@ -125,6 +125,7 @@ async function readResources(deps: UsageServiceDeps): Promise<ResourceHistory | 
   try {
     return await deps.readResources()
   } catch {
+    // The page renders without resources rather than failing or inventing them.
     return null
   }
 }

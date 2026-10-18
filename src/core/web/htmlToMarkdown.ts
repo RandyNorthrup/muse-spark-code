@@ -384,7 +384,10 @@ class MarkdownWriter {
     let url: URL
     try {
       url = new URL(href.trim(), this.base)
-    } catch {
+    } catch (error) {
+      // Only an unresolvable reference reads absent: the constructor
+      // raises TypeError for exactly that, so anything else keeps its kind.
+      if (!(error instanceof TypeError)) throw error
       return undefined
     }
     if (!schemes.has(url.protocol)) {
@@ -826,7 +829,10 @@ function baseOf(document: ParentNode, pageUrl: URL): URL {
     try {
       const base = new URL(href, pageUrl)
       return REFUSED_BASE_SCHEMES.has(base.protocol) ? pageUrl : base
-    } catch {
+    } catch (error) {
+      // Only an unparsable base keeps the page's URL: the constructor
+      // raises TypeError for exactly that, so anything else keeps its kind.
+      if (!(error instanceof TypeError)) throw error
       return pageUrl
     }
   }

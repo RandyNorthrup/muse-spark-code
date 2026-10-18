@@ -305,7 +305,10 @@ export function parseJournalText(text: string): ParsedJournal {
     let candidate: unknown
     try {
       candidate = JSON.parse(line) as unknown
-    } catch {
+    } catch (error) {
+      // Only a malformed journal line is skipped and counted: anything
+      // else keeps its kind past the journal.
+      if (!(error instanceof SyntaxError)) throw error
       skipped += 1
       continue
     }
@@ -404,7 +407,10 @@ export function parseMarkerText(name: string, text: string): FlightMarker | unde
   let candidate: unknown
   try {
     candidate = JSON.parse(text) as unknown
-  } catch {
+  } catch (error) {
+    // Only malformed marker text reads absent: anything else keeps its
+    // kind past the marker.
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
   const parsed = flightMarkerSchema.safeParse(candidate)
