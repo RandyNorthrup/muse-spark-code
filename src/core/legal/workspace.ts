@@ -24,6 +24,7 @@ import {
   LEGAL_SCAN_TIMEOUT_MS,
 } from '../../shared/constants'
 import { sameFile } from '../fs/fileIdentity'
+import { isCodedError } from '../context/contextFiles'
 import {
   assertWorkspaceRelative,
   compareLegalText,
@@ -123,7 +124,18 @@ export function createLegalSnapshot(
         else incompleteChecks.push(fill(UI_TEXT.legalScanner.m143, { v0: local }))
       } catch (error) {
         if (signal?.aborted === true) throw error
-        incompleteChecks.push(fill(UI_TEXT.legalScanner.m144, { v0: local }))
+        // A refused path is an incomplete entry; the enumeration moves on.
+        if (error instanceof LegalScanError) {
+          incompleteChecks.push(fill(UI_TEXT.legalScanner.m144, { v0: local }))
+          continue
+        }
+        // A shaped store failure is an incomplete entry; anything else keeps
+        // its kind past the enumeration.
+        if (isCodedError(error)) {
+          incompleteChecks.push(fill(UI_TEXT.legalScanner.m144, { v0: local }))
+          continue
+        }
+        throw error
       }
     }
   }
@@ -181,9 +193,18 @@ export function createLegalSnapshot(
         if (hash !== undefined) hashes.set(local, hash)
         cache.set(local, text)
         return text
-      } catch {
+      } catch (error) {
         checkCancellation()
-        return undefined
+        // Undecodable bytes read absent.
+        if (error instanceof TypeError) {
+          return undefined
+        }
+        // A shaped store failure reads absent; anything else keeps its kind
+        // past the read.
+        if (isCodedError(error)) {
+          return undefined
+        }
+        throw error
       } finally {
         if (fd !== undefined) closeSync(fd)
       }
