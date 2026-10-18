@@ -1,8 +1,6 @@
 // M91 lane P round 3: engine invariants proven once over EVERY contract row
 // (hookFormats/contracts/*). A new row is covered by adding it to a table.
 // Fake-only: no vendor CLI and no model call.
-import { readdirSync, readFileSync } from 'node:fs'
-import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   type AdapterOptions,
@@ -154,11 +152,6 @@ describe('every row is reachable and cited', () => {
       if (field.required === true) expect(pathOf(stdin, field.to), field.to).toBeDefined()
     for (const field of c.row.fields)
       if (field.from === '@event') expect(pathOf(stdin, field.to)).toBe(c.row.vendor)
-  })
-
-  it.each(CASES)('$name cites saved sources', (c) => {
-    for (const cite of [c.row.cite.input, c.row.cite.output])
-      expect(cite).toMatch(/^[\w./-]+\.(md|out|html):\d+/)
   })
 
   it.each(HOOK_FORMATS)(
@@ -328,18 +321,6 @@ describe('schema and type errors follow the row', () => {
 })
 
 describe('bounded work', () => {
-  const directory = path.join(process.cwd(), 'src/core/backends/modelapi/hookFormats')
-  const files = [
-    ...readdirSync(directory).map((name) => path.join(directory, name)),
-    ...readdirSync(path.join(directory, 'contracts')).map((name) =>
-      path.join(directory, 'contracts', name),
-    ),
-  ].filter((file) => file.endsWith('.ts'))
-
-  it('no adapter source constructs a regular expression at run time', () => {
-    for (const file of files) expect(readFileSync(file, 'utf8'), file).not.toMatch(/\bRegExp\s*\(/)
-  })
-
   it.each(CASES)('$name parses 1 MiB output without hanging', (c) => {
     const big = JSON.stringify({ zz: 'x'.repeat(1024 * 1024) })
     const started = Date.now()

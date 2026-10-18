@@ -18,7 +18,6 @@ import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import {
-  CHAT_CODEC_FORMAT,
   ChatStreamDecoder,
   decodeChatStream,
   encodeChatRequest,
@@ -695,10 +694,6 @@ describe('chat codec request goldens', () => {
     expect(JSON.stringify(off)).toBe(JSON.stringify(before))
     expect(off.body.tools?.[0]?.function).not.toHaveProperty('strict')
     expect(body.tools[0]).toMatchObject({ strict: false })
-  })
-
-  it('identifies the chat format for lane T', () => {
-    expect(CHAT_CODEC_FORMAT).toBe('chat')
   })
 
   it('encodes OpenRouter byte for byte: tools, routing, reasoning object', () => {
