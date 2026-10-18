@@ -93,6 +93,12 @@ happened, not what was planned; superseded entries are kept.
   activation (its own `dist/museCode.js`), so opening a window no longer
   carries the backend, its notification mapping or the Muse Code SDK;
   the backend behaves as before once started.
+- Contributor-tier models can be named on the Muse Code backend even though
+  the CLI's 1.4.10 catalogue omits them (four models, even in contributor
+  mode), which refused `--model muse-spark-1.3-contributor` as unknown
+  despite the person's opt-in. With `--allow-contributor-models` a
+  contributor-tier id is now attempted and the CLI's answer stands; anything
+  else is still refused before anything is sent.
 
 ### Added
 

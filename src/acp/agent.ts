@@ -170,7 +170,11 @@ export interface AcpBackend {
 export interface AcpAgentOptions {
   /** Bypass permissions is offered (`--allow-dangerously-skip-permissions`). */
   readonly canBypass: boolean
-  /** Contributor-tier models are listed (`--allow-contributor-models`). */
+  /**
+   * Contributor-tier models are listed, and a named contributor-tier id is
+   * attempted even when the CLI's catalogue omits it
+   * (`--allow-contributor-models`).
+   */
   readonly allowsContributorModels: boolean
   readonly initialMode: PermissionMode
   readonly questionsDeferAfterSeconds?: number
@@ -1939,7 +1943,15 @@ class AcpSession {
       return
     }
     if (configId === ACP_CONFIG_IDS.model) {
-      if (this.models.every((model) => model.modelId !== value)) {
+      // The CLI's catalogue omits contributor-tier models (1.4.10 lists
+      // four even in contributor mode): with the person's opt-in, attempt a
+      // contributor-tier id anyway and let the CLI's answer stand, instead
+      // of refusing our own limit. Anything else is still refused here,
+      // before anything is sent.
+      const isUnknownModel =
+        this.models.every((model) => model.modelId !== value) &&
+        !(this.deps.options.allowsContributorModels && isContributorModel(value))
+      if (isUnknownModel) {
         throw RequestError.invalidParams(undefined, value)
       }
       this.ensureHeld()

@@ -29,6 +29,7 @@ import {
   ACP_COMPACT_COMMAND,
   ACCOUNT_DEFAULT_ID,
   ACP_CONFIG_IDS,
+  CONTRIBUTOR_MODEL_SUFFIX,
   EXEC_EXIT,
   EXEC_ENDPOINTS,
   EXEC_PROMPT_MAX_BYTES,
@@ -909,11 +910,19 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             )
             model = typeof modelConfig?.currentValue === 'string' ? modelConfig.currentValue : null
             if (options.model !== undefined) {
+              // The CLI's catalogue omits contributor-tier models (1.4.10
+              // lists four even in contributor mode): with the person's
+              // opt-in, attempt a contributor-tier id anyway and let the
+              // CLI's answer stand, instead of refusing our own limit.
+              // Anything else is still refused here, before anything is sent.
+              const isUnlistedContributor =
+                options.allowsContributorModels && options.model.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
               if (
                 modelConfig?.type !== 'select' ||
-                modelConfig.options.every(
-                  (entry) => !('value' in entry && entry.value === options.model),
-                )
+                (!isUnlistedContributor &&
+                  modelConfig.options.every(
+                    (entry) => !('value' in entry && entry.value === options.model),
+                  ))
               ) {
                 setup.isUsageError = true
                 error = UI_TEXT.execUnknownModel
