@@ -16,6 +16,7 @@ import {
 import { buildWebviewHtml, createNonce } from '../html'
 import type { WebviewHostContext } from '../views/webviewSetup'
 import { parseReportRequest } from './reportRequest'
+import { reportDocumentHtml } from './reportDocumentHtml'
 import { relativeTime } from '../../shared/sessions'
 import { scrubFields } from '../../core/reporting/render/redaction'
 
@@ -121,12 +122,10 @@ export class ReportPanel implements vscode.Disposable {
   private display(document: ReportDocument): void {
     const engine = this.deps.engine()
     const verified = engine.verify(document)
-    // The srcDoc inherits the shell's CSP. Only R's trusted style gets its nonce;
-    // the empty iframe sandbox and the shell's policy remain in force.
-    const html = engine.render
-      .html(verified, this.deps.context.l10n.locale, this.deps.theme())
-      .replace("style-src 'unsafe-inline'", () => `style-src 'nonce-${this.nonce}'`)
-      .replace('<style>', () => `<style nonce="${this.nonce}">`)
+    const html = reportDocumentHtml(
+      engine.render.html(verified, this.deps.context.l10n.locale, this.deps.theme()),
+      this.nonce,
+    )
     this.document = verified
     this.post({
       header: verified.header,
