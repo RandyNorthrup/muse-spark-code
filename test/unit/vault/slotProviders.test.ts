@@ -156,6 +156,43 @@ describe('platform slot providers', () => {
     }
   })
 
+  it('Linux offers its hardware slot exactly where the machine seals', async () => {
+    const { vaultId, slotId } = ids()
+    const capabilities = await linuxTpm2Capabilities()
+    const slot = await new LinuxVaultSlots({ platform: 'linux' }).hardwareIfAvailable(
+      vaultId,
+      slotId,
+    )
+    if (capabilities.canSeal) {
+      expect(slot?.tier).toBe('hardware')
+      expect(slot).toBeInstanceOf(LinuxTpm2Slot)
+    } else expect(slot).toBeNull()
+  })
+
+  it('macOS offers its hardware slot exactly where the helper reports it', async () => {
+    const { vaultId, slotId } = ids()
+    // The helper is absent, so the probe fails and no slot is offered.
+    // (Off-OS construction refuses before any probe; covered separately.)
+    expect(
+      await new MacVaultSlots(macTransport(), { platform: 'darwin' }).hardwareIfAvailable(
+        vaultId,
+        slotId,
+      ),
+    ).toBeNull()
+  })
+
+  it('Windows offers its hardware slot exactly where the helper reports it', async () => {
+    const { vaultId, slotId } = ids()
+    // The helper is absent, so the probe fails and no slot is offered.
+    // (Off-OS construction refuses before any probe; covered separately.)
+    expect(
+      await new WindowsVaultSlots(windowsHelper(), { platform: 'win32' }).hardwareIfAvailable(
+        vaultId,
+        slotId,
+      ),
+    ).toBeNull()
+  })
+
   it('the TPM2 slot rejects records that are not its own sealed object', async () => {
     const { vaultId, slotId } = ids()
     const slot = new LinuxVaultSlots({ platform: 'linux' }).hardware(vaultId, slotId)
