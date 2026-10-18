@@ -10,8 +10,9 @@
 # timeout and leaves no token in the git config; none pushes.
 # Capacity (D122, CISHARDS2): like hosts.yml, the whole workflow moves — a
 # routed same-repository pull request run skips every job here, and the
-# capacity repository's `ci/pr-<number>` push run runs every job there. Any
-# other event runs everything here, as now.
+# capacity repository's `ci/pr-<number>` push run runs every job there. The
+# `relay` job below waits for that run and takes its result, so a failure
+# there fails this run too. Any other event runs everything here, as now.
 name: Forks
 
 on:
@@ -45,7 +46,8 @@ concurrency:
 
 jobs:
   # Where this run's jobs belong (D122, CISHARDS2): the same split as
-  # hosts.yml's `route`. A push outside `ci/pr-*` is `all`, not an error.
+  # hosts.yml's `route`, fast tier included. A push outside `ci/pr-*` is
+  # `all`, not an error.
   route:
     name: route
     if: ${{ github.event_name != 'push' || github.repository == 'scnetsolutions/muse-spark-code-ci' }}
@@ -60,6 +62,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
           ORG_CI: ${{ vars.ORG_CI }}
+          FAST: ${{ github.event_name == 'pull_request' && vars.CI_MERGE_QUEUE == 'on' }}
           # GitHub passes no Actions secret to a fork's or Dependabot's run,
           # so this is false there whatever ORG_CI says.
           HAS_KEY: ${{ secrets.ORG_CI_APP_PRIVATE_KEY != '' }}
@@ -79,6 +82,9 @@ jobs:
           elif [ "$ORG_CI" != on ]; then
             part=all
             why="ORG_CI is not on"
+          elif [ "$FAST" = true ]; then
+            part=all
+            why="the fast tier runs Ubuntu only and pushes no capacity branch, so every job stays here"
           elif [ "$SAME_REPO" != true ] || [ "$HAS_KEY" != true ]; then
             part=all
             why="no capacity app key reaches this run: a fork, Dependabot, or ORG_CI_APP_PRIVATE_KEY unset"
@@ -219,3 +225,70 @@ jobs:
           # Positron's latest release is read from the GitHub API.
           GH_TOKEN: ${{ github.token }}
         run: xvfb-run -a sh test/hosts/run-fork.sh "${{ matrix.fork }}" forks-vsix/*.vsix "$RUNNER_TEMP/fork"
+
+  # D122, CISHARDS2: in a `home` run every job above is skipped here and runs
+  # in the capacity repository, so this job waits for that repository's run
+  # of this same workflow on the pushed merge commit and takes its result: a
+  # failure or cancellation there fails this run. It polls the public runs on
+  # this commit, at most ten minutes to appear; when none appears, the
+  # capacity push matched none of this workflow's paths, so no run was
+  # started, and the job succeeds with a warning instead of failing a pull
+  # request whose latest push touched none of these paths. build.yml's `org`
+  # job already fails closed when the push itself is missing. 120 bounds the
+  # queue plus the offloaded suite (each job carries its own 10–25 minute
+  # bound), under the platform's 6-hour ceiling.
+  relay:
+    name: capacity Forks result
+    needs: route
+    if: ${{ !cancelled() && needs.route.outputs.part == 'home' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CAPACITY: scnetsolutions/muse-spark-code-ci
+      WORKFLOW: .github/workflows/forks.yml
+    steps:
+      - name: wait for the capacity run and take its result
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          query="repos/$CAPACITY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=100"
+          select='[.workflow_runs[] | select(.path == env.WORKFLOW)][0] // empty | "\(.id) \(.status) \(.conclusion) \(.html_url)"'
+          errors="$RUNNER_TEMP/capacity-read.err"
+          appear_by=$((SECONDS + 600))
+          id=''
+          while :; do
+            if found=$(gh api "$query" --jq "$select" 2> "$errors"); then
+              if [ -n "$found" ]; then
+                read -r id status conclusion url <<< "$found"
+                [ "$status" = completed ] && break
+                echo "$url: $status"
+              fi
+            else
+              echo "::warning::reading $CAPACITY's runs failed: $(cat "$errors")"
+            fi
+            if [ -z "$id" ] && [ "$SECONDS" -ge "$appear_by" ]; then
+              echo "::warning::no $WORKFLOW run on $GITHUB_SHA appeared in $CAPACITY: the capacity push matched none of its paths, so nothing runs there"
+              {
+                echo "### Capacity Forks: no run"
+                echo
+                echo "No $WORKFLOW run on this commit in $CAPACITY: the push"
+                echo "matched none of its paths. Nothing offloaded, nothing to relay."
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 60
+          done
+          {
+            echo "### Capacity Forks: $conclusion"
+            echo
+            echo "[$CAPACITY run $id]($url)"
+            echo
+            echo '| job | result |'
+            echo '| --- | --- |'
+            gh api "repos/$CAPACITY/actions/runs/$id/jobs?filter=latest&per_page=100" \
+              --jq '.jobs[] | "| [\(.name)](\(.html_url)) | \(.conclusion) |"' 2> "$errors" ||
+              echo "| the job list could not be read: $(cat "$errors") | |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "$url concluded $conclusion"
+          test "$conclusion" = success
