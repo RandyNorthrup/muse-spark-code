@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { ContextIo } from '../../src/core/context/contextFiles'
-import { isCodedError } from '../../src/core/context/contextFiles'
+import { isCodedError } from '../../src/core/workspaceRoot'
 import { loadCatalogFiles } from '../../src/core/context/catalogFiles'
 
 const roots: string[] = []

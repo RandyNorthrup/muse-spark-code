@@ -1,26 +1,18 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { afterAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { PromptLibrary } from '../../src/core/prompts/promptLibrary'
 import { PromptStore } from '../../src/core/prompts/promptStore'
 import { savedPromptFixture } from './helpers/sharingFixtures'
+import { fileRoots } from './helpers/tempDirs'
 
-const roots: string[] = []
-afterAll(async () => {
-  for (const root of roots) await rm(root, { recursive: true, force: true })
-})
-
-async function freshRoot(): Promise<string> {
-  const root = await mkdtemp(path.join(tmpdir(), 'muse-prompt-damage-'))
-  roots.push(root)
-  return root
-}
+const { fresh: freshRoot } = fileRoots()
+const freshPromptRoot = (): Promise<string> => freshRoot('muse-prompt-damage-')
 
 describe('prompt store damage', () => {
   it('reads a scope blocked by a file as damaged, carrying the failure', async () => {
-    const data = await freshRoot()
+    const data = await freshPromptRoot()
     // A file where the prompts directory belongs: the scope cannot open.
     await writeFile(path.join(data, 'prompts'), 'in the way', 'utf8')
     const store = new PromptStore(data)
@@ -36,8 +28,8 @@ describe('prompt store damage', () => {
   })
 
   it('marks only the damaged scope, and the healthy scope still loads', async () => {
-    const data = await freshRoot()
-    const workspace = await freshRoot()
+    const data = await freshPromptRoot()
+    const workspace = await freshPromptRoot()
     await writeFile(path.join(data, 'prompts'), 'in the way', 'utf8')
     const store = new PromptStore(data, workspace)
     let nextId = 0
@@ -60,7 +52,7 @@ describe('prompt store damage', () => {
   })
 
   it('reads a held lock as busy, carrying the take failure', async () => {
-    const data = await freshRoot()
+    const data = await freshPromptRoot()
     const store = new PromptStore(data)
     await store.write({ ...savedPromptFixture, id: 'first' })
     // Another window's lock, left on disk: the take fails with EEXIST.

@@ -33,7 +33,7 @@ describe('legal workspace snapshot unreadable entries', () => {
     const root = plant(undefined)
     const snapshot = createLegalSnapshot(root)
     expect(snapshot.readFile('note.txt')).toBe('hello')
-    expect(snapshot.readFileHash('note.txt')).toMatch(/^[0-9a-f]+$/)
+    expect(snapshot.readFileHash?.('note.txt')).toMatch(/^[0-9a-f]+$/)
     expect(snapshot.incompleteChecks.some((entry) => entry.includes('locked'))).toBe(true)
     expect(
       snapshot.incompleteChecks

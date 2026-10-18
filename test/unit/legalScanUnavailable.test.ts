@@ -7,13 +7,14 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { isLegalScanUnavailable } from '../../src/acp/agent'
 import { UI_TEXT } from '../../src/shared/constants'
 import { legalScanLoader } from '../../src/host/ide/legalScanBundle'
+import type { LegalScanBundle } from '../../src/shared/legalScanEntry'
 
 const roots: string[] = []
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
-function missingBundleLoad(): () => never {
+function missingBundleLoad(): () => LegalScanBundle {
   const root = mkdtempSync(path.join(tmpdir(), 'muse-legal-scan-'))
   roots.push(root)
   const lines: string[] = []
@@ -34,14 +35,15 @@ function missingBundleLoad(): () => never {
       },
     },
   })
-  return () => load()
+  return load
 }
 
 describe('legal scanner missing refusal', () => {
   it('names the real loader refusal', () => {
+    const load = missingBundleLoad()
     let failure: unknown
     try {
-      missingBundleLoad()()
+      load()
     } catch (error: unknown) {
       failure = error
     }
