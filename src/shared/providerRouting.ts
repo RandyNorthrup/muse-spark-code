@@ -85,8 +85,10 @@ export function providerOutputMinimum(
     return new URL(address).origin === new URL(MODEL_API_BASE_URL).origin
       ? Math.max(minimum, MODEL_API_MIN_OUTPUT_TOKENS)
       : minimum
-  } catch {
+  } catch (error) {
     // Endpoint validation reports malformed addresses; no minimum is inferred.
-    return minimum
+    // Anything else keeps its kind.
+    if (error instanceof TypeError) return minimum
+    throw error
   }
 }
