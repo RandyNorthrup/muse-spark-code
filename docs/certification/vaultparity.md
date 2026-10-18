@@ -36,8 +36,10 @@ brokers credentials on Windows, macOS and Linux the same way.
   real probe (no platform prompter on Linux; the passphrase prompt owns
   presence) (`6ff6bca9`, `linuxTpm2Slot.ts`, `linuxVaultSlots.ts`).
 - Linux presence check — now: `PosixVaultSlots.presence()` always returns
-  false. After: presence reflects the TPM2 capability (PIN/lockout) where
-  present instead of a constant.
+  false. After: presence stays refused after a real TPM2 capability probe
+  (no platform prompter on Linux; the person's presence mechanism is the
+  vault passphrase, prompted per use by the host, D89 table)
+  (`6ff6bca9`, `linuxVaultSlots.ts`).
 - Keyring-absent broker — found mid-lane: the staged `.vsix` carries no
   `node_modules`, so `import('@napi-rs/keyring')` fails and the broker
   refused startup on every platform. After: the bindings degrade to a

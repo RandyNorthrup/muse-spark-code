@@ -1,4 +1,4 @@
-import { open } from 'node:fs/promises'
+import { access, open } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import * as z from 'zod/mini'
 import {
@@ -38,9 +38,16 @@ async function defaultRun(
 ): Promise<Uint8Array> {
   const owned = Buffer.alloc(input.length)
   owned.set(input)
+  // The governed environment is credential-free and carries no PATH, so a
+  // bare tool name cannot resolve there: name the absolute tool or refuse.
+  const tool = file === 'systemd-creds' ? await resolveSystemdCreds() : file
+  if (tool === null) {
+    owned.fill(0)
+    throw new VaultStoreUnavailableError()
+  }
   let launched: Awaited<ReturnType<typeof spawnResourceProcess>>
   try {
-    launched = await spawnResourceProcess('contained', file, args, { env: {} })
+    launched = await spawnResourceProcess('contained', tool, args, { env: {} })
   } catch {
     owned.fill(0)
     throw new VaultStoreUnavailableError()
@@ -102,6 +109,33 @@ async function defaultRun(
       fail(new VaultStoreUnavailableError())
     }
   })
+}
+
+/**
+ * Where the machine seals: systemd-creds 256+ binds TPM2 with `-T`. The
+ * governed spawn carries no PATH (credential-free on purpose), so the tool
+ * is named by absolute path: `/usr/bin` on usr-merged systems, `/bin`
+ * where it is not. The first executable candidate wins and is memoised;
+ * where neither exists the slot is unavailable, never a PATH search.
+ */
+const SYSTEMD_CREDS_CANDIDATES = ['/usr/bin/systemd-creds', '/bin/systemd-creds'] as const
+
+const resolvedSystemdCreds: { current?: string | null } = {}
+
+/** Absolute tool path, or null where no candidate is executable. */
+export async function resolveSystemdCreds(): Promise<string | null> {
+  if (resolvedSystemdCreds.current !== undefined) return resolvedSystemdCreds.current
+  for (const candidate of SYSTEMD_CREDS_CANDIDATES) {
+    try {
+      await access(candidate, constants.X_OK)
+      resolvedSystemdCreds.current = candidate
+      return candidate
+    } catch {
+      /* This candidate is absent or closed to the user; try the next. */
+    }
+  }
+  resolvedSystemdCreds.current = null
+  return null
 }
 
 /** Where the machine seals: systemd-creds 256+ binds TPM2 with `-T`. */
