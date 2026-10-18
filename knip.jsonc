@@ -515,7 +515,8 @@
   // System programs the tests start by name: mkfifo (POSIX coreutils) makes
   // the M80 stuck-output pipe and the pipe M86 refuses to open
   // (test/unit/writeRecorder.test.ts); both cases skip Windows.
-  "ignoreBinaries": ["gitleaks", "mkfifo"],
+  // System tools the suites drive for real (no npm package provides them).
+  "ignoreBinaries": ["gitleaks", "mkfifo", "ssh-keygen"],
 
   "ignoreExportsUsedInFile": true,
 
