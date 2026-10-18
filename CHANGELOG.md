@@ -16,6 +16,11 @@ happened, not what was planned; superseded entries are kept.
   sweep, and repeated failures are reported once in Account & usage as a
   count. A cancelled re-upload keeps the shared entry, and an explicit
   delete names the file with a fixed reason.
+- MSM105 merge: codec-refusal and production-composition lines plus the
+  current main are integrated with the overhaul deletions honored. The
+  delete-failure notice reads the ledger failure by name across bundles,
+  the ACP package ships the sessions bundle its backend requires, and the
+  duplication gate is back to zero clones.
 
 
 ### Pending
