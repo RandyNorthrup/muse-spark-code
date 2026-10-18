@@ -118,7 +118,7 @@ describe('question store loads', () => {
 
   it('round-trips a saved queue', async () => {
     const store = createQuestionQueueStore(folder())
-    const messages = [{ sessionId: 's1', userInputId: 'u1', text: 'hello' }]
+    const messages = [{ sessionId: 's1', userInputId: 'u1', text: 'hello', displayText: 'hello' }]
     await store.save('s1', messages)
     await expect(store.load('s1')).resolves.toEqual(messages)
   })
@@ -184,8 +184,10 @@ describe('sharing registered secrets', () => {
       credentialValues: ['cred-a'],
       readModelApiKey: () => readFile(path.join(folder(), 'nowhere', 'key'), 'utf8'),
     })
+    const { registeredSecrets } = ports
+    if (registeredSecrets === undefined) throw new Error('expected secrets on this backend')
     try {
-      await ports.registeredSecrets()
+      await registeredSecrets()
       expect.unreachable('a failed key read must refuse the share')
     } catch (error) {
       if (!(error instanceof Error)) throw error
@@ -214,7 +216,9 @@ describe('sharing registered secrets', () => {
         },
       },
     )
-    await expect(ports.registeredSecrets()).resolves.toEqual(['cred-a'])
+    const { registeredSecrets } = ports
+    if (registeredSecrets === undefined) throw new Error('expected secrets on this backend')
+    await expect(registeredSecrets()).resolves.toEqual(['cred-a'])
   })
 })
 
