@@ -2,6 +2,8 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
 import type { ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import {
+  EXEC_MAX_BUDGET_USD,
+  EXEC_MAX_REQUESTS,
   EXEC_MIN_OUTPUT_TOKENS,
   EXEC_USD_DECIMALS,
   EXEC_USD_UNITS,
@@ -152,12 +154,20 @@ function charge(price: TierPrice, input: number, output: number, cached = 0): bi
 
 export function createRunLedger(input: {
   capUsd: UsdAmount
-  maxRequests: number
+  /** No request cap when the person set none. */
+  maxRequests: number | undefined
   outputCap?: () => number
 }): RunLedger {
   const outputCap = input.outputCap ?? (() => resolveExecOutputCap())
   const cap = units(input.capUsd)
-  if (cap <= ZERO || !Number.isSafeInteger(input.maxRequests) || input.maxRequests < 1)
+  if (
+    cap <= ZERO ||
+    cap > units(Usd.from(EXEC_MAX_BUDGET_USD).toAmount()) ||
+    (input.maxRequests !== undefined &&
+      (!Number.isSafeInteger(input.maxRequests) ||
+        input.maxRequests < 1 ||
+        input.maxRequests > EXEC_MAX_REQUESTS))
+  )
     throw new Error(UI_TEXT.execNumberInvalid)
   let requests = 0
   let settled = ZERO
@@ -187,7 +197,7 @@ export function createRunLedger(input: {
   const admit = (amount: bigint): { refused: Refusal } | undefined => {
     if (isClosed) return refuse('closed')
     if (active !== undefined) throw new Error(UI_TEXT.execRequestShape)
-    if (requests >= input.maxRequests) return refuse('requests')
+    if (input.maxRequests !== undefined && requests >= input.maxRequests) return refuse('requests')
     if (settled + uncertain + amount > cap) return refuse('budget')
     reserve = amount
     requests += 1

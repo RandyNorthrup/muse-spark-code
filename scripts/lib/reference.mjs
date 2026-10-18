@@ -847,10 +847,8 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     questions: { actions: ['submit', 'explain', 'cancel'] },
     'mcp-elicitation': { actions: ['accept', 'decline', 'cancel'], answers: 'requestingServer' },
     effort: { enum: source.EFFORT_LEVELS },
-    // D121: the person's --max-requests has no ceiling of ours (the removed
-    // EXEC_MAX_REQUESTS = 500 was invented; no provider documents it).
+    // No default: without `--max-requests` a run has no request limit.
     'max-requests': {
-      default: source.EXEC_DEFAULT_MAX_REQUESTS,
       minimum: 1,
     },
     timeout: {
@@ -1026,10 +1024,15 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       ...options,
       'prompt',
     ])
-  // D121: 501 parses (the removed 500 ceiling was invented).
-  for (const value of [source.EXEC_DEFAULT_MAX_REQUESTS, 501])
-    if (exec(['--max-requests', String(value)]).options?.maxRequests !== value)
-      errors.push('CLI request limit mismatch')
+  if (exec([]).options?.maxRequests !== undefined)
+    errors.push('CLI request limit mismatch: --max-requests unset must leave no limit')
+  if (
+    exec(['--max-requests', String(source.EXEC_MAX_REQUESTS)]).options?.maxRequests !==
+    source.EXEC_MAX_REQUESTS
+  )
+    errors.push('CLI request limit mismatch')
+  if (exec(['--max-requests', String(source.EXEC_MAX_REQUESTS + 1)]).command !== 'invalid')
+    errors.push('CLI request bound mismatch')
   for (const value of [source.EXEC_MIN_TIMEOUT_SECONDS, source.EXEC_MAX_TIMEOUT_SECONDS])
     if (
       exec(['--timeout', String(value)]).options?.timeoutMs !==

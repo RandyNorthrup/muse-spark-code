@@ -481,7 +481,7 @@ request settles at its original quote. Accounting
 keeps exact decimal amounts, and paid displays round upward so a positive
 charge is never shown as free. Hosted-search product wiring remains subject
 to the verified billing-bound availability described above.
-Tab's $1/day cap is separate and is never charged into this extras ledger.
+Tab's own daily budget, when the person sets one, is separate and is never charged into this extras ledger.
 The optional per-conversation cap still applies independently. ACP and
 headless execution retain explicit flags and their hard budget policy.
 Muse Code's subscription and its existing explicit key-paid opt-ins are unchanged.
@@ -589,10 +589,12 @@ consent; a changed model or price asks again for its own key. A request whose
 model, consent or hook configuration changes before it goes out sends
 nothing; the last check runs immediately before the request is sent.
 
-The hard daily budget defaults to **$1.00 across every window on this
-machine**, reserved before each request. The status shows today's spend;
-Account & usage shows requests, tokens, cached tokens, today's cross-window
-total, this window's reported cost and your configured budget. Requests
+There is **no daily budget unless you set one**: nothing is reserved or
+locked. When you set `museSpark.tabDailyBudgetUsd`, that budget applies
+across every window on this machine and is reserved before each request.
+The status shows today's spend; Account & usage shows requests, tokens,
+cached tokens, today's cross-window total, this window's reported cost and
+your configured budget (or that no budget is set). Requests
 without reported usage retain their worst-case reservation. The next local
 day, or a larger budget, permits requests again. At the probe's token counts,
 Standard's projected average was $0.00242 per fast request and $0.00706 per
@@ -611,7 +613,7 @@ All Tab settings are machine-scoped:
 | ----------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `museSpark.modelApiTab`       | `true`                                       | Offer Tab, with consent required before the first charge.                                                                                                          |
 | `museSpark.tabModel`          | `muse-spark-1.3`                             | Standard: Meta does not train on your code. The cheaper `muse-spark-1.3-contributor` tier trains on the code sent.                                                 |
-| `museSpark.tabDailyBudgetUsd` | `1`                                          | Hard local-day USD limit, from $0.05 to $50.                                                                                                                       |
+| `museSpark.tabDailyBudgetUsd` | `0` (no budget)                              | Optional local-day USD cap: `0` is no budget, a set budget starts at $0.05 with no maximum.                                                                        |
 | `museSpark.tabLanguages`      | All except plaintext, Markdown and SCM input | Per-language switches over a `"*"` default, like Copilot's enable setting.                                                                                         |
 | `museSpark.tabMultiline`      | `auto`                                       | Automatic requests add context on a blank line or block opener; `onInvoke` and `never` keep automatic requests in fast mode. Explicit Invoke uses multi-line mode. |
 | `museSpark.tabTrigger`        | `onInvoke`                                   | Alt+\ or **Inline Suggest: Trigger**; `automatic` enables typing triggers.                                                                                         |
@@ -3874,7 +3876,7 @@ sent, as Meta bills them.
 <table>
   <tr>
     <td align="center" width="50%"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/paid.png" alt="A paid Web search row with its query, the reply with its Sources list, and the composer's badge: Paid: Web search, Images"><br><sub>A search marked paid, the reply's sources, and the badge</sub></td>
-    <td align="center" width="50%"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/paid-always.png" alt="Account and usage on the Model API: paid feature tallies, Web search allowed always in this workspace, Images, Tab completions with a $1 daily budget, Model hooks and Judge"><br><sub>Paid feature tallies, workspace consent and the Tab daily budget</sub></td>
+    <td align="center" width="50%"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/paid-always.png" alt="Account and usage on the Model API: paid feature tallies, Web search allowed always in this workspace, Images, Tab completions with their optional daily budget, Model hooks and Judge"><br><sub>Paid feature tallies, workspace consent and the Tab daily budget</sub></td>
   </tr>
 </table>
 

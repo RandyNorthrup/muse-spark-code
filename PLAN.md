@@ -39153,6 +39153,13 @@ fetch, MCP servers, Muse Code commands, shell commands, billed image
 requests and the legal scan wait until done or stopped instead of stopping
 at a number of ours) merged 2026-10-18 with its Fixed entries under
 `[0.19.0]`; the release now holds eight pull requests.
+PR #239 (`fix/nolimits-5`: no default Tab daily budget and no default CLI
+request limit — a set Tab budget validates from `$0.05` with no $50
+ceiling, and an unset `--max-requests` leaves no request limit while a set
+value stays within 1–500 and `--max-budget-usd` within $20) merged
+2026-10-18 with its Changed entries under `[0.19.0]`; the release now holds
+nine pull requests. The reinstated set-value ceilings overlap D121's
+removals; PR #228 (exec-budget-ceiling, next in this lane) settles them.
 The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 

@@ -1332,7 +1332,7 @@ Tab uses the stored Model API key on either chat backend. The default trigger is
   "trigger": "onInvoke",
   "key": "SecretStorage",
   "ledger": "tabDailyBudgetUsd",
-  "budgetUsd": 1,
+  "budgetUsd": 0,
   "rates": {
     "standard": {
       "input": "1.25",
@@ -2772,7 +2772,7 @@ Type: `"string"`. Default: `"system"`. Scope: `machine`.
 ### museSpark.modelApiTab
 
 Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.
-Hard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.
+Optional daily budget in US dollars for Tab completion requests across every window on this machine (museSpark.tabDailyBudgetUsd, 0 is no budget); a set budget refuses a request whose worst case would pass it.
 Allow once / Allow always in this workspace.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
@@ -2803,16 +2803,15 @@ Type: `"string"`. Default: `"muse-spark-1.3"`. Scope: `machine`.
 
 ### museSpark.tabDailyBudgetUsd
 
-Hard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.
+Daily budget in US dollars for Tab completion requests across every window on this machine; 0 is no budget. A set budget refuses a request whose worst case would pass it. A set budget starts at $0.05, with no maximum.
 
-Type: `"number"`. Default: `1`. Scope: `machine`.
+Type: `"number"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "number",
-  "minimum": 0.05,
-  "maximum": 50,
-  "default": 1
+  "minimum": 0,
+  "default": 0
 }
 ```
 
@@ -3611,7 +3610,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max"],"purpose":"effort"}`
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
 - `exec: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
-- `exec: --max-requests <value>`: Set the maximum number of model requests. `{"type":"string","repeatable":false,"default":30,"minimum":1,"purpose":"maxRequests"}`
+- `exec: --max-requests <value>`: Set the maximum number of model requests; without it, there is no request limit. `{"type":"string","repeatable":false,"minimum":1,"purpose":"maxRequests"}`
 - `exec: --timeout <value>`: Set the run deadline in seconds. `{"type":"string","repeatable":false,"default":1800,"minimum":10,"maximum":21600,"unit":"seconds","purpose":"timeoutMs"}`
 - `exec: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"muse-binary"}`
 - `exec: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"shell-sandbox"}`

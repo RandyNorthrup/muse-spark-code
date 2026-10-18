@@ -77,21 +77,24 @@ describe('M80 args (A1–A10, F1)', () => {
       reason: UI_TEXT.execBudgetRequired,
     })
   })
-  it('D121 accepts the person’s requests and budget with no ceiling of ours', () => {
-    const parsed = parseExec(
-      { backend: 'modelApi', 'max-budget-usd': '25', 'max-requests': '501' },
-      ['hi'],
-    )
+  it('leaves no request limit without --max-requests and still bounds a set value', () => {
+    // NOLIMITS5: no default request limit; 1–500 still bounds an explicit one.
+    const parsed = parseExec({ backend: 'modelApi', 'max-budget-usd': '1' }, ['hi'])
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) throw new Error(parsed.reason)
-    expect(parsed.options.maxRequests).toBe(501)
-    expect(parsed.options.budgetUsd).toBe(Usd.from('25').toAmount())
-    // PR229FIX T3: a budget past 9007199254.740991 USD parses too — the
-    // ledger (not the parser) used to refuse it.
-    const large = parseExec({ backend: 'modelApi', 'max-budget-usd': '9007199255' }, ['hi'])
-    expect(large.ok).toBe(true)
-    if (!large.ok) throw new Error(large.reason)
-    expect(large.options.budgetUsd).toBe(Usd.from('9007199255').toAmount())
+    expect(parsed.options.maxRequests).toBeUndefined()
+    for (const value of ['0', '501', 'abc', '10x']) {
+      expect(
+        parseExec({ backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': value }, ['hi']).ok,
+      ).toBe(false)
+    }
+    const capped = parseExec(
+      { backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': '500' },
+      ['hi'],
+    )
+    expect(capped.ok).toBe(true)
+    if (!capped.ok) throw new Error(capped.reason)
+    expect(capped.options.maxRequests).toBe(500)
   })
   it.each([
     '0',
