@@ -213,6 +213,11 @@ const BUDGETS = [
   // 25 KiB (PLAN.md D6).
   // M97: local legal scanner, 128.8 KiB measured; plus 15%, rounded to 25 KiB.
   { path: 'dist/legalScan.js', budgetKiB: 150 },
+  // The header-fix planner (the fixer, the code-aware text helpers and the
+  // patch document), loaded on the first scan with a fixable finding or the
+  // first fix request: 64.9 KiB when split out of legalScan.js. Measured
+  // size plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/legalFix.js', budgetKiB: 75 },
   { path: 'dist/codeIntel.js', budgetKiB: 100 },
   { path: 'dist/voice.js', budgetKiB: 50 },
   // The window's web fetch (M69), loaded on the first fetch: each hop's

@@ -929,9 +929,16 @@ const legalScannerFiles = existsSync('src/core/legal')
 const legalScanInputs = inputsOf(
   ON_FIRST_USE.find((bundle) => bundle.output === 'dist/legalScan.js'),
 )
+// The header-fix planner loads with dist/legalFix.js instead (guarded by its
+// own DEFERRED descriptor); it must be absent here, not present.
+const legalFixInputs = inputsOf(DEFERRED.find((bundle) => bundle.output === 'dist/legalFix.js'))
 for (const file of legalScannerFiles) {
   // finding.ts exports only an erased type; the barrel can also be erased.
-  if (!legalScanInputs.has(file) && !['index.ts', 'finding.ts'].includes(path.basename(file)))
+  if (
+    !legalScanInputs.has(file) &&
+    !legalFixInputs.has(file) &&
+    !['index.ts', 'finding.ts'].includes(path.basename(file))
+  )
     problems.push(`dist/legalScan.js no longer carries ${file}`)
   for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
     if (inputsOf(bundle).has(file)) {

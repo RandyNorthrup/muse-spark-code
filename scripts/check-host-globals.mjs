@@ -72,6 +72,7 @@ const HOST_BUNDLES = [
   'dist/nativeGit.js',
   'dist/bundledSkills.js',
   'dist/legalScan.js',
+  'dist/legalFix.js',
   'dist/codeIntel.js',
   'dist/voice.js',
   'dist/media.js',

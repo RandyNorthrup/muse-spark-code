@@ -193,6 +193,11 @@ const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
 const LEGAL_SCAN_ENTRY = 'src/core/legal/entry.ts'
 const LEGAL_SCAN_OUTFILE = 'dist/legalScan.js'
+// The header-fix planner (the fixer, the code-aware text helpers and the
+// patch document), loaded on the first scan with a fixable finding or the
+// first fix request.
+const LEGAL_FIX_ENTRY = 'src/core/legal/legalFixEntry.ts'
+const LEGAL_FIX_OUTFILE = 'dist/legalFix.js'
 const REVIEW_ENTRY = 'src/host/review/reviewEntry.ts'
 const REVIEW_OUTFILE = 'dist/review.js'
 const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
@@ -649,6 +654,13 @@ const legalScanOptions = {
   ...planMarkdownOptions,
   entryPoints: [LEGAL_SCAN_ENTRY],
   outfile: LEGAL_SCAN_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const legalFixOptions = {
+  ...legalScanOptions,
+  entryPoints: [LEGAL_FIX_ENTRY],
+  outfile: LEGAL_FIX_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1379,6 +1391,7 @@ if (isWatch) {
     esbuild.context(nativeGitOptions),
     esbuild.context(bundledSkillsOptions),
     esbuild.context(legalScanOptions),
+    esbuild.context(legalFixOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
@@ -1514,6 +1527,7 @@ if (isWatch) {
     nativeGit: recorded('nativeGit', nativeGitOptions),
     bundledSkills: recorded('bundledSkills', bundledSkillsOptions),
     legalScan: recorded('legalScan', legalScanOptions),
+    legalFix: recorded('legalFix', legalFixOptions),
     codeIntel: recorded('codeIntel', codeIntelOptions),
     voice: recorded('voice', voiceOptions),
     webFetch: recorded('webFetch', webFetchOptions),
@@ -1669,6 +1683,7 @@ if (isWatch) {
   reportSize(NATIVE_GIT_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(LEGAL_SCAN_OUTFILE)
+  reportSize(LEGAL_FIX_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)

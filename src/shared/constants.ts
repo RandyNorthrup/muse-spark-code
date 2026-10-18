@@ -6225,6 +6225,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/modelApiBoundaries.js',
   'dist/providerPolicy.js',
   'dist/legalScan.js',
+  'dist/legalFix.js',
   'dist/providerCatalog.js',
   'dist/modelApiHooks.js',
   'dist/modelApiMcp.js',
