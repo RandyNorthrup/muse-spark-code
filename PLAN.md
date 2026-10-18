@@ -39300,8 +39300,11 @@ regenerated. PR #235 (`fix/accounts-error-truth`) merged: account errors name
 their real cause, its CHANGELOG entry under `[0.19.0]` Fixed; the
 revocation-refusal passthrough joins the cause-carrying store failure, and
 the duplicate inline error class goes (the leaf module already carries it).
-The `0.19.0 released (…)` line is written by the lead after the tag's
-release run.
+PR #238 (`fix/acp-error-truth`) merged: ACP failures say their real cause
+(the legal-scan load sentence only for load, `/agents retry` names the real
+refusal, a loaded playbook's command failure is not unavailability), its
+CHANGELOG entries under `[0.19.0]` Fixed. The `0.19.0 released (…)` line is
+written by the lead after the tag's release run.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
 Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from

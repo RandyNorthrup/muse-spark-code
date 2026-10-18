@@ -16,13 +16,15 @@ export function recoveryStamp(item: ItemSnapshot | undefined): string {
   })
 }
 
-/** Every current child shares a workspace or lacks a captured checkpoint. */
+/** Every current child shares a workspace or lacks a captured checkpoint. A
+ * refused retry names this agent's missing checkpoint, never the backend's:
+ * only the backend with no checkpoint of its own may say that. */
 export function recoveryRefusal(
   agent: AgentSignals,
   action: 'continue' | 'retry',
   now: number,
 ): string | undefined {
-  if (action === 'retry') return UI_TEXT.agentRetryUnavailable
+  if (action === 'retry') return UI_TEXT.agentRetryNoCheckpoint
   const outcome = endedOutcome(agent)
   return agentActivity(agent, now).activity !== 'inactive' ||
     (outcome !== 'failed' && outcome !== 'incomplete')
