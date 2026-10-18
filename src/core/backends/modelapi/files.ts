@@ -178,7 +178,9 @@ export class FilesApi {
       })
     } catch (error: unknown) {
       // A known receipt is attributable; a lost receipt is bounded by expiry.
-      if (createdId !== undefined) await this.delete(createdId)
+      // The receipt cleanup answers the operation's own signal (PR #214
+      // review): a stalled DELETE no longer outlives Stop.
+      if (createdId !== undefined) await this.delete(createdId, signal)
       throw error
     } finally {
       await iterator.return()
@@ -239,8 +241,8 @@ export class FilesApi {
   }
 
   /** Provider-neutral metadata for the shared ownership ledger and account UI. */
-  public async accountFiles() {
-    const listed = await this.list()
+  public async accountFiles(signal?: AbortSignal) {
+    const listed = await this.list(signal)
     return listed.map((file) => ({
       fileId: file.id,
       name: file.filename,
