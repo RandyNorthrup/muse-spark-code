@@ -25,20 +25,22 @@ a planted program on an absolute workspace PATH entry still resolves
 - Report-time CLI presence probe (`src/runtime/reportCommand.ts:83`):
   `resolveMuseLaunch` only, no spawn.
 
-## Not through the guarded builder (fixed this lane)
+## Now through the guarded builder (fixed this lane)
 
-- `muse login` (`src/runtime/main.ts:1347` via shared manager
-  `src/runtime/backends.ts:556` built with no workspace; spawn
-  `src/core/resources/process.ts:219` sets no cwd): raw PATH, child keeps
-  `process.cwd()`. FIX: guard with the spawn cwd, set cwd on the spawn.
-- Runtime account host (`src/runtime/backends.ts:591` passes
-  `workspaceRoot: undefined` to `connectAccountSession`; spawn
-  `src/host/auth/accountHost.ts:225`, `MuseCodeHost.ts:2774` omits cwd):
-  raw PATH. FIX: same as login.
-- Windows sandbox check/setup (`src/extension.ts:1781` `runProcess` with
-  no cwd and no env → `src/host/backend/toolIo.ts:95` uses `process.env`,
-  `:115` uses `process.cwd()`): raw env, `NoDefaultCurrentDirectoryInExePath`
-  never set. FIX: pass `backend.childEnvironment()` and the workspace cwd.
+- `muse login` (`src/runtime/main.ts:1347` via the shared manager, now
+  scoped to the launch directory; spawn names that directory as cwd):
+  guarded env + cwd. GUARDED.
+- Runtime account host (shared manager scoped to the launch directory;
+  `connectAccountSession` passes it as `workspaceRoot`, spawn sets cwd):
+  guarded env + cwd. GUARDED.
+- Windows sandbox check/setup (`src/extension.ts:1781` now passes
+  `workspaceRoot` and `backend.childEnvironment()`): guarded env + cwd.
+  GUARDED.
+- `muse` lookup (`MuseCodeBackendManager.resolveLaunch` passes the
+  workspace): planted `muse` on an absolute workspace PATH entry never
+  resolves. GUARDED.
+- `git` lookup (both runners pass each run's working directory):
+  planted `git` there never resolves. GUARDED.
 
 ## Resolution holes (fixed this lane)
 
