@@ -548,6 +548,9 @@ async function setupHooks(
   const io = createToolIo({
     platform: process.platform,
     listFiles: (signal) => walkFiles(workspaceRoot, 1, log, signal),
+    // Setup hooks run in this workspace: their `sh` lookup excludes it, so
+    // a planted `sh` there never becomes the interpreter.
+    workspaceRoot,
     systemRoot,
     searchWorkerPath: path.join(distDir, SEARCH_WORKER_FILE),
     env: () => process.env,

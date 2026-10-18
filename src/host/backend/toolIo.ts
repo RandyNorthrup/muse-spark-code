@@ -484,7 +484,13 @@ export function shellArguments(
   return isFenced ? ['--noprofile', '--norc', '-c', command] : ['-lc', command]
 }
 
-function hookProgramFor(
+/**
+ * The interpreter for hooks, by absolute path: an absolute `SHELL` the
+ * person configured, unless it names a file inside the workspace (a
+ * planting there is never the interpreter); otherwise `sh` resolved
+ * outside the workspace. Undefined when there is none.
+ */
+export function hookProgramFor(
   deps: ToolIoDeps,
   configuredShell: string | undefined,
   workspace?: {
@@ -505,7 +511,17 @@ function hookProgramFor(
         })
       : path.win32.join(deps.systemRoot, 'System32', 'cmd.exe')
   }
-  return configuredShell !== undefined &&
+  // An absolute `SHELL` inside the workspace (for example from
+  // `terminal.integrated.env.*` with `${workspaceFolder}` expanded) is
+  // never the hook interpreter: a planted shell there must not run. It is
+  // ignored and `sh` is resolved outside the workspace instead.
+  const isShellInWorkspace =
+    configuredShell !== undefined &&
+    workspace !== undefined &&
+    path.posix.isAbsolute(configuredShell) &&
+    isWorkspacePath(deps.platform, workspace, configuredShell)
+  return !isShellInWorkspace &&
+    configuredShell !== undefined &&
     path.posix.isAbsolute(configuredShell) &&
     existsSync(configuredShell)
     ? configuredShell

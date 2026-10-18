@@ -22,7 +22,9 @@ import {
 } from '../../../shared/constants'
 import type { PlaybookLease } from '../../../shared/playbook'
 import { withoutCredentials } from '../../credentialEnvironment'
+import { processGitPath } from '../../../host/git'
 import { runTreeSync } from '../../../host/processTree'
+import { workspaceChildEnvironment } from '../../../core/executables'
 import type { PlaybookHookAdmission } from './outcomes'
 
 export interface ModuleState {
@@ -189,12 +191,16 @@ export function renamedFiles(
   admission: PlaybookHookAdmission,
 ): { from: string; to: string }[] {
   if (!existsSync(nodePath.join(workspace, '.git'))) return []
+  // git resolved outside the workspace (links followed): a `git` planted in
+  // the repository never runs (D24).
+  const git = processGitPath(workspace)
+  if (git === undefined) throw new Error(UI_TEXT.playbookUnavailable)
   const renames: { from: string; to: string }[] = []
   for (const args of [['diff', '--cached'], ['diff'], ['log', '--all', '--format=']]) {
     const effect = {
       kind: 'git' as const,
       cwd: workspace,
-      command: 'git',
+      command: git,
       args: [
         ...args,
         '--no-ext-diff',
@@ -209,7 +215,12 @@ export function renamedFiles(
       throw new Error(UI_TEXT.playbookUnavailable)
     const options: SpawnSyncOptions = {
       cwd: workspace,
-      env: withoutCredentials(process.env),
+      // The guarded child PATH for the workspace, so git's own bare-name
+      // helpers never run a planting.
+      env: workspaceChildEnvironment(process.platform, withoutCredentials(process.env), {
+        workspaceRoot: workspace,
+        realpath: realpathSync,
+      }),
       encoding: 'buffer',
       timeout: GIT_TIMEOUT_MS,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
