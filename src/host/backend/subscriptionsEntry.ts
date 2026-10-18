@@ -22,5 +22,6 @@ export {
   runtimeChatGptCommandDeps,
   runChatGptProviderCommand,
   chatGptAuthenticationMethods,
+  chatGptFailureOf,
   runtimeSubscriptionClient,
 } from '../../runtime/chatGptProviderCommands'
