@@ -15610,10 +15610,13 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 **Status 2026-10-18: built.** Status evidence: `docs/certification/bcstart.md`.
 
 - **Rule.** The browser check's contract read (M81) waits for the browser to
-  start its network service, asking again every 50 ms for at most 5 s,
-  before it reads the service's id; the contract is unchanged (an
+  start its network service, asking again every 50 ms, before it reads the
+  service's id, and reads the startup targets after that wait. The wait has
+  no cap of its own (AGENTS.md, "Limits"): the check's lifetime (its life,
+  the person's Stop, admission) ends it, so a service that never starts ends
+  the check `timedOut` or `cancelled`. The contract is unchanged: an
   out-of-process service, its id the restart tripwire, read before any
-  request) and a service still missing at the bound ends `unrecognized`.
+  request, and exactly one `about:blank` page.
 - **Why.** The service starts after the browser already answers on the
   pipe; one early read ended Windows checks `unrecognized` at random (8 of
   200 checks measured; hosted run 39083561745).
