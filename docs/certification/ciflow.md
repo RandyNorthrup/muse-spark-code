@@ -940,3 +940,43 @@ must show: the capacity run's three Windows `static gates` jobs on
 `macos-latest`, all green; the home run's `org` relay step green
 (capacity-scoped download); and each auxiliary `relay` job green with its
 capacity run linked in the summary.
+
+### Relay without a new App permission (PR218FIX2, 2026-10-18, this rig)
+
+Hosted run 39086224761 (job 117553280594, 2026-10-18 01:30Z) failed at the
+step PR218FIX added: `##[error]The permissions requested are not granted to
+this installation.` Minting a fresh capacity-scoped App token with
+`permission-actions: read` needs the Actions permission on the
+`msc-ci-capacity` installation, which it does not have — and adding one is
+not wanted. The org run itself (scnetsolutions/muse-spark-code-ci run 39086262404) succeeded.
+
+**Chosen token: this run's own `GITHUB_TOKEN`** (`GH_TOKEN: ${{
+github.token }}` on the `bring the macOS helpers back` step); the
+`relay-token` mint step is deleted, so the workflow requests no permission
+the app lacks. Source and why, measured rather than assumed:
+
+- The failed run is itself the measurement for reachability: its `wait`
+  step already reads the capacity repository's runs and jobs endpoints with
+  `GH_TOKEN: ${{ github.token }}` and got past the wait — only the
+  relay-token mint failed. This run's token reaches the public capacity
+  repository.
+- The REST reference for Actions artifacts
+  ([download a repository artifact](https://docs.github.com/en/rest/actions/artifacts?apiVersion=2022-11-28#download-a-repository-artifact),
+  read 2026-10-18) says anyone with read access may download, and only a
+  private repository needs a token with repo scope. The capacity repository
+  is public, so any authenticated token — this run's included — has read
+  access. `gh run download` lists and fetches through exactly these
+  endpoints.
+- It is the narrowest of the tokens the workflow already has. The other
+  candidate, the push token (`steps.token.outputs.token`), carries
+  contents write plus workflows write and expires one hour after mint
+  while the wait may run up to six hours — broader, and possibly dead on
+  arrival. This run's token holds only contents read here, lives as long
+  as the job, and adds no App permission.
+
+**The next hosted run must show:** the home run's `org` job green end to
+end with the org run linked in its summary, the two darwin artifacts
+re-uploaded under their existing names, and `packages` consuming them
+unchanged. No local simulation counts as proof: this rig has no credential
+for the capacity repository, so the download transport itself is proved
+only by that hosted relay step going green.

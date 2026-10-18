@@ -306,10 +306,10 @@ jobs:
   # revoked when the job ends. The wait reads the public run with this job's
   # own read-only token. Last, the macOS helper artifacts the `packages` job
   # needs come back through this job the same way the result did: it reads
-  # them from that run over the API with a fresh capacity token (actions
-  # read on that repository alone — this run's own token is scoped to this
-  # repository, and the push token may have expired during the wait) and
-  # uploads them under their existing names. This job mints the App token but never installs or runs the pull
+  # them from that run over the API with this job's own token (the capacity
+  # repository is public, so any authenticated token has read access — no
+  # App permission needed) and uploads them under their existing names.
+  # This job mints the App token but never installs or runs the pull
   # request's code: its steps are the token action, a clone, `git push`,
   # `gh` API reads and artifact relay — no `npm ci`, no script, no binary
   # the pull request carries.
@@ -414,24 +414,14 @@ jobs:
       # build in the capacity run. They come back the way the result did:
       # this job reads them from that run over the API and uploads them
       # under their existing names. Reading files is all it does with them:
-      # nothing here executes them. The download needs a token the capacity
-      # repository accepts: this run's own token is scoped to this
-      # repository, and the push token above may have expired during the
-      # wait, so a fresh one is minted here (actions read on that one
-      # repository, one hour).
-      - name: a token that reads the capacity run's artifacts
-        id: relay-token
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-        with:
-          client-id: ${{ vars.ORG_CI_APP_CLIENT_ID }}
-          private-key: ${{ secrets.org-ci-app-private-key }}
-          owner: scnetsolutions
-          repositories: muse-spark-code-ci
-          permission-actions: read
+      # nothing here executes them. The download uses this job's own token:
+      # the capacity repository is public, so artifact reads need no scope
+      # beyond any authenticated token; the push token above is not reused
+      # because it may have expired during the wait.
       - name: bring the macOS helpers back for the packages job
         shell: bash
         env:
-          GH_TOKEN: ${{ steps.relay-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ steps.wait.outputs.run }}
         run: |
           test -n "$RUN_ID"
