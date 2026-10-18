@@ -2,7 +2,7 @@
 // spend total it saw, and both increments survive instead of the larger
 // snapshot dropping the other's. Each store instance is one window: its own
 // base, one directory, real files, the real clock.
-import { mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -102,5 +102,93 @@ describe('one session open in two windows', () => {
     await storeIn(directory).save(session('2'))
     const kept = await window.load('s1')
     expect(kept?.budgetSpentUsd).toBe(Usd.from('7').toAmount())
+  })
+})
+
+// A file saved before D121 while a request reservation was open holds that
+// reservation in its total (the old snapshot added it). The legacy journal
+// beside the session files still names the settled charges, so the load
+// rebuilds the settled-only total from them (D121: a reservation is never
+// spend). Same directory layout the removed session journal wrote.
+const LEGACY_ACCOUNT = 'ab'.repeat(32)
+const legacySession = () => ({ ...session('10'), sessionId: 's9' })
+const writeLegacyJournal = (directory: string) => {
+  const scope = path.join(directory, 'budget-journal', LEGACY_ACCOUNT, 's9')
+  mkdirSync(path.join(scope, 'claims', 'c1'), { recursive: true })
+  writeFileSync(
+    path.join(scope, 'seed.json'),
+    JSON.stringify({
+      version: 2,
+      scopeId: '11111111-1111-1111-1111-111111111111',
+      sessionId: 's9',
+      accountId: LEGACY_ACCOUNT,
+      spentUsd: '7',
+      hasUnknownHistoricalFees: false,
+    }),
+  )
+  const claim = (settledUsd: string | undefined) =>
+    JSON.stringify({
+      version: 2,
+      scopeId: '11111111-1111-1111-1111-111111111111',
+      sessionId: 's9',
+      accountId: LEGACY_ACCOUNT,
+      claimId: '22222222-2222-2222-2222-222222222222',
+      ownerId: '33333333-3333-3333-3333-333333333333',
+      reservedUsd: '3',
+      ...(settledUsd !== undefined && { settledUsd }),
+    })
+  // A settled charge enters the rebuilt total; an open one stays out.
+  writeFileSync(path.join(scope, 'claims', 'c1', 'claim.json'), claim('1.5'))
+  mkdirSync(path.join(scope, 'claims', 'c2'), { recursive: true })
+  writeFileSync(path.join(scope, 'claims', 'c2', 'claim.json'), claim(undefined))
+  // A claim directory without its file (a dead process's, for example) is
+  // unsettled too: held, never spent.
+  mkdirSync(path.join(scope, 'claims', 'c3'), { recursive: true })
+}
+
+describe('a legacy session total with an open reservation', () => {
+  it('rebuilds the settled-only total on load', async () => {
+    const directory = path.join(root, 'legacy-load')
+    const window = storeIn(directory)
+    await window.save(legacySession())
+    writeLegacyJournal(directory)
+    // Seed 7 plus the one settled 1.5; the open 3 stays out.
+    const loaded = await window.load('s9')
+    expect(loaded?.budgetSpentUsd).toBe(Usd.from('8.5').toAmount())
+    expect(loaded?.spendSettledOnly).toBe(true)
+  })
+
+  it('lands the rebuild on save instead of merging onto the phantom', async () => {
+    const directory = path.join(root, 'legacy-save')
+    const window = storeIn(directory)
+    await window.save(legacySession())
+    writeLegacyJournal(directory)
+    const loaded = await window.load('s9')
+    if (loaded === undefined) throw new Error('the session was not saved')
+    // The window spends 0.5 more from its rebuilt 8.5: the file holds 9,
+    // not the phantom 10 it was loaded over.
+    await window.save({ ...loaded, budgetSpentUsd: Usd.from('9').toAmount() })
+    const kept = await storeIn(directory).load('s9')
+    expect(kept?.budgetSpentUsd).toBe(Usd.from('9').toAmount())
+    expect(kept?.spendSettledOnly).toBe(true)
+  })
+
+  it('keeps a session without a journal on what its file holds', async () => {
+    const directory = path.join(root, 'legacy-no-journal')
+    const window = storeIn(directory)
+    await window.save(legacySession())
+    const loaded = await window.load('s9')
+    expect(loaded?.budgetSpentUsd).toBe(Usd.from('10').toAmount())
+    expect(loaded?.spendSettledOnly).toBe(undefined)
+  })
+})
+
+describe('unknown-charge calls across a save', () => {
+  it('keeps the count the conversation row reports', async () => {
+    const directory = path.join(root, 'unknown-calls')
+    const window = storeIn(directory)
+    await window.save({ ...session('1'), sessionId: 's8', unknownChargeCalls: 3 })
+    const loaded = await window.load('s8')
+    expect(loaded?.unknownChargeCalls).toBe(3)
   })
 })
