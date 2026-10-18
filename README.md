@@ -4982,6 +4982,8 @@ shows the dialog there.
   the moment after the extension starts, before its recorder has loaded.
 - **Other editors:** `muse-spark-code-acp report` prints the same kind of
   report in a terminal ([docs/acp.md](docs/acp.md#report-a-problem-m93)).
+  On agent-driven surfaces, including the companion panel, a report request
+  opens the same dialog: the agent package ships its bundle.
 
 What the recorder keeps, where, for how long, and what each export does:
 [PRIVACY.md](docs/PRIVACY.md#reporting-a-problem).
