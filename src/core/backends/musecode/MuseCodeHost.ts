@@ -60,6 +60,7 @@ import {
   MSP_USER_SHELL_CAPABILITY,
   MUSE_APPROVAL_LEDGER_FAULT,
   MUSE_APPROVAL_REPLAY_FAULT,
+  MUSE_AUTO_REVIEW_PROFILE,
   MUSE_EVENT_LOG_FAULT,
   MUSE_EXIT_PERSISTENT_CODES,
   type SubagentAction,
@@ -1068,7 +1069,15 @@ export class MuseSession implements ScheduledAgentSession {
     if (token === undefined) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
     this.heldScheduleEvents = []
     try {
-      await this.changeApprovalMode(mspApprovalMode(run.context.mode), token, run)
+      const admittedMode = mspApprovalMode(run.context.mode)
+      await this.changeApprovalMode(admittedMode, token, run)
+      // While the unattended run is in charge the session reviews with the
+      // host default `:auto-review`: the run answers what the grant allows
+      // and refuses the rest itself, so the human reviewer must not be
+      // installed here — on a Manual conversation `:ask-me` would turn every
+      // unmatched command into a refusal instead of letting the judge allow
+      // it, as it did before profiles existed.
+      await this.setPermissionProfile(MUSE_AUTO_REVIEW_PROFILE, admittedMode)
       if (!run.isActive())
         throw expectedTurnId === undefined
           ? new Error(UI_TEXT.scheduleBusy)
@@ -1094,10 +1103,20 @@ export class MuseSession implements ScheduledAgentSession {
 
   private restoreScheduleMode(effect: SessionEffect | undefined): void {
     if (effect === undefined) return
-    this.restoringScheduleMode = this.applyModeEffect(effect)
+    this.restoringScheduleMode = this.restoreScheduleEffect(effect)
     void this.restoringScheduleMode.catch(() => {
-      this.log.warn('Scheduled mode could not be restored; new turns are refused')
+      this.log.warn('Scheduled mode or reviewer could not be restored; new turns are refused')
     })
+  }
+
+  /**
+   * Put a finished schedule's mode back, then the conversation's reviewer
+   * with it, in the same place as the mode change: a Manual conversation
+   * resumes asking the person instead of keeping the admission's judge.
+   */
+  private async restoreScheduleEffect(effect: SessionEffect): Promise<void> {
+    await this.applyModeEffect(effect)
+    await this.setPermissionProfile(mspPermissionProfile(effect.mode), effect.mode)
   }
 
   private stopScheduledRun(run: UnattendedRun): void {
@@ -1348,21 +1367,28 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Keep the session's native permission profile on the mode's reviewer
-   * (Muse Code 1.4.7, amendment 42624): a switch into an asking mode must
-   * take the human reviewer, or the judge keeps allowing; a switch back to
-   * Auto restores the AI reviewer its words describe. Modes without a
-   * reviewer leave the profile alone. Only the interactive surfaces call
-   * this (panel, ACP agent, Plan-hold restore); headless sessions never
-   * switch modes, so they keep the host default and cannot stall. A host
-   * without `session/setPermissionProfile` answers `methodNotFound` and the
-   * mode change stands without the profile; any other refusal surfaces, so
-   * a managed profile exclusion fails loudly instead of silently judging.
+   * Keep the session's native permission profile on the mode's reviewer: a
+   * switch into an asking mode must take the human reviewer, or the judge
+   * keeps allowing; a switch back to Auto restores the AI reviewer its
+   * words describe. Modes without a reviewer leave the profile alone. Only
+   * the interactive surfaces call this (panel, ACP agent, Plan-hold
+   * restore); headless sessions never switch modes, so they keep the host
+   * default and cannot stall.
    */
   private async syncPermissionProfile(mode: string): Promise<void> {
-    if (this.profileSyncUnsupported) return
-    const profileId = mspPermissionProfile(mode)
-    if (profileId === undefined) return
+    await this.setPermissionProfile(mspPermissionProfile(mode), mode)
+  }
+
+  /**
+   * Select a native permission profile on the session (Muse Code 1.4.7,
+   * amendment 42624; needs `experimentalApi`). `undefined` leaves the host
+   * default alone. A host without `session/setPermissionProfile` answers
+   * `methodNotFound` and the mode change stands without the profile; any
+   * other refusal surfaces, so a managed profile exclusion fails loudly
+   * instead of silently judging.
+   */
+  private async setPermissionProfile(profileId: string | undefined, mode: string): Promise<void> {
+    if (profileId === undefined || this.profileSyncUnsupported) return
     try {
       await this.command('session/setPermissionProfile', { profileId })
     } catch (error: unknown) {
@@ -1746,12 +1772,33 @@ export class MuseSession implements ScheduledAgentSession {
     await this.command('session/setReasoningEffort', { reasoningEffort })
   }
 
-  /** Select one of the host's preconfigured approval modes. */
+  /**
+   * Select one of the host's preconfigured approval modes and keep the
+   * session's reviewer on the mode's (see `syncPermissionProfile`). The mode
+   * changes first; when the profile step then fails with anything but
+   * `methodNotFound`, the previous mode is put back before the throw, so the
+   * callers' "the mode did not change" stays true and Manual can never be
+   * left running with the judge installed.
+   */
   public async setApprovalMode(mode: string): Promise<void> {
     const token = this.owner.token()
     await this.restoringScheduleMode
+    const previousMode = this.owner.currentMode
     await this.changeApprovalMode(mode, token)
-    await this.syncPermissionProfile(mode)
+    try {
+      await this.syncPermissionProfile(mode)
+    } catch (error: unknown) {
+      if (previousMode !== mode && previousMode !== undefined) {
+        try {
+          await this.changeApprovalMode(previousMode, token)
+        } catch (rollbackError: unknown) {
+          this.log.warn(
+            `Approval mode ${wireWordForLog(mode)} lost its permission profile (${failureForLog(error)}), and the previous mode is not restored (${failureForLog(rollbackError)})`,
+          )
+        }
+      }
+      throw error
+    }
   }
 
   /** Summarise older context; `status` is `noop` with a reason when nothing to do. */

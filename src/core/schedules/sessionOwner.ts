@@ -55,6 +55,17 @@ export class SessionOwner {
     return current
   }
 
+  /**
+   * The approval mode the host was last told to run (the constructor's, the
+   * last applied effect's, or an idle external change): `undefined` while a
+   * failed change left the session quarantined. Lets a caller put the
+   * previous mode back when a follow-up step fails, so the mode the person
+   * sees stays the mode the host runs.
+   */
+  public get currentMode(): string | undefined {
+    return this.mode
+  }
+
   public token(): SessionToken {
     return { generation: this.generation, turnId: this.fire?.turnId ?? this.currentTurnId }
   }
