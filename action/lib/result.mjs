@@ -121,14 +121,12 @@ const isCounter = (value) => Number.isSafeInteger(value) && value >= 0
 const isNullableCounter = (value) => value === null || isCounter(value)
 const isNullableText = (value) => value === null || typeof value === 'string'
 
-/** Canonical decimal USD; fixed micro-units are bigint throughout validation. */
+/** Canonical decimal USD; a person's amount is honored as given: exact bigint micro-units with no upper bound. */
 export function microUsd(value) {
   if (typeof value !== 'string' || !/^(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/.test(value)) return
   const [whole, fraction = ''] = value.split('.', 2)
   if (fraction.length > USD_DECIMALS) return
-  const units =
-    BigInt(whole) * 10n ** BigInt(USD_DECIMALS) + BigInt(fraction.padEnd(USD_DECIMALS, '0'))
-  return units <= BigInt(Number.MAX_SAFE_INTEGER) ? units : undefined
+  return BigInt(whole) * 10n ** BigInt(USD_DECIMALS) + BigInt(fraction.padEnd(USD_DECIMALS, '0'))
 }
 const isAmount = (value) => microUsd(value) !== undefined
 function isSumEqual(total, values) {
