@@ -639,6 +639,7 @@ export const EN = {
   playbookClassLabel: 'Finding Class',
   playbookOutcomeLabel: 'Redesign Outcome',
   playbookUnavailable: 'The playbook is unavailable in this session.',
+  playbookCommandFailed: 'The playbook command could not be completed.',
   playbookHelpDescription:
     'Show review strikes, design decisions, safety refusals and rule settings.',
   playbookCommandUsage: 'Use `playbook status|record|settings`.',
@@ -3311,6 +3312,9 @@ export const EN = {
   agentRecoveryConfirm: '{action}: {objective}? The current permissions and budgets apply.',
   agentRetryUnavailable:
     'Retry is unavailable: this backend provides no isolated worktree checkpoint. Shared workspace changes are kept.',
+  agentRetryNoSubagent: 'Retry is unavailable for this agent: it has no subagent to retry.',
+  agentRetryNoCheckpoint:
+    'Retry is unavailable for this agent: it has no isolated checkpoint. Shared workspace changes are kept.',
   agentContinueUnavailable: 'Continue is unavailable for this agent or its current state.',
   referenceAgentOutcomes:
     'Agents show activity and evidence-backed outcomes. Select an ended agent for its bounded receipt and attempt history. Continue keeps its session and changes after confirmation; Retry requires an isolated checkpoint. Missing evidence is shown as unverified. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.',

@@ -1266,8 +1266,9 @@ class AcpSession {
     const preparing: PreparingPrompt = { isCancelled: false, abort: stop }
     this.legalStop = stop
     this.preparing = preparing
+    let text: string
     try {
-      const text = await scan(this.cwd, stop.signal, isRegistryOn, async (hosts) => {
+      text = await scan(this.cwd, stop.signal, isRegistryOn, async (hosts) => {
         const response = permissionResponse(
           await unlessAborted(
             this.client.request('session/request_permission', {
@@ -1293,17 +1294,23 @@ class AcpSession {
           response.outcome.optionId === 'legal-registry-allow'
         )
       })
-      if (stop.signal.aborted || preparing.isCancelled || this.isDisposed) return 'cancelled'
-      this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
-      await this.outbox
-      return 'end_turn'
-    } catch {
+    } catch (error: unknown) {
       if (stop.signal.aborted) return 'cancelled'
-      throw RequestError.internalError(undefined, UI_TEXT.legalScanUnavailable)
+      // Only the scanner failing to load says it could not be loaded: the
+      // bundle loader's contract throws exactly `legalScanUnavailable` (the
+      // log has the cause). A failing scan, a refused permission prompt or a
+      // lost update carries its own cause instead.
+      if (error instanceof Error && error.message === UI_TEXT.legalScanUnavailable)
+        throw RequestError.internalError(undefined, UI_TEXT.legalScanUnavailable)
+      throw error
     } finally {
       if (this.legalStop === stop) this.legalStop = undefined
       if (this.preparing === preparing) this.preparing = undefined
     }
+    if (stop.signal.aborted || preparing.isCancelled || this.isDisposed) return 'cancelled'
+    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+    await this.outbox
+    return 'end_turn'
   }
 
   private async usageReply(
@@ -1422,15 +1429,20 @@ class AcpSession {
     if (isCancelled()) return UI_TEXT.paidDeny
     if (current === undefined || recoveryStamp(current) !== recoveryStamp(agent))
       return UI_TEXT.agentContinueUnavailable
+    // A listed entry with no subagent behind it (a background tool call, a
+    // workflow child) is not a missing backend checkpoint: it has nothing to retry.
     if (agent.subagentId === undefined)
-      return action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable
+      return action === 'retry' ? UI_TEXT.agentRetryNoSubagent : UI_TEXT.agentContinueUnavailable
     try {
       await this.session.controlSubagent(id, action === 'continue' ? 'continue' : 'retry')
     } catch (error: unknown) {
-      this.deps.log.warn(
-        `ACP session ${this.sessionId}: subagent ${action} failed: ${failureForLog(error)}`,
-      )
-      return action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable
+      if (action === 'continue') return UI_TEXT.agentContinueUnavailable
+      // Only the backend with no isolated worktree checkpoint says so (Muse
+      // Code refuses every retry). Any other backend's refusal carries its
+      // own cause: an unknown subagent, or this agent's missing checkpoint.
+      return this.host.info.kind !== 'museCode' && error instanceof Error && error.message !== ''
+        ? error.message
+        : UI_TEXT.agentRetryUnavailable
     }
     const latest = await this.host.readSession(this.sessionId)
     return agentListingText(latest.items, Date.now())
