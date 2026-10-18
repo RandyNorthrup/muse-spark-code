@@ -695,7 +695,7 @@ export interface TabServicesDeps {
   readonly ledgerDirectory: string
   /** This window's ledger file name: letters, digits, `_` and `-` only. */
   readonly windowId: string
-  /** `museSpark.tabDailyBudgetUsd`, read at each request. */
+  /** `museSpark.tabDailyBudgetUsd`, read at each request; 0 is no budget. */
   readonly budgetUsd: () => UsdAmount
   /** A request is about to be sent (PaidUsage counts it). */
   readonly onSent: (model: string) => void
@@ -809,13 +809,20 @@ export function createTabStatusItem(
     setTabOn(true)
     const spend = deps.todaySpend()
     const spendText = formatUsd(spend.totalUsd, 2)
-    const budgetText = formatUsd(deps.budgetUsd(), 2)
-    const tooltip = fill(table.tabStatusTooltip, {
-      model: deps.model(),
-      requests: spend.requests,
-      spend: spendText,
-      budget: budgetText,
-    })
+    // 0 is no budget: the tooltip says so instead of naming a $0.00 cap.
+    const hasBudget = Usd.from(deps.budgetUsd()).compare(Usd.from(0)) !== 0
+    const tooltip = hasBudget
+      ? fill(table.tabStatusTooltip, {
+          model: deps.model(),
+          requests: spend.requests,
+          spend: spendText,
+          budget: formatUsd(deps.budgetUsd(), 2),
+        })
+      : fill(table.tabStatusTooltipNoBudget, {
+          model: deps.model(),
+          requests: spend.requests,
+          spend: spendText,
+        })
     if (deps.snooze.isSnoozed(Date.now())) {
       const left = deps.snooze.minutesLeft(Date.now())
       const snoozedText =
@@ -1116,7 +1123,9 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       totalUsd: active?.spend.todayTotalUsd() ?? Usd.from(0).toAmount(),
       requests: active?.spend.todayRequests() ?? 0,
     }),
+    // 0 is no budget: nothing is ever reached, so the bar never warns.
     isBudgetReached: () =>
+      Usd.from(deps.tabSettings().tabDailyBudgetUsd).compare(Usd.from(0)) !== 0 &&
       Usd.from(active?.spend.todayTotalUsd() ?? 0).compare(
         Usd.from(deps.tabSettings().tabDailyBudgetUsd),
       ) >= 0,

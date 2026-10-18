@@ -15,7 +15,7 @@ import type { TabReportedUsage, TabReservation, TabSpendFacts, TabSpendGate } fr
 
 export interface TabSpendGateDeps {
   readonly ledger: TabLedger
-  /** `museSpark.tabDailyBudgetUsd`, read at each request. */
+  /** `museSpark.tabDailyBudgetUsd`, read at each request; 0 is no budget. */
   readonly budgetUsd: () => UsdAmount
   readonly now: () => number
   /** The status bar redraws after the total moves. */
