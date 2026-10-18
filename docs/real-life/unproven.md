@@ -2886,9 +2886,11 @@ The hand-written stand-ins the lint gate could not see. Full classification in `
 
 ### test/unit/modelApiLegalScan.test.ts (the runner-driven block; definition and unoffered-tool cases stay)
 
-- validated-JSON answers with the installed disclaimer
-- whole-workspace scans and write/exec refusal before the scan runs
-- restricted-mode and stopped-turn pre-checks
+Restored through the real scanner by RVSTANDINS: validated-JSON answers
+with the installed disclaimer, whole-workspace scans, write/exec refusal
+before the scan runs, restricted-mode and stopped-turn pre-checks. Still
+unproven:
+
 - failure passthrough and invalid-result refusal (record: `docs/certification/m97-b.md`)
 
 ### Composition note (no unit proof was ever real)
