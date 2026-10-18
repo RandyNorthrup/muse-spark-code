@@ -7,6 +7,7 @@
 // There is no fallback without it: an estimate that cannot load its bundle
 // is refused with the reason, the log has the cause, and the next estimate
 // tries again.
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { forgetFile, requireFile } from '../lazyBundle'
@@ -36,10 +37,6 @@ export interface LazyEstimatorDeps {
   readonly loadBundle?: ((file: string) => unknown) | undefined
 }
 
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
 /**
  * The estimator's run, the bundle required the first time any of it is used
  * and kept from then on. A missing or corrupt bundle throws
@@ -54,7 +51,7 @@ export function lazyEstimator(deps: LazyEstimatorDeps): EstimatorRun {
     try {
       bundle = loadBundle(bundlePath)
     } catch (error: unknown) {
-      deps.log.error(`The estimator ${bundlePath} could not be loaded: ${describe(error)}`)
+      deps.log.error(`The estimator ${bundlePath} could not be loaded: ${failureForLog(error)}`)
       throw new Error(UI_TEXT.estimateUnavailable, { cause: error })
     }
     if (!isEstimatorBundle(bundle)) {
