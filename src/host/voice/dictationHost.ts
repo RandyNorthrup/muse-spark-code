@@ -5,7 +5,7 @@
 // and the WebSocket to Meta. The drivers themselves, with the processes and
 // the socket, are dist/voice.js (PLAN.md D6), loaded on the first recording.
 
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { env, ExtensionKind, extensions } from 'vscode'
 import type { CoreLogger } from '../../core/logging'
 import type { DictationSetup } from '../../core/voice/dictation'
@@ -90,6 +90,7 @@ export function createMuseVoiceSetup(
     remoteName: remoteHostName(),
     appName: env.appName,
     pathVariable: process.env['PATH'],
+    realpath: probe.realpath ?? realpathSync,
   })
   if (!location.isAvailable) {
     deps.log.info(`Muse Voice unavailable: ${location.reason}`)
