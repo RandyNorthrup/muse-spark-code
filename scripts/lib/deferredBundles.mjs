@@ -111,6 +111,13 @@ export const MODEL_API_TOOLS_ONLY = [
 // publicAddress.ts stays in dist/modelApi.js: the pinned HTTPS transport
 // reads addressFamily for every request's SNI.
 export const MODEL_API_TOOLS_WEB = ['src/core/web/pageUrl.ts', 'src/core/web/fetchFailure.ts']
+// The verify loop's session side (M68): the loop, its ledger and the
+// diagnostics history, loaded on the first turn that verifies tool edits.
+// checkCommands.ts, codeFiles.ts and workspaceEdits.ts stay in
+// dist/modelApi.js: activation reads them too, and the synchronous tool
+// definitions need runChecksDefinition from verifyTools.ts.
+export const MODEL_API_VERIFY_ONLY = ['modelApiVerifyEntry.ts', 'verifyLedger.ts', 'verifyLoop.ts']
+export const MODEL_API_VERIFY_CORE = ['src/core/verify/diagnosticsReport.ts']
 // INT0170: M107 W2's machine resource journal is shared through its own bundle;
 // the governor (recorder) and usage service (reader) load it instead of copies.
 const RESOURCE_JOURNAL_SOURCE = 'src/runtime/resources/history.ts'
@@ -351,6 +358,14 @@ export const DEFERRED = [
     files: [
       ...MODEL_API_TOOLS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
       ...MODEL_API_TOOLS_WEB,
+    ],
+  },
+  {
+    output: 'dist/modelApiVerify.js',
+    metafile: 'dist/meta/modelApiVerify.json',
+    files: [
+      ...MODEL_API_VERIFY_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+      ...MODEL_API_VERIFY_CORE,
     ],
   },
 ]
@@ -1049,6 +1064,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/web/webFetchEntry.ts'), 'dist/webFetch.js'],
   [path.resolve('src/core/backends/modelapi/pluginHooksEntry.ts'), 'dist/pluginHooks.js'],
   [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiVerifyEntry.ts'), 'dist/modelApiVerify.js'],
 ])
 /** @type {import('esbuild').Plugin} */
 export const deferredCohort = {
@@ -1077,7 +1093,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

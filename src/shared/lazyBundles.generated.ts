@@ -365,6 +365,22 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'modelApiVerify.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/core/backends/modelapi/ModelApiHost.ts',
+        symbol: 'ModelApiSession.ensureVerify',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/core/backends/modelapi/ModelApiHost.ts',
+        symbol: 'ModelApiSession.verifyFunctions',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
     file: 'modelsPanel.js',
     side: 'vscode',
     requestedBy: [

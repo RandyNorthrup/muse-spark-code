@@ -267,7 +267,8 @@ import { isSamePath } from '../../paths'
 import { ShellEntryError } from '../../shellResult'
 import { confineWorkspacePath, isBelow } from '../../workspacePath'
 import { pathModule } from '../../workspaceRoot'
-import { type CheckScope, type RunSnapshot, VerifyLedger } from './verifyLedger'
+import type { CheckScope, RunSnapshot } from './verifyLedger'
+import type * as ModelApiVerify from './modelApiVerifyEntry'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../verify/workspaceEdits'
 import { fingerprint } from '../../verify/fingerprint'
 import type { McpTool } from '../../mcp'
@@ -573,24 +574,11 @@ import type {
   TeamStableRole,
   TeamToolRunner,
 } from '../../team/teamSeams'
-import {
-  authorizeThenGuard,
-  type CheckRun,
-  checksSection,
-  finishedCheck,
-  skippedCheck,
-  skipReason,
-  type VerifyHooks,
-  outcomeOf,
-} from './verifyLoop'
+import type { CheckRun, VerifyHooks } from './modelApiVerifyEntry'
 import { parseRunChecks, thenRunOf } from './verifyTools'
 import { checkCommandLine, checkTimeoutMs } from '../../verify/checkCommands'
 import { isCodeLoading } from '../../verify/codeFiles'
-import {
-  DiagnosticsHistory,
-  type EditedFile,
-  type PendingReport,
-} from '../../verify/diagnosticsReport'
+import type { EditedFile, PendingReport } from '../../verify/diagnosticsReport'
 
 /** Paid state and usage are injected by the host, never read from workspace settings. */
 export interface ModelApiPaidHooks {
@@ -2734,10 +2722,24 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly interruptLifetime = new AbortController()
   /** Each file as the model last read or wrote it, for `write_file`'s check (D27). */
   private readonly seenFiles = new Map<string, string>()
-  /** Each edited file's diagnostics at its last check, to say what changed (M68). */
-  private readonly diagnosticsHistory = new DiagnosticsHistory()
-  /** The verify loop's record since the user's last input (M68; `verifyLedger.ts`). */
-  private readonly ledger = new VerifyLedger()
+  /**
+   * The verify loop's session side (dist/modelApiVerify.js, D6): the loop,
+   * its ledger since the user's last input and each edited file's
+   * diagnostics at its last check (M68). The chunk loads the first time a
+   * turn verifies tool edits (runTurn, drainSteered and verifyRound ensure
+   * it) and when a session starts (so the workspace-edit recorder never
+   * records into a missing ledger). A bundle that cannot load fails the
+   * turn or session that needed it, never a silent skip and never a
+   * default; a load that failed is not kept, so the next one tries again.
+   */
+  private verifyLoad: Promise<void> | undefined
+  private verifyLoaded:
+    | {
+        readonly ledger: ModelApiVerify.VerifyLedger
+        readonly history: ModelApiVerify.DiagnosticsHistory
+      }
+    | undefined
+
   private readonly scheduledRenamePaths = new WeakMap<FunctionCallItem, readonly string[]>()
   /** Rename plans made for a call's PreToolUse hooks, which the call then writes (M67). */
   private readonly hookRenamePlans = new WeakMap<FunctionCallItem, Promise<RenamePlanResult>>()
@@ -3033,7 +3035,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.strictTools = this.deps.strictTools?.() ?? true
     this.parallelReads = this.deps.parallelReads?.() ?? true
     this.outputContinuation = this.deps.outputContinuation?.() ?? true
-    this.workspaceEdits.add(this.ledger)
+    // The verify ledger registers with the shared workspace edits on its
+    // first load (ensureVerify), never here: the chunk is not loaded yet.
     this.modelId = modelId
     this.searchMaxPerRequest = deps.webSearchMaxPerRequest?.() ?? WEB_SEARCH_MAX_PER_REQUEST
     this.sessionPermissions = new PermissionEngine(approvalMode)
@@ -3649,6 +3652,51 @@ export class ModelApiSession implements ScheduledAgentSession {
       assist.setUiText(table, locale)
     })
     return assist
+  }
+
+  /**
+   * The shared verify load: the construction below runs exactly once, so
+   * a second session turn never registers a second ledger. A load that
+   * failed is not kept, so the next one tries again.
+   */
+  private async ensureVerify(): Promise<void> {
+    const loading = (this.verifyLoad ??= (async () => {
+      const entry = await import('./modelApiVerifyEntry.js')
+      const ledger = new entry.VerifyLedger()
+      // Late joiners hear in-progress writes; nothing is judged before the
+      // first ensure, so nothing missed before it can corrupt a verdict.
+      this.workspaceEdits.add(ledger)
+      this.verifyLoaded = { ledger, history: new entry.DiagnosticsHistory() }
+    })())
+    try {
+      await loading
+    } catch (error) {
+      if (this.verifyLoad === loading) this.verifyLoad = undefined
+      throw error
+    }
+  }
+
+  /**
+   * The loaded verify state. Throws when the chunk never loaded: every
+   * entry that can reach it ensures first, so this is unreachable except
+   * on a bug. Never an undefined ledger: a check never runs on a default.
+   */
+  private verifyState(): NonNullable<ModelApiSession['verifyLoaded']> {
+    const loaded = this.verifyLoaded
+    if (loaded === undefined) throw new Error('Model API verify bundle is not loaded')
+    return loaded
+  }
+
+  /**
+   * The verify loop's functions, loaded with the session side
+   * (dist/modelApiVerify.js, D6) ensured above. Each caller binds the
+   * namespace locally so the bundle-split gate can follow every member
+   * read to the chunk's exports (the toolAssist shape). A bundle that
+   * cannot load fails the caller that needed it, never a silent skip.
+   */
+  private async verifyFunctions(): Promise<typeof ModelApiVerify> {
+    await this.ensureVerify()
+    return await import('./modelApiVerifyEntry.js')
   }
 
   /**
@@ -11076,7 +11124,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       format: async (target, text) => {
         assertCanWrite(target)
         if (
-          this.ledger.codeFile !== undefined ||
+          this.verifyState().ledger.codeFile !== undefined ||
           isCodeLoading(target.relative) ||
           isCodeLoading(target.canonical)
         ) {
@@ -11095,7 +11143,7 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /** Whether the conversation edited, since the user's message, a file that decides what `command` runs. */
   private changesWhatRunsNow(command: string): boolean {
-    return this.ledger.changesWhatRuns(command)
+    return this.verifyState().ledger.changesWhatRuns(command)
   }
 
   /**
@@ -11183,6 +11231,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     isAllowed: () => boolean,
     correctionsUsed = 0,
   ): Promise<CommandOutcome> {
+    // The loop's functions come from the lazy verify chunk (D6).
+    const verify = await this.verifyFunctions()
     if (!this.deps.isWorkspaceTrusted()) {
       return { kind: 'skipped', skip: 'restricted' }
     }
@@ -11249,7 +11299,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const policy = beforePolicy
     const journal = this.deps.verify?.checkRuns
     let commit: string | undefined
-    const refusal = await authorizeThenGuard({
+    const refusal = await verify.authorizeThenGuard({
       isRuleLapsed: () => this.changesWhatRunsNow(ruleCommand),
       authorize: () => this.authorizeCommand(itemId, authorized, signal, policy),
       guard: async () => {
@@ -11279,7 +11329,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (result.isEntryRefused === true) return { kind: 'skipped', skip: 'refused' }
     if (commit !== undefined && journal !== undefined && request.checkName !== undefined) {
       const completedAt = this.deps.now()
-      const outcome = outcomeOf(result)
+      const outcome = verify.outcomeOf(result)
       try {
         await journal.append({
           check: request.checkName,
@@ -11396,13 +11446,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     maxChars: number,
     isAllowed: () => boolean,
   ): Promise<CheckRun> {
+    // The loop's functions come from the lazy verify chunk (D6).
+    const verify = await this.verifyFunctions()
     if (!isAllowed() || !this.verificationAllowed(files))
-      return skippedCheck(check, 'refused', MODEL_API_MODEL_TEXT.verifyAccessRefused)
-    if (this.ledger.isStopped) {
-      return skippedCheck(check, 'stopped')
+      return verify.skippedCheck(check, 'refused', MODEL_API_MODEL_TEXT.verifyAccessRefused)
+    if (this.verifyState().ledger.isStopped) {
+      return verify.skippedCheck(check, 'stopped')
     }
-    if (this.ledger.isRejected(check.name)) {
-      return skippedCheck(check, 'rejected')
+    if (this.verifyState().ledger.isRejected(check.name)) {
+      return verify.skippedCheck(check, 'rejected')
     }
     const built = checkCommandLine(
       check,
@@ -11410,11 +11462,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.deps.platform,
     )
     if (!built.ok) {
-      return skippedCheck(check, 'unsafePath')
+      return verify.skippedCheck(check, 'unsafePath')
     }
     const timeoutMs = checkTimeoutMs(check)
     // The state the check starts on: an edit made while it runs leaves it behind.
-    const startedOn = this.ledger.snapshot(check.name, checkScope(check, files))
+    const startedOn = this.verifyState().ledger.snapshot(check.name, checkScope(check, files))
     const outcome = await this.runVerifyCommand(
       itemId,
       {
@@ -11439,12 +11491,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     if (outcome.kind === 'skipped') {
       if (outcome.skip === 'rejected') {
-        this.ledger.reject(check.name)
+        this.verifyState().ledger.reject(check.name)
       }
-      return skippedCheck(check, outcome.skip, outcome.detail)
+      return verify.skippedCheck(check, outcome.skip, outcome.detail)
     }
-    const run = finishedCheck(check, outcome.line, outcome.result, timeoutMs, maxChars)
-    if (isAllowed()) this.ledger.record(run.summary.outcome, startedOn)
+    const run = verify.finishedCheck(check, outcome.line, outcome.result, timeoutMs, maxChars)
+    if (isAllowed()) this.verifyState().ledger.record(run.summary.outcome, startedOn)
     return run
   }
 
@@ -11500,6 +11552,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     maxChars: number,
     isAllowed: () => boolean,
   ): Promise<readonly CheckRun[]> {
+    // The loop's functions come from the lazy verify chunk (D6).
+    const verify = await this.verifyFunctions()
     const runs: CheckRun[] = []
     for (const check of checks) {
       if (isAbortRequested(signal)) {
@@ -11511,7 +11565,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       runs.push(
         isAllowed()
           ? await this.runCheck(itemId, check, files, signal, effects, maxChars, isAllowed)
-          : skippedCheck(check, 'refused', MODEL_API_MODEL_TEXT.verifyAccessRefused),
+          : verify.skippedCheck(check, 'refused', MODEL_API_MODEL_TEXT.verifyAccessRefused),
       )
     }
     return runs
@@ -11597,6 +11651,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
     isAllowed: () => boolean,
   ): Promise<Performed> {
+    // The loop's functions come from the lazy verify chunk (D6).
+    const verify = await this.verifyFunctions()
     if (!this.deps.isWorkspaceTrusted())
       return { outcome: toolFailure(MODEL_API_MODEL_TEXT.checkSkipRestricted) }
     const configured = this.checkCommands()
@@ -11622,7 +11678,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const isEditedScope = parsed.args.paths === undefined
     const files: EditedFile[] = []
     if (isEditedScope) {
-      files.push(...(await this.existingFiles(this.ledger.editedFiles(), isAllowed)))
+      files.push(...(await this.existingFiles(this.verifyState().ledger.editedFiles(), isAllowed)))
     } else {
       const named = parsed.args.paths ?? []
       for (const given of named) {
@@ -11656,7 +11712,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const effects = newHookEffects()
     const share = Math.floor(VERIFY_NOTE_MAX_CHARS / Math.max(selected.length, 1))
     const runs = await this.runChecks(itemId, selected, files, signal, effects, share, isAllowed)
-    const section = checksSection(runs)
+    const section = verify.checksSection(runs)
     const checked = files.map((file) => file.relative)
     return {
       outcome: {
@@ -12894,7 +12950,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       absolute: target.checkedAbsolute,
       ...(fingerprint !== undefined && { fingerprint }),
     }
-    this.ledger.noteEdit(file, [target.relative, target.canonical])
+    this.verifyState().ledger.noteEdit(file, [target.relative, target.canonical])
   }
 
   /**
@@ -12906,12 +12962,14 @@ export class ModelApiSession implements ScheduledAgentSession {
    * pass counts only when the check's cap is no shorter, a time-out only
    * when it is no longer (Grok's review); a failure is a failure either way.
    */
-  private noteCheckCommandRun(
+  private async noteCheckCommandRun(
     line: string,
     result: ShellResult,
     startedOn: ReadonlyMap<string, RunSnapshot>,
-  ): void {
-    const outcome = outcomeOf(result)
+  ): Promise<void> {
+    // The loop's functions come from the lazy verify chunk (D6).
+    const verify = await this.verifyFunctions()
+    const outcome = verify.outcomeOf(result)
     for (const check of this.checkCommands()) {
       const cap = checkTimeoutMs(check)
       const snapshot = startedOn.get(check.name)
@@ -12922,7 +12980,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         (outcome !== 'passed' || cap >= SHELL_DEFAULT_TIMEOUT_MS) &&
         (outcome !== 'timedOut' || cap <= SHELL_DEFAULT_TIMEOUT_MS)
       if (isSameRun) {
-        this.ledger.record(outcome, snapshot)
+        this.verifyState().ledger.record(outcome, snapshot)
       }
     }
   }
@@ -12943,12 +13001,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     isAllowed: () => boolean,
     provisionalSeen: ReadonlyMap<string, string>,
   ): Promise<Performed> {
+    // The loop's functions come from the lazy verify chunk (D6).
+    const verify = await this.verifyFunctions()
     const effects = newHookEffects()
     // The state a check of the same command would start on, taken before it runs.
     const startedOn = new Map(
       this.checkCommands().map((check) => [
         check.name,
-        this.ledger.snapshot(check.name, 'project'),
+        this.verifyState().ledger.snapshot(check.name, 'project'),
       ]),
     )
     let ran: CommandOutcome
@@ -12991,7 +13051,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     }
     if (ran.kind === 'skipped') {
-      const reason = skipReason(ran.skip, ran.detail)
+      const reason = verify.skipReason(ran.skip, ran.detail)
       // The row's line is in the user's language (verifyText.ts); a hook's or
       // the user's own words are shown as they are.
       const shown = ran.visibleDetail ?? ran.detail
@@ -13011,7 +13071,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     }
     const { line, result } = ran
-    if (isAllowed()) this.noteCheckCommandRun(line, result, startedOn)
+    if (isAllowed()) await this.noteCheckCommandRun(line, result, startedOn)
     // TOOLCAP: whole like every shell result; the one bound cuts it with a
     // spill and notices where the edit's outcome enters.
     const finished = shellOutcome(result, SHELL_DEFAULT_TIMEOUT_MS, TOOL_OUTPUT_MAX_CHARS, true)
@@ -13023,7 +13083,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         touched: { names: edit.touched?.names ?? [], complete: false },
         thenRun: {
           command: line,
-          outcome: outcomeOf(result),
+          outcome: verify.outcomeOf(result),
           output: shellText(result),
           ...(result.exitCode !== null && { exitCode: result.exitCode }),
         },
@@ -14019,6 +14079,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private async drainSteered(turn: ActiveTurn): Promise<void> {
+    // A steer resets the verify loop, which lives in the lazy verify chunk.
+    await this.ensureVerify()
     if (turn.steered.length > 0) this.repeatGuard.reset()
     // What ended or ran meanwhile first (M46), then what the user added.
     this.settleNotes(turn.turnId)
@@ -14078,7 +14140,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         turn.abort.signal.throwIfAborted()
         // Admitted user input starts the fix loop afresh (M68); a subagent's
         // steers come from its parent model rather than the user.
-        if (turn.steered[0] === steer && !this.isSubagent) this.ledger.resetForSteer()
+        if (turn.steered[0] === steer && !this.isSubagent) this.verifyState().ledger.resetForSteer()
       } catch (error: unknown) {
         this.replay.splice(replayStart)
         // Only a definitive refusal consumes the head; every other failure
@@ -14206,11 +14268,13 @@ export class ModelApiSession implements ScheduledAgentSession {
    * returned.
    */
   private async verifyRound(turn: ActiveTurn, isLastRound: boolean): Promise<string | undefined> {
+    // The round's checks, ledger and history live in the lazy verify chunk (D6).
+    const verify = await this.verifyFunctions()
     if (this.deps.verify === undefined || isAbortRequested(turn.abort.signal)) {
-      this.ledger.takeRoundEdits()
+      this.verifyState().ledger.takeRoundEdits()
       return undefined
     }
-    if (!this.ledger.needsRoundVerification()) return undefined
+    if (!this.verifyState().ledger.needsRoundVerification()) return undefined
     const entry = await import('./schedulesEntry.js')
     installLanguageOnce('schedules', (table, locale) => {
       entry.installLanguage(table, locale)
@@ -14229,12 +14293,12 @@ export class ModelApiSession implements ScheduledAgentSession {
             project: (inputs) => String(inputs[0]?.bytes),
           }),
         deps: this.deps,
-        ledger: this.ledger,
+        ledger: this.verifyState().ledger,
         scheduleLedger: turn.scheduleLedger,
         text: MODEL_API_MODEL_TEXT,
         replay: this.replay,
         contentOrigins: this.contentOrigins,
-        diagnosticsHistory: this.diagnosticsHistory,
+        diagnosticsHistory: this.verifyState().history,
         checkScope,
         newEffects: newHookEffects,
         verificationAdmission: (signal) => this.verificationAdmission(signal),
@@ -14262,8 +14326,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         abortError: () => new AbortedError(),
         isAbortError: (error) => error instanceof AbortedError,
         unlessStopped,
-        skippedCheck,
-        checksSection,
+        skippedCheck: verify.skippedCheck,
+        checksSection: verify.checksSection,
       },
       turn,
       isLastRound,
@@ -14927,6 +14991,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private async runTurn(queued: QueuedTurn): Promise<void> {
+    // The turn verifies tool edits through the lazy verify chunk.
+    await this.ensureVerify()
     this.outcomeStopReason = undefined
     this.responseIncomplete = false
     this.mediaNoticeSent = false
@@ -15000,7 +15066,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }),
     }
     // What a stopped turn left for its round is not checked in this one (M68).
-    this.ledger.beginTurn()
+    this.verifyState().ledger.beginTurn()
     this.taskRefusals = 0
     this.active = turn
     if (!queued.isGoalWake) this.autoCompact.newUserTask()
@@ -15167,7 +15233,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         // goal's wake carries on, and a parent model's message to a subagent
         // is not user input.
         if (!this.isSubagent) {
-          this.ledger.resetForMessage()
+          this.verifyState().ledger.resetForMessage()
         }
       }
       await this.prepareMcp(turn.abort.signal)
@@ -16722,7 +16788,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       return
     }
     this.seenFiles.clear()
-    this.ledger.noteEdit(file, [file.relative])
+    this.verifyState().ledger.noteEdit(file, [file.relative])
     // FileChanged is observation only and never starts a turn (M91 lane E).
     void this.noteFileChanged(file.relative, 'external-edit').catch((error: unknown) => {
       this.deps.log.warn(`Model API extension hooks: FileChanged failed: ${describe(error)}`)
@@ -16759,6 +16825,8 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /** SessionStart runs when the session opens; context enters its first turn. */
   public async startHooks(): Promise<void> {
+    // First-use runtimes a session needs before it can verify tool edits.
+    await this.ensureVerify()
     if (this.hookStarted) {
       return
     }
@@ -17593,7 +17661,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         // Best effort: the operating system cleans its own temp dir.
       })
     }
-    this.workspaceEdits.delete(this.ledger)
+    // The ledger registers on its first load; a session that never verified
+    // has nothing to remove.
+    if (this.verifyLoaded !== undefined) this.workspaceEdits.delete(this.verifyLoaded.ledger)
     void this.scheduleRuntime?.then((runtime) => {
       runtime.dispose()
     })

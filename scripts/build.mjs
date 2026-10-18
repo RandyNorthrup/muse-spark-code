@@ -495,6 +495,18 @@ const modelApiToolsOptions = {
   outfile: MODEL_API_TOOLS_OUTFILE,
 }
 
+// The verify loop's session side (M68: the loop, its ledger and the
+// diagnostics history), loaded on the first turn that verifies tool edits.
+const MODEL_API_VERIFY_ENTRY = 'src/core/backends/modelapi/modelApiVerifyEntry.ts'
+const MODEL_API_VERIFY_OUTFILE = 'dist/modelApiVerify.js'
+
+/** @type {import('esbuild').BuildOptions} */
+const modelApiVerifyOptions = {
+  ...modelApiOptions,
+  entryPoints: [MODEL_API_VERIFY_ENTRY],
+  outfile: MODEL_API_VERIFY_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const reviewOptions = {
   ...common,
@@ -1252,6 +1264,7 @@ if (isWatch) {
     }),
     esbuild.context(hookRuntimeOptions),
     esbuild.context(modelApiToolsOptions),
+    esbuild.context(modelApiVerifyOptions),
     esbuild.context({
       ...modelApiOptions,
       entryPoints: ['src/host/backend/providerPolicyEntry.ts'],
@@ -1380,6 +1393,7 @@ if (isWatch) {
     hookRuntime: esbuild.build(hookRuntimeOptions),
     pluginHooks: esbuild.build(pluginHooksOptions),
     modelApiTools: esbuild.build(modelApiToolsOptions),
+    modelApiVerify: esbuild.build(modelApiVerifyOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     media: esbuild.build(mediaOptions),
