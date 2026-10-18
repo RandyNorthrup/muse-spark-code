@@ -24,8 +24,9 @@ export function readTransferDocument(content: string): SessionExportParse {
   let raw: unknown
   try {
     raw = JSON.parse(content)
-  } catch {
+  } catch (error: unknown) {
     // JSON.parse can quote the hostile file's contents, including credentials.
+    if (!(error instanceof SyntaxError)) throw error
     return { ok: false, reason: UI_TEXT.transferNotAnExport }
   }
   return parseSessionExport(raw)
