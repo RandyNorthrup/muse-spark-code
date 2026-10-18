@@ -1247,6 +1247,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         const model = message.ref.slice(prefix.length)
         if (!entry.models.includes(model) && rows.get(id)?.some((row) => row.id === model) !== true)
           throw new Error(UI_TEXT.actionFailed)
+        // A scanned-but-unticked model is ticked atomically with its edit:
+        // the file reader prunes limits for unlisted models on refresh, so
+        // storing the window without selecting it would lose the edit.
+        const models = entry.models.includes(model) ? [...entry.models] : [...entry.models, model]
         const previous = entry.modelLimits?.[model]
         const modelLimits = {
           ...entry.modelLimits,
@@ -1258,8 +1262,11 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             ),
           },
         }
-        if (draft === undefined) await providers.updateProvider({ ...entry, modelLimits })
-        else draft.modelLimits = modelLimits
+        if (draft === undefined) await providers.updateProvider({ ...entry, models, modelLimits })
+        else {
+          draft.models = models
+          draft.modelLimits = modelLimits
+        }
         break
       }
       case 'models/pin':
