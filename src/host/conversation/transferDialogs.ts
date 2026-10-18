@@ -1,5 +1,5 @@
 // The import and share-file dialogs behind the conversation controller
-// (M84, PLAN.md D49): picking a portable JSON file within the size cap and
+// (M84, PLAN.md D49): picking a portable JSON file of any size and
 // confirming an import. They need `vscode`; the controller takes them as a
 // `SessionTransferFiles` dep, and the portable parse lives in
 // `./sessionImport`.
@@ -31,8 +31,8 @@ export function createSessionTransferFiles(): SessionTransferFiles {
       }
       const expectedCanonicalPath = await canonicalPath(target.fsPath)
       // A share file reads whole at any size (D121: the removed 16 MiB
-      // ceiling was invented), so every file written can be read back;
-      // the schema's item count still bounds what parses.
+      // ceiling and the removed 20,000-item bound were invented), so every
+      // file written can be read back; a transcript of any length parses.
       const { bytes, isMissing } = await readPickedFile(
         target.fsPath,
         Infinity,

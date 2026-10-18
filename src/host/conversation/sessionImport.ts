@@ -6,7 +6,7 @@
 import { UI_TEXT } from '../../shared/constants'
 import { parseSessionExport, type SessionExportParse } from '../../core/export/sessionTransfer'
 
-/** A picked file: dismissed, refused for its size, or its text. */
+/** A picked file: dismissed, its text, or `tooLarge` (retained, no longer produced: reads are unbounded). */
 export type PickedTransferFile =
   | { readonly kind: 'dismissed' }
   | { readonly kind: 'tooLarge' }
