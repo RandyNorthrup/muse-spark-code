@@ -332,7 +332,8 @@
     "effort": "각 답변에 Muse가 들이는 노력을 선택합니다.",
     "output": "결과 형식을 text, json 또는 jsonl로 선택합니다.",
     "max-budget-usd": "이 실행의 엄격한 지출 한도를 USD로 설정합니다.",
-    "max-requests": "최대 모델 요청 수를 설정합니다.",
+    "max-requests": "최대 요청 수를 설정합니다. 마지막 모델 호출은 도구 없이 최종 요약을 작성합니다.",
+    "max-tool-output-bytes": "이번 실행의 도구 결과당 바이트 상한을 높입니다.",
     "timeout": "실행 시간 제한을 초 단위로 설정합니다.",
     "fail-on-denial": "권한이 거부되면 실행을 중지합니다.",
     "ephemeral": "저장하지 않고 세션을 메모리에 유지합니다.",
@@ -1108,8 +1109,8 @@
     "paid:webSearch": "유료 웹 검색을 켜거나 끕니다.",
     "paid:subagents": "유료 하위 에이전트를 켜거나 끕니다.",
     "paid:scheduledPrompts": "유료 예약된 프롬프트를 켜거나 끕니다.",
-    "paid:autoReviewer": "유료 자동 검토자를 켜거나 끕니다.",
     "paid:autoCompaction": "Turn paid automatic compaction on or off.",
+    "paid:autoReviewer": "유료 자동 검토자를 켜거나 끕니다.",
     "paid:bestOfN": "유료 베스트 오브 N을 켜거나 끕니다.",
     "paid:tab": "유료 Tab 자동 완성을 켜거나 끕니다.",
     "paid:legalExplanation": "법적 발견 사항의 유료 설명을 켜거나 끕니다. 저장된 Model API 키에 요금이 청구됩니다.",
@@ -2546,10 +2547,17 @@
   "paidConfirmAutoCompaction": "자동 압축은 선택한 모델을 {price} 요금으로 사용합니다. 구독으로 이 비용을 지불할 수 없습니다.",
   "autoCompactionAwaitingEvaluation": "자동 압축은 평가를 기다리고 있으며 비활성 상태입니다.",
   "autoCompactionFailed": "자동 압축에 실패했습니다. 원래 컨텍스트로 계속 진행합니다.",
-  "contextWindowFull": "컨텍스트 창이 가득 찼습니다: /compact 또는 /handoff",
   "autoCompactionBudgetRefused": "자동 압축이 실행되지 않았습니다: 일일 유료 예산이 거부했습니다. 예산을 늘리거나 내일 다시 시도하세요. 원래 컨텍스트가 유지됩니다.",
+  "contextWindowFull": "컨텍스트 창이 가득 찼습니다: /compact 또는 /handoff",
   "contextWindowFullAcp": "컨텍스트 창이 가득 찼습니다: 자동 압축에는 편집기에서 한 번의 승인이 필요합니다. 유료 사용 요청을 승인하거나 /compact를 실행하세요. 승인을 표시할 수 없는 클라이언트에서는 꺼진 상태로 유지됩니다.",
   "contextWindowFullExec": "컨텍스트 창이 가득 찼습니다: --auto-compaction --max-budget-usd <amount>와 함께 다시 실행하면 자동으로 압축됩니다. 또는 작업을 줄이세요.",
+  "toolResultCutPreview": "도구 결과가 잘렸습니다. 전체 {total}자 중 시작과 끝을 유지했습니다(시작 부분 {head}개, 끝 부분 {tail}개의 완전한 줄, {omitted}자 생략). 전체 결과는 {spill}에 있습니다. 세션과 함께 삭제됩니다.",
+  "contextWindowTooLong": "대화({tokens} 토큰)가 이 모델의 창({maximum} 토큰)보다 {over} 토큰 큽니다. /compact로 대화를 압축하거나, 창이 더 큰 모델로 바꾸거나, 새 대화를 시작하세요. 삭제된 것은 없습니다.",
+  "toolResultCapRefused": "{source} 도구 출력 상한 {value}이(가) 거부되었습니다({reason}). 기본값 {fallback}을(를) 사용합니다.",
+  "toolResultCapBelowFloor": "읽을 수 있는 하한 {floor}바이트 미만",
+  "toolResultCapAboveWindow": "모델 창인 약 {window}개 토큰 초과",
+  "toolResultSpillFailed": "도구의 전체 결과를 {spill}에 보관하지 못했습니다. 잘린 텍스트만 남습니다.",
+  "toolResultCutPreviewUnkept": "도구 결과가 잘렸습니다. 전체 {total}자 중 시작과 끝을 유지했습니다({omitted}자 생략). 전체 결과를 보관하지 못했습니다.",
   "sessionBudgetStopped": "중지됨: 다음 요청(약 {estimate})이 세션 예산 {cap}을(를) 초과합니다(사용 {spent}). 전송되지 않았습니다.",
   "sessionBudgetStoreUnavailable": "세션 지출 기록을 읽거나 저장할 수 없습니다. 기록을 사용할 수 있을 때까지 새 요청을 전송할 수 없습니다.",
   "sessionBudgetLegacyFeesUnknown": "대화의 지출이 완전히 검증되지 않았습니다. 대기 중인 요청이 끝날 때까지 기다리거나 지출 한도를 사용하려면 새 대화를 시작하세요.",
@@ -2665,6 +2673,7 @@
   "agentStopReasons": {
     "normal": "정상 종료",
     "budget": "예산 소진",
+    "limit": "호출 한도 도달",
     "error": "오류",
     "cancelled": "사용자가 중지함",
     "unknown": "사용 불가"
@@ -3119,7 +3128,8 @@
     "medium": "보통",
     "high": "높음",
     "xhigh": "매우 높음",
-    "max": "최대"
+    "max": "최대",
+    "ultra": "울트라"
   },
   "toolLabels": {
     "judge": "판단자",
@@ -3544,6 +3554,24 @@
   "execTooManyFiles": {
     "other": "입력 파일은 최대 {count}개까지 허용됩니다."
   },
+  "referenceTurnLimit": "Model API 턴은 기본적으로 200회의 모델 호출을 사용합니다. 호출자의 기존 요청 한도가 우선합니다. 첫 호출은 항상 도구를 사용해 실행됩니다. 답변이 있으면 턴이 정상 완료되고, 도구 요청이 있으면 요청 한도에서 종료됩니다. 도구를 실행한 턴의 마지막 호출은 도구 없이 요약을 생성합니다. 계속하려면 메시지를 보내세요.",
+  "modelApiWrapUpReserved": "남은 요청은 최종 답변을 위해 예약되었습니다. 이미지는 생성되지 않았습니다.",
+  "modelApiTurnLimit": {
+    "other": "모델 호출이 {count}회에 도달하여 턴이 중지되었습니다. 계속하려면 메시지를 보내세요."
+  },
+  "modelApiWrapUpTruncated": {
+    "other": "최종 답변이 출력 한도로 잘리면서 모델 호출이 {count}회에 도달하여 턴이 중지되었습니다. 부분 답변은 유지됩니다. 계속하려면 메시지를 보내세요."
+  },
+  "modelApiWrapUpHookBlocked": "중지 훅이 추가 작업을 요청했지만 턴이 모델 호출 한도에 도달했으므로 최종 답변이 유지됩니다.",
+  "modelApiWrapUpFailed": {
+    "other": "턴이 모델 호출 {count}회 후에 중단되었지만 최종 요약을 생성하지 못했습니다({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "속도 제한",
+    "modelError": "모델 오류",
+    "budget": "예산 중단",
+    "stopped": "중단됨"
+  },
   "execRequestCapReached": {
     "other": "요청 시도 한도 {count}회에 도달했습니다."
   },
@@ -3565,6 +3593,9 @@
   "providerTestOk": {
     "other": "키가 작동합니다 · 모델 {count}개."
   },
+  "providerModelNoToolCalling": "{model}은(는) 도구 호출이 확인되지 않아 코딩 에이전트를 실행할 수 없습니다.",
+  "providerAddPickModel": "이러한 모델 중 하나 이상을 --model <id>(으)로 추가하세요(반복 가능):",
+  "providerAddNeedsModel": "--model <id>(으)로 모델을 하나 이상 지정하세요(반복 가능).",
   "providerProbeUnreachable": "공급자에 연결할 수 없습니다.",
   "providerProbeUnparseable": "모델 목록을 읽을 수 없습니다.",
   "providerProbeNoKey": "키가 제공되지 않았습니다.",

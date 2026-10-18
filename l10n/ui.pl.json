@@ -332,7 +332,8 @@
     "effort": "Wybierz, ile wysiłku Muse wkłada w każdą odpowiedź.",
     "output": "Wybierz format wyniku: text, json lub jsonl.",
     "max-budget-usd": "Ustaw twardy limit wydatków w USD dla tego uruchomienia.",
-    "max-requests": "Ustaw maksymalną liczbę żądań do modelu.",
+    "max-requests": "Ustawia maksymalną liczbę żądań. Ostatnie wywołanie modelu tworzy końcowe podsumowanie bez narzędzi.",
+    "max-tool-output-bytes": "Podnieść limit bajtów na wynik narzędzia dla tego uruchomienia.",
     "timeout": "Ustaw limit czasu uruchomienia w sekundach.",
     "fail-on-denial": "Zatrzymaj uruchomienie po odmowie uprawnienia.",
     "ephemeral": "Trzymaj sesję w pamięci bez zapisywania.",
@@ -1120,8 +1121,8 @@
     "paid:webSearch": "Włącz lub wyłącz płatne wyszukiwanie w sieci.",
     "paid:subagents": "Włącz lub wyłącz płatnych podagentów.",
     "paid:scheduledPrompts": "Włącz lub wyłącz płatne zaplanowane monity.",
-    "paid:autoReviewer": "Włącz lub wyłącz płatnego automatycznego oceniającego.",
     "paid:autoCompaction": "Turn paid automatic compaction on or off.",
+    "paid:autoReviewer": "Włącz lub wyłącz płatnego automatycznego oceniającego.",
     "paid:bestOfN": "Włącz lub wyłącz płatną funkcję Najlepszy z N.",
     "paid:tab": "Włącz lub wyłącz płatne uzupełnienia Tab.",
     "paid:legalExplanation": "Włącz lub wyłącz płatne wyjaśnienia ustaleń prawnych. Koszt jest naliczany dla zapisanego klucza Model API.",
@@ -2705,10 +2706,17 @@
   "paidConfirmAutoCompaction": "Automatyczna kompakcja używa wybranego modelu w cenie {price}. Subskrypcja nie pokrywa tego kosztu.",
   "autoCompactionAwaitingEvaluation": "Automatyczna kompakcja oczekuje na ocenę i jest nieaktywna.",
   "autoCompactionFailed": "Automatyczna kompakcja nie powiodła się; kontynuowanie z pierwotnym kontekstem.",
-  "contextWindowFull": "Okno kontekstu jest pełne: /compact lub /handoff",
   "autoCompactionBudgetRefused": "Automatyczna kompresja nie została wykonana: dzienny płatny budżet ją odrzucił. Zwiększ budżet lub spróbuj ponownie jutro; pierwotny kontekst zostanie zachowany.",
+  "contextWindowFull": "Okno kontekstu jest pełne: /compact lub /handoff",
   "contextWindowFullAcp": "Okno kontekstu jest pełne: automatyczna kompresja wymaga jednorazowej zgody w edytorze; zatwierdź żądanie użycia płatnego albo wykonaj /compact. Klient, który nie może wyświetlić zgody, pozostawia ją wyłączoną.",
   "contextWindowFullExec": "Okno kontekstu jest pełne: uruchom ponownie z --auto-compaction --max-budget-usd <amount>, aby przebieg skompresował się sam, albo skróć zadanie.",
+  "toolResultCutPreview": "Wynik narzędzia przycięty: {total} znaków, zachowano początek i koniec ({head} pełnych wierszy na początku, {tail} na końcu; pominięto {omitted}). Pełny wynik znajduje się w {spill}. Jest usuwany wraz z sesją.",
+  "contextWindowTooLong": "Rozmowa ({tokens} tokenów) jest większa od okna tego modelu ({maximum} tokenów) o {over} tokenów. /compact rozmowę, przełącz się na model z większym oknem lub rozpocznij nową rozmowę; nic nie usunięto.",
+  "toolResultCapRefused": "Limit {source} danych wyjściowych narzędzia wynoszący {value} został odrzucony ({reason}); używana jest wartość domyślna {fallback}.",
+  "toolResultCapBelowFloor": "poniżej czytelnego minimum {floor} bajtów",
+  "toolResultCapAboveWindow": "większy niż okno modelu wynoszące około {window} tokenów",
+  "toolResultSpillFailed": "Nie udało się zachować pełnego wyniku narzędzia w {spill}; pozostaje tylko przycięty tekst.",
+  "toolResultCutPreviewUnkept": "Wynik narzędzia przycięty: {total} znaków, zachowano początek i koniec (pominięto {omitted}). Nie udało się zachować pełnego wyniku.",
   "sessionBudgetStopped": "Zatrzymano: następne żądanie (ok. {estimate}) przekroczyłoby budżet sesji {cap} (wykorzystano {spent}). Nie zostało wysłane.",
   "sessionBudgetStoreUnavailable": "Nie można odczytać ani zapisać rejestru wydatków sesji. Do czasu jego udostępnienia nie można wysłać nowego żądania.",
   "sessionBudgetLegacyFeesUnknown": "Wydatki rozmowy nie są w pełni zweryfikowane. Poczekaj na zakończenie oczekujących żądań lub rozpocznij nową rozmowę, aby korzystać z limitu wydatków.",
@@ -2830,6 +2838,7 @@
   "agentStopReasons": {
     "normal": "Normalne zakończenie",
     "budget": "Budżet wyczerpany",
+    "limit": "Osiągnięto limit wywołań",
     "error": "Błąd",
     "cancelled": "Zatrzymane przez użytkownika",
     "unknown": "Niedostępne"
@@ -3311,7 +3320,8 @@
     "medium": "Średni",
     "high": "Wysoki",
     "xhigh": "Bardzo wysoki",
-    "max": "Maksymalny"
+    "max": "Maksymalny",
+    "ultra": "Ultra"
   },
   "toolLabels": {
     "judge": "Oceniający",
@@ -3763,6 +3773,33 @@
     "few": "Limit plików wejściowych: {count}.",
     "many": "Limit plików wejściowych: {count}."
   },
+  "referenceTurnLimit": "Tury Model API mają domyślnie 200 wywołań modelu. Obowiązują istniejące limity wywołań wywołujących. Pierwsze wywołanie zawsze działa z narzędziami: odpowiedź kończy turę normalnie, żądanie narzędzia kończy ją na limicie żądań. Ostatnie wywołanie tury, która uruchamiała narzędzia, daje podsumowanie bez narzędzi; wyślij wiadomość, aby kontynuować.",
+  "modelApiWrapUpReserved": "Pozostałe żądanie jest zarezerwowane na końcową odpowiedź. Obraz nie został wygenerowany.",
+  "modelApiTurnLimit": {
+    "one": "Tura zatrzymała się po {count} wywołaniu modelu. Wyślij wiadomość, aby kontynuować.",
+    "other": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować.",
+    "few": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować.",
+    "many": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować."
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "Tura zatrzymała się po {count} wywołaniu modelu, a ostateczna odpowiedź została ucięta przez limit wyjścia. Częściowa odpowiedź została zachowana. Wyślij wiadomość, aby kontynuować.",
+    "few": "Tura zatrzymała się po {count} wywołaniach modelu, a ostateczna odpowiedź została ucięta przez limit wyjścia. Częściowa odpowiedź została zachowana. Wyślij wiadomość, aby kontynuować.",
+    "many": "Tura zatrzymała się po {count} wywołaniach modelu, a ostateczna odpowiedź została ucięta przez limit wyjścia. Częściowa odpowiedź została zachowana. Wyślij wiadomość, aby kontynuować.",
+    "other": "Tura zatrzymała się po {count} wywołaniach modelu, a ostateczna odpowiedź została ucięta przez limit wyjścia. Częściowa odpowiedź została zachowana. Wyślij wiadomość, aby kontynuować."
+  },
+  "modelApiWrapUpHookBlocked": "Hook zatrzymania poprosił o dalszą pracę, ale tura osiągnęła limit wywołań modelu, więc ostateczna odpowiedź zostaje.",
+  "modelApiWrapUpFailed": {
+    "one": "Tura zatrzymała się po {count} wywołaniu modelu, ale nie udało się utworzyć podsumowania końcowego ({reason}).",
+    "other": "Tura zatrzymała się po {count} wywołaniach modelu, ale nie udało się utworzyć podsumowania końcowego ({reason}).",
+    "few": "Tura zatrzymała się po {count} wywołaniach modelu, ale nie udało się utworzyć podsumowania końcowego ({reason}).",
+    "many": "Tura zatrzymała się po {count} wywołaniach modelu, ale nie udało się utworzyć podsumowania końcowego ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "limit szybkości",
+    "modelError": "błąd modelu",
+    "budget": "limit budżetu",
+    "stopped": "zatrzymano"
+  },
   "execRequestCapReached": {
     "one": "Osiągnięto limit {count} próby.",
     "other": "Osiągnięto limit prób: {count}.",
@@ -3790,6 +3827,9 @@
     "few": "Klucz działa · {count} modele.",
     "many": "Klucz działa · {count} modeli."
   },
+  "providerModelNoToolCalling": "{model} nie może uruchomić agenta kodowania, ponieważ wywoływanie narzędzi nie zostało dla niego potwierdzone.",
+  "providerAddPickModel": "Dodaj co najmniej jeden z tych modeli za pomocą --model <id> (powtarzalne):",
+  "providerAddNeedsModel": "Podaj co najmniej jeden model za pomocą --model <id> (powtarzalne).",
   "providerProbeUnreachable": "Nie można połączyć się z dostawcą.",
   "providerProbeUnparseable": "Nie można odczytać listy modeli.",
   "providerProbeNoKey": "Nie podano klucza.",

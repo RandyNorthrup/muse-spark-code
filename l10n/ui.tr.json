@@ -332,7 +332,8 @@
     "effort": "Muse'un her yanıta ayırdığı çabayı seçin.",
     "output": "Sonuç biçimini seçin: text, json veya jsonl.",
     "max-budget-usd": "Bu çalıştırma için USD cinsinden kesin harcama sınırı belirleyin.",
-    "max-requests": "Maksimum model isteği sayısını belirleyin.",
+    "max-requests": "En fazla istek sayısını belirler. Son model çağrısı araç kullanmadan son bir özet oluşturur.",
+    "max-tool-output-bytes": "Bu çalıştırma için araç sonucu başına bayt sınırını yükseltin.",
     "timeout": "Çalıştırma süresi sınırını saniye olarak belirleyin.",
     "fail-on-denial": "İzin reddedilirse çalıştırmayı durdurun.",
     "ephemeral": "Oturumu kaydetmeden bellekte tutun.",
@@ -1112,8 +1113,8 @@
     "paid:webSearch": "Ücretli web aramasını açın veya kapatın.",
     "paid:subagents": "Ücretli alt ajanları açın veya kapatın.",
     "paid:scheduledPrompts": "Ücretli zamanlanmış istemleri açın veya kapatın.",
-    "paid:autoReviewer": "Ücretli otomatik inceleyiciyi açın veya kapatın.",
     "paid:autoCompaction": "Turn paid automatic compaction on or off.",
+    "paid:autoReviewer": "Ücretli otomatik inceleyiciyi açın veya kapatın.",
     "paid:bestOfN": "Ücretli N arasından en iyi özelliğini açın veya kapatın.",
     "paid:tab": "Ücretli Tab tamamlamalarını açın veya kapatın.",
     "paid:legalExplanation": "Hukuki bulguların ücretli açıklamalarını açın veya kapatın. Saklanan Model API anahtarı faturalandırılır.",
@@ -2599,10 +2600,17 @@
   "paidConfirmAutoCompaction": "Otomatik sıkıştırma, seçilen modeli {price} fiyatıyla kullanır. Abonelik bu ücreti karşılamaz.",
   "autoCompactionAwaitingEvaluation": "Otomatik sıkıştırma değerlendirme bekliyor ve etkin değil.",
   "autoCompactionFailed": "Otomatik sıkıştırma başarısız oldu; özgün bağlamla devam ediliyor.",
-  "contextWindowFull": "Bağlam penceresi dolu: /compact veya /handoff",
   "autoCompactionBudgetRefused": "Otomatik sıkıştırma çalışmadı: günlük ücretli bütçe reddetti. Bütçeyi artırın veya yarın yeniden deneyin; özgün bağlam korunur.",
+  "contextWindowFull": "Bağlam penceresi dolu: /compact veya /handoff",
   "contextWindowFullAcp": "Bağlam penceresi dolu: otomatik sıkıştırma için düzenleyicide bir kerelik onayınız gerekir; ücretli kullanım isteğini onaylayın veya /compact çalıştırın. Onayı gösteremeyen istemci kapalı bırakır.",
   "contextWindowFullExec": "Bağlam penceresi dolu: çalışmanın kendini sıkıştırması için --auto-compaction --max-budget-usd <amount> ile yeniden çalıştırın veya görevi kısaltın.",
+  "toolResultCutPreview": "Araç sonucu kesildi: {total} karakter, başı ve sonu tutuldu (başta {head} tam satır, sonda {tail} tam satır; {omitted} atlandı). Tam sonuç {spill} içinde. Oturumla birlikte kaldırılır.",
+  "contextWindowTooLong": "Sohbet ({tokens} jeton), bu modelin penceresinden ({maximum} jeton) {over} jeton daha büyük. Sohbeti /compact ile sıkıştırın, penceresi daha büyük bir modele geçin veya yeni bir sohbet başlatın; hiçbir şey silinmedi.",
+  "toolResultCapRefused": "{source} araç çıktısı üst sınırı ({value}) reddedildi ({reason}); varsayılan {fallback} kullanılıyor.",
+  "toolResultCapBelowFloor": "okunabilir {floor} bayt alt sınırının altında",
+  "toolResultCapAboveWindow": "yaklaşık {window} tokenlik model penceresinden büyük",
+  "toolResultSpillFailed": "Aracın tam sonucu {spill} içine kaydedilemedi; yalnızca kesilmiş metin kalır.",
+  "toolResultCutPreviewUnkept": "Araç sonucu kesildi: {total} karakter, başı ve sonu tutuldu ({omitted} atlandı). Tam sonuç kaydedilemedi.",
   "sessionBudgetStopped": "Durduruldu: sonraki istek (yaklaşık {estimate}), {cap} tutarındaki oturum bütçesini aşardı (kullanılan {spent}). Gönderilmedi.",
   "sessionBudgetStoreUnavailable": "Oturum harcama kaydı okunamadı veya kaydedilemedi. Kayıt kullanılabilir olana kadar yeni bir istek gönderilemez.",
   "sessionBudgetLegacyFeesUnknown": "Konuşmanın harcamaları tam olarak doğrulanmadı. Bekleyen isteklerin bitmesini bekleyin veya harcama sınırı kullanmak için yeni bir konuşma başlatın.",
@@ -2720,6 +2728,7 @@
   "agentStopReasons": {
     "normal": "Normal bitiş",
     "budget": "Bütçe tükendi",
+    "limit": "Çağrı sınırına ulaşıldı",
     "error": "Hata",
     "cancelled": "Kullanıcı durdurdu",
     "unknown": "Kullanılamıyor"
@@ -3183,7 +3192,8 @@
     "medium": "Orta",
     "high": "Yüksek",
     "xhigh": "Çok yüksek",
-    "max": "Maksimum"
+    "max": "Maksimum",
+    "ultra": "Ultra"
   },
   "toolLabels": {
     "judge": "Değerlendirici",
@@ -3617,6 +3627,27 @@
     "one": "En fazla {count} girdi dosyasına izin verilir.",
     "other": "En fazla {count} girdi dosyasına izin verilir."
   },
+  "referenceTurnLimit": "Model API turları varsayılan olarak 200 model çağrısı alır. Arayanların mevcut çağrı sınırları geçerlidir. İlk çağrı her zaman araçlarla çalışır: bir yanıt turu normal şekilde tamamlar, bir araç isteği onu istek sınırında bitirir. Araç çalıştıran bir turun son çağrısı araçsız bir özet üretir; devam etmek için bir mesaj gönderin.",
+  "modelApiWrapUpReserved": "Kalan istek son yanıt için ayrılmıştır. Görsel oluşturulmadı.",
+  "modelApiTurnLimit": {
+    "one": "Tur, {count} model çağrısından sonra durdu. Devam etmek için bir mesaj gönderin.",
+    "other": "Tur, {count} model çağrısından sonra durdu. Devam etmek için bir mesaj gönderin."
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "Tur, {count} model çağrısından sonra durdu ve nihai yanıt çıktı sınırıyla kesildi. Kısmi yanıt korunur. Devam etmek için bir mesaj gönderin.",
+    "other": "Tur, {count} model çağrısından sonra durdu ve nihai yanıt çıktı sınırıyla kesildi. Kısmi yanıt korunur. Devam etmek için bir mesaj gönderin."
+  },
+  "modelApiWrapUpHookBlocked": "Bir durdurma kancası daha fazla iş istedi, ancak tur model çağrısı sınırına ulaştı, bu yüzden nihai yanıt geçerlidir.",
+  "modelApiWrapUpFailed": {
+    "one": "Tur {count} model çağrısından sonra durdu, ancak nihai özet üretilemedi ({reason}).",
+    "other": "Tur {count} model çağrısından sonra durdu, ancak nihai özet üretilemedi ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "hız sınırı",
+    "modelError": "model hatası",
+    "budget": "bütçe durağı",
+    "stopped": "durduruldu"
+  },
   "execRequestCapReached": {
     "one": "{count} denemelik istek sınırına ulaşıldı.",
     "other": "{count} denemelik istek sınırına ulaşıldı."
@@ -3640,6 +3671,9 @@
     "one": "Anahtar çalışıyor · {count} model.",
     "other": "Anahtar çalışıyor · {count} model."
   },
+  "providerModelNoToolCalling": "{model}, araç çağrıları onaylanmadığı için kodlama aracısını çalıştıramaz.",
+  "providerAddPickModel": "Bu modellerden birini veya birkaçını --model <id> ile ekleyin (tekrarlanabilir):",
+  "providerAddNeedsModel": "--model <id> ile en az bir model belirtin (tekrarlanabilir).",
   "providerProbeUnreachable": "Sağlayıcıya ulaşılamadı.",
   "providerProbeUnparseable": "Model listesi okunamadı.",
   "providerProbeNoKey": "Anahtar sağlanmadı.",

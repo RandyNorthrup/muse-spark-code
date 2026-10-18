@@ -272,6 +272,31 @@ describe('tableProblems', () => {
   it('accepts the English table against itself in shape', () => {
     expect(tableProblems(EN, EN, { locale: 'en', isStrict: false })).toEqual([])
   })
+
+  it('strictly requires the English key order at the top level', () => {
+    const source = { alpha: 'Alpha', beta: 'Beta', gamma: 'Gamma' }
+    const shuffled = { beta: 'Beta-x', alpha: 'Alpha-x', gamma: 'Gamma-x' }
+    expect(tableProblems(source, shuffled, strict)).toEqual([
+      'beta: out of order; it must follow "alpha" in the English table',
+    ])
+    expect(tableProblems(source, shuffled, { locale: 'de', isStrict: false })).toEqual([])
+  })
+
+  it('strictly requires the English key order in nested groups', () => {
+    const source = { group: { first: 'First', second: 'Second', third: 'Third' } }
+    const shuffled = { group: { first: 'Erste', third: 'Dritte', second: 'Zweite' } }
+    expect(tableProblems(source, shuffled, strict)).toEqual([
+      'group.third: out of order; it must follow "second" in the English table',
+    ])
+    expect(tableProblems(source, shuffled, { locale: 'de', isStrict: false })).toEqual([])
+  })
+
+  it('compares key order over the keys both tables have', () => {
+    const source = { alpha: 'Alpha', beta: 'Beta', gamma: 'Gamma' }
+    expect(tableProblems(source, { alpha: 'Alpha-x', gamma: 'Gamma-x' }, strict)).toEqual([
+      'beta: missing',
+    ])
+  })
 })
 
 describe('message times and step lists in the display language (M87, PLAN.md D66)', () => {

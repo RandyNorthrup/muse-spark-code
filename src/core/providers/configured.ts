@@ -61,14 +61,19 @@ import {
   ANTHROPIC_MAX_ARGUMENT_BYTES,
   ANTHROPIC_MAX_FRAME_BYTES,
   ANTHROPIC_MAX_ITEMS,
+  EFFORT_PROVIDER_DEFAULT,
+  MANUAL_THINKING_BUDGET_BY_EFFORT,
   MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_STREAM_IDLE_MS,
   PROVIDER_CONNECTION_LOST_CODE,
+  PROVIDER_MANUAL_THINKING_BUDGET,
   PROVIDER_SECRET_PREFIX,
   SUBSCRIPTION_STREAM_MAX_BYTES,
   TOKENS_PER_MILLION,
   UI_TEXT,
 } from '../../shared/constants'
+import { isEffortLevel } from '../../shared/effort'
+import { hasUsableEffortLevels } from '../backends/modelapi/modelPolicy'
 
 export interface ConfiguredProviderOptions {
   readonly configFile: string
@@ -709,15 +714,24 @@ export function createConfiguredProviderServices(
       for (const nativeModel of entry.models) {
         const ref = `${entry.id}/${nativeModel}`
         const native = catalogue.providers[preset.id.replace('-plan', '')]?.models[nativeModel]
-        const evidence =
-          native === undefined
-            ? []
-            : [
-                modelMetadata.nativeCapabilityEvidence(preset.id, native, {
-                  kind: 'catalogue',
-                  ref: options.catalogFile,
-                }),
-              ]
+        // Dated provider-documentation facts the snapshot lacks (lane
+        // REASONSHAPES): `preset`-kind evidence, shadowing the pinned
+        // catalogue where it speaks and losing to the live list, a
+        // capture and the user's overrides (capabilityRecord PRIORITY).
+        const documented = (preset.reasoningFacts ?? []).filter(
+          (fact) => fact.modelId === nativeModel,
+        )
+        const evidence: capabilities.CapabilityEvidence[] = documented.map((fact) => ({
+          source: { kind: 'preset', ref: `${fact.docUrl} (read ${fact.readOn})` },
+          fields: fact.fields,
+        }))
+        if (native !== undefined)
+          evidence.push(
+            modelMetadata.nativeCapabilityEvidence(preset.id, native, {
+              kind: 'catalogue',
+              ref: options.catalogFile,
+            }),
+          )
         const overrides = entry.modelCapabilities?.[nativeModel]
         if (overrides !== undefined)
           evidence.push({ source: { kind: 'user', ref }, fields: overrides })
@@ -766,7 +780,30 @@ export function createConfiguredProviderServices(
               entry.format ?? preset.format,
             ),
             canDisableReasoning: record.reasoning.canDisable.state === 'yes',
-            thinkingOff: preset.quirks.thinkingOff,
+            // Sonnet 5.5's `between_tools` off switch rides the policy so
+            // Thinking off is not refused where `disabled` is (GAPANTH-G02).
+            ...(record.reasoning.offSwitch !== undefined && {
+              offSwitch: record.reasoning.offSwitch,
+            }),
+            // The list's own default effort lights the picker's default
+            // (XAI-G01); the controller falls back without it.
+            ...(record.reasoning.defaultEffort !== undefined && {
+              defaultEffort: record.reasoning.defaultEffort,
+            }),
+            // Manual-only thinking rides unlisted tiers through unnamed
+            // (GAPANTH-G10/G17).
+            ...(() => {
+              const modes =
+                record.reasoning.modes.state === 'yes' ? record.reasoning.modes.value : []
+              return modes.includes('manual') && !modes.includes('adaptive')
+                ? { manualOnly: true as const }
+                : {}
+            })(),
+            // The switch rides the policy only where the record affirms
+            // reasoning (see the codec quirks above).
+            thinkingOff:
+              record.reasoning.supported.state === 'yes' ? preset.quirks.thinkingOff : undefined,
+            ...(preset.quirks.sendUndeclaredEffort === true && { sendUndeclaredEffort: true }),
           },
           pricing,
           displayLabel: typeof native?.['name'] === 'string' ? native['name'] : nativeModel,
@@ -794,8 +831,23 @@ export function createConfiguredProviderServices(
     if (record.reasoning.effortLevels.state === 'yes')
       reasoningParam = preset.id === 'openrouter' ? 'effort-object' : 'effort-flat'
     let replayField: chat.ChatPresetQuirks['replayField'] = 'none'
-    if (preset.quirks.reasoningField === 'reasoning_details') replayField = 'details'
-    else if (preset.quirks.reasoningField === 'reasoning_content') replayField = 'content'
+    switch (preset.quirks.reasoningField) {
+      case 'reasoning_details': {
+        replayField = 'details'
+        break
+      }
+      case 'reasoning_content': {
+        replayField = 'content'
+        break
+      }
+      case 'content-list': {
+        {
+          replayField = 'chunks'
+          // No default
+        }
+        break
+      }
+    }
     const quirks: chat.ChatPresetQuirks = {
       presetId: preset.id.replace('-plan', ''),
       providerId: entry.id,
@@ -805,14 +857,38 @@ export function createConfiguredProviderServices(
           : 'max_tokens',
       reasoningParam,
       // A preset's declared Thinking-off switch (presets.ts) hands the codec
-      // the record facts the shared resolver maps every effort with.
-      ...(preset.quirks.thinkingOff !== undefined && {
-        thinkingOff: preset.quirks.thinkingOff,
-        effortLevels:
-          record.reasoning.effortLevels.state === 'yes'
-            ? record.reasoning.effortLevels.value
-            : undefined,
-        canDisable: record.reasoning.canDisable.state === 'yes',
+      // the record facts the shared resolver maps every effort with. Only
+      // where the record affirms reasoning: on a model that cannot think,
+      // Thinking off is already satisfied and the turn goes plain.
+      ...(preset.quirks.thinkingOff !== undefined &&
+        record.reasoning.supported.state === 'yes' && {
+          thinkingOff: preset.quirks.thinkingOff,
+          effortLevels:
+            record.reasoning.effortLevels.state === 'yes'
+              ? record.reasoning.effortLevels.value
+              : undefined,
+          canDisable: record.reasoning.canDisable.state === 'yes',
+        }),
+      // Groq's presentation rides only where the record affirms reasoning.
+      ...(preset.quirks.reasoningFormat !== undefined &&
+        record.reasoning.supported.state === 'yes' && {
+          reasoningFormat: preset.quirks.reasoningFormat,
+        }),
+      ...(preset.quirks.sendUndeclaredEffort === true && { sendUndeclaredEffort: true }),
+      // OpenRouter's `supported_parameters` enforcement: a model the
+      // record refuses tools keeps its turn though never its tools.
+      ...(record.tools.calling.state === 'no' && { sendTools: false }),
+      ...(record.output.formats.state === 'yes' && {
+        outputFormats: record.output.formats.value,
+      }),
+      ...(preset.quirks.thinkingPreserved === true && { thinkingPreserved: true }),
+      // Strict tool schemas ride where the preset declares the model
+      // takes them (DeepSeek's `guides/tool_calls`, DS-G02): on the
+      // address the entry has. The beta and the production address
+      // both answered 200 with `strict: true` (DS-STRICT,
+      // DS-STRICT-PROD); production enforcement stays UNVERIFIED.
+      ...(preset.quirks.supportsStrictTools === true && {
+        supportsStrictTools: true,
       }),
       sendCacheKey: record.cache.acceptsKey,
       includeUsage: true,
@@ -861,7 +937,11 @@ export function createConfiguredProviderServices(
           })()
         }
         case 'anthropic': {
-          return anthropic.decodeAnthropicStream(parseSse(bytes), { model: ref })
+          // The replay envelope binds thinking to the native model id
+          // (lane REASONSHAPESR2, GAPANTH-G01): stamping the qualified
+          // `ref` here while the encoder compares the bare `native` id
+          // dropped every thinking block between tool turns.
+          return anthropic.decodeAnthropicStream(parseSse(bytes), { model: native })
         }
         case 'gemini': {
           return gemini.decodeGeminiStream(bytes, ref)
@@ -922,11 +1002,32 @@ export function createConfiguredProviderServices(
             break
           }
           case 'anthropic': {
+            // Manual thinking carries no effort level, so the chosen tier
+            // sizes the budget instead (lane REASONSHAPESR2, GAPANTH-G17);
+            // adaptive models take the effort and no budget. The budget
+            // stays below the run's cap, keeping room for the answer.
+            const anthropicModes =
+              record.reasoning.modes.state === 'yes' ? record.reasoning.modes.value : []
+            const isManualOnly =
+              anthropicModes.includes('manual') && !anthropicModes.includes('adaptive')
+            const budgetStep = isEffortLevel(body.reasoning.effort)
+              ? MANUAL_THINKING_BUDGET_BY_EFFORT[body.reasoning.effort]
+              : undefined
             const request = anthropic.encodeAnthropicRequest(body, {
               model: native,
               maxTokens: body.max_output_tokens,
               effort: body.reasoning.effort,
               capabilityRecord: record,
+              ...(isManualOnly &&
+                budgetStep !== undefined && {
+                  thinkingBudget: Math.min(
+                    budgetStep,
+                    Math.max(
+                      PROVIDER_MANUAL_THINKING_BUDGET,
+                      body.max_output_tokens - PROVIDER_MANUAL_THINKING_BUDGET,
+                    ),
+                  ),
+                }),
             })
             wire = request.body
             extras = request.headers
@@ -958,12 +1059,32 @@ export function createConfiguredProviderServices(
             break
           }
           default: {
+            // A model whose record has no effort levels gets no reasoning
+            // field in any request (lane REASONSHAPESR2): the parameter
+            // itself is what xAI refuses (`api.x.ai/v1/responses` answers
+            // 400 to `reasoning` on grok-build-0.1), and the provider
+            // default applies. Per model, from the record, never per
+            // vendor. `default` (an unlisted level) omits the same way.
+            const shouldOmitReasoning =
+              body.reasoning.effort === EFFORT_PROVIDER_DEFAULT ||
+              record.reasoning.supported.state === 'no' ||
+              !hasUsableEffortLevels(record.reasoning.effortLevels)
             wire = responses
-              .createResponsesCodec({
-                sendPromptCacheKey: record.cache.acceptsKey,
-                sendPromptCacheRetention: record.cache.retention.length > 0,
+              .createResponsesCodec(
+                {
+                  sendPromptCacheKey: record.cache.acceptsKey,
+                  sendPromptCacheRetention: record.cache.retention.length > 0,
+                },
+                // The record resolved for this model gates the wire (tool
+                // choice modes, vision, strict tools); without it the codec
+                // would send `auto` for every model, listed or not.
+                () => capabilities.capabilitiesOf({ capabilityRecord: record }),
+              )
+              .encodeRequest({
+                ...body,
+                model: native,
+                ...(shouldOmitReasoning && { reasoning: undefined }),
               })
-              .encodeRequest({ ...body, model: native })
           }
         }
 

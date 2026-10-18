@@ -13,7 +13,12 @@ import type {
   SessionGoal,
   TodoItem,
 } from '../../shared/agentEvents'
-import type { GoalCommandVerb, ModelPricing, SubagentAction } from '../../shared/constants'
+import type {
+  EffortLevel,
+  GoalCommandVerb,
+  ModelPricing,
+  SubagentAction,
+} from '../../shared/constants'
 import type { PlanUsageRow, SubscriptionUsage } from '../../shared/usage'
 import type {
   ScheduleCadence,
@@ -278,6 +283,19 @@ export interface ModelSummary {
   readonly isPinned?: boolean | undefined
   readonly trainsOnContent?: boolean | undefined
   readonly planLimitsUrl?: string | undefined
+  /**
+   * Why this model cannot run the coding agent (tool calling unconfirmed):
+   * lists show it with this limit stated instead of hiding it, and an
+   * agent turn on it is refused with this sentence. Absent when it can.
+   */
+  readonly agentLimit?: string | undefined
+  /**
+   * Muse Code's per-model effort tiers (lane REASONSHAPES, META-G05): the
+   * tiers the model serves and its default, normalized to the UI range.
+   * Absent where the host reports none (the static family table applies).
+   */
+  readonly effortLevels?: readonly EffortLevel[] | undefined
+  readonly defaultEffort?: EffortLevel | undefined
 }
 
 export interface SkillSummary {
@@ -511,6 +529,13 @@ export interface AgentSession {
    * the prompt, used when the parts carry more than the user typed (M5).
    */
   sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission>
+  /**
+   * Bind a caller's remaining model-call allowance for the running turn;
+   * the last call is reserved for the tools-disabled wrap-up. Required on
+   * every backend so the compiler lists each implementer: a backend that
+   * manages its own turn bounds keeps the member as a no-op.
+   */
+  setModelCallAllowance(remaining: (() => number) | undefined): void
   /** Formats and repairs a user-requested Git draft in this session, under its live guards. */
   readonly gitDraftOutput?: GitDraftOutputPort
   /**

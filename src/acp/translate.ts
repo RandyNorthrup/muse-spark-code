@@ -275,6 +275,12 @@ export class UpdateTranslator {
     private readonly isReplay: boolean,
     private readonly readCost?: () => UsageCost | undefined,
     private readonly backend: 'modelApi' | 'museCode' = 'museCode',
+    /**
+     * The client advertised `session.notices`: backend notices go out as
+     * their own `notice` update, never as the model's words. Otherwise the
+     * protocol's sanctioned fallback is an agent message.
+     */
+    private readonly areNoticesSupported = false,
   ) {}
 
   private deltaUpdates(itemId: string, field: string, delta: string): SessionUpdate[] {
@@ -465,6 +471,19 @@ export class UpdateTranslator {
             ]
       }
       case 'backendNotice': {
+        // A backend notice is the app's own words, never the model's: it
+        // goes out as its own `notice` update where the client can show
+        // one, and only then falls back to an agent message (the
+        // protocol's sanctioned fallback for clients without notices).
+        if (this.areNoticesSupported) {
+          return [
+            {
+              sessionUpdate: 'notice',
+              severity: event.level,
+              title: event.text,
+            },
+          ]
+        }
         return [agentText(`${event.text}${PART_SEPARATOR}`)]
       }
       case 'messageAdmitted': {

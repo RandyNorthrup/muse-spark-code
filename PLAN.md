@@ -901,6 +901,21 @@ rounded up to the next 25 KiB multiple (51,200 B). Certify the removed-VSIX-line
 red drill with byte-exact restoration and run all dependent suites at the
 repository deadlines; full quality remains the integration lead's gate.
 
+**VERIFYCHUNK (2026-10-18, linuxlt).** The older-fixes train put
+`dist/modelApi.js` 5,859 bytes over its unchanged 525 KiB cap with inline
+logic from all six fix PRs combined. The verify loop's session side (M68:
+the loop, its ledger and the diagnostics history, with the 23
+`MODEL_API_MODEL_TEXT` keys only they read in a `VERIFY_MODEL_TEXT` block
+of their own) now loads as **`dist/modelApiVerify.js`** (51,213 B; new 75
+KiB budget, 51,213 × 1.15 = 58,894.95 B, rounded up to the next 25 KiB
+multiple), required through the session's cached loader on the first turn
+that verifies tool edits; `dist/modelApi.js` is 523.4 KiB with every budget
+unchanged. The synchronous tool definitions keep `runChecksDefinition`
+from `verifyTools.ts`, and activation keeps the shared `checkCommands.ts`,
+`codeFiles.ts` and `workspaceEdits.ts`. A bundle that cannot load fails
+the turn or check run that needed it, never a silent skip and never a
+default. Evidence: `docs/certification/train-older-fixes.md`.
+
 **HOTFIX0181, cross-bundle members (2026-10-12, kubuntu).** The build points
 every import of `transport.ts`, `sse.ts` and `ndjson.ts` outside
 `dist/modelApi.js` at that bundle (`deferredCohort`), which exports what
@@ -2179,7 +2194,11 @@ model served were learned by running a turn per tier. Since 1.4.1,
 `model/list` carries optional `reasoningEffortVariants` and
 `defaultReasoningEffort` (with `variants` added in 1.4.0). The extension
 still uses its verified family table; consuming catalog effort metadata
-is separate feature work. The original probe
+is separate feature work. Lane REASONSHAPES (2026-10-12) consumes the
+`model/list` rows: the host reads each row's tiers and default through
+the `modelEfforts` port, the controller posts them per model, and the
+slider offers the model's own steps (UNVERIFIED row shape until a 1.4.x
+live capture lands). The original probe
 (`scratchpad/live-effort.ts`, one "Reply with OK" turn per tier per Standard
 model, contributor tiers skipped) is recorded in `docs/certification/m3.md`.
 Outcome: `muse-spark-1.3` completes turns at every wire tier (`none` …
@@ -14717,6 +14736,16 @@ resolved against the plan's user-visible promise, not against the tag:
   both backends) must pass the role's answer through. MSM58M69 shipped
   no behaviour change for it.
 
+### D109 — Model-call turn limits preserve the answer (TOOLROUNDS, 2026-10-11; renumbered from D108 at merge, main took D108 for the test overhaul)
+
+The Model API turn cap is a limit, not a loop detector: default 200 model
+calls: ordinary reviews and coding jobs need more than fifty calls, while
+existing money caps protect spending. An existing caller request cap replaces that default with its remaining
+allowance. Reserve the last permitted call for a tools-disabled wrap-up; retain
+its answer and report a translated, typed request-limit stop in every host.
+Existing money caps, compaction accounting and queued-input promotion remain
+in force. Certification: [toolrounds](docs/certification/toolrounds.md).
+
 ## 3. Open questions (need the owner)
 
 <a id="q-m124"></a>
@@ -15862,6 +15891,13 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
+
+**Status 2026-10-11: building.** Typed translated stop first; tools-disabled
+wrap-up second; caller-aware default of 200 third. Certification and dependent
+suites: [toolrounds](docs/certification/toolrounds.md). Next slice: release-train
+integration and cross-platform certification after these three pieces pass.
 
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
@@ -24106,6 +24142,45 @@ exactly, proven by a table over every preset model × every setting
 against a golden generated on 01ee6233b. Open for the owner: on a model
 without a switch an unlisted on-level still goes as `none`, kept for
 byte identity. Evidence: `docs/certification/m95-h.md`.
+
+**Lane REASONSHAPES (2026-10-12/13, macmini).** Fills the provider reasoning
+gaps (DS-G01, DS-G02, GQ-G02, TO-G01, LO-G03/G04/G05, MI-G03, OR-G02,
+ZAI-G01/G02/G04/G07, META-G05, CP-G02/CP-G04): one record-driven mechanism — documented effort aliases
+(DeepSeek's table, ultra rides as max), beta-gated strict tool schemas
+(DeepSeek entries pointed at `/beta` only), the Thinking-off switch on
+DeepSeek, Z.ai and Together's hybrid toggle (only where the record
+affirms reasoning), Groq's `reasoning_format: "parsed"`, llama.cpp's
+server-routed `reasoning_effort`, Mistral's chunk-list decode and replay,
+Z.ai's preserved thinking and main-turn JSON mode, OpenRouter tool
+refusal enforcement, Muse Code per-model tiers lighting the slider
+(D10's deferred work), and Copilot search-call drops. Dated per-model
+doc facts shadow the snapshot (preset beats catalogue; live list,
+capture and user still win). Every request shape is provider-doc-quoted
+and UNVERIFIED until the 26-request capture plan
+(`docs/certification/REASONSHAPES-capture-plan.json`) answers. Evidence:
+`docs/certification/REASONSHAPES.md`.
+
+**Lane REASONSHAPESR2 (2026-10-13, macmini).** Closes the eleven round-2
+reasoning gaps (GAPANTH-G01/G02/G10/G17, OPENAI-G01/G02/G07/G08,
+XAI-G01/G02/G14) plus the xAI-first defect the lead measured on 0.18.2
+(`grok-build-0.1` turns failed: the product sent `reasoning` where the
+provider answers 400): one rank-1 rule — what Thinking off and each
+effort name send is decided by the model's record, and a value the
+model does not take is never sent and never silently replaced. Listed
+levels ride as named; unlisted on-levels resolve to `default` (omit);
+off rides as `none` only where the record affirms disabling, else the
+typed refusal fires before dispatch; models with no usable levels send
+no reasoning field on any route. Thinking blocks replay by native model
+id; Thinking off sends each model's affirmed switch (`disabled`,
+Sonnet 5.5's `between_tools`); manual-only models ride tiers unnamed
+with tier-sized budgets and Opus 4.5 sends the interleaved-thinking
+header; the composer offers each configured model's own levels and
+default; OpenAI turns carry pro mode and reasoning context at the wire
+(no surface sets them yet: OPENAI-G07/G08 partly);
+`exec --effort` accepts `none`. Every shape is provider-doc-quoted and
+UNVERIFIED until the 27-request capture plan
+(`docs/certification/REASONSHAPESR2-capture-plan.json`) answers.
+Evidence: `docs/certification/REASONSHAPESR2.md`.
 
 | Finding                                                                                                                                                                                                                                                                                                                                                                   | Owner                                                             |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
@@ -36549,7 +36624,42 @@ remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
+**TOOLCAP lane verification (2026-10-13, macmini).** One tool result can
+never end a conversation: every tool result passes one choke
+(`boundToolResultText`: 16,000 estimated tokens per result, 8,000 chars per
+line, at most 1/4 of the remaining window), cuts keep a spill file under
+`.muse-spark/tool-results/` with a one-line notice to the model and the
+person, and a provider `prompt is too long` refusal trims largest results,
+compacts once, then ends the turn with the true sentence (at most 3 sends).
+The lane's own base measurement (fake provider, ten 400,000-char lines:
+32,014 chars reach the request packing-off, a 1,024-char placeholder
+packing-on) and the per-kind bound survey are in
+`docs/certification/tool-result-bound.md`; the exact entry path of the
+lead's 2026-10-12 940k-token session is recorded there as undetermined, with
+the two consistent mechanisms named. The rig brief forbids the full
+`npm run quality` wrapper and the whole suite here (at most three files per
+run, repository timeouts); the lead runs the aggregate gate and the
+loopback/socket suites this sandbox blocks (EPERM) before release. No
+threshold, ignore or timeout is weakened.
+**TOOLROUNDS duplication, resolved (2026-10-17, review merge).** The 42 jscpd pairs recorded in round 8 all sat in fake-harness suites; main's test overhaul (D108) deleted those suites and the review deleted the lane's three stranded ones. `npm run duplication` on the merged tree reports 0 clones, so the deferral this paragraph carried is closed.
+
 ## 8. Escape hatches register
+
+TOOLROUNDS, 2026-10-12: `// eslint-disable-next-line
+@typescript-eslint/no-empty-function` on `MuseSession.setModelCallAllowance`
+(`src/core/backends/musecode/MuseCodeHost.ts`). `AgentSession`
+requires the member so the compiler lists every implementer (round-3
+ruling P2-D/P3-6); Muse Code manages its own turn bounds over MSP, so the
+member intentionally binds nothing. Removal guard: the host typecheck,
+which fails without the member.
+
+TOOLROUNDS, 2026-10-11: `SIXTY_REQUEST_RUNTIME_TIMEOUT_MS` (30,000 ms) in
+`test/unit/execRun.test.ts` covers only sixty real runtime admissions and
+settlements writing private journals (11.413 s measured on macbook, load 10.52).
+The two matching packaged-process rows reuse their existing `TIMEOUT` (30,000 ms)
+for the same sixty-request OS operation. All ordinary tests retain the repository
+default; final runs use no `--testTimeout` flag. The default 200-call proof uses
+memory fixtures, and real ACP delivery uses a three-call caller allowance.
 
 | Location                                            | Residual / follow-up                                | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
 | --------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -36612,6 +36722,7 @@ INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/uni
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `test/unit/teamHintsAndLoad.test.ts` (`native owner-only folder`, `native Windows hint permissions`)                                                                                           | `NATIVE_WINDOWS_HINT_TIMEOUT_MS` (30 s) per-suite deadline instead of the 5 s unit default                                                                                   | Each native Windows hint read starts Windows PowerShell and compiles the C# hint reader (`windowHints.ts`); two or three per test land at about 5 s on a cold hosted runner (reproduced at 5,045 ms on a local Windows 11 host). The suites test real ACL and handle behaviour, so faking them would remove the evidence.                                                                                          | Precompile `MuseTeamHintReader` once into the cached, content-addressed job assembly (as `MuseSparkJob`), then return the suites to the default deadline. |
 | `test/unit/usageL10nGate.test.mjs` (`beforeAll`)                                                                                                                                               | `L10N_GATE_SETUP_TIMEOUT_MS` (30 s) setup deadline instead of the 10 s hook default                                                                                          | Setup runs one cold, complete localization gate over the copied sources: a TypeScript parse of every file naming a text table. Hosted macOS with coverage exceeded 10 s. The gate now caches parses by content and skips files without a table name, so later checks take about 2 s instead of 21 s; the duplicate cold CLI build was removed, since CI's static gates run that CLI on every OS.                   | Narrow the load-order scan to files that import a text table, or ship it as its own gate step, then return to the default hook deadline.                  |
+| `test/unit/l10nPackParity.test.mjs` (`beforeAll`)                                                                                                                                              | `PACK_SETUP_TIMEOUT_MS` (30 s) setup deadline instead of the 10 s hook default                                                                                               | Setup packs the real UI tables with `packRuntimeArchive` at production brotli quality into a temp folder (7.1 s measured on macbook without coverage); hosted runners with coverage need the headroom. The fourteen assertions compare one line each and stay on the default deadline.                                                                                                                             | Pack a smaller synthetic table for the mechanic and keep one real-tables case in the packaging job, then return to the default hook deadline.             |
 | `test/unit/teamNativeLifetime.test.ts` (`M96 K real native lifetime`)                                                                                                                          | `NATIVE_PROCESS_SUITE_TIMEOUT_MS` (20 s) per-suite and setup deadline                                                                                                        | Each case starts the team host, journals and the fake CLI as real processes over real pipes; the first case exceeded 5 s on hosted macOS with coverage, and the setup that compiles the Windows job helper exceeded 10 s in a loaded Windows shard.                                                                                                                                                                | Start one shared fake-CLI host per file in `beforeAll` and reuse it across cases, then return to the default deadline.                                    |
 | `test/unit/teamHarness.test.mjs` (`RVM96B browser regressions`)                                                                                                                                | `REAL_HARNESS_CASE_TIMEOUT_MS` (20 s) per-case deadline                                                                                                                      | Each case opens a fresh page and loads the full production webview bundle from a local server; one case passed 5 s in a loaded hosted Windows shard with coverage.                                                                                                                                                                                                                                                 | Reuse one page per theme with in-page scenario switching, then return to the default deadline.                                                            |
 | `package.json` `typecheck:unit`                                                                                                                                                                | `--max-old-space-size=4096` for the single unit TypeScript program                                                                                                           | Measured peak 2.48 GB (`--extendedDiagnostics`, 2026-10-07), above Node's default heap on hosted macOS; splitting the project instead re-checked shared sources and pushed the static gate past its 15-minute limit.                                                                                                                                                                                               | Remove when the unit project fits the default heap (smaller project references).                                                                          |
@@ -36929,9 +37040,15 @@ No new escape hatch is introduced.
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
 | `test/unit/eval/evalFreezeLayout.test.ts` (`trackedFiles`) | `eslint-disable-next-line unicorn/prefer-unicode-code-point-escapes` on the NUL split | The lane brief mandates the `\x00` escape text where a literal NUL byte stood (Git read the file as binary); `\u{0}` would satisfy the rule but not the mandated text. Test-only; the split still yields NUL at runtime. | 2026-10-12 |
 
-| PR227W1 location                                                  | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                            | Date       |
-| ----------------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/core/backends/modelapi/ModelApiHost.ts`, `trackIdentityWait` | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | Node 20 (VS Code 1.99's host) lacks `Promise.withResolvers`; the close-drain gate uses `new Promise` with a synchronously assigned resolver instead (the M62 pattern, as in `developerOptions.ts` `serialize`). Remove if the minimum host gains `withResolvers`. | 2026-10-18 |
+| PR227W1 location                                                                               | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                     | Date       |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/core/backends/modelapi/ModelApiHost.ts`, `trackIdentityWait`                              | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | Node 20 (VS Code 1.99's host) lacks `Promise.withResolvers`; the close-drain gate uses `new Promise` with a synchronously assigned resolver instead (the M62 pattern, as in `developerOptions.ts` `serialize`). Remove if the minimum host gains `withResolvers`.          | 2026-10-18 |
+| TOOLCAP location                                                                               | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                     | Date       |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------           | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/core/backends/modelapi/toolResultBound.ts` (`boundToolResultText`, uncut and cut returns) | `text as BoundedToolText`, `joined as BoundedToolText`           | The bound measured this text under every cap (characters for the estimate, UTF-8 bytes for the window-share guarantee), so it may enter a request; the brand is the choke's own output.                                                                                    | 2026-10-13 |
+| `src/core/backends/modelapi/toolResultBound.ts` (`withCutNotice`)                              | `` `${bounded}\n${notice}` as BoundedToolText ``                 | The kept text already passed the bound; the appended notice is harness words with counts, never tool text.                                                                                                                                                                 | 2026-10-13 |
+| `src/core/backends/modelapi/toolResultBound.ts` (`fixedHarnessText`)                           | `text as BoundedToolText`                                        | Fixed harness words with no tool text (cancellations, refusals, skip reasons, continuation prompts); a misuse reads as one at the call site. Never a wrapper for tool text.                                                                                                | 2026-10-13 |
+| `src/core/backends/modelapi/schemas.ts` (`restoredToolText`)                                   | `text as BoundedToolText`                                        | Restore is byte-identical by design (goldens, forks, compaction rely on it); text stored before the bound still meets it through send-time recovery. Lives beside the brand because the stored-session format ships in the activation bundle while the bound loads lazily. | 2026-10-13 |
 
 ## 9. Security assumptions and accepted residual risk
 
@@ -40238,7 +40355,12 @@ the panel card, git and pull requests without VS Code's Git extension, the
 local-phase MCP connector, evaluated automatic compaction with the M75
 counted runs, the M97 legal-scan overhaul with build-record provenance, and
 the NOLIMITS4 removal of the invented caps; its CHANGELOG entries moved from
-`[Unreleased]` under `[0.19.0]`, and the roadmap regenerated again. Gates on the final
+`[Unreleased]` under `[0.19.0]`, and the roadmap regenerated again. PR #241
+(`train/older-fixes`) merged next: the six older fix tracks (usage truth,
+tool-output cap, tool rounds, reasoning shapes, provider truth, panel text)
+with the verify-session side split into its own `dist/modelApiVerify.js`
+bundle; its CHANGELOG entries moved from `[Unreleased]` under `[0.19.0]`,
+and the roadmap regenerated again. Gates on the final
 tree: format, eslint zero warnings, typecheck, check:plan, check:roadmap,
 check:l10n, check:reference, knip, build with bundle budgets, and the unit
 suites of the files the revert touched, all green; the full .vsix is packed by hosted

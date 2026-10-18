@@ -332,7 +332,8 @@
     "effort": "Zvolte, kolik úsilí Muse věnuje každé odpovědi.",
     "output": "Vybrat formát výsledku: text, json nebo jsonl.",
     "max-budget-usd": "Nastavit pevný limit výdajů v USD pro tento běh.",
-    "max-requests": "Nastavit nejvyšší počet požadavků modelu.",
+    "max-requests": "Nastavuje maximální počet požadavků. Poslední volání modelu vytvoří závěrečný souhrn bez nástrojů.",
+    "max-tool-output-bytes": "Zvýšit limit bajtů na výsledek nástroje pro tento běh.",
     "timeout": "Nastavit dobu běhu v sekundách.",
     "fail-on-denial": "Zastavit běh při zamítnutí oprávnění.",
     "ephemeral": "Uchovat relaci v paměti bez uložení.",
@@ -1120,8 +1121,8 @@
     "paid:webSearch": "Zapnout nebo vypnout placené hledání na webu.",
     "paid:subagents": "Zapnout nebo vypnout placené podagenty.",
     "paid:scheduledPrompts": "Zapnout nebo vypnout placené naplánované prompty.",
-    "paid:autoReviewer": "Zapnout nebo vypnout placeného automatického kontrolora.",
     "paid:autoCompaction": "Turn paid automatic compaction on or off.",
+    "paid:autoReviewer": "Zapnout nebo vypnout placeného automatického kontrolora.",
     "paid:bestOfN": "Zapnout nebo vypnout placenou funkci Nejlepší z N.",
     "paid:tab": "Zapnout nebo vypnout placené doplňování pomocí Tab.",
     "paid:legalExplanation": "Zapnout nebo vypnout placené vysvětlení právních zjištění. Účtuje se uloženému klíči Model API.",
@@ -2705,10 +2706,17 @@
   "paidConfirmAutoCompaction": "Automatické zhuštění používá vybraný model za {price}. Předplatné tuto službu nehradí.",
   "autoCompactionAwaitingEvaluation": "Automatické zhuštění čeká na vyhodnocení a není aktivní.",
   "autoCompactionFailed": "Automatické zhuštění selhalo; pokračuje se s původním kontextem.",
-  "contextWindowFull": "Kontextové okno je plné: /compact nebo /handoff",
   "autoCompactionBudgetRefused": "Automatická komprese nebyla provedena: denní placený rozpočet ji odmítl. Zvyšte rozpočet nebo to zkuste zítra znovu; původní kontext se zachová.",
+  "contextWindowFull": "Kontextové okno je plné: /compact nebo /handoff",
   "contextWindowFullAcp": "Okno kontextu je plné: automatická komprese vyžaduje vaše jednorázové schválení v editoru; schvalte její žádost o placené použití, nebo spusťte /compact. Klient, který schválení neumí zobrazit, ji nechá vypnutou.",
   "contextWindowFullExec": "Okno kontextu je plné: spusťte znovu s --auto-compaction --max-budget-usd <amount>, aby se běh zkomprimoval sám, nebo úlohu zkraťte.",
+  "toolResultCutPreview": "Výsledek nástroje zkrácen: {total} znaků, ponechán začátek a konec ({head} celých řádků na začátku, {tail} na konci; {omitted} vynecháno). Úplný výsledek je v {spill}. Odstraní se spolu s relací.",
+  "contextWindowTooLong": "Konverzace ({tokens} tokenů) je o {over} tokenů větší než okno tohoto modelu ({maximum} tokenů). /compact konverzaci, přejděte na model s větším oknem nebo začněte novou konverzaci; nic nebylo smazáno.",
+  "toolResultCapRefused": "Limit {source} výstupu nástroje {value} je odmítnut ({reason}); používá se výchozí {fallback}.",
+  "toolResultCapBelowFloor": "pod čitelnou hranicí {floor} bajtů",
+  "toolResultCapAboveWindow": "větší než okno modelu circa {window} tokenů",
+  "toolResultSpillFailed": "Úplný výsledek nástroje se nepodařilo uložit do {spill}; zůstává jen zkrácený text.",
+  "toolResultCutPreviewUnkept": "Výsledek nástroje zkrácen: {total} znaků, ponechán začátek a konec ({omitted} vynecháno). Úplný výsledek se nepodařilo uložit.",
   "sessionBudgetStopped": "Zastaveno: další požadavek (asi {estimate}) by překročil rozpočet relace {cap} (využito {spent}). Nebyl odeslán.",
   "sessionBudgetStoreUnavailable": "Záznam výdajů relace nelze přečíst nebo uložit. Dokud nebude dostupný, nelze odeslat nový požadavek.",
   "sessionBudgetLegacyFeesUnknown": "Výdaje konverzace nejsou plně ověřeny. Počkejte na dokončení čekajících požadavků, nebo začněte novou konverzaci pro použití limitu výdajů.",
@@ -2830,6 +2838,7 @@
   "agentStopReasons": {
     "normal": "Normální konec",
     "budget": "Rozpočet vyčerpán",
+    "limit": "Dosažen limit volání",
     "error": "Chyba",
     "cancelled": "Zastaveno uživatelem",
     "unknown": "Nedostupné"
@@ -3311,7 +3320,8 @@
     "medium": "Střední",
     "high": "Vysoké",
     "xhigh": "Velmi vysoké",
-    "max": "Maximální"
+    "max": "Maximální",
+    "ultra": "Ultra"
   },
   "toolLabels": {
     "judge": "Posuzovatel",
@@ -3763,6 +3773,33 @@
     "few": "Limit vstupních souborů: {count}.",
     "many": "Limit vstupních souborů: {count}."
   },
+  "referenceTurnLimit": "Tahy Model API mají ve výchozím nastavení 200 volání modelu. Přednost mají existující limity volání volajících. První volání probíhá vždy s nástroji: odpověď tah normálně dokončí, požadavek na nástroj ho ukončí na limitu požadavků. Poslední volání tahu, který spouštěl nástroje, vytvoří shrnutí bez nástrojů; pokračujte odesláním zprávy.",
+  "modelApiWrapUpReserved": "Zbývající požadavek je vyhrazen pro závěrečnou odpověď. Obrázek nebyl vygenerován.",
+  "modelApiTurnLimit": {
+    "one": "Tah se zastavil po {count} volání modelu. Pokračujte odesláním zprávy.",
+    "other": "Tah se zastavil po {count} voláních modelu. Pokračujte odesláním zprávy.",
+    "few": "Tah se zastavil po {count} voláních modelu. Pokračujte odesláním zprávy.",
+    "many": "Tah se zastavil po {count} voláních modelu. Pokračujte odesláním zprávy."
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "Tah se zastavil po {count} volání modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy.",
+    "few": "Tah se zastavil po {count} voláních modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy.",
+    "many": "Tah se zastavil po {count} voláních modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy.",
+    "other": "Tah se zastavil po {count} voláních modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy."
+  },
+  "modelApiWrapUpHookBlocked": "Hook zastavení požádal o další práci, ale tah dosáhl limitu volání modelu, takže konečná odpověď platí.",
+  "modelApiWrapUpFailed": {
+    "one": "Tah se zastavil po {count} volání modelu, ale závěrečné shrnutí se nepodařilo vytvořit ({reason}).",
+    "other": "Tah se zastavil po {count} voláních modelu, ale závěrečné shrnutí se nepodařilo vytvořit ({reason}).",
+    "few": "Tah se zastavil po {count} voláních modelu, ale závěrečné shrnutí se nepodařilo vytvořit ({reason}).",
+    "many": "Tah se zastavil po {count} voláních modelu, ale závěrečné shrnutí se nepodařilo vytvořit ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "limit rychlosti",
+    "modelError": "chyba modelu",
+    "budget": "rozpočtový limit",
+    "stopped": "zastaveno"
+  },
   "execRequestCapReached": {
     "one": "Byl dosažen limit {count} pokusu.",
     "other": "Byl dosažen limit pokusů: {count}.",
@@ -3790,6 +3827,9 @@
     "few": "Klíč funguje · {count} modely.",
     "many": "Klíč funguje · {count} modelů."
   },
+  "providerModelNoToolCalling": "{model} nemůže spouštět kódovacího agenta, protože pro něj není potvrzeno volání nástrojů.",
+  "providerAddPickModel": "Přidejte jeden nebo více těchto modelů pomocí --model <id> (lze opakovat):",
+  "providerAddNeedsModel": "Zadejte alespoň jeden model pomocí --model <id> (lze opakovat).",
   "providerProbeUnreachable": "Poskytovatel není dostupný.",
   "providerProbeUnparseable": "Seznam modelů se nepodařilo přečíst.",
   "providerProbeNoKey": "Nebyl zadán klíč.",

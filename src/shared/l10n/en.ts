@@ -419,7 +419,9 @@ export const EN = {
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
-    'max-requests': 'Set the maximum number of model requests.',
+    'max-requests':
+      'Set the maximum request allowance. The last model call produces a final summary without tools.',
+    'max-tool-output-bytes': 'Raise the per-tool-result byte guard for this run.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
     ephemeral: 'Keep the session in memory without saving it.',
@@ -3166,6 +3168,29 @@ export const EN = {
     'Context window full: automatic compaction needs your one-time approval in the editor; approve its paid-use request, or run /compact. A client that cannot show the approval leaves it off.',
   contextWindowFullExec:
     'Context window full: rerun with --auto-compaction --max-budget-usd <amount> so the run can compact itself, or shorten the task.',
+  // TOOLCAP: the person's preview of a cut tool result says the same as the
+  // model's one-line notice, in plain words, with the spill file to open.
+  toolResultCutPreview:
+    'Tool result cut: {total} characters, kept the start and end ({head} whole lines at the start, {tail} at the end; {omitted} left out). The full result is in {spill}. It is removed with the session.',
+  // TOOLCAP: the turn's last word when trimming and compaction could not fit
+  // the conversation into the model's window. True by construction: the
+  // numbers come from the provider's own refusal, and nothing was deleted.
+  contextWindowTooLong:
+    'The conversation ({tokens} tokens) is larger than this model’s window ({maximum} tokens) by {over} tokens. /compact the conversation, switch to a model with a larger window, or start a new conversation; nothing was deleted.',
+  // TOOLCAP: a configured tool-output cap that cannot be honoured is refused
+  // here, with the reason, and the default is used instead.
+  toolResultCapRefused:
+    'The {source} tool-output cap of {value} is refused ({reason}); using the default of {fallback}.',
+  // TOOLCAP: the two reasons a configured tool-output cap is refused, each
+  // its own translated sentence for the person reading the refusal above.
+  toolResultCapBelowFloor: 'below the readable floor of {floor} bytes',
+  toolResultCapAboveWindow: 'larger than the model’s window of about {window} tokens',
+  // TOOLCAP: the spill file for a cut tool result could not be written (for
+  // example a read-only workspace); the cut text still went to the model.
+  toolResultSpillFailed:
+    'The full tool result could not be kept in {spill}; only the cut text remains.',
+  toolResultCutPreviewUnkept:
+    'Tool result cut: {total} characters, kept the start and end ({omitted} left out). The full result could not be kept.',
   // The Model API session budget (M82): a request that cannot fit is not
   // sent, and the turn's cost is shown against the cap afterwards.
   sessionBudgetStopped:
@@ -3319,6 +3344,7 @@ export const EN = {
   agentStopReasons: {
     normal: 'Normal End',
     budget: 'Budget Exhausted',
+    limit: 'Call Limit Reached',
     error: 'Error',
     cancelled: 'Stopped by User',
     unknown: 'Unavailable',
@@ -3819,6 +3845,7 @@ export const EN = {
     high: 'High',
     xhigh: 'Extra High',
     max: 'Max',
+    ultra: 'Ultra',
   },
   // Tool names seen on the wire (Muse Code 1.3.0, live captures 2026-09-21/22)
   // and the label the row shows; unknown tools show their raw name. The IDE
@@ -4401,6 +4428,32 @@ export const EN = {
     one: 'At most {count} input file is allowed.',
     other: 'At most {count} input files are allowed.',
   }),
+  referenceTurnLimit:
+    'Model API turns default to 200 model calls. Existing caller request limits win. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a turn that ran tools answers without tools and completes with max_turn_requests (headless exec reports request_cap, exit 5); send a message to continue.',
+  modelApiWrapUpReserved:
+    'The remaining request is reserved for the final answer. The image was not generated.',
+  modelApiTurnLimit: forms({
+    one: 'The turn stopped after {count} model call. Send a message to continue.',
+    other: 'The turn stopped after {count} model calls. Send a message to continue.',
+  }),
+  modelApiWrapUpTruncated: forms({
+    one: 'The turn stopped after {count} model call with the final answer cut short by the output limit. The partial answer is kept. Send a message to continue.',
+    other:
+      'The turn stopped after {count} model calls with the final answer cut short by the output limit. The partial answer is kept. Send a message to continue.',
+  }),
+  modelApiWrapUpHookBlocked:
+    'A stop hook asked for more work, but the turn reached its model-call limit, so the final answer stands.',
+  modelApiWrapUpFailed: forms({
+    one: 'The turn stopped after {count} model call, but the final summary could not be produced ({reason}).',
+    other:
+      'The turn stopped after {count} model calls, but the final summary could not be produced ({reason}).',
+  }),
+  modelApiWrapUpFailedReason: {
+    rateLimited: 'rate limited',
+    modelError: 'model error',
+    budget: 'budget stop',
+    stopped: 'stopped',
+  },
   execRequestCapReached: forms({
     one: 'The request cap of {count} attempt was reached.',
     other: 'The request cap of {count} attempts was reached.',
@@ -4433,6 +4486,11 @@ export const EN = {
     one: 'Key works · {count} model.',
     other: 'Key works · {count} models.',
   }),
+  // {model}: the `<provider>/<model>` ref whose tool calling is unconfirmed.
+  providerModelNoToolCalling:
+    '{model} cannot run the coding agent because tool calling is not confirmed for it.',
+  providerAddPickModel: 'Add one or more of these models with --model <id> (repeatable):',
+  providerAddNeedsModel: 'Pass at least one model with --model <id> (repeatable).',
   providerProbeUnreachable: 'The provider could not be reached.',
   providerProbeUnparseable: 'The model list could not be read.',
   providerProbeNoKey: 'No key was supplied.',

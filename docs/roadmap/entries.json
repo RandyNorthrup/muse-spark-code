@@ -757,7 +757,7 @@
     {
       "id": "M102",
       "title": "Usage and cost page",
-      "summary": "A local Usage & Cost page shows each model call's cost, tokens, time, limits and budgets by provider, model and client, with charts, tables and exports, and the history never leaves your machine.",
+      "summary": "A local Usage & Cost page shows each model call's cost, tokens, time, limits and budgets by provider, model and client, with charts, tables and exports, limit cards named for your subscription plan, and the history never leaves your machine.",
       "area": "usage-billing",
       "release": "0.15.0"
     },
@@ -1333,6 +1333,12 @@
       "id": "VSIXDIET2",
       "public": false,
       "note": "package size budget"
+    },
+    {
+      "id": "TOOLROUNDS",
+      "title": "Answers survive model-call limits",
+      "summary": "Long Model API turns retain a final summary at their call limit; headless request caps determine the turn allowance.",
+      "area": "chat"
     }
   ]
 }

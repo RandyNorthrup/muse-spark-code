@@ -332,7 +332,8 @@
     "effort": "Escolha quanto esforço o Muse dedica a cada resposta.",
     "output": "Escolher o formato do resultado: text, json ou jsonl.",
     "max-budget-usd": "Definir o limite rígido de gastos em USD para esta execução.",
-    "max-requests": "Definir o máximo de solicitações ao modelo.",
+    "max-requests": "Define o número máximo de solicitações. A última chamada ao modelo produz um resumo final sem ferramentas.",
+    "max-tool-output-bytes": "Elevar o limite de bytes por resultado da ferramenta para esta execução.",
     "timeout": "Definir o limite de duração em segundos.",
     "fail-on-denial": "Parar a execução se uma permissão for negada.",
     "ephemeral": "Manter a sessão na memória sem salvá-la.",
@@ -1116,8 +1117,8 @@
     "paid:webSearch": "Ative ou desative a pesquisa na web paga.",
     "paid:subagents": "Ative ou desative os subagentes pagos.",
     "paid:scheduledPrompts": "Ative ou desative os prompts agendados pagos.",
-    "paid:autoReviewer": "Ative ou desative o revisor automático pago.",
     "paid:autoCompaction": "Turn paid automatic compaction on or off.",
+    "paid:autoReviewer": "Ative ou desative o revisor automático pago.",
     "paid:bestOfN": "Ative ou desative o Best-of-N pago.",
     "paid:tab": "Ativar ou desativar as sugestões pagas do Tab.",
     "paid:legalExplanation": "Ativar ou desativar as explicações pagas dos resultados jurídicos. A cobrança é feita na chave Model API armazenada.",
@@ -2652,10 +2653,17 @@
   "paidConfirmAutoCompaction": "A compactação automática usa o modelo selecionado por {price}. A assinatura não cobre esse custo.",
   "autoCompactionAwaitingEvaluation": "A compactação automática aguarda avaliação e está inativa.",
   "autoCompactionFailed": "A compactação automática falhou; continuando com o contexto original.",
-  "contextWindowFull": "Janela de contexto cheia: /compact ou /handoff",
   "autoCompactionBudgetRefused": "A compactação automática não foi executada: o orçamento diário pago a recusou. Aumente o orçamento ou tente novamente amanhã; o contexto original será mantido.",
+  "contextWindowFull": "Janela de contexto cheia: /compact ou /handoff",
   "contextWindowFullAcp": "Janela de contexto cheia: a compactação automática precisa da sua aprovação única no editor; aprove a solicitação de uso pago ou execute /compact. Um cliente que não pode exibir a aprovação a mantém desativada.",
   "contextWindowFullExec": "Janela de contexto cheia: execute novamente com --auto-compaction --max-budget-usd <amount> para que a execução se compacte sozinha, ou encurte a tarefa.",
+  "toolResultCutPreview": "Resultado da ferramenta cortado: {total} caracteres, mantidos o início e o fim ({head} linhas inteiras no início, {tail} no fim; {omitted} omitidos). O resultado completo está em {spill}. É removido com a sessão.",
+  "contextWindowTooLong": "A conversa ({tokens} tokens) é maior que a janela deste modelo ({maximum} tokens) em {over} tokens. /compact a conversa, mude para um modelo com janela maior ou inicie uma nova conversa; nada foi excluído.",
+  "toolResultCapRefused": "O limite {source} de saída da ferramenta de {value} foi recusado ({reason}); usando o padrão de {fallback}.",
+  "toolResultCapBelowFloor": "abaixo do mínimo legível de {floor} bytes",
+  "toolResultCapAboveWindow": "maior que a janela do modelo de cerca de {window} tokens",
+  "toolResultSpillFailed": "Não foi possível manter o resultado completo da ferramenta em {spill}; resta apenas o texto cortado.",
+  "toolResultCutPreviewUnkept": "Resultado da ferramenta cortado: {total} caracteres, mantidos o início e o fim ({omitted} omitidos). Não foi possível manter o resultado completo.",
   "sessionBudgetStopped": "Interrompido: a próxima solicitação (cerca de {estimate}) ultrapassaria o orçamento de sessão de {cap} ({spent} usados). Ela não foi enviada.",
   "sessionBudgetStoreUnavailable": "Não foi possível ler ou salvar o registro de gastos da sessão. Nenhuma nova solicitação pode ser enviada até que ele esteja disponível.",
   "sessionBudgetLegacyFeesUnknown": "Os gastos da conversa não foram totalmente verificados. Aguarde as solicitações pendentes terminarem ou inicie uma nova conversa para usar um limite de gastos.",
@@ -2775,6 +2783,7 @@
   "agentStopReasons": {
     "normal": "Fim normal",
     "budget": "Orçamento esgotado",
+    "limit": "Limite de chamadas atingido",
     "error": "Erro",
     "cancelled": "Parado pelo usuário",
     "unknown": "Indisponível"
@@ -3247,7 +3256,8 @@
     "medium": "Médio",
     "high": "Alto",
     "xhigh": "Muito alto",
-    "max": "Máximo"
+    "max": "Máximo",
+    "ultra": "Ultra"
   },
   "toolLabels": {
     "judge": "Avaliador",
@@ -3690,6 +3700,30 @@
     "other": "São permitidos no máximo {count} arquivos de entrada.",
     "many": "São permitidos no máximo {count} arquivos de entrada."
   },
+  "referenceTurnLimit": "Os turnos da API de modelos têm 200 chamadas ao modelo por padrão. Os limites de chamada existentes dos chamadores prevalecem. A primeira chamada sempre executa com ferramentas: uma resposta conclui o turno normalmente, uma solicitação de ferramenta o encerra no limite de solicitações. A última chamada de um turno que executou ferramentas produz um resumo sem ferramentas; envie uma mensagem para continuar.",
+  "modelApiWrapUpReserved": "A solicitação restante está reservada para a resposta final. A imagem não foi gerada.",
+  "modelApiTurnLimit": {
+    "one": "O turno parou após {count} chamada ao modelo. Envie uma mensagem para continuar.",
+    "other": "O turno parou após {count} chamadas ao modelo. Envie uma mensagem para continuar.",
+    "many": "O turno parou após {count} chamadas ao modelo. Envie uma mensagem para continuar."
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "O turno parou após {count} chamada ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar.",
+    "other": "O turno parou após {count} chamadas ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar.",
+    "many": "O turno parou após {count} chamadas ao modelo, com a resposta final cortada pelo limite de saída. A resposta parcial foi mantida. Envie uma mensagem para continuar."
+  },
+  "modelApiWrapUpHookBlocked": "Um hook de parada pediu mais trabalho, mas o turno atingiu seu limite de chamadas ao modelo, então a resposta final permanece.",
+  "modelApiWrapUpFailed": {
+    "one": "O turno parou após {count} chamada ao modelo, mas o resumo final não pôde ser produzido ({reason}).",
+    "other": "O turno parou após {count} chamadas ao modelo, mas o resumo final não pôde ser produzido ({reason}).",
+    "many": "O turno parou após {count} chamadas ao modelo, mas o resumo final não pôde ser produzido ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "limite de taxa",
+    "modelError": "erro do modelo",
+    "budget": "limite de orçamento",
+    "stopped": "interrompido"
+  },
   "execRequestCapReached": {
     "one": "O limite de {count} tentativa foi atingido.",
     "other": "O limite de {count} tentativas foi atingido.",
@@ -3715,6 +3749,9 @@
     "other": "A chave funciona · {count} modelos.",
     "many": "A chave funciona · {count} modelos."
   },
+  "providerModelNoToolCalling": "{model} não pode executar o agente de codificação porque as chamadas de ferramenta não estão confirmadas para ele.",
+  "providerAddPickModel": "Adicione um ou mais destes modelos com --model <id> (repetível):",
+  "providerAddNeedsModel": "Passe pelo menos um modelo com --model <id> (repetível).",
   "providerProbeUnreachable": "Não foi possível acessar o provedor.",
   "providerProbeUnparseable": "Não foi possível ler a lista de modelos.",
   "providerProbeNoKey": "Nenhuma chave foi fornecida.",

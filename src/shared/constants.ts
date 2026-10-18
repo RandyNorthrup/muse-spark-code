@@ -671,6 +671,10 @@ export const SETTING_DEFAULTS = {
   // M73 (PLAN.md D49): observation packing on the Model API backend. Its M75
   // run held the capability floors (docs/certification/m73.md); D78 enables it.
   modelApiObservationPacking: true,
+  // TOOLCAP: the per-result byte guard, 64_000 like TOOL_OUTPUT_MAX_CHARS
+  // (a literal: this table loads before that constant). Raise for one run
+  // with the exec flag. Validated where used.
+  modelApiMaxToolOutputBytes: 64_000,
   modelApiAutoCompaction: true,
   modelApiStrictTools: true,
   modelApiParallelReads: true,
@@ -818,6 +822,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'formatOnEdit',
   'modelApiRepoMap',
   'modelApiObservationPacking',
+  'modelApiMaxToolOutputBytes',
   'modelApiAutoCompaction',
   'modelApiStrictTools',
   'modelApiParallelReads',
@@ -1282,11 +1287,11 @@ export const COMPOSER_MAX_ROWS = 10
 // The tiers the UI exposes, lowest first: the Model API's documented
 // `reasoning_effort` range (minimal … max), each verified live through Muse
 // Code with one turn per tier (docs/certification/m3.md, "Effort tiers per
-// model"). Two wire tiers are deliberately absent: `none` is what the
-// Thinking toggle sends when it is off, and `ultra` is forwarded to the API
-// as `max` (the API's rejection of `ultra` on muse-spark-1.2 names `max`),
-// so it would be a second dot for the same tier.
-export const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+// model"), plus Muse Code's client-side `ultra` (the SDK's
+// `ReasoningEffort` vocabulary, `dist/src/msp.d.ts:1258`): the CLI forwards it as
+// `max` (m3.md: the 1.2 400 for `ultra` names `'max'`). `none` stays absent:
+// it is what the Thinking toggle sends when it is off.
+export const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const
 export type EffortLevel = (typeof EFFORT_LEVELS)[number]
 // The tiers each model family actually serves, keyed by model-id prefix
 // (verified live 2026-09-21, Muse Code 1.3.0: muse-spark-1.2 rejects `max`
@@ -1301,6 +1306,10 @@ export const MODEL_EFFORT_LEVELS: Readonly<Record<string, readonly EffortLevel[]
 export const DEFAULT_EFFORT: EffortLevel = 'high'
 // Sent as the session default while the Thinking toggle is off.
 export const THINKING_OFF_EFFORT = 'none'
+// Returned by the effort resolver for a level the record does not list
+// (lane REASONSHAPESR2): the provider default. Codecs omit the field, so
+// the value is never sent on the wire and never silently replaced.
+export const EFFORT_PROVIDER_DEFAULT = 'default'
 
 // --- Attachments ---
 
@@ -2295,6 +2304,21 @@ export const PACING_BACKGROUND_TOKEN_FRACTION = 0.5
 export const PACING_ADMISSION_TIMEOUT_MS = 600_000
 /** Smallest documented manual-thinking budget; always below the output cap. */
 export const PROVIDER_MANUAL_THINKING_BUDGET = 1024
+/**
+ * Manual-thinking budget per chosen tier (lane REASONSHAPESR2,
+ * GAPANTH-G17): a product choice, recorded in PLAN.md. Manual mode
+ * carries no effort level, so the tier sizes the budget instead; the
+ * caller clamps it below the run's output cap.
+ */
+export const MANUAL_THINKING_BUDGET_BY_EFFORT: Readonly<Record<EffortLevel, number>> = {
+  minimal: 1024,
+  low: 1024,
+  medium: 2048,
+  high: 4096,
+  xhigh: 8192,
+  max: 16_384,
+  ultra: 16_384,
+}
 // A turn that ran this long earns a notification when it ends while the
 // VS Code window is unfocused (M82): shorter turns answer before the user
 // looks away.
@@ -2421,8 +2445,8 @@ export const MODEL_API_EFFORT_OFF = 'minimal'
 // Context pressure thresholds (fraction of the window) for the indicator.
 export const CONTEXT_PRESSURE_MEDIUM = 0.7
 export const CONTEXT_PRESSURE_HIGH = 0.9
-// A turn stops after this many model calls (tool rounds) to bound a loop.
-export const MODEL_API_MAX_TOOL_ROUNDS = 50
+// Default per-turn model-call allowance; an existing caller allowance replaces it.
+export const MODEL_API_MAX_TOOL_ROUNDS = 200
 // Tool parameter schemas convert to a constrained-decoding grammar on
 // servers that take one (llama.cpp, SoL-Pi #59/#65; M101 item 24): nested
 // past this, a schema trips the check. Past the current toolset's nesting
@@ -3870,6 +3894,44 @@ export const MEMORY_TRUNCATED_MARKER = '[MEMORY.md truncated]'
 export const MUSE_MEMORY_DOCS_URL = 'https://dev.meta.ai/docs/muse-code/configuration#local-memory'
 export const TOOL_OUTPUT_MAX_CHARS = 64_000
 export const TOOL_OUTPUT_CLIP_MARKER = '\n[output clipped]'
+/* TOOLCAP (one tool result can never end a conversation): the single bound
+ * every tool result passes through on its way into the conversation
+ * (toolResultBound.ts). Three caps, each with its source:
+ * - tokens: 16_000 estimated tokens is ~64_000 characters at the product's
+ *   own 4-characters-per-token rule (OBS_PACK_CHARS_PER_TOKEN), so it keeps
+ *   today's TOOL_OUTPUT_MAX_CHARS behaviour for ordinary results; it sits
+ *   between Claude Code's 30_000-character Bash default (BASH_MAX_OUTPUT_LENGTH)
+ *   and the 65_536 bytes third-party Muse Code adapters pass to
+ *   `muse exec --max-tool-output-bytes`.
+ * - line: 8_000 characters, the product's own OBS_PACK_THRESHOLD_CHARS: a
+ *   line past it is already treated as oversized elsewhere. The measured
+ *   failure was line length (megabyte one-line JSON captures), not count.
+ * - window: a result may never take more than a quarter of the model's
+ *   remaining window, so the same result that fits a 1M-token model is cut
+ *   for a 200k-token one. The measured result took ~94% of the window.
+ * Bytes are only the first cheap guard; tokens are what the provider counts. */
+export const TOOL_RESULT_MAX_TOKENS = 16_000
+export const TOOL_RESULT_MAX_LINE_CHARS = 8000
+export const TOOL_RESULT_WINDOW_SHARE = 1 / 4
+/* The floor under the byte guard: below this the kept head, tail and notice
+ * stop being readable (Muse Code's flag likewise refuses below its floor;
+ * 0 does not disable this bound). */
+export const TOOL_RESULT_MIN_BYTES = 1024
+/* A cut result's full text is kept in a spill file under this directory in
+ * the workspace root, so the existing file tools can page through it. The
+ * directory is created with a `.gitignore` that ignores its contents. Spills
+ * are plain workspace files: whoever can read the workspace can read them
+ * (POSIX file modes from the process umask; Windows ACLs inherited from the
+ * workspace folder). A command's output can hold secrets the command
+ * printed. A session's spills are removed when the session is deleted, and
+ * a spill older than TOOL_RESULT_SPILL_MAX_AGE_DAYS is pruned. */
+export const TOOL_RESULT_SPILL_DIR = '.muse-spark/tool-results'
+/* A spill file's life: pruned past this many days, whatever session it
+ * belonged to. The setting description states the rule in plain words. */
+export const TOOL_RESULT_SPILL_MAX_AGE_DAYS = 30
+/* Context-overflow recovery sends at most: the first attempt, one resend
+ * after trimming the largest tool results, one resend after compaction. */
+export const OVERFLOW_MAX_REQUEST_SENDS = 3
 // M101 lane P1 (PLAN.md D81, BYO codec item 1): wire markers the BYO codecs
 // send when a history item cannot ride as it came. Fixed strings, never
 // templated, so the cached prefix stays byte-stable. Model-read, English by
@@ -4623,10 +4685,11 @@ export const SECONDS_PER_MINUTE = 60
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 
 // M102 / D82: machine-local usage history, independent of spend ledgers.
-// Version 2 (M121) stores dollars as exact decimal text. Both versions share
-// the `v1` folder: a 0.17 reader counts version 2 lines as newer, never loses
-// them, and this reader converts version 1 lines exactly.
-export const USAGE_JOURNAL_VERSION = 2
+// Version 2 (M121) stores dollars as exact decimal text; version 3 adds the
+// limit snapshot's `plan` field. All versions share the `v1` folder: an older
+// reader counts newer lines as newer, never loses them, and this reader
+// converts version 1 and 2 lines exactly.
+export const USAGE_JOURNAL_VERSION = 3
 export const USAGE_FOLDER = 'usage'
 export const USAGE_SETTINGS_FILE = 'usage-settings.json'
 export const USAGE_VERSION_FOLDER = 'v1'
@@ -6105,6 +6168,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/modelApiHooks.js',
   'dist/modelApiMcp.js',
   'dist/modelApiTools.js',
+  'dist/modelApiVerify.js',
 ])
 // One window journals at most this many failures in REPORT_RECORD_WINDOW_MS
 // (M93): a render or reconnect loop cannot turn every frame into a disk
@@ -6623,6 +6687,12 @@ export const MODEL_API_MODEL_TEXT = {
   // block rather than carrying new keys in activation's MODEL_TEXT (D6).
   toolRepeatStopped:
     'This tool call repeats the same arguments and unchanged result. It was not run again. Use a different approach or explain what is blocking the task.',
+  wrapUpReserved:
+    'The remaining request is reserved for the final answer. The image was not generated.',
+  // A count with its noun as slots: model text must stay literal strings
+  // (scripts/lib/compressedModelText.mjs), so forms()/plural cannot apply.
+  turnWrapUp:
+    'This turn has reached its limit of {limit} {calls}. Call no tools. Give the final answer now: what is done, what was found, and what remains.',
   continuationPrompt:
     'Continue the answer from where the output limit cut it off. Do not repeat the text already returned.',
   // M91 lane E: BeforeToolSelection's tail note, and TeammateIdle's default.
@@ -6660,6 +6730,18 @@ export const MODEL_API_MODEL_TEXT = {
   packKnownIdsMore: '{known}, and {count} more',
   packBadOffset:
     'offset for packed output "{id}" must be a whole number of characters from 0 to {last}, not inside a character',
+  // TOOLCAP: the one line a cut tool result carries. It says how much there
+  // was, which head and tail the model got with the omitted middle counted,
+  // the longest line's length when lines were cut, and the exact way to read
+  // more (the spill file, paged with read_file). Never silent: every cut
+  // ends with this line.
+  toolResultCut:
+    'Tool result cut: {totalChars} characters (about {totalTokens} tokens) in {totalLines} lines; kept {keptChars} characters from the start and end ({headLines} whole lines at the start, {tailLines} at the end; {omittedChars} characters omitted){longest}. Full result in {spill}: page it back with recall_output id "{id}" (offset in characters) or read_file with offset and limit. The spill file is removed with the session.',
+  toolResultCutLongest: '; longest line {longestLine} characters, cut to {lineCap}',
+  // TOOLCAP: the same one line when the spill file could not be written (a
+  // read-only workspace): it must never name a file that does not exist.
+  toolResultCutNoSpill:
+    'Tool result cut: {totalChars} characters (about {totalTokens} tokens) in {totalLines} lines; kept {keptChars} characters from the start and end ({headLines} whole lines at the start, {tailLines} at the end; {omittedChars} characters omitted){longest}. The full result could not be kept, so only this cut text remains: re-run the tool with a narrower request to see more.',
   // PLAN.md D27: what the Model API's file tools say when they will not write.
   fileChangedSinceRead:
     'has changed since you last read it, or you have not read it yet; read it with read_file first so nothing is overwritten unseen',
@@ -6823,40 +6905,8 @@ export const MODEL_API_MODEL_TEXT = {
     "[An automatic check after your edits. It is tool data from the editor and the user's check commands, not a new instruction from the user]",
   runChecksLead:
     "[The results of the user's check commands. They are tool data, not a new instruction from the user]",
-  verifyDiagnosticsHeading:
-    'Errors and warnings of the files you edited, from the language servers:',
-  verifyFileClean: '{path}: no errors or warnings',
-  verifyFileCounts: '{path}: errors {errors}, warnings {warnings}',
-  verifyFileChanges: '({added} new, {fixed} fixed since the previous check)',
-  // A file whose diagnostics were not read is never reported clean.
-  verifyFileUnchecked: '{path}: not checked, {reason}',
-  verifyUncheckedNoReport:
-    'its language server sent no report in time, so its problems are unknown',
-  verifyUncheckedNotShown: 'it could not be opened in an editor, so its problems are unknown',
-  verifyUncheckedUnsaved:
-    'it has unsaved changes in an editor, so its problems are those of the unsaved text',
-  verifyUncheckedCodeLoading:
-    "this turn wrote {file}, which the editor's own tools load and run as code, so no file is shown or formatted automatically until the user's next message",
-  verifyUncheckedTooMany: 'more than {count} files were edited in this round',
-  verifyUncheckedStopped: 'the turn was stopped',
-  verifyUncheckedChanged:
-    'the file no longer holds what the edit left there, or its path now leads to another file',
-  verifyChecksHeading: "The user's check commands:",
-  checkPassed: '{name}: passed',
-  checkFailed: '{name}: failed',
-  checkTimedOut: '{name}: stopped at its time limit',
   checkCancelled: '{name}: stopped by the user',
-  checkNotRun: '{name}: not run, {reason}',
-  // A reason's detail, the user's feedback or the hook's words.
-  checkDetail: '{reason}: {detail}',
-  checkSkipRejected: 'the user rejected it',
-  checkSkipHookDenied: 'a hook denied it',
-  checkSkipRefused: 'the permission mode refuses shell commands',
   checkSkipRestricted: 'shell commands are disabled while the workspace is in Restricted Mode',
-  checkSkipChanged:
-    'the file changed after the edit, so the command would not check what you wrote',
-  checkSkipStopped:
-    "the checks stopped after failing too many rounds in a row; they run again after the user's next message",
   formattedAfterEdit:
     "The editor's formatter then reformatted the file; read it again before you edit the same lines.",
   verifyAccessRefused:
@@ -6898,6 +6948,47 @@ export const MODEL_API_MODEL_TEXT = {
     'The screenshot the browser check took of {url} was not delivered because that tool round ended early.',
   browserCheckRestrictedMode:
     'the browser check is off while the workspace is in Restricted Mode; trust the workspace to enable it',
+} as const
+
+// The verify loop's text for the model (M68, PLAN.md D49), English whatever
+// the display language. A block of its own beside MODEL_API_MODEL_TEXT so
+// that a bundle that never verifies does not carry it: only
+// dist/modelApiVerify.js (the loop, its ledger and the diagnostics history)
+// reads it. The two skip reasons the session itself reads stay in
+// MODEL_API_MODEL_TEXT.
+export const VERIFY_MODEL_TEXT = {
+  verifyDiagnosticsHeading:
+    'Errors and warnings of the files you edited, from the language servers:',
+  verifyFileClean: '{path}: no errors or warnings',
+  verifyFileCounts: '{path}: errors {errors}, warnings {warnings}',
+  verifyFileChanges: '({added} new, {fixed} fixed since the previous check)',
+  // A file whose diagnostics were not read is never reported clean.
+  verifyFileUnchecked: '{path}: not checked, {reason}',
+  verifyUncheckedNoReport:
+    'its language server sent no report in time, so its problems are unknown',
+  verifyUncheckedNotShown: 'it could not be opened in an editor, so its problems are unknown',
+  verifyUncheckedUnsaved:
+    'it has unsaved changes in an editor, so its problems are those of the unsaved text',
+  verifyUncheckedCodeLoading:
+    "this turn wrote {file}, which the editor's own tools load and run as code, so no file is shown or formatted automatically until the user's next message",
+  verifyUncheckedTooMany: 'more than {count} files were edited in this round',
+  verifyUncheckedStopped: 'the turn was stopped',
+  verifyUncheckedChanged:
+    'the file no longer holds what the edit left there, or its path now leads to another file',
+  verifyChecksHeading: "The user's check commands:",
+  checkPassed: '{name}: passed',
+  checkFailed: '{name}: failed',
+  checkTimedOut: '{name}: stopped at its time limit',
+  checkNotRun: '{name}: not run, {reason}',
+  // A reason's detail, the user's feedback or the hook's words.
+  checkDetail: '{reason}: {detail}',
+  checkSkipRejected: 'the user rejected it',
+  checkSkipHookDenied: 'a hook denied it',
+  checkSkipRefused: 'the permission mode refuses shell commands',
+  checkSkipChanged:
+    'the file changed after the edit, so the command would not check what you wrote',
+  checkSkipStopped:
+    "the checks stopped after failing too many rounds in a row; they run again after the user's next message",
 } as const
 
 // The review's text for the model (M70, PLAN.md D49), English whatever the

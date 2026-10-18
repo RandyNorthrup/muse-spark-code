@@ -14,6 +14,7 @@ import {
   isReasoningItem,
   messageText,
   responseSchema,
+  restoredToolText,
   type CreateResponseBody,
   type FunctionToolDefinition,
   type InputItem,
@@ -21,6 +22,10 @@ import {
   type StreamEvent,
 } from '../../src/core/backends/modelapi/schemas'
 import type { SseEvent } from '../../src/core/backends/modelapi/sse'
+import {
+  resolveModelCapabilities,
+  type CapabilityOverrides,
+} from '../../src/core/providers/capabilityRecord'
 import {
   ANTHROPIC_MAX_ARGUMENT_BYTES,
   ANTHROPIC_MAX_FRAME_BYTES,
@@ -184,6 +189,13 @@ function userOnly(instructions: string) {
   })
 }
 
+function recordFor(fields: CapabilityOverrides['reasoning']) {
+  return resolveModelCapabilities(
+    { provider: 'anthropic', nativeModel: 'test-model', format: 'anthropic' },
+    [{ source: { kind: 'user', ref: 'test' }, fields: { reasoning: fields } }],
+  )
+}
+
 function streamOf(
   blocks: { start: unknown; deltas: unknown[] }[],
   stopReason: unknown,
@@ -323,7 +335,7 @@ describe('anthropic codec goldens (checked-in request bytes)', () => {
       {
         type: 'function_call_output',
         call_id: 'toolu_01test',
-        output: '{"timezone":"UTC","time":"2026-10-04T12:00:00Z"}',
+        output: restoredToolText('{"timezone":"UTC","time":"2026-10-04T12:00:00Z"}'),
       },
     ])
     expect(
@@ -430,7 +442,11 @@ describe('prefix stability (acceptance 4)', () => {
           name: 'get_time',
           arguments: '{"timezone":"UTC"}',
         },
-        { type: 'function_call_output', call_id: 'toolu_01a', output: '{"time":"12:00"}' },
+        {
+          type: 'function_call_output',
+          call_id: 'toolu_01a',
+          output: restoredToolText('{"time":"12:00"}'),
+        },
       ],
     })
     const firstNative = encodeAnthropicRequest(first, BASE_OPTIONS).body
@@ -570,7 +586,11 @@ describe('stream decoding from the captures', () => {
             name: call.name,
             arguments: call.arguments,
           },
-          { type: 'function_call_output', call_id: call.call_id, output: '{"timezone":"UTC"}' },
+          {
+            type: 'function_call_output',
+            call_id: call.call_id,
+            output: restoredToolText('{"timezone":"UTC"}'),
+          },
         ],
       }),
       {
@@ -815,12 +835,22 @@ describe('breakpoints and effort', () => {
     ])
   })
 
-  it('maps minimal to low and leaves thinking off for none', () => {
-    const low = encodeAnthropicRequest(userOnly('Remember this.'), {
+  it('omits the effort for a known tier the API has no level for, never a neighbour', () => {
+    // Lane REASONSHAPESR2 (GAPANTH-G10): `minimal` is not an Anthropic
+    // level, so no `output_config.effort` is sent; thinking stays on at
+    // the default. ANTH-MINIMAL settles whether the provider 400s it.
+    for (const effort of ['minimal', 'ultra', 'default'] as const) {
+      const native = encodeAnthropicRequest(userOnly('Remember this.'), {
+        ...BASE_OPTIONS,
+        effort,
+      })
+      expect(native.body.output_config).toBeUndefined()
+    }
+    const ultra = encodeAnthropicRequest(userOnly('Remember this.'), {
       ...BASE_OPTIONS,
-      effort: 'minimal',
+      effort: 'ultra',
     })
-    expect(low.body.output_config).toEqual({ effort: 'low' })
+    expect(ultra.body.thinking).toMatchObject({ type: 'adaptive' })
     const off = encodeAnthropicRequest(userOnly('Remember this.'), {
       ...BASE_OPTIONS,
       effort: 'none',
@@ -829,9 +859,66 @@ describe('breakpoints and effort', () => {
     expect(off.body.output_config).toBeUndefined()
   })
 
+  it('sends the affirmed Thinking-off switch, and refuses where none is affirmed', () => {
+    // Lane REASONSHAPESR2 (GAPANTH-G02): the thinking table answers 400
+    // to `disabled` on Opus 5.5, Sonnet 5.5, Fable 5.1 and Fable 5, while
+    // Sonnet 5.5 takes `between_tools` and Opus 5 takes `disabled`.
+    const offAffirmed = recordFor({
+      modes: { state: 'yes', value: ['adaptive'] },
+      canDisable: { state: 'yes', value: true },
+    })
+    expect(
+      encodeAnthropicRequest(userOnly('Remember this.'), {
+        ...BASE_OPTIONS,
+        effort: 'none',
+        capabilityRecord: offAffirmed,
+      }).body.thinking,
+    ).toEqual({ type: 'disabled' })
+    const sonnet55 = recordFor({
+      modes: { state: 'yes', value: ['adaptive'] },
+      canDisable: { state: 'no' },
+      offSwitch: 'between_tools',
+    })
+    expect(
+      encodeAnthropicRequest(userOnly('Remember this.'), {
+        ...BASE_OPTIONS,
+        effort: 'none',
+        capabilityRecord: sonnet55,
+      }).body.thinking,
+    ).toEqual({ type: 'between_tools' })
+    const locked = recordFor({
+      modes: { state: 'yes', value: ['adaptive'] },
+      canDisable: { state: 'no' },
+    })
+    expect(() =>
+      encodeAnthropicRequest(userOnly('Remember this.'), {
+        ...BASE_OPTIONS,
+        effort: 'none',
+        capabilityRecord: locked,
+      }),
+    ).toThrow(/thinking_cannot_disable/)
+  })
+
+  it('sends the interleaved-thinking beta header in manual mode', () => {
+    // Lane REASONSHAPESR2 (GAPANTH-G17): Opus 4.5 needs the header to
+    // think between tool calls; the API ignores it where unsupported.
+    const manual = encodeAnthropicRequest(userOnly('Remember this.'), {
+      ...BASE_OPTIONS,
+      model: 'claude-haiku-4-5-20251001',
+      effort: 'high',
+      maxTokens: 16_384,
+    })
+    expect(manual.headers['anthropic-beta']).toContain('interleaved-thinking-2025-05-14')
+    expect(manual.body.thinking).toMatchObject({ type: 'enabled', budget_tokens: 1024 })
+    const adaptive = encodeAnthropicRequest(userOnly('Remember this.'), BASE_OPTIONS)
+    expect(adaptive.headers['anthropic-beta'] ?? '').not.toContain(
+      'interleaved-thinking-2025-05-14',
+    )
+  })
+
   it('refuses an unknown effort', () => {
     expect(() =>
-      encodeAnthropicRequest(userOnly('Remember this.'), { ...BASE_OPTIONS, effort: 'ultra' }),
+      encodeAnthropicRequest(userOnly('Remember this.'), { ...BASE_OPTIONS, effort: 'turbo' }),
     ).toThrow(/unsupported_reasoning_effort/)
   })
 })
@@ -996,7 +1083,7 @@ describe('encode guards', () => {
         instructions: '',
         input: [
           { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'a' }] },
-          { type: 'function_call_output', call_id: 't1', output: 'out' },
+          { type: 'function_call_output', call_id: 't1', output: restoredToolText('out') },
           { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'b' }] },
         ],
       }),
@@ -1076,7 +1163,7 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 8, 13)', () => {
         instructions: '',
         input: [
           { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] },
-          { type: 'function_call_output', call_id: 'toolu_01e', output: '' },
+          { type: 'function_call_output', call_id: 'toolu_01e', output: restoredToolText('') },
         ],
       }),
       { ...BASE_OPTIONS, effort: 'none' },
@@ -1127,7 +1214,7 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 8, 13)', () => {
             name: 'get_time',
             arguments: '{}',
           },
-          { type: 'function_call_output', call_id: 'call:1/abc', output: 'noon' },
+          { type: 'function_call_output', call_id: 'call:1/abc', output: restoredToolText('noon') },
         ],
       }),
       { ...BASE_OPTIONS, effort: 'none' },
@@ -1593,7 +1680,11 @@ describe('review regressions (RVM95AO)', () => {
       [],
       [
         { type: 'function_call', call_id: 'rolling-call', name: 'get_time', arguments: '{}' },
-        { type: 'function_call_output', call_id: 'rolling-call', output: '{"time":"12:00"}' },
+        {
+          type: 'function_call_output',
+          call_id: 'rolling-call',
+          output: restoredToolText('{"time":"12:00"}'),
+        },
       ],
       [
         {

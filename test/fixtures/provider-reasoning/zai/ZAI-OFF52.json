@@ -1,0 +1,55 @@
+{
+  "id": "ZAI-OFF52",
+  "provider": "zai",
+  "sentAt": "2026-10-13T01:37:35.974Z",
+  "method": "POST",
+  "url": "https://api.z.ai/api/paas/v4/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "messages": [
+      {
+        "content": "Say hi in five words.",
+        "role": "user"
+      }
+    ],
+    "model": "glm-5.2",
+    "stream": false,
+    "thinking": {
+      "type": "disabled"
+    },
+    "max_tokens": 200
+  },
+  "lookFor": "Status 200 with a direct answer (toggle honored on glm-5.2), or the provider's 4xx reason.",
+  "status": 200,
+  "responseHeaders": {
+    "x-request-id": "889f5fec-d849-4098-b797-48d9934ed397"
+  },
+  "response": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "content": "Hi, I hope you're well.",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1791855458,
+    "id": "20261013093736e1b0d6b17d6640bc",
+    "model": "glm-5.2",
+    "object": "chat.completion",
+    "request_id": "20261013093736e1b0d6b17d6640bc",
+    "usage": {
+      "completion_tokens": 8,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0
+      },
+      "prompt_tokens": 12,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "total_tokens": 20
+    }
+  }
+}

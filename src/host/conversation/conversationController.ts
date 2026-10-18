@@ -203,6 +203,7 @@ import {
   type ItemSnapshot,
   type TodoItem,
 } from '../../shared/agentEvents'
+import { usableReply } from '../../core/turns/usableReply'
 import { fill, plural, uiLocale } from '../../shared/l10n/text'
 import type { GitDraftOutputPort } from '../../core/git/gitText'
 import type { GitAction, GitDraftKind } from '../../shared/git'
@@ -1456,6 +1457,12 @@ export class ConversationController {
    * waiting in the dialog. One at a time; a new conversation drops it.
    */
   private pendingHandoff: PendingHandoff | undefined
+  /**
+   * Turns that completed at their model-call limit: their "what is done /
+   * what remains" summary never becomes a handoff brief. Cleared with the
+   * finished turns when the session changes.
+   */
+  private readonly cappedTurns = new Set<string>()
   /** Report a problem (M93): the dialog's handler, one per surface, loaded with dist/report.js. */
   private reportHandler:
     Promise<{ handle: (message: ReportProblemMessage) => Promise<void> }> | undefined
@@ -2021,6 +2028,7 @@ export class ConversationController {
     this.forgetReviews(isOwnedRecovery)
     this.childSessionIds.clear()
     this.finishedTurns.clear()
+    this.cappedTurns.clear()
     this.forgetForegroundShells()
     this.pendingShellApprovals.clear()
     this.pausedForegroundShells.clear()
@@ -2792,6 +2800,7 @@ export class ConversationController {
         if (event.turnId === this.activeTurnId) this.clearJudgeCards()
         this.endTurnClock(event)
         this.finishedTurns.add(event.turnId)
+        if (event.errorKind === 'max_turn_requests') this.cappedTurns.add(event.turnId)
         // A review turn's end puts the user's mode back (M70).
         this.planHold?.hold.turnEnded(event.turnId)
         // A Plan-mode turn that finished with the panel in Plan mode throughout (M79).
@@ -3911,6 +3920,9 @@ export class ConversationController {
       }),
       ...(model.isPinned === true && { isPinned: model.isPinned }),
       ...(model.planLimitsUrl !== undefined && { planLimitsUrl: model.planLimitsUrl }),
+      // The tool-calling limit travels with the model (F83): a configured
+      // model without confirmed tool calling is listed with its limit stated.
+      ...(model.agentLimit !== undefined && { agentLimit: model.agentLimit }),
       // The contributor state travels with the model (F62): the CLI's list
       // names no tier, but a `-contributor` id trains on what it is sent by
       // definition, so the picker's tier mark and the contributor switch
@@ -3918,6 +3930,16 @@ export class ConversationController {
       ...((model.trainsOnContent === true || isContributorModel(model.modelId)) && {
         trainsOnContent: true,
       }),
+      // Muse Code's per-model tiers light the slider (META-G05); the
+      // static family table applies where the host reports none. Only a
+      // non-empty known list is posted, so the slider never hides behind
+      // an unusable row.
+      ...(model.effortLevels !== undefined &&
+        model.effortLevels.some((level) => isEffortLevel(level)) && {
+          effortLevels: model.effortLevels.filter((level) => isEffortLevel(level)),
+        }),
+      ...(model.defaultEffort !== undefined &&
+        isEffortLevel(model.defaultEffort) && { defaultEffort: model.defaultEffort }),
     }))
     this.post({ type: 'modelList', models: [...this.models] })
   }
@@ -6139,12 +6161,27 @@ export class ConversationController {
         this.handoffFailed(new Error(UI_TEXT.handoffNoBrief))
         return
       }
+      // A capped turn's summary never becomes the brief: only a turn that
+      // completed without a limit answers what was asked. The turn's own
+      // typed limit notice already said why.
+      const usable = usableReply(
+        {
+          terminal: 'completed',
+          errorKind: this.cappedTurns.has(turnId) ? 'max_turn_requests' : undefined,
+        },
+        text,
+      )
+      if (!usable.usable) {
+        this.pendingHandoff = undefined
+        this.notice('warning', UI_TEXT.handoffInterrupted)
+        return
+      }
       if (new TextEncoder().encode(text).byteLength > PLAN_FILE_MAX_BYTES) {
         this.pendingHandoff = undefined
         this.notice('warning', fill(UI_TEXT.handoffTooLarge, { size: PLAN_FILE_MAX_KB }))
         return
       }
-      pending.brief = text
+      pending.brief = usable.reply
       pending.todos = history.todos.filter((todo) => HANDOFF_OPEN_TODO_STATUSES.has(todo.status))
       this.postHandoffReady()
     } catch (error: unknown) {
@@ -8503,10 +8540,15 @@ export class ConversationController {
     }
     this.postSessionInfo(modelId)
     // A tier the new model does not serve would fail its turns with a 400
-    // (muse-spark-1.2 has no `max`); drop to the highest tier it does serve.
-    const levels = effortLevelsFor(modelId)
+    // (muse-spark-1.2 has no `max`); drop to the model's own default, else
+    // the highest tier it does serve.
+    const listed = this.models?.find((model) => model.modelId === modelId)
+    const levels = listed?.effortLevels ?? effortLevelsFor(modelId)
     if (!levels.includes(this.effort)) {
-      await this.updateEffort(levels.at(-1) ?? DEFAULT_EFFORT, this.isThinkingEnabled)
+      await this.updateEffort(
+        listed?.defaultEffort ?? levels.at(-1) ?? DEFAULT_EFFORT,
+        this.isThinkingEnabled,
+      )
     }
   }
 
@@ -8521,7 +8563,10 @@ export class ConversationController {
     if (
       kept !== undefined &&
       this.session === session &&
-      effortLevelsFor(this.modelId).includes(kept.effort)
+      (
+        this.models?.find((model) => model.modelId === this.modelId)?.effortLevels ??
+        effortLevelsFor(this.modelId)
+      ).includes(kept.effort)
     ) {
       this.effort = kept.effort
       this.isThinkingEnabled = kept.isThinkingEnabled

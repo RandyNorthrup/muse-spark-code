@@ -1,6 +1,7 @@
 {
   "ui": {
     "*": [
+      "effortLevels.ultra",
       "apiKeyPlaceholder",
       "modesHintKeys",
       "exportItem",
