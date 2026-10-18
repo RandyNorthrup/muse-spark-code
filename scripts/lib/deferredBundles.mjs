@@ -107,6 +107,7 @@ export const MODEL_API_TOOLS_ONLY = [
   'modelApiToolsEntry.ts',
   'modelCallHooks.ts',
   'argumentPreview.ts',
+  'observationPacking.ts',
 ]
 // publicAddress.ts stays in dist/modelApi.js: the pinned HTTPS transport
 // reads addressFamily for every request's SNI.

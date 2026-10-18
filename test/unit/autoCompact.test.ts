@@ -4,7 +4,7 @@ import {
   measureAutoCompactRequest,
   type AutoCompactInput,
 } from '../../src/core/backends/modelapi/autoCompact'
-import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
+import { ObservationPack } from '../../src/core/backends/modelapi/observationPacking'
 import { restoredToolText, type InputItem } from '../../src/core/backends/modelapi/schemas'
 import type { ModelPricing } from '../../src/core/providers/priceCard'
 

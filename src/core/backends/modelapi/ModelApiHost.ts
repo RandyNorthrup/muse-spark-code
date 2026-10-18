@@ -142,6 +142,7 @@ import {
   MODEL_API_WEB_SEARCH_TOOL,
   MODEL_TEXT,
   OUTPUT_REF_PREFIX,
+  PACK_MODEL_TEXT,
   PAID_FEATURES,
   PAID_PRICES_USD,
   type PaidFeature,
@@ -357,12 +358,7 @@ import {
   type ResolvedModel,
 } from './modelPolicy'
 import type { HookMcpOutcome, HookModelTurn, HookModelDailyBudget } from './hookHandlers'
-import {
-  ObservationPack,
-  backgroundNoteId,
-  estimatePackTokens,
-  pageRecalledText,
-} from './observationPack'
+import { backgroundNoteId, estimatePackTokens } from './observationPack'
 import {
   boundToolResultText,
   callOutputItem,
@@ -2778,7 +2774,15 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly media: MediaReplayPort | undefined
   private restoredFileRefs: readonly UploadedMediaRef[] = []
   /** Packed tool outputs and the savings ledger (M73): undefined unless packing is on. */
-  private readonly packing: ObservationPack | undefined
+  private packing: ModelApiTools.ObservationPack | undefined
+  /**
+   * Whether this session packs: decided at session start exactly as the
+   * store's construction was (the `observationPacking` dep on, never a
+   * subagent). The store itself loads on the first turn (ensurePacking),
+   * so a session that never packs never loads it.
+   */
+  private readonly packForSession: boolean
+  private packLoad: Promise<void> | undefined
   /**
    * TOOLCAP: spill files this session wrote (workspace-relative). A spill
    * holds a cut result's full text where the file tools can page it; the
@@ -3058,9 +3062,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.effort = agent.effort
     }
     // Packing is a full session's own store (its originals); a subagent's
-    // calls are its parent's conversation to pack, never its own.
-    this.packing =
-      !isSubagent && deps.observationPacking?.() === true ? new ObservationPack() : undefined
+    // calls are its parent's conversation to pack, never its own. The store
+    // itself loads on the first turn (ensurePacking).
+    this.packForSession = !isSubagent && deps.observationPacking?.() === true
     const { memory } = this.deps
     this.context = new WorkspaceContext({
       io: this.deps.contextIo,
@@ -3530,7 +3534,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (
         part?.type !== 'input_text' ||
         (!part.text.startsWith(MODEL_API_MODEL_TEXT.subagentResult) &&
-          !part.text.startsWith(MODEL_API_MODEL_TEXT.backgroundEndedLead))
+          !part.text.startsWith(PACK_MODEL_TEXT.backgroundEndedLead))
       ) {
         continue
       }
@@ -3637,11 +3641,11 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /**
    * The deferred per-call helpers (dist/modelApiTools.js, D6): the hook
-   * call fields, the display-only argument previews and the fetch URL
-   * checks, loaded on the first use. Each caller fails its own safe way:
-   * a hook field or preview load failure ends the turn with the chunk
-   * named, a URL-check failure refuses the fetch, never an unchecked
-   * fetch and never a default value.
+   * call fields, the display-only argument previews, the fetch URL checks
+   * and the packing store with its spill paging, loaded on the first use.
+   * Each caller fails its own safe way: a hook field, preview or packing
+   * load failure ends the turn with the chunk named, a URL-check failure
+   * refuses the fetch, never an unchecked fetch and never a default value.
    *
    * Loaded once for the session: every model call, streamed tool call and
    * URL check asks for it. A load that failed is not kept, so the next
@@ -3660,6 +3664,38 @@ export class ModelApiSession implements ScheduledAgentSession {
       assist.setUiText(table, locale)
     })
     return assist
+  }
+
+  /**
+   * The packing store (dist/modelApiTools.js, D6): built on the first turn
+   * of a session that packs (`packForSession`, decided at session start),
+   * never at session start, so a session that never packs never loads it.
+   * A resumed session's ledger and sticky ids (kept in `restoredPackedTokens`
+   * and `restoredPackedCallIds` by the restore) land on the fresh store.
+   * A load that failed is not kept, so the next turn tries again; a turn
+   * that needs the store and cannot load it fails with the chunk named,
+   * never an unpacked turn and never a default ledger.
+   */
+  private async ensurePacking(): Promise<void> {
+    if (!this.packForSession || this.packing !== undefined) {
+      return
+    }
+    this.packLoad ??= (async (): Promise<void> => {
+      try {
+        const assist = await this.toolAssist()
+        const packing = new assist.ObservationPack()
+        packing.restoreSavings(this.restoredPackedTokens ?? 0)
+        packing.restorePackedCallIds(
+          this.restoredPackedCallIds ?? [],
+          this.replay.map((entry) => entry.item),
+        )
+        this.packing = packing
+      } catch (error) {
+        this.packLoad = undefined
+        throw error
+      }
+    })()
+    await this.packLoad
   }
 
   /**
@@ -8703,9 +8739,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     } catch {
       text = undefined
     }
-    return text === undefined
-      ? undefined
-      : pageRecalledText(text, this.toolOfCall(id), id, offset ?? 0, search)
+    if (text === undefined) return undefined
+    const assist = await this.toolAssist()
+    return assist.pageRecalledText(text, this.toolOfCall(id), id, offset ?? 0, search)
   }
 
   /** TOOLCAP: the tool that returned the call id, for a spill page's source line. */
@@ -14013,7 +14049,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.emit({ type: 'itemCompleted', item: completed })
     this.rerecordTranscript(completed)
     await this.noteForModel(
-      `${MODEL_API_MODEL_TEXT.backgroundEndedLead}\n$ ${commandOf(call.arguments)}\n${final.output}`,
+      `${PACK_MODEL_TEXT.backgroundEndedLead}\n$ ${commandOf(call.arguments)}\n${final.output}`,
       moved.itemId,
     )
   }
@@ -15075,6 +15111,9 @@ export class ModelApiSession implements ScheduledAgentSession {
   private async runTurn(queued: QueuedTurn): Promise<void> {
     // The turn verifies tool edits through the lazy verify chunk.
     await this.ensureVerify()
+    // A session that packs builds its packing store through the lazy tools
+    // chunk; every packing read below runs after this line.
+    await this.ensurePacking()
     this.outcomeStopReason = undefined
     this.responseIncomplete = false
     this.mediaNoticeSent = false
@@ -18110,12 +18149,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     // session saved before it was kept carries none, so it starts at zero.
     this.restoredPackedTokens = stored.packedTokensAvoided
     this.hookTokensAdded = stored.hookTokensAdded ?? 0
-    this.packing?.restoreSavings(stored.packedTokensAvoided ?? 0)
+    // The packing store does not exist yet (it loads on the first turn);
+    // ensurePacking replays these onto the fresh store.
     this.restoredPackedCallIds = stored.packedCallIds
-    this.packing?.restorePackedCallIds(
-      stored.packedCallIds ?? [],
-      this.replay.map((entry) => entry.item),
-    )
     this.status = IDLE
     this.pendingChildResults.push(
       // TOOLCAP: a restored reply enters through the bound like a new one.
@@ -18237,10 +18273,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       ),
     )
     target.restoredPackedCallIds = packedIds.filter((id) => keptOutputIds.has(id))
-    target.packing?.restorePackedCallIds(
-      target.restoredPackedCallIds,
-      target.replay.map((entry) => entry.item),
-    )
+    // The fork's store does not exist yet (it loads on the first turn);
+    // ensurePacking replays these onto the fresh store.
     const retained = this.transcript.filter((entry) => kept.has(entry.turnId))
     target.transcript.push(...withoutRunning(retained))
     target.turnIds.push(...completed.slice(0, cut + 1))
@@ -18260,7 +18294,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const fallback =
         item.status === IN_PROGRESS
           ? `${MODEL_API_MODEL_TEXT.backgroundLostLead}\n$ ${command}`
-          : `${MODEL_API_MODEL_TEXT.backgroundEndedLead}\n$ ${command}\n${item.visibleOutput ?? ''}`
+          : `${PACK_MODEL_TEXT.backgroundEndedLead}\n$ ${command}\n${item.visibleOutput ?? ''}`
       target.replay.push({
         turnId: target.latestTurnId(),
         // TOOLCAP: the fallback carries a row's output, so it enters
