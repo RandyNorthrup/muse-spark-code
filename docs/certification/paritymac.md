@@ -561,3 +561,38 @@ unsandboxed Mac, as before):
   visibly and must run green on an unsandboxed Mac / hosted macOS CI before
   the Seatbelt change merges. Everything provable without the sandbox was
   measured above.
+
+## Lane PR244W1 — first result (macmini rig, 2026-10-18, head `130ad5a31`)
+
+Review threads: 0 listed in the brief — none to fix or answer.
+
+Root cause (measured on this rig, same repo-default timeout): the macOS
+live disk probe fails on any Mac with more than one block storage driver.
+`DarwinDiskDelta.read` keys counters by the IORegistry object name, and
+every driver instance is named `IOBlockStorageDriver`, so the
+duplicate-name guard returns null on every read and
+`test/unit/resourceProbesDarwin.test.ts > macOS probes live > reads GPU,
+disk and headroom from this Mac` fails at line 99 (`expected null not to
+be null`). Hosted macOS runners carry several block devices, so the
+capacity macOS unit shard fails, `org` fails, and every `required` name
+rejects. Fix in progress on this lane: key Darwin counters by the
+registry entry id (unique per device, stable across consecutive reads —
+the same identity shape Linux already uses as `major:minor:name`).
+
+- build / quality (ubuntu-latest): downstream — `required` rejects when
+  any selected-tier job fails, and the measured selected-tier failure is
+  the capacity macOS unit shard on the duplicate driver-name cause above
+  (static gates re-run below before this lane ends).
+- build / package (.vsix): downstream — same `required` rejection; the
+  packaging steps themselves were not reached.
+- build / dictation helper (macos): downstream — same `required`
+  rejection; `native-build` itself was not reached.
+- build / quality (macos-latest): downstream — same `required` rejection
+  via the capacity run, not a macOS static-gate failure.
+- build / quality (windows-latest): downstream — same `required`
+  rejection (static gates re-run below before this lane ends).
+- build / tests (windows-latest, macos-latest) in
+  scnetsolutions/muse-spark-code-ci: downstream — the macOS shard fails
+  on the duplicate driver-name cause above; the fix is verified by the
+  live test passing on this multi-driver Mac plus a new recorded-exchange
+  test with two same-named drivers.
