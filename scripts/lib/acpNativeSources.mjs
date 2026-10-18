@@ -4,6 +4,7 @@
 // package copies (CIFIX017R3: three fixtures each kept a hand list, and one
 // missed the launcher below).
 import path from 'node:path'
+import { VSIX_TARGETS } from './vsixTargets.mjs'
 
 // The C# of the Windows job helpers, compiled on first use, as the extension
 // ships it (PLAN.md D6): the shell tool's job (M27), the half both helpers
@@ -37,3 +38,22 @@ export const RUNNER_HELPERS = path.join('native', 'runner')
 // Node-only scripts and prompt templates, shipped as ci/lib and ci/prompts and
 // run by ci-templates/ from the digest-pinned tarball as ci/lib/ci-run.mjs.
 export const CI_LAUNCHER_SOURCES = [path.join('action', 'lib'), path.join('action', 'prompts')]
+
+/**
+ * The native sources the ACP package stages for a target: only that
+ * platform's pieces, so a platform's package never demands a helper only
+ * another OS builds. The runner ships everywhere (the SSH runner copies
+ * the helper to the remote side, as in the .vsix). No argument is the
+ * universal package, which keeps every platform's helpers.
+ */
+export function acpNativeFiles(target) {
+  if (target === undefined)
+    return [...JOB_SOURCES, DARWIN_HELPER, ...LINUX_HELPERS, ...VOICE_WINDOWS_HELPERS]
+  if (!VSIX_TARGETS.includes(target)) throw new Error(`Unknown ACP target: ${target}`)
+  const platform = target.split('-', 1)[0]
+  if (platform === 'linux')
+    return [path.join('native', 'linux', target.split('-', 2)[1], 'muse-created')]
+  // Only darwin and win32 remain: darwin ships its built helper, win32 the
+  // committed Windows sources (compiled on first use, on any checkout).
+  return platform === 'darwin' ? [DARWIN_HELPER] : [...JOB_SOURCES, ...VOICE_WINDOWS_HELPERS]
+}

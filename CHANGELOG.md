@@ -7,6 +7,21 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Packaging
+
+- One package per platform target (PLAN.md D123, mechanism ported from #246;
+  the join owns the decision record). `npm run package` and
+  `npm run package:acp` take `--target <platform>-<arch>` (the six desktop
+  targets); a targeted package stages only its own platform's native pieces
+  and names its target in its filename, so a platform's package packs on
+  that platform without helpers only another OS builds. The universal
+  packages keep every platform's helpers. Proved on macOS (Intel):
+  `muse-spark-code-darwin-x64-0.19.0.vsix` and
+  `muse-spark-code-acp-0.19.0-darwin-x64.tgz` with zero foreign native
+  pieces. The darwin-x64 .vsix measures 3,852,534 bytes against the
+  unchanged 3,788,800-byte budget (its required darwin binaries were never
+  in the measured universal); the budget decision stays with the lead.
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights

@@ -116,7 +116,8 @@ every PR until the merge queue is on; a fast PR run builds no packages
 (CONTRIBUTING.md, "CI tiers"). The same VSIX goes to GitHub,
 the VS Code Marketplace, and Open VSX. The same ACP tarball goes to GitHub
 and npm. A package made locally without the macOS helper is not that universal
-release artifact.
+release artifact. A local `--target` package (PLAN.md D123) carries only its
+own platform's helpers and is inventoried by hand, not published.
 
 npm history: 0.10.0's npm step failed on a path bug, and 0.10.1's and
 0.11.0's failed with `EOTP` (the stored token could not bypass the account's
