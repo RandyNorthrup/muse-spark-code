@@ -13,7 +13,6 @@ import {
   EXEC_MAX_BUDGET_USD,
   EXEC_MAX_REQUESTS,
   EXEC_MAX_TIMEOUT_SECONDS,
-  EXEC_MIN_OUTPUT_TOKENS,
   EXEC_MIN_TIMEOUT_SECONDS,
   MODEL_API_MAX_OUTPUT_TOKENS,
   EXEC_MODES,
@@ -237,17 +236,16 @@ export function parseExec(
   )
   // An absent flag keeps the policy cap; a present one only lowers it. The
   // parse-time ceiling is the absolute cap every policy cap sits at or
-  // below; a larger value is refused here with its own sentence.
+  // below; a larger value is refused here with its own sentence. The floor
+  // stays 1 here: the selected model's own provider minimum applies later,
+  // at admission and at the send (a configured provider's minimum with its
+  // sentence, Meta's 16 through its own path), so a provider that permits
+  // fewer than 16 output tokens can be capped at 1 through 15.
   const rawMaxOutput = values['max-output-tokens']
   const maxOutputTokens =
     rawMaxOutput === undefined
       ? undefined
-      : integer(
-          rawMaxOutput,
-          MODEL_API_MAX_OUTPUT_TOKENS,
-          EXEC_MIN_OUTPUT_TOKENS,
-          Number.MAX_SAFE_INTEGER,
-        )
+      : integer(rawMaxOutput, MODEL_API_MAX_OUTPUT_TOKENS, 1, Number.MAX_SAFE_INTEGER)
   if (rawMaxOutput !== undefined && maxOutputTokens === undefined)
     return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--max-output-tokens' }))
   if (maxOutputTokens !== undefined && maxOutputTokens > MODEL_API_MAX_OUTPUT_TOKENS)
