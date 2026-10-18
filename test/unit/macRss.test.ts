@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { EventEmitter, once } from 'node:events'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { macRssSampler, RssSampleRefused } from '../../src/core/media/macRss'
 import type { ResourceTreeRun } from '../../src/core/resources/trees/run'
 import {
@@ -47,12 +47,22 @@ function deferred() {
   return Promise.withResolvers<string>()
 }
 
+/** A ps runner that records its calls and answers through the given body. */
+function recordingRun(body: () => Promise<string>) {
+  const calls: (readonly [string, readonly string[]])[] = []
+  const run: ResourceTreeRun = (file, args) => {
+    calls.push([file, args])
+    return body()
+  }
+  return { run, calls }
+}
+
 /** A sampler whose ps runs settle only when the test says; the first has answered 2 MiB. */
 async function withHeldRuns() {
   const time = clock()
   const child = fakeChild()
   const runs: ReturnType<typeof deferred>[] = []
-  const run = vi.fn<ResourceTreeRun>(() => {
+  const { run, calls } = recordingRun(() => {
     const next = deferred()
     runs.push(next)
     return next.promise
@@ -61,19 +71,16 @@ async function withHeldRuns() {
   const first = read(PID)
   runs[0]?.resolve(row())
   await expect(first).resolves.toBe(2 * MIB)
-  return { time, child, runs, run, read }
+  return { time, child, runs, calls, read }
 }
 
 describe('macRssSampler', () => {
   it('reads its child through the absolute /bin/ps, numeric columns and start time', async () => {
-    const run = vi.fn<ResourceTreeRun>(() => Promise.resolve(row()))
+    const { run, calls } = recordingRun(() => Promise.resolve(row()))
     const read = macRssSampler(fakeChild(), { run, parentPid: PARENT })
     await expect(read(PID)).resolves.toBe(2 * MIB)
-    expect(run).toHaveBeenCalledWith('/bin/ps', [
-      '-o',
-      'pid=,ppid=,pgid=,state=,time=,rss=,lstart=',
-      '-p',
-      String(PID),
+    expect(calls).toEqual([
+      ['/bin/ps', ['-o', 'pid=,ppid=,pgid=,state=,time=,rss=,lstart=', '-p', String(PID)]],
     ])
   })
 
@@ -90,7 +97,7 @@ describe('macRssSampler', () => {
     ['zero resident memory', () => Promise.resolve(row({ rss: '0' }))],
   ] as const)('refuses %s and never answers 0', async (_label, output) => {
     const read = macRssSampler(fakeChild(), {
-      run: vi.fn<ResourceTreeRun>(output),
+      run: output,
       parentPid: PARENT,
     })
     const reading = read(PID)
@@ -101,41 +108,44 @@ describe('macRssSampler', () => {
   it.each([0, -1, 1.5, NaN, Number.MAX_SAFE_INTEGER + 2, PID + 1])(
     'refuses the PID %d, which is not its child’s, without running ps',
     async (pid) => {
-      const run = vi.fn<ResourceTreeRun>(() => Promise.resolve(row()))
+      const { run, calls } = recordingRun(() => Promise.resolve(row()))
       await expect(macRssSampler(fakeChild(), { run })(pid)).rejects.toBeInstanceOf(
         RssSampleRefused,
       )
-      expect(run).not.toHaveBeenCalled()
+      expect(calls).toHaveLength(0)
     },
   )
 
   it('refuses a child without a PID and one that had already exited', async () => {
-    const run = vi.fn<ResourceTreeRun>(() => Promise.resolve(row()))
+    const { run, calls } = recordingRun(() => Promise.resolve(row()))
     await expect(macRssSampler(fakeChild(null), { run })(PID)).rejects.toBeInstanceOf(
       RssSampleRefused,
     )
     const exited = fakeChild()
     exited.exitCode = 1
     await expect(macRssSampler(exited, { run })(PID)).rejects.toBeInstanceOf(RssSampleRefused)
-    expect(run).not.toHaveBeenCalled()
+    expect(calls).toHaveLength(0)
   })
 
   it('keeps a failure final for the child it watches', async () => {
     const time = clock()
-    const run = vi.fn<ResourceTreeRun>(() => Promise.reject(new Error('exit 1')))
+    let shouldFail = true
+    const { run, calls } = recordingRun(() =>
+      shouldFail ? Promise.reject(new Error('exit 1')) : Promise.resolve(row()),
+    )
     const read = macRssSampler(fakeChild(), { run, parentPid: PARENT, now: time.now })
     await expect(read(PID)).rejects.toBeInstanceOf(RssSampleRefused)
-    run.mockImplementation(() => Promise.resolve(row()))
+    shouldFail = false
     time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS + 1)
     await expect(read(PID)).rejects.toBeInstanceOf(RssSampleRefused)
-    expect(run).toHaveBeenCalledTimes(1)
+    expect(calls).toHaveLength(1)
   })
 
   it('drops its reading when the child exits, even inside the refresh interval', async () => {
-    const { child, run, read } = await withHeldRuns()
+    const { child, calls, read } = await withHeldRuns()
     child.exit()
     await expect(read(PID)).rejects.toMatchObject({ code: 'EMEDIA_RSS_UNAVAILABLE' })
-    expect(run).toHaveBeenCalledTimes(1)
+    expect(calls).toHaveLength(1)
   })
 
   it('refuses a run that finished after the child exited', async () => {
@@ -156,26 +166,29 @@ describe('macRssSampler', () => {
   })
 
   it('runs ps at most once per interval and refreshes before the reading expires', async () => {
-    const { time, runs, run, read } = await withHeldRuns()
+    const { time, runs, calls, read } = await withHeldRuns()
     for (let step = 0; step < 4; step += 1) {
       time.advance(MEDIA_RSS_SAMPLE_INTERVAL_MS / 5)
       await expect(read(PID)).resolves.toBe(2 * MIB)
     }
-    expect(run).toHaveBeenCalledTimes(1)
+    expect(calls).toHaveLength(1)
     // Past the interval: a fresh run starts and the still-young reading answers.
     time.advance(MEDIA_RSS_SAMPLE_INTERVAL_MS / 5)
     await expect(read(PID)).resolves.toBe(2 * MIB)
-    expect(run).toHaveBeenCalledTimes(2)
+    expect(calls).toHaveLength(2)
     await expect(read(PID)).resolves.toBe(2 * MIB)
-    expect(run).toHaveBeenCalledTimes(2)
+    expect(calls).toHaveLength(2)
     runs[1]?.resolve(row({ rss: '4096' }))
-    await vi.waitFor(async () => {
-      await expect(read(PID)).resolves.toBe(4 * MIB)
-    })
+    // The refresh lands on a later microtask turn; poll the real sampler.
+    let refreshed = 0
+    for (let attempt = 0; attempt < 50 && refreshed !== 4 * MIB; attempt += 1) {
+      refreshed = await read(PID)
+    }
+    expect(refreshed).toBe(4 * MIB)
   })
 
   it('waits for a fresh reading past the maximum age and refuses a late one', async () => {
-    const { time, runs, run, read } = await withHeldRuns()
+    const { time, runs, calls, read } = await withHeldRuns()
     time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
     let isSettled = false
     const waiting = (async () => {
@@ -187,7 +200,7 @@ describe('macRssSampler', () => {
     })()
     await Promise.resolve()
     expect(isSettled).toBe(false)
-    expect(run).toHaveBeenCalledTimes(2)
+    expect(calls).toHaveLength(2)
     // The run finished, but only after its reading would already have expired.
     time.advance(MEDIA_RSS_SAMPLE_MAX_AGE_MS)
     runs[1]?.resolve(row())

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { MEDIA_ESTIMATE_SAFETY_FACTOR, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { MediaCostEstimator } from '../../src/core/media/mediaCost'
@@ -10,14 +10,18 @@ import { productionCalibrationSeeds } from '../../src/core/media/mediaCalibratio
 const seeds = productionCalibrationSeeds()
 
 function estimator(points = seeds) {
-  const write = vi.fn(() => Promise.resolve())
+  const writes: unknown[] = []
+  const write = (value: unknown) => {
+    writes.push(value)
+    return Promise.resolve()
+  }
   return {
     cost: new MediaCostEstimator({
       read: () => structuredClone(points),
       write,
       safetyFactor: MEDIA_ESTIMATE_SAFETY_FACTOR,
     }),
-    write,
+    writes,
   }
 }
 
@@ -209,7 +213,7 @@ describe('production media calibration (M105 captures)', () => {
   })
 
   it('keeps a settled turn as a new local observation', async () => {
-    const { cost, write } = estimator([])
+    const { cost, writes } = estimator([])
     expect(() =>
       cost.estimate('meta', 'muse-spark-1.3-contributor', { info: video10s.info }, true),
     ).toThrow(fill(UI_TEXT.media.cappedRateUnknown, { model: 'muse-spark-1.3-contributor' }))
@@ -220,7 +224,7 @@ describe('production media calibration (M105 captures)', () => {
       { input_tokens: 2751, output_tokens: 64 },
       'local-settlement',
     )
-    expect(write).toHaveBeenCalledTimes(1)
+    expect(writes).toHaveLength(1)
     expect(
       cost.estimate('meta', 'muse-spark-1.3-contributor', { info: video10s.info }, true)
         ?.estimatedInputTokens,

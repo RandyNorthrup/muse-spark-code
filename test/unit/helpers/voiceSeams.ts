@@ -1,6 +1,5 @@
 // Test-only deps for Muse Voice's batch seams (M105 lane V): the host says
 // yes, nothing is capped, and no daily ledger is bound unless a case adds it.
-import { vi } from 'vitest'
 import type { VoiceBatchSeamDeps } from '../../../src/core/voice/voiceBatchSeams'
 import type { SessionBudgetJournal } from '../../../src/core/backends/modelapi/sessionBudget'
 import { Usd } from '../../../src/shared/usd'
@@ -21,7 +20,7 @@ export function voiceSeamDeps(overrides: Partial<VoiceBatchSeamDeps> = {}): Voic
     sessionId: 'session-1',
     isPaidFeatureOn: () => true,
     allowsPaidUse: () => Promise.resolve(true),
-    notePaidUse: vi.fn(),
+    notePaidUse: () => undefined,
     reservePaidExtra: undefined,
     session: {
       capUsd: () => Usd.from(0).toAmount(),
