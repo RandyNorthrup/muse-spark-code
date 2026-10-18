@@ -55,6 +55,17 @@ function ignore(): void {
   // The pipe's loss is reported by its other end.
 }
 
+/**
+ * A system error: an object with a string `.code`. Reads only the code,
+ * never the message, so the check itself leaks nothing. Anything else is a
+ * bug, which must not read as an absent folder.
+ */
+function isSystemError(error: unknown): boolean {
+  return (
+    typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+  )
+}
+
 /** A spawn `error`'s own code, when it has one. */
 function spawnCodeOf(error: unknown): string | undefined {
   return typeof error === 'object' &&
@@ -80,6 +91,9 @@ async function killBrowser(child: ChildProcess, deps: HostBrowserDeps): Promise<
       // The browser leads its own process group (spawned detached).
       process.kill(-pid, 'SIGKILL')
     } catch {
+      // The group kill failed (the browser is already gone, or the group is
+      // not ours): ending the direct child is the fallback, and the pipes'
+      // setup already failed, so there is nothing further to report.
       child.kill('SIGKILL')
     }
     return
@@ -226,16 +240,22 @@ async function sweepLeftovers(parent: string): Promise<void> {
   let names: readonly string[]
   try {
     names = await readdir(parent)
-  } catch {
-    return
+  } catch (error: unknown) {
+    if (isSystemError(error)) {
+      return
+    }
+    throw error
   }
   for (const name of names.slice(0, BROWSER_CHECK_SWEEP_MAX)) {
     const root = path.join(parent, name)
     let owner: number
     try {
       owner = Number(await readFile(path.join(root, BROWSER_CHECK_OWNER_FILE), 'utf8'))
-    } catch {
-      continue
+    } catch (error: unknown) {
+      if (isSystemError(error)) {
+        continue
+      }
+      throw error
     }
     // Unknown ownership is kept; a live owner may be another window's check.
     if (Number.isSafeInteger(owner) && owner > 0 && owner !== process.pid && !isRunning(owner)) {
@@ -245,6 +265,15 @@ async function sweepLeftovers(parent: string): Promise<void> {
         // Still there: a later sweep tries again.
       }
     }
+  }
+}
+
+/** Removes a half-made check folder; a later sweep retries what stays. */
+async function removeHalfMade(root: string): Promise<void> {
+  try {
+    await rm(root, { recursive: true, force: true })
+  } catch {
+    // Still there: a later sweep tries again.
   }
 }
 
@@ -273,11 +302,7 @@ async function createFolder(storageDir: string): Promise<CheckFolder> {
   } catch (error: unknown) {
     // A half-made folder never waits for the sweep: its owner file may name
     // this live process, which the sweep skips.
-    try {
-      await rm(root, { recursive: true, force: true })
-    } catch {
-      // Still there: a later sweep tries again.
-    }
+    await removeHalfMade(root)
     throw error
   }
 }
@@ -311,8 +336,11 @@ export function hostBrowserRunDeps(deps: HostBrowserDeps): BrowserRunDeps {
       try {
         const info = await stat(executable)
         return { bytes: info.size, mtimeMs: info.mtimeMs }
-      } catch {
-        return
+      } catch (error: unknown) {
+        if (isSystemError(error)) {
+          return
+        }
+        throw error
       }
     },
     startProxy: async (scope) => await startCheckProxy(scope),

@@ -86,10 +86,17 @@ export interface RuntimeStoreDeps {
   readonly manifest: unknown
 }
 
-/** A preparation that ends here, with its closed reason. */
+/**
+ * A preparation that ends here, with its closed reason. The cause rides
+ * along for the record only: every surface reads `.reason`, never the
+ * cause, so no response text or OS message leaves this module.
+ */
 class Stop extends Error {
-  public constructor(public readonly reason: PreparationReason) {
-    super(reason)
+  public constructor(
+    public readonly reason: PreparationReason,
+    options?: { readonly cause?: unknown },
+  ) {
+    super(reason, options)
     this.name = 'Stop'
   }
 }
@@ -125,26 +132,53 @@ async function quietly(work: () => Promise<unknown>): Promise<void> {
   }
 }
 
-/** A file's lstat, or undefined when it cannot be read. */
+/** A file's lstat, or undefined when the system refuses it. */
 async function lstatOrNone(file: string): Promise<Stats | undefined> {
   try {
     return await lstat(file)
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    if (isSystemError(error)) {
+      return undefined
+    }
+    throw error
   }
 }
 
-/** A file's text, or '' when it cannot be read. */
+/** A file's text, or '' when the system refuses it. */
 async function textOrNone(file: string): Promise<string> {
   try {
     return await readFile(file, 'utf8')
-  } catch {
-    return ''
+  } catch (error: unknown) {
+    if (isSystemError(error)) {
+      return ''
+    }
+    throw error
   }
 }
 
 function codeOf(error: unknown): string {
   return typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : ''
+}
+
+/**
+ * A system error: an object with a string `.code`. Reads only the code,
+ * never the message, so the check itself leaks nothing. Anything else is a
+ * bug, which must not read as an absent file.
+ */
+function isSystemError(error: unknown): error is Record<string, unknown> {
+  return (
+    typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+  )
+}
+
+/** A system error with the named code (an absent entry is ENOENT). */
+function isCode(error: unknown, code: string): boolean {
+  return isSystemError(error) && error.code === code
+}
+
+/** A rename collision (another window published first) or a refusal. */
+function isExistsCode(error: unknown): boolean {
+  return isSystemError(error) && typeof error.code === 'string' && EXISTS_CODES.has(error.code)
 }
 
 async function sha256File(file: string, signal: AbortSignal): Promise<string> {
@@ -180,10 +214,13 @@ async function verifyPublished(
       throw new Stop('runtimeIntegrity')
     }
   } catch (error: unknown) {
-    if (codeOf(error) === 'ENOENT') {
+    if (isCode(error, 'ENOENT')) {
       return 'absent'
     }
-    throw error instanceof Stop ? error : new Stop('runtimeIntegrity')
+    if (error instanceof Stop) {
+      throw error
+    }
+    throw new Stop('runtimeIntegrity', { cause: error })
   }
   const { record } = pin
   let receipt: Receipt
@@ -195,8 +232,11 @@ async function verifyPublished(
       throw new Stop('runtimeIntegrity')
     }
     receipt = parsed.data
-  } catch {
-    throw new Stop('runtimeIntegrity')
+  } catch (error: unknown) {
+    if (error instanceof Stop) {
+      throw error
+    }
+    throw new Stop('runtimeIntegrity', { cause: error })
   }
   const executable = executablePath(folder, record)
   const info = await lstatOrNone(executable)
@@ -278,8 +318,8 @@ async function download(
         signal,
         headers: { 'Accept-Encoding': 'identity' },
       })
-    } catch {
-      throw new Stop(signal.aborted ? 'cancelled' : 'runtimeMissing')
+    } catch (error: unknown) {
+      throw new Stop(signal.aborted ? 'cancelled' : 'runtimeMissing', { cause: error })
     }
     if (!REDIRECTS.has(response.status)) {
       break
@@ -315,7 +355,7 @@ async function download(
     if (error instanceof Stop) {
       throw error
     }
-    throw new Stop(signal.aborted ? 'cancelled' : 'runtimeMissing')
+    throw new Stop(signal.aborted ? 'cancelled' : 'runtimeMissing', { cause: error })
   } finally {
     await output.close()
   }
@@ -356,8 +396,11 @@ async function sweepStages(root: string): Promise<void> {
   let names: readonly string[]
   try {
     names = await readdir(root)
-  } catch {
-    return
+  } catch (error: unknown) {
+    if (isSystemError(error)) {
+      return
+    }
+    throw error
   }
   const stages = names
     .filter((entry) => entry.startsWith(BROWSER_RUNTIME_STAGE_PREFIX))
@@ -470,12 +513,12 @@ async function install(
           await rename(unpack, final)
         } catch (error: unknown) {
           // Another window published first: its folder counts only if it verifies.
-          if (!EXISTS_CODES.has(codeOf(error))) {
-            throw new Stop('runtimeMissing')
+          if (!isExistsCode(error)) {
+            throw new Stop('runtimeMissing', { cause: error })
           }
           const winner = await verifyPublished(final, pin, signal, true)
           if (winner === 'absent') {
-            throw new Stop('runtimeMissing')
+            throw new Stop('runtimeMissing', { cause: error })
           }
           return winner
         }
@@ -563,22 +606,33 @@ export async function prepareRuntime(
     admitted(request)
     return ready(manifest, deps, runtime)
   } catch (error: unknown) {
-    if (error instanceof Stop) {
-      return { ok: false, reason: error.reason }
-    }
-    const end: unknown = request.lifetime.signal.reason
-    if (request.lifetime.signal.aborted) {
-      const isDeadline =
-        typeof end === 'object' && end !== null && 'end' in end && end.end === 'deadline'
-      return { ok: false, reason: isDeadline ? 'preparationTimedOut' : 'cancelled' }
-    }
-    if (!request.admissionStillValid()) {
-      return { ok: false, reason: 'notOffered' }
-    }
-    // A refused archive is an integrity failure; any other filesystem error leaves it not installed.
-    return {
-      ok: false,
-      reason: error instanceof ZipRefused ? 'runtimeIntegrity' : 'runtimeMissing',
-    }
+    return error instanceof Stop
+      ? { ok: false, reason: error.reason }
+      : closedPreparationReason(error, request.lifetime.signal, request.admissionStillValid())
   }
+}
+
+/**
+ * The closed reason for a failure that is not a Stop: an ended lifetime
+ * reads as its ending (a deadline, else Cancel), a lost admission as not
+ * offered, a refused archive as an integrity failure, and any other
+ * filesystem error as not installed. The error is passed through so the
+ * record keeps the cause; the reason carries nothing it said.
+ */
+function closedPreparationReason(
+  error: unknown,
+  signal: AbortSignal,
+  isAdmissionValid: boolean,
+): { readonly ok: false; readonly reason: PreparationReason } {
+  if (signal.aborted) {
+    const end: unknown = signal.reason
+    const isDeadline =
+      typeof end === 'object' && end !== null && 'end' in end && end.end === 'deadline'
+    return { ok: false, reason: isDeadline ? 'preparationTimedOut' : 'cancelled' }
+  }
+  if (!isAdmissionValid) {
+    return { ok: false, reason: 'notOffered' }
+  }
+  // A refused archive is an integrity failure; any other filesystem error leaves it not installed.
+  return { ok: false, reason: error instanceof ZipRefused ? 'runtimeIntegrity' : 'runtimeMissing' }
 }
