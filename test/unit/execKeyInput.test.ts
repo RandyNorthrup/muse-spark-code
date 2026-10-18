@@ -82,6 +82,19 @@ describe('M80 key/stdin (A11)', () => {
     input.destroy(new Error('broken'))
     await expect(pending).rejects.toThrow('broken')
   })
+  it('refuses malformed bytes inside a key-shaped line', async () => {
+    // A replacement character is non-whitespace, so the LLM|<id>|<secret>
+    // shape would accept it: malformed input must fail before validation.
+    const shaped = Buffer.concat([
+      Buffer.from('LLM|123|abc'),
+      Buffer.from([0xff]),
+      Buffer.from('\n'),
+    ])
+    expect(await readKeyLine(Readable.from([shaped]), signal())).toEqual({
+      ok: false,
+      reason: 'invalid',
+    })
+  })
   it('reads complete bounded UTF-8 prompts and rejects empty, oversize or malformed input', async () => {
     const bytes = Buffer.from('é\nhi')
     expect(

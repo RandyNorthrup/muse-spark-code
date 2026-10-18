@@ -123,9 +123,17 @@ async function readValidatedKeyLine(
   if (bytes === undefined) return { ok: false, reason: 'tooLong' }
   // One CRLF line ending is accepted; any other white space or CR is part
   // of the value and fails validation, as the Action's intake refuses it.
-  // The decode never throws: malformed bytes become the replacement
-  // character, which validation below refuses as invalid.
-  const line = new TextDecoder('utf-8').decode(bytes)
+  // Malformed bytes fail before validation: the replacement character is
+  // non-whitespace, so a key-shaped line around it would wrongly validate.
+  let line: string
+  try {
+    line = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch (error: unknown) {
+    // Only malformed bytes fail here; anything else is not this read's answer.
+    bytes.fill(0)
+    if (!(error instanceof TypeError)) throw error
+    return { ok: false, reason: 'invalid' }
+  }
   bytes.fill(0)
   const key = line.endsWith('\r') ? line.slice(0, -1) : line
   if (key === '') return { ok: false, reason: 'empty' }
