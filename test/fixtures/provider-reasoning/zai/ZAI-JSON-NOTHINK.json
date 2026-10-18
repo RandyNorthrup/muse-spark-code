@@ -1,0 +1,55 @@
+{
+  "id": "ZAI-JSON-NOTHINK",
+  "provider": "zai",
+  "sentAt": "2026-10-13T01:38:45.293Z",
+  "method": "POST",
+  "url": "https://api.z.ai/api/paas/v4/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "model": "glm-5.2",
+    "stream": false,
+    "max_tokens": 100,
+    "thinking": {
+      "type": "disabled"
+    },
+    "response_format": {
+      "type": "json_object"
+    },
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with exactly: {\"hi\": true}."
+      }
+    ]
+  },
+  "lookFor": "JSON mode with thinking off: is the reply a bare JSON object",
+  "status": 200,
+  "responseHeaders": {
+    "x-request-id": "1c85cdf6-9ff2-4da9-9878-631a9fcf2c6e"
+  },
+  "response": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "content": "{\"hi\":true}",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1791855527,
+    "id": "202610130938460e2d2b66d74a4759",
+    "model": "glm-5.2",
+    "object": "chat.completion",
+    "request_id": "202610130938460e2d2b66d74a4759",
+    "usage": {
+      "completion_tokens": 9,
+      "prompt_tokens": 76,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "total_tokens": 85
+    }
+  }
+}

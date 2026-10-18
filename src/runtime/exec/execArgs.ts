@@ -6,6 +6,7 @@ import {
   type AcpBackendKind,
   EFFORT_LEVELS,
   type EffortLevel,
+  THINKING_OFF_EFFORT,
   EXEC_DEFAULT_MAX_REQUESTS,
   EXEC_DEFAULT_MODE,
   EXEC_DEFAULT_OUTPUT,
@@ -56,7 +57,13 @@ export interface ExecOptions {
    */
   readonly provider: string | undefined
   readonly model: string | undefined
-  readonly effort: EffortLevel | undefined
+  /**
+   * The requested tier, or `none` for Thinking off (lane REASONSHAPESR2:
+   * the terminal agent can be told to send none; the record decides what
+   * the wire carries). `EffortLevel` excludes `none`, so it is widened
+   * here, never in the shared union.
+   */
+  readonly effort: EffortLevel | typeof THINKING_OFF_EFFORT | undefined
   readonly allowsContributorModels: boolean
   readonly output: ExecOutput
   readonly outputSchema?: string
@@ -209,7 +216,12 @@ export function parseExec(
     SHELL_SANDBOX_MODES,
     values['shell-sandbox'] ?? SETTING_DEFAULTS.shellSandbox,
   )
-  const effort = enumValue(EFFORT_LEVELS, values['effort'])
+  // `none` (Thinking off) rides beside the tiers; the record, not the
+  // vendor, decides what the wire carries (lane REASONSHAPESR2).
+  const effort =
+    values['effort'] === THINKING_OFF_EFFORT
+      ? THINKING_OFF_EFFORT
+      : enumValue(EFFORT_LEVELS, values['effort'])
   if (
     backend === 'museCode' &&
     (values['account-pool'] === true ||

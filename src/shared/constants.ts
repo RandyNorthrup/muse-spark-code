@@ -1286,11 +1286,11 @@ export const COMPOSER_MAX_ROWS = 10
 // The tiers the UI exposes, lowest first: the Model API's documented
 // `reasoning_effort` range (minimal … max), each verified live through Muse
 // Code with one turn per tier (docs/certification/m3.md, "Effort tiers per
-// model"). Two wire tiers are deliberately absent: `none` is what the
-// Thinking toggle sends when it is off, and `ultra` is forwarded to the API
-// as `max` (the API's rejection of `ultra` on muse-spark-1.2 names `max`),
-// so it would be a second dot for the same tier.
-export const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+// model"), plus Muse Code's client-side `ultra` (the SDK's
+// `ReasoningEffort` vocabulary, `dist/src/msp.d.ts:1258`): the CLI forwards it as
+// `max` (m3.md: the 1.2 400 for `ultra` names `'max'`). `none` stays absent:
+// it is what the Thinking toggle sends when it is off.
+export const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const
 export type EffortLevel = (typeof EFFORT_LEVELS)[number]
 // The tiers each model family actually serves, keyed by model-id prefix
 // (verified live 2026-09-21, Muse Code 1.3.0: muse-spark-1.2 rejects `max`
@@ -1305,6 +1305,10 @@ export const MODEL_EFFORT_LEVELS: Readonly<Record<string, readonly EffortLevel[]
 export const DEFAULT_EFFORT: EffortLevel = 'high'
 // Sent as the session default while the Thinking toggle is off.
 export const THINKING_OFF_EFFORT = 'none'
+// Returned by the effort resolver for a level the record does not list
+// (lane REASONSHAPESR2): the provider default. Codecs omit the field, so
+// the value is never sent on the wire and never silently replaced.
+export const EFFORT_PROVIDER_DEFAULT = 'default'
 
 // --- Attachments ---
 
@@ -2284,6 +2288,21 @@ export const PACING_BACKGROUND_TOKEN_FRACTION = 0.5
 export const PACING_ADMISSION_TIMEOUT_MS = 600_000
 /** Smallest documented manual-thinking budget; always below the output cap. */
 export const PROVIDER_MANUAL_THINKING_BUDGET = 1024
+/**
+ * Manual-thinking budget per chosen tier (lane REASONSHAPESR2,
+ * GAPANTH-G17): a product choice, recorded in PLAN.md. Manual mode
+ * carries no effort level, so the tier sizes the budget instead; the
+ * caller clamps it below the run's output cap.
+ */
+export const MANUAL_THINKING_BUDGET_BY_EFFORT: Readonly<Record<EffortLevel, number>> = {
+  minimal: 1024,
+  low: 1024,
+  medium: 2048,
+  high: 4096,
+  xhigh: 8192,
+  max: 16_384,
+  ultra: 16_384,
+}
 // A turn that ran this long earns a notification when it ends while the
 // VS Code window is unfocused (M82): shorter turns answer before the user
 // looks away.

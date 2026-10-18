@@ -1,0 +1,37 @@
+{
+  "id": "TO-TOGGLE",
+  "provider": "together",
+  "sentAt": "2026-10-13T01:37:35.696Z",
+  "method": "POST",
+  "url": "https://api.together.ai/v1/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "messages": [
+      {
+        "content": "Say hi in five words.",
+        "role": "user"
+      }
+    ],
+    "model": "Qwen/Qwen3.6-Plus",
+    "reasoning": {
+      "enabled": false
+    },
+    "stream": false,
+    "max_tokens": 200
+  },
+  "lookFor": "Status and whether the answer comes with no thinking trace (toggle honored).",
+  "status": 403,
+  "responseHeaders": {
+    "request-id": "p518au3-2kFHot-a49a9eba1fae3023",
+    "x-request-id": "p518au3-2kFHot-a49a9eba1fae3023"
+  },
+  "response": {
+    "id": "p518au3-2kFHot-a49a9eba1fae3023",
+    "error": {
+      "message": "This model requires third-party data sharing to be enabled for your organization.",
+      "type": "invalid_request_error",
+      "param": null,
+      "code": "third_party_data_sharing_blocked"
+    }
+  }
+}

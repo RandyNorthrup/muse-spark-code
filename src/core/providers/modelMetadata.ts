@@ -89,6 +89,8 @@ export function nativeCapabilityEvidence(
     read(z.boolean(), 'capabilities', 'reasoning')
   if (reasoningFlag !== undefined) reasoning.supported = flag(reasoningFlag)
   if (parameters?.includes('reasoning') === true) reasoning.supported = yes(true)
+  const defaultEffort = read(z.string(), 'capabilities', 'default_reasoning_effort')
+  if (defaultEffort !== undefined) reasoning.defaultEffort = defaultEffort
   const reasoningOptions = read(reasoningOptionsSchema, 'reasoning_options')
   const efforts =
     reasoningOptions?.find((option) => option.type === 'effort')?.values ??
@@ -152,6 +154,13 @@ export function nativeCapabilityEvidence(
   if (preset === 'anthropic') {
     const supported = read(z.boolean(), 'capabilities', 'thinking', 'supported')
     if (supported !== undefined) reasoning.supported = flag(supported)
+    // Whether `thinking: {type: "disabled"}` is accepted (lane
+    // REASONSHAPESR2, GAPANTH-G02): the thinking table answers 400 for it
+    // on Opus 5.5, Sonnet 5.5, Fable 5.1, Mythos 5.1, Fable 5 and Mythos 5.
+    // Sonnet 5.5 turns off up-front thinking with `between_tools` instead
+    // (a preset fact, not this flag).
+    const disabled = read(z.boolean(), 'capabilities', 'thinking', 'types', 'disabled', 'supported')
+    if (disabled !== undefined) reasoning.canDisable = flag(disabled)
     const modes: ('off' | 'manual' | 'adaptive')[] = []
     if (read(z.boolean(), 'capabilities', 'thinking', 'types', 'enabled', 'supported') === true)
       modes.push('manual')

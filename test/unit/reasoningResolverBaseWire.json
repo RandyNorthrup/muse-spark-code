@@ -1,7 +1,7 @@
 {
   "anthropic": {
-    "lines": 40,
-    "sha256": "17d8828c1c0d7cc409ff84d7a91ee3730b9ab2e91930b21c991b5392411b4e5f"
+    "lines": 48,
+    "sha256": "b9990ce94e6fbba23b0e8a537e3a879131f59980f185daf7f7f40b646b7c7bac"
   },
   "azure": {
     "lines": 32,
@@ -13,23 +13,23 @@
   },
   "fireworks": {
     "lines": 88,
-    "sha256": "1676719bca39a839d2d4cb40b0030967688aaba9c36c1846de68bbd1e441afa4"
+    "sha256": "e559d6efdcf0cd38adafa3147fe10acfb00642365f2c16d4f5df06dcc75a7ac5"
   },
   "gemini": {
     "lines": 56,
-    "sha256": "aeaa0a8439eb764069a7f2a99cfb3b407ffbae142ea74cf2f8bd626cbefb7e69"
+    "sha256": "51404ef2cde91447e51b7a915b808c5224fa3126b0a1c6e1d803e4d64d1db1a8"
   },
   "groq": {
     "lines": 40,
-    "sha256": "6b205fa45528d79f2dea0c44b3ddd93673d4c2b485b8a434be8ebe7e0398f77e"
+    "sha256": "21d1465d294c4beb1381f971407b4eae05f83f5556106f05b79cf5d14f6f3aba"
   },
   "huggingface": {
     "lines": 360,
-    "sha256": "dd20e077f4ad78cd0e59be83e05c93adfa70df4247bd5f6f31c3514b54c8696c"
+    "sha256": "8479bd9db3c76a9153f908160725c7e0f95e999b12b043c134c9e4aa78e15852"
   },
   "llamacpp": {
     "lines": 8,
-    "sha256": "8602e152a064ef4bb33f4ccbe93e8433ec69aa0c0d35c66f7ed415c4fa34474a"
+    "sha256": "aa3f41f102d7a06e2222d9010a3ff425d4ab8be7ae028b0d84a28dc41bd678ea"
   },
   "lmstudio": {
     "lines": 8,
@@ -37,38 +37,38 @@
   },
   "mistral": {
     "lines": 136,
-    "sha256": "7afbb60664bb137abe3eeb867bd90ac547c7d41d0ebda7f2836f0111aa34507b"
+    "sha256": "5d95693762caa2ed7e9829b07f64306ab33b04f288d7be924bd040fc92e2356f"
   },
   "mistral-plan": {
     "lines": 136,
-    "sha256": "352c3b8020f2329f1398d915405121e25eaaf244de84774bb229d8a6cd40bee3"
+    "sha256": "dd3b52968546f023ffcafacd9edfb121be0db4ad9e93b7fbd42caacb494e6a73"
   },
   "ollama": {
     "lines": 8,
-    "sha256": "31c4aafca442a5318cccda3fa24f70991e4e673662dc5aa321a616f87e910b6b"
+    "sha256": "f8cbb55e200db9d06b66a26f4dbd20edc6f4134f64f1bf6dfa0e0d82698af96d"
   },
   "openai": {
     "lines": 128,
-    "sha256": "2b583c06bb4959e83ca2f73e852fdfa7e093bdbff4875dae62e1e9dc0463c35b"
+    "sha256": "423d0d244cb09c478d7b6315a7ebf0e8b4a6a252be7ec8174a6bd1d6fd955c17"
   },
   "openrouter": {
     "lines": 1120,
-    "sha256": "01aa6656a7476970219a9cec37e43c0d350fbc97d755a162844f9ba04a3ec6cf"
+    "sha256": "f9145f7acde0f80a767a2b42e7b6430ced77553423c66e8b5bad16aceb27dc02"
   },
   "together": {
     "lines": 160,
-    "sha256": "1cda2fd93084472326bf0dc3368899813dceecf22021ffd986470792d39a320d"
+    "sha256": "46b6d65299b0febfb5e71d1659bf90cf6a33c9945a47194162d681c54f8d58d4"
   },
   "vllm": {
     "lines": 8,
     "sha256": "989fdbedf4f4f2e4cbd947ac34d63c30801c13059a935bda2805703e2f91dd1a"
   },
   "xai": {
-    "lines": 48,
-    "sha256": "a14f8b6e7997b45a713da18c6bb52290f6eecde7670aeb606435a3c34d3380ad"
+    "lines": 40,
+    "sha256": "fae803fa2d5faeb638915dfb8c7d55fbaf3bde25b4dead1560033536e1f19465"
   },
   "zai": {
     "lines": 64,
-    "sha256": "4f4f419c1010a18406385af2cd12469312f815c78e972e393f9917cb23356fcd"
+    "sha256": "eaab5ff97b7b04168089c16fc6538e8b3ed5b208c15b75100113b8a2c429dd01"
   }
 }

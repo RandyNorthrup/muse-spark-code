@@ -1,0 +1,90 @@
+{
+  "id": "DS-STRICT-PROD",
+  "provider": "deepseek",
+  "sentAt": "2026-10-13T01:37:28.842Z",
+  "method": "POST",
+  "url": "https://api.deepseek.com/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "model": "deepseek-flash",
+    "max_tokens": 200,
+    "messages": [
+      {
+        "role": "user",
+        "content": "What is 12*13? Reply with one tool call."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "mul",
+          "description": "Multiply.",
+          "parameters": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "a": {
+                "type": "number"
+              },
+              "b": {
+                "type": "number"
+              }
+            },
+            "required": ["a", "b"]
+          },
+          "strict": true
+        }
+      }
+    ],
+    "stream": false
+  },
+  "lookFor": "Whether strict:true tool schemas are accepted on the production base or rejected (compare with DS-STRICT on /beta).",
+  "status": 200,
+  "responseHeaders": {
+    "x-cache": "Miss from cloudfront"
+  },
+  "response": {
+    "id": "469547ad-07c8-49f6-b664-3904ea9799c5",
+    "object": "chat.completion",
+    "created": 1791855449,
+    "model": "deepseek-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "reasoning_content": "The user wants me to compute 12*13 using the mul tool.",
+          "tool_calls": [
+            {
+              "index": 0,
+              "id": "call_00_3jO8V0xW5GkxyeBu0ECQ0604",
+              "type": "function",
+              "function": {
+                "name": "mul",
+                "arguments": "{\"a\": 12, \"b\": 13}"
+              }
+            }
+          ]
+        },
+        "logprobs": null,
+        "finish_reason": "tool_calls"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 313,
+      "completion_tokens": 68,
+      "total_tokens": 381,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 15
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 313
+    },
+    "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+  }
+}

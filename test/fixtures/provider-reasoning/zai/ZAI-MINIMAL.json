@@ -1,0 +1,54 @@
+{
+  "id": "ZAI-MINIMAL",
+  "provider": "zai",
+  "sentAt": "2026-10-13T01:37:41.490Z",
+  "method": "POST",
+  "url": "https://api.z.ai/api/paas/v4/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "messages": [
+      {
+        "content": "Say hi in five words.",
+        "role": "user"
+      }
+    ],
+    "model": "glm-5.2",
+    "reasoning_effort": "minimal",
+    "stream": false,
+    "max_tokens": 200
+  },
+  "lookFor": "Status; whether minimal stops thinking (docs) or errors.",
+  "status": 200,
+  "responseHeaders": {
+    "x-request-id": "88b385de-5a81-4260-a10d-f24b1176ede4"
+  },
+  "response": {
+    "choices": [
+      {
+        "finish_reason": "length",
+        "index": 0,
+        "message": {
+          "content": "Hello there, how",
+          "reasoning_content": "1.  **Analyze the Request:**\n    *   Task: Say \"hi\".\n    *   Constraint: Exactly five words.\n\n2.  **Brainstorming 5-word greetings:**\n    *   \"Hello there, how are you?\" (5 words) - Wait: Hello (1) there, (2) how (3) are (4) you? (5). Yes.\n    *   \"Hi, it is very nice.\" (5 words)\n    *   \"I just want to say...\" (5 words)\n    *   \"Hi, how is your day?\" (5 words)\n    *   \"Hello, I am saying hi.\" (5 words)\n    *   \"Hi, hello, and welcome there!\" (5 words)\n\n3.  **Selecting the best option:**\n    *   \"Hello there, how are you?\" is natural, polite, and perfectly fits the constraint.\n    *   Let",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1791855465,
+    "id": "20261013093742e65edd6ee6d84765",
+    "model": "glm-5.2",
+    "object": "chat.completion",
+    "request_id": "20261013093742e65edd6ee6d84765",
+    "usage": {
+      "completion_tokens": 200,
+      "completion_tokens_details": {
+        "reasoning_tokens": 196
+      },
+      "prompt_tokens": 18,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "total_tokens": 218
+    }
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "id": "DS-STRICT",
+  "provider": "deepseek",
+  "sentAt": "2026-10-13T01:37:27.275Z",
+  "method": "POST",
+  "url": "https://api.deepseek.com/beta/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "max_tokens": 200,
+    "messages": [
+      {
+        "content": "What is 12*13? Reply with one tool call.",
+        "role": "user"
+      }
+    ],
+    "model": "deepseek-flash",
+    "stream": false,
+    "tools": [
+      {
+        "function": {
+          "description": "Multiply.",
+          "name": "mul",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "a": {
+                "type": "number"
+              },
+              "b": {
+                "type": "number"
+              }
+            },
+            "required": ["a", "b"],
+            "type": "object"
+          },
+          "strict": true,
+          "type": "function"
+        },
+        "type": "function"
+      }
+    ]
+  },
+  "lookFor": "Whether strict:true tool schemas are accepted on the beta endpoint, and the same body against https://api.deepseek.com/chat/completions for comparison.",
+  "status": 200,
+  "responseHeaders": {
+    "x-cache": "Miss from cloudfront"
+  },
+  "response": {
+    "id": "f35ab58f-8ed8-47d3-b3b8-2fe55dbc7d11",
+    "object": "chat.completion",
+    "created": 1791855448,
+    "model": "deepseek-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "reasoning_content": "The user wants me to multiply 12*13 with one tool call.",
+          "tool_calls": [
+            {
+              "index": 0,
+              "id": "call_00_bfumP3lgWT2DAfKWCyGR7218",
+              "type": "function",
+              "function": {
+                "name": "mul",
+                "arguments": "{\"a\": 12, \"b\": 13}"
+              }
+            }
+          ]
+        },
+        "logprobs": null,
+        "finish_reason": "tool_calls"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 313,
+      "completion_tokens": 68,
+      "total_tokens": 381,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 15
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 313
+    },
+    "system_fingerprint": "aeb56401ca74e127821c4f9126dcb669"
+  }
+}

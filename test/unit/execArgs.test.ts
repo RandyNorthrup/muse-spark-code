@@ -194,6 +194,14 @@ describe('M80 args (A1–A10, F1)', () => {
     if (!floor.ok) throw new Error(floor.reason)
     expect(floor.options.maxToolOutputBytes).toBe(1024)
   })
+  it('accepts --effort none for Thinking off (lane REASONSHAPESR2)', () => {
+    // The terminal agent can be told to send none; the record decides
+    // what the wire carries.
+    expect(parseExec({ effort: 'none' }, ['hi'])).toMatchObject({
+      ok: true,
+      options: { effort: 'none' },
+    })
+  })
   it('A8 refuses duplicate, missing and shared stdin sources', () => {
     for (const positions of [[], [''], ['a', 'b']]) expect(parseExec({}, positions).ok).toBe(false)
     expect(parseExec({ 'prompt-file': 'file' }, ['hi']).ok).toBe(false)

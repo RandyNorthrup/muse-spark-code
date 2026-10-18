@@ -31,6 +31,54 @@ function preset(id: string): ProviderPreset {
 }
 
 describe('the preset table', () => {
+  it('declares DeepSeek strict tools and the full effort vocabulary (DS-G02, DS-G01 round 2)', () => {
+    // DS-STRICT and DS-STRICT-PROD answer 200 with `strict: true` on
+    // either address, so strict is declared, never address-gated.
+    // DS-XHIGH and DS-ULTRA answer 200 to the names, so the dated
+    // record carries the full vocabulary.
+    expect(preset('deepseek').quirks.supportsStrictTools).toBe(true)
+    const facts = preset('deepseek').reasoningFacts ?? []
+    const flash = facts.find((fact) => fact.modelId === 'deepseek-flash')
+    expect(flash?.fields.reasoning?.effortLevels).toEqual({
+      state: 'yes',
+      value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+    })
+  })
+
+  it('declares Anthropic Thinking-off facts and grok-4.5 xhigh (round 2)', () => {
+    // GAPANTH-G02: the thinking table answers 400 to `disabled` on four
+    // models (Sonnet 5.5 takes `between_tools` instead); Opus 5 and
+    // Haiku 5.5 take `disabled`. XAI-G01: grok-4.5 takes `xhigh`.
+    const facts = preset('anthropic').reasoningFacts ?? []
+    const fact = (id: string) => facts.find((entry) => entry.modelId === id)
+    expect(fact('claude-opus-5-5')?.fields.reasoning?.canDisable).toEqual({ state: 'no' })
+    expect(fact('claude-fable-5')?.fields.reasoning?.canDisable).toEqual({ state: 'no' })
+    expect(fact('claude-fable-5-1')?.fields.reasoning?.canDisable).toEqual({ state: 'no' })
+    expect(fact('claude-sonnet-5-5')?.fields.reasoning?.canDisable).toEqual({ state: 'no' })
+    expect(fact('claude-sonnet-5-5')?.fields.reasoning?.offSwitch).toBe('between_tools')
+    expect(fact('claude-opus-5')?.fields.reasoning?.canDisable).toEqual({
+      state: 'yes',
+      value: true,
+    })
+    expect(fact('claude-haiku-5-5')?.fields.reasoning?.canDisable).toEqual({
+      state: 'yes',
+      value: true,
+    })
+    // Every 4.x row ends in "Thinking off": `disabled` rides there.
+    expect(fact('claude-opus-4-5')?.fields.reasoning?.canDisable).toEqual({
+      state: 'yes',
+      value: true,
+    })
+    expect(fact('claude-opus-4-6')?.fields.reasoning?.canDisable).toEqual({
+      state: 'yes',
+      value: true,
+    })
+    const xai = preset('xai').reasoningFacts ?? []
+    expect(
+      xai.find((entry) => entry.modelId === 'grok-4.5')?.fields.reasoning?.effortLevels,
+    ).toEqual({ state: 'yes', value: ['low', 'medium', 'high', 'xhigh'] })
+  })
+
   it('holds eighteen presets with unique, valid ids', () => {
     expect(PRESETS.length).toBe(18)
     const ids = PRESETS.map((candidate) => candidate.id)
@@ -185,6 +233,7 @@ describe('the preset table', () => {
   it('gates strict tool schemas per capable server (M101 item 24)', () => {
     expect(quirksOf(preset('openai')).supportsStrictTools).toBe(true)
     expect(quirksOf(preset('azure')).supportsStrictTools).toBe(true)
+    expect(quirksOf(preset('deepseek')).supportsStrictTools).toBe(true)
     for (const id of ['xai', 'anthropic', 'gemini', 'openrouter', 'ollama', 'llamacpp', 'custom']) {
       expect(quirksOf(preset(id)).supportsStrictTools).toBe(false)
     }
