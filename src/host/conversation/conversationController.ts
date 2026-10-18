@@ -9297,7 +9297,9 @@ export class ConversationController {
       let name: string
       try {
         name = path.posix.basename(decodeURIComponent(new URL(uri).pathname).replaceAll('\\', '/'))
-      } catch {
+      } catch (error: unknown) {
+        // Named never: the dropped text is the user's own, not for the log.
+        this.deps.log.warn(`A dropped link could not be read: ${failureForLog(error)}`)
         continue
       }
       const extension = path.extname(name).toLowerCase()
@@ -9320,7 +9322,8 @@ export class ConversationController {
         checked = await this.deps.files.canonicalRelativePath(
           path.join(this.deps.workspaceRoot, relativePath),
         )
-      } catch {
+      } catch (error: unknown) {
+        this.deps.log.warn(`A dropped link could not be confined: ${failureForLog(error)}`)
         if (this.isCurrentAttachmentGeneration(generation))
           this.post({ type: 'attachmentRejected', name, reason: UI_TEXT.textFilePrivate })
         continue
@@ -9362,6 +9365,7 @@ export class ConversationController {
     try {
       await this.deps.runHostAction(action)
     } catch (error: unknown) {
+      this.deps.log.warn(`A host action failed: ${failureForLog(error)}`)
       this.notice(
         'error',
         `${fill(UI_TEXT.hostActionFailed, { action })}: ${describe(error)}`,
@@ -9412,6 +9416,7 @@ export class ConversationController {
       }
       await this.postUsage(host, subscription)
     } catch (error: unknown) {
+      this.deps.log.warn(`The usage could not be read: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`, undefined, error)
     } finally {
       await this.readUploadedFiles()
@@ -9534,6 +9539,7 @@ export class ConversationController {
       }
       await session.controlSubagent(subagentId, action)
     } catch (error: unknown) {
+      this.deps.log.warn(`A subagent could not be controlled: ${failureForLog(error)}`)
       if (this.isCurrentSessionAction(session, generation)) {
         this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)
       }
@@ -9562,6 +9568,7 @@ export class ConversationController {
         })
       } else await send()
     } catch (error: unknown) {
+      this.deps.log.warn(`A subagent message could not be sent: ${failureForLog(error)}`)
       if (this.isCurrentSessionAction(session, generation)) {
         this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)
       }
@@ -9596,6 +9603,7 @@ export class ConversationController {
         this.notice(notice.level, notice.text)
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A conversation could not be exported: ${failureForLog(error)}`)
       this.notice('error', `${UI_TEXT.exportFailed}: ${describe(error)}`, undefined, error)
     }
   }
@@ -9612,6 +9620,7 @@ export class ConversationController {
     try {
       picked = await this.deps.transferFiles.pickTransferFile(title)
     } catch (error: unknown) {
+      this.deps.log.warn(`A session-export file could not be picked: ${failureForLog(error)}`)
       this.notice('error', `${failure}: ${describe(error)}`, undefined, error)
       return undefined
     }
@@ -9671,10 +9680,10 @@ export class ConversationController {
         this.lastEstimateSection = section
         this.post({ type: 'estimatorSection', ...correlation, section })
       } catch (error: unknown) {
+        this.deps.log.error(`The estimate failed: ${failureForLog(error)}`)
         if (pending.signal.aborted || generation !== this.sendInvalidationEpoch || this.isDisposed)
           return
         const reason = describe(error)
-        this.deps.log.error(`The estimate failed: ${reason}`)
         this.post({ type: 'estimatorFailure', ...correlation, reason })
         this.notice('warning', reason)
       } finally {
@@ -9698,8 +9707,8 @@ export class ConversationController {
       this.post({ type: 'estimatorStarted', ...correlation })
       this.notice('info', fill(UI_TEXT.estimateWaveStarted, { lanes: started.join(', ') }))
     } catch (error: unknown) {
+      this.deps.log.error(`The first wave failed: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) return
-      this.deps.log.error(`The first wave failed: ${describe(error)}`)
       this.post({ type: 'estimatorStarted', ...correlation, error: describe(error) })
       this.notice('warning', describe(error))
     }
@@ -9724,7 +9733,7 @@ export class ConversationController {
       handler = await this.reportProblemHandler(reports)
     } catch (error: unknown) {
       this.reportHandler = undefined
-      this.deps.log.error(`The report bundle could not be loaded: ${describe(error)}`)
+      this.deps.log.error(`The report bundle could not be loaded: ${failureForLog(error)}`)
       this.notice('error', UI_TEXT.actionFailed)
       return
     }
@@ -9828,6 +9837,7 @@ export class ConversationController {
       }
       await this.adopt(host, loaded, UI_TEXT.importedNotice, 'imported')
     } catch (error: unknown) {
+      this.deps.log.warn(`A session could not be imported: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch) {
         this.notice('error', `${UI_TEXT.importSessionFailed}: ${describe(error)}`, undefined, error)
       }
@@ -9881,6 +9891,7 @@ export class ConversationController {
         items: [...items],
       })
     } catch (error: unknown) {
+      this.deps.log.warn(`A subagent transcript could not be read: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch) {
         this.notice(
           'warning',
