@@ -53,7 +53,7 @@ function archOf(target) {
  * VSCE inventory path with any separator; comparison normalises to `/` so
  * the check holds on Windows checkouts too.
  */
-export function vsixKeepsFile(target, file) {
+export function isVsixTargetFile(target, file) {
   if (!VSIX_TARGETS.includes(target)) throw new Error(`Unknown VSIX target: ${target}`)
   const normalized = file.replaceAll('\\', '/')
   const platform = platformOf(target)
