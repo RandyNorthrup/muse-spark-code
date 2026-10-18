@@ -160,3 +160,51 @@ measured reason. No test timeout is raised anywhere; no stand-in is kept.
   asserts ready plus a clean shutdown.
 - F10 (Linux presence survey): fix the survey — presence stays refused
   after a real TPM2 probe (the passphrase owns Linux presence, D89 table).
+
+## macOS replay (lane VAULTOPEN, 2026-10-18, macmini arm64, repo-default 5 s timeouts, `--maxWorkers=3`)
+
+Env the suites need here: `TMPDIR` at the natural per-user root
+(`/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T`, 42 chars, owner-only,
+outside the repo) and `umask 022`. The sandbox forces a 151-char TMPDIR
+inside the worktree with umask 077; both break suites by the suites' own
+rules (socket-length refusal, owner-only mode assertion), not the product.
+
+- `slotProviders.test.ts` 13 passed; `fileAnchor.test.ts` 4 passed;
+  `migrationCodecRoundTrip.test.ts` 6 passed.
+- `brokerWithoutKeyring.test.ts` 1 passed with the natural TMPDIR. With
+  the sandbox TMPDIR inside the repo the suite's own guard fails fast in
+  `beforeAll` (the binding would resolve from the repo's `node_modules`,
+  so the fixture cannot prove keyring absence) — the designed fail-fast,
+  not a product failure.
+- `vaultHarnessScenarios.test.ts` 3 passed; `windowsPipeRelay.test.ts`
+  2 passed + 1 win32 suite skipped with a reason.
+- `brokerSocketDirectory.test.ts` 14 passed with umask 022 (with the
+  sandbox umask 077 one mode assertion fails: `mkdir` 0755 is masked to
+  0700, so the permissive base is not permissive — the msm109 record's
+  known signature, measured again here).
+- `brokerSession.test.ts` 0/4 in this sandbox, same signature as the
+  PR247FIX record. Measured one level deeper with an error-printing
+  probe of the same broker startup (probe scripts in worktree `temp/`,
+  fixtures under the natural TMPDIR, removed after): the three forked
+  clients (`env: { HOME }`) never send ready because the broker refuses
+  at startup with "The broker cannot start. First-party keys still work;
+  agent uses are refused. Repair the broker installation."
+  (`assertVaultSocketLength`: the bare env drops TMPDIR, the socket
+  falls back under HOME at the 151-char sandbox root, over the darwin
+  limit — the product correctly refuses). The fourth (full env) starts
+  and sends ready, then exits 1 on SIGTERM instead of 0; the exact
+  refusing shutdown step is UNMEASURED beyond the signature. Neither
+  reaches changed code; CI decides.
+- `writerCrashPosix.test.ts` 0/17 in this sandbox, all
+  `{ kind: 'refused', reason: 'io' }`. Measured cause: the writer
+  lease's macOS birth probe runs `/bin/ps`, and this sandbox denies it
+  (`/bin/ps: Operation not permitted`, `src/core/locks/processOwner.ts`
+  `darwinStartTime`). No shim was built; the lead runs these outside
+  the sandbox.
+- OS-keychain-backed paths need a desktop session with an unlocked
+  keychain: `security create-keychain` fails in this sandbox
+  (`SecKeychainCreate ... parameters ... not valid`, exit 206) and
+  `@napi-rs/keyring` reports no default keychain under the sandbox
+  HOME. The owner's own login keychain was never touched. The
+  keyring-absent broker path (file anchor) above is the documented
+  fallback and passes here.
