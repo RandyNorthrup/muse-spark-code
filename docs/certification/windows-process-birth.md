@@ -234,3 +234,65 @@ Windows run has measured the fixes yet.
   `WaitForSingleObject(handle, 0)` times out. A new Windows test exits a
   real child with code 259 while its parent still holds the handle and
   expects no birth; the old exit-code check is its red drill.
+
+## Codex threads on PR #220 (done, `8bdf2e82da`)
+
+Measured on the Windows 11 rig with `LOCALAPPDATA`, `TEMP` and `TMP` inside
+the worktree's `temp/`. This supersedes the digest-named shared reader
+described under "Fix" and the folder note in the review above.
+
+- **CHANGELOG.md:21.** The entry now says what changed and why (Windows
+  PowerShell's first start on a hosted runner passed the 10 s bound and the
+  lease test failed), has no timings, and ends "Not yet run in the packed
+  product."
+- **processOwner.ts:288.** Each process builds its own reader,
+  `MuseSparkBirth-<pid>-<uuid>.exe`, keeps the SHA-256 of the bytes the
+  compiler wrote, and hashes the file again before every run; changed or
+  missing bytes refuse that read (`undefined`), remove the file, and the
+  next read builds a new one. No file this process did not build is run,
+  so a file planted at a predictable name is never executed. A build
+  removes readers whose process has ended (left after ten runs: one, the
+  last process's). Cost per process (10 fresh Node processes): first read,
+  build included, 123–171 ms; later reads, hash check included, 36–54 ms.
+  D105's trusted-path verification is not added: it runs Windows
+  PowerShell (`WINDOWS_TRUSTED_ACL_SCRIPT`), whose start is this fix's
+  measured cause (1.4 s to over 15 s for a first start on hosted runners).
+  Remaining: in a data folder that another principal can write, a swap in
+  the moments between the compiler's write and the seal, or between the
+  check and the start, is not excluded; the job helpers' seal has the same
+  window.
+- **processOwner.ts:89.** The reader opens the process with `SYNCHRONIZE`
+  too and counts it running only while `WaitForSingleObject(handle, 0)`
+  times out. A child that ended with exit code 259 while its parent held
+  the handle (three runs): this code read `undefined`; the earlier
+  exit-code reader, built from `a8306e182e`'s source, printed a birth
+  (1792287513493, 1792287513844, 1792287514221). Values for this process,
+  a live child and the parent still equal Windows PowerShell's to the
+  millisecond; an exited child, id 4 and 999,999,999 read `undefined`.
+
+New Windows tests in `test/unit/fileLease.test.ts` (real processes and the
+inbox compiler, no stand-ins):
+
+- "reads no birth for a process that ended with exit code 259 while a
+  handle keeps it": the parent blocks inside the child's `exit` listener,
+  before Node closes the handle, and the test checks the exit code is 259.
+- "never runs a birth reader whose bytes changed after this process built
+  it": the test copies a program that prints 42 (built by the inbox
+  compiler) over this process's reader; the next read is `undefined`, the
+  file is gone, and the read after equals the first birth.
+
+Red drills, each reverted byte for byte (`cmp`):
+
+- The exit-code check back in the reader: exit 1, 1 failed, "reads no
+  birth for a process that ended with exit code 259 while a handle keeps
+  it" ("expected 1792287612333 to be undefined").
+- The seal check before a run disabled: exit 1, 3 failed, first "never
+  runs a birth reader whose bytes changed after this process built it"
+  ("expected 42 to be undefined"; the planted program ran), then two that
+  read births after it.
+
+Gates on `8bdf2e82da`: `prettier --check .` 0; ESLint product code with
+`temp/**` excluded 0; `lint:js:unit` 0; `npm run typecheck` 0;
+`npm run build` 0; `check:host-api` 0; knip 0; cycles 0; jscpd 0 (no
+clones); `fileLease.test.ts` + `runtimePullRequestRecords.test.ts` 0
+(53 passed, 1 skipped).
