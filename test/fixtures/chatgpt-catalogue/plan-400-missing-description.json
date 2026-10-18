@@ -1,0 +1,8 @@
+{
+  "error": {
+    "message": "Missing required parameter: 'tools[0].description'.",
+    "type": "invalid_request_error",
+    "param": "tools[0].description",
+    "code": "missing_required_parameter"
+  }
+}

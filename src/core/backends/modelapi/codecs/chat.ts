@@ -1,3 +1,4 @@
+import { UserRefusalError } from '../../../../shared/refusal'
 import { Usd, type UsdAmount } from '../../../../shared/usd'
 // The Chat Completions wire codec (PLAN.md D74, M95 lane H): the shared
 // implementation behind every `chat` preset (OpenRouter, Groq, DeepSeek,
@@ -317,7 +318,7 @@ function textOfParts(parts: readonly InputContentPart[]): string {
       if (part.type === 'input_text' || part.type === 'output_text') {
         return isBlankWireText(part.text) ? [] : [cleanWireText(part.text)]
       }
-      throw new Error(UI_TEXT.execUnknownModel)
+      throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
     })
     .join('')
 }
@@ -330,7 +331,7 @@ function contentOfParts(
     return textOfParts(parts)
   }
   if (vision === undefined) {
-    throw new Error(UI_TEXT.execUnknownModel)
+    throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
   }
   // M101 lane P1 (BYO item 1): media rides as the image-omitted placeholder
   // where the model takes no images, so the turn keeps its shape.
@@ -347,7 +348,7 @@ function contentOfParts(
         blocks.push({ type: 'text', text: cleanWireText(part.text) })
       }
     } else {
-      throw new Error(UI_TEXT.execUnknownModel)
+      throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
     }
   }
   return blocks

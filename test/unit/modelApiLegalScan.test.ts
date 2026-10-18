@@ -2,6 +2,7 @@
 // with a scanner behind it, classed as a read, strict arguments, trust and
 // cancellation enforced, and a validated result.
 
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   LEGAL_SCAN_DESCRIPTION,
@@ -9,41 +10,53 @@ import {
   runLegalScanCall,
 } from '../../src/core/backends/modelapi/legalScanTool'
 import { classifyTool, toolDefinitions } from '../../src/core/backends/modelapi/tools'
-import {
-  UI_TEXT,
-  LEGAL_RESULT_VERSION,
-  LEGAL_SCAN_TOOL_MODEL_TEXT,
-  MODEL_API_TOOLS,
-} from '../../src/shared/constants'
-import type { LegalScanResult, LegalScanRunner } from '../../src/shared/legal'
+import { runLegalScan } from '../../src/core/legal/entry'
+import { LEGAL_SCAN_TOOL_MODEL_TEXT, MODEL_API_TOOLS, UI_TEXT } from '../../src/shared/constants'
+import { legalScanResultSchema } from '../../src/shared/legal'
+import type { LegalScanRunner } from '../../src/shared/legal'
 
-function result(): LegalScanResult {
-  return {
-    version: LEGAL_RESULT_VERSION,
-    ruleVersion: 'r1',
-    dataVersion: 'd1',
-    scope: '',
-    distribution: 'The workspace ships as a VS Code extension.',
-    exclusions: [],
-    incompleteChecks: [],
-    findings: [],
+// The committed offline fixture workspaces, read through the production
+// filesystem snapshot: every scan below exercises the shipped entry's input
+// parsing, workspace reading and paths/policy forwarding.
+const CLEAN_ROOT = fileURLToPath(new URL('../fixtures/legal/clean/', import.meta.url))
+// The hazardous tree (also scanned by legalGuards.test.ts, which pins that
+// its prompt payloads never reach a report): its headerless source makes the
+// header policy observable.
+const TREE_ROOT = fileURLToPath(new URL('../fixtures/legal/tree/', import.meta.url))
+
+/** The production scan entry behind the `LegalScanRunner` contract. */
+function productionRunner(workspaceRoot: string): LegalScanRunner {
+  return async (input, signal) => {
+    const handle = await runLegalScan({ workspaceRoot, input, signal })
+    return handle.result
   }
 }
 
-function runner(): { run: LegalScanRunner; calls: unknown[] } {
-  const calls: unknown[] = []
-  return {
-    run: (input) => {
-      calls.push(input)
-      return Promise.resolve(result())
-    },
-    calls,
-  }
-}
+// A root the production snapshot refuses: any runner invocation throws, so a
+// refusal outcome proves the adapter never reached the scanner.
+const MISSING_ROOT = fileURLToPath(new URL('../fixtures/legal/no-such-workspace/', import.meta.url))
 
 const SIGNAL = new AbortController().signal
 
-const failingScan: LegalScanRunner = () => Promise.reject(new Error('disk went away'))
+/** Run the production scan and answer its schema-validated JSON. */
+async function validatedScan(
+  args: Readonly<Record<string, unknown>>,
+  workspaceRoot: string,
+  disclaimer = UI_TEXT.legalScanDisclaimer,
+) {
+  const outcome = await runLegalScanCall(
+    args,
+    productionRunner(workspaceRoot),
+    true,
+    SIGNAL,
+    disclaimer,
+  )
+  if (!outcome.ok) throw new Error(outcome.reason)
+  const parsed = legalScanResultSchema.safeParse(JSON.parse(outcome.json))
+  expect(parsed.success).toBe(true)
+  if (!parsed.success) throw new Error('legal_scan JSON failed its schema')
+  return parsed.data
+}
 
 describe('legal_scan definition', () => {
   it('is offered only with a scanner behind it, as a strict read', () => {
@@ -71,87 +84,73 @@ describe('legal_scan definition', () => {
 })
 
 describe('runLegalScanCall', () => {
-  it('runs the scan and answers its validated JSON', async () => {
-    const { run, calls } = runner()
-    const outcome = await runLegalScanCall({ paths: ['package.json'] }, run, true, SIGNAL)
-    expect(calls).toEqual([{ paths: ['package.json'] }])
-    expect(outcome).toEqual({
-      ok: true,
-      json: JSON.stringify({ ...result(), disclaimer: UI_TEXT.legalScanDisclaimer }),
+  it('runs the real scan and answers its validated JSON with the disclaimer', async () => {
+    const data = await validatedScan({ paths: ['package.json'] }, CLEAN_ROOT)
+    expect(data).toMatchObject({
+      version: 1,
+      scope: 'package.json',
+      findings: [],
+      disclaimer: UI_TEXT.legalScanDisclaimer,
     })
+    const evidence = (data.evidenceFiles ?? []).map((entry) => entry.path)
+    expect(evidence).toContain('package.json')
   })
 
   it('uses the caller’s installed disclaimer when the adapter is shared', async () => {
-    const { run } = runner()
     const disclaimer = 'Technický přehled. Nejde o právní radu.'
-    expect(await runLegalScanCall({}, run, true, SIGNAL, disclaimer)).toEqual({
-      ok: true,
-      json: JSON.stringify({ ...result(), disclaimer }),
-    })
+    const data = await validatedScan({}, CLEAN_ROOT, disclaimer)
+    expect(data).toMatchObject({ version: 1, disclaimer })
+    expect((data.evidenceFiles ?? []).length).toBeGreaterThan(0)
   })
 
-  it('scans the whole workspace on empty arguments', async () => {
-    const { run, calls } = runner()
-    const outcome = await runLegalScanCall({}, run, true, SIGNAL)
-    expect(outcome.ok).toBe(true)
-    expect(calls).toEqual([{}])
+  it('forwards the header policy to the production scan', async () => {
+    const data = await validatedScan({ headerPolicy: 'required' }, TREE_ROOT)
+    expect(data.findings).toContainEqual(
+      expect.objectContaining({
+        category: 'copyrightHeader',
+        file: 'src/noheader.js',
+        severity: 'should-fix',
+      }),
+    )
   })
 
   // Read-only enforcement: the tool exposes no write operation, so a write,
   // a command, a fix or an install arrives only as an unknown key — refused
-  // by the strict schema before the scanner is asked.
+  // by the strict schema before the scanner runs (any run would throw on the
+  // missing root instead of refusing).
   it.each([[{ write: true }], [{ command: 'make fix' }], [{ fix: true }], [{ install: true }]])(
     'refuses a write/exec attempt without running the scan: %j',
     async (args) => {
-      const { run, calls } = runner()
-      const outcome = await runLegalScanCall(args, run, true, SIGNAL)
+      const outcome = await runLegalScanCall(args, productionRunner(MISSING_ROOT), true, SIGNAL)
       expect(outcome.ok).toBe(false)
       if (!outcome.ok) {
         expect(outcome.reason).toContain('invalid arguments')
       }
-      expect(calls).toEqual([])
     },
   )
 
-  it('names an unoffered tool as unknown, running nothing', async () => {
-    const outcome = await runLegalScanCall({}, undefined, true, SIGNAL)
-    expect(outcome).toEqual({
-      ok: false,
-      reason: `unknown tool ${MODEL_API_TOOLS.legalScan}`,
-      isRestricted: false,
-    })
-  })
-
-  it('refuses in an untrusted workspace before reading anything', async () => {
-    const { run, calls } = runner()
-    const outcome = await runLegalScanCall({}, run, false, SIGNAL)
+  it('refuses in an untrusted workspace before reaching the scanner', async () => {
+    const outcome = await runLegalScanCall({}, productionRunner(MISSING_ROOT), false, SIGNAL)
     expect(outcome).toEqual({
       ok: false,
       reason: LEGAL_SCAN_TOOL_MODEL_TEXT.legalScanRestrictedMode,
       isRestricted: true,
     })
-    expect(calls).toEqual([])
   })
 
   it('starts nothing for a stopped turn', async () => {
-    const { run, calls } = runner()
     const controller = new AbortController()
     controller.abort()
-    await expect(runLegalScanCall({}, run, true, controller.signal)).rejects.toThrow('cancelled')
-    expect(calls).toEqual([])
+    await expect(
+      runLegalScanCall({}, productionRunner(MISSING_ROOT), true, controller.signal),
+    ).rejects.toThrow('cancelled')
   })
 
-  it('lets a scan failure through', async () => {
-    await expect(runLegalScanCall({}, failingScan, true, SIGNAL)).rejects.toThrow('disk went away')
-  })
-
-  it('refuses an invalid result', async () => {
-    const broken = (() =>
-      Promise.resolve({ version: 1, findings: 'nope' })) as unknown as LegalScanRunner
-    const outcome = await runLegalScanCall({}, broken, true, SIGNAL)
+  it('names an unoffered tool as unknown, running nothing', async () => {
+    const outcome = await runLegalScanCall({}, undefined, true, new AbortController().signal)
     expect(outcome).toEqual({
       ok: false,
-      reason: 'the legal scan returned an invalid result',
+      reason: `unknown tool ${MODEL_API_TOOLS.legalScan}`,
       isRestricted: false,
     })
   })

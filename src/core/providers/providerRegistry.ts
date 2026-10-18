@@ -9,11 +9,15 @@ import {
   type ModelResolver,
   type ResolvedModel,
 } from '../backends/modelapi/modelPolicy'
+import { UserRefusalError } from '../refusal'
+import { fill } from '../../shared/l10n/text'
 import { TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
+import { isEffortLevel } from '../../shared/effort'
 import { parseModelRef, sanitizeModelLabel } from './modelRef'
 import { reserveRequestAmount, settleUsageAmount, type ModelPricing } from './priceCard'
 
 export interface RegistryModel {
+  readonly catalogueMissing?: boolean
   readonly ref: string
   readonly origin: string
   readonly evidence: ModelPolicyEvidence
@@ -42,8 +46,13 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
       const models = await deps.models()
       return models.flatMap((model) => {
         const policy = modelPolicyFor(model.ref, { ...model.evidence, pricing: model.pricing })
-        if (policy.tools.calling.state !== 'yes') return []
+        if (policy.tools.calling.state !== 'yes' && model.pricing.kind !== 'unpriced') return []
         const pricing = model.pricing
+        // The levels the model's own record lists, so every picker offers them
+        // (finding F79: a configured Anthropic model offered none, and the
+        // editor protocol refused every level).
+        const levels = policy.reasoning.effortLevels
+        const effortLevels = levels.state === 'yes' ? levels.value.filter(isEffortLevel) : []
         return [
           {
             modelId: model.ref,
@@ -57,6 +66,7 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
             isPinned: model.isPinned,
             trainsOnContent: model.trainsOnContent,
             planLimitsUrl: model.planLimitsUrl,
+            ...(effortLevels.length > 0 && { effortLevels }),
             ...(pricing.kind === 'priced' && {
               inputUsdPerMTokens: pricing.card.input * TOKENS_PER_MILLION,
               outputUsdPerMTokens: pricing.card.output * TOKENS_PER_MILLION,
@@ -70,8 +80,13 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
       const models = await deps.models()
       const model = models.find((model) => model.ref === ref)
       if (model === undefined || parsed === undefined || parsed.providerId === 'meta') {
-        throw new Error(UI_TEXT.execUnknownModel)
+        throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
       }
+      if (model.catalogueMissing === true)
+        throw new UserRefusalError(
+          fill(UI_TEXT.execProviderNotCatalogue, { model: ref }),
+          'model_not_catalogue',
+        )
       const client = await deps.createClient(model)
       if (!deps.isCurrent(model)) {
         throw new Error(UI_TEXT.requestStaleRetry)

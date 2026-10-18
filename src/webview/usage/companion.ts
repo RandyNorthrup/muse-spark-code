@@ -3,11 +3,22 @@ import type { UsageCompanionEvent } from '../../shared/usageCompanion'
 import type { HttpUsagePort } from '../hostBridges/httpHostBridge'
 import { USAGE_COMPANION_EVENT_BYTES } from '../../shared/constants'
 
+interface WaitingUsageRequest {
+  resolve(value: unknown): void
+  reject(error: Error): void
+}
+
+/** Settles every queued request with the stream's closing failure. */
+function rejectWaitingRequests(waiting: Map<string, WaitingUsageRequest>, closed: Error): void {
+  for (const request of waiting.values()) request.reject(closed)
+  waiting.clear()
+}
+
 /** C's launch page supplies an authenticated fetch closure; no bearer enters this bridge. */
 export function companionUsagePort(): HttpUsagePort {
   let sequence = 0
   let saved: unknown
-  const waiting = new Map<string, { resolve(value: unknown): void; reject(error: Error): void }>()
+  const waiting = new Map<string, WaitingUsageRequest>()
   const ending = new AbortController()
   window.addEventListener(
     'pagehide',
@@ -84,11 +95,18 @@ export function companionUsagePort(): HttpUsagePort {
       reader.releaseLock()
     }
   }
-  void stream().catch(() => {
-    const error = new Error('EPANEL_CLOSED')
-    streamReady.reject(error)
-    for (const request of waiting.values()) request.reject(error)
-    waiting.clear()
+  void stream().catch((error: unknown) => {
+    // A broken stream closes the panel for its waiters, carrying the cause.
+    // The waiters settle first; a non-error then keeps its own kind past the
+    // companion to the failure record.
+    const closed = new Error('EPANEL_CLOSED', { cause: error })
+    streamReady.reject(closed)
+    rejectWaitingRequests(waiting, closed)
+    if (!(error instanceof Error)) throw error
+    // `closed` above carries the failure to the waiters; this second copy
+    // carries it past the handler, which returns the cause it caught. The
+    // promise is voided, so neither copy is observed here.
+    return new Error('EPANEL_CLOSED', { cause: error })
   })
   void streamReady.promise.catch(() => {
     // Requests consume this failure; an unused page has no request to reject.

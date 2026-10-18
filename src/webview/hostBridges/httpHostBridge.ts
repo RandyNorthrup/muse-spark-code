@@ -30,6 +30,9 @@ export function httpHostBridge(port: HttpUsagePort): HostBridge {
             for (const message of reply) deliverUsageReply(messages, message)
           else deliverUsageReply(messages, reply)
         } catch {
+          // post is fire-and-forget: every rejection must settle here and
+          // report a fixed failure, never reject the serialized queue tail.
+          // No thrown value or provider text is sent to the page.
           deliverUsageReply(messages, { type: 'usage/error', code: 'readFailed' })
         }
       })()

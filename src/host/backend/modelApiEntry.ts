@@ -1,3 +1,4 @@
+import { SpendLedgerError } from '../../core/paid/spendLedgerError'
 import {
   IS_AUTO_COMPACTION_EVALUATED,
   MODEL_API_MAX_RETRIES,
@@ -34,6 +35,7 @@ export {
   rateLimitHeaders,
   parseJsonResponse,
   redactModelApiError,
+  rethrowStreamError,
   ignoreClosingError,
   redactSecrets,
   assertConfirmedAllowed,
@@ -151,7 +153,10 @@ function autoCompactionAdmission(
           : {
               reserveCompaction: async (amount, signal) => {
                 if (config.reserveAutoCompaction === undefined)
-                  throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+                  throw new SpendLedgerError('integrity', {
+                    scope: 'session',
+                    file: 'modelApiEntry',
+                  })
                 return await config.reserveAutoCompaction(amount, signal)
               },
             },
@@ -166,7 +171,6 @@ function autoCompactionAdmission(
         (() => Usd.from(SETTING_DEFAULTS.paidDailyBudgetUsd).toAmount()),
       notePaidUse: host.notePaidUse,
       log: host.log,
-      storeUnavailable: UI_TEXT.sessionBudgetStoreUnavailable,
     })(request)
   }
 }
@@ -242,7 +246,9 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
             return await registry.resolve(ref)
           } catch (error: unknown) {
             if (isPlanModel?.(ref) === true) {
-              return metaResolvedModel(ref, client)
+              const planFacts =
+                'planModelFacts' in client ? await client.planModelFacts(ref) : undefined
+              return metaResolvedModel(ref, client, planFacts)
             }
             throw error
           }

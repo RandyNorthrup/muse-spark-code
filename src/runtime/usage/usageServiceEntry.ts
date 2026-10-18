@@ -31,7 +31,7 @@ import {
 import { NodeUsageFs } from './nodeUsageFs'
 import { loadUsageTable } from '../../shared/l10n/usageTable'
 import { readUsageTableFile } from './usageTableFile'
-import { readUsageHistorySettings } from './usageSettingsFile'
+import { isInvalidUsageSettings, readUsageHistorySettings } from './usageSettingsFile'
 import { resourceHistoryReader } from '../resources/history'
 import { CHECKPOINT_STORAGE_MODE } from '../../shared/constants'
 import {
@@ -55,10 +55,29 @@ function unsupported(): never {
   throw new Error('unsupportedUsageAction')
 }
 export const createUsageWriter: UsageWriterBundle['createUsageWriter'] = (options) => {
+  // An invalid settings file pauses history (never a guess) and says so
+  // specifically, once: without this the writer fails every note with only
+  // the generic write warning and no hint at the repair (EXECPROV E).
+  let hasReportedInvalidSettings = false
+  const isEnabled = () => {
+    if (!options.isEnabled()) return false
+    try {
+      return readSettings(options.dataFolder).enabled
+    } catch (error) {
+      if (isInvalidUsageSettings(error)) {
+        if (hasReportedInvalidSettings) return false
+        hasReportedInvalidSettings = true
+        if (options.onInvalidSettings === undefined) options.onWriteError()
+        else options.onInvalidSettings()
+        return false
+      }
+      throw error
+    }
+  }
   return Promise.resolve(
     new UsageJournalStore(new NodeUsageFs(options.dataFolder, options.now), {
       ...options,
-      isEnabled: () => options.isEnabled() && readSettings(options.dataFolder).enabled,
+      isEnabled,
     }),
   )
 }

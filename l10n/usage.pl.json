@@ -127,11 +127,18 @@
   "certaintyReported": "Zgłoszony",
   "certaintyComputed": "Obliczony",
   "certaintyUncertain": "Niepewny",
+  "reservedLabel": "Zarezerwowane",
   "certaintyPlan": "Plan",
   "certaintyLocal": "Lokalny",
   "certaintyUnpriced": "Bez ceny",
   "certaintyEstimated": "Szacowany",
   "uncertainNote": "Żądanie zostało wysłane, ale nie zwrócono użycia. Odpowiedzialność za koszt zostaje zachowana.",
+  "unknownCalls": {
+    "one": "{count} żądanie o nieznanym koszcie",
+    "few": "{count} żądania o nieznanym koszcie",
+    "many": "{count} żądań o nieznanym koszcie",
+    "other": "{count} żądań o nieznanym koszcie"
+  },
   "unpricedNote": "Brak dostępnej karty cenowej. Nieznany koszt to nie zero.",
   "estimatedNote": "Liczby tokenów są szacunkowe.",
   "localNote": "Model lokalny: brak opłat za API.",

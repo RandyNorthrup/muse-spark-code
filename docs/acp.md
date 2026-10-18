@@ -35,7 +35,18 @@ Manual approval is pending. Recall continues the ordinary billed model turn;
 it makes no separate paid-feature request. The VS Code packing setting does
 not apply to this process.
 
-ACP and headless Model API/BYO requests share a hard local-day budget in the agent data folder. Its `settings.json` accepts `{"paidDailyBudgetUsd":5}` (USD; default $5, range $0.50–$500), corresponding to the extension’s `museSpark.paidDailyBudgetUsd`. Reservations use an exclusive cross-process lock before dispatch and settle from verified usage; an interrupted or unpriced request retains its liability. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search is unavailable in this runtime while the hard daily budget is active because its returned fees have no dispatch bound.
+ACP and headless Model API/BYO requests can share a daily spending limit that you set in the agent data folder's `settings.json`: `{"paidDailyBudgetUsd":5}` (USD; none by default), matching the extension's `museSpark.paidDailyBudgetUsd`. With no limit set, nothing is checked, read or written before a request. With one, a request whose estimate would pass what is left of today is not sent and the reason says so; each request's reported cost joins today's total after it ends, in one file per process with no lock, and a request that ended without its usage counts as cost unknown, never as its estimate. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search runs in this runtime only with a verified per-request call bound, because its returned fees have no other dispatch bound.
+
+The spend cap admits a request only when its full reservation fits. Verified exact
+counts reserve the exact input; Anthropic reserves its estimate plus 25%, limited
+by the UTF-8 byte upper bound; unverified count shapes (including Gemini) reserve
+that size bound. Only the last request can exceed the cap when a provider estimate
+is too low: its full actual cost is recorded, and another request is refused.
+Each retry reserves separately; a sent attempt with no outcome keeps its entire
+reservation permanently. Only a provably dead owner’s unsent claim is released.
+The v3 ledger imports old history once without modifying it. Simultaneous spending
+from an old build is outside the new shared-cap guarantee; upgrade both hosts
+before relying on one cap across versions.
 
 The configuration below names the command and its arguments. Where each
 editor keeps its agent settings is in that editor's documentation, linked
@@ -167,9 +178,15 @@ asks for it. Elsewhere, run it yourself once:
   Service (GNOME Keyring, KWallet, KeePassXC). `auth status` says whether
   one is stored; `auth clear` removes it.
 
+`--help` on any deep subcommand prints that command’s terminal usage, including
+`developer status --help`, `playbook status --help` and
+`report usage --help`. `help reference` loads the full catalogue.
+
+ACP effort options and `exec --effort` use the selected model’s capability record; unsupported choices list the allowed values. Opus 5.5’s captured record includes `xhigh`.
+
 **ChatGPT subscription sign-in (M95b preview):** the agent advertises
-`providers add chatgpt`, `providers remove chatgpt` and `providers status chatgpt`
-as terminal authentication actions. Editors without terminal authentication
+`providers add chatgpt` as a terminal sign-in method. Maintenance remains available
+through `providers remove chatgpt` and `providers status chatgpt` in the terminal. Editors without terminal authentication
 show the full commands to run manually. These use the same runtime adapter,
 OS credential store and process lock in JetBrains, Visual Studio, Eclipse,
 Zed, Xcode, Neovim, Emacs, Sublime and companion clients. Add prints the
@@ -192,10 +209,21 @@ captured plan-key preset is marked **plan**, links its limits, and records
 request/token tallies outside USD caps. No Meta key is needed for its
 inference. General `providers list|add|test|remove` commands and
 `auth set|status|clear --provider <id>` use the same origin-bound records.
-Free probes use the shared request transport. `exec --provider` validates its
-configuration and key, but refuses before dispatch: its production runner
-still needs provider-aware budget admission and settlement. No supported
-headless provider inference is claimed.
+Free probes use the shared request transport. `exec --provider` dispatches through
+that same configured client, reserving each request's conservative input and
+capped output at its model's price before sending, then settling its usage.
+Unknown prices refuse without sending. With no `--model`, exec and ACP use the configured `defaultModel`;
+a missing or unavailable default refuses and lists the configured models.
+Ephemeral exec omits durable usage history and records
+`usageHistory: "omitted_ephemeral"`; ordinary runs retain usage history.
+Command `--help` prints only its own usage; `help reference` prints the catalogue.
+Unsent daily and run claims are refunded.
+Each request is capped at the model's own output limit. For a configured Anthropic key:
+
+```sh
+muse-spark-code-acp exec --backend modelApi --provider anthropic --model anthropic/claude-opus-5-5 --max-budget-usd 0.10 --max-requests 1 --ephemeral --output json "Reply with the single word: ready"
+```
+
 The npm package includes the shared catalogue and lazy provider bundles.
 Installed-editor and live provider certification remain open.
 
@@ -204,7 +232,7 @@ and before sending, including older stored values. The same translated message
 names the minimum; Meta requires 16 tokens. Custom provider entries declare a
 minimum with `modelCapabilities.<model>.output.minTokens`; their capability cap
 and custom output limit must meet it. ACP config options and CLI/exec flags
-currently expose no separate output-token cap.
+expose `exec --max-output-tokens <n>` (at least 1; the selected provider's own minimum applies); ACP retains the model policy cap.
 
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,
@@ -609,8 +637,9 @@ fallback. The interactive options above retain their existing behavior.
 
 Model API needs a hard USD cap and known priced model; request cap counts every
 billable HTTP attempt, including retries. Context-window liability rounds upward
-to integer micro-USD: contributor $0.108135 minimum ($0.118135 with image flag),
-standard $1.409024 ($1.419024 with image flag). Contributor requires explicit
+to integer micro-USD using this request's conservative input estimate plus its
+resolved output cap (1024 by default), including cache-write premiums. The refusal
+shows the arithmetic. Contributor requires explicit
 opt-in and training eligibility. Images require Model API, explicit flag,
 acceptEdits, budget and per-use admission/tally; no grant store is used.
 
@@ -619,8 +648,10 @@ internal 1, usage/input 2 (no result), auth/backend unavailable 3, failed 4,
 budget/request refusal or breach 5, timeout 6, fail-on-denial 7, incomplete 8,
 accounting unverified 9, SIGINT 130 and SIGTERM 143. Only latest clean verified
 completion plus ACP end_turn authorizes Model API success; uncertain receipts
-retain full reservation. No raw tool text leaves exec; cut-short prose is
-withheld whole. Windows POSIX signal e2e is explicitly skipped. On Windows a
+retain full reservation. No raw tool text leaves exec. Stopped runs return the
+redacted partial answer with `finalMessageComplete: false` and their non-success
+exit and accounting. JSON mode prints request progress on stderr; stdout remains
+one JSON result. Structured output is withheld until it validates. Windows POSIX signal e2e is explicitly skipped. On Windows a
 forced stop ends the process with exit 1 and may lose buffered output; a
 delivered result keeps its first-stop status and logical exit code.
 
@@ -786,7 +817,7 @@ publishing, hosted links, team destinations and email remain phase 2/3.
 
 ## Help and reference
 
-Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` in a terminal for the complete reference. Help starts no backend and makes no model request.
+Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help reference` in a terminal for the complete reference. Help starts no backend and makes no model request.
 
 ## Resource status and resume
 
@@ -894,3 +925,12 @@ scope (with nearest ids), and 4 when a requested `--fail-on` condition holds.
 Conditions are `unavailable`, `drift`, `blocked`, `channelLag` and `ciFailing`.
 History-save revocation or cancellation fails explicitly. Equal observation
 times preserve the newest saved sequence when selecting the previous report.
+
+Initial HTTP validation, sign-in, permission and quota refusals before any output
+settle at zero. Interrupted processing (including HTTP 408/499), server errors
+and stream loss keep unresolved liability separately from money spent. Final
+provider usage settles even when the response is incomplete. Stopping a stream
+without final usage cannot prove a smaller bill: a provider can charge unseen
+generated tokens after disconnect. The retained amount is a possible charge,
+never a confirmed spend. `--max-output-tokens` lowers the actual request cap;
+startup no longer prices the model's full context window before building it.

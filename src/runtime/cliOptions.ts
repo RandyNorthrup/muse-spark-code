@@ -4,6 +4,17 @@ import type { UiText } from '../shared/l10n/en'
 import { sharingHelp } from '../shared/featureCatalog'
 import { fill } from '../shared/l10n/text'
 
+function sharingCliHelp(table: UiText, command: string): string {
+  return [
+    `${command} share chat SESSION_ID [--mode full|conversation] [--format md|html|json] [--destination copy|file|browser] [--out FILE]`,
+    `${command} prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt`,
+    `${command} prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]`,
+    `${command} prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]`,
+    `${command} prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]`,
+    table.promptSecretsNote,
+  ].join('\n')
+}
+
 /** Compact CLI help, also checked against the installed package's tables. */
 export function formatAcpUsage(table: UiText, command: string): string {
   const options = {
@@ -13,6 +24,7 @@ export function formatAcpUsage(table: UiText, command: string): string {
   return [
     fill(table.acpUsage, { command }),
     fill(table.acpChatGpt.usage, { command }),
+    sharingCliHelp(table, command),
     sharingHelp(table),
     // CM108ACC: account metadata and per-account keys are served. The exec
     // line (`accounts.execHelp`) offers pooling, which is still refused, and
@@ -101,9 +113,11 @@ const EXEC_OPTIONS = {
   account: { type: 'string' },
   'account-pool': { type: 'boolean' },
   effort: { type: 'string' },
+  fast: { type: 'boolean' },
   output: { type: 'string' },
   'max-budget-usd': { type: 'string' },
   'max-requests': { type: 'string' },
+  'max-output-tokens': { type: 'string' },
   timeout: { type: 'string' },
   'muse-binary': { type: 'string' },
   'shell-sandbox': { type: 'string' },
@@ -168,9 +182,27 @@ export const CLI_OPTION_REGISTRY = {
   serve: { options: SERVE_OPTIONS },
   login: { options: COMMON_OPTIONS },
   setup: { options: COMMON_OPTIONS },
-  authSet: { options: COMMON_OPTIONS },
-  authStatus: { options: COMMON_OPTIONS },
-  authClear: { options: COMMON_OPTIONS },
+  authSet: {
+    options: {
+      provider: COMMON_OPTIONS.provider,
+      account: COMMON_OPTIONS.account,
+      help: COMMON_OPTIONS.help,
+    },
+  },
+  authStatus: {
+    options: {
+      provider: COMMON_OPTIONS.provider,
+      account: COMMON_OPTIONS.account,
+      help: COMMON_OPTIONS.help,
+    },
+  },
+  authClear: {
+    options: {
+      provider: COMMON_OPTIONS.provider,
+      account: COMMON_OPTIONS.account,
+      help: COMMON_OPTIONS.help,
+    },
+  },
   exec: { options: EXEC_OPTIONS },
   'scan-secrets': { options: SCAN_OPTIONS },
   report: { options: REPORT_OPTIONS },
@@ -226,9 +258,11 @@ export const CLI_OPTION_TEXT = {
   account: 'account',
   'account-pool': 'account-pool',
   effort: 'effort',
+  fast: 'fast',
   output: 'output',
   'max-budget-usd': 'max-budget-usd',
   'max-requests': 'max-requests',
+  'max-output-tokens': 'max-output-tokens',
   timeout: 'timeout',
   'fail-on-denial': 'fail-on-denial',
   ephemeral: 'ephemeral',
@@ -258,3 +292,67 @@ export const CLI_OPTION_TEXT = {
     keyof UiText['referenceCliOptions']
   >
 >
+
+/** Command-local flags without activating the full editor reference catalogue. */
+export function formatCommandHelp(table: UiText, command: string, route: string): string {
+  // No route names no command: answer with the general help, as the help
+  // command does for an undefined route (bare --help names the machine flags).
+  if (route === '') return formatAcpUsage(table, command)
+  const definition = Object.entries(CLI_OPTION_REGISTRY).find(
+    ([key]) => key === route || key === route.split(' ', 1)[0],
+  )?.[1]
+  const name = route
+    .replace(/^reports /, 'report ')
+    .replace(/^chatGptProvider (.*)$/, 'providers $1 chatgpt')
+    .replace(
+      /^(providers|auth|fonts)([A-Z])/,
+      (_match, prefix: string, letter: string) => `${prefix} ${letter.toLowerCase()}`,
+    )
+  const localUsage: Readonly<Record<string, string>> = {
+    'providers list': 'providers list',
+    providersList: 'providers list',
+    providersTest: 'providers test <provider>',
+    providersRemove: 'providers remove <provider>',
+  }
+  const lines = [`${command} ${localUsage[route] ?? name}`]
+  if (definition === undefined) {
+    const usage: Readonly<Record<string, string>> = {
+      providersList: table.referenceProviders,
+      providersTest: table.referenceProviders,
+      providersRemove: table.referenceProviders,
+      schedule: table.scheduleV2.runtime.usage,
+      playbook: table.playbookCommandUsage,
+      developer: table.developer.commandUsage,
+      'providers accounts': table.accounts.cliUsage,
+      chatGptProvider: table.acpChatGpt.usage,
+      reports: table.reportCliUsage,
+      help: table.referenceBriefHelp,
+      share: sharingCliHelp(table, command),
+      prompts: sharingCliHelp(table, command),
+    }
+    const description = Object.entries(usage).find(
+      ([prefix]) => route === prefix || route.startsWith(`${prefix} `),
+    )?.[1]
+    if (description !== undefined) lines.push(fill(description, { command }))
+  }
+  if (definition !== undefined) {
+    for (const [flag, option] of Object.entries(definition.options)) {
+      // A route's own option words (estimate's deadline and export formats)
+      // win over the shared flag text, matching the generated reference.
+      const key =
+        ('text' in definition
+          ? Object.entries(definition.text).find(([name]) => name === flag)?.[1]
+          : undefined) ?? Object.entries(CLI_OPTION_TEXT).find(([option]) => option === flag)?.[1]
+      if (key === undefined) {
+        lines.push(`--${flag}`)
+      } else {
+        lines.push(
+          `--${flag}${option.type === 'string' ? ' <value>' : ''}: ${fill(table.referenceCliOptions[key], { command, origin: '<address>' })}`,
+        )
+      }
+    }
+  }
+  if (definition === undefined || !('help' in definition.options))
+    lines.push(`--help: ${table.referenceCliOptions.help}`)
+  return lines.join('\n')
+}
