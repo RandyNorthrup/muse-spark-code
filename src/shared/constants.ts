@@ -5162,6 +5162,13 @@ export const MUSE_DISABLE_SHELL_ARG = '--disable-shell'
 export const MUSE_DISABLE_WRITE_ARG = '--disable-write'
 // `muse serve --sandbox-network <mode>` (M56, PLAN.md D43).
 export const MUSE_SANDBOX_NETWORK_ARG = '--sandbox-network'
+// Muse Code's native permission-profile ids (`permissionProfile/list` on the
+// pinned 1.4.7 host, 2026-10-18): `:ask-me` selects the human reviewer, so an
+// unmatched action raises an approval instead of letting Muse Code's LLM
+// judge decide it; `:auto-review` has the same access with the AI judge.
+// `session/start.permissionProfile` is stable in 1.4.7 (amendment 42624).
+export const MUSE_ASK_ME_PROFILE = ':ask-me'
+export const MUSE_AUTO_REVIEW_PROFILE = ':auto-review'
 export const MUSE_INSTALL_URL = 'https://dev.meta.ai/products/muse-code/'
 export const MUSE_INSTALL_COMMANDS = {
   win32: 'irm https://dev.meta.ai/install.ps1 | iex',

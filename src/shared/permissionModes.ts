@@ -4,22 +4,29 @@
 // modes and cannot describe a policy on the wire. The Claude Code vocabulary
 // is richer, so two of its modes are compositions:
 //
-//   manual            → promptUnmatched   (the CLI's `--approval-mode untrusted`:
-//                                          ask for every action no rule allows;
-//                                          Muse Code still edits workspace
-//                                          files without asking, M4)
+//   manual            → promptUnmatched + `:ask-me` (the CLI's
+//                                          `--approval-mode untrusted`: ask
+//                                          for every action no rule allows;
+//                                          the human-reviewer profile keeps
+//                                          Muse Code's LLM judge from
+//                                          allowing one instead (seen live as
+//                                          `allow:llm_judge` on 1.4.7,
+//                                          2026-10-18); Muse Code still edits
+//                                          workspace files without asking, M4)
 //   acceptEdits       → promptUnmatched + the extension answers file-edit
 //                                          approvals itself (M4); Muse Code
 //                                          asks none under `muse serve`, so on
 //                                          it this is Manual (PLAN.md D69)
 //   plan              → denyUnmatched     (read and reason only)
-//   auto              → onRequest         (under `muse serve` Muse Code skips
-//                                          only the commands it classifies as
-//                                          simple and asks for the rest: the
-//                                          LLM judge `muse --help` names runs
-//                                          only in its interactive and `exec`
-//                                          commands, D69; the panel's own
-//                                          reviewer answers what it can, M90)
+//   auto              → onRequest + `:auto-review` (under `muse serve` the
+//                                          session's profile picks the
+//                                          reviewer: `:auto-review` lets Muse
+//                                          Code's LLM judge allow eligible
+//                                          actions and asks for the rest
+//                                          (seen live as `allow:llm_judge` on
+//                                          1.4.7, 2026-10-18, D69); the
+//                                          panel's own reviewer answers what
+//                                          it can, M90)
 //   bypassPermissions → allowAll          (the CLI's `never`)
 //
 // The CLI names come from `muse --help` (Muse Code 1.3.0, 2026-09-21):
@@ -34,7 +41,13 @@
 // `museSpark.allowDangerouslySkipPermissions` setting is on, exactly as the
 // Claude Code extension gates it behind `allowDangerouslySkipPermissions`.
 
-import { PERMISSION_MODES, type PermissionMode, UI_TEXT } from './constants'
+import {
+  MUSE_ASK_ME_PROFILE,
+  MUSE_AUTO_REVIEW_PROFILE,
+  PERMISSION_MODES,
+  type PermissionMode,
+  UI_TEXT,
+} from './constants'
 import type { BackendKind } from './protocol'
 
 /**
@@ -83,6 +96,24 @@ const FULL_MAPPING: Readonly<Record<PermissionMode, ApprovalMode>> = {
 /** The MSP mode a UI permission mode selects, with approval UI present. */
 export function mspApprovalMode(mode: PermissionMode): ApprovalMode {
   return FULL_MAPPING[mode]
+}
+
+/**
+ * The native permission profile a Muse Code session selects for an MSP
+ * approval mode (stable `session/start.permissionProfile` on Muse Code
+ * 1.4.7, amendment 42624): the asking modes take the human reviewer so Muse
+ * Code's LLM judge cannot allow an action instead; Auto keeps the AI
+ * reviewer its words describe; the denying and allowing modes need none,
+ * the mode itself decides. Undefined means the host default (today
+ * `:auto-review`); an older host ignores the member and keeps the default.
+ */
+const PROFILE_FOR_MODE: Readonly<Record<string, string>> = {
+  promptUnmatched: MUSE_ASK_ME_PROFILE,
+  onRequest: MUSE_AUTO_REVIEW_PROFILE,
+}
+
+export function mspPermissionProfile(mode: string): string | undefined {
+  return PROFILE_FOR_MODE[mode]
 }
 
 /** Modes whose MSP counterpart needs the approval cards before it is safe. */

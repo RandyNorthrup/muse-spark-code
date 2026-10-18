@@ -73,6 +73,14 @@ happened, not what was planned; superseded entries are kept.
   of 8; a failure names its bundle, in-flight bundles settle, and the
   process exits with the true error.
 
+- In Manual (and Edit automatically) on the Muse Code backend, Muse now asks
+  before running each command, as the Modes menu promises. The session
+  reviews with Muse Code's `:ask-me` permission profile (the human reviewer)
+  instead of the default `:auto-review`, whose LLM judge had allowed commands
+  such as `touch`, `sleep 300; curl …; rm` and `sudo ls` with no approval
+  reaching the editor. Auto keeps the judge its description promises.
+  Requires Muse Code 1.4.7 or later; older hosts keep their previous
+  behaviour.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
