@@ -567,8 +567,10 @@ switch (process.platform) {
           if (binary === null) throw new Error('Missing helper')
           const h = await fixture()
           const result = await native(binary, ['probe'], h.root)
-          expect(result.code).toBe(0)
-          expect(result.stdout.toString()).toMatch(/^\{"abi":1,"confined":true\}\n$/u)
+          expect(result.code, result.stderr).toBe(0)
+          expect(result.stdout.toString(), result.stderr).toMatch(
+            /^\{"abi":1,"confined":true\}\n$/u,
+          )
         })
         it('runs verified cat, ls, grep and find under the profile', async () => {
           if (binary === null) throw new Error('Missing helper')
@@ -602,12 +604,12 @@ switch (process.platform) {
           const runner = openInspectRunner(binary, h.root)
           try {
             const find = await runner.run('find . -print', h.binding)
-            expect(find.kind).toBe('output')
+            expect(find.kind, JSON.stringify(find)).toBe('output')
             if (find.kind !== 'output') throw new Error('Missing confined result')
             expect(find.stdout).toContain('.git/config')
             expect(find.stdout).not.toContain('FORBIDDEN_CANARY')
             const grep = await runner.run("grep -r -e 'CANARY' .", h.binding)
-            expect(grep.kind).toBe('output')
+            expect(grep.kind, JSON.stringify(grep)).toBe('output')
             if (grep.kind !== 'output') throw new Error('Missing confined result')
             expect(grep.stdout).toContain('ALLOWED_CANARY')
             expect(grep.stdout).not.toContain('FORBIDDEN_CANARY')
@@ -637,7 +639,11 @@ switch (process.platform) {
           const runner = openInspectRunner(binary, h.root)
           try {
             const first = await runner.run('cat allowed.txt', h.binding)
-            expect(first).toMatchObject({ kind: 'output', stdout: 'ALLOWED_CANARY\n', exitCode: 0 })
+            expect(first, JSON.stringify(first)).toMatchObject({
+              kind: 'output',
+              stdout: 'ALLOWED_CANARY\n',
+              exitCode: 0,
+            })
             writeFileSync(h.allowed, 'password = "synthetic-sensitive-canary"\n')
             expect(await runner.run('cat allowed.txt', h.binding)).toEqual({
               kind: 'refused',
