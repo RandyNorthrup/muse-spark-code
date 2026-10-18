@@ -388,45 +388,53 @@ function vocabularyOf(text: string): ReadonlySet<string> {
  * `data/provenance.json`, so a source outside this table fails closed in
  * `parseVariable`, and a data update extends this table beside its
  * provenance record. No pattern is ever built from data at run time
- * (semgrep detect-non-literal-regexp).
+ * (semgrep detect-non-literal-regexp): `parseVariable` only compares the
+ * transformed source string against each literal's `source`.
  */
-const VARIABLE_WILDCARDS: Readonly<Record<string, RegExp>> = {
-  '()|( of the theme)': /^(?:(?:)|(?: of the theme))$/iu,
-  '(SOFTWARE)|(THEME)': /^(?:(?:SOFTWARE)|(?:THEME))$/iu,
-  '(The )?ISC License( \\(ISC[L]?\\))?:?': /^(?:(?:The )?ISC License(?: \(ISC[L]?\))?:?)$/iu,
-  '(The\\s+name\\s+of.+may\\s+not)|(Neither\\s+the\\s+names?\\s+of.+nor\\s+the\\s+names\\s+of\\s+its\\s+contributors\\s+may)|(Neither\\s+the\\s+names?\\s+of.+nor\\s+the\\s+names\\s+of\\s+their\\s+contributors\\s+may)|(Neither\\s+the\\s+names?\\s+of.+nor\\s+the\\s+names\\s+of\\s+any\\s+contributors\\s+may)|(\\s*Neither\\s+the\\s+name\\s+of.+nor\\s+the\\s+names\\s+of\\s+its\\s+authors\\s+and\\s+contributors\\s+may)|(Neither\\s+the\\s+name\\s+of.+nor\\s+the\\s+names\\s+of\\s+(specific\\s+)?contributors,?\\s+may)|(Neither\\s+the\\s+name.+nor\\s+the\\s+names\\s+of\\s+contributors\\s+may)|(The\\s+names\\s+of\\s+its\\s+contributors\\s+may\\s+not)|(The\\s+names\\s+of\\s+any\\s+contributors\\s+may\\s+not)|(The\\s+names\\s+of\\s+the\\s+contributors\\s+may\\s+not)|(None\\s+of\\s+the\\s+names\\s+of.+and\\s+any\\s+contributors\\s+may)|(Neither\\s+my\\s+name.+nor\\s+the\\s+names\\s+of\\s+contributors\\s+to\\s+this\\s+code\\s+may)|(Neither\\s+name\\s+of\\s+copyright\\s+holders\\s+nor\\s+the\\s+names\\s+of\\s+its\\s+contributors\\s+may)':
-    /^(?:(?:The\s+name\s+of(.+)may\s+not)|(?:Neither\s+the\s+names?\s+of(.+)nor\s+the\s+names\s+of\s+its\s+contributors\s+may)|(?:Neither\s+the\s+names?\s+of(.+)nor\s+the\s+names\s+of\s+their\s+contributors\s+may)|(?:Neither\s+the\s+names?\s+of(.+)nor\s+the\s+names\s+of\s+any\s+contributors\s+may)|(?:\s*Neither\s+the\s+name\s+of(.+)nor\s+the\s+names\s+of\s+its\s+authors\s+and\s+contributors\s+may)|(?:Neither\s+the\s+name\s+of(.+)nor\s+the\s+names\s+of\s+(?:specific\s+)?contributors,?\s+may)|(?:Neither\s+the\s+name(.+)nor\s+the\s+names\s+of\s+contributors\s+may)|(?:The\s+names\s+of\s+its\s+contributors\s+may\s+not)|(?:The\s+names\s+of\s+any\s+contributors\s+may\s+not)|(?:The\s+names\s+of\s+the\s+contributors\s+may\s+not)|(?:None\s+of\s+the\s+names\s+of(.+)and\s+any\s+contributors\s+may)|(?:Neither\s+my\s+name(.+)nor\s+the\s+names\s+of\s+contributors\s+to\s+this\s+code\s+may)|(?:Neither\s+name\s+of\s+copyright\s+holders\s+nor\s+the\s+names\s+of\s+its\s+contributors\s+may))$/iu,
-  '(To obtain permission, contact .*)?': /^(?:(?:To obtain permission, contact (.*))?)$/iu,
-  ',|': /^(?:,|)$/iu,
-  '.*': /^(?:(.*))$/iu,
-  '.+': /^(?:(.+))$/iu,
-  '.{0,20}': /^(?:(.{0,20}))$/iu,
-  '.{0,5000}': /^(?:(.{0,5000}))$/iu,
-  '.{54,64}': /^(?:(.{54,64}))$/iu,
-  '//www.gnu.org/philosophy/why-not-lgpl\\.html>\\.|//www.gnu.org/licenses/why-not-lgpl\\.html>\\.':
-    /^(?:\/\/www.gnu.org\/philosophy\/why-not-lgpl\.html>\.|\/\/www.gnu.org\/licenses\/why-not-lgpl\.html>\.)$/iu,
-  'EXPRESS(ED)?': /^(?:EXPRESS(?:ED)?)$/iu,
-  // eslint-disable-next-line unicorn/prefer-https -- the key is the pinned CC0 template's own match source, byte-exact for lookup; its historic http:// URL must stay as SPDX wrote it (PLAN.md §8).
-  'For more information, please see <http://creativecommons.org/publicdomain/zero/1.0/>':
-    /^(?:For more information, please see <http:\/\/creativecommons.org\/publicdomain\/zero\/1.0\/>)$/iu,
-  'GNU GENERAL PUBLIC LICENSE|': /^(?:GNU GENERAL PUBLIC LICENSE|)$/iu,
-  'Lesser|Library': /^(?:Lesser|Library)$/iu,
-  'SOFTWARE IS|MATERIALS ARE': /^(?:SOFTWARE IS|MATERIALS ARE)$/iu,
-  'SOFTWARE|MATERIALS': /^(?:SOFTWARE|MATERIALS)$/iu,
-  'Software|Materials': /^(?:Software|Materials)$/iu,
-  'The MIT-Zero License|MIT No Attribution|': /^(?:The MIT-Zero License|MIT No Attribution|)$/iu,
-  'Ty Coon|Moe Ghoul': /^(?:Ty Coon|Moe Ghoul)$/iu,
-  'a brief|an': /^(?:a brief|an)$/iu,
-  'above|original': /^(?:above|original)$/iu,
-  'an idea|a brief idea': /^(?:an idea|a brief idea)$/iu,
-  'are|is': /^(?:are|is)$/iu,
-  'philosophy|licenses': /^(?:philosophy|licenses)$/iu,
-  'software|work': /^(?:software|work)$/iu,
-  'source code|works': /^(?:source code|works)$/iu,
-  'this\\s+software\\s+and\\s+associated\\s+documentation\\s+files|this\\s+source\\s+file':
-    /^(?:this\s+software\s+and\s+associated\s+documentation\s+files|this\s+source\s+file)$/iu,
-  'yyyy|year': /^(?:yyyy|year)$/iu,
-}
+const VARIABLE_WILDCARD_PATTERNS: readonly RegExp[] = [
+  /^(?:(?:)|(?: of the theme))$/iu,
+  /^(?:(?:SOFTWARE)|(?:THEME))$/iu,
+  /^(?:(?:The )?ISC License(?: \(ISC[L]?\))?:?)$/iu,
+  /^(?:(?:The\s+name\s+of(.+)may\s+not)|(?:Neither\s+the\s+names?\s+of(.+)nor\s+the\s+names\s+of\s+its\s+contributors\s+may)|(?:Neither\s+the\s+names?\s+of(.+)nor\s+the\s+names\s+of\s+their\s+contributors\s+may)|(?:Neither\s+the\s+names?\s+of(.+)nor\s+the\s+names\s+of\s+any\s+contributors\s+may)|(?:\s*Neither\s+the\s+name\s+of(.+)nor\s+the\s+names\s+of\s+its\s+authors\s+and\s+contributors\s+may)|(?:Neither\s+the\s+name\s+of(.+)nor\s+the\s+names\s+of\s+(?:specific\s+)?contributors,?\s+may)|(?:Neither\s+the\s+name(.+)nor\s+the\s+names\s+of\s+contributors\s+may)|(?:The\s+names\s+of\s+its\s+contributors\s+may\s+not)|(?:The\s+names\s+of\s+any\s+contributors\s+may\s+not)|(?:The\s+names\s+of\s+the\s+contributors\s+may\s+not)|(?:None\s+of\s+the\s+names\s+of(.+)and\s+any\s+contributors\s+may)|(?:Neither\s+my\s+name(.+)nor\s+the\s+names\s+of\s+contributors\s+to\s+this\s+code\s+may)|(?:Neither\s+name\s+of\s+copyright\s+holders\s+nor\s+the\s+names\s+of\s+its\s+contributors\s+may))$/iu,
+  /^(?:(?:To obtain permission, contact (.*))?)$/iu,
+  /^(?:,|)$/iu,
+  /^(?:(.*))$/iu,
+  /^(?:(.+))$/iu,
+  /^(?:(.{0,20}))$/iu,
+  /^(?:(.{0,5000}))$/iu,
+  /^(?:(.{54,64}))$/iu,
+  /^(?:\/\/www.gnu.org\/philosophy\/why-not-lgpl\.html>\.|\/\/www.gnu.org\/licenses\/why-not-lgpl\.html>\.)$/iu,
+  /^(?:EXPRESS(?:ED)?)$/iu,
+  /^(?:For more information, please see <http:\/\/creativecommons.org\/publicdomain\/zero\/1.0\/>)$/iu,
+  /^(?:GNU GENERAL PUBLIC LICENSE|)$/iu,
+  /^(?:Lesser|Library)$/iu,
+  /^(?:SOFTWARE IS|MATERIALS ARE)$/iu,
+  /^(?:SOFTWARE|MATERIALS)$/iu,
+  /^(?:Software|Materials)$/iu,
+  /^(?:The MIT-Zero License|MIT No Attribution|)$/iu,
+  /^(?:Ty Coon|Moe Ghoul)$/iu,
+  /^(?:a brief|an)$/iu,
+  /^(?:above|original)$/iu,
+  /^(?:an idea|a brief idea)$/iu,
+  /^(?:are|is)$/iu,
+  /^(?:philosophy|licenses)$/iu,
+  /^(?:software|work)$/iu,
+  /^(?:source code|works)$/iu,
+  /^(?:this\s+software\s+and\s+associated\s+documentation\s+files|this\s+source\s+file)$/iu,
+  /^(?:yyyy|year)$/iu,
+]
+
+/**
+ * Every wildcard literal above, found by its `source`. A regex literal
+ * must escape `/` as `\/` while the template `match` sources spell it
+ * bare, so the key drops that escape before comparing.
+ */
+const VARIABLE_WILDCARDS: ReadonlyMap<string, RegExp> = new Map<string, RegExp>(
+  VARIABLE_WILDCARD_PATTERNS.map((compiled): [string, RegExp] => [
+    compiled.source.replaceAll(String.raw`\/`, '/'),
+    compiled,
+  ]),
+)
 
 function parseVariable(body: string, equivalences: Equivalences): TemplateVariable {
   const fields = VARIABLE_FIELDS.exec(body)
@@ -438,7 +446,7 @@ function parseVariable(body: string, equivalences: Equivalences): TemplateVariab
   else if (name === 'copyright') role = 'notice'
   else if (name === 'bullet') role = 'marker'
   const bounded = BOUNDED_WILDCARD.exec(match)?.[1]
-  const compiled = VARIABLE_WILDCARDS[match]
+  const compiled = VARIABLE_WILDCARDS.get(`^(?:${wildcards.source})$`)
   if (compiled === undefined) throw new Error('unsupported template variable pattern')
   return {
     name,
