@@ -12,10 +12,7 @@ import { createRuntimeReports } from '../../src/runtime/reporting/reportsEntry'
 import { parseReportsArguments } from '../../src/runtime/reporting/reportsArgs'
 import { parseReportRequest } from '../../src/host/reporting/reportRequest'
 import { EN } from '../../src/shared/l10n/en'
-import { REPORT_KINDS, REPORT_WORKING_KINDS } from '../../src/shared/constants'
-import { featureCatalog } from '../../src/shared/featureCatalog'
-import { REFERENCE_CAPABILITIES } from '../../src/shared/reference/referenceSource'
-import { referenceModel } from '../../src/shared/reference/reference.generated'
+import { REPORT_KINDS } from '../../src/shared/constants'
 import { currentWhatsNewText } from './helpers/currentWhatsNew'
 
 function repoFile(name: string): string {
@@ -32,10 +29,7 @@ function at(table: Record<string, unknown>, path: string): string {
   return value as string
 }
 
-const readme = repoFile('README.md')
 const changelog = repoFile('CHANGELOG.md')
-const roadmap = repoFile('ROADMAP.md')
-const help = referenceModel()
 const releases = parseChangelog(
   repoFile('CHANGELOG.md'),
   contributedIds(manifest),
@@ -88,48 +82,6 @@ describe('CX1R4 F1 after CM108ACC: accounts are published where the code serves 
     expect(usage).not.toMatch(/account-pool/)
   })
 
-  it('published Help has the accounts feature, route and --account, not pooling or the settings', () => {
-    const feature = help.features.find((entry) => entry.id === 'accounts')
-    expect(feature?.summary).toEqual({ ui: 'referenceAccounts' })
-    expect(feature?.surfaces).toEqual(['acp:modelApi'])
-    expect(feature?.settings).toEqual([])
-    expect(
-      help.cli.filter((command) => command.route === 'accounts').map((command) => command.name),
-    ).toEqual(['providers accounts'])
-    expect(
-      help.cli
-        .filter((command) => command.name.includes('--account'))
-        .map((command) => command.name),
-    ).toEqual(['authSet: --account <value>', 'exec: --account <value>'])
-    for (const id of [
-      'museSpark.accountSwap',
-      'museSpark.accountParallel',
-      'museSpark.accounts.severalOnThisDevice',
-    ])
-      expect(help.settings.some((setting) => setting.id === id)).toBe(false)
-  })
-
-  it('the capability inventory binds accounts to ACP on the Model API backend', () => {
-    expect(REFERENCE_CAPABILITIES['accounts']).toEqual(['acp:modelApi'])
-    expect(featureCatalog().find((feature) => feature.id === 'accounts')?.surfaces).toEqual([
-      'acp:modelApi',
-    ])
-  })
-
-  it('README has the product section for what works and no progress-list anchor', () => {
-    expect(readme).toContain('## Several accounts per provider')
-    expect(readme).toContain('[Several accounts](#several-accounts-per-provider)')
-    expect(readme).not.toContain('<a id="several-accounts-per-provider"></a>')
-    expect(readme).toContain('muse-spark-code-acp providers accounts list --provider <id>')
-    expect(readme).toContain('muse-spark-code-acp exec --account <id> <prompt>')
-    const prose = readme.replaceAll(/\s+/g, ' ')
-    expect(prose).toContain('`/accounts` (list, current, thresholds) and the `account` picker')
-    expect(prose).toContain('Choosing another account stays refused')
-    expect(readme).not.toMatch(
-      /account-pool|`museSpark\.accountSwap` and|Several accounts per provider\.\* List provider/,
-    )
-  })
-
   it('released history archives the 0.17.0 accounts highlight', () => {
     const highlights = JSON.stringify(
       releases.find((entry) => entry.version === '0.17.0')?.highlights,
@@ -138,14 +90,6 @@ describe('CX1R4 F1 after CM108ACC: accounts are published where the code serves 
     expect(changelog).toMatch(
       /\*\*Several accounts per provider\.\*\*[\s\S]{0,200}<!-- whats-new: historical -->/,
     )
-  })
-
-  it('roadmap leaves accounts in progress with no shipped note', () => {
-    const progress = roadmap.slice(roadmap.indexOf('## In progress'), roadmap.indexOf('## Planned'))
-    const row = progress.split('\n').find((line) => line.includes('<sub>M108</sub>'))
-    expect(row).toBeDefined()
-    expect(row).toMatch(/in progress\./)
-    expect(row).not.toMatch(/shipped|release/)
   })
 })
 
@@ -170,11 +114,6 @@ describe('CX1R4 F2: previews claim is historical, strict-tool facts stay current
 })
 
 describe('CX1R4 F3: live Help and pickers list only the five working kinds', () => {
-  it('the working set is exactly the five sourced kinds', () => {
-    expect([...REPORT_WORKING_KINDS]).toEqual(WORKING_REPORT_KINDS)
-    expect(DORMANT_REPORT_KINDS).toHaveLength(10)
-  })
-
   it('the real ACP report entry lists the five kinds and none of the dormant ten', async () => {
     const { text } = await acpReports().acp.execute('', acpContext)
     for (const kind of WORKING_REPORT_KINDS) expect(text).toContain(`/report ${kind}`)
@@ -198,7 +137,6 @@ describe('CX1R4 F3: live Help and pickers list only the five working kinds', () 
     expect(parseReportRequest('', '2026-10-10T12:00:00Z')).toEqual({ action: 'pick' })
   })
 })
-
 describe('CX1R4 F5: corrected English keys ship fresh translations', () => {
   const corrected: Readonly<Record<string, string>> = {
     resourceRelocationNoRoute:

@@ -389,7 +389,7 @@ describe('Markdown', () => {
 
   // RV83d #7: masking the generated file cut its closing quote. Nothing is
   // masked after serializing now: a description with a cue is refused
-  // before (agentImport.test.ts), and an ordinary one is written whole.
+  // before, and an ordinary one is written whole.
   it('writes front matter the skill reader takes, its scalars closed', () => {
     const description = 'Keyboard shortcuts for reviewing code'
     const skill = commandToSkill('review', { description, 'argument-hint': '[file]' }, 'Review.')
