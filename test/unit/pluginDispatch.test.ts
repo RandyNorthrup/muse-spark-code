@@ -393,6 +393,38 @@ async function dispatch(
   )
 }
 
+/** Dispatch one bash tool call to an Amp plugin, collecting warnings. */
+async function dispatchAmpToolCall(plugin: string, warnings: string[]) {
+  const hooks = definitions('PreToolUse', 'amp', 'tool.call', plugin)
+  return await dispatch(
+    hooks,
+    'PreToolUse',
+    toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+    adapterWith(host()),
+    warnings,
+  )
+}
+
+/** A one-second-timeout plugin hook, parsed the way the timeout tests read it. */
+function timeoutPluginHooks(format: string, sourceEvent: string, plugin: string) {
+  return parseForeignHooks(
+    JSON.stringify({
+      hooks: {
+        PreToolUse: [
+          {
+            format,
+            sourceEvent,
+            plugin,
+            hooks: [{ type: 'plugin', timeout: 1 }],
+          },
+        ],
+      },
+    }),
+    'user',
+    process.platform,
+  ).hooks
+}
+
 function ampPlugin(body: string, preamble = ''): string {
   return writePlugin(`${preamble}export default function (amp) {\n${body}\n}\n`, 'guard.mjs')
 }
@@ -451,14 +483,7 @@ describe.runIf(IS_REAL)('Amp plugin dispatch with real children', () => {
   it('an Amp handler crash fails open and is said in the log', async () => {
     const warnings: string[] = []
     const plugin = ampPlugin(`amp.on('tool.call', () => { process.exit(3) })`)
-    const hooks = definitions('PreToolUse', 'amp', 'tool.call', plugin)
-    const result = await dispatch(
-      hooks,
-      'PreToolUse',
-      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
-      adapterWith(host()),
-      warnings,
-    )
+    const result = await dispatchAmpToolCall(plugin, warnings)
     expect(result.blockedReason).toBeUndefined()
     expect(warnings.join('\n')).toContain('amp-format user hook failed')
   })
@@ -493,22 +518,7 @@ describe.runIf(IS_REAL)('Amp plugin dispatch with real children', () => {
     const plugin = ampPlugin(
       `amp.on('tool.call', async () => { await new Promise((resolve) => setTimeout(resolve, 60000)); return { action: 'reject-and-continue', message: 'late' } })`,
     )
-    const hooks = parseForeignHooks(
-      JSON.stringify({
-        hooks: {
-          PreToolUse: [
-            {
-              format: 'amp',
-              sourceEvent: 'tool.call',
-              plugin,
-              hooks: [{ type: 'plugin', timeout: 1 }],
-            },
-          ],
-        },
-      }),
-      'user',
-      process.platform,
-    ).hooks
+    const hooks = timeoutPluginHooks('amp', 'tool.call', plugin)
     const started = Date.now()
     const result = await dispatch(
       hooks,
@@ -617,22 +627,7 @@ describe.runIf(IS_REAL && process.platform === 'linux' && BUN !== undefined)(
       const plugin = writePlugin(
         `export const Slow = async () => ({ 'tool.execute.before': async () => { await new Promise((resolve) => setTimeout(resolve, 60000)) } })`,
       )
-      const hooks = parseForeignHooks(
-        JSON.stringify({
-          hooks: {
-            PreToolUse: [
-              {
-                format: 'opencode',
-                sourceEvent: 'tool.execute.before',
-                plugin,
-                hooks: [{ type: 'plugin', timeout: 1 }],
-              },
-            ],
-          },
-        }),
-        'user',
-        process.platform,
-      ).hooks
+      const hooks = timeoutPluginHooks('opencode', 'tool.execute.before', plugin)
       const started = Date.now()
       const result = await dispatch(
         hooks,
