@@ -41,9 +41,11 @@ function isPrivatePath(file: string): boolean {
 }
 /**
  * One confined, regular-file descriptor. NOLIMITS1FIX: the removed 16 MiB
- * bound was invented — the default reads at any size, chunk by chunk, so a
- * large source never needs one huge buffer. An explicit finite `maxBytes`
- * (the untrusted-file bound one caller passes) still refuses past itself.
+ * bound was invented — the default reads at any size. The chunks decode
+ * straight into the returned string through one streaming decoder, so a
+ * large source is never held as retained chunks plus a second concatenated
+ * buffer plus the string on top. An explicit finite `maxBytes` (the
+ * untrusted-file bound one caller passes) still refuses past itself.
  */
 export function reportFileIo(
   root: string,
@@ -95,7 +97,8 @@ export function reportFileIo(
           rechecked.absolute !== checked.absolute
         )
           throw new LocalSourceError('refused')
-        const parts: Buffer[] = []
+        const decoder = new TextDecoder('utf-8', { fatal: true })
+        const pieces: string[] = []
         let count = 0
         let position = 0
         for (;;) {
@@ -106,12 +109,18 @@ export function reportFileIo(
           position += bytesRead
           count += bytesRead
           if (count > maxBytes) throw new LocalSourceError('limit')
-          parts.push(chunk.subarray(0, bytesRead))
+          try {
+            pieces.push(decoder.decode(chunk.subarray(0, bytesRead), { stream: true }))
+          } catch {
+            throw new LocalSourceError('invalid')
+          }
         }
         if (!sameFile(held, await lstatIdentity(checked.absolute)))
           throw new LocalSourceError('refused')
         try {
-          const text = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(parts))
+          // The flush completes a character split across the last chunk, or
+          // throws on truncated bytes, exactly as one whole decode does.
+          const text = `${pieces.join('')}${decoder.decode()}`
           if (text.includes('\0')) throw new LocalSourceError('invalid')
           return text
         } catch {
