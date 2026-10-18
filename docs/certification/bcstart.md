@@ -107,3 +107,42 @@ admissionSignal])`: the check's life from spec §4, the person's Stop, and
 - **Proof.** The same 120 contended checks on real Chrome through the real
   `runBrowserCheck`, and the deliberate break (the single read restored),
   re-measured on the new head.
+
+## Review round 1: built (`0b1782b067`)
+
+Both planned fixes are in. How the lifetime ends the wait, in code that
+already existed: when the check's lifetime ends before its own end, its
+abort listener closes the pipe (`browserRun.ts:780`); a closed pipe wakes
+`waitUntil` at once (`pageCheck.ts:610`) and rejects the next
+`SystemInfo.getProcessInfo` (`cdpPipe.ts:189`); `runBrowserCheck` then
+reports the lifetime's own end: `timedOut` at the deadline, `cancelled` on
+Stop, `notOffered` or `scopeChanged` when admission ends. No request has
+been made at that point: the gate, the proxy's first use and every canary
+come after the contract read.
+
+Re-measured on the round-1 source, same setup as above (120 checks, three
+batches of 40 at once, the typecheck, the touched suites and the production
+build running beside the fixed batch):
+
+| Source                                              | ok  | `unrecognized` | service read more than once  |
+| --------------------------------------------------- | --- | -------------- | ---------------------------- |
+| round 1 (`0b1782b067`)                              | 120 | 0              | 4 checks, 2 reads each       |
+| deliberate break on round 1: one read, then refusal | 117 | 3              | never (each failure: 1 read) |
+
+The break replaced the re-ask with `return fail('unrecognized')`, which is
+the old single read exactly; it was built from a temporary edit, measured,
+and reverted before the commit. The four recovered checks also read their
+targets after the wait and passed the exactly-one-`about:blank` test, so
+the later read refuses nothing a passing start shows. A target that
+appears during the wait was not provoked here: the wait lasts one 50 ms
+re-ask in these runs, and the P2 fix is that the test now reads the browser
+after the wait instead of before it.
+
+| Gate (round 1)                                                                                | Exit                                             |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `prettier --check` (changed files), pre-commit `prettier --write`                             | 0                                                |
+| `eslint --max-warnings 0` (changed source), pre-commit `eslint --fix`                         | 0                                                |
+| `npm run typecheck` (five projects)                                                           | 0                                                |
+| `vitest run` runtimeManifest, browserLaunch, browserPolicy, browserCheckLive, browserCheckR51 | 0: 25 passed, 8 skipped (no pinned runtime here) |
+| `npm run build` (sizes, split, host globals, notices)                                         | 0                                                |
+| `npm run check:roadmap`, `npm run check:plan`                                                 | 0, 0                                             |
