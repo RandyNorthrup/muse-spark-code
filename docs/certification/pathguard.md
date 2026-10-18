@@ -169,10 +169,49 @@ Already safe (no change needed):
   `processGitPath` (the M123 native route's one-shot lookup) takes no
   working directory and stays lexical.
 
+## Fix (round 4, lane PR249FIX3, Grok re-review of PR #249)
+
+- One comparison (`src/core/executables.ts`): `isSameOrInsideDirectory`
+  now strips device (`\\.\`, `//./`) as well as verbatim prefixes, maps
+  `\\.\UNC\` like `\\?\UNC\`, strips a trailing dot on every segment and
+  collapses `.`/`..` lexically (GetFullPathName semantics; `..` above the
+  root clamps), case-insensitive on Windows, then realpath where the path
+  exists. `\\.\C:\…`, `//./C:/…`, `\\.\UNC\localhost\C$\…`,
+  `C:\…\repo.`, `C:\…\repo.\bin` and `C:\no-such\..\…` spellings of the
+  workspace all compare as the workspace with a throwing resolver; POSIX
+  collapses `.`/`..` too. Sanitize and every lookup share it.
+- One lookup: `workspaceRoot` + `realpath` threaded into `gitLocator`
+  (both runners, per-run cwd, `realpathSync` by default), `processGitPath`
+  (its caller passes `deps.workspaceRoot`), `fixedGitLocator` (refuses a
+  git inside the bound repository), `reportGitIo`, the plugin runtimes
+  (`node`/`bun`/`prlimit`, via `PluginRunDeps.workspaceRoot` from the
+  foreign-hooks entry), MCP bare names (`resolveServerCommand`, defaulting
+  to the server directory; a command with a directory stays the file the
+  config names), the shell/hook interpreters (`ToolIoDeps.workspaceRoot`
+  from the window), the usage opener (governed `resolveCommand` for the
+  run's workspace) and the Linux recorders (`CaptureProbe.workspaceRoot`
+  from the window).
+- One child environment (`workspaceChildEnvironment`): the git runners
+  (lookup and `ssh`/`git-remote-helpers` alike), the plugin child, MCP
+  servers, shell commands, hooks, team launches and every governed spawn
+  run with the sanitised PATH for the workspace plus
+  `NoDefaultCurrentDirectoryInExePath=1` on Windows.
+- One gate (`test/unit/pathGuardSpawns.test.ts`): every direct
+  child-process start and every raw governed launch in `src/` enumerated
+  from the source itself (TypeScript AST over value imports from
+  `node:child_process` and the governed launcher) and classified
+  guarded-or-reviewed; an unguarded `spawn` added on purpose fails it
+  (`src/core/pathguardProbe.ts`, since removed), and every anchor is
+  rechecked. Delegated starts (injected runners, the governed
+  `execResourceFile` boundary) are listed in
+  `docs/certification/pathguard-spawns.md` with the callee that guards them.
+
 ## Proof
 
-`test/unit/pathGuard.test.ts` (17 tests) and `test/unit/executables.test.ts`
-(8 tests), all passing on the rig (round 3 adds 6):
+`test/unit/pathGuard.test.ts` (17 tests), `test/unit/executables.test.ts`
+(8 tests), `test/unit/pathGuardRound4.test.ts` (16 tests) and
+`test/unit/pathGuardSpawns.test.ts` (3 tests), all passing on the rig
+(round 3 adds 6, round 4 adds 19):
 
 - Pure cases: empty/relative dropped, workspace and its children dropped,
   same-prefix sibling kept, Windows case-insensitive spellings; rooted
@@ -202,6 +241,13 @@ Already safe (no change needed):
   before landing). A real planted `git` in the workspace answers through
   the real `processGitRunner` from another directory but never with the
   workspace as the working directory, where the real git answers instead.
+- Round 4: device, trailing-dot and dot-dot spellings of the workspace
+  drop with a throwing resolver (unit-driven with the Windows platform
+  injected); a planted `git` behind a workspace symlink never resolves
+  through the real runners; planted `node`/`bash`/`arecord`/`xdg-open`
+  refuse at the real plugin, MCP, shell, recorder and governed lookups.
+  The inventory gate fails on a deliberately added unguarded `spawn`
+  (reverted after the failure) and passes on the tree.
 
 Gates on the lane branch (final tree, repository's own timeout throughout,
 never `--testTimeout`):
@@ -215,3 +261,19 @@ never `--testTimeout`):
 - `node scripts/check-l10n.mjs`: 0 problems (no new user-visible strings).
 - `node scripts/check-plan.mjs`: 0 drift.
 - `npm run build`: exit 0 (bundle-size and split gates included).
+
+Round-4 gates (lane PR249FIX3, same timeout rule):
+
+- `test/unit/pathGuard.test.ts` + `test/unit/executables.test.ts` +
+  `test/unit/pathGuardRound4.test.ts`: 41/41 pass.
+- `test/unit/pathGuardSpawns.test.ts`: 3/3 pass; fails on a deliberately
+  added unguarded `spawn` (reverted), passes on the tree.
+- Related suites: `helperLocation`, `nativeGitCore`, `mcpServers` (47
+  pass); `foreignHooks`, `pluginDispatch`, `heldCheckoutCore` (56 pass,
+  3 pre-existing skips).
+- `npm run typecheck` (all five projects): exit 0.
+- eslint zero errors on all changed files; prettier clean.
+- `node scripts/check-l10n.mjs`: 0 problems; `node scripts/check-plan.mjs`:
+  0 drift; `knip`: exit 0; `node scripts/cycles.mjs`: no cycles;
+  `jscpd`: 0 clones (two introduced mid-lane fixed at the cause);
+  `npm run build`: exit 0 with budgets unchanged.

@@ -1,73 +1,98 @@
-# PATHGUARD spawn inventory — every program start and its guard (2026-10-18, lane PR249FIX2)
+# PATHGUARD spawn inventory — every program start and its guard (2026-10-18, lane PR249FIX3)
 
-Guarded builder = `buildChildEnvironment` with `workspaceRoot` + `realpath`
-(PATH entries inside the workspace dropped, empty/relative dropped,
-`NoDefaultCurrentDirectoryInExePath=1` on Windows). "Guarded env" below
-means exactly that. Command resolution = `resolveExecutable` /
-`absolutePathEntries` / launch `absoluteEntries`: absolute entries only
-(Windows drive-relative excluded) but workspace entries NOT excluded —
-a planted program on an absolute workspace PATH entry still resolves
-(Grok re-review of PR #249, verdict: not mergeable).
+One comparison (`isSameOrInsideDirectory` in `src/core/executables.ts`:
+device/verbatim prefixes stripped, `.\UNC\` mapped like `?\UNC\`,
+loopback admin shares mapped to their drive, trailing dots stripped per
+segment, `.`/`..` collapsed, case-insensitive on Windows, then realpath
+where the path exists), one lookup (every product name resolved outside
+the workspace, links followed), one child environment
+(`workspaceChildEnvironment`: PATH sanitised, empty/relative/
+drive-relative/workspace entries dropped, `NoDefaultCurrentDirectoryInExePath=1`
+on Windows). `test/unit/pathGuardSpawns.test.ts` enumerates every direct
+child-process start in `src/` from the source itself (TypeScript AST: bare
+calls and references of names value-imported from `node:child_process`,
+including `require`) and fails on any file outside the lists below, on any
+listed file that loses its anchor, and on any `exec`/`execSync` import
+(shell strings stay banned, D4).
 
-## Through the guarded builder
+## Guarded in the file (lookup + child env)
 
-- `muse serve` main host (`src/host/backend/museCodeBackendManager.ts:279`):
-  guarded env, `cwd` = workspaceRoot. GUARDED.
-- VS Code account host (`src/host/auth/accountHost.ts:219`,
-  `src/extension.ts` passes workspaceRoot): guarded env, `cwd` = workspaceRoot.
-  GUARDED.
-- `muse init`, `muse config status` (`src/extension.ts:4511,4592`):
-  `workspaceRoot` + `backend.childEnvironment()`. GUARDED.
-- `muse skills list` (`src/host/commands/skillsCommands.ts:150`): resolved
-  launch command; check env at fix time.
-- Per-folder runtime `muse serve` (`src/runtime/backends.ts:724`
-  `museCodeManager(deps, cwd)`): guarded env. GUARDED.
-- Report-time CLI presence probe (`src/runtime/reportCommand.ts:83`):
-  `resolveMuseLaunch` only, no spawn.
+- Plugin host (`src/core/backends/modelapi/pluginHost.ts`): `node`/`bun`/
+  `prlimit` resolved outside `deps.workspaceRoot` (from
+  `foreignHooksEntry.ts`, which passes its own workspace root); the child
+  runs the absolute runtime with the guarded child env for the workspace.
+- Git (`src/host/git.ts`, both runners): each run's working directory is
+  the workspace, resolved through `realpathSync`; the child env is the
+  guarded child env, so git's own helpers (`ssh`, `git-remote-https`) never
+  run a planting. M123 native route (`fixedGitLocator` in
+  `src/runtime/panel/git/service.ts`): refuses a git inside the bound
+  repository; `createGitProcess` carries `realpathSync`. Report source
+  (`reportGitIo` in `src/runtime/reporting/sources.ts`): lookup + env
+  guarded for the report root.
+- MCP (`src/host/backend/mcpProcess.ts`): bare names resolved outside the
+  server's working directory (links followed); a command with a directory
+  stays the file the person's config names. The child env is the guarded
+  child env for that directory.
+- Shell and hooks (`src/host/backend/toolIo.ts`): `bash`/`sh`/`cmd`/
+  PowerShell resolved outside the workspace (`ToolIoDeps.workspaceRoot`,
+  from the window's workspace); `shellEnvironment` and `hookEnvironment`
+  carry the guarded child env for the run's directory, and `hookEnvironment`
+  additionally drops Windows drive-relative entries.
+- Team launches (`src/host/team/processLifetime.ts`): the person's
+  configured command keeps running, with the guarded child env for its cwd
+  (bare launchers and helpers can no longer shadow from the workspace);
+  Windows runs absolute PowerShell with the same guarded env.
+- Governed commands (`src/core/resources/commands.ts`, serving
+  `handoffResourceFile`/`execResourceFile`): bare names (`xdg-open`,
+  `open`, `rundll32.exe`, probes) resolved outside the run's workspace with
+  the guarded child env. This covers the usage opener (`src/runtime/main.ts`
+  passes its cwd), schedules, reporting and vault callers.
+- `muse serve` family (`MuseCodeHost.ts` via
+  `museCodeBackendManager.ts:279`): absolute launch command from
+  `resolveLaunch` (workspace excluded) + guarded builder env.
+- Voice recorder lookup (`locateCaptureHelper` in
+  `src/core/voice/helperLocation.ts`, wired in `dictationHost.ts` and
+  `src/extension.ts`): `arecord`/`parec` resolved outside the workspace.
 
-## Now through the guarded builder (fixed this lane)
+## Reviewed: fixed path or the person's own terminal (no PATH search)
 
-- `muse login` (`src/runtime/main.ts:1347` via the shared manager, now
-  scoped to the launch directory; spawn names that directory as cwd):
-  guarded env + cwd. GUARDED.
-- Runtime account host (shared manager scoped to the launch directory;
-  `connectAccountSession` passes it as `workspaceRoot`, spawn sets cwd):
-  guarded env + cwd. GUARDED.
-- Windows sandbox check/setup (`src/extension.ts:1781` now passes
-  `workspaceRoot` and `backend.childEnvironment()`): guarded env + cwd.
-  GUARDED.
-- `muse` lookup (`MuseCodeBackendManager.resolveLaunch` passes the
-  workspace): planted `muse` on an absolute workspace PATH entry never
-  resolves. GUARDED.
-- `git` lookup (both runners pass each run's working directory):
-  planted `git` there never resolves. GUARDED.
+- `src/host/processTree.ts`: fixed `/bin/ps`, `process.execPath`
+  supervisor; `runProgram` callers pass absolute system paths (the
+  `systemctl` probes run with the host cwd, never a workspace cwd).
+- `src/core/resources/trees/linuxLaunch.ts`: fixed `/usr/bin/systemd-run`,
+  `/bin/sh`.
+- `src/core/resources/trees/run.ts`: callers pass absolute OS/native-helper
+  paths (governor entry, macOS/Windows actuators).
+- `src/core/resources/process.ts`: the one governed launch; file + env come
+  only from `commands.ts` above.
+- `src/host/backend/mcpJobLaunch.ts`: the digest-named packaged job
+  launcher only, never PATH-resolved.
+- `src/host/browser/browserProcess.ts`: the pinned runtime verified against
+  `browserRuntime.json` + SystemRoot `taskkill`.
+- `src/host/resources/resourceJobHolder.ts`: absolute SystemRoot
+  PowerShell + packaged job assembly.
+- `src/core/locks/processOwner.ts`: fixed `/bin/ps`, SystemRoot
+  PowerShell; darwin inherits env but runs an absolute command with no shell.
+- `src/core/resources/sampler/system.ts`: absolute paths only, near-empty env.
+- `src/core/eval/workspace.ts`: fixed `process.execPath`, empty env.
+- `src/core/team/workers/workerFence.ts`: fixed `/usr/sbin/lsof`, scrubbed env.
+- `src/host/voice/voiceProcesses.ts`: absolute helper/recorder command from
+  the guarded lookup, no shell.
+- `src/core/media/record/macos.ts`: absolute `/usr/bin/codesign` and helper
+  paths only.
+- `src/runtime/panel/pullRequests/checkout.ts`: thin wrapper, the caller
+  hands the absolute git only.
+- macOS keychain lookup (`src/extension.ts:4617`, via the governed runner):
+  absolute `MACOS_SECURITY_TOOL` (`/usr/bin/security`), lookup args only.
+- Terminal launches (`runCliInTerminal`, `openInTerminal`): the person's
+  interactive terminal, intentional.
 
-## Resolution holes (fixed this lane)
+## Delegated (no direct start; the guard lives in the callee)
 
-- `isFullyQualifiedWindowsPath` (`src/core/executables.ts:32`): `//server/share`
-  and `//?/C:/…` not recognised (only `\\`), so `//localhost/C$/…` is rewritten
-  to `C:\localhost\C$\…` before realpath and kept. FIX: normalise separators
-  before classifying, treat `//server/share` as UNC, realpath the original entry.
-- Verbatim `\\?\C:\…`: dropped only when realpath returns the normal path;
-  lexically it never matches the workspace. FIX: strip the verbatim prefix
-  (and map loopback admin shares `//localhost/C$/…` → `C:/…`) before comparing.
-- `resolveMuseLaunch` / `resolveExecutable` probe absolute workspace entries:
-  planted `muse`/`git` on an absolute workspace PATH entry resolves. FIX:
-  workspace-aware exclusion at the resolvers, wired where the workspace is known
-  (serve/login/account/sandbox managers first).
-
-## Unguarded by design so far (command absolute-resolved, env PATH passes through)
-
-- Plugin host (`src/core/backends/modelapi/pluginHost.ts:139,615`), MCP servers
-  (`src/core/backends/modelapi/mcp/pool.ts:289` via `src/host/backend/mcpProcess.ts`),
-  git (`src/host/git.ts:299,503`), browser (`src/core/browser/browserRun.ts:555`),
-  voice/media (`src/core/voice/helperLocation.ts`, `src/core/media/record/macos.ts:136,276`,
-  `src/host/voice/voiceProcesses.ts:69`), governed runners
-  (`src/core/resources/process.ts:133,219,254,409`, `src/core/resources/trees/run.ts:26`,
-  `src/core/resources/trees/linuxLaunch.ts:81,104`, `src/core/team/workers/engineWorker.ts:204`,
-  `src/core/team/workers/workerFence.ts:51`, `src/core/eval/workspace.ts:122`,
-  `src/core/locks/processOwner.ts:67`, `src/core/reporting/history.ts:119`,
-  `src/core/resources/sampler/system.ts:99`).
-- macOS keychain lookup (`src/extension.ts:4606`): absolute `/usr/bin/security`
-  command, raw env (command itself not PATH-resolved).
-- Terminal launches (`runCliInTerminal`): the user's interactive terminal, intentional.
+- `src/host/git/untrustedGit.ts`, `src/runtime/panel/git/service.ts`
+  (runner wiring), `src/host/backend/mcpServers.ts` /
+  `src/host/backend/mcpVault.ts`, `src/core/team/workers/engineWorker.ts`,
+  `src/host/team/acpProcess.ts`, `src/core/voice/dictation.ts`,
+  `src/core/schedules/events/git.ts`, `src/core/reporting/history.ts`,
+  `src/core/reporting/sources/github.ts`: injected runners, the guarded
+  spawners above, or the governed `execResourceFile` boundary.
