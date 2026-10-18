@@ -479,7 +479,9 @@ function parseDefinition(file: string, json: string): PipelineDefinition | Pipel
   let parsed: unknown
   try {
     parsed = JSON.parse(json) as unknown
-  } catch {
+  } catch (error) {
+    // Only malformed text refuses as unparseable; anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return { file, reason: 'unparseable', detail: 'not JSON' }
   }
   const badTop = unknownKey(parsed, DEFINITION_KEYS)
@@ -527,7 +529,9 @@ function applyNarrowing(
   let parsed: unknown
   try {
     parsed = JSON.parse(json) as unknown
-  } catch {
+  } catch (error) {
+    // Only malformed text refuses as unparseable; anything else keeps its kind.
+    if (!(error instanceof SyntaxError)) throw error
     return { file, reason: 'unparseable', detail: 'not JSON' }
   }
   const badKey = unknownKey(parsed, NARROWING_KEYS)
@@ -609,7 +613,9 @@ export function loadPipelines(args: {
       let id: string | undefined
       try {
         id = (JSON.parse(text) as { id?: unknown }).id as string | undefined
-      } catch {
+      } catch (error) {
+        // Only malformed text refuses as unparseable; anything else keeps its kind.
+        if (!(error instanceof SyntaxError)) throw error
         refused.push({ file, reason: 'unparseable', detail: 'not JSON' })
         continue
       }
