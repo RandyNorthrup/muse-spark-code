@@ -33,6 +33,13 @@ describe('each provider retries by its documented maximum', () => {
     expect(limitsOf('anthropic').baseMs).toBeUndefined()
     expect(limitsOf('anthropic').maxMs).toBeUndefined()
   })
+  it("merges a preset's own count over its format's documented backoff", () => {
+    const gemini = presetById('gemini')!
+    const merged = quirksOf({ ...gemini, quirks: { retryLimits: { maxRetries: 9 } } }).retryLimits
+    expect(merged.maxRetries).toBe(9)
+    expect(merged.baseMs).toBe(1000)
+    expect(merged.maxMs).toBe(60_000)
+  })
   it('leaves every undocumented provider without a limit of ours', () => {
     for (const preset of [
       'openrouter',
