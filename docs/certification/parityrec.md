@@ -42,6 +42,23 @@
 - `test/unit/recordingLatest.test.ts`: Windows and macOS proofs against real
   recording files in temp home layouts; the old win32 early-return is gone.
 
-## Gates
+## Gates (final tree, linuxlt 2026-10-18)
 
-- (exit codes recorded here on the final tree)
+- `test/unit/recordingLatest.test.ts`: 21/21 pass at the repo default
+  timeout (13 of them failed before the fix — red observed, then green).
+- `test/unit/lazyBundleFiles.test.ts`: 13/13 pass.
+- `npx tsc` (all projects via `npm run typecheck`): exit 0.
+- eslint on all changed files: zero warnings.
+- prettier check on all changed files: clean.
+- `node scripts/check-l10n.mjs`: 0 problems (no new strings).
+- `node scripts/gen-reference.mjs --check`: current.
+- `node scripts/check-host-api.mjs`: 0 problems.
+- `node scripts/check-plan.mjs`: 0 drift.
+- `npm run build`: exit 0 (includes bundle-size, bundle-split and
+  lazy-registry checks; the registry gained the one `createLatestPort` row
+  from the refactor, regenerated with `npm run lazy-registry:generate`).
+- `npm run deadcode` (knip): exit 0. `npm run cycles`: no cycles.
+  `npm run duplication` (jscpd): 0 clones.
+- `npm run security:sast`: exit 0, 0 findings on 3265 files.
+- `npm run security:audit`: exit 0 (2 advisories, 1 documented exception;
+  no dependency changed here).
