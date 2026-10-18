@@ -4150,6 +4150,7 @@
   "playbackDetail": "Muse exprime sa propre compréhension de l’objectif, de mémoire uniquement, sans outils.",
   "playbackUsage": "/playback ne prend aucun argument : envoyez-le seul.",
   "playbackBusy": "Une relecture démarre dès que le tour en cours se termine.",
+  "playbackOutputSchemaRefused": "Une relecture ne peut pas utiliser de sortie structurée : sa réponse doit commencer par la ligne marqueur, qu’un schéma JSON ne peut pas contenir.",
   "playbackStoppedTools": "La relecture s’est arrêtée : l’agent a recouru à un outil, or une relecture répond uniquement de mémoire, sans outils.",
   "playbackPlanModeNotice": "Cette relecture s’exécute en mode Plan, et votre mode d’autorisation revient à la fin. Muse Code applique ses propres règles d’autorisation en mode Plan, donc les lectures peuvent encore s’exécuter ; la relecture s’arrête au premier usage d’outil.",
   "playbackUnavailable": "La relecture n’a pas pu être chargée : aucune relecture ne peut donc démarrer ; réinstallez l’extension et rechargez la fenêtre. Le journal contient les détails.",

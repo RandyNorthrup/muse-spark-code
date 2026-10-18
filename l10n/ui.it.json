@@ -4150,6 +4150,7 @@
   "playbackDetail": "Muse esprime la propria comprensione dell’obiettivo, solo a memoria, senza strumenti.",
   "playbackUsage": "/playback non accetta argomenti: invialo da solo.",
   "playbackBusy": "Una riproduzione inizia quando termina il turno in corso.",
+  "playbackOutputSchemaRefused": "Una riproduzione non può usare output strutturato: la risposta deve iniziare con la riga marcatrice, che uno schema JSON non può contenere.",
   "playbackStoppedTools": "La riproduzione si è interrotta: l’agente ha usato uno strumento, mentre una riproduzione risponde solo a memoria, senza strumenti.",
   "playbackPlanModeNotice": "Questa riproduzione viene eseguita in modalità Piano e la tua modalità di autorizzazione torna al termine. Muse Code applica le proprie regole di autorizzazione in modalità Piano, quindi le letture possono ancora essere eseguite; la riproduzione si interrompe al primo uso di uno strumento.",
   "playbackUnavailable": "Non è stato possibile caricare la riproduzione, quindi non si può avviare alcuna riproduzione; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel log.",

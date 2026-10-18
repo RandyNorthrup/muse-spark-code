@@ -4048,6 +4048,7 @@
   "playbackDetail": "Muse a célról alkotott saját értelmezését mondja el, csak emlékezetből, eszközök nélkül.",
   "playbackUsage": "A /playback nem fogad argumentumot: önmagában küldd el.",
   "playbackBusy": "A visszajátszás az aktuális kör végén indul.",
+  "playbackOutputSchemaRefused": "A visszajátszás nem használhat strukturált kimenetet: válaszának a jelölősorral kell kezdődnie, amelyet JSON-séma nem tartalmazhat.",
   "playbackStoppedTools": "A visszajátszás leállt: az ügynök egy eszközhöz nyúlt, pedig a visszajátszás csak emlékezetből válaszol, eszközök nélkül.",
   "playbackPlanModeNotice": "Ez a visszajátszás Terv módban fut, és a végén visszatér az előző engedélyezési módod. A Muse Code Terv módban saját engedélyezési szabályokat alkalmaz, így az olvasások ott továbbra is futhatnak; a visszajátszás az első eszközhasználatnál leáll.",
   "playbackUnavailable": "A visszajátszást nem sikerült betölteni, ezért nem indítható visszajátszás; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",

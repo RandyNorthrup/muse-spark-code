@@ -15986,10 +15986,15 @@ export class ModelApiSession implements ScheduledAgentSession {
    * A `/playback` the user asked for (D203): a turn of this conversation
    * that answers from working memory only, with no tools at all. Every
    * tool call is refused in code, answered to the model. It is part of the
-   * user's own turn, so it asks for no payment.
+   * user's own turn, so it asks for no payment. A headless output schema
+   * is refused here, before dispatch: a schema-compliant JSON reply cannot
+   * open with the playback's verbatim marker line, so the combination is
+   * rejected rather than sent half-held under either constraint.
    */
   public playback(parts: readonly TurnPart[], displayText: string): Promise<TurnSubmission> {
-    return this.submitTurn(parts, displayText, false, undefined, false, undefined, undefined, true)
+    return this.outputFormat === undefined
+      ? this.submitTurn(parts, displayText, false, undefined, false, undefined, undefined, true)
+      : Promise.reject(new Error(UI_TEXT.playbackOutputSchemaRefused))
   }
 
   /**

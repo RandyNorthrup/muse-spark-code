@@ -4048,6 +4048,7 @@
   "playbackDetail": "Muse, hedefe dair kendi anlayışını yalnızca bellekten, araç kullanmadan aktarır.",
   "playbackUsage": "/playback bağımsız değişken almaz: tek başına gönder.",
   "playbackBusy": "Yeniden oynatma, mevcut tur bitince başlar.",
+  "playbackOutputSchemaRefused": "Bir geri oynatma yapılandırılmış çıktı kullanamaz: yanıtı işaretçi satırıyla başlamalıdır, oysa bir JSON şeması bunu içeremez.",
   "playbackStoppedTools": "Yeniden oynatma durduruldu: aracı bir araca başvurdu, oysa yeniden oynatma yalnızca bellekten, araçsız yanıt verir.",
   "playbackPlanModeNotice": "Bu yeniden oynatma Plan modunda çalışır ve bitince izin modun geri gelir. Muse Code, Plan modunda kendi izin kurallarını uygular, bu yüzden okumalar çalışmaya devam edebilir; yeniden oynatma ilk araç kullanımında durur.",
   "playbackUnavailable": "Yeniden oynatma yüklenemedi, bu yüzden hiçbir yeniden oynatma başlatılamıyor; uzantıyı yeniden yükleyin ve pencereyi yeniden yükleyin. Ayrıntılar günlükte.",

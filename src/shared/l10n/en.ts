@@ -4945,6 +4945,8 @@ export const EN = {
   playbackUsage: '/playback takes no arguments: send it bare.',
   // Why a playback did not start, on its card.
   playbackBusy: 'A playback starts once the current turn has ended.',
+  playbackOutputSchemaRefused:
+    'A playback cannot use structured output: its reply must open with the marker line, which a JSON schema cannot hold.',
   playbackStoppedTools:
     'The playback stopped: the agent reached for a tool, and a playback answers from memory only, with no tools.',
   playbackPlanModeNotice:

@@ -3946,6 +3946,7 @@
   "playbackDetail": "Muse 僅憑記憶、不借助工具，陳述自己對目標的理解。",
   "playbackUsage": "/playback 不接受參數：請單獨傳送。",
   "playbackBusy": "目前回合結束後開始重播。",
+  "playbackOutputSchemaRefused": "重播無法使用結構化輸出：其回覆必須以標記行開頭，而 JSON 結構描述無法容納該行。",
   "playbackStoppedTools": "重播已停止：代理人試圖使用工具，而重播只能憑記憶作答，不使用工具。",
   "playbackPlanModeNotice": "本次重播在 Plan 模式下執行，結束後恢復先前的權限模式。Muse Code 在 Plan 模式下仍會套用自身的允許規則，因此讀取作業仍可能執行；重播在首次使用工具時停止。",
   "playbackUnavailable": "無法載入重播，因此無法開始任何重播；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
