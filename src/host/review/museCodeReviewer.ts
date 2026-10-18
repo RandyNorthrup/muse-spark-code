@@ -28,6 +28,7 @@
 // answer, the card and its note) is reviewedApprovals.ts.
 
 import { mkdir } from 'node:fs/promises'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { AgentHost, AgentSession, TurnSubmission } from '../../core/agent/agentBackend'
 import {
   parseReviewerAnswer,
@@ -161,7 +162,7 @@ export class MuseCodeReviewer {
             result = await this.ask(job)
           } catch (error: unknown) {
             this.deps.log.warn(
-              `The Auto reviewer could not review; the user decides: ${this.deps.describeFailure(error)}`,
+              `The Auto reviewer could not review; the user decides: ${failureForLog(error)}`,
             )
             result = 'failed'
           }
@@ -178,7 +179,14 @@ export class MuseCodeReviewer {
     } catch (error: unknown) {
       if (!job.signal.aborted && !this.isDisposed) {
         this.deps.log.warn(
-          `The Auto reviewer could not review; the user decides: ${this.deps.describeFailure(error)}`,
+          `The Auto reviewer could not review; the user decides: ${failureForLog(error)}`,
+        )
+      } else if (!job.signal.aborted) {
+        // The window closed meanwhile: nobody is told, but the failure is
+        // still recorded, with words that say so. An abort means nobody
+        // waits on it any more: it counts for nothing.
+        this.deps.log.warn(
+          `The Auto reviewer could not review after its window closed: ${failureForLog(error)}`,
         )
       }
       reviewed = { answer: 'failed', hasTripped: false }
@@ -345,7 +353,7 @@ export class MuseCodeReviewer {
         })
         .catch((error: unknown) => {
           this.deps.log.info(
-            `The Auto reviewer's side session did not start: ${this.deps.describeFailure(error)}`,
+            `The Auto reviewer's side session did not start: ${failureForLog(error)}`,
           )
         })
       throw error
@@ -503,9 +511,7 @@ export class MuseCodeReviewer {
     void side.session
       .cancel()
       .catch((error: unknown) => {
-        this.deps.log.warn(
-          `Stopping the Auto reviewer's side turn failed: ${this.deps.describeFailure(error)}`,
-        )
+        this.deps.log.warn(`Stopping the Auto reviewer's side turn failed: ${failureForLog(error)}`)
       })
       .finally(() => {
         side.session.dispose()
