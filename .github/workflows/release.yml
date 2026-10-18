@@ -334,7 +334,12 @@ jobs:
           mapfile -t schemas < .schemas
           shopt -s nullglob
           helper_assets=(helpers/linux-*)
-          sha256sum ./*.vsix ./*.tgz ./*.cdx.json "${schemas[@]/#/./}" "${helper_assets[@]}" > SHA256SUMS
+          sha256sum ./*.vsix ./*.tgz ./*.cdx.json "${schemas[@]/#/./}" > SHA256SUMS
+          # Helpers upload under their basenames, so SHA256SUMS must name
+          # them that way or `sha256sum -c` fails on a downloaded asset.
+          if ((${#helper_assets[@]})); then
+            (cd helpers && sha256sum linux-*) >> SHA256SUMS
+          fi
       - name: attest every asset SHA256SUMS lists
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
