@@ -75,10 +75,14 @@ function isDisallowed(target: RestoreTarget): boolean {
   return target.signal?.aborted === true || target.isAllowed?.() === false
 }
 
-function errorCode(error: unknown): string | undefined {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String(error.code)
-    : undefined
+/** Whether the failure names one of the given errno codes. */
+function isErrno(error: unknown, codes: ReadonlySet<string>): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    codes.has(error.code)
+  )
 }
 
 function pause(ms: number): Promise<void> {
@@ -225,7 +229,10 @@ async function removeEmptiedFolders(
       }
       await rmdir(destination.checkedAbsolute)
     } catch (error: unknown) {
-      if (FOLDER_NOT_EMPTY.has(errorCode(error) ?? '')) {
+      // A folder that filled meanwhile is left for the next pass; a
+      // folder that vanished is done. Anything else is not this sweep's
+      // to hide.
+      if (isErrno(error, FOLDER_NOT_EMPTY)) {
         return
       }
       if (!isMissingPath(error)) {
@@ -255,7 +262,10 @@ async function didRemoveHeld(
       await remove(absolute)
       return true
     } catch (error: unknown) {
-      if (!FILE_HELD.has(errorCode(error) ?? '') || attempt >= CHECKPOINT_REMOVE_RETRIES) {
+      // Windows holds the file briefly: each attempt retries while it
+      // does, only while the file is still as expected. Anything else,
+      // or the last attempt, keeps failing.
+      if (!isErrno(error, FILE_HELD) || attempt >= CHECKPOINT_REMOVE_RETRIES) {
         throw error
       }
     }

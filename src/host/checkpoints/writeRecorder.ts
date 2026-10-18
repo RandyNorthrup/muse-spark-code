@@ -52,6 +52,7 @@ import {
   GIT_MODE_EXECUTABLE,
   GIT_MODE_FILE,
 } from '../../shared/constants'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { isMissingPath } from '../canonicalPath'
 import type { Logger } from '../logger'
 import { type JournalFs, WriteJournal } from './writeJournal'
@@ -176,11 +177,36 @@ function isNameTaken(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST'
 }
 
+/**
+ * Telling whether anything is at the path failed for one of the lookup's
+ * own reasons. Anything else is not this probe's to answer.
+ */
+const UNTELLABLE_CODES: ReadonlySet<string> = new Set([
+  'EACCES',
+  'EPERM',
+  'ELOOP',
+  'ENAMETOOLONG',
+  'ENOTDIR',
+  'EBUSY',
+])
+
+function isUntellable(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    UNTELLABLE_CODES.has(error.code)
+  )
+}
+
 /** Whether nothing is at the path; false when that cannot be told. */
 async function isGone(target: Target): Promise<boolean> {
   try {
     return (await lstatOrMissing(target.absolute)) === undefined
-  } catch {
+  } catch (error: unknown) {
+    if (!isUntellable(error)) {
+      throw error
+    }
     return false
   }
 }
@@ -378,7 +404,8 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
     let now: Copy
     try {
       now = await copyOf(target)
-    } catch {
+    } catch (error: unknown) {
+      deps.log.warn(`A file could not be copied to compare: ${failureForLog(error)}`)
       return false
     }
     return isSameContent(now.state, before)
@@ -444,7 +471,7 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
       await (outcome === 'done' ? deps.journal.appendDone(id) : deps.journal.appendAborted(id))
     } catch (error: unknown) {
       deps.log.warn(
-        `A write to ${target.path} stays unsettled: its outcome could not be journaled (${error instanceof Error ? error.name : 'unknown failure'})`,
+        `A write to ${target.path} stays unsettled: its outcome could not be journaled (${failureForLog(error)})`,
       )
     }
   }

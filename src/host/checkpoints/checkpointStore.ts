@@ -352,11 +352,37 @@ function foldedCase(relative: string): string {
   return relative.normalize('NFC').toLowerCase()
 }
 
+/**
+ * A path lookup's unavailable vocabulary: the spelling is retained when
+ * the path cannot be resolved, not only when it is missing. Anything
+ * else is not this lookup's to keep.
+ */
+const PATH_LOOKUP_CODES: ReadonlySet<string> = new Set([
+  'ENOENT',
+  'ENOTDIR',
+  'EACCES',
+  'EPERM',
+  'ELOOP',
+  'ENAMETOOLONG',
+])
+
+function isPathLookupError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    PATH_LOOKUP_CODES.has(error.code)
+  )
+}
+
 /** OS identity for live dirty documents, with spelling retained when lookup is unavailable. */
 function editorIdentity(absolute: string): string {
   try {
     return realpathSync.native(absolute)
-  } catch {
+  } catch (error: unknown) {
+    if (!isPathLookupError(error)) {
+      throw error
+    }
     return absolute
   }
 }
@@ -676,10 +702,13 @@ export class CheckpointStore {
       const { opened } = await this.open()
       return opened
     } catch (error: unknown) {
-      if (
-        error instanceof ShadowPathTooLongError ||
-        error instanceof ShadowStorageInWorkspaceError
-      ) {
+      // A path git cannot use, or storage and workspace holding one
+      // another: every window meets the same refusal, so the turn goes
+      // ahead with no record. Any other failure still stops it.
+      if (error instanceof ShadowPathTooLongError) {
+        return undefined
+      }
+      if (error instanceof ShadowStorageInWorkspaceError) {
         return undefined
       }
       throw error

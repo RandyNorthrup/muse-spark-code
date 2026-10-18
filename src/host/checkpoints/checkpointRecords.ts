@@ -75,7 +75,12 @@ export function parseUnit(text: string): StoredUnit | undefined {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    // Without a reviver only malformed text fails here, always as a
+    // SyntaxError; anything else is not this parse's to drop.
+    if (!(error instanceof SyntaxError)) {
+      throw error
+    }
     return undefined
   }
   const result = unitRecordSchema.safeParse(parsed)
@@ -120,7 +125,12 @@ export function parseRecord(text: string): StoredRecord | undefined {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    // Without a reviver only malformed text fails here, always as a
+    // SyntaxError; anything else is not this parse's to drop.
+    if (!(error instanceof SyntaxError)) {
+      throw error
+    }
     return undefined
   }
   const result = storedRecordSchema.safeParse(parsed)

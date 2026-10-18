@@ -40,6 +40,7 @@ describe('openPullRequestInConversation', () => {
   it('opens through loaded features', async () => {
     const shown: string[] = []
     let opened = 0
+    // The pass-through test only opens: no harness builds the whole window.
     const features = {
       openPullRequestInConversation: () => {
         opened += 1
