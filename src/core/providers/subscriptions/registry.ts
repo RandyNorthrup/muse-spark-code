@@ -36,11 +36,21 @@ import { failureCodeNames } from '../../networkFailure'
 import type { ProvidersFile } from '../providersFile'
 import { type ChatGptSignIn, ChatGptSignInError, chatGptRecordSchema } from './chatgpt'
 import type { ChatGptPlanFacts } from '../../backends/modelapi/planFacts'
-import { chatGptCatalogEntrySchema, chatGptPlanFacts } from './chatgptPlanFacts'
+import { chatGptPlanFacts } from './chatgptPlanFacts'
 import type { PlanUsageRow } from './planUsage'
 
 // Owner captures acdc0f60 / 577bc807 (0 + 1 model attempts), 2026-10-05.
-const catalogueSchema = z.object({ models: z.array(chatGptCatalogEntrySchema) })
+const catalogueRowSchema = z.looseObject({
+  slug: z.string().check(z.minLength(1)),
+  visibility: z.enum(['list', 'hide']),
+  supported_in_api: z.boolean(),
+})
+// The outer array carries only rows: one entry with a capability field this
+// build cannot parse (a `service_tiers` entry without a description) must
+// not fail the whole listing. Rows parse minimally here; capability facts
+// parse per row in `chatGptCatalog`, so that model still lists by slug,
+// without facts.
+const catalogueSchema = z.object({ models: z.array(z.unknown()) })
 const MODELS_URL = 'https://api.openai.com/v1/models'
 const RESPONSES_URL = 'https://api.openai.com/v1/responses'
 
@@ -92,12 +102,20 @@ export async function chatGptCatalog(
   }
   const parsed = catalogueSchema.safeParse(value)
   if (!parsed.success) throw new ChatGptSignInError('catalogue-unreadable')
-  const rows = parsed.data.models.filter((row) => row.visibility === 'list' && row.supported_in_api)
+  // A row without the listing fields cannot list; a row with them but with
+  // unparseable capability fields still lists by slug, without facts.
+  const rows: { readonly slug: string; readonly entry: unknown }[] = []
+  for (const row of parsed.data.models) {
+    const listing = catalogueRowSchema.safeParse(row)
+    if (!listing.success || listing.data.visibility !== 'list' || !listing.data.supported_in_api)
+      continue
+    rows.push({ slug: listing.data.slug, entry: row })
+  }
   const slugs = [...new Set(rows.map((row) => row.slug))]
   if (slugs.length === 0) throw new ChatGptSignInError('catalogue-empty')
   const facts = new Map<string, ChatGptPlanFacts>()
   for (const row of rows) {
-    const parsedFacts = chatGptPlanFacts(row)
+    const parsedFacts = chatGptPlanFacts(row.entry)
     if (parsedFacts !== undefined && !facts.has(row.slug)) facts.set(row.slug, parsedFacts)
   }
   return { slugs, facts }
@@ -598,7 +616,10 @@ export function createSubscriptionClient(
         )
         lastEventAt = Date.now()
         observePlanAnswer(admitAttempt, response)
-        if (!response.ok) throw await planRequestError(response)
+        // The error body reads under the stream-idle deadline too: headers
+        // that arrive with a stalled body end the turn instead of hanging it
+        // past cancellation, like a silent stream.
+        if (!response.ok) throw await withinIdle(planRequestError(response))
         if (response.body === null) {
           throw new ChatgptPlanRequestError(UI_TEXT.planUi.noReply, 'request-failed')
         }

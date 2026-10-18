@@ -9,10 +9,13 @@ import { createServer } from 'node:net'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { withChatGptRefreshLock } from '../../src/runtime/chatGptRefreshLock'
+import {
+  CHATGPT_REFRESH_LOCK_TIMEOUT_MS,
+  withChatGptRefreshLock,
+} from '../../src/runtime/chatGptRefreshLock'
 import { ChatGptSignInError } from '../../src/core/providers/subscriptions/chatgptHostId'
 import { chatGptCommandText } from '../../src/runtime/chatGptProviderCommands'
-import { CHATGPT_GRANT_LOCK_FILE } from '../../src/shared/constants'
+import { CHATGPT_GRANT_LOCK_FILE, OAUTH_CODE_TTL_MS } from '../../src/shared/constants'
 
 const scratch = { folder: '' }
 // Socket-file assertions only hold where the lock binds a Unix socket
@@ -332,6 +335,16 @@ describe('ACP ChatGPT process lock', () => {
       expect(sentence).not.toContain('temporarily unavailable')
     },
   )
+
+  it('waits the production contention deadline without a caller timeout', () => {
+    // Production never passes `timeoutMs` (`createRuntimeChatGptHost` has
+    // none); the wrapper restores the former `OAUTH_CODE_TTL_MS` default so
+    // a suspended lock holder reports `lock-busy` instead of hanging every
+    // account operation. The full wait is ten minutes, so the value is
+    // pinned here while the deadline mechanism itself is proven by the
+    // 40 ms `lock-busy` case above.
+    expect(CHATGPT_REFRESH_LOCK_TIMEOUT_MS).toBe(OAUTH_CODE_TTL_MS)
+  })
 
   it('refuses an already cancelled acquisition before running work', async () => {
     const directory = await lockDirectory('cancelled-')

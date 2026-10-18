@@ -1222,6 +1222,12 @@ export class ConversationController {
   private isThinkingEnabled = true
   /** The conversation's Fast switch; off by default, reset on model change. */
   private fast = false
+  /**
+   * The person chose Fast with no session: the next attach applies it to
+   * the new session. A choice made with a live session rides that session,
+   * never this flag, so a value left by an earlier conversation is not applied.
+   */
+  private isFastChosen = false
   private activeTurnId: string | undefined
   /**
    * Child sessions this surface has rows for. Their turns reach the parent
@@ -3979,9 +3985,13 @@ export class ConversationController {
       effort: this.effort,
       isThinkingEnabled: this.isThinkingEnabled,
     })
-    // Fast starts off on every session this surface takes, new or resumed: a
-    // flag left by an earlier conversation or another surface is not applied.
-    await this.updateFast(false)
+    // Fast starts off on every session this surface takes, new or resumed,
+    // unless the person chose it before any session existed: that pre-session
+    // choice applies to the first session, while a flag left by an earlier
+    // conversation or another surface is not applied.
+    const shouldApplyFast = this.isFastChosen && this.fast
+    this.isFastChosen = false
+    await this.updateFast(shouldApplyFast)
     if (this.session !== session || this.attachmentGeneration !== generation || this.isDisposed) {
       return
     }
@@ -10360,6 +10370,9 @@ export class ConversationController {
         break
       }
       case 'setFast': {
+        // With no session the choice waits for the first attach, which
+        // applies it; with a live session it rides that session directly.
+        if (this.session === undefined) this.isFastChosen = true
         await this.updateFast(message.enabled)
         break
       }

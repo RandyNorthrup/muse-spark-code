@@ -8,6 +8,7 @@ import {
   CHATGPT_GRANT_LOCK_DIR,
   CHATGPT_GRANT_LOCK_FILE,
   CHATGPT_GRANT_LOCK_PIPE,
+  OAUTH_CODE_TTL_MS,
 } from '../shared/constants'
 import { failureCodeNames } from '../core/networkFailure'
 import { ChatGptSignInError } from '../core/providers/subscriptions/chatgpt'
@@ -15,6 +16,13 @@ import { StoreUnavailableError } from './keyStore'
 import { NamedLockError, personScope, withNamedLock, type NamedLockOptions } from './namedLock'
 
 export type ChatGptLockOptions = NamedLockOptions
+
+/**
+ * The contention deadline production waits: a suspended process holding the
+ * grant lock reports `lock-busy` after this instead of hanging every CLI/ACP
+ * account operation forever. A caller-supplied `timeoutMs` still wins.
+ */
+export const CHATGPT_REFRESH_LOCK_TIMEOUT_MS = OAUTH_CODE_TTL_MS
 
 /** One person-scoped grant lock; no token, identity, file or child is involved. */
 export async function withChatGptRefreshLock<T>(
@@ -30,7 +38,7 @@ export async function withChatGptRefreshLock<T>(
         folder: `${CHATGPT_GRANT_LOCK_DIR}-${scope}`,
         file: CHATGPT_GRANT_LOCK_FILE,
       },
-      options,
+      { ...options, timeoutMs: options.timeoutMs ?? CHATGPT_REFRESH_LOCK_TIMEOUT_MS },
     )
   } catch (error) {
     if (error instanceof ChatGptSignInError) throw error

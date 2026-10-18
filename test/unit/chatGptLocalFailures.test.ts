@@ -5,10 +5,8 @@
 // provider or browser stand-in.
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { setTimeout as delay } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import { isInvalidProvidersFileError } from '../../src/acp/accountText'
-import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { type ChatGptSignInError } from '../../src/core/providers/subscriptions/chatgpt'
 import {
   createResponsesCodec,
@@ -20,9 +18,9 @@ import {
   runtimeSubscriptionClient,
 } from '../../src/runtime/chatGptProviderCommands'
 import { memorySecretStoreFor } from '../../src/runtime/exec/keyInput'
-import { stderrLogger } from '../../src/runtime/stderrLog'
-import { MODEL_API_BASE_URL, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
+import { testPlanMetaClient } from './helpers/chatGptGrant'
 
 /** What a person reads when a command ends in this failure. */
 function sentence(code: ChatGptSignInError['code'], reason?: string): string {
@@ -93,15 +91,7 @@ describe('local causes get their own sentence', () => {
         expect(isInvalidProvidersFileError(checked)).toBe(true)
         expect(checked instanceof Error ? checked.message : '').toBe(said)
         // A session reads it on its own path, beside the real Meta client.
-        const meta = new ModelApiClient({
-          fetch: globalThis.fetch,
-          baseUrl: MODEL_API_BASE_URL,
-          apiKey: async () => await secrets.get(SECRET_KEYS.modelApiKey),
-          sleep: (ms) => delay(ms),
-          now: Date.now,
-          random: Math.random,
-          log: stderrLogger((line) => process.stderr.write(`${line}\n`), 'warn'),
-        })
+        const meta = testPlanMetaClient(secrets)
         const session = await failureOf(factory.createClient(meta))
         expect(isInvalidProvidersFileError(session)).toBe(true)
         expect(session instanceof Error ? session.message : '').toBe(said)
