@@ -2,27 +2,28 @@
   "provenance": {
     "base": "c72aef8cd3",
     "groups": ["9483a6b8de", "81a393060c", "b7537ba6f3", "ba5d533709", "749fb4c8c5", "dfd2ec61f2"],
-    "unionBytes": 3786180,
-    "gateBytes": 3565158
+    "unionBytes": 3786202,
+    "gateBytes": 3565158,
+    "targetBytes": 3524198
   },
   "moves": [
     {
       "to": "decisions",
-      "heading": "### D1a — Locating and spawning `muse` per platform (verified 2026-09-22, Muse Code 1.3.0)",
+      "heading": "### D1a \u2014 Locating and spawning `muse` per platform (verified 2026-09-22, Muse Code 1.3.0)",
       "firstLine": "| OS                    | Install dir (installer default)                                             | Entry                                                                                            | Beside it                                                                                       | Credential                                                                                   |",
       "summary": "Discovered per-OS launch entries are used in a fixed order (the `museSpark.museBinaryPath` setting, then `PATH`, then the per-OS default install dir); on Windows the direct versioned exe spawns by default with the PowerShell-shim replication as fallback, on Linux and macOS the bash launcher spawn is direct, and no shell string is ever built (D4).",
       "reason": "Shipped per-OS install-dir record (1.3.0 paths); the Constraints and decisions list stays as the rule."
     },
     {
       "to": "decisions",
-      "heading": "### D15 — Harness parity: what the Claude Code extension preconfigures that we did not (2026-09-22)",
+      "heading": "### D15 \u2014 Harness parity: what the Claude Code extension preconfigures that we did not (2026-09-22)",
       "firstLine": "| Area                       | Claude Code                                                                                                                                                                                                                                                                                                         | Muse Spark Code before M12                                                                                                                                                             | Decision                                                                                                                                                                                                                                                                                                                                                                                                                 |",
       "summary": "The owner asked whether the files the Claude Code extension ships preconfigured hold things this extension should have. Findings and the decision for each: everything marked M12 ships in 0.3.0.",
       "reason": "September harness-parity findings for M12 (shipped in 0.3.0); no test or script cites this table."
     },
     {
       "to": "decisions",
-      "heading": "### D16 — Production-readiness verification and its findings (2026-09-22)",
+      "heading": "### D16 \u2014 Production-readiness verification and its findings (2026-09-22)",
       "firstLine": "| Check                    | Finding                                                                                                                                                                                                                                                          | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |",
       "lastLine": "the defect it found are in `docs/certification/release-0.9.0.md`.",
       "summary": "The owner asked for proof of an enterprise production grade app fully working in a big proprietary repo. The tree was checked marker by marker: the findings table stands, and the M13 follow-ups it produced.",
@@ -30,21 +31,21 @@
     },
     {
       "to": "decisions",
-      "heading": "### D17 — Subagents, the Agent map, the Account & Usage modal, and the smaller parity gaps, in one milestone (2026-09-22)",
+      "heading": "### D17 \u2014 Subagents, the Agent map, the Account & Usage modal, and the smaller parity gaps, in one milestone (2026-09-22)",
       "firstLine": "| Area                    | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |",
       "summary": "The owner asked for four things in the same evening and then said stop: show subagents and Agent files in the panel, run them on a schedule, edit rules in a settings page, and skills. Findings for each; the M13 gaps the Agent work left.",
       "reason": "September subagent findings and the M13 gaps (all shipped); no live table."
     },
     {
       "to": "decisions",
-      "heading": "### D31 — Rewind finds a hunk that only moved (2026-09-24)",
+      "heading": "### D31 \u2014 Rewind finds a hunk that only moved (2026-09-24)",
       "firstLine": "- **First look:** the hunk's lines (context plus the edit's own) are looked",
       "summary": "A reader asked whether a hand edit in the same lines rewind misses; it does not. The owner's go-ahead (2026-09-24): yes, fix it. A moved hunk is matched exactly, never guessed.",
       "reason": "Shipped rewind matching rule (0.3.x); the question and the owner's go-ahead stay as the rule."
     },
     {
       "to": "decisions",
-      "heading": "### D35 — Replay as Meta validates it (2026-09-25)",
+      "heading": "### D35 \u2014 Replay as Meta validates it (2026-09-25)",
       "firstLine": "- **Commentary.** Text the model writes before a tool call comes back with",
       "lastLine": "and only the retried response is replayed.",
       "summary": "Replay as Meta validates it: a full read of the Model API documentation for the parity audit found two wrong items (code execution and web search): both are fixed, and two missing retry rules were added.",
@@ -52,14 +53,14 @@
     },
     {
       "to": "decisions",
-      "heading": "### D44 — Versions stay below 1.0 until the owner calls it (2026-09-25)",
+      "heading": "### D44 \u2014 Versions stay below 1.0 until the owner calls it (2026-09-25)",
       "firstLine": "- **Minor for a batch of features, patch for fixes.** The minor number keeps",
       "summary": "The owner (2026-09-25): no 1.0 until the app is ready; the minor counts past nine, patch counts fixes back in time, and releases bunch by four-day train windows.",
       "reason": "Shipped pre-1.0 versioning mechanics; the owner's ruling stays as the rule."
     },
     {
       "to": "decisions",
-      "heading": "### D64 — Exposure-preserving import, replacing credential detection (2026-10-02)",
+      "heading": "### D64 \u2014 Exposure-preserving import, replacing credential detection (2026-10-02)",
       "firstLine": "The preview lists kind, source item name, scope and target path, never",
       "lastLine": "`docs/certification/m83e.md`. Full quality and native UI remain lead-owned.",
       "summary": "Five independent review rounds found spellings that bypassed credential detection. M83 owns destinations instead of inspecting content: the preview lists kind, source item name, scope and target path, never values.",
@@ -67,7 +68,7 @@
     },
     {
       "to": "decisions",
-      "heading": "### D71 — Muse Gadgets: help build them, never become one (M92, 2026-10-04)",
+      "heading": "### D71 \u2014 Muse Gadgets: help build them, never become one (M92, 2026-10-04)",
       "firstLine": "**What the SDK is (checked 2026-10-04):**",
       "lastLine": "  cloud assistant run any command there; README and the skill say so.",
       "summary": "The owner asked whether Meta's Muse Gadgets belong in the extension to make programming and working with devices easier, and approved the scope on 2026-10-04: help build gadgets (bounded device commands, tokens kept as secrets, an optional skill, the phone ping as a recipe), never become one (no Linux gadget service on a dev machine, no prosthesis for Cursor).",
@@ -75,7 +76,7 @@
     },
     {
       "to": "decisions",
-      "heading": "### D101 — Evidence-backed agent activity, outcomes and recovery (M119, owner 2026-10-06)",
+      "heading": "### D101 \u2014 Evidence-backed agent activity, outcomes and recovery (M119, owner 2026-10-06)",
       "firstLine": "| Source                               | Available evidence                                                                                                                                   | Limits and recovery                                                                                                                                                                                                                                                                                                      |",
       "lastLine": "outcome changes have a polite announcement. Harness states run in four themes.",
       "summary": "The Agent map and ACP listing separate activity (Active, Waiting with a reason, Scheduled, Recent, Queued, Blocked-needs-action, Background, Dead) from evidence (owned conversations, handoffs, tool calls, verification, errors, cost): activity rows stay live, evidence rows stay inspectable.",
@@ -83,7 +84,7 @@
     },
     {
       "to": "decisions",
-      "heading": "### D105 — Windows trusted paths: a trusted root, links above it by identity (TRUSTROOT, 2026-10-09)",
+      "heading": "### D105 \u2014 Windows trusted paths: a trusted root, links above it by identity (TRUSTROOT, 2026-10-09)",
       "firstLine": "- At and above the root, links and redirection are accepted. The root is",
       "lastLine": "`docs/certification/trustroot.md`.",
       "summary": "Owner rule (2026-10-08, Windows paths: any drive): profile folders may be links; links at and above a trusted root are accepted by resolved identity, links inside that escape are refused. Lead decision (2026-10-09): the verifier checks against the owned root by identity, never string prefix.",
@@ -91,29 +92,29 @@
     },
     {
       "to": "decisions",
-      "heading": "### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)",
+      "heading": "### D108 \u2014 Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)",
       "firstLine": "- **A test stays only if it runs real code** (no `vi.mock`, fake timers,",
       "summary": "The owner, verbatim: get the useless tests, streamline it, and prove the gate short. A test stays only if it runs real code (no stand-ins, no fakes, no screenshot or frame comparison); no coverage gate; the short gate and the real-life run are the proof.",
       "reason": "Completed test-overhaul record (the current no-fakes rule); the owner's verbatim order stays."
     },
     {
       "to": "milestones",
-      "heading": "### M53 — Conversation rewind and side chat (D46)",
+      "heading": "### M53 \u2014 Conversation rewind and side chat (D46)",
       "firstLine": "- **C-M53-1 Windows retest (2026-10-10, probes complete).** Captured Muse Code",
       "pointer": true,
       "reason": "Closed probe records on a released milestone section (shipped 0.14.0); stub keeps heading, status, and a fresh pointer."
     },
     {
       "to": "milestones",
-      "heading": "### M56 — Enterprise network and posture (D43)",
+      "heading": "### M56 \u2014 Enterprise network and posture (D43)",
       "firstLine": "- **MSM56 finish (2026-10-17).** While `http.proxy` is set on an editor",
       "linked": true,
       "reason": "Release lane MSM56 finished (PR #190, merged); the closed milestone section keeps its stub."
     },
     {
       "to": "milestones",
-      "heading": "### PROVWIRE — Provider setup through the real transport and panel (2026-10-09)",
-      "firstLine": "Completed: F2–F7 are capture-backed through the real facade, with 14",
+      "heading": "### PROVWIRE \u2014 Provider setup through the real transport and panel (2026-10-09)",
+      "firstLine": "Completed: F2\u2013F7 are capture-backed through the real facade, with 14",
       "lastLine": "commits, committed-diff review and certification in `docs/certification/cx1.md`.",
       "linked": true,
       "reason": "Closed provider-wiring rounds (shipped 0.17.1); all checklist items checked; stub keeps heading, status, and pointer."
@@ -144,7 +145,8 @@
       "heading": "VIS0171 0.17.1 visual refresh (2026-10-10)",
       "firstLine": "**VIS0171 0.17.1 visual refresh (2026-10-10, linuxlt).** Compare the full",
       "pointer": true,
-      "reason": "Closed visual-refresh record (shipped 0.17.1); its checklist stays; verified, no longer worked on."
+      "reason": "Closed visual-refresh record (shipped 0.17.1); its checklist stays; verified, no longer worked on.",
+      "lastLine": "and a strict production-schema regression; never relax the message schema."
     },
     {
       "to": "gates",
@@ -235,15 +237,7 @@
       "heading": "CIFIXM macOS CI repair scope with CIFIXV hosted visual repair (2026-10-09)",
       "firstLine": "**CIFIXM macOS CI repair scope (2026-10-09).** Reproduce the reporting",
       "pointer": true,
-      "reason": "Closed CI repair scope with its visual-repair paragraph; verified, no longer worked on."
-    },
-    {
-      "to": "gates",
-      "heading": "CIFIXV hosted visual repair (2026-10-09, linuxlt)",
-      "firstLine": "- [x] Prove historical schedule loading fails before the repair and passes after.",
-      "lastLine": "for the lead's integration gate. Receipt: `docs/certification/cifixv.md`.",
-      "pointer": true,
-      "reason": "Closed visual-repair record (all checklist items checked); verified, no longer worked on."
+      "reason": "Closed macOS CI repair scope with its hosted visual repair record (one block); verified, PR merged, no longer worked on. (Round-1 entry 32 names the same block's second half and is folded here; the join archives the block once.)"
     },
     {
       "to": "gates",
@@ -264,7 +258,8 @@
       "heading": "M119PLAN documentation-only certification (2026-10-07)",
       "firstLine": "**M119PLAN documentation-only certification (2026-10-07, Kubuntu; planned",
       "pointer": true,
-      "reason": "Closed planning-lane record (M119, released in 0.16.0); verified, no longer worked on."
+      "reason": "Closed planning-lane record (M119, released in 0.16.0); verified, no longer worked on.",
+      "lastLine": "repeats changed-file formatting after recording this receipt."
     },
     {
       "to": "gates",
@@ -278,7 +273,8 @@
       "heading": "MSM113 finish (2026-10-17)",
       "firstLine": "**MSM113 finish (2026-10-17, linuxlt).** Merged `main-now` and flipped the",
       "pointer": true,
-      "reason": "Release lane MSM113 finished (PR #243, merged); verified, no longer worked on; its open checklist stays."
+      "reason": "Release lane MSM113 finished (PR #243, merged); verified, no longer worked on; its open checklist stays.",
+      "lastLine": "estimator shared-module cycle, and six jscpd clones."
     },
     {
       "to": "gates",
@@ -301,6 +297,486 @@
       "lastLine": "`docs/certification/m113-session-usage-c-m113-2.md`.",
       "pointer": true,
       "reason": "Closed M113 round with its R2 qualification note (setup failures recorded as lead deferrals, nothing relaxed)."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D74 \u2014 Bring-your-own model providers and subscription sign-in (M95, M95b, M95c, 2026-10-04)",
+      "firstLine": "The owner, 2026-10-04: \"as an expansion to the byo agents i would like to",
+      "summary": "Bring-your-own model providers use one canonical format, with adapters only at the wire: `ModelApiHost` keeps building one body and reading one stream, and every provider other than Meta is the shared transport plus a codec behind the `ProviderClient` interface. A BYO model is referenced as `<providerId>/<modelId>`; Meta's models stay bare, so every Meta request, stored session and hook payload keeps its bytes. Providers live in one user-level file, `providers.json`, which never holds a credential, and every credential is bound to the exact origin it was obtained for. Transport is HTTPS only, with plain HTTP only to a loopback address. Prices drive budgets and are never guessed. Subscription sign-in (M95b) uses official, provider-sanctioned flows only; another application's client or stored tokens are never read or reused.",
+      "reason": "Shipped BYO-provider/subscription design record (M95/M95b); the rule paragraph stays. The union holds D74 twice (full record here, archived stub at the second occurrence); this move archives the record under the existing D74 archive heading and the join deletes the duplicate stub (see duplicates). No test or script cites these lines."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D49 \u2014 Coding quality first: what to build next (2026-09-27)",
+      "firstLine": "The owner (2026-09-27):",
+      "summary": "Coding quality first: the ranking rule (what most improves the code the user gets comes first \u2014 the model seeing its edits' effects, understanding the code, reading the pages it needs; then reviewing and shipping, fewer tokens on long tasks, more agents safely, connectivity; both-backends-first within a wave), the carried rules (model calls beyond the user's own turn are billed, opt in, priced and ask first; Restricted Mode runs no git or shell; token/quality trades ship only after M75's paired evaluation holds the floors; one-token ide-server tool constraints), and the M67\u2013M85 wave batch it ordered (all shipped).",
+      "reason": "Shipped 2026-09 batch-ordering record (M67\u2013M85 all shipped); the ranking rule and carried rules stay as the rule. No test or script cites these lines."
+    },
+    {
+      "to": "decisions",
+      "heading": "### D118 \u2014 Refusals read by shape, retried by code, stored without leaks (lanes PROVERR round 2 + PROVERRR2, 2026-10-13; numbered D109 until 2026-10-17, renumbered with D117)",
+      "firstLine": "**Rule in force.** One extractor reads an error body by what it IS (an",
+      "summary": "One extractor reads an error body by what it IS, whatever the wire format; the status and the provider's documented type, code or reason decide the kind, a phrase only where a recorded answer shows the provider gives nothing else. Retry follows the preset's own table with the envelope code (a quota 429 never retries while a bare one does); Anthropic max_tokens maps as documented. Parity: a bad key reads authentication at all eleven recorded providers, an unknown model reads notFound at all twelve.",
+      "reason": "Shipped refusal-shape design record (PROVERR lanes, merged); the Rule-in-force paragraph stays as the rule. A src comment cites D118 as authority; the heading and rule stay, so it keeps resolving. No test or script cites these lines."
+    },
+    {
+      "to": "gates",
+      "heading": "FIXM109C review repair (2026-10-05)",
+      "firstLine": "**FIXM109C review repair (2026-10-05, Mac mini).** All five RVM109C findings",
+      "pointer": true,
+      "reason": "All five review findings fixed and drilled (61 tests, 20 red executions); W owns the host-API regeneration. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "C-M109-1b scoped qualification (2026-10-10)",
+      "firstLine": "**C-M109-1b scoped qualification (2026-10-10, Kubuntu).** The lane brief",
+      "pointer": true,
+      "reason": "Targeted gates all exit 0; pre-existing budget repair and visual approval deferred to the lead. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "M109 H verification deferral (2026-10-06)",
+      "firstLine": "**M109 H verification deferral (2026-10-06).** H58 proves unconditional",
+      "pointer": true,
+      "reason": "H58 unconditional-denial proof with the fake-path assertion explicitly removed and recorded. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "M95R3 integration gate status (2026-10-05)",
+      "firstLine": "**M95R3 integration gate status (2026-10-05).** The rig authorizes local",
+      "pointer": true,
+      "reason": "Old integration-gate status with scoped receipts; lead owns the rerun. Verified lane record (receipts in docs/certification), PR merged, no longer worked on.",
+      "lastLine": "assertion, coverage threshold, ignore, deadline or rule is relaxed."
+    },
+    {
+      "to": "gates",
+      "heading": "FIXM102J scoped repair receipt (2026-10-05)",
+      "firstLine": "**FIXM102J scoped repair receipt (2026-10-05).** The five owned test files",
+      "pointer": true,
+      "reason": "71/71 tests with named lead-owned deferrals (also \u00a79). Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "M94KR3 scoped qualification (2026-10-09)",
+      "firstLine": "**M94KR3 scoped qualification (2026-10-09, kubuntu).** The lane's required",
+      "pointer": true,
+      "reason": "Required suites pass; unrelated fixture/harness repairs left to the lead. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "REDM109B / D99 (2026-10-06)",
+      "firstLine": "**REDM109B / D99 (2026-10-06, Mac mini).** The broker core is a synchronous",
+      "pointer": true,
+      "reason": "Synchronous broker core with 282 vault tests and byte-exact drills; supersedes FIXM109B await inventories. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "CM1091CR2 round-3 qualification scope (2026-10-10)",
+      "firstLine": "**CM1091CR2 round-3 qualification scope (2026-10-10, Win11).** The rig",
+      "pointer": true,
+      "reason": "Core merge completed; stopped fixture path removed with receipts. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "M109 lane 0 contract slice (2026-10-05)",
+      "firstLine": "**M109 lane 0 contract slice (2026-10-05, Kubuntu).** The item/material,",
+      "pointer": true,
+      "reason": "Contracts supplied with 91 tests and 144 drills; bindings await integration lanes. Verified lane record (receipts in docs/certification), PR merged, no longer worked on.",
+      "lastLine": "lanes and captures pass."
+    },
+    {
+      "to": "gates",
+      "heading": "EXECPROV round 4 scoped qualification (2026-10-12)",
+      "firstLine": "**EXECPROV round 4 scoped qualification (2026-10-12, kubuntu).** The",
+      "pointer": true,
+      "reason": "Hotfix merge kept with drills; pin finding for the lead. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "CM109LEASER2 qualification (2026-10-11)",
+      "firstLine": "**CM109LEASER2 qualification (2026-10-11, Win11).** The six in-scope",
+      "pointer": true,
+      "reason": "Six findings implemented; replay paths stay lead-owned. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "CM1013B scoped rig verification (2026-10-11)",
+      "firstLine": "**CM1013B scoped rig verification (2026-10-11, kubuntu).** The task's named",
+      "pointer": true,
+      "reason": "Named suites pass; production-split repair stays with the lead. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "FIXM112Q bounded-lane certification (2026-10-06)",
+      "firstLine": "**FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief",
+      "pointer": true,
+      "reason": "Owning suites and drills pass; no review finding deferred. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "FIXM109B5 / RVM109B4 (2026-10-06)",
+      "firstLine": "**FIXM109B5 / RVM109B4 (2026-10-06, Mac mini).** All five findings are fixed;",
+      "pointer": true,
+      "reason": "All five findings fixed (313 tests, byte-exact drills). Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "CM109JOINB review scoped/native qualification (2026-10-11)",
+      "firstLine": "**CM109JOINB review scoped/native qualification (2026-10-11, Kubuntu).** The",
+      "pointer": true,
+      "reason": "Native receipts and retirement checks exit 0; availability stays off. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "M113-K bounded review gates (2026-10-06)",
+      "firstLine": "**M113-K bounded review gates (2026-10-06).** The rig brief and shared lane",
+      "pointer": true,
+      "reason": "Scoped gates pass; lane-0 handoffs remain. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "LEFT017 bounded deferrals (2026-10-08)",
+      "firstLine": "**LEFT017 bounded deferrals (2026-10-08).** Keep every visual assertion and",
+      "pointer": true,
+      "reason": "Bounded 0.17.0-leftover deferrals with exact gate failures recorded. (A harness theme file names LEFT017B, a different lane; not this passage.) Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "FIXM109L0 review repair (2026-10-05)",
+      "firstLine": "**FIXM109L0 review repair (2026-10-05, Mac mini).** RVM109L0's two P2",
+      "pointer": true,
+      "reason": "Findings fixed with 100 tests and 21 red drills. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "C-M109-1c scoped qualification (2026-10-10)",
+      "firstLine": "**C-M109-1c scoped qualification (2026-10-10).** The lane/common brief",
+      "pointer": true,
+      "reason": "Owning files pass; logon-session failures retained without skips. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "M123P9 inherited gate failures (2026-10-09)",
+      "firstLine": "**M123P9 inherited gate failures (2026-10-09, win11).** The scoped repair",
+      "pointer": true,
+      "reason": "Eleven suites pass; inherited clones/governor repair stays with the lead. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "FLAKETH20 scoped gate delegation (2026-10-07)",
+      "firstLine": "**FLAKETH20 scoped gate delegation (2026-10-07, win11).** The shared lane",
+      "pointer": true,
+      "reason": "690 executions pass; cold-start failure recorded, no gate weakened. Verified lane record (receipts in docs/certification), PR merged, no longer worked on.",
+      "lastLine": "or product source changes were introduced."
+    },
+    {
+      "to": "gates",
+      "heading": "M71m CLI accessibility runner deferral (2026-10-02)",
+      "firstLine": "**M71m CLI accessibility runner deferral (2026-10-02).** Required bounded",
+      "pointer": true,
+      "reason": "Bounded checks pass; CLI-runner failure stays with the lead. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "FIXM109B2 / RVM109B2 (2026-10-06)",
+      "firstLine": "**FIXM109B2 / RVM109B2 (2026-10-06, Mac mini).** All four findings are",
+      "pointer": true,
+      "reason": "All four findings fixed (259 tests, 17 red drills). Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "M124 round 7 lane verification (2026-10-09)",
+      "firstLine": "**M124 round 7 lane verification (2026-10-09, Windows 11).** Native connector",
+      "pointer": true,
+      "reason": "172 tests pass; storage/DACL deferrals remain open. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "FIXM112A (2026-10-06)",
+      "firstLine": "**FIXM112A (2026-10-06, RVM112A).** Repair all six ACP findings in lane A:",
+      "pointer": true,
+      "reason": "Six ACP findings repaired with regressions and red drills. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "CM971R5 gate receipt (2026-10-11)",
+      "firstLine": "**CM971R5 gate receipt (2026-10-11).** The lead's closed holder forms",
+      "pointer": true,
+      "reason": "Holder forms and 11,437 tests pass; vocab pinned. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "MENUFAN scoped verification (2026-10-10)",
+      "firstLine": "**MENUFAN scoped verification (2026-10-10, Kubuntu).** Run the brief's",
+      "pointer": true,
+      "reason": "Focused suites pass; exploratory smoke reverted, no gate weakened. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "M95R4 continuation (2026-10-05)",
+      "firstLine": "**M95R4 continuation (2026-10-05).** The requested two diet merges and",
+      "pointer": true,
+      "reason": "Diet merges repair caps; credential CLI stays open acceptance work. Verified lane record (receipts in docs/certification), PR merged, no longer worked on.",
+      "lastLine": "is inferred from the offline transport tests."
+    },
+    {
+      "to": "gates",
+      "heading": "M109 P Windows bounded-lane gates and capture deferral (2026-10-06)",
+      "firstLine": "**M109 P Windows bounded-lane gates and capture deferral (2026-10-06).**",
+      "pointer": true,
+      "reason": "Hook-on gates pass; Hello/DPAPI captures need integration rigs. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "Estimator panel bundle budget (closed 2026-10-17)",
+      "firstLine": "**Estimator panel bundle budget (closed 2026-10-17, corrected).** The earlier",
+      "pointer": true,
+      "reason": "Disposition closed: re-baselined by the documented rule, build green. Dated 2026-10-17 but explicitly closed in text; verified, no longer worked on. Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "gates",
+      "heading": "Resolved in integration (lane W, 2026-10-04)",
+      "firstLine": "**Resolved in integration (lane W, 2026-10-04, accepted by the lead).** The import bundle's cap is 175 KiB under the D6 rule (147.7 KiB measured, plus 15%, rounded up to 25 KiB); see the D6 table.",
+      "pointer": true,
+      "reason": "Lead-accepted integration resolutions (import cap, knip, deflake). Verified lane record (receipts in docs/certification), PR merged, no longer worked on."
+    },
+    {
+      "to": "milestones",
+      "heading": "### BCSTART \u2014 The browser check's start on Windows (2026-10-18)",
+      "firstLine": "- **Rule.** The browser check's contract read (M81) waits for the browser to",
+      "pointer": true,
+      "reason": "Released by this release: status built 2026-10-18, no checklist, no open items; PR #222 (fix/browser-check-route) merged in this release implements exactly this rule. Also listed under releasedByThisRelease with evidence.",
+      "lastLine": "  200 checks measured; hosted run 39083561745)."
+    },
+    {
+      "to": "milestones",
+      "heading": "### ENVFENCE \u2014 Shell credential fence (D89.5, security fix for 0.14.1)",
+      "firstLine": "- [x] Shared credential matcher and fences at model process entry.",
+      "lastLine": "      `docs/certification/envfence.md`; aggregate quality remains the lead's gate.",
+      "linked": true,
+      "reason": "Closed section's completed checklist follows its text into the archive; section already links to the archive. Status complete, no open items; certification record named in status. No test or script cites these lines."
+    },
+    {
+      "to": "milestones",
+      "heading": "### TRAIN15H \u2014 Restore the inherited startup ratchet (2026-10-06, win11)",
+      "firstLine": "- [x] Compare emitted startup input bytes against main `61d8647c2` and train",
+      "lastLine": "      in `docs/certification/train-0.15.0.md` and its TRAIN15H receipt.",
+      "linked": true,
+      "reason": "Closed section's completed checklist follows its text into the archive; section already links to the archive. Status complete, no open items; certification record named in status. No test or script cites these lines."
+    },
+    {
+      "to": "milestones",
+      "heading": "### CI0150A \u2014 Clean-shard artifacts and portable certification (2026-10-07)",
+      "firstLine": "- [x] Reproduce clean `CI=true` failures for configured providers, headless BYO,",
+      "lastLine": "      bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.",
+      "linked": true,
+      "reason": "Closed section's completed checklist follows its text into the archive; section already links to the archive. Status complete, no open items; certification record named in status. No test or script cites these lines."
+    },
+    {
+      "to": "milestones",
+      "heading": "### FIXAGENTOUT \u2014 Independent M119 review repairs (2026-10-07)",
+      "firstLine": "- [x] Five regressions fail on the reviewed revision and pass after repair.",
+      "lastLine": "- [x] CHANGELOG and `docs/certification/agent-outcomes.md` repair receipts.",
+      "linked": true,
+      "reason": "Closed section's completed checklist follows its text into the archive; section already links to the archive. Status complete, no open items; certification record named in status. No test or script cites these lines."
     }
+  ],
+  "duplicates": [
+    {
+      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "firstLine": "**C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every",
+      "lastLine": "interface commit.",
+      "kind": "byte-identical",
+      "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
+    },
+    {
+      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "firstLine": "1. **Broker protocol v2** (`VAULT_PROTOCOL_VERSION` 2).",
+      "lastLine": "    - Nothing blocks or waits on it. C-M109-11 states it as not offered.",
+      "kind": "byte-identical",
+      "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
+    },
+    {
+      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "firstLine": "The split:",
+      "kind": "byte-identical",
+      "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
+    },
+    {
+      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "firstLine": "- **(a)**, the host lane: the protocol, grants, anchor, setup flow,",
+      "lastLine": "- **(c)**, Codex on the Win11 VM: the Windows natives.",
+      "kind": "byte-identical",
+      "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
+    },
+    {
+      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "firstLine": "**C-M109-1 (a) status (2026-10-10, branch `c/m109-1`).** Built on fakes and",
+      "lastLine": "certified in `docs/certification/m109.md` (\"C-M109-1 part (a)\"):",
+      "kind": "byte-identical",
+      "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
+    },
+    {
+      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "firstLine": "- protocol v2 in the channel and the client (watch included);",
+      "lastLine": "- strings in all 14 tables.",
+      "kind": "byte-identical",
+      "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
+    },
+    {
+      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "firstLine": "The vault still refuses every use with `vault.brokerBlocked`, as 0.17.0",
+      "lastLine": "does. Three things are open, and the vault goes live when all three land:",
+      "kind": "byte-identical",
+      "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
+    },
+    {
+      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "firstLine": "1. `vaultClientPlatform` (`src/runtime/vault/clientPlatform.ts`) is bound by",
+      "lastLine": "   page.",
+      "kind": "near-duplicate-keep-newer",
+      "reason": "Older form (passage B: panel not mounted in 0.17.0); the same numbered list stands newer earlier in the section (mounted behind the broker gate, tested). Join keeps the newer one."
+    },
+    {
+      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "firstLine": "No checklist item above is ticked by this step.",
+      "kind": "byte-identical",
+      "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
+    },
+    {
+      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "firstLine": "Review found and repaired missing commit-time Lock checks in first",
+      "lastLine": "broker or panel checklist.",
+      "kind": "byte-identical",
+      "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
+    },
+    {
+      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "firstLine": "**C-M109-1 (a) additions (2026-10-10, lead decisions).**",
+      "kind": "byte-identical",
+      "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
+    },
+    {
+      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "firstLine": "**CM1091A4 review repair (2026-10-10, win11).** Close all nine",
+      "lastLine": "pass alongside the complete panel-host and notification regressions.",
+      "kind": "byte-identical",
+      "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
+    },
+    {
+      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "firstLine": "- **Reset Vault.** It is offered only when this user's anchor names a vault",
+      "lastLine": "    after registration.",
+      "kind": "byte-identical",
+      "reason": "Second copy (passage B); first copy stands earlier in the same section. Join deletes it; nothing is lost."
+    },
+    {
+      "heading": "### D3 \u2014 Quality toolchain versions (verified against the npm registry 2026-09-21)",
+      "firstLine": "DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,",
+      "lastLine": "`docs/certification/deps-0150.md`; existing audit exceptions stay unchanged.",
+      "kind": "byte-identical",
+      "reason": "Second copy in the same D3 section; first copy stands earlier. Join deletes it; nothing is lost."
+    },
+    {
+      "heading": "### D3 \u2014 Quality toolchain versions (verified against the npm registry 2026-09-21)",
+      "firstLine": "DEP138 selection: accept ACP SDK 1.5.1, Vitest/V8 coverage 5.0.3, jscpd",
+      "lastLine": "The shipped lint configuration and 6144 MiB flag remain release-base values.",
+      "kind": "byte-identical",
+      "reason": "Second copy in the same D3 section; first copy stands earlier. Join deletes it; nothing is lost."
+    },
+    {
+      "heading": "### M109 \u2014 A credential vault and broker for agents (D89)",
+      "firstLine": "**CM1091A3 scoped rig qualification (2026-10-10, linuxlt).** The explicit",
+      "lastLine": "separate lead step.",
+      "kind": "byte-identical",
+      "reason": "Standalone second copy; the identical record also stands embedded in the C-M109-1b block the moves list archives once. Join deletes the standalone copy; nothing is lost."
+    },
+    {
+      "heading": "### D140 \u2014 Claimed-shipped milestones: an `@unwired` tag is resolved by the user-visible promise (MSM58M69, 2026-10-17)",
+      "kind": "stale-collision-heading",
+      "reason": "Bare heading with no body; \u00a710 records the collision resolved (claimed-shipped milestones move to D204, whose full section stands next). Join deletes the leftover heading; nothing is lost."
+    },
+    {
+      "heading": "### D74 \u2014 Bring-your-own model providers and subscription sign-in (M95, M95b, M95c, 2026-10-04)",
+      "firstLine": "Bring-your-own model providers use one canonical format, with adapters only at",
+      "lastLine": "[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).",
+      "kind": "duplicate-stub",
+      "reason": "Second D74 stub; after the D74 record move above, the surviving stub at the record carries the same rule. Join deletes this copy; nothing is lost."
+    },
+    {
+      "heading": "### D6 \u2014 Bundle budgets (Phase 6)",
+      "firstLine": "__D6_EXTRA_COPIES__",
+      "kind": "byte-identical-list",
+      "reason": "The 23 rationale paragraphs below stand 3\u20134 times each in D6 (keep-both lists from the groups); the join keeps the first copy of each and deletes the rest (53 ranges, 8,212 bytes, enumerated in the proof). Separately the old `dist/modelApi.js` rationale form stands 3 times while the newer form stands once; the join keeps the newer form (strict prefix).",
+      "bodies": [
+        "`dist/museCodeReviewer.js` budget rationale (M90)",
+        "`dist/bundledSkills.js` budget rationale (M89)",
+        "`dist/codeIntel.js` budget rationale (2026-10-03)",
+        "`dist/planMarkdown.js` budget rationale (M79)",
+        "`dist/voice.js` budget rationale (2026-10-03)",
+        "`dist/pageWorker.js` budget rationale (M69)",
+        "`dist/checkpointStore.js` budget rationale (M72)",
+        "`dist/review.js` budget rationale (M70)",
+        "`dist/sessionBoard.js` budget rationale (M78b)",
+        "`dist/reviewer.js` budget rationale (M78b)",
+        "`dist/extension.js` budget rationale (M7)",
+        "`dist/acp.js` budget rationale",
+        "`dist/uiText.js` budget rationale (shared English fallback)",
+        "`dist/modelApi.js` budget rationale (M57, old form; newer form kept)",
+        "`dist/agentImport.js` budget rationale (M83)",
+        "`dist/validation.js` budget rationale (M95INT2)",
+        "`dist/webview/main.js` budget rationale (including React)",
+        "`dist/webview/models.js` budget rationale (TRAIN15E)",
+        "`dist/modelsPanel.js` budget rationale (TRAIN15E)",
+        "`dist/providers.js` budget rationale (TRAIN15E)",
+        "`.vsix` budget rationale (2026-10-03 cohort form)",
+        "`.vsix` budget rationale (TRAIN15G form)",
+        "Deferred Account & usage chunk budget rationale (M95INT2)"
+      ]
+    },
+    {
+      "heading": "### D92 \u2014 Questions that never block (M112, 2026-10-05)",
+      "firstLine": "The owner, 2026-10-05:",
+      "kind": "near-duplicate-for-review",
+      "reason": "Second, older and shorter D92 design record (ends with ---; lacks the M112 integration amendments of the first). Only 583 of its 4,731 bytes stand in the newer copy, so it is NOT a safe byte-identical deletion: the join keeps the newer copy and the lead decides whether the older copy's unique detail is superseded (delete) or worth archiving with D92's record. Not counted in the byte proof."
+    },
+    {
+      "heading": "### M95 \u2014 Bring-your-own model providers (D74)",
+      "firstLine": "The Providers section then lists each provider with its test state,",
+      "kind": "near-duplicate-for-review",
+      "reason": "A ~290-line mangled copy of M95's \u00a76 lane list, Acceptance and Tests sits in \u00a77 (dedented, col-0 items 9\u201319); ~18 KB of it matches \u00a76 modulo whitespace, but the copy carries a unique DEFLAKE3 record and an archive pointer and the \u00a76 side stays open work. The join repairs it (keeps \u00a76, re-homes DEFLAKE3, deletes the rest); repairing it also unblocks the FIXM95G move whose block it currently glues. Not counted in the byte proof."
+    },
+    {
+      "heading": "### Webview estimator import closure budget rationale (near-duplicate)",
+      "firstLine": "**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB",
+      "kind": "near-duplicate-for-review",
+      "reason": "The older sentence stands next to the newer D119 re-baseline that supersedes it, but the older block continues with unique R7 diagnostic-vocabulary text. The join keeps the newer sentence and re-homes the R7 continuation. Not counted in the byte proof."
+    }
+  ],
+  "releasedByThisRelease": [
+    {
+      "heading": "### M56 \u2014 Enterprise network and posture (D43)",
+      "firstLine": "- **MSM56 finish (2026-10-17).** While `http.proxy` is set on an editor",
+      "status": "**Status 2026-09-27: built.**",
+      "pr": "PR #190 (ms/msm56) merged in this release (\u00a710: 0.19.0 preparation record).",
+      "reason": "Status complete (no checklist, no open/waits/still/not-claimed words); the MSM56 record the move archives is this release's completion evidence."
+    },
+    {
+      "heading": "### BCSTART \u2014 The browser check's start on Windows (2026-10-18)",
+      "firstLine": "- **Rule.** The browser check's contract read (M81) waits for the browser to",
+      "status": "**Status 2026-10-18: built.** Status evidence: `docs/certification/bcstart.md`.",
+      "pr": "PR #222 (fix/browser-check-route) merged in this release (\u00a710 record); it implements exactly this Rule.",
+      "reason": "Status complete (no checklist, no open/waits/still/not-claimed words); the release PR is the completion. Its Rule+Why move is in the moves list."
+    }
+  ],
+  "notes": [
+    "Order for the join: (1) merge-repair deletions under duplicates (byte-identical kind), (2) fix the two pre-existing drift items (tripled '## 3' headings at the union's \u00a7\u00a73 lines; the M95 status-phrase at the MSM95 status line \u2014 the archive script refuses to write while drift > 0), (3) translate moves to line numbers on the repaired file, (4) run move --batch (with --allow-fact-change: the only fact changes are the four closed-milestone checklist moves), prove with the byte-for-byte rebuild and test/unit/planArchive.test.ts, then delete this file.",
+    "Round-1 entry CIFIXV (32) is folded into CIFIXM (31): one block in the union; the join archives it once.",
+    "MSM113's range is narrowed to its own paragraph: the wider run would take M113's Certification checklist (facts).",
+    "M53's range takes its whole list block including the Archived line (one block); the pointer stub replaces it.",
+    "Not listed as moves (deliberately). Test- or fixture-cited anchors: NOLIMITS, MINOUT, M121A, LEDGER, CIFIX017W, MSM58M69, C-M106-2, D69, D70, D1, D36, TOOLROUNDS records, and FIXM94L0 (an e2e comment names the lane). Price tables: D30, D34. Open-work records: D65, D84, D80, D86, D87, D88, D89, D90, D91, D92, D93, D94, D96, D97, D100, D103, D104, D106, D107, and the M95c/M96/M100\u2013M118 lane records (D118's own record IS listed; only its rule paragraph stays). Contaminated blocks: CM952 and TOOLCAP (fresh 0.19.0-lane content glued into the same block, cannot split). FIXM95G (its block is glued to the M95 \u00a77 paste until that repair lands). Every 0.19.0-lane \u00a77 record (MSM112, MSM80, PROVM95, PLAYBACK, MSM9M35, NOSTANDINS, SPENDSIMPLE, CATCHMONEY, DEPS, ACTROOM, VSIXROOM, TRAINS, SHARDS, MACPARITY, WINBIRTH, BROWROUTE, VSIXPLATFORM, SANDBOXSAY and kin: merged but the release is still open, revert risk as PR #203 showed). D119/D121 number collisions and M95K same-heading sections (join renumbers/unions, not deletions).",
+    "D118's src comment cites D118 as authority; the heading and rule stay, so it keeps resolving. LEFT017's harness-theme hit names LEFT017B, a different lane.",
+    "Measured on the scratch union (3,786,202 bytes, 90.3%, OVER by 221,044): duplicate deletions save 20,852 (3,765,350); the 79 moves move 154,360 more for a landing of 3,623,306 (86.4%, still OVER by 58,148). Reassembly is byte-identical, parsed facts change only in ENVFENCE/TRAIN15H/CI0150A/FIXAGENTOUT (closed checklists, --allow-fact-change), drift stays at the 3 pre-existing items. Target 3,524,198 (gate minus 40 KiB): shortfall 99,108 bytes. Named passages that would close it: the M95 \u00a77-paste repair (~18 KB) with FIXM95G unlocked (~2.9 KB); this release's \u00a77 lane records once the release tags (~20\u201330 KB post-tag, NOLIMITS excepted as test-cited); D30 (~11.5 KB) and D36 (~11.7 KB) on a lead call that their prices/rows are historical; M71 (~38 KB) only if its open items complete.",
+    "The prescribed commit message below names test/unit/planArchive.test.ts; that file does not exist (the suite is test/unit/planArchiveTool.test.mjs). The join proves with the script's byte-for-byte rebuild and the planArchiveTool suite."
   ]
 }
