@@ -1117,6 +1117,7 @@
     "paid:subagents": "Activa o desactiva los subagentes de pago.",
     "paid:scheduledPrompts": "Activa o desactiva los prompts programados de pago.",
     "paid:autoReviewer": "Activa o desactiva el revisor automático de pago.",
+    "paid:autoCompaction": "Turn paid automatic compaction on or off.",
     "paid:bestOfN": "Activa o desactiva Best-of-N de pago.",
     "paid:tab": "Activar o desactivar las sugerencias de pago de Tab.",
     "paid:legalExplanation": "Activar o desactivar las explicaciones de pago de los hallazgos legales. Se factura a la clave guardada de Model API.",

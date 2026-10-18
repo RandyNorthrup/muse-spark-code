@@ -334,6 +334,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'key-stdin', shape: '' },
       { name: 'vault', shape: '' },
       { name: 'verbose', shape: '' },
+      { name: 'auto-compaction', shape: '' },
       { name: 'no-auto-compaction', shape: '' },
       { name: 'resource-governor', shape: '', fact: factFor('resource-governor') },
       { name: 'cpu-max', shape: '<percent>' },

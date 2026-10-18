@@ -1109,6 +1109,7 @@
     "paid:subagents": "유료 하위 에이전트를 켜거나 끕니다.",
     "paid:scheduledPrompts": "유료 예약된 프롬프트를 켜거나 끕니다.",
     "paid:autoReviewer": "유료 자동 검토자를 켜거나 끕니다.",
+    "paid:autoCompaction": "Turn paid automatic compaction on or off.",
     "paid:bestOfN": "유료 베스트 오브 N을 켜거나 끕니다.",
     "paid:tab": "유료 Tab 자동 완성을 켜거나 끕니다.",
     "paid:legalExplanation": "법적 발견 사항의 유료 설명을 켜거나 끕니다. 저장된 Model API 키에 요금이 청구됩니다.",

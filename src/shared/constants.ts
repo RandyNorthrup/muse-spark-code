@@ -3151,7 +3151,7 @@ export const TEAM_NEW_ROLE_CEILING_GROUPS: readonly TeamToolGroup[] = ['read', '
 
 /** The repository's lowering file (PLAN.md D75): workspace-relative segments. */
 export const TEAM_JSON_SEGMENTS = ['.muse', 'team.json'] as const
-/** An unmerged task keeps its working copy and branch until the user acts; then this offers to discard it.
+/** An unmerged task keeps its working copy and branch until the user acts; then this offers to discard it. */
 export const TEAM_UNMERGED_NOTICE_DAYS = 7
 
 /** Each group's plain words for the charter's "You may" line, generated from the one definition. */

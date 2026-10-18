@@ -1117,6 +1117,7 @@
     "paid:subagents": "Ative ou desative os subagentes pagos.",
     "paid:scheduledPrompts": "Ative ou desative os prompts agendados pagos.",
     "paid:autoReviewer": "Ative ou desative o revisor automático pago.",
+    "paid:autoCompaction": "Turn paid automatic compaction on or off.",
     "paid:bestOfN": "Ative ou desative o Best-of-N pago.",
     "paid:tab": "Ativar ou desativar as sugestões pagas do Tab.",
     "paid:legalExplanation": "Ativar ou desativar as explicações pagas dos resultados jurídicos. A cobrança é feita na chave Model API armazenada.",

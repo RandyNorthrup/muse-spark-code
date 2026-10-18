@@ -1109,6 +1109,7 @@
     "paid:subagents": "开启或关闭付费子代理。",
     "paid:scheduledPrompts": "开启或关闭付费已计划的提示词。",
     "paid:autoReviewer": "开启或关闭付费自动审查器。",
+    "paid:autoCompaction": "Turn paid automatic compaction on or off.",
     "paid:bestOfN": "开启或关闭付费 N 选最优。",
     "paid:tab": "开启或关闭付费 Tab 补全。",
     "paid:legalExplanation": "开启或关闭法律发现的付费解释。费用记在已存储的 Model API 密钥下。",

@@ -1113,6 +1113,7 @@
     "paid:subagents": "Kostenpflichtige Unteragenten ein- oder ausschalten.",
     "paid:scheduledPrompts": "Kostenpflichtige geplante Prompts ein- oder ausschalten.",
     "paid:autoReviewer": "Den kostenpflichtigen Auto-Prüfer ein- oder ausschalten.",
+    "paid:autoCompaction": "Turn paid automatic compaction on or off.",
     "paid:bestOfN": "Kostenpflichtiges Best-of-N ein- oder ausschalten.",
     "paid:tab": "Kostenpflichtige Tab-Vervollständigungen ein- oder ausschalten.",
     "paid:legalExplanation": "Kostenpflichtige Erläuterungen rechtlicher Befunde ein- oder ausschalten. Der gespeicherte Model-API-Schlüssel wird belastet.",

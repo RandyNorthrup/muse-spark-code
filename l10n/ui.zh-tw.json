@@ -1109,6 +1109,7 @@
     "paid:subagents": "開啟或關閉付費子代理程式。",
     "paid:scheduledPrompts": "開啟或關閉付費已排程的提示詞。",
     "paid:autoReviewer": "開啟或關閉付費自動審查器。",
+    "paid:autoCompaction": "Turn paid automatic compaction on or off.",
     "paid:bestOfN": "開啟或關閉付費 N 選最優。",
     "paid:tab": "開啟或關閉付費 Tab 補全。",
     "paid:legalExplanation": "開啟或關閉法律發現的付費說明。費用記在已儲存的 Model API 金鑰下。",

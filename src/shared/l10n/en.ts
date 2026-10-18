@@ -1363,6 +1363,7 @@ export const EN = {
     'paid:webSearch': 'Turn paid web search on or off.',
     'paid:subagents': 'Turn paid subagents on or off.',
     'paid:scheduledPrompts': 'Turn paid scheduled prompts on or off.',
+    'paid:autoCompaction': 'Turn paid automatic compaction on or off.',
     'paid:autoReviewer': 'Turn the paid Auto reviewer on or off.',
     'paid:bestOfN': 'Turn paid Best of N on or off.',
     'paid:tab': 'Turn paid Tab completions on or off.',
