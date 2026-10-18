@@ -1382,6 +1382,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Resource controls/history                | ≤ 25 KiB entries; ≤ 50 KiB closures |
 | `docs/schemas/exec-event-v2.schema.json` | ≤ 50 KiB                            |
 | `dist/conversation.js`                   | ≤ 250 KiB                           |
+| `dist/conversationTransfer.js`           | ≤ 50 KiB                            |
 | `dist/tab.js`                            | ≤ 75 KiB                            |
 | `dist/extension.js`                      | ≤ 600 KiB                           |
 | `dist/modelApi.js`                       | ≤ 475 KiB                           |
@@ -1437,6 +1438,8 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/paid.js`                           | ≤ 75 KiB                            |
 
 **`dist/conversation.js` budget rationale.** (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)
+
+**`dist/conversationTransfer.js` budget rationale.** (CONVBUDGET: the conversation's session-transfer flows, required on the first export, import or share-file preview; 23,804 B measured when split out of `dist/conversation.js` on 2026-10-18, plus 15%, rounded up to 25 KiB)
 
 **`dist/tab.js` budget rationale.** (M94: first request/menu; status/provider registration stays eager)
 
@@ -35626,22 +35629,6 @@ the baseline was regenerated after that intentional fix and the gate still
 fails on any new rise. `dist/modelsPanel.js` is 128,289 bytes against its
 128,000-byte budget on the merged tree (the required three-valued read);
 no threshold is changed: the lead rebases the budget or directs a trim.
-
-**CATCHCONV2 conversation-bundle budget (2026-10-18, linuxlt).** `npm run
-build` on `catch/0190-conversation-controller` reports `OVER
-dist/conversation.js: 253.5 KiB (budget 250 KiB)`. The untouched base
-(`b7537ba6f3`, built on the same rig) is 254,414 bytes (248.5 KiB,
-green); the lane tree is 259,585 bytes (+5,171 B). Every added byte is
-attributed to the D119 per-handler kind-record lines in
-`src/host/conversation/conversationController.ts`: the catch gate's
-classifier counts a handler REPORTED only when the redacting
-`failureForLog` call stands textually inside that handler's own log
-call, so no shared helper recovers them (drill: removing one line
-returns that site to GENERIC; restoring returns it to REPORTED). No
-behaviour-preserving trim reaches the 3,585-byte gap without dropping
-the operation each record names. No threshold is changed: the lead
-rebases the budget by the repository's rule or directs a trim at
-integration.
 
 ## 8. Escape hatches register
 

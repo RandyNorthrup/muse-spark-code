@@ -281,11 +281,8 @@ import {
   type NoticeLevel,
   type PendingMark,
 } from './conversationCheckpoints'
-import {
-  type ConversationExports,
-  exportConversation,
-  type ExportOutcome,
-} from './exportConversation'
+import type { ConversationExports, ExportOutcome } from './exportConversation'
+import type * as TransferBundle from './conversationTransferEntry'
 import type { BestOfNManager } from '../bestOfN/bestOfNManager'
 import type * as SessionBoardBundle from '../sessionBoardEntry'
 
@@ -293,12 +290,8 @@ import type { BestOfNRun } from '../../shared/bestOfN'
 
 import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
 import { type AttentionNotice, attentionNotice, notifyOpenQuestions } from './turnNotifications'
-import { importRefusal, messageCount, type SessionExport } from '../../core/export/sessionTransfer'
-import {
-  type PickedTransferFile,
-  readTransferDocument,
-  type SessionTransferFiles,
-} from './sessionImport'
+import type { SessionExport } from '../../core/export/sessionTransfer'
+import type { PickedTransferFile, SessionTransferFiles } from './sessionImport'
 import type { ReportDataSource, ReportProblemMessage } from './reportProblemHandler'
 import type { ReportEditorIo } from '../support/reportProblem'
 import type * as ReportBundle from '../support/reportEntry'
@@ -1442,6 +1435,8 @@ export class ConversationController {
   /** Report a problem (M93): the dialog's handler, one per surface, loaded with dist/report.js. */
   private reportHandler:
     Promise<{ handle: (message: ReportProblemMessage) => Promise<void> }> | undefined
+  /** Session transfer (M30, M84): the export and import flows, one per surface, loaded with dist/conversationTransfer.js. */
+  private transferBundlePromise: Promise<typeof TransferBundle> | undefined
   /**
    * Messages of this session accepted as queued or steered that may still be
    * taken back (M87, PLAN.md D66), by their card's local id: the only ids an
@@ -9584,14 +9579,20 @@ export class ConversationController {
       this.notice('info', UI_TEXT.exportWaitForTurn)
       return
     }
+    const transfer = await this.transferFlows(UI_TEXT.actionFailed)
+    if (transfer === undefined) {
+      return
+    }
     try {
       const host = await this.deps.ensureHost()
-      const outcome = await exportConversation(
+      const outcome = await transfer.exportConversationFlow(
         host,
         session,
         format,
         new Date(this.deps.now()),
         this.deps.exports,
+        UI_TEXT,
+        uiLocale(),
       )
       const notice = exportNotice(outcome)
       if (notice !== undefined) {
@@ -9626,7 +9627,11 @@ export class ConversationController {
       this.notice('error', `${failure}: ${UI_TEXT.transferTooLarge}`)
       return undefined
     }
-    const parsed = readTransferDocument(picked.content)
+    const transfer = await this.transferFlows(failure)
+    if (transfer === undefined) {
+      return undefined
+    }
+    const parsed = transfer.readTransferDocumentFlow(picked.content, UI_TEXT, uiLocale())
     if (!parsed.ok) {
       this.notice('error', `${failure}: ${parsed.reason}`)
       return undefined
@@ -9735,6 +9740,49 @@ export class ConversationController {
     await handler.handle(message)
   }
 
+  /**
+   * Session transfer (M30, M84, PLAN.md D49) as the controller sees it: the
+   * export and import flows, required the first time one runs. Only types
+   * come from the transfer modules here: a value imported from one would
+   * carry the transfer back into dist/conversation.js, which the bundle-split
+   * gate refuses.
+   *
+   * There is no export or import without it: flows that cannot load their
+   * bundle are refused with the reason, the log has the cause, and the next
+   * flow tries again.
+   */
+  private transferBundle(): Promise<typeof TransferBundle> {
+    this.transferBundlePromise ??= (async () => {
+      const bundle: typeof TransferBundle = await import('./conversationTransferEntry')
+      if (
+        typeof bundle.exportConversationFlow !== 'function' ||
+        typeof bundle.readTransferDocumentFlow !== 'function' ||
+        typeof bundle.transferRefusalFlow !== 'function' ||
+        typeof bundle.transferMessageCountFlow !== 'function'
+      ) {
+        throw new TypeError('The transfer bundle does not export its transfer flows')
+      }
+      return bundle
+    })()
+    return this.transferBundlePromise
+  }
+
+  /**
+   * The session-transfer flows, loaded on first use: a bundle that cannot
+   * load posts the flow's fixed failure words (the log has the cause) and is
+   * tried again on the next run.
+   */
+  private async transferFlows(failure: string): Promise<typeof TransferBundle | undefined> {
+    try {
+      return await this.transferBundle()
+    } catch (error: unknown) {
+      this.transferBundlePromise = undefined
+      this.deps.log.error(`The transfer bundle could not be loaded: ${failureForLog(error)}`)
+      this.notice('error', failure)
+      return undefined
+    }
+  }
+
   private reportProblemHandler(reports: ConversationReports): Promise<{
     handle: (message: ReportProblemMessage) => Promise<void>
   }> {
@@ -9799,7 +9847,11 @@ export class ConversationController {
       }
       // Refused before the confirmation (RV84 #10): a file past what the
       // model can read is not offered for import at all.
-      const refusal = importRefusal(doc)
+      const transfer = await this.transferFlows(UI_TEXT.importSessionFailed)
+      if (transfer === undefined) {
+        return
+      }
+      const refusal = transfer.transferRefusalFlow(doc, UI_TEXT, uiLocale())
       if (refusal !== undefined) {
         this.notice('error', `${UI_TEXT.importSessionFailed}: ${refusal}`)
         return
@@ -9813,7 +9865,10 @@ export class ConversationController {
         UI_TEXT.importPreviewTitle,
         fill(UI_TEXT.importPreviewDetail, {
           source: backendLabel(doc.sourceBackend),
-          messages: plural(UI_TEXT.exportPreviewMessages, messageCount(doc.transcript)),
+          messages: plural(
+            UI_TEXT.exportPreviewMessages,
+            transfer.transferMessageCountFlow(doc.transcript, UI_TEXT, uiLocale()),
+          ),
           model: this.modelId,
           mode: UI_TEXT.permissionModes[mode],
         }),

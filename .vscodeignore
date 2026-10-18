@@ -39,6 +39,7 @@
 !dist/review.js
 !dist/agentImport.js
 !dist/conversationGit.js
+!dist/conversationTransfer.js
 !dist/bundledSkills.js
 !dist/codeIntel.js
 !dist/voice.js

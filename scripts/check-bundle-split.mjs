@@ -1124,6 +1124,8 @@ const TEXT_BLOCKS = [
       PROMPTS.output,
       SHARING_RUNTIME.output,
       'dist/conversation.js',
+      // CONVBUDGET: the session-transfer flows read the export redactions.
+      'dist/conversationTransfer.js',
       BUNDLES.modelApi.output,
       'dist/reporting.js',
       'dist/reportingNetwork.js',
