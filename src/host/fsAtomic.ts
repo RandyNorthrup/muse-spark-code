@@ -30,7 +30,7 @@
 //   rename is still replaced.
 
 import { randomUUID } from 'node:crypto'
-import { constants, type BigIntStats } from 'node:fs'
+import { constants, type BigIntStats, readFileSync } from 'node:fs'
 import { access, link, mkdir, open, readFile, realpath, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -116,6 +116,18 @@ function errorCode(error: unknown): string | undefined {
   return typeof error === 'object' && error !== null && 'code' in error
     ? String(error.code)
     : undefined
+}
+
+/** The file's text; undefined when there is none; throws on any other failure. */
+export function readTextIfPresent(fsPath: string): string | undefined {
+  try {
+    return readFileSync(fsPath, 'utf8')
+  } catch (error: unknown) {
+    if (isStoreErrorCode(error, 'ENOENT')) {
+      return undefined
+    }
+    throw error
+  }
 }
 
 /** A cleanup may remove only the same regular file, with exact inode IDs and captured metadata. */

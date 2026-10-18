@@ -4,7 +4,7 @@
 // The flows themselves live in commands/skillsCommands.ts,
 // commands/museConfigCommands.ts and conversation/exportConversation.ts.
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
@@ -23,12 +23,12 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import type { ProcessResult } from './backend/sandboxSetup'
-import { isStoreErrorCode } from './backend/storeErrors'
 import type { AgentImportHostDeps } from './agentImportHost'
 import { runAgentImport } from './agentImportBundle'
 import { type MuseConfigDeps, showHooks, showMcpServers } from './commands/museConfigCommands'
 import { importSkills, manageSkills, type SkillsCliDeps } from './commands/skillsCommands'
 import type { ConversationExports } from './conversation/exportConversation'
+import { readTextIfPresent } from './fsAtomic'
 import type { Logger } from './logger'
 import { loggedPopups } from './popups'
 import { showPickOne } from './quickPick'
@@ -90,18 +90,6 @@ export interface CliFeatures {
   showMcpServers(): Promise<void>
   showHooks(): Promise<void>
   readonly exports: ConversationExports
-}
-
-/** The file's text; undefined when there is none; throws on any other failure. */
-export function readTextIfPresent(fsPath: string): string | undefined {
-  try {
-    return readFileSync(fsPath, 'utf8')
-  } catch (error: unknown) {
-    if (isStoreErrorCode(error, 'ENOENT')) {
-      return undefined
-    }
-    throw error
-  }
 }
 
 interface SourceChoice extends vscode.QuickPickItem {
