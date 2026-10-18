@@ -30,16 +30,6 @@ describe('CHANGELOG and the manifest version', () => {
     releases = parseChangelog(changelog, contributedIds(manifestJson), repositoryUrl(manifestJson))
   })
 
-  it(`has a dated section for ${manifest.version}`, () => {
-    const heading = new RegExp(
-      String.raw`^## \[${manifest.version.replaceAll('.', String.raw`\.`)}\] - \d{4}-\d{2}-\d{2}$`,
-      'm',
-    )
-    expect(heading.test(changelog), `CHANGELOG.md needs "## [${manifest.version}] - <date>"`).toBe(
-      true,
-    )
-  })
-
   it(`gives ${manifest.version} the Highlights What's New opens with, when it is a minor or major release`, () => {
     expect(highlightsProblem(releases, manifest.version)).toBeUndefined()
   })

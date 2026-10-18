@@ -108,7 +108,8 @@ function bytesInput(name: string, info: MediaInfo, bytes: Uint8Array): AcpMediaI
   }
 }
 
-/** No bytes or provider IDs appear in ACP acknowledgements. */
+/** No bytes or provider IDs appear in ACP acknowledgements.
+ * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export class AcpMedia implements AcpMediaPort {
   public constructor(private readonly deps: AcpMediaDeps) {}
 
