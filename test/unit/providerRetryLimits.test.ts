@@ -10,14 +10,17 @@
 // unit-tested here: its source is the editor's own configuration object,
 // which a unit test may not stand in for (review RVRETRYLIMITS); the lead's
 // real-life run sets `museSpark.modelApiMaxRetries` in the packed product.
+import { createServer } from 'node:net'
 import { setTimeout as timer } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import { PLAN_KEY_PRESETS, PRESETS, presetById, quirksOf } from '../../src/core/providers/presets'
 import {
+  abortableSleep,
   ModelApiError,
   noRetryBudget,
   RequestTransport,
   UNBOUNDED_RETRIES,
+  type RetryNotice,
 } from '../../src/core/backends/modelapi/transport'
 import { stderrLogger } from '../../src/runtime/stderrLog'
 import {
@@ -52,6 +55,78 @@ const transportFor = (retryLimits: RetryLimits) =>
     random: Math.random,
     log: stderrLogger((line) => process.stderr.write(`${line}\n`), 'warn'),
   })
+
+/** The product's transport with the chunk sleep under test. */
+const transportWithSleep = (sleep: (ms: number, signal?: AbortSignal) => Promise<void>) =>
+  new RequestTransport({
+    fetch: globalThis.fetch,
+    baseUrl: MODEL_API_BASE_URL,
+    retryLimits: limitsOf('openrouter'),
+    sleep,
+    now: Date.now,
+    random: Math.random,
+    log: stderrLogger((line) => process.stderr.write(`${line}\n`), 'warn'),
+  })
+
+/**
+ * A port nothing answers: bind loopback, then close it, so the
+ * platform's own fetch fails the send with a real refused connection.
+ * No provider and no answering server stands in for one.
+ */
+const closedLoopbackPort = async (): Promise<number> => {
+  const server = createServer()
+  await new Promise<void>((done) =>
+    server.listen(0, '127.0.0.1', () => {
+      done()
+    }),
+  )
+  const port = (server.address() as { readonly port: number }).port
+  await new Promise<void>((done) =>
+    server.close(() => {
+      done()
+    }),
+  )
+  return port
+}
+
+/**
+ * The product's transport aimed at a dead address, over one provider's
+ * documented limits. The key is a dummy: the refused connection means no
+ * request is ever built or sent (precedent: providerRefusals' made-up
+ * key for its model-list path).
+ */
+const transportToNowhere = (
+  port: number,
+  retryLimits: RetryLimits,
+  personMaxRetries?: () => number | undefined,
+) =>
+  new RequestTransport({
+    fetch: globalThis.fetch,
+    baseUrl: `http://127.0.0.1:${String(port)}`,
+    retryLimits,
+    ...(personMaxRetries !== undefined && { personMaxRetries }),
+    apiKey: () => Promise.resolve('retry-limit-test-key'),
+    sleep: async (ms) => {
+      await timer(ms, undefined, { ref: false })
+    },
+    now: Date.now,
+    random: Math.random,
+    log: stderrLogger((line) => process.stderr.write(`${line}\n`), 'warn'),
+  })
+
+const postNowhere = (
+  transport: RequestTransport,
+  signal: AbortSignal | undefined,
+  notices: RetryNotice[],
+) =>
+  transport.request(
+    '/responses',
+    { method: 'POST', body: {}, accept: 'application/json' },
+    signal,
+    (notice) => {
+      notices.push(notice)
+    },
+  )
 
 describe('each provider retries by its documented maximum', () => {
   it('pins the documented counts (anthropic.md AB13, openai SDK, gemini SDK, azure-openai.md, xai.md, dev.meta.ai)', () => {
@@ -139,6 +214,85 @@ describe('waits follow the provider', () => {
     const stop = AbortSignal.timeout(STOP_AFTER_MS)
     await expect(transport.pause(wait, stop)).rejects.toBeInstanceOf(ModelApiError)
     expect(stop.aborted).toBe(true)
+  })
+})
+
+describe('a stop cancels the wait itself', () => {
+  it('hands each chunk the turn stop so its own timer can die with it', async () => {
+    // A wait past what one timer holds: the stop must reach the chunk's
+    // sleep, or the abandoned timer outlives the turn (PR225FIX2).
+    let inner: AbortSignal | undefined
+    const transport = transportWithSleep((ms, signal) => {
+      inner = signal
+      return abortableSleep(ms, signal)
+    })
+    const stop = AbortSignal.timeout(STOP_AFTER_MS)
+    await expect(transport.pause(MODEL_API_TIMER_MAX_MS + 1, stop)).rejects.toBeInstanceOf(
+      ModelApiError,
+    )
+    expect(inner).toBe(stop)
+  })
+  it('a sleep that ignores the stop is still abandoned promptly', async () => {
+    // The race stays as the backstop: whatever is injected, Stop ends the
+    // wait. Without it this test hangs past the suite timeout.
+    const transport = transportWithSleep(async (ms) => {
+      await timer(ms, undefined, { ref: false })
+    })
+    const stop = AbortSignal.timeout(STOP_AFTER_MS)
+    await expect(transport.pause(MODEL_API_TIMER_MAX_MS + 1, stop)).rejects.toBeInstanceOf(
+      ModelApiError,
+    )
+    expect(stop.aborted).toBe(true)
+  })
+  it('the production sleep resolves a dead wait instead of holding it', async () => {
+    // An already-stopped wait never starts its timer; a wait stopped
+    // mid-flight ends with the stop, about STOP_AFTER_MS, not with it.
+    await abortableSleep(MODEL_API_TIMER_MAX_MS, AbortSignal.abort())
+    const stop = AbortSignal.timeout(STOP_AFTER_MS)
+    await abortableSleep(MODEL_API_TIMER_MAX_MS, stop)
+    expect(stop.aborted).toBe(true)
+  })
+})
+
+describe('ambiguous sends need an explicit cap', () => {
+  it('an unanswered send with no documented maximum and no setting fails once, never replays', async () => {
+    // OpenRouter documents no retry maximum: with no setting either, the
+    // reset connection used to replay a possibly-executed paid send
+    // without end (PR225FIX2). One fetch, no retry notice, the send
+    // failure at once.
+    const transport = transportToNowhere(await closedLoopbackPort(), limitsOf('openrouter'))
+    expect(transport.maxRetries()).toBeUndefined()
+    const notices: RetryNotice[] = []
+    await expect(postNowhere(transport, undefined, notices)).rejects.toBeInstanceOf(ModelApiError)
+    expect(notices).toHaveLength(0)
+  })
+  it("the person's setting still bounds an unanswered send", async () => {
+    // The explicit cap is honoured exactly: one retry with its notice,
+    // then the send failure, not silence and not forever.
+    const transport = transportToNowhere(
+      await closedLoopbackPort(),
+      limitsOf('openrouter'),
+      () => 1,
+    )
+    const notices: RetryNotice[] = []
+    await expect(postNowhere(transport, undefined, notices)).rejects.toBeInstanceOf(ModelApiError)
+    expect(notices).toHaveLength(1)
+  })
+  it('a documented maximum still retries an unanswered send', async () => {
+    // Anthropic documents two retries of a transient send failure: the
+    // first wait starts with its notice, and the turn's Stop ends it.
+    const transport = transportToNowhere(await closedLoopbackPort(), limitsOf('anthropic'))
+    expect(transport.maxRetries()).toBe(2)
+    const stop = new AbortController()
+    const notices: RetryNotice[] = []
+    const attempt = postNowhere(transport, stop.signal, notices)
+    const start = Date.now()
+    while (notices.length === 0 && Date.now() - start < 4000) {
+      await timer(10, undefined, { ref: false })
+    }
+    stop.abort()
+    await expect(attempt).rejects.toBeInstanceOf(ModelApiError)
+    expect(notices).toHaveLength(1)
   })
 })
 

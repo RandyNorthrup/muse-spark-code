@@ -14430,6 +14430,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     for (;;) {
       const requestId = this.deps.newId()
       const attempt = budget.retriesUsed + 1
+      // The client the attempt actually goes through: the catch below reads
+      // the retry limit and the wait from it, never the aggregate client
+      // (lane PR225FIX2: with the setting unset, an Anthropic compaction
+      // retried four times on Meta's limit instead of its own two).
+      let attemptClient: ResolvedModel['client'] | undefined
       try {
         await unlessStopped(this.refreshBudgetSpend(), signal)
         // One record owns the hook projection and final request. A stale
@@ -14444,6 +14449,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (resolved.ref !== this.modelId)
           resolved = await unlessStopped(this.resolveModel(), signal)
         if (!resolved.isCurrent()) throw this.staleRecordError(turnId === COMPACTION_TURN_ID)
+        attemptClient = resolved.client
         const body = makeBody(resolved)
         const revision = this.modelRevision
         const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
@@ -14605,9 +14611,12 @@ export class ModelApiSession implements ScheduledAgentSession {
           contexts: post.contexts,
         }
       } catch (error: unknown) {
-        // Lane RETRYLIMITS: the hook client's own retry limit (Meta's
-        // documented maximum, or the person's setting when set).
-        const allowed = this.deps.client.maxRetries()
+        // Lane PR225FIX2: the attempt's own client sets the retry limit
+        // (the provider's documented maximum, or the person's setting when
+        // set). Before any attempt resolved, no client of ours answers, so
+        // the original error passes through untouched.
+        const retryClient = attemptClient ?? this.deps.client
+        const allowed = retryClient.maxRetries()
         if (
           !(error instanceof RetryableStreamError) ||
           signal.aborted ||
@@ -14618,7 +14627,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         }
         const retry = budget.retriesUsed
         budget.retriesUsed += 1
-        const delayMs = this.deps.client.retryDelayMs(retry)
+        const delayMs = retryClient.retryDelayMs(retry)
         this.emit({
           type: 'turnRetry',
           turnId,
@@ -14627,7 +14636,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           retryDelayMs: delayMs,
           reason: `${error.code}: ${error.message}`,
         })
-        await unlessStopped(this.deps.client.waitBeforeRetry(delayMs, signal), signal)
+        await unlessStopped(retryClient.waitBeforeRetry(delayMs, signal), signal)
       }
     }
   }

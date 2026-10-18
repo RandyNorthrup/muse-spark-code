@@ -40,6 +40,7 @@ import { ApiKeyAuthSource, NoAuthSource } from '../backends/modelapi/authSource'
 import { CodecClient, type WireCodec } from '../backends/modelapi/providerClient'
 import {
   RequestTransport,
+  abortableSleep,
   parseJsonResponse,
   ModelApiError,
   assertConfirmedAllowed,
@@ -472,10 +473,9 @@ export function createConfiguredProviderServices(
     return {
       auth,
       transport: {
-        sleep: (ms: number) =>
-          new Promise<void>((done) => {
-            setTimeout(done, ms)
-          }),
+        // Lane PR225FIX2: a Stop clears the wait's own timer, and a wait
+        // left pending never holds the process open.
+        sleep: abortableSleep,
         now: Date.now,
         random: Math.random,
         streamIdleMs: idleMs,
