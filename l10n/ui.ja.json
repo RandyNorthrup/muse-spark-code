@@ -1680,9 +1680,6 @@
   "gitChecksCancelled": {
     "other": "{count} 件キャンセル"
   },
-  "gitChecksNotRead": {
-    "other": "ほかに {count} 件は未取得"
-  },
   "gitStatusNeedsSignIn": "状態を確認するには、GitHub にサインインしてください。",
   "gitCheckedAt": "{time} 時点",
   "gitSignInGitHub": "GitHub にサインイン",
@@ -2019,7 +2016,6 @@
   "attachmentUnreadable": "ファイルを読み取れませんでした。",
   "documentTooLarge": "PDF は 32 MB 以下である必要があります。",
   "documentsOverBudget": "1 つのメッセージに含められる画像と PDF ページは合計 50 件までです。",
-  "mediaTotalTooLarge": "添付された画像と PDF の合計サイズがメディアの上限を超えています。",
   "olderMediaOmitted": "メディアの上限を守るため、古い画像または PDF をこのリクエストから除外しました。ローカルの履歴には残っています。",
   "pdfNeedsModelApi": "PDF の添付には Model API バックエンドが必要です。",
   "invalidPdf": "このファイルは PDF という名前ですが、有効な PDF ではありません。",
@@ -2416,7 +2412,6 @@
   "restoreRefusedOrderUnknown": "複数のウィンドウから編集され、順序を特定できないため、そのまま残しました: {files}",
   "restoreRefusedLinked": "リンクまたはジャンクション経由のため、そのまま残しました: {files}",
   "restoreRefusedNotKept": "以前のバージョンが保存されていないため、復元できません: {files}",
-  "restoreRefusedTooLarge": "コピーを保存するには大きすぎるため、復元できません: {files}",
   "restoreRefusedFailed": "変更できませんでした: {files}",
   "restoreUnchanged": {
     "other": "すでに以前の状態です: {count} 個のファイル。"
@@ -4849,9 +4844,6 @@
     "m112": "上限でスキャン停止：時間",
     "m113": "未確認：{v0} をテキストとして読めません。",
     "m114": "上限でスキャン停止：{v0} が読み取り予算を超えます。",
-    "m115": {
-      "other": "未確認：{count} ファイルで停止し、さらに {v1} ファイルは未読です。"
-    },
     "m116": {
       "other": "未確認：依存関係の証拠上限に達し、{count} 件を省略しました。"
     },
@@ -4862,9 +4854,6 @@
     },
     "m120": "バンドル入力や一覧を提供し、配布義務を明確にしてください。",
     "m121": "上限でスキャン停止：{v0} のレポートを切り詰めました",
-    "m122": {
-      "other": "レポート切り詰め：上限 {v1} 件を超える {count} 件を省略し、阻害項目と要修正項目を優先しました。"
-    },
     "m123": {
       "other": "レポート切り詰め：上限を超える生成ファイル除外 {count} 件を省略しました。"
     },

@@ -1734,11 +1734,6 @@
     "other": "{count} annullati",
     "many": "{count} di controlli annullati"
   },
-  "gitChecksNotRead": {
-    "one": "altro {count} non letto",
-    "other": "altri {count} non letti",
-    "many": "altri {count} di controlli non letti"
-  },
   "gitStatusNeedsSignIn": "Accedi a GitHub per vederne lo stato.",
   "gitCheckedAt": "aggiornato: {time}",
   "gitSignInGitHub": "Accedi a GitHub",
@@ -2077,7 +2072,6 @@
   "attachmentUnreadable": "Non è stato possibile leggere il file.",
   "documentTooLarge": "I PDF non devono superare 32 MB.",
   "documentsOverBudget": "I file possono contenere in totale al massimo 50 immagini e pagine PDF per messaggio.",
-  "mediaTotalTooLarge": "Le immagini e i PDF allegati superano il limite di dimensione complessivo dei media.",
   "olderMediaOmitted": "Le immagini o i PDF meno recenti sono stati esclusi da questa richiesta per rispettare i limiti dei media. Restano nella cronologia locale.",
   "pdfNeedsModelApi": "Gli allegati PDF richiedono il backend Model API.",
   "invalidPdf": "Questo file ha un nome PDF, ma non è un PDF valido.",
@@ -2522,7 +2516,6 @@
   "restoreRefusedOrderUnknown": "Lasciati come sono, modificati da più finestre in un ordine impossibile da determinare: {files}",
   "restoreRefusedLinked": "Lasciati come sono, raggiunti tramite un collegamento o una giunzione: {files}",
   "restoreRefusedNotKept": "Non ripristinabili, la versione precedente non è stata conservata: {files}",
-  "restoreRefusedTooLarge": "Non ripristinabili, troppo grandi per conservarne una copia: {files}",
   "restoreRefusedFailed": "Impossibile modificare: {files}",
   "restoreUnchanged": {
     "one": "Già come prima: {count} file.",
@@ -5095,11 +5088,6 @@
     "m112": "Analisi fermata al limite: tempo",
     "m113": "Non verificato: {v0} non è leggibile come testo.",
     "m114": "Analisi fermata al limite: {v0} supera il budget di lettura.",
-    "m115": {
-      "one": "Non verificato: fermata dopo {count} file; altri {v1} non letti.",
-      "other": "Non verificato: fermata dopo {count} file; altri {v1} non letti.",
-      "many": "Non verificato: fermata dopo {count} file; altri {v1} non letti."
-    },
     "m116": {
       "one": "Non verificato: limite di prove delle dipendenze raggiunto; {count} voce omesse.",
       "other": "Non verificato: limite di prove delle dipendenze raggiunto; {count} voci omesse.",
@@ -5114,11 +5102,6 @@
     },
     "m120": "Fornire input del bundle o inventario per precisare gli obblighi.",
     "m121": "Analisi fermata al limite: rapporto troncato per {v0}",
-    "m122": {
-      "one": "Rapporto troncato: {count} rilievi omessi oltre il limite di {v1}; blocchi e correzioni mantenuti per primi.",
-      "other": "Rapporto troncato: {count} rilievi omessi oltre il limite di {v1}; blocchi e correzioni mantenuti per primi.",
-      "many": "Rapporto troncato: {count} rilievi omessi oltre il limite di {v1}; blocchi e correzioni mantenuti per primi."
-    },
     "m123": {
       "one": "Rapporto troncato: {count} esclusioni generate omesse oltre il limite.",
       "other": "Rapporto troncato: {count} esclusioni generate omesse oltre il limite.",

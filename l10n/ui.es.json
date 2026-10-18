@@ -1734,11 +1734,6 @@
     "other": "{count} canceladas",
     "many": "{count} canceladas"
   },
-  "gitChecksNotRead": {
-    "one": "{count} más sin leer",
-    "other": "{count} más sin leer",
-    "many": "{count} de más sin leer"
-  },
   "gitStatusNeedsSignIn": "Inicie sesión en GitHub para ver su estado.",
   "gitCheckedAt": "actualizado {time}",
   "gitSignInGitHub": "Iniciar sesión en GitHub",
@@ -2077,7 +2072,6 @@
   "attachmentUnreadable": "No se pudo leer el archivo.",
   "documentTooLarge": "Los PDF deben ocupar 32 MB o menos.",
   "documentsOverBudget": "Los archivos deben sumar como máximo 50 imágenes y páginas PDF por mensaje.",
-  "mediaTotalTooLarge": "Las imágenes y los PDF adjuntos superan el límite de tamaño combinado de medios.",
   "olderMediaOmitted": "Se omitieron imágenes o PDF anteriores de esta solicitud para respetar los límites de medios. Siguen en el historial local.",
   "pdfNeedsModelApi": "Los archivos PDF adjuntos requieren el backend Model API.",
   "invalidPdf": "Este archivo tiene nombre de PDF, pero no es un PDF válido.",
@@ -2522,7 +2516,6 @@
   "restoreRefusedOrderUnknown": "Se dejan como están; se editaron desde varias ventanas en un orden que no se puede determinar: {files}",
   "restoreRefusedLinked": "Se dejan como están; se accede a ellos mediante un enlace o una unión de directorios: {files}",
   "restoreRefusedNotKept": "No se pueden restaurar; no se conservó la versión anterior: {files}",
-  "restoreRefusedTooLarge": "No se pueden restaurar; son demasiado grandes para conservar una copia: {files}",
   "restoreRefusedFailed": "No se pudieron cambiar: {files}",
   "restoreUnchanged": {
     "one": "Ya estaba como antes: {count} archivo.",
@@ -5095,11 +5088,6 @@
     "m112": "Análisis detenido en el límite: tiempo",
     "m113": "Sin comprobar: {v0} no se puede leer como texto.",
     "m114": "Análisis detenido en el límite: {v0} excede el presupuesto de lectura.",
-    "m115": {
-      "one": "Sin comprobar: detenido tras {count} archivo; otros {v1} no leídos.",
-      "other": "Sin comprobar: detenido tras {count} archivos; otros {v1} no leídos.",
-      "many": "Sin comprobar: detenido tras {count} archivos; otros {v1} no leídos."
-    },
     "m116": {
       "one": "Sin comprobar: límite de pruebas de dependencias alcanzado; {count} entrada omitidas.",
       "other": "Sin comprobar: límite de pruebas de dependencias alcanzado; {count} entradas omitidas.",
@@ -5114,11 +5102,6 @@
     },
     "m120": "Proporcione entradas compiladas o inventario para precisar las obligaciones.",
     "m121": "Análisis detenido en el límite: informe truncado para {v0}",
-    "m122": {
-      "one": "Informe truncado: {count} hallazgo omitidos sobre el límite de {v1}; bloqueos y correcciones conservados primero.",
-      "other": "Informe truncado: {count} hallazgos omitidos sobre el límite de {v1}; bloqueos y correcciones conservados primero.",
-      "many": "Informe truncado: {count} hallazgos omitidos sobre el límite de {v1}; bloqueos y correcciones conservados primero."
-    },
     "m123": {
       "one": "Informe truncado: {count} exclusiones generadas omitidas sobre el límite.",
       "other": "Informe truncado: {count} exclusiones generadas omitidas sobre el límite.",

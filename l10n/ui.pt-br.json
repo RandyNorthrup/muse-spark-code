@@ -1734,11 +1734,6 @@
     "other": "{count} canceladas",
     "many": "{count} de verificações canceladas"
   },
-  "gitChecksNotRead": {
-    "one": "mais {count} não lida",
-    "other": "mais {count} não lidas",
-    "many": "mais {count} de verificações não lidas"
-  },
   "gitStatusNeedsSignIn": "Entre no GitHub para ver o status.",
   "gitCheckedAt": "atualizado em {time}",
   "gitSignInGitHub": "Entrar no GitHub",
@@ -2077,7 +2072,6 @@
   "attachmentUnreadable": "Não foi possível ler o arquivo.",
   "documentTooLarge": "Os PDFs devem ter 32 MB ou menos.",
   "documentsOverBudget": "Os arquivos devem somar no máximo 50 imagens e páginas de PDF por mensagem.",
-  "mediaTotalTooLarge": "As imagens e os PDFs anexados excedem o limite de tamanho combinado de mídia.",
   "olderMediaOmitted": "Imagens ou PDFs mais antigos foram omitidos desta solicitação para respeitar os limites de mídia. Eles permanecem no histórico local.",
   "pdfNeedsModelApi": "Anexos PDF exigem o backend Model API.",
   "invalidPdf": "Este arquivo tem nome de PDF, mas não é um PDF válido.",
@@ -2522,7 +2516,6 @@
   "restoreRefusedOrderUnknown": "Deixados como estão, editados em mais de uma janela numa ordem que não pode ser determinada: {files}",
   "restoreRefusedLinked": "Deixados como estão, acessados por um link ou uma junção: {files}",
   "restoreRefusedNotKept": "Não restauráveis, a versão anterior não foi mantida: {files}",
-  "restoreRefusedTooLarge": "Não restauráveis, grandes demais para manter uma cópia: {files}",
   "restoreRefusedFailed": "Não foi possível alterar: {files}",
   "restoreUnchanged": {
     "one": "Já estava como antes: {count} arquivo.",
@@ -5095,11 +5088,6 @@
     "m112": "Análise interrompida no limite: tempo",
     "m113": "Não verificado: {v0} não pode ser lido como texto.",
     "m114": "Análise interrompida no limite: {v0} excede o orçamento de leitura.",
-    "m115": {
-      "one": "Não verificado: interrompida após {count} arquivo; outros {v1} não lidos.",
-      "other": "Não verificado: interrompida após {count} arquivos; outros {v1} não lidos.",
-      "many": "Não verificado: interrompida após {count} arquivos; outros {v1} não lidos."
-    },
     "m116": {
       "one": "Não verificado: limite de evidências de dependências atingido; {count} entrada omitidas.",
       "other": "Não verificado: limite de evidências de dependências atingido; {count} entradas omitidas.",
@@ -5114,11 +5102,6 @@
     },
     "m120": "Forneça entradas do bundle ou inventário para precisar as obrigações.",
     "m121": "Análise interrompida no limite: relatório truncado para {v0}",
-    "m122": {
-      "one": "Relatório truncado: {count} achados omitidos além do limite de {v1}; bloqueios e correções mantidos primeiro.",
-      "other": "Relatório truncado: {count} achados omitidos além do limite de {v1}; bloqueios e correções mantidos primeiro.",
-      "many": "Relatório truncado: {count} achados omitidos além do limite de {v1}; bloqueios e correções mantidos primeiro."
-    },
     "m123": {
       "one": "Relatório truncado: {count} exclusões geradas omitidas além do limite.",
       "other": "Relatório truncado: {count} exclusões geradas omitidas além do limite.",

@@ -42,7 +42,6 @@ const checksViewSchema = z.object({
   cancelled: z.number(),
   failedNames: z.array(z.string()),
   other: z.array(z.string()),
-  notRead: z.number(),
 })
 
 const pullRequestViewSchema = z.object({

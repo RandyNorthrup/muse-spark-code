@@ -1680,9 +1680,6 @@
   "gitChecksCancelled": {
     "other": "{count}개 취소됨"
   },
-  "gitChecksNotRead": {
-    "other": "나머지 {count}개는 읽지 않음"
-  },
   "gitStatusNeedsSignIn": "상태를 보려면 GitHub에 로그인하세요.",
   "gitCheckedAt": "{time} 기준",
   "gitSignInGitHub": "GitHub에 로그인",
@@ -2019,7 +2016,6 @@
   "attachmentUnreadable": "파일을 읽을 수 없습니다.",
   "documentTooLarge": "PDF는 32MB 이하여야 합니다.",
   "documentsOverBudget": "메시지당 이미지와 PDF 페이지를 합쳐 최대 50개까지 포함할 수 있습니다.",
-  "mediaTotalTooLarge": "첨부된 이미지와 PDF의 합계 크기가 미디어 제한을 초과합니다.",
   "olderMediaOmitted": "미디어 제한을 지키기 위해 이전 이미지 또는 PDF를 이 요청에서 제외했습니다. 로컬 기록에는 남아 있습니다.",
   "pdfNeedsModelApi": "PDF 첨부에는 Model API 백엔드가 필요합니다.",
   "invalidPdf": "이 파일은 PDF 이름을 사용하지만 유효한 PDF가 아닙니다.",
@@ -2416,7 +2412,6 @@
   "restoreRefusedOrderUnknown": "여러 창에서 편집되어 순서를 확인할 수 없으므로 그대로 둡니다: {files}",
   "restoreRefusedLinked": "링크나 정션을 통해 접근하는 파일이므로 그대로 둡니다: {files}",
   "restoreRefusedNotKept": "이전 버전을 보관하지 않아 복원할 수 없습니다: {files}",
-  "restoreRefusedTooLarge": "너무 커서 사본을 보관할 수 없으므로 복원할 수 없습니다: {files}",
   "restoreRefusedFailed": "변경할 수 없음: {files}",
   "restoreUnchanged": {
     "other": "이미 이전 상태입니다: 파일 {count}개."
@@ -4849,9 +4844,6 @@
     "m112": "제한으로 검사 중단: 시간",
     "m113": "미확인: {v0}를 텍스트로 읽을 수 없습니다.",
     "m114": "제한으로 검사 중단: {v0}가 텍스트 읽기 예산을 초과합니다.",
-    "m115": {
-      "other": "미확인: {count}개 파일 후 중단했으며 추가 {v1}개는 읽지 않았습니다."
-    },
     "m116": {
       "other": "미확인: 종속성 증거 제한으로 {count}개 항목을 생략했습니다."
     },
@@ -4862,9 +4854,6 @@
     },
     "m120": "번들 입력이나 패키지 목록으로 배포 의무를 명확히 하세요.",
     "m121": "제한으로 검사 중단: {v0} 보고서 잘림",
-    "m122": {
-      "other": "보고서 잘림: 제한 {v1}개를 넘은 결과 {count}개를 생략하고 차단 및 수정 항목을 우선 유지했습니다."
-    },
     "m123": {
       "other": "보고서 잘림: 제한을 넘은 생성 제외 항목 {count}개를 생략했습니다."
     },

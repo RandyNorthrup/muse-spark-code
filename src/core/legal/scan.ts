@@ -11,12 +11,10 @@ import { compareLegalText } from './files'
 import {
   UI_TEXT,
   LEGAL_EXCLUSIONS_MAX,
-  LEGAL_FILES_SCANNED_MAX,
   LEGAL_FILE_MAX_BYTES,
   LEGAL_TOTAL_MAX_BYTES,
   LEGAL_FINDINGS_PER_RULE_MAX,
   LEGAL_SCAN_TIMEOUT_MS,
-  LEGAL_FINDINGS_MAX,
   LEGAL_HEADER_POLICIES,
   LEGAL_INCOMPLETE_MAX,
   LEGAL_RESULT_VERSION,
@@ -422,8 +420,8 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   }
 
   const sorted = snapshot.files.toSorted((a, b) => compareLegalText(a, b))
-  const overCap = sorted.length - LEGAL_FILES_SCANNED_MAX
-  // Root facts and build records precede general walk noise within the same cap.
+  // Root facts and build records precede general walk noise; every file is
+  // admitted, however many the workspace holds (NOLIMITS4: no file-count stop).
   const buildFacts = sorted.filter(
     (file) => file.startsWith(LEGAL_META_DIR) || file.startsWith(LEGAL_META_HASHES_DIR),
   )
@@ -439,7 +437,7 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   const facts = [...buildFacts, ...rootFacts]
   const priority = new Set(facts)
   const admission = [...facts, ...sorted.filter((file) => !priority.has(file))]
-  const allowed = new Set(admission.slice(0, LEGAL_FILES_SCANNED_MAX))
+  const allowed = new Set(admission)
   // The human-review caveat (M97 C-M97-1) is earned, not blanket: it is
   // added below only when a license text stayed heuristic or unrecognized,
   // an asset or source reference needs provenance, or dependency terms
@@ -530,24 +528,17 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
     ...rootFacts,
     ...packageFacts,
   ])
-  const prioritized = [...material, ...sorted.filter((file) => !material.has(file))]
-    .filter((file) => presentFiles.has(file))
-    .slice(0, LEGAL_FILES_SCANNED_MAX)
+  // No file-count stop (NOLIMITS4): the prioritized order is kept, but every
+  // present file stays admitted, however many the workspace holds.
+  const prioritized = [...material, ...sorted.filter((file) => !material.has(file))].filter(
+    (file) => presentFiles.has(file),
+  )
   allowed.clear()
   for (const file of prioritized) allowed.add(file)
   const view = distributedView(bounded, distributionEvidence)
   // Header policy covers the project's own sources, never installed packages.
   const ownFiles = new Set(view.files.filter((file) => !file.includes(NODE_MODULES_SEGMENT)))
   const headerView = subsetSnapshot(view, paths.length > 0 ? paths : undefined, ownFiles)
-
-  if (overCap > 0) {
-    incomplete.push(
-      plural(UI_TEXT.legalScanner.m115, LEGAL_FILES_SCANNED_MAX, {
-        v0: LEGAL_FILES_SCANNED_MAX,
-        v1: overCap,
-      }),
-    )
-  }
 
   const readers = [
     readNpm,
@@ -775,19 +766,10 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   )
   if (Date.now() >= deadline && !incomplete.includes('scan stopped at limit: elapsed time'))
     incomplete.push(UI_TEXT.legalScanner.m112)
-  const truncated = withinRules.length - LEGAL_FINDINGS_MAX
-  const totalReason = plural(UI_TEXT.legalScanner.m122, Math.max(truncated, 1), {
-    v0: Math.max(truncated, 1),
-    v1: LEGAL_FINDINGS_MAX,
-  })
-  const kept = withinRules.slice(0, LEGAL_FINDINGS_MAX)
-  for (const { rule, finding } of withinRules.slice(LEGAL_FINDINGS_MAX))
-    omit(rule, finding, totalReason)
-  // Room for one summary per rule with omitted advice.
-  while (kept.length > 0 && kept.length + omittedAdvice.size > LEGAL_FINDINGS_MAX) {
-    const last = kept.pop()
-    if (last !== undefined) omit(last.rule, last.finding, totalReason)
-  }
+  // No whole-report truncation past a finding count (B18): every finding
+  // the per-rule bound above admits is kept, whatever the report's size.
+  // Omitted advice is still summarized per rule (CM971-R3).
+  const kept = withinRules
   for (const [rule, count] of omittedAdvice) {
     kept.push({
       rule,

@@ -83,15 +83,14 @@ function checksLabel(view: PullRequestView): string | undefined {
       ] as const
     ).flatMap(([count, label]) => (count > 0 ? [plural(label, count)] : [])),
     ...checks.other,
-    ...(checks.notRead > 0 ? [plural(UI_TEXT.gitChecksNotRead, checks.notRead)] : []),
   ]
   return parts.length === 0 ? UI_TEXT.gitChecksNone : parts.join(' · ')
 }
 
 /**
  * The status dot, as a tool row's: failed, running, or done; always beside
- * words. A check in a state not counted, or one not read, is not known to
- * have passed: the dot stays neutral.
+ * words. A check in a state not counted is not known to have passed: the
+ * dot stays neutral.
  */
 function dotClass(view: PullRequestView): string {
   const { checks } = view
@@ -104,7 +103,7 @@ function dotClass(view: PullRequestView): string {
   if (checks.running > 0) {
     return 'tool-dot tool-dot-running'
   }
-  return checks.other.length > 0 || checks.notRead > 0 ? 'tool-dot' : 'tool-dot tool-dot-ok'
+  return checks.other.length > 0 ? 'tool-dot' : 'tool-dot tool-dot-ok'
 }
 
 function HoldCard({

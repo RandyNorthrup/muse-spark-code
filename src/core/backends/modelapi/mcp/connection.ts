@@ -16,7 +16,6 @@ import {
   MCP_PROTOCOL_VERSION,
   MCP_ELICITATION_TIMEOUT_MS,
   MCP_SUPPORTED_PROTOCOL_VERSIONS,
-  MCP_TOOLS_LIST_MAX_PAGES,
   MILLISECONDS_PER_SECOND,
 } from '../../../../shared/constants'
 import { clipForLog, type CoreLogger } from '../../../logging'
@@ -495,8 +494,9 @@ export class McpConnection {
       return []
     }
     const tools: McpToolInfo[] = []
+    const seenCursors = new Set<string>()
     let cursor: string | undefined
-    for (let page = 0; page < MCP_TOOLS_LIST_MAX_PAGES; page += 1) {
+    for (;;) {
       const raw = await this.request('tools/list', cursor === undefined ? {} : { cursor }, {
         timeoutMs,
       })
@@ -518,11 +518,16 @@ export class McpConnection {
       if (cursor === undefined || cursor === '') {
         return tools
       }
+      // No page cap (B8), but a cursor the server already named would page
+      // forever: stop at the repeat and say so instead of hanging.
+      if (seenCursors.has(cursor)) {
+        this.options.log.warn(
+          `MCP server ${this.options.name} repeated a tools/list cursor; the tools read so far are offered`,
+        )
+        return tools
+      }
+      seenCursors.add(cursor)
     }
-    this.options.log.warn(
-      `MCP server ${this.options.name} lists more than ${String(MCP_TOOLS_LIST_MAX_PAGES)} pages of tools; the rest are not read`,
-    )
-    return tools
   }
 
   /** Calls one tool; rejects on a JSON-RPC error, the deadline, a Stop or a closed connection. */

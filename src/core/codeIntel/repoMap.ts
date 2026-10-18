@@ -12,7 +12,6 @@ import {
   REPO_MAP_CHARS_PER_TOKEN,
   REPO_MAP_CONCURRENCY,
   REPO_MAP_MAX_FILE_CHARS,
-  REPO_MAP_MAX_FILES,
   REPO_MAP_MAX_LOOKUPS,
   REPO_MAP_MIN_NAME_CHARS,
   REPO_MAP_PROMPT_TIME_BUDGET_MS,
@@ -312,7 +311,7 @@ function tooSmall(maxTokens: number, lines: readonly string[]): CodeIntelRefusal
 
 interface BuiltMap {
   readonly ranked: readonly RankedFile[]
-  /** What the map could not cover: lookups cut short, files past the cap. */
+  /** What the map could not cover: lookups cut short by the time or a Stop. */
   readonly notes: readonly string[]
 }
 
@@ -337,12 +336,13 @@ async function buildWithin(query: CodeIntelQuery, limits: Limits): Promise<Built
     return { ranked: [], notes: [CODE_INTEL_MODEL_TEXT.repoMapNoFiles] }
   }
   const listed = found.toSorted((a, b) => compareText(a, b))
-  // The cap counts readable files: a file the permission profile hides
-  // spends none of it, so the scan goes on past it (the review of PR #89).
+  // Every listed file is ranked: a file the permission profile hides is
+  // skipped, never counted (the review of PR #89). The scan still ends at
+  // the time budget or a Stop, and the map says it is partial then.
   const files: string[] = []
   let scanned = 0
-  while (files.length < REPO_MAP_MAX_FILES && scanned < listed.length) {
-    const pending = listed.slice(scanned, scanned + REPO_MAP_MAX_FILES - files.length)
+  while (scanned < listed.length) {
+    const pending = listed.slice(scanned)
     const placed = await inBatches(pending, limits, async (path) => ({
       path,
       file: await query.place(path),
@@ -392,14 +392,6 @@ async function buildWithin(query: CodeIntelQuery, limits: Limits): Promise<Built
           fill(CODE_INTEL_MODEL_TEXT.repoMapPartial, {
             done: String(looked),
             total: String(names.length),
-          }),
-        ]
-      : []),
-    ...(files.length >= REPO_MAP_MAX_FILES && scanned < listed.length
-      ? [
-          fill(CODE_INTEL_MODEL_TEXT.repoMapFilesCapped, {
-            count: String(REPO_MAP_MAX_FILES),
-            total: String(listed.length),
           }),
         ]
       : []),

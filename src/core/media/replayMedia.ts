@@ -194,10 +194,10 @@ export class ReplayMedia {
   public assertPendingFits(
     content: readonly InputContentPart[],
     budget: MediaBudget,
-    queued?: { readonly chars: number; readonly slots: number },
+    queuedSlots = 0,
   ): void {
     try {
-      budget.assertMessageFits(content, queued)
+      budget.assertMessageFits(content, queuedSlots)
     } catch (error) {
       const names = new Set(
         content.flatMap((part) => {
@@ -207,7 +207,7 @@ export class ReplayMedia {
       )
       throw new Error(
         [
-          error instanceof Error ? error.message : UI_TEXT.mediaTotalTooLarge,
+          error instanceof Error ? error.message : UI_TEXT.documentsOverBudget,
           ...Array.from(names, (name) => fill(UI_TEXT.removeAttachmentNamed, { name })),
         ].join('\n'),
         { cause: error },
@@ -267,7 +267,7 @@ export class ReplayMedia {
     const gate = modalityGate(parsed.info, model, parsed.fps, this.route(parsed, model, content))
     if (!gate.ok) throw new Error(gate.reason)
     this.parts.set(content, parsed)
-    budget.noteMedia(content, parsed.info, 0, content.text)
+    budget.noteMedia(content, parsed.info, content.text)
     return content
   }
 
@@ -293,12 +293,7 @@ export class ReplayMedia {
         ? metadataPart(media)
         : inline
     this.parts.set(content, media)
-    budget.noteMedia(
-      content,
-      media.info,
-      content === inline ? undefined : 0,
-      metadataPart(media).text,
-    )
+    budget.noteMedia(content, media.info, metadataPart(media).text)
     return content
   }
 
@@ -455,12 +450,7 @@ export class ReplayMedia {
           throw new Error('Invalid encoded media size')
         const encoded = encodedMedia.part
         this.parts.set(encoded, media)
-        budget.noteMedia(
-          encoded,
-          media.info,
-          encodedMedia.encodedChars,
-          this.deps.codec.metadataText(media),
-        )
+        budget.noteMedia(encoded, media.info, this.deps.codec.metadataText(media))
         return encoded
       })
       if (hasFreshMedia) this.assertPendingFits(content, budget)

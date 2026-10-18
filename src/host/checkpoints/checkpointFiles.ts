@@ -15,7 +15,6 @@ import { type BlobRef, gitBlobOid } from '../../core/checkpoints/gitListings'
 import { isSamePath } from '../../core/paths'
 import { confineWorkspacePath } from '../../core/workspacePath'
 import {
-  CHECKPOINT_FILE_MAX_BYTES,
   CHECKPOINT_REMOVE_RETRIES,
   CHECKPOINT_REMOVE_RETRY_MS,
   GIT_MODE_EXECUTABLE,
@@ -65,10 +64,9 @@ export interface FileStep {
 /**
  * What became of one step: done; the file was not as the step expected
  * (changed while it ran, or an unsaved editor); a link or the workspace's
- * edge was on the way; the file is too large to compare; or the change
- * itself failed.
+ * edge was on the way; or the change itself failed.
  */
-export type StepResult = 'done' | 'changed' | 'linked' | 'failed' | 'unsaved' | 'tooLarge'
+export type StepResult = 'done' | 'changed' | 'linked' | 'failed' | 'unsaved'
 
 /** Fresh reads after awaits: TypeScript's readonly narrowing is not a live abort check. */
 function isDisallowed(target: RestoreTarget): boolean {
@@ -190,21 +188,15 @@ export async function resolvedPath(
 
 /**
  * Whether the file is still what the step expects it to be, by bytes and
- * presence, never mode; or too large to tell.
+ * presence, never mode: every file is compared, whatever its size.
  */
-async function matchOf(
-  absolute: string,
-  expect: Expectation,
-): Promise<'same' | 'changed' | 'tooLarge'> {
+export async function matchOf(absolute: string, expect: Expectation): Promise<'same' | 'changed'> {
   const stats = await lstatOrUndefined(absolute)
   if (expect.kind === 'absent') {
     return stats === undefined ? 'same' : 'changed'
   }
   if (stats?.isFile() !== true) {
     return 'changed'
-  }
-  if (stats.size > CHECKPOINT_FILE_MAX_BYTES) {
-    return 'tooLarge'
   }
   return gitBlobOid(await readFile(absolute)) === expect.oid ? 'same' : 'changed'
 }

@@ -1680,9 +1680,6 @@
   "gitChecksCancelled": {
     "other": "{count} 个已取消"
   },
-  "gitChecksNotRead": {
-    "other": "另有 {count} 个未读取"
-  },
   "gitStatusNeedsSignIn": "登录 GitHub 以查看其状态。",
   "gitCheckedAt": "截至 {time}",
   "gitSignInGitHub": "登录 GitHub",
@@ -2019,7 +2016,6 @@
   "attachmentUnreadable": "无法读取该文件。",
   "documentTooLarge": "PDF 不得超过 32 MB。",
   "documentsOverBudget": "每条消息中的图片和 PDF 页面总数不得超过 50。",
-  "mediaTotalTooLarge": "附加图片和 PDF 的总大小超过媒体限制。",
   "olderMediaOmitted": "为符合媒体限制，本次请求省略了较早的图片或 PDF。它们仍保留在本地历史记录中。",
   "pdfNeedsModelApi": "附加 PDF 需要使用 Model API 后端。",
   "invalidPdf": "该文件名为 PDF，但不是有效的 PDF 文件。",
@@ -2416,7 +2412,6 @@
   "restoreRefusedOrderUnknown": "保持原样，从多个窗口编辑，无法确定先后顺序：{files}",
   "restoreRefusedLinked": "保持原样，通过链接或目录联接点访问：{files}",
   "restoreRefusedNotKept": "无法还原，未保留之前的版本：{files}",
-  "restoreRefusedTooLarge": "无法还原，文件太大，无法保留副本：{files}",
   "restoreRefusedFailed": "无法更改：{files}",
   "restoreUnchanged": {
     "other": "已与之前一致：{count} 个文件。"
@@ -4849,9 +4844,6 @@
     "m112": "扫描达到限制而停止：时间",
     "m113": "未检查：{v0} 无法作为文本读取。",
     "m114": "扫描达到限制而停止：{v0} 超出文本读取预算。",
-    "m115": {
-      "other": "未检查：读取 {count} 个文件后停止，另有 {v1} 个未读取。"
-    },
     "m116": {
       "other": "未检查：达到依赖项证据限制，省略 {count} 个条目。"
     },
@@ -4862,9 +4854,6 @@
     },
     "m120": "提供打包输入或包清单证据，以准确确定分发义务。",
     "m121": "扫描达到限制而停止：{v0} 的报告已截断",
-    "m122": {
-      "other": "报告已截断：超出 {v1} 项上限的 {count} 个发现被省略；优先保留阻断项和应修复项。"
-    },
     "m123": {
       "other": "报告已截断：省略超出限制的 {count} 个生成文件排除项。"
     },

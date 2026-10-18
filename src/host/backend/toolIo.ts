@@ -55,7 +55,6 @@ import {
   HOOK_OUTPUT_MAX_BYTES,
   HOOK_STDIN_MAX_BYTES,
   MAX_DOCUMENT_BYTES,
-  MEDIA_MAX_UPLOAD_MIB,
   UI_TEXT,
   MODEL_TEXT,
   PDF_HEADER_WINDOW_BYTES,
@@ -647,11 +646,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
   }
   return {
     async readMedia(absolutePath, maxBytes, expectedCanonicalPath, signal, observeSource) {
-      if (
-        !Number.isSafeInteger(maxBytes) ||
-        maxBytes <= 0 ||
-        maxBytes > MEDIA_MAX_UPLOAD_MIB * BYTES_PER_MIB
-      )
+      if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0)
         throw new RangeError('Invalid media read limit')
       signal?.throwIfAborted()
       const { createMediaInspector } = await import('../../core/media/inspectEntry')
@@ -1068,9 +1063,10 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
             )
           : ['-c', command]
       resource = await prepareResourceJob(resource, job)
-      // Lane K: one production process cap shared by every session and the
+      // Lane K: the hook-process start shared by every session and the
       // lazy window/Tab bundles, held in the lazily loaded hook runtime so
-      // the hook implementation stays out of activation.
+      // the hook implementation stays out of activation (NOLIMITS4 C8: no
+      // host-wide count gates it).
       let release: () => void
       try {
         const runtime = await import('../../core/backends/modelapi/hookRuntimeEntry.js')

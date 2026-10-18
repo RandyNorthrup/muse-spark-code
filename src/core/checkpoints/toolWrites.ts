@@ -84,14 +84,7 @@ export interface UnitRecord {
 
 /** Why one path is not restored. */
 export type PathRefusal =
-  | 'changedAfter'
-  | 'changedBetween'
-  | 'orderUnknown'
-  | 'unsaved'
-  | 'linked'
-  | 'notKept'
-  | 'tooLarge'
-  | 'failed'
+  'changedAfter' | 'changedBetween' | 'orderUnknown' | 'unsaved' | 'linked' | 'notKept' | 'failed'
 
 /** What a restore does with one path. */
 export type PathDecision =

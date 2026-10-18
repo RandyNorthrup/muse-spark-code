@@ -1707,10 +1707,6 @@
     "one": "{count} abgebrochen",
     "other": "{count} abgebrochen"
   },
-  "gitChecksNotRead": {
-    "one": "{count} weitere nicht gelesen",
-    "other": "{count} weitere nicht gelesen"
-  },
   "gitStatusNeedsSignIn": "Melden Sie sich bei GitHub an, um den Status zu sehen.",
   "gitCheckedAt": "Stand: {time}",
   "gitSignInGitHub": "Bei GitHub anmelden",
@@ -2048,7 +2044,6 @@
   "attachmentUnreadable": "Die Datei konnte nicht gelesen werden.",
   "documentTooLarge": "PDFs dürfen höchstens 32 MB groß sein.",
   "documentsOverBudget": "Dateien dürfen zusammen höchstens 50 Bilder und PDF-Seiten pro Nachricht enthalten.",
-  "mediaTotalTooLarge": "Angehängte Bilder und PDFs überschreiten die gemeinsame Größenbeschränkung für Medien.",
   "olderMediaOmitted": "Ältere Bilder oder PDFs wurden wegen der Medienlimits aus dieser Anfrage ausgelassen. Sie bleiben im lokalen Verlauf erhalten.",
   "pdfNeedsModelApi": "PDF-Anhänge erfordern das Model-API-Backend.",
   "invalidPdf": "Diese Datei heißt PDF, ist aber keine gültige PDF-Datei.",
@@ -2469,7 +2464,6 @@
   "restoreRefusedOrderUnknown": "Unverändert gelassen, in mehreren Fenstern in einer nicht bestimmbaren Reihenfolge bearbeitet: {files}",
   "restoreRefusedLinked": "Unverändert gelassen, über einen Link oder eine Junction erreicht: {files}",
   "restoreRefusedNotKept": "Nicht wiederherstellbar, die frühere Version wurde nicht gespeichert: {files}",
-  "restoreRefusedTooLarge": "Nicht wiederherstellbar, zu groß zum Speichern einer Kopie: {files}",
   "restoreRefusedFailed": "Konnte nicht geändert werden: {files}",
   "restoreUnchanged": {
     "one": "Bereits wie zuvor: {count} Datei.",
@@ -4972,10 +4966,6 @@
     "m112": "Prüfung an Grenze gestoppt: Zeitlimit",
     "m113": "Nicht geprüft: {v0} kann nicht als Text gelesen werden.",
     "m114": "Prüfung an Grenze gestoppt: {v0} überschreitet das Textlesebudget.",
-    "m115": {
-      "one": "Nicht geprüft: Nach {count} Datei gestoppt; {v1} weitere nicht gelesen.",
-      "other": "Nicht geprüft: Nach {count} Dateien gestoppt; {v1} weitere nicht gelesen."
-    },
     "m116": {
       "one": "Nicht geprüft: Grenze für Abhängigkeitsbelege erreicht; {count} Eintrag ausgelassen.",
       "other": "Nicht geprüft: Grenze für Abhängigkeitsbelege erreicht; {count} Einträge ausgelassen."
@@ -4988,10 +4978,6 @@
     },
     "m120": "Liefern Sie Bündeleingaben oder Paketinventar für genaue Weitergabepflichten.",
     "m121": "Prüfung an Grenze gestoppt: Bericht für {v0} gekürzt",
-    "m122": {
-      "one": "Bericht gekürzt: {count} Befund über der Grenze von {v1} ausgelassen; Blocker und nötige Korrekturen zuerst behalten.",
-      "other": "Bericht gekürzt: {count} Befunde über der Grenze von {v1} ausgelassen; Blocker und nötige Korrekturen zuerst behalten."
-    },
     "m123": {
       "one": "Bericht gekürzt: {count} erzeugte Ausschlüsse über der Grenze ausgelassen.",
       "other": "Bericht gekürzt: {count} erzeugte Ausschlüsse über der Grenze ausgelassen."

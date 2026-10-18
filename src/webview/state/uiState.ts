@@ -796,7 +796,6 @@ function isStatedRefusal(reason: string): boolean {
     UI_TEXT.attachmentUnreadable,
     UI_TEXT.documentTooLarge,
     UI_TEXT.documentsOverBudget,
-    UI_TEXT.mediaTotalTooLarge,
     UI_TEXT.pdfNeedsModelApi,
     UI_TEXT.invalidPdf,
     UI_TEXT.textFileTooLarge,

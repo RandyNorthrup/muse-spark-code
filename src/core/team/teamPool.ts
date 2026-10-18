@@ -579,7 +579,6 @@ export function answerExhausted(
   pool: TeamRolePool,
   reasons: readonly TeamEntryExhaustion[],
   nowMs: number,
-  queueMaxWaitMs: number,
 ): TeamExhaustedAnswer {
   if (pool.policy === 'self') {
     return { decision: 'self', reasons }
@@ -587,7 +586,7 @@ export function answerExhausted(
   if (pool.policy === 'queue') {
     const untilMs = queueUntilMs(reasons, nowMs)
     if (untilMs !== undefined) {
-      return { decision: 'queue', untilMs: Math.min(untilMs, nowMs + queueMaxWaitMs) }
+      return { decision: 'queue', untilMs }
     }
   }
   return { decision: 'ask', choices: ['queue', 'self', 'raise', 'cancel'] }
@@ -640,33 +639,26 @@ export interface QueuedTeamTask {
 }
 
 /**
- * One role's queue: at most TEAM_QUEUE_MAX tasks, each waiting at most
- * TEAM_QUEUE_MAX_WAIT_MS, then it asks. Starting a task when headroom frees
- * is the scheduler's (M96c); the queue holds the wait and its deadline.
+ * One role's queue: every delegated task waits here until headroom frees,
+ * however many wait and however long it takes (NOLIMITS4 C9: no 16-task,
+ * 1-hour bounds of ours). Starting a task when headroom frees is the
+ * scheduler's (M96c); the queue holds the wait.
  * @unwired M96 team task queue
  */
 export class TeamTaskQueue {
   private readonly tasks: QueuedTeamTask[] = []
 
-  public constructor(
-    private readonly maxTasks: number,
-    private readonly maxWaitMs: number,
-  ) {}
-
   public get size(): number {
     return this.tasks.length
   }
 
-  /** Enqueues; a full queue refuses, so the role asks at once. */
-  public enqueue(task: QueuedTeamTask): { readonly queued: true } | { readonly refused: 'full' } {
-    if (this.tasks.length >= this.maxTasks) {
-      return { refused: 'full' }
-    }
+  /** Enqueues: the queue never refuses, so nothing is dropped past a count. */
+  public enqueue(task: QueuedTeamTask): { readonly queued: true } {
     this.tasks.push(task)
     return { queued: true }
   }
 
-  /** Takes a task out when it starts, is cancelled, or its wait expires. */
+  /** Takes a task out when it starts or is cancelled. */
   public remove(taskId: string): boolean {
     const at = this.tasks.findIndex((task) => task.taskId === taskId)
     if (at === -1) {
@@ -674,15 +666,6 @@ export class TeamTaskQueue {
     }
     this.tasks.splice(at, 1)
     return true
-  }
-
-  /** Tasks whose wait ran out: the role asks for these now. */
-  public expired(nowMs: number): readonly QueuedTeamTask[] {
-    const due = this.tasks.filter((task) => task.enqueuedMs + this.maxWaitMs <= nowMs)
-    for (const task of due) {
-      this.remove(task.taskId)
-    }
-    return due
   }
 }
 

@@ -9,7 +9,6 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import {
   HOOK_FORBIDDEN_ENV_NAMES,
-  BYTES_PER_MIB,
   MEDIA_AVCONVERT_VERSION_PATTERN,
   MEDIA_CONVERTER_INSTALL_PATHS,
   MEDIA_CONVERTER_PROBE_MAX_BYTES,
@@ -19,7 +18,6 @@ import {
   MEDIA_CONVERSION_MAX_RSS_BYTES,
   MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS,
   MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS,
-  MEDIA_MAX_UPLOAD_MIB,
   MEDIA_PROC_RSS_PATTERN,
   MEDIA_PROC_EXITED_PATTERN,
   MEDIA_PROC_RSS_UNIT_BYTES,
@@ -401,7 +399,6 @@ export async function convertToMp4(
     !path.isAbsolute(converter.command) ||
     !Number.isSafeInteger(maxOutputBytes) ||
     maxOutputBytes <= 0 ||
-    maxOutputBytes > MEDIA_MAX_UPLOAD_MIB * BYTES_PER_MIB ||
     !Number.isSafeInteger(timeoutMs) ||
     timeoutMs <= 0 ||
     timeoutMs > SHELL_MAX_TIMEOUT_MS ||
