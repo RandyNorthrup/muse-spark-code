@@ -408,7 +408,12 @@ import {
   reviewerInstructionsFor,
   reviewerToolRefusal,
 } from './reviewer'
-import { playbackInstructionsFor, playbackToolRefusal } from './playback'
+import {
+  checkPlaybackMarker,
+  ensurePlaybackMarker,
+  playbackInstructionsFor,
+  playbackToolRefusal,
+} from './playback'
 import { MediaBudget } from './mediaBudget'
 import { classifyContextOverflow } from '../../context/overflow'
 import {
@@ -1156,6 +1161,12 @@ export interface ActiveTurn {
   readonly isReview: boolean
   /** A playback turn (D203): its prompt, and no tools at all. */
   readonly isPlayback: boolean
+  /**
+   * The playback marker is ensured on the turn's first text (D203): set once
+   * the streamed or stored reply is known to open with it, so later messages
+   * of the turn flow untouched.
+   */
+  playbackMarkerEnsured?: boolean
   /** Whether it is recorded (M86), and what its tools then write through; set once admitted. */
   checkpoint?: TurnCheckpoint | undefined
   /** It started a process, or one of the conversation's ran in the background (M86, spec 8). */
@@ -3584,6 +3595,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
   ): Promise<void> {
     await this.selectToolsForTurn(turnId, body, signal)
+    // A playback answers from working memory only (D203): no PreLLMCall
+    // dispatch on its requests — a hook handler can start processes, call
+    // HTTP or MCP handlers, and append fetched context. (A tool-less request
+    // has nothing to narrow, so the selection above already stays quiet.)
+    if (this.isPlaybackTurn()) {
+      return
+    }
     const fields = await this.hookCallFields()
     const pre = await this.runHooks(
       'PreLLMCall',
@@ -5799,6 +5817,21 @@ export class ModelApiSession implements ScheduledAgentSession {
   ): void {
     // A reply's time is the moment it completed, as Muse Code records one (M87).
     if (entry.kind === 'agentMessage') {
+      // A playback reply opens with the verbatim marker line (D203): the
+      // model is asked, and the stream injects it, but a reply that arrived
+      // whole (or past a retried stream) is prefixed here instead, so the
+      // stored transcript keeps the contract whatever the model emitted. An
+      // empty message stays empty; the turn's first text carries the marker.
+      const turn = this.active
+      if (
+        turn?.turnId === turnId &&
+        turn.isPlayback &&
+        turn.playbackMarkerEnsured !== true &&
+        entry.text.trim() !== ''
+      ) {
+        entry.text = ensurePlaybackMarker(entry.text)
+        turn.playbackMarkerEnsured = true
+      }
       entry.recordedAt ??= this.recordedNow()
     }
     const item = this.completedSnapshot(entry, turnId)
@@ -5888,6 +5921,30 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       case 'response.output_text.delta': {
         const entry = this.openItem(open, event.item_id, 'agentMessage', turnId)
+        // A playback reply opens with the verbatim marker line (D203): the
+        // host prefixes it before the diverging delta when the model does
+        // not emit it, so the streamed reply keeps the contract. A marker
+        // prefix still in progress flows untouched; later messages of the
+        // turn do too, once the flag is set.
+        const turn = this.active
+        if (
+          turn?.turnId === turnId &&
+          turn.isPlayback &&
+          turn.playbackMarkerEnsured !== true &&
+          entry.text === ''
+        ) {
+          const marker = checkPlaybackMarker(entry.text, event.delta)
+          if (marker.inject !== '') {
+            entry.text = marker.inject
+            this.emit({
+              type: 'textDelta',
+              itemId: entry.ourId,
+              field: TEXT_FIELD,
+              delta: marker.inject,
+            })
+          }
+          if (marker.ensured) turn.playbackMarkerEnsured = true
+        }
         entry.text += event.delta
         this.emit({ type: 'textDelta', itemId: entry.ourId, field: TEXT_FIELD, delta: event.delta })
         return undefined
@@ -14061,8 +14118,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.emit({ type: 'turnStarted', turnId: turn.turnId })
     this.emit({ type: 'sessionStatus', status: RUNNING })
     // The context comes first so a skill invocation can be expanded (D13);
-    // it never throws, so the user message always follows.
-    await this.context.load()
+    // it never throws, so the user message always follows. A playback
+    // reports only what the session already holds (D203): loading here
+    // would read the root rules and scan the skill and agent roots for a
+    // first-turn playback, and the fresh rules would enter its answer.
+    if (queued.isPlayback !== true) {
+      await this.context.load()
+    }
     // A playback reports working memory only (D203): no git describe and no
     // repo-map scan on its path; neither result is in its prompt.
     if (queued.isPlayback !== true) {
@@ -14106,10 +14168,15 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       turn.abort.signal.throwIfAborted()
       await this.startHooks()
-      for (const message of this.pendingHookMessages.splice(0)) {
-        this.emit({ type: 'backendNotice', level: 'info', text: message })
+      // A playback answers from working memory only (D203): hook contexts
+      // and messages stay pending for the next ordinary turn instead of
+      // entering its turn, so nothing a hook fetched shapes its answer.
+      if (queued.isPlayback !== true) {
+        for (const message of this.pendingHookMessages.splice(0)) {
+          this.emit({ type: 'backendNotice', level: 'info', text: message })
+        }
+        this.appendHookContexts(turn.turnId, this.pendingHookContexts.splice(0))
       }
-      this.appendHookContexts(turn.turnId, this.pendingHookContexts.splice(0))
       if (this.hookStartStopReason !== undefined) {
         const stopReason = this.hookStartStopReason
         this.hookStartStopReason = undefined
@@ -14179,41 +14246,53 @@ export class ModelApiSession implements ScheduledAgentSession {
       } else {
         const replayStart = this.replay.length
         await this.appendUserMessage(turn.turnId, parts, queued.displayText, queued.userMessageId)
-        await this.expandSkillsForHooks(
-          turn.turnId,
-          parts,
-          replayStart,
-          turn.abort.signal,
-          queued.displayText,
-        )
+        // A playback carries no skill and expands none (D203): its fixed
+        // turn text names no invocation, and expansion would run extension
+        // hooks for a turn that answers from working memory only.
+        if (queued.isPlayback !== true) {
+          await this.expandSkillsForHooks(
+            turn.turnId,
+            parts,
+            replayStart,
+            turn.abort.signal,
+            queued.displayText,
+          )
+        }
       }
       if (!queued.isGoalWake && queued.isHookContinuation !== true) {
-        await this.noteLoadedRules(turn.turnId, 'rules', turn.abort.signal)
-        const replayBeforeSubmit = this.replay.length
-        const submitted = await this.runHooks(
-          'UserPromptSubmit',
-          turn.turnId,
-          { prompt: typedText(parts) },
-          undefined,
-          turn.abort.signal,
-        )
-        if (submitted.blockedReason !== undefined) {
-          // A rejected prompt stays visible in History, but never reaches a
-          // later model request through the replay (M51). On Muse Code the
-          // turn ends cancelled with the hook's reason and Interrupt fires
-          // (M91 capture run 5), so this turn does the same.
-          this.replay.splice(replayBeforeSubmit)
-          const userIndex = this.replay.findLastIndex(
-            (entry) =>
-              entry.turnId === turn.turnId &&
-              entry.item.type === 'message' &&
-              entry.item.role === 'user',
+        // A playback runs no turn hooks at all (D203): no
+        // InstructionsLoaded fan-out for its rules, and no UserPromptSubmit
+        // dispatch — a hook handler can start processes, call HTTP or MCP
+        // handlers, and append fetched context, which a memory-only turn
+        // must neither cause nor report.
+        if (queued.isPlayback !== true) {
+          await this.noteLoadedRules(turn.turnId, 'rules', turn.abort.signal)
+          const replayBeforeSubmit = this.replay.length
+          const submitted = await this.runHooks(
+            'UserPromptSubmit',
+            turn.turnId,
+            { prompt: typedText(parts) },
+            undefined,
+            turn.abort.signal,
           )
-          if (userIndex !== -1) {
-            this.replay.splice(userIndex, 1)
+          if (submitted.blockedReason !== undefined) {
+            // A rejected prompt stays visible in History, but never reaches a
+            // later model request through the replay (M51). On Muse Code the
+            // turn ends cancelled with the hook's reason and Interrupt fires
+            // (M91 capture run 5), so this turn does the same.
+            this.replay.splice(replayBeforeSubmit)
+            const userIndex = this.replay.findLastIndex(
+              (entry) =>
+                entry.turnId === turn.turnId &&
+                entry.item.type === 'message' &&
+                entry.item.role === 'user',
+            )
+            if (userIndex !== -1) {
+              this.replay.splice(userIndex, 1)
+            }
+            this.fireInterrupt()
+            throw new HookCancelledError(submitted.blockedReason)
           }
-          this.fireInterrupt()
-          throw new HookCancelledError(submitted.blockedReason)
         }
         // Admitted: a user's message starts the verify loop afresh (M68). A
         // goal's wake carries on, and a parent model's message to a subagent
