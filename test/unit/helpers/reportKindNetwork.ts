@@ -243,7 +243,7 @@ export function readGithubReleases(input: {
 /**
  * The three gallery/npm channel rows every bound-surface case reads,
  * through the production binding. Cases differ only in the surface and
- * fake HTTP boundary they drive, which stay at the call site.
+ * public-fetch answers they drive, which stay at the call site.
  */
 export async function readBoundChannelRows(
   bound: Pick<ReturnType<typeof bindStoresNetwork>, 'stores'>,
@@ -290,12 +290,13 @@ export function expectNpmPackageRequired(
   expect(calls).toHaveLength(2)
 }
 
-/** The production store binding every storeProject case drives, up to its fake HTTP boundary. */
+/** The production store binding every storeProject case drives, up to its recorded HTTP boundary. */
 export function bindStoresNetwork(input: {
   readonly root: string
   readonly surface: 'editor' | 'terminal'
   readonly mode?: 'always' | 'whenSignedIn'
   readonly transport?: ReportNetworkDeps['transport'] | undefined
+  readonly fetchPublic?: typeof fetch | undefined
   readonly project?: ReportStoreProject | undefined
 }) {
   return createReportingNetwork(
@@ -310,6 +311,7 @@ export function bindStoresNetwork(input: {
         allowEgress: () => Promise.resolve(true),
       },
       ...(input.transport !== undefined && { transport: input.transport }),
+      ...(input.fetchPublic !== undefined && { fetchPublic: input.fetchPublic }),
     },
     null,
     input.project,

@@ -8,7 +8,7 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   readStoreProject,
   reportStoreProject,
@@ -20,18 +20,11 @@ import {
   bindStoresNetwork,
   networkContext,
   readBoundChannelRows,
+  recordingTransport,
 } from './helpers/reportKindNetwork'
-
-// Report storage's own-process identity probe runs directly, as in
-// reportEngine.test.ts.
-vi.mock('../../src/core/resources/launcher', async (original) => {
-  const { withFixtureCommand } = await import('./helpers/resources/kindLaunch')
-  return withFixtureCommand(await original())
-})
 
 const roots: string[] = []
 afterEach(async () => {
-  vi.unstubAllGlobals()
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true })
 })
 async function scratch(): Promise<string> {
@@ -48,21 +41,32 @@ const project: ReportStoreProject = {
   releaseVersion: '0.14.2',
 }
 
+interface PublicFetchCall {
+  readonly url: string
+  readonly init: RequestInit | undefined
+}
+
 function stubRegistry(version: string) {
   // RVCM1136B P1: the production transport now sends the bound gallery
-  // channels down the public fetch too, so the fake answers them honestly
-  // (404: this fixture was never published there) beside the npm document.
+  // channels down the public fetch too, so the injected public fetch
+  // answers them honestly (404: this fixture was never published there)
+  // beside the npm document.
   const seen: string[] = []
-  const fetch = vi.fn((url: string, _init?: { method?: string; body?: unknown }) => {
+  const calls: PublicFetchCall[] = []
+  const fetchPublic: typeof fetch = (input, init) => {
+    let url: string
+    if (typeof input === 'string') url = input
+    else if (input instanceof URL) url = input.href
+    else url = input.url
     seen.push(url)
+    calls.push({ url, init })
     return Promise.resolve(
       url.startsWith('https://registry.npmjs.org/')
         ? Response.json({ version, url })
         : new Response('not published', { status: 404 }),
     )
-  })
-  vi.stubGlobal('fetch', fetch)
-  return { seen, fetch }
+  }
+  return { seen, calls, fetchPublic }
 }
 
 const GALLERY_URLS = [
@@ -110,12 +114,12 @@ describe('reportStoreProject', () => {
 
 describe('reporting network store binding', () => {
   // RVCM1136 P1: these tests drive the production composition —
-  // `createReportingNetwork`, the factory the engine actually binds — up to a
-  // fake HTTP boundary (stubbed fetch / a github-only surface transport), so
+  // `createReportingNetwork`, the factory the engine actually binds — up to
+  // an injected public fetch (plus a github-only surface transport), so
   // "bound but unreachable" cannot pass again. No hand-built reader factory.
   it('reads the npm channel live with a project, honestly missing the rest', async () => {
     const root = await scratch()
-    const { seen } = stubRegistry('0.14.1')
+    const { seen, fetchPublic } = stubRegistry('0.14.1')
     const bound = bindStoresNetwork({
       root,
       surface: 'editor',
@@ -123,12 +127,13 @@ describe('reporting network store binding', () => {
         request.url.startsWith('https://api.github.com/')
           ? Promise.resolve(Response.json({ value: 'github' }))
           : Promise.reject(new Error('refused')),
+      fetchPublic,
       project,
     })
     const result = await readBoundChannelRows(bound)
     // RVCM1136B P1: every bound channel reaches the public fetch now; the
-    // galleries stay unavailable because the fake 404s them, not because the
-    // transport refuses them.
+    // galleries stay unavailable because the injected fetch 404s them, not
+    // because the transport refuses them.
     expect(result.data?.slice(0, 2).map((row) => row.reason)).toEqual(['http-404', 'http-404'])
     expect(seen).toEqual([...GALLERY_URLS, 'https://registry.npmjs.org/fixture-pkg/latest'])
   })
@@ -137,23 +142,24 @@ describe('reporting network store binding', () => {
     // The CLI/ACP pass no transport, so the factory used to fall back to the
     // `gh` lane, which refuses the registry origin before `gh` ever runs.
     const root = await scratch()
-    const { seen, fetch } = stubRegistry('0.14.1')
-    const bound = bindStoresNetwork({ root, surface: 'terminal', project })
+    const { seen, calls, fetchPublic } = stubRegistry('0.14.1')
+    const bound = bindStoresNetwork({ root, surface: 'terminal', project, fetchPublic })
     await readBoundChannelRows(bound)
     expect(seen).toEqual([...GALLERY_URLS, 'https://registry.npmjs.org/fixture-pkg/latest'])
-    expect(fetch).toHaveBeenCalledTimes(3)
+    expect(calls).toHaveLength(3)
   })
 
   it('fetches npm under whenSignedIn without a GitHub login', async () => {
     // The review's exact scenario: default network mode, editor surface, no
     // sign-in. npm is public, so the channel still resolves.
     const root = await scratch()
-    const { seen } = stubRegistry('0.14.2')
+    const { seen, fetchPublic } = stubRegistry('0.14.2')
     const bound = bindStoresNetwork({
       root,
       surface: 'editor',
       mode: 'whenSignedIn',
       transport: () => Promise.reject(new Error('refused')),
+      fetchPublic,
       project,
     })
     const result = await bound.stores.read(networkContext())
@@ -168,11 +174,9 @@ describe('reporting network store binding', () => {
     // The GitHub sweep: its binding is unchanged, only addressed. Public
     // store hosts never reach the credential-owning lane; unknown hosts stay
     // refused.
-    const github = vi.fn((_request: { url: string }, _etag: string | null) =>
-      Promise.resolve(Response.json({ value: 'github' })),
-    )
-    const { fetch } = stubRegistry('0.14.1')
-    const routed = routeReportTransport(github)
+    const github = recordingTransport(() => Promise.resolve(Response.json({ value: 'github' })))
+    const { calls, fetchPublic } = stubRegistry('0.14.1')
+    const routed = routeReportTransport(github.transport, fetchPublic)
     const signal = new AbortController().signal
     const githubResponse = await routed(
       { url: 'https://api.github.com/repos/fixture/fixture/pulls?state=all' },
@@ -180,15 +184,15 @@ describe('reporting network store binding', () => {
       signal,
     )
     expect(await githubResponse.json()).toEqual({ value: 'github' })
-    expect(github).toHaveBeenCalledOnce()
-    expect(github.mock.calls[0]?.slice(0, 2)).toEqual([
-      { url: 'https://api.github.com/repos/fixture/fixture/pulls?state=all' },
-      '"etag"',
-    ])
-    expect(fetch).not.toHaveBeenCalled()
+    expect(github.calls).toHaveLength(1)
+    expect(github.calls[0]).toEqual({
+      request: { url: 'https://api.github.com/repos/fixture/fixture/pulls?state=all' },
+      etag: '"etag"',
+    })
+    expect(calls).toHaveLength(0)
     await routed({ url: 'https://registry.npmjs.org/fixture-pkg/latest' }, null, signal)
-    expect(fetch).toHaveBeenCalledOnce()
-    expect(github).toHaveBeenCalledOnce()
+    expect(calls).toHaveLength(1)
+    expect(github.calls).toHaveLength(1)
     // RVCM1136B P1: the galleries ride the same credential-free public
     // fetch, keeping the POST query form the capture evidences.
     await routed(
@@ -201,9 +205,9 @@ describe('reporting network store binding', () => {
       signal,
     )
     await routed({ url: 'https://open-vsx.org/api/fixture/fixture-pkg' }, null, signal)
-    expect(fetch).toHaveBeenCalledTimes(3)
-    expect(github).toHaveBeenCalledOnce()
-    expect(fetch.mock.calls[1]?.[1]).toMatchObject({ method: 'POST', body: '{"filters":[]}' })
+    expect(calls).toHaveLength(3)
+    expect(github.calls).toHaveLength(1)
+    expect(calls[1]?.init).toMatchObject({ method: 'POST', body: '{"filters":[]}' })
     await expect(
       routed({ url: 'https://example.com/package/latest' }, null, signal),
     ).rejects.toBeInstanceOf(ReportNetworkFailure)
@@ -214,14 +218,14 @@ describe('reporting network store binding', () => {
 
   it('stays unbound without a project, exactly as before', async () => {
     const root = await scratch()
-    const transport = vi.fn((_request: { url: string }) =>
+    const transport = recordingTransport(() =>
       Promise.resolve(Response.json({ version: '0.14.1', url: '' })),
     )
-    const bound = bindStoresNetwork({ root, surface: 'editor', transport })
+    const bound = bindStoresNetwork({ root, surface: 'editor', transport: transport.transport })
     const result = await bound.stores.read(networkContext())
     expect(result.record.status).toBe('unavailable')
     expect(result.data).toBeNull()
-    expect(transport).not.toHaveBeenCalled()
+    expect(transport.calls).toHaveLength(0)
   })
 })
 
