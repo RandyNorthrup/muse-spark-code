@@ -312,19 +312,29 @@ export class InspectRunner {
       await writeFile(path.join(workspace, '.git', 'config'), forbidden)
       await writeFile(path.join(workspace, '.env'), forbidden)
       const cat = await this.execute('cat allowed.txt', binding, home, this.lifetime.signal)
-      if (cat.kind !== 'output' || cat.stdout !== allowed || cat.exitCode !== 0) return false
+      if (cat.kind !== 'output' || cat.stdout !== allowed || cat.exitCode !== 0) {
+        // The latched refusal names the failing probe's own reason. Probes
+        // run in probe, cat, grep order and the first failure sticks, so the
+        // reason plus that order identifies which probe failed and why.
+        if (cat.kind === 'refused') this.offReason = cat.reason
+        return false
+      }
       const grep = await this.execute(
         "grep -r -e 'B1_.*_CANARY' .",
         binding,
         home,
         this.lifetime.signal,
       )
-      return (
-        grep.kind === 'output' &&
-        grep.stdout.includes(allowed) &&
-        !grep.stdout.includes(forbidden) &&
-        grep.excluded >= 2
-      )
+      if (
+        grep.kind !== 'output' ||
+        !grep.stdout.includes(allowed) ||
+        grep.stdout.includes(forbidden) ||
+        grep.excluded < 2
+      ) {
+        if (grep.kind === 'refused') this.offReason = grep.reason
+        return false
+      }
+      return true
     } catch {
       return false
     } finally {
