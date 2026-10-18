@@ -227,3 +227,47 @@ test fails on this rig with `kill EPERM` on process-group confirmation;
 it fails identically on the untouched base commit `80169cb04` (separate
 worktree, removed after). `test/unit/webFetch.test.ts` was not run
 (finding 11: stalls on this rig).
+
+## PR214FIX2 first result (2026-10-17, branch `fix/nolimits-2-fix2`)
+
+One line per thread, each verified against this tree just now:
+
+- `transport.ts` (Retry-After past the timer range): already fixed —
+  the retry sleeps through chunked `pause()` (`transport.ts:769`).
+- `mcp/servers.ts:185` (entry timeouts past the timer range): already
+  fixed — `McpConnection.request` arms them with `setLongTimeout`
+  (`connection.ts:434`).
+- `tools.ts:1964` (model `timeout_ms` past the timer range): already
+  fixed — `runCommand` arms it with `setLongTimeout` (`toolIo.ts:1285`).
+- `pacing.ts` (estimate larger than the observed bucket): already fixed
+  — the estimate is clamped to the whole bucket so a full bucket admits
+  (`pacing.ts:231`).
+- `timeouts.ts` (English notice subjects): already fixed — all nine
+  callers pass `StillWaitingSubject` keys.
+- `browserCheckConstants.ts:143` (removed limits in the roadmap):
+  already fixed — M81 reads "as many steps as the check needs"
+  (`ROADMAP.md:138`).
+- `MuseCodeHost.ts:818` (watchdog misses shared across commands):
+  already fixed — `HostLiveness.stillWaiting` counts one miss per
+  silent notice period (`MuseCodeHost.ts:488`).
+- `importIo.ts:86` (import Git probes with no kill path): already fixed
+  — the window-lifetime signal reaches both git children (`708e6972c`).
+- `webFetch.ts:552` (no response-size cap when `rawTextLimit` is
+  unnamed): confirmed at cause — `createWebFetcher` is built without a
+  cap (`webFetchEntry.ts:46`, `runtime/backends.ts:354`) and `collect`
+  then buffers unboundedly; fix follows in this lane (5 MiB default).
+- `registry.ts:292` (indefinite wait with no notice): confirmed at
+  cause — the `idleMs === undefined` path races with no still-waiting
+  notice, and configured providers log transport notices to
+  `ignoreTransportLog` (`configured.ts:479`); fix follows in this lane.
+- `files.ts:233` (internal Files calls with no signal): confirmed at
+  cause — `upload()`'s receipt `delete()` and `accountFiles()`'s
+  `list()` name no signal; fix follows in this lane.
+- `legal/entry.ts:22` (deadline-free scan not cancellable mid-walk):
+  confirmed at cause — the walk is fully synchronous, so the event loop
+  cannot deliver Stop/SIGINT until it returns; the per-entry abort
+  checks only catch a pre-start abort; fix follows in this lane.
+- `mapNotification.ts:279` (dropped retry ceiling): confirmed at cause
+  — the schema still validates `maxAttempts` but the shared `turnRetry`
+  event has no such field and the notice renders "Attempt N" only; fix
+  follows in this lane.
