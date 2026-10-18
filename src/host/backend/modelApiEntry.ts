@@ -36,6 +36,9 @@ export {
   // built product (HOTFIX0181).
   UNBOUNDED_RETRIES,
   noRetryBudget,
+  // Lane PR225FIX2: read by dist/configuredProviders.js, dist/extension.js
+  // and dist/acp.js (the production retry-wait sleep), same rule.
+  abortableSleep,
   redactSecrets,
   assertConfirmedAllowed,
   isStaleConfirmedError,

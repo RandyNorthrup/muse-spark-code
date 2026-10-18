@@ -679,8 +679,24 @@ Still open:
   Not changed here.
 - ACP/headless still pass no `personMaxRetries` (see above).
 
-## The three new Codex threads on PR #225 (lane PR225FIX2, in progress)
+## The three new Codex threads on PR #225 (lane PR225FIX2, done)
 
-1. `ModelApiHost.ts:14610` (P1, compaction reads the aggregate client): accepted — `collectText`'s catch reads `this.deps.client` (Meta's limit) while the attempt went through `resolved.client`; retaining the attempt's client for the limit and the wait.
-2. `transport.ts:760` (P2, an aborted long wait leaves its timer): accepted — `pause` races the chunk's sleep but never cancels it, so a referenced production timer outlives the stop; making the chunk itself cancellable.
-3. `transport.ts:1175` (P2 security, unbounded ambiguous replays): accepted — with no person setting and no documented maximum, `undefined` becomes `UNBOUNDED_RETRIES` and a reset connection replays a possibly-executed paid send forever; ambiguous sends will require an explicit cap.
+1. `ModelApiHost.ts:14610` (P1, compaction reads the aggregate client): fixed. `collectText` keeps the resolved attempt's client in `attemptClient` (`ModelApiHost.ts:14437,14452`) and the catch reads the limit, the delay and the wait from it (`:14618-14644`), falling back to the aggregate client only when nothing resolved yet. No unit test: the host needs the editor's services, which a unit test may only build on a stand-in (owner's rule); the lead's real-life step 1 below is the proof.
+2. `transport.ts:760` (P2, an aborted long wait leaves its timer): fixed. `pause` hands the turn's stop to each chunk's sleep (`transport.ts:795`), and the four production sleeps that feed a transport (configured providers in `configured.ts:478`, the Meta key client and the conversation manager in `extension.ts:2058,2634`, the ACP/headless managers in `runtime/main.ts:201`) share `abortableSleep`, which clears its timer the moment the stop aborts. Clearing, not unreferencing, on purpose: an unaborted wait holds the process exactly as before; only an abandoned wait is gone. The race stays as the backstop for a sleep that ignores the signal. `abortableSleep` is exported from the Model API bundle entry (`modelApiEntry.ts:41`), or the three bundles that read it get `undefined` at run time (HOTFIX0181; the split gate failed before the export).
+3. `transport.ts:1175` (P2 security, unbounded ambiguous replays): fixed. An unanswered send — the request may have arrived and executed — is sent again only within an explicit bound: the person's `museSpark.modelApiMaxRetries` setting or the provider's documented maximum (`transport.ts:1211-1219`). With neither, the send failure ends the request at once. The same rule covers a connection lost before any content in `CodecClient.streamResponse` (`providerClient.ts:287-297`). Answered retries are unchanged: HTTP statuses with the provider's `Retry-After`, documented retryable stream errors and the host turn loops' provider-answered error events stay on the provider's own policy (the provider answered, so the send is not ambiguous).
+
+Tests and drills (`test/unit/providerRetryLimits.test.ts`, 14 tests, exit 0; real code and real data only — the platform's timer, the presets' documented tables, the product's own transport, a real refused loopback connection, no server, no stand-in):
+
+- The stop reaches each chunk's sleep (fails when `pause` stops forwarding the signal: 1 failed, 13 skipped).
+- A sleep that ignores the stop is still abandoned promptly (fails with the race removed: timeout past the suite limit).
+- The production sleep resolves a stopped wait instead of holding it.
+- An unanswered send with OpenRouter's undocumented limits and no setting fails once with zero retry notices (fails with the bound removed: three growing retries in the log, then the suite timeout — the vulnerability on display).
+- The person's setting of 1 still retries exactly once; Anthropic's documented 2 still starts its first wait, ended by Stop.
+- Shared transport deps factored out after the duplication gate found one 13-line clone; gate exit 0.
+
+Real-life runs (lead, packed product):
+
+1. Thread 1: a configured Anthropic model compacting after its own two retries are spent: the compaction follows Anthropic's limit (at most 2 more waits), not Meta's 4.
+2. Thread 3: a configured provider with no documented maximum (e.g. OpenRouter), `museSpark.modelApiMaxRetries` unset, network cut mid-turn: the send failure at once, no "Retrying" notice. Set the count to 1: exactly one notice, then the failure.
+
+Still open: `RetryableStreamError` resends in the host turn loops stay on the provider's policy (answered error events, not ambiguous sends); per-call-billed paths never retried ambiguous sends and still don't.

@@ -473,8 +473,8 @@ export function createConfiguredProviderServices(
     return {
       auth,
       transport: {
-        // Lane PR225FIX2: a Stop clears the wait's own timer, and a wait
-        // left pending never holds the process open.
+        // Lane PR225FIX2: a Stop clears the wait's own timer, so an
+        // abandoned wait leaves none behind.
         sleep: abortableSleep,
         now: Date.now,
         random: Math.random,
