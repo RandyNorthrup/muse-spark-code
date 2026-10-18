@@ -7888,6 +7888,10 @@ export const LEGAL_FINDINGS_MAX = 500
 export const LEGAL_FILE_MAX_BYTES = 1_000_000
 export const LEGAL_TOTAL_MAX_BYTES = 10_000_000
 export const LEGAL_DIRECTORY_ENTRIES_MAX = 20_000
+// Entries, files and readers between event-loop yields inside the legal
+// walk and scan (PR #214 review): often enough that Stop lands mid-scan,
+// seldom enough that yielding costs nothing measurable against sync syscalls.
+export const LEGAL_SCAN_YIELD_EVERY = 64
 export const LEGAL_FINDINGS_PER_RULE_MAX = 100
 // The only raw file content a finding may carry: a short excerpt around the
 // evidence (a header block, a license line), never a whole file, so a report

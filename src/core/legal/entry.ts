@@ -19,8 +19,8 @@ export async function runLegalScan(request: LegalScanRequest): Promise<LegalScan
   const input = legalScanInputSchema.parse(request.input)
   // No deadline of its own: the scan runs until it is done or the signal
   // aborts (owner 2026-10-16: no arbitrary limits).
-  const snapshot = createLegalSnapshot(request.workspaceRoot, request.signal)
-  const result = scanLegal(snapshot, {
+  const snapshot = await createLegalSnapshot(request.workspaceRoot, request.signal)
+  const result = await scanLegal(snapshot, {
     ...(input.paths !== undefined && { paths: input.paths }),
     headerPolicy: input.headerPolicy ?? SETTING_DEFAULTS.legalHeaderPolicy,
     ...(request.signal !== undefined && { signal: request.signal }),
@@ -49,11 +49,11 @@ export async function runLegalScan(request: LegalScanRequest): Promise<LegalScan
   return { result, registryTargets }
 }
 
-export function prepareLegalFixes(
+export async function prepareLegalFixes(
   workspaceRoot: string,
   findings: readonly LegalFinding[],
 ): Promise<readonly LegalPreparedPatch[]> {
-  return Promise.resolve(prepareLegalHeaderPatches(createLegalSnapshot(workspaceRoot), findings))
+  return prepareLegalHeaderPatches(await createLegalSnapshot(workspaceRoot), findings)
 }
 
 export { renderLegalMarkdown } from './markdown'

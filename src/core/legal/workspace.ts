@@ -17,9 +17,11 @@ import {
   type BigIntStats,
 } from 'node:fs'
 import path from 'node:path'
+import { setImmediate as yieldToHost } from 'node:timers/promises'
 import {
   LEGAL_DIRECTORY_ENTRIES_MAX,
   LEGAL_FILE_MAX_BYTES,
+  LEGAL_SCAN_YIELD_EVERY,
   LEGAL_TOTAL_MAX_BYTES,
 } from '../../shared/constants'
 import { sameFile } from '../fs/fileIdentity'
@@ -45,13 +47,13 @@ function isWithin(root: string, candidate: string): boolean {
  * Reads are UTF-8 only; undecodable/binary material remains incomplete.
  * The directory-entry budget also bounds trees containing only empty dirs.
  */
-export function createLegalSnapshot(
+export async function createLegalSnapshot(
   rootPath: string,
   signal?: AbortSignal,
   // A deadline only when the caller names one: unnamed, the walk runs until
   // it is done or the signal aborts (owner 2026-10-16: no arbitrary limits).
   deadline?: number,
-): LegalWorkspaceSnapshot {
+): Promise<LegalWorkspaceSnapshot> {
   if (signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
   const root = realpathSync(rootPath)
   if (!lstatSync(root).isDirectory()) throw new LegalScanError(UI_TEXT.legalScanner.m137)
@@ -70,7 +72,18 @@ export function createLegalSnapshot(
   const checkCancellation = (): void => {
     if (signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
   }
-  const visit = (directory: string, localDirectory: string): void => {
+  let sinceYield = 0
+  const checkYield = async (): Promise<void> => {
+    sinceYield += 1
+    if (sinceYield < LEGAL_SCAN_YIELD_EVERY) return
+    sinceYield = 0
+    // Let a Stop/SIGINT abort land mid-walk (PR #214 review): synchronous
+    // syscalls block the event loop, so without a yield the abort these
+    // checks read could only have arrived before the walk started.
+    await yieldToHost()
+    checkCancellation()
+  }
+  const visit = async (directory: string, localDirectory: string): Promise<void> => {
     checkCancellation()
     if (!isWithinTime()) return
     const before = lstatSync(directory, { bigint: true })
@@ -96,6 +109,7 @@ export function createLegalSnapshot(
         }
         names.push(entry.name)
         entry = dir.readSync()
+        await checkYield()
       }
     } finally {
       dir.closeSync()
@@ -119,16 +133,17 @@ export function createLegalSnapshot(
         const sample = lstatSync(absolute, { bigint: true })
         if (sample.isSymbolicLink())
           incompleteChecks.push(fill(UI_TEXT.legalScanner.m142, { v0: local }))
-        else if (sample.isDirectory()) visit(absolute, local)
+        else if (sample.isDirectory()) await visit(absolute, local)
         else if (sample.isFile()) admitted.set(local, sample)
         else incompleteChecks.push(fill(UI_TEXT.legalScanner.m143, { v0: local }))
       } catch (error) {
         if (signal?.aborted === true) throw error
         incompleteChecks.push(fill(UI_TEXT.legalScanner.m144, { v0: local }))
       }
+      await checkYield()
     }
   }
-  visit(root, '')
+  await visit(root, '')
   return {
     files: Array.from(admitted.keys(), (entry) => entry).toSorted((a, b) => compareLegalText(a, b)),
     incompleteChecks,
