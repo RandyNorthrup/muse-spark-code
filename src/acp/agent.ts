@@ -981,7 +981,7 @@ class AcpSession {
       // loudly (F94): an `authRequired` turn names the restart and the way
       // back, instead of failing as just another turn.
       const restartCause =
-        event.errorKind === AUTH_REQUIRED_ERROR_KIND ? this.host.takeRestartCause?.() : undefined
+        event.errorKind === AUTH_REQUIRED_ERROR_KIND ? this.host.peekRestartCause?.() : undefined
       const loud =
         restartCause === undefined
           ? undefined
@@ -1007,7 +1007,7 @@ class AcpSession {
     }
     // A turn that ran to completion proves the host: no later failure blames
     // the restart this host replaced.
-    this.host.takeRestartCause?.()
+    this.host.clearRestartCause?.()
     pending.resolve('end_turn')
   }
 

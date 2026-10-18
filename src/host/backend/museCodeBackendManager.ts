@@ -183,6 +183,14 @@ export class MuseCodeBackendManager {
    * `dispose`, and the failure it follows must still name the next start.
    */
   private failedExit: string | undefined
+  /**
+   * The spawn generation the watchdog's own restart is stopping: that
+   * stop answers an unresponsive backend, so its exit still names the
+   * next start (Codex on PR #211). Stamped in `hostUnresponsive`, consumed
+   * by the stale exit. A user-asked Restart or an account-ending stop
+   * never stamps it; a stale stamp can never match a later generation.
+   */
+  private recoveryStopGeneration: number | undefined
 
   public constructor(private readonly deps: BackendManagerDeps) {}
 
@@ -409,8 +417,14 @@ export class MuseCodeBackendManager {
       if (this.generation !== generation) {
         // A failure that lands while its stop was already asked for (the
         // incident's "exited as asked" at code 1) still names the next
-        // start, unless a replacement already holds the slot.
-        if (exit.isFailure && this.hostPromise === undefined) {
+        // start, unless a replacement already holds the slot. So does the
+        // exit of a watchdog-stopped host: the stop answered a failure,
+        // even though the close asked for it (Codex on PR #211).
+        const isRecoveryStop = this.recoveryStopGeneration === generation
+        if (isRecoveryStop) {
+          this.recoveryStopGeneration = undefined
+        }
+        if (this.hostPromise === undefined && (isRecoveryStop || exit.isFailure)) {
           this.failedExit = exit.description
         }
         return
@@ -446,6 +460,11 @@ export class MuseCodeBackendManager {
       return
     }
     this.deps.log.warn('Muse Code is not answering and no turn runs: restarting it')
+    // Stamp the generation this restart stops: the stop answers a failure,
+    // so its exit still names the next start (Codex on PR #211). Stamping
+    // is harmless when the restart never stops anything: no later
+    // generation can match it.
+    this.recoveryStopGeneration = this.generation
     try {
       await unresponsive.restart()
     } catch (error: unknown) {
@@ -676,7 +695,7 @@ export class MuseCodeBackendManager {
     return this.hostPromise !== undefined
   }
 
-  public async dispose(): Promise<void> {
+  public async dispose(options?: { readonly accountEnding?: boolean }): Promise<void> {
     this.resourceStop.abort()
     this.resourceStop = new AbortController()
     const pending = this.hostPromise
@@ -684,6 +703,13 @@ export class MuseCodeBackendManager {
     // A recorded failure is kept: a fault's Restart stops through here,
     // and the failure it follows still names the next start (F94). The
     // exit this stop is about to cause records itself above if it fails.
+    // An account-ending stop (sign-out, shutdown) discards it instead: the
+    // next sign-in starts clean, never blaming the previous account's run
+    // (Codex on PR #211).
+    if (options?.accountEnding === true) {
+      this.failedExit = undefined
+      this.recoveryStopGeneration = undefined
+    }
     this.generation += 1
     if (pending === undefined) {
       return

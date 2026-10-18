@@ -643,11 +643,13 @@ export interface AgentHost {
   onExit(listener: (exit: HostExit) => void): () => void
   /**
    * Why the host this one replaced went away, if that run ended in
-   * failure (`HostExit.isFailure`): read once, so the first turn that
-   * fails for a lost sign-in can name the restart, and later turns cannot
-   * blame it. Absent where nothing replaced anything.
+   * failure (`HostExit.isFailure`): every turn that fails for the lost
+   * sign-in names it, until a completed turn (or another definitive
+   * boundary) clears it. Absent where nothing replaced anything.
    */
-  takeRestartCause?(): string | undefined
+  peekRestartCause?(): string | undefined
+  /** A completed turn proves the host: no later failure blames the restart. */
+  clearRestartCause?(): void
   listModels(sessionId?: string): Promise<readonly ModelSummary[]>
   startSession(options: StartSessionOptions): Promise<AgentSession>
   listSessions(options: ListSessionsOptions): Promise<SessionPage>

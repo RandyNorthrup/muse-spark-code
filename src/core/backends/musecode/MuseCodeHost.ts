@@ -2448,15 +2448,20 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Why the host this one replaced went away (`AgentHost.takeRestartCause`):
-   * read once, so only the first turn that fails for a lost sign-in names
-   * the restart. Set at construction by the backend manager, never over the
-   * wire: a restart cause is local process knowledge.
+   * Why the host this one replaced went away (`AgentHost.peekRestartCause`):
+   * every turn that fails for the lost sign-in names it — concurrent
+   * conversations on this shared host classify the same loss (Codex on PR
+   * #211) — until `clearRestartCause` proves the host. Set at construction
+   * by the backend manager, never over the wire: a restart cause is local
+   * process knowledge.
    */
-  public takeRestartCause(): string | undefined {
-    const cause = this.restartCause
+  public peekRestartCause(): string | undefined {
+    return this.restartCause
+  }
+
+  /** A turn that ran to completion proves the host (F94). */
+  public clearRestartCause(): void {
     this.restartCause = undefined
-    return cause
   }
 
   /**

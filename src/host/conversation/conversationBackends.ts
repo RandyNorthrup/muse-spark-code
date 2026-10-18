@@ -6,7 +6,7 @@ import type { ConversationController } from './conversationController'
  */
 export async function restartConversationBackends(
   controllers: Iterable<ConversationController>,
-  museCode: { dispose: () => Promise<void> },
+  museCode: { dispose: (options?: { readonly accountEnding?: boolean }) => Promise<void> },
   modelApi: { dispose: () => Promise<void> },
   isConversationEnding: boolean,
   isMuseCodeOnly: boolean,
@@ -16,5 +16,11 @@ export async function restartConversationBackends(
       controller.backendStopping(isConversationEnding, isMuseCodeOnly ? 'museCode' : undefined),
     ),
   )
-  await Promise.all([museCode.dispose(), ...(isMuseCodeOnly ? [] : [modelApi.dispose()])])
+  // An ending stop crosses an account boundary (sign-out, shutdown): the
+  // next sign-in must not inherit this run's failure (Codex on PR #211). A
+  // fault's Restart keeps it, so the replacement names it (F94).
+  await Promise.all([
+    museCode.dispose(isConversationEnding ? { accountEnding: true } : undefined),
+    ...(isMuseCodeOnly ? [] : [modelApi.dispose()]),
+  ])
 }
