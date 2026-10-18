@@ -77,6 +77,17 @@ goldens are fixed in this lane.
   `l10n/untranslated.json`); `check:l10n` 0 problems. `goals.test.ts`
   15/15, `goalCommand.test.ts` green; the new refusal test was seen to fail
   with the comparison inverted.
+- T11 (`attachments.ts`, `ModelApiHost.ts`): the Model API text admission
+  compared UTF-8 bytes to the token-window-minus-reserve number, and a fixed
+  1 MiB pre-check fired first, so provider-valid plans (>1 MiB, inside the
+  window in tokens) could never be implemented. Admission and the send-time
+  aggregate guard now both estimate tokens high with
+  `MODEL_API_CONTEXT_BYTES_PER_TOKEN` against the renamed
+  `MODEL_API_TEXT_BUDGET_TOKENS` (same 786,432 count, now honestly tokens);
+  Muse Code keeps its own 1 MiB file ceiling. Reference regenerated
+  (`modelApiTextAllowanceTokens`). `attachments.test.ts` 19/19 (the slow
+  20×4 MB case became 3 shared-buffer attempts after a 5 s timeout; the new
+  plan-brief test was seen to fail with the comparison inverted).
 
 ## Triage (committed first)
 

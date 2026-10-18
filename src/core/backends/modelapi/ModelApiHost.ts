@@ -118,13 +118,13 @@ import {
   IDE_MCP_SERVER_NAME,
   MCP_ELICITATION_TIMEOUT_MS,
   MAX_ENCODED_MEDIA_CHARS,
-  MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MEMORY_INDEX_FILE,
   type MemoryScope,
   MODEL_API_CLOSE_SETTLE_MS,
   MODEL_API_CONTEXT_BYTES_PER_TOKEN,
   MODEL_API_CONTINUATIONS_MAX,
   MODEL_API_CONTEXT_WINDOW,
+  MODEL_API_TEXT_BUDGET_TOKENS,
   MODEL_API_HOOK_PROVIDER,
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
@@ -2188,9 +2188,13 @@ function textAttachmentBytes(parts: readonly TurnPart[]): number {
   return bytes
 }
 
-/** Reject an aggregate named-text payload before it can enter replay or an HTTP request. */
+/**
+ * Reject an aggregate named-text payload before it can enter replay or an
+ * HTTP request. Counted in tokens, estimated high like admission: what the
+ * provider's window is counted in.
+ */
 function textAttachmentBudgetError(bytes: number): Error | undefined {
-  return bytes > MAX_MODEL_API_TEXT_ATTACHMENT_BYTES
+  return Math.ceil(bytes / MODEL_API_CONTEXT_BYTES_PER_TOKEN) > MODEL_API_TEXT_BUDGET_TOKENS
     ? new Error(UI_TEXT.textFilesOverModelApiBudget)
     : undefined
 }
