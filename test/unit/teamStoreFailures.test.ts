@@ -4,24 +4,15 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { usingTempDir } from './helpers/temporaryFolders'
-import type { CoreLogger } from '../../src/core/logging'
+import { silentCoreLog } from './helpers/memoryLogs'
 import { TeamLedger } from '../../src/host/team/teamLedger'
 import { createTeamJournal } from '../../src/host/team/teamJournal'
 import { createWindowAuthority, createWindowIdentity } from '../../src/host/team/windowIdentity'
 
-function log(): CoreLogger {
-  return {
-    trace: () => undefined,
-    info: () => undefined,
-    warn: () => undefined,
-    error: () => undefined,
-  }
-}
-
 async function withMissingLedger(work: (ledger: TeamLedger) => Promise<void>) {
   await usingTempDir('pr161-team-', async (storage) => {
     const ledger = new TeamLedger({
-      log: log(),
+      log: silentCoreLog(),
       directory: path.join(storage, 'missing'),
       workspaceId: 'ws',
       windowId: 'win-1',

@@ -7,18 +7,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { Worker } from 'node:worker_threads'
 import { expect, it } from 'vitest'
-import type { Logger } from '../../src/host/logger'
 import { ConversionSlots, pageConverter } from '../../src/host/web/pageConverter'
-
-const quiet = (): void => undefined
-
-function memoryLog(): { log: Logger; warned: string[] } {
-  const warned: string[] = []
-  return {
-    warned,
-    log: { trace: quiet, info: quiet, warn: (message) => void warned.push(message), error: quiet },
-  }
-}
+import { warnLogPair } from './helpers/memoryLogs'
 
 it('fails closed on a worker that cannot start, without logging its message', async () => {
   // The real refusal: removing a file that is not there fails with ENOENT.
@@ -32,7 +22,7 @@ it('fails closed on a worker that cannot start, without logging its message', as
   const startWorker = (): Worker => {
     throw realRefusal
   }
-  const { log, warned } = memoryLog()
+  const { log, warned } = warnLogPair()
   const convert = pageConverter(
     'pageWorker.js',
     log,

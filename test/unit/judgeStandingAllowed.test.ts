@@ -6,21 +6,11 @@ import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, it } from 'vitest'
-import type { Logger } from '../../src/host/logger'
 import { isStandingAllowed } from '../../src/host/judge/judgeEntry'
-
-const quiet = (): void => undefined
-
-function memoryLog(): { log: Logger; warned: string[] } {
-  const warned: string[] = []
-  return {
-    warned,
-    log: { trace: quiet, info: quiet, warn: (message) => void warned.push(message), error: quiet },
-  }
-}
+import { warnLogPair } from './helpers/memoryLogs'
 
 it('fails closed with kind words when the settings file cannot be handed over', () => {
-  const { log, warned } = memoryLog()
+  const { log, warned } = warnLogPair()
   const isAllowed = isStandingAllowed(
     () =>
       readFileSync(path.join(tmpdir(), `no-judge-settings-${String(process.pid)}.json`), 'utf8'),
@@ -34,7 +24,7 @@ it('fails closed with kind words when the settings file cannot be handed over', 
 })
 
 it('denies malformed settings quietly, and admits a text without permissions', () => {
-  const { log, warned } = memoryLog()
+  const { log, warned } = warnLogPair()
   expect(isStandingAllowed(() => '{oops', log)).toBe(false)
   expect(isStandingAllowed(() => JSON.stringify({ schema_version: 1 }), log)).toBe(true)
   expect(warned).toHaveLength(0)
