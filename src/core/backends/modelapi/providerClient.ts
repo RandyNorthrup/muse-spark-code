@@ -6,6 +6,7 @@ import type { ProviderFormat } from '../../providers/providersFile'
 import type { CreateResponseBody, StreamEvent } from './schemas'
 import {
   RequestTransport,
+  UNBOUNDED_RETRIES,
   assertConfirmedAllowed,
   canRetryWithinBudget,
   ignoreClosingError,
@@ -64,6 +65,21 @@ export interface ProviderClient {
   currentKeyDigest(): Promise<string>
   retryDelayMs(attempt: number): number
   waitBeforeRetry(ms: number, signal: AbortSignal): Promise<void>
+  /**
+   * The retries one call may use (lane RETRYLIMITS, PR #225): the person's
+   * `museSpark.modelApiMaxRetries` setting caps the provider's documented
+   * maximum (never raises it), decides alone where the provider documents
+   * none, else undefined (unbounded: the provider's own Retry-After waits
+   * and stop answers govern the loop). The selected model rides along so
+   * an aggregate client answers for the provider that handled the request.
+   */
+  maxRetries(modelId?: string): number | undefined
+  /**
+   * The person's live `museSpark.modelApiMaxRetries` setting, before any
+   * provider maximum caps it, so the turn loop can tell a person-set cap
+   * stop from a provider refusal (PR #225).
+   */
+  personCap(): number | undefined
 }
 
 export interface ProviderModel {
@@ -152,6 +168,16 @@ export class CodecClient implements ProviderClient {
     this.currentKeyDigest = this.transport.currentKeyDigest.bind(this.transport)
     this.retryDelayMs = this.transport.backoffMs.bind(this.transport)
     this.waitBeforeRetry = this.transport.pause.bind(this.transport)
+  }
+
+  /** This client's effective retry limit (see `ProviderClient.maxRetries`). */
+  public maxRetries(): number | undefined {
+    return this.transport.maxRetries()
+  }
+
+  /** The person's live retry limit, uncapped (see `ProviderClient.personCap`). */
+  public personCap(): number | undefined {
+    return this.transport.personCap()
   }
   public async listModels(signal?: AbortSignal): Promise<readonly string[]> {
     // No deadline of our own (owner 2026-10-16): the catalogue read ends at
@@ -270,12 +296,22 @@ export class CodecClient implements ProviderClient {
         const isResendable =
           isRetryableStreamFailure(failure, this.deps.transport.retryTable) ||
           (failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE)
+        // Lane PR225FIX2: a connection lost before any content is an
+        // ambiguous send — the request may have arrived and executed — so
+        // it is sent again only within an explicit bound (the person's
+        // setting or the provider's documented maximum), never on the
+        // unbounded default. A retryable error the provider ended its
+        // stream with stays on the status policy above.
+        const isAmbiguous = failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE
+        const allowed = this.transport.maxRetries()
         if (
           !isResendable ||
           hasContent ||
           signal.aborted ||
           admitAttempt?.mediaAccounting !== undefined ||
-          !canRetryWithinBudget(retries, retries.retriesUsed)
+          !canRetryWithinBudget(retries, retries.retriesUsed) ||
+          (isAmbiguous && allowed === undefined) ||
+          retries.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
         )
           throw failure
         const attempt = retries.retriesUsed
@@ -283,10 +319,14 @@ export class CodecClient implements ProviderClient {
         const delayMs = this.retryDelayMs(attempt)
         onRetry?.({
           attempt: attempt + 1,
+          maxAttempts: allowed === undefined ? undefined : allowed + 1,
           delayMs,
           reason: `${failure.code ?? ''}: ${failure.message}`,
         })
         await this.waitBeforeRetry(delayMs, signal)
+        // Lane PR225W1: the person's limit is live — a change mid-wait
+        // refuses the resend the pre-wait check accepted.
+        if (attempt >= (this.transport.maxRetries() ?? UNBOUNDED_RETRIES)) throw failure
       } finally {
         if (response.body !== null && !response.body.locked) {
           void response.body.cancel().catch(ignoreClosingError)

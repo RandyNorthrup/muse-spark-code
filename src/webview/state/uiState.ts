@@ -2050,18 +2050,18 @@ function applyAgentEvent(
     }
     case 'turnRetry': {
       const seconds = Math.round(event.retryDelayMs / MILLISECONDS_PER_SECOND)
-      // A named ceiling reads with its total (PR #214 review); an unnamed
-      // one keeps the old card, as unbounded Model API retries do.
+      // Lane RETRYLIMITS: no cap to name when neither the provider nor the
+      // person sets a retry limit.
       const text =
         event.maxAttempts === undefined
-          ? fill(UI_TEXT.turnRetrying, {
+          ? fill(UI_TEXT.turnRetryingUncapped, {
               attempt: event.attempt,
               reason: event.reason,
               seconds,
             })
-          : fill(UI_TEXT.turnRetryingKnownTotal, {
+          : fill(UI_TEXT.turnRetrying, {
               attempt: event.attempt,
-              total: event.maxAttempts,
+              maxAttempts: event.maxAttempts,
               reason: event.reason,
               seconds,
             })

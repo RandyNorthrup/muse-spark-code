@@ -2445,6 +2445,7 @@
   "allowSessionPrefix": "이 세션에서 항상 허용:",
   "reject": "거부",
   "modelApiStalled": "Model API에서 {seconds}초 동안 아무것도 보내지 않아 응답을 종료했습니다. 다시 시도하려면 메시지를 다시 보내세요",
+  "modelApiRetryCapReached": "재시도 한도에 도달했습니다(museSpark.modelApiMaxRetries: {count}): 요청이 다시 전송되지 않았습니다. 재시도를 허용하려면 한도를 높이세요.",
   "queuedTurnDropped": "전송되지 않음: 중지로 인해 대기 중인 메시지가 지워졌습니다",
   "compactionStopped": "압축이 중지되었습니다",
   "compactionEmpty": "요약이 비어 있습니다. 대화는 변경되지 않았습니다.",
@@ -3570,8 +3571,8 @@
   "removeAttachmentNamed": "{name} 제거",
   "announceApprovalFor": "{tool}에 대한 승인 필요",
   "turnFailed": "턴이 실패했습니다.",
-  "turnRetrying": "시도 {attempt} 실패({reason}). {seconds}초 후에 다시 시도합니다.",
-  "turnRetryingKnownTotal": "시도 {attempt}/{total} 실패({reason}). {seconds}초 후에 다시 시도합니다.",
+  "turnRetrying": "시도 {attempt}/{maxAttempts} 실패({reason}). {seconds}초 후에 다시 시도합니다.",
+  "turnRetryingUncapped": "시도 {attempt} 실패({reason}). {seconds}초 후에 다시 시도합니다(재시도 제한 없음).",
   "usageWindowHours": {
     "other": "{count}시간 기간"
   },

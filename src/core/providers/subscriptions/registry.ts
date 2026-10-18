@@ -147,6 +147,12 @@ export interface SubscriptionRegistryDeps {
   readonly saveUsage?: (rows: readonly PlanUsageRow[]) => void
   readonly copilotUsage?: () => readonly PlanUsageRow[]
   /**
+   * Lane PR225W1: the person's `museSpark.modelApiMaxRetries` setting, read
+   * live. The plan routes document no retry maximum, so with none set their
+   * limit is undefined. Headless passes none (unset).
+   */
+  readonly personCap?: () => number | undefined
+  /**
    * How long the ChatGPT stream may send nothing, headers or frames, before
    * it is ended; absent, the stream ends at Stop, never at an invented kill
    * (owner 2026-10-16). It is the only time limit on that stream: there is
@@ -227,6 +233,13 @@ export function createSubscriptionClient(
     },
     retryDelayMs: (attempt) => meta.retryDelayMs(attempt),
     waitBeforeRetry: (ms, signal) => meta.waitBeforeRetry(ms, signal),
+    // Lane PR225W1: each subscription route answers its own retry limit.
+    // Neither plan route documents a maximum (provider-refusals.md
+    // lane RETRYLIMITS), so a plan model reads the person's setting when
+    // set and is unbounded otherwise; off-plan models are Meta's own.
+    maxRetries: (model) =>
+      model !== undefined && !isPlanModel(model) ? meta.maxRetries() : deps.personCap?.(),
+    personCap: () => deps.personCap?.(),
     createImage: (...args) => meta.createImage(...args),
     editImage: (...args) => meta.editImage(...args),
     listModels: async (signal) => {

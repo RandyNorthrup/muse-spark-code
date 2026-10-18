@@ -2553,6 +2553,7 @@
   "allowSessionPrefix": "Consenti sempre in questa sessione:",
   "reject": "Rifiuta",
   "modelApiStalled": "La Model API non ha inviato nulla per {seconds} s, quindi la risposta è stata terminata; invia di nuovo il messaggio per riprovare",
+  "modelApiRetryCapReached": "Limite di tentativi raggiunto (museSpark.modelApiMaxRetries: {count}): la richiesta non è stata inviata di nuovo. Aumenta il limite per consentire altri tentativi.",
   "queuedTurnDropped": "Non inviato: Arresta ha svuotato i messaggi in coda",
   "compactionStopped": "la compattazione è stata interrotta",
   "compactionEmpty": "Il riepilogo era vuoto; la conversazione è rimasta invariata.",
@@ -3730,8 +3731,8 @@
   "removeAttachmentNamed": "Rimuovi {name}",
   "announceApprovalFor": "Approvazione necessaria per {tool}",
   "turnFailed": "Il turno non è riuscito.",
-  "turnRetrying": "Tentativo {attempt} non riuscito ({reason}); nuovo tentativo tra {seconds} s.",
-  "turnRetryingKnownTotal": "Tentativo {attempt} di {total} non riuscito ({reason}); nuovo tentativo tra {seconds} s.",
+  "turnRetrying": "Tentativo {attempt}/{maxAttempts} non riuscito ({reason}); nuovo tentativo tra {seconds} s.",
+  "turnRetryingUncapped": "Tentativo {attempt} non riuscito ({reason}); nuovo tentativo tra {seconds} s (nessun limite di tentativi impostato).",
   "usageWindowHours": {
     "one": "finestra di {count} ora",
     "other": "finestra di {count} ore",

@@ -673,6 +673,12 @@ export const SETTING_DEFAULTS = {
   modelApiStrictTools: true,
   modelApiParallelReads: true,
   webSearchMaxPerRequest: 5,
+  // Lane RETRYLIMITS (owner's binding rule): the person's retry limit, unset
+  // by default (null). Set, it caps every provider's retries; unset, each
+  // provider's documented maximum governs, and a provider that documents
+  // none retries unbounded (its own Retry-After waits and stop answers
+  // govern). Machine scoped, since a repository must not set what is billed.
+  modelApiMaxRetries: null as number | null,
   // Restore by the tools' own writes (M86, PLAN.md D63): each Model API turn
   // records what its file tools write, with nothing of the workspace
   // captured, so it is on by default.
@@ -2333,9 +2339,28 @@ export const MODEL_API_RETRYABLE_STREAM_CODES: ReadonlySet<string> = new Set([
 // How long one fallback wait may grow between silent-provider retries
 // (owner 2026-10-16): exponential to this ceiling, forever until Stop. A
 // wait the provider names is honoured whole and never capped here.
+// Lane RETRYLIMITS (owner's binding rule): no global retry count or backoff
+// cap. Each provider's documented bounds live in
+// `src/shared/retryPolicy.ts` (`PROVIDER_RETRY_LIMITS` per format,
+// `META_DOCUMENTED_RETRY_LIMITS` for Meta's own 3–5 attempts) with
+// per-preset overrides in `src/core/providers/presets.ts` (`FormatQuirks.retryLimits`);
+// the person's `museSpark.modelApiMaxRetries` setting wins when set. What
+// remains here is mechanism, not a limit: the default initial wait (1 s is
+// the only documented base: Gemini's SDK and xAI's examples) used while the
+// provider names no wait and documents no base, and the anti-herd jitter.
+// `MODEL_API_RETRY_MAX_MS` below is pacing's assumed 429 wait when the
+// answer names none (lane PROVM95's area), never a retry cap.
 export const MODEL_API_RETRY_BASE_MS = 1000
 export const MODEL_API_RETRY_MAX_MS = 60_000
 export const MODEL_API_RETRY_JITTER_MS = 1000
+// The longest delay one timer holds: "When `delay` is larger than
+// `2147483647` … the `delay` will be set to `1`" (nodejs.org/api/timers.html,
+// Node.js v26.12.0, read 2026-10-17). A longer retry wait (an uncapped
+// backoff, a provider's Retry-After date weeks away) is slept in pieces of
+// at most this, so it is never cut to 1 ms (PR #225). Mechanism, not a limit.
+export const MODEL_API_TIMER_MAX_MS = 2_147_483_647
+// A stream that ends with an `error` event of these codes (the instance shut
+// down or was overloaded mid-reply) is retried whole, as the guide says.
 // The model list and the token count have no turn to stop them (PLAN.md D25).
 export const MODEL_API_STATUS_READ_TIMEOUT_MS = 3000
 // The ChatGPT sign-in's token-freshness bound (minimum validity), not a

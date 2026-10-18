@@ -12,6 +12,7 @@
 
 import { TAB_REQUEST_TIMEOUT_MS } from '../../shared/constants'
 import type { ResponseAttemptGuard, RetryBudget } from '../backends/modelapi/client'
+import { noRetryBudget } from '../backends/modelapi/transport'
 import type { CreateResponseBody, StreamEvent, Usage } from '../backends/modelapi/schemas'
 import { TabCache } from './tabCache'
 import type { TabMode } from './tabContext'
@@ -218,7 +219,7 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
       try {
         // One HTTP attempt: the reservation prices one, so the client's
         // retries are spent before the first try (RVM94LC).
-        const budget: RetryBudget = { retriesUsed: 0, maxRetries: 0 }
+        const budget: RetryBudget = noRetryBudget()
         for await (const event of deps.stream(body, timeout.signal, budget, admit)) {
           if (shouldStopAt(event)) {
             break

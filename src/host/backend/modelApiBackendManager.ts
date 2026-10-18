@@ -87,7 +87,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly streamIdleMs?: number
   readonly newId: () => string
   readonly now: () => number
-  readonly sleep: (ms: number) => Promise<void>
+  /** Absent, the transport waits with `abortableSleep` (see `TransportDeps.sleep`). */
+  readonly sleep?: ((ms: number) => Promise<void>) | undefined
   readonly random: () => number
   /** Muse Code's personal skill root (PLAN.md D13). */
   readonly personalSkillsRoot: string | undefined
@@ -136,6 +137,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly providerId?: ModelApiClientDeps['providerId']
   readonly webSearchPriceUsd?: ModelApiClientDeps['webSearchPriceUsd']
   readonly searchTokenCostUsd?: ModelApiClientDeps['searchTokenCostUsd']
+  /** `museSpark.modelApiMaxRetries`, read per retry decision (lane RETRYLIMITS). */
+  readonly personCap?: ModelApiClientDeps['personCap']
 
   readonly hookSettingsPath?: string
   readonly isHooksEnabled?: () => boolean
@@ -342,6 +345,9 @@ export class ModelApiBackendManager {
         ...(this.deps.searchTokenCostUsd !== undefined && {
           searchTokenCostUsd: this.deps.searchTokenCostUsd,
         }),
+        // The reader stays live through the plain forward: every retry read
+        // uses `?.()`, so an explicit undefined behaves exactly as absent.
+        personCap: this.deps.personCap,
         fetch: this.deps.fetch,
         ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
         baseUrl: MODEL_API_BASE_URL,

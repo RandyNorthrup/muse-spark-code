@@ -12,7 +12,12 @@
 
 import { PROVIDER_RETRY_HTTP_STATUS, ZAI_KEY_PATTERN } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
-import { RETRY_TABLES, type RetryTables } from '../../shared/retryPolicy'
+import {
+  PROVIDER_RETRY_LIMITS,
+  RETRY_TABLES,
+  type RetryLimits,
+  type RetryTables,
+} from '../../shared/retryPolicy'
 import type { CustomCompat, ProviderFormat } from './providersFile'
 
 /** The panel's filter chips (D74): Cloud, On this computer, Aggregator. */
@@ -137,6 +142,13 @@ export interface FormatQuirks {
    */
   readonly retry: RetryTables
   /**
+   * The format's documented retry bounds (lane RETRYLIMITS): absent fields
+   * are values the provider does not document, so the person's
+   * `museSpark.modelApiMaxRetries` setting decides and, with none set, the
+   * provider's own Retry-After (or stop answer) governs.
+   */
+  readonly retryLimits: RetryLimits
+  /**
    * The server takes `strict: true` tool schemas (M101 item 24): OpenAI
    * and Azure's constrained decoding. The selected model record overrides
    * this preset default, including explicit false. Meta's host binds its
@@ -170,6 +182,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.responses,
+    retryLimits: PROVIDER_RETRY_LIMITS.responses,
     supportsStrictTools: false,
   },
   chat: {
@@ -184,6 +197,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.chat,
+    retryLimits: PROVIDER_RETRY_LIMITS.chat,
     supportsStrictTools: false,
   },
   anthropic: {
@@ -198,6 +212,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.anthropic,
+    retryLimits: PROVIDER_RETRY_LIMITS.anthropic,
     supportsStrictTools: false,
   },
   gemini: {
@@ -212,6 +227,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.gemini,
+    retryLimits: PROVIDER_RETRY_LIMITS.gemini,
     supportsStrictTools: false,
   },
   ollama: {
@@ -226,6 +242,7 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
     retry: RETRY_TABLES.ollama,
+    retryLimits: PROVIDER_RETRY_LIMITS.ollama,
     supportsStrictTools: false,
   },
 }
@@ -256,9 +273,20 @@ export interface ProviderPreset {
   readonly wireCapture: boolean
 }
 
-/** A preset's effective quirks: its format's defaults plus its overrides. */
+/**
+ * A preset's effective quirks: its format's defaults plus its overrides.
+ * `retryLimits` merges field by field (review RVRETRYLIMITS): a preset
+ * that documents only its own count must keep its format's documented
+ * backoff bounds, the way the OpenAI preset already spreads the format's
+ * retry table before adding its own `errorKinds`.
+ */
 export function quirksOf(preset: ProviderPreset): FormatQuirks {
-  return { ...FORMAT_QUIRKS[preset.format], ...preset.quirks }
+  const format = FORMAT_QUIRKS[preset.format]
+  return {
+    ...format,
+    ...preset.quirks,
+    retryLimits: { ...format.retryLimits, ...preset.quirks.retryLimits },
+  }
 }
 
 /**
@@ -323,6 +351,12 @@ const OPENAI_PRESET: ProviderPreset = {
     retry: { ...RETRY_TABLES.responses, errorKinds: ['server_error'] },
     // OpenAI's constrained decoding takes strict tool schemas.
     supportsStrictTools: true,
+    // Lane RETRYLIMITS review: OpenAI's API docs name no count ("limit
+    // retries"), but its official SDK documents the same default the
+    // Anthropic row already uses: "automatically retried 2 times by
+    // default, with a short exponential backoff" (openai-python README,
+    // read 2026-10-17). No documented backoff bounds, so only the count.
+    retryLimits: { maxRetries: 2 },
   },
   wireCapture: true,
 }
@@ -347,6 +381,12 @@ const AZURE_PRESET: ProviderPreset = {
   quirks: {
     // Azure OpenAI's constrained decoding takes strict tool schemas.
     supportsStrictTools: true,
+    // Lane RETRYLIMITS: Azure documents "maximum number of retries (for
+    // example, 5–10)" (azure-openai.md §4, QUOTAHOW); 10 is the largest
+    // maximum Azure names, so anything above it exceeds its guidance. Its
+    // backoff (retry-after-ms, else exponential with jitter) has no
+    // documented bounds, so the person's setting decides.
+    retryLimits: { maxRetries: 10 },
   },
   wireCapture: false,
 }
@@ -373,6 +413,10 @@ const XAI_PRESET: ProviderPreset = {
   quirks: {
     reasoningField: 'encrypted',
     cachedUsageFields: ['input_tokens_details.cached_tokens'],
+    // Lane RETRYLIMITS: xAI documents "up to 5 attempts" with 2^attempt s
+    // backoff in its rate-limit examples (xai.md §4, RL), so 4 retries from
+    // a 1 s base doubling per try, with no documented maximum wait.
+    retryLimits: { maxRetries: 4, baseMs: 1000 },
   },
   wireCapture: true,
 }

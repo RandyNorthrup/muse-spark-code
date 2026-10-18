@@ -71,6 +71,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // streamed arguments.
   ['argument-preview', ['vscode:modelApi', 'acp:modelApi']],
   ...['service-status'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi']]),
+  // Lane RETRYLIMITS: the person's retry limit is a VS Code setting; the
+  // documented per-provider bounds apply on every surface.
+  ['retry-limits', ['vscode:modelApi']],
   ['native-deletion', ['vscode:museCode']],
   ['output-schema', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],

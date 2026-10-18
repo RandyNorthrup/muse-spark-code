@@ -2499,6 +2499,7 @@
   "allowSessionPrefix": "In dieser Sitzung immer zulassen:",
   "reject": "Ablehnen",
   "modelApiStalled": "Die Model API hat {seconds} s lang nichts gesendet, daher wurde die Antwort beendet; senden Sie die Nachricht erneut, um es noch einmal zu versuchen",
+  "modelApiRetryCapReached": "Wiederholungslimit erreicht (museSpark.modelApiMaxRetries: {count}): Die Anfrage wurde nicht erneut gesendet. Erhöhe das Limit, um weitere Wiederholungen zu erlauben.",
   "queuedTurnDropped": "Nicht gesendet: „Anhalten“ hat die eingereihten Nachrichten verworfen",
   "compactionStopped": "die Komprimierung wurde angehalten",
   "compactionEmpty": "Die Zusammenfassung war leer; die Unterhaltung bleibt unverändert.",
@@ -3650,8 +3651,8 @@
   "removeAttachmentNamed": "{name} entfernen",
   "announceApprovalFor": "Genehmigung erforderlich für {tool}",
   "turnFailed": "Der Durchgang ist fehlgeschlagen.",
-  "turnRetrying": "Versuch {attempt} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s.",
-  "turnRetryingKnownTotal": "Versuch {attempt} von {total} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s.",
+  "turnRetrying": "Versuch {attempt}/{maxAttempts} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s.",
+  "turnRetryingUncapped": "Versuch {attempt} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s (kein Wiederholungslimit festgelegt).",
   "usageWindowHours": {
     "one": "{count}-Stunden-Zeitfenster",
     "other": "{count}-Stunden-Zeitfenster"

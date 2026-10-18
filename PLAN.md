@@ -14457,6 +14457,18 @@ retry count, the backoff bounds and the idle timeout stay as they are
 pending the owner's decision (evidence in
 `docs/certification/provider-refusals.md`, "Lane PROVERRORS").
 
+**Amended 2026-10-17 (lane RETRYLIMITS, owner's binding rule).** The single
+global retry count (4) and backoff (1 s to 60 s) are replaced by each
+provider's documented values (`docs/certification/provider-refusals.md`,
+"Lane RETRYLIMITS"): Anthropic 2 (SDK default), OpenAI 2 (SDK default;
+review RVRETRYLIMITS), Gemini 4 with ~1 s to 60 s
+(SDK), Azure up to 10 (top of its documented 5–10 example range), xAI up to
+4 retries (5 attempts, 2^attempt s), Meta 4 (3–5 attempts). Anything a
+provider does not document is the person's `museSpark.modelApiMaxRetries`
+setting, unset by default; with none set the provider's own Retry-After
+(or stop answer) governs, with no cap of ours. The idle timeouts stay as
+they are (not this lane).
+
 **Cause.** Round 1 classified 11 of 23 recorded real answers wrong (the red
 table): typeless 401s read as "unrecognised", xAI/Mistral/Gemini shapes
 unread, quota-worded limits retried, spend caps retried, cut-off Anthropic
@@ -39175,6 +39187,13 @@ set-value request bound stays, and an unset `--max-requests` still leaves
 no request limit) merged 2026-10-18 with its Fixed entry under `[0.19.0]`;
 the release now holds twelve pull requests. D121's removals stand again
 for the budget; the request bound rests on PR #239's later design.
+PR #225 (`fix/provider-retry-limits`: each provider's own documented retry
+limit replaces the one global count — the person's `modelApiMaxRetries`
+setting caps a provider's maximum, decides alone where it documents none,
+and unbounded means the provider's own Retry-After waits and stop answers
+govern; the pacing queue keeps no deadline of ours) merged 2026-10-18 with
+its Added entry under `[0.19.0]`; the release now holds thirteen pull
+requests.
 The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 

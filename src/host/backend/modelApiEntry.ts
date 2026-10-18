@@ -30,6 +30,15 @@ export {
   parseJsonResponse,
   redactModelApiError,
   ignoreClosingError,
+  // Lane RETRYLIMITS: read by dist/configuredProviders.js
+  // (UNBOUNDED_RETRIES) and dist/reviewer.js and dist/tab.js
+  // (noRetryBudget), so the names exist here or they are `undefined` in the
+  // built product (HOTFIX0181).
+  UNBOUNDED_RETRIES,
+  noRetryBudget,
+  // Lane PR225FIX2: read by dist/configuredProviders.js, dist/extension.js
+  // and dist/acp.js (the production retry-wait sleep), same rule.
+  abortableSleep,
   redactSecrets,
   assertConfirmedAllowed,
   isStaleConfirmedError,
@@ -37,6 +46,7 @@ export {
   canRetryWithinBudget,
   whenAborted,
 } from '../../core/backends/modelapi/transport'
+import { noRetryBudget } from '../../core/backends/modelapi/transport'
 export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
 export { parseNdjson } from '../../core/backends/modelapi/ndjson'
 // Lane PROVERR: the typed refusal other bundles require from this bundle
@@ -301,13 +311,6 @@ export async function* streamLegalExplanation(
   locale: string,
 ): AsyncGenerator<StreamEvent> {
   setUiText(table, locale)
-  yield* new ModelApiClient(deps).streamResponse(
-    body,
-    signal,
-    undefined,
-    // The legal explanation names its own single send: no transport retry.
-    { retriesUsed: 0, maxRetries: 0 },
-    guard,
-  )
+  yield* new ModelApiClient(deps).streamResponse(body, signal, undefined, noRetryBudget(), guard)
 }
 export { setUiText } from '../../shared/l10n/text'
