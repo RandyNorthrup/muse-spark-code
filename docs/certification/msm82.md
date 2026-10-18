@@ -25,7 +25,7 @@ record called a red full unit gate a re-verification.
     `museSpark.modelApiReplyUsage`, `museSpark.modelApiSessionBudgetUsd`
     (`package.json`), `BackgroundNotifier` per window
     (`src/extension.ts:3201`), `attentionNotice` in the controller
-    (`src/host/conversation/conversationController.ts:2269`),
+    (`src/host/conversation/conversationController.ts:2267`),
     `reply-usage` harness scenario, M82 case19 preserved as live
     case22 (`test/e2e/modelApi.live.e2e.test.ts:40`).
 - Conflict resolution: main's version taken for all source, locale,
@@ -85,5 +85,83 @@ main-now` → Already up to date) and added: `NoticeMemory` plus the
   `names an approval and a question, but not a replayed card` fails;
   `NoticeMemory.take` dedup disabled → both memory tests fail;
   reverted → 7/7 pass, no diff left in source.
-- Withdr
-  ...[truncated 6154 chars]
+- Withdrawn claims: clicking **Show conversation** and the
+  focus gate end to end are not proven by any test here; they are
+  real-life steps below. The full unit gate is not claimed green
+  (finding 2).
+
+## What was finished (finding 2)
+
+- The earlier record called a full `test:unit` run with 54 failures
+  a re-verification. That claim is withdrawn. The lane diagnosed
+  every failure (two full runs; see the PLAN.md §7 deferral this
+  lane added): eight cases cannot pass in this rig's sandbox
+  (seven need `/bin/ps`, which answers `Operation not permitted`
+  here; one fixture hook times out on this rig's slow disk), and
+  the rest were disjoint parallel-load flakes that pass file-alone
+  on the same tree. No timeout, threshold, gate, or assertion was
+  changed. Hosted CI is the binding full gate; the lead re-runs
+  the eight cases outside the sandbox or takes the CI macOS shard.
+
+## Removals
+
+- `test/unit/turnNotifications.test.ts` (created by M82,
+  `22106486a`): deleted on main by the test overhaul
+  (`f2b00c094`, an ancestor of `main-now`); the merge resurrected
+  it and this lane re-deleted it. Its scripted notifier closures
+  are finding 1; the replacement is `turnNotice.test.ts` plus the
+  integration suite. PLAN.md's planned M88 lane table still names
+  the file; that table is equally stale on `main-now`, which also
+  lacks the file.
+- Six further candidate test files the merge kept deleted
+  (`Transcript`, `UsageDialog`, `conversationController`,
+  `modelApiHost`, `settings`, `uiState`): all absent on the merged
+  main by the same overhaul; none is this lane's deletion.
+- Four `BackgroundNotifier` closure tests from this lane's first
+  `turnNotice.test.ts` (9 tests → 7): replaced by the integration
+  suite; the once-per-key rule they covered moved to
+  `NoticeMemory` and is unit-proven there.
+- The inline notifier closures in `src/extension.ts` and the
+  `raised` set in `BackgroundNotifier`: moved, not lost — to
+  `vscodeBackgroundNoticeDeps` and `NoticeMemory` respectively,
+  with identical semantics (`currentSettings()` was itself
+  `readSettings(getConfiguration(SETTINGS_SECTION), log)`).
+- Review fix (RVPR203FIX): the quiet-test reveal callbacks'
+  inline `assert.fail` calls are removed because `raise` catches
+  reveal errors and only logs them, so they could never fail;
+  reveals are counted and asserted after the settle instead.
+
+## Gates on the merged tree (RVPR203FIX review, 2026-10-17)
+
+Merged `main-now` (`e49e65ac7`, 51 commits) with no conflicts;
+the lane's ten files survive unchanged in intent. Exit codes:
+`typecheck` (all projects) 0; ESLint `--max-warnings=0` on the
+five touched code/test files 0 (including main's new
+no-stand-ins lint); Prettier on all ten touched files 0;
+`check:l10n` 0; `check:reference` 0; `check:host-api` 0 (381
+APIs, 49 files); `check:plan` 0; `check:roadmap` 0; `deadcode`
+0; `cycles` 0; `duplication` 0 (0 clones); `build` 0;
+`build:dev` 0; `security:audit` 0. `security:sast` exits 2 in
+this sandbox (`ca-certs: empty trust anchors` at semgrep
+startup, also reported by the lane); the lead runs it outside
+the sandbox. Tests: `turnNotice` 7/7 (repo default timeout);
+red drill — `NoticeMemory.take` dedup disabled → both memory
+tests fail, reverted → 7/7; integration `backgroundNotice`
+4/4 on stable (VS Code 1.142.0) through the real Extension
+Development Host. The lane's 4/4 on the manifest-floor version
+and its two full unit runs are lane-reported, not re-run in
+this review; the full unit suite remains hosted CI's gate.
+This record's tail was committed truncated at `0d1646306`
+(it ended mid-word); the review completed it from the runs
+above.
+
+## Real-life steps for the lead
+
+1. Unfocus the VS Code window, run a turn over a minute (or one
+   that waits on an approval/question): exactly one VS Code
+   notification; click **Show conversation** → the conversation
+   comes into view. Focused: no notification. Setting
+   `museSpark.notifyOnBackgroundTurn` off: none either way.
+2. Model API reply usage and session budget steps are unchanged
+   from `m82.md`; this lane changed no product behaviour there.
+3. No live or paid model call was made from this lane or review.
