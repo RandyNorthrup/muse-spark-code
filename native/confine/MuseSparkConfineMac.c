@@ -1,5 +1,5 @@
-// D107 §9.4, B1 macOS. No shell, no directory read grant, ambient environment
-// never reaches the child. Enforcement is Seatbelt: the helper walks the
+// D107 §9.4, B1 macOS. No shell, no blanket directory read grant, ambient
+// environment never reaches the child. Enforcement is Seatbelt: the helper walks the
 // workspace with no-follow opens (same privacy policy as Linux, policy.h),
 // writes a literal-path profile, prints the protocol line, then execs
 // /usr/bin/sandbox-exec. Seatbelt checks every open at open time, so a swap
@@ -189,6 +189,23 @@ static void allow_absolute(const char *relative) {
   if (n < 0 || (size_t)n >= sizeof(absolute)) refuse("walkBudget");
   allow_literal(absolute);
 }
+// Protected names stay listed, like Linux B1-13: a skipped protected
+// directory keeps file-read* on its own literal so its entries enumerate
+// (names only), while a skipped protected regular file keeps
+// file-read-metadata only. Any other skipped type (symlink, fifo, …)
+// keeps no rule at all: its name already surfaces through the parent's
+// listing, and readlink's gating stays denied. Contents stay denied: no
+// rule grants file-read-data on a protected file, and Seatbelt checks
+// every open's resolved path, so deeper entries enumerate through their
+// parent's listing but never open.
+static void allow_protected(const char *relative, int is_dir) {
+  char absolute[PATH_MAX];
+  int n = snprintf(absolute, sizeof(absolute), "%s/%s", root_absolute, relative);
+  if (n < 0 || (size_t)n >= sizeof(absolute)) refuse("walkBudget");
+  dprintf(profile_fd, is_dir ? "(allow file-read* (literal \"" : "(allow file-read-metadata (literal \"");
+  write_escaped(absolute);
+  dprintf(profile_fd, "\"))\n");
+}
 static void walk(int fd, const char *relative, int recursive, size_t depth) {
   if (depth > JUDGE_FAST_B1_WALK_MAX_DEPTH) refuse("walkBudget");
   budget();
@@ -213,7 +230,17 @@ static void walk(int fd, const char *relative, int recursive, size_t depth) {
       ? snprintf(name, sizeof(name), "%s", entry->d_name)
       : snprintf(name, sizeof(name), "%s/%s", relative, entry->d_name);
     if (n < 0 || (size_t)n >= sizeof(name)) refuse("walkBudget");
-    if (private_path(name)) { excluded++; continue; }
+    if (private_path(name)) {
+      excluded++;
+      // fstatat, never open: no-follow, and a fifo never blocks the walk.
+      // Anything unstatable, or not a plain dir-or-file, keeps no rule.
+      struct stat kept;
+      if (!fstatat(fd, entry->d_name, &kept, AT_SYMLINK_NOFOLLOW)) {
+        if (S_ISDIR(kept.st_mode)) allow_protected(name, 1);
+        else if (S_ISREG(kept.st_mode)) allow_protected(name, 0);
+      }
+      continue;
+    }
     int child = open_component(fd, entry->d_name, 0);
     if (child < 0) { excluded++; continue; }
     struct stat kept = info(child);
