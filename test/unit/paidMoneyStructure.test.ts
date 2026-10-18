@@ -3,7 +3,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
+  SANCTIONED_CONNECTOR_MICROS,
   SANCTIONED_ESTIMATOR,
+  SANCTIONED_EVAL_RECORD,
   SANCTIONED_RATE,
   SANCTIONED_SETTING,
   SANCTIONED_WIRE,
@@ -60,6 +62,16 @@ const SETTING: AllowEntry = {
   reason: 'VS Code number setting or its declared default/limit, read with Usd.from.',
   plan: SANCTIONED_SETTING,
 }
+const MICROS: AllowEntry = {
+  category: 'sanctioned',
+  reason: 'Connector integer micro-USD amount, exact integer math, never float.',
+  plan: SANCTIONED_CONNECTOR_MICROS,
+}
+const EVAL_RECORD: AllowEntry = {
+  category: 'sanctioned',
+  reason: 'Frozen eval-run record read back for estimates only, never billed.',
+  plan: SANCTIONED_EVAL_RECORD,
+}
 const TOKENS = 'Token count, not money.'
 
 const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
@@ -75,10 +87,7 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
     category: 'nonMoney',
     reason: 'Model thinking budget in tokens, not money.',
   },
-  'core/backends/modelapi/ModelApiHost.ts:mediaBudgetMaxEncodedChars': {
-    category: 'nonMoney',
-    reason: 'Character count, not money.',
-  },
+
   'core/codeIntel/repoMap.ts:timeBudgetMs': {
     category: 'nonMoney',
     reason: 'Duration in milliseconds, not money.',
@@ -157,6 +166,16 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   'shared/constants.ts:minimumUsd': SETTING,
   'shared/constants.ts:maximumUsd': SETTING,
   'runtime/runtimeAccountingEntry.ts:paidDailyBudgetUsd': SETTING,
+  // --- sanctioned: the connector's integer micro-USD amounts (M124).
+  'shared/connector.ts:paidCapMicrousd': MICROS,
+  'shared/connector.ts:priceMicrousd': MICROS,
+  'core/connector/approval.ts:priceMicrousd': MICROS,
+  'core/connector/registry.ts:paidCapMicrousd': MICROS,
+  'core/connector/registry.ts:priceMicrousd': MICROS,
+  'runtime/connector/command.ts:paidCapMicrousd': MICROS,
+  // --- sanctioned: the frozen eval plan's recorded numbers.
+  'core/eval/plan.json:budgetUsd': EVAL_RECORD,
+  'core/eval/plan.json:costUsd': EVAL_RECORD,
 }
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url))

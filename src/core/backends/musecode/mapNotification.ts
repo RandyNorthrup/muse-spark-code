@@ -117,11 +117,27 @@ const schemas = {
     reason: z.string(),
   }),
   // The session's running totals (D26): `cumulative` counts prompt tokens once
-  // under the provider's cache convention; the raw per-completion counters
-  // beside it do not sum across providers, so they are not shown.
+  // under the provider's cache convention. Since 1.4 the frame also carries
+  // one completion's own counters (`usage`, counted-once `promptTokens`, the
+  // call's `durationMs` and the effective `modelId`): the journal records
+  // those per completion, and the cumulative pair keeps its session-total
+  // meaning for every surface that sums it.
   'session/tokenUsage': z.object({
     ...sessionScoped,
     modelId: z.optional(z.nullable(z.string())),
+    durationMs: z.optional(z.number()),
+    promptTokens: z.optional(z.number()),
+    totalTokens: z.optional(z.number()),
+    usage: z.optional(
+      z.object({
+        inputTokens: z.number(),
+        outputTokens: z.number(),
+        cachedTokens: z.optional(z.number()),
+        reasoningTokens: z.optional(z.number()),
+        cacheReadTokens: z.optional(z.number()),
+        cacheWriteTokens: z.optional(z.number()),
+      }),
+    ),
     cumulative: z.object({
       promptTokens: z.int().check(z.gte(0)),
       outputTokens: z.int().check(z.gte(0)),
@@ -285,7 +301,7 @@ function rawNotification(notification: WireNotification): MapOutcome {
       }
     }
     case 'session/tokenUsage': {
-      const { sessionId, cumulative, modelId } = params as z.infer<
+      const { sessionId, cumulative, modelId, durationMs, promptTokens, usage } = params as z.infer<
         (typeof schemas)['session/tokenUsage']
       >
       return {
@@ -295,6 +311,21 @@ function rawNotification(notification: WireNotification): MapOutcome {
           inputTokens: cumulative.promptTokens,
           outputTokens: cumulative.outputTokens,
           ...(typeof modelId === 'string' && { modelId }),
+          ...(usage !== undefined && {
+            completion: {
+              inputTokens: promptTokens ?? usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              ...(usage.cachedTokens !== undefined && { cachedTokens: usage.cachedTokens }),
+              ...(usage.reasoningTokens !== undefined && {
+                reasoningTokens: usage.reasoningTokens,
+              }),
+              ...(usage.cacheWriteTokens !== undefined && {
+                cacheWriteTokens: usage.cacheWriteTokens,
+              }),
+              ...(durationMs !== undefined && { durationMs }),
+              ...(typeof modelId === 'string' && { modelId }),
+            },
+          }),
         },
       }
     }

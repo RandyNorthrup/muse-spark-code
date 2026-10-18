@@ -18,6 +18,7 @@ import {
 } from '../core/backends/modelapi/modelPolicy'
 import type { SessionBudgetClaim } from '../core/backends/modelapi/sessionBudget'
 import type { ResponseObject } from '../core/backends/modelapi/schemas'
+import { isPlanModelRef } from '../shared/providerRouting'
 import {
   EXEC_USD_DECIMALS,
   HTTP_TOO_MANY_REQUESTS,
@@ -132,6 +133,12 @@ export interface RuntimeResponseAccounting {
   readonly refuse: (reason: Refusal | 'breach' | 'accounting_invalid') => void
   readonly started: (n: number) => void
   readonly settled: (outcome: LastResponse) => void
+  /**
+   * The runner's model was unknown when this attached (no `--model`): admit
+   * plan requests only, so a resolved Meta model is not admitted twice —
+   * the Meta transport admits its own traffic (Codex on PR #213).
+   */
+  readonly admitOnlyPlan?: boolean
 }
 
 /** Preserve all native clients and codecs; attach admission to their shared transport guard. */
@@ -172,23 +179,25 @@ export function withRuntimeAccounting(
         let hasEof = false
         let isRateLimited = false
         const settle = async () => {
-          if (claim === undefined) return
           const owned = claim
           claim = undefined
-          const actual =
-            hasEof && response?.status === 'completed' && response.usage != null
-              ? model.price.settle(modelPricedUsage(response.usage), {
-                  cost: response.usage.provider_cost_usd,
-                })
-              : undefined
-          let cost = actual === undefined ? undefined : ceilUsd(actual)
-          if (isRateLimited) cost = Usd.from(0).toAmount()
-          // A sent request without a verified price keeps its original durable reservation.
-          if (!wasSent || cost !== undefined) {
-            try {
-              await owned.settle(wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount())
-            } catch (error: unknown) {
-              throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
+          let cost: UsdAmount | undefined
+          if (owned !== undefined) {
+            const actual =
+              hasEof && response?.status === 'completed' && response.usage != null
+                ? model.price.settle(modelPricedUsage(response.usage), {
+                    cost: response.usage.provider_cost_usd,
+                  })
+                : undefined
+            cost = actual === undefined ? undefined : ceilUsd(actual)
+            if (isRateLimited) cost = Usd.from(0).toAmount()
+            // A sent request without a verified price keeps its original durable reservation.
+            if (!wasSent || cost !== undefined) {
+              try {
+                await owned.settle(wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount())
+              } catch (error: unknown) {
+                throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
+              }
             }
           }
           if (ticket !== undefined && accounting !== undefined) {
@@ -225,8 +234,19 @@ export function withRuntimeAccounting(
             prepare: async () => {
               await settle()
               await guard?.prepare?.()
-              claim = await daily.reserve(reserveUsd, signal)
+              const isPlan = isPlanModelRef(body.model)
+              // A plan model rides its subscription, not the paid daily
+              // ledger: its attempts consume the run's request-count ledger
+              // only, so a stopped or unavailable Meta ledger never blocks
+              // them (Codex on PR #213).
+              if (!isPlan) {
+                claim = await daily.reserve(reserveUsd, signal)
+              }
               if (accounting === undefined) return
+              // A model unknown at attach time that resolved to Meta rides
+              // the Meta transport's own admission: admitting here too would
+              // count the request twice.
+              if (!isPlan && accounting.admitOnlyPlan === true) return
               const pricing = model.policy.pricing
               const price =
                 pricing.kind === 'priced'

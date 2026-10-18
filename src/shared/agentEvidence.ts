@@ -9,7 +9,14 @@ export const agentOutcomeSchema = z.enum([
   'unverified',
 ])
 export type AgentOutcome = z.infer<typeof agentOutcomeSchema>
-export const agentStopSchema = z.enum(['normal', 'budget', 'error', 'cancelled', 'unknown'])
+export const agentStopSchema = z.enum([
+  'normal',
+  'budget',
+  'limit',
+  'error',
+  'cancelled',
+  'unknown',
+])
 export const agentFileSchema = z.object({
   path: z.string(),
   added: z.number(),

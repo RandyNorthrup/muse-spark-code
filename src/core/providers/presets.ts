@@ -13,6 +13,7 @@
 import { PROVIDER_RETRY_HTTP_STATUS, ZAI_KEY_PATTERN } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
 import { RETRY_TABLES, type RetryTables } from '../../shared/retryPolicy'
+import type { CapabilityOverrides } from './capabilityRecord'
 import type { CustomCompat, ProviderFormat } from './providersFile'
 
 /** The panel's filter chips (D74): Cloud, On this computer, Aggregator. */
@@ -64,7 +65,12 @@ export type KeyTest =
   | { readonly kind: 'paid-token' }
 
 export type KeyProbeOutcome =
-  | { readonly ok: true; readonly modelCount: number | undefined }
+  | {
+      readonly ok: true
+      readonly modelCount: number | undefined
+      /** The listed ids, where the check read a models list (F85). */
+      readonly modelIds?: readonly string[] | undefined
+    }
   | { readonly ok: false; readonly paid: boolean; readonly reason: string }
 
 /** The same free-check contract for panel and CLI; callbacks own pinned I/O. */
@@ -147,10 +153,33 @@ export interface FormatQuirks {
    * How the preset expresses reasoning effort `none` (Thinking off) on
    * the wire. DeepSeek's thinking-mode switch (`thinking: {type:
    * "disabled"}`, research D2 `guides/thinking_mode` and the lead's
-   * L98P2 live capture) is the only declared form. Absent keeps the
-   * preset's existing bytes.
+   * L98P2 live capture) and Together's hybrid toggle (`reasoning:
+   * {enabled: false}`, `docs/inference/chat/reasoning` read 2026-10-12)
+   * are the declared forms. Absent keeps the preset's existing bytes.
    */
-  readonly thinkingOff?: 'thinking-switch' | undefined
+  readonly thinkingOff?: 'thinking-switch' | 'reasoning-enabled' | undefined
+  /**
+   * The preset's documented reasoning presentation parameter (Groq's
+   * `reasoning_format`, read 2026-10-12): `parsed` keeps reasoning in its
+   * dedicated field, which tool calling and JSON mode require. Absent
+   * sends nothing.
+   */
+  readonly reasoningFormat?: 'parsed' | 'raw' | 'hidden' | undefined
+  /**
+   * The preset documents its effort vocabulary for every model, routed
+   * server-side (llama.cpp's `reasoning_effort`, where `none` disables
+   * and any other value reaches the chat template). Set, the codec sends
+   * the body's effort as named even when the record declares no levels.
+   * Absent keeps unknown models silent.
+   */
+  readonly sendUndeclaredEffort?: boolean | undefined
+  /**
+   * The preset opts into preserved thinking (Z.ai's `clear_thinking:
+   * false`, `guides/capabilities/thinking-mode` read 2026-10-12): sent
+   * where the turn replays reasoning and thinking is not off. Absent
+   * keeps the default (Coding Plan on, standard endpoint off).
+   */
+  readonly thinkingPreserved?: boolean | undefined
 }
 
 /** The five formats' defaults; presets override per provider. */
@@ -252,8 +281,29 @@ export interface ProviderPreset {
   readonly keyTest: KeyTest
   readonly modelsList: ModelsListSpec
   readonly quirks: Partial<FormatQuirks>
+  /**
+   * Doc-cited per-model reasoning facts the pinned catalogue snapshot
+   * lacks, keyed by exact native model id (never a prefix): Z.ai's
+   * glm-5.2 effort names and Thinking-off toggle, Together's hybrid
+   * toggle on MiniMax M3. Each entry names the provider page and the day
+   * it was read; re-check every entry on each catalogue sync, and prefer
+   * the catalogue the moment it carries the fact. Empty everywhere else.
+   */
+  readonly reasoningFacts?: readonly PresetReasoningFacts[] | undefined
   /** The preset's own wire capture is recorded (rule 13). */
   readonly wireCapture: boolean
+}
+
+/** One documented per-model reasoning patch (see `reasoningFacts`). */
+export interface PresetReasoningFacts {
+  /** The exact native model id this patch applies to. */
+  readonly modelId: string
+  /** The provider documentation address the patch quotes. */
+  readonly docUrl: string
+  /** The day the page was read, `YYYY-MM-DD`. */
+  readonly readOn: string
+  /** The record patch, applied as `preset`-kind evidence. */
+  readonly fields: CapabilityOverrides
 }
 
 /** A preset's effective quirks: its format's defaults plus its overrides. */
@@ -374,6 +424,26 @@ const XAI_PRESET: ProviderPreset = {
     reasoningField: 'encrypted',
     cachedUsageFields: ['input_tokens_details.cached_tokens'],
   },
+  // grok-4.5 takes `xhigh` (requests with it are treated as `high`) though
+  // the pinned catalogue lists only low/medium/high (lane REASONSHAPESR2,
+  // XAI-G01: `docs.x.ai/developers/model-capabilities/text/reasoning`,
+  // read 2026-10-13). The live list wins where it speaks; XAI-LIST
+  // settles the dated catalogue against it.
+  reasoningFacts: [
+    {
+      modelId: 'grok-4.5',
+      docUrl: 'https://docs.x.ai/developers/model-capabilities/text/reasoning',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          effortLevels: {
+            state: 'yes',
+            value: ['low', 'medium', 'high', 'xhigh'],
+          },
+        },
+      },
+    },
+  ],
   wireCapture: true,
 }
 
@@ -401,6 +471,106 @@ const ANTHROPIC_PRESET: ProviderPreset = {
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', windowField: 'max_input_tokens', priceSource: 'catalogue' },
   quirks: {},
+  // Thinking-off facts from the thinking table
+  // (`platform.claude.com/docs/en/build-with-claude/thinking`, read
+  // 2026-10-13; GAPANTH-G02): the four models below answer 400 to
+  // `thinking: {type: "disabled"}` (Sonnet 5.5 takes `between_tools`
+  // instead), while Opus 5 and Haiku 5.5 take `disabled` at high effort
+  // or below. The pinned catalogue carries no toggle for these rows, so
+  // without the facts Thinking off would send nothing and thinking
+  // would stay on, billed. Re-check on each catalogue sync; the live
+  // list wins where it speaks.
+  reasoningFacts: [
+    {
+      modelId: 'claude-opus-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+    {
+      modelId: 'claude-haiku-5-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          effortLevels: {
+            state: 'yes',
+            value: ['low', 'medium', 'high', 'xhigh', 'max'],
+          },
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+    {
+      modelId: 'claude-opus-5-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'no' },
+        },
+      },
+    },
+    {
+      modelId: 'claude-sonnet-5-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'no' },
+          offSwitch: 'between_tools',
+        },
+      },
+    },
+    {
+      modelId: 'claude-fable-5',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'no' },
+        },
+      },
+    },
+    {
+      modelId: 'claude-fable-5-1',
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'no' },
+        },
+      },
+    },
+    // Every 4.x row of the same table ends in "Thinking off": `disabled`
+    // is accepted at any effort there, so Thinking off rides instead of
+    // refusing (the catalogue carries no toggle for these rows).
+    ...[
+      'claude-haiku-4-5',
+      'claude-haiku-4-5-20251001',
+      'claude-opus-4-5',
+      'claude-opus-4-5-20251101',
+      'claude-sonnet-4-5',
+      'claude-sonnet-4-5-20250929',
+      'claude-opus-4-6',
+      'claude-sonnet-4-6',
+      'claude-opus-4-7',
+      'claude-opus-4-8',
+    ].map((modelId): PresetReasoningFacts => ({
+      modelId,
+      docUrl: 'https://platform.claude.com/docs/en/build-with-claude/thinking',
+      readOn: '2026-10-13',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'yes', value: true as const },
+        },
+      },
+    })),
+  ],
   wireCapture: true,
 }
 
@@ -491,6 +661,10 @@ const GROQ_PRESET: ProviderPreset = {
   quirks: {
     outputCapParam: 'max_completion_tokens',
     cachedUsageFields: [],
+    // `reasoning_format` (`console.groq.com/docs/reasoning`, read
+    // 2026-10-12): `parsed` keeps reasoning in its dedicated field, which
+    // tool calling and JSON mode require. Never beside `include_reasoning`.
+    reasoningFormat: 'parsed',
   },
   wireCapture: true,
 }
@@ -520,7 +694,45 @@ const DEEPSEEK_PRESET: ProviderPreset = {
     // (`vendor/models-dev/snapshot.json`): Thinking off is the documented
     // thinking-mode switch, never `reasoning_effort: "none"`.
     thinkingOff: 'thinking-switch',
+    // Every requested effort name rides as named: the thinking-mode
+    // table (`guides/thinking_mode`, read 2026-10-13) takes minimal,
+    // low, medium, high, xhigh, max and ultra and maps server-side,
+    // and the lead's real answers (DS-XHIGH, DS-ULTRA, 200 both with
+    // thinking) show `xhigh` and `ultra` taken as named. No client
+    // remap: the record below carries the full vocabulary so the
+    // resolver never substitutes a neighbour.
+    // Strict tool schemas (`guides/tool_calls`, read 2026-10-13):
+    // `strict: true` on every function, answered 200 with a correct
+    // call on the beta and the production address alike (DS-STRICT,
+    // DS-STRICT-PROD). Whether production enforces strict is
+    // UNVERIFIED; strict rides on the address the entry has.
+    supportsStrictTools: true,
   },
+  // The thinking-mode page documents one requested-effort vocabulary
+  // for the DeepSeek models; the pinned catalogue lists only
+  // `[low, high, max]`. Until it carries the fact, the record takes
+  // the documented names here (deepseek-flash VERIFIED as named by
+  // DS-XHIGH/DS-ULTRA; the other three UNVERIFIED until captured).
+  // Re-check on each catalogue sync; prefer the catalogue the moment
+  // it carries the fact.
+  reasoningFacts: [
+    'deepseek-flash',
+    'deepseek-v4-flash',
+    'deepseek-v4-pro',
+    'deepseek-v4-flash-vision-exp',
+  ].map((modelId): PresetReasoningFacts => ({
+    modelId,
+    docUrl: 'https://api-docs.deepseek.com/guides/thinking_mode',
+    readOn: '2026-10-13',
+    fields: {
+      reasoning: {
+        effortLevels: {
+          state: 'yes',
+          value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+        },
+      },
+    },
+  })),
   wireCapture: true,
 }
 
@@ -613,7 +825,34 @@ const TOGETHER_PRESET: ProviderPreset = {
     outputCapParam: 'max_tokens',
     sendsParallelToolCalls: false,
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
+    // Hybrid models toggle with `reasoning: {enabled: false}`
+    // (`docs/inference/chat/reasoning`, read 2026-10-12).
+    thinkingOff: 'reasoning-enabled',
   },
+  // MiniMax M3 and Kimi K3 are hybrid models (on by default) though the
+  // pinned catalogue carries no `toggle` for them (TO-G01).
+  reasoningFacts: [
+    {
+      modelId: 'MiniMaxAI/MiniMax-M3',
+      docUrl: 'https://docs.together.ai/docs/inference/chat/reasoning',
+      readOn: '2026-10-12',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+    {
+      modelId: 'moonshotai/Kimi-K3',
+      docUrl: 'https://docs.together.ai/docs/inference/chat/reasoning',
+      readOn: '2026-10-12',
+      fields: {
+        reasoning: {
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+  ],
   wireCapture: true,
 }
 
@@ -693,7 +932,32 @@ const ZAI_PRESET: ProviderPreset = {
   quirks: {
     reasoningField: 'reasoning_content',
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
+    // `thinking: {type: "enabled"/"disabled"}` (`guides/capabilities/thinking`,
+    // read 2026-10-12). Only GLM-5.3 refuses `disabled`; the record says
+    // which models affirm it (ZAI-G01).
+    thinkingOff: 'thinking-switch',
+    // Preserved thinking (`thinking-mode`, read 2026-10-12): our turns
+    // always replay their reasoning, so keeping it pays (ZAI-G04).
+    thinkingPreserved: true,
   },
+  // GLM-5.2's documented effort names and Thinking-off toggle, which the
+  // pinned catalogue lacks (ZAI-G01, ZAI-G02).
+  reasoningFacts: [
+    {
+      modelId: 'glm-5.2',
+      docUrl: 'https://docs.z.ai/guides/capabilities/thinking',
+      readOn: '2026-10-12',
+      fields: {
+        reasoning: {
+          effortLevels: {
+            state: 'yes',
+            value: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+          },
+          canDisable: { state: 'yes', value: true },
+        },
+      },
+    },
+  ],
   wireCapture: true,
 }
 
@@ -785,6 +1049,9 @@ const LLAMACPP_PRESET: ProviderPreset = {
     sendsParallelToolCalls: false,
     reasoningField: 'reasoning_content',
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
+    // The server documents `reasoning_effort` for every model, routed to
+    // the chat template (`tools/server/README.md`, read 2026-10-12).
+    sendUndeclaredEffort: true,
   },
   wireCapture: false,
 }

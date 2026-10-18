@@ -3,7 +3,6 @@ import { estimateCostUsd } from '../core/usage/insights'
 import { Usd } from '../shared/usd'
 import {
   MODEL_API_PRICED_MODELS,
-  ACP_TOOL_OUTPUT_MAX_CHARS,
   BASE64_INPUT_BLOCK_BYTES,
   BASE64_OUTPUT_BLOCK_CHARS,
   BYTES_PER_MIB,
@@ -16,7 +15,6 @@ import {
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   PDF_MEDIA_TYPE,
   MODEL_API_WEB_SEARCH_TOOL,
-  SELECTION_TEXT_MAX_CHARS,
   SHELL_TOOLS,
   type PaidFeature,
   UI_TEXT,
@@ -189,12 +187,8 @@ function toolLocations(args: Arguments | undefined, cwd: string): ToolCallLocati
   return resolved.ok ? [{ path: resolved.absolute }] : []
 }
 
-function clippedOutput(text: string): string {
-  return text.length > ACP_TOOL_OUTPUT_MAX_CHARS ? text.slice(0, ACP_TOOL_OUTPUT_MAX_CHARS) : text
-}
-
 function textContent(text: string): ToolCallContent {
-  return { type: 'content', content: { type: 'text', text: clippedOutput(text) } }
+  return { type: 'content', content: { type: 'text', text } }
 }
 
 /** An edit's change as a diff where the arguments carry it (edit and write), else nothing. */
@@ -281,6 +275,12 @@ export class UpdateTranslator {
     private readonly isReplay: boolean,
     private readonly readCost?: () => UsageCost | undefined,
     private readonly backend: 'modelApi' | 'museCode' = 'museCode',
+    /**
+     * The client advertised `session.notices`: backend notices go out as
+     * their own `notice` update, never as the model's words. Otherwise the
+     * protocol's sanctioned fallback is an agent message.
+     */
+    private readonly areNoticesSupported = false,
   ) {}
 
   private deltaUpdates(itemId: string, field: string, delta: string): SessionUpdate[] {
@@ -471,6 +471,19 @@ export class UpdateTranslator {
             ]
       }
       case 'backendNotice': {
+        // A backend notice is the app's own words, never the model's: it
+        // goes out as its own `notice` update where the client can show
+        // one, and only then falls back to an agent message (the
+        // protocol's sanctioned fallback for clients without notices).
+        if (this.areNoticesSupported) {
+          return [
+            {
+              sessionUpdate: 'notice',
+              severity: event.level,
+              title: event.text,
+            },
+          ]
+        }
         return [agentText(`${event.text}${PART_SEPARATOR}`)]
       }
       case 'messageAdmitted': {
@@ -620,12 +633,10 @@ export interface PromptMediaPort {
   readonly block: (block: ContentBlock, signal: AbortSignal) => Promise<TurnPart | string>
 }
 
-/** A file the client attached, as context the model reads (clipped like a selection). */
+/** A file the client attached, as context the model reads in full. */
 function attachedContext(uri: string, text: string): string {
-  const body =
-    text.length > SELECTION_TEXT_MAX_CHARS ? text.slice(0, SELECTION_TEXT_MAX_CHARS) : text
   const tag = IDE_CONTEXT_TAGS.attachedContext
-  return `<${tag} uri="${uri}">\n${body}\n</${tag}>`
+  return `<${tag} uri="${uri}">\n${text}\n</${tag}>`
 }
 
 /** A `file:` link inside the folder as an @mention, anything else as its URI. */

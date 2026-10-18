@@ -1,0 +1,54 @@
+{
+  "id": "ZAI-XHIGH",
+  "provider": "zai",
+  "sentAt": "2026-10-13T01:37:37.667Z",
+  "method": "POST",
+  "url": "https://api.z.ai/api/paas/v4/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "messages": [
+      {
+        "content": "Say hi in five words.",
+        "role": "user"
+      }
+    ],
+    "model": "glm-5.2",
+    "reasoning_effort": "xhigh",
+    "stream": false,
+    "max_tokens": 200
+  },
+  "lookFor": "Status; whether xhigh is accepted as named (docs) or rejected.",
+  "status": 200,
+  "responseHeaders": {
+    "x-request-id": "411354c5-2b54-4fa5-baeb-85256dec8843"
+  },
+  "response": {
+    "choices": [
+      {
+        "finish_reason": "length",
+        "index": 0,
+        "message": {
+          "content": "Hello there",
+          "reasoning_content": "1.  **Analyze the Request:**\n    *   Goal: Say \"hi\" (or a greeting).\n    *   Constraint: Exactly five words long.\n\n2.  **Brainstorming 5-word greetings:**\n    *   \"Hello there, how are you?\" (5 words) - *Wait, 1. Hello 2. there 3. how 4. are 5. you. Yes, 5 words.*\n    *   \"Hi, I hope you're well.\" (5 words) - *1. Hi 2. I 3. hope 4. you're 5. well. (Note: \"you're\" is usually counted as one word, but some parsers might see it as two. Better to avoid contractions to be safe).*\n    *   \"Hi, it is very nice outside.\" (6 words)\n    *   \"Hi, how is your day going?\" (6 words)\n",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1791855462,
+    "id": "202610130937389faab82eec8143d1",
+    "model": "glm-5.2",
+    "object": "chat.completion",
+    "request_id": "202610130937389faab82eec8143d1",
+    "usage": {
+      "completion_tokens": 200,
+      "completion_tokens_details": {
+        "reasoning_tokens": 198
+      },
+      "prompt_tokens": 18,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "total_tokens": 218
+    }
+  }
+}

@@ -15,6 +15,15 @@ export function isValidModelApiKey(candidate: string): boolean {
   return MODEL_API_KEY_PATTERN.test(candidate.trim())
 }
 
+/**
+ * Whether the credential store itself cannot be used. Name-based, not
+ * `instanceof`: lazy bundles carry their own copy of the store error, so an
+ * error thrown by one copy is not an instance of another's class.
+ */
+export function isCredentialStoreDown(error: unknown): boolean {
+  return error instanceof Error && error.name === 'StoreUnavailableError'
+}
+
 export class CredentialStore {
   private hasReportedFailure = false
 

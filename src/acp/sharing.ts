@@ -19,7 +19,7 @@ export interface AcpSharingPort {
   execute(text: string, context: AcpSharingContext): Promise<string>
 }
 
-function resultText(result: SharingResult): string {
+export function sharingResultText(result: SharingResult): string {
   switch (result.kind) {
     case 'saved': {
       return `${UI_TEXT.promptSave}: ${result.prompt.title} (${result.prompt.id})`
@@ -93,7 +93,7 @@ export function createAcpSharing(
         ui: uiFor(context),
         readBody: () => Promise.resolve(parsed.body ?? ''),
       })
-      return resultText(result)
+      return sharingResultText(result)
     },
   }
 }

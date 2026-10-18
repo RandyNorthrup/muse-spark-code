@@ -95,6 +95,7 @@ import {
   HOOK_RUNTIME_ONLY,
   PLUGIN_HOOKS_ONLY,
   MODEL_API_TOOLS_ONLY,
+  MODEL_API_VERIFY_ONLY,
   MODEL_API_BOUNDARY_SOURCES,
   checkDeferredBundles,
   checkResourceBundles,
@@ -201,6 +202,8 @@ const LAZY_ONLY = [
   'modelPolicy.ts',
   // M73: observation packing's store, its placeholder and recall_output.
   'observationPack.ts',
+  // TOOLCAP: the one tool-result bound every result passes before the conversation.
+  'toolResultBound.ts',
   'autoCompact.ts',
   'permissions.ts',
   'promptCache.ts',
@@ -212,9 +215,8 @@ const LAZY_ONLY = [
   'tools.ts',
   // M81: what a browser check hands the model and the row.
   'browserCalls.ts',
-  // The verify loop's session side and its tool surface (M68).
-  'verifyLedger.ts',
-  'verifyLoop.ts',
+  // The verify loop's tool surface (M68): its loop, ledger and history
+  // load with dist/modelApiVerify.js (MODEL_API_VERIFY_ONLY).
   'verifyTools.ts',
 
   // M91-M: MCP forms' types and log text load with the backend; their checks
@@ -283,6 +285,7 @@ for (const name of onDisk) {
     Number(HOOK_RUNTIME_ONLY.includes(name)) +
     Number(PLUGIN_HOOKS_ONLY.includes(name)) +
     Number(MODEL_API_TOOLS_ONLY.includes(name)) +
+    Number(MODEL_API_VERIFY_ONLY.includes(name)) +
     Number(TYPES_ONLY.has(name)) +
     Number(UNBUNDLED.has(name))
   if (lists !== 1) {
@@ -304,6 +307,7 @@ for (const name of [
   ...HOOK_RUNTIME_ONLY,
   ...PLUGIN_HOOKS_ONLY,
   ...MODEL_API_TOOLS_ONLY,
+  ...MODEL_API_VERIFY_ONLY,
   ...TYPES_ONLY,
   ...UNBUNDLED,
 ]) {
@@ -336,6 +340,22 @@ for (const source of [
   for (const bundle of [BUNDLES.activation, BUNDLES.acp, BUNDLES.modelApi])
     if (inputsOf(bundle).has(source))
       problems.push(`${bundle.output} carries lazy sharing implementation ${source}`)
+}
+// M124 (D106): the MCP connector loads only on `muse-spark-code-acp mcp`;
+// dist/acp.js keeps the loader alone, and activation carries none of it.
+const CONNECTOR = { output: 'dist/connector.js', metafile: 'dist/meta/connector.json' }
+for (const source of [
+  'src/runtime/connector/entry.ts',
+  'src/core/connector/registry.ts',
+  'src/core/connector/approval.ts',
+  'src/core/connector/protocol.ts',
+  'src/runtime/connector/approvalPage.ts',
+]) {
+  if (!inputsOf(CONNECTOR).has(source))
+    problems.push(`${CONNECTOR.output} no longer carries ${source}`)
+  for (const bundle of [BUNDLES.activation, BUNDLES.acp, BUNDLES.modelApi])
+    if (inputsOf(bundle).has(source))
+      problems.push(`${bundle.output} carries lazy connector implementation ${source}`)
 }
 const promptInputs = inputsOf(PROMPTS)
 for (const source of [
@@ -526,6 +546,7 @@ const MODEL_API_SESSIONS = {
   metafile: 'dist/meta/modelApiSessions.json',
 }
 const RULES_FILE = { output: 'dist/rulesFile.js', metafile: 'dist/meta/rulesFile.json' }
+const NATIVE_GIT = { output: 'dist/nativeGit.js', metafile: 'dist/meta/nativeGit.json' }
 const BUNDLED_SKILLS = {
   output: 'dist/bundledSkills.js',
   metafile: 'dist/meta/bundledSkills.json',
@@ -643,6 +664,7 @@ for (const bundle of [
   CHECKPOINT_STORE,
   PROMPTS,
   SHARING_RUNTIME,
+  CONNECTOR,
   REVIEW,
   ...DEFERRED,
   AGENT_IMPORT,
@@ -769,6 +791,9 @@ const GIT_ONLY = [
   'src/host/git/gitWindow.ts',
   'src/host/git/gitExtension.ts',
   'src/host/git/githubSession.ts',
+  'src/host/git/nativeGitBundle.ts',
+  'src/host/git/nativeRepository.ts',
+  'src/core/git/githubSignIn.ts',
   'src/host/git/heldCheckout.ts',
   'src/host/git/pullRequestCheckout.ts',
   'src/host/git/pullRequestLinks.ts',
@@ -812,6 +837,29 @@ for (const file of MODEL_API_SESSIONS_ONLY) {
   }
 }
 
+// M123: the native Git route (the runtime adapter, its service and lease, the
+// runtime's pull requests) loads only in a host without `vscode.git`; the
+// conversation Git bundle keeps its checked loader and the route's types.
+const NATIVE_GIT_ONLY = [
+  'src/runtime/panel/git/nativeGitEntry.ts',
+  'src/runtime/panel/git/adapter.ts',
+  'src/runtime/panel/git/service.ts',
+  'src/runtime/panel/git/transaction.ts',
+  'src/runtime/panel/git/confinedFiles.ts',
+  'src/runtime/panel/pullRequests/pullRequests.ts',
+]
+const nativeGit = inputsOf(NATIVE_GIT)
+for (const file of NATIVE_GIT_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp, CONVERSATION_GIT]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which loads only with the native Git route`)
+    }
+  }
+  if (!nativeGit.has(file)) {
+    problems.push(`${NATIVE_GIT.output} no longer carries ${file}`)
+  }
+}
+
 // ACTROOM: the Create AGENTS.md command loads when that command runs;
 // activation keeps the checked loader and the command's types.
 const RULES_FILE_ONLY = [
@@ -834,10 +882,12 @@ for (const file of RULES_FILE_ONLY) {
 }
 
 // M89: the bundled skills installer loads on its first install, removal or
-// offer; the activation bundle has its loader, its offer and its types only.
+// offer, and its two commands load with it; the activation bundle has its
+// loader, its offer and its types only.
 const BUNDLED_SKILLS_ONLY = [
   'src/host/skills/bundledSkillsEntry.ts',
   'src/host/skills/bundledSkillsInstall.ts',
+  'src/host/skills/bundledSkillsCommands.ts',
 ]
 const bundledSkills = inputsOf(BUNDLED_SKILLS)
 for (const file of BUNDLED_SKILLS_ONLY) {
@@ -1121,6 +1171,8 @@ const TEXT_BLOCKS = [
     readers: [
       PROMPTS.output,
       SHARING_RUNTIME.output,
+      // M124's prompt share preview reuses M118's share contract with it.
+      CONNECTOR.output,
       'dist/conversation.js',
       BUNDLES.modelApi.output,
       'dist/reporting.js',
@@ -1147,8 +1199,23 @@ const TEXT_BLOCKS = [
   },
   {
     block: 'MODEL_API_MODEL_TEXT',
-    sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
-    readers: [BUNDLES.modelApi.output, 'dist/mcpPool.js', 'dist/modelApiMcp.js'],
+    sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyAccessRefused'],
+    // The verify chunk reads two skip/outcome keys of this block, so it
+    // carries the block whole (one object is carried whole, D6).
+    readers: [
+      BUNDLES.modelApi.output,
+      'dist/mcpPool.js',
+      'dist/modelApiMcp.js',
+      'dist/modelApiVerify.js',
+    ],
+  },
+  // The verify loop's own words (M68): the loop, its ledger and the
+  // diagnostics history read them through the lazy verify chunk. The two
+  // skip reasons the session itself reads stay in MODEL_API_MODEL_TEXT.
+  {
+    block: 'VERIFY_MODEL_TEXT',
+    sentinels: ['verifyChecksHeading', 'verifyUncheckedCodeLoading'],
+    readers: ['dist/modelApiVerify.js'],
   },
   {
     block: 'CODE_INTEL_MODEL_TEXT',
@@ -1168,7 +1235,8 @@ const TEXT_BLOCKS = [
   {
     block: 'GIT_MODEL_TEXT',
     sentinels: ['gitCommitInstructions', 'gitPullRequestInstructions'],
-    readers: [CONVERSATION_GIT.output],
+    // M123's native route builds the same drafts' prompts where vscode.git is missing.
+    readers: [CONVERSATION_GIT.output, NATIVE_GIT.output],
   },
   // The review turn's text (M70): the review's bundle, the Model API's
   // built-in Reviewer. The pane's one comment template has its own block.
@@ -1225,6 +1293,12 @@ const TEXT_BLOCKS = [
     block: 'JUDGE_MODEL_TEXT',
     sentinels: ['judgeSystemInstruction', 'judgeStandaloneTurn'],
     readers: ['dist/judge.js'],
+  },
+  // M124: what another agent's model reads from the connector, `mcp` only.
+  {
+    block: 'CONNECTOR_MODEL_TEXT',
+    sentinels: ['reasonNoFleetStore', 'reasonScheduleGrant'],
+    readers: [CONNECTOR.output],
   },
 ].map((entry) => ({
   ...entry,

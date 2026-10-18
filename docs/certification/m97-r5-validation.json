@@ -1,0 +1,639 @@
+{
+  "lane": "CM971R5",
+  "rig": "macmini",
+  "recordedAt": "2026-10-11T17:31:40.766062+00:00",
+  "implementationCommit": "dd020ae2e3a30855a2e7cd62452c23b06bcf46cb",
+  "baseCommit": "330f5e5222ac6061ec113a7414e59d5dd6152a8e",
+  "liveModelAttempts": 0,
+  "paidCalls": 0,
+  "initialStaticChecks": [
+    {
+      "name": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exit": 0,
+      "seconds": 153.0
+    },
+    {
+      "name": "eslint",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "scripts/build.mjs",
+        "src/core/legal/depLicenses.ts",
+        "src/core/legal/licenseTemplates.ts",
+        "src/core/legal/scan.ts",
+        "src/runtime/reference.node.generated.ts",
+        "src/shared/constants.ts",
+        "src/shared/featureCatalog.ts",
+        "src/shared/l10n/en.ts",
+        "src/shared/reference/reference.generated.ts",
+        "src/shared/reference/referenceSchema.generated.ts",
+        "test/unit/legal/templateSlots.ts",
+        "test/unit/legalReceipts.test.ts",
+        "test/unit/legalSlotData.test.ts",
+        "test/unit/legalTextMatch.test.ts",
+        "test/unit/legalVendorHolders.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 25.88
+    },
+    {
+      "name": "prettier",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "README.md",
+        "ROADMAP.md",
+        "docs/acp.md",
+        "docs/certification/m97-r5-holder-drills.json",
+        "docs/certification/m97-r5-receipt-drills.json",
+        "docs/certification/m97.md",
+        "docs/reference.md",
+        "docs/roadmap/entries.json",
+        "l10n/ui.cs.json",
+        "l10n/ui.de.json",
+        "l10n/ui.es.json",
+        "l10n/ui.fr.json",
+        "l10n/ui.hu.json",
+        "l10n/ui.it.json",
+        "l10n/ui.ja.json",
+        "l10n/ui.ko.json",
+        "l10n/ui.pl.json",
+        "l10n/ui.pt-br.json",
+        "l10n/ui.ru.json",
+        "l10n/ui.tr.json",
+        "l10n/ui.zh-cn.json",
+        "l10n/ui.zh-tw.json",
+        "licence-review.json",
+        "scripts/build.mjs",
+        "src/core/legal/data/provenance.json",
+        "src/core/legal/depLicenses.ts",
+        "src/core/legal/licenseTemplates.ts",
+        "src/core/legal/scan.ts",
+        "src/runtime/reference.node.generated.ts",
+        "src/shared/constants.ts",
+        "src/shared/featureCatalog.ts",
+        "src/shared/l10n/en.ts",
+        "src/shared/reference/reference.generated.json",
+        "src/shared/reference/reference.generated.ts",
+        "src/shared/reference/referenceSchema.generated.ts",
+        "test/unit/legal/templateSlots.ts",
+        "test/unit/legalReceipts.test.ts",
+        "test/unit/legalSlotData.test.ts",
+        "test/unit/legalTextMatch.test.ts",
+        "test/unit/legalVendorHolders.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 19.83
+    },
+    {
+      "name": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exit": 0,
+      "seconds": 6.42
+    },
+    {
+      "name": "duplication",
+      "command": ["npx", "jscpd"],
+      "exit": 0,
+      "seconds": 2.7
+    },
+    {
+      "name": "l10n",
+      "command": ["npm", "run", "check:l10n"],
+      "exit": 0,
+      "seconds": 4.59
+    },
+    {
+      "name": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exit": 0,
+      "seconds": 34.09
+    },
+    {
+      "name": "reference",
+      "command": ["npm", "run", "check:reference"],
+      "exit": 0,
+      "seconds": 4.45
+    },
+    {
+      "name": "roadmap",
+      "command": ["npm", "run", "check:roadmap"],
+      "exit": 0,
+      "seconds": 1.32
+    },
+    {
+      "name": "plan",
+      "command": ["npm", "run", "check:plan"],
+      "exit": 0,
+      "seconds": 1.0
+    }
+  ],
+  "finalChecks": [
+    {
+      "name": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exit": 0,
+      "seconds": 205.77,
+      "log": "temp/cm971r5/final-typecheck.log"
+    },
+    {
+      "name": "eslint",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "scripts/build.mjs",
+        "src/core/legal/depLicenses.ts",
+        "src/core/legal/licenseTemplates.ts",
+        "src/core/legal/scan.ts",
+        "src/runtime/reference.node.generated.ts",
+        "src/shared/constants.ts",
+        "src/shared/featureCatalog.ts",
+        "src/shared/l10n/en.ts",
+        "src/shared/reference/reference.generated.ts",
+        "src/shared/reference/referenceSchema.generated.ts",
+        "test/unit/legal/templateSlots.ts",
+        "test/unit/legalReceipts.test.ts",
+        "test/unit/legalSlotData.test.ts",
+        "test/unit/legalTextMatch.test.ts",
+        "test/unit/legalVendorHolders.test.ts",
+        "test/unit/legalSpdx.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 24.47,
+      "log": "temp/cm971r5/final-eslint.log"
+    },
+    {
+      "name": "prettier",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "README.md",
+        "ROADMAP.md",
+        "docs/acp.md",
+        "docs/certification/m97-r5-holder-drills.json",
+        "docs/certification/m97-r5-receipt-drills.json",
+        "docs/certification/m97.md",
+        "docs/reference.md",
+        "docs/roadmap/entries.json",
+        "l10n/ui.cs.json",
+        "l10n/ui.de.json",
+        "l10n/ui.es.json",
+        "l10n/ui.fr.json",
+        "l10n/ui.hu.json",
+        "l10n/ui.it.json",
+        "l10n/ui.ja.json",
+        "l10n/ui.ko.json",
+        "l10n/ui.pl.json",
+        "l10n/ui.pt-br.json",
+        "l10n/ui.ru.json",
+        "l10n/ui.tr.json",
+        "l10n/ui.zh-cn.json",
+        "l10n/ui.zh-tw.json",
+        "licence-review.json",
+        "scripts/build.mjs",
+        "src/core/legal/data/provenance.json",
+        "src/core/legal/depLicenses.ts",
+        "src/core/legal/licenseTemplates.ts",
+        "src/core/legal/scan.ts",
+        "src/runtime/reference.node.generated.ts",
+        "src/shared/constants.ts",
+        "src/shared/featureCatalog.ts",
+        "src/shared/l10n/en.ts",
+        "src/shared/reference/reference.generated.json",
+        "src/shared/reference/reference.generated.ts",
+        "src/shared/reference/referenceSchema.generated.ts",
+        "test/unit/legal/templateSlots.ts",
+        "test/unit/legalReceipts.test.ts",
+        "test/unit/legalSlotData.test.ts",
+        "test/unit/legalTextMatch.test.ts",
+        "test/unit/legalVendorHolders.test.ts",
+        "test/unit/legalSpdx.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 18.73,
+      "log": "temp/cm971r5/final-prettier.log"
+    },
+    {
+      "name": "duplication",
+      "command": ["npx", "jscpd"],
+      "exit": 0,
+      "seconds": 2.73,
+      "log": "temp/cm971r5/final-duplication.log"
+    },
+    {
+      "name": "build",
+      "command": ["npm", "run", "build"],
+      "exit": 0,
+      "seconds": 33.13,
+      "log": "temp/cm971r5/final-build.log"
+    },
+    {
+      "name": "repository-scan",
+      "command": ["node", "dist/acp.js", "exec", "legal-scan", "--json"],
+      "exit": 0,
+      "seconds": 8.91,
+      "log": "temp/cm971r5/final-repository-scan.log"
+    }
+  ],
+  "testFiles": 54,
+  "testsPassed": 11437,
+  "testPolicy": "Complete files, at most three per run, maxWorkers=3, repository timeouts; no filtering/skips/timeout overrides.",
+  "legalSuites": [
+    {
+      "batch": 1,
+      "files": [
+        "test/unit/legalArgs.test.ts",
+        "test/unit/legalBuildEvidence.test.ts",
+        "test/unit/legalCommand.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 35.87,
+      "summary": ["Test Files  3 passed (3)", "Tests  23 passed (23)"]
+    },
+    {
+      "batch": 2,
+      "files": [
+        "test/unit/legalCompat.test.ts",
+        "test/unit/legalContract.test.ts",
+        "test/unit/legalCoverage.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 28.83,
+      "summary": ["Test Files  3 passed (3)", "Tests  46 passed (46)"]
+    },
+    {
+      "batch": 3,
+      "files": [
+        "test/unit/legalDepsCargo.test.ts",
+        "test/unit/legalDepsComposer.test.ts",
+        "test/unit/legalDepsGems.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 27.81,
+      "summary": ["Test Files  3 passed (3)", "Tests  11 passed (11)"]
+    },
+    {
+      "batch": 4,
+      "files": [
+        "test/unit/legalDepsGo.test.ts",
+        "test/unit/legalDepsJvm.test.ts",
+        "test/unit/legalDepsNpm.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 35.55,
+      "summary": ["Test Files  3 passed (3)", "Tests  15 passed (15)"]
+    },
+    {
+      "batch": 5,
+      "files": [
+        "test/unit/legalDepsNuget.test.ts",
+        "test/unit/legalDepsPython.test.ts",
+        "test/unit/legalDistribution.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 27.15,
+      "summary": ["Test Files  3 passed (3)", "Tests  26 passed (26)"]
+    },
+    {
+      "batch": 6,
+      "files": [
+        "test/unit/legalEvidence.test.ts",
+        "test/unit/legalExplanation.test.ts",
+        "test/unit/legalFix.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 33.99,
+      "summary": ["Test Files  3 passed (3)", "Tests  70 passed (70)"]
+    },
+    {
+      "batch": 7,
+      "files": [
+        "test/unit/legalFixProduction.test.ts",
+        "test/unit/legalFixSecurity.test.ts",
+        "test/unit/legalFixWriter.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 20.31,
+      "summary": ["Test Files  3 passed (3)", "Tests  37 passed (37)"]
+    },
+    {
+      "batch": 8,
+      "files": [
+        "test/unit/legalGrantsAndTexts.test.ts",
+        "test/unit/legalGuards.test.ts",
+        "test/unit/legalHeaders.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 18.04,
+      "summary": ["Test Files  3 passed (3)", "Tests  24 passed (24)"]
+    },
+    {
+      "batch": 9,
+      "files": [
+        "test/unit/legalIntegration.test.ts",
+        "test/unit/legalLimits.test.ts",
+        "test/unit/legalLocalization.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 25.85,
+      "summary": ["Test Files  3 passed (3)", "Tests  12 passed (12)"]
+    },
+    {
+      "batch": 10,
+      "files": [
+        "test/unit/legalMarkdown.test.ts",
+        "test/unit/legalProject.test.ts",
+        "test/unit/legalReceipts.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 17.97,
+      "summary": ["Test Files  3 passed (3)", "Tests  57 passed (57)"]
+    },
+    {
+      "batch": 11,
+      "files": [
+        "test/unit/legalRegistry.test.ts",
+        "test/unit/legalRegistryConsent.test.ts",
+        "test/unit/legalReport.test.tsx"
+      ],
+      "exit": 0,
+      "seconds": 26.46,
+      "summary": ["Test Files  3 passed (3)", "Tests  49 passed (49)"]
+    },
+    {
+      "batch": 12,
+      "files": [
+        "test/unit/legalRun.test.ts",
+        "test/unit/legalScan.test.ts",
+        "test/unit/legalScanBundle.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 19.34,
+      "summary": ["Test Files  3 passed (3)", "Tests  50 passed (50)"]
+    },
+    {
+      "batch": 13,
+      "files": [
+        "test/unit/legalScanTool.test.ts",
+        "test/unit/legalScope.test.ts",
+        "test/unit/legalScopeBudget.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 14.89,
+      "summary": ["Test Files  3 passed (3)", "Tests  43 passed (43)"]
+    },
+    {
+      "batch": 14,
+      "files": [
+        "test/unit/legalSlotData.test.ts",
+        "test/unit/legalSlotLexicon.test.ts",
+        "test/unit/legalSpdx.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 23.55,
+      "summary": ["Test Files  3 passed (3)", "Tests  369 passed (369)"],
+      "initialExit": 1,
+      "initialSummary": [
+        "Test Files  1 failed | 2 passed (3)",
+        "Tests  1 failed | 368 passed (369)"
+      ]
+    },
+    {
+      "batch": 15,
+      "files": [
+        "test/unit/legalSwRegression.test.ts",
+        "test/unit/legalTemplateIntegrity.test.ts",
+        "test/unit/legalTextMatch.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 29.86,
+      "summary": ["Test Files  3 passed (3)", "Tests  153 passed (153)"]
+    },
+    {
+      "batch": 16,
+      "files": [
+        "test/unit/legalVendorHolders.test.ts",
+        "test/unit/legalWorkspace.test.ts",
+        "test/unit/modelApiLegalScan.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 18.08,
+      "summary": ["Test Files  3 passed (3)", "Tests  43 passed (43)"]
+    },
+    {
+      "batch": 17,
+      "files": [
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/modelApiPacking.test.ts",
+        "test/unit/metaRequestGoldens.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 29.09,
+      "summary": ["Test Files  3 passed (3)", "Tests  169 passed (169)"]
+    },
+    {
+      "batch": 18,
+      "files": [
+        "test/unit/legalTemplateSlots.test.ts",
+        "test/unit/legalTemplateSlots1.test.ts",
+        "test/unit/legalTemplateSlots2.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 427.36,
+      "summary": ["Test Files  3 passed (3)", "Tests  10240 passed (10240)"]
+    }
+  ],
+  "provenanceRepair": {
+    "initialFailure": "Missing sourceUrl; existing provenance assertion fired.",
+    "intermediateFailure": "Expected data/slot-words.txt; actual shipped file is legal-data/slot-words.txt.",
+    "repair": "Exact original Git revision source locator; map original holder-slot dataset to its actual folder and preserve every SHA-256 assertion.",
+    "restoredBatch": 14,
+    "sourceRevision": "330f5e5222ac6061ec113a7414e59d5dd6152a8e",
+    "packedSourceLinesVerified": 14
+  },
+  "deliberateRedDrills": {
+    "count": 30,
+    "holderRecord": "m97-r5-holder-drills.json",
+    "receiptRecord": "m97-r5-receipt-drills.json",
+    "allSourceRestorationsSha256Equal": true
+  },
+  "repositoryScan": {
+    "exit": 0,
+    "findings": 149,
+    "incompleteChecks": [],
+    "blockers": 0,
+    "shouldFix": 0,
+    "receiptFindings": [
+      {
+        "id": "receipt/1/1",
+        "severity": "advice",
+        "category": "dependencyLicense",
+        "file": "node_modules/lz-string/LICENSE",
+        "packageName": "lz-string",
+        "packageVersion": "1.5.0",
+        "licenseExpression": "MIT",
+        "evidenceSource": "licence-review.json",
+        "confidence": 1,
+        "explanation": "Reviewed by receipt: MIT terms are unchanged; the copyright notice names the lowercase holder pieroxy.",
+        "recommendation": "A new version or changed licence bytes need a new review and receipt.",
+        "fixable": false
+      }
+    ],
+    "registryNetworkReads": 0,
+    "startupNotice": "[info] Display language en-us: the panel is in English",
+    "startupNoticeStream": "stderr"
+  },
+  "buildRecords": {
+    "bundles": 87,
+    "files": 1910,
+    "problems": 0
+  },
+  "bundleSizes": {
+    "legalScan": {
+      "bytes": 152197,
+      "KiB": 148.6,
+      "capKiB": 150
+    },
+    "extension": {
+      "bytes": 563348,
+      "KiB": 550.1,
+      "capKiB": 600
+    },
+    "modelApi": {
+      "bytes": 528186,
+      "KiB": 515.8,
+      "capKiB": 525
+    },
+    "checkpointStore": {
+      "bytes": 89366,
+      "KiB": 87.3,
+      "capKiB": 225
+    }
+  },
+  "packages": [
+    {
+      "package": "@muse-code/sdk",
+      "version": "1.4.4",
+      "declaredLicense": "MIT",
+      "licenseFile": "node_modules/@muse-code/sdk/LICENSE",
+      "licenseSha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+      "result": "exact",
+      "receiptIssued": false
+    },
+    {
+      "package": "highlight.js",
+      "version": "11.12.0",
+      "declaredLicense": "BSD-3-Clause",
+      "licenseFile": "node_modules/highlight.js/LICENSE",
+      "licenseSha256": "6c081431591d9df696c82dc598fe1423765b8a299b200ed00b281afd0f64c490",
+      "result": "exact",
+      "receiptIssued": false
+    },
+    {
+      "package": "lz-string",
+      "version": "1.5.0",
+      "declaredLicense": "MIT",
+      "licenseFile": "node_modules/lz-string/LICENSE",
+      "licenseSha256": "433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80",
+      "result": "reviewed by receipt",
+      "receiptIssued": true
+    },
+    {
+      "package": "parse5",
+      "version": "8.0.1",
+      "declaredLicense": "MIT",
+      "licenseFile": "node_modules/parse5/LICENSE",
+      "licenseSha256": "8c535800331e1e4439835555b3f9edc7fe9dee2fab0d8bbbd5a982e8b8343d4d",
+      "result": "exact",
+      "receiptIssued": false
+    },
+    {
+      "package": "react",
+      "version": "19.3.0",
+      "declaredLicense": "MIT",
+      "licenseFile": "node_modules/react/LICENSE",
+      "licenseSha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+      "result": "exact",
+      "receiptIssued": false
+    },
+    {
+      "package": "react-dom",
+      "version": "19.3.0",
+      "declaredLicense": "MIT",
+      "licenseFile": "node_modules/react-dom/LICENSE",
+      "licenseSha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+      "result": "exact",
+      "receiptIssued": false
+    },
+    {
+      "package": "scheduler",
+      "version": "0.28.0",
+      "declaredLicense": "MIT",
+      "licenseFile": "node_modules/scheduler/LICENSE",
+      "licenseSha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+      "result": "exact",
+      "receiptIssued": false
+    },
+    {
+      "package": "smol-toml",
+      "version": "1.9.0",
+      "declaredLicense": "BSD-3-Clause",
+      "licenseFile": "node_modules/smol-toml/LICENSE",
+      "licenseSha256": "fa5659948374d4f555594f47f6da073b40dc503e921aeeece30df4362b3051a5",
+      "result": "exact",
+      "receiptIssued": false
+    }
+  ],
+  "sdkFirstFiveLines": [
+    "MIT License",
+    "",
+    "Copyright (c) Meta Platforms, Inc. and affiliates.",
+    "",
+    "Permission is hereby granted, free of charge, to any person obtaining a copy"
+  ],
+  "sourceSha256": {
+    "src/core/legal/licenseTemplates.ts": "b8a402f24f85e3806be8a3e8de021ee7f585b4af3707b8b6c34a5de86802c38a",
+    "src/core/legal/depLicenses.ts": "402a89ffaf0555214f7910761aa93ec6b97eb23d9bcd46cadaf8a586ad9946b7",
+    "src/core/legal/scan.ts": "dc7ccd458d74901e3cc76738648650f2b7b553722cd8e8c4ec3fb004a77c4b5a",
+    "src/core/legal/data/provenance.json": "0a1fc4d8519590c2cf9c3253c234b849b195d803be05bf5b4e2bb16daf2cd88c",
+    "src/core/legal/legal-data/slot-words.txt": "33d392c38b9dc51013097abd1bedacbec14174933fbe4d05d4b267fb9056b292",
+    "licence-review.json": "6918f33325c2deaa5b7fc9f9e95d57d8018d18d3297e9dfd757f03f7481a9c44",
+    "test/unit/legalSpdx.test.ts": "b0bfdcada702d9574ca8ae4c60817733dcc0b135c611cea8d375beb27984d4cb",
+    "test/unit/legalReceipts.test.ts": "213fc1a282277e78d73a12fac2d76482282a38e6b15971dd5ad58fbaa9724f8e",
+    "test/unit/legalSlotData.test.ts": "b28c9d3ed99f8e114ad5f7a55d09d6b5e8c238e613e19c765900ae2dd3933004",
+    "test/unit/legalVendorHolders.test.ts": "0f1ea60bef4d18838bf1d3711fb682ae6a5ddd181c0a010afc5f607ceccc7034"
+  },
+  "initialHookReview": {
+    "commit": "dd020ae2e3a30855a2e7cd62452c23b06bcf46cb",
+    "filesRead": 43,
+    "rewrites": [],
+    "stagedCommittedDiffEqual": true
+  },
+  "fullQuality": "Reserved for the lead by the explicit lane brief; not run here.",
+  "finalHookReview": {
+    "commit": "3fa8df149ab6687e412fd0ba2b15f9fbb45cc66b",
+    "filesRead": 5,
+    "rewrites": [],
+    "stagedCommittedDiffEqual": true
+  },
+  "postCommitScan": {
+    "commit": "3fa8df149ab6687e412fd0ba2b15f9fbb45cc66b",
+    "command": ["node", "dist/acp.js", "exec", "legal-scan", "--json"],
+    "exit": 0,
+    "stdoutValidJson": true,
+    "startupNoticeStream": "stderr",
+    "findings": 149,
+    "incompleteChecks": 0,
+    "blockers": 0,
+    "shouldFix": 0
+  }
+}

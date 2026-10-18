@@ -62,9 +62,11 @@ import {
   MUSE_APPROVAL_REPLAY_FAULT,
   MUSE_EVENT_LOG_FAULT,
   MUSE_EXIT_PERSISTENT_CODES,
+  type EffortLevel,
   type SubagentAction,
   UI_TEXT,
 } from '../../../shared/constants'
+import { isEffortLevel } from '../../../shared/effort'
 import { fill } from '../../../shared/l10n/text'
 import { DeadlineError, withDeadline } from '../../timeouts'
 import { textFileInput } from '../../textAttachment'
@@ -121,6 +123,7 @@ import {
   UNKNOWN_METHOD,
   type WireNotification,
 } from './mapNotification'
+import type { MuseUsageDeltas, UsageNotesBundle } from './usageDeltas'
 import { failureForLog } from './logText'
 import { redactSecrets } from '../../../shared/redact'
 import { PromptLedger } from './promptLedger'
@@ -158,6 +161,66 @@ export interface MuseCodeEffortInfo {
   }[]
   readonly defaultReasoningEffort?: string
 }
+
+/**
+ * Reads one `model/list` row's effort metadata (Muse Code 1.4.0/1.4.1 carry
+ * the tiers a model serves, a described subset and the default). The row
+ * shape is UNVERIFIED until a 1.4.x live capture lands (capture plan
+ * META-LIST): unknown fields stay absent, never guessed.
+ */
+export function parseMuseCodeEffortInfo(row: unknown): MuseCodeEffortInfo {
+  const parsed = museCodeEffortRowSchema.safeParse(row)
+  if (!parsed.success) return {}
+  const { variants, reasoningEffortVariants, defaultReasoningEffort } = parsed.data
+  return {
+    ...(variants !== undefined && { variants }),
+    ...(reasoningEffortVariants !== undefined && {
+      reasoningEffortVariants: reasoningEffortVariants.map((variant) => ({
+        tier: variant.tier,
+        ...(variant.description !== undefined && { description: variant.description }),
+      })),
+    }),
+    ...(defaultReasoningEffort !== undefined && { defaultReasoningEffort }),
+  }
+}
+
+const museCodeEffortRowSchema = z.looseObject({
+  variants: z.optional(z.union([z.literal('unknown'), z.array(z.string())])),
+  reasoningEffortVariants: z.optional(
+    z.array(z.looseObject({ tier: z.string(), description: z.optional(z.string()) })),
+  ),
+  defaultReasoningEffort: z.optional(z.string()),
+})
+
+/**
+ * The slider steps and default for one model's effort metadata: the row's
+ * tiers in order, kept only where they name a UI tier, deduplicated; the
+ * row's default where it names one. Empty where the row carries nothing
+ * the UI can offer (the static family table applies downstream).
+ */
+export function museModelEffortTiers(info: MuseCodeEffortInfo): {
+  readonly levels: readonly EffortLevel[]
+  readonly defaultEffort: EffortLevel | undefined
+} {
+  const names: readonly string[] =
+    Array.isArray(info.variants) && info.variants.length > 0
+      ? info.variants
+      : (info.reasoningEffortVariants ?? []).map((variant) => variant.tier)
+  const levels: EffortLevel[] = []
+  for (const name of names) {
+    if (isEffortLevel(name) && !levels.includes(name)) levels.push(name)
+  }
+  const fallback = info.defaultReasoningEffort
+  return {
+    levels,
+    defaultEffort: fallback !== undefined && isEffortLevel(fallback) ? fallback : undefined,
+  }
+}
+
+/** The default effort port: every host construction site supplies it. */
+export const museCodeEffortPort = {
+  modelEfforts: { parseModel: parseMuseCodeEffortInfo },
+} satisfies Required<Pick<MuseCodeFeaturePorts, 'modelEfforts'>>
 
 export interface MuseCodeModelSummary extends ModelSummary, MuseCodeEffortInfo {}
 
@@ -848,6 +911,8 @@ export function describeExit(
       }),
       isExpected,
       isPersistent: false,
+      // A signal the close itself sent is the stop that was asked for.
+      isFailure: !isExpected,
     }
   }
   // Exit codes are ids, not amounts: no digit grouping.
@@ -858,78 +923,14 @@ export function describeExit(
         description: fill(UI_TEXT.museExitedWithCode, { code }),
         isExpected,
         isPersistent: false,
+        isFailure: exit.code !== 0,
       }
     : {
         description: fill(UI_TEXT.museExitMeaning, { meaning, code }),
         isExpected,
         isPersistent: MUSE_EXIT_PERSISTENT_CODES.has(exit.code),
+        isFailure: exit.code !== 0,
       }
-}
-
-/** Each cumulative MSP report is journaled immediately as a known delta. */
-export class MuseUsageDeltas {
-  private baseline: { inputTokens: number; outputTokens: number } | undefined
-  private startedAt: number | undefined
-  private currentModel: string
-  public constructor(
-    private readonly recording: UsageRecording,
-    private readonly sessionId: string,
-    modelId: string,
-    isNew: boolean,
-    private readonly now: () => number = Date.now,
-  ) {
-    this.currentModel = modelId
-    if (isNew) this.baseline = { inputTokens: 0, outputTokens: 0 }
-  }
-  public receive(event: AgentEvent, isReplay = false): void {
-    if (isReplay) {
-      if (event.type === 'tokenUsage')
-        this.baseline = { inputTokens: event.inputTokens, outputTokens: event.outputTokens }
-      return
-    }
-    if (event.type === 'turnStarted') {
-      this.startedAt = this.now()
-      return
-    }
-    if (event.type === 'turnCompleted') {
-      this.startedAt = undefined
-      return
-    }
-    if (event.type === 'modelChanged') {
-      this.currentModel = event.modelId
-      return
-    }
-    if (event.type !== 'tokenUsage') return
-    const next = { inputTokens: event.inputTokens, outputTokens: event.outputTokens }
-    const prior = this.baseline
-    this.baseline = next
-    if (event.modelId !== undefined) this.currentModel = event.modelId
-    if (
-      prior === undefined ||
-      next.inputTokens < prior.inputTokens ||
-      next.outputTokens < prior.outputTokens
-    )
-      return
-    const input = next.inputTokens - prior.inputTokens
-    const output = next.outputTokens - prior.outputTokens
-    if (input === 0 && output === 0) return
-    const at = this.now()
-    const startedAt = this.startedAt ?? at
-    this.recording.note(
-      { input_tokens: input, output_tokens: output },
-      {
-        backend: 'museCode',
-        provider: 'museCode',
-        model: this.currentModel,
-        session: this.sessionId,
-        kind: 'turn',
-        pricing: { kind: 'plan' },
-        startedAt,
-        durationMs: Math.max(0, at - startedAt),
-        outcome: 'incomplete',
-      },
-    )
-  }
 }
 
 interface NativeFireToken {
@@ -1625,6 +1626,13 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
+   * Required by `AgentSession`; a no-op here. Muse Code manages its own
+   * turn bounds over MSP, so no caller allowance is bound.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-empty-function -- AgentSession requires the member so the compiler lists every implementer; Muse Code manages its own turn bounds over MSP, so this intentionally binds nothing (PLAN.md §8).
+  public setModelCallAllowance(_remaining: (() => number) | undefined): void {}
+
+  /**
    * Inject input into the turn believed to be running. The host rejects the
    * steer when that turn is no longer the running one, so input meant for one
    * turn never leaks into the next. That refusal is a `SteerRefusedError`,
@@ -1959,6 +1967,11 @@ export class MuseSession implements ScheduledAgentSession {
 export class MuseCodeHost implements AgentHost {
   /** Injected once by the editor/runtime before hosts are constructed. */
   public static usageRecording: UsageRecording | undefined
+  /**
+   * The deferred usage writers (dist/usageService.js), loaded on the first
+   * session. Unset outside the editor (unit tests drive the writers directly).
+   */
+  public static usageNotesLoader: (() => UsageNotesBundle) | undefined
   private readonly observedUsage = new Set<number>()
   private readonly sessions = new Map<string, MuseSession>()
   private readonly exitListeners = new Set<(exit: HostExit) => void>()
@@ -1994,6 +2007,7 @@ export class MuseCodeHost implements AgentHost {
     private readonly features: MuseCodeFeaturePorts = {},
     private readonly usageRecording = MuseCodeHost.usageRecording,
     private readonly accountHome?: MuseCodeAccountHome,
+    private restartCause?: string | undefined,
   ) {
     if (
       accountHome !== undefined &&
@@ -2038,7 +2052,8 @@ export class MuseCodeHost implements AgentHost {
       // Muse Code refuses `session/rename` and `session/fork` on Windows
       // (meta-models/muse-code-sdk#30, #31): verified on 1.3.0 (2026-09-22)
       // and 1.4.0 (2026-09-27), still refused on 1.4.3 (2026-10-05,
-      // docs/certification/muse143.md). No release has fixed them, so every version
+      // docs/certification/muse143.md) and 1.4.4-R5419.1 (2026-10-10,
+      // docs/certification/m53.md). No release has fixed them, so every version
       // is limited there until one is verified (D26). A 1.3.0 ceiling showed
       // the failing actions again on 1.4.0 (0.9.1, release-0.9.1.md).
       canEditSessions: parsed.platformOs !== WINDOWS_OS,
@@ -2230,25 +2245,7 @@ export class MuseCodeHost implements AgentHost {
         const usage = parsed.data
         if (!this.observedUsage.has(usage.observedAtMs)) {
           this.observedUsage.add(usage.observedAtMs)
-          this.usageRecording?.limit({
-            backend: 'museCode',
-            provider: 'museCode',
-            source: 'museCode',
-            observedAt: usage.observedAtMs,
-            windows: [
-              {
-                id: 'window',
-                usedPercent: usage.window.usedPercent,
-                resetsAt: usage.window.resetsAtMs,
-                windowMins: usage.window.windowDurationMins,
-              },
-              {
-                id: 'weekly',
-                usedPercent: usage.weekly.usedPercent,
-                resetsAt: usage.weekly.resetsAtMs,
-              },
-            ],
-          })
+          this.recordLimitSnapshot(usage)
         }
         this.accountHome?.assertCurrent()
         this.accountHome?.observeUsage(parsed.data)
@@ -2276,6 +2273,41 @@ export class MuseCodeHost implements AgentHost {
 
   private warnShape(method: string): void {
     this.log.warn(`MSP ${method} had an unexpected shape; ignored`)
+  }
+
+  /**
+   * The deferred usage writers, or undefined when the service bundle is not
+   * loaded (outside the editor) or cannot be read: journaling is best-effort,
+   * so a session without writers is kept but not recorded.
+   */
+  private usageNotes(): UsageNotesBundle | undefined {
+    const loader = MuseCodeHost.usageNotesLoader
+    if (loader === undefined) return undefined
+    try {
+      return loader()
+    } catch {
+      this.log.warn('Usage notes bundle unavailable; usage is not recorded for this session')
+      return undefined
+    }
+  }
+
+  /** One `usage/changed` meter reading, journaled through the deferred writers. */
+  private recordLimitSnapshot(usage: SubscriptionUsage): void {
+    const input = this.usageNotes()?.museCodeLimitInput(usage)
+    if (input !== undefined) this.usageRecording?.limit(input)
+  }
+
+  /** The session's journal writers, loaded with the service bundle on first use. */
+  private createUsageDeltas(
+    recording: UsageRecording,
+    sessionId: string,
+    modelId: string,
+    isNew: boolean,
+  ): MuseUsageDeltas | undefined {
+    const notes = this.usageNotes()
+    return notes === undefined
+      ? undefined
+      : new notes.MuseUsageDeltas(recording, sessionId, modelId, isNew)
   }
 
   private parseListEvent(method: string, params: unknown): SessionListEvent | undefined {
@@ -2312,7 +2344,7 @@ export class MuseCodeHost implements AgentHost {
       this.info.grantedCapabilities.includes(MSP_USER_SHELL_CAPABILITY),
       this.usageRecording === undefined
         ? undefined
-        : new MuseUsageDeltas(this.usageRecording, record.sessionId, modelId, isNew),
+        : this.createUsageDeltas(this.usageRecording, record.sessionId, modelId, isNew),
       initialApprovalMode,
     )
     this.sessions.set(record.sessionId, handle)
@@ -2439,6 +2471,23 @@ export class MuseCodeHost implements AgentHost {
     return () => {
       this.exitListeners.delete(listener)
     }
+  }
+
+  /**
+   * Why the host this one replaced went away (`AgentHost.peekRestartCause`):
+   * every turn that fails for the lost sign-in names it — concurrent
+   * conversations on this shared host classify the same loss (Codex on PR
+   * #211) — until `clearRestartCause` proves the host. Set at construction
+   * by the backend manager, never over the wire: a restart cause is local
+   * process knowledge.
+   */
+  public peekRestartCause(): string | undefined {
+    return this.restartCause
+  }
+
+  /** A turn that ran to completion proves the host (F94). */
+  public clearRestartCause(): void {
+    this.restartCause = undefined
   }
 
   /**
@@ -2670,14 +2719,22 @@ export class MuseCodeHost implements AgentHost {
     const result = await this.command('model/list', {
       ...(sessionId !== undefined && { sessionId }),
     })
-    return modelListResultSchema.parse(result).models.map((model) => ({
-      modelId: model.modelId,
-      displayLabel: model.displayLabel,
-      contextLimit: model.contextLimit ?? undefined,
-      isDefault: model.isDefault,
-      isActive: model.isActive ?? false,
-      ...this.features.modelEfforts?.parseModel(model),
-    }))
+    return modelListResultSchema.parse(result).models.map((model) => {
+      const info = this.features.modelEfforts?.parseModel(model)
+      const tiers = info === undefined ? undefined : museModelEffortTiers(info)
+      return {
+        modelId: model.modelId,
+        displayLabel: model.displayLabel,
+        contextLimit: model.contextLimit ?? undefined,
+        isDefault: model.isDefault,
+        isActive: model.isActive ?? false,
+        ...info,
+        // The row's own tiers light the slider; absent, the static family
+        // table applies downstream (META-G05).
+        ...(tiers !== undefined && tiers.levels.length > 0 && { effortLevels: [...tiers.levels] }),
+        ...(tiers?.defaultEffort !== undefined && { defaultEffort: tiers.defaultEffort }),
+      }
+    })
   }
 
   /** Registered literal secrets remain in the host; only the scrubbed note is previewed. */

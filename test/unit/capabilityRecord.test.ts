@@ -323,6 +323,47 @@ describe('normalized capability record', () => {
     expect(resolved.sources['limits.inputTokens']).toEqual({ kind: 'models-list', ref: 'list' })
     expect(capabilityEffortLevels(resolved)).toEqual(['low', 'high'])
   })
+  it('lets dated preset facts shadow the pinned catalogue, never the live list or the user', () => {
+    // Lane REASONSHAPES: documented per-model facts beat the stale
+    // snapshot; fresher evidence still wins.
+    const catalogue: CapabilityEvidence = {
+      source: { kind: 'catalogue', ref: 'snapshot' },
+      fields: { reasoning: { effortLevels: yes(['high', 'max']) } },
+    }
+    const documented: CapabilityEvidence = {
+      source: { kind: 'preset', ref: 'https://docs.z.ai/guides/capabilities/thinking' },
+      fields: {
+        reasoning: {
+          effortLevels: yes(['minimal', 'low', 'medium', 'high', 'xhigh', 'max']),
+          canDisable: yes(true),
+        },
+      },
+    }
+    const shadowed = resolveModelCapabilities(identity, [catalogue, documented])
+    expect(capabilityEffortLevels(shadowed)).toEqual([
+      'minimal',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ])
+    const live: CapabilityEvidence = {
+      source: { kind: 'models-list', ref: 'list' },
+      fields: { reasoning: { effortLevels: yes(['low', 'high']) } },
+    }
+    expect(capabilityEffortLevels(resolveModelCapabilities(identity, [live, documented]))).toEqual([
+      'low',
+      'high',
+    ])
+    const user: CapabilityEvidence = {
+      source,
+      fields: { reasoning: { effortLevels: yes(['max']) } },
+    }
+    expect(capabilityEffortLevels(resolveModelCapabilities(identity, [user, documented]))).toEqual([
+      'max',
+    ])
+  })
   it('honors explicit negative reasoning overrides across the legacy view', () => {
     const capture: CapabilityEvidence = {
       source: { kind: 'capture' },
@@ -442,6 +483,14 @@ describe('normalized capability record', () => {
   })
   it('Meta constants preserve legacy policy', () => {
     const meta = metaCapabilityRecord('muse-spark-1.3')
+    // Lead live capture 2026-10-12: anything but tool_choice "auto" is a
+    // 400 (toolrounds-captures/meta/3-wrap-up-tools-kept-choice-none.json).
+    expect(meta.tools.choiceModes).toMatchObject({ state: 'yes', value: ['auto'] })
+    expect(capabilitiesOf({ capabilityRecord: meta }).toolChoiceModes).toEqual(['auto'])
+    // Unknown means auto only: no record lists a choice for this model.
+    expect(
+      capabilitiesOf({ capabilityRecord: resolveModelCapabilities(identity) }).toolChoiceModes,
+    ).toBeUndefined()
     expect(meta.limits.contextTokens).toBe(1_048_576)
     expect(meta.output.maxTokens).toBe(131_072)
     // Lead live capture 2026-10-10: max_output_tokens below 16 is a 400.
@@ -460,6 +509,8 @@ describe('normalized capability record', () => {
       value: { maxBytes: 10 * 1024 * 1024, maxCount: 50 },
     })
     expect(meta.modalities.pdf).toMatchObject({ value: { maxBytes: 32_000_000, maxPages: 50 } })
+    // Lane REASONSHAPES: `ultra` is Muse Code's client-side top tier,
+    // mapped to the highest served tier at send time.
     expect(capabilityEffortLevels(meta)).toEqual([
       'minimal',
       'low',
@@ -467,6 +518,7 @@ describe('normalized capability record', () => {
       'high',
       'xhigh',
       'max',
+      'ultra',
     ])
   })
 })
@@ -504,35 +556,12 @@ describe('native metadata and reasoning encoding', () => {
         .body,
     ).toMatchObject({ thinking: { type: 'adaptive' }, output_config: { effort: 'high' } })
   })
-  it('Haiku manual thinking replays signed blocks without unsupported binding fields', () => {
-    const model = 'claude-haiku-4-5-20251001'
-    const input: CreateResponseBody['input'] = [
-      ...body.input,
-      {
-        type: 'reasoning',
-        id: 'thinking',
-        encrypted_content: JSON.stringify({
-          v: 1,
-          provider: 'anthropic',
-          kind: 'thinking',
-          model,
-          thinking: 'Captured-shape fixture',
-          signature: 'fixture-signature',
-        }),
-      },
-      { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Answer' }] },
-    ]
-    const request = encodeAnthropicRequest(
-      { ...body, input },
-      { model, maxTokens: 4096, effort: 'high' },
-    )
-    expect(request.body.thinking).toEqual({ type: 'enabled', budget_tokens: 1024 })
-    expect(request.headers).not.toHaveProperty('anthropic-beta')
-    expect(request.body.messages[1]?.content).toEqual([
-      { type: 'thinking', thinking: 'Captured-shape fixture', signature: 'fixture-signature' },
-      { type: 'text', text: 'Answer', cache_control: { type: 'ephemeral', ttl: '5m' } },
-    ])
-  })
+  // Round 2 (GAPANTH-G01/G17) deleted the Haiku manual replay case: it
+  // replayed a hand-written envelope (a stand-in, not a capture) and
+  // pinned the old bytes (no interleave beta header). Replay through the
+  // real decoder awaits a thinking-bearing recording (ANTH-REPLAY-1);
+  // manual-mode bytes are pinned in `anthropicCodec.test.ts` through the
+  // real encoder with canonical bodies.
 
   it('Gemini retains version, thinking and sampling; 2.5 uses budget, 3.5 uses level', () => {
     const models = parseGeminiModelsList({ models: samples('gemini') })
@@ -607,6 +636,34 @@ describe('native metadata and reasoning encoding', () => {
       record({ reasoning: { replay: { prefixEditPolicy: 'keep' } } }).reasoning.replay,
     ).toEqual({ envelope: 'none', prefixEditPolicy: 'keep' })
   })
+  it('reads the thinking disabled flag and the live default effort (round 2)', () => {
+    // Lane REASONSHAPESR2 (GAPANTH-G02, XAI-G01): the thinking table
+    // answers 400 to `disabled` on Opus 5.5, and xAI's list names
+    // `default_reasoning_effort` (`low` for grok-4.3 in the recorded
+    // list, m95-captures/xai/01-models-list.json).
+    const refused = nativeCapabilityEvidence(
+      'anthropic',
+      { capabilities: { thinking: { types: { disabled: { supported: false } } } } },
+      { kind: 'models-list' },
+    ).fields
+    expect(refused.reasoning?.canDisable).toMatchObject({ state: 'no' })
+    const allowed = nativeCapabilityEvidence(
+      'anthropic',
+      { capabilities: { thinking: { types: { disabled: { supported: true } } } } },
+      { kind: 'models-list' },
+    ).fields
+    expect(allowed.reasoning?.canDisable).toMatchObject({ state: 'yes', value: true })
+    const xai = nativeCapabilityEvidence(
+      'xai',
+      { capabilities: { default_reasoning_effort: 'low' } },
+      { kind: 'models-list' },
+    ).fields
+    expect(xai.reasoning?.defaultEffort).toBe('low')
+    expect(record({ reasoning: { offSwitch: 'between_tools' } }).reasoning.offSwitch).toBe(
+      'between_tools',
+    )
+  })
+
   it('Ollama tags retain details without claiming uncaptured support', () => {
     const rows = [
       { name: 'local', details: { family: 'qwen' }, model_info: { context_length: 8192 } },

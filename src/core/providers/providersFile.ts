@@ -23,7 +23,7 @@ import {
   providerOutputMinimum,
   openRouterRoutingSchema,
 } from '../../shared/providerRouting'
-import { isProviderId, parseModelRef } from './modelRef'
+import { isProviderId, isStorableModelId, parseModelRef } from './modelRef'
 import type { PriceCard } from './priceCard'
 import { capabilityOverridesSchema, userCapabilityOverrides } from './capabilityRecord'
 
@@ -66,8 +66,13 @@ export const providerEntrySchema = z
     // The wire format (a custom server's choice; presets fix their own).
     format: z.optional(providerFormatSchema),
     auth: providerAuthSchema,
-    // The chosen models (`<modelId>` as the provider lists them).
-    models: z.array(z.string()),
+    // The chosen models (`<modelId>` as the provider lists them). A stored
+    // id is printed back by later lists, so control and format characters
+    // never validate: no stored value can steer a terminal (Codex on PR
+    // #227, like the `--force` reasons below).
+    models: z.array(
+      z.string().check(z.refine(isStorableModelId, { error: () => UI_TEXT.actionFailed })),
+    ),
     // Required for every chosen custom model; retained across save/reload.
     modelLimits: z.optional(z.record(z.string(), modelLimitsSchema)),
     // Compatibility overrides for a custom server's wire shape (BYO 14).
@@ -86,6 +91,18 @@ export const providerEntrySchema = z
     numCtx: z.optional(z.record(z.string(), z.number())),
     // Set once the user answers the private-network question for this entry.
     privateNetwork: z.optional(z.boolean()),
+    // Models added despite the provider not listing them (D119): each maps
+    // to the `--force` reason shown on the entry. Never a credential.
+    forcedModels: z.optional(
+      z.record(
+        z.string(),
+        z.string().check(
+          z.refine((reason) => reason.trim() !== '' && !/\p{Cc}|\p{Zl}|\p{Zp}/u.test(reason), {
+            error: () => UI_TEXT.actionFailed,
+          }),
+        ),
+      ),
+    ),
   })
   .check(
     z.refine(

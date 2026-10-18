@@ -380,6 +380,24 @@ export const sessionGoalSchema = z.object({
 })
 export type SessionGoal = z.infer<typeof sessionGoalSchema>
 
+/**
+ * One model completion's own counters, where the backend reports them per
+ * completion (Muse Code's `session/tokenUsage` since 1.4, SDK 1.4.4
+ * SessionTokenUsageParams): raw counters verbatim, counted-once prompt
+ * tokens, the call's own wall time and the effective model that produced
+ * it. All but input/output stay optional so older frames still parse.
+ */
+export const tokenUsageCompletionSchema = z.object({
+  inputTokens: numberSchema,
+  outputTokens: numberSchema,
+  cachedTokens: optionalNumber,
+  reasoningTokens: optionalNumber,
+  cacheWriteTokens: optionalNumber,
+  durationMs: optionalNumber,
+  modelId: optionalString,
+})
+export type TokenUsageCompletion = z.infer<typeof tokenUsageCompletionSchema>
+
 const agentEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('turnStarted'), turnId: stringSchema }),
   /** An accepted steer needed its own later turn after the previous one ended. */
@@ -428,6 +446,11 @@ const agentEventSchema = z.discriminatedUnion('type', [
   // backend can sum them honestly (the Model API: one provider's convention).
   // `packedTokensAvoided` is the extension's own estimate (M73): the tokens
   // observation packing left out of the requests, defined only while it runs.
+  // `completion` is one model completion's own counters where the backend
+  // reports them (Muse Code's `session/tokenUsage` since 1.4: raw
+  // per-completion usage, the call's own wall time and the effective model
+  // that produced it). Cumulative input/output keep D26's session-total
+  // meaning; the journal records the completion, never a re-derived split.
   z.object({
     type: z.literal('tokenUsage'),
     inputTokens: numberSchema,
@@ -437,6 +460,7 @@ const agentEventSchema = z.discriminatedUnion('type', [
     modelId: optionalString,
     packedTokensAvoided: optionalNumber,
     hookTokensAdded: z.optional(z.int().check(z.nonnegative())),
+    completion: z.optional(tokenUsageCompletionSchema),
   }),
   z.object({
     type: z.literal('contextUsage'),

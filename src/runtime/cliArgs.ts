@@ -13,6 +13,7 @@ import {
   ACP_DEFAULT_BACKEND,
   ACP_PAID_FEATURES,
   ACP_PAID_FLAGS,
+  GITHUB_AUTH_ACTIONS,
   type AcpBackendKind,
   type AcpPaidFeature,
   SETTING_DEFAULTS,
@@ -22,11 +23,18 @@ import {
   REPORT_KINDS,
 } from '../shared/constants'
 import { modelRef } from '../host/backend/providerPolicyEntry'
-const { isProviderId } = modelRef
+const { isProviderId, isStorableModelId } = modelRef
 import type { OpenRouterPrivacy } from '../core/providers/presets'
 import { accountIdSchema } from '../shared/accounts'
 import { fill } from '../shared/l10n/text'
 import { parseExec } from './exec/execArgs'
+import {
+  CLI_HELP_TOPICS,
+  helpTopicNamed,
+  topicShownOptionNames,
+  unknownOptionReason,
+} from './cliHelp'
+import { nearestOptionName } from './editDistance'
 import { resourceFlagOverrides } from './resources/args'
 import type { ResourceSettings } from '../shared/resources'
 import type { ResourceCommandAction } from './resources/port'
@@ -44,6 +52,7 @@ export type UsageCommand =
       readonly out?: string
     }
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
+import type { GitHubAuthAction } from './authCommands'
 import { questionDeferSeconds } from '../shared/questionDeadline'
 import { parsePlaybookCommand } from './playbook/command'
 
@@ -86,6 +95,8 @@ export interface ServeOptions {
   readonly autoCompaction?: boolean | undefined
   readonly scheduledPrompts?: boolean
   readonly maxBudgetUsd?: UsdAmount
+  /** TOOLCAP: the run's per-tool-result byte guard, if raised for one run. */
+  readonly maxToolOutputBytes?: number | undefined
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
@@ -97,6 +108,18 @@ export interface ReportOptions {
   /** Section switches: the user can leave items out before anyone reads them. */
   readonly includeFacts: boolean
   readonly includeEvents: boolean
+}
+
+/** `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]` (D119). */
+export interface ProvidersModelsOptions {
+  /** The provider entry id whose model list changes. */
+  readonly entry: string
+  /** Models to offer; empty lists nothing. */
+  readonly add: readonly string[]
+  /** Models to stop offering; empty removes nothing. */
+  readonly remove: readonly string[]
+  /** Why an unlisted model is added anyway; shown on the entry. */
+  readonly force: string | undefined
 }
 
 /** `providers add` flags (M95, PLAN.md D74): the terminal runs the same checks as the wizard. */
@@ -141,6 +164,7 @@ export type RuntimeCommand =
   | { readonly command: 'reports'; readonly args: readonly string[] }
   | { readonly command: 'fontsInstall'; readonly sourceDirectory: string | undefined }
   | { readonly command: 'playbook'; readonly argv: readonly string[] }
+  | { readonly command: 'mcp'; readonly argv: readonly string[] }
   | { readonly command: 'estimate'; readonly argv: readonly string[] }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
@@ -148,8 +172,10 @@ export type RuntimeCommand =
       readonly command: 'authStatus' | 'authClear'
       readonly provider?: string | undefined
     }
+  | { readonly command: 'authGitHub'; readonly action: GitHubAuthAction }
   | { readonly command: 'providersList' }
   | { readonly command: 'providersAdd'; readonly options: ProvidersAddOptions }
+  | { readonly command: 'providersModels'; readonly options: ProvidersModelsOptions }
   | { readonly command: 'providersTest'; readonly provider: string }
   | { readonly command: 'providersRemove'; readonly provider: string }
   | {
@@ -160,6 +186,7 @@ export type RuntimeCommand =
   | { readonly command: 'accounts'; readonly options: AccountsCommand }
   | { readonly command: 'developer'; readonly args: readonly string[] }
   | { readonly command: 'help'; readonly all?: boolean }
+  | { readonly command: 'helpTopic'; readonly topic: string }
   | { readonly command: 'version' }
   | { readonly command: 'vaultHelp' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
@@ -240,6 +267,55 @@ function invalid(argument: string): Extract<RuntimeCommand, { command: 'invalid'
   return { command: 'invalid', reason: fill(UI_TEXT.acpUnknownArgument, { argument }) }
 }
 
+/** A usage refusal: exit 2, never a run. */
+function refused(reason: string): Extract<RuntimeCommand, { command: 'invalid' }> {
+  return { command: 'invalid', reason, exitCode: 2 }
+}
+
+/**
+ * A strict-parser throw as a usage refusal (D119): a wrong option names the
+ * option, the topic's accepted options, and the nearest valid option when
+ * the name is close. Anything else keeps the parser's reason, still exit 2.
+ */
+function invalidStrictOption(
+  topic: string,
+  valid: readonly string[],
+  error: unknown,
+): Extract<RuntimeCommand, { command: 'invalid' }> {
+  if (error instanceof Error && /unknown option/i.test(error.message)) {
+    return refused(unknownOptionReason(UI_TEXT, ACP_AGENT_NAME, topic, valid, error.message))
+  }
+  return refused(error instanceof Error ? error.message : String(error))
+}
+
+/** The option names behind one help topic, for error messages. */
+function topicValidOptions(topic: string): readonly string[] {
+  const found = helpTopicNamed(topic)
+  return found === undefined ? [] : topicShownOptionNames(found)
+}
+
+/** Enum refusals use the help table's accepted values, never the supplied value. */
+function enumRefusal(
+  topic: string,
+  values: Readonly<Record<string, unknown>>,
+): Extract<RuntimeCommand, { command: 'invalid' }> | undefined {
+  const options = helpTopicNamed(topic)?.options ?? []
+  for (const option of options) {
+    const value = values[option.name]
+    if (value === undefined || option.fact?.kind !== 'enum') continue
+    if (typeof value === 'string' && option.fact.values.includes(value)) continue
+    const optionName = `--${option.name}`
+    const reason =
+      topic === 'exec'
+        ? fill(UI_TEXT.execValueInvalid, { option: optionName })
+        : fill(UI_TEXT.acpUnknownArgument, { argument: optionName })
+    return refused(
+      `${reason} (${fill(UI_TEXT.cliHelp.accepts, { values: option.fact.values.join('|') })})`,
+    )
+  }
+  return undefined
+}
+
 /** The paid features whose flags were given, in the flags' order. */
 function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeature[] {
   return ACP_PAID_FEATURES.filter((feature) => values[ACP_PAID_FLAGS[feature]] === true)
@@ -257,6 +333,9 @@ export function parseCommandLine<T>(
   // M118-X-CLI: main's owner injects the local parser/runner once P/C bind.
   // Without that binding these reserved commands fail explicitly, never serve.
   if (argv[0] === 'share' || argv[0] === 'prompts') {
+    // The sharing commands' help is their own one screen, answered before
+    // any local binding is needed.
+    if (argv.length === 2 && argv[1] === '--help') return { command: 'helpTopic', topic: argv[0] }
     if (localSharing === undefined) return invalid(argv[0])
     try {
       return localSharing(argv)
@@ -275,6 +354,11 @@ export function parseCommandLine<T>(
   if (argv[0] === 'usage' && argv[1] === 'resources')
     return parseResources(['history', ...argv.slice(2)])
   if (argv[0] === 'usage') return parseUsage(argv.slice(1))
+  // The models route comes first: `chatgpt` and `copilot` are entry ids the
+  // product creates, so `providers models chatgpt` must reach the models
+  // command instead of the subscription provider actions below (Codex on
+  // PR #227).
+  if (argv[0] === 'providers' && argv[1] === 'models') return parseProvidersModels(argv.slice(2))
   if (argv[0] === 'providers' && (argv[2] === 'chatgpt' || argv[2] === 'copilot')) {
     const action = parseChatGptProviderAction(argv)
     return action === undefined
@@ -282,9 +366,23 @@ export function parseCommandLine<T>(
       : { command: 'chatGptProvider', action }
   }
   if (argv[0] === 'help') {
-    return argv.length === 1 || (argv.length === 2 && argv[1] === '--all')
-      ? { command: 'help', all: argv[1] === '--all' }
-      : invalid(argv.join(' '))
+    if (argv.length === 1) return { command: 'help' }
+    if (argv.length === 2 && (argv[1] === '--all' || argv[1] === 'reference'))
+      return { command: 'help', all: true }
+    if (argv.length === 2 && helpTopicNamed(argv[1] ?? '') !== undefined)
+      return { command: 'helpTopic', topic: argv[1] ?? '' }
+    if (argv.length === 2) {
+      const wanted = argv[1] ?? ''
+      const names = CLI_HELP_TOPICS.map((topic) => topic.name)
+      const nearest = nearestOptionName(wanted, names)
+      const reason = fill(UI_TEXT.cliHelp.unknownTopic, { topic: wanted, command: ACP_AGENT_NAME })
+      return refused(
+        nearest === undefined
+          ? reason
+          : `${reason} ${fill(UI_TEXT.cliHelp.suggestOption, { nearest })}`,
+      )
+    }
+    return { ...invalid(argv.join(' ')), exitCode: 2 }
   }
   if (argv[0] === 'schedule') {
     const parsed = parseScheduleCommand(argv.slice(1))
@@ -310,42 +408,61 @@ export function parseCommandLine<T>(
       : { command: 'vault', options }
   }
   if (argv[0] === 'estimate') return { command: 'estimate', argv: argv.slice(1) }
+  if (argv[0] === 'auth' && argv[1] === 'github') return parseAuthGitHub(argv.slice(2))
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report')
     return parseReport(argv.slice(argv[1] === 'problem' ? 2 : 1), argv[1] !== 'problem')
   if (argv[0] === 'legal') return parseLegalCommand(argv)
   if (argv[0] === 'fonts') return parseFonts(argv.slice(1))
-  if (argv[0] === 'playbook') return { command: 'playbook', argv: argv.slice(1) }
+  if (argv[0] === 'playbook')
+    return argv.length === 2 && (argv[1] === '--help' || argv[1] === '-h')
+      ? { command: 'helpTopic', topic: 'playbook' }
+      : { command: 'playbook', argv: argv.slice(1) }
+  // M124: the connector parses its own words in its lazy bundle.
+  if (argv[0] === 'mcp') return { command: 'mcp', argv: argv.slice(1) }
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
     parsed = parseCommandLineStrictly(argv)
   } catch (error: unknown) {
+    if (error instanceof Error && /unknown option/i.test(error.message)) {
+      // The strict grammar is the serve family: a bare wrong option belongs
+      // to serve, a named one to its command. The raw parser message is
+      // never the answer: it repeats the typed name (D119 secret rule).
+      const named = argv.find((argument) => helpTopicNamed(argument) !== undefined) ?? 'serve'
+      const topic = helpTopicNamed(named)
+      if (topic !== undefined)
+        return invalidStrictOption(topic.name, topicShownOptionNames(topic), error)
+    }
     if (argv.includes('auth'))
       return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
-    return { command: 'invalid', reason: error instanceof Error ? error.message : String(error) }
+    return refused(error instanceof Error ? error.message : String(error))
   }
   const { values, positionals } = parsed
   if (values.help === true) {
-    return { command: 'help' }
+    const [first] = positionals
+    const topic = helpTopicNamed(first ?? '')
+    return topic === undefined ? { command: 'help' } : { command: 'helpTopic', topic: topic.name }
   }
   if (values.version === true) {
     return { command: 'version' }
   }
+  const enumError = enumRefusal(positionals[0] === 'providers' ? 'providers' : 'serve', values)
+  if (enumError !== undefined) return enumError
   const backend = values.backend ?? ACP_DEFAULT_BACKEND
   if (!isOneOf(ACP_BACKENDS, backend)) {
     return positionals[0] === 'auth'
       ? { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
-      : invalid(`--backend ${backend}`)
+      : { ...invalid(`--backend ${backend}`), exitCode: 2 }
   }
   const shellSandbox = values['shell-sandbox'] ?? SETTING_DEFAULTS.shellSandbox
   if (!isOneOf(SHELL_SANDBOX_MODES, shellSandbox)) {
     return positionals[0] === 'auth'
       ? { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
-      : invalid(`--shell-sandbox ${shellSandbox}`)
+      : { ...invalid(`--shell-sandbox ${shellSandbox}`), exitCode: 2 }
   }
   const paidFeatures = paidFeaturesOf(values)
   if (values['usage-history'] !== undefined && !['on', 'off'].includes(values['usage-history']))
-    return invalid('--usage-history')
+    return { ...invalid('--usage-history'), exitCode: 2 }
   const rawSeconds = values['questions-defer-after']
   const questionsDeferAfterSeconds =
     rawSeconds === undefined ? questionDeferSeconds() : questionDeferSeconds(Number(rawSeconds))
@@ -353,18 +470,19 @@ export function parseCommandLine<T>(
     questionsDeferAfterSeconds === undefined ||
     (rawSeconds !== undefined && !/^\d+$/.test(rawSeconds))
   )
-    return invalid(`--questions-defer-after ${rawSeconds ?? ''}`)
+    return { ...invalid(`--questions-defer-after ${rawSeconds ?? ''}`), exitCode: 2 }
   const [firstPaid] = paidFeatures
   if (firstPaid !== undefined && backend !== 'modelApi') {
     return {
       command: 'invalid',
       reason: fill(UI_TEXT.acpPaidNeedsModelApi, { argument: `--${ACP_PAID_FLAGS[firstPaid]}` }),
+      exitCode: 2,
     }
   }
   const budget =
     values['max-budget-usd'] === undefined ? undefined : scheduleBudgetUsd(values['max-budget-usd'])
   if (budget === undefined && values['max-budget-usd'] !== undefined)
-    return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage }
+    return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage, exitCode: 2 }
   const options: ServeOptions = {
     ...(values['usage-history'] !== undefined && {
       usageHistory: values['usage-history'] === 'on',
@@ -388,22 +506,22 @@ export function parseCommandLine<T>(
   if (values.account !== undefined && (first !== 'auth' || second !== 'set' || rest.length > 0))
     return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
   if (first === 'setup' && second === undefined) {
-    if (values.provider !== undefined) return invalid('setup')
+    if (values.provider !== undefined) return { ...invalid('setup'), exitCode: 2 }
     return options.trustWorkspace
       ? { command: 'setup', options, maintenance: values.maintenance === true }
-      : { command: 'invalid', reason: UI_TEXT.hooksNotRunnable }
+      : { command: 'invalid', reason: UI_TEXT.hooksNotRunnable, exitCode: 2 }
   }
-  if (values.maintenance === true) return invalid('--maintenance')
+  if (values.maintenance === true) return { ...invalid('--maintenance'), exitCode: 2 }
   if (first === undefined) {
     // The provider commands' flags are not serve flags.
     return NON_SERVE_OPTIONS.some((name) => values[name] !== undefined)
-      ? invalid(positionals.join(' '))
+      ? { ...invalid(positionals.join(' ')), exitCode: 2 }
       : { command: 'serve', options }
   }
   if (first === 'login') {
     return second === undefined && NON_SERVE_OPTIONS.every((name) => values[name] === undefined)
       ? { command: 'login', options }
-      : invalid(positionals.join(' '))
+      : { ...invalid(positionals.join(' ')), exitCode: 2 }
   }
   if (first === 'providers') {
     return parseProviders(values, second, rest)
@@ -433,6 +551,14 @@ export function parseCommandLine<T>(
   return provider === undefined ? { command: auth } : { command: auth, provider }
 }
 
+/** `auth github login|logout|status` (M123): exactly one word, no flag, no value. */
+function parseAuthGitHub(rest: readonly string[]): RuntimeCommand {
+  const [action, ...extra] = rest
+  return extra.length === 0 && isOneOf(GITHUB_AUTH_ACTIONS, action)
+    ? { command: 'authGitHub', action }
+    : { command: 'invalid', reason: UI_TEXT.githubSignIn.usage, exitCode: 2 }
+}
+
 /** `providers list|add|test|remove` (M95, PLAN.md D74). */
 function parseProviders(
   values: StrictValues,
@@ -441,7 +567,9 @@ function parseProviders(
 ): RuntimeCommand {
   switch (verb) {
     case 'list': {
-      return rest.length === 0 ? { command: 'providersList' } : invalid('providers list')
+      return rest.length === 0
+        ? { command: 'providersList' }
+        : { ...invalid('providers list'), exitCode: 2 }
     }
     case 'test':
     case 'remove': {
@@ -450,6 +578,7 @@ function parseProviders(
         return {
           command: 'invalid',
           reason: fill(UI_TEXT.providerUnknown, { provider: provider ?? '' }),
+          exitCode: 2,
         }
       }
       return { command: verb === 'test' ? 'providersTest' : 'providersRemove', provider }
@@ -457,16 +586,102 @@ function parseProviders(
     case 'add': {
       return parseProvidersAdd(values, rest)
     }
+    case 'models': {
+      return parseProvidersModels(rest)
+    }
     default: {
-      return invalid(`providers ${verb ?? ''}`.trim())
+      return { ...invalid(`providers ${verb ?? ''}`.trim()), exitCode: 2 }
     }
   }
+}
+
+/** The models flags, narrowed from the strict parse. */
+interface ProvidersModelsFlags {
+  readonly help?: boolean
+  readonly add?: readonly string[]
+  readonly remove?: readonly string[]
+  readonly force?: string
+}
+
+/** `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]` (D119). */
+function parseProvidersModels(argv: readonly string[]): RuntimeCommand {
+  try {
+    const strict = parseArgs({
+      args: [...argv],
+      allowPositionals: true,
+      strict: true,
+      options: CLI_OPTION_REGISTRY.providersModels.options,
+    })
+    return finishProvidersModels(
+      {
+        ...(strict.values.help === true && { help: true as const }),
+        ...(strict.values.add !== undefined && { add: [...strict.values.add] }),
+        ...(strict.values.remove !== undefined && { remove: [...strict.values.remove] }),
+        ...(typeof strict.values.force === 'string' && { force: strict.values.force }),
+      },
+      [...strict.positionals],
+    )
+  } catch (error: unknown) {
+    const topic = helpTopicNamed('providers')
+    return topic === undefined
+      ? refused(error instanceof Error ? error.message : String(error))
+      : invalidStrictOption(topic.name, topicShownOptionNames(topic), error)
+  }
+}
+
+/** A stored-and-reprinted reason must not smuggle in lines or terminal controls. */
+function hasControlCharacter(text: string): boolean {
+  return /\p{Cc}|\p{Zl}|\p{Zp}/u.test(text)
+}
+
+function finishProvidersModels(
+  values: ProvidersModelsFlags,
+  positionals: readonly string[],
+): RuntimeCommand {
+  if (values.help === true) return { command: 'helpTopic', topic: 'providers' }
+  const [entry, ...rest] = positionals
+  if (entry === undefined || entry === '' || rest.length > 0)
+    return {
+      command: 'invalid',
+      reason: fill(UI_TEXT.cliHelp.modelsUsage, { command: ACP_AGENT_NAME }),
+      exitCode: 2,
+    }
+  // A stored id is printed back by later lists, so control and format
+  // characters never parse: no stored value can steer a terminal (Codex on
+  // PR #227). Whitespace stays the command layer's refusal below. Add and
+  // remove share one refusal: both name models to store.
+  const add = values.add ?? []
+  const remove = values.remove ?? []
+  if (
+    [...add, ...remove].some(
+      (model) => typeof model !== 'string' || model === '' || !isStorableModelId(model),
+    )
+  ) {
+    return {
+      command: 'invalid',
+      reason: fill(UI_TEXT.cliHelp.modelsUsage, { command: ACP_AGENT_NAME }),
+      exitCode: 2,
+    }
+  }
+  const force = values.force
+  // The reason is stored on the entry and printed back by later lists, so
+  // it stays one honest line: no blank reason, no control characters.
+  if (force !== undefined && (force.trim() === '' || hasControlCharacter(force))) {
+    return {
+      command: 'invalid',
+      reason: fill(UI_TEXT.cliHelp.modelsUsage, { command: ACP_AGENT_NAME }),
+      exitCode: 2,
+    }
+  }
+  return force !== undefined && add.length === 0
+    ? { command: 'invalid', reason: UI_TEXT.cliHelp.modelsForceNeedsAdd, exitCode: 2 }
+    : { command: 'providersModels', options: { entry, add, remove, force } }
 }
 
 /** `providers add --preset <id> [--as <id>] [--address <url>] [--model <id>…] …`. */
 function parseProvidersAdd(values: StrictValues, rest: readonly string[]): RuntimeCommand {
   if (rest.length > 0) {
-    return invalid(`providers add ${rest.join(' ')}`.trim())
+    return { ...invalid(`providers add ${rest.join(' ')}`.trim()), exitCode: 2 }
   }
   const preset = values.preset
   if (typeof preset !== 'string' || !isProviderId(preset)) {
@@ -475,6 +690,7 @@ function parseProvidersAdd(values: StrictValues, rest: readonly string[]): Runti
       reason: fill(UI_TEXT.providerUnknown, {
         provider: typeof preset === 'string' ? preset : '',
       }),
+      exitCode: 2,
     }
   }
   const as = values.as
@@ -517,11 +733,11 @@ function parseProvidersAdd(values: StrictValues, rest: readonly string[]): Runti
     (format !== undefined && preset !== 'custom') ||
     (privacy !== undefined && preset !== 'openrouter')
   ) {
-    return invalid('providers add')
+    return { ...invalid('providers add'), exitCode: 2 }
   }
   const rawModels = values.model ?? []
   if (rawModels.some((model) => typeof model !== 'string' || model === '')) {
-    return invalid('providers add')
+    return { ...invalid('providers add'), exitCode: 2 }
   }
   for (const name of Object.keys(values)) {
     if (
@@ -536,7 +752,11 @@ function parseProvidersAdd(values: StrictValues, rest: readonly string[]): Runti
         'private-ok',
       ].includes(name)
     ) {
-      return invalid(`--${name}`)
+      return invalidStrictOption(
+        'providers',
+        topicValidOptions('providers'),
+        new Error(`Unknown option "--${name}"`),
+      )
     }
   }
   return {
@@ -562,7 +782,9 @@ function parseUsage(argv: readonly string[]): RuntimeCommand {
       strict: true,
       options: CLI_OPTION_REGISTRY.usage.options,
     })
-    if (values.help) return { command: 'help' }
+    if (values.help) return { command: 'helpTopic', topic: 'usage' }
+    const enumError = enumRefusal('usage', values)
+    if (enumError !== undefined) return enumError
     const [action = 'summary', ...rest] = positionals
     const fail = (): RuntimeCommand => ({ ...invalid('usage'), exitCode: 2 })
     if (rest.length > 0 || (values.json && values.csv) || values.out === '') return fail()
@@ -625,12 +847,16 @@ function parseUsage(argv: readonly string[]): RuntimeCommand {
         ...(values.out !== undefined && { out: values.out }),
       },
     }
-  } catch {
-    return { ...invalid('usage'), exitCode: 2 }
+  } catch (error: unknown) {
+    const found = helpTopicNamed('usage')
+    return found === undefined
+      ? { ...invalid('usage'), exitCode: 2 }
+      : invalidStrictOption(found.name, topicShownOptionNames(found), error)
   }
 }
 
 function parseHeadless(argv: readonly string[]): RuntimeCommand {
+  const topic = argv[0] === 'scan-secrets' ? 'scan-secrets' : 'exec'
   try {
     if (argv[0] === 'scan-secrets') {
       const { values, positionals } = parseArgs({
@@ -639,7 +865,7 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
         strict: true,
         options: CLI_OPTION_REGISTRY['scan-secrets'].options,
       })
-      if (values.help === true) return { command: 'help', all: true }
+      if (values.help === true) return { command: 'helpTopic', topic: 'scan-secrets' }
       return positionals.length === 1 && positionals[0] !== undefined
         ? {
             command: 'scan-secrets',
@@ -654,7 +880,9 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
       strict: true,
       options: CLI_OPTION_REGISTRY.exec.options,
     })
-    if (values.help === true) return { command: 'help', all: true }
+    if (values.help === true) return { command: 'helpTopic', topic: 'exec' }
+    const enumError = enumRefusal('exec', values)
+    if (enumError !== undefined) return enumError
     const { help: _help, attach, record, ...execValues } = values
     if (record === true)
       return { command: 'invalid', reason: UI_TEXT.media.recordingUserOnly, exitCode: 2 }
@@ -678,7 +906,10 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
         }
       : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
   } catch (error: unknown) {
-    return invalidHeadlessCause(error)
+    const found = helpTopicNamed(topic)
+    return found === undefined
+      ? invalidHeadlessCause(error)
+      : invalidStrictOption(found.name, topicShownOptionNames(found), error)
   }
 }
 
@@ -712,10 +943,13 @@ function parseLegalCommand(argv: readonly string[]): RuntimeCommand {
       options: CLI_OPTION_REGISTRY.legal.options,
     })
     return values.help === true
-      ? { command: 'help' }
+      ? { command: 'helpTopic', topic: 'legal' }
       : legalOutcome(parseLegalArgs(values, positionals))
   } catch (error: unknown) {
-    return invalidHeadlessCause(error)
+    const found = helpTopicNamed('legal')
+    return found === undefined
+      ? invalidHeadlessCause(error)
+      : invalidStrictOption(found.name, topicShownOptionNames(found), error)
   }
 }
 
@@ -727,14 +961,17 @@ function parseResources(argv: readonly string[]): RuntimeCommand {
       allowPositionals: true,
       options: CLI_OPTION_REGISTRY.resources.options,
     })
-    if (values.help === true) return { command: 'help' }
+    if (values.help === true) return { command: 'helpTopic', topic: 'resources' }
     const action = positionals[0] ?? 'status'
     return positionals.length > 1 ||
       (action !== 'status' && action !== 'history' && action !== 'resume')
       ? { ...invalid(`resources ${positionals.join(' ')}`), exitCode: 2 }
       : { command: 'resources', action, json: values.json === true }
-  } catch {
-    return { ...invalid('resources'), exitCode: 2 }
+  } catch (error: unknown) {
+    const found = helpTopicNamed('resources')
+    return found === undefined
+      ? { ...invalid('resources'), exitCode: 2 }
+      : invalidStrictOption(found.name, topicShownOptionNames(found), error)
   }
 }
 
@@ -772,7 +1009,7 @@ function parseReport(argv: readonly string[], canUseNamed = true): RuntimeComman
       strict: true,
       options: CLI_OPTION_REGISTRY.report.options,
     })
-    if (values.help === true) return { command: 'help', all: true }
+    if (values.help === true) return { command: 'helpTopic', topic: 'report' }
     if (positionals.length > 0 || values.out === '') {
       return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
     }
@@ -812,14 +1049,29 @@ function parseFonts(argv: readonly string[]): RuntimeCommand {
       strict: true,
       options: CLI_OPTION_REGISTRY.fontsInstall.options,
     })
-    if (values.help === true) return { command: 'help' }
+    if (values.help === true) return { command: 'helpTopic', topic: 'fonts' }
     if (positionals.length === 1 && positionals[0] === 'install' && values.from !== '')
       return { command: 'fontsInstall', sourceDirectory: values.from }
-  } catch {
-    /* Invalid font arguments get the localized usage below. */
+  } catch (error: unknown) {
+    /* A wrong fonts option names the option and the nearest valid one. */
+    const found = helpTopicNamed('fonts')
+    if (found !== undefined && error instanceof Error && /unknown option/i.test(error.message)) {
+      const topic = found.name
+      const valid = topicShownOptionNames(found)
+      const raw = error.message
+      return {
+        command: 'invalid',
+        exitCode: 2,
+        // main installs the display language after parsing, before printing.
+        get reason() {
+          return unknownOptionReason(UI_TEXT, ACP_AGENT_NAME, topic, valid, raw)
+        },
+      }
+    }
   }
   return {
     command: 'invalid',
+    exitCode: 2,
     // main installs the display language after parsing, before printing usage.
     get reason() {
       return fill(UI_TEXT.acpFontsUsage, { command: ACP_AGENT_NAME })

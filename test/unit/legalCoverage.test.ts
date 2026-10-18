@@ -6,7 +6,9 @@ import {
   LEGAL_EXCLUSIONS_MAX,
   LEGAL_INCOMPLETE_MAX,
   LEGAL_TEXT_MAX_CHARS,
+  LEGAL_DEPENDENCIES_MAX,
   LEGAL_FINDINGS_MAX,
+  LEGAL_TOTAL_MAX_BYTES,
   LEGAL_PATH_MAX_CHARS,
 } from '../../src/shared/constants'
 import { snapshotFrom } from './legal/helpers'
@@ -43,7 +45,7 @@ describe('legal coverage and metadata', () => {
           lockfileVersion: 3,
           packages: {
             ...Object.fromEntries(
-              Array.from({ length: LEGAL_FINDINGS_MAX }, (_, index) => [
+              Array.from({ length: LEGAL_DEPENDENCIES_MAX }, (_, index) => [
                 `node_modules/x${String(index)}`,
                 { version: '1', license: 'MIT' },
               ]),
@@ -114,22 +116,28 @@ describe('legal coverage and metadata', () => {
     )
   })
 
-  it('recognizes LGPL 2.0, 2.1 and 3.0 without changing their versions', () => {
+  it('recognizes LGPL 2.0, 2.1 and 3.0 stems without granting a variant', () => {
+    // RVCM971 P2 (finding 5): the body never grants `-or-later`.
     expect(identifyLicenseText('GNU LIBRARY GENERAL PUBLIC LICENSE\nVersion 2\n')?.id).toBe(
-      'LGPL-2.0-only',
+      'LGPL-2.0',
     )
     expect(identifyLicenseText('GNU LESSER GENERAL PUBLIC LICENSE\nVersion 2.1\n')?.id).toBe(
-      'LGPL-2.1-only',
+      'LGPL-2.1',
     )
     expect(identifyLicenseText('GNU LESSER GENERAL PUBLIC LICENSE\nVersion 3\n')?.id).toBe(
-      'LGPL-3.0-only',
+      'LGPL-3.0',
     )
   })
 
   it('reports heuristic matching, assets and freshness as unchecked', () => {
+    // C-M97-1: the stub LICENSE stays heuristic (matching) and the asset
+    // keeps human review (assets); the bundle inputs name a file absent
+    // from the inventory, so the stale-input and freshness reasons stay
+    // named. Fresh, complete bundle inputs report no freshness caveat
+    // (see the clean-scan test in legalScan.test.ts).
     const result = scanLegal(snapshotFrom({ LICENSE: 'MIT License\n', 'asset.png': 'png' }), {
       headerPolicy: 'off',
-      distribution: { bundleInputs: ['asset.png'] },
+      distribution: { bundleInputs: ['asset.png', 'missing-bundle.js'] },
     })
     expect(result.incompleteChecks.join(' ')).toContain('matching')
     expect(result.incompleteChecks.join(' ')).toContain('assets')
@@ -161,10 +169,11 @@ describe('legal coverage and metadata', () => {
 
   it('bounds aggregate text across individually permitted files', () => {
     const text = 'x'.repeat(LEGAL_TEXT_MAX_CHARS * LEGAL_FINDINGS_MAX)
+    const files = Math.floor(LEGAL_TOTAL_MAX_BYTES / text.length) + 2
     const report = scanLegal(
       snapshotFrom(
         Object.fromEntries(
-          Array.from({ length: 12 }, (_, index) => [`source${String(index)}.ts`, text]),
+          Array.from({ length: files }, (_, index) => [`source${String(index)}.ts`, text]),
         ),
       ),
       { headerPolicy: 'required' },

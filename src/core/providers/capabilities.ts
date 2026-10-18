@@ -32,6 +32,11 @@ export interface ModelCapabilities {
   readonly vision: boolean
   /** Unknown is off; resolved for this model, never inferred from its format. */
   readonly supportsStrictTools?: boolean | undefined
+  /**
+   * Which `tool_choice` values the model takes; unknown (absent) means auto
+   * only. Read from the model's capability record, never inferred.
+   */
+  readonly toolChoiceModes?: readonly ('auto' | 'none')[] | undefined
   /** Documented pixel limits only; absence preserves today's image bytes. */
   readonly imageLimits?: ImageLimits | undefined
   /** The model reasons (its reasoning replays only to the same provider). */
@@ -84,6 +89,11 @@ export function capabilitiesOf(row: CapabilitiesRow): ModelCapabilities {
     ])
   return {
     toolCalling: record.tools.calling.state === 'yes',
+    ...(record.tools.choiceModes.state === 'yes' && {
+      toolChoiceModes: record.tools.choiceModes.value.filter(
+        (mode): mode is 'auto' | 'none' => mode === 'auto' || mode === 'none',
+      ),
+    }),
     vision: record.modalities.image.state === 'yes',
     reasoning:
       record.reasoning.supported.state === 'unknown'
