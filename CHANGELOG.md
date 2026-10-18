@@ -64,6 +64,43 @@ happened, not what was planned; superseded entries are kept.
   of 8; a failure names its bundle, in-flight bundles settle, and the
   process exits with the true error.
 
+- D121 (owner 2026-10-16: limits only on models): best-of-N no longer caps
+  attempts or requests per attempt at 2–5 and 5–50 — both numbers are your
+  own per-run choice (defaults 3 × 20 stay); headless exec no longer caps
+  `--max-requests` at 500 or `--max-budget-usd` at $20 — your flags stay
+  with no ceiling of ours; `rename_symbol` no longer refuses a rename that
+  touches more than 200 files; a hook agent handler loops over its
+  read-only tools until the model stops calling them instead of stopping
+  after 5 steps; a goal objective of any length stands instead of refusing
+  past 4000 characters; a plan keeps every step past 50 and saves and reads
+  back at any size instead of refusing past 256 KB (handoff briefs too);
+  a saved prompt keeps any title, body and per-scope count past 200, 80
+  and 10000 characters;
+  the proposal Action's same $20 and 500-request caps went too; image generation takes a prompt of any length and
+  any number of edit sources past 4000 characters and 4 (Meta documents no
+  prompt length and 1–10 edit items — its own refusal answers oversize calls);
+  a provider holds any number of accounts past 64 per provider; check
+  commands no longer refuse a 9th check and a check names any positive
+  `timeoutSeconds` past 600 (300 unless set); a conversation spawns
+  subagents past 64 per conversation (paid consent still asks per spawn);
+  a team `delegate` starts past 6 tasks and engines run past the 20-worker
+  hard ceiling (the provider's documented limits, live 429 adaptation and
+  the machine bound the rest); exports and shares write and read back past
+  16 MiB (transcripts of any item count; report sources read at any size);
+  a held pull request checks
+  out past 20000 entries and 250 MB (an unreadable listing still refuses;
+  unsafe and colliding paths still refuse before anything is written).
+- NOLIMITS1FIX (same owner rule: the review's kept bounds go too): a saved
+  prompt file reads, imports and shares at any size instead of refusing past
+  128 KiB — only a blank title still refuses ("A title is required."); a link
+  import reads under web fetch's own 5 MiB body bound. Exports, shares and
+  imports take any transcript item count instead of refusing past 20,000;
+  picking a share file no longer refuses for size (a file that went away
+  reports as missing).
+  import is refused only past the provider's own documented context window
+  instead of the window-minus-reserve formula. A check's long
+  `timeoutSeconds` waits its whole length instead of firing at once past
+  Node's 2^31-1 ms timer maximum (timers re-arm in slices; no cap added).
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

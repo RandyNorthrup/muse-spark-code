@@ -2,8 +2,6 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
 import type { ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import {
-  EXEC_MAX_BUDGET_USD,
-  EXEC_MAX_REQUESTS,
   EXEC_MIN_OUTPUT_TOKENS,
   EXEC_USD_DECIMALS,
   EXEC_USD_UNITS,
@@ -91,14 +89,24 @@ export interface RunLedger {
   totals(): LedgerTotals
 }
 
-/** Quote start admission without spending or consuming this run's request count. */
+/**
+ * Quote start admission without spending or consuming this run's request
+ * count. The preview measures one response, so its cap is the most one
+ * response can cost at this tier's prices — a full context window of input
+ * plus the output cap, from the platform's own numbers, never a number of
+ * ours (D121: capping it at the run's budget starves the minimum below).
+ * It refuses nothing the person sees.
+ */
 export function previewResponseReservation(
   ledger: RunLedger,
   model: string,
   price: TierPrice,
 ): ResponseTicket {
   const preview = createRunLedger({
-    capUsd: Usd.from(EXEC_MAX_BUDGET_USD).toAmount(),
+    capUsd: Usd.fromUnits(
+      charge(price, MODEL_API_CONTEXT_WINDOW, ledger.outputCap),
+      EXEC_USD_DECIMALS,
+    ).toAmount(),
     maxRequests: 1,
     outputCap: () => ledger.outputCap,
   }).admitResponse({ model, maxOutputTokens: ledger.outputCap, price })
@@ -122,8 +130,10 @@ const usageSchema = z.object({
 
 function units(amount: UsdAmount): bigint {
   const value = Usd.from(amount).units(EXEC_USD_DECIMALS)
-  if (value < ZERO || value > BigInt(Number.MAX_SAFE_INTEGER))
-    throw new Error(UI_TEXT.execNumberInvalid)
+  // D121: the person's budget has no ceiling of ours — the range is
+  // whatever the argument parser accepts, held exactly as micro-USD BigInt
+  // throughout the ledger. Only a negative amount refuses.
+  if (value < ZERO) throw new Error(UI_TEXT.execNumberInvalid)
   return value
 }
 function usd(value: bigint): UsdAmount {
@@ -147,13 +157,7 @@ export function createRunLedger(input: {
 }): RunLedger {
   const outputCap = input.outputCap ?? (() => resolveExecOutputCap())
   const cap = units(input.capUsd)
-  if (
-    cap <= ZERO ||
-    cap > units(Usd.from(EXEC_MAX_BUDGET_USD).toAmount()) ||
-    !Number.isSafeInteger(input.maxRequests) ||
-    input.maxRequests < 1 ||
-    input.maxRequests > EXEC_MAX_REQUESTS
-  )
+  if (cap <= ZERO || !Number.isSafeInteger(input.maxRequests) || input.maxRequests < 1)
     throw new Error(UI_TEXT.execNumberInvalid)
   let requests = 0
   let settled = ZERO

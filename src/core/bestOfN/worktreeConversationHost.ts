@@ -9,10 +9,6 @@
 //
 // No `vscode` here: the host injects the session and the file-system read.
 
-import {
-  BEST_OF_N_MAX_REQUESTS_PER_ATTEMPT,
-  BEST_OF_N_MIN_REQUESTS_PER_ATTEMPT,
-} from '../../shared/constants'
 import type { CoreLogger } from '../logging'
 import { confineWorkspacePath, type RealPathIo } from '../workspacePath'
 
@@ -72,7 +68,7 @@ export interface WorktreeConversationDeps {
   readonly worktreeRoot: string
   readonly platform: NodeJS.Platform
   readonly io: RealPathIo
-  /** The attempt's request ceiling, inside the best-of-N bounds. */
+  /** The attempt's request ceiling: a whole number of 1 or more (D121, no upper bound). */
   readonly requestCeiling: number
   readonly session: WorktreeSession
   /** The choice id that declines an approval on this backend (`abort`). */
@@ -102,7 +98,7 @@ export class WorktreeConfinementError extends Error {
   }
 }
 
-/** The ceiling is outside the best-of-N bounds: the run never starts. */
+/** The ceiling is not a whole number of 1 or more (D121): the run never starts. */
 export class WorktreeCeilingError extends Error {
   public constructor(readonly ceiling: number) {
     super(`Refused best-of-N request ceiling ${String(ceiling)}`)
@@ -123,11 +119,7 @@ export class WorktreeConversationHost {
 
   private ceiling(): number {
     const { requestCeiling } = this.deps
-    if (
-      !Number.isSafeInteger(requestCeiling) ||
-      requestCeiling < BEST_OF_N_MIN_REQUESTS_PER_ATTEMPT ||
-      requestCeiling > BEST_OF_N_MAX_REQUESTS_PER_ATTEMPT
-    ) {
+    if (!Number.isSafeInteger(requestCeiling) || requestCeiling < 1) {
       throw new WorktreeCeilingError(requestCeiling)
     }
     return requestCeiling

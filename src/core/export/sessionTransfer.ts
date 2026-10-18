@@ -27,12 +27,12 @@ import * as z from 'zod/mini'
 import { type ItemSnapshot, itemSnapshotFields } from '../../shared/agentEvents'
 import {
   DEFAULT_EFFORT,
-  MODEL_API_IMPORT_MAX_REPLAY_BYTES,
+  MODEL_API_CONTEXT_BYTES_PER_TOKEN,
+  MODEL_API_CONTEXT_WINDOW,
   CONVERSATION_MODEL_TEXT,
   REDACTED_MARK,
   SESSION_EXPORT_FIELD_PATH_MAX,
   SESSION_EXPORT_FORMAT,
-  SESSION_EXPORT_MAX_ITEMS,
   SESSION_EXPORT_SCRUB_SLICE_CHARS,
   SESSION_EXPORT_VERSION,
   STORED_SESSION_VERSION,
@@ -95,7 +95,9 @@ export const sessionExportSchema = z.object({
   name: z.optional(z.string()),
   /** The model the conversation ran on; informational, an import never takes it. */
   modelId: z.string(),
-  transcript: z.array(z.object(portableItemFields)).check(z.maxLength(SESSION_EXPORT_MAX_ITEMS)),
+  // NOLIMITS1FIX: the removed 20,000-item bound was invented — a transcript
+  // of any length parses.
+  transcript: z.array(z.object(portableItemFields)),
 })
 
 export type SessionExport = z.infer<typeof sessionExportSchema>
@@ -660,22 +662,34 @@ function replayBytes(replay: readonly StoredReplayItem[]): number {
   return bytes
 }
 
-/** The refusal for a replay of `bytes`, naming both sizes; undefined when it fits. */
+/**
+ * The refusal for a replay of `bytes`, naming both sizes; undefined when it
+ * fits. NOLIMITS1FIX: the limit is the provider's own documented window
+ * (`MODEL_API_CONTEXT_WINDOW`, dev.meta.ai/docs/models) — our
+ * window-minus-reserve formula was invented. The bytes are measured in
+ * tokens with the established `MODEL_API_CONTEXT_BYTES_PER_TOKEN`
+ * estimator, the same lower estimate the send-time preflight
+ * (`assertContextFits`) applies to the complete first request, so a
+ * repetitive multi-megabyte transcript that tokenizes below the window is
+ * accepted here and still refused at send time when the assembled request
+ * with instructions and the new message does not fit.
+ */
 function oversizeReason(bytes: number): string | undefined {
-  return bytes > MODEL_API_IMPORT_MAX_REPLAY_BYTES
+  return Math.floor(bytes / MODEL_API_CONTEXT_BYTES_PER_TOKEN) > MODEL_API_CONTEXT_WINDOW
     ? fill(UI_TEXT.importReplayTooLarge, {
         size: formatBytes(bytes),
-        limit: formatBytes(MODEL_API_IMPORT_MAX_REPLAY_BYTES),
+        limit: formatBytes(MODEL_API_CONTEXT_WINDOW),
       })
     : undefined
 }
 
 /**
  * Why `doc` cannot be resumed on the Model API, or undefined (RV84 #10): the
- * text it hands the model, counted high as one token per UTF-8 byte, must
- * fit `MODEL_API_IMPORT_MAX_REPLAY_BYTES`. Accepted, a larger one would
- * fail every later message past the model's window; it can still be read as
- * a share file.
+ * text it hands the model, estimated in tokens with
+ * `MODEL_API_CONTEXT_BYTES_PER_TOKEN`, must fit the provider's documented
+ * window (`MODEL_API_CONTEXT_WINDOW`). Accepted, a larger one would fail
+ * every later message past the model's window; it can still be read as a
+ * share file.
  */
 export function importRefusal(doc: SessionExport): string | undefined {
   return oversizeReason(

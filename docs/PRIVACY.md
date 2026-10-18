@@ -1066,7 +1066,7 @@ retains its body and metadata verbatim. Personal files use the agent data
 folder; workspace files use `.muse/prompts/`. Do not save secrets or commit
 private prompts. Settings Sync copies personal prompts only with explicit
 global opt-in. Raw HTTPS import uses the existing pinned public-address
-transport under a 128 KiB decoded-byte cap and refuses confidential policy.
+transport under web fetch's own 5 MiB body bound and refuses confidential policy.
 Imported text is untrusted, reviewed before acceptance, and never executed
 by import or loading.
 

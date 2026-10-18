@@ -18,9 +18,7 @@
 import * as z from 'zod/mini'
 import {
   CHECK_COMMAND_MAX_CHARS,
-  CHECK_COMMANDS_MAX,
   CHECK_DEFAULT_TIMEOUT_SECONDS,
-  CHECK_MAX_TIMEOUT_SECONDS,
   CHECK_NAME_MAX_CHARS,
   CHECK_PATHS_SEPARATOR,
   type CheckCommandSetting,
@@ -37,12 +35,11 @@ export const checkCommandSchema = z.object({
   name: z.string().check(z.trim(), z.minLength(1), z.maxLength(CHECK_NAME_MAX_CHARS)),
   command: z.string().check(z.trim(), z.minLength(1), z.maxLength(CHECK_COMMAND_MAX_CHARS)),
   changedFiles: z.optional(z.boolean()),
-  timeoutSeconds: z.optional(z.int().check(z.positive(), z.lte(CHECK_MAX_TIMEOUT_SECONDS))),
+  timeoutSeconds: z.optional(z.int().check(z.positive())),
 })
 
-/** The setting's whole list: at most CHECK_COMMANDS_MAX, each name once. */
+/** The setting's whole list, at any length, each name once. */
 export const checkCommandsSchema = z.array(checkCommandSchema).check(
-  z.maxLength(CHECK_COMMANDS_MAX),
   z.refine((checks) => new Set(checks.map((check) => check.name)).size === checks.length, {
     message: 'each check needs a name of its own',
   }),

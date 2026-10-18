@@ -22,8 +22,8 @@ const SHA256_HEX = /^[0-9a-f]{64}$/
 const MODEL = /^[A-Za-z0-9._-]{1,100}$/
 const EFFORTS = new Set(['minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
 const USD_UNITS = 1_000_000n
-const MAX_BUDGET_UNITS = 20_000_000n
-const MAX_REQUESTS = 500
+// D121: the person's budget and request count carry no ceiling of ours —
+// the removed $20 and 500 caps were invented, matching exec (F1 parity).
 const DEFAULT_MAX_REQUESTS = 30
 const MAX_TIMEOUT_MINUTES = 360
 const DEFAULT_TIMEOUT_MINUTES = 20
@@ -238,15 +238,18 @@ function boundedInteger(env, name, fallback, min, max) {
   return parsed
 }
 
-/** The budget's exact decimal string: [0-9]+(.[0-9]{1,6})?, $0.000001 to $20 (lead ruling F1). */
+/**
+ * The budget's exact decimal string: [0-9]+(.[0-9]{1,6})?, more than 0 with
+ * no ceiling of ours (D121; F1 parity with exec, which accepts the same).
+ */
 export function budgetString(value) {
   if (typeof value !== 'string' || !DECIMAL_BUDGET.test(value)) {
     throw new InputError('max-budget-usd must be a plain decimal number of USD')
   }
   const [whole = '', fraction = ''] = value.split('.', 2)
   const units = BigInt(whole) * USD_UNITS + BigInt(fraction.padEnd(6, '0'))
-  if (units < 1n || units > MAX_BUDGET_UNITS) {
-    throw new InputError('max-budget-usd must be more than 0 and at most 20')
+  if (units < 1n) {
+    throw new InputError('max-budget-usd must be more than 0')
   }
   return value
 }
@@ -304,7 +307,7 @@ export function parseActionInputs(env) {
       'MUSE_INPUT_MAX_REQUESTS',
       DEFAULT_MAX_REQUESTS,
       1,
-      MAX_REQUESTS,
+      Number.MAX_SAFE_INTEGER,
     ),
     timeoutMinutes: boundedInteger(
       env,

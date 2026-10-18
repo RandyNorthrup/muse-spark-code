@@ -248,8 +248,12 @@ describe('AttachmentStore', () => {
 
   it('refuses Model API text combinations that can exceed the context by themselves', () => {
     const attachments = store()
-    const bytes = new Uint8Array(MAX_TEXT_ATTACHMENT_BYTES).fill(0x78)
-    const outcomes = Array.from({ length: MAX_ATTACHMENTS_PER_MESSAGE }, (_, index) =>
+    // About 900,000 estimated tokens a file: past the window-minus-reserve
+    // budget by itself, so every attempt refuses and nothing is retained.
+    // One shared buffer: the refusal retains nothing, and twenty separate
+    // multi-megabyte decodes would break the suite's time budget.
+    const bytes = new Uint8Array(3.5 * 1024 * 1024).fill(0x78)
+    const outcomes = [0, 1, 2].map((index) =>
       attachments.add(`source-${String(index)}.txt`, bytes, true, true),
     )
     expect(outcomes.every((outcome) => !outcome.ok)).toBe(true)
@@ -257,12 +261,25 @@ describe('AttachmentStore', () => {
     expect(attachments.list()).toHaveLength(0)
   })
 
+  it('admits a multi-megabyte plan brief on the Model API backend, not on Muse Code', () => {
+    // Two megabytes are about half a million estimated tokens: inside the
+    // model capability budget, past Muse Code's 1 MiB file ceiling.
+    const plan = new Uint8Array(2 * 1024 * 1024).fill(0x61)
+    expect(store().add('plan.md', plan, true, true).ok).toBe(true)
+    expect(store().add('plan.md', plan, false, true)).toEqual({
+      ok: false,
+      reason: UI_TEXT.textFileTooLarge,
+    })
+  })
+
   it('budgets dense Model API text together and restores room after removal', () => {
     const attachments = store()
     const dense = new TextEncoder().encode('"\\\n'.repeat(200 * 1024))
     const first = attachments.add('source.ts', dense, true, true)
     expect(first.ok).toBe(true)
-    const later = new TextEncoder().encode('[]{}"'.repeat(40 * 1024))
+    // About 680,000 estimated tokens: fits alone, but not beside the file
+    // already held.
+    const later = new TextEncoder().encode('[]{}"'.repeat(530 * 1024))
     expect(attachments.add('second.ts', later, true, true)).toEqual({
       ok: false,
       reason: UI_TEXT.textFilesOverModelApiBudget,

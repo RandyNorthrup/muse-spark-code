@@ -2,6 +2,7 @@ import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   createRunLedger,
+  previewResponseReservation,
   type ResponseTicket,
   type RunLedger,
 } from '../../src/runtime/exec/runLedger'
@@ -65,8 +66,18 @@ describe('M80 ledger integer admission and retained liability', () => {
       settlement: 'full-reservation',
     })
   })
-  it.each([0, 501, 0.5, NaN, Infinity])('rejects invalid request cap %s', (maxRequests) => {
+  it.each([0, 0.5, NaN, Infinity])('rejects invalid request cap %s', (maxRequests) => {
     expect(() => createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests })).toThrow()
+  })
+  it('D121 admits a request cap past the removed 500 ceiling', () => {
+    const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 501 })
+    expect(l.totals().requests).toBe(0)
+  })
+  it('D121 quotes the full one-response reservation past a below-minimum run cap', () => {
+    const l = createRunLedger({ capUsd: Usd.from(0.1).toAmount(), maxRequests: 30 })
+    expect(previewResponseReservation(l, 'muse-spark-1.3-contributor', price).reserveUsd).toBe(
+      Usd.from(0.108135).toAmount(),
+    )
   })
   it('F1/L9 rounds contributor reservation upward and preserves isStandard minimum', () => {
     expect(
@@ -266,7 +277,20 @@ describe('M80 ledger integer admission and retained liability', () => {
         price: { ...price, cachedInput: Usd.from(1).toAmount() },
       }),
     ).toEqual({ refused: 'unpriced' })
-    for (const cap of [0, -1, 20.000001, 0.0000001, 0.1081351, Infinity])
+    for (const cap of [0, -1, 0.0000001, 0.1081351, Infinity])
       expect(() => createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 })).toThrow()
+    // D121: a budget past the removed $20 ceiling admits.
+    expect(
+      createRunLedger({ capUsd: Usd.from(25).toAmount(), maxRequests: 1 }).totals().requests,
+    ).toBe(0)
+    // PR229FIX T3: a budget past 9007199254.740991 USD (micro-USD above
+    // Number.MAX_SAFE_INTEGER, which the old units() ceiling refused)
+    // admits and round-trips exactly.
+    expect(
+      createRunLedger({ capUsd: Usd.from('9007199255').toAmount(), maxRequests: 1 }).totals(),
+    ).toMatchObject({
+      capUsd: Usd.from('9007199255').toAmount(),
+      remainingUsd: Usd.from('9007199255').toAmount(),
+    })
   })
 })

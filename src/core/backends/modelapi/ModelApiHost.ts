@@ -106,7 +106,6 @@ import {
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
   FILE_REFUSAL_MODEL_TEXT,
-  GOAL_OBJECTIVE_MAX_CHARS,
   GOAL_STATUS,
   type GoalCommandVerb,
   HOOK_MAX_STOP_CONTINUATIONS,
@@ -119,13 +118,13 @@ import {
   IDE_MCP_SERVER_NAME,
   MCP_ELICITATION_TIMEOUT_MS,
   MAX_ENCODED_MEDIA_CHARS,
-  MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MEMORY_INDEX_FILE,
   type MemoryScope,
   MODEL_API_CLOSE_SETTLE_MS,
   MODEL_API_CONTEXT_BYTES_PER_TOKEN,
   MODEL_API_CONTINUATIONS_MAX,
   MODEL_API_CONTEXT_WINDOW,
+  MODEL_API_TEXT_BUDGET_TOKENS,
   MODEL_API_HOOK_PROVIDER,
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
@@ -163,7 +162,6 @@ import {
   SUBAGENT_CAPACITY,
   SUBAGENT_DEPTH,
   SUBAGENT_ID_PREFIX,
-  SUBAGENT_MAX_PER_CONVERSATION,
   SUBAGENT_RESULT_READY,
   SUBAGENT_RESULT_TEXT_MAX_CHARS,
   SUBAGENT_SUMMARY_MAX_CHARS,
@@ -2190,9 +2188,13 @@ function textAttachmentBytes(parts: readonly TurnPart[]): number {
   return bytes
 }
 
-/** Reject an aggregate named-text payload before it can enter replay or an HTTP request. */
+/**
+ * Reject an aggregate named-text payload before it can enter replay or an
+ * HTTP request. Counted in tokens, estimated high like admission: what the
+ * provider's window is counted in.
+ */
 function textAttachmentBudgetError(bytes: number): Error | undefined {
-  return bytes > MAX_MODEL_API_TEXT_ATTACHMENT_BYTES
+  return Math.ceil(bytes / MODEL_API_CONTEXT_BYTES_PER_TOKEN) > MODEL_API_TEXT_BUDGET_TOKENS
     ? new Error(UI_TEXT.textFilesOverModelApiBudget)
     : undefined
 }
@@ -5217,7 +5219,12 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /** What a goal operation needs from the session (M45). */
   private goalContext(): GoalContext {
-    return { sessionId: this.sessionId, now: this.deps.now(), newId: this.deps.newId }
+    return {
+      sessionId: this.sessionId,
+      now: this.deps.now(),
+      newId: this.deps.newId,
+      contextTokens: contextModelFor(this.deps, this.modelId)?.contextTokens,
+    }
   }
 
   /**
@@ -9254,14 +9261,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       return {
         refusal: {
           outcome: subagentFailure('worktree isolation is unavailable on this backend'),
-          isRejected: false,
-        },
-      }
-    }
-    if (this.children.size >= SUBAGENT_MAX_PER_CONVERSATION) {
-      return {
-        refusal: {
-          outcome: subagentFailure('subagent limit reached for this conversation'),
           isRejected: false,
         },
       }
@@ -16370,13 +16369,16 @@ export class ModelApiSession implements ScheduledAgentSession {
    * turn when nothing runs, as `goal/*` does; nothing else starts one.
    */
   public controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
-    const problem = goalObjectiveProblem(command)
+    const problem = goalObjectiveProblem(
+      command,
+      contextModelFor(this.deps, this.modelId)?.contextTokens,
+    )
     if (problem !== undefined) {
-      const detail =
-        problem === 'empty'
-          ? UI_TEXT.goalObjectiveMissing
-          : fill(UI_TEXT.goalObjectiveTooLong, { limit: GOAL_OBJECTIVE_MAX_CHARS })
-      return Promise.reject(new Error(`goal/${command.verb}: ${detail}`))
+      return Promise.reject(
+        new Error(
+          `goal/${command.verb}: ${problem === 'empty' ? UI_TEXT.goalObjectiveMissing : UI_TEXT.goalObjectiveTooLarge}`,
+        ),
+      )
     }
     const applied = applyGoalCommand(this.goal, command, this.goalContext())
     if (typeof applied === 'string') {

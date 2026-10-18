@@ -14528,6 +14528,118 @@ CONTRIBUTING.md, "The capacity repository (D122)"; proofs:
 `docs/certification/ciflow.md` (D122). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
+### D121 — Limits only on models: set by the model platform or by the person in the model role settings (owner 2026-10-16)
+
+The owner (2026-10-16, said twice): remove all of the arbitrary limits from
+the app — "we hit a time limit that kicked the model mid job we hit a tool
+call limit mid job these types of things cannot keep happening!" Every limit
+ends in exactly one of: (1) not about a model (counts, sizes, our own
+timeouts) → REMOVED: the constant, its checks, its refusal text and its docs
+go, never moved to general Settings; removing a stop must not leave a silent
+hang — the person is told in words and the work keeps waiting until they stop
+it; (2) about a model, set by the model platform → the provider's capability
+record with its documentation URL, never a number in our code (nothing local
+is enforced when the record lacks it); (3) about a model, set by the person
+→ a field in the model role settings, DEFAULT = no limit, never a general
+Setting or a terminal-only flag of ours; (4) anything believed to need
+staying that fits none of these stays unchanged and is listed for the lead.
+Records: `docs/certification/nolimits-<n>.md` (lane NOLIMITS1 writes this
+heading; the other NOLIMITS lanes add no PLAN.md lines).
+
+- A7 (NOLIMITS1): best-of-N 2–5 attempts and 5–50 requests/attempt removed —
+  not about a model; both numbers are the person's own per-run choice
+  (dialog defaults 3 × 20 stay) and only a whole number below 1 refuses.
+- A8 (NOLIMITS1): headless exec `EXEC_MAX_REQUESTS` = 500 and
+  `EXEC_MAX_BUDGET_USD` = 20 removed — no provider documents them; the
+  person's `--max-requests` (default 30 stays) and `--max-budget-usd` stay
+  with no ceiling of ours.
+- A8 correction (NOLIMITS1): the first version also capped the start
+  reservation preview at the run's own budget, which starved the
+  below-minimum refusal (the W-low-budget e2e went incomplete instead of
+  budget-exceeded). The preview now caps at the most one response can
+  cost at the tier's prices (full-window charge, platform numbers only);
+  it refuses nothing the person sees. The Action's own $20 and 500 caps
+  (`action/lib/tools.mjs`) went in the RVNOLIMITS1 review fix: the same
+  invented ceilings, and its F1 parity test with exec passes again.
+- A11 (NOLIMITS1): `RENAME_MAX_FILES` = 200 removed — not about a model; a
+  rename touches as many files as the language service names.
+- A13 (NOLIMITS1): `HOOK_AGENT_MAX_STEPS` = 5 removed — our own bound on a
+  model loop, no provider documents one; the agent loops until the model
+  stops calling tools (each step stays admitted/settled on the budgets;
+  Stop aborts).
+- A21 (NOLIMITS1): `GOAL_OBJECTIVE_MAX_CHARS` = 4000 removed — invented
+  (Muse Code states no limit), not about a model; only a blank objective
+  refuses.
+- A22 (NOLIMITS1): `PLAN_STEPS_MAX` = 50 and `PLAN_FILE_MAX_BYTES` = 256 KiB
+  removed — not about a model; every step is kept, plans and handoff briefs
+  save and read at any size (the shared constant's handoff checks go with it).
+- A23 (NOLIMITS1): `PROMPT_LIMITS` per-scope 200, title 80 and body 10000
+  removed — not about a model; only a blank title refuses and the prompt
+  file bound stays (untouched by this lane). NOLIMITS1FIX: the 128 KiB
+  prompt file bound is removed too — not about a model; prompt files read,
+  import and share at any size, and a link import reads under web fetch's
+  own 5 MiB body bound. Only a blank title refuses.
+- A24 (NOLIMITS1): `IMAGE_PROMPT_MAX_CHARS` = 4000 and
+  `IMAGE_EDIT_MAX_SOURCES` = 4 removed — invented; Meta documents no prompt
+  length and 1–10 edit items (dev.meta.ai/docs/image-generation, read
+  2026-10-16), the capability record carries neither, so nothing is enforced
+  locally and Meta's own refusal reaches the person in words.
+- A25 (NOLIMITS1): `ACCOUNT_MAX_PER_PROVIDER` = 64 removed — not about a
+  model; pools, orders and the Add control take any number of accounts
+  (duplicate ids still refuse).
+- A26 (NOLIMITS1): `CHECK_COMMANDS_MAX` = 8 and `CHECK_MAX_TIMEOUT_SECONDS`
+  = 600 removed — not about a model; any number of checks, each naming any
+  positive `timeoutSeconds` (300 unless set; `package.json` maxItems and
+  maximum go with them). NOLIMITS1FIX: a long `timeoutSeconds` waits its
+  whole length — Node timers stop at 2^31-1 ms (about 24.8 days, a platform
+  fact; observed: 2^31 warns `TimeoutOverflowWarning` and fires at once),
+  so the shell runner re-arms its timer in slices of at most
+  `NODE_MAX_TIMER_MS`. No cap is added.
+- A27 (NOLIMITS1): `SUBAGENT_MAX_PER_CONVERSATION` = 64 removed — not about
+  a model; a conversation spawns without a count of ours (paid consent
+  still asks per spawn; the 8-at-once queue is C6, untouched).
+- A28 (NOLIMITS1): `TEAM_DELEGATE_MAX` = 6 and `TEAM_ENGINE_HARD_CEILING` =
+  20 removed — ours, not the platform's; a `delegate` starts any number of
+  tasks and engines are bounded by the provider's documented limits, live
+  429 adaptation and the machine, never a number of ours.
+- A30 (NOLIMITS1): `SESSION_EXPORT_MAX_BYTES` = 16 MiB removed — not about
+  a model; shares render and export files write at any byte size, and the
+  picker reads them back whole (the transcript item count still bounds all
+  three; the report reader keeps its 16 MiB bound as
+  `REPORT_SOURCE_MAX_BYTES`). NOLIMITS1FIX: the 20,000-item count
+  `SESSION_EXPORT_MAX_ITEMS` is removed too — not about a model; exports,
+  shares and imports take any item count (the share view still pages 200 at
+  a time, which refuses nothing).
+- A35 (NOLIMITS1): `HELD_CHECKOUT_MAX_ENTRIES` = 20000 and
+  `HELD_CHECKOUT_MAX_BYTES` = 250 MB removed — not about a model; the tree
+  parses and the checkout writes at any size (an ls-tree listing past the
+  git reader's buffer still refuses as unreadable; unsafe and colliding
+  paths still refuse before anything is written).
+- A29 (NOLIMITS1): `MODEL_API_IMPORT_MAX_REPLAY_BYTES` (≈768 KiB) KEPT and
+  listed for the lead (outcome 4) — it is window-minus-reserve against the
+  model's documented 1 MiB window (dev.meta.ai/docs/models), so an import
+  that fits can still answer; removing it breaks every later message past
+  the window instead of refusing once at import. Rewiring the window to the
+  per-model record is lane L2's. NOLIMITS1FIX (this lane's brief): the
+  window-minus-reserve formula is REMOVED — the reserve was ours, not the
+  provider's. An import is refused only past the provider's own documented
+  window (`MODEL_API_CONTEXT_WINDOW`, dev.meta.ai/docs/models), counted
+  high as one token per UTF-8 byte; rewiring that window to the per-model
+  record stays lane L2's.
+- Kept bounds, listed for the lead (RVNOLIMITS1 review, outcome 4 — the lane
+  kept them without listing them): the prompt file bound
+  `PROMPT_LIMITS.fileBytes` (128 KiB, A23: title/body past 80/10000 stand
+  only while the serialised file fits), the transcript item count
+  `SESSION_EXPORT_MAX_ITEMS` = 20000 (A30: byte size is unbounded, item
+  count is not), and the report reader's 16 MiB bound, renamed
+  `REPORT_SOURCE_MAX_BYTES` by A30 (pre-existing, not a new cap; the report
+  reader was not this lane's row). None is a provider's documented limit or
+  a person's setting; each needs the lead's keep-or-remove decision.
+  NOLIMITS1FIX (this lane's brief): the prompt file bound is REMOVED (see
+  A23 above), so is the transcript item count (see A30 above), and so is
+  the report reader's 16 MiB bound — report sources read at any size
+  (row and text bounds elsewhere still refuse what they bound).
+
 ### D140 — Claimed-shipped milestones: an `@unwired` tag is resolved by the user-visible promise (MSM58M69, 2026-10-17)
 
 A verification scan found `@unwired` tags carrying shipped milestone ids
@@ -39031,6 +39143,10 @@ CI. PR #245 (`fix/activation-room`: the CLI-backed and workspace command
 flows move into a new lazily required `dist/commands.js` bundle, and the
 Diagnostics report text moves into the report bundle) merged 2026-10-18 with
 its Fixed entry under `[0.19.0]`; the release now holds six pull requests.
+PR #229 (`fix/nolimits-1-final`: the D121 owner rule removes the app's own
+counts, sizes and ceilings, keeping only each provider's own limits and the
+person's model-role settings) merged 2026-10-18 with its Fixed entries under
+`[0.19.0]`; the release now holds seven pull requests.
 The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 

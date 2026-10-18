@@ -58,6 +58,7 @@ import {
   MEDIA_MAX_UPLOAD_MIB,
   UI_TEXT,
   MODEL_TEXT,
+  NODE_MAX_TIMER_MS,
   PDF_HEADER_WINDOW_BYTES,
   SEARCH_TIMEOUT_MS,
   SHELL_DRAIN_GRACE_MS,
@@ -1217,6 +1218,46 @@ function startProcess(run: CommandRun) {
  * never on the pipes closing, so a background process the command left
  * running cannot hold the tool call open.
  */
+/**
+ * A Node timer stops at 2^31-1 ms (about 24.8 days, a platform fact): a
+ * longer delay warns and fires at once. This re-arms the timer in slices of
+ * at most `sliceMs` (the platform maximum unless a test says otherwise), so
+ * a person's long timeout waits its whole length. No cap is added.
+ */
+export interface ChainedTimeout {
+  clear(): void
+}
+
+export function setChainedTimeout(
+  callback: () => void,
+  delayMs: number,
+  sliceMs = NODE_MAX_TIMER_MS,
+): ChainedTimeout {
+  const step = Math.max(1, Math.min(sliceMs, NODE_MAX_TIMER_MS))
+  let remaining = delayMs
+  let timer: NodeJS.Timeout | undefined
+  let isCleared = false
+  const arm = (): void => {
+    if (isCleared) return
+    const slice = Math.min(remaining, step)
+    timer = setTimeout(() => {
+      remaining -= slice
+      if (remaining <= 0) {
+        callback()
+      } else {
+        arm()
+      }
+    }, slice)
+  }
+  arm()
+  return {
+    clear() {
+      isCleared = true
+      clearTimeout(timer)
+    },
+  }
+}
+
 export function runCommand(run: CommandRun): Promise<ShellResult> {
   return new Promise<ShellResult>((resolve) => {
     if (run.signal?.aborted === true) {
@@ -1269,14 +1310,17 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       isCancelled = true
       stop()
     }
+    // A person's long timeout (an uncapped `timeoutSeconds`) can pass Node's
+    // timer maximum: chained slices wait the whole length instead of firing
+    // at once. No cap is added.
     const timer = run.hasExternalTimeout
       ? undefined
-      : setTimeout(() => {
+      : setChainedTimeout(() => {
           isTimedOut = true
           stop()
         }, run.timeoutMs)
     run.limit?.bind(() => {
-      clearTimeout(timer)
+      timer?.clear()
       run.resource?.background()
     })
     const settle = (exitCode: number | null, failure = '', isUnstarted = false) => {
@@ -1284,7 +1328,7 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
         return
       }
       isSettled = true
-      clearTimeout(timer)
+      timer?.clear()
       clearTimeout(drain)
       run.signal?.removeEventListener('abort', onAbort)
       // Our ends of the pipes; whatever still writes to them is not waited for.

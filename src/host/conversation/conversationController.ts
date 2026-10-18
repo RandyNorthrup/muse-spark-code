@@ -79,12 +79,7 @@ import {
   planSteps,
   planTitle,
 } from '../../core/plans/planDocument'
-import {
-  type PlanStore,
-  type PlanSummary,
-  type SaveOutcome,
-  planTooLargeText,
-} from '../../core/plans/planStore'
+import type { PlanStore, PlanSummary, SaveOutcome } from '../../core/plans/planStore'
 import type { WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import {
   isLinuxSandboxBlocked,
@@ -147,8 +142,6 @@ import {
   MAX_TEXT_ATTACHMENT_BYTES,
   PDF_EXTENSION,
   PLAN_BRIEF_LOCAL_ID_PREFIX,
-  PLAN_FILE_MAX_BYTES,
-  PLAN_FILE_MAX_KB,
   PLAN_TODO_PENDING_STATUS,
   MENTION_RESULT_LIMIT,
   CONVERSATION_MODEL_TEXT,
@@ -919,7 +912,6 @@ function exportNotice(outcome: ExportOutcome): ExportNotice | undefined {
     logUnavailable: { level: 'warning', text: UI_TEXT.exportLogUnavailable },
     historyUnavailable: { level: 'warning', text: UI_TEXT.exportHistoryUnavailable },
     empty: { level: 'info', text: UI_TEXT.exportNothing },
-    tooLarge: { level: 'warning', text: UI_TEXT.exportTooLarge },
   }
   return notices[outcome]
 }
@@ -5385,11 +5377,8 @@ export class ConversationController {
     }
     // The plan the reply holds, byte for byte: a Muse Code plan reply's
     // handoff lines are not part of it (captured, D13).
+    // D121: a plan reply saves at any size — the removed 256 KiB ceiling was invented.
     const text = planBody(reply.text)
-    if (new TextEncoder().encode(text).byteLength > PLAN_FILE_MAX_BYTES) {
-      this.notice('warning', planTooLargeText())
-      return undefined
-    }
     // A direction override or a zero-width character: the panel paints the
     // plan otherwise than the model reads it, so it is neither saved nor started.
     if (hasUnshownCharacters(text)) {
@@ -5989,11 +5978,7 @@ export class ConversationController {
         this.handoffFailed(new Error(UI_TEXT.handoffNoBrief))
         return
       }
-      if (new TextEncoder().encode(text).byteLength > PLAN_FILE_MAX_BYTES) {
-        this.pendingHandoff = undefined
-        this.notice('warning', fill(UI_TEXT.handoffTooLarge, { size: PLAN_FILE_MAX_KB }))
-        return
-      }
+      // D121: a brief reads at any size — the removed 256 KiB ceiling was invented.
       pending.brief = text
       pending.todos = history.todos.filter((todo) => HANDOFF_OPEN_TODO_STATUSES.has(todo.status))
       this.postHandoffReady()
@@ -6085,11 +6070,6 @@ export class ConversationController {
     if (brief.trim() === '') {
       this.post({ type: 'handoffCommandResult', requestId, accepted: false })
       this.say('warning', UI_TEXT.handoffEmpty)
-      return
-    }
-    if (new TextEncoder().encode(brief).byteLength > PLAN_FILE_MAX_BYTES) {
-      this.post({ type: 'handoffCommandResult', requestId, accepted: false })
-      this.say('warning', fill(UI_TEXT.handoffTooLarge, { size: PLAN_FILE_MAX_KB }))
       return
     }
     pending.isStarting = true
@@ -9447,10 +9427,6 @@ export class ConversationController {
       return undefined
     }
     if (this.isDisposed || picked.kind === 'dismissed') {
-      return undefined
-    }
-    if (picked.kind === 'tooLarge') {
-      this.notice('error', `${failure}: ${UI_TEXT.transferTooLarge}`)
       return undefined
     }
     const parsed = readTransferDocument(picked.content)

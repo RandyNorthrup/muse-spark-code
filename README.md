@@ -1191,7 +1191,7 @@ says why when it cannot.
   - Pressing again the same day finds the file already saved with the same
     content and writes nothing.
   - `.agents` is a protected folder, so the save asks first.
-  - A plan may be up to 256 KB.
+  - A plan saves at any size.
   - The file is published by a hard link; on a file system without hard
     links the save is refused rather than risk replacing a file.
   - The reply you approve is shown as the model will get it: a link's
@@ -1247,8 +1247,8 @@ you need to, then **Start New Conversation**, or **Cancel** and nothing
 starts. Starting leaves the old conversation in History and seeds the new
 one with the brief alone — the goal and the open items travel in its note,
 and on the Model API backend the open items become the todo list before
-the first request. The generated or edited brief may be up to 256 KB in
-UTF-8. Cancel closes a handoff before the new conversation commits. A
+the first request. The generated or edited brief reads at any size.
+Cancel closes a handoff before the new conversation commits. A
 brief that is ready while Account & usage, the Agent map or a share file is open waits
 until you close that dialog, then opens.
 
@@ -2057,7 +2057,7 @@ also unavailable while a pull request worktree is held.
     path would leave the worktree, name `.git` (in any case, or as `.git.`,
     `.git ` or `GIT~1`), use a name Windows cannot hold (on Windows), or
     collide with another path where letter case does not count (Windows and
-    macOS); or when it has more than 20,000 files and folders or 250 MB.
+    macOS).
     Each file is created without replacing anything, in a folder whose
     canonical path must be the worktree's: a link or junction on the way
     refuses the checkout, and the half-written worktree is removed.
@@ -2473,8 +2473,9 @@ files, and before the next request to Meta:
   after `--`, each quoted as one argument; a file name that starts with `-`
   or `@`, or on Windows one holding `"`, `&`, `|`, `<`, `>`, `^`, `%` or `!`
   (which Windows PowerShell 5.1 and `cmd.exe` would read as syntax), keeps
-  the check from running. `timeoutSeconds` (300 unless set, 600 at most)
-  caps each run. A check you reject is not asked again until your next
+  the check from running. `timeoutSeconds` names how long a run may take
+  (300 seconds unless you name more); a check that runs longer is stopped
+  and reported. A check you reject is not asked again until your next
   message, and a check the model already ran since its last edit is not run
   again after the round. Nothing runs after the turn's last round.
 - **One budget.** What the model reads after a round, diagnostics and every
@@ -2534,9 +2535,9 @@ press Enter (or click) to resume a conversation. Ephemeral Best-of-N rows
 open their owned worktree instead: they have no saved conversation to resume.
 **Best of N…** opens the best-of-N dialog.
 
-Best-of-N runs the same prompt in 2 to 5 worktrees at once on the Model API
-backend, then you take one. It needs a trusted workspace with a folder open
-(worktrees run git, which Restricted Mode forbids).
+Best-of-N runs the same prompt in as many worktrees at once as you ask for on
+the Model API backend, then you take one. It needs a trusted workspace with a
+folder open (worktrees run git, which Restricted Mode forbids).
 Best-of-N (Model API, paid, available by default) is controlled by
 `museSpark.modelApiBestOfN` ([Paid](#paid-features)); set it to false to hide
 it. Each run asks once in the
@@ -3400,10 +3401,9 @@ is untrusted as a plan file is: **Implement in a Fresh Conversation** starts
 it in Manual (or Plan) too. It drops session rules, goals,
 schedules, todos and patches, and the model reads each imported turn as
 untrusted data in a message of yours, never as its own replies or tool calls.
-A file whose turns are more text than a conversation can start with (counted
-high, one token per UTF-8 byte: 786.4 kB, the allowance named text
-attachments have) is refused before the import is confirmed, with both sizes
-named; it can still be opened as a share file.
+A file whose turns hold more text than the model's documented context window
+(counted high, one token per UTF-8 byte) is refused before the import is
+confirmed, with both sizes named; it can still be opened as a share file.
 The panel offers Copy only on such a conversation's code blocks, never
 Insert or Apply, as in a share file.
 The ACP agent also applies this safe start to stored sessions marked imported
@@ -3412,16 +3412,16 @@ before advertising their mode or replaying history.
 links and Copy work, code blocks have no Insert or Apply, and nothing in it
 reaches a session. It shows 200 items at a time, with **Show More** for the
 next, and an item that cannot be rendered says so in its place while the
-rest of the file still shows. A file is refused whole if it is over 16 MiB, is another
+rest of the file still shows. A file is refused whole if it is another
 format or a newer version, or holds any field this version does not know.
 At 320 px too, Tab reaches Close, Copy, scrollable code and Show more,
 with the theme's focus border; Escape closes the view and focuses the composer.
 For a local visual check, `npm run ui:look -- share` renders the scene
 from the built webview into `temp/ui-look/`.
 The picker reads a local `file:` URI on the extension host through one
-checked descriptor, stopping at the size cap even if the file grows.
-Other file providers are explicitly refused because this reader cannot
-bound their allocations; a PDF header never raises the JSON cap.
+checked descriptor, whole at any size and at any transcript item count.
+Other file providers are explicitly refused because this
+reader cannot bound their allocations.
 Validation notices use localized refusals: JSON parser snippets are never
 shown, and reported field names are scrubbed before their bounded display.
 Nothing is ever uploaded: sharing is a file on your disk.
@@ -3491,14 +3491,14 @@ tokens, the background tasks, and each agent's own transcript.
   read controls wait for a live capture of their accepted MSP commands;
   its captured Interrupt, Stop, Resume and Close controls remain available.
 - On the Model API backend, the agent can spawn up to eight child sessions at
-  once; more wait in order, up to 64 per conversation. A child has its own
+  once; more wait in order, with no count of ours. A child has its own
   conversation and the same workspace tools and approvals, but cannot spawn
   again or ask you a question. Children share the workspace and use your
   Model API key; their tokens count in the conversation's usage. Paid
   subagents are available by default. Each new child task asks with the published
   rates and shared daily budget before it starts, including in
   Bypass mode, unless you allowed subagents always in this workspace (a child on another model still asks). Plan refuses the task. A spawn that would start no child asks
-  nothing: one past the 64, one asking for worktree isolation, or one reusing
+  nothing: one asking for worktree isolation, or one reusing
   an earlier spawn's command id for a different task is refused first, and a
   retry of the same spawn under its command id answers with that child.
   One approval allows at most four actual
@@ -3775,7 +3775,7 @@ the subscription):
 | Image generation  | $0.01 per image                                                               | The model may create a PNG file in the workspace with `muse-image-1.0`, or edit workspace images into a new one, asking you each time                    |
 | Muse Voice        | $0.18 per hour of audio                                                       | The microphone uses Meta's Muse Voice Transcribe instead of your computer's own recogniser                                                               |
 | Subagents         | Selected model's published input, cached input and output token rates         | Child tasks on the Model API backend; every new task asks (unless allowed always) and admits at most four response requests                              |
-| Best-of-N         | Selected model's published input, cached input and output token rates         | The same prompt runs in 2 to 5 worktrees at once on the Model API backend; you take one                                                                  |
+| Best-of-N         | Selected model's published input, cached input and output token rates         | The same prompt runs in as many worktrees at once as you ask for on the Model API backend; you take one                                                  |
 | Scheduled prompts | Selected model's published input, cached input and output token rates         | A due `/loop` prompt runs only after you choose **Run Now** and allow that run's model and rates                                                         |
 | Auto reviewer     | The conversation model's published input, cached input and output token rates | In Auto on the Model API backend, a separate model call judges a plain command or MCP call that would ask and that no rule or permission profile settles |
 
@@ -4896,8 +4896,9 @@ or `jsonl`; `--timeout` is the process deadline. Model API requires
 stays in memory and conflicts with a stdin prompt. CI never runs `auth set` or
 gives the agent a key environment variable.
 
-Budgets are positive ASCII decimals up to $20 with at most six fractional
-digits, parsed straight into integer micro-USD. At 32,768 output tokens the
+Budgets are positive ASCII decimals with at most six fractional
+digits, parsed straight into integer micro-USD; the person sets the amount
+with no ceiling of ours. At 32,768 output tokens the
 minimum reservation is $0.108135 for the contributor model ($0.118135 with
 images) and $1.409024 for standard ($1.419024). The contributor model needs
 `--allow-contributor-models`; its content may be used for training under
@@ -5148,7 +5149,8 @@ appear as error notices in the conversation.
 Copy exports scrubbed text or Markdown. File export uses `.muse-prompt.md`
 with versioned JSON front matter. Closing the prompt sharing UI cancels a pending
 export, including one waiting on the Save dialog. Import from a file or a pasted public HTTPS
-raw-file link (including a raw gist link) is capped at 128 KiB, shows the
+raw-file link (including a raw gist link) reads the whole prompt at any size
+(a link reads under web fetch's own 5 MiB body bound), shows the
 whole prompt, declared variables and destination scope, and marks the result
 untrusted. A gist web page is HTML, so use its raw-file URL. Publishing secret
 gists is phase 2; node links, team libraries and email are phase 3.

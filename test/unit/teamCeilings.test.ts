@@ -1,6 +1,7 @@
 // Lane A ceilings (M96, PLAN.md D75): the computed ceiling is the lowest of
-// the provider's limit, our hard ceiling and the machine's; a 429 halves the
-// entry's running cap, and quiet intervals recover it step by step.
+// the provider's limit, our hard ceiling (kinds other than engines, D121)
+// and the machine's; a 429 halves the entry's running cap, and quiet
+// intervals recover it step by step.
 
 import { describe, expect, it } from 'vitest'
 import { TEAM_THROTTLE_RECOVER_MS } from '../../src/shared/constants'
@@ -53,7 +54,8 @@ describe('teamCeilings', () => {
     expect(computeTeamCeiling(source)).toBe(12)
     // The machine binds first.
     expect(computeTeamCeiling({ ...source, machineLimit: 4 })).toBe(4)
-    // Our hard ceiling binds a huge provider limit.
+    // Engines carry no hard ceiling of ours (D121): a huge provider limit
+    // leaves the machine's.
     expect(
       computeTeamCeiling({
         ...source,
@@ -61,8 +63,8 @@ describe('teamCeilings', () => {
         providerTpm: 1_000_000_000,
         machineLimit: 64,
       }),
-    ).toBe(20)
-    // A provider that documents nothing leaves 429s to decide: hard, then machine.
+    ).toBe(64)
+    // A provider that documents nothing leaves 429s to decide, then the machine.
     expect(
       computeTeamCeiling({
         kind: 'engine',

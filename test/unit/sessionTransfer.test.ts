@@ -9,9 +9,9 @@ import { describe, expect, it } from 'vitest'
 import type { ItemSnapshot } from '../../src/shared/agentEvents'
 import {
   DEFAULT_EFFORT,
-  MODEL_API_IMPORT_MAX_REPLAY_BYTES,
+  MODEL_API_CONTEXT_BYTES_PER_TOKEN,
+  MODEL_API_CONTEXT_WINDOW,
   CONVERSATION_MODEL_TEXT,
-  SESSION_EXPORT_MAX_ITEMS,
   SESSION_EXPORT_SCRUB_SLICE_CHARS,
   UI_TEXT,
 } from '../../src/shared/constants'
@@ -539,14 +539,14 @@ describe('parseSessionExport', () => {
     }
   })
 
-  it('refuses a wrong shape, a date that is not ISO 8601, and too many items', async () => {
+  it('refuses a wrong shape and a date that is not ISO 8601, and accepts any item count', async () => {
     expect(parseSessionExport({ ...(await valid()), transcript: 'nope' }).ok).toBe(false)
     expect(parseSessionExport({ ...(await valid()), exportedAt: 'yesterday' }).ok).toBe(false)
     expect(parseSessionExport({ ...(await valid()), redacted: 'yes' }).ok).toBe(false)
+    // NOLIMITS1FIX: the removed 20,000-item bound was invented.
     const item = userItem('u', 'x')
-    const atCap = Array.from({ length: SESSION_EXPORT_MAX_ITEMS }, () => item)
-    expect(parseSessionExport({ ...(await valid()), transcript: atCap }).ok).toBe(true)
-    expect(parseSessionExport({ ...(await valid()), transcript: [...atCap, item] }).ok).toBe(false)
+    const many = Array.from({ length: 20_001 }, () => item)
+    expect(parseSessionExport({ ...(await valid()), transcript: many }).ok).toBe(true)
   })
 })
 
@@ -645,18 +645,31 @@ describe('sanitizeImportedSession', () => {
     expect(sanitize(named.doc).name).toBe('Moved over')
   })
 
-  it('refuses turns the model cannot read in one window, naming both sizes (RV84 #10)', async () => {
-    const fits = await exported([userItem('u1', 'x'.repeat(MODEL_API_IMPORT_MAX_REPLAY_BYTES / 2))])
+  it('refuses turns past the provider window, naming both sizes (RV84 #10)', async () => {
+    // NOLIMITS1FIX: our window-minus-reserve formula is gone — the limit is
+    // the provider's own documented window, measured in tokens with the
+    // established bytes-per-token estimator.
+    const fits = await exported([userItem('u1', 'x'.repeat(MODEL_API_CONTEXT_WINDOW / 2))])
     expect(importRefusal(fits)).toBeUndefined()
     expect(sanitize(fits).replay).toHaveLength(1)
-    // Counted in UTF-8 bytes, as the model is handed them: a third as many
-    // characters as the limit, three bytes each, do not fit.
-    const wide = '語'.repeat(Math.ceil(MODEL_API_IMPORT_MAX_REPLAY_BYTES / 3))
+    // A repetitive multi-megabyte transcript tokenizes below the window, so
+    // the byte comparison it replaced would wrongly refuse it.
+    const repetitive = await exported([
+      userItem(
+        'u1',
+        'x'.repeat((MODEL_API_CONTEXT_BYTES_PER_TOKEN * MODEL_API_CONTEXT_WINDOW) / 2),
+      ),
+    ])
+    expect(importRefusal(repetitive)).toBeUndefined()
+    expect(sanitize(repetitive).replay).toHaveLength(1)
+    // Past the window in estimated tokens: four bytes per token, plus room
+    // for the replay envelope, refuses.
+    const wide = 'x'.repeat(MODEL_API_CONTEXT_BYTES_PER_TOKEN * MODEL_API_CONTEXT_WINDOW + 4096)
     const tooLarge = await exported([userItem('u1', 'Hi'), agentItem('a1', wide)])
     const reason = importRefusal(tooLarge) ?? ''
     const [before = '', after = ''] = fill(UI_TEXT.importReplayTooLarge, {
       size: '\u{0}',
-      limit: formatBytes(MODEL_API_IMPORT_MAX_REPLAY_BYTES),
+      limit: formatBytes(MODEL_API_CONTEXT_WINDOW),
     }).split('\u{0}', 2)
     expect(reason.startsWith(before)).toBe(true)
     expect(reason.endsWith(after)).toBe(true)
