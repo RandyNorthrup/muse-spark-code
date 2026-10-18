@@ -133,8 +133,13 @@ const NOT_FOUND = 'ENOENT'
 const WINDOWS_VERBATIM_PREFIX = '\\\\?\\'
 const PARENT = '..'
 
-function errorCode(error: unknown): unknown {
-  return error instanceof Error && 'code' in error ? error.code : undefined
+/**
+ * A system error with the named code: an absent entry is ENOENT, anything
+ * else (a refusal, a vanished parent) is not. Reads only `.code`, never the
+ * message, so the check itself leaks nothing.
+ */
+function isCode(error: unknown, code: string): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === code
 }
 
 function describe(error: unknown): string {
@@ -163,7 +168,7 @@ async function extraSkillIds(extensionSkillsRoot: string | undefined): Promise<r
   try {
     names = await fs.readdir(extensionSkillsRoot)
   } catch (error: unknown) {
-    if (errorCode(error) === NOT_FOUND) {
+    if (isCode(error, NOT_FOUND)) {
       return []
     }
     throw error
@@ -178,7 +183,7 @@ async function extraSkillIds(extensionSkillsRoot: string | undefined): Promise<r
       const stat = await fs.stat(path.join(extensionSkillsRoot, name, SKILL_FILE_NAME))
       isFile = stat.isFile()
     } catch (error: unknown) {
-      if (errorCode(error) !== NOT_FOUND) {
+      if (!isCode(error, NOT_FOUND)) {
         throw error
       }
     }
@@ -267,7 +272,7 @@ async function copyState(folder: string): Promise<CopyState> {
   try {
     stats = await fs.lstat(folder)
   } catch (error: unknown) {
-    if (errorCode(error) === NOT_FOUND) {
+    if (isCode(error, NOT_FOUND)) {
       return { kind: 'absent' }
     }
     throw error
@@ -280,7 +285,7 @@ async function copyState(folder: string): Promise<CopyState> {
   try {
     text = await fs.readFile(path.join(folder, BUNDLED_SKILLS_MARKER_FILE), 'utf8')
   } catch (error: unknown) {
-    if (errorCode(error) === NOT_FOUND) {
+    if (isCode(error, NOT_FOUND)) {
       return { kind: 'notOurs' }
     }
     throw error
@@ -288,8 +293,13 @@ async function copyState(folder: string): Promise<CopyState> {
   let marker: unknown
   try {
     marker = JSON.parse(text)
-  } catch {
-    return { kind: 'notOurs' }
+  } catch (error: unknown) {
+    // A marker that is not JSON is not the extension's; anything else (only
+    // a bug could throw it) reaches the caller with its cause.
+    if (error instanceof SyntaxError) {
+      return { kind: 'notOurs' }
+    }
+    throw error
   }
   const parsed = markerSchema.safeParse(marker)
   return parsed.success ? { kind: 'ours', tag: parsed.data.tag } : { kind: 'notOurs' }
@@ -362,7 +372,7 @@ async function linksInto(
   try {
     names = await fs.readdir(skillsRoot)
   } catch (error: unknown) {
-    if (errorCode(error) === NOT_FOUND) {
+    if (isCode(error, NOT_FOUND)) {
       return []
     }
     throw error
@@ -504,7 +514,7 @@ export async function installBundledSkills(
       try {
         existing = await linkTarget(link)
       } catch (error: unknown) {
-        if (errorCode(error) !== NOT_FOUND) {
+        if (!isCode(error, NOT_FOUND)) {
           throw error
         }
         await makeLink(target, link, linkType)
