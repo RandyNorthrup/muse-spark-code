@@ -85,7 +85,7 @@ export class WindowsVaultSlots implements VaultSlotProvider {
         this.transport,
       )
     } catch {
-      // A failed probe offers no hardware tier; the OS-store tier still serves.
+      // Without protection facts there is no CNG tier; Credential Manager still serves.
       return null
     }
   }
