@@ -9,7 +9,6 @@ import {
   promptVariableNames,
   savedPromptSchema,
   serialisePromptFile,
-  type PromptStoragePort,
 } from '../../src/shared/prompts'
 import {
   PROMPT_COMMAND_IDS,
@@ -104,16 +103,10 @@ describe('portable saved prompts', () => {
     }
   })
 
-  it('merges both storage scopes stably, retaining same titles and ids across scopes', async () => {
+  it('merges both storage scopes stably, retaining same titles and ids across scopes', () => {
     const user = { ...savedPromptFixture, id: 'z', title: 'Same' }
     const workspace = { ...user, scope: 'workspace' as const }
-    const store: PromptStoragePort = {
-      list: (scope) =>
-        Promise.resolve(scope === 'user' ? [user, { ...user, id: 'a' }, user] : [workspace]),
-      write: () => Promise.resolve(),
-      remove: () => Promise.resolve(),
-    }
-    const entries = mergePromptScopes(await store.list('user'), await store.list('workspace'))
+    const entries = mergePromptScopes([user, { ...user, id: 'a' }, user], [workspace])
     expect(entries.map((p) => `${p.scope}:${p.id}`)).toEqual(['user:a', 'user:z', 'workspace:z'])
     expect(mergePromptScopes([workspace], [user])).toEqual([])
     expect(PROMPT_USER_FOLDER).toBe('prompts')
