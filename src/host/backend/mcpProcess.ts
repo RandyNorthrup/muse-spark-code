@@ -25,7 +25,7 @@ import { environmentValue, setEnvironmentVariable } from '../../core/backends/mu
 import type { McpStdioLaunch } from '../../core/backends/modelapi/mcp/servers'
 import type { McpChildProcess } from '../../core/backends/modelapi/mcp/stdio'
 import { mcpSecretReferences } from '../../core/vault/mcpReferences'
-import { absolutePathEntries } from '../../core/executables'
+import { absolutePathEntries, workspaceChildEnvironment } from '../../core/executables'
 import { redactSecrets } from '../../core/redact'
 import { MCP_STDIO_ENV_ALLOWLIST, TREE_EXIT_WAIT_MS, UI_TEXT } from '../../shared/constants'
 import { killTree, sweepExitedTree, type TreeRoot, treeSpawnOptions } from '../processTree'
@@ -134,12 +134,22 @@ function candidatesFor(
     : windowsExtensions(env).map((candidate) => `${name}${candidate}`)
 }
 
-/** The file the command names, absolute; throws with the reason when there is none. */
+/**
+ * The file the command names, absolute; throws with the reason when there
+ * is none. A bare name is resolved on the absolute PATH entries outside the
+ * server's working directory (resolved through links), so a planted `node`
+ * there never wins; a command with a directory is the file the person's
+ * config names, resolved against that directory.
+ */
 export function resolveServerCommand(
   command: string,
   cwd: string,
   env: NodeJS.ProcessEnv,
   deps: Pick<McpSpawnDeps, 'platform' | 'isExistingFile'>,
+  workspace?: {
+    readonly workspaceRoot: string
+    readonly realpath?: ((filePath: string) => string) | undefined
+  },
 ): string {
   const p = deps.platform === 'win32' ? path.win32 : path.posix
   const name = p.basename(command)
@@ -147,7 +157,10 @@ export function resolveServerCommand(
     command.includes('/') || (deps.platform === 'win32' && command.includes('\\'))
   const directories = hasDirectory
     ? [p.dirname(p.resolve(cwd, command))]
-    : absolutePathEntries(deps.platform, environmentValue(env, deps.platform, PATH_VARIABLE))
+    : absolutePathEntries(deps.platform, environmentValue(env, deps.platform, PATH_VARIABLE), {
+        workspaceRoot: workspace?.workspaceRoot ?? cwd,
+        realpath: workspace?.realpath ?? realpathSync,
+      })
   for (const directory of directories) {
     for (const candidate of candidatesFor(name, deps.platform, env)) {
       const full = p.join(directory, candidate)
@@ -388,8 +401,16 @@ export function mcpServerSpawner(
     if (!deps.isExistingDirectory(cwd)) {
       throw new Error(`its working directory ${cwd} does not exist`)
     }
+    // The server runs an absolute file with the guarded child PATH for
+    // its working directory, so nothing it starts by bare name resolves to
+    // a program planted there. A relative command stays the file the
+    // person's config names, resolved against that directory.
     const env = resourceEnvironment(
-      mcpServerEnvironment(deps.env(), launch.env, deps.platform),
+      workspaceChildEnvironment(
+        deps.platform,
+        mcpServerEnvironment(deps.env(), launch.env, deps.platform),
+        { workspaceRoot: cwd, realpath: realpathSync },
+      ),
       resource,
     )
     const file = resolveServerCommand(launch.command, cwd, env, deps)
