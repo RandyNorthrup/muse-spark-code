@@ -83,6 +83,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The PATHGUARD spawn inventory now lists the Linux sandbox probe
+  (`src/core/backends/musecode/sandbox.ts`): it resolves `bwrap` off
+  absolute PATH entries only and refuses a binary inside the workspace
+  before spawning. No behaviour change.
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
   `htmlToMarkdown` had no callers (both backends convert through
   `convertHtmlJob` on the page worker), so it was removed. No behaviour
