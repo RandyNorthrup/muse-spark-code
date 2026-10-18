@@ -441,7 +441,6 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         side: ['acp', 'vscode'],
       },
       { importer: 'src/runtime/authCommands.ts', symbol: 'authSetProvider', side: ['acp'] },
-      { importer: 'src/runtime/exec/keyInput.ts', symbol: 'readProviderKeyLine', side: ['acp'] },
     ],
   },
   {
