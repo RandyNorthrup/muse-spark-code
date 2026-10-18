@@ -12,6 +12,7 @@ import {
   EXEC_PROTOCOL_VERSION,
   EXEC_RAW_TOOL_FIELDS,
   EXEC_USD_DECIMALS,
+  EXEC_MAX_REQUESTS,
   EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MAX_TIMEOUT_SECONDS,
   RESOURCE_EXEC_EVENT_VERSION,
@@ -298,7 +299,7 @@ const lastResponseSchema = z
   )
 const limitsSchema = z.strictObject({
   budgetUsd: z.nullable(capAmount),
-  maxRequests: z.nullable(counter.check(z.gte(1))),
+  maxRequests: z.nullable(counter.check(z.gte(1), z.lte(EXEC_MAX_REQUESTS))),
   timeoutSeconds: counter.check(z.gte(EXEC_MIN_TIMEOUT_SECONDS), z.lte(EXEC_MAX_TIMEOUT_SECONDS)),
 })
 const ledgerSchema = z.strictObject({
@@ -336,8 +337,10 @@ const totalsSchema = z
 /** Fixed-unit boundaries refuse a decimal that cannot be represented exactly. */
 function microUsd(value: UsdAmount): bigint | undefined {
   try {
+    // No upper bound: a person's amount is honored as given and carried as an
+    // exact BigInt. Negative input stays unrepresentable here.
     const units = Usd.from(value).units(EXEC_USD_DECIMALS)
-    return units >= USD_DECIMAL_ZERO && units <= BigInt(Number.MAX_SAFE_INTEGER) ? units : undefined
+    return units >= USD_DECIMAL_ZERO ? units : undefined
   } catch {
     return undefined
   }

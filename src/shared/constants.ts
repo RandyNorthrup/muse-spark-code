@@ -4146,7 +4146,6 @@ export const EXEC_MAX_TIMEOUT_SECONDS = 21_600
 // No default request limit: without `--max-requests` the person set, a run
 // has no request cap. A set value is bounded below.
 export const EXEC_MAX_REQUESTS = 500
-export const EXEC_MAX_BUDGET_USD = 20
 export const EXEC_PROMPT_MAX_BYTES = 262_144
 // Bound synchronous schema expansion and answer validation so Stop can run.
 export const EXEC_OUTPUT_SCHEMA_LIMITS = { expandedNodes: 50_000, validationSteps: 10_000 } as const

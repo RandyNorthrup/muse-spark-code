@@ -39168,6 +39168,13 @@ PR #234 (`fix/nolimits-6`: a Model API turn no longer stops itself after
 50 tool rounds — no provider documents a round count) merged 2026-10-18
 with its Changed entry under `[0.19.0]`; the release now holds eleven pull
 requests.
+PR #228 (`fix/exec-budget-ceiling`: the hard-coded $20 ceiling on headless
+`--max-budget-usd` goes — a person's amount is honored as given and
+carried as exact BigInt, with cap-free reservation quotes; the 1–500
+set-value request bound stays, and an unset `--max-requests` still leaves
+no request limit) merged 2026-10-18 with its Fixed entry under `[0.19.0]`;
+the release now holds twelve pull requests. D121's removals stand again
+for the budget; the request bound rests on PR #239's later design.
 The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 
