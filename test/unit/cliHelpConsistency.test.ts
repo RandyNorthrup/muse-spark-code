@@ -1,12 +1,9 @@
 // AUDITCLI (0.19.0): every terminal misuse exits 2 with words that name the
 // flag or argument, and every flag the parser takes is on the help
-// reference. Real parser and real help renderer only: no stand-ins. The last
-// block spawns the built dist/acp.js binary itself, so the same parser and
-// renderer are proven through the shipped command (it needs a build first;
-// CI unit shards run without dist).
-import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import path from 'node:path'
+// reference. Real parser and real help renderer only: no stand-ins, and no
+// build: the unit shards run `vitest` without `dist/`, so the built binary
+// itself is proven in test/hosts/exec.sh (hosts.yml `agent` job, after the
+// production package is built and installed).
 import { describe, expect, it } from 'vitest'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { parseDeveloperCommand } from '../../src/runtime/developer/developerCommand'
@@ -88,45 +85,7 @@ describe('every accepted flag is on the help reference', () => {
   })
 })
 
-const root = path.resolve(import.meta.dirname, '../..')
-const acpBinary = path.join(root, 'dist', 'acp.js')
-
-function runBinary(argv: readonly string[]): { exit: number | null; output: string } {
-  if (!existsSync(acpBinary)) throw new Error(`built binary is missing: ${acpBinary}`)
-  const run = spawnSync(process.execPath, [acpBinary, ...argv], {
-    cwd: root,
-    encoding: 'utf8',
-    timeout: 30_000,
-  })
-  if (run.error !== undefined) throw run.error
-  return { exit: run.status, output: `${run.stdout}\n${run.stderr}` }
-}
-
-// Parse-only paths: no store, no network, no model. Each row failed before
-// the fix (exit 1, or a refusal that did not name the flag).
-const binaryMisuse: readonly (readonly [argv: string[], token: string])[] = [
-  [['frobnicate'], 'frobnicate'],
-  [['providers', 'accounts', 'bogus'], 'providers accounts'],
-  [['login', '--provider', 'foo'], '--provider'],
-  [['exec', '--effort', 'none', 'hi'], '--effort none'],
-  [['exec', '--timeout', 'abc', 'hi'], '--timeout'],
-  [['usage', '--range', 'bogus'], '--range'],
-  [['developer', '--help'], 'developer'],
-]
-
-describe('built binary refuses misuse through dist', () => {
-  it.each(binaryMisuse)('%j exits 2 naming %s', (argv, token) => {
-    const { exit, output } = runBinary(argv)
-    expect(exit).toBe(2)
-    expect(output).toContain(token)
-  })
-
-  it.each([[['--help']], [['exec', '--help']], [['help', '--all']]])(
-    '%j prints help and exits 0',
-    (argv: string[]) => {
-      const { exit, output } = runBinary(argv)
-      expect(exit).toBe(0)
-      expect(output.length).toBeGreaterThan(0)
-    },
-  )
-})
+// The built binary itself (`node dist/acp.js`, same parser and renderer) is
+// proven in test/hosts/exec.sh: the unit shards run without `dist/`, and
+// that script runs in CI only after the production package is built and
+// installed (hosts.yml `agent` job).
