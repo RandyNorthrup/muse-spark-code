@@ -142,7 +142,7 @@ export interface SubscriptionRegistryDeps {
    * live. The plan routes document no retry maximum, so with none set their
    * limit is undefined. Headless passes none (unset).
    */
-  readonly personMaxRetries?: () => number | undefined
+  readonly personCap?: () => number | undefined
   /**
    * How long the ChatGPT stream may send nothing, headers or frames, before
    * it is ended (MODEL_API_STREAM_IDLE_MS when absent). It is the only time
@@ -191,8 +191,8 @@ export function createSubscriptionClient(
     // lane RETRYLIMITS), so a plan model reads the person's setting when
     // set and is unbounded otherwise; off-plan models are Meta's own.
     maxRetries: (model) =>
-      model !== undefined && !isPlanModel(model) ? meta.maxRetries() : deps.personMaxRetries?.(),
-    personMaxRetries: () => deps.personMaxRetries?.(),
+      model !== undefined && !isPlanModel(model) ? meta.maxRetries() : deps.personCap?.(),
+    personCap: () => deps.personCap?.(),
     createImage: (...args) => meta.createImage(...args),
     editImage: (...args) => meta.editImage(...args),
     listModels: async () => {

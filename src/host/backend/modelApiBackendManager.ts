@@ -138,7 +138,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly webSearchPriceUsd?: ModelApiClientDeps['webSearchPriceUsd']
   readonly searchTokenCostUsd?: ModelApiClientDeps['searchTokenCostUsd']
   /** `museSpark.modelApiMaxRetries`, read per retry decision (lane RETRYLIMITS). */
-  readonly personMaxRetries?: ModelApiClientDeps['personMaxRetries']
+  readonly personCap?: ModelApiClientDeps['personCap']
 
   readonly hookSettingsPath?: string
   readonly isHooksEnabled?: () => boolean
@@ -347,7 +347,7 @@ export class ModelApiBackendManager {
         }),
         // The reader stays live through the plain forward: every retry read
         // uses `?.()`, so an explicit undefined behaves exactly as absent.
-        personMaxRetries: this.deps.personMaxRetries,
+        personCap: this.deps.personCap,
         fetch: this.deps.fetch,
         ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
         baseUrl: MODEL_API_BASE_URL,

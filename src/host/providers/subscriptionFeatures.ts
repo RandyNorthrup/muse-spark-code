@@ -32,7 +32,7 @@ export function createSubscriptionFeatures(options: {
   readonly catalogFile?: string
   readonly configFile: string
   /** Lane RETRYLIMITS: the person's retry limit, read live per transport. */
-  readonly personMaxRetries?: () => number | undefined
+  readonly personCap?: () => number | undefined
   readonly l10n: UiTable
   readonly globalState: {
     get(key: string): unknown
@@ -87,7 +87,7 @@ export function createSubscriptionFeatures(options: {
       configFile: options.configFile,
       catalogFile: options.catalogFile ?? path.resolve(__dirname, 'providerCatalog.json'),
       secrets: options.secrets,
-      ...(options.personMaxRetries !== undefined && { personMaxRetries: options.personMaxRetries }),
+      ...(options.personCap !== undefined && { personCap: options.personCap }),
       hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
       loadUsage: () => tallies.filter((row) => !['chatgpt', 'copilot'].includes(row.providerId)),
       saveUsage: (rows) => {
@@ -163,8 +163,8 @@ export function createSubscriptionFeatures(options: {
             fetch: fetcher,
             hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
             // Lane PR225W1: the plan routes answer the person's setting.
-            ...(options.personMaxRetries !== undefined && {
-              personMaxRetries: options.personMaxRetries,
+            ...(options.personCap !== undefined && {
+              personCap: options.personCap,
             }),
             chatgpt,
             accountId,

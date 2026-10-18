@@ -243,7 +243,7 @@ export type ModelClient = Pick<
   | 'retryDelayMs'
   | 'waitBeforeRetry'
   | 'maxRetries'
-  | 'personMaxRetries'
+  | 'personCap'
 >
 
 export interface ResolvedModel {

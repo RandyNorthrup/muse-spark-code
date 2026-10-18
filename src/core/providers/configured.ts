@@ -98,7 +98,7 @@ export interface ConfiguredProviderOptions {
    * governs, and a preset that documents none retries until the provider's
    * own wait or stop answer ends it.
    */
-  readonly personMaxRetries?: () => number | undefined
+  readonly personCap?: () => number | undefined
 }
 const secretSchema = z.object({
   v: z.literal(1),
@@ -370,7 +370,7 @@ export function createConfiguredProviderServices(
     retryDelayMs: (attempt) => delegate().retryDelayMs(attempt),
     waitBeforeRetry: (delay, signal) => delegate().waitBeforeRetry(delay, signal),
     maxRetries: () => delegate().maxRetries(),
-    personMaxRetries: () => delegate().personMaxRetries(),
+    personCap: () => delegate().personCap(),
     countInputTokens: (body) => delegate().countInputTokens(body),
     streamResponse: (body, ...args) => delegate().streamResponse(body, ...args),
     createImage: (...args) => delegate().createImage(...args),
@@ -495,8 +495,8 @@ export function createConfiguredProviderServices(
         // own override, so e.g. xAI's 4 and Azure's 10 are read), and the
         // person's setting when set.
         retryLimits: presets.quirksOf(preset).retryLimits,
-        ...(options.personMaxRetries !== undefined && {
-          personMaxRetries: options.personMaxRetries,
+        ...(options.personCap !== undefined && {
+          personCap: options.personCap,
         }),
         fetch: async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
           let requestUrl: string

@@ -100,7 +100,7 @@ export interface TransportDeps {
    * change applies without a restart; undefined (or absent) leaves the
    * provider's documented maximum in force.
    */
-  readonly personMaxRetries?: (() => number | undefined) | undefined
+  readonly personCap?: (() => number | undefined) | undefined
   /**
    * One timer chunk of a retry wait. A cooperating sleep clears its own
    * timer when `signal` aborts (see `abortableSleep`); one that ignores
@@ -944,7 +944,7 @@ export class RequestTransport {
    * Retry-After waits and stop answers govern the loop).
    */
   public maxRetries(): number | undefined {
-    return effectiveMaxRetries(this.deps.personMaxRetries?.(), documentedLimits(this.deps))
+    return effectiveMaxRetries(this.deps.personCap?.(), documentedLimits(this.deps))
   }
 
   /**
@@ -952,8 +952,8 @@ export class RequestTransport {
    * (lane PR225W1): the turn loop reads it to tell a person-set cap stop
    * from a provider refusal on the orchestrator's feed.
    */
-  public personMaxRetries(): number | undefined {
-    return this.deps.personMaxRetries?.()
+  public personCap(): number | undefined {
+    return this.deps.personCap?.()
   }
 
   public backoffMs(attempt: number, suggestedMs?: number): number {
