@@ -22,9 +22,7 @@ const SHA256_HEX = /^[0-9a-f]{64}$/
 const MODEL = /^[A-Za-z0-9._-]{1,100}$/
 const EFFORTS = new Set(['minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
 const USD_UNITS = 1_000_000n
-// D121: the person's budget and request count carry no ceiling of ours —
-// the removed $20 and 500 caps were invented, matching exec (F1 parity).
-const DEFAULT_MAX_REQUESTS = 30
+const MAX_REQUESTS = 500
 const MAX_TIMEOUT_MINUTES = 360
 const DEFAULT_TIMEOUT_MINUTES = 20
 const TRIGGER_MAX_CHARS = 100
@@ -302,13 +300,9 @@ export function parseActionInputs(env) {
     mode,
     maxBudgetUsd: budgetString(env.MUSE_INPUT_MAX_BUDGET_USD),
     imageGeneration: exactBoolean(env, 'MUSE_INPUT_IMAGE_GENERATION', false),
-    maxRequests: boundedInteger(
-      env,
-      'MUSE_INPUT_MAX_REQUESTS',
-      DEFAULT_MAX_REQUESTS,
-      1,
-      Number.MAX_SAFE_INTEGER,
-    ),
+    // No default: an empty max-requests input sets no request limit (null).
+    // A set value stays within 1–MAX_REQUESTS, like the CLI's --max-requests.
+    maxRequests: boundedInteger(env, 'MUSE_INPUT_MAX_REQUESTS', null, 1, MAX_REQUESTS),
     timeoutMinutes: boundedInteger(
       env,
       'MUSE_INPUT_TIMEOUT_MINUTES',

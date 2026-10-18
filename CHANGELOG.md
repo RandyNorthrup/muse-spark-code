@@ -118,6 +118,10 @@ happened, not what was planned; superseded entries are kept.
 - Model API requests are no longer ended by the product's own clocks: no 30-second request timeout and no 300-second stream idle limit. A request names how long it has been waiting and keeps waiting until Stop or a caller-named deadline. Retries are not counted out at four and a Retry-After is honoured at any length; only a call that names its own ceiling stops early, and quota never retries.
 - Model API pacing follows the provider instead of invented numbers: no 10-requests-a-minute starting shape, no reserved foreground fraction and no 600-second admission wait. A queued request names what it is waiting for and keeps waiting until Stop; only the provider's observed rate-limit headers, 429 answers and Retry-After shape the wait.
 - Vault approvals no longer expire after 120 seconds: a request waits until the person allows or denies it, or until it is stopped. Granted uses carry the vault item's own lifetime instead of the approval clock; socket, helper-call and peer handshakes keep their own bounds.
+
+- The GitHub Action no longer caps a run at 30 requests unless the person
+  asks: with no `max-requests` input the Action sets no request limit, and a
+  set value still allows 1–500 billable HTTP attempts, retries included.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
