@@ -38,10 +38,14 @@ export interface KeyringEntry {
 /** Opens the entry for a service and account; throws when the store cannot be used. */
 export type KeyringEntryFactory = (service: string, account: string) => KeyringEntry
 
-/** Native failures may contain account or credential text; retain neither. */
+/**
+ * Native failures may contain account or credential text: the message stays
+ * the fixed word and the failure rides only on `cause`, which no log or
+ * sentence renders.
+ */
 export class StoreUnavailableError extends Error {
-  public constructor() {
-    super('store-unavailable')
+  public constructor(options?: { readonly cause?: unknown }) {
+    super('store-unavailable', options)
     this.name = 'StoreUnavailableError'
   }
 }
@@ -49,10 +53,11 @@ export class StoreUnavailableError extends Error {
 export async function storeOperation<T>(work: () => Promise<T>): Promise<T> {
   try {
     return await work()
-  } catch {
+  } catch (error) {
     // Includes Windows logon-session failures, locked/denied Keychains and
-    // absent Linux Secret Service. Nothing supplied by the binding escapes.
-    throw new StoreUnavailableError()
+    // absent Linux Secret Service. The cause is kept for the caller, never
+    // for a log or a sentence.
+    throw new StoreUnavailableError({ cause: error })
   }
 }
 
@@ -161,7 +166,9 @@ export function keyringSecretStore(
     try {
       return await withNamedLock(work, accountLock(key, options.lockScope ?? personScope()))
     } catch (error) {
-      throw error instanceof StoreUnavailableError ? error : new StoreUnavailableError()
+      throw error instanceof StoreUnavailableError
+        ? error
+        : new StoreUnavailableError({ cause: error })
     }
   }
   const removeGeneration = async (key: string, generation: Generation): Promise<void> => {
@@ -181,17 +188,21 @@ export function keyringSecretStore(
     }
     await remove(recordAccount(key))
   }
+  /** Best effort: the record still names the generations, so the next owner removes them. */
+  const reclaimQuietly = async (key: string): Promise<void> => {
+    try {
+      await reclaim(key)
+    } catch {
+      // The record still names the generations: the next owner removes them.
+    }
+  }
   /** A failed owner leaves nothing it can remove; what it cannot is the next owner's. */
   const guarded = async (key: string, work: () => Promise<void>): Promise<void> => {
     await reclaim(key)
     try {
       await work()
     } catch (error) {
-      try {
-        await reclaim(key)
-      } catch {
-        // The record still names the generations: the next owner removes them.
-      }
+      await reclaimQuietly(key)
       throw error
     }
   }
