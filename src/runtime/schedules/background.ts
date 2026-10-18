@@ -67,7 +67,11 @@ export class ScheduleBackgroundCoordinator {
   async reconcile(): Promise<void> {
     await this.deps.consent.exclusive(async (consent) => {
       if (consent?.choice === 'yes') await this.reconcileWith(consent)
-      else await this.deps.entry.remove()
+      else if (consent !== undefined) await this.deps.entry.remove()
+      // No consent record: this process never registered an entry (every
+      // register saves consent first), so there is nothing to reconcile and
+      // no OS entry to touch. A read-only command must not fail because the
+      // machine has no user bus or background runner.
     })
   }
   async status(): Promise<z.infer<typeof scheduleBackgroundStatusSchema>> {

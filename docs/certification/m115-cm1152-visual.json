@@ -1,0 +1,60 @@
+{
+  "review": "RVCM1152 / CM1152R2, 2026-10-11, macbook",
+  "baseRevision": "6a1a1e00cb54cad5144b86f7922c29772f9aa90a",
+  "sourceSha256": {
+    "src/webview/components/ReferencePage.tsx": "a9cff2f94ebc067b1fa74ca7f53ef653ec68021c050fdca43a4a671e31f763d6",
+    "src/webview/components/reference.css": "7544927f305446ae39eca549529465f54f1e1c1a9ac40175e3af8b0c395bd793",
+    "src/webview/styles.css": "e546b30b35aae47762bc1260746ac2883463f0f5d2e988f257096f248807275e",
+    "src/shared/l10n/en.ts": "729020aad05a8483605895052d69ffb61cd8973a9fe37d2a51ad086a80555f9a",
+    "src/shared/featureCatalog.ts": "74877abded180a8a522c8e0a64565cd94b951e3b6e0a88ba0634f0d9f71c1148",
+    "src/shared/reference/reference.generated.json": "192ffc0492f3ed82727888ff1b9c24053861474e0e359eebeb1c10f32abd7821"
+  },
+  "coverage": "Actual ReferencePage/Modal and generated reference; dark theme; runtime title/detail at 690/320 px in English and 320 px in German/Japanese; English VS Code delivery scope at 690 px. Full visual gate separately blocked by inherited What’s New decode limit.",
+  "shots": [
+    {
+      "file": "temp/CM1152R2/help-en-690.png",
+      "language": "en",
+      "search": "runtime-schedules",
+      "width": 690,
+      "height": 900,
+      "sha256": "8600f659bd923e5426d6a414e00d2459cf5268361e9d1f83870145291bb256ab",
+      "text": "Runtime schedules\n\nSchedule unattended Muse Code prompts in ACP or the terminal\n\nacp:museCode\n\nRun unattended Muse Code prompts from ACP or the terminal, with standing grants, persistent fire records and background conversation targets.\n\nDocumentation: Runtime schedules"
+    },
+    {
+      "file": "temp/CM1152R2/help-en-320.png",
+      "language": "en",
+      "search": "runtime-schedules",
+      "width": 320,
+      "height": 900,
+      "sha256": "a37dc3d6a421e45618e0f17916e485ade7b20c8c96a1d4325325f43aecbd82c0",
+      "text": "Runtime schedules\n\nSchedule unattended Muse Code prompts in ACP or the terminal\n\nacp:museCode\n\nRun unattended Muse Code prompts from ACP or the terminal, with standing grants, persistent fire records and background conversation targets.\n\nDocumentation: Runtime schedules"
+    },
+    {
+      "file": "temp/CM1152R2/help-de-320.png",
+      "language": "de",
+      "search": "runtime-schedules",
+      "width": 320,
+      "height": 900,
+      "sha256": "274e140fc98d53c1fbcabc0a9286888589a6650986e5e49400a775b7d529667f",
+      "text": "Laufzeitpläne\n\nUnbeaufsichtigte Muse Code-Prompts in ACP oder im Terminal planen\n\nacp:museCode\n\nFühren Sie Muse-Code-Prompts unbeaufsichtigt über ACP oder das Terminal aus, mit dauerhaften Berechtigungen, gespeicherten Ausführungsprotokollen und Hintergrundgesprächen als Zielen.\n\nDokumentation: Laufzeitpläne"
+    },
+    {
+      "file": "temp/CM1152R2/help-ja-320.png",
+      "language": "ja",
+      "search": "runtime-schedules",
+      "width": 320,
+      "height": 900,
+      "sha256": "67ca7a06339f1e65e9ffe1df547e12f8b700171cfff78053f3c1fecc3c68d9e4",
+      "text": "ランタイムのスケジュール\n\nACP またはターミナルで Muse Code の無人プロンプトをスケジュール\n\nacp:museCode\n\nACP またはターミナルから、継続的な権限、永続的な実行記録、バックグラウンドの会話ターゲットを使って Muse Code のプロンプトを無人実行します。\n\nドキュメント: ランタイムのスケジュール"
+    },
+    {
+      "file": "temp/CM1152R2/help-en-vscode-690.png",
+      "language": "en",
+      "search": "schedules",
+      "width": 690,
+      "height": 900,
+      "sha256": "95170ad8fc908eaaa4da9bca25f5f4cf597dbe47062ca9cb4455ec4f70cd3b07",
+      "text": "Web search\n\nMuse Code web search and native cron use the subscription. Native cron has no MSP schedule controls; extension search and schedules are separate paid Model API features.\n\nvscode:museCode\n\nDocumentation: Web search"
+    }
+  ]
+}

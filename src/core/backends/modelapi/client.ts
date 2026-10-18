@@ -39,7 +39,12 @@ export {
 } from './transport'
 import type { ProviderClient as TransportProviderClient } from './providerClient'
 import type { PlanUsageRow } from '../../../shared/usage'
-import type { ModelResolver } from './modelPolicy'
+import {
+  modelPricedUsage,
+  requestImageCount,
+  type ModelResolver,
+  type ModelPricePolicy,
+} from './modelPolicy'
 import {
   type PaidFeature,
   MODEL_API_BASE_URL,
@@ -197,6 +202,7 @@ export class ModelApiClient implements TransportProviderClient {
   public constructor(
     private readonly deps: ModelApiClientDeps,
     private readonly scheduledRun?: () => UnattendedRun | undefined,
+    private readonly scheduledPrice?: ModelPricePolicy,
   ) {
     this.transport = new RequestTransport({
       ...deps,
@@ -317,8 +323,11 @@ export class ModelApiClient implements TransportProviderClient {
   }
 
   /** Each session owns its authority callback, even when hosts share transport. */
-  public withScheduleAuthority(run: () => UnattendedRun | undefined): ModelApiClient {
-    return new ModelApiClient(this.deps, run)
+  public withScheduleAuthority(
+    run: () => UnattendedRun | undefined,
+    price?: ModelPricePolicy,
+  ): ModelApiClient {
+    return new ModelApiClient(this.deps, run, price)
   }
 
   /** Whether interactive extras have a finite daily admission port (D78). */
@@ -689,9 +698,22 @@ export class ModelApiClient implements TransportProviderClient {
                     outputTokens: usage.output_tokens,
                     cachedTokens: cached,
                   }
-                  tokenCostUsd = hasSearch
-                    ? this.knownSearchTokenCostUsd(billable, body.model)
-                    : estimateCostUsd(billable, body.model)
+                  // A schedule's price policy settles its own reported cost;
+                  // without one the reported cost is estimated as usual, and
+                  // an unsettled policy leaves the cost unknown (D121).
+                  const scheduled =
+                    this.scheduledPrice === undefined
+                      ? undefined
+                      : this.scheduledPrice.settle(
+                          { ...modelPricedUsage(usage), images: requestImageCount(body) },
+                          { cost: usage.provider_cost_usd },
+                        )
+                  tokenCostUsd =
+                    this.scheduledPrice === undefined
+                      ? hasSearch
+                        ? this.knownSearchTokenCostUsd(billable, body.model)
+                        : estimateCostUsd(billable, body.model)
+                      : scheduled
                 }
                 await claim.settle(
                   tokenCostUsd === undefined ? undefined : sumUsd(tokenCostUsd, returnedFees()),

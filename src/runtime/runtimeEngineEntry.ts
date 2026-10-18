@@ -18,3 +18,6 @@ export function installUsageRecording(recording: UsageRecording): () => void {
     MuseCodeHost.usageRecording = muse
   }
 }
+
+// Runtime-only schedule session ownership stays behind this existing engine boundary.
+export { createRuntimeScheduleDelivery } from './schedules/delivery'

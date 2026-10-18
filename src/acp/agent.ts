@@ -1518,7 +1518,10 @@ class AcpSession {
       const params: RequestPermissionRequest = {
         sessionId: this.sessionId,
         toolCall: { toolCallId, title, status: 'pending', content },
-        options: paidUseOptions(canRemember),
+        options: paidUseOptions(
+          canRemember,
+          request.feature === 'scheduledPrompts' && request.schedule !== undefined,
+        ),
       }
       const response = await this.client.request('session/request_permission', params)
       // A session let go while the editor was asked is billed for nothing.
@@ -2403,7 +2406,22 @@ class AcpSession {
   public async holdSchedules(): Promise<void> {
     if (this.deps.schedules?.isAvailable === false) return
     try {
-      const release = await this.deps.schedules?.holdWorkspace?.(this.cwd)
+      const release = await this.deps.schedules?.holdWorkspace?.(this.cwd, {
+        agent: this.session,
+        backend: this.deps.backend.kind,
+        ...(this.activeTurnId !== undefined && { activeTurnId: this.activeTurnId }),
+        row: (text) => {
+          this.questionNotice(text)
+        },
+        deferQuestions: async (event, context) => {
+          if (this.questionRegistry === undefined) throw new Error(UI_TEXT.questionAnswerFailed)
+          await this.questionRegistry.register(event, {
+            askedAt: Date.now(),
+            turnId: this.activeTurnId ?? context.runId,
+          })
+          await this.questionRegistry.defer(event.userInputId)
+        },
+      })
       if (this.isDisposed) await release?.()
       else this.releaseSchedules = release
     } catch {

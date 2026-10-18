@@ -54,7 +54,8 @@ built, what is planned and what each release shipped.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
-Saved reports write money version 2; historical numeric reports retain their original
+Candidate schedule budgets and consent, and rental cost evidence, use exact decimal USD. Saved
+reports write money version 2; historical numeric reports retain their original
 hash verification and migrate when read.
 
 ## What's new in 0.18.2
@@ -366,8 +367,10 @@ reason and record the owner. The reviewer charter ships as the
   paid wherever it is used, and tallied in Account & usage.
 - **Scheduled prompts under your control.** On the Model API backend,
   `/loop` saves a recurring prompt in this conversation. By default a due
-  prompt waits for you to run and confirm it; your key is spent only
-  after your consent. Scheduled turns currently cannot read video or audio:
+  prompt waits for you to run and confirm it; unattended v2 delivery is disabled,
+  and the running editor does not request v2 consent or reserve its paid caps.
+  Your key is never spent
+  without your consent. Scheduled turns currently cannot read video or audio:
   verified upload storage, the captured media codec and production calibration bindings are
   unavailable (PLAN D85.6, M105). The shared paid accounting refuses bills
   above an admitted reserve and retains that reserve as uncertain liability.
@@ -2364,6 +2367,24 @@ Review what the agent did before it lands, on both backends.
 
 ## Scheduled prompts (Model API)
 
+The machine-scoped `museSpark.schedules` switch controls the v2 surface.
+Its host defaults are `museSpark.scheduleDefaultDelivery` (`whenIdle`) and
+`museSpark.scheduleAgentCreation` (`ask`), also machine-scoped. These flat keys
+avoid VS Code's scalar-parent conflict; the reader still validates previous
+`schedules.defaultDelivery` and `schedules.agentCreation` values when a new key
+is absent. Paid consent and the shared daily budget still apply.
+
+The v2 commands (**Schedule this prompt…**, **Show schedules** and
+**Show schedule timeline**) are not in the Command Palette yet: they stay
+hidden until schedule delivery is certified, and nothing in this section's
+v2 surface can be opened today. Automatic v2 prompt delivery in VS Code, ACP and the terminal is
+disabled: its candidate holds the workspace independently of open chats and
+rechecks authority immediately before sending. Unattended IDE tools enforce
+resolved-file policy and use prompt-free executors, with offline legal scans.
+The workspace delivery binding awaits qualification across operating
+systems and independent review, and remains unregistered. The `/loop` flow
+below runs when you choose **Run now**.
+
 On the Model API backend, `/loop 10m Review the build` saves a prompt in the
 current conversation to become due every ten minutes. Use `m`, `h`, or `d`
 for minutes, hours, or days; `/loop "0 9 * * 1-5" Summarize new bugs` uses
@@ -2399,6 +2420,47 @@ in the transcript and a count in Account & usage; its token cost is already
 in that conversation's token estimate. A run admitted just before a crash
 is not replayed, even if its result was never seen. Cancel does not stop a
 turn that already began.
+
+### Runtime scheduled delivery
+
+Automatic v2 delivery is disabled in VS Code, ACP and the terminal pending
+certification. The candidate runtime adapter supports scheduled prompts through
+the shared unattended engine. Live ACP targets are borrowed; closed targets with **Open**
+resume in the background, and **New conversation** creates a separate session.
+Steer, interrupt, queue and when-idle delivery use the backend's scheduled
+entry points. Approvals outside the standing grant refuse immediately and
+their rows reach the ACP session; questions defer for later answering.
+Output reaches only the session that owns the scheduled target. Background
+and unattached-target output goes to the runtime's standard error stream.
+An orderly close settles only fires this process handed to a host. A confirmed
+queue withdrawal records a known zero-cost result; an unknown in-flight outcome
+retains its liability and is never sent again. Admissions not handed to a host
+stay pending for delivery once after reload. A closing process leaves another
+process's work untouched. Run now
+reports acceptance only after a successful durable fire record exists.
+Muse Code turns use the subscription. Paid Model API fires require current
+per-schedule consent and both daily caps before dispatch.
+
+The private schedule registry retains workspace paths for terminal `run-due`,
+which opens each due target in its recorded workspace, records the outcome,
+and exits. Old registry entries containing only workspace hashes need the
+workspace opened in ACP or a newly created schedule to establish the path;
+the runtime never guesses it. `exec` still cannot create or host schedules.
+OS wake registration is a separate opt-in path.
+
+Automatic delivery is disabled: the running editor stores schedule records,
+but does not ask for v2 schedule consent or reserve either paid cap. The
+candidate v2 billing port asks at creation or renewal for one schedule's prompt,
+selected model, verified rates, cadence and both daily caps. **Allow once**
+covers one fire; **Allow always for this schedule** covers that schedule.
+Workspace-wide paid grants do not authorize it. Changed models, keys, tariffs
+or payer kinds, and changes to the shared daily budget (including a day's
+override), require renewed consent; unattended fires refuse stale consent
+before HTTP. VS Code and ACP use the same question; CLI authorization requires
+both explicit flags and printing that quote. Exact-money reservations share
+the schedule cap and one shared daily ledger across VS Code, ACP and CLI,
+including retained uncertain liability. This port remains behind the automatic-delivery certification gate
+described above.
 
 Muse Code has its own subscription-backed `cron_create`, `cron_list` and
 `cron_delete` tools. Ask it in chat to schedule, list or cancel its jobs;

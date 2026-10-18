@@ -1037,6 +1037,7 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 - `package.json manifest > contributes the walkthrough the command opens, completed by our own events (D15)`
 - `package.json manifest > binds nothing on Windows that Windows itself takes first (M26)`
 - `package.json manifest > lists a command in the Command Palette only where it can act (M26)`
+  - Pull request 207 (M115 schedules) moved this claim before the deletion: Schedule a prompt, Show schedules and the schedule timeline are listed in the Command Palette only while `museSpark.scheduleDeliveryCertified` is set (after the lead qualifies scheduled delivery), no longer never.
 - `package.json manifest > links What’s New to the repository the manifest names (M99)`
 - `package.json manifest > lists the extension under the AI and Chat categories only (M26)`
 - `package.json manifest > pins @types/vscode to the engines.vscode minimum`
@@ -1785,6 +1786,7 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 
 - `lazy runtime schedule binding > loads once on use and installs the caller table before creating the runtime`
 - `lazy runtime schedule binding > rejects a missing factory and retries a failed engine creation`
+  - Pull request 207 (M115 schedules) rewrote this file on the real loader, but still handed it a hand-written log object in place of the log channel, so the merge with main kept main's deletion. Its claim stays here too: a bundle path that is not on disk refuses with the unavailable words, and each call tries the load again.
 
 ### test/unit/scheduleEvents.signals.test.ts
 
@@ -2961,3 +2963,19 @@ The Codex re-review of PR #161 found the remaining cases in the file below still
 - `credential read failures > reads a denied store as unreadable with its kind`
 - `credential read failures > stays silent when the store answers`
 - `credential read failures > scans past an unreadable provider entry instead of calling it absent`
+
+## Removed when the host budget needed the editor host (PR #207 follow-up)
+
+`src/host/paid/paidDailyBudget.ts` imports the `vscode` module, so no unit
+test can load it with real code only (the hand-written `vscode` stand-in was
+deleted as a fake on 2026-10-17). The runtime-family half of the claim is
+proven by `test/unit/runtimeDailyBudget.test.ts` over the real settings file
+and data folder; the host half leaves the suite here until a real-use run
+proves it.
+
+### test/unit/scheduleLegacyDailyBudget.test.ts (withdrawn with the journal, D121)
+
+The journal-backed migration suite was deleted with the reservation journal
+it measured; nothing in the merged tree replaces its migration claims. The
+schedule own-cap check (`assertScheduleOwnCap`) is exercised where the
+terminal real-use record covers it (`docs/real-life/pr207-2026-10-18.md`).

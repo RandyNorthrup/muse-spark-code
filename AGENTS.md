@@ -266,7 +266,11 @@ above.
     subscription never pays for one. One exception to the key is planned
     (PLAN.md D50, M85, experimental): the TypeSafe assist is billed to the
     user's own TypeSafe key instead of the Model API key; every other part
-    of this rule applies to it unchanged.
+    of this rule applies to it unchanged. Scheduled prompts carry their own
+    consent (M115): creation asks D48's question once per schedule, naming
+    payer, model, key, tariff and both caps; a changed model, key, tariff,
+    grant or cap refuses before the next fire until renewed through an
+    interactive schedule edit; an unattended fire never opens the popup.
 
 - **Tab (M94, D73):** `museSpark.modelApiTab` is machine-scoped and on by
   default. The first paid request asks D48's question with the model's rates

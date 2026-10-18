@@ -1,0 +1,259 @@
+{
+  "notes": [
+    "restore-CM1151.md",
+    "restore-CM11510.md",
+    "restore-CM1152.md",
+    "restore-CM1153.md",
+    "restore-CM1155.md",
+    "restore-CM1156.md",
+    "restore-CM1157.md",
+    "restore-CM1159.md"
+  ],
+  "canonicalSwitch": "SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady",
+  "isReady": false,
+  "items": [
+    {
+      "id": "WB-001",
+      "description": "(command-refuses): Chat composer `/schedule` (src/webview/App.tsx:1247-1254 on c/x-1 and in the staged merge)",
+      "notes": ["restore-CM1157.md", "restore-CM1151.md"],
+      "mechanism": "OPTIONAL_RUNTIME_AVAILABILITY.schedules reads the certification switch",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-002",
+      "description": "(palette-entry-removed): Chat palette row `schedule` (\"Schedules\") (also the `/schedule` slash completion: `slashName: 'schedule'`): src/shared/paletteRegistry.ts:193-215; availability passed at src/webview/App.tsx:2563 (c/x-1) / :2566 (staged)",
+      "notes": ["restore-CM1157.md", "restore-CM1151.md"],
+      "mechanism": "OPTIONAL_RUNTIME_AVAILABILITY.schedules reads the certification switch",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-003",
+      "description": "(palette-entry-removed): Chat palette row `schedulePrompt` (\"Schedule this prompt…\"): src/shared/paletteRegistry.ts:193-215; availability passed at src/webview/App.tsx:2563 (c/x-1) / :2566 (staged)",
+      "notes": ["restore-CM1157.md", "restore-CM1151.md"],
+      "mechanism": "OPTIONAL_RUNTIME_AVAILABILITY.schedules reads the certification switch",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-004",
+      "description": "(palette-entry-removed): Chat palette row `scheduleTimeline` (\"Schedule timeline\"): src/shared/paletteRegistry.ts:193-215; availability passed at src/webview/App.tsx:2563 (c/x-1) / :2566 (staged)",
+      "notes": ["restore-CM1157.md", "restore-CM1151.md"],
+      "mechanism": "OPTIONAL_RUNTIME_AVAILABILITY.schedules reads the certification switch",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-005",
+      "description": "(command-hidden): VS Code command `museSpark.schedulePrompt` (\"Muse Spark: Schedule this prompt…\"): package.json contributes.menus.commandPalette :582-583; shim guard src/extension.ts:3911; src/shared/featureCatalog.ts:239 (c/x-1; +4 staged); Help row in docs/reference.md \"## Commands\"",
+      "notes": ["restore-CM1157.md", "restore-CM1151.md"],
+      "mechanism": "certification context key, command getter and reference publication filter",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-006",
+      "description": "(command-hidden): VS Code command `museSpark.showSchedules` (\"Muse Spark: Show schedules\"): package.json contributes.menus.commandPalette :586-587; shim guard src/extension.ts:3911; src/shared/featureCatalog.ts:240 (c/x-1; +4 staged); Help row in docs/reference.md \"## Commands\"",
+      "notes": ["restore-CM1157.md", "restore-CM1151.md"],
+      "mechanism": "certification context key, command getter and reference publication filter",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-007",
+      "description": "(command-hidden): VS Code command `museSpark.showScheduleTimeline` (\"Muse Spark: Show schedule timeline\"): package.json contributes.menus.commandPalette :590-591; shim guard src/extension.ts:3911; src/shared/featureCatalog.ts:241 (c/x-1; +4 staged); Help row in docs/reference.md \"## Commands\"",
+      "notes": ["restore-CM1157.md", "restore-CM1151.md"],
+      "mechanism": "certification context key, command getter and reference publication filter",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-008",
+      "description": "(command-hidden): ACP `/schedule` in `available_commands_update` and in `/help`: src/acp/agent.ts:580-588 (discovery), :1763 (`/help` reuses the list); flag set at src/runtime/main.ts:741",
+      "notes": ["restore-CM1152.md"],
+      "mechanism": "ACP port availability reads OPTIONAL_RUNTIME_AVAILABILITY.schedules",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-009",
+      "description": "(command-refuses): ACP `/schedule <anything>` typed in an editor: src/acp/agent.ts:1779-1785; workspace hold skipped at :2031",
+      "notes": ["restore-CM1152.md"],
+      "mechanism": "ACP port availability reads OPTIONAL_RUNTIME_AVAILABILITY.schedules",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-010",
+      "description": "(help-row-removed): Help CLI row `schedule` (docs/reference.md \"## ACP / CLI commands\"; route `schedule`): hidden by `hiddenRoutes` in scripts/lib/reference.mjs:1378; also dropped from the compact reference in src/shared/cliCommands.ts:234",
+      "notes": ["restore-CM1152.md", "restore-CM11510.md"],
+      "mechanism": "compact usage and generated Help read the certification switch",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-011",
+      "description": "(claim-removed): `muse-spark-code-acp --help` (compact CLI help): `formatAcpUsage` in src/runtime/cliOptions.ts:7-12",
+      "notes": ["restore-CM1152.md"],
+      "mechanism": "compact usage and generated Help read the certification switch",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-012",
+      "description": "(help-row-removed): Help CLI flag row `serve: --scheduled-prompts` (docs/reference.md): filtered by the regex at scripts/lib/reference.mjs:1397",
+      "notes": ["restore-CM1152.md", "restore-CM1153.md"],
+      "mechanism": "compact usage and generated Help read the certification switch",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-013",
+      "description": "(setting-inert): Setting `museSpark.scheduleAgentCreation`: package.json:907 (`deprecationMessage`), package.nls.json `config.schedules.agentCreation.description` (+14 locales), src/host/settings.ts:409, Help row \"### museSpark.scheduleAgentCreation\"",
+      "notes": ["restore-CM1155.md"],
+      "mechanism": "publication recipe",
+      "status": "held: agent creation setting has no installed agent-tool reader; C-M115-7 must bind it"
+    },
+    {
+      "id": "WB-014",
+      "description": "(claim-reworded): Setting `museSpark.schedules` description: package.nls.json `config.schedules.description` (+14 locales); Help row; condition selector src/shared/featureCatalog.ts:86 (c/x-1) / :90 (staged)",
+      "notes": ["restore-CM1157.md", "restore-CM1151.md"],
+      "mechanism": "15 descriptions require certification; Help selector and certified detail follow the switch",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-015",
+      "description": "(claim-reworded): Setting `museSpark.scheduleDefaultDelivery` description: package.nls.json `config.schedules.defaultDelivery.description` (+14 locales); Help row",
+      "notes": ["restore-CM1151.md"],
+      "mechanism": "draft delivery selector remains honest independently of execution availability",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-016",
+      "description": "(help-row-removed): Help feature row \"/loop\" (`schedules`; docs/reference.md \"### /loop\"), its Commands and Settings line",
+      "notes": ["restore-CM1151.md", "restore-CM1155.md", "restore-CM11510.md"],
+      "mechanism": "generated /loop row restores its three editor commands from the switch",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-017",
+      "description": "(claim-removed): README \"## Scheduled prompts (Model API)\", first paragraph (82d50d5e4:README.md:2296-2301)",
+      "notes": ["restore-CM1151.md", "restore-CM11510.md"],
+      "mechanism": "publication recipe",
+      "status": "publication recipe after qualification; current docs describe the disabled candidate"
+    },
+    {
+      "id": "WB-018",
+      "description": "(claim-removed): README \"## Scheduled prompts (Model API)\", second paragraph (82d50d5e4:README.md:2303-2307)",
+      "notes": ["restore-CM1157.md", "restore-CM1151.md", "restore-CM11510.md"],
+      "mechanism": "publication recipe",
+      "status": "publication recipe after qualification; current docs describe the disabled candidate"
+    },
+    {
+      "id": "WB-019",
+      "description": "(claim-removed): README \"## Scheduled prompts (Model API)\", the `schedule` command paragraph (82d50d5e4:README.md:2345-2358)",
+      "notes": ["restore-CM1152.md", "restore-CM1153.md", "restore-CM11510.md"],
+      "mechanism": "publication recipe",
+      "status": "publication recipe after qualification; current docs describe the disabled candidate"
+    },
+    {
+      "id": "WB-020",
+      "description": "(claim-removed): README \"## Scheduled prompts (Model API)\", native background scheduler paragraph (82d50d5e4:README.md:2366-2375)",
+      "notes": ["restore-CM1156.md", "restore-CM11510.md"],
+      "mechanism": "publication recipe",
+      "status": "held: native wake and other-editor installed receipts remain with C-M115-6/9"
+    },
+    {
+      "id": "WB-021",
+      "description": "(claim-reworded): README \"## Highlights\", bullet \"Scheduled prompts under your control.\" (82d50d5e4:README.md:354-358)",
+      "notes": ["restore-CM1153.md", "restore-CM11510.md"],
+      "mechanism": "publication recipe",
+      "status": "release publication after qualification; keep historical markers and other features held"
+    },
+    {
+      "id": "WB-022",
+      "description": "(claim-reworded): README top note under the contents line (82d50d5e4:README.md:56-58)",
+      "notes": ["restore-CM1153.md"],
+      "mechanism": "publication recipe",
+      "status": "release publication after qualification; keep historical markers and other features held"
+    },
+    {
+      "id": "WB-023",
+      "description": "(claim-removed): docs/acp.md \"## Interactive ACP options\", table row `--scheduled-prompts`",
+      "notes": ["restore-CM1152.md", "restore-CM11510.md"],
+      "mechanism": "publication recipe",
+      "status": "publication recipe after qualification; current docs describe the disabled candidate"
+    },
+    {
+      "id": "WB-024",
+      "description": "(claim-removed): docs/acp.md \"## Interactive ACP options\", table row `--max-budget-usd <USD>`",
+      "notes": ["restore-CM1153.md", "restore-CM11510.md"],
+      "mechanism": "publication recipe",
+      "status": "publication recipe after qualification; current docs describe the disabled candidate"
+    },
+    {
+      "id": "WB-025",
+      "description": "(claim-removed): docs/acp.md \"## What the editor sees\", slash-command bullet",
+      "notes": ["restore-CM1152.md", "restore-CM11510.md"],
+      "mechanism": "publication recipe",
+      "status": "publication recipe after qualification; current docs describe the disabled candidate"
+    },
+    {
+      "id": "WB-026",
+      "description": "(claim-removed): docs/acp.md \"## Paid features\", last paragraph",
+      "notes": ["restore-CM1153.md", "restore-CM11510.md"],
+      "mechanism": "publication recipe",
+      "status": "publication recipe after qualification; current docs describe the disabled candidate"
+    },
+    {
+      "id": "WB-027",
+      "description": "(claim-removed): docs/ide-compatibility/hosts.md \"## M115 schedule routes — integration status\" (intro paragraph and a four-row table)",
+      "notes": [
+        "restore-CM1152.md",
+        "restore-CM1159.md",
+        "restore-CM1151.md",
+        "restore-CM11510.md"
+      ],
+      "mechanism": "publication recipe",
+      "status": "held: native wake and other-editor installed receipts remain with C-M115-6/9"
+    },
+    {
+      "id": "WB-028",
+      "description": "(claim-reworded): Roadmap entry M115: docs/roadmap/entries.json (id \"M115\") and ROADMAP.md \"## In progress\"",
+      "notes": ["restore-CM11510.md"],
+      "mechanism": "publication recipe",
+      "status": "release publication after qualification; keep historical markers and other features held"
+    },
+    {
+      "id": "WB-029",
+      "description": "(other): Reserved names: src/acp/agent.ts:631 and src/shared/paletteRegistry.ts:310-311",
+      "notes": ["restore-CM1151.md"],
+      "mechanism": "reserved names remain reserved; the note explicitly requires no restoration",
+      "status": "bound: one certification switch; keep false now"
+    },
+    {
+      "id": "WB-031",
+      "description": "Historical release claim: keep its historical marker and announce with a new qualified release bullet.",
+      "notes": ["restore-CM1152.md", "restore-CM11510.md"],
+      "mechanism": "publication recipe",
+      "status": "release publication after qualification; keep historical markers and other features held"
+    },
+    {
+      "id": "WB-033",
+      "description": "Historical release claim: keep its historical marker and announce with a new qualified release bullet.",
+      "notes": ["restore-CM1152.md", "restore-CM11510.md"],
+      "mechanism": "publication recipe",
+      "status": "release publication after qualification; keep historical markers and other features held"
+    },
+    {
+      "id": "WB-046",
+      "description": "Historical release claim: keep its historical marker and announce with a new qualified release bullet.",
+      "notes": ["restore-CM1152.md", "restore-CM11510.md"],
+      "mechanism": "publication recipe",
+      "status": "release publication after qualification; keep historical markers and other features held"
+    },
+    {
+      "id": "WB-250",
+      "description": "(setting-inert): Setting `museSpark.scheduleAgentCreation` (second marking): rigs/linuxlt/m126/nothing-dead 6e2fc855e, src/shared/settingsAvailability.ts:25-62 (`UNAVAILABLE_SETTINGS`); rendered as \"Not available yet: {reason}\" in native setting descriptions, Help and the Settings page",
+      "notes": ["restore-CM1155.md"],
+      "mechanism": "publication recipe",
+      "status": "unmatched: src/shared/settingsAvailability.ts from the other lane is absent; agent creation remains held"
+    },
+    {
+      "id": "WB-259",
+      "description": "(other): README \"## In progress\" (README.md:4806-4825 on c/x-1, :4894-4913 staged): one paragraph and four anchor-only bullets",
+      "notes": ["restore-CM11510.md"],
+      "mechanism": "publication recipe",
+      "status": "release publication after qualification; keep historical markers and other features held"
+    }
+  ]
+}

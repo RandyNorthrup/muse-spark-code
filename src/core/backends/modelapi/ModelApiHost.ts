@@ -353,6 +353,7 @@ import {
   outputLimitFor,
   type ModelResolver,
   type ResolvedModel,
+  type ModelClient,
 } from './modelPolicy'
 import type { HookMcpOutcome, HookModelTurn, HookModelDailyBudget } from './hookHandlers'
 import { ObservationPack, estimatePackTokens } from './observationPack'
@@ -398,6 +399,7 @@ import { cacheMissTokens, promptCacheKey } from './promptCache'
 
 import { readImageInfo } from '../../imageDimensions'
 import { resizeImage } from '../../imageResize'
+import type { ModelPricing } from '../../providers/priceCard'
 import type { ModelCapabilities } from '../../providers/capabilities'
 import type { FormatQuirks } from '../../providers/presets'
 import {
@@ -3041,6 +3043,17 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   private get client(): ProviderClient {
     return this.getScheduledRun() === undefined ? this.deps.client : this.scheduledClient
+  }
+
+  private scheduledModelClient(resolved: ResolvedModel): ModelClient {
+    if (this.getScheduledRun() === undefined) return resolved.client
+    if (resolved.client === this.deps.client) return this.client
+    const bound = resolved.client.withScheduleAuthority?.(
+      () => this.getScheduledRun(),
+      resolved.price,
+    )
+    if (bound === undefined) throw new Error(UI_TEXT.schedulePaidOff)
+    return bound
   }
 
   private get permissions(): PermissionEngine {
@@ -6129,11 +6142,14 @@ export class ModelApiSession implements ScheduledAgentSession {
         turnId,
         mediaAccounting,
       )
-      const responseStream = (
-        this.getScheduledRun() === undefined || resolved.client !== this.deps.client
-          ? resolved.client
-          : this.client
-      ).streamResponse(body, signal, onRetry, budget, admitAttempt, confirmedRequest)
+      const responseStream = this.scheduledModelClient(resolved).streamResponse(
+        body,
+        signal,
+        onRetry,
+        budget,
+        admitAttempt,
+        confirmedRequest,
+      )
       for await (const event of responseStream) {
         if (inFlight !== undefined) {
           inFlight.hasStarted = true
@@ -14317,11 +14333,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             },
           },
         )
-        const responseStream = (
-          this.getScheduledRun() === undefined || resolved.client !== this.deps.client
-            ? resolved.client
-            : this.client
-        ).streamResponse(
+        const responseStream = this.scheduledModelClient(resolved).streamResponse(
           body,
           signal,
           (notice) => {
@@ -15377,6 +15389,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     return {
       modelId: paid.modelId,
       keyDigest: paid.accountId,
+      ...(paid.providerId !== undefined && { providerId: paid.providerId }),
+      ...(paid.origin !== undefined && { origin: paid.origin }),
       runKind: 'scheduled',
       isStillAllowed: () =>
         run.isActive() && run.allowsPaid('scheduledPrompts') && this.modelId === paid.modelId,
@@ -17616,6 +17630,28 @@ export class ModelApiHost implements AgentHost {
           isActive: model.modelId === active,
         })),
     ]
+  }
+
+  /** The same authoritative price policy the selected provider uses for admission. */
+  public async schedulePricing(modelId: string): Promise<{
+    readonly pricing: ModelPricing
+    readonly accountId: string
+    readonly providerId: string
+    readonly origin: string
+  }> {
+    const resolved =
+      (await this.deps.models?.resolve(modelId)) ?? metaResolvedModel(modelId, this.deps.client)
+    const accountId = await resolved.client.currentKeyDigest()
+    if (this.isClosing || !resolved.isCurrent())
+      throw new Error(UI_TEXT.scheduleConfirmationExpired)
+    if (resolved.client.withScheduleAuthority === undefined)
+      throw new Error(UI_TEXT.schedulePaidOff)
+    return {
+      pricing: resolved.policy.pricing,
+      accountId,
+      providerId: resolved.policy.identity.provider,
+      origin: resolved.origin,
+    }
   }
 
   /** Capture the live owner now; a later replacement with the same id is not this writer. */

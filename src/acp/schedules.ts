@@ -4,6 +4,21 @@ import { UI_TEXT } from '../shared/constants'
 import { slashCommandText } from '../shared/mentions'
 import { parseScheduleCommand } from '../runtime/schedules/args'
 import { runScheduleCommand, type ScheduleControlPort } from '../runtime/schedules/command'
+import type { AgentSession } from '../core/agent/agentBackend'
+import type { AgentEvent } from '../shared/agentEvents'
+import type { ScheduleRunContext } from '../shared/scheduleV2'
+
+/** Borrowed ACP ownership; scheduled delivery never disposes this session. */
+export interface AcpScheduleSession {
+  readonly agent: AgentSession
+  readonly backend: AcpScheduleContext['backend']
+  readonly activeTurnId?: string
+  row(text: string): void
+  deferQuestions(
+    event: Extract<AgentEvent, { type: 'questionRequested' }>,
+    context: ScheduleRunContext,
+  ): Promise<void>
+}
 
 export interface AcpScheduleContext {
   readonly cwd: string
@@ -15,7 +30,10 @@ export interface AcpScheduleContext {
 export interface AcpSchedulePort {
   readonly isAvailable?: boolean
   run(text: string, context: AcpScheduleContext): Promise<string>
-  holdWorkspace?(cwd: string): Promise<(() => Promise<void>) | undefined>
+  holdWorkspace?(
+    cwd: string,
+    session?: AcpScheduleSession,
+  ): Promise<(() => Promise<void>) | undefined>
 }
 
 export function acpSchedules(

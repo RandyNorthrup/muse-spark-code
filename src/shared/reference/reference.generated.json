@@ -1469,7 +1469,23 @@
       "backends": ["modelApi"],
       "paid": true,
       "surfaces": ["vscode:modelApi"],
-      "details": [{ "ui": "referenceAttachments" }, { "ui": "scheduledMediaSupport" }],
+      "details": [
+        {
+          "conditions": [
+            { "when": "scheduleDeliveryCertified=false", "text": { "ui": "referenceSchedules" } }
+          ]
+        },
+        {
+          "conditions": [
+            {
+              "when": "scheduleDeliveryCertified=false",
+              "text": { "ui": "referenceSchedulePaidConsent" }
+            }
+          ]
+        },
+        { "ui": "scheduledMediaSupport" },
+        { "ui": "referenceAttachments" }
+      ],
       "facts": {
         "defaultIntervalMs": 600000,
         "minimumIntervalMs": 60000,
@@ -1501,6 +1517,30 @@
         }
       },
       "editors": ["vscode"]
+    },
+    {
+      "id": "runtime-schedules",
+      "name": { "ui": "runtimeSchedulesItem" },
+      "summary": { "ui": "runtimeSchedulesItemDetail" },
+      "description": { "ui": "runtimeSchedulesItemDetail" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#runtime-scheduled-delivery",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["acp:museCode", "acp:modelApi"],
+      "details": [
+        {
+          "conditions": [
+            {
+              "when": "scheduleDeliveryCertified=false",
+              "text": { "ui": "referenceRuntimeSchedules" }
+            }
+          ]
+        }
+      ],
+      "facts": {},
+      "editors": ["acp"]
     },
     {
       "id": "subagents",
@@ -2911,7 +2951,7 @@
     {
       "text": {
         "conditions": [
-          { "when": "scheduleRuntime=unbound&backend=museCode", "text": { "setting": "schedules" } }
+          { "when": "scheduleDeliveryCertified=true", "text": { "setting": "schedules" } }
         ]
       },
       "id": "museSpark.schedules",
@@ -2925,6 +2965,14 @@
       "schema": { "type": "boolean", "default": true }
     },
     {
+      "text": {
+        "conditions": [
+          {
+            "when": "scheduleDeliveryCertified=true",
+            "text": { "setting": "scheduleDefaultDelivery" }
+          }
+        ]
+      },
       "id": "museSpark.scheduleDefaultDelivery",
       "name": "museSpark.scheduleDefaultDelivery",
       "description": "Selects the delivery written into new schedule drafts; it does not enable scheduled execution.",

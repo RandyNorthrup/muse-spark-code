@@ -63,6 +63,7 @@ function setup(state: {
   const recorded: ScheduleFireRecord[] = []
   const settlements: unknown[] = []
   const admitted: ScheduleRunIntent[] = []
+  const dispatched = new Set<string>()
   const stored = job()
   const remaining = [...state.ledgers]
   const last = state.ledgers.at(-1)!
@@ -85,6 +86,16 @@ function setup(state: {
         return Promise.resolve(true)
       },
       advance: () => Promise.resolve(true),
+      startDispatch: (intent) => {
+        if (admitted.every((entry) => entry.runId !== intent.runId) || dispatched.has(intent.runId))
+          return Promise.resolve(false)
+        dispatched.add(intent.runId)
+        return Promise.resolve(true)
+      },
+      lookupRun: (_workspaceKey, runId) =>
+        Promise.resolve({
+          status: dispatched.has(runId) ? ('dispatchStarted' as const) : ('absent' as const),
+        }),
       pending: () => Promise.resolve([...admitted]),
       abandoned: () => Promise.resolve([]),
       acknowledge: (fire) => {

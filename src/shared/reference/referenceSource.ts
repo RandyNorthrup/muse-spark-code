@@ -5,7 +5,7 @@ export {
   referenceDescription,
   REFERENCE_IN_PROGRESS_FEATURES,
 } from '../featureCatalog'
-export { COMMAND_IDS } from '../constants'
+export { COMMAND_IDS, SCHEDULE_EDITOR_DELIVERY_CERTIFICATION } from '../constants'
 export { buildPalette } from '../paletteRegistry'
 export { slashCommandsOf } from './slashReference'
 export { cliCommands } from '../cliCommands'
@@ -66,6 +66,7 @@ export { parseHandoffPrompt } from '../handoff'
 // Reviewed host capability inventory: pairs are explicit, never a Cartesian claim.
 // The tooling gate also checks tool/action coverage and host admission witnesses.
 const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
+  ['runtime-schedules', ['acp:museCode', 'acp:modelApi']],
   ['resources', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi']],
   ...['strict-tools', 'parallel-reads', 'cut-short-tools', 'structured-side-calls'].map(

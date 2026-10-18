@@ -1,4 +1,6 @@
 import { UserRefusalError } from '../shared/refusal'
+import type { ScheduleBillingPorts } from '../host/schedules/paidBinding'
+import type { ScheduleCallerContext } from './schedules/args'
 import { resolveExecOutputCap } from './exec/runLedger'
 import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
@@ -122,6 +124,11 @@ export interface RuntimeBackendDeps {
 }
 
 export interface RuntimeBackend {
+  readonly scheduleBilling?: (
+    cwd: string,
+    modelId: string,
+    caller?: ScheduleCallerContext,
+  ) => Promise<ScheduleBillingPorts>
   readonly readUsageBudgets: () => Promise<readonly UsageBudgetRead[]>
   readonly backend: AcpBackend
   /** Muse Code's launch and environment, for `login`. */
@@ -572,6 +579,11 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   )
   const paid = new AcpPaidUse({
     flagged: deps.options.paidFeatures,
+    scheduleAuthorization: {
+      scheduledPrompts:
+        deps.options.backend === 'modelApi' && deps.options.scheduledPrompts === true,
+      ...(deps.options.maxBudgetUsd !== undefined && { maxBudgetUsd: deps.options.maxBudgetUsd }),
+    },
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     canRemember: () => deps.options.trustWorkspace,
     grants: paidGrantFile({
@@ -706,7 +718,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       : { state: 'ready' }
   }
 
-  const modelApiHostFor = async (cwd: string): Promise<AgentHost> => {
+  const modelApiHostFor = async (cwd: string) => {
     const identity = await captureWorkspaceIdentity(cwd)
     if (identity === undefined) {
       throw new Error(UI_TEXT.modelApiNeedsFolder)
@@ -749,6 +761,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     return manager.ensureHost()
   }
 
+  let isClosed = false
   return {
     readUsageBudgets: async () => {
       const budgets = await Promise.all(
@@ -774,6 +787,35 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       }
       throw new Error(UI_TEXT.execRequestShape)
     },
+    scheduleBilling: async (cwd, modelId, caller) => {
+      if (deps.exec !== undefined || deps.options.backend !== 'modelApi')
+        throw new Error(UI_TEXT.schedulePaidOff)
+      const host = await modelApiHostFor(cwd)
+      const entry = await import('./runtimeAccountingEntry.js')
+      const daily = entry.createRuntimeDailyBudget({
+        dataFolder: agentDataFolder(deps),
+        now: Date.now,
+        sleep: deps.sleep,
+      })
+      return {
+        modelId: () => modelId,
+        host: () => Promise.resolve(host),
+        generation: () => 0,
+        capUsd: daily.capUsd,
+        isActive: () => !isClosed,
+        isOn: (feature) => paid.isOn(feature),
+        ...(caller !== undefined && { caller: () => caller }),
+        reportConsent: (question) => {
+          process.stderr.write(`${question.title}\n${question.detail}\n`)
+          return Promise.resolve()
+        },
+        ask: (question) =>
+          caller?.sessionId === undefined
+            ? Promise.resolve('deny')
+            : paid.askScheduleUse(caller.sessionId, question.request),
+        reserve: daily.reserveSchedule,
+      }
+    },
     museCode,
     paid,
     forgetUnflaggedGrants: () =>
@@ -781,6 +823,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         ? paid.forgetUnflagged()
         : Promise.resolve(),
     close: async () => {
+      isClosed = true
       // A probe still waiting on its short-lived host ends with the agent.
       accountHosts.close()
       const managers = [

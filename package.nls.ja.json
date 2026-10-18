@@ -160,7 +160,7 @@
   "command.schedulePrompt.title": "Schedule this prompt…",
   "command.showSchedules.title": "Show schedules",
   "command.showScheduleTimeline.title": "Show schedule timeline",
-  "config.schedules.description": "Muse Code チャットの従来の /loop ショートカットを制御します。スケジュール管理と予定されたプロンプトの実行は利用できません。",
+  "config.schedules.description": "Muse Code チャットの /loop を制御します。定期プロンプトの配信には認証が必要です。",
   "config.schedules.defaultDelivery.description": "新しいスケジュールの下書きに記録する配信方法を選択します。予定された実行は有効になりません。",
   "config.schedules.agentCreation.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",
   "command.tabLanguages.title": "Tab の言語",
