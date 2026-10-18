@@ -18,6 +18,7 @@ import { VaultManagement } from '../../core/vault/broker/management'
 import {
   VaultStoreRepository,
   VaultSlotUnlock,
+  type VaultAnchorPort,
   type VaultSlotProvider,
 } from '../../core/vault/broker/repository'
 import type { VaultBrokerLocation } from '../../core/vault/broker/discovery'
@@ -93,6 +94,12 @@ export interface VaultBrokerBindings {
   readonly home: string
   readonly slots?: VaultSlotProvider
   readonly keyring?: KeyringEntryFactory
+  /**
+   * The rollback anchor the bindings chose: the OS store where its binding
+   * is installed, the owner-only file anchor where it is not. Absent for
+   * foreign constructors, which keep the keyring anchor below.
+   */
+  readonly anchor?: VaultAnchorPort
   readonly peers?: VaultPeerVerifier
   readonly privateFiles?: VaultPrivateFilesPort
   readonly idleMs?: number
@@ -161,7 +168,7 @@ export async function buildBrokerChannel(
     readonly listener: VaultSecuredListenerPort
   },
 ) {
-  const anchor = new KeyringVaultAnchor(parts.keyring)
+  const anchor = bindings.anchor ?? new KeyringVaultAnchor(parts.keyring)
   const repository = new VaultStoreRepository(parts.files, anchor)
   // Presence proofs resolve this vault's own presence-tier records: the
   // supplier is bound after unlock exists, and fails closed before that.

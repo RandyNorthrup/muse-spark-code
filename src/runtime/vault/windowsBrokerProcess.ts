@@ -111,7 +111,11 @@ async function clearStaleWindowsBroker(
  */
 export async function startWindowsVaultBrokerProcess(
   options: WindowsVaultBrokerProcessOptions,
-): Promise<{ close(): Promise<void>; closed: Promise<void> }> {
+): Promise<{
+  readonly location: VaultBrokerLocation
+  close(): Promise<void>
+  closed: Promise<void>
+}> {
   if (process.platform !== 'win32') throw new Error(UI_TEXT.vault.noAccess)
   if (!path.isAbsolute(options.runDirectory) || !path.isAbsolute(options.dataDir))
     throw new Error(UI_TEXT.vault.noAccess)
@@ -222,7 +226,9 @@ export async function startWindowsVaultBrokerProcess(
         settlement.resolve()
       }
     }
-    return { close, closed }
+    // The claim publishes the pipe name where POSIX publishes the socket
+    // path: clients read the broker record either way.
+    return { location: claim.location, close, closed }
   } catch (error: unknown) {
     try {
       await serve.stop()
