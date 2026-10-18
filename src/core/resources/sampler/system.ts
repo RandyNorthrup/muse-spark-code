@@ -59,7 +59,7 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
     }
   }
 
-  async function executable(name: 'nvidia-smi' | 'powershell'): Promise<string | null> {
+  async function executable(name: 'nvidia-smi' | 'powershell' | 'ioreg'): Promise<string | null> {
     const candidates: string[] = []
     if (platform === 'win32') {
       if (systemRoot !== undefined && paths.isAbsolute(systemRoot))
@@ -76,6 +76,7 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
         candidates.push(paths.join(programFiles, 'NVIDIA Corporation', 'NVSMI', 'nvidia-smi.exe'))
     } else if (name === 'nvidia-smi' && platform === 'linux')
       candidates.push('/usr/bin/nvidia-smi', '/usr/local/bin/nvidia-smi')
+    else if (name === 'ioreg' && platform === 'darwin') candidates.push('/usr/sbin/ioreg')
     for (const candidate of candidates) {
       try {
         await access(candidate)

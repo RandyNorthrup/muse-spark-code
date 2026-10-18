@@ -11,6 +11,8 @@ import type { BrowserRuntimeMode } from './browserCheckConstants'
 export const RESOURCE_SAMPLE_MS = 5000
 // libuv 1.52 adds inactive/purgeable pages to Darwin's available-memory reading.
 export const RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR = 52
+// IOKit's storage busy counters tick in nanoseconds; samples tick in milliseconds.
+export const RESOURCE_NS_PER_MS = 1_000_000
 // D87.14: free-space policy and owned-tree retention.
 export const RESOURCE_DISK_SAMPLE_MS = 30_000
 export const RESOURCE_DISK_FAST_SAMPLE_MS = 5000

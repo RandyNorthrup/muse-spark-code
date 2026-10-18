@@ -2,6 +2,7 @@ import * as z from 'zod/mini'
 import path from 'node:path'
 import type { SamplerFileReader } from './linuxMemory'
 import type { ResourceOptionalProbes } from './machineSampler'
+import { DarwinDiskDelta } from './darwinDisk'
 import { LinuxDiskDelta } from './linuxDisk'
 import { percentReading } from './readings'
 
@@ -10,7 +11,7 @@ export interface ResourceProbePort {
   monotonicMs(): number
   readonly read: SamplerFileReader
   list(directory: string): Promise<readonly string[] | null>
-  executable(name: 'nvidia-smi' | 'powershell'): Promise<string | null>
+  executable(name: 'nvidia-smi' | 'powershell' | 'ioreg'): Promise<string | null>
   run(executable: string, args: readonly string[]): Promise<string | null>
 }
 
@@ -33,7 +34,7 @@ export function createOptionalResourceProbes(port: ResourceProbePort): ResourceO
   const paths = port.platform === 'win32' ? path.win32 : path.posix
 
   async function run(
-    name: 'nvidia-smi' | 'powershell',
+    name: 'nvidia-smi' | 'powershell' | 'ioreg',
     args: readonly string[],
   ): Promise<string | null> {
     const executable = await port.executable(name)
@@ -62,9 +63,24 @@ export function createOptionalResourceProbes(port: ResourceProbePort): ResourceO
     }
   }
 
+  async function darwinGpu(): Promise<number | null> {
+    // The drivers' own instantaneous utilization, unprivileged: Intel, AMD
+    // and Apple-silicon parts all publish Device Utilization % in the
+    // accelerator's PerformanceStatistics.
+    const text = await run('ioreg', ['-r', '-c', 'IOAccelerator', '-d', '1'])
+    if (text === null) return null
+    const values: number[] = []
+    for (const match of text.matchAll(/"Device Utilization %"=(\d+(?:\.\d+)?)/g)) {
+      const raw = match[1]
+      const value = raw === undefined ? null : percentReading(Number(raw))
+      if (value === null) return null
+      values.push(value)
+    }
+    return values.length > 0 ? Math.max(...values) : null
+  }
+
   async function gpu(): Promise<number | null> {
-    // The unprivileged Darwin tools provide no qualified utilization reading.
-    if (port.platform === 'darwin') return null
+    if (port.platform === 'darwin') return await darwinGpu()
     const values: number[] = []
     if (port.platform === 'linux') {
       const cards = await port.list('/sys/class/drm')
@@ -98,6 +114,15 @@ export function createOptionalResourceProbes(port: ResourceProbePort): ResourceO
       : null
   }
 
+  const darwinDisk = new DarwinDiskDelta()
+
+  async function darwinDiskRead(): Promise<number | null> {
+    // IOKit's cumulative Total Time counters are the duty-cycle source Darwin
+    // iostat lacks: busy nanoseconds differenced over wall time, like Linux.
+    const text = await run('ioreg', ['-r', '-c', 'IOBlockStorageDriver', '-d', '1'])
+    return darwinDisk.read(text, port.monotonicMs())
+  }
+
   async function readDisk(): Promise<number | null> {
     if (port.platform === 'linux') {
       const [text, devices] = await Promise.all([
@@ -107,16 +132,19 @@ export function createOptionalResourceProbes(port: ResourceProbePort): ResourceO
       return disk.read(text, devices, port.monotonicMs())
     }
     if (port.platform === 'win32') return await windows(WINDOWS_DISK_SCRIPT, true)
-    // Darwin iostat exposes throughput, not busy time. Without a qualified
-    // duty-cycle counter, a fabricated percentage could clear a pause.
-    return null
+    return port.platform === 'darwin' ? await darwinDiskRead() : null
   }
 
   return {
     gpu,
     disk: readDisk,
     reset: (kind) => {
-      if (kind === 'disk') disk.reset()
+      if (kind !== 'disk') {
+        return
+      }
+
+      disk.reset()
+      darwinDisk.reset()
     },
   }
 }

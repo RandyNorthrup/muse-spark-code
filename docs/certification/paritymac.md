@@ -35,7 +35,25 @@ PerformanceStatistics "Device Utilization %"`, disk busy `%` from the
   here) and must run green outside the sandbox / on hosted macOS CI.
   Everything else below ran for real on this Mac.
 
-## Item 3 — macOS GPU and disk probes (TODO)
+## Item 3 — macOS GPU and disk probes (DONE on this Mac)
+
+- GPU: `ioreg -r -c IOAccelerator -d 1`, max of every
+  `"Device Utilization %"` (Intel, AMD and Apple-silicon parts publish it;
+  verified Intel + AMD here, Apple-silicon per the same IOKit key the
+  platform's own monitors read). Live on this Mac: `gpu: 0` (idle).
+- Disk: `ioreg -r -c IOBlockStorageDriver -d 1`, busiest driver's
+  `Total Time (Read) + Total Time (Write)` (ns) differenced over wall time,
+  capped at 100 — the duty-cycle counter Darwin iostat lacks. Two real
+  snapshots ~5 s apart: 65.7 % busy on this rig (pinned in test).
+- Headroom: no code change — `process.availableMemory()` already flows on
+  this Mac (libuv 1.52.1 ≥ D87 gate 52): live `availableMemory 16718110720`
+  vs `freemem 4459528192`. Sampler test pins the contract (new runtime →
+  number, stale runtime → unknown).
+- Tests: `test/unit/resourceProbesDarwin.test.ts` 7/7 (recorded-exchange
+  fixtures under `test/fixtures/resources/`, plus live darwin readings);
+  `test/unit/resourcesContracts.test.ts` 16/16. Fixture captures:
+  `ioreg -r -c IOAccelerator -d 1` and `ioreg -r -c IOBlockStorageDriver -d 1`
+  (twice), MacBookPro15,1, 2026-10-17.
 
 ## Item 2 — OpenCode plugins on macOS (TODO)
 

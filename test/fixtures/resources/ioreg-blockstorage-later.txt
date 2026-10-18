@@ -1,0 +1,16 @@
++-o IOBlockStorageDriver  <class IOBlockStorageDriver, id 0x100000461, registered, matched, active, busy 0 (273 ms), retain 8>
+    {
+      "IOPropertyMatch" = {"device-type"="Generic"}
+      "CFBundleIdentifier" = "com.apple.iokit.IOStorageFamily"
+      "IOProviderClass" = "IOBlockStorageDevice"
+      "IOClass" = "IOBlockStorageDriver"
+      "IOProbeScore" = 0
+      "CFBundleIdentifierKernel" = "com.apple.iokit.IOStorageFamily"
+      "IOMatchedAtBoot" = Yes
+      "Statistics" = {"Operations (Write)"=236589465,"Latency Time (Write)"=0,"Bytes (Read)"=1693685080064,"Errors (Write)"=0,"Total Time (Read)"=76977184041128,"Latency Time (Read)"=0,"Retries (Read)"=0,"Errors (Read)"=0,"Total Time (Write)"=52016953430757,"Bytes (Write)"=2580225986560,"Operations (Read)"=181520962,"Retries (Write)"=0}
+      "IOMatchCategory" = "IODefaultMatchCategory"
+      "IOPowerManagement" = {"CapabilityFlags"=0,"CurrentPowerState"=0}
+      "IOGeneralInterest" = "IOCommand is not serializable"
+    }
+    
+
