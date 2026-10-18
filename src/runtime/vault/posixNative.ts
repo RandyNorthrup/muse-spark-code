@@ -151,6 +151,7 @@ export async function holdVaultStartupLock(
             lockSchema.parse(JSON.parse(buffer.toString('utf8')))
             resolve()
           } catch {
+            // A malformed lock answer never resolves the hold; the fixed refusal rejects it.
             reject(new Error(UI_TEXT.vault.noAccess))
           }
         }
