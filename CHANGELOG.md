@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- The production media entry is back in the bundle-split gate's file closure
+  and entry map, so the gate again proves it stays out of the startup bundle.
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights
