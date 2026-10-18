@@ -19,6 +19,11 @@
 #   lifts the restriction for the rest of the job.
 #
 # No model is called and no secret is used: every page is a local fixture.
+# Capacity (D122, CISHARDS2): each capture uploads only its own result
+# files, so the run splits by operating system — a routed same-repository
+# pull request run keeps the Ubuntu capture here and runs the Windows and
+# macOS captures in the capacity repository's `ci/pr-<number>` push run. Any
+# other event runs all three here, as now.
 name: Browser check
 
 on:
@@ -33,6 +38,10 @@ on:
       - 'test/unit/helpers/browserProcesses.ts'
       - 'test/fixtures/browser-check.html'
       - '.github/workflows/browser-check.yml'
+  # Only the capacity repository ever sees this branch (build.yml's `org`
+  # job pushes it there); nothing pushes it here.
+  push:
+    branches: [ci/pr-*]
   workflow_dispatch:
 
 permissions:
@@ -43,14 +52,67 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Where this run's captures belong (D122, CISHARDS2): the same split as
+  # hosts.yml's `route`. A push outside `ci/pr-*` is `all`, not an error.
+  route:
+    name: route
+    if: ${{ github.event_name != 'push' || github.repository == 'scnetsolutions/muse-spark-code-ci' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      part: ${{ steps.pick.outputs.part }}
+    steps:
+      - id: pick
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          ORG_CI: ${{ vars.ORG_CI }}
+          # GitHub passes no Actions secret to a fork's or Dependabot's run,
+          # so this is false there whatever ORG_CI says.
+          HAS_KEY: ${{ secrets.ORG_CI_APP_PRIVATE_KEY != '' }}
+          REF: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            if [[ "$REF" =~ ^ci/pr-[0-9]+$ ]]; then
+              part=org
+              why="the merge commit of pull request #${REF#ci/pr-}"
+            else
+              part=all
+              why="a push outside ci/pr-<number> keeps every job here"
+            fi
+          elif [ "$EVENT" != pull_request ]; then
+            part=all
+            why="a $EVENT run keeps every job here"
+          elif [ "$ORG_CI" != on ]; then
+            part=all
+            why="ORG_CI is not on"
+          elif [ "$SAME_REPO" != true ] || [ "$HAS_KEY" != true ]; then
+            part=all
+            why="no capacity app key reaches this run: a fork, Dependabot, or ORG_CI_APP_PRIVATE_KEY unset"
+          else
+            part=home
+            why="the Windows and macOS captures run in scnetsolutions/muse-spark-code-ci"
+          fi
+          echo "part=$part" >> "$GITHUB_OUTPUT"
+          echo "This run's part: $part ($why)"
+
   captures:
     name: captures (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    needs: route
+    # Larger runner (CISHARDS2): the Windows capture measured 3.1 min, over
+    # the 2.9 min longest shard; the macOS capture (2.4 min) stays standard.
+    # The larger label applies only in the capacity run while its
+    # `LARGE_RUNNERS` variable is `on`.
+    runs-on: ${{ needs.route.outputs.part == 'org' && vars.LARGE_RUNNERS == 'on' && matrix.os == 'windows-latest' && 'msc-windows-8core' || matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # A `home` run keeps only the Ubuntu capture here; the capacity run
+        # (`org`) takes Windows and macOS. When `route` itself is skipped,
+        # `part` is empty and every capture runs here.
+        os: ${{ fromJSON(needs.route.outputs.part == 'home' && '["ubuntu-latest"]' || needs.route.outputs.part == 'org' && '["windows-latest","macos-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
     steps:
       - name: the runtime's storage folder
         shell: bash
