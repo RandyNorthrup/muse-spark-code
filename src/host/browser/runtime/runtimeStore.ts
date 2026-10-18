@@ -173,12 +173,14 @@ function isSystemError(error: unknown): error is Record<string, unknown> {
 
 /** A system error with the named code (an absent entry is ENOENT). */
 function isCode(error: unknown, code: string): boolean {
-  return isSystemError(error) && error.code === code
+  return isSystemError(error) && error['code'] === code
 }
 
 /** A rename collision (another window published first) or a refusal. */
 function isExistsCode(error: unknown): boolean {
-  return isSystemError(error) && typeof error.code === 'string' && EXISTS_CODES.has(error.code)
+  return (
+    isSystemError(error) && typeof error['code'] === 'string' && EXISTS_CODES.has(error['code'])
+  )
 }
 
 async function sha256File(file: string, signal: AbortSignal): Promise<string> {
