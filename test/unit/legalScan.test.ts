@@ -363,6 +363,8 @@ describe('scanLegal', () => {
       expect(new Set(readPaths()).size).toBeLessThanOrEqual(Object.keys(files).length)
       expect(result.incompleteChecks.join(' ')).not.toContain('more not read')
     },
+    // Same twenty-thousand-file genuinely-long scan as the cap case above.
+    LEGAL_CAP_SCAN_TIMEOUT_MS,
   )
 
   it('rejects an unknown header policy instead of guessing', async () => {
