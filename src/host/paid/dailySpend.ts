@@ -10,7 +10,7 @@ import path from 'node:path'
 import * as z from 'zod/mini'
 import { SpendLedgerError } from '../../core/paid/spendLedgerError'
 import { DAILY_SPEND_FOLDER } from '../../shared/constants'
-import { Usd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
+import { Usd, legacyUsdSchema, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 import { storeErrorCode } from '../backend/storeErrors'
 import { writeFileAtomically } from '../fsAtomic'
 
@@ -20,6 +20,27 @@ const SCOPE = /^[A-Za-z0-9-]+$/u
 const totalSchema = z.strictObject({
   spentUsd: nonnegativeUsdSchema,
   unknownChargeCalls: z.number().check(z.int(), z.nonnegative()),
+})
+// The pre-D121 daily journal (removed by the spend-simple lane): settled
+// charges lived in `budget-journal/<account>/<day>/seed.json` plus
+// `claims/<id>/claim.json`, under the one fixed daily account. A total
+// settled there on the upgrade day is still today's spend.
+const LEGACY_JOURNAL_DIRECTORY = 'budget-journal'
+const LEGACY_CLAIMS_DIRECTORY = 'claims'
+const LEGACY_SEED_FILE = 'seed.json'
+const LEGACY_CLAIM_FILE = 'claim.json'
+const LEGACY_DAILY_ACCOUNT = '0000000000000000000000000000000000000000000000000000000000000000'
+const legacyVersionSchema = z.union([z.literal(1), z.literal(2)])
+const legacySeedSchema = z.object({
+  version: legacyVersionSchema,
+  sessionId: z.string(),
+  accountId: z.string(),
+  spentUsd: legacyUsdSchema,
+})
+const legacyClaimSchema = z.object({
+  version: legacyVersionSchema,
+  reservedUsd: legacyUsdSchema,
+  settledUsd: z.optional(legacyUsdSchema),
 })
 
 /** What a scope's calls spent, from the usage each reported. */
@@ -57,6 +78,72 @@ export function createDailySpend(deps: {
       throw new SpendLedgerError('damaged', { scope, file: path.basename(file) }, error)
     }
   }
+  /**
+   * What the pre-D121 journal settled for this scope, or nothing when it
+   * never did. Read-only: the legacy files stay where they are, so the
+   * first request after upgrading still sees today's spend instead of
+   * another full allowance. A legacy record that does not read refuses,
+   * like a damaged new one; only settled dollars carry over.
+   */
+  const readLegacy = (scope: string): DailySpendTotal => {
+    const directory = path.join(
+      deps.directory,
+      LEGACY_JOURNAL_DIRECTORY,
+      LEGACY_DAILY_ACCOUNT,
+      scope,
+    )
+    const damaged = (file: string, error: unknown): never => {
+      throw new SpendLedgerError('damaged', { scope, file, errno: storeErrorCode(error) }, error)
+    }
+    let text: string
+    try {
+      text = readFileSync(path.join(directory, LEGACY_SEED_FILE), 'utf8')
+    } catch (error: unknown) {
+      if (storeErrorCode(error) === 'ENOENT') return NOTHING
+      throw new SpendLedgerError(
+        'unreadable',
+        { scope, file: LEGACY_JOURNAL_DIRECTORY, errno: storeErrorCode(error) },
+        error,
+      )
+    }
+    let seed: z.infer<typeof legacySeedSchema>
+    try {
+      seed = legacySeedSchema.parse(JSON.parse(text))
+    } catch (error: unknown) {
+      damaged(LEGACY_SEED_FILE, error)
+    }
+    if (seed.sessionId !== scope || seed.accountId !== LEGACY_DAILY_ACCOUNT)
+      damaged(LEGACY_SEED_FILE, undefined)
+    let spent = Usd.from(0)
+    try {
+      spent = spent.add(Usd.from(seed.spentUsd))
+    } catch (error: unknown) {
+      damaged(LEGACY_SEED_FILE, error)
+    }
+    let names: string[]
+    try {
+      names = readdirSync(path.join(directory, LEGACY_CLAIMS_DIRECTORY))
+    } catch (error: unknown) {
+      damaged(LEGACY_CLAIMS_DIRECTORY, error)
+    }
+    for (const name of names) {
+      const file = path.join(LEGACY_CLAIMS_DIRECTORY, name, LEGACY_CLAIM_FILE)
+      let claim: z.infer<typeof legacyClaimSchema>
+      try {
+        claim = legacyClaimSchema.parse(
+          JSON.parse(readFileSync(path.join(directory, file), 'utf8')),
+        )
+      } catch (error: unknown) {
+        damaged(file, error)
+      }
+      try {
+        spent = spent.add(Usd.from(claim.settledUsd ?? claim.reservedUsd))
+      } catch (error: unknown) {
+        damaged(file, error)
+      }
+    }
+    return { spentUsd: spent.toAmount(), unknownChargeCalls: 0 }
+  }
   /** The scope's total across every process; this process's own figure comes from memory. */
   const read = (scope: string): DailySpendTotal => {
     const directory = folder(scope)
@@ -77,6 +164,8 @@ export function createDailySpend(deps: {
       spent = spent.add(Usd.from(other.spentUsd))
       unknownChargeCalls += other.unknownChargeCalls
     }
+    const legacy = readLegacy(scope)
+    spent = spent.add(Usd.from(legacy.spentUsd))
     return { spentUsd: spent.toAmount(), unknownChargeCalls }
   }
   /**
