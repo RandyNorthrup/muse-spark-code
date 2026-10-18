@@ -980,3 +980,14 @@ re-uploaded under their existing names, and `packages` consuming them
 unchanged. No local simulation counts as proof: this rig has no credential
 for the capacity repository, so the download transport itself is proved
 only by that hosted relay step going green.
+
+### Review fixes (PR218FIX3, 2026-10-18, this rig)
+
+One Codex P1 thread on PR #218 (branch `ci/more-shards2`), first result:
+
+- browser-check.yml:49 (capacity trigger on incremental, not cumulative,
+  paths; forks.yml/hosts.yml same): ACCEPTED — every `ci/pr-*` push will
+  start the workflow unfiltered and an in-workflow `touches` gate will
+  re-apply the path list to the cumulative merge diff, with each `relay`
+  failing closed when no capacity run appears. Local proof and the hosted
+  run it needs are recorded below on completion; no local simulation counts.
