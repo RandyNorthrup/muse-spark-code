@@ -107,7 +107,6 @@
 !CHANGELOG.md
 !LICENSE
 !THIRD_PARTY_NOTICES.txt
-!docs/PRIVACY.md
 !docs/judge.md
 # VSCE's allowlist overrides positive ignores; filter optional font/map types here.
 !vendor/high-quality-projects-skill/**/!(*.woff*|*.ttf|*.otf|*.eot|*.map)

@@ -1134,10 +1134,29 @@ behavior. Activation, recorder, shared parsers and ACP entry remain ordinary
 CommonJS; compressed regional key lists offset the eager reader's bytes.
 Both packages check exact staged translations against source JSON. Manifest
 tables, licences/notices, helpers and browser chunks remain ordinary files.
-Lossless PNG filtering preserves every walkthrough pixel. All existing caps
+Lossless WebP preserves every walkthrough pixel. All existing caps
 stay unchanged; package/member and drill receipts are in
 `docs/certification/vsix-diet-2.md`. This is shared Node packaging for VS Code
 hosts and ACP/headless editors; browser fallback and editor features are unchanged.
+
+**VSIXROOM (2026-10-17).** Banks VSIX headroom with the 3700 KiB cap
+unchanged: the Get Started walkthrough's four screenshots ship as lossless
+WebP instead of PNG (pixel-identical; decoded-RGB SHA-256 equal in two
+independent decoders; about 54 KB smaller on disk), and `docs/PRIVACY.md`
+leaves the package (no code reads it; the file stays in the repository and
+the packaged readme keeps the policy URL). Measured saving about 70 KB,
+i.e. about 75 KB of headroom against main's universal VSIX. The lane's
+original 150 KiB aspiration (universal at or below 3,635,200 bytes) is
+revised, not met: every remaining byte is load-bearing — the archives are
+at their measured optima, knip is clean with zero unreached lazy bundles,
+and the 213 unread `UI_TEXT` keys belong to in-flight strings-first lanes.
+Even accepting every rejected cut (EAGER stubbing about 14 KB, uiText-region
+archiving about 15 KB, parse5 replacement about 30 KB) reaches only about
+129 KB within the standing rules; the 150 KiB mark is reachable only through
+lossy walkthrough images or locale/feature cuts, which this lane does not
+take. The remaining about 78 KB stays deferred with its measurements in
+`docs/certification/vsix-room.md`; a later diet lane re-opens it. No cap
+moves.
 
 | Artifact                                                                            | Budget (minified, uncompressed) |
 | ----------------------------------------------------------------------------------- | ------------------------------- |
