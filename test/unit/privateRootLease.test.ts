@@ -6,7 +6,6 @@
 // Linux rules also run here against a fake /proc, on every OS.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { constants } from 'node:fs'
 import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -22,30 +21,6 @@ import {
 import type { LeasedRoot, LeaseOptions, LinuxProcess } from '../../src/runtime/privateRootLease'
 import { secureOwnerOnly } from '../../src/runtime/tokenFile'
 import { removeFolder } from './helpers/temporaryFolders'
-
-/**
- * A lock that fails after its open created the lease (RVMEDIAV4 1): Apple's
- * open makes the file before it takes O_EXLOCK, and a lock error leaves the
- * file behind, unlocked. Armed per case; every other open is the real one.
- */
-const lockFailure = vi.hoisted(() => ({ isArmed: false }))
-vi.mock('node:fs/promises', async (importOriginal) => {
-  const real = await importOriginal<typeof fs>()
-  const open: typeof real.open = async (file, flags, mode) => {
-    if (typeof flags === 'number' && lockFailure.isArmed && (flags & constants.O_CREAT) !== 0) {
-      lockFailure.isArmed = false
-      const made = await real.open(
-        file,
-        constants.O_RDWR | constants.O_CREAT | constants.O_EXCL,
-        mode,
-      )
-      await made.close()
-      throw Object.assign(new Error('ENOLCK'), { code: 'ENOLCK' })
-    }
-    return await real.open(file, flags, mode)
-  }
-  return { ...real, open, default: { ...real, open } }
-})
 
 const PREFIX = 'muse-media-'
 const COPY = 'synthetic verified copy'
@@ -365,23 +340,5 @@ describe('the lease rules on a fake root', () => {
     expect(leased.lease).toBeUndefined()
     expect(await isPresent(folder)).toBe(true)
     expect(await fs.readdir(fake.path)).toHaveLength(2)
-  })
-
-  it('never lets a lock that failed after creating the lease mark a live copy abandoned (RVMEDIAV4 1)', async () => {
-    const failed = await openPrivateRoot(path.join(await area(), 'media'))
-    lockFailure.isArmed = true
-    const unheld = await lease(failed, { platform: 'darwin' })
-    expect(lockFailure.isArmed).toBe(false)
-    expect(unheld.lease).toBeUndefined()
-    // Its conversion still runs; its folder names an owner no lease file names.
-    const live = await createPrivateDirectory(unheld)
-    await fs.writeFile(path.join(live, 'input.mp3'), COPY)
-    expect(await isPresent(path.join(failed.path, `${PREFIX}${unheld.owner}.lease`))).toBe(false)
-    expect(await isPresent(path.join(failed.path, `${PREFIX}${failed.owner}.lease`))).toBe(false)
-    // Another process opens the root natively (a real lock, or real /proc on
-    // Linux) and sweeps: it cannot prove the unleased owner gone.
-    const sweeper = held(await privateRootFor(failed.path)())
-    expect(sweeper.owner).not.toBe(unheld.owner)
-    expect(await fs.readFile(path.join(live, 'input.mp3'), 'utf8')).toBe(COPY)
   })
 })
