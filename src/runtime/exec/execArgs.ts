@@ -57,6 +57,8 @@ export interface ExecOptions {
   readonly provider: string | undefined
   readonly model: string | undefined
   readonly effort: EffortLevel | undefined
+  /** The plan route's Fast tier while on; off by default, refused where unoffered. */
+  readonly fast: boolean
   readonly allowsContributorModels: boolean
   readonly output: ExecOutput
   readonly outputSchema?: string
@@ -85,6 +87,7 @@ export interface ExecOptions {
 
 const BOOLEAN_OPTIONS = new Set([
   'allow-contributor-models',
+  'fast',
   'image-generation',
   'no-auto-compaction',
   'fail-on-denial',
@@ -332,6 +335,7 @@ export function parseExec(
       provider,
       model,
       effort,
+      fast: values['fast'] === true,
       allowsContributorModels: values['allow-contributor-models'] === true,
       output,
       ...(outputSchema !== undefined && { outputSchema }),

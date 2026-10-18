@@ -1227,7 +1227,17 @@ export class ConversationController {
    */
   private readonly importedSessionIds = new Set<string>()
   private effort: EffortLevel = DEFAULT_EFFORT
+  /** The person moved the effort slider: a level they chose is kept, never replaced by a default. */
+  private isEffortChosen = false
   private isThinkingEnabled = true
+  /** The conversation's Fast switch; off by default, reset on model change. */
+  private fast = false
+  /**
+   * The person chose Fast with no session: the next attach applies it to
+   * the new session. A choice made with a live session rides that session,
+   * never this flag, so a value left by an earlier conversation is not applied.
+   */
+  private isFastChosen = false
   private activeTurnId: string | undefined
   /**
    * Child sessions this surface has rows for. Their turns reach the parent
@@ -1891,6 +1901,7 @@ export class ConversationController {
       type: 'composerState',
       effort: this.effort,
       isThinkingEnabled: this.isThinkingEnabled,
+      isFastEnabled: this.fast,
       permissionMode: this.permissionMode,
     })
   }
@@ -3756,6 +3767,15 @@ export class ConversationController {
       modelId: model.modelId,
       displayLabel: model.displayLabel,
       ...(model.contextLimit !== undefined && { contextLimit: model.contextLimit }),
+      ...(model.effortLevels !== undefined && { effortLevels: [...model.effortLevels] }),
+      ...(model.defaultEffort !== undefined && { defaultEffort: model.defaultEffort }),
+      ...(model.fastTier !== undefined && {
+        fastTier: {
+          id: model.fastTier.id,
+          name: model.fastTier.name,
+          description: model.fastTier.description,
+        },
+      }),
       isDefault: model.isDefault,
       ...(model.providerId !== undefined && { providerId: model.providerId }),
       ...(model.providerLabel !== undefined && { providerLabel: model.providerLabel }),
@@ -3771,6 +3791,9 @@ export class ConversationController {
       ...(model.trainsOnContent === true && { trainsOnContent: model.trainsOnContent }),
     }))
     this.post({ type: 'modelList', models: [...this.models] })
+    // Before any session exists the composer already shows the level the
+    // first turn will run at; a live session keeps the level it was given.
+    if (this.session === undefined) this.startOnCatalogueEffort(this.modelId)
   }
 
   /**
@@ -3984,10 +4007,18 @@ export class ConversationController {
     this.postSessionInfo(this.modelId)
     this.noteActivity()
     this.git.sessionChanged(session.sessionId)
+    this.startOnCatalogueEffort(this.modelId)
     await this.applyEffort(session, {
       effort: this.effort,
       isThinkingEnabled: this.isThinkingEnabled,
     })
+    // Fast starts off on every session this surface takes, new or resumed,
+    // unless the person chose it before any session existed: that pre-session
+    // choice applies to the first session, while a flag left by an earlier
+    // conversation or another surface is not applied.
+    const shouldApplyFast = this.isFastChosen && this.fast
+    this.isFastChosen = false
+    await this.updateFast(shouldApplyFast)
     if (this.session !== session || this.attachmentGeneration !== generation || this.isDisposed) {
       return
     }
@@ -8353,11 +8384,61 @@ export class ConversationController {
     }
     this.postSessionInfo(modelId)
     // A tier the new model does not serve would fail its turns with a 400
-    // (muse-spark-1.2 has no `max`); drop to the highest tier it does serve.
-    const levels = effortLevelsFor(modelId)
-    if (!levels.includes(this.effort)) {
-      await this.updateEffort(levels.at(-1) ?? DEFAULT_EFFORT, this.isThinkingEnabled)
+    // (muse-spark-1.2 has no `max`); drop to the model's own default where
+    // the backend knows it, else the highest tier it does serve.
+    const levels = this.modelEffortLevels(modelId)
+    const startEffort = this.unchosenEffort(modelId)
+    if (startEffort !== undefined && startEffort !== this.effort) {
+      await this.updateEffort(startEffort, this.isThinkingEnabled)
+    } else if (!levels.includes(this.effort)) {
+      await this.updateEffort(this.modelDefaultEffort(modelId, levels), this.isThinkingEnabled)
     }
+    // Fast never survives a model change: it is off by default, and the
+    // new model may list no priority tier at all. Off is sent even when the
+    // panel already shows it off, so the session never keeps an old tier.
+    await this.updateFast(false)
+  }
+
+  /** The tiers a model serves: its own list where the backend knows it. */
+  private modelEffortLevels(modelId: string): readonly EffortLevel[] {
+    return effortLevelsFor(
+      modelId,
+      this.models?.find((model) => model.modelId === modelId)?.effortLevels,
+    )
+  }
+
+  /**
+   * A level nobody chose starts on the catalogue's own default for the model
+   * (a plan model lists one), not on the standing default; the composer shows
+   * it before the session applies it. Nothing changes once the person chose.
+   */
+  private startOnCatalogueEffort(modelId: string): void {
+    const startEffort = this.unchosenEffort(modelId)
+    if (startEffort === undefined || startEffort === this.effort) return
+    this.effort = startEffort
+    this.postComposerState()
+  }
+
+  /**
+   * The catalogue's default for a model the person has not chosen a level
+   * for, where the model lists one and serves it; undefined otherwise (a
+   * chosen level, or a model with no default of its own, keeps today's rule).
+   */
+  private unchosenEffort(modelId: string): EffortLevel | undefined {
+    if (this.isEffortChosen) return undefined
+    const fallback = this.models?.find((model) => model.modelId === modelId)?.defaultEffort
+    return fallback !== undefined && this.modelEffortLevels(modelId).includes(fallback)
+      ? fallback
+      : undefined
+  }
+
+  /** The level a switched model selects: its own default where known. */
+  private modelDefaultEffort(modelId: string, levels: readonly EffortLevel[]): EffortLevel {
+    const fallback = this.models?.find((model) => model.modelId === modelId)?.defaultEffort
+    return (
+      (fallback !== undefined && levels.includes(fallback) ? fallback : levels.at(-1)) ??
+      DEFAULT_EFFORT
+    )
   }
 
   private async updateEffort(effort: EffortLevel, isThinkingEnabled: boolean): Promise<void> {
@@ -8371,12 +8452,36 @@ export class ConversationController {
     if (
       kept !== undefined &&
       this.session === session &&
-      effortLevelsFor(this.modelId).includes(kept.effort)
+      this.modelEffortLevels(this.modelId).includes(kept.effort)
     ) {
       this.effort = kept.effort
       this.isThinkingEnabled = kept.isThinkingEnabled
     }
     this.postComposerState()
+  }
+
+  /**
+   * The conversation's Fast switch: on only where the model lists a priority
+   * tier. Off is always sent to the session, whatever the model lists, so the
+   * backend never keeps a tier the panel shows as off.
+   */
+  private async updateFast(isEnabled: boolean): Promise<void> {
+    const tier = this.models?.find((model) => model.modelId === this.modelId)?.fastTier
+    const tierId = isEnabled ? tier?.id : undefined
+    const wasFast = this.fast
+    this.fast = tierId !== undefined
+    const { session } = this
+    if (session?.setServiceTier !== undefined) {
+      try {
+        await session.setServiceTier(tierId)
+      } catch (error: unknown) {
+        this.fast = false
+        this.say('warning', `${UI_TEXT.effortNotApplied}: ${describe(error)}`)
+      }
+    }
+    // The panel is told only what changed: a session set to off again, with
+    // the switch already off, has nothing new to show.
+    if (this.fast !== wasFast) this.postComposerState()
   }
 
   /** Whether the user may enter Bypass now: the setting, and in a remote window one yes (D24). */
@@ -10308,11 +10413,19 @@ export class ConversationController {
         break
       }
       case 'setEffort': {
+        this.isEffortChosen = true
         await this.updateEffort(message.effort, this.isThinkingEnabled)
         break
       }
       case 'setThinking': {
         await this.updateEffort(this.effort, message.enabled)
+        break
+      }
+      case 'setFast': {
+        // With no session the choice waits for the first attach, which
+        // applies it; with a live session it rides that session directly.
+        if (this.session === undefined) this.isFastChosen = true
+        await this.updateFast(message.enabled)
         break
       }
       case 'setPermissionMode': {

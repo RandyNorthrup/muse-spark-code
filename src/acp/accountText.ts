@@ -34,7 +34,7 @@ export function isAccountSwitchRefusedError(error: unknown): error is AccountSwi
 /** A refused providers file, recognized across bundle boundaries by its
  * brand rather than its constructor (each bundle carries its own copy of
  * the store error, like the refused switch above). */
-export function isInvalidProvidersFileError(error: unknown): boolean {
+export function isInvalidProvidersFileError(error: unknown): error is Error {
   return (
     error instanceof Error &&
     error.name === 'AccountStoreError' &&

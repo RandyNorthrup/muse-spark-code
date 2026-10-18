@@ -127,7 +127,7 @@ export function cliCommands() {
     },
     {
       route: 'chatGptProvider',
-      name: 'providers add|remove|status chatgpt',
+      name: 'providers add|remove|status chatgpt [--new-account]',
       description: UI_TEXT.referenceProviders,
       text: { ui: 'referenceProviders' },
     },

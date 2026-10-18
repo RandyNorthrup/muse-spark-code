@@ -439,6 +439,7 @@ export const EN = {
     fleet: '--fleet current|minimum|optimum: Current / Minimum / Optimum',
     'estimate-format': '--format md|html|json|text: Output format',
     seed: '--seed <seed>: Simulation seed',
+    fast: '--fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance.',
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
@@ -1129,6 +1130,19 @@ export const EN = {
     aiContent:
       'AI content can be inaccurate. Copilot adds rules and uses AI credits. Unreported token usage is estimated.',
     reportContent: 'Report Harmful Content',
+    // {description}: the catalogue's own words for the priority tier.
+    fastDetail: '{description}. Off by default: it uses more of your plan allowance.',
+    // {message}: OpenAI's own error message for the failed plan request,
+    // or the HTTP status where it sent none.
+    requestFailed: 'The ChatGPT plan request failed: {message}',
+    // OpenAI's 403 subscription_sharing_user_not_eligible: retrying or signing in again cannot fix it.
+    notEligible:
+      'OpenAI does not allow ChatGPT plan use for this account, workspace or policy. Choose an API-key model.',
+    // OpenAI answered with no body at all.
+    noReply: 'OpenAI answered the ChatGPT plan request without a reply. Try again.',
+    // {reason}: this app's own word for what it could not build or read.
+    requestNotBuilt:
+      'This app could not prepare the ChatGPT plan request ({reason}). Nothing was sent.',
   },
   untitledConversation: 'Untitled',
   crashTitle: 'The Panel Hit an Error',
@@ -4273,6 +4287,7 @@ export const EN = {
   execTooManyChunks: 'The input exceeds the chunk limit.',
   execUnknownModel: 'This model is not available for this run.',
   execEffortUnavailable: 'This effort is not available for this model.',
+  execFastUnavailable: 'Fast is not available for this model.',
   execTimedOut: 'The run reached its deadline.',
   execBudgetRefused: 'The next request exceeds the remaining budget.',
   // EXECPROV round 5: a budget refusal names both remedies with numbers. The
@@ -5442,15 +5457,23 @@ export const EN = {
   acpProviderAdded: 'Added provider {id}.',
   acpProviderRemoved: 'Removed provider {id}.',
   acpChatGpt: {
-    usage: 'Usage: muse-spark-code-acp providers add|remove|status chatgpt',
+    usage: 'Usage: muse-spark-code-acp providers add|remove|status chatgpt [--new-account]',
     actions: {
       add: 'Continue With ChatGPT',
+      // A new registration for another ChatGPT account (`providers add chatgpt --new-account`).
+      'add-new-account': 'Use a Different ChatGPT Account',
       remove: 'Remove ChatGPT Sign-In',
       status: 'Check ChatGPT Sign-In',
     },
     notice:
       'ChatGPT Plus or Pro is required. Requests use your plan allowance; OpenAI may spend additional credits if you enabled them in ChatGPT. Continue in your browser to sign in.',
     alreadyAdded: 'ChatGPT is already added. Remove it before signing in again.',
+    // The browser signed in to another account than the saved registration's.
+    accountMismatch:
+      'This is not the ChatGPT account this app registered here. Sign in with that account, or choose “Use a Different ChatGPT Account”.',
+    // OpenAI answered invalid_client for the saved registration.
+    clientRefused:
+      'OpenAI no longer accepts this app’s saved ChatGPT registration. Remove ChatGPT if it is added, then choose “Use a Different ChatGPT Account”.',
     states: {
       'signed-in': 'ChatGPT is signed in.',
       expired:
@@ -5458,9 +5481,67 @@ export const EN = {
       'signed-out': 'ChatGPT is not signed in.',
     },
     callback: 'ChatGPT sign-in is complete. Return to your editor or terminal.',
-    failure: 'ChatGPT sign-in could not be completed. Try again or remove it and sign in again.',
+    // Each sign-in, refresh or catalogue failure says its own cause; none is general.
+    discoveryInvalid:
+      'OpenAI’s sign-in configuration at auth.openai.com was not in the documented form. Try again later.',
+    callbackInvalid: 'The browser’s answer did not match this ChatGPT sign-in. Try again.',
+    callbackTimeout:
+      'No answer from the browser reached this app in time, so the ChatGPT sign-in stopped. Try again.',
+    stateMismatch:
+      'The browser’s answer belonged to a different ChatGPT sign-in attempt. Try again.',
+    tokenAnswerInvalid:
+      'OpenAI’s token answer for this ChatGPT sign-in was not in the documented form. Try again.',
+    idTokenInvalid:
+      'OpenAI’s identity token for this ChatGPT sign-in could not be verified. Try again.',
+    missingPlanScope:
+      'This ChatGPT sign-in does not allow plan use: OpenAI did not grant chatgpt.tokens.use.direct. Remove ChatGPT, sign in again and allow plan use.',
+    originMismatch:
+      'This app refused to send the ChatGPT sign-in anywhere but https://api.openai.com.',
+    // {reason}: OpenAI's own refresh error code, such as invalid_grant.
+    signInRefused:
+      'OpenAI no longer accepts this ChatGPT sign-in ({reason}). Remove ChatGPT and sign in again.',
+    grantUnreadable:
+      'The ChatGPT sign-in stored on this computer could not be read. Remove ChatGPT and sign in again.',
+    registrationUnreadable:
+      'This app’s saved ChatGPT registration could not be read. Choose “Use a Different ChatGPT Account” to register again.',
+    // {reason}: where the host identifier is kept (a credential-store entry or a file name).
+    hostIdUnreadable:
+      'The ChatGPT host identifier stored on this computer ({reason}) could not be read, so no ChatGPT sign-in can start. Delete it to start over.',
+    // {reason}: the HTTP status and OpenAI's own error code.
+    catalogueRefused: 'OpenAI refused the ChatGPT plan’s model list ({reason}).',
+    catalogueUnreadable:
+      'OpenAI’s model list for this ChatGPT plan was not in the documented form.',
+    catalogueEmpty: 'OpenAI lists no model this ChatGPT plan can use in this app.',
+    addedModelsUnlisted:
+      'None of the ChatGPT models added here is in the plan’s current model list. Remove ChatGPT and add it again to choose from the current list.',
+    // {model}: the model reference asked for, as written.
+    modelNotAdded:
+      '{model} is not among the plan models added here. Choose one from the plan’s list.',
+    // {reason}: the HTTP status, or Node's own network codes.
+    requestFailed: 'A request to OpenAI failed ({reason}). Try again.',
     storeUnavailable:
       'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
+    // {reason}: the operating system's own code for the failure.
+    lockUnavailable: 'The local sign-in lock could not be opened ({reason}). Try again.',
+    // {reason}: OpenAI's own error code for refusing the authorize request.
+    authorizeRefused:
+      'OpenAI refused the ChatGPT sign-in request ({reason}). Try again or remove it and sign in again.',
+    // Another window or process kept the sign-in lock past the wait.
+    lockBusy:
+      'Another window or process is signing in to ChatGPT or refreshing the sign-in. Wait for it to finish and try again.',
+    // The person or the editor ended the wait.
+    cancelled: 'The ChatGPT sign-in was cancelled before it finished.',
+    // Said when the editor or terminal could not show the sign-in address.
+    browserUnavailable:
+      'The sign-in address could not be opened in a browser. Open it yourself, or try again from a desktop session.',
+    // {reason}: the operating system's code, or this app's own word, for the local failure.
+    localFailed: 'A local step of the ChatGPT sign-in failed ({reason}). Try again.',
+    // {reason}: why the providers file could not be read: unparseable or invalid.
+    providersFileUnreadable:
+      'The providers file could not be read ({reason}). Fix or remove it, then try again.',
+    // {reason}: why the providers file could not be saved: invalid or io-error.
+    providersFileUnwritable:
+      'The providers file could not be saved ({reason}). Check that its folder is writable, then try again.',
   },
   execProviderNotCatalogue: 'This model is not in this build’s catalogue: {model}.',
   providerCliModelsRequired: 'Use --model <id> (repeat for more models). Available: {models}.',

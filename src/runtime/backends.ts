@@ -242,7 +242,8 @@ function modelApiManager(
         fetch: deps.fetch,
         catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
         configFile: providerConfigFile,
-        openBrowser: () => Promise.reject(new Error(UI_TEXT.acpChatGpt.failure)),
+        // A session never signs in: the terminal command does (`providers add chatgpt`).
+        openBrowser: () => Promise.reject(new Error(UI_TEXT.acpChatGpt.browserUnavailable)),
         callbackText: () => UI_TEXT.acpChatGpt.callback,
       })
     })())
@@ -665,25 +666,39 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       try {
         if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)
           return { state: 'ready' }
-        const configFile = path.join(
-          deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
-          PROVIDERS_CONFIG_DIR_NAME,
-          PROVIDERS_FILE_NAME,
-        )
-        if (existsSync(configFile)) {
-          const entry = await import('./chatGptProviderCommands')
-          const factory = entry.runtimeSubscriptionClient({
-            secrets: deps.secrets,
-            fetch: deps.fetch,
-            configFile,
-            catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
-            openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
-            callbackText: () => UI_TEXT.acpChatGpt.callback,
-          })
-          if ((await factory.accountId()) !== undefined) return { state: 'ready' }
-        }
       } catch {
         return { state: 'unavailable', message: UI_TEXT.acpChatGpt.storeUnavailable }
+      }
+      const configFile = path.join(
+        deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
+        PROVIDERS_CONFIG_DIR_NAME,
+        PROVIDERS_FILE_NAME,
+      )
+      if (existsSync(configFile)) {
+        const entry = await import('./chatGptProviderCommands')
+        const factory = entry.runtimeSubscriptionClient({
+          secrets: deps.secrets,
+          fetch: deps.fetch,
+          configFile,
+          catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+          openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
+          callbackText: () => UI_TEXT.acpChatGpt.callback,
+        })
+        try {
+          if ((await factory.accountId()) !== undefined) return { state: 'ready' }
+        } catch (error: unknown) {
+          // The providers file, a stored ChatGPT grant or the store: each in
+          // its own words, never all of them as the store. The file's refusal
+          // carries its own sentence (unparseable or invalid).
+          if (isInvalidProvidersFileError(error))
+            return { state: 'unavailable', message: error.message }
+          return {
+            state: 'unavailable',
+            message:
+              entry.chatGptFailureOf(error) ??
+              fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
+          }
+        }
       }
     }
     return key === undefined || key === ''

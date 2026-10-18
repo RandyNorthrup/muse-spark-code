@@ -295,9 +295,53 @@ export const PROVIDER_HARNESS_MIN_CONTEXT_TOKENS = 32_000
 export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
 export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
-/** ACP grant mutations serialize by exclusively listening on this loopback port. */
-export const CHATGPT_REFRESH_LOCK_PORT = 49_953
+/**
+ * ACP grant mutations serialize by an exclusive local listener, never a TCP
+ * port: a named pipe on Windows, a Unix domain socket on macOS and Linux.
+ * The name is scoped to the person (their own credential store), not the
+ * machine, by a hash of their OS user identity.
+ */
+/**
+ * The documented `ext_agent_host_id` form this host sends: `urn:uuid:` plus
+ * one generated UUIDv4, persisted per host. OpenAI rejects a bare random
+ * string with `invalid_authorize_request` for `ext_agent_host_id`.
+ */
+export const CHATGPT_HOST_ID_URN_PREFIX = 'urn:uuid:'
+/**
+ * The ChatGPT account's registration (the issued `client_id` and the hashed
+ * account it was issued for), kept beside the grant and across sign-out:
+ * "Retain its account/client mapping and this host's ID for a later
+ * sign-in" (developers.openai.com/siwc/token-sharing-open-source/
+ * profiles-and-sessions, read 2026-10-17). No token is stored under it.
+ */
+// `PROVIDER_SECRET_PREFIX` + `chatgpt.registration`, written whole so the
+// activation bundle, which never reads it, drops it.
+export const CHATGPT_REGISTRATION_SECRET_KEY = 'museSpark.provider.chatgpt.registration'
+/** `providers add chatgpt --new-account`: "Use a different ChatGPT account" (a new registration). */
+export const CHATGPT_NEW_ACCOUNT_FLAG = '--new-account'
+export const CHATGPT_GRANT_LOCK_PIPE = 'muse-spark-chatgpt-grant'
+/**
+ * POSIX locks use the short platform root /tmp, independent of TMPDIR.
+ * Each entry names its process and a random suffix. Keep these names short
+ * for sockaddr_un (103 usable bytes on macOS, 107 on Linux).
+ */
+export const CHATGPT_GRANT_LOCK_DIR = 'muse-spark-grant'
+export const CHATGPT_GRANT_LOCK_FILE = 'grant.lock'
+/** Hex characters of the user-identity hash in the lock name. */
+export const CHATGPT_GRANT_LOCK_SCOPE_CHARS = 12
+/** A private per-user folder holds the socket; created mode 0700. */
+export const CHATGPT_GRANT_LOCK_DIR_MODE = 0o700
+/** Group/other permissions must be absent on an existing lock directory. */
+export const NAMED_LOCK_FOREIGN_MODE_MASK = 0o077
 export const CHATGPT_REFRESH_LOCK_RETRY_MS = 100
+/**
+ * POSIX ownership by entry (docs/certification/chatgpt-grant-lock.md, "PLANFIX
+ * R2"): each contender binds a socket under a random name of this many bytes
+ * (hex in the file name) and holds the lock only if no other entry has a
+ * listener. An entry is removed only when its PID is proven gone; age
+ * never proves that a paused process cannot finish binding.
+ */
+export const NAMED_LOCK_ENTRY_BYTES = 3
 /** A removed provider's secret waits ten seconds behind Undo (D74). */
 export const PROVIDER_UNDO_WINDOW_MS = 10 * 1000
 /** How long Scan this computer waits on one loopback port (D74). */
@@ -2320,6 +2364,17 @@ export type PromptCacheRetention = (typeof PROMPT_CACHE_RETENTIONS)[number]
 // here already does. The per-format status tables moved into the shared
 // retry policy (M101 BYO 5); the providers bundle carries them in
 // `FormatQuirks`.
+// ChatGPT plan route (developers.openai.com/siwc/token-sharing-open-source/
+// errors-and-recovery, read 2026-10-17): these answers mean "preserve
+// credentials and retry (later) with bounded backoff", before a stream opens
+// (HTTP 503) or as `response.failed` after it began. The direct-route 503
+// carries no code, only `{"detail": …}`; this app names it with the last one.
+export const CHATGPT_DIRECT_UNAVAILABLE_CODE = 'chatgpt_direct_route_unavailable'
+export const CHATGPT_PLAN_RETRYABLE_CODES: readonly string[] = [
+  'subscription_sharing_usage_unavailable',
+  'subscription_sharing_user_unavailable',
+  CHATGPT_DIRECT_UNAVAILABLE_CODE,
+]
 // A stream that ends with an `error` event of these codes (the instance shut
 // down or was overloaded mid-reply) is retried whole, as the guide says.
 export const MODEL_API_RETRYABLE_STREAM_CODES: ReadonlySet<string> = new Set([
@@ -2327,6 +2382,10 @@ export const MODEL_API_RETRYABLE_STREAM_CODES: ReadonlySet<string> = new Set([
   'service_overloaded',
   'backend_unavailable',
 ])
+/** Meta's retry codes and the ChatGPT plan's documented retry answers ride one bounded retry. */
+export function isRetryableStreamCode(code: string): boolean {
+  return MODEL_API_RETRYABLE_STREAM_CODES.has(code) || CHATGPT_PLAN_RETRYABLE_CODES.includes(code)
+}
 export const MODEL_API_MAX_RETRIES = 4
 export const MODEL_API_RETRY_BASE_MS = 1000
 export const MODEL_API_RETRY_MAX_MS = 60_000
@@ -4101,6 +4160,29 @@ export const ACP_AGENT_TITLE = 'Muse Spark Code (Unofficial)'
 // The OS credential store's entry for the Model API key (D61); the account
 // is the name the extension's SecretStorage uses (SECRET_KEYS.modelApiKey).
 export const KEYRING_SERVICE = 'Muse Spark Code (Unofficial)'
+// Windows Credential Manager keeps at most 2,560 bytes of UTF-16 per entry:
+// 1,280 characters (measured 2026-10-14 through @napi-rs/keyring: "Value of
+// 'password encoded as UTF-16' is longer than the platform limit of 2560
+// chars"). A longer secret (a ChatGPT plan record holds two tokens) is kept
+// as parts of at most this many characters plus a short header entry.
+export const KEYRING_PART_CHARS = 1200
+// The header entry's value: this tag, the part count and the whole value's
+// SHA-256 (hex), so a reader reassembles and verifies the parts.
+export const KEYRING_PARTS_TAG = 'muse-spark-parts:v1:'
+// How many hex characters of that hash name one generation of parts.
+export const KEYRING_PARTS_ID_CHARS = 12
+// The generation record beside a long value (docs/certification/chatgpt-grant-lock.md,
+// "PLANFIX R1 + R5"): its account suffix and its tag. It names every generation
+// of parts that may exist, written before any part, so a crash leaves a trail
+// the next owner of the account follows to remove what no header names.
+export const KEYRING_GENERATIONS_SUFFIX = '#gens'
+export const KEYRING_GENERATIONS_TAG = 'muse-spark-gens:v1:'
+// The credential store's per-account owner is a lock of its own, never the
+// ChatGPT grant lock, which is held across a sign-in that reads and writes
+// this store. The hex characters of the account's hash name its lock file.
+export const KEYSTORE_LOCK_PIPE = 'muse-spark-keystore'
+export const KEYSTORE_LOCK_DIR = 'muse-spark-keys'
+export const KEYSTORE_LOCK_ACCOUNT_CHARS = 8
 // Which account pays is chosen at launch, never guessed (D62).
 export const ACP_BACKENDS = ['museCode', 'modelApi'] as const
 export type AcpBackendKind = (typeof ACP_BACKENDS)[number]
@@ -4202,7 +4284,12 @@ export const ACP_AUTH_METHODS = {
   museCodeLogin: { id: 'muse-code-login', args: ['login'] },
   modelApiKey: { id: 'model-api-key', args: ['auth', 'set'] },
 } as const
-export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort', account: 'account' } as const
+export const ACP_CONFIG_IDS = {
+  model: 'model',
+  effort: 'effort',
+  fast: 'fast',
+  account: 'account',
+} as const
 // The paid Model API features the agent can use (M63c, PLAN.md D30): each
 // only with its flag, and each use asked in the editor (M58, D48). Muse
 // Voice needs the panel's microphone, so the agent has none.
@@ -6136,6 +6223,17 @@ export const TEAM_MERGE_DETAILS_SHOWN = 10
 // only lazily loaded bundles or the ACP agent read is a block of its own
 // below, and the bundle-split gate fails a key here that no source file of
 // dist/extension.js reads (PLAN.md D6, 2026-10-03).
+// The ChatGPT plan route's namespace description stays a plain constant
+// beside MODEL_TEXT rather than a key of it: only the lazy provider bundles
+// and the ACP agent read it (no dist/extension.js source does), so a key
+// would fail that same gate. English, like every model-facing string.
+// The ChatGPT plan route wraps every turn's function tools in one
+// `{type:'namespace'}` tool, and the plan endpoint refuses the request
+// without the namespace's own description (HTTP 400
+// `missing_required_parameter: tools[0].description`, measured 2026-10-14).
+// Every ChatGPT-profile request carries this sentence.
+export const CHATGPT_TOOL_NAMESPACE_DESCRIPTION =
+  'Tools of the Muse Spark Code agent in this workspace.'
 export const MODEL_TEXT = {
   // The one line before a bundled skill's body (M89, PLAN.md D68), then the
   // vendored package's folder: what the skill's `${SKILL_ROOT}` paths name.
@@ -7241,6 +7339,9 @@ export const CHATGPT_PLAN_NOTICE_STORAGE_KEY = 'museSpark.chatGptPlanNotice.v1'
 // Owner capture M95B-FINDINGS.md, 2026-10-05: SSE error inside HTTP 200.
 export const CHATGPT_PLAN_LIMIT_MESSAGE = 'Subscription Sharing usage limit'
 export const CHATGPT_PLAN_LIMIT_ERROR_KIND = 'subscription_sharing_usage_limit_exceeded'
+// SIWC errors and recovery (2026-10-17), HTTP 403: plan use is unavailable for
+// the user, workspace or policy. Explained once; never retried, never OAuth again.
+export const CHATGPT_PLAN_NOT_ELIGIBLE_CODE = 'subscription_sharing_user_not_eligible'
 export const SUBSCRIPTION_STREAM_MAX_BYTES = 16 * 1024 * 1024
 // A credential record's version (`{v, auth, origin, …}`, bound to the exact
 // origin it was obtained for).

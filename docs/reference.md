@@ -352,6 +352,14 @@ Surfaces: acp:modelApi. Paid: no extra feature charge; model usage still applies
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#headless-runs)
 
+### --fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance.
+
+--fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance.
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#headless-runs)
+
 ### Meta API Status
 
 Open Service Status
@@ -520,6 +528,7 @@ Installed skills add dynamic slash commands. This static reference does not list
   "configOptions": {
     "model": "model",
     "effort": "effort",
+    "fast": "fast",
     "account": "account"
   },
   "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
@@ -3384,7 +3393,7 @@ These are defaults; editor customizations take precedence.
 - `providers add --preset <preset> [--as <id>] [--address <url>] [--model <model>] [--privacy <policy>] [--private-ok] [--key-stdin]`: Add a model provider with an API key and pick a model.
 - `providers test <id>`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `providers remove <id>`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
-- `providers add|remove|status chatgpt`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers add|remove|status chatgpt [--new-account]`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `[options]`: muse-spark-code-acp [options] Serve the Agent Client Protocol on stdin and stdout
 - `login`: Runs Muse Code’s own sign-in in a terminal. Your Muse subscription pays for the conversations.
 - `auth set`: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations.
@@ -3546,6 +3555,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false,"purpose":"model"}`
 - `exec: --account <value>`: --account &lt;id&gt; The account to use (auth set, exec). `{"type":"string","repeatable":false,"purpose":"account"}`
 - `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max"],"purpose":"effort"}`
+- `exec: --fast`: --fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance. `{"type":"boolean","repeatable":false,"default":false,"purpose":"fast"}`
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
 - `exec: --max-budget-usd <value>`: Set the spending reservation limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
 - `exec: --max-requests <value>`: Set the maximum number of model requests. `{"type":"string","repeatable":false,"default":30,"minimum":1,"maximum":500,"purpose":"maxRequests"}`

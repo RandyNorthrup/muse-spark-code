@@ -634,7 +634,7 @@ export function withRuntimeAccounting(
     try {
       model =
         client.models === undefined
-          ? metaResolvedModel(ref, client)
+          ? metaResolvedModel(ref, client, await client.planModelFacts?.(ref))
           : await client.models.resolve(ref)
     } catch (error: unknown) {
       if (error instanceof Error && 'code' in error && error.code === 'model_not_catalogue') {
@@ -663,7 +663,13 @@ export function withRuntimeAccounting(
     ...(client.modelContextLimit !== undefined && {
       modelContextLimit: client.modelContextLimit.bind(client),
     }),
+    ...(client.planModelFacts !== undefined && {
+      planModelFacts: client.planModelFacts.bind(client),
+    }),
     ...(client.isPlanModel !== undefined && { isPlanModel: client.isPlanModel.bind(client) }),
+    ...(client.listPlanModels !== undefined && {
+      listPlanModels: client.listPlanModels.bind(client),
+    }),
     ...(client.readPlanUsage !== undefined && { readPlanUsage: client.readPlanUsage.bind(client) }),
     models: { ...client.models, resolve },
     async *streamResponse(body, ...args) {

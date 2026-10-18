@@ -33,6 +33,7 @@ import type { ProviderClient } from '../backends/modelapi/client'
 import type { CreateResponseBody, StreamEvent, Usage } from '../backends/modelapi/schemas'
 import type { ProviderEntry, ProviderFormat } from './providersFile'
 import type { RegistryModel } from './providerRegistry'
+import { providersFileUnreadable } from '../accountStoreError'
 import type { ModelCapabilityRecord } from './capabilityRecord'
 import type { NativeModelMetadata } from './modelMetadata'
 import { parseNdjson } from '../backends/modelapi/ndjson'
@@ -389,8 +390,9 @@ export function createConfiguredProviderServices(
     const result = await providersFile.readProvidersFile(options.configFile)
     if (!result.ok) {
       if (result.reason === 'missing') return providersFile.emptyProvidersFile()
-      if (result.reason === 'invalid') throw new RangeError(result.detail)
-      throw new ModelApiError(UI_TEXT.actionFailed, 0, undefined, undefined)
+      // The providers-file refusal, with its own sentence: the account check
+      // and the editor say the file's fault, never the credential store's.
+      throw providersFileUnreadable(result.reason)
     }
     revision = digest(JSON.stringify(result.file))
     return result.file
@@ -1276,13 +1278,23 @@ export function createConfiguredProviderServices(
       list: registry.list,
       resolve: async (ref) =>
         modelRef.parseModelRef(ref)?.providerId === 'meta' || meta?.isPlanModel?.(ref) === true
-          ? metaResolvedModel(ref, delegate())
+          ? metaResolvedModel(ref, delegate(), await delegate().planModelFacts?.(ref))
           : await registry.resolve(ref),
     },
     isPlanModel: (ref) =>
       presets.planKeyPresetById(records.get(ref)?.entry.preset ?? '') !== undefined ||
       meta?.isPlanModel?.(ref) === true,
     readPlanUsage: () => [...(meta?.readPlanUsage?.() ?? []), ...plans],
+    // The plan client's catalogue facts and its Meta-free listing, so a plan
+    // model listed through this client keeps its effort levels, default and
+    // Fast tier (finding F79: they stopped here, and every plan model offered
+    // no effort level).
+    ...(meta?.planModelFacts !== undefined && {
+      planModelFacts: async (ref: string) => await delegate().planModelFacts?.(ref),
+    }),
+    ...(meta?.listPlanModels !== undefined && {
+      listPlanModels: async () => (await delegate().listPlanModels?.()) ?? [],
+    }),
     streamResponse: async function* (body, ...args) {
       if (body.model.includes('/') && !meta?.isPlanModel?.(body.model)) {
         const resolved = await registry.resolve(body.model)

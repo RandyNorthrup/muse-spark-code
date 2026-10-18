@@ -45,6 +45,7 @@ muse-spark-code-acp scan-secrets fix.patch
 | --untrusted-file <path>, repeatable | none                   | At most 8 files, 1 MiB each, 2 MiB total, 48 chunks total; readable regular files.                                          |
 | --permission-mode plan\|acceptEdits | plan                   | Refuse auto, manual, bypassPermissions and all other modes.                                                                 |
 | --model, --effort                   | backend default        | Listed for this run; supported effort. Model API model must also have a known tariff.                                       |
+| --fast                              | off                    | The plan catalogue's Fast tier (2x speed, increased usage) where the model lists a priority tier; refused elsewhere.        |
 | --allow-contributor-models          | off                    | Explicit permission to select a contributor model; docs name training eligibility (`apidocs/pricing-rate-limits.md:21–29`). |
 | --output text\|json\|jsonl          | text                   | Exact enum.                                                                                                                 |
 | --max-budget-usd <usd>              | required for Model API | Finite, 0 < value ≤ 20; must cover the model minimum below before billable dispatch. Refuse on Muse Code.                   |

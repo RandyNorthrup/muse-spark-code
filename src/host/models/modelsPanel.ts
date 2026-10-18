@@ -45,9 +45,11 @@ import { Usd } from '../../shared/usd'
 import { redactSecrets } from '../../shared/redact'
 import { wireWordForLog } from '../../core/logging'
 import { type SessionBudgetConfig } from './sessionBudget'
+import { ChatGptSignInError, chatGptFailureText } from '../backend/subscriptionsEntry'
 
 export interface ModelsPanelDeps {
-  readonly connectChatGpt?: (() => Promise<void>) | undefined
+  /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */
+  readonly connectChatGpt?: ((isNewAccount: boolean) => Promise<void>) | undefined
   readonly connectCopilot?: (() => Promise<void>) | undefined
   readonly removeSubscription?: ((id: string) => Promise<void>) | undefined
   readonly isConfidential?: (() => boolean) | undefined
@@ -203,7 +205,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     // Exception text can contain a bare key even before it is retained.
     log.warn('Models panel operation failed')
     if (draft === undefined) {
-      state.notice = UI_TEXT.actionFailed
+      // Only our validated error code/reason may leave sign-in. Never show
+      // arbitrary exception text here: it can contain a credential or path.
+      state.notice =
+        error instanceof ChatGptSignInError
+          ? chatGptFailureText(error.code, error.reason)
+          : UI_TEXT.actionFailed
     } else {
       // Save failures name their cause with every retained key redacted. A
       // foreign failure (or none at all) names no cause: the sentence says
@@ -393,6 +400,16 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     return id === 'copilot' && deps.connectCopilot === undefined
       ? UI_TEXT.signInNotOffered
       : undefined
+  }
+  /** One subscription sign-in; only ChatGPT can register a different account. */
+  const connectSubscription = async (id: string, isNewAccount: boolean): Promise<void> => {
+    if (id === 'chatgpt') {
+      if (deps.connectChatGpt === undefined) throw new Error(UI_TEXT.actionFailed)
+      await deps.connectChatGpt(isNewAccount)
+      return
+    }
+    if (deps.connectCopilot === undefined) throw new Error(UI_TEXT.actionFailed)
+    await deps.connectCopilot()
   }
   const draftSecret = (entry: ProviderEntry, id?: string): string | undefined => {
     const record = credentials.get(id ?? 'wizard')
@@ -719,9 +736,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           state.notice = refusal
           break
         }
-        const connect = message.providerId === 'chatgpt' ? deps.connectChatGpt : deps.connectCopilot
-        if (connect === undefined) throw new Error(UI_TEXT.actionFailed)
-        await connect()
+        await connectSubscription(message.providerId, message.isNewAccount === true)
         await scan(await entryOf(message.providerId))
         break
       }
@@ -738,9 +753,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             state.notice = refusal
             break
           }
-          const connect = preset.id === 'chatgpt' ? deps.connectChatGpt : deps.connectCopilot
-          if (connect === undefined) throw new Error(UI_TEXT.actionFailed)
-          await connect()
+          await connectSubscription(preset.id, false)
           await scan(await entryOf(preset.id))
           break
         }
