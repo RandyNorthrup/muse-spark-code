@@ -2624,6 +2624,9 @@ async function activateWindow(
     contextIo: fileContextIo,
     // VS Code's proxy-aware fetch, as it stands at each request (M56, D43).
     fetch: liveFetch,
+    // Lane RETRYLIMITS: the conversation client's retry limit, read live;
+    // null stays unset (PR #225: it reached only the stored-key client).
+    personMaxRetries: () => currentSettings().modelApiMaxRetries ?? undefined,
     newId: () => crypto.randomUUID(),
     now: () => Date.now(),
     sleep: (ms) =>

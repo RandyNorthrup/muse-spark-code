@@ -1043,6 +1043,9 @@ export function createConfiguredProviderServices(
       currentKeyDigest: client.currentKeyDigest,
       retryDelayMs: client.retryDelayMs,
       waitBeforeRetry: client.waitBeforeRetry,
+      // This provider's own limit (its preset's documented maximum, or the
+      // person's setting), never `base`'s, which answers for Meta (PR #225).
+      maxRetries: () => client.maxRetries(),
       listModels: () => Promise.resolve([ref]),
       // UTF-8 bytes bound text tokens conservatively and include tool schemas.
       countInputTokens: (body) => Promise.resolve(Buffer.byteLength(JSON.stringify(body))),
