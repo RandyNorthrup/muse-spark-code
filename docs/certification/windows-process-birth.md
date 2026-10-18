@@ -17,7 +17,8 @@ pull request's run at 00:09Z; that log was not reachable from this rig's
 GitHub access, so its numbers are not used below.
 
 **Measured cause.** On Windows, `processStartTime`
-(`src/core/locks/processOwner.ts:108-131`, `windowsStartTime`) starts
+(`src/core/locks/processOwner.ts:108-131` on the base `81dacaf5a7`,
+`windowsStartTime`) starts
 Windows PowerShell 5.1 (`powershell.exe -NoLogo -NoProfile -NonInteractive
 -Command [DateTimeOffset]::new((Get-Process -Id <pid> -ErrorAction
 Stop).StartTime).ToUnixTimeMilliseconds()`) through `execFile` with
@@ -74,7 +75,8 @@ CPU.
 ## Fix
 
 `processStartTime` on Windows (`src/core/locks/processOwner.ts`) no longer
-starts PowerShell. A 4,608-byte C# 5 program, its source in the module,
+starts PowerShell. A C# 5 program (the compiled reader is 4,608 bytes),
+its source in the module,
 opens the process with `PROCESS_QUERY_LIMITED_INFORMATION`, refuses one
 that has exited (`GetExitCodeProcess`, since an exited process keeps its
 times while a handle is open), and prints `GetProcessTimes`'s creation
@@ -85,10 +87,12 @@ job helpers use) builds it once per user into
 (`WINDOWS_BIRTH_READER_FOLDER`): written under a random name and renamed
 into place, so two processes building at once never share a file. Both the
 build and each run get only `SystemRoot` from the environment and keep the
-10 s `PROCESS_START_QUERY_TIMEOUT_MS` bound. A failed build is not kept;
-a reader that cannot start (removed, quarantined, damaged) is deleted and
-built again on the next read. Every other contract stands: `undefined`
-when no running process has the id or it cannot be opened, never a throw.
+10 s `PROCESS_START_QUERY_TIMEOUT_MS` bound — each of them separately, so
+a first read on a machine without the reader can take the build's bound
+and then the run's. A failed build is not kept; a reader that cannot
+start (removed, quarantined, damaged) is deleted and built again on the
+next read. Every other contract stands: `undefined` when no running
+process has the id or it cannot be opened, never a throw.
 
 The values are the ones PowerShell gave, to the millisecond, for this
 process, a live child and the parent; an exited child, id 4 and
@@ -173,8 +177,37 @@ this process's birth from the system" took, in ms:
   Windows PowerShell (`[Diagnostics.Process]::GetProcessById`), with the
   same cold-start exposure; it is outside this fix.
 - A reader built from an earlier source stays in the folder (4.6 KB per
-  source change); nothing removes old builds.
+  source change); nothing removes old builds. (Fixed in the review below.)
 - Machines whose policy blocks programs in `%LOCALAPPDATA%` (AppLocker or
   WDAC default rules) read no birth, so an owner there is never provably
   gone and a lock waits out its lease; the job helpers in the extension's
   storage have the same exposure.
+
+## Review (RVWINBIRTH, macOS rig, 2026-10-17)
+
+Reviewed against the code and fixed on this branch; the Windows-only
+paths could not run on this rig (its sandbox also refuses `/bin/ps`,
+so the macOS birth tests cannot read a birth here), and no hosted
+Windows run has measured the fixes yet.
+
+- A relative `SystemRoot` or `LOCALAPPDATA` put the compiler lookup or
+  the reader itself under this process's working folder; only absolute
+  folders are used now (`fe1b43e50`).
+- Two reads waiting on one failed build could each forget the kept
+  build, the second forgetting a newer one; a failed build is now
+  forgotten only while it is still the kept one. Only a missing or
+  damaged reader (`ENOENT`, `ENOEXEC`) is deleted for a rebuild, so a
+  machine whose policy refuses the reader no longer recompiles it on
+  every read (`5f4693e38`).
+- A build now removes the readers built from earlier sources, as the
+  job helpers' builds are removed (`f53d018c5`).
+- Security of the folder, as reviewed: `%LOCALAPPDATA%` is writable by
+  default only by the person, SYSTEM and Administrators, and the
+  reader trusts a file that is merely present at its digest-named
+  path — the same trust the job helpers in the extension's storage
+  get. Replacing it takes code already running as the person; what
+  that gains against Muse Code's sandboxed commands depends on
+  whether the CLI's Windows sandbox lets them write this folder,
+  which is not measured here. The reader and its build run with only
+  `SystemRoot` in their environment, no shell, one validated process
+  id as the only argument, and digits-only output.
