@@ -14575,6 +14575,29 @@ resolved against the plan's user-visible promise, not against the tag:
   both backends) must pass the role's answer through. MSM58M69 shipped
   no behaviour change for it.
 
+### D123 — One .vsix per platform, each within the unchanged budget (lane VSIXPLATFORM, 2026-10-18)
+
+The universal .vsix carries every platform's native helpers and is near
+its 3,788,800-byte budget (D6) with 131 KB of open pull requests and
+4.7 MB of vault keyring binaries still to come. The budget is never
+raised and no feature is cut, so the release ships one package per
+supported target instead: win32-x64, win32-arm64, darwin-x64,
+darwin-arm64, linux-x64 and linux-arm64 (`vsce package --target`, locked
+vsce 4.0.0; engines.vscode `^1.99.0` clears the ≥1.61 platform-extension
+floor). Each target carries only its own platform's native pieces plus
+the platform-neutral bundles; `native/runner/*` ships everywhere because
+the SSH runner copies the helper to the remote side. Windows targets
+carry the same arch-independent sources (the .ps1 run directly, the .cs
+compiled on the person's machine), so win32-arm64 is supported today.
+The darwin binaries ship universal (both slices) in both darwin
+targets: splitting per-arch saves little against the megabytes the other
+platforms' pieces free, and keeps build.sh's single lipo output unchanged. No universal
+fallback ships: all six desktop targets VS Code runs on are covered, and
+linux-armhf, alpine and web never had native helpers. Every target is
+checked against the same D6 budget; CI builds and checks all six, and
+the release publishes all six to the Marketplace and Open VSX.
+Evidence: `docs/certification/vsix-platform.md`.
+
 ## 3. Open questions (need the owner)
 
 **Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13).** GAPANTH-G11's scan row
