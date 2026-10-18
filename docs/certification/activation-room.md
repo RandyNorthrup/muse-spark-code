@@ -140,3 +140,16 @@ workspace command` and the updated report line), `check-bundle-size`
   warnings, prettier, knip, cycles, duplication, `check:plan`,
   `check:l10n`, `check:reference`, `check:host-api`, SAST and audit: exit
   0 (SAST/audit lines below).
+
+## Grok review findings (PR #245, accepted; fixes landing in this lane)
+
+- CHANGELOG has no Unreleased entry for this split. Fix: add one under
+  Pending in the activation-budget style.
+- `commandsOptions` keeps `external: ['vscode']` from
+  `conversationGitOptions`, so its "a stray import fails this build" claim
+  holds nothing. Fix: spread `common` with the same plugins and no
+  `vscode` external, like `reportOptions`, so a stray import fails.
+- The record names only Diagnostics on `dist/report.js`. Fix: say
+  Diagnostics and Report a Problem both load it on first use
+  (`src/extension.ts` Diagnostics command, `conversationController`
+  `openReport`) everywhere it matters.
