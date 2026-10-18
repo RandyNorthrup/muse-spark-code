@@ -3456,6 +3456,17 @@
   "stopTaskFailed": "Nie udało się zatrzymać zadania w tle",
   "taskNotRunning": "To zadanie już nie działa",
   "stillWaitingNotice": "Nadal oczekuje na {what} po {duration} — Zatrzymaj kończy oczekiwanie.",
+  "stillWaitingSubject": {
+    "imageRequest": "żądanie obrazu",
+    "providerAnswer": "odpowiedź dostawcy",
+    "modelReply": "odpowiedź modelu",
+    "mcpServerStartup": "uruchamianie serwera MCP \"{name}\"",
+    "mcpServerRequest": "serwer MCP \"{name}\" {method}",
+    "museCodeCommand": "Muse Code {method}",
+    "sessionDeletion": "usuwanie sesji",
+    "shellCommand": "polecenie powłoki",
+    "museServeStarting": "uruchamianie muse serve"
+  },
   "userShellLabel": "Twoje polecenie",
   "userShellExitCode": "Kod wyjścia {code}",
   "userShellExitSignal": "Zakończono sygnałem {signal}",

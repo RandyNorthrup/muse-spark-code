@@ -3456,6 +3456,17 @@
   "stopTaskFailed": "Не удалось остановить фоновую задачу",
   "taskNotRunning": "Эта задача больше не выполняется",
   "stillWaitingNotice": "Всё ещё ожидает {what} спустя {duration} — «Остановить» завершает ожидание.",
+  "stillWaitingSubject": {
+    "imageRequest": "запрос изображения",
+    "providerAnswer": "ответ провайдера",
+    "modelReply": "ответ модели",
+    "mcpServerStartup": "запуск сервера MCP \"{name}\"",
+    "mcpServerRequest": "сервер MCP \"{name}\" {method}",
+    "museCodeCommand": "Muse Code {method}",
+    "sessionDeletion": "удаление сеанса",
+    "shellCommand": "команда оболочки",
+    "museServeStarting": "запуск muse serve"
+  },
   "userShellLabel": "Вы выполнили",
   "userShellExitCode": "Код выхода {code}",
   "userShellExitSignal": "Завершено сигналом {signal}",

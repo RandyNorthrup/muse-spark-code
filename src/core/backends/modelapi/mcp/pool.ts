@@ -19,7 +19,12 @@ import {
   UI_TEXT,
 } from '../../../../shared/constants'
 import type { CoreLogger } from '../../../logging'
-import { startStillWaiting, stillWaitingText, withDeadline } from '../../../timeouts'
+import {
+  startStillWaiting,
+  type StillWaitingSubject,
+  stillWaitingText,
+  withDeadline,
+} from '../../../timeouts'
 import type { McpVaultPoolPort } from '../../../vault/mcpSecrets'
 import { mcpSecretReferences } from '../../../vault/mcpReferences'
 import type { McpSettingsEntries } from '../../musecode/museConfigView'
@@ -201,8 +206,8 @@ function startupDeadline(spec: McpServerSpec, launch: McpLaunch): string {
 }
 
 /** What the still-waiting notices name while a server starts. */
-function startupWaitWhat(spec: McpServerSpec): string {
-  return `MCP server "${spec.name}" startup`
+function startupWaitWhat(spec: McpServerSpec): StillWaitingSubject {
+  return { key: 'mcpServerStartup', name: spec.name }
 }
 
 export class McpServerPool implements McpToolSource {

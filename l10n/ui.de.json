@@ -3324,6 +3324,17 @@
   "stopTaskFailed": "Die Hintergrundaufgabe konnte nicht angehalten werden",
   "taskNotRunning": "Diese Aufgabe läuft nicht mehr",
   "stillWaitingNotice": "Wartet weiterhin auf {what} nach {duration} — Anhalten beendet das Warten.",
+  "stillWaitingSubject": {
+    "imageRequest": "die Bildanfrage",
+    "providerAnswer": "die Anbieterantwort",
+    "modelReply": "die Modellantwort",
+    "mcpServerStartup": "MCP-Server \"{name}\" beim Start",
+    "mcpServerRequest": "MCP-Server \"{name}\" {method}",
+    "museCodeCommand": "Muse Code {method}",
+    "sessionDeletion": "das Löschen der Sitzung",
+    "shellCommand": "der Shell-Befehl",
+    "museServeStarting": "muse serve beim Start"
+  },
   "userShellLabel": "Von Ihnen ausgeführt",
   "userShellExitCode": "Exitcode {code}",
   "userShellExitSignal": "Durch Signal {signal} beendet",

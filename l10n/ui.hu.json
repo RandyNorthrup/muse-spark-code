@@ -3324,6 +3324,17 @@
   "stopTaskFailed": "A háttérfeladatot nem sikerült leállítani",
   "taskNotRunning": "Ez a feladat már nem fut",
   "stillWaitingNotice": "Még mindig várakozik: {what} ({duration} eltelt) — a Leállítás véget vet neki.",
+  "stillWaitingSubject": {
+    "imageRequest": "a képkérés",
+    "providerAnswer": "a szolgáltató válasza",
+    "modelReply": "a modell válasza",
+    "mcpServerStartup": "az MCP-kiszolgáló \"{name}\" indítása",
+    "mcpServerRequest": "az MCP-kiszolgáló \"{name}\" {method}",
+    "museCodeCommand": "Muse Code {method}",
+    "sessionDeletion": "a munkamenet törlése",
+    "shellCommand": "a shell-parancs",
+    "museServeStarting": "a muse serve indítása"
+  },
   "userShellLabel": "Ön futtatta",
   "userShellExitCode": "Kilépési kód: {code}",
   "userShellExitSignal": "Leállította a(z) {signal} jel",

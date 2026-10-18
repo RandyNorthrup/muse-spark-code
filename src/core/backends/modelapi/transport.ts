@@ -676,7 +676,7 @@ export class RequestTransport {
     }
     // The wait for the first bytes says so while it lasts.
     const stopNoticing = startStillWaiting((elapsedMs) => {
-      this.deps.log.info(stillWaitingText('the provider answer', elapsedMs))
+      this.deps.log.info(stillWaitingText({ key: 'providerAnswer' }, elapsedMs))
     }, this.deps.noticeMs)
     let response: Response
     try {
@@ -862,7 +862,7 @@ export class RequestTransport {
       if (isClosed) return
       if (idleMs === undefined) {
         stopNoticing = startStillWaiting((elapsedMs) => {
-          this.deps.log.info(stillWaitingText('the model reply', elapsedMs))
+          this.deps.log.info(stillWaitingText({ key: 'modelReply' }, elapsedMs))
         }, this.deps.noticeMs)
       } else {
         idleTimer = setTimeout(() => {

@@ -3390,6 +3390,17 @@
   "stopTaskFailed": "Non è stato possibile arrestare l’attività in background",
   "taskNotRunning": "L’attività non è più in esecuzione",
   "stillWaitingNotice": "Ancora in attesa di {what} dopo {duration} — Arresta lo interrompe.",
+  "stillWaitingSubject": {
+    "imageRequest": "la richiesta di immagine",
+    "providerAnswer": "la risposta del provider",
+    "modelReply": "la risposta del modello",
+    "mcpServerStartup": "l’avvio del server MCP \"{name}\"",
+    "mcpServerRequest": "il server MCP \"{name}\" {method}",
+    "museCodeCommand": "Muse Code {method}",
+    "sessionDeletion": "l’eliminazione della sessione",
+    "shellCommand": "il comando shell",
+    "museServeStarting": "l’avvio di muse serve"
+  },
   "userShellLabel": "Hai eseguito",
   "userShellExitCode": "Codice di uscita {code}",
   "userShellExitSignal": "Terminato dal segnale {signal}",

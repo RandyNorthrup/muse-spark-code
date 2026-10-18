@@ -325,7 +325,7 @@ export class MuseCodeBackendManager {
         this.resourceStop.signal,
         () => new Error(UI_TEXT.questionCancelled),
         (elapsedMs) => {
-          this.deps.log.info(stillWaitingText('muse serve starting', elapsedMs))
+          this.deps.log.info(stillWaitingText({ key: 'museServeStarting' }, elapsedMs))
         },
       )
     } catch (error: unknown) {

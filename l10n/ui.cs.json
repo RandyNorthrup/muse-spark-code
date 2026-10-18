@@ -3456,6 +3456,17 @@
   "stopTaskFailed": "Úlohu na pozadí se nepodařilo zastavit",
   "taskNotRunning": "Tato úloha už neběží",
   "stillWaitingNotice": "Stále čeká na {what} po {duration} — Zastavit čekání ukončí.",
+  "stillWaitingSubject": {
+    "imageRequest": "požadavek na obrázek",
+    "providerAnswer": "odpověď poskytovatele",
+    "modelReply": "odpověď modelu",
+    "mcpServerStartup": "spouštění serveru MCP \"{name}\"",
+    "mcpServerRequest": "server MCP \"{name}\" {method}",
+    "museCodeCommand": "Muse Code {method}",
+    "sessionDeletion": "odstranění relace",
+    "shellCommand": "příkaz shellu",
+    "museServeStarting": "spouštění muse serve"
+  },
   "userShellLabel": "Spustili jste",
   "userShellExitCode": "Ukončovací kód {code}",
   "userShellExitSignal": "Ukončeno signálem {signal}",

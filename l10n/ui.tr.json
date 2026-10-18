@@ -3324,6 +3324,17 @@
   "stopTaskFailed": "Arka plan görevi durdurulamadı",
   "taskNotRunning": "Bu görev artık çalışmıyor",
   "stillWaitingNotice": "{duration} sonra hâlâ {what} bekleniyor — Durdur sonlandırır.",
+  "stillWaitingSubject": {
+    "imageRequest": "görüntü isteği",
+    "providerAnswer": "sağlayıcı yanıtı",
+    "modelReply": "model yanıtı",
+    "mcpServerStartup": "MCP sunucusu \"{name}\" başlatma",
+    "mcpServerRequest": "MCP sunucusu \"{name}\" {method}",
+    "museCodeCommand": "Muse Code {method}",
+    "sessionDeletion": "oturum silme",
+    "shellCommand": "kabuk komutu",
+    "museServeStarting": "muse serve başlatma"
+  },
   "userShellLabel": "Sizin çalıştırdığınız",
   "userShellExitCode": "Çıkış kodu {code}",
   "userShellExitSignal": "{signal} sinyaliyle sonlandı",

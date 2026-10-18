@@ -229,7 +229,7 @@ export class ModelApiClient implements TransportProviderClient {
     // Waited on until Meta answers or the turn stops it (owner 2026-10-16:
     // no arbitrary limits), saying so out loud while it waits.
     const stopNoticing = startStillWaiting((elapsedMs) => {
-      this.deps.log.info(stillWaitingText('the image request', elapsedMs))
+      this.deps.log.info(stillWaitingText({ key: 'imageRequest' }, elapsedMs))
     })
     // The reservation is inside the try: it can throw (consent denied, the
     // daily ledger unavailable), and the notice timer must still stop.
