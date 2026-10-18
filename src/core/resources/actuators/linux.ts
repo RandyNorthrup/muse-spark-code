@@ -14,7 +14,7 @@ import type {
   ResourceTreeReader,
 } from '../../../shared/resources'
 import type { ResourceActuatorPort, ResourceControl, ResourceControlName } from './controls'
-import { isErrno } from '../errno'
+import { isErrno } from '../../fs/errno'
 
 const prioritySchema = z.strictObject({
   nice: z

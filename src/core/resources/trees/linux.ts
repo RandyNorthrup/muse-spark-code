@@ -34,7 +34,7 @@ import {
   type ResourceSignal,
   type ResourceTreeKillResult,
 } from './actions'
-import { isErrno } from '../errno'
+import { isErrno } from '../../fs/errno'
 
 interface LinuxCgroupHandle {
   readonly path: string

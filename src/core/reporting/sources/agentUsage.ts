@@ -12,7 +12,7 @@ import {
   type LocalFailure,
   type SourceScrub,
 } from './local'
-import { isErrno } from '../../resources/errno'
+import { isErrno } from '../../fs/errno'
 import type { UsageFacts } from './types'
 import { scrubUsage } from './session'
 

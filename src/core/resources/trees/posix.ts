@@ -8,7 +8,7 @@ import {
 } from '../../../shared/resources'
 import { processSampleSchema, type ProcessSample } from './posixTable'
 import type { ResourceActionResult, ResourceSignal } from './actions'
-import { isErrno } from '../errno'
+import { isErrno } from '../../fs/errno'
 
 export interface PosixTreeSnapshot {
   /** Group sources include the full ancestry table; cgroups restrict by kernel membership. */

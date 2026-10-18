@@ -9,6 +9,8 @@ import { readFile, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import * as z from 'zod/mini'
+import { isParseFailure } from '../../src/core/reporting/sources/local'
 import { readLedger } from '../../src/core/reporting/plan/ledger'
 import { readPlan } from '../../src/core/reporting/plan/reader'
 import { agentUsageSource, type AgentUsageFile } from '../../src/core/reporting/sources/agentUsage'
@@ -328,5 +330,31 @@ describe('sampler io failure codes', () => {
 describe('LocalSourceError contract', () => {
   it('keeps the failing code on the error', () => {
     expect(new LocalSourceError('missing').code).toBe('missing')
+  })
+})
+
+/** A schema failure from the real parser, never constructed by hand. */
+function zodFailure(): unknown {
+  try {
+    z.strictObject({ version: z.string() }).parse({ version: 1 })
+  } catch (error: unknown) {
+    return error
+  }
+  throw new Error('the real parser did not fail')
+}
+
+describe('isParseFailure contract', () => {
+  it('reads malformed JSON and real schema failures as parse failures', () => {
+    expect(isParseFailure(new SyntaxError('bad json'))).toBe(true)
+    expect(isParseFailure(zodFailure())).toBe(true)
+  })
+
+  it('refuses cancellations, bugs and errno failures', () => {
+    expect(isParseFailure(new DOMException('stopped', 'AbortError'))).toBe(false)
+    expect(isParseFailure(new TypeError('not a failure shape'))).toBe(false)
+    expect(
+      isParseFailure(Object.assign(new Error('refused'), { code: 'EACCES', errno: -13 })),
+    ).toBe(false)
+    expect(isParseFailure(new LocalSourceError('missing'))).toBe(false)
   })
 })

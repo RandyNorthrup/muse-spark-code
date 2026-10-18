@@ -272,8 +272,7 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
               // its code and its unparsable answer stays unavailable. Anything
               // else is not an extended-reader outcome.
               if (error instanceof ReportNetworkFailure) reasons.push(error.message)
-              else if (error instanceof z.core.$ZodError)
-                reasons.push('workflow-releases-unavailable')
+              else if (isParseFailure(error)) reasons.push('workflow-releases-unavailable')
               // eslint-disable-next-line unicorn/no-duplicate-if-branches -- a cancelled read shares the closed unavailable outcome; the catch gate forbids merging the named tests (PLAN §8, D119-catch).
               else if (context.signal.aborted) reasons.push('workflow-releases-unavailable')
               else throw error
