@@ -1,0 +1,114 @@
+{
+  "vendor": "gemini",
+  "model": "gemini-3.8-flash",
+  "variant": "2-wrap-up-tools-kept-mode-none",
+  "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+  "requestBody": {
+    "contents": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Read the file a.txt with the tool, then tell me what it says."
+          }
+        ]
+      },
+      {
+        "role": "model",
+        "parts": [
+          {
+            "functionCall": {
+              "name": "read_file",
+              "args": {
+                "path": "a.txt"
+              },
+              "id": "call_109647"
+            },
+            "thoughtSignature": "EvcBCvQBAWkUfROBmLYBL/hj7WZimdU3kcBUfSs9o/v2ZnUzFxd0bL7ieo7La6c5KQjgAOaUnqTC1F2OWlEA4k7XLAZlqwRKrJpE8hg2CvyQPEIaCFaEdLOPFOD0Of9mzuV8wBptrcUUOylRwQ8pTtqae8wYWNO6YLe3jRq+ed3bAvPVIX/uYQdWxpt+rbIuXjljEGmkKykKIntBTnmKHJ7AI/QVrLz6ykGDT8Pw/dXx4mI39Fb0Lp82fi6BNNKBi5kgWIsiHas4k7nxI4+BLtJyQ02oEMBV9LdcAOjiUMjGDBSlZr3vWdWyy6n2Jy9eQCA1iCyoBaw4gA=="
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "functionResponse": {
+              "name": "read_file",
+              "response": {
+                "content": "hello from a.txt"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "functionDeclarations": [
+          {
+            "name": "read_file",
+            "description": "Read a file.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": ["path"]
+            }
+          }
+        ]
+      }
+    ],
+    "toolConfig": {
+      "functionCallingConfig": {
+        "mode": "NONE"
+      }
+    },
+    "generationConfig": {
+      "maxOutputTokens": 400
+    }
+  },
+  "status": 200,
+  "response": {
+    "candidates": [
+      {
+        "content": {
+          "parts": [
+            {
+              "text": "I read the file `a.txt` with the tool, and all that remains is to tell you that it says \"hello from a.txt\".",
+              "thoughtSignature": "EucICuQIAWkUfRMLPNPUwivrvxOXzgh1S9XcVERvd6x3q9zuRyb4YBd2EUMYjqV0KiC7SaTiuNDy+8HAvN+Ys0HX+mZ6Du+IB4MYtYgY32W3mPHHh9a5JYzm9wW68Cm6Fdah3QvYgogzxzvdC6jwL3+6nEsJeDbKcBjXKQCmmRBv18wdWLZ3v0LQRp+2oN4H7EoQn8CwX4FZuI14j+E3qPeVrpQatvm6o+f68d5hUPEs22Mz3JonVrBOrDr3p7oGEr2e1Cl/sp5cJEaK0L90c+mApX4MucXLiaMtkYgRHNg2QhjZcjj6dffFE+thpFTJ+IqKvhhkdRqOixEPzulBJpKvxVSCXrAIBzTBaJeUjqHovJgGZ6STpwjp+XH4jWSmXug8uliggpWj0JyOApBheV3ga85kdKkg/wHJy2lgghxc8l0cGEX6jF+kpQ3bqDs9HrCaKYdp0cCkhTtLLTtJ3UnpLCRgRZkIT0PwoIBD7o/C8zLEFTMjIyBjkHxjn8oOGztkCBCVy6Iu80JkaYy8lxfEifBatYB1e1LyAdqKm6LsE6TkRgkEZKY2IS5Se27c6pmGUQfSqmQtsD1nYyefyAKw2NtesOeWDWk9J0PdsrcYWeTKbwhHEL1rkp1gkGdTii7GN11Djvmkaq/I6185HeQgd82zeU7bHchAjjwPAt+lFwxw1E+mROdDDh33YAGjjCQXMO+zY0dQJMfhfdCHXVZHyUbydTK0/57TKZCfyZnSYKsDUvTwLvPNYND2nf/7a+14Zzvl9Bo3vPzbLwJuEZZARzAg8tsfXaPTYX9AEBGsbXuWn3vzUekTPEAJZmDWu69riC0A07tb3mhcR7S2v17ok9gBjO9L26RHGjrZq9sxtI0qtBZ4uHBA+cBRgFFycJcCLwKCfPyndT11oayqVmxCKLT+pVe2fa4xp3nxw5SofPDJXLPWlEXTBjmV7exOq7XHyVbOAS5KTuWBPC3hNExQjLWZuZaJGFqXgUJl2E/3Iru6QCNIhJbiYP+3PuJqOdarBBm8udUNYn+/mVTqEkJ626IVtMbUaUARay9HhvtkQslYBt7dhcXwgMmGk1sQF58+/RP5rSQgJYAJHRFsQ9WJOhXVkBfE/jAxFdRp3CyT2yehvpwmDt5ulFL95FX+nDtaCZ9EVdQnOSG8eRjkSrbhct3yaqvdpz3aDtN5RePMdZHRnMOQA/pQXlQ3bKP5QAe0u8+0FSn93zxZau296WSDljRaZeIQuH2kpmyetJndeaxIvrXalpWeDxnmYrTGbhXBMFeDFkJgn+f6RSAaaz80pum484M5vdd9Q7vtHBJkWSCQq/hgjElBn4e/ugHhpxF+vbXxnYTJIgPgLFUG0RhWxL4axYyHj3+1qlBm7Vtfl2a3hpQc6aYdrgetHfW8SRvDaHZy0BFRyX/BP5np6gF5xfkF3KgBERQoGIbZMHS1ZZeMmGUeXEiV6MuLNpS84h7mGhQCgQ9Pr1z1CJVoJBfTxY7I2i4dnpQ="
+            }
+          ],
+          "role": "model"
+        },
+        "finishReason": "STOP",
+        "index": 0
+      }
+    ],
+    "usageMetadata": {
+      "promptTokenCount": 166,
+      "candidatesTokenCount": 31,
+      "totalTokenCount": 464,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 166
+        }
+      ],
+      "thoughtsTokenCount": 267,
+      "serviceTier": "standard"
+    },
+    "modelVersion": "gemini-3.8-flash",
+    "responseId": "jjvNatnzAd6P6dkP_IGH0Ak"
+  }
+}

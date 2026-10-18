@@ -326,7 +326,7 @@
     "effort": "Wybierz, ile wysiłku Muse wkłada w każdą odpowiedź.",
     "output": "Wybierz format wyniku: text, json lub jsonl.",
     "max-budget-usd": "Ustaw twardy limit wydatków w USD dla tego uruchomienia.",
-    "max-requests": "Ustaw maksymalną liczbę żądań do modelu.",
+    "max-requests": "Ustawia maksymalną liczbę żądań. Ostatnie wywołanie modelu tworzy końcowe podsumowanie bez narzędzi.",
     "max-tool-output-bytes": "Podnieść limit bajtów na wynik narzędzia dla tego uruchomienia.",
     "timeout": "Ustaw limit czasu uruchomienia w sekundach.",
     "fail-on-denial": "Zatrzymaj uruchomienie po odmowie uprawnienia.",
@@ -2793,6 +2793,7 @@
   "agentStopReasons": {
     "normal": "Normalne zakończenie",
     "budget": "Budżet wyczerpany",
+    "limit": "Osiągnięto limit wywołań",
     "error": "Błąd",
     "cancelled": "Zatrzymane przez użytkownika",
     "unknown": "Niedostępne"
@@ -3676,6 +3677,33 @@
     "other": "Limit plików wejściowych: {count}.",
     "few": "Limit plików wejściowych: {count}.",
     "many": "Limit plików wejściowych: {count}."
+  },
+  "referenceTurnLimit": "Tury Model API mają domyślnie 200 wywołań modelu. Obowiązują istniejące limity wywołań wywołujących. Pierwsze wywołanie zawsze działa z narzędziami: odpowiedź kończy turę normalnie, żądanie narzędzia kończy ją na limicie żądań. Ostatnie wywołanie tury, która uruchamiała narzędzia, daje podsumowanie bez narzędzi; wyślij wiadomość, aby kontynuować.",
+  "modelApiWrapUpReserved": "Pozostałe żądanie jest zarezerwowane na końcową odpowiedź. Obraz nie został wygenerowany.",
+  "modelApiTurnLimit": {
+    "one": "Tura zatrzymała się po {count} wywołaniu modelu. Wyślij wiadomość, aby kontynuować.",
+    "other": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować.",
+    "few": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować.",
+    "many": "Tura zatrzymała się po {count} wywołaniach modelu. Wyślij wiadomość, aby kontynuować."
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "Tura zatrzymała się po {count} wywołaniu modelu, a ostateczna odpowiedź została ucięta przez limit wyjścia. Częściowa odpowiedź została zachowana. Wyślij wiadomość, aby kontynuować.",
+    "few": "Tura zatrzymała się po {count} wywołaniach modelu, a ostateczna odpowiedź została ucięta przez limit wyjścia. Częściowa odpowiedź została zachowana. Wyślij wiadomość, aby kontynuować.",
+    "many": "Tura zatrzymała się po {count} wywołaniach modelu, a ostateczna odpowiedź została ucięta przez limit wyjścia. Częściowa odpowiedź została zachowana. Wyślij wiadomość, aby kontynuować.",
+    "other": "Tura zatrzymała się po {count} wywołaniach modelu, a ostateczna odpowiedź została ucięta przez limit wyjścia. Częściowa odpowiedź została zachowana. Wyślij wiadomość, aby kontynuować."
+  },
+  "modelApiWrapUpHookBlocked": "Hook zatrzymania poprosił o dalszą pracę, ale tura osiągnęła limit wywołań modelu, więc ostateczna odpowiedź zostaje.",
+  "modelApiWrapUpFailed": {
+    "one": "Tura zatrzymała się po {count} wywołaniu modelu, ale nie udało się utworzyć podsumowania końcowego ({reason}).",
+    "other": "Tura zatrzymała się po {count} wywołaniach modelu, ale nie udało się utworzyć podsumowania końcowego ({reason}).",
+    "few": "Tura zatrzymała się po {count} wywołaniach modelu, ale nie udało się utworzyć podsumowania końcowego ({reason}).",
+    "many": "Tura zatrzymała się po {count} wywołaniach modelu, ale nie udało się utworzyć podsumowania końcowego ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "limit szybkości",
+    "modelError": "błąd modelu",
+    "budget": "limit budżetu",
+    "stopped": "zatrzymano"
   },
   "execRequestCapReached": {
     "one": "Osiągnięto limit {count} próby.",

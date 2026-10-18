@@ -1195,6 +1195,7 @@ const REFERENCE_DETAILS: Readonly<
   cache: ['referenceCache'],
   'custom-agents': ['referencePaidContexts'],
   'conversation-actions': [
+    'referenceTurnLimit',
     'referenceWindowsSessions',
     'restoreFilesToHere',
     'rewindAndRestore',

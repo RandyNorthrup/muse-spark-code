@@ -52,6 +52,7 @@ import type { PushPlan } from '../../../core/git/pushPlan'
 import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 import type { NativeStatusSnapshot } from '../../../core/git/status'
 import { fill } from '../../../shared/l10n/text'
+import { replyIfUsable } from '../../../core/turns/usableReply'
 import type { AgentEvent } from '../../../shared/agentEvents'
 import {
   GIT_FORM_FILES_SHOWN,
@@ -81,7 +82,6 @@ import {
 const AGENT_MESSAGE_KIND = 'agentMessage'
 /** Between the URLs of a remote with several push URLs (git pushes to each). */
 const PUSH_URL_SEPARATOR = ', '
-const COMPLETED_TERMINAL = 'completed'
 const EMPTY_STATE_JSON = '{}'
 
 /**
@@ -176,7 +176,7 @@ export class RuntimeGit implements ConversationGitPort {
   private draftEpoch = 0
   private readonly turnsSeen = new Map<
     string,
-    { text: string | undefined; terminal: string | undefined }
+    { text: string | undefined; terminal: string | undefined; errorKind: string | undefined }
   >()
 
   public constructor(
@@ -575,14 +575,23 @@ export class RuntimeGit implements ConversationGitPort {
     }
   }
 
-  private seen(turnId: string): { text: string | undefined; terminal: string | undefined } {
+  private seen(turnId: string): {
+    text: string | undefined
+    terminal: string | undefined
+    errorKind: string | undefined
+  } {
     const known = this.turnsSeen.get(turnId)
     if (known !== undefined) {
       return known
     }
-    const fresh: { text: string | undefined; terminal: string | undefined } = {
+    const fresh: {
+      text: string | undefined
+      terminal: string | undefined
+      errorKind: string | undefined
+    } = {
       text: undefined,
       terminal: undefined,
+      errorKind: undefined,
     }
     this.turnsSeen.set(turnId, fresh)
     return fresh
@@ -687,7 +696,9 @@ export class RuntimeGit implements ConversationGitPort {
       this.turnsSeen.clear()
       return
     }
-    const reply = seen.terminal === COMPLETED_TERMINAL ? seen.text : undefined
+    // A capped turn's summary is never a draft: only a turn that completed
+    // without a limit answers what was asked.
+    const reply = replyIfUsable({ terminal: seen.terminal, errorKind: seen.errorKind }, seen.text)
     if (reply !== undefined && draft.output !== undefined) {
       if (draft.settling === true) {
         return
@@ -887,7 +898,9 @@ export class RuntimeGit implements ConversationGitPort {
       if (draft.turnId !== undefined && draft.turnId !== event.turnId) {
         return
       }
-      this.seen(event.turnId).terminal = event.terminal
+      const seen = this.seen(event.turnId)
+      seen.terminal = event.terminal
+      seen.errorKind = event.errorKind
       this.settleDraft()
       return
     }

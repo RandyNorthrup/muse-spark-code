@@ -2410,8 +2410,8 @@ export const MODEL_API_EFFORT_OFF = 'minimal'
 // Context pressure thresholds (fraction of the window) for the indicator.
 export const CONTEXT_PRESSURE_MEDIUM = 0.7
 export const CONTEXT_PRESSURE_HIGH = 0.9
-// A turn stops after this many model calls (tool rounds) to bound a loop.
-export const MODEL_API_MAX_TOOL_ROUNDS = 50
+// Default per-turn model-call allowance; an existing caller allowance replaces it.
+export const MODEL_API_MAX_TOOL_ROUNDS = 200
 // Tool parameter schemas convert to a constrained-decoding grammar on
 // servers that take one (llama.cpp, SoL-Pi #59/#65; M101 item 24): nested
 // past this, a schema trips the check. Past the current toolset's nesting
@@ -6597,6 +6597,12 @@ export const MODEL_API_MODEL_TEXT = {
   // block rather than carrying new keys in activation's MODEL_TEXT (D6).
   toolRepeatStopped:
     'This tool call repeats the same arguments and unchanged result. It was not run again. Use a different approach or explain what is blocking the task.',
+  wrapUpReserved:
+    'The remaining request is reserved for the final answer. The image was not generated.',
+  // A count with its noun as slots: model text must stay literal strings
+  // (scripts/lib/compressedModelText.mjs), so forms()/plural cannot apply.
+  turnWrapUp:
+    'This turn has reached its limit of {limit} {calls}. Call no tools. Give the final answer now: what is done, what was found, and what remains.',
   continuationPrompt:
     'Continue the answer from where the output limit cut it off. Do not repeat the text already returned.',
   // M91 lane E: BeforeToolSelection's tail note, and TeammateIdle's default.

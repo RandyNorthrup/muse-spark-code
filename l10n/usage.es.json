@@ -40,12 +40,21 @@
     "other": "La exportación CSV por llamada solo está disponible para los últimos {count} días."
   },
   "exportComplete": "Uso exportado.",
+  "exportTooLarge": "Esta exportación es demasiado grande para el navegador. Elija un intervalo más corto o exporte mediante la CLI.",
+  "exportBound": "Las exportaciones del navegador se limitan a {limit}, incluida la codificación JSON.",
+  "editorActionsUnavailable": "Esta página no puede abrir la configuración del editor, mostrar la carpeta del historial ni editar los precios de modelos. Use la configuración del editor y los controles de Modelos y agentes. Aquí siguen disponibles la lectura, los filtros, los gráficos y las exportaciones.",
+  "readOnlyActions": "Esta interfaz de texto es de solo lectura. Abra la página complementaria para ver gráficos, controlar el historial y descargar archivos.",
   "deleteHistory": "Eliminar el historial de uso…",
   "deleteTitle": "¿Eliminar el historial de uso?",
   "deleteConfirm": {
     "one": "¿Eliminar {count} registro de uso en esta máquina? Los libros de gastos y los permisos concedidos se conservan.",
     "many": "¿Eliminar {count} de registros de uso en esta máquina? Los libros de gastos y los permisos concedidos se conservan.",
     "other": "¿Eliminar {count} registros de uso en esta máquina? Los libros de gastos y los permisos concedidos se conservan."
+  },
+  "deleteConfirmResources": {
+    "one": "También elimina {count} entrada del historial de recursos.",
+    "many": "También elimina {count} entradas del historial de recursos.",
+    "other": "También elimina {count} entradas del historial de recursos."
   },
   "deleteAction": "Eliminar el historial",
   "deleteComplete": "Historial de uso eliminado.",
@@ -227,14 +236,5 @@
   "sortAscending": "Orden ascendente",
   "sortDescending": "Orden descendente",
   "retentionNote": "El detalle por llamada se conserva {detailDays} días; los resúmenes diarios, {historyDays} días.",
-  "privacyNote": "El historial permanece en esta máquina. No contiene indicaciones, respuestas, argumentos de herramientas, rutas ni claves.",
-  "exportTooLarge": "Esta exportación es demasiado grande para el navegador. Elija un intervalo más corto o exporte mediante la CLI.",
-  "exportBound": "Las exportaciones del navegador se limitan a {limit}, incluida la codificación JSON.",
-  "editorActionsUnavailable": "Esta página no puede abrir la configuración del editor, mostrar la carpeta del historial ni editar los precios de modelos. Use la configuración del editor y los controles de Modelos y agentes. Aquí siguen disponibles la lectura, los filtros, los gráficos y las exportaciones.",
-  "readOnlyActions": "Esta interfaz de texto es de solo lectura. Abra la página complementaria para ver gráficos, controlar el historial y descargar archivos.",
-  "deleteConfirmResources": {
-    "one": "También elimina {count} entrada del historial de recursos.",
-    "many": "También elimina {count} entradas del historial de recursos.",
-    "other": "También elimina {count} entradas del historial de recursos."
-  }
+  "privacyNote": "El historial permanece en esta máquina. No contiene indicaciones, respuestas, argumentos de herramientas, rutas ni claves."
 }

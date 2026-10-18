@@ -1560,6 +1560,13 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
+   * Required by `AgentSession`; a no-op here. Muse Code manages its own
+   * turn bounds over MSP, so no caller allowance is bound.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-empty-function -- AgentSession requires the member so the compiler lists every implementer; Muse Code manages its own turn bounds over MSP, so this intentionally binds nothing (PLAN.md §8).
+  public setModelCallAllowance(_remaining: (() => number) | undefined): void {}
+
+  /**
    * Inject input into the turn believed to be running. The host rejects the
    * steer when that turn is no longer the running one, so input meant for one
    * turn never leaks into the next. That refusal is a `SteerRefusedError`,

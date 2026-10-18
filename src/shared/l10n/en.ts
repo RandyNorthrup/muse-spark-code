@@ -410,7 +410,8 @@ export const EN = {
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
-    'max-requests': 'Set the maximum number of model requests.',
+    'max-requests':
+      'Set the maximum request allowance. The last model call produces a final summary without tools.',
     'max-tool-output-bytes': 'Raise the per-tool-result byte guard for this run.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
@@ -3263,6 +3264,7 @@ export const EN = {
   agentStopReasons: {
     normal: 'Normal End',
     budget: 'Budget Exhausted',
+    limit: 'Call Limit Reached',
     error: 'Error',
     cancelled: 'Stopped by User',
     unknown: 'Unavailable',
@@ -4268,6 +4270,32 @@ export const EN = {
     one: 'At most {count} input file is allowed.',
     other: 'At most {count} input files are allowed.',
   }),
+  referenceTurnLimit:
+    'Model API turns default to 200 model calls. Existing caller request limits win. The first call always runs with tools: an answer completes the turn, a tool request ends it at the request cap. The last call of a turn that ran tools answers without tools and completes with max_turn_requests (headless exec reports request_cap, exit 5); send a message to continue.',
+  modelApiWrapUpReserved:
+    'The remaining request is reserved for the final answer. The image was not generated.',
+  modelApiTurnLimit: forms({
+    one: 'The turn stopped after {count} model call. Send a message to continue.',
+    other: 'The turn stopped after {count} model calls. Send a message to continue.',
+  }),
+  modelApiWrapUpTruncated: forms({
+    one: 'The turn stopped after {count} model call with the final answer cut short by the output limit. The partial answer is kept. Send a message to continue.',
+    other:
+      'The turn stopped after {count} model calls with the final answer cut short by the output limit. The partial answer is kept. Send a message to continue.',
+  }),
+  modelApiWrapUpHookBlocked:
+    'A stop hook asked for more work, but the turn reached its model-call limit, so the final answer stands.',
+  modelApiWrapUpFailed: forms({
+    one: 'The turn stopped after {count} model call, but the final summary could not be produced ({reason}).',
+    other:
+      'The turn stopped after {count} model calls, but the final summary could not be produced ({reason}).',
+  }),
+  modelApiWrapUpFailedReason: {
+    rateLimited: 'rate limited',
+    modelError: 'model error',
+    budget: 'budget stop',
+    stopped: 'stopped',
+  },
   execRequestCapReached: forms({
     one: 'The request cap of {count} attempt was reached.',
     other: 'The request cap of {count} attempts was reached.',

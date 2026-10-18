@@ -3990,6 +3990,33 @@ ACP and headless Model API/BYO requests share a hard local-day budget in the age
 
 ## Limits
 
+Model API turns reserve their last permitted call for an answer without tools:
+what is done, what was found, and what remains. The phase is decided where every
+request is built, so every request sent after a call went out observes it: the
+last permitted call always goes out tools-less on every failure path — first
+attempt, HTTP retry, whole-stream retry, media recovery and overflow recovery
+alike — and a capped turn's reply is never reused as a verdict, review,
+draft or landing. The answer stays in the chat;
+a translated notice explains that sending a message continues it. If the wrap-up
+request itself cannot be completed (rate limit, model error, money stop, hook
+stop), the turn still ends at the limit but says the summary could not be
+produced and why. If the wrap-up itself overflows the window, the turn ends
+failed with "Context window full: /compact or /handoff" instead, and anything
+the turn was holding (a goal wake, steered input) is re-queued for its own
+turn. ACP returns
+`max_turn_requests`; headless exec reports `request_cap` (exit 5) with the answer.
+The default is 200 model calls per turn. Existing caller request allowances
+replace that default with what remains: `exec --max-requests` (default 30,
+range 1–500) and best-of-N attempts (production ACP binds none). The turn's first
+model call always runs with tools, even when it is also the last one allowed: an
+answer completes the turn (exec exit 0), while a tool request ends it at the
+request cap, said plainly. Stop hooks still run on a wrap-up turn; a hook
+asking for more work cannot be honoured past the limit, and the notice says so.
+A caller allowance above 200 remains usable. Paid child-task grants are the
+exception: all 4 attempts stay tool calls and exhaustion stays the child's
+typed request-limit stop. Retries spend calls; money caps
+and compaction's own admission and accounting still apply.
+
 The table below describes Meta Muse. M95's provider core resolves capabilities
 per configured provider and native model, with user overrides taking precedence
 over captures, model lists, the catalogue and presets. Unknown support does not
@@ -4875,6 +4902,11 @@ muse-spark-code-acp exec [options] --prompt-file <path>
 muse-spark-code-acp exec [options] -
 muse-spark-code-acp scan-secrets <file> [--key-stdin]
 ```
+
+| Exec flag                | Default / range        | Limit behavior                                                                                                                                                   |
+| ------------------------ | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--max-requests <count>` | 30 / 1–500 (Model API) | Uses the remaining allowance, reserves the last model call for a summary without tools, then returns `request_cap`, exit 5, with that summary in `finalMessage`. |
+| `--max-budget-usd <usd>` | Required on Model API  | Hard spending admission remains separate from the request allowance.                                                                                             |
 
 One turn runs through the existing ACP engine. Plan is the default and
 Accept edits the only other mode; trust, bypass and hosted search are refused.

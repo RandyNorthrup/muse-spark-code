@@ -1,0 +1,92 @@
+{
+  "vendor": "fireworks",
+  "model": "accounts/fireworks/models/gpt-oss-120b",
+  "variant": "2-wrap-up-tools-kept-choice-none",
+  "url": "https://api.fireworks.ai/inference/v1/chat/completions",
+  "requestBody": {
+    "model": "accounts/fireworks/models/gpt-oss-120b",
+    "max_tokens": 300,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read_file",
+          "description": "Read a file.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": ["path"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "none",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Read the file a.txt with the tool, then tell me what it says."
+      },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "index": 0,
+            "id": "call_lSaopU1jaL4Nxddj0pjOepI3",
+            "type": "function",
+            "function": {
+              "name": "read_file",
+              "arguments": "{\n\"path\": \"a.txt\"\n}"
+            },
+            "name": null
+          }
+        ],
+        "reasoning_content": "The user wants to read a file a.txt. We have a function read_file. Need to call it with path \"a.txt\"."
+      },
+      {
+        "role": "tool",
+        "tool_call_id": "call_lSaopU1jaL4Nxddj0pjOepI3",
+        "content": "hello from a.txt"
+      },
+      {
+        "role": "user",
+        "content": "You have reached the limit of model calls for this turn. Without calling any tool, say in one sentence what you did and what remains."
+      }
+    ]
+  },
+  "status": 200,
+  "response": {
+    "id": "chatcmpl-3bc0ebbafdd745a78a1ccfc4bfe35b32",
+    "object": "chat.completion",
+    "created": 1791834941,
+    "model": "accounts/fireworks/models/gpt-oss-120b",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "I used the read_file tool to retrieve the contents of a.txt, which returned “hello from a.txt,” and there are no further actions needed."
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 192,
+      "total_tokens": 227,
+      "completion_tokens": 35,
+      "prompt_tokens_details": {
+        "cached_tokens": 191
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0
+      },
+      "output_tokens_details": {
+        "reasoning_tokens": 0
+      }
+    }
+  }
+}

@@ -326,7 +326,7 @@
     "effort": "Zvolte, kolik úsilí Muse věnuje každé odpovědi.",
     "output": "Vybrat formát výsledku: text, json nebo jsonl.",
     "max-budget-usd": "Nastavit pevný limit výdajů v USD pro tento běh.",
-    "max-requests": "Nastavit nejvyšší počet požadavků modelu.",
+    "max-requests": "Nastavuje maximální počet požadavků. Poslední volání modelu vytvoří závěrečný souhrn bez nástrojů.",
     "max-tool-output-bytes": "Zvýšit limit bajtů na výsledek nástroje pro tento běh.",
     "timeout": "Nastavit dobu běhu v sekundách.",
     "fail-on-denial": "Zastavit běh při zamítnutí oprávnění.",
@@ -2793,6 +2793,7 @@
   "agentStopReasons": {
     "normal": "Normální konec",
     "budget": "Rozpočet vyčerpán",
+    "limit": "Dosažen limit volání",
     "error": "Chyba",
     "cancelled": "Zastaveno uživatelem",
     "unknown": "Nedostupné"
@@ -3676,6 +3677,33 @@
     "other": "Limit vstupních souborů: {count}.",
     "few": "Limit vstupních souborů: {count}.",
     "many": "Limit vstupních souborů: {count}."
+  },
+  "referenceTurnLimit": "Tahy Model API mají ve výchozím nastavení 200 volání modelu. Přednost mají existující limity volání volajících. První volání probíhá vždy s nástroji: odpověď tah normálně dokončí, požadavek na nástroj ho ukončí na limitu požadavků. Poslední volání tahu, který spouštěl nástroje, vytvoří shrnutí bez nástrojů; pokračujte odesláním zprávy.",
+  "modelApiWrapUpReserved": "Zbývající požadavek je vyhrazen pro závěrečnou odpověď. Obrázek nebyl vygenerován.",
+  "modelApiTurnLimit": {
+    "one": "Tah se zastavil po {count} volání modelu. Pokračujte odesláním zprávy.",
+    "other": "Tah se zastavil po {count} voláních modelu. Pokračujte odesláním zprávy.",
+    "few": "Tah se zastavil po {count} voláních modelu. Pokračujte odesláním zprávy.",
+    "many": "Tah se zastavil po {count} voláních modelu. Pokračujte odesláním zprávy."
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "Tah se zastavil po {count} volání modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy.",
+    "few": "Tah se zastavil po {count} voláních modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy.",
+    "many": "Tah se zastavil po {count} voláních modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy.",
+    "other": "Tah se zastavil po {count} voláních modelu, přičemž konečná odpověď byla zkrácena limitem výstupu. Částečná odpověď je zachována. Pokračujte odesláním zprávy."
+  },
+  "modelApiWrapUpHookBlocked": "Hook zastavení požádal o další práci, ale tah dosáhl limitu volání modelu, takže konečná odpověď platí.",
+  "modelApiWrapUpFailed": {
+    "one": "Tah se zastavil po {count} volání modelu, ale závěrečné shrnutí se nepodařilo vytvořit ({reason}).",
+    "other": "Tah se zastavil po {count} voláních modelu, ale závěrečné shrnutí se nepodařilo vytvořit ({reason}).",
+    "few": "Tah se zastavil po {count} voláních modelu, ale závěrečné shrnutí se nepodařilo vytvořit ({reason}).",
+    "many": "Tah se zastavil po {count} voláních modelu, ale závěrečné shrnutí se nepodařilo vytvořit ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "limit rychlosti",
+    "modelError": "chyba modelu",
+    "budget": "rozpočtový limit",
+    "stopped": "zastaveno"
   },
   "execRequestCapReached": {
     "one": "Byl dosažen limit {count} pokusu.",

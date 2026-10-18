@@ -208,7 +208,7 @@ export interface ChatCompletionRequest {
   readonly model: string
   readonly messages: readonly ChatMessage[]
   readonly tools?: readonly ChatFunctionTool[] | undefined
-  readonly tool_choice?: 'auto' | undefined
+  readonly tool_choice?: 'auto' | 'none' | undefined
   readonly parallel_tool_calls?: boolean | undefined
   readonly stream: true
   readonly stream_options?: { readonly include_usage: true } | undefined
@@ -548,6 +548,8 @@ export function encodeChatRequest(
   // A trailing developer message is request-only progress (M101), so the
   // rolling marker belongs to the preceding historical native message.
   const suffix = body.input.at(-1)
+  // A request without tools carries no tool_choice on the wire, in any
+  // profile: Meta takes auto only, and a choice without tools is refused.
   const request: ChatCompletionRequest = {
     model,
     messages: markBreakpoints(
@@ -555,10 +557,11 @@ export function encodeChatRequest(
       options?.cacheBreakpoints ?? 'none',
       suffix?.type === 'message' && suffix.role === 'developer',
     ),
-    ...(nativeTools.length > 0 && {
-      tools: nativeTools,
-      ...(quirks.toolChoice !== 'omit' && { tool_choice: 'auto' as const }),
-    }),
+    ...(body.tools.length > 0 &&
+      nativeTools.length > 0 && {
+        tools: nativeTools,
+        ...(quirks.toolChoice !== 'omit' && { tool_choice: 'auto' as const }),
+      }),
     ...(quirks.parallelToolCalls !== undefined && {
       parallel_tool_calls: quirks.parallelToolCalls,
     }),

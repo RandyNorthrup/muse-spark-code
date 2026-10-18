@@ -299,7 +299,9 @@ export function metaCapabilityRecord(nativeModel: string): ModelCapabilityRecord
         tools: {
           calling: yes(true),
           parallel: yes(true),
-          choiceModes: yes(['auto', 'none', 'required', 'named']),
+          // Measured 2026-10-12: Meta answers 400 to anything but "auto"
+          // (toolrounds-captures/meta/3-wrap-up-tools-kept-choice-none.json).
+          choiceModes: yes(['auto']),
           streamingArguments: yes(true),
         },
         reasoning: {

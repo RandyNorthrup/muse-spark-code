@@ -24,7 +24,12 @@ import {
   type WorkerFenceIo,
 } from './workerFence'
 import { scrubWorkerEnv } from './workerEnv'
-import { extractTeamReport, parseReportJson, type WorkerReportOutcome } from './report'
+import {
+  extractTeamReport,
+  parseReportJson,
+  reportForStop,
+  type WorkerReportOutcome,
+} from './report'
 import { type WorkerPromptParts, type WorkerRolePolicy, type WorkerTask } from './workerTypes'
 import {
   routeChecks,
@@ -373,6 +378,11 @@ export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWor
     reportedText === undefined || parseReportJson(reportedText) === undefined
       ? await deps.readTranscriptTail?.()
       : undefined
+  if (outcome.ceilingReached) {
+    // The typed outcome: the ceiling, not the model, ended the task. The
+    // wrap-up text stays as what the worker reached, never a success.
+    return { outcome, report: reportForStop(lastMessage ?? '', 'max_turn_requests') }
+  }
   return {
     outcome,
     report: resolveWorkerReport({ reportedText, lastMessage }),

@@ -326,7 +326,7 @@
     "effort": "Choisissez l’effort que Muse consacre à chaque réponse.",
     "output": "Choisir le format du résultat : text, json ou jsonl.",
     "max-budget-usd": "Fixer la limite stricte de dépenses en USD pour cette exécution.",
-    "max-requests": "Fixer le nombre maximal de requêtes au modèle.",
+    "max-requests": "Définit le nombre maximal de requêtes. Le dernier appel au modèle produit un résumé final sans outils.",
     "max-tool-output-bytes": "Relever le plafond d’octets par résultat d’outil pour cette exécution.",
     "timeout": "Fixer la durée maximale de l’exécution en secondes.",
     "fail-on-denial": "Arrêter l’exécution si une autorisation est refusée.",
@@ -2737,6 +2737,7 @@
   "agentStopReasons": {
     "normal": "Fin normale",
     "budget": "Budget épuisé",
+    "limit": "Limite d’appels atteinte",
     "error": "Erreur",
     "cancelled": "Arrêté par l’utilisateur",
     "unknown": "Indisponible"
@@ -3602,6 +3603,30 @@
     "one": "Au plus {count} fichier d’entrée est autorisé.",
     "other": "Au plus {count} fichiers d’entrée sont autorisés.",
     "many": "Au plus {count} fichiers d’entrée sont autorisés."
+  },
+  "referenceTurnLimit": "Les tours de l’API Model comptent 200 appels au modèle par défaut. Les limites d’appels existantes des appelants priment. Le premier appel s’exécute toujours avec les outils : une réponse termine le tour normalement, une demande d’outil le termine au plafond de requêtes. Le dernier appel d’un tour qui a exécuté des outils produit un résumé sans outils ; envoyez un message pour continuer.",
+  "modelApiWrapUpReserved": "La requête restante est réservée à la réponse finale. L’image n’a pas été générée.",
+  "modelApiTurnLimit": {
+    "one": "Le tour s’est arrêté après {count} appel au modèle. Envoyez un message pour continuer.",
+    "other": "Le tour s’est arrêté après {count} appels au modèle. Envoyez un message pour continuer.",
+    "many": "Le tour s’est arrêté après {count} appels au modèle. Envoyez un message pour continuer."
+  },
+  "modelApiWrapUpTruncated": {
+    "one": "Le tour s’est arrêté après {count} appel au modèle, la réponse finale ayant été tronquée par la limite de sortie. La réponse partielle est conservée. Envoyez un message pour continuer.",
+    "other": "Le tour s’est arrêté après {count} appels au modèle, la réponse finale ayant été tronquée par la limite de sortie. La réponse partielle est conservée. Envoyez un message pour continuer.",
+    "many": "Le tour s’est arrêté après {count} appels au modèle, la réponse finale ayant été tronquée par la limite de sortie. La réponse partielle est conservée. Envoyez un message pour continuer."
+  },
+  "modelApiWrapUpHookBlocked": "Un hook d’arrêt a demandé du travail supplémentaire, mais le tour a atteint sa limite d’appels au modèle ; la réponse finale est donc conservée.",
+  "modelApiWrapUpFailed": {
+    "one": "Le tour s’est arrêté après {count} appel au modèle, mais le résumé final n’a pas pu être produit ({reason}).",
+    "other": "Le tour s’est arrêté après {count} appels au modèle, mais le résumé final n’a pas pu être produit ({reason}).",
+    "many": "Le tour s’est arrêté après {count} appels au modèle, mais le résumé final n’a pas pu être produit ({reason})."
+  },
+  "modelApiWrapUpFailedReason": {
+    "rateLimited": "limite de débit",
+    "modelError": "erreur du modèle",
+    "budget": "arrêt budgétaire",
+    "stopped": "arrêté"
   },
   "execRequestCapReached": {
     "one": "La limite de {count} tentative a été atteinte.",

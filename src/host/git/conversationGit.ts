@@ -59,6 +59,7 @@ import {
 } from '../../core/git/gitText'
 import type { SideCallFormats } from '../../core/backends/modelapi/structuredOutput'
 import { isPlainRefName, isPlainRefspec, planPush, type PushPlan } from '../../core/git/pushPlan'
+import { replyIfUsable } from '../../core/turns/usableReply'
 import { pullRequestFormProblem } from '../../core/git/pullRequestRef'
 import { wireWordForLog } from '../../core/logging'
 import { redactSecrets } from '../../core/redact'
@@ -179,6 +180,8 @@ interface Generation {
 interface TurnSeen {
   text: string | undefined
   terminal: string | undefined
+  /** The turn's error kind, so a capped turn's summary is never a draft. */
+  errorKind: string | undefined
 }
 
 interface Destination {
@@ -201,7 +204,6 @@ interface PullRequestTarget {
 }
 
 const EMPTY_STATE_JSON = '{}'
-const COMPLETED_TERMINAL = 'completed'
 const AGENT_MESSAGE_KIND = 'agentMessage'
 const HEAD_REF = 'HEAD'
 const LINE_BREAK = /\r?\n/
@@ -915,7 +917,7 @@ export class ConversationGit implements ConversationGitPort {
     if (known !== undefined) {
       return known
     }
-    const fresh: TurnSeen = { text: undefined, terminal: undefined }
+    const fresh: TurnSeen = { text: undefined, terminal: undefined, errorKind: undefined }
     this.turnsSeen.set(turnId, fresh)
     return fresh
   }
@@ -934,19 +936,17 @@ export class ConversationGit implements ConversationGitPort {
       this.turnsSeen.clear()
       return
     }
-    if (
-      generation.output !== undefined &&
-      seen.terminal === COMPLETED_TERMINAL &&
-      seen.text !== undefined
-    ) {
+    // A capped turn's summary is never a draft: only a turn that completed
+    // without a limit answers what was asked.
+    const reply = replyIfUsable({ terminal: seen.terminal, errorKind: seen.errorKind }, seen.text)
+    if (reply !== undefined && generation.output !== undefined) {
       if (generation.isSettling === true) return
       generation.isSettling = true
-      void this.settleStructuredGeneration(generation, seen.text)
+      void this.settleStructuredGeneration(generation, reply)
       return
     }
     this.generation = undefined
     this.turnsSeen.clear()
-    const reply = seen.terminal === COMPLETED_TERMINAL ? seen.text : undefined
     if (generation.kind === 'commitMessage') {
       const message = reply === undefined ? undefined : commitMessageFrom(reply)
       if (message !== undefined) {
@@ -1509,7 +1509,9 @@ export class ConversationGit implements ConversationGitPort {
     ) {
       this.seen(event.item.turnId).text = event.item.text
     } else if (event.type === 'turnCompleted' && isWatched(event.turnId)) {
-      this.seen(event.turnId).terminal = event.terminal
+      const seen = this.seen(event.turnId)
+      seen.terminal = event.terminal
+      seen.errorKind = event.errorKind
       this.settleGeneration()
     }
   }
