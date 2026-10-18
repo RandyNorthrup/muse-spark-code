@@ -142,7 +142,7 @@ M2) and change nothing (exit 0, answer delivered) — observation only.
 
 - `85838cb3db` — 0.19.0 notes trim (23 shipped-entry duplicates out,
   M101 block condensed, RELEASING.md rule); build green.
-- (this change) — notice wrap fix (`src/webview/styles.css`), `--effort
+- `81054ed9fa` — notice wrap fix (`src/webview/styles.css`), `--effort
 none` help fact + reference + CLI-layer test
   (`test/unit/cliHelp.test.ts`), `--max-tool-output-bytes` help topic
   entry, three CHANGELOG lines, this record. Each with trailer
