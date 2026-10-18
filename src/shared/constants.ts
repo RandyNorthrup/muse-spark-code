@@ -8153,6 +8153,10 @@ export const VAULT_SCRUB_MIN_MBPS = 50
 export const VAULT_IDLE_MINUTES = 240
 export const VAULT_BYTE_MAX = 255
 export const VAULT_KEY_BYTES = 32
+// D89.2: systemd-creds seals to the TPM (--user -T) only on systemd 256 or later.
+// Largest sealed blob the Linux TPM2 slot accepts from its helper command.
+export const VAULT_SYSTEMD_SEAL_VERSION = 256
+export const VAULT_SEALED_BLOB_MAX = 64 * 1024
 export const VAULT_NONCE_BYTES = 12
 export const VAULT_TAG_BYTES = 16
 export const VAULT_RECOVERY_BYTES = 20

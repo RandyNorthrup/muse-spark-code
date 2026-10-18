@@ -36,6 +36,11 @@ export const vaultSocketDescriptors: VaultSocketDescriptorPort = {
       .parse(Reflect.get(socket, '_handle')).fd,
 }
 
+/** The Secure Enclave slot helper (built by native/darwin/build.sh in CI's macOS job). */
+export function macVaultSlotExecutable(installRoot: string): string {
+  if (process.platform !== 'darwin') throw new Error(UI_TEXT.vault.noAccess)
+  return path.join(installRoot, 'dist', 'native', 'darwin', 'muse-vault')
+}
 /** Installed helper only; never a PATH lookup or a source/workspace-selected executable. */
 export function vaultPeerExecutable(installRoot: string): string {
   if (process.platform === 'darwin')

@@ -16,6 +16,7 @@ import {
   VaultSlotUnlock,
   type VaultSlotProvider,
 } from '../../core/vault/broker/repository'
+import type { VaultSlotRecord } from '../../shared/vault'
 import { VaultLockEpoch } from '../../core/vault/broker/epoch'
 import { UnixVaultPrivateFiles, type VaultPrivateFilesPort } from '../../core/vault/broker/files'
 import { UnixVaultPeerVerifier, type VaultPeerVerifier } from '../../core/vault/broker/peer'
@@ -23,7 +24,11 @@ import { type VaultBrokerDeps } from '../../core/vault/broker/ports'
 import { NodeVaultFiles } from '../../core/vault/store'
 import { KeyringVaultAnchor } from './keyringAnchor'
 import { type KeyringEntryFactory } from '../keyStore'
-import { PosixVaultSlots } from './slots/posixVaultSlots'
+import { LinuxVaultSlots } from './slots/linuxVaultSlots'
+import { MacVaultSlots } from './slots/macVaultSlots'
+import { WindowsVaultSlots } from './slots/windowsVaultSlots'
+import { macVaultTransport } from './slots/macVaultTransport'
+import { macVaultSlotExecutable } from './posixNative'
 import { startVaultBrokerProcess } from './brokerProcess'
 import { vaultPeerExecutable, vaultProcessIdentity, vaultSocketDescriptors } from './posixNative'
 import { bumpVaultEpoch } from './epochContender'
@@ -34,6 +39,18 @@ import {
   MILLISECONDS_PER_MINUTE,
 } from '../../shared/constants'
 
+const windowsHelperSchema = z.strictObject({
+  file: z.string().check(
+    z.minLength(1),
+    z.refine((value) => path.win32.isAbsolute(value)),
+  ),
+  sha256: z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
+  powershell: z.string().check(
+    z.minLength(1),
+    z.refine((value) => path.win32.isAbsolute(value)),
+  ),
+  guardSource: z.string().check(z.minLength(1)),
+})
 const contextSchema = z.strictObject({
   dataDir: z.string().check(
     z.minLength(1),
@@ -48,6 +65,9 @@ const contextSchema = z.strictObject({
     z.refine((value) => path.isAbsolute(value)),
   ),
   userSession: z.string().check(z.minLength(1), z.maxLength(VAULT_LIMITS.text)),
+  // Windows only: the host-built slot helper (DPAPI/CNG/Hello). The broker
+  // refuses integrity failures instead of rebuilding: the host owns the build.
+  windowsHelper: z.optional(windowsHelperSchema),
 })
 export type VaultBrokerContext = z.infer<typeof contextSchema>
 /** Trusted runtime supplies execution, identity and scrub bindings; no substitute or empty success. */
@@ -69,6 +89,49 @@ export interface VaultBrokerBindings {
   readonly privateFiles?: VaultPrivateFilesPort
   readonly idleMs?: number
   readonly lockOnScreenLock: boolean
+}
+
+/**
+ * This platform's slots: DPAPI/CNG/Hello on Windows, Keychain plus the
+ * Secure Enclave on macOS, Secret Service plus the TPM2 sealed object on
+ * Linux. The same selection serves every editor on the machine.
+ */
+export function defaultBrokerSlots(
+  context: Pick<VaultBrokerContext, 'installRoot'> & {
+    readonly windowsHelper?: z.infer<typeof windowsHelperSchema> | undefined
+  },
+  presenceRecords: () => Promise<readonly VaultSlotRecord[]>,
+): VaultSlotProvider {
+  switch (process.platform) {
+    case 'win32': {
+      const helper = context.windowsHelper
+      if (!helper) throw new Error(UI_TEXT.vault.noAccess)
+      return new WindowsVaultSlots(
+        {
+          ...helper,
+          rebuild: () => {
+            // The host owns the helper build; the broker refuses instead.
+            return Promise.reject(new Error(UI_TEXT.vault.noAccess))
+          },
+          report: () => {
+            process.stderr.write('vault-slot-rebuild-refused\n')
+          },
+        },
+        { presenceRecords },
+      )
+    }
+    case 'darwin': {
+      return new MacVaultSlots(macVaultTransport(macVaultSlotExecutable(context.installRoot)), {
+        presenceRecords,
+      })
+    }
+    case 'linux': {
+      return new LinuxVaultSlots()
+    }
+    default: {
+      throw new Error(UI_TEXT.vault.noAccess)
+    }
+  }
 }
 
 /** Runs inside the broker process. Composes part A's blocks, never a second store/management/anchor. */
@@ -108,8 +171,17 @@ export async function createVaultBrokerProcess(
       }
       const anchor = new KeyringVaultAnchor(keyring)
       const repository = new VaultStoreRepository(files, anchor)
-      const slots = bindings.slots ?? new PosixVaultSlots()
+      // Presence proofs resolve this vault's own presence-tier records: the
+      // supplier is bound after unlock exists, and fails closed before that.
+      const unlockRef: { current?: VaultSlotUnlock } = {}
+      const slots =
+        bindings.slots ??
+        defaultBrokerSlots(context, async () => {
+          const records = await unlockRef.current?.records()
+          return records ?? []
+        })
       const unlock = new VaultSlotUnlock(files, anchor, slots)
+      unlockRef.current = unlock
       const clock = { now: () => Date.now() }
       const peers =
         bindings.peers ??
