@@ -278,12 +278,20 @@ export class CodecClient implements ProviderClient {
         const isResendable =
           isRetryableStreamFailure(failure, this.deps.transport.retryTable) ||
           (failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE)
+        // Lane PR225FIX2: a connection lost before any content is an
+        // ambiguous send — the request may have arrived and executed — so
+        // it is sent again only within an explicit bound (the person's
+        // setting or the provider's documented maximum), never on the
+        // unbounded default. A retryable error the provider ended its
+        // stream with stays on the status policy above.
+        const isAmbiguous = failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE
         const allowed = this.transport.maxRetries()
         if (
           !isResendable ||
           hasContent ||
           signal.aborted ||
           admitAttempt?.mediaAccounting !== undefined ||
+          (isAmbiguous && allowed === undefined) ||
           retries.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
         )
           throw failure

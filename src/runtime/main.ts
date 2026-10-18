@@ -1,5 +1,6 @@
 import { legalScanLoader } from '../host/ide/legalScanBundle'
 import { failureForLog } from '../core/backends/musecode/logText'
+import { abortableSleep } from '../core/backends/modelapi/transport'
 // `muse-spark-code-acp` (PLAN.md D62): the Muse Spark agent for editors that
 // speak the Agent Client Protocol, and the sign-in commands their terminal
 // sign-ins run (D61). stdout carries the protocol; everything the user or
@@ -194,10 +195,10 @@ function writeLine(stream: NodeJS.WriteStream, line: string): void {
   stream.write(`${line}\n`)
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
+// Lane PR225FIX2: a Stop clears the wait's own timer, and a wait left
+// pending never holds the agent process open.
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return abortableSleep(ms, signal)
 }
 
 function packageVersion(): string {

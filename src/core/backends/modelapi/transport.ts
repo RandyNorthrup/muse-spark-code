@@ -101,7 +101,12 @@ export interface TransportDeps {
    * provider's documented maximum in force.
    */
   readonly personMaxRetries?: () => number | undefined
-  readonly sleep: (ms: number) => Promise<void>
+  /**
+   * One timer chunk of a retry wait. A cooperating sleep clears its own
+   * timer when `signal` aborts (see `abortableSleep`); one that ignores
+   * the signal is abandoned by `pause`'s race exactly as before.
+   */
+  readonly sleep: (ms: number, signal?: AbortSignal) => Promise<void>
   readonly now: () => number
   readonly random: () => number
   readonly log: CoreLogger
@@ -589,6 +594,33 @@ function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; d
   }
 }
 
+/**
+ * Production `TransportDeps.sleep` (lane PR225FIX2): a real timer that never
+ * holds the process open and is cleared the moment `signal` aborts, so a
+ * retry wait a Stop abandons leaves no timer behind. Resolves early on
+ * abort; the caller observes the abort itself (`pause`'s race rejects with
+ * the turn's cancellation, registered before this listener).
+ */
+export function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((done) => {
+    if (signal?.aborted === true) {
+      done()
+      return
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      done()
+    }, ms)
+    // A wait left pending by a Stop must never hold the process open.
+    timer.unref()
+    const onAbort = () => {
+      clearTimeout(timer)
+      done()
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
 const ownerPacers = new WeakMap<object, RequestPacer>()
 
 export class RequestTransport {
@@ -756,7 +788,11 @@ export class RequestTransport {
       let remaining = ms
       do {
         const piece = Math.min(remaining, MODEL_API_TIMER_MAX_MS)
-        const slept = this.deps.sleep(piece)
+        // The stop reaches the chunk's own timer through the injected
+        // sleep: a cooperating sleep clears it, so no timer outlives the
+        // stop. The race stays, so a sleep that ignores the signal is
+        // abandoned exactly as before and Stop stays prompt.
+        const slept = this.deps.sleep(piece, signal)
         await (aborted === undefined ? slept : Promise.race([slept, aborted.promise]))
         remaining -= piece
       } while (remaining > 0)
@@ -1172,7 +1208,13 @@ export class RequestTransport {
         const reason = credentials.redact(
           this.deps.sendFailure?.(error) ?? networkFailureMessage(error, this.deps.networkAdvice),
         )
-        if (isRateLimitOnly || attempt >= (this.maxRetries() ?? UNBOUNDED_RETRIES)) {
+        // Lane PR225FIX2: an unanswered send is ambiguous — the request may
+        // have arrived and executed — so it is sent again only within an
+        // explicit bound (the person's setting or the provider's documented
+        // maximum). With neither, the failure ends the request here instead
+        // of replaying a possibly-executed paid send without end.
+        const allowed = this.maxRetries()
+        if (isRateLimitOnly || allowed === undefined || attempt >= allowed) {
           throw new ModelApiError(reason, NETWORK_FAILURE_STATUS, undefined, undefined)
         }
         const delay = this.backoffMs(attempt, undefined)

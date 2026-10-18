@@ -357,6 +357,7 @@ import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
 import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
+import { abortableSleep } from './core/backends/modelapi/transport'
 
 import { BACKEND_KINDS, type HostAction } from './shared/protocol'
 import type { AccountFacts } from './shared/usage'
@@ -2052,10 +2053,9 @@ async function activateWindow(
       apiKey: () => credentials.getApiKey(),
       // Lane RETRYLIMITS: the person's retry limit, read live; null stays unset.
       personMaxRetries: () => currentSettings().modelApiMaxRetries ?? undefined,
-      sleep: (ms) =>
-        new Promise((resolve) => {
-          setTimeout(resolve, ms)
-        }),
+      // Lane PR225FIX2: a Stop clears the wait's own timer, and a wait
+      // left pending never holds the process open.
+      sleep: abortableSleep,
       now: () => Date.now(),
       random: () => Math.random(),
       log,
@@ -2629,10 +2629,9 @@ async function activateWindow(
     personMaxRetries: () => currentSettings().modelApiMaxRetries ?? undefined,
     newId: () => crypto.randomUUID(),
     now: () => Date.now(),
-    sleep: (ms) =>
-      new Promise((resolve) => {
-        setTimeout(resolve, ms)
-      }),
+    // Lane PR225FIX2: a Stop clears the wait's own timer, and a wait left
+    // pending never holds the process open.
+    sleep: abortableSleep,
     random: () => Math.random(),
     personalSkillsRoot: skillsHome,
     bundledSkills: {
