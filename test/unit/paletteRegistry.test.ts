@@ -267,7 +267,8 @@ describe('buildPalette', () => {
       label: 'Effort (Extra High)',
       widget: {
         kind: 'slider',
-        levels: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+        // The full UI range carries the Ultra tier (REASONSHAPES effort tiers).
+        levels: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
         current: 'xhigh',
       },
       isSlider: true,
