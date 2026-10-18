@@ -98,6 +98,21 @@ goldens are fixed in this lane.
   `invalid`/`limit` mapping including mid-stream bad bytes.
   `reportSourceSize.test.ts` 3/3 with the new split-`é`/bad-bytes case
   (seen to fail with `{ stream: true }` removed).
+
+## Final gates (lane PR229W1, final tree)
+
+- Suites on the repo default timeout, never `--testTimeout`: invariants
+  42/42, sessionTransfer 25/25, goals 15/15 + goalCommand green,
+  attachments 19/19, heldTree 57/57 + heldCheckoutCore green,
+  reportSourceSize 3/3; `vitest related` for the changed core/runtime
+  sources 510 passed / 4 skipped, and for the host/runtime checkout paths
+  green (rest environment-skipped).
+- `npm run typecheck` exit 0 (one fix after T7: explicit `Buffer` field
+  type in `ListingRecords`, committed as its own follow-up).
+- `eslint --max-warnings=0` on every lane-changed source/test/script
+  file: clean. `prettier --check`: clean. `check:l10n` 0 problems,
+  `check:reference` current, `check:plan` 0 drift, `npm run build`
+  exit 0 with budgets green.
 - T11 (`attachments.ts`, `ModelApiHost.ts`): the Model API text admission
   compared UTF-8 bytes to the token-window-minus-reserve number, and a fixed
   1 MiB pre-check fired first, so provider-valid plans (>1 MiB, inside the
