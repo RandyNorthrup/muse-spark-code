@@ -110,7 +110,7 @@ function usageOf(usage: Usage | null | undefined): TabEngineUsage | undefined {
 
 /** A failure as an Error, whatever was thrown. */
 function asError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(String(error))
+  return error instanceof Error ? error : new Error(String(error), { cause: error })
 }
 
 export function createTabEngine(deps: TabEngineDeps): TabEngine {
