@@ -173,13 +173,16 @@ Already safe (no change needed):
 
 - One comparison (`src/core/executables.ts`): `isSameOrInsideDirectory`
   now strips device (`\\.\`, `//./`) as well as verbatim prefixes, maps
-  `\\.\UNC\` like `\\?\UNC\`, strips a trailing dot on every segment and
-  collapses `.`/`..` lexically (GetFullPathName semantics; `..` above the
-  root clamps), case-insensitive on Windows, then realpath where the path
-  exists. `\\.\C:\…`, `//./C:/…`, `\\.\UNC\localhost\C$\…`,
-  `C:\…\repo.`, `C:\…\repo.\bin` and `C:\no-such\..\…` spellings of the
-  workspace all compare as the workspace with a throwing resolver; POSIX
-  collapses `.`/`..` too. Sanitize and every lookup share it.
+  `\\.\UNC\` like `\\?\UNC\`, strips trailing spaces and dots the way
+  `GetFullPathName` does (every trailing space and dot off the final
+  segment; one trailing dot off a non-final segment, a longer run kept)
+  and collapses `.`/`..` lexically (`..` above the root clamps),
+  case-insensitive on Windows, then realpath where the path exists.
+  `\\.\C:\…`, `//./C:/…`, `\\.\UNC\localhost\C$\…`, `C:\…\repo.`,
+  `C:\…\repo .`, `C:\…\repo.\bin` and `C:\no-such\..\…` spellings of the
+  workspace all compare as the workspace with a throwing resolver (while
+  `C:\…\repo...\bin` stays a distinct name); POSIX collapses `.`/`..`
+  too. Sanitize and every lookup share it.
 - One lookup: `workspaceRoot` + `realpath` threaded into `gitLocator`
   (both runners, per-run cwd, `realpathSync` by default), `processGitPath`
   (its caller passes `deps.workspaceRoot`), `fixedGitLocator` (refuses a
@@ -248,6 +251,16 @@ Already safe (no change needed):
   refuse at the real plugin, MCP, shell, recorder and governed lookups.
   The inventory gate fails on a deliberately added unguarded `spawn`
   (reverted after the failure) and passes on the tree.
+- Round 5: the inventory also enumerates wrapper starts and embedded
+  supervisor scripts, and its anchor check fails on the playbook's bare
+  `git` variable and the team probes' bare names before the fix (shown on
+  the lane) and passes after. `repo .` drops and `repo...\bin` stays with
+  a throwing resolver; the admitted playbook command is the real git
+  outside a workspace whose `bin` holds a planted `git` first on PATH
+  (nothing spawns: the admission refuses); an in-workspace `SHELL` is
+  ignored while an outside one still answers (lookup verdicts, real
+  filesystem, no spawns). `docs/certification/pathguard-spawns.md` lists
+  every product-chosen name the grep hunt found and its guard.
 
 Gates on the lane branch (final tree, repository's own timeout throughout,
 never `--testTimeout`):
