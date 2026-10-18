@@ -94,3 +94,40 @@ brokers credentials on Windows, macOS and Linux the same way.
   host, file anchor); `dist/vaultBrokerBindings.js` 33,159 → 38,133
   (anchor choice). Split manifest swaps deleted `posixVaultSlots.ts` for
   the three platform slot providers.
+
+## Grok review response (lane PR247FIX, 2026-10-18)
+
+One line per finding; each is fixed at its cause below or answered with a
+measured reason. No test timeout is raised anywhere; no stand-in is kept.
+
+- F1 (Windows client unreachable): fix at cause — add the Windows client
+  platform (helper build, child launch with `windowsHelper`, pipe
+  discovery/connect), a Windows branch in `VaultBrokerClient.open`, and
+  broker-entry Windows startup that reuses one serve relay; pipe tests run
+  on Windows CI against the real helper, skipped elsewhere with a reason.
+- F2 (hardware slots never created): fix at cause — setup wraps a
+  capability-probed hardware slot beside the OS-store slot (`auto` = both,
+  D89), and a working non-OS-store setup where only hardware seals.
+- F3 (`systemd-creds` without PATH): fix at cause — resolve the absolute
+  tool (`/usr/bin` then `/bin`), memoised; unavailable when neither exists.
+- F4 (`slotProviders` off Linux): fix at cause — every case constructs its
+  provider with an explicit `platform`; the live-platform dispatch case
+  asserts the actual platform and the win32-only branch skips elsewhere.
+- F5 (`brokerWithoutKeyring` macOS timeout): fix at cause — the child gets
+  a short owner-only `TMPDIR` on macOS (XDG is Linux-only) and the parent
+  races ready against exit; skip with a reason when no short base fits.
+- F6 (anchor modes on Windows): fix at cause — the Windows bindings pass
+  the pipe-helper guard into the file anchor (dir and file protected after
+  write); the `0o600` assertion stays POSIX-only.
+- F7 (`storeUnavailable` untrue): fix at cause — a distinct
+  binding-missing refusal (new sentence in every table) where the package
+  lacks the OS-store binding, and a working hardware-only setup where the
+  machine seals; keyring binaries stay out by the measured budget.
+- F8 (pipe-relay peer stand-in): fix at cause — delete the peer; pure
+  contract tests stay, and the relay integration drives the real
+  `MuseSparkVaultPipe` binary on Windows CI (skip elsewhere with a reason).
+- F9 (self-written audit marker): fix at cause — drop the child's write;
+  the child asserts a real `osStore.wrap` refusal in process and the parent
+  asserts ready plus a clean shutdown.
+- F10 (Linux presence survey): fix the survey — presence stays refused
+  after a real TPM2 probe (the passphrase owns Linux presence, D89 table).
