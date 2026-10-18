@@ -6,6 +6,7 @@ import {
   MILLISECONDS_PER_SECOND,
   SECONDS_PER_MINUTE,
   STILL_WAITING_NOTICE_MS,
+  TIMER_MAX_DELAY_MS,
   UI_TEXT,
 } from '../shared/constants'
 import { fill, formatUnit } from '../shared/l10n/text'
@@ -14,6 +15,26 @@ export class DeadlineError extends Error {
   public constructor(message: string) {
     super(message)
     this.name = 'DeadlineError'
+  }
+}
+
+/**
+ * Runs `callback` once `delayMs` has passed, however long: a delay past
+ * `TIMER_MAX_DELAY_MS` would fire after 1 ms on one timer, so it runs as a
+ * chain of timer-sized pieces. The returned function cancels it.
+ */
+export function setLongTimeout(callback: () => void, delayMs: number): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const arm = (leftMs: number): void => {
+    const pieceMs = Math.min(leftMs, TIMER_MAX_DELAY_MS)
+    timer = setTimeout(() => {
+      if (leftMs > pieceMs) arm(leftMs - pieceMs)
+      else callback()
+    }, pieceMs)
+  }
+  arm(delayMs)
+  return () => {
+    clearTimeout(timer)
   }
 }
 
@@ -27,16 +48,16 @@ export async function withDeadline<T>(
   timeoutMs: number,
   message: string,
 ): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined
+  let cancel: (() => void) | undefined
   const expired = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => {
+    cancel = setLongTimeout(() => {
       reject(new DeadlineError(message))
     }, timeoutMs)
   })
   try {
     return await Promise.race([promise, expired])
   } finally {
-    clearTimeout(timer)
+    cancel?.()
   }
 }
 

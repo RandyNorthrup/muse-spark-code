@@ -4591,6 +4591,13 @@ export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_
 // 2026-10-16: no silent hangs — the wait tells the person it is still
 // waiting, and Stop ends it). A notice cadence, not a limit: nothing stops.
 export const STILL_WAITING_NOTICE_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
+// The longest delay one timer takes, 2^31 - 1 ms (about 24.8 days). Node
+// runs a longer one after 1 ms ("When delay is larger than 2147483647 or
+// less than 1 or NaN, the delay will be set to 1", nodejs.org/api/timers.html,
+// read 2026-10-17), so a longer wait a provider or a person names runs as
+// a chain of such pieces (`setLongTimeout`). The platform's fact, not a
+// limit of ours: nothing is cut short.
+export const TIMER_MAX_DELAY_MS = 2_147_483_647
 
 // M102 / D82: machine-local usage history, independent of spend ledgers.
 // Version 2 (M121) stores dollars as exact decimal text. Both versions share
