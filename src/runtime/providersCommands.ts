@@ -8,7 +8,8 @@
 // compensate the secret change; crash/rollback limits are recorded in PLAN §9.
 
 import { lookup } from 'node:dns/promises'
-import { mkdir, rmdir } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { mkdir, rm, rmdir, writeFile } from 'node:fs/promises'
 import { isIP } from 'node:net'
 import * as z from 'zod/mini'
 import path from 'node:path'
@@ -38,7 +39,11 @@ import {
   PROVIDER_PROBE_TIMEOUT_MS,
   UI_TEXT,
 } from '../shared/constants'
-import { providerConfigFilePath } from '../core/credentialLease'
+import {
+  OWNER_FILE,
+  currentProcessStartTime,
+  providerConfigFilePath,
+} from '../core/credentialLease'
 import { fill, plural, uiLocale } from '../shared/l10n/text'
 import { modelLimitsSchema } from '../shared/providerRouting'
 import type { ProvidersAddOptions } from './cliArgs'
@@ -118,10 +123,23 @@ export function userFileIo(filePath: string): {
       await mkdir(path.dirname(filePath), { recursive: true })
       const lock = `${filePath}.lock`
       await mkdir(lock)
+      // The owner-record protocol (`src/core/credentialLease`): the
+      // extension reclaims an ownerless directory after its settle, so a
+      // live CLI lock must carry its owner from the start.
+      const owner = {
+        pid: process.pid,
+        startTime: currentProcessStartTime(),
+        nonce: randomUUID(),
+      }
+      await writeFile(`${lock}/${OWNER_FILE}`, JSON.stringify(owner), { flag: 'wx' })
       try {
         return await operation()
       } finally {
-        await rmdir(lock)
+        try {
+          await rm(`${lock}/${OWNER_FILE}`, { force: true })
+        } finally {
+          await rmdir(lock)
+        }
       }
     },
   }

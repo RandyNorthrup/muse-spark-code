@@ -349,6 +349,7 @@ import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
 import {
+  credentialLeaseSecrets,
   modelsPanelLoader,
   providerCredentials,
   recoverOpenRouterConnect,
@@ -4124,7 +4125,7 @@ async function activateWindow(
           connectCopilot: () => subscriptionFeatures().connectCopilot(),
           removeSubscription: (id) => subscriptionFeatures().removeSubscription(id),
           isConfidential: () => currentSettings().confidentialWorkspace,
-          secrets: context.secrets,
+          secrets: credentialLeaseSecrets(context.secrets),
           extensionUri: context.extensionUri,
           l10n,
           log,
