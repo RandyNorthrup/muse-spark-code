@@ -4,6 +4,8 @@
 
 import {
   IMAGE_ASPECT_SIZES,
+  IMAGE_EDIT_SOURCE_MAX,
+  IMAGE_EDIT_SOURCE_MIN,
   IMAGE_FILE_EXTENSION,
   type ImageAspect,
 } from '../../../shared/constants'
@@ -38,9 +40,12 @@ export const EDIT_IMAGE_PARAMETERS = {
   images: {
     type: 'array',
     items: { type: 'string' },
-    // D121: at least one source, as Meta requires; no maximum of ours.
+    minItems: IMAGE_EDIT_SOURCE_MIN,
+    maxItems: IMAGE_EDIT_SOURCE_MAX,
+    // Meta's own 1–10 range, enforced by the runtime schema before anything
+    // is read or asked.
     description:
-      'Workspace-relative paths of existing PNG, JPEG or WebP images to start from, at least one',
+      'Workspace-relative paths of existing PNG, JPEG or WebP images to start from, one to ten',
   },
   path: PATH_PARAMETER,
   aspect: ASPECT_PARAMETER,
