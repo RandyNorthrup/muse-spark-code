@@ -43,13 +43,76 @@ Designed baselines with reasons (accepted, not forgotten):
   multi-account start/enable, `src/runtime/chatGptProviderCommands.ts`
   setup: fixed in PR161FIN (named closers, kind words, cause slots).
 - Everything else below: pre-existing, grouped for area-by-area lanes.
+- Model API backend (CATCHBE1, 0.19.0): 73 handlers fixed at their cause
+  (155 down to 82 GENERIC/SWALLOW); the 82 below stay as designed, with
+  reasons. Fixed words in logs name the failure, never its text; kept
+  person-surface words are the person's own workspace and transcript.
+- Cost-unknown stays undefined, never an estimate: `autoCompactionAdmission.ts`
+  (both reserve paths; `estimateCostUsd` throws plain-Error unknown-tariff by
+  design, and Usd overflow must not abort admission) and `client.ts`
+  searchPriceUsd (undefined disables search; never billed as zero).
+- Retry and repair loops: the transient failure rides the retry channel and
+  the terminal failure rethrows — `providerClient.ts` stream (the redacted
+  failure reaches onRetry, the terminal rethrows through rethrowStreamError),
+  `transport.ts` fetch retry (the redacted M56/D43 detail in the retry warn;
+  refusal, ModelApiError and abort paths rethrow), `structuredOutput.ts`
+  side-call repairs (abort and terminal errors rethrow, then text fallback
+  with notice), `ModelApiHost.ts` attempt loop (quote, media and retry
+  branches; the terminal rethrows).
+- Availability bulkheads: the pool stays up — `mcp/pool.ts` plan (any plan
+  failure is an unreadable fault; EntryProblem messages are already fixed
+  literals) and connect (any connect failure is a failed state; a rethrow
+  would fail all of startAll through Promise.all), `transport.ts` observe
+  (usage-observation once-guard; a rethrow would fail attempts for
+  telemetry), `transport.ts` describeFailure (an unreadable body falls back
+  to the status-text envelope).
+- Fail-closed hook and reviewer outcomes in fixed words, the stop owned by
+  cancellation: `hookHandlers.ts` post/run/mcp, `reviewerEntry.ts` (the user
+  decides), `hooks.ts` combined/command/plugin/prepare/run/admission/async
+  (an unreadable config is not applied; an unloadable runtime runs nothing),
+  `foreignHooksEntry.ts` (an unloadable plugin host refuses; a dynamic
+  import failure has no named class), `schedulesEntry.ts` verify report
+  (unavailable, never clean), `ModelApiHost.ts` reviewer admission (ask the
+  user), hook load (no hooks run) and hook runtime.
+- Best-effort probes whose negative answer is the contract:
+  `hookFormats/clineDiscover.ts` (a directory that cannot be read
+  contributes nothing, per its docstring), `pluginHost.ts` isExistingFile,
+  `hooks.ts` regex compile/test (an invalid or timed-out pattern is refused
+  or misses; timeout-as-invalid is the safe mapping), `ModelApiHost.ts`
+  per-file listing skip.
+- Fail-closed tool outcomes the model is told about, abort propagating:
+  `codeIntelCalls.ts` rename partial (the abort-swallowing finishes the
+  write by design), `imageGeneration.ts` read/reserve refusals,
+  `tools.ts` media/visual/search/list/shell/vault/format/execute (the
+  secrets failure takes vault.noAccess and never leaks; the vault tool
+  failure is a security bulkhead; the format warns were scrubbed to fixed
+  words), `ModelApiHost.ts` witness/provisional/steer/shell/policy/billing
+  (a billing failure refuses and books nothing, D121; a policy refusal
+  stands; refused shell entry tells the model nothing; the witness proceeds
+  without proof), elicitation cancelled, compaction notice, turn
+  terminal-state machine (abort, refusal and paid stops named).
+- Void fire-and-forget records: `extensionHooks.ts` and `hooks.ts` async
+  hook catches warn; a rethrow would be an unhandled rejection. Stream
+  error forwarding is the propagation: `transport.ts` pulls forward into
+  controller.error/cancel; a rethrow would double-fault.
+- Person-surface words kept as the person reads them (own workspace, own
+  transcript): shell stderr rows, row failureReasons, the schedule verify
+  text in `schedulesEntry.ts`, `ModelApiHost.ts` D26 rename planning (a
+  throw before the row exists would leave it rowless), directory reset and
+  uncertified-bytes fallbacks, subagent lifecycle (the child session owns
+  its error).
+- Already kind-words or scrubbed by design: `ModelApiHost.ts`
+  helpersFailure (kind via helpersFailureKind, verified closed), the
+  turn-fault log (scrubRefusalLeak, round 2 finding 5), `pluginHost.ts`
+  runtime probes (an absent runtime refuses), spawn and write failures (a
+  child that never starts or takes a request settles failed).
 
 | Folder                 | GENERIC | SWALLOW |
 | ---------------------- | ------- | ------- |
 | src                    | 9       | 3       |
 | src/acp                | 19      | 0       |
 | src/core               | 11      | 1       |
-| src/core/backends      | 135     | 27      |
+| src/core/backends      | 79      | 12      |
 | src/core/bestOfN       | 5       | 0       |
 | src/core/browser       | 9       | 8       |
 | src/core/codeIntel     | 3       | 0       |
