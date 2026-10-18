@@ -2812,7 +2812,7 @@ export class ConversationController {
           // A restarted backend whose replacement lost the sign-in says so
           // loudly (F94): the panel names the restart and the way back,
           // instead of failing as just another turn.
-          const restartCause = this.attachedHost?.takeRestartCause?.()
+          const restartCause = this.attachedHost?.peekRestartCause?.()
           const loud =
             restartCause === undefined
               ? undefined
@@ -2825,7 +2825,7 @@ export class ConversationController {
         } else if (event.terminal === 'completed') {
           // A turn that ran to completion proves the host: no later
           // failure blames the restart this host replaced.
-          this.attachedHost?.takeRestartCause?.()
+          this.attachedHost?.clearRestartCause?.()
         }
         // This session's own event log failed (a child's turn is the child's).
         if (
