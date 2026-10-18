@@ -53,6 +53,8 @@ export async function connectUserSshAgent(
         waiter.resolve(Buffer.from(frame))
       })
     } catch {
+      // Fail closed: an undecodable frame closes the connection and nothing
+      // is served; the requester reports its own failure.
       close()
     }
   })
@@ -102,10 +104,10 @@ export async function connectUserSshAgent(
         close()
       },
     }
-  } catch {
+  } catch (error: unknown) {
     clearTimeout(timer)
     close()
-    throw sshFailure()
+    throw sshFailure(error)
   }
 }
 
@@ -122,12 +124,12 @@ export function frontUserSshAgent(deps: {
         response = await connection.request(sshFrame(SSH.identities))
         const parsed = parseSshResponse(response)
         if (parsed.kind !== 'identities') throw sshFailure()
-        // One undecodable upstream blob skips; it must not deny the reviewed rest.
         const keys: Buffer[] = []
         for (const entry of parsed.keys) {
           try {
             parsePublicKey(entry.blob)
           } catch {
+            // One undecodable upstream blob skips; it must not deny the reviewed rest.
             continue
           }
           keys.push(Buffer.from(entry.blob))
