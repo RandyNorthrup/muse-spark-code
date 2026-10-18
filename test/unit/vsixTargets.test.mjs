@@ -5,6 +5,7 @@ import {
   targetFromArgs,
   targetOfVsix,
   vsixArtifactName,
+  vsixFallbackName,
   vsixKeepsFile,
 } from '../../scripts/lib/vsixTargets.mjs'
 
@@ -93,6 +94,12 @@ describe('per-platform VSIX inventory', () => {
       expect(targetOfVsix(name)).toBe(target)
     }
     expect(targetOfVsix('muse-spark-code-0.19.0.vsix')).toBeUndefined()
+  })
+
+  it('names the untargeted universal fallback the way vsce does', () => {
+    const name = vsixFallbackName('muse-spark-code', '0.19.0')
+    expect(name).toBe('muse-spark-code-0.19.0.vsix')
+    expect(targetOfVsix(name)).toBeUndefined()
   })
 
   it('refuses unknown targets instead of packaging them silently', () => {
