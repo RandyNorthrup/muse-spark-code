@@ -110,6 +110,19 @@ function directLauncher() {
   return { spawnJob, calls, children }
 }
 
+/** One direct (jobless) encoder run through the real bounded runner. */
+function directRun(
+  where: { cwd: string; output: string; marker: string },
+  bytes: number,
+  ending: Ending,
+  overrides: Partial<JobEncoderRunOptions> = {},
+) {
+  return jobMemoryLimitedRun({
+    jobExecutable: () => Promise.resolve(EXECUTABLE),
+    spawnJob: directLauncher().spawnJob,
+  })(process.execPath, encoder(where, bytes, ending), options(where, overrides))
+}
+
 describe('jobMemoryLimitedRun', () => {
   it('starts the encoder through the job launcher with the memory cap as the job limit', async () => {
     const where = await workspace()
@@ -249,40 +262,24 @@ describe('jobMemoryLimitedRun', () => {
 
   it('fails a non-zero exit as a plain job failure (the memory cap included, until M109)', async () => {
     const where = await workspace()
-    await expect(
-      jobMemoryLimitedRun({
-        jobExecutable: () => Promise.resolve(EXECUTABLE),
-        spawnJob: directLauncher().spawnJob,
-      })(process.execPath, encoder(where, KIB, 'exit3'), options(where)),
-    ).rejects.toMatchObject(FAILED)
+    await expect(directRun(where, KIB, 'exit3')).rejects.toMatchObject(FAILED)
   })
 
   it('stops an encoder whose output passes the cap', async () => {
     const where = await workspace()
-    const running = jobMemoryLimitedRun({
-      jobExecutable: () => Promise.resolve(EXECUTABLE),
-      spawnJob: directLauncher().spawnJob,
-    })(process.execPath, encoder(where, OUTPUT_CAP + 1, 'hang'), options(where))
+    const running = directRun(where, OUTPUT_CAP + 1, 'hang')
     await expect(running).rejects.toMatchObject(FAILED)
     await expectEnded(await markedPid(where.marker))
   })
 
   it('fails a clean exit whose final output is over the cap', async () => {
     const where = await workspace()
-    await expect(
-      jobMemoryLimitedRun({
-        jobExecutable: () => Promise.resolve(EXECUTABLE),
-        spawnJob: directLauncher().spawnJob,
-      })(process.execPath, encoder(where, OUTPUT_CAP + 1, 'exit0'), options(where)),
-    ).rejects.toMatchObject(FAILED)
+    await expect(directRun(where, OUTPUT_CAP + 1, 'exit0')).rejects.toMatchObject(FAILED)
   })
 
   it('stops the encoder at its deadline', async () => {
     const where = await workspace()
-    const running = jobMemoryLimitedRun({
-      jobExecutable: () => Promise.resolve(EXECUTABLE),
-      spawnJob: directLauncher().spawnJob,
-    })(process.execPath, encoder(where, KIB, 'hang'), options(where, { timeoutMs: 3000 }))
+    const running = directRun(where, KIB, 'hang', { timeoutMs: 3000 })
     const pid = await markedPid(where.marker)
     await expect(running).rejects.toMatchObject(FAILED)
     await expectEnded(pid)
@@ -291,10 +288,7 @@ describe('jobMemoryLimitedRun', () => {
   it('stops the encoder when the conversion is cancelled', async () => {
     const where = await workspace()
     const stop = new AbortController()
-    const running = jobMemoryLimitedRun({
-      jobExecutable: () => Promise.resolve(EXECUTABLE),
-      spawnJob: directLauncher().spawnJob,
-    })(process.execPath, encoder(where, KIB, 'hang'), options(where, { signal: stop.signal }))
+    const running = directRun(where, KIB, 'hang', { signal: stop.signal })
     const pid = await markedPid(where.marker)
     expect(isRunning(pid)).toBe(true)
     stop.abort()
