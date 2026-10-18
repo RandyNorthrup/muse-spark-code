@@ -10,7 +10,15 @@ import {
 import { UI_TEXT, SCHEDULE_FIRE_OUTCOMES } from '../../src/shared/constants'
 import { EN, type UiText } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
-import { FakeLogOutputChannel } from './helpers/fakes'
+import { stderrLogger } from '../../src/runtime/stderrLog'
+
+// The agent's own logger (src/runtime/stderrLog.ts), its lines kept here.
+function agentLog() {
+  const logged: string[] = []
+  return stderrLogger((line) => {
+    logged.push(line)
+  }, 'warn')
+}
 import {
   scheduleFireRecordSchema,
   scheduleV2Schema,
@@ -87,7 +95,7 @@ describe('schedules source', () => {
     const { table } = await loadUiTable({
       language: 'de',
       readExtensionFile: () => readFile(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8'),
-      log: new FakeLogOutputChannel(),
+      log: agentLog(),
     })
     try {
       const result = await schedulesSource(reader([stored(schedule)], []), scrub).read(
@@ -109,7 +117,7 @@ describe('schedules source', () => {
     const { table } = await loadUiTable({
       language: 'de',
       readExtensionFile: () => readFile(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8'),
-      log: new FakeLogOutputChannel(),
+      log: agentLog(),
     })
     try {
       const job = scheduleV2Schema.parse(
@@ -199,7 +207,7 @@ describe('schedules source', () => {
     const { table } = await loadUiTable({
       language: 'de',
       readExtensionFile: () => readFile(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8'),
-      log: new FakeLogOutputChannel(),
+      log: agentLog(),
     })
     try {
       const german = await schedulesSource(reader(schedules, fires), scrub).read(
@@ -228,7 +236,7 @@ describe('schedules source', () => {
     const { table } = await loadUiTable({
       language: 'de',
       readExtensionFile: () => readFile(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8'),
-      log: new FakeLogOutputChannel(),
+      log: agentLog(),
     })
     try {
       const suspended = Promise.withResolvers<never>()
@@ -248,7 +256,7 @@ describe('schedules source', () => {
       language: locale,
       readExtensionFile: () =>
         readFile(new URL(`../../l10n/ui.${locale}.json`, import.meta.url), 'utf8'),
-      log: new FakeLogOutputChannel(),
+      log: agentLog(),
     })
     try {
       expect(loaded.locale).toBe(locale)
