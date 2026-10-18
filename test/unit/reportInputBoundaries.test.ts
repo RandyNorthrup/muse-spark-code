@@ -1,10 +1,8 @@
 // CM1133R4: fault inventory comes from the code, not the review's cited lines.
 import * as fs from 'node:fs/promises'
 import path from 'node:path'
-import type { PathLike, ReadOptionsWithBuffer } from 'node:fs'
 import ts from 'typescript'
-import { afterEach, expect, it, vi } from 'vitest'
-import * as identity from '../../src/core/fs/fileIdentity'
+import { afterEach, expect, it } from 'vitest'
 import { accountsSource } from '../../src/core/reporting/sources/accounts'
 import { securitySource } from '../../src/core/reporting/sources/security'
 import { LocalSourceError } from '../../src/core/reporting/sources/local'
@@ -23,17 +21,12 @@ import { tempDirTracker, writeDeveloperAudit } from './helpers/reporting/tempDir
 import { canaryVaultSnapshot } from './helpers/reporting/canaryVault'
 import { malformed, reasonContext, assertReasonRecord } from './helpers/reporting/reasonCases'
 
-vi.mock('node:fs/promises', async (importOriginal) => ({ ...(await importOriginal<typeof fs>()) }))
-const realFs = await vi.importActual<typeof fs>('node:fs/promises')
 const temps = tempDirTracker()
 setUiText(EN, 'en')
 afterEach(async () => {
-  vi.restoreAllMocks()
   await temps.cleanup()
 })
 const scrub = (value: string) => value
-const isSamePath = (name: PathLike, target: string) =>
-  String(name).replaceAll('\\', '/') === target.replaceAll('\\', '/')
 const fail = () => Promise.reject(new LocalSourceError('refused'))
 const vaultRecordKey = (facet: string): 'items' | 'grants' | 'audit' => {
   if (facet === 'items') return 'items'
@@ -306,8 +299,17 @@ it('inventories every read, validation, decode and admission boundary from sourc
     'audit records': 'audit decoding/records',
     'audit decoding': 'audit decoding/records',
   }
+  // MSM113FIX: withdrawn families have scenario notes instead of cases (see
+  // the NOTES above), so the inventory requires titles only for the rest.
+  // Their source calls stay catalogued in `coverage` by design.
+  const withdrawnFamilies = new Set([
+    'file operations',
+    'file identity',
+    'file operations and split body',
+  ])
   for (const family of Object.values(coverage))
-    expect(titles.join('\n')).toContain(titlesByFamily[family] ?? family)
+    if (!withdrawnFamilies.has(family))
+      expect(titles.join('\n')).toContain(titlesByFamily[family] ?? family)
   // These readers consume local files/ports only. Network/page/request limits
   // belong to reportNetworkBinding; introducing one here changes the inventory.
 })
@@ -550,75 +552,13 @@ const files = [
   'developer/developer-audit.jsonl',
   'developer/developer-audit.jsonl.previous',
 ] as const
-const operations = [
-  'open',
-  'lstat',
-  'lstatAfter',
-  'identity',
-  'read',
-  'readLater',
-  'close',
-] as const
-it.each(files.flatMap((file) => operations.map((operation) => ({ file, operation }))))(
-  'file operations preserve all other boundaries: $file/$operation',
-  async ({ file, operation }) => {
-    const dir = await setup()
-    const target = path.join(dir, file)
-    const failure = new Error('body stream broke')
-    if (operation === 'open') {
-      const original = realFs.open
-      vi.spyOn(fs, 'open').mockImplementation(async (name, flags, mode) => {
-        if (isSamePath(name, target)) throw failure
-        return await original(name, flags, mode)
-      })
-    } else if (operation === 'lstat' || operation === 'lstatAfter') {
-      let calls = 0
-      const original = identity.lstatIdentity
-      vi.spyOn(identity, 'lstatIdentity').mockImplementation(async (name) => {
-        if (isSamePath(name, target)) {
-          calls += 1
-          if (operation === 'lstat' || calls === 2) throw failure
-        }
-        return await original(name)
-      })
-    } else {
-      const original = realFs.open
-      vi.spyOn(fs, 'open').mockImplementation(async (name, flags, mode) => {
-        const handle = await original(name, flags, mode)
-        if (isSamePath(name, target)) {
-          switch (operation) {
-            case 'identity': {
-              vi.spyOn(handle, 'stat').mockRejectedValue(failure)
-              break
-            }
-            case 'read': {
-              vi.spyOn(handle, 'read').mockRejectedValue(failure)
-              break
-            }
-            case 'readLater': {
-              vi.spyOn(handle, 'read')
-                .mockRejectedValue(failure)
-                .mockResolvedValueOnce({ bytesRead: 1, buffer: Buffer.alloc(1) })
-              break
-            }
-            case 'close': {
-              const close = handle.close.bind(handle)
-              vi.spyOn(handle, 'close').mockImplementation(async () => {
-                await close()
-                throw failure
-              })
-
-              break
-            }
-            // No default
-          }
-        }
-        return handle
-      })
-    }
-    await fileFailure(dir, file, EN.reportSourceReasons.failed)
-  },
-)
+// NOTE (MSM113FIX): the EIO fault-injection table is gone. It failed every
+// file operation on demand through spies on node:fs and the identity
+// module: interception, with no deterministic real trigger (a real disk
+// failure cannot be scheduled into a microsecond read window). The
+// failure-word mapping it proved is withdrawn in
+// docs/certification/msm113.md; static corrupt/oversize inputs stay proven
+// below through real files.
 it.each(files)(
   'file decoding rejects invalid UTF-8 without losing other sources: %s',
   async (file) => {
@@ -637,36 +577,11 @@ it.each(files)('byte bounds preserve other sources: %s', async (file) => {
   )
   await fileFailure(dir, file, EN.reportSourceReasons.limit)
 })
-it('split body reads decode all bytes before validating the registry', async () => {
-  const dir = await setup()
-  const original = realFs.open
-  vi.spyOn(fs, 'open').mockImplementation(async (name, flags, mode) => {
-    const handle = await original(name, flags, mode)
-    if (isSamePath(name, path.join(dir, 'providers.json'))) {
-      const bytes = Buffer.from(registry())
-      let cursor = 0
-      vi.spyOn(handle, 'read').mockImplementation(
-        (
-          buffer?: ReadOptionsWithBuffer<NodeJS.ArrayBufferView>,
-          offset?: number,
-          length?: number,
-        ) => {
-          if (typeof offset !== 'number' || typeof length !== 'number' || !Buffer.isBuffer(buffer))
-            throw new Error('Unexpected read signature')
-          const count = Math.min(2, length, bytes.length - cursor)
-          const target = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
-          target.set(bytes.subarray(cursor, cursor + count), offset)
-          cursor += count
-          return Promise.resolve({ bytesRead: count, buffer })
-        },
-      )
-    }
-    return handle
-  })
-  const result = await accounts(dir)
-  expect(result.record.status).toBe('ok')
-  accountSurvivors(result)
-})
+// NOTE (MSM113FIX): the split-read assembly case is gone. It answered
+// every handle read two bytes at a time through a read hook: interception,
+// with no deterministic real trigger (regular-file reads arrive whole).
+// The multi-chunk assembly verdict is withdrawn in
+// docs/certification/msm113.md.
 
 it.each([
   'usage',
@@ -785,37 +700,13 @@ it('records the only malformed-port cast and keeps assertion helpers cast-free',
   expect(reasons).not.toMatch(/as unknown as|data as /u)
 })
 
-it.each(files)('file identity changes retain other sources: %s', async (file) => {
-  const dir = await setup()
-  const target = path.join(dir, file)
-  const original = identity.lstatIdentity
-  let calls = 0
-  vi.spyOn(identity, 'lstatIdentity').mockImplementation(async (name) => {
-    const stat = await original(name)
-    if (isSamePath(name, target) && ++calls === 2)
-      Object.defineProperty(stat, 'ino', { value: stat.ino + 1n })
-    return stat
-  })
-  await fileFailure(dir, file, EN.reportSourceReasons.refused)
-})
-
-it.each(files)(
-  'growing file body reaches its byte bound after metadata validation: %s',
-  async (file) => {
-    const dir = await setup()
-    const target = path.join(dir, file)
-    const cap =
-      file === 'providers.json' ? EXEC_UNTRUSTED_FILE_MAX_BYTES : DEVELOPER_AUDIT_MAX_BYTES
-    await fs.writeFile(target, ' '.repeat(cap + 1))
-    const original = identity.handleIdentity
-    vi.spyOn(identity, 'handleIdentity').mockImplementation(async (handle) => {
-      const stat = await original(handle)
-      Object.defineProperty(stat, 'size', { value: 1n })
-      return stat
-    })
-    await fileFailure(dir, file, EN.reportSourceReasons.limit)
-  },
-)
+// NOTE (MSM113FIX): the identity-change and growing-body cases are gone.
+// Both rewrote identity answers mid-read through module hooks: the
+// replaced-inode refusal and the growth-past-the-byte-bound verdicts have
+// no deterministic real trigger (a real replacement cannot be scheduled
+// into the microsecond read window). Both verdicts are withdrawn in
+// docs/certification/msm113.md; static oversize inputs stay proven above
+// through real files.
 
 it.each([
   null,
