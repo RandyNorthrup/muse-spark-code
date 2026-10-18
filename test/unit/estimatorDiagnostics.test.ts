@@ -6,7 +6,7 @@ import { build } from 'esbuild'
 import { sharedValidation } from '../../scripts/lib/sharedValidation.mjs'
 import path from 'node:path'
 import ts from 'typescript'
-import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, afterAll, describe, expect, it } from 'vitest'
 import { buildEstimateDag } from '../../src/core/estimator/dag'
 import { buildPlanSnapshot } from '../../src/core/estimator/planSnapshot'
 import { createAcpEstimate } from '../../src/acp/estimate'
@@ -175,18 +175,21 @@ describe('M117 R6 diagnostic refusals', () => {
         expect(expected).toContain('Refus local: ')
         expect(expected).toContain(code)
         expect(expected).toContain('M112:Q')
-        const output = vi.fn()
+        const outputLines: unknown[][] = []
+        const output = (...args: unknown[]) => {
+          outputLines.push(args)
+        }
         expect(
           await runEstimateCommand(['M112'], {
             context: () => context,
             runner,
             money,
-            write: vi.fn(),
+            write: () => undefined,
             error: output,
             signal: new AbortController().signal,
           }),
         ).toBe(1)
-        expect(output).toHaveBeenCalledWith(expected)
+        expect(outputLines).toEqual([[expected]])
         const acp = createAcpEstimate({ context: () => context, runner: () => runner, money })
         expect(await acp.run('/estimate M112', '/workspace', new AbortController().signal)).toBe(
           expected,
@@ -202,7 +205,7 @@ describe('M117 R6 diagnostic refusals', () => {
         )
         await view.refresh()
         view.dispose()
-        expect(output).toHaveBeenLastCalledWith(expected)
+        expect(outputLines.at(-1)).toEqual([expected])
       } finally {
         setUiText(EN, BASE_LOCALE)
       }
