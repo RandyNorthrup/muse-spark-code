@@ -2,63 +2,18 @@
 // run, which rethrows it instead of settling a withdrawn turn. The
 // session's withdrawal fails for real below.
 import { describe, expect, it } from 'vitest'
-import { scheduleEventRunId } from '../../src/shared/scheduleEvents'
-import { Usd } from '../../src/shared/usd'
-import {
-  noScheduleCost,
-  type ScheduleRunContext,
-  type ScheduleV2,
-} from '../../src/shared/scheduleV2'
+import { noScheduleCost } from '../../src/shared/scheduleV2'
 import { ScheduleDelivery, type ScheduleDeliverySession } from '../../src/core/schedules/delivery'
-
-function schedule(): ScheduleV2 {
-  return {
-    id: 'schedule-1',
-    name: 'Idle check',
-    action: { kind: 'prompt', prompt: 'Report when idle.' },
-    trigger: { kind: 'interval', everyMs: 3_600_000, anchorMs: 1_700_000_000_000 },
-    target: { kind: 'conversation', sessionId: 'session-1', backend: 'modelApi' },
-    delivery: 'whenIdle',
-    whenClosed: 'open',
-    catchUp: 'runOnce',
-    mode: 'manual',
-    grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from(0).toAmount() },
-    paidCapUsd: Usd.from(0).toAmount(),
-    parallel: false,
-    zone: 'UTC',
-    pinned: false,
-    version: 2,
-    revision: 0,
-    workspaceKey: 'workspace-1',
-    paused: false,
-    createdAtMs: 1_700_000_000_000,
-    updatedAtMs: 1_700_000_000_000,
-    nextFireAtMs: 1_700_000_060_000,
-    fireCount: 0,
-    consecutiveFailures: 0,
-    depth: 0,
-    allowAgentReschedule: false,
-    creator: { kind: 'user' },
-  }
-}
-
-function context(job: ScheduleV2): ScheduleRunContext {
-  return {
-    unattended: true,
-    scheduleId: job.id,
-    runId: scheduleEventRunId(job.id, { source: 'manual', eventKey: 'req-1' }),
-    grant: job.grant,
-    creator: job.creator,
-    mode: job.mode,
-    depth: job.depth,
-    allowAgentReschedule: job.allowAgentReschedule,
-  }
-}
+import { runContextFixture, scheduleFixture } from './helpers/scheduleFixtures'
 
 describe('delivery withdrawal failure', () => {
   it('rethrows a failed withdrawal instead of settling', async () => {
     const failure = new Error('backend withdrawal unavailable')
-    const job = schedule()
+    const job = scheduleFixture({
+      name: 'Idle check',
+      delivery: 'whenIdle',
+      action: { kind: 'prompt', prompt: 'Report when idle.' },
+    })
     const session: ScheduleDeliverySession = {
       backend: 'modelApi',
       sessionId: 'session-1',
@@ -90,6 +45,8 @@ describe('delivery withdrawal failure', () => {
       },
       prompt: () => 'Report when idle.',
     })
-    await expect(delivery.deliver(job, context(job), 1_700_000_060_000)).rejects.toBe(failure)
+    await expect(delivery.deliver(job, runContextFixture(job), 1_700_000_060_000)).rejects.toBe(
+      failure,
+    )
   })
 })

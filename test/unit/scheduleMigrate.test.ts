@@ -3,6 +3,7 @@
 // below: the first entry's create rejects, the second still migrates,
 // and the first failure is what the caller gets.
 import { describe, expect, it } from 'vitest'
+import { quietStoreBase } from './helpers/scheduleFixtures'
 import type { ScheduledPrompt } from '../../src/shared/schedule'
 import type { ScheduleV2 } from '../../src/shared/scheduleV2'
 import {
@@ -55,11 +56,7 @@ describe('schedule migration failures', () => {
         return Promise.resolve()
       },
       list: () => Promise.resolve([...created]),
-      update: () => Promise.resolve(true),
-      remove: () => Promise.resolve(true),
-      claim: () => Promise.resolve(true),
-      record: () => Promise.resolve(undefined),
-      fires: () => Promise.resolve([]),
+      ...quietStoreBase(),
       migrationReceipt: (_workspaceKey: string, sourceId: string) =>
         Promise.resolve(receipts.get(sourceId)),
       saveMigrationReceipt: (
