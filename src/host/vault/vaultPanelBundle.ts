@@ -10,9 +10,8 @@ import type { Logger } from '../logger'
 import type {
   ModelsVaultBinding,
   ModelsVaultBindingDeps,
-  VaultPanelEntryDeps,
+  WindowVaultControlsDeps,
 } from './vaultPanelEntry'
-import type { VaultPanelHost } from './vaultPanelHost'
 
 export const VAULT_COMMANDS = { open: 'museSpark.vault', lock: 'museSpark.lockVault' } as const
 export interface VaultWindowControls {
@@ -47,17 +46,21 @@ export function registerVaultCommands(
 }
 
 /**
- * What dist/vault.js exports: the panel factory. Only types come from the
- * panel's side here: a value imported from there would carry the host, the
- * editor and the broker client back into dist/extension.js, which the
- * bundle-split gate refuses.
+ * What dist/vault.js exports: the window and panel factories. Only types
+ * come from the panel's side here: a value imported from there would carry
+ * the host, the editor and the broker client back into dist/extension.js,
+ * which the bundle-split gate refuses.
  */
 export interface VaultBundle {
-  readonly createVaultPanelHost: (
-    deps: VaultPanelEntryDeps,
+  /**
+   * The window commands without a second host: open reveals the panel's
+   * vault section, lock works through one broker-backed service alone.
+   */
+  readonly createWindowVaultControls: (
+    deps: WindowVaultControlsDeps,
     table: UiText,
     locale: string,
-  ) => { host: VaultPanelHost } & VaultWindowControls
+  ) => VaultWindowControls
   /** The Models & Agents panel's vault section binding (C-M109-1 P1). */
   readonly createModelsVaultBinding: (
     deps: ModelsVaultBindingDeps,
@@ -71,8 +74,8 @@ export function isVaultBundle(value: unknown): value is VaultBundle {
   return (
     typeof value === 'object' &&
     value !== null &&
-    'createVaultPanelHost' in value &&
-    typeof value.createVaultPanelHost === 'function' &&
+    'createWindowVaultControls' in value &&
+    typeof value.createWindowVaultControls === 'function' &&
     'createModelsVaultBinding' in value &&
     typeof value.createModelsVaultBinding === 'function'
   )
@@ -112,20 +115,24 @@ export interface VaultControlsDeps extends VaultBundleLoaderDeps {
 
 /**
  * The window controls, or an explicit refusal while the panel binding is
- * missing. `connect` supplies the entry's live host bindings (panel opener,
- * native prompts, clock, webview publisher); the bundle itself builds the
- * broker-backed service (C-M109-1), so activation loads no client. Until the
- * Models & Agents panel mounts the vault section, the caller passes
- * undefined and both commands report `vault.brokerDisabled`.
+ * missing. `connect` supplies the panel opener; the bundle itself builds
+ * the broker-backed service the lock command needs (C-M109-1), so
+ * activation loads no client. Until the Models & Agents panel mounts the
+ * vault section, the caller passes undefined and both commands report
+ * `vault.brokerDisabled`.
  */
 export function loadVaultControls(
   deps: VaultControlsDeps,
-  connect: (() => Omit<VaultPanelEntryDeps, 'distDir'>) | undefined,
+  connect: (() => Omit<WindowVaultControlsDeps, 'distDir'>) | undefined,
 ): VaultWindowControls {
   if (connect === undefined) {
     deps.log.error('The vault panel is not mounted in this window; refusing closed')
     throw new Error(UI_TEXT.vault.brokerDisabled)
   }
   const bundle = vaultBundleLoader(deps)()
-  return bundle.createVaultPanelHost({ distDir: deps.distDir, ...connect() }, UI_TEXT, uiLocale())
+  return bundle.createWindowVaultControls(
+    { distDir: deps.distDir, ...connect() },
+    UI_TEXT,
+    uiLocale(),
+  )
 }

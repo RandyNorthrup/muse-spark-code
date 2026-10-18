@@ -652,6 +652,8 @@ export interface VaultSlotPort {
   readonly tier: VaultSlotRecord['tier']
   wrap(key: Uint8Array): Promise<VaultSlotRecord>
   unwrap(slot: VaultSlotRecord, use: string): Promise<Uint8Array>
+  /** Roll back a setup that wrapped but never committed; absent where the tier cannot. */
+  remove?(): Promise<void>
 }
 export interface VaultClockPort {
   now(): number

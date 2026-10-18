@@ -129,14 +129,25 @@ export class VaultManageSession {
     return response.snapshot
   }
   async audit(): Promise<readonly VaultAuditRecord[]> {
-    const response = await this.simple({
-      kind: 'audit',
-      item: null,
-      requesterId: null,
-      afterGeneration: 0,
-    })
-    expectKind(response, 'audit')
-    return response.records
+    // The log may outgrow one 4 MiB protocol frame (it is allowed 8 MiB):
+    // page past the last returned generation until a page adds nothing.
+    const records: VaultAuditRecord[] = []
+    let afterGeneration = 0
+    for (;;) {
+      const response = await this.simple({
+        kind: 'audit',
+        item: null,
+        requesterId: null,
+        afterGeneration,
+      })
+      expectKind(response, 'audit')
+      if (response.records.length === 0) return records
+      const last = response.records.at(-1)
+      if (last === undefined || last.generation <= afterGeneration)
+        return [...records, ...response.records]
+      records.push(...response.records)
+      afterGeneration = last.generation
+    }
   }
   unlock(slotId: string | null, authorize?: () => void): Promise<void> {
     return this.ok({ kind: 'unlock', slotId }, authorize)

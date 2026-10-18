@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { UI_TEXT, VAULT_ACTIONS_BUNDLE_FILE, VAULT_LIMITS } from '../../shared/constants'
+import { vaultRefusalSentences } from '../../shared/vaultRefusals'
 import { type VaultHostMessage } from '../../shared/hostApi/vaultMessages'
 import { type UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
@@ -16,29 +17,6 @@ import { VaultPanelHost, type VaultPanelHostDeps, type VaultPanelService } from 
 import { vaultPanelService } from './vaultPanelService'
 import { type VaultActionsBundle, vaultActionsLoader } from './vaultActionsBundle'
 import { VAULT_COMMANDS, type VaultWindowControls } from './vaultPanelBundle'
-
-export interface VaultPanelEntryDeps extends Omit<
-  VaultPanelHostDeps,
-  | 'editItem'
-  | 'confirmRemove'
-  | 'copyPublicKey'
-  | 'status'
-  | 'showError'
-  | 'service'
-  | 'showRecoveryCode'
-  | 'importDone'
-  | 'confirmReset'
-> {
-  /** dist/ beside the running bundle (the broker and its native helpers). */
-  readonly distDir: string
-  readonly openPanel: () => Promise<void>
-  /** A test's service; the window's own is the broker-backed one built here. */
-  readonly service?: VaultPanelService
-  /** Names the actions bundle in the log when it cannot be loaded. */
-  readonly log: Logger
-  /** A test's actions module; the window's own is required from dist. */
-  readonly loadActionsBundle?: ((file: string) => unknown) | undefined
-}
 
 /** The broker-backed service over the platform's connection, and a probe that proves it is up. */
 function brokerService(
@@ -228,43 +206,57 @@ export function createModelsVaultBinding(
   }
 }
 
-/** W loads dist/vault.js on first need, then binds C/B/P/M and M95's panel to this factory. */
-export function createVaultPanelHost(
-  deps: VaultPanelEntryDeps,
+export interface WindowVaultControlsDeps {
+  /** dist/ beside the running bundle (the broker and its native helpers). */
+  readonly distDir: string
+  /** Reveals the Models & Agents vault section, whose binding owns the host. */
+  readonly openPanel: () => Promise<void>
+  /** A test's service; the window's own is the broker-backed one built here. */
+  readonly service?: VaultPanelService | undefined
+  /** Names the actions bundle in the log when it cannot be loaded. */
+  readonly log: Logger
+  /** A test's actions module; the window's own is required from dist. */
+  readonly loadActionsBundle?: ((file: string) => unknown) | undefined
+}
+
+/**
+ * The window commands without a second host: open reveals the Models &
+ * Agents vault section, whose own binding owns the window's single host,
+ * subscription and lock item; lock works without the panel through one
+ * broker-backed service alone. A refusal keeps its fixed sentence; anything
+ * else stays the generic failure, never native text.
+ */
+export function createWindowVaultControls(
+  deps: WindowVaultControlsDeps,
   table: UiText,
   locale: string,
-): { host: VaultPanelHost } & VaultWindowControls {
+): VaultWindowControls {
   setUiText(table, locale)
   const actions = vaultActionsLoader({
     bundlePath: path.join(deps.distDir, VAULT_ACTIONS_BUNDLE_FILE),
     log: deps.log,
     loadBundle: deps.loadActionsBundle,
   })
-  const { service, statusItem, status, probe, disposeBroker } = serviceAndStatus({
-    ...deps,
-    actions,
-  })
-  const host = new VaultPanelHost({
-    ...deps,
-    ...nativeHostDeps({ now: deps.now, actions }),
-    service,
-    status,
-  })
+  const broker = deps.service === undefined ? brokerService(deps.distDir, actions) : undefined
+  const service = deps.service ?? broker?.service
+  if (service === undefined) throw new Error(UI_TEXT.vault.brokerBlocked)
   return {
-    host,
-    open: async () => {
-      // Until a platform lane binds the broker, refuse exactly as 0.17.0 does.
-      await probe()
-      await deps.openPanel()
-      await host.refresh()
-    },
+    open: () => deps.openPanel(),
     lock: async () => {
-      await host.lock()
+      try {
+        await service.lock()
+      } catch (error: unknown) {
+        const named = vaultRefusalSentences()
+        deps.log.warn('Vault lock command failed')
+        await vscode.window.showErrorMessage(
+          error instanceof Error && named.includes(error.message)
+            ? error.message
+            : UI_TEXT.vault.operationFailed,
+        )
+      }
     },
     dispose: () => {
-      host.dispose()
-      disposeBroker()
-      statusItem.dispose()
+      broker?.dispose()
     },
   }
 }
