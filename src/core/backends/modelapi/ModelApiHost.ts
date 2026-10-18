@@ -80,6 +80,7 @@ import {
   MODEL_API_PRICES_PER_MILLION,
   TOKENS_PER_MILLION,
   SETTING_DEFAULTS,
+  type MEDIA_AUDIO_ACTION_OPTIONS,
   AUTH_REQUIRED_ERROR_KIND,
   CHATGPT_PLAN_LIMIT_ERROR_KIND,
   AUTO_REVIEW_ROW_TOOL,
@@ -255,8 +256,7 @@ import {
   skillBodyForModel,
 } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
-import type { CoreLogger } from '../../logging'
-import { wireWordForLog } from '../../logging'
+import { wireWordForLog, type CoreLogger } from '../../logging'
 import type { ModelRow } from '../../providers/modelFilters'
 import { textFileInput } from '../../textAttachment'
 import { withDeadline } from '../../timeouts'
@@ -432,7 +432,9 @@ import type {
   ContextOverflowKind,
 } from '../../providers/overflow'
 import type { MediaRequestAccounting } from '../../media/mediaCost'
-import type { MediaReplayPort } from '../../media/replayMedia'
+import type { MediaReplayPort, MediaReplaySession } from '../../media/replayMedia'
+import type { AttachedMediaPort, MediaClaim } from '../../media/attachedMedia'
+import type { ReservePaidExtra } from '../../voice/voiceBatchSeams'
 import type { UploadedMediaRef } from '../../../shared/media'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
 import {
@@ -625,6 +627,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
     readonly modelId: string
     readonly parts: readonly TurnPart[]
     readonly signal: AbortSignal
+    /** The model revision the turn began on; checked before any paid dispatch. */
+    readonly assertCurrent: () => void
   }) => Promise<PreparedAudioMessage | undefined>
   /** Trusted context adapters (issues, external agents, devices), never tool trust claims. */
   readonly vaultContextProvenance?: (sessionId: string) => VaultTaint
@@ -796,7 +800,51 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   /** A smaller replay cap for focused media-budget verification. */
   readonly mediaBudgetMaxEncodedChars?: number
   /** W installs the portable lazy media implementation; absent preserves existing request bytes. */
-  readonly createMediaReplay?: (sessionId: string) => MediaReplayPort
+  readonly createMediaReplay?: (sessionId: string, session: MediaReplaySession) => MediaReplayPort
+  /**
+   * Where the production replay keeps its upload ledger and local
+   * calibration observations (MONEY017D, D85.2/D85.6). The bundle builds
+   * `createMediaReplay` from this; absent keeps the established refusal.
+   * VS Code supplies its global storage, the runtime its agent data folder.
+   */
+  readonly uploadLedgerDir?: string | undefined
+  /**
+   * `museSpark.mediaUploadExpiryDays` (the runtime's default), read per
+   * upload; absent keeps the 7-day default.
+   */
+  readonly uploadExpiryDays?: (() => number) | undefined
+  /**
+   * The host's attached-media registry (M105 lane V): the attach port writes
+   * video and audio `media` parts, the production replay resolves them to
+   * their records and approved sources. Absent: a `media` part refuses.
+   */
+  readonly attachedMedia?: AttachedMediaPort | undefined
+  /**
+   * D78's shared daily ledger, reserving an exact amount for a paid extra
+   * billed outside a Responses request: Muse Voice's batch transcription
+   * (lane V seam 4). VS Code and the runtime bind their own daily ledgers;
+   * absent, such an extra refuses.
+   */
+  readonly reservePaidExtra?: ReservePaidExtra | undefined
+  /**
+   * The machine-scoped converter path (`museSpark.mediaConverterPath`, the
+   * runtime's `--media-converter`), read per use; never a workspace value.
+   * Empty or absent: documented installs only (lane V seam 3B).
+   */
+  readonly mediaConverterPath?: (() => string | undefined) | undefined
+  readonly mediaAudioAction?: (() => (typeof MEDIA_AUDIO_ACTION_OPTIONS)[number]) | undefined
+  /**
+   * Windows: M50's kill-on-close job launcher, prepared on first use, that
+   * runs the converter under a kernel memory cap (lanes V and VB). Absent or
+   * undefined, Windows conversion refuses; never an unbounded launch.
+   */
+  readonly mediaJobExecutable?: (() => Promise<string | undefined>) | undefined
+  /**
+   * The host's private media root in its own storage (lane VB): opened and
+   * verified once, each conversion's owner-only folder made inside it.
+   * Absent, conversion refuses; never a shared temporary folder.
+   */
+  readonly mediaPrivateRoot?: string | undefined
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
   readonly scheduleStore?: ScheduleStore | undefined
   /** SHA-256 digest of the current SecretStorage key, never its plaintext. */
@@ -1109,6 +1157,8 @@ interface QueuedTurn {
   readonly isReview?: boolean
   /** A `/playback` (D203): the turn answers from working memory, with no tools. */
   readonly isPlayback?: boolean
+  /** Its attached media, held from acceptance (RVMEDIAV2): the bound never evicts it. */
+  readonly media?: MediaClaim | undefined
 }
 
 // MSP's words for a goal refusal (captured live 2026-09-25), in the error's text.
@@ -1141,6 +1191,8 @@ export interface ActiveTurn {
   pendingUserMessageId?: string | undefined
   readonly abort: AbortController
   readonly inputParts: TurnPart[]
+  /** The attached media this turn carries, released when it ends (RVMEDIAV 7). */
+  readonly mediaClaims: (MediaClaim | undefined)[]
   /** In-memory request choice, never the session's persisted model setting. */
   audioMessage?: PreparedAudioMessage
   confirmedRequest?: ConfirmedModelRequest
@@ -1149,6 +1201,8 @@ export interface ActiveTurn {
     readonly parts: readonly TurnPart[]
     readonly userMessageId: string
     readonly scheduleRun?: UnattendedRun
+    /** Held since the steer was accepted; in flight once a request takes it. */
+    readonly media?: MediaClaim | undefined
   }[]
   /** Named text accepted for this turn, including steers already drained into replay. */
   acceptedTextAttachmentBytes: number
@@ -1659,6 +1713,31 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+// Incomplete reasons the wire may carry, as the log names them (RVM105B
+// P2-1): the provider's free text never reaches the log. The Responses API
+// documents `max_output_tokens` and `content_filter`; the bundled codecs map
+// their own cut-short stops to the rest. Anything else is `other`, and a
+// missing reason stays `no reason`. The raw reason is used only in
+// model-visible skip text and exec records; the turn shows its partial text.
+// Only the log uses these words.
+const INCOMPLETE_REASONS_FOR_LOG: ReadonlySet<string> = new Set([
+  'max_output_tokens',
+  'content_filter',
+  'length',
+  'max_tokens',
+  'refusal',
+  'pause_turn',
+  'missing_stop_reason',
+  'stream_ended',
+  'stream_ended_without_finish_reason',
+])
+
+/** A provider incomplete reason as the log names it; never the raw text. */
+export function incompleteReasonForLog(reason: string | undefined): string {
+  if (reason === undefined) return 'no reason'
+  return INCOMPLETE_REASONS_FOR_LOG.has(reason) ? reason : 'other'
+}
+
 /**
  * The model call helpers' failure for the log, beside the chunk named. One
  * shared line for every helpers catch so the diet pin holds: the sentences
@@ -2156,6 +2235,16 @@ function attachmentsOf(parts: readonly TurnPart[]): NonNullable<ItemSnapshot['at
           },
         ]
       }
+      case 'media': {
+        return [
+          {
+            type: 'file',
+            mediaType: part.info.mediaType,
+            name: part.name,
+            sizeBytes: part.info.sizeBytes,
+          },
+        ]
+      }
       default: {
         return []
       }
@@ -2178,6 +2267,11 @@ function contentPartsFor(
       case 'image':
       case 'file': {
         return mediaPartFor(part)
+      }
+      case 'media': {
+        // A stand-in the session's media service always replaces with the
+        // upload record's metadata, or refuses (`contentParts`): no bytes.
+        return { type: 'input_text', text: part.name }
       }
       case 'skill': {
         // An unknown selector (the catalogue changed under the palette) goes as typed.
@@ -2225,7 +2319,8 @@ function typedText(parts: readonly TurnPart[]): string {
         }
         case 'image':
         case 'file':
-        case 'textFile': {
+        case 'textFile':
+        case 'media': {
           return []
         }
       }
@@ -2450,6 +2545,9 @@ function modelOutputPage(content: string, request: OutputPageRequest): Promise<O
     eof: end >= bytes.length,
   })
 }
+
+// Exact zero is immutable; share it across the admission/refund path.
+const ZERO_BUDGET_COST = Usd.from(0)
 
 export class ModelApiSession implements ScheduledAgentSession {
   private lastJudgeBody: CreateResponseBody | undefined
@@ -2913,7 +3011,13 @@ export class ModelApiSession implements ScheduledAgentSession {
       deps.platform,
     )
     this.budget = new MediaBudget(deps.mediaBudgetMaxEncodedChars)
-    this.media = deps.createMediaReplay?.(sessionId)
+    // One production media service per session (M105 W): the session tells
+    // it, per request, whether spending is capped, so an unknown rate
+    // refuses only under a cap (D85.6).
+    this.media = deps.createMediaReplay?.(sessionId, {
+      isCapped: () => this.isMediaCapped(),
+      isClosed: () => this.isDisposed,
+    })
     if (agent !== undefined) {
       this.effort = agent.effort
     }
@@ -3882,7 +3986,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.openReservation = undefined
     if (this.isSubagent || this.deps.client.isPlanModel?.(body.model) === true) return body
     const capUsd = this.currentBudgetCap()
-    if (Usd.from(capUsd).compare(Usd.from(0)) <= 0 && this.budgetJournal() === undefined) {
+    if (Usd.from(capUsd).compare(ZERO_BUDGET_COST) <= 0 && this.budgetJournal() === undefined) {
       return body
     }
     const estimate = estimateInput(
@@ -3891,7 +3995,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     const maxOutputTokens = body.max_output_tokens
     const reservation =
-      Usd.from(capUsd).compare(Usd.from(0)) > 0
+      Usd.from(capUsd).compare(ZERO_BUDGET_COST) > 0
         ? reserveRequest({
             capUsd,
             spentUsd: this.budgetSpentUsd,
@@ -3919,16 +4023,16 @@ export class ModelApiSession implements ScheduledAgentSession {
                 }) ?? 0,
               ).toAmount(),
               multiplyUsd(
-                this.approvedSearchQuote?.tariffUsd ?? Usd.from(0).toAmount(),
+                this.approvedSearchQuote?.tariffUsd ?? ZERO_BUDGET_COST.toAmount(),
                 body.max_tool_calls ?? 0,
               ),
             ),
           }
     this.openReservation = {
       ...reservation,
-      searchSpentUsd: Usd.from(0).toAmount(),
+      searchSpentUsd: ZERO_BUDGET_COST.toAmount(),
       searchReservedUsd: multiplyUsd(
-        this.approvedSearchQuote?.tariffUsd ?? Usd.from(0).toAmount(),
+        this.approvedSearchQuote?.tariffUsd ?? ZERO_BUDGET_COST.toAmount(),
         body.max_tool_calls ?? 0,
       ),
       hasTerminalSearchCount: false,
@@ -3937,7 +4041,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       goalRevision: this.goalCommandRevision,
       isWorkspaceTrusted: this.deps.isWorkspaceTrusted(),
       paidFeatures: PAID_FEATURES.filter((feature) => this.deps.isPaidFeatureOn(feature)),
-      hasCap: Usd.from(capUsd).compare(Usd.from(0)) > 0,
+      hasCap: Usd.from(capUsd).compare(ZERO_BUDGET_COST) > 0,
       hasUnknownCost:
         selected.policy.pricing.kind === 'unpriced' || selected.policy.pricing.kind === 'plan',
       hasAmbiguousAttempt: false,
@@ -3949,7 +4053,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       isSent: false,
       isRefused: false,
     }
-    return Usd.from(capUsd).compare(Usd.from(0)) > 0
+    return Usd.from(capUsd).compare(ZERO_BUDGET_COST) > 0
       ? { ...body, max_output_tokens: reservation.maxOutputTokens }
       : body
   }
@@ -4043,6 +4147,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     return this.isSubagent
       ? Usd.from(0).toAmount()
       : (this.deps.budgetScope?.capUsd() ?? this.deps.sessionBudgetUsd())
+  }
+
+  /** Whether media spends under a cap now: the M82 session cap, or a D95.3
+   * scheduled run, whose hard cap admits every request. */
+  private isMediaCapped(): boolean {
+    return (
+      this.getScheduledRun() !== undefined ||
+      Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0
+    )
   }
 
   private budgetJournal(): SessionStore['budget'] {
@@ -5988,7 +6101,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (event.response.incomplete_details?.reason === 'max_output_tokens')
           this.outcomeStopReason = 'budget'
         this.deps.log.warn(
-          `Model API response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
+          `Model API response ${wireWordForLog(event.response.id)} incomplete: ${incompleteReasonForLog(event.response.incomplete_details?.reason)}`,
         )
         return event.response
       }
@@ -6098,7 +6211,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const modelRevision = this.modelRevision
     const budget: RetryBudget = { retriesUsed: 0 }
     let hasRecoveredMedia = false
-    this.media?.beginRequest()
+    await this.media?.beginRequest(this.replay.map((entry) => entry.item))
     for (;;) {
       if (this.modelRevision !== modelRevision) throw new AbortedError()
       const open = new Map<string, OpenItem>()
@@ -7649,15 +7762,20 @@ export class ModelApiSession implements ScheduledAgentSession {
     const content = contentPartsFor(parts, (selector) => this.context.skill(selector)).map(
       (inline, index) => {
         const part = parts[index]
-        return part === undefined
-          ? inline
-          : (this.media?.content(part, inline, this.modelId, this.budget) ?? inline)
+        if (part === undefined) return inline
+        // An attached video or audio file needs the session's media service:
+        // without one (no Files transport, no storage) it refuses, never
+        // reaching the model as its bare name.
+        if (part.type === 'media' && this.media === undefined)
+          throw new Error(UI_TEXT.media.uploadUnavailable)
+        return this.media?.content(part, inline, this.modelId, this.budget) ?? inline
       },
     )
     // The budget learns each PDF's pages from its attachment, not its bytes (M54).
+    // A provider-held reference carries no new bytes; the replay noted it.
     for (const [index, part] of parts.entries()) {
       const sent = content[index]
-      if (part.type === 'file' && sent?.type === 'input_file') {
+      if (part.type === 'file' && sent?.type === 'input_file' && 'file_data' in sent) {
         this.budget.note(sent, part.pageCount)
       }
     }
@@ -8740,7 +8858,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const run = this.getScheduledRun()
       const decisionId = await this.workspaceAccess(path, 'mcp')
       const read = io.readMedia
-      if (read === undefined) throw new Error(UI_TEXT.media.uploadStorageUnknown)
+      if (read === undefined) throw new Error(UI_TEXT.media.uploadUnavailable)
       let source: Extract<ContentSource, { kind: 'file' }> | undefined
       const media = await read(path, maxBytes, expected, signal, (captured) => {
         source = captured
@@ -8882,6 +9000,13 @@ export class ModelApiSession implements ScheduledAgentSession {
               this.modelId,
               toolSignal ?? signal,
             ),
+          // An image/PDF read is admitted through the same path as an
+          // attachment before the model is told the file follows: priced at
+          // the seeded bound, refused with the honest reason when capped and
+          // unmeasurable. It stays an inline record, never an upload.
+          admitVisual: (visual: ImagePart | DocumentPart) => {
+            media.admitInline(mediaPartFor(visual), this.modelId)
+          },
         },
       }),
     }
@@ -13528,6 +13653,10 @@ export class ModelApiSession implements ScheduledAgentSession {
           this.recordTranscript(turn.turnId, refused)
           turn.steered.shift()
           turn.acceptedTextAttachmentBytes -= textAttachmentBytes(parts)
+          // A refused steer never reaches a request: its claim ends here, as a
+          // withdrawal's does, or the token stays claimed until the attach
+          // bound fills and later attachments are refused.
+          steer.media?.release()
           this.emit({ type: 'itemCompleted', item: refused })
         }
         throw error
@@ -13538,6 +13667,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         continue
       }
       turn.inputParts.push(...parts)
+      steer.media?.start()
+      turn.mediaClaims.push(steer.media)
       this.recordTranscript(turn.turnId, row)
       turn.steered.shift()
       // It is in the request now (M87): an Edit can no longer take it back.
@@ -13549,7 +13680,7 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /** Accepted steering that missed this turn's last request becomes user turns. */
   private promoteSteered(turn: ActiveTurn): void {
-    const promoted = turn.steered.map(({ parts, userMessageId, scheduleRun }) => {
+    const promoted = turn.steered.map(({ parts, userMessageId, scheduleRun, media }) => {
       // A fire whose paid authority lapsed stays unconfirmed: runTurn refuses
       // it at admission, so finalization never throws here.
       const confirmedRequest =
@@ -13560,6 +13691,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         displayText: undefined,
         userMessageId,
         isGoalWake: false,
+        media,
         ...(scheduleRun !== undefined && { resourceClass: 'background' as const, scheduleRun }),
         ...(confirmedRequest !== undefined && { confirmedRequest }),
       }
@@ -13585,6 +13717,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (queued === undefined) {
       return undefined
     }
+    queued.media?.release()
     this.emit({ type: 'turnWithdrawn', turnId: queued.turnId, reason: UI_TEXT.turnUnqueued })
     return queued.parts
   }
@@ -13604,12 +13737,18 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (steer === undefined) {
       return undefined
     }
+    this.dropSteer(turn, steer)
+    return steer.parts
+  }
+
+  /** A steer leaves its turn unsent (withdrawn, or its session disposed): what it holds goes. */
+  private dropSteer(turn: ActiveTurn, steer: ActiveTurn['steered'][number]): void {
     if (steer.scheduleRun !== undefined) {
       const effect = this.owner.withdraw(steer.scheduleRun)
       if (effect !== undefined) this.owner.modeApplied(effect, true)
     }
     turn.acceptedTextAttachmentBytes -= textAttachmentBytes(steer.parts)
-    return steer.parts
+    steer.media?.release()
   }
 
   /** A busy goal command was not in the request already in flight. */
@@ -14125,6 +14264,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       // A refused occurrence's lease must not hold the slot for later runs.
       this.releaseScheduledResource(queued.turnId)
+      queued.media?.release()
       this.emit({
         type: 'turnCompleted',
         turnId: queued.turnId,
@@ -14137,6 +14277,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     this.owner.startAcknowledged(claim, queued.turnId, true)
     if (queued.scheduleRun !== undefined) this.owner.admitted(claim, queued.turnId)
+    queued.media?.start()
     const turn: ActiveTurn = {
       ...(queued.scheduleRun !== undefined && {
         scheduleRun: queued.scheduleRun,
@@ -14148,6 +14289,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(queued.userMessageId !== undefined && { pendingUserMessageId: queued.userMessageId }),
       abort: new AbortController(),
       inputParts: [...queued.parts],
+      mediaClaims: [queued.media],
       steered: [],
       acceptedTextAttachmentBytes: textAttachmentBytes(queued.parts),
       modelFailure: undefined,
@@ -14264,15 +14406,25 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.deps.prepareAudioMessage !== undefined
       ) {
         const revision = this.modelRevision
+        const assertCurrent = () => {
+          if (revision !== this.modelRevision) throw new AbortedError()
+        }
+        // The first transcription can spend before the chat request seeds
+        // this conversation's journal. Seed its owned budget before that use.
+        if (parts.some((part) => part.type === 'media') && this.isMediaCapped())
+          await this.refreshBudgetSpend()
         const prepared = await this.deps.prepareAudioMessage({
           sessionId: this.sessionId,
           turnId: turn.turnId,
           modelId: this.modelId,
           parts,
           signal: turn.abort.signal,
+          // A model change during consent or conversion refuses before the
+          // transcription spends, not after (RVMEDIAV 4).
+          assertCurrent,
         })
         turn.abort.signal.throwIfAborted()
-        if (revision !== this.modelRevision) throw new AbortedError()
+        assertCurrent()
         if (prepared !== undefined) {
           prepared.assertCurrent()
           const acceptedBytes =
@@ -14283,7 +14435,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           turn.audioMessage = {
             ...prepared,
             assertCurrent: () => {
-              if (revision !== this.modelRevision) throw new AbortedError()
+              assertCurrent()
               prepared.assertCurrent()
             },
           }
@@ -14378,7 +14530,13 @@ export class ModelApiSession implements ScheduledAgentSession {
           text: UI_TEXT.autoCompactionAwaitingEvaluation,
         })
       }
-      await this.loop(turn)
+      // RULE 1: the turn's media bracket drains however the turn
+      // settles — each round's requests pin, this end unpins.
+      try {
+        await this.loop(turn)
+      } finally {
+        await this.media?.endRequest()
+      }
     } catch (error: unknown) {
       const pendingRun = turn.scheduleRun === undefined ? this.owner.run(turn.turnId) : undefined
       const released = pendingRun === undefined ? undefined : this.owner.withdraw(pendingRun)
@@ -14419,10 +14577,13 @@ export class ModelApiSession implements ScheduledAgentSession {
             errorKind = CHATGPT_PLAN_LIMIT_ERROR_KIND
           else errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
         }
+        // Fixed words and a reason code only: the user-facing reason can
+        // carry an attachment's file name (RVM105 4), which never reaches a
+        // log. The detailed sentence still reaches the user with the turn.
         this.deps.log.warn(
           error instanceof HookStoppedError
             ? `Model API turn ${turn.turnId} stopped by a hook`
-            : `Model API turn ${turn.turnId} failed: ${reason}`,
+            : `Model API turn ${turn.turnId} failed: ${errorKind}`,
         )
         // A failed playback runs no StopFailure dispatch either (D203): a
         // hook handler must not run for a turn that answers from working
@@ -14474,6 +14635,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     // Every exit preserves input the last request did not admit, including
     // incomplete replies and steering accepted while finalization awaited.
     this.promoteSteered(turn)
+    // Its one-use media tokens end with it: a later turn attaches again.
+    for (const media of turn.mediaClaims.splice(0)) media?.release()
     this.active = undefined
     const pendingRun = this.owner.run(turn.turnId)
     if (pendingRun !== undefined && turn.scheduleRun === undefined) {
@@ -14580,7 +14743,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       case 'response.incomplete': {
         this.noteUsage(event.response.usage, chargedGoalId, 'incomplete', event.response.model)
         this.deps.log.warn(
-          `Model API compaction response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
+          `Model API compaction response ${wireWordForLog(event.response.id)} incomplete: ${incompleteReasonForLog(event.response.incomplete_details?.reason)}`,
         )
         throw new ModelApiError('response.incomplete', 0, undefined, 'response_incomplete')
       }
@@ -15606,6 +15769,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(isReview && { isReview }),
       ...(isPlayback && { isPlayback }),
       ...(confirmedRequest !== undefined && { confirmedRequest }),
+      media: this.deps.attachedMedia?.claim(parts),
     }
     // A compaction is a turn too (D26): a message sent during one waits for it.
     if (this.active === undefined && this.compacting === undefined) {
@@ -15823,6 +15987,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.active.steered.push({
       parts,
       userMessageId,
+      media: this.deps.attachedMedia?.claim(parts),
       ...(scheduleRun !== undefined && { scheduleRun }),
     })
     return Promise.resolve({ turnId: expectedTurnId, disposition: 'steered', userMessageId })
@@ -16191,6 +16356,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.resourceAdmissionStop = new AbortController()
     this.deps.judge?.discardSession(this.sessionId)
     for (const dropped of this.queuedTurns.splice(0)) {
+      dropped.media?.release()
       this.emit({
         type: 'turnWithdrawn',
         turnId: dropped.turnId,
@@ -16708,7 +16874,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     return entry.item.content.flatMap((part) => {
       if (this.media?.isUploaded(part) === true) return []
-      const parsed = part.type === 'input_image' ? DATA_URL.exec(part.image_url) : null
+      // A provider-held reference has no bytes to put back in the composer.
+      const parsed =
+        part.type === 'input_image' && 'image_url' in part ? DATA_URL.exec(part.image_url) : null
       const [, mediaType, base64Data] = parsed ?? []
       return mediaType === undefined || base64Data === undefined ? [] : [{ mediaType, base64Data }]
     })
@@ -16754,6 +16922,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     void this.scheduleRuntime?.then((runtime) => {
       runtime.dispose()
     })
+    // Steering still waiting goes with the session, its media released,
+    // never promoted into a turn that would upload it (RVMEDIAV3 2).
+    const { active } = this
+    if (active !== undefined)
+      for (const steer of active.steered.splice(0)) this.dropSteer(active, steer)
     void this.cancel()
     // Let this close's Interrupt enter before aborting its owned queue and
     // processes. The handlers are tracked, so host close waits for cleanup.
@@ -17541,7 +17714,9 @@ export class ModelApiHost implements AgentHost {
           this.stored.set(sessionId, pending.header)
         }
       } catch (error: unknown) {
-        this.deps.log.warn(`Session ${sessionId} was not saved: ${describe(error)}`)
+        // Fixed words only: a save can fail on an upload-ownership refusal
+        // that names the attachment (RVM105 4). The waiter keeps the detail.
+        this.deps.log.warn(`Session ${sessionId} was not saved: save_failed`)
         this.settleSaveWaiters(state, coveredThrough, error)
         continue
       }

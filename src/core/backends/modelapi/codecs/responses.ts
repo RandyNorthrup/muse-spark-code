@@ -31,7 +31,8 @@ import {
   type WebSearchToolDefinition,
 } from '../schemas'
 import { parseSse } from '../sse'
-import { cleanWireText, isBlankWireText } from './shared'
+import { fill, UI_TEXT } from '../../../../shared/l10n/text'
+import { ChatCodecError, cleanWireText, hasHeldVideo, isBlankWireText } from './shared'
 
 export type ResponsesCodecQuirks =
   | {
@@ -175,6 +176,7 @@ function replayTextPart(text: string): { readonly text: string } | undefined {
 function replayContentPart(
   part: InputContentPart,
   quirks: ResponsesCodecQuirks,
+  model: string,
 ): InputContentPart | undefined {
   switch (part.type) {
     case 'input_text':
@@ -183,12 +185,24 @@ function replayContentPart(
       return text === undefined ? undefined : { ...part, text: text.text }
     }
     case 'input_image': {
+      // A provider-held image replays by its id while the upload lives.
+      if (!('image_url' in part)) return part
       return quirks.vision === false
         ? { type: 'input_text', text: CODEC_IMAGE_WITHOUT_VISION }
         : part
     }
     case 'input_file': {
-      return { ...part, filename: cleanWireText(part.filename) }
+      // A provider-held file replays by its id; only inline names are cleaned.
+      return 'filename' in part ? { ...part, filename: cleanWireText(part.filename) } : part
+    }
+    case 'input_video': {
+      // M105 lane V R2 (RVCM1054 finding 2): this codec serves only
+      // non-Meta routes (OpenAI, Azure, xAI, ChatGPT, custom Responses
+      // servers); Meta's captured `file_id` shape is never valid here, so
+      // a held video refuses with the model's own reason instead of being
+      // forwarded with a foreign file id. Meta's own path never reaches
+      // this encoder (its delegate client encodes separately).
+      throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model }))
     }
   }
 }
@@ -213,7 +227,7 @@ function replayInput(
       case 'message': {
         const content: InputContentPart[] = []
         for (const part of item.content) {
-          const replayed = replayContentPart(part, quirks)
+          const replayed = replayContentPart(part, quirks, model)
           if (replayed !== undefined) {
             content.push(replayed)
           }
@@ -406,6 +420,12 @@ export function createResponsesCodec(
       // An input left with nothing after the mapping is refused outright
       // instead of sent as a guaranteed 400.
       const model = options?.model ?? body.model
+      // M105 lane V R2 (RVCM1054 finding 2): the ChatGPT route sends its
+      // input without the replay mapping below, so a held video is refused
+      // here with the model's own reason instead of going out uncaptured.
+      if (isChatgpt && hasHeldVideo(body)) {
+        throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model }))
+      }
       const capabilities = capabilitiesForModel?.(body.model)
       const effective =
         capabilitiesForModel === undefined

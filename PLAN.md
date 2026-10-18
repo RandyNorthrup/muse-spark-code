@@ -36,6 +36,47 @@ Certification: `docs/certification/cm352.md`; Grok review and physical mic
 receipts on all three OSes remain lead-owned C-M35-3 work. Existing microphone
 surfaces are the VS Code family sidebar and tabs. Companion/native-plugin mic
 surfaces await C-M9-1; ACP/headless have no realtime microphone surface.
+**PORTM105 review round 3 (2026-10-11, MacBook).** Fix all four RVPORTM105
+findings and their sibling paths: cancelled uploads must be deleted or durably
+queued for cleanup; audio-action changes during preparation refuse before ASR;
+the exec attachment fixture must exercise real Files delivery; attachment names
+and content stay out of logs while detailed refusals remain visible to users.
+Continue the four existing fix commits, audit every post-receipt await across
+VS Code/ACP/exec, and certify failing regressions with byte-exact red drills in
+`docs/certification/m105-port.md`. Run complete owning/dependent suites in
+sequential batches of three at repository deadlines, all five typechecks,
+unchanged zero-clone duplication and production budgets. No browser/loopback
+suites here, aggregate quality, new dependency, merge, push or paid/live call.
+Visibility and device/vendor qualification holds remain lead-owned.
+
+**PORTM105 round 2 (2026-10-11, macmini).** Remove all 29 inherited
+duplication clones through shared helpers without changing behavior; the
+section 7 duplication deferral is withdrawn. Then prove existing-file video
+and audio attachment delivery through production VS Code, ACP and exec
+composition, including distinct transcribe/sendAudio routing, admission and
+exact reservation/settlement. Repair any missing binding, with failing
+regressions and byte-exact red drills. Keep every visibility hold and recorder
+unchanged; inventory switches and precise missing vendor/platform receipts in
+`docs/certification/m105-port.md`, round 2. No new dependency, raised cap,
+merge, push, paid/live call, browser or GUI. Scoped rig gates only; aggregate
+quality remains lead-owned under the explicit common rules.
+Production composition also covers the first-turn session-journal seed before
+paid transcription on a capped conversation; bind the existing host budget
+initialization if that path lacks it.
+Bind U6's exact Files routes to headless egress for existing-video delivery,
+with bounded multipart streams and the existing origin, redirect and lifetime
+fences. U6c's selected not-billed storage policy applies; transcription stays
+unavailable in exec.
+
+**PORTM105 release-base port (2026-10-11, MacBook).** Merge accepted
+M105 V/VB/redesign tip `eda2fdfe6` with release base
+`35d7b6f54280e6b6235ae4b90e079b865c3e4ff4`, keeping both features and
+release repairs. Resolve by meaning; regenerate reference/roadmap and preserve
+all bundle caps and qualification holds. Commit the real merge after all five
+typechecks, then repair scoped gates with regression/red-control evidence.
+Headless only: browser, GUI, microphone and capture checks belong to the lead.
+No additional merge, push, rebase, dependency change or live/paid call.
+Resolution and final gate receipts: `docs/certification/m105-port.md`.
 **PRTH165 review repair (2026-10-15, Windows).** Merge `d842cad5d`
 with hooks, retaining main's deleted fake-driven tests. Resolve threads T1–T6
 in the existing ACP permission-answer cache, agent lifecycle and translated
@@ -856,6 +897,20 @@ component tests, and the real-editor integration run.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**PORTM105 scoped gate repair (2026-10-11).** The release-base merge is
+`f8db55035`. Initial build: productionAudio 78,662/76,800 B, usagePanel
+75.2/75 KiB, deferred surface English 27,217/25,600 B. The existing bundle
+suite also catches eager registry-source reachability and Model API
+533,555 B over its unchanged 530,883 B diet ratchet. Repair by extracting
+the registry forwarding shim into a type-only leaf, sharing usage
+boundary schemas through the existing Node boundary chunk and stored-session
+parsing through its existing store chunk, and loading the
+Windows encoder job helper from the existing process chunk. Playbook fallback
+English gets its own deferred closure under D6's measured +15%, rounded to
+25 KiB rule; the original 25 KiB surface-English cap stays fixed. Every
+language/value and first-use failure/retry behavior remains. Prove new guards
+and rerun owning production/locale/usage/store/process suites. Model API
+ratchet falls from 530,883 to 523,629 B. No cap rises.
 **PANELBUDGET (2026-10-14, wslpc).** The Models & Agents panel bundle had
 1,645 B of headroom (126,355 B against the 128,000 B cap) with the money and
 key-text lanes plus two mode switches landing in it. The subscriptions half
@@ -26460,6 +26515,32 @@ Acceptance and the exact composed gate receipts live in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**PORTM105 current port (2026-10-11, MacBook).** Accepted V/VB/media-registry
+redesign is merged with the 0.17.1 release base; current resolution and gate
+state is `docs/certification/m105-port.md`. Historical W handoffs below predate
+V's production bindings and U6c's not-billed finding; they do not re-disable
+accepted video/audio. Recording drivers, companion/native-editor factories,
+uncaptured vendors/MSP media and uploaded-file management retain their holds.
+The milestone stays open: next slice is lead gating, Windows/Linux native
+qualification and owner device receipts before recording-driver binding.
+
+**MSM105 finish lane (2026-10-17, macmini).** Merged the codec-refusal line
+(`cand/MSM105/3`), the production-composition line (`cand/MSM105/2`) and the
+current main (`3d30a7321`) onto C-M105-8; overhaul GO deletions stay
+deleted. Finished the merge-exposed gaps (modelApi split surface,
+conversation diet via name-read ledger failure, ACP tarball sessions
+bundle, shared codec/test rigs, zero-duplication gate) and recorded the
+run in `docs/certification/msm105.md`. Transcription/vendor-capture/GPU
+holds above are unchanged: they wait on other milestones, devices, or
+owner receipts. SAST and the browser gates are environment-blocked on the
+lane rig (semgrep CA store; no harness browser) for the lead to run
+outside. **RVMSM105 review (2026-10-17)** merged current main `81dacaf5a`,
+withdrew the production-composition proof (its suites were stand-in tests
+main's no-fakes gate refuses; deleted titles in
+`docs/real-life/unproven.md`), confirmed the ledger notice on the built
+bundles, and left direct recording unbound as above: the milestone stays
+open on real-life proof and the native recording drivers.
+
 **W final integration status (linuxlt, 2026-10-07).** All twelve lane merges
 are present in brief order and all completed-report P1/P2 corrections remain
 integrated. Executable fixes are committed as `a441b557` and `c2ee30b8`, with
@@ -27004,17 +27085,19 @@ every Model API user in every editor.
 - **Performance and bundles.** No existing cap rises (D6); the new code is
   lazy.
 
-  | Artifact                     |              M105 adds (target) | Cap                                                                   |
-  | ---------------------------- | ------------------------------: | --------------------------------------------------------------------- |
-  | `dist/extension.js`          | ≤ 1 KiB (command registrations) | 600 KiB, unchanged                                                    |
-  | `dist/modelApi.js`           |    ≤ 4 KiB (encoders, the gate) | 475 KiB, unchanged                                                    |
-  | `dist/acp.js`                |                         ≤ 4 KiB | 850 KiB, unchanged                                                    |
-  | `dist/uiText.js`             |                       ≤ 0.5 KiB | 125 KiB, unchanged (media strings in a regional block)                |
-  | Chat browser startup         |                       ≤ 0.5 KiB | 900 KiB, unchanged                                                    |
-  | `dist/media.js` (new)        |                         ~35 KiB | measured + 15%, rounded up to 25 KiB                                  |
-  | `dist/screenRecord.js` (new) |                         ~15 KiB | measured + 15%, rounded up to 25 KiB                                  |
-  | Webview media chunks         |                         ~20 KiB | inside the 50 KiB optional total, or a page entry with its own budget |
-  | VSIX                         |         measured (helper modes) | 2,200 KiB, unchanged                                                  |
+  | Artifact                                         |              M105 adds (target) | Cap                                                                                     |
+  | ------------------------------------------------ | ------------------------------: | --------------------------------------------------------------------------------------- |
+  | `dist/extension.js`                              | ≤ 1 KiB (command registrations) | 600 KiB, unchanged                                                                      |
+  | `dist/modelApi.js`                               |    ≤ 4 KiB (encoders, the gate) | 475 KiB, unchanged                                                                      |
+  | `dist/acp.js`                                    |                         ≤ 4 KiB | 850 KiB, unchanged                                                                      |
+  | `dist/uiText.js`                                 |                       ≤ 0.5 KiB | 125 KiB, unchanged (media strings in a regional block)                                  |
+  | Chat browser startup                             |                       ≤ 0.5 KiB | 900 KiB, unchanged                                                                      |
+  | `dist/media.js` (new)                            |                         ~35 KiB | measured + 15%, rounded up to 25 KiB                                                    |
+  | `dist/screenRecord.js` (new)                     |                         ~15 KiB | measured + 15%, rounded up to 25 KiB                                                    |
+  | `dist/productionMedia.js` (new, M105 W redesign) |               66.2 KiB measured | 100 KiB: measured + 15%, rounded up to 25 KiB; `dist/modelApi.js` back to 523.2/525 KiB |
+  | `dist/mediaHost.js` (new, RVMEDIAV 8)            |               18.1 KiB measured | 25 KiB: measured + 15%, rounded up to 25 KiB; activation 585,922 bytes, base 586,002    |
+  | Webview media chunks                             |                         ~20 KiB | inside the 50 KiB optional total, or a page entry with its own budget                   |
+  | VSIX                                             |         measured (helper modes) | 2,200 KiB, unchanged                                                                    |
 
 - **Size.** L overall; a is M.
 - **Certification checklist** (§6.0, plus):
@@ -33818,6 +33901,16 @@ with aggregate quality: measured serial rendering exceeds this lane time box.
 No threshold, ignore, rule level or timeout is changed. Owner-account OAuth captures
 and installed editor/OS receipts are the lead's external actions;
 exact evidence is in `docs/certification/cm952.md`.
+**PORTM105 gate boundary (2026-10-11, MacBook).** The authorized rig brief
+and common rules prohibit aggregate quality/full tests and all browser, GUI,
+microphone and capture launches. Run all five typecheck projects, scoped
+ESLint/Prettier, complete owned files in batches of at most three at repository
+deadlines, localization/reference/roadmap/plan/host API, plain knip,
+duplication/cycles and production build; record exact results in
+`docs/certification/m105-port.md`. Lead owns aggregate quality, coverage,
+installed-editor/native qualification, actual `check:visual`/accessibility,
+and `companionMediaBrowser.test.mjs` on a Linux desktop rig. No skip or timeout
+is added to any test; existing cross-platform skips are reported as such.
 **M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
 job 115017063279: "loads the real lazy menu independently of the secret
 modal focus owner" (`test/unit/m114Panel.test.mjs:241`) exceeded Vitest's
@@ -34420,6 +34513,24 @@ brief forbids aggregate quality; full coverage, accessibility, hosted/platform
 and live certification remain with the lead. No gate, timeout, hook, cap or
 paid-call fence is weakened. Final scoped gate results are recorded in
 `docs/certification/m106-r.md`.
+
+**RVMEDIAV3 gate scope (Windows host, 2026-10-09).** The lane brief runs
+vitest on this Windows host only, at the repository's default timeout and at
+most three files per run. The aggregate `npm run quality` and the full unit
+run are not run. Instead these run directly: typecheck (all five projects),
+ESLint `--max-warnings=0` and Prettier on the changed files, `check:l10n`,
+`check:host-api`, `check:reference`, plain knip and the unchanged-cap
+production build. Hooks stay on. The lead owns native macOS and Linux runs of
+the new lease suite and full quality on the integrated tree. Results are in
+`docs/certification/m105.md`, "Fix round: RVMEDIAV3".
+
+**FIXM105E3 gate scope (Kubuntu, 2026-10-07).** The rig brief/common rules
+forbid aggregate quality and full unit commands; run owning files in batches of
+at most three, followed by the five typecheck projects, lint, changed-file
+formatting, plain knip, duplication, unchanged-cap production build, reference
+and localization. Run final verification from a fresh clone of the committed
+repair with npm ci and CI=true. Hooks remain active; no external network except
+npm ci.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
@@ -35842,6 +35953,18 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 **MSM95 models-section budget 13 → 14 KiB (2026-10-17, macmini).** CM954 R4's required saved-model editor UI (the validated per-model context-window field, `src/webview/models/components/ContextWindow.tsx`) grew the deferred models-section chunk from 12,074 B to 13,448 B, 136 bytes over the row's 13 KiB. The field cannot shrink: every byte is required behaviour or its accessible label, hint and alert. The row is re-measured at 14 KiB (14,336 B; 888 B headroom), following the MODELSPLIT row-setting precedent. No other budget moves. Detail: `docs/certification/msm95.md`.
 **MSM9M35 lane-K activation budget (2026-10-17, macmini; open, lead-owned).** `test/unit/modelsActivationBudget.test.ts` (at most 3 KiB over the immutable pre-K production bundle) fails on the lane tree: baseline 561,352 B, current 568,566 B, growth 7,214 B against the 3,072 B cap. `main-now` 3d30a7321 alone measures 561,352 B to 564,215 B = 2,863 B (the test passes there with 209 B headroom), so the lane's specified behaviour adds 4,351 B and no behaviour-adding milestone can fit the remainder. Diet already applied, none of it a gate change: the Linux driver ships in the new `dist/voiceLinux.js` (50 KiB budget by the measured-plus-15% rule, actual 35,907 B) instead of raising `dist/voice.js`'s 50 KiB cap; companion tunables moved out of `src/shared/constants.ts`; moving the download-consent card into `dist/voiceLinux.js` was tried and reverted because deferred bundles keep no `vscode` import by build design (a stray import fails `npm run build`) and consent arrives as a parameter, the M93 precedent. What remains in activation is specified behaviour: the M9 Linux availability probe (`src/core/voice/helperLocation.ts`), the disabled-model cleanup with its honest pending/removed states (`src/host/voice/dictationHost.ts`, RVCM9LNX P3), the Linux bundle loader (`src/host/voice/voiceBundle.ts`), the M35 paid scope identity and reserve wiring (`src/extension.ts`, D30), and the `LINUX_DICTATION` pins and paths (`src/shared/constants.ts`, D140). No threshold, rule level or ignore is changed and the test is not skipped. **Fixed 2026-10-17 (linuxlt, RVMSM9M35FIX), no cap change:** the setups moved off the activation path into the new `dist/dictation.js` (13,032 B measured, 25 KiB budget by the measured-plus-15% rule), required at their existing construction points with the installed table, so timing and behaviour are unchanged; `dictationHost.ts` takes its host capabilities as parameters (the M93 precedent) because deferred bundles keep no `vscode` import; `LINUX_DICTATION` moved to `src/shared/linuxDictationConstants.ts` (re-exported, the browser-check precedent) so activation no longer carries it. Growth is now 2,577 B of the 3,072 B cap (495 B headroom). The split gate refuses the four moved modules back in activation, and its fire drill is recorded with the real-use proof in `docs/certification/msm9m35.md`. No threshold, rule level or ignore changed; the deferral is closed.
+**PR226W1 budget remainder (2026-10-18, macbook rig, branch `ms/msm105-w1`).**
+The lane fixed the compact-help truth test and dieted activation 12777 →
+10704 bytes over the pre-K baseline (uploads binding to
+`dist/modelApiSessions.js`, picker filters to a dependency-free module;
+`ec11ab666`). The remainder (7632 over a 3072 budget) is structural
+activation wiring plus other milestones' post-K weight, and the VSIX
+stays ~46954 over 3700 KiB on the four new lazy media chunks (78372
+zipped); both measured in `docs/certification/msm105.md` with the exact
+decomposition. No budget raised, no test weakened. The VSIX cap decision
+is the lead's per D6; the activation remainder needs a cross-milestone
+diet lane or the same. Hosted CI re-runs the two tests and
+`npm run package` (Linux-only helpers) for the verdict.
 
 ## 8. Escape hatches register
 
@@ -38127,6 +38250,223 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   captured and supported; verified ffmpeg remains the alternative. Tests and
   drills: `docs/certification/m105-m1-media-core-(a).md`. No review finding is
   deferred and no gate is weakened.
+- **M105-VB-platform-bindings (lane VB, 2026-10-08; lead decisions).** The
+  converter's three platform bindings, for lane V to wire into
+  `convertToMp4`/`convertToWav16kMono`. The API is in
+  `docs/certification/m105.md` (Lane VB).
+  1. Windows: `jobMemoryLimitedRun` (`host/backend/mediaJobRun.ts`) is the
+     `memoryLimitedRun` port. M50's compiled launcher puts the encoder in a
+     kill-on-close job whose JOB_OBJECT_LIMIT_JOB_MEMORY is `maxRssBytes`
+     (M91b's `jobMemoryLimit`): no sampler and no per-launch PowerShell. The
+     kernel bounds memory, so no final RSS sample is owed (RVM105M12); the
+     final output sample still is.
+  2. macOS: `macRssSampler(child)` (`core/media/macRss.ts`) is the
+     `readRssBytes` port for one encoder child. It reads the governor's
+     `posixTable` reader (absolute `/bin/ps`, numeric columns, `lstart`).
+     Every run checks PID, parent and start time, and the child's exit ends
+     its readings (RVMEDIAVB 4).
+  3. A private folder per conversion: `createPrivateDirectory(root)`
+     (`runtime/privateDirectory.ts`), only inside a root that
+     `openPrivateRoot` verified once in the host's own storage, never a
+     temporary folder (RVMEDIAVB 1). It sits over `secureOwnerOnly`, which
+     is the token file's owner-only routine made reusable, and converges with
+     M100's `secureFresh`.
+
+  RVMEDIAVB 2 and 3 also hold. The runner bounds every output check, and
+  the shared job helper creates its child inside the job
+  (`PROC_THREAD_ATTRIBUTE_JOB_LIST`) for every caller.
+
+  Open items:
+  - M109's attested RESULT record must reach `conversionJobFailure`, the
+    named seam, before a cap stop reports `EMEDIA_MEMORY_CAP`.
+  - The runtime (ACP, exec) has no M50 launcher. Its package omits
+    `MuseSparkMcpLauncher.cs`, and `runtime/backends.ts` prepares only the
+    shell job. Lane V ships and prepares the launcher, or Windows conversion
+    in the runtime refuses. (Done by lane V: see the next item.)
+  - Lane V's darwin option becomes per child, and each host opens its
+    private root once. (Done by lane V.)
+  - The darwin private group stays with M104's signed helper.
+
+- **M105-V-production-binding (lane V, 2026-10-08; lead decisions).**
+  Attached video and audio work in production in VS Code, ACP serve and exec,
+  through five seams, each with regressions and red drills
+  (`docs/certification/m105.md`, Lane V):
+  1. A `media` turn part and one attached-media registry per window or
+     runtime. The attach port registers each approved file with its digest
+     and a reopening source. VS Code asks D85.7's question; ACP takes
+     `--allow-contributor-models`.
+  2. A narrow transcription POST (`requestTranscription`) that returns the
+     captured 400 body.
+  3. The trusted converter:
+     - M104's `runtime/trustedPath.ts` with an additive executable mode;
+       Windows uses its owner and ACL verifier on the canonical target;
+     - documented installs resolved from the environment;
+     - a machine-scoped configured path (`museSpark.mediaConverterPath`, the
+       runtime's `settings.json` `mediaConverterPath`) that refuses with no
+       fallback;
+     - shims are refused;
+     - the reaped-PID RSS read is fixed.
+  4. Muse Voice's consent and reservations over the hosts' own money ports:
+     `allowsPaidUse`, and the D78 daily ledger through `reservePaidExtra`
+     plus M82's session journal.
+  5. The ACP and exec media port (`dist/runtimeMedia.js`) and the agent's
+     `--muse-voice` flag.
+
+  The audio path loads with `dist/productionAudio.js` on the first turn with
+  attached sound. Lane VB's Windows job runner and private folder are wired
+  in both hosts, and the ACP package ships the job launcher.
+
+  Open items:
+  - (Closed with lane VB's fix round.) The macOS RSS sampler is bound per
+    encoder child and loads from the governor's bundle. It reads through M107's
+    resource-policy modules, which only the governor's bundle may carry, so
+    conversion refuses on macOS.
+  - `exec` has no Muse Voice: its run ledger does not admit transcription
+    spend.
+  - (Closed PORTM105R2.) Embedded contract WAV is transcribed from the
+    runtime registry, without needing a filesystem path; composition proved
+    the session/prompt route. Other embedded formats still need conversion.
+  - (Closed PORTM105R2.) `mediaAudioAction` is bound at VS Code attach and
+    production preparation; an unsupported explicit action refuses.
+  - Attach-chip UI for the sound choices (Use 1.2, Send without sound) is
+    still not wired: the router's default applies, and declining
+    transcription sends a video without its sound.
+
+- **M105-V-fix-round (RVMEDIAV, 2026-10-09; lead's brief).** All eight review
+  findings fixed at the root with regressions and red drills
+  (`docs/certification/m105.md`, "Fix round: RVMEDIAV"):
+  1. Transcription reads an attachment only through the registry's
+     digest-verified stream (`AttachedMedia.read`); the converter's input is
+     verified before and after encoding; the bytes sent must measure within
+     the reservation's duration bound.
+  2. The transcription POST's final paid admission runs inside the transport
+     immediately before the fetch (`requestTranscription`'s `dispatch`),
+     after the key, account and endpoint checks; a Muse Voice setting change
+     abandons preparation.
+  3. `BatchAdmission` separates permission (`check`) from the observed
+     dispatch; a local non-send refunds and counts no usage.
+  4. The host's model-revision guard is passed into `prepareAudioMessage`.
+  5. The registry uploads from the token a record last resolved through.
+  6. The POSIX converter's final output check is bounded like Windows'.
+  7. Registrations are owned (composer, ACP session port), claimed by the
+     turn that carries them and released at its end, at discard, at owner
+     release and at runtime close; 64 at most per process
+     (`MEDIA_ATTACHED_MAX_ENTRIES`), the oldest unclaimed making room.
+  8. The registry, the attach open hook and contributor consent load with
+     `dist/mediaHost.js` (18.1 KiB, budget 25 KiB) on the first attach;
+     activation is 585,922 bytes against the base's 586,002.
+
+  Open at that round: the converter still read its input by path between
+  the two digest checks; closed by the redesign below.
+
+- **M105-V-registry-redesign (RVMEDIAV2, 2026-10-09; owner rule: redesign at
+  round 3).** The attached-media registry (`src/core/media/attachedMedia.ts`)
+  is rebuilt around ownership instead of patched:
+  - Every registration has one owner (the composer or ACP session that
+    attached it) and one set of turn holders (`MediaClaim`), and an explicit
+    state:
+
+    | State      | Entered by                                                                                                                                                                                             | Left by                                                                                                                                                                | Evicted at the bound | Discard / owner release |
+    | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ----------------------- |
+    | `attached` | `register` (the attach port binds a sniffed, hashed file)                                                                                                                                              | a claim; discard; owner release; the oldest at the bound; runtime close                                                                                                | yes (oldest first)   | removes it              |
+    | `claimed`  | `claim` when the host accepts the turn: `sendTurn` (started or queued) or `steer`; or from `inFlight` when the last in-flight holder releases while a queued or steered holder of the same token waits | `start`; the last holder's `release` (withdrawal, Stop's queue drop, refusal, session disposal)                                                                        | never                | passes it by            |
+    | `inFlight` | `start`: `runTurn` begins, or `drainSteered` puts the steer in a request                                                                                                                               | a running holder's `release` at turn end: released when it was the last holder; `claimed` when only waiting holders remain; still `inFlight` while another holder runs | never                | passes it by            |
+    | released   | the last holder's `release`, discard or owner release of `attached`, eviction, `clear`                                                                                                                 | (gone: the token no longer resolves)                                                                                                                                   | —                    | —                       |
+
+    A promoted steer carries its claim into the queued turn; a session's
+    disposal drops its waiting steers instead and releases their claims
+    (RVMEDIAV3 2). At 64 entries
+    (`MEDIA_ATTACHED_MAX_ENTRIES`) with none `attached`, `register` throws a
+    `MediaAttachRefusedError` (matched by name across bundles); the attach
+    port returns its translated `media.attachedLimit` as the refusal, so
+    VS Code's chip shows the cause and the recovery, as ACP's block path
+    already did.
+
+  - A token's source is fixed at registration. Uploads look it up by the
+    token the record resolved through (`ReplayMedia` keeps it per content
+    part), never by digest, name and size; the shared "current" map is gone.
+  - Conversion never opens the user's path: `convertToWav16kMono` takes
+    `inputBytes`, the registry's digest-verified stream, writes it into the
+    conversion's owner-only folder and encodes that copy. The registry no
+    longer hands out a path at all (`AttachedSource.path`, `AttachedMedia.path`
+    and `resolveSourcePath` removed). A private verified copy rather than
+    stdin, so the Windows job helper and the kernel-run path need no change.
+  - Every editor: the registry, host claims and conversion are shared core;
+    VS Code's attach port (`dist/media.js`) and the ACP/CLI runtime's media
+    port bind the same registry. JetBrains, Visual Studio, Eclipse, Zed,
+    Xcode and the Neovim/Emacs/Sublime family reach media through ACP and
+    get the same states, refusal and conversion.
+
+- **M105-V-registry-fix-round (RVMEDIAV3, 2026-10-09; inside the redesign).**
+  Three P2 and one P3 fixed in the registry design above, with regressions
+  and red drills (`docs/certification/m105.md`, "Fix round: RVMEDIAV3"):
+  1. The private copy is the verified bytes, whole. Each chunk is written
+     until every byte landed (a short `write` continues from where it
+     stopped; one that lands nothing refuses), then the copy is read back
+     and its length and SHA-256 must equal the verified stream's before
+     anything sniffs or encodes it. A mismatch refuses with the translated
+     `media.conversionFailed` ("private copy").
+  2. Disposing a Model API session drops every steer still waiting and
+     releases its claim (Stop's path had already dropped the queue), so
+     nothing is promoted into a turn after disposal. The session's media
+     service also refuses, before any read or upload, once its session is
+     disposed (`MediaReplaySession.isClosed`).
+  3. Crash-left conversion folders are reclaimed when the next process
+     opens the private root (`privateRootFor`, the first conversion of each
+     process), never one a live window still uses. Each opening carries an
+     owner token; every folder it makes is `muse-media-<owner>-<random>`;
+     and the process holds the lease `muse-media-<owner>.lease` for its
+     life (`runtime/privateRootLease.ts`):
+     - Windows: the lease is open with no sharing (libuv's
+       `UV_FS_O_EXLOCK`); another open succeeds only after the kernel
+       closed it at the owner's exit.
+     - macOS: the same flag is `O_EXLOCK`, an flock the kernel drops at
+       exit, probed with `O_NONBLOCK`.
+     - Linux: the lease names its owner (machine id, boot id, PID
+       namespace, PID and `/proc` start tick). The owner is gone when it
+       ran in an earlier boot of this machine, or when no process in this
+       namespace has that PID and start. Another machine's or namespace's
+       lease is kept.
+
+     Fail-safe: a probe that cannot prove its owner gone keeps the folder.
+     A lease the process cannot take, or a lock its own probe does not
+     see, turns that process's sweep off; its folders then stay for every
+     other process. The owner-only root and its ACL are unchanged. The
+     lease code rides `dist/productionMedia.js`, which the host loads
+     before `dist/productionAudio.js`.
+
+  4. The table above gains the reachable `inFlight` → `claimed` move.
+
+  The Meta-only upload authorization moved from the Model API bundle into
+  `createProductionMediaReplay` (`dist/productionMedia.js`), so
+  `dist/modelApi.js` stays under its 525 KiB cap without raising it.
+
+  Open items:
+  - Folders a process made before this round carry no owner token. They
+    are never judged, so they are never removed (this code never shipped).
+  - A process that never converts again does not open the root, so it does
+    not sweep. The next process that converts reclaims the folders.
+  - This round ran on Windows only. There the Linux rules ran against a
+    fake `/proc`. The native macOS lock and the real Linux `/proc` reading
+    are proven only when the same suite (its cross-process case runs on
+    every OS) passes in hosted CI or on the macOS and Linux rigs.
+
+- **M105-V-lease-fix-round (RVMEDIAV4, 2026-10-09).** One P2 and one P3,
+  with regressions and red drills (`docs/certification/m105.md`, "Fix
+  round: RVMEDIAV4"):
+  1. A failed lease acquisition no longer leaves a marker a sweeper can
+     take. `leasePrivateRoot` returns a held lease or an unleased root: the
+     failed attempt is closed and its marker removed, and the root takes a
+     fresh owner token that no lease names, so its folders are never proven
+     gone. The same holds when the lock does not show against the process's
+     own probe. A sweeper keeps every folder whose owner has no lease.
+  2. The state table above states the `inFlight` → `claimed` move exactly:
+     only when the last in-flight holder releases while waiting holders
+     remain.
+
+  Ran natively on Linux (real `/proc`); the Windows and macOS cases stay in
+  the suite. An unleased process's folders are not reclaimed after a crash
+  (fail-safe).
 
 - **M105-F-integration-gates (RVM105F corrections).** All four review findings
   are fixed with regressions and red drills (`docs/certification/m105-f.md`).
@@ -39508,6 +39848,14 @@ D-number collision resolved: the Linux helper keeps D140 (lead decision
 2026-10-10), claimed-shipped milestones move to D204 and the M95
 panel-transport rule to D205; generated files (ROADMAP, host-api, reference,
 lazy registry, production-built) regenerated.
+PR #226 (`ms/msm105`) merged onto the release as `Merge PR #226
+(ms/msm105) into release/0.19.0`, its CHANGELOG entries under `[0.19.0]`;
+`scripts/build.mjs` keeps the bounded pool with PR #226's `mediaHost`,
+`productionMedia`, `productionAudio` and `runtimeMedia` bundles as thunks;
+`runWindowsAclScript` generalized for the second ACL reader; duplicate
+`referenceCliOptions['muse-voice']` resolved for PR #226's CLI-flag text
+(PR #224's companion-draft text shadowed and removed, same in all 14 packs);
+generated files regenerated.
 
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
 Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from

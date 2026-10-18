@@ -302,9 +302,14 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       {
         importer: 'src/host/media/recordingLatest.ts',
         symbol: 'createLinuxLatestPort',
-        side: ['vscode'],
+        side: ['acp', 'vscode'],
       },
     ],
+  },
+  {
+    file: 'mediaHost.js',
+    side: 'vscode',
+    requestedBy: [{ importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] }],
   },
   {
     file: 'modelApi.js',
@@ -368,7 +373,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'modelApiSessions.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
       {
         importer: 'src/shared/constants.ts',
@@ -444,6 +449,37 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'ForeignHooks.preparePlugin',
         side: ['acp', 'vscode'],
       },
+    ],
+  },
+  {
+    file: 'productionAudio.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/host/backend/modelApiEntry.ts',
+        symbol: 'createModelApiHost',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'productionMedia.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'loadLastSessionUploads', side: ['vscode'] },
+      { importer: 'src/extension.ts', symbol: 'loadSessionUploads', side: ['vscode'] },
+      {
+        importer: 'src/host/backend/modelApiEntry.ts',
+        symbol: 'createModelApiHost',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/host/backend/productionAudioEntry.ts',
+        symbol: 'openLeased',
+        side: ['acp', 'vscode'],
+      },
+      { importer: 'src/runtime/backends.ts', symbol: 'modelApiManager', side: ['acp'] },
+      { importer: 'src/runtime/backends.ts', symbol: 'openUploadsLedger', side: ['acp'] },
     ],
   },
   {
@@ -555,6 +591,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'createHost',
         side: ['acp', 'vscode'],
       },
+      {
+        importer: 'src/host/backend/productionAudioEntry.ts',
+        symbol: 'conversionBindings',
+        side: ['acp', 'vscode'],
+      },
       { importer: 'src/runtime/resources/load.ts', symbol: 'lazyRuntimeResources', side: ['acp'] },
     ],
   },
@@ -576,6 +617,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       {
         importer: 'src/core/resources/launcher.ts',
         symbol: 'spawnResourceProcess',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/host/backend/productionAudioEntry.ts',
+        symbol: 'conversionBindings',
         side: ['acp', 'vscode'],
       },
     ],
@@ -640,6 +686,14 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'runtimeFor', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'serve', side: ['acp'] },
+    ],
+  },
+  {
+    file: 'runtimeMedia.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/runtime/backends.ts', symbol: 'createRuntimeBackend', side: ['acp'] },
+      { importer: 'src/runtime/exec/execFetch.ts', symbol: 'transport', side: ['acp'] },
     ],
   },
   {

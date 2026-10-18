@@ -864,6 +864,11 @@ async function serve(
         clientName = name
       },
       backend: runtime.backend,
+      // Lane V seam 5: `/attach`, resource links and embedded media, bound
+      // to the same registry the Model API sessions resolve.
+      ...(runtime.media !== undefined && { media: runtime.media }),
+      // M105 lane F: /uploads over the runtime's account ledger.
+      ...(runtime.uploads !== undefined && { uploads: runtime.uploads }),
       version: packageVersion(),
       options: {
         canBypass: options.canBypass,

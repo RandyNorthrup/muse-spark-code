@@ -34,6 +34,42 @@ happened, not what was planned; superseded entries are kept.
   namespace here and says so once on every surface, naming the two ways
   out, without ever switching the sandbox off on its own.
 
+- Attached existing video and audio are wired for VS Code, ACP and headless
+  exec. The machine's `mediaAudioAction` choice is honored: transcription
+  asks paid consent first, and unsupported direct audio returns its
+  translated refusal. (RVMSM105: the composition receipts once claimed here
+  rested on stand-in tests main's no-fakes gate refuses; deleted and listed
+  in `docs/real-life/unproven.md`. End-to-end proof now waits on real use.)
+- Uploaded-file cleanup no longer blocks saving when the provider refuses a
+  deletion: the failure is recorded with backoff and retried by a later
+  sweep, and repeated failures are reported once in Account & usage as a
+  count. A cancelled re-upload keeps the shared entry, and an explicit
+  delete names the file with a fixed reason.
+- MSM105 merge: codec-refusal and production-composition lines plus the
+  current main are integrated with the overhaul deletions honored. The
+  delete-failure notice reads the ledger failure by name across bundles,
+  the ACP package ships the sessions bundle its backend requires, and the
+  duplication gate is back to zero clones.
+
+
+### Pending
+
+- M105 lane F (C-M105-8): Delete Uploaded Files is bound. Uploads carry
+  `museSpark.mediaUploadExpiryDays` (7 days by default, 1–30); the last
+  session reference released or purged releases the provider copy once no
+  running request still carries it (each request holds its own counted
+  reference, drained at the turn's end), while explicit deletion removes
+  it early. Only orphans no release ever saw (a crash, another install)
+  wait for the provider expiry sweep. A file an active request carries is
+  never deleted. A delete cancelled before its provider call is dropped
+  and never runs later; a file used again voids its pending delete. The
+  VS Code command lists the account ledger and deletes the chosen files,
+  the usage dialog lists and deletes them too, and ACP `/uploads` lists,
+  deletes one file, or deletes all ours. No live provider receipt certified yet.
+- PORTM105 round 2: remove all 29 inherited duplication clones through shared
+  media fixtures, receipt builders and RIFF chunk parsing, preserving existing
+  behavior and the unchanged zero-clone gate.
+
 ### Fixed
 
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
@@ -605,6 +641,265 @@ happened, not what was planned; superseded entries are kept.
   revocation, own-machine Reset included, is still published after an audit
   failure, and the caller still gets the persistence error.
 
+- M105 lane VB (the media converter's platform bindings), wired by lane V in
+  VS Code and the runtime:
+  - On Windows the encoder is created inside a kill-on-close kernel job
+    whose job memory limit is the conversion's memory cap. It starts
+    through the compiled job launcher, so there is no PowerShell per encoder
+    launch. Output size, the deadline and cancellation end the whole job,
+    even when the output's folder stops answering.
+  - On macOS the encoder's resident memory is read through the resource
+    governor's `/bin/ps` reader, for this process's own live child only. A
+    reading never outlives the child's exit or a reused process ID.
+  - Each conversion gets a fresh owner-only folder inside a private root in
+    the host's own storage, never in a shared temporary folder.
+    - On Windows the folder holds a protected DACL with only the current
+      user's grant. Creating it still runs one PowerShell to set that ACL
+      and read it back.
+    - Elsewhere the folder is 0700.
+    - A root that is not private, or a drive without ACLs such as exFAT, is
+      refused.
+
+  A memory-cap stop is reported as a plain conversion failure until M109's
+  job record says the cap was hit. Fakes and local processes only; no live or
+  paid call.
+
+### Changed
+
+- Port the accepted M105 production video/audio, converter containment and
+  private media registry to the 0.17.1 base. Preserve lazy session-upload
+  cleanup, current provider/store behavior, exact budget boundaries and
+  existing native/editor qualification holds; no recording surface is enabled.
+  Windows encoder handling loads from the existing process chunk; pure session
+  and usage schemas are shared, and deferred playbook English has its own
+  bounded chunk. Original startup and feature caps remain unchanged.
+  Native/package fixtures use the shared inventory; cold setup and CLI tests
+  keep their original deadlines while isolating immutable preparation and
+  matching production minification.
+
+- Production media is one service per Model API session (M105 W redesign),
+  built by one factory in its own lazy bundle, `dist/productionMedia.js`
+  (66.2 KiB, cap 100 KiB). It moved out of `dist/modelApi.js`, which drops from
+  590.2 KiB back to 523.2 KiB under its unchanged 525 KiB cap. Activation no
+  longer imports any backend module for the session store's upload binding
+  (572.3 KiB, previously 586.3 KiB).
+  - Images and PDFs go through a single admission path, whether attached,
+    read by a tool or reopened with the session. On the Muse Spark
+    contributor models each one is priced at the calibrated image bound and
+    stays inline on the wire. A PDF has no captured page rate, so it is
+    refused with the reason in a capped session and sent at its byte count in
+    an uncapped one. Models without a media capture keep the existing inline
+    path.
+  - An unknown media rate is refused only when spending is capped (a session
+    cap or a scheduled run).
+  - A priced inline image is never treated as an upload: later turns no
+    longer fail with "The upload expired".
+  - The agent's `read_file` can send a workspace video (mp4 or mov) to the
+    contributor models. It is uploaded once through the Files API, its id is
+    replayed, and it is reserved at the calibrated bound, scheduled turns
+    included.
+  - The transcription adapter keeps a video's visual part beside its
+    soundtrack transcript, and disposes a converted WAV on every path.
+
+- Attached video and audio work in production on every surface (M105 lane V):
+  - **Attaching video.** On the Muse Spark 1.2 and 1.3 contributor models an
+    mp4 or mov can be attached in the panel (picker, drop, paste), through
+    ACP (`/attach`, resource links, embedded media) and with
+    `exec --attach`. It uploads once, replays its file id and is priced on the
+    one admission path. Other models refuse with the reason. VS Code asks once
+    per conversation on a contributor model (Send, Use the Standard model,
+    Remove) and always for a screen recording; the ACP agent's
+    `--allow-contributor-models` stands for that question.
+  - **Muse Voice transcription.** On 1.3, which does not hear a video's sound,
+    the soundtrack is transcribed and the transcript goes beside the video;
+    declining, or a machine with no converter, sends the video without its
+    sound. A WAV or MP3 is attached only while Muse Voice is on and becomes
+    its transcript; Meta audio is never sent as audio. Each transcription
+    asks first with the price and the shared daily budget, reserves exactly on
+    that budget (and on a conversation cap), settles from the billed seconds
+    and counts on the tally. The ACP agent turns it on with `--muse-voice`;
+    `exec` has none.
+  - **The trusted converter.** `ffmpeg` is used only at the machine's
+    configured path (`museSpark.mediaConverterPath`, or `mediaConverterPath`
+    in the agent's `settings.json`) or a documented install, never `PATH`,
+    after the trusted-path check (M104's verifier on macOS and Linux, the
+    owner and ACL check on Windows, on any drive). Launcher shims are refused;
+    a refused configured path says why and never falls back. Conversion runs
+    on Linux and, in a kernel job with a memory cap, on Windows (VS Code and
+    the runtime, whose package now ships the job launcher) and on macOS, with
+    its memory read through `ps` for that encoder alone. Each conversion
+    works in a fresh owner-only folder inside a private root in the host's
+    own storage, never a shared temporary folder.
+  - **Bundles.** Transcription loads with `dist/productionAudio.js` (72.8 KiB,
+    cap 75 KiB) on the first turn with attached sound, and the runtime's media
+    port with `dist/runtimeMedia.js` (49.8 KiB, cap 75 KiB). The window's
+    attached-media registry, the attach port's open hook and the contributor
+    question load with `dist/mediaHost.js` (18.1 KiB, cap 25 KiB) on the first
+    attach, so activation is 572.2 KiB, below its size before attached media.
+    `dist/modelApi.js` stays at 524.9 KiB under its 525 KiB cap; no cap rose.
+  - **One-use attachments.** An attached video or audio file belongs to the
+    turn that sends it and is let go when that turn ends; a discarded chip, a
+    new conversation and a closed ACP session let go of theirs, and the agent
+    lets go of all of them when it exits. A later turn that needs the file
+    again asks you to attach it again.
+
+### Fixed
+
+- RVPORTM105: cancellation after a Files receipt permits bounded provider
+  cleanup, with durable retry intent when deletion fails. Audio-action changes
+  during preparation refuse before transcription. Exec attachment tests use a
+  Files-capable provider fixture. Media refusal logs retain reason codes while
+  detailed attachment names stay in the user-facing error only.
+
+- Muse Voice transcription of an attached file (RVMEDIAV):
+  - It sends only the bytes that were attached. They are read through the
+    attachment's digest check (and checked again around a conversion), and a
+    file replaced since it was attached refuses before anything is sent;
+    previously the replacement could be sent under the original's smaller
+    reservation.
+  - The last paid check (Muse Voice on, the daily and session budgets, the
+    selected model) now runs immediately before the request goes out, after
+    the key and endpoint checks. Turning Muse Voice off, or a budget closing,
+    while the key was read no longer lets the request through; turning it off
+    during the price question stops the preparation.
+  - A request that never left the machine (no key stored, another account's
+    key, the endpoint check) refunds its reservation and adds nothing to the
+    usage tally; previously it was kept as an unknown charge.
+  - Changing the model while the price question is open no longer pays for a
+    transcription the turn then discards.
+
+- A file attached again after its earlier copy was discarded and deleted now
+  uploads from the new copy, not the deleted one (RVMEDIAV).
+
+- Embedded ACP media no longer stays in memory for the agent's lifetime;
+  see "One-use attachments" above (RVMEDIAV).
+
+- On Linux and macOS a converter whose final output check stalls after a
+  clean exit now ends with Stop or its deadline, as on Windows (RVMEDIAV).
+
+- Attached video and audio, redesigned ownership (RVMEDIAV2):
+  - A converted MP3 or video soundtrack is encoded from the attachment's
+    digest-checked bytes, copied into the conversion's private folder, never
+    from your file's path; a file swapped and restored during conversion is
+    no longer what gets transcribed.
+  - Each attachment uploads only from its own file. Another session
+    attaching a byte-identical copy can no longer point your upload at its
+    (possibly deleted) file.
+  - A message waiting in the queue, or steered into a running reply, now
+    holds its attachments from the moment it is accepted: attaching many
+    more files elsewhere no longer drops them. Taking the message back, Stop
+    or the reply ending lets them go.
+  - When 64 attachments are all in use, VS Code now says so ("Too many video
+    and audio attachments are in use. Wait for a reply to finish, then
+    attach again.") instead of "The file could not be read."
+
+- Attached video and audio, fix round (RVMEDIAV3):
+  - The private copy a conversion encodes is now the whole verified file.
+    A write that lands only part of a chunk (a nearly full disk, a quota)
+    continues from where it stopped, and the copy is read back and compared
+    with the verified bytes before anything encodes it. Before, a short
+    write could cut the copy, and a shorter recording was transcribed with
+    no error. Now a copy that cannot be made whole stops with "Conversion
+    failed: private copy".
+  - Closing a conversation while a message steered into its reply is still
+    waiting no longer uploads that message's video. The steer goes with the
+    conversation and its attachment is let go at once. A closed
+    conversation's media service reads and uploads nothing.
+  - Copies that a crash or a kill left in the private media folder are now
+    removed when the next window or agent process converts something. A
+    window that is still running keeps its own copies.
+
+- Attached video and audio, fix round (RVMEDIAV4): a window whose lock on the
+  private media folder failed can no longer have its conversion's copy
+  removed by another window while it converts. Its copies are kept until
+  removed by hand.
+
+- On Windows, a stdio MCP server, a plugin hook's runtime or a team run is now
+  created inside its kill-on-close job. Previously it was added to the job
+  just after creation. A launcher ended in between (cancelled, timed out)
+  could leave the new process suspended outside the job; now none survives
+  (RVMEDIAVB).
+
+- The Windows owner-only ACL helper finds PowerShell under `SystemRoot`, then
+  `windir`, and refuses when neither is set instead of assuming `C:\Windows`.
+
+- An image an MCP tool returns is priced at the calibrated image bound on the
+  Muse Spark contributor models, like every other image, so a capped turn no
+  longer under-reserves it at its few encoded bytes. Models without a media
+  capture keep counting its bytes (RVMEDIAW2).
+
+- The Model API factory drops a caller-supplied audio preparation callback;
+  the only audio path is the one the bundle binds itself (RVMEDIAW2).
+
+- An RSS sample of a converter that already exited no longer fails a
+  conversion that finished cleanly: after close only the output decides
+  (M105 lane V).
+
+- "Storage billing has not been verified" is gone from every refusal: U6c
+  recorded that storage is not billed. A session without a file upload
+  service now says so (M105 lane V).
+
+- The privacy notice and the README now say what a contributor-model
+  `read_file` of a video already does: the bytes go to Meta's Files API, the
+  upload expires after seven days, and session deletion or the retention purge
+  deletes it (RVMEDIAW2).
+
+- The media accounting core claims its calibrated upper bound
+  against both schedule and shared daily caps, including replayed file IDs,
+  settles the admitted media tariff once, and retains uncertain liabilities.
+  Above-reserve bills refuse settlement; daily claim transfers secure their
+  replacement before releasing held budget.
+  What production media users can do now is under Changed above. A scheduled
+  run without the production media service (no storage or key) explains the
+  limitation in every editor.
+  Media read-file references through a bound adapter carry their checked source
+  into the run ledger;
+  stopped reads cannot publish a new proof.
+
+- Video reaching any non-Meta request now refuses with the model's own
+  reason ("{model} is not known to take video."), read from the installed
+  language table, before anything is sent (M105 lane V R2). The chat and
+  Gemini codecs already refused at the codec stage, but as a plain Error
+  the production client replaced the reason with the generic unavailable
+  message; the refusal is now the typed error the client passes through.
+  Responses requests forwarded Meta's file id uncaptured while Anthropic
+  and Ollama requests dropped the part and sent the rest; every encoder
+  now refuses instead. No vendor outside Meta has a captured media wire
+  yet.
+
+- The same typed video refusal now reaches the user as its own sentence on
+  every remaining route (M105 lane V R3, RVCM1054B): the ChatGPT
+  subscription route (which had replaced it with the generic retry text),
+  the Copilot subscription leg, the runtime accounting wrapper, and the ACP
+  agent (whose SDK had generalized a raw start failure to "Internal
+  error"). One shared helper decides what counts as a codec refusal, and
+  the route matrix is driven by both the provider registry and the plan-key
+  registry. The lead capture recipes run as written.
+
+- The review round's findings on that refusal are fixed as a class (M105
+  lane V R4, RVCM1054C): the Copilot client itself raises the shared typed
+  refusal with the model's own sentence for a held video (and for an image
+  the model cannot take) before any request, instead of the generic
+  "Copilot models are unavailable" text; the Meta passthrough is pinned to
+  rethrow the refusal unchanged; the plan-key route runs through the real
+  production client; the ACP agent's unreachable start-rejection branch is
+  deleted and the real session path (failed turn carrying the sentence as
+  its reason) is pinned through the real agent; headless exec reports the
+  sentence in both its error and its incomplete reason with exit code 4 and
+  no model request sent; and the lead capture recipes no longer waste or
+  mis-record a paid call. The editor shows an ACP failure as "Internal
+  error: <sentence>", today's shape for every failed turn there.
+
+- The review round's findings on that refusal are fixed as a class (M105
+  lane V R5, RVCM1054D): the Copilot client raises the refusal through the
+  provider bundle seam (one helper re-exported by the providers entry) and
+  the subscriptions bundle takes the shared type from a small leaf module,
+  so the Models panel bundle is back under its unchanged size cap and the
+  split gate passes with no codec source outside the providers bundle; the
+  ACP and exec regressions now run a real Model API session (the former
+  session double and session proxy are gone — a broken session mapping
+  fails them); and the OpenAI audio capture recipes name the audio-input
+  model `gpt-realtime-2.1` from the repository catalog instead of `gpt-5.4`.
 - M123 (Git and pull requests in every editor, PLAN.md D104): lanes 0, G
   and P are merged and switched off until the milestone is complete, so
   nothing changes for users yet. No GitHub setting is offered, and an

@@ -79,6 +79,14 @@ Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no
 
 Commands: `museSpark.openUsagePage`. Settings: `museSpark.usageHistory`, `museSpark.usageHistoryDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#usage-and-cost)
 
+### Uploaded Files
+
+List the uploaded files of this account and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.deleteUploadedFiles`. Settings: `museSpark.mediaUploadExpiryDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
+
 ### Legal Scan
 
 Scan the workspace for licensing, attribution and header findings
@@ -258,6 +266,8 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.
 
+`transcribe` turns attached audio into text before sending; `sendAudio` sends the audio where the model takes it. Transcribe by default. Transcription bills the paid voice rate, always with consent first. Only this machine’s setting is used.
+
 ```json
 {
   "maxAttachments": 20,
@@ -300,7 +310,7 @@ Attach files by selecting or dropping them, and paste images into the composer. 
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.attachScreenRecording`, `museSpark.attachLatestScreenRecording`, `museSpark.deleteUploadedFiles`. Settings: `museSpark.mediaMaxUploadMiB`, `museSpark.mediaUploadExpiryDays`, `museSpark.screenRecordingMaxSeconds`, `museSpark.mediaAudioAction`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
+Commands: `museSpark.attachScreenRecording`, `museSpark.attachLatestScreenRecording`, `museSpark.deleteUploadedFiles`. Settings: `museSpark.mediaMaxUploadMiB`, `museSpark.mediaUploadExpiryDays`, `museSpark.screenRecordingMaxSeconds`, `museSpark.mediaAudioAction`, `museSpark.mediaConverterPath`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
 
 ### museSpark.modelApiStrictTools
 
@@ -1851,7 +1861,7 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Delete Uploaded Files…
 
-`museSpark.deleteUploadedFiles` — List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.
+`museSpark.deleteUploadedFiles` — List the uploaded files of this account and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.
 
 Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible`.
 
@@ -3348,6 +3358,20 @@ Type: `"string"`. Default: `"transcribe"`. Scope: `machine`.
 - `"transcribe"`:
 - `"sendAudio"`:
 
+### museSpark.mediaConverterPath
+
+Absolute path to the ffmpeg this machine uses to convert attached audio and video for transcription. Empty by default: only documented install locations are used (Program Files and winget on Windows, Homebrew and MacPorts on macOS, /usr/bin and /usr/local/bin on Linux), never PATH. A path set here is the only candidate: it must pass the trusted-path check, or conversion is refused with the reason. Launcher shims are refused. Only this machine’s setting is used.
+
+Type: `"string"`. Default: `""`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "default": "",
+  "maxLength": 4096
+}
+```
+
 ### museSpark.vault.agentFence
 
 shellOrigin=interactive&agentFence: Controls the credential fence for interactive Model API shell commands. Verification, schedules, workers and hooks remain fenced.
@@ -3516,6 +3540,7 @@ These are defaults; editor customizations take precedence.
 - `serve: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false}`
 - `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
@@ -3541,6 +3566,7 @@ These are defaults; editor customizations take precedence.
 - `login: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `login: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `login: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
 - `login: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `login: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
@@ -3565,6 +3591,7 @@ These are defaults; editor customizations take precedence.
 - `setup: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `setup: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `setup: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
 - `setup: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `setup: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
@@ -3591,6 +3618,7 @@ These are defaults; editor customizations take precedence.
 - `authSet: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authSet: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authSet: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
@@ -3616,6 +3644,7 @@ These are defaults; editor customizations take precedence.
 - `authStatus: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authStatus: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authStatus: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
@@ -3641,6 +3670,7 @@ These are defaults; editor customizations take precedence.
 - `authClear: --auto-compaction`: autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes. `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authClear: --muse-voice`: --muse-voice Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authClear: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`

@@ -367,18 +367,14 @@ reason and record the owner. The reviewer charter ships as the
   paid wherever it is used, and tallied in Account & usage.
 - **Scheduled prompts under your control.** On the Model API backend,
   `/loop` saves a recurring prompt in this conversation. By default a due
-  prompt waits for you to run and confirm it; your key is spent only
-  after your consent. Scheduled turns currently cannot read video or audio:
-  verified upload storage, the captured media codec and production calibration bindings are
-  unavailable (PLAN D85.6, M105). The shared paid accounting refuses bills
-  above an admitted reserve and retains that reserve as uncertain liability.
-- **Two backends, one per conversation.** Your Muse subscription through the Muse Code
-  CLI, or a Meta Model API key (pay as you go) with the extension's own
-  tools. The pasted key is never handed to the CLI.
-- **Set up from the panel.** No Muse Code yet? **Install Muse Code** shows
-  Meta's command and runs it in a terminal; **Sign in with your Meta
-  account** shows its approval code in the panel.
-- **Context the way you work.** `@` mentions with `.gitignore`-aware fuzzy
+  prompt waits for you to run and confirm it; unattended runs are opt-in
+  per schedule with a hard spending cap, and your key is never spent
+  without your consent. On the Muse Spark contributor models, a scheduled or
+  interactive `read_file` of a workspace video (mp4 or mov) uploads it once
+  through the Files API and replays its id. It is reserved at the calibrated
+  upper bound and refused under the cap when it cannot be priced. Audio is not
+  available yet. The shared paid accounting refuses bills above an admitted
+  reserve and keeps that reserve as uncertain liability.
   search, the open file or selection as a chip, images (and, on the Model API
   backend, PDFs) pasted or dropped, and `Alt+K` to mention the editor
   selection. On either backend the agent can also read the Problems panel.
@@ -3025,28 +3021,64 @@ integration owners; editor font settings continue to decide inside editors.
   receives its English result.
 - **Multimodal integration status (M105).** The picker recognizes video and
   audio; paste/drop sends approved host URI tokens without reading their bytes
-  in the browser. A bytes-only audio/video paste is refused. Production video
-  and audio delivery remains unavailable until the selected-model capability,
-  the production upload and transcription bindings, consent and
-  exact-budget bindings land.
-  `mediaAudioAction` selects the intended audio route; it does not enable an
-  unbound transcription adapter. Muse Spark 1.3 ignores a video's soundtrack;
-  1.2 hears it, according to the recorded captures. Standalone Meta audio is
-  refused because the capture found it silently ignored.
+  in the browser. A bytes-only audio/video paste is refused. On the Muse Spark
+  1.2 and 1.3 contributor models, a video (mp4 or mov) goes to Meta's Files API
+  once, with a seven-day expiry, and later turns replay its file id. It can be
+  attached in the panel (picker, drop, paste), through ACP (`/attach`, resource
+  links, embedded media) and with `exec --attach`, or read by the model with
+  `read_file`. Other models refuse video with the reason. Attaching asks once
+  per conversation on a contributor model (Send, Use the Standard model,
+  Remove), and always for a screen recording; the ACP agent takes
+  `--allow-contributor-models` as that consent. Muse Spark 1.3 ignores a
+  video's soundtrack; 1.2 hears it, according to the recorded captures. On
+  1.3 the sound is transcribed by [Muse Voice](#paid-features) ($0.18 per audio
+  hour, asked first with the price and the shared daily budget, reserved on
+  that budget and any conversation cap, counted on the tally) where a trusted
+  converter can extract it, and the transcript goes beside the video;
+  declining sends the video without its sound, and so does a machine with no
+  converter. Standalone Meta audio is never sent as audio, because the capture
+  found it silently ignored: a WAV or MP3 is attached only while Muse Voice is
+  on (`--muse-voice` for the ACP agent) and becomes its transcript. A 16 or
+  24 kHz mono 16-bit WAV is sent as it is; anything else converts first.
+  `exec` has no Muse Voice and explicitly refuses standalone audio. ACP
+  linked audio and embedded contract WAV are transcribed with `--muse-voice`.
+  `museSpark.mediaAudioAction` selects `transcribe` or `sendAudio` in VS Code.
+  `sendAudio` is refused on captured Meta models, which ignore standalone
+  audio; it never falls back to transcription.
+  The converter is the machine's configured `ffmpeg`
+  (`museSpark.mediaConverterPath`, or `mediaConverterPath` in the agent's
+  `settings.json`), which must pass the trusted-path check or is refused with
+  the reason, else a documented install (Program Files or winget on Windows,
+  Homebrew or MacPorts on macOS, `/usr/bin` or `/usr/local/bin` on Linux).
+  `PATH` is never searched and launcher shims are refused. Conversion runs on
+  Linux (memory watched through `/proc`) and Windows (in a kernel job with a
+  memory cap, in VS Code and the runtime) and macOS (memory read through `ps`
+  for that encoder alone), in a fresh owner-only folder inside a private root
+  in the host's own storage, never a shared temporary folder.
   **Attach Screen Recording…** and ACP `/record` require an installed recorder
-  binding and otherwise explain that recording is unavailable. **Attach latest
-  screen recording** can inspect an existing Linux recording, but admission
+  binding and otherwise explain that recording is unavailable. **Attach Latest
+  Screen Recording** can inspect an existing Linux recording, but admission
   still requires the media bindings. Remote windows need the companion route,
   whose server is pending M104. The Windows VM has no working direct-capture
-  receipt. Configured future uploads have a `mediaMaxUploadMiB` cap and
-  `mediaUploadExpiryDays` expiry; **Delete Uploaded Files…** requires the real
-  account ledger. These commands do not establish provider/editor certification.
+  receipt. `mediaMaxUploadMiB` caps an upload. Uploads carry
+  `mediaUploadExpiryDays` (seven days by default, 1–30); releasing the last
+  session that refers to an upload deletes it at once, however young.
+  Deleting a session, or the `cleanupPeriodDays` purge, releases its
+  uploads the same way; only orphans no release ever saw wait out the
+  provider expiry. **Delete Uploaded Files…** lists the account ledger
+  and deletes the chosen files early (ACP `/uploads`, same); a file another
+  session still uses is never deleted. These commands do not establish
+  provider/editor certification.
 
-  | Backend/model                                | Images and PDFs                                 | Video                                                | Standalone audio                                     |
-  | -------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
-  | Model API, current production binding        | Existing inline path                            | Off: capability/Files/consent/budget binding pending | Off: captured batch adapter and paid binding pending |
-  | Muse Code                                    | Existing image path; established document rules | Off: U16/MSP capture pending                         | Off: needs captured Model API route                  |
-  | Gemini / OpenAI-compatible and other vendors | Their future captured capability record         | Off: lane V and vendor captures pending              | Off: captured capability/codec pending               |
+  | Backend/model                                | Images and PDFs                                                                                                                                                                                                                           | Video                                                                                                                                                                                               | Standalone audio                                                                          |
+  | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+  | Model API, current production binding        | Inline; on contributor models every image (attached, read or from an MCP tool) is priced at the calibrated bound. No PDF page rate exists: an uncapped PDF counts its bytes, a capped one is refused. Models without captures count bytes | Attached (panel, ACP, `exec --attach`) or `read_file` mp4/mov on the 1.2/1.3 contributor models (Files upload, id replay); 1.3's soundtrack transcribed by Muse Voice where a converter extracts it | WAV/MP3 transcribed by Muse Voice (paid, asked first) while it is on; never sent as audio |
+  | Muse Code                                    | Existing image path; established document rules                                                                                                                                                                                           | Off: U16/MSP capture pending                                                                                                                                                                        | Off: needs captured Model API route                                                       |
+  | Gemini / OpenAI-compatible and other vendors | Their future captured capability record                                                                                                                                                                                                   | Off: vendor captures pending                                                                                                                                                                        | Off: captured capability/codec pending                                                    |
+
+  Lane V bound these in production: attach tokens with a part-to-source
+  registry, Muse Voice's transcription POST, the trusted converter, the paid
+  consent and reserve adapters, and the ACP and exec media port.
 
   Portable core and editor adapters have fake-based tests. Installed-editor,
   native recording and live provider receipts remain open in
@@ -4369,7 +4401,7 @@ remain planned; this reference does not claim those hosts implement the page.
 | Muse Spark: Add Model Provider…                     | —                                                                                                | The quick-pick fast path without the panel: pick a provider, enter or connect the key, test it, pick models and confirm                                                                                                                                                 |
 | Muse Spark: Attach screen recording…                | —                                                                                                | Direct recording is unavailable in this build; choose an existing recording file instead                                                                                                                                                                                |
 | Muse Spark: Attach latest screen recording          | —                                                                                                | Attach the newest recording the OS already saved to the conversation in view                                                                                                                                                                                            |
-| Muse Spark: Delete uploaded files…                  | —                                                                                                | Delete this conversation's uploaded media before its expiry                                                                                                                                                                                                             |
+| Muse Spark: Delete uploaded files…                  | —                                                                                                | Delete this account's uploaded media before its expiry                                                                                                                                                                                                                  |
 
 Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
 which is why its two shortcuts add `Alt`. Fifteen commands appear in the
@@ -4460,7 +4492,8 @@ Bypass at once.
 | `mediaMaxUploadMiB` | `200` | Uploaded media cap in MiB, 1–1024; machine-scoped. An attachment over it is refused before it is read |
 | `mediaUploadExpiryDays` | `7` | Uploaded media expiry in days, 1–30; machine-scoped. **Delete Uploaded Files…** removes them early |
 | `screenRecordingMaxSeconds` | `120` | Screen recording length cap in seconds, 10–600; machine-scoped. Shorter bounds are clamped, not refused |
-| `mediaAudioAction` | `"transcribe"` | What pasted or dropped audio becomes: `transcribe` (free text the model reads) or `sendAudio` (a playable clip); machine-scoped |
+| `mediaAudioAction` | `"transcribe"` | What attached audio becomes: `transcribe` (paid Muse Voice, consent first) or `sendAudio` (only on a model with captured audio support; otherwise an explicit refusal); machine-scoped |
+| `mediaConverterPath` | `""` | Absolute path to the `ffmpeg` that converts attached sound for transcription; empty uses documented installs only, never `PATH`. A set path is the only candidate and must pass the trusted-path check; machine-scoped |
 
 The Model API backend's shell tool applies `terminal.integrated.env.*` the
 way VS Code's terminal does. A restart of Muse Code, for a setting, trust

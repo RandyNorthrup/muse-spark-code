@@ -30,6 +30,9 @@
     "src/host/backend/providerPolicyEntry.ts",
     "src/core/backends/modelapi/modelApiHooksEntry.ts",
     "src/core/backends/modelapi/modelApiMcpEntry.ts",
+    "src/host/backend/productionMediaEntry.ts",
+    "src/host/backend/productionAudioEntry.ts",
+    "src/runtime/runtimeMediaEntry.ts",
     // The deferred per-call helpers, built as dist/modelApiTools.js (MODELAPIDIET).
     "src/core/backends/modelapi/modelApiToolsEntry.ts",
     "src/runtime/usage/usageServiceEntry.ts",
@@ -138,9 +141,11 @@
     "src/webview/models/models.tsx",
     "src/runtime/main.ts",
     "src/runtime/sharing/sharingEntry.ts",
-    // M105 media attachments and screen recording, each required by path on
-    // first use (dist/media.js, dist/screenRecord.js).
+    // M105 media attachments, the window's media registry and screen
+    // recording, each required by path on first use (dist/media.js,
+    // dist/mediaHost.js, dist/screenRecord.js).
     "src/host/media/mediaEntry.ts",
+    "src/host/media/mediaHostEntry.ts",
     "src/host/media/screenRecordEntry.ts",
     // M112 A: same-build ACP question factory, loaded by path on first use.
     "src/acp/questionDeferralEntry.ts",
@@ -170,6 +175,9 @@
     // Native loader regression child, run by both package scripts after build.
     "test/packaging/moduleExports.test.mjs",
     "test/e2e/**/*.test.ts",
+    // Round-4 two-process ledger proof bundles this child by path; esbuild
+    // entries are not traced.
+    "test/unit/helpers/media/ledgerChild.ts",
     // The reports e2e bundles this entry with esbuild by path
     // (test/e2e/reports.e2e.test.ts), which knip does not trace.
     "test/e2e/reportsEntry.ts",

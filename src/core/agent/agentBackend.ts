@@ -21,6 +21,7 @@ import type {
   ScheduleRunConfirmation,
 } from '../../shared/schedule'
 import type { ApprovalMode } from '../../shared/permissionModes'
+import type { MediaInfo } from '../../shared/media'
 import type { SessionExport } from '../export/sessionTransfer'
 import type { GitDraftOutputPort } from '../git/gitText'
 import type { ExtensionHookDispatch, ExtensionHookEvent } from '../backends/modelapi/extensionHooks'
@@ -338,11 +339,26 @@ export interface TextFilePart {
   readonly sizeBytes: number
 }
 
+/**
+ * An attached video or audio file (M105 lane V): metadata and the host's
+ * one-use attach token, never bytes or a path. The host's attached-media
+ * registry resolves the token to its approved source; a part whose token,
+ * digest, name or size the registry does not hold is refused.
+ */
+export interface MediaFilePart {
+  readonly type: 'media'
+  readonly token: string
+  readonly name: string
+  readonly info: Extract<MediaInfo, { readonly kind: 'video' | 'audio' }>
+  readonly sha256: string
+}
+
 /** One ordered content part of a turn (MSP `TurnInputPart`, and the Model API's document). */
 export type TurnPart =
   | ImagePart
   | DocumentPart
   | TextFilePart
+  | MediaFilePart
   | { readonly type: 'text'; readonly text: string }
   | { readonly type: 'skill'; readonly selector: string; readonly arguments?: string }
 

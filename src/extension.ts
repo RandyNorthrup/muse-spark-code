@@ -63,6 +63,8 @@ import {
   MUSE_CODE_REVIEWER_DIR,
   EXTENSION_HOOKS_BUNDLE_FILE,
   MODEL_API_SCHEDULES_DIR,
+  MODEL_API_UPLOADS_DIR,
+  MEDIA_PRIVATE_ROOT_DIR,
   CHECKPOINTS_DIR,
   TURN_CHECKPOINTS_SETTING,
   MODEL_API_SESSIONS_DIR,
@@ -106,7 +108,7 @@ import {
   TAB_CONTEXT_FILES,
 } from './shared/constants'
 import { PaidAuthority } from './core/paid/paidAuthority'
-import { Usd } from './shared/usd'
+import { Usd, type UsdAmount } from './shared/usd'
 import {
   createUsageRecording,
   isUsageWriterBundle,
@@ -180,7 +182,7 @@ import { chooseAuthorizedHost } from './host/backend/selectedHost'
 import { SandboxSetup } from './host/backend/sandboxSetup'
 import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
-import { lazyFileSessionStore } from './host/backend/fileSessionStoreBundle'
+import { fileSessionBundleApi, lazyFileSessionStore } from './host/backend/fileSessionStoreBundle'
 import type { QuestionStore } from './shared/questions'
 import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
 import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
@@ -340,12 +342,10 @@ import { loadUiTable, readUiTableFile } from './host/l10n'
 import type { InsightsReader } from './runtime/usage/traceLogs'
 import type { DictationSetup } from './core/voice/dictation'
 import { dictationLoader, type DictationBundle } from './host/voice/dictationBundle'
-import {
-  createMediaAttachDeps,
-  createMediaSourceOpen,
-  dialogFiltersOption,
-} from './host/media/mediaProviders'
-import { mediaBundleLoader } from './host/media/mediaBundle'
+import { dialogFiltersOption } from './host/media/dialogFilters'
+import type { AttachedMedia } from './core/media/attachedMedia'
+import { lazyAttachedMedia } from './core/media/attachedMediaPort'
+import { mediaBundleLoader, mediaHostBundleLoader } from './host/media/mediaBundle'
 import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRecordBundle'
 import { createLinuxLatestPort } from './host/media/recordingLatest'
 import { latestLinuxRecording } from './core/media/record/linux'
@@ -2698,9 +2698,82 @@ async function activateWindow(
               new Promise((resolve) => {
                 setTimeout(resolve, ms)
               }),
+            // The lazy session store releases provider uploads on deletion/purge.
+            // Production media and its account ledger load only on first use.
+            uploads: (accountId) => loadSessionUploads(accountId),
           },
         })
-  const modelApi = new ModelApiBackendManager({
+  // M105 lane V seam 1: the window's attached-media registry. The attach
+  // port registers each approved video or audio file (metadata, digest, a
+  // reopening source); the Model API session's media service resolves the
+  // turn's `media` parts through it. It holds no bytes, and it loads with
+  // dist/mediaHost.js on the first attach (RVMEDIAV 8).
+  let mediaRegistry: AttachedMedia | undefined
+  const attachedMedia = lazyAttachedMedia(() => mediaRegistry)
+  // The account upload ledger (M105 lane F, D85.2): the session store's
+  // ownership binding and the conversation's uploaded-files port share one
+  // loader, so both hosts clean the same rows through the same lock.
+  const loadSessionUploads = async (accountId: string) => {
+    const media = await import('./host/backend/productionMediaEntry.js')
+    media.setUiText(UI_TEXT, uiLocale())
+    return await media.createSessionUploads({
+      uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
+      currentAccountId: () => modelApi.accountId(),
+      filesClient: () => keyClient(),
+      expiryDays: () => currentSettings().mediaUploadExpiryDays,
+    })(accountId)
+  }
+  // Removing the key keeps the retained list across a restart and a
+  // reload: the last account's persisted ledger reads read-only.
+  const loadLastSessionUploads = async () => {
+    const media = await import('./host/backend/productionMediaEntry.js')
+    media.setUiText(UI_TEXT, uiLocale())
+    return await media.openLastAccountUploads({
+      uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
+      currentAccountId: () => modelApi.accountId(),
+      filesClient: () => keyClient(),
+      expiryDays: () => currentSettings().mediaUploadExpiryDays,
+    })()
+  }
+  // A file another app may still use is deleted only after a modal yes.
+  const isForeignDeletionConfirmed = async (question: string): Promise<boolean> =>
+    (await vscode.window.showWarningMessage(
+      question,
+      { modal: true },
+      UI_TEXT.memoryDeleteAction,
+    )) === UI_TEXT.memoryDeleteAction
+  // One exact daily reservation for the lanes that bill outside a request
+  // (Muse Voice transcription, automatic compaction): the same shared daily
+  // ledger, released when the caller is gone before it is used.
+  const reserveExactDaily = async (amount: UsdAmount, signal: AbortSignal) => {
+    signal.throwIfAborted()
+    const claim = await dailyPaid.reserveExact(amount)
+    try {
+      signal.throwIfAborted()
+    } catch (error: unknown) {
+      await claim.settle(Usd.from(0).toAmount())
+      throw error
+    }
+    return claim
+  }
+  // The uploaded-files binding ships in the sessions bundle beside the store
+  // (ACTBUD017): activation builds the conversation port and runs the delete
+  // command through this handle instead of carrying the binding. The bundle
+  // loads from disk once, on first use, like the store below.
+  const sessionsApi = fileSessionBundleApi({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODEL_API_SESSIONS_BUNDLE_FILE)
+      .fsPath,
+    log,
+  })
+  const modelApi: ModelApiBackendManager = new ModelApiBackendManager({
+    attachedMedia,
+    // Machine scope only (lane V seam 3B): a repository never picks the converter.
+    mediaConverterPath: () => currentSettings().mediaConverterPath,
+    mediaAudioAction: () => currentSettings().mediaAudioAction,
+    // Windows: the converter runs in M50's job under a kernel memory cap (VB).
+    ...(windowsMcpJob !== undefined && { mediaJobExecutable: windowsMcpJob }),
+    // Each conversion's owner-only folder sits in this private root (VB).
+    mediaPrivateRoot: path.join(storageRoot, MEDIA_PRIVATE_ROOT_DIR),
     onServiceFailure: () => {
       notify(
         Array.from(controllers.values(), (controller) => () => {
@@ -2798,6 +2871,9 @@ async function activateWindow(
             now: () => Date.now(),
             log,
           }),
+    // Production media ledger and calibration (MONEY017D, D85.2/D85.6).
+    uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
+    uploadExpiryDays: () => currentSettings().mediaUploadExpiryDays,
     describeEnvironment: () => {
       const check = backend.workspaceActionGuard(nativeStarts.signal, workspaceRoot)
       return describeEnvironment({
@@ -2864,19 +2940,25 @@ async function activateWindow(
         throw error
       }
     },
+    // D78's exact reservation for Muse Voice's batch transcription (lane V
+    // seam 4): the same shared daily ledger, its Raise/Stop and its owner.
+    reservePaidExtra: async (costUsd, signal) => {
+      const claim = await reserveExactDaily(costUsd, signal)
+      return {
+        reservedUsd: claim.reservedUsd,
+        check: () => {
+          signal.throwIfAborted()
+          claim.check()
+        },
+        settle: (amountUsd, hasUnknownCost) => claim.settle(amountUsd, hasUnknownCost),
+      }
+    },
     // C-M101-1: the D78 daily claim behind automatic compaction. Exact-USD,
     // like the reservationUsd branch above; without it the host has no
     // production admission and automatic compaction stays dormant.
     paidDailyBudgetUsd: () => dailyPaid.capUsd(),
     reserveAutoCompaction: async (amount, signal) => {
-      signal.throwIfAborted()
-      const claim = await dailyPaid.reserveExact(amount)
-      try {
-        signal.throwIfAborted()
-      } catch (error: unknown) {
-        await claim.settle(Usd.from(0).toAmount())
-        throw error
-      }
+      const claim = await reserveExactDaily(amount, signal)
       return {
         reservedUsd: claim.reservedUsd,
         check: () => {
@@ -3483,15 +3565,17 @@ async function activateWindow(
     await reportingPanel.open(argumentsText)
   }
   // M105 W: the lazy media bindings. Activation carries only these loaders;
-  // dist/media.js (attach port) and dist/screenRecord.js (recording command)
-  // load on first use. Recorder-produced files live under recordingTempRoot,
-  // the one directory the media open hook exempts from workspace confinement.
+  // dist/media.js (attach port), dist/mediaHost.js (the registry, the open
+  // hook and contributor consent; RVMEDIAV 8) and dist/screenRecord.js
+  // (recording command) load on first use. Recorder-produced files live under
+  // recordingTempRoot, the one directory the media open hook exempts from
+  // workspace confinement.
   const loadMedia = mediaBundleLoader(path.join(context.extensionPath, 'dist', 'media.js'), log)
+  const loadMediaHost = mediaHostBundleLoader(
+    path.join(context.extensionPath, 'dist', 'mediaHost.js'),
+    log,
+  )
   const recordingTempRoot = path.join(context.globalStorageUri.fsPath, 'muse-screen')
-  const mediaOpen = createMediaSourceOpen({
-    canonicalRelativePath: (fsPath) => files.canonicalRelativePath(fsPath),
-    recordingTempRoot,
-  })
   const linuxLatestPort = createLinuxLatestPort({ tempRoot: recordingTempRoot })
   const latestScreenRecording = async (): Promise<ScreenRecordingPreview | undefined> => {
     if (process.platform !== 'linux') return undefined
@@ -3555,22 +3639,37 @@ async function activateWindow(
           },
           files,
           // M105 W (E1-media-host-binding): the lazy attach port. Settings
-          // supply limits, the selected model its capabilities; the M2 bind
-          // refuses until the upload lifecycle lands (U6c, lead-owned).
-          mediaAttachments: () =>
-            Promise.resolve(
+          // supply limits, the selected model its capabilities; binding
+          // registers with the window's attached-media registry (lane V
+          // seam 1), made on this first attach with dist/mediaHost.js, where
+          // D85.7's contributor question is a modal (RVMEDIAV 8).
+          mediaAttachments: () => {
+            const host = loadMediaHost()
+            mediaRegistry ??= host.createAttachedMedia()
+            return Promise.resolve(
               loadMedia().createMediaAttachments(
-                createMediaAttachDeps(
-                  () => ({
+                host.windowMediaAttachDeps({
+                  settings: () => ({
                     mediaMaxUploadMiB: currentSettings().mediaMaxUploadMiB,
                     screenRecordingMaxSeconds: currentSettings().screenRecordingMaxSeconds,
+                    mediaAudioAction: currentSettings().mediaAudioAction,
                   }),
-                  mediaOpen,
-                ),
+                  // The open hook confines to the workspace, except the
+                  // recorder's own files under recordingTempRoot.
+                  open: {
+                    canonicalRelativePath: (fsPath) => files.canonicalRelativePath(fsPath),
+                    recordingTempRoot,
+                  },
+                  attached: mediaRegistry,
+                  isVoiceOn: () => paid.gate.isOn('voice'),
+                  table: UI_TEXT,
+                  locale: uiLocale(),
+                }),
                 UI_TEXT,
                 uiLocale(),
               ),
-            ),
+            )
+          },
           // M105 W (E1-recording-host-binding): the recording command's deps.
           // No native driver binds in this round: macOS needs its signed
           // helper, Windows direct capture is unavailable here, and Linux
@@ -3708,6 +3807,23 @@ async function activateWindow(
               ? []
               : await subscriptionFeatures().readKeyUsage()
           },
+          // M105 lane F: the uploaded-files port over the account ledger.
+          // The report posts to this surface; foreign deletions ask with a modal.
+          // The binding ships in the sessions bundle (ACTBUD017).
+          uploadedFiles: sessionsApi().createUploadedFilesBinding({
+            uploads: (accountId) => loadSessionUploads(accountId),
+            openLastUploads: () => loadLastSessionUploads(),
+            getAccountId: () => modelApi.accountId(),
+            post: (stamped) => {
+              surface.post({
+                type: 'uploadedFilesReport',
+                report: stamped.report,
+                accountId: stamped.accountId,
+                generation: stamped.generation,
+              })
+            },
+            confirmForeign: isForeignDeletionConfirmed,
+          }).port,
           // Only the sidebar reopens on its last session; a tab is a new
           // conversation by construction (M6).
           isRestorable: surface.id === SIDEBAR_SURFACE_ID,
@@ -4641,13 +4757,56 @@ async function activateWindow(
         }),
       ),
     ),
-    // M105 W: the uploaded-files deletion. The E3/F ledger binding is
-    // lead-owned; until it lands the controller refuses explicitly.
+    // M105 lane F: Delete Uploaded Files lists the ledger's files and
+    // deletes the chosen ones through the provider. The dialog's own
+    // delete buttons call the controller instead.
     registerLoggedCommand(
       log,
       COMMAND_IDS.deleteUploadedFiles,
       forActiveConversation(async (controller) => {
-        await controller.deleteUploadedFiles()
+        const sessions = sessionsApi()
+        const binding = sessions.createUploadedFilesBinding({
+          uploads: (accountId) => loadSessionUploads(accountId),
+          openLastUploads: () => loadLastSessionUploads(),
+          getAccountId: () => modelApi.accountId(),
+          post: (stamped) => {
+            registry.active?.post({
+              type: 'uploadedFilesReport',
+              report: stamped.report,
+              accountId: stamped.accountId,
+              generation: stamped.generation,
+            })
+          },
+          confirmForeign: isForeignDeletionConfirmed,
+        })
+        await sessions.runDeleteUploadedFilesCommand({
+          list: binding.list,
+          remove: binding.remove,
+          confirmForeign: isForeignDeletionConfirmed,
+          dialogs: {
+            pick: async (files) => {
+              const chosen = await vscode.window.showQuickPick(
+                files.map((file) => ({
+                  label: file.label,
+                  description: file.description,
+                  fileId: file.fileId,
+                })),
+                {
+                  canPickMany: true,
+                  placeHolder: UI_TEXT.media.deleteUploadedFilesPick,
+                },
+              )
+              return chosen === undefined ? undefined : chosen.map((item) => item.fileId)
+            },
+            inform: (message) => {
+              void vscode.window.showInformationMessage(message)
+            },
+            fail: (message) => {
+              void vscode.window.showErrorMessage(message)
+            },
+          },
+        })
+        await controller.readUploadedFiles()
       }),
     ),
     registerLoggedCommand(log, COMMAND_IDS.newConversation, async () => {

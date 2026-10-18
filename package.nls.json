@@ -225,6 +225,7 @@
   "config.mediaUploadExpiryDays.description": "Days a provider upload stays listed before cleanup is offered. 7 by default; 1–30. Expiry is decided by the provider; an upload another session still references is never deleted. Only this machine’s setting is used.",
   "config.screenRecordingMaxSeconds.description": "Longest screen recording the extension captures, in seconds. 120 by default; 10–600. The recorder stops at the limit and keeps what it captured. Only this machine’s setting is used.",
   "config.mediaAudioAction.description": "`transcribe` turns attached audio into text before sending; `sendAudio` sends the audio where the model takes it. Transcribe by default. Transcription bills the paid voice rate, always with consent first. Only this machine’s setting is used.",
+  "config.mediaConverterPath.description": "Absolute path to the ffmpeg this machine uses to convert attached audio and video for transcription. Empty by default: only documented install locations are used (Program Files and winget on Windows, Homebrew and MacPorts on macOS, /usr/bin and /usr/local/bin on Linux), never PATH. A path set here is the only candidate: it must pass the trusted-path check, or conversion is refused with the reason. Launcher shims are refused. Only this machine’s setting is used.",
   "config.accountSwap.description": "Stored for compatibility; no runtime effect.",
   "config.accountParallel.description": "Stored for compatibility; no runtime effect.",
   "config.accounts.severalOnThisDevice.description": "Stored for compatibility; no runtime effect.",

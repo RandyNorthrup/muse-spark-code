@@ -724,6 +724,7 @@ export const SETTING_DEFAULTS = {
   mediaUploadExpiryDays: 7,
   screenRecordingMaxSeconds: 120,
   mediaAudioAction: 'transcribe',
+  mediaConverterPath: '',
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): in Auto on the Muse
   // Code backend, an approval Muse Code raises goes to one short turn of a
   // hidden side session before the user. On until turned off; machine scoped,
@@ -877,6 +878,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'mediaUploadExpiryDays',
   'screenRecordingMaxSeconds',
   'mediaAudioAction',
+  // M105 lane V: the converter the product launches is the machine's choice.
+  'mediaConverterPath',
   // M109 (PLAN.md D89): the vault's protection, fence and locks, all
   // machine-scoped, so no workspace can change them.
   'vault.enabled',
@@ -1348,11 +1351,69 @@ export const MAX_ATTACHMENTS_PER_MESSAGE = 20
 
 // M105 / D85: portable media contracts. These are our bounds and defaults,
 // not evidence that a model supports a modality or that storage is free.
+//
+// The calibration envelope (D85.6, `docs/certification/m105-captures.md`):
+// every production seed bills a 3000x2000 image at most, video at fps 2 at
+// most, and 600 seconds at most. Larger images stay refused under a cap:
+// size changes image usage (a 64x64 swatch bills ~11 tokens against 4,086
+// for 3000x2000) and no larger image was captured, so no bound is claimed
+// for them. Higher fps values were not tried either; the estimator matches
+// only seeded fps variants, so they refuse the same way without a constant.
+export const MEDIA_CALIBRATION_IMAGE_MAX_WIDTH = 3000
+export const MEDIA_CALIBRATION_IMAGE_MAX_HEIGHT = 2000
+export const MEDIA_CALIBRATION_VIDEO_MAX_SECONDS = 600
+// The estimator's upper bound multiplies the largest calibrated rate by
+// this (D85.6 reservation). Set by the money lane from the U17b spread:
+// the 1.2 120-second default bill (19,771) is 1.86x its fps:1 bill
+// (10,651), so 2x keeps a reservation above every captured bill with
+// headroom for unobserved variance. Re-tune only from new captures.
+export const MEDIA_ESTIMATE_SAFETY_FACTOR = 2
 export const MEDIA_FILE_ID_MIN_BYTES = 1024 * 1024
+// The upload ledger and calibration store share the repository's
+// cross-process mutex (core/fileLock, the session-budget design): never
+// stolen, so a holder that pauses mid-acquire keeps its critical section.
+// Uploads ride inside the lock, so the wait covers a slow provider round.
+export const MEDIA_UPLOAD_LOCK_ATTEMPTS = 200
+export const MEDIA_UPLOAD_LOCK_WAIT_MS = 25
+// A delete that keeps failing (a foreign file the provider refuses) backs
+// off per entry, so one stuck file never breaks a listing (round 4, P2-6).
+export const MEDIA_PENDING_DELETE_RETRY_BASE_MS = 30_000
+export const MEDIA_PENDING_DELETE_RETRY_MAX_MS = 600_000
+export const MEDIA_PENDING_DELETE_RETRY_MAX_SHIFT = 5
+// A cancelled upload's deletion intent is retried this often while the lock
+// is held (a transient local failure, such as a scanner lock on rename);
+// the wait doubles from the delay, and only the waits honour cancellation.
+export const MEDIA_CANCEL_INTENT_WRITE_ATTEMPTS = 3
+export const MEDIA_CANCEL_INTENT_WRITE_DELAY_MS = 25
+// A failed provider file deletion never rejects a save: the attempt is
+// recorded on the ledger entry and retried by a later sweep under the
+// MEDIA_PENDING_DELETE_RETRY_* backoff above. After this many failures
+// the account surface is told once which provider still holds files (a
+// count only, never a name or an id).
+export const MEDIA_UPLOAD_DELETE_NOTICE_ATTEMPTS = 3
+// The batch transcript endpoint's captured contract (round-3 capture):
+// the 'audio' part must be a mono 16-bit PCM WAV at 16 or 24 kHz.
+export const TRANSCRIBE_WAV_FORMAT_PCM = 1
+export const TRANSCRIBE_WAV_CHANNELS = 1
+export const TRANSCRIBE_WAV_BITS_PER_SAMPLE = 16
+export const TRANSCRIBE_WAV_SAMPLE_RATES = [16_000, 24_000] as const
+/** Meta's per-team Files pool (D85.2): usage is shown against this, never billed (U6c). */
+export const MEDIA_PROVIDER_POOL_BYTES = 100 * 1024 * 1024 * 1024
 export const MEDIA_SNIFF_MAX_BYTES = 1024 * 1024
 export const MEDIA_CONVERTER_PROBE_TIMEOUT_MS = 2000
+/** One Windows ACL query per path component (PowerShell start included). */
+export const MEDIA_CONVERTER_TRUST_TIMEOUT_MS = 15_000
 export const MEDIA_CONVERTER_PROBE_MAX_BYTES = 16 * 1024
+/** The machine's configured converter path (`museSpark.mediaConverterPath`), at most this long. */
+export const MEDIA_CONVERTER_PATH_MAX_CHARS = 4096
+/** An attached file's digest and upload reread, one bounded chunk at a time. */
+export const MEDIA_ATTACHED_READ_CHUNK_BYTES = 1024 * 1024
+/** Attached video and audio registrations a process holds at once (RVMEDIAV 7):
+ * a few messages' worth; the oldest unused one makes room for the next. */
+export const MEDIA_ATTACHED_MAX_ENTRIES = 64
 export const MEDIA_CONVERSION_MAX_RSS_BYTES = 512 * 1024 * 1024
+/** The `code` a kernel-limited encoder launch rejects with when its memory cap hit. */
+export const MEDIA_CONVERSION_MEMORY_CAP_CODE = 'EMEDIA_MEMORY_CAP'
 export const MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS = 25
 export const MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS = 100
 export const MEDIA_PROC_RSS_UNIT_BYTES = 1024
@@ -1362,11 +1423,26 @@ export const MEDIA_PROC_EXITED_PATTERN = /^State:\s+[ZX]\b/mu
 export const MEDIA_FFMPEG_VERSION_PATTERN =
   /^ffmpeg version (\d+\.\d+(?:\.\d+)?(?:-[\w.+-]+)?) Copyright \(c\) \d{4}(?:-\d{4})? the FFmpeg developers$/u
 export const MEDIA_AVCONVERT_VERSION_PATTERN = /^avconvert version (\d+\.\d+(?:\.\d+)?)$/u
+// Documented install locations (M105 lane V, lead decision A): distribution
+// and Homebrew/MacPorts paths on POSIX; on Windows the Program Files install
+// and winget's link, each resolved from the environment (never a drive
+// letter) and verified at its canonical target. A configured path
+// (`museSpark.mediaConverterPath`, `--media-converter`) replaces them.
 export const MEDIA_CONVERTER_INSTALL_PATHS = {
   linux: ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
-  darwin: ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
-  win32: ['C:/Program Files/ffmpeg/bin/ffmpeg.exe'],
+  darwin: ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/opt/local/bin/ffmpeg'],
 } as const
+export const MEDIA_CONVERTER_WINDOWS_INSTALLS = [
+  { variable: 'PROGRAMFILES', segments: ['ffmpeg', 'bin', 'ffmpeg.exe'] },
+  { variable: 'LOCALAPPDATA', segments: ['Microsoft', 'WinGet', 'Links', 'ffmpeg.exe'] },
+] as const
+// Launcher shims run a second binary the verifier never saw: Chocolatey's
+// and Scoop's shims and snap's /snap tree are refused at their canonical path.
+export const MEDIA_CONVERTER_SHIM_PATTERNS = [
+  /[\\/]chocolatey[\\/]bin[\\/]/iu,
+  /[\\/]scoop[\\/]shims[\\/]/iu,
+  /^\/snap\//u,
+] as const
 export const MEDIA_FILE_EXPIRY_MIN_S = 3600
 export const MEDIA_FILE_EXPIRY_MAX_S = 2_592_000
 export const MEDIA_FILE_EXPIRY_DEFAULT_S = 604_800
@@ -1377,6 +1453,41 @@ export const MEDIA_NAME_MAX_CHARS = 256
 export const MEDIA_ID_MAX_CHARS = 256
 export const MEDIA_PATH_TOKEN_MAX_CHARS = 4096
 export const MEDIA_SHA256_PATTERN = /^[a-f0-9]{64}$/u
+// M105 lane VB: the converter's private-folder, macOS RSS and Windows job
+// bindings. The folder is fresh per conversion, named from random bytes.
+// Every Windows job ending but the memory cap's rejects with this code.
+export const MEDIA_CONVERSION_JOB_FAILED_CODE = 'EMEDIA_JOB_FAILED'
+export const MEDIA_PRIVATE_DIRECTORY_PREFIX = 'muse-media-'
+export const MEDIA_PRIVATE_DIRECTORY_NAME_BYTES = 16
+// RVMEDIAV3 3: each process's lease in the root, `muse-media-<owner>.lease`,
+// held for its life. Windows: libuv's UV_FS_O_EXLOCK (uv/win.h), an open
+// with no sharing that the kernel closes at exit. macOS: O_EXLOCK (an flock
+// the kernel drops at exit, <sys/fcntl.h> 0x20) with O_NONBLOCK (0x4), so a
+// probe never waits. Node exports neither; libuv passes both to the open.
+export const MEDIA_PRIVATE_LEASE_SUFFIX = '.lease'
+export const MEDIA_PRIVATE_LEASE_LOCK = { win32: 0x10_00_00_00, darwin: 0x20 | 0x4 } as const
+// Linux leases name their owner instead: /proc/<pid>/stat's field 22, the
+// start tick, is the 20th after the command's closing parenthesis.
+export const MEDIA_PROC_START_FIELD = 19
+// The private root those folders live in (RVMEDIAVB 1). Besides the current
+// user, only SYSTEM and BUILTIN\Administrators may hold a grant on it, and
+// nobody else may hold a write-class grant on its parent: FILE_WRITE_DATA,
+// FILE_APPEND_DATA, FILE_WRITE_EA, FILE_DELETE_CHILD, FILE_WRITE_ATTRIBUTES,
+// DELETE, WRITE_DAC, WRITE_OWNER, GENERIC_ALL and GENERIC_WRITE.
+export const MEDIA_PRIVATE_ROOT_TRUSTED_SIDS = ['S-1-5-18', 'S-1-5-32-544'] as const
+export const WINDOWS_WRITE_CLASS_RIGHTS = 0x50_0d_01_56
+// POSIX: no group/other bits on the root; an ancestor writable by group or
+// other is accepted only with the sticky bit (as /tmp).
+export const POSIX_GROUP_OTHER_BITS = 0o077
+export const POSIX_GROUP_OTHER_WRITE_BITS = 0o022
+export const POSIX_STICKY_BIT = 0o1000
+// One /bin/ps run per interval at most; a reading older than the maximum age
+// is never returned (the caller waits for a fresh one or refuses), and one
+// run is bounded in time and output.
+export const MEDIA_RSS_SAMPLE_INTERVAL_MS = 250
+export const MEDIA_RSS_SAMPLE_MAX_AGE_MS = 500
+export const MEDIA_RSS_SAMPLE_RUN_TIMEOUT_MS = 1000
+export const MEDIA_RSS_SAMPLE_MAX_BYTES = 4096
 export const MEDIA_KINDS = ['image', 'document', 'text', 'video', 'audio'] as const
 export const MEDIA_AUDIO_ACTIONS = [
   'transcribe',
@@ -4179,7 +4290,9 @@ export const EXEC_IMAGE_N = 1
 export const EXEC_STREAM_IDLE_MS = 300_000
 export const EXEC_USD_UNITS = 1_000_000
 export const EXEC_USD_DECIMALS = 6
+export const EXEC_FILES_BODY_HEADROOM_BYTES = 4 * 1024
 export const EXEC_ENDPOINTS = {
+  files: '/v1/files',
   models: '/v1/models',
   responses: '/v1/responses',
   imageGenerations: '/v1/images/generations',
@@ -4221,17 +4334,21 @@ export const ACP_AUTH_METHODS = {
 export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort', account: 'account' } as const
 // The paid Model API features the agent can use (M63c, PLAN.md D30): each
 // only with its flag, and each use asked in the editor (M58, D48). Muse
-// Voice needs the panel's microphone, so the agent has none.
+// Voice is its batch transcription of attached sound (M105 lane V); live
+// dictation needs the panel's microphone, so the agent has none.
 export const ACP_PAID_FEATURES = [
   'autoCompaction',
   'webSearch',
   'imageGeneration',
+  // M105 lane V: batch transcription of attached sound needs no microphone.
+  'voice',
 ] as const satisfies readonly PaidFeature[]
 export type AcpPaidFeature = (typeof ACP_PAID_FEATURES)[number]
 export const ACP_PAID_FLAGS = {
   autoCompaction: 'auto-compaction',
   webSearch: 'web-search',
   imageGeneration: 'image-generation',
+  voice: 'muse-voice',
 } as const satisfies Readonly<Record<AcpPaidFeature, string>>
 // The question before each paid use (M58, PLAN.md D48): its tool call row (a
 // count appended) and its answers.
@@ -4296,6 +4413,8 @@ export const ATOMIC_TEMPORARY_SUFFIX = '.tmp'
 export const ATOMIC_RENAME_ATTEMPTS = 5
 export const ATOMIC_RENAME_DELAY_MS = 25
 export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
+// M105 lane F: `museSpark.mediaUploadExpiryDays` as Files `expires_after` seconds.
+export const SECONDS_PER_DAY = 24 * 60 * 60
 // M96 lane A (PLAN.md D75): a task past its minutes per task is stopped.
 export const MILLISECONDS_PER_MINUTE = 60 * 1000
 export const MILLISECONDS_PER_HOUR = 60 * 60 * 1000
@@ -4404,6 +4523,10 @@ export const SCHEDULE_DEFAULT_POLICY = {
   pinned: false,
 } as const
 export const MODEL_API_SCHEDULES_DIR = 'modelapi-schedules'
+/** Account upload ledger and local calibration observations (MONEY017D, D85.2/D85.6). */
+export const MODEL_API_UPLOADS_DIR = 'modelapi-uploads'
+// M105 lanes V and VB: the private root each conversion's owner-only folder sits in.
+export const MEDIA_PRIVATE_ROOT_DIR = 'media'
 export const CRON_FIELD_COUNT = 5
 export const CRON_FIELD_SEGMENT_LIMIT = 3
 export const CRON_MAX_MINUTE = 59
@@ -5028,6 +5151,39 @@ export const WINDOWS_ARGUMENT_SYNTAX = /["&|<>^%!]/
 export const CHECK_FIX_MAX_ROUNDS = 3
 // Native directory identity checks use bigint, including on Node 20 hosts.
 export const WORKSPACE_IDENTITY_ZERO = 0n
+/** M104L: limits shared by stdio LSP and its private workspace broker.
+ * Adopted verbatim from m104/lsp 12fc73167 with `runtime/trustedPath.ts`
+ * (M105 lane V); M104 merges onto the same block. */
+export const LSP_LIMITS = {
+  groupFields: 4,
+  passwdFields: 7,
+  stickyMode: 0o1000,
+  headerBytes: 8192,
+  headerDelimiterBytes: 4,
+  frameBytes: 4_194_304,
+  queuedBytes: 8_388_608,
+  documentBytes: 1_048_576,
+  documentCount: 128,
+  pendingRequests: 32,
+  uriChars: 4096,
+  messageChars: 65_536,
+  diagnosticCount: 256,
+  diagnosticSeverities: 4,
+  watchdogScanMs: 1000,
+  watchdogPollMs: 250,
+  recordLinkCount: 1n,
+  watchdogProcesses: 512,
+  requestMs: 30_000,
+  startupMs: 10_000,
+  idleMs: 60_000,
+  pollMs: 50,
+  clients: 8,
+  fileMode: 0o600,
+  directoryMode: 0o700,
+  recordBytes: 4096,
+  tokenBytes: 32,
+  socketNameBytes: 8,
+} as const
 // How long the language servers are given to report on an edited file once
 // it is shown: a first report is awaited this long (a file no server reads
 // never gets one, and is then "not checked", never clean), then the wait
@@ -6072,6 +6228,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/estimateContracts.js',
   'dist/recorder.js',
   'dist/media.js',
+  'dist/mediaHost.js',
   'dist/screenRecord.js',
   'dist/uiTextMedia.js',
   'dist/browserCheck.js',
@@ -6103,6 +6260,9 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/providerCatalog.js',
   'dist/modelApiHooks.js',
   'dist/modelApiMcp.js',
+  'dist/productionMedia.js',
+  'dist/productionAudio.js',
+  'dist/runtimeMedia.js',
   'dist/modelApiTools.js',
 ])
 // One window journals at most this many failures in REPORT_RECORD_WINDOW_MS

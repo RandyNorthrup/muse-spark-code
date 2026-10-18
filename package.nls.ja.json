@@ -225,6 +225,7 @@
   "config.mediaUploadExpiryDays.description": "プロバイダーのアップロードが一覧に残り、クリーンアップが提案されるまでの日数。既定値 7、1～30。有効期限はプロバイダーが決定する。他のセッションが参照中のアップロードは削除されない。このマシンの設定のみが使われる。",
   "config.screenRecordingMaxSeconds.description": "拡張機能が撮影する画面録画の最大長（秒）。既定値 120、10～600。録画は上限で停止し、撮影済みを保持する。このマシンの設定のみが使われる。",
   "config.mediaAudioAction.description": "`transcribe` は添付音声を送信前にテキスト化する。`sendAudio` はモデルが受け付ける場合に音声を送信する。既定は文字起こし。文字起こしは有料の音声料金を請求し、必ず事前の同意を得る。このマシンの設定のみが使われる。",
+  "config.mediaConverterPath.description": "添付した音声と動画を文字起こし用に変換するため、このマシンが使う ffmpeg の絶対パスです。既定は空で、文書化されたインストール場所だけを使います（Windows は Program Files と winget、macOS は Homebrew と MacPorts、Linux は /usr/bin と /usr/local/bin）。PATH は使いません。ここで設定したパスが唯一の候補になり、信頼できるパスの確認に通らなければ理由を示して変換を拒否します。ランチャーのシムは拒否されます。このマシンの設定だけが使われます。",
   "config.accountSwap.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",
   "config.accountParallel.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",
   "config.accounts.severalOnThisDevice.description": "互換性のために保存されています。この設定はこのビルドでは効果がありません。",

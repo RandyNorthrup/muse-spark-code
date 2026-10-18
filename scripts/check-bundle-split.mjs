@@ -717,6 +717,22 @@ for (const file of VAULT_ONLY) {
     problems.push(`${VAULT.output} no longer carries ${file}`)
   }
 }
+// RVMEDIAV 8 (M105): the window's attached-media registry, the attach port's
+// open hook and D85.7's contributor consent load with dist/mediaHost.js on
+// the first attach. Activation keeps only the registry's delegating holder
+// and the loader: never the entry, the registry's class (its duplicate-token
+// refusal is the marker) or the consent's question (its one reader).
+const MEDIA_HOST = { output: 'dist/mediaHost.js', metafile: 'dist/meta/mediaHost.json' }
+const mediaHost = inputsOf(MEDIA_HOST)
+if (activation.has('src/host/media/mediaHostEntry.ts'))
+  problems.push(`${BUNDLES.activation.output} carries src/host/media/mediaHostEntry.ts`)
+for (const file of ['src/core/media/attachedMedia.ts', 'src/core/media/contributorConsent.ts'])
+  if (!mediaHost.has(file)) problems.push(`${MEDIA_HOST.output} no longer carries ${file}`)
+const activationText = readFileSync(BUNDLES.activation.output, 'utf8')
+if (activationText.includes('Duplicate media path token'))
+  problems.push(`${BUNDLES.activation.output} carries the attached-media registry`)
+if (/\.contributorQuestion\b/u.test(activationText))
+  problems.push(`${BUNDLES.activation.output} carries the contributor consent`)
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',
@@ -801,6 +817,10 @@ for (const file of GIT_ONLY) {
 const MODEL_API_SESSIONS_ONLY = [
   'src/host/backend/fileSessionStore.ts',
   'src/host/backend/fileSessionStoreEntry.ts',
+  // PR226W1: the uploaded-files binding ships beside the store (ACTBUD017);
+  // activation builds the conversation port through the sessions loader.
+  'src/host/backend/uploadedFilesBinding.ts',
+  'src/core/media/uploadedFiles.ts',
 ]
 const modelApiSessions = inputsOf(MODEL_API_SESSIONS)
 for (const file of MODEL_API_SESSIONS_ONLY) {
@@ -1150,7 +1170,12 @@ const TEXT_BLOCKS = [
   {
     block: 'MODEL_API_MODEL_TEXT',
     sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
-    readers: [BUNDLES.modelApi.output, 'dist/mcpPool.js', 'dist/modelApiMcp.js'],
+    readers: [
+      BUNDLES.modelApi.output,
+      'dist/mcpPool.js',
+      'dist/modelApiMcp.js',
+      'dist/productionMedia.js',
+    ],
   },
   {
     block: 'CODE_INTEL_MODEL_TEXT',

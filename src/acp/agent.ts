@@ -117,6 +117,7 @@ import {
   isAccountSwitchRefusedError,
   type AccountsSessionPort,
 } from './accounts'
+import { runUploadsCommand, type AcpUploadsPort } from './uploads'
 import {
   acpQuestionClock,
   questionDeferralLoader,
@@ -207,6 +208,8 @@ export interface AcpAgentDeps {
   /** Shared journal/service, required lazily on the local /usage command. */
   readonly usage?: Pick<UsageAdapter, 'access' | 'openPage'>
   readonly dictation?: (context: VoiceCompanionContext) => Promise<VoiceCompanion>
+  /** The account upload ledger, required lazily on the local /uploads command. */
+  readonly uploads?: AcpUploadsPort
   /** I binds P's durable, authorized workspace/team adapter. */
   readonly playbookFor?: (cwd: string, sessionId: string) => PlaybookSurfacePort
   readonly schedules?: AcpSchedulePort
@@ -664,6 +667,15 @@ class AcpSession {
       ...(this.deps.dictation === undefined
         ? []
         : [{ name: 'dictate', description: UI_TEXT.companionVoiceOpen, input: null }]),
+      ...(this.deps.uploads === undefined
+        ? []
+        : [
+            {
+              name: 'uploads',
+              description: UI_TEXT.media.uploadsDescription,
+              input: { hint: UI_TEXT.media.uploadsUsage },
+            },
+          ]),
       ...(this.deps.resources === undefined
         ? []
         : resourceCommands().filter(
@@ -731,6 +743,7 @@ class AcpSession {
               'record',
               'accounts',
               'vault',
+              'uploads',
             ].includes(skill.selector) &&
             ((this.deps.usage === undefined && this.deps.resources === undefined) ||
               skill.selector !== 'usage') &&
@@ -763,6 +776,61 @@ class AcpSession {
       interactive: this.deps.options.isHeadless !== true,
     })
     return this.media
+  }
+
+  /** The local /uploads command over the account ledger; other text falls through. */
+  private async uploadsCommand(
+    blocks: readonly ContentBlock[],
+    signal: AbortSignal,
+  ): Promise<boolean> {
+    const [first] = blocks
+    if (blocks.length !== 1 || first?.type !== 'text') return false
+    signal.throwIfAborted()
+    const outcome = await runUploadsCommand(first.text, {
+      files: this.deps.uploads,
+      send: (text) => {
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+      },
+      signal,
+      confirmForeign: (name) => this.confirmUploadForeignDeletion(name, signal),
+    })
+    return outcome === 'handled'
+  }
+
+  /**
+   * A foreign file's confirmation (PLAN D85.2): the ACP permission request
+   * exactly where VS Code asks with its modal dialog. Refused, failed or
+   * cancelled keeps the file.
+   */
+  private async confirmUploadForeignDeletion(name: string, signal: AbortSignal): Promise<boolean> {
+    try {
+      const response = permissionResponse(
+        await unlessAborted(
+          this.client.request('session/request_permission', {
+            sessionId: this.sessionId,
+            toolCall: {
+              toolCallId: `uploads-foreign-${randomUUID()}`,
+              title: fill(UI_TEXT.media.otherAppFileConfirmation, { name }),
+              kind: 'other',
+              status: 'pending',
+              content: [],
+              locations: [],
+            },
+            options: [
+              { optionId: 'uploads-foreign-allow', name: UI_TEXT.allowOnce, kind: 'allow_once' },
+              { optionId: 'uploads-foreign-deny', name: UI_TEXT.paidDeny, kind: 'reject_once' },
+            ],
+          }),
+          signal,
+        ),
+      )
+      return (
+        response.outcome.outcome === 'selected' &&
+        response.outcome.optionId === 'uploads-foreign-allow'
+      )
+    } catch {
+      return false
+    }
   }
 
   private async mediaCommand(
@@ -2078,6 +2146,11 @@ class AcpSession {
       ) {
         return await this.answerPlaybackUsage(preparing)
       }
+      if (await this.uploadsCommand(blocks, preparing.abort.signal)) {
+        await this.announceCommands()
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
       // Only media links need the port: ordinary links stay mentions even
       // when the factory binds (M105 E2 review).
       const isNeedsMedia = blocks.some(
@@ -2361,8 +2434,8 @@ class AcpSession {
               ),
             )
           })
-          .catch((error: unknown) => {
-            this.deps.log.warn(`ACP media cleanup: ${failureForLog(error)}`)
+          .catch(() => {
+            this.deps.log.warn('ACP media cleanup: cleanup_failed')
           })
         if (submission.userMessageId !== undefined) pending.userMessageId = submission.userMessageId
         const isAccepted =
@@ -2402,6 +2475,12 @@ class AcpSession {
         }
         return outcome.reason
       }
+      // M105 lane V R4 (RVCM1054C P3): no codec branch here. The real
+      // Model API session never rejects sendTurn with a codec refusal:
+      // submitTurn starts the turn detached and resolves, and the refusal
+      // fails the turn as turnCompleted with the sentence as reason
+      // (ModelApiHost.ts: reason = describe(error)), settled above at
+      // settle. A raw error here keeps the SDK's shape unchanged.
       throw error
     } finally {
       this.starting = undefined
@@ -2551,6 +2630,16 @@ class AcpSession {
         .splice(0)
         .flatMap((attachment) => (attachment.dispose === undefined ? [] : [attachment.dispose()])),
     )
+    // The registry lets go of what this session attached (RVMEDIAV 7).
+    if (this.media === undefined) return
+    let port: AcpMediaPort
+    try {
+      port = await this.media
+    } catch {
+      // A port that never loaded registered nothing.
+      return
+    }
+    port.release()
   }
 }
 

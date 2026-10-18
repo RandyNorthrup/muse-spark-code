@@ -381,7 +381,10 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       with its status item in the activation shim,
                       media attachments (dist/media.js: the attach port, the
                       recording picker and the uploaded-files list, loaded on
-                      the first attach or recording action; M105) and screen
+                      the first attach or recording action; M105), the
+                      window's attached-media registry, the attach open hook
+                      and contributor consent (dist/mediaHost.js, loaded with
+                      the first attach) and screen
                       recording (dist/screenRecord.js: the recorder command,
                       loaded on the first recording; M105),
                       the vault's window (vault/: the panel host and the

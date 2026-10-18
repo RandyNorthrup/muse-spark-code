@@ -38,6 +38,9 @@ export {
   parseJsonResponse,
   readBoundedText,
   redactModelApiError,
+  redactStreamDiagnostics,
+  retryAfterMs,
+  providerWaitMs,
   ignoreClosingError,
   redactSecrets,
   assertConfirmedAllowed,
@@ -75,7 +78,8 @@ import {
 
 import { sparkHooksFiles } from '../../core/backends/modelapi/hookNames'
 
-import { ModelApiHost, type ModelApiHostDeps } from '../../core/backends/modelapi/ModelApiHost'
+import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
+import type { MediaReplaySession } from '../../core/media/replayMedia'
 import { resolveAutoCompactModel } from '../../core/backends/modelapi/autoCompactionAdmission'
 import { requestImageCount } from '../../core/backends/modelapi/modelPolicy'
 import { Usd } from '../../shared/usd'
@@ -83,6 +87,7 @@ import { Usd } from '../../shared/usd'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText, uiLocale } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
+import type { ModelApiHostDeps } from '../../core/backends/modelapi/ModelApiHost'
 
 /**
  * Whether a spark-hooks.json exists, user's or project's, in a trusted
@@ -178,7 +183,13 @@ function autoCompactionAdmission(
 /** The host over the given dependencies, its stored sessions read. */
 export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<ModelApiHost> {
   setUiText(deps.uiText, deps.uiLocale)
-  const { host: hostDeps, hookSettingsPath } = deps
+  const { hookSettingsPath } = deps
+  // One audio path (RVMEDIAW2 2): the bundle binds it itself, so a caller's
+  // callback, typed away or not, is dropped here and never runs.
+  const { prepareAudioMessage: strayAudioPort, ...hostDeps } = deps.host as typeof deps.host &
+    Pick<ModelApiHostDeps, 'prepareAudioMessage'>
+  if (strayAudioPort !== undefined)
+    hostDeps.log.warn('A caller-supplied audio preparation port was ignored')
   const sourcesFor = () =>
     hookSettingsPath === undefined || hostDeps.isHooksEnabled?.() !== true
       ? undefined
@@ -223,6 +234,32 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
       ? undefined
       : await import('../../core/backends/modelapi/modelApiMcpEntry.js')
   mcp?.setUiText(deps.uiText, deps.uiLocale)
+  // Production media (MONEY017D, D85.2/D85.6): the session replay through
+  // the real upload storage and calibration. Every production host lands
+  // here (VS Code, the CLI/ACP runtime), so one wiring covers them all. The
+  // port stays absent while no storage directory is supplied (eval, tests),
+  // keeping the established refusal.
+  // The Files upload rides the Meta client; a subscription-wrapped provider
+  // client without it keeps the established refusal.
+  const requestFile =
+    'requestFile' in client && typeof client.requestFile === 'function'
+      ? client.requestFile.bind(client)
+      : undefined
+  const filesClient = requestFile === undefined ? undefined : { requestFile }
+  const mediaDirectory = hostDeps.uploadLedgerDir
+  const mediaAccountId = mediaDirectory === undefined ? undefined : await hostDeps.getAccountId()
+  // One production media service per session, built by one factory in its
+  // own deferred bundle (dist/productionMedia.js, D85.13): the Model API
+  // bundle never carries it, nor transcription or conversion.
+  const productionMedia =
+    mediaDirectory !== undefined && filesClient !== undefined && mediaAccountId !== undefined
+      ? await import('./productionMediaEntry.js')
+      : undefined
+  productionMedia?.setUiText(deps.uiText, deps.uiLocale)
+  // Attached video and audio (lane V seam 1): the host's registry resolves a
+  // `media` part to its record and its reverifying source; a tool-read file
+  // reopens through the workspace as before.
+  const attached = hostDeps.attachedMedia
   // The host carries the exact resolved record through each request.
   // The session client's own resolver is authoritative in every production
   // path (RVCM1062B P1/P2): the runtime's accounting-wrapped headless client
@@ -239,6 +276,48 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   const isPlanModel = 'isPlanModel' in client ? client.isPlanModel : undefined
   const host = new ModelApiHost({
     ...hostDeps,
+    // The one audio path (lane V seam 3B): a turn with attached sound loads
+    // dist/productionAudio.js and transcribes over the Meta client's narrow
+    // POST, under the hosts' paid consent and ledgers; any other turn
+    // loads nothing and is byte-identical.
+    ...(productionMedia !== undefined &&
+      attached !== undefined &&
+      mediaAccountId !== undefined && {
+        prepareAudioMessage: async (request) => {
+          if (request.parts.every((part) => part.type !== 'media')) return
+          const audio = await import('./productionAudioEntry.js')
+          return await audio.productionAudioFor(deps, hostDeps, client, mediaAccountId)?.(request)
+        },
+      }),
+    ...(productionMedia !== undefined &&
+      filesClient !== undefined &&
+      mediaAccountId !== undefined &&
+      mediaDirectory !== undefined && {
+        // The replay assembly (and its expiry forwarding) resolves on
+        // demand inside the production-media bundle (C-M105-8 diet).
+        createMediaReplay: (sessionId: string, session: MediaReplaySession) =>
+          productionMedia.createHostMediaReplay(
+            hostDeps,
+            filesClient,
+            mediaAccountId,
+            mediaDirectory,
+            attached,
+            sessionId,
+            session,
+          ),
+      }),
+    // The host carries the exact resolved record through each request.
+    // The session client's own resolver is authoritative in every production
+    // path (RVCM1062B P1/P2): the runtime's accounting-wrapped headless client
+    // keeps its daily reservation and run-ledger admission, and the
+    // subscription-aware extension/ACP client keeps its plan routing and
+    // shared usage ownership. A standalone registry is only the fallback for
+    // a client without one; a plan ref it cannot name still resolves against
+    // the session client, as it did before any registry was supplied. Bare
+    // Meta models never reach the resolver (the host answers them from M95's
+    // own policy), so they fall through to the shared Meta default.
+    // The `in` narrowings (not truthiness reads) carry the optional
+    // members off the ModelApiClient | ProviderClient union.
     autoCompactModel: hostDeps.autoCompactModel ?? resolveAutoCompactModel,
     admitAutoCompaction: hostDeps.admitAutoCompaction ?? autoCompactionAdmission(deps),
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,

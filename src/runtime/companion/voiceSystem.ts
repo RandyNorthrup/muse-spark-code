@@ -15,7 +15,7 @@ import {
 } from '../../shared/constants'
 import { COMPANION_VOICE_REQUEST_MS } from '../../shared/companionVoice'
 import { withDeadline } from '../../core/timeouts'
-import { secure } from '../tokenFile'
+import { secureOwnerOnly } from '../tokenFile'
 
 /** File recognition uses the same OS engine; no host microphone is opened. */
 export async function transcribeCompanionSystem(
@@ -39,10 +39,10 @@ export async function transcribeCompanionSystem(
   let abort: (() => void) | undefined
   let exit: Promise<void> | undefined
   try {
-    await secure(directory, true)
+    await secureOwnerOnly(directory, 'directory')
     const handle = await open(file, 'wx', MEMORY_STAGE_FILE_MODE)
     try {
-      await secure(file, false)
+      await secureOwnerOnly(file, 'file')
       await handle.writeFile(wav)
     } finally {
       await handle.close()

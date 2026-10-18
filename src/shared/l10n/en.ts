@@ -154,6 +154,7 @@ export const EN = {
   feedbackFailed: 'Could not submit feedback.',
   // M102: the shared usage page; its full table is a separate lazy family.
   usagePageTitle: 'Usage & Cost',
+  uploadsName: 'Uploaded Files',
   paletteUsagePage: 'Track cost, tokens and limits across editors.',
   openUsagePage: 'Open Usage Page',
   acpUsageDescription: 'Show usage and cost across models, or open the usage page.',
@@ -361,8 +362,6 @@ export const EN = {
   referenceCliOptions: {
     'context-window':
       '--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.',
-    'muse-voice':
-      '--muse-voice: Allow paid Muse Voice in the dictation companion; it asks before the first charge and shares the daily budget.',
     'resource-governor':
       '--resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default.',
     'cpu-max': '--cpu-max <percent>: Throttle when CPU stays above this percentage for 30 seconds.',
@@ -400,6 +399,8 @@ export const EN = {
       '--web-search                     Offer paid web search (Model API backend; its price is asked first)',
     'image-generation':
       '--image-generation               Offer paid image generation (Model API backend; its price is asked first)',
+    'muse-voice':
+      '--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)',
     'scheduled-prompts':
       '--scheduled-prompts              Offer paid scheduled prompts (Model API backend; its price is asked first)',
     verbose: '--verbose                        Log every detail on stderr',
@@ -511,7 +512,7 @@ export const EN = {
   referenceLatestRecording:
     'Attach the most recent screen recording again without recording a new one. Requires a readable recording and verified video upload support.',
   referenceUploadedFiles:
-    'List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.',
+    'List the uploaded files of this account and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.',
   referenceConversationActions:
     'Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.',
   referenceQuestions:
@@ -1010,6 +1011,9 @@ export const EN = {
     sizeExceeded: 'This file exceeds {size}.',
     convertToMp4: 'Convert to mp4',
     converterUnavailable: 'No converter is available. Choose an mp4 file.',
+    converterConfiguredRefused: 'The configured converter was refused: {reason}',
+    converterSharedFolder:
+      'A converter was found, but a folder above it can be changed by other users ({reason}). Set the converter path to one in a folder only you or the system can change.',
     transcribeSound: 'Transcribe the Sound',
     transcribe: 'Transcribe',
     useSoundtrackModel: 'Use {model} for This Message',
@@ -1021,6 +1025,12 @@ export const EN = {
     cappedRateUnknown: 'This capped session needs a calibrated media rate for {model}.',
     contributorWarning: 'Contributor models may use this media for training.',
     contributorQuestion: 'Send {name} to a Contributor model? It may be used for training.',
+    contributorDeclined: '{name} was not attached.',
+    audioWillTranscribe:
+      '{model} does not hear audio, so Muse Voice will transcribe it before sending. Transcription is a paid extra and asks first.',
+    useStandardThenAttach: 'Switch to {model}, then attach {name} again.',
+    uploadUnavailable:
+      'This session has no file upload service, so video and audio cannot be sent. Use the Model API backend with a Meta key.',
     recordingWarning: 'This recording includes whatever was on your screen.',
     send: 'Send',
     useStandard: 'Use the Standard Model',
@@ -1031,6 +1041,8 @@ export const EN = {
     uploadFailed: 'Upload failed: {reason}',
     uploadExpired: 'The upload expired. Attach {name} again.',
     sourceChanged: '{name} changed since upload. Attach it again.',
+    attachedLimit:
+      'Too many video and audio attachments are in use. Wait for a reply to finish, then attach again.',
     uploadedFiles: 'Uploaded Files',
     filesOurs: 'Uploaded by This App',
     filesOtherApp: 'From Another App',
@@ -1038,6 +1050,8 @@ export const EN = {
     fileNoExpiry: 'No expiry set',
     fileSessions: 'Sessions: {sessions}',
     filesInUse: 'Remove this file from its sessions before deleting it.',
+    filesInUseRequest:
+      'This file is in use by a running request. Try again when the reply finishes.',
     deleteUploadedFiles: 'Delete Uploaded Files…',
     deleteAllOurs: 'Delete All Ours',
     otherAppFileConfirmation: 'Another app may still use {name}. Delete it anyway?',
@@ -1076,6 +1090,17 @@ export const EN = {
     recordingStart: 'Start Recording',
     recordingStop: 'Stop Recording',
     uploadDeleteFailed: 'Could not delete {name}: {reason}',
+    deleteUploadedFilesPick: 'Checked files are deleted from the provider',
+    uploadsDescription: 'List uploaded files and delete them early',
+    uploadsUsage: '/uploads [delete <file> | delete-all]',
+    uploadNotFound: 'No uploaded file {id} is listed.',
+    uploadForeignKept: 'Kept {name}: another app may still use it.',
+    uploadDeleteProviderRefused: 'the provider refused the deletion',
+    uploadDeleteBacklog: forms({
+      one: '{count} uploaded file could not be deleted from {provider}. Deletion will be retried.',
+      other:
+        '{count} uploaded files could not be deleted from {provider}. Deletion will be retried.',
+    }),
     conversionFailed: 'Conversion failed: {reason}',
     replayMetadata: 'Media: {name} ({duration}, {size})',
     replayMetadataNoDuration: 'Media: {name} ({size})',
@@ -4205,6 +4230,7 @@ export const EN = {
     '  --allow-contributor-models       List contributor-tier models (Meta may train on their content)',
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
+    '  --muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
     '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',

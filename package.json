@@ -1631,6 +1631,13 @@
           "description": "%config.mediaAudioAction.description%",
           "scope": "machine"
         },
+        "museSpark.mediaConverterPath": {
+          "type": "string",
+          "default": "",
+          "maxLength": 4096,
+          "description": "%config.mediaConverterPath.description%",
+          "scope": "machine"
+        },
         "museSpark.accountSwap": {
           "type": "boolean",
           "default": true,

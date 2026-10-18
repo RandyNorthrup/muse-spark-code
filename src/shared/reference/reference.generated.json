@@ -143,6 +143,21 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "uploads",
+      "name": { "ui": "uploadsName" },
+      "summary": { "ui": "referenceUploadedFiles" },
+      "description": { "ui": "referenceUploadedFiles" },
+      "commands": ["museSpark.deleteUploadedFiles"],
+      "settings": ["museSpark.mediaUploadExpiryDays"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#the-panel",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "legal",
       "name": { "ui": "legalScanTitle" },
       "summary": { "ui": "legalScanItemDetail" },
@@ -363,13 +378,14 @@
         "museSpark.mediaMaxUploadMiB",
         "museSpark.mediaUploadExpiryDays",
         "museSpark.screenRecordingMaxSeconds",
-        "museSpark.mediaAudioAction"
+        "museSpark.mediaAudioAction",
+        "museSpark.mediaConverterPath"
       ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#the-panel",
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
-      "details": [],
+      "details": [{ "setting": "mediaAudioAction" }],
       "facts": {
         "maxAttachments": 20,
         "textExtensions": [
@@ -2514,7 +2530,7 @@
       "nameKey": "command.deleteUploadedFiles.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.",
+      "description": "List the uploaded files of this account and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.",
       "text": { "ui": "referenceUploadedFiles" },
       "enablement": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible",
       "canRun": false
@@ -4098,6 +4114,17 @@
       "schema": { "type": "string", "enum": ["transcribe", "sendAudio"], "default": "transcribe" }
     },
     {
+      "id": "museSpark.mediaConverterPath",
+      "name": "museSpark.mediaConverterPath",
+      "description": "Absolute path to the ffmpeg this machine uses to convert attached audio and video for transcription. Empty by default: only documented install locations are used (Program Files and winget on Windows, Homebrew and MacPorts on macOS, /usr/bin and /usr/local/bin on Linux), never PATH. A path set here is the only candidate: it must pass the trusted-path check, or conversion is refused with the reason. Launcher shims are refused. Only this machine’s setting is used.",
+      "descriptionKey": "config.mediaConverterPath.description",
+      "type": "string",
+      "default": "",
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "string", "default": "", "maxLength": 4096 }
+    },
+    {
       "text": {
         "conditions": [
           {
@@ -5025,6 +5052,13 @@
     },
     {
       "route": "serve",
+      "name": "serve: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
       "name": "serve: --verbose",
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
@@ -5275,6 +5309,18 @@
     },
     {
       "route": "login",
+      "name": "login: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "login",
       "name": "login: --verbose",
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
@@ -5500,6 +5546,18 @@
       "name": "setup: --image-generation",
       "description": "--image-generation               Offer paid image generation (Model API backend; its price is asked first)",
       "text": { "cli": "image-generation" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "setup",
+      "name": "setup: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
       "contract": {
         "type": "boolean",
         "repeatable": false,
@@ -5758,6 +5816,18 @@
     },
     {
       "route": "authSet",
+      "name": "authSet: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authSet",
       "name": "authSet: --verbose",
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
@@ -6005,6 +6075,18 @@
     },
     {
       "route": "authStatus",
+      "name": "authStatus: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authStatus",
       "name": "authStatus: --verbose",
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
@@ -6243,6 +6325,18 @@
       "name": "authClear: --image-generation",
       "description": "--image-generation               Offer paid image generation (Model API backend; its price is asked first)",
       "text": { "cli": "image-generation" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authClear",
+      "name": "authClear: --muse-voice",
+      "description": "--muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)",
+      "text": { "cli": "muse-voice" },
       "contract": {
         "type": "boolean",
         "repeatable": false,
