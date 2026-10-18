@@ -278,7 +278,9 @@ describe('M80 ledger integer admission and retained liability', () => {
     ).toEqual({ refused: 'unpriced' })
     for (const cap of [0, -1, 0.0000001, 0.1081351, Infinity])
       expect(() => createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 })).toThrow()
-    for (const cap of [20.000001, 1000])
+    // Above-$20 caps from the recorded real CLI exchange in
+    // docs/certification/pr228fix.md (2026-10-18, rig macmini).
+    for (const cap of [20.01, 250.5])
       expect(() =>
         createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 }),
       ).not.toThrow()
