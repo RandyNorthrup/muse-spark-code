@@ -1377,7 +1377,8 @@ export class ConversationController {
    * A `/playback` on its way (D203): the agent states its own
    * understanding from working memory, with no tools for the turn. One at
    * a time; a message must not steer into its turn, so the send barrier
-   * waits for it as for a review starting.
+   * waits for it as for a review starting. Panels sharing one session
+   * check each other's barrier in `runPlayback`, not only their own.
    */
   private playbackStart: Promise<void> | undefined
   /**
@@ -7570,6 +7571,22 @@ export class ConversationController {
         this.sessionKind !== host.info.kind
       ) {
         throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      // One playback starts at a time per shared session (D203): two
+      // panels can share one AgentSession while admission above checked
+      // only this controller's barrier, so a start already in flight on
+      // another panel refuses this one. Each controller sets its barrier
+      // synchronously on start, so this check always sees a concurrent
+      // starter's. Past admission the host orders turns itself, and a
+      // playback is a backend no-tools turn.
+      const surfaces = sessionSurfaces.get(session)
+      if (surfaces !== undefined) {
+        for (const surface of surfaces) {
+          if (surface !== this && surface.playbackStart !== undefined) {
+            refuse(UI_TEXT.playbackBusy)
+            return
+          }
+        }
       }
       // A playback's turn is marked running before it is sent and takes over
       // that mark, as a message's does (M72), so another window refuses a
