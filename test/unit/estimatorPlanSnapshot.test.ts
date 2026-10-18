@@ -7,7 +7,7 @@ import {
   ESTIMATE_ASSUMED_TOKENS_PER_HOUR,
 } from '../../src/shared/constants'
 import { resolveEstimateGoal, type EstimateGoalSnapshot } from '../../src/core/estimator/goal'
-import { ESTIMATOR_AS_OF } from './helpers/estimator/kindFakes'
+import { ESTIMATOR_AS_OF } from './helpers/estimator/sectionVectors'
 
 const PLAN = `## 3. Questions
 
