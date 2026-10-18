@@ -15605,6 +15605,19 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### BCSTART — The browser check's start on Windows (2026-10-18)
+
+**Status 2026-10-18: built.** Status evidence: `docs/certification/bcstart.md`.
+
+- **Rule.** The browser check's contract read (M81) waits for the browser to
+  start its network service, asking again every 50 ms for at most 5 s,
+  before it reads the service's id; the contract is unchanged (an
+  out-of-process service, its id the restart tripwire, read before any
+  request) and a service still missing at the bound ends `unrecognized`.
+- **Why.** The service starts after the browser already answers on the
+  pipe; one early read ended Windows checks `unrecognized` at random (8 of
+  200 checks measured; hosted run 39083561745).
+
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.

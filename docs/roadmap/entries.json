@@ -907,6 +907,11 @@
       "note": "store badge accuracy"
     },
     {
+      "id": "BCSTART",
+      "public": false,
+      "note": "browser check start on Windows (CI repair)"
+    },
+    {
       "id": "CI0150A",
       "public": false,
       "note": "CI repair (0.15.0)"

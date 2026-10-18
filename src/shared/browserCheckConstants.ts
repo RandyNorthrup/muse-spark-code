@@ -200,6 +200,13 @@ export const BROWSER_CANARY_LINK_LOCAL = '169.254.77.77'
 // The network service's process type in SystemInfo.getProcessInfo at the
 // pin: a new id during the check is a restart.
 export const BROWSER_NETWORK_SERVICE_TYPE = 'network.mojom.NetworkService'
+// The browser launches that service after its own process already answers
+// on the pipe; on Windows it was missing from the first answer in 8 of 200
+// checks and appeared up to 1.2 s later under load
+// (docs/certification/bcstart.md). The contract read asks again this often,
+// for at most this long, before the check ends `unrecognized`.
+export const BROWSER_NETWORK_SERVICE_START_MS = 5000
+export const BROWSER_NETWORK_SERVICE_POLL_MS = 50
 // The page's error text that crosses the boundary (browserRun.ts).
 export const BROWSER_NET_ERROR = /^net::ERR_[A-Z0-9_]+$/
 // The runtime's preparation (spec §4.1): consent, the download and the
