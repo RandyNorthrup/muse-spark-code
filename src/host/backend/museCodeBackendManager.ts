@@ -236,7 +236,7 @@ export class MuseCodeBackendManager {
   }
 
   /** A process that never finished its handshake is ended, not left behind. */
-  private async closeUnstarted(handshake: { close(): Promise<void> }): Promise<void> {
+  private async closeUnstarted(handshake: { close(): Promise<unknown> }): Promise<void> {
     try {
       await handshake.close()
     } catch (closeError: unknown) {

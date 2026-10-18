@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { lazyBundleLoader } from '../../src/host/lazyBundle'
-import type { Logger } from '../../src/host/logger'
+import { collectingLogger as logger } from './helpers/collectingLogger'
 import { planMarkdownLoader } from '../../src/host/planMarkdownBundle'
 import { UI_TEXT } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -16,13 +16,6 @@ const base = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-bundle-lo
 afterAll(async () => {
   await removeFolder(base)
 })
-
-function logger(messages: string[]): Logger {
-  const push = (message: string) => {
-    messages.push(message)
-  }
-  return { info: push, warn: push, error: push, debug: push, trace: push }
-}
 
 describe('lazyBundleLoader', () => {
   it('throws the unavailable words with the load failure as the cause', () => {

@@ -50,8 +50,7 @@ import {
   ATOMIC_TEMPORARY_SUFFIX,
   FILE_REFUSAL_MODEL_TEXT,
 } from '../shared/constants'
-import { canonicalPath } from './canonicalPath'
-import { isStoreErrorCode } from './backend/storeErrors'
+import { canonicalPath, isMissingPath } from './canonicalPath'
 import type { ConditionalWrite, StagedFile } from '../core/backends/modelapi/tools'
 
 export interface AtomicWriteOptions {
@@ -123,7 +122,7 @@ export function readTextIfPresent(fsPath: string): string | undefined {
   try {
     return readFileSync(fsPath, 'utf8')
   } catch (error: unknown) {
-    if (isStoreErrorCode(error, 'ENOENT')) {
+    if (isMissingPath(error)) {
       return undefined
     }
     throw error
@@ -145,7 +144,7 @@ export async function isOwnedFile(
       (identity.size === undefined || current.size === identity.size)
     )
   } catch (error: unknown) {
-    if (isStoreErrorCode(error, 'ENOENT')) {
+    if (isMissingPath(error)) {
       return false
     }
     throw error
@@ -207,7 +206,7 @@ async function destinationOf(target: string, options: AtomicWriteOptions): Promi
   try {
     real = await (options.realPath ?? realpath)(target)
   } catch (error: unknown) {
-    if (isStoreErrorCode(error, 'ENOENT')) {
+    if (isMissingPath(error)) {
       return { path: target }
     }
     throw error
@@ -253,7 +252,7 @@ async function assertUnchanged(
   try {
     bytes = await readFile(destination)
   } catch (error: unknown) {
-    if (isStoreErrorCode(error, 'ENOENT')) {
+    if (isMissingPath(error)) {
       throw changedBeforeWrite()
     }
     throw error
@@ -332,7 +331,7 @@ export async function deleteFileIfUnchanged(
   try {
     held = await lstatIdentity(target)
   } catch (error: unknown) {
-    if (isStoreErrorCode(error, 'ENOENT')) {
+    if (isMissingPath(error)) {
       return 'changed'
     }
     throw error
