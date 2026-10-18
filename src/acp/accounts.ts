@@ -63,8 +63,8 @@ export function companionAccountsPanel(port: AccountsPanelPort): AccountsPanelPo
           const parsed = accountsReplySchema.safeParse(reply)
           listener(parsed.success ? parsed.data : { type: 'accounts/error', code: 'unavailable' })
         })
-      } catch {
-        throw new Error(UI_TEXT.accounts.unavailable)
+      } catch (error: unknown) {
+        throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
       }
     },
   }
@@ -73,7 +73,7 @@ export function companionAccountsPanel(port: AccountsPanelPort): AccountsPanelPo
 function parseState(value: unknown): AccountsState {
   const parsed = accountsReplySchema.safeParse(value)
   if (!parsed.success || parsed.data.type !== 'accounts/state')
-    throw new Error(UI_TEXT.accounts.unavailable)
+    throw new Error(UI_TEXT.accounts.invalidReply)
   return parsed.data
 }
 
@@ -101,9 +101,9 @@ export class AcpAccounts {
     const operation = (async () => {
       await previous
       const isCurrent = () => !this.isDisposed && generation === this.generation
-      if (!isCurrent()) throw new Error(UI_TEXT.accounts.unavailable)
+      if (!isCurrent()) throw new Error(UI_TEXT.accounts.changed)
       await use(isCurrent)
-      if (!isCurrent()) throw new Error(UI_TEXT.accounts.unavailable)
+      if (!isCurrent()) throw new Error(UI_TEXT.accounts.changed)
     })()
     this.queue = (async () => {
       try {
@@ -145,7 +145,7 @@ export class AcpAccounts {
 
   private current(): string {
     const state = this.state
-    if (!state?.currentAccount) throw new Error(UI_TEXT.accounts.unavailable)
+    if (!state?.currentAccount) throw new Error(UI_TEXT.accounts.none)
     return `${UI_TEXT.accounts.current}: ${state.provider} · ${this.label(state.currentAccount)}`
   }
 
@@ -161,7 +161,7 @@ export class AcpAccounts {
       throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
     }
     if (!isCurrent() || (this.state !== undefined && state.provider !== this.state.provider))
-      throw new Error(UI_TEXT.accounts.unavailable)
+      throw new Error(UI_TEXT.accounts.changed)
     // A notification committed while the read was held is newer authority.
     if (revision !== this.noticeRevision) return
     const isChanged =
@@ -206,8 +206,10 @@ export class AcpAccounts {
       let text: string
       try {
         text = this.notice(notice)
-      } catch {
-        text = UI_TEXT.accounts.unavailable
+      } catch (error: unknown) {
+        text = fill(UI_TEXT.accounts.noticeFailed, {
+          reason: error instanceof Error ? error.message : String(error),
+        })
       }
       this.onNotice(text, notice)
     }
@@ -246,12 +248,12 @@ export class AcpAccounts {
   public async use(account: string, canCommit: () => boolean): Promise<void> {
     const revision = this.noticeRevision
     await this.own(async (isCurrent) => {
-      if (this.state === undefined) throw new Error(UI_TEXT.accounts.unavailable)
-      if (revision !== this.noticeRevision) throw new Error(UI_TEXT.accounts.unavailable)
+      if (this.state === undefined) throw new Error(UI_TEXT.accounts.notReady)
+      if (revision !== this.noticeRevision) throw new Error(UI_TEXT.accounts.changed)
       if (!accountIdSchema.safeParse(account).success)
         throw new Error(UI_TEXT.accounts.invalidAccount)
       await this.refresh(isCurrent)
-      if (revision !== this.noticeRevision) throw new Error(UI_TEXT.accounts.unavailable)
+      if (revision !== this.noticeRevision) throw new Error(UI_TEXT.accounts.changed)
       if (this.state.accounts.every((row) => row.id !== account))
         throw new Error(UI_TEXT.accounts.invalidAccount)
       const canAdopt = () => isCurrent() && revision === this.noticeRevision && canCommit()
@@ -268,11 +270,11 @@ export class AcpAccounts {
         if (isInvalidProvidersFileError(error)) throw error
         throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
       }
-      if (!isCurrent() || !canCommit()) throw new Error(UI_TEXT.accounts.unavailable)
+      if (!isCurrent() || !canCommit()) throw new Error(UI_TEXT.accounts.changed)
       if (state.provider !== this.state.provider || state.currentAccount !== account)
-        throw new Error(UI_TEXT.accounts.unavailable)
+        throw new Error(UI_TEXT.accounts.changed)
       if (revision !== this.noticeRevision) {
-        if (this.state.currentAccount !== account) throw new Error(UI_TEXT.accounts.unavailable)
+        if (this.state.currentAccount !== account) throw new Error(UI_TEXT.accounts.changed)
         return
       }
       this.noticeRevision += 1
@@ -284,7 +286,7 @@ export class AcpAccounts {
   public async command(sent: string, canCommit: () => boolean): Promise<string | undefined> {
     const text = slashCommandText(sent)
     if (!/^\/accounts(?:\s|$)/.test(text)) return
-    if (this.isDisposed || this.state === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+    if (this.isDisposed || this.state === undefined) throw new Error(UI_TEXT.accounts.notReady)
     const [, action = 'list', account, ...rest] = text.split(/\s+/)
     if (rest.length > 0) throw new Error(UI_TEXT.accounts.invalidAccount)
     if (action === 'use' && account !== undefined) {

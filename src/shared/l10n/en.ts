@@ -6182,6 +6182,12 @@ export const EN = {
       'Headless accounts: {command} exec --account <id> [--account-pool]. CI with --key-stdin uses only the default account and never swaps.',
     unavailable:
       'Accounts are unavailable until this runtime is connected to the shared account service.',
+    unavailableReason: 'Accounts are unavailable ({reason}).',
+    changed: 'Accounts changed while updating. Try again.',
+    notReady: 'Accounts are not ready yet. Try again.',
+    invalidReply: 'The account service answered with an unexpected reply.',
+    noticeFailed: 'The account notice could not be shown ({reason}).',
+    revokeUnsupported: 'Removing this sign-in is not supported in this runtime.',
     providersInvalid:
       'The providers file is invalid, so its entries were refused and the file was left unchanged.',
     poolUnavailable:
