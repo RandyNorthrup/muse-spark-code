@@ -108,6 +108,8 @@ function harness() {
     metadata,
     vault,
     emit: (reply: unknown) => {
+      // Negative probe: malformed notices bypass the typed port so the
+      // skin's runtime mapping to `unavailable` still executes (§8 MSM104).
       for (const listener of listeners) listener(reply as AccountsReply)
     },
   }
@@ -118,6 +120,9 @@ const silentUnsubscribe = () => undefined
 /** A dispatcher double behind the binding, with no notice publisher. */
 function innerPort(handle: (request: AccountsRequest) => Promise<unknown>): AccountsPanelPort {
   return bindAccountsPanelPort(
+    // Negative probe: the double returns throwing or malformed payloads no
+    // honest dispatcher can produce, so the failure mapping still
+    // executes (§8 MSM104).
     { handle: handle as AccountsPanelHandler['handle'] },
     () => silentUnsubscribe,
   )
