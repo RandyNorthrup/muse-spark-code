@@ -89,10 +89,12 @@ import {
 import { walkFiles } from './fileWalk'
 import { isStoreUnavailable, StoreUnavailableError } from './keyStore'
 import { isPlanModelRef } from '../shared/providerRouting'
-import { readProvidersFile } from '../core/providers/providersFile'
+import { providersFile } from '../host/backend/providersEntry'
 import { paidGrantFile } from './paidGrants'
 
 import type { AssembledProviderRun } from './exec/providerExec'
+
+const { readProvidersFile } = providersFile
 
 export interface ExecRuntimeOptions {
   readonly outputCap?: (policy: ModelPolicy) => number

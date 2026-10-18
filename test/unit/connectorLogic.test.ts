@@ -55,15 +55,15 @@ describe('M124 one-use approvals', () => {
     })
     const [view] = ledger.pending()
     expect(view?.digest).toBe(bindingDigest(binding, view?.expiresAt ?? 0))
-    expect(ledger.decide(id ?? '', view?.digest ?? '', true)).toBe('approved')
+    expect(ledger.decide(id, view?.digest ?? '', true)).toBe('approved')
     for (const change of [
       { targetGeneration: 6 },
       { priceMicrousd: 1 },
       { payload: { title: 'y' } },
       { principal: 'codex/b' },
     ])
-      expect(ledger.consume(id ?? '', { ...binding, ...change })).toBe(false)
-    expect(ledger.stateOf(id ?? '')).toBe('cancelled')
+      expect(ledger.consume(id, { ...binding, ...change })).toBe(false)
+    expect(ledger.stateOf(id)).toBe('cancelled')
     const second = ledger.open(binding, {
       client: 'c',
       connectionId: 'codex',
@@ -75,14 +75,14 @@ describe('M124 one-use approvals', () => {
       fields: [],
     })
     const [again] = ledger.pending()
-    ledger.decide(second ?? '', again?.digest ?? '', true)
-    expect(ledger.consume(second ?? '', binding)).toBe(true)
-    expect(ledger.consume(second ?? '', binding)).toBe(false)
+    ledger.decide(second, again?.digest ?? '', true)
+    expect(ledger.consume(second, binding)).toBe(true)
+    expect(ledger.consume(second, binding)).toBe(false)
     now += CONNECTOR_LIMITS.approvalLeaseMs * 2
     expect(settled).toEqual(['approved', 'approved'])
   })
 
-  it('caps pending approvals per connection', () => {
+  it('keeps no fixed cap on pending approvals (Codex on PR #227 P1)', () => {
     const ledger = new ApprovalLedger(
       () => 0,
       () => undefined,
@@ -110,10 +110,11 @@ describe('M124 one-use approvals', () => {
           fields: [],
         },
       )
-    expect(open()).toBeDefined()
-    expect(open()).toBeDefined()
-    expect(open()).toBeUndefined()
-    expect(ledger.cancelAll()).toHaveLength(CONNECTOR_LIMITS.pendingApprovals)
+    const ids = [open(), open(), open()]
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(ledger.pending()).toHaveLength(ids.length)
+    expect(ledger.cancelAll()).toHaveLength(ids.length)
+    expect(ledger.pending()).toHaveLength(0)
   })
 })
 
@@ -148,9 +149,9 @@ describe('M124 settled intents (RVM124 P2-6)', () => {
           fields: [],
         },
       )
-      ids.push(id ?? '')
+      ids.push(id)
       const [view] = ledger.pending()
-      if (cycle % 2 === 0) ledger.decide(id ?? '', view?.digest ?? '', false)
+      if (cycle % 2 === 0) ledger.decide(id, view?.digest ?? '', false)
       else now += CONNECTOR_LIMITS.approvalLeaseMs + 1
     }
     ledger.expireDue()

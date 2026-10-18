@@ -1,24 +1,18 @@
 // The approved save's generation recheck (Codex on PR #227): the store
 // recomputes the library generation under its write lock, so a save the
 // library moved under throws instead of landing. Real store, real files.
-import { mkdtemp } from 'node:fs/promises'
-import os from 'node:os'
-import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { libraryGeneration } from '../../src/core/connector/tools/prompts'
 import { PromptLibraryStaleError, PromptStore } from '../../src/core/prompts/promptStore'
 import type { SavedPrompt } from '../../src/shared/prompts'
 import { savedPromptFixture } from './helpers/sharingFixtures'
-import { removeFolder } from './helpers/temporaryFolders'
+import { temporaryTracker } from './helpers/temporaryFolders'
 
-const folders: string[] = []
-afterEach(async () => {
-  await Promise.all(folders.splice(0).map((folder) => removeFolder(folder)))
-})
+const tracked = temporaryTracker()
+afterEach(() => tracked.cleanup())
 
 async function store(): Promise<{ data: string; prompts: PromptStore }> {
-  const data = await mkdtemp(path.join(os.tmpdir(), 'm124-stale-'))
-  folders.push(data)
+  const data = await tracked.make('m124-stale-')
   return { data, prompts: new PromptStore(data, undefined) }
 }
 

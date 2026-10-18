@@ -646,18 +646,14 @@ function finishProvidersModels(
     }
   // A stored id is printed back by later lists, so control and format
   // characters never parse: no stored value can steer a terminal (Codex on
-  // PR #227). Whitespace stays the command layer's refusal below.
+  // PR #227). Whitespace stays the command layer's refusal below. Add and
+  // remove share one refusal: both name models to store.
   const add = values.add ?? []
-  if (add.some((model) => typeof model !== 'string' || model === '' || !isStorableModelId(model))) {
-    return {
-      command: 'invalid',
-      reason: fill(UI_TEXT.cliHelp.modelsUsage, { command: ACP_AGENT_NAME }),
-      exitCode: 2,
-    }
-  }
   const remove = values.remove ?? []
   if (
-    remove.some((model) => typeof model !== 'string' || model === '' || !isStorableModelId(model))
+    [...add, ...remove].some(
+      (model) => typeof model !== 'string' || model === '' || !isStorableModelId(model),
+    )
   ) {
     return {
       command: 'invalid',

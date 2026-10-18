@@ -9,12 +9,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {
-  CONNECTOR_LIMITS,
-  CONNECTOR_SCHEMA_VERSION,
-  PROMPT_USER_FOLDER,
-  UI_TEXT,
-} from '../../src/shared/constants'
+import { CONNECTOR_SCHEMA_VERSION, PROMPT_USER_FOLDER, UI_TEXT } from '../../src/shared/constants'
 import { serialisePromptFile } from '../../src/shared/prompts'
 
 const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'm124-connector-e2e-')))
@@ -273,7 +268,10 @@ describe('M124 connector over real stdio', () => {
 
   // One case per batch (RVMSM124): all ten kinds in one case ran past the
   // repository's 5-second timeout on a loaded rig (three agent processes
-  // and ten real report generations). Every kind is still generated.
+  // and ten real report generations). Every kind is still generated. The
+  // batch size is the test's own (Codex on PR #227): no fixed read cap
+  // stands beside the grant anymore.
+  const REPORT_BATCH = 4
   const REPORT_KINDS: readonly (readonly [string, string?])[] = [
     ['project'],
     ['milestone', 'M1'],
@@ -286,10 +284,10 @@ describe('M124 connector over real stdio', () => {
     ['usage'],
     ['schedules'],
   ]
-  for (let start = 0; start < REPORT_KINDS.length; start += CONNECTOR_LIMITS.activeReads) {
-    const batch = REPORT_KINDS.slice(start, start + CONNECTOR_LIMITS.activeReads)
+  for (let start = 0; start < REPORT_KINDS.length; start += REPORT_BATCH) {
+    const batch = REPORT_KINDS.slice(start, start + REPORT_BATCH)
     it(`generates report kinds ${batch.map(([kind]) => kind).join(', ')} through the real runtime adapter (RVM124 P2-11)`, async () => {
-      // Its own connection: limits are kept per grant, across processes.
+      // Its own connection: authority is kept per grant, across processes.
       await grant(['reports:read', 'content:read'], true, 'reports')
       await rm(path.join(dataFolder(), 'connector', 'kill-switch.json'), { force: true })
       const result = await session(
