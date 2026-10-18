@@ -39164,6 +39164,10 @@ PR #240 (`fix/nolimits-5b`: the GitHub Action sets no request limit when
 its `max-requests` input is empty, mirroring the CLI; a set value stays
 within 1–500) merged 2026-10-18 with its Fixed entry under `[0.19.0]`; the
 release now holds ten pull requests.
+PR #234 (`fix/nolimits-6`: a Model API turn no longer stops itself after
+50 tool rounds — no provider documents a round count) merged 2026-10-18
+with its Changed entry under `[0.19.0]`; the release now holds eleven pull
+requests.
 The `0.19.0 released (…)` line is written by the lead after the tag's
 release run.
 
