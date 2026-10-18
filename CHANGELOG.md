@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The production build no longer starts every bundle at once through one
+  esbuild service, which could fail under machine load with an error that
+  named no bundle and then hang. Bundles now run through a bounded pool
+  of 8; a failure names its bundle, in-flight bundles settle, and the
+  process exits with the true error.
+
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
