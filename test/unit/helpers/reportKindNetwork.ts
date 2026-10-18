@@ -59,7 +59,7 @@ export interface TransportCall {
 export interface TransportRecorder {
   readonly transport: ReportNetworkTransport
   readonly calls: readonly TransportCall[]
-  setImplementation(implementation: ReportNetworkTransport): void
+  implementation: ReportNetworkTransport
 }
 
 export function recordingTransport(
@@ -73,8 +73,11 @@ export function recordingTransport(
       return current(request, etag, signal)
     },
     calls,
-    setImplementation: (implementation) => {
-      current = implementation
+    get implementation() {
+      return current
+    },
+    set implementation(next: ReportNetworkTransport) {
+      current = next
     },
   }
 }
@@ -118,7 +121,7 @@ export function networkRig(overrides: Partial<Omit<ReportNetworkDeps, 'cache'>> 
     transport: recorder.transport,
     calls: recorder.calls,
     setTransport: (implementation: ReportNetworkTransport) => {
-      recorder.setImplementation(implementation)
+      recorder.implementation = implementation
     },
     setEgress: (implementation: ReportNetworkPolicy['allowEgress']) => {
       egress = implementation

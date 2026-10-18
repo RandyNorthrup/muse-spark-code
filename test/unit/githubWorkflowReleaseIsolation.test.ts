@@ -11,7 +11,7 @@ import * as z from 'zod/mini'
 import ts from 'typescript'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import {
   GITHUB_RELEASES_PAGE_SIZE,
   GITHUB_TAGS_PAGE_SIZE,
@@ -33,6 +33,8 @@ import {
   networkContext,
   networkRig,
   readGithubReleases,
+  recordingTransport,
+  type TransportRecorder,
 } from './helpers/reportKindNetwork'
 
 const {
@@ -204,7 +206,7 @@ const CASES: IsolationCase[] = [
 ]
 
 function healthyTransport(fail?: { url: string; respond: () => Promise<Response> }) {
-  return vi.fn((request: { url: string }) => {
+  return recordingTransport((request) => {
     if (request.url === fail?.url) return fail.respond()
     const healthy = HEALTHY[request.url]
     if (healthy !== undefined) return Promise.resolve(Response.json(healthy))
@@ -219,16 +221,13 @@ function healthyTransport(fail?: { url: string; respond: () => Promise<Response>
   })
 }
 
-async function readWith(transport: ReturnType<typeof healthyTransport>, refuse?: string) {
+async function readWith(transport: TransportRecorder, refuse?: string) {
   const rig = networkRig({
-    transport,
+    transport: transport.transport,
     maxBytes: REPORT_NETWORK_MAX_BYTES,
     maxPages: REPORT_NETWORK_MAX_PAGES,
   })
-  if (refuse !== undefined)
-    vi.mocked(rig.deps.policy.allowEgress).mockImplementation((href: string) =>
-      Promise.resolve(href !== refuse),
-    )
+  if (refuse !== undefined) rig.setEgress((href) => Promise.resolve(href !== refuse))
   return {
     rig,
     result: await githubReportSource({
@@ -247,10 +246,10 @@ describe('workflow and release request isolation', () => {
     const { result } = await readWith(transport)
     expect(result.record.status).toBe('ok')
     expect(
-      [...new Set(transport.mock.calls.map((call) => call[0].url))].toSorted(compareStrings),
+      [...new Set(transport.calls.map((call) => call.request.url))].toSorted(compareStrings),
     ).toEqual(CASES.map((item) => item.target).toSorted(compareStrings))
     expect(new Set(CASES.map((item) => item.target)).size).toBe(CASES.length)
-    expect(transport.mock.calls).toHaveLength(CASES.length)
+    expect(transport.calls).toHaveLength(CASES.length)
   })
 
   // Fault every dispatched request, including body read/decode and shape
@@ -355,7 +354,7 @@ describe('workflow and release request isolation', () => {
       found.target === URLS.checksBranch ? 0 : 1,
     )
     if (failure.way === 'refused-host')
-      expect(transport.mock.calls.map((call) => call[0].url)).not.toContain(found.target)
+      expect(transport.calls.map((call) => call.request.url)).not.toContain(found.target)
   })
 })
 
@@ -373,7 +372,7 @@ describe('unparseable tag elements', () => {
       .parse(TAGS)
     const corrupt = { name: tags[0]?.name ?? 'v0.17.0' }
     const transport = tagTransport([corrupt, tags[1], tags[2]])
-    const result = await readGithubReleases({ transport, options })
+    const result = await readGithubReleases({ transport: transport.transport, options })
     expect(result.record.status).toBe('partial')
     expect(result.record.reason).toContain('tag-response-invalid')
     expect(result.record.reason).not.toContain('release-commit-required')
@@ -384,7 +383,7 @@ describe('unparseable tag elements', () => {
 
   it('a corrupt extra tag beside joined tags is partial, never ok', async () => {
     const transport = tagTransport([...z.array(z.unknown()).parse(TAGS), { bogus: true }])
-    const result = await readGithubReleases({ transport, options })
+    const result = await readGithubReleases({ transport: transport.transport, options })
     expect(result.record.status).toBe('partial')
     expect(result.record.reason).toContain('tag-response-invalid')
     expect(result.data?.releases.map((release) => release.version)).toEqual(['v0.16.0', 'v0.17.0'])
@@ -428,13 +427,13 @@ describe('strict-assembly rows', () => {
           reasons: [],
         }),
     }
-    const transport = vi.fn((request: { url: string }) => {
+    const transport = recordingTransport((request) => {
       if (request.url.includes('/pulls?')) return Promise.resolve(Response.json([]))
       if (request.url.includes('/check-runs?'))
         return Promise.resolve(Response.json({ total_count: 0, check_runs: [] }))
       throw new Error(`unexpected request ${request.url}`)
     })
-    const rig = networkRig({ transport, maxBytes: REPORT_NETWORK_MAX_BYTES })
+    const rig = networkRig({ transport: transport.transport, maxBytes: REPORT_NETWORK_MAX_BYTES })
     const result = await githubReportSource({
       ...options,
       reader: rig.reader,
@@ -528,7 +527,7 @@ const GOOD_RUN = {
 async function readAdditional(value: unknown, isThrowing = false) {
   const transport = healthyTransport()
   const rig = networkRig({
-    transport,
+    transport: transport.transport,
     maxBytes: REPORT_NETWORK_MAX_BYTES,
     maxPages: REPORT_NETWORK_MAX_PAGES,
   })
@@ -620,7 +619,8 @@ describe('all source read boundaries preserve admitted facts', () => {
 
   it('retains a valid empty adapter facet beside failed readers', async () => {
     const rig = networkRig({
-      transport: vi.fn(() => Promise.resolve(Response.json({ invented: true }))),
+      transport: recordingTransport(() => Promise.resolve(Response.json({ invented: true })))
+        .transport,
     })
     const result = await githubReportSource({
       ...options,
@@ -833,33 +833,12 @@ describe('all source read boundaries preserve admitted facts', () => {
     )
   })
 
-  it.each(CASES)('isolates a query exception at $label', async (found) => {
-    const transport = healthyTransport()
-    const rig = networkRig({
-      transport,
-      maxBytes: REPORT_NETWORK_MAX_BYTES,
-      maxPages: REPORT_NETWORK_MAX_PAGES,
-    })
-    const read = rig.reader.read.bind(rig.reader)
-    vi.spyOn(rig.reader, 'read').mockImplementation((context, id, schema, collect) =>
-      read(context, id, schema, (query) =>
-        collect((request, input, output) => {
-          return request.url === found.target
-            ? Promise.reject(new Error('injected request failure'))
-            : query(request, input, output)
-        }),
-      ),
-    )
-    const result = await githubReportSource({
-      ...options,
-      reader: rig.reader,
-      additional: githubWorkflowReleasesPort(),
-    }).read(networkContext())
-    expect(result.record.reason).toContain(found.invalidCode)
-    expect(result.data?.releases.map((row) => row.version).toSorted(compareStrings)).toEqual(
-      found.versions,
-    )
-  })
+  // NOTE (MSM113FIX): the former 'isolates a query exception' cases are
+  // gone. They replaced the reader's query with a throwing function via
+  // vi.spyOn: a stand-in, and unrepresentable through the real reader. The
+  // identical observable (that page's invalidCode, every other row kept) is
+  // still proven for every endpoint by the stream-error fault cases above,
+  // which drive the real transport with an errored body stream.
 })
 
 describe('storage, metadata and request allowance boundaries', () => {
@@ -870,15 +849,29 @@ describe('storage, metadata and request allowance boundaries', () => {
   )('isolates cache $stage at $label', async ({ found, stage }) => {
     const transport = healthyTransport()
     const rig = networkRig({
-      transport,
+      transport: transport.transport,
       maxBytes: REPORT_NETWORK_MAX_BYTES,
       maxPages: REPORT_NETWORK_MAX_PAGES,
     })
-    vi.mocked(rig.deps.policy.allowEgress).mockImplementation((url) => {
+    rig.setEgress((url) => {
       if (url === found.target) {
-        if (stage === 'read')
-          rig.storage.read.mockRejectedValueOnce(new TypeError('cache read failed'))
-        else rig.storage.write.mockRejectedValueOnce(new TypeError('cache write failed'))
+        if (stage === 'read') {
+          const read = rig.storage.read
+          let isArmed = true
+          rig.storage.read = (signal) => {
+            if (!isArmed) return read(signal)
+            isArmed = false
+            return Promise.reject(new TypeError('cache read failed'))
+          }
+        } else {
+          const write = rig.storage.write
+          let isArmed = true
+          rig.storage.write = (entries, signal) => {
+            if (!isArmed) return write(entries, signal)
+            isArmed = false
+            return Promise.reject(new TypeError('cache write failed'))
+          }
+        }
       }
       return Promise.resolve(true)
     })
@@ -912,12 +905,11 @@ describe('storage, metadata and request allowance boundaries', () => {
           ),
         ),
     })
-    const healthy = transport.getMockImplementation()
-    transport.mockImplementation((request) =>
+    const healthy = transport.implementation
+    transport.implementation = (request, etag, signal) =>
       request.url === URLS.releases2
         ? Promise.resolve(new Response(null, { status: 500 }))
-        : (healthy?.(request) ?? Promise.reject(new Error('missing transport'))),
-    )
+        : healthy(request, etag, signal)
     const { result } = await readWith(transport)
     expect(result.record.reason?.split('; ')).toEqual([
       'releases-page-2: http-500',
@@ -937,13 +929,17 @@ describe('storage, metadata and request allowance boundaries', () => {
     'enforces the request bound after $label at admission',
     async ({ cap }) => {
       const transport = healthyTransport()
-      const rig = networkRig({ transport, maxBytes: REPORT_NETWORK_MAX_BYTES, maxPages: cap })
+      const rig = networkRig({
+        transport: transport.transport,
+        maxBytes: REPORT_NETWORK_MAX_BYTES,
+        maxPages: cap,
+      })
       const result = await githubReportSource({
         ...options,
         reader: rig.reader,
         additional: githubWorkflowReleasesPort(),
       }).read(networkContext())
-      expect(transport.mock.calls).toHaveLength(cap)
+      expect(transport.calls).toHaveLength(cap)
       if (cap < REPORT_NETWORK_MAX_PAGES) expect(result.record.reason).toContain('page-bound')
       expect(result.data?.pullRequests).toHaveLength(CAPTURED_PULL_LIST.length)
       if (cap >= 8) expect(result.data?.releases).toHaveLength(32)
