@@ -240,6 +240,17 @@ export class VaultFileImporter {
    * The cross-process Keep/Delete claim: atomically removes the receipt, so
    * exactly one side wins. A concurrent winner's claim reads as `invalid`.
    */
+  /** Best effort: the receipt stays for the attempt after this one. */
+  private async forgetReceiptBestEffort(receipt: string, lease: MigrationLease): Promise<void> {
+    try {
+      await this.vault.forgetReceipt(receipt, () => {
+        this.assertActive(lease)
+      })
+    } catch {
+      // Best effort: the receipt stays for the attempt after this one.
+    }
+  }
+
   private async claimReceipt(receipt: string, lease: MigrationLease): Promise<void> {
     try {
       await this.vault.takeReceipt(receipt, () => {
@@ -320,7 +331,7 @@ export class VaultFileImporter {
         // import later (or restoring a backup) is the true next step.
         if (error instanceof VaultError && (error.code === 'busy' || error.code === 'rollback'))
           throw error
-        throw new VaultMigrationFault('storage')
+        throw new VaultMigrationFault('storage', { cause: error })
       } finally {
         for (const item of items) eraseItem(item)
         source?.fill(0)
@@ -408,26 +419,19 @@ export class VaultFileImporter {
         // Only "does not exist" with a reachable home means gone: any other
         // probe failure keeps its receipt and names its true reason instead
         // of discarding it as deleted (RVCM1091G P2, RVAPP-CM1091D5 P3-1).
-        let isGone = false
+        // The file is already gone (a previous Delete removed it but could
+        // not forget its receipt, or the person deleted it): clear the
+        // leftover receipt at this next start and say what happened.
         try {
           lstatSync(saved.path)
         } catch (error: unknown) {
           const refusal = this.probeRefusal(error)
-          if (refusal.code !== 'orphaned') throw refusal
-          isGone = true
-        }
-        if (isGone) {
-          // The file is already gone (a previous Delete removed it but could
-          // not forget its receipt, or the person deleted it): clear the
-          // leftover receipt at this next start and say what happened.
-          try {
-            await this.vault.forgetReceipt(receipt, () => {
-              this.assertActive(lease)
-            })
-          } catch {
-            /* Best effort: the receipt stays for the attempt after this one. */
-          }
-          throw new VaultMigrationFault('orphaned')
+          // Only a proven-gone source clears here; any other probe outcome
+          // keeps its receipt and rides along as the cause.
+          if (refusal.code !== 'orphaned')
+            throw new VaultMigrationFault(refusal.code, { cause: error })
+          await this.forgetReceiptBestEffort(receipt, lease)
+          throw new VaultMigrationFault('orphaned', { cause: error })
         }
         parents = this.holdParents(saved.path)
         const read = await this.read(saved.path, parents.assertPath)
@@ -476,7 +480,7 @@ export class VaultFileImporter {
           // (the file is gone; nothing to retry) instead of a retryable
           // failure. The next Delete clears the receipt (see above).
           if (error instanceof VaultMigrationFault) throw error
-          throw new VaultMigrationFault('orphaned')
+          throw new VaultMigrationFault('orphaned', { cause: error })
         }
       } catch (error: unknown) {
         if (error instanceof VaultMigrationFault) throw error
@@ -486,8 +490,11 @@ export class VaultFileImporter {
         // (RVCM1091G P2, RVAPP-CM1091D5 P3-1).
         if (error instanceof VaultError && (error.code === 'busy' || error.code === 'rollback'))
           throw error
-        if (error instanceof Error && 'code' in error) throw this.probeRefusal(error)
-        throw new VaultMigrationFault('storage')
+        if (error instanceof Error && 'code' in error) {
+          const refusal = this.probeRefusal(error)
+          throw new VaultMigrationFault(refusal.code, { cause: error })
+        }
+        throw new VaultMigrationFault('storage', { cause: error })
       } finally {
         source?.fill(0)
         parents?.close()
