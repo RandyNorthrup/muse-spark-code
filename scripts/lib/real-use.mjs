@@ -333,7 +333,11 @@ export function checkRealUseRun({ runDir, transcript, steps, stated }) {
     if (!isExecResult(result)) continue
     check(result.model === REAL_USE_MODEL, `${label} model is ${String(result.model)}`)
     check(result.backend === REAL_USE_BACKEND, `${label} backend is ${String(result.backend)}`)
-    check(result.ledger?.breach === false, `${label} ledger reports a breach`)
+    // A missing ledger is valid for early failures and reports no breach.
+    check(
+      result.ledger === null || result.ledger.breach === false,
+      `${label} ledger reports a breach`,
+    )
     const verdict = step === undefined ? undefined : verdictForStep(step, result, entry?.exitCode)
     check(entry?.verdict === 'PASS' && verdict?.verdict === 'PASS', `${label} is not PASS`)
     calls += BigInt(result.usage.requests ?? 0)

@@ -42,6 +42,14 @@ happened, not what was planned; superseded entries are kept.
   branch starts with a cold npm cache, and a weekly seed keeps the capacity
   repository's default-branch cache warm so later pull requests share it
   (CONTRIBUTING.md, "The capacity repository (D122)").
+- A second live check joins the Action's: `.github/workflows/real-use.yml`
+  (receipt RU) packs the product from any input ref and runs the
+  `docs/real-use/` steps file against the real provider on the contributor
+  model under the stated calls and dollar cap. `scripts/real-use-setup.mjs`
+  verifies the tarball and plants the startup traps,
+  `scripts/real-use-run.mjs` holds the key and launches one `exec` child per
+  step, and `scripts/real-use-check.mjs` judges the transcript keylessly and
+  gates its publication.
 
 ### Pending
 

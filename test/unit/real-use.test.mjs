@@ -15,6 +15,7 @@ import { EXEC_TIMEOUT_MAX_SECONDS } from '../../action/lib/result.mjs'
 import {
   buildExecArgs,
   checkNoLeak,
+  checkRealUseRun,
   microUsdToString,
   parseBudgetUsd,
   parseStepsFile,
@@ -309,6 +310,49 @@ describe('verdict', () => {
       verdict: 'FAIL',
       reason: 'expected no requests',
     })
+  })
+})
+
+describe('whole-run check', () => {
+  it('passes the shipped steps against schematic product results', () => {
+    // Schematic validator inputs (never recorded product output): one valid
+    // result per shipped step, sums matching the transcript. This is the
+    // gate-can-go-green path, including the null-ledger refusal probe.
+    const root = scratch()
+    const runDir = path.join(root, 'out')
+    const steps = parseStepsFile(readFileSync(path.join(repoRoot, shippedSteps), 'utf8'))
+    const results = [
+      schematicResult({ mode: 'plan', filesChanged: [] }),
+      schematicResult({ mode: 'acceptEdits', finalMessage: 'wrote hello.txt' }),
+      schematicRefusal(),
+    ]
+    const exitCodes = [0, 0, 5]
+    const provenance = measuredProvenance()
+    const transcript = {
+      version: 1,
+      ref: provenance.ref,
+      packageSha256: provenance.sha,
+      model: REAL_USE_MODEL,
+      stated: { calls: 3, budgetUsd: '1.00' },
+      actual: { calls: 2, costUsd: '0.02' },
+      steps: steps.map((step, index) => ({
+        id: step.id,
+        verdict: 'PASS',
+        exitCode: exitCodes[index],
+        resultFile: `${step.id}/result.json`,
+      })),
+    }
+    for (const [index, step] of steps.entries()) {
+      mkdirSync(path.join(runDir, step.id), { recursive: true })
+      writeFileSync(path.join(runDir, step.id, 'result.json'), JSON.stringify(results[index]))
+    }
+    const { failures } = checkRealUseRun({
+      runDir,
+      transcript,
+      steps,
+      stated: { calls: 3, budgetUsd: '1.00', refCommit: provenance.ref },
+    })
+    expect(failures).toEqual([])
   })
 })
 

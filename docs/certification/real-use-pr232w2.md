@@ -24,4 +24,18 @@ commits below; this record grows with each).
 
 ## Fixes (appended per commit)
 
-- (pending)
+- `a229eb8e36` first result (this record, one line per thread).
+- `08118cd5b9` threads 1–2, 5–8, 10–11: workflow clears `BASH_ENV`/`ENV`/`NODE_OPTIONS` on the RU step (action.yml discipline); `checkNoLeak` scans the unanchored shapes from `src/shared/redact.ts`; transcript upload gated on `steps.check.outcome == 'success'`; steps schema gains validated `expectFiles`/`expectNoRequests` enforced in `verdictForStep`; step timeout is the product's own `EXEC_TIMEOUT_MAX_SECONDS` (21600); null accounting handled in launcher and check; `expectStatus` validated by `isExecStatus` (new `action/lib/result.mjs` export, declared in `actionModules.d.ts`); steps file declares `expectFiles: ["hello.txt"]` and `expectNoRequests: true`; tests use checkout-measured provenance (real HEAD + real steps-file digest). Gate-fire proofs (broken on purpose, watched fail, reverted): leak test fails on the anchored pattern; no-requests verdict test fails with the check neutered. `test/unit/real-use.test.mjs`: 33/33 pass.
+- Thread 3 remainder (measured reason): no recorded transcript exists in the repository and none can be made in-lane (paid calls forbidden); provenance fields are measured, never placeholders. The first green hosted dispatch records a real transcript fixture.
+- Thread 9 (measured reason + PLAN §3 `Q-REALUSE-KEY`): key already confined to the D65-named `exec --key-stdin` reader (env deleted first, memory-only, stdin-only, `finally`-cleared; every steps-file field validated before intake); no staged patch exists so the scanner reader does not apply. Owner decision needed before first dispatch.
+- Docs + follow-up fixes: README paragraph beside action-live.yml (all three scripts ran locally for their usage paths); CHANGELOG `[Unreleased]` release-infrastructure entry; `checkRealUseRun` no longer fails a null ledger (`below-minimum` refusal probes carry none) — proven by the new whole-run PASS test, which fails on the old line with `below-minimum ledger reports a breach`.
+
+## Gates (final tree)
+
+- prettier `--check` on all changed files: pass.
+- eslint on changed files: 0 errors, 0 warnings.
+- `npm run typecheck` (all 5 projects): exit 0.
+- `node scripts/check-plan.mjs`: `plan-format-v1; 218 milestones; 0 drift`.
+- `node scripts/check-l10n.mjs`: `0 problems`.
+- `npm run build` (production + size/split budgets): exit 0.
+- `test/unit/real-use.test.mjs` with the repo default timeout: 34/34 pass.
