@@ -11,7 +11,9 @@
 // every host measures the sandbox the same way.
 
 import { execFile } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
+import { resolveExecutable } from '../../executables'
 import {
   LINUX_SANDBOX_NAMESPACE_MARKER,
   LINUX_SANDBOX_PROBE_ARGS,
@@ -195,11 +197,37 @@ export function isLinuxSandboxBlocked(readiness: LinuxSandboxReadiness | undefin
  * `bwrapFailed` with how the spawn failed as the detail (not proof the
  * sandbox cannot start: see isLinuxSandboxBlocked). The host runs this once
  * per start, only while sandboxed on Linux.
+ *
+ * The probe binary is resolved with `resolveExecutable` (absolute PATH
+ * entries only, SECURITY.md "Programs the extension starts"): a bare
+ * `bwrap` name would search an empty or relative PATH entry — the working
+ * directory, the workspace — so an executable a repository plants could run
+ * as the editor user before any command approval. A binary that does not
+ * resolve, or resolves inside the workspace, is refused as `bwrapFailed`
+ * without spawning anything.
  */
-export function probeLinuxSandboxShell(): Promise<LinuxSandboxReadiness> {
+export function probeLinuxSandboxShell(workspaceRoot?: string): Promise<LinuxSandboxReadiness> {
+  const command = resolveExecutable(LINUX_SANDBOX_PROBE_COMMAND, {
+    platform: process.platform,
+    pathVariable: process.env['PATH'],
+    fileExists: existsSync,
+  })
+  if (
+    command === undefined ||
+    (workspaceRoot !== undefined && isInsideDirectory(workspaceRoot, command))
+  ) {
+    return Promise.resolve({
+      canStart: false,
+      reason: 'bwrapFailed',
+      detail:
+        command === undefined
+          ? `${LINUX_SANDBOX_PROBE_COMMAND}: not found on absolute PATH entries`
+          : `${command}: inside the workspace, refused`,
+    })
+  }
   return new Promise((resolve) => {
     execFile(
-      LINUX_SANDBOX_PROBE_COMMAND,
+      command,
       [...LINUX_SANDBOX_PROBE_ARGS],
       { timeout: LINUX_SANDBOX_PROBE_TIMEOUT_MS, windowsHide: true },
       (error, _stdout, stderr) => {

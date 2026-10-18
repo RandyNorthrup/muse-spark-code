@@ -1,4 +1,7 @@
+import { existsSync } from 'node:fs'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { resolveExecutable } from '../../src/core/executables'
 import type { MuseLaunch } from '../../src/core/backends/musecode/launch'
 import {
   elevatedInvocation,
@@ -368,5 +371,22 @@ describe('probeLinuxSandboxShell', () => {
     } else {
       expect(['userNamespacesBlocked', 'bwrapFailed']).toContain(readiness.reason)
     }
+  })
+
+  // The planted-binary refusal, against the machine's own bwrap: where the
+  // real binary resolves, its own folder as the workspace refuses the probe
+  // without spawning; where nothing resolves, the probe is refused the same
+  // way. Either way nothing inside the workspace runs.
+  it('refuses a bwrap resolved inside the workspace without spawning', async () => {
+    const resolved = resolveExecutable('bwrap', {
+      platform: process.platform,
+      pathVariable: process.env['PATH'],
+      fileExists: existsSync,
+    })
+    const readiness = await probeLinuxSandboxShell(
+      resolved === undefined ? path.sep : path.dirname(resolved),
+    )
+    expect(readiness.canStart).toBe(false)
+    expect(readiness.reason).toBe('bwrapFailed')
   })
 })
