@@ -63,10 +63,13 @@ function setup(state: {
   const recorded: ScheduleFireRecord[] = []
   const settlements: unknown[] = []
   const admitted: ScheduleRunIntent[] = []
-  const dispatched = new Set<string>()
   const stored = job()
   const remaining = [...state.ledgers]
   const last = state.ledgers.at(-1)!
+  // The journal pre-check and the host recovery read draw successive run
+  // states in call order: a fresh fire reads absent before dispatch, then
+  // the recovery state the scenario scripts.
+  const nextLedger = () => remaining.shift() ?? last
   const deps: SchedulerDeps = {
     store: {
       create: () => Promise.resolve(),
@@ -86,16 +89,9 @@ function setup(state: {
         return Promise.resolve(true)
       },
       advance: () => Promise.resolve(true),
-      startDispatch: (intent) => {
-        if (admitted.every((entry) => entry.runId !== intent.runId) || dispatched.has(intent.runId))
-          return Promise.resolve(false)
-        dispatched.add(intent.runId)
-        return Promise.resolve(true)
-      },
-      lookupRun: (_workspaceKey, runId) =>
-        Promise.resolve({
-          status: dispatched.has(runId) ? ('dispatchStarted' as const) : ('absent' as const),
-        }),
+      startDispatch: (intent) =>
+        Promise.resolve(admitted.some((entry) => entry.runId === intent.runId)),
+      lookupRun: () => Promise.resolve(nextLedger()),
       pending: () => Promise.resolve([...admitted]),
       abandoned: () => Promise.resolve([]),
       acknowledge: (fire) => {
@@ -113,7 +109,7 @@ function setup(state: {
       now: () => nowMs,
       monotonicNow: () => 0,
       holds: () => true,
-      lookupRun: () => Promise.resolve(remaining.shift() ?? last),
+      lookupRun: () => Promise.resolve(nextLedger()),
       deliver: () => state.deliver() as Promise<ScheduleDeliveryResult>,
     },
     time: {
