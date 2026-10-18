@@ -16,7 +16,8 @@ import { listIntegrationTests } from './lib/integrationTests.mjs'
 // (M90, loaded on the first review), What's New (M99: the page's renderer,
 // content schema and tab, loaded on the first page or notice), the report
 // dialog (M93: the builder, its second scrub, the export paths and the
-// handler, loaded on the first open; dist/report.js) and its flight recorder
+// handler, loaded on the first dialog open or Diagnostics command;
+// dist/report.js) and its flight recorder
 // (the journal, loaded just after activation; dist/recorder.js), the webview,
 // What's New's page script, and (in dev mode) the integration tests with
 // esbuild. It first writes What's New's content, dist/whatsNew.json, from
@@ -829,13 +830,25 @@ const rulesFileOptions = {
 }
 
 // ACTIVATIONROOM: the CLI-backed and workspace command flows, required on
-// the first of those commands. They read no `vscode`, so a stray import
-// fails this build.
+// the first of those commands. They import no `vscode`, which is not
+// external there, so a stray import fails this build.
 /** @type {import('esbuild').BuildOptions} */
 const commandsOptions = {
-  ...conversationGitOptions,
+  ...common,
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+    sharedModelApiBoundaries,
+  ],
   entryPoints: [COMMANDS_ENTRY],
   outfile: COMMANDS_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
 }
 
 /** @type {import('esbuild').BuildOptions} */
