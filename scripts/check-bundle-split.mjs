@@ -1154,6 +1154,7 @@ const TEXT_BLOCKS = [
       PROMPTS.output,
       SHARING_RUNTIME.output,
       'dist/conversation.js',
+      'dist/conversationTransfer.js',
       BUNDLES.modelApi.output,
       'dist/reporting.js',
       'dist/reportingNetwork.js',
@@ -1193,7 +1194,8 @@ const TEXT_BLOCKS = [
     readers: ['dist/codeIntel.js', BUNDLES.modelApi.output, 'dist/modelApiCodeIntel.js'],
   },
   // A picked text file's template (M54): the backends' bundles and the
-  // conversation carry it; activation reads it no longer (PR206).
+  // conversation carry it; activation reads it no longer (PR206). The
+  // runtime media port renders it when an ACP editor attaches a text file.
   {
     block: 'TEXT_ATTACHMENT_MODEL_TEXT',
     sentinels: ['attachedTextFile'],
@@ -1202,6 +1204,7 @@ const TEXT_BLOCKS = [
       'dist/museCode.js',
       'dist/conversation.js',
       'dist/runtimeEngine.js',
+      'dist/runtimeMedia.js',
     ],
   },
   {
