@@ -35808,6 +35808,16 @@ is deferred to the owning lanes; the gate configuration is unchanged, no
 ignore or threshold change. The lead reruns the unmodified gate on the
 integrated tree.
 
+**VAULTOPEN activation-budget note (2026-10-18, macmini).**
+`modelsActivationBudget` is red on the untouched base: growth 3086 bytes
+against the 3072 cap in a scratch worktree at `f44f54120d`. On this lane
+the growth is 3494: the key-store migration's reviewed shell (one import,
+one shared store, the installed-minor closure and the binding record in
+`src/extension.ts`, all D89.14 lane M) adds 408 minified bytes, with no
+vault read or broker start at activation. Restructuring the reviewed shell
+for bytes is declined; the cap is unchanged. The lead owns the base
+overage with the owning lane.
+
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **Deferred 2026-10-02, until 2026-11-01: GHSA-vfj7-8cjw-p6xm (`braces`,
