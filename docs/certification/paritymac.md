@@ -596,3 +596,38 @@ the same identity shape Linux already uses as `major:minor:name`).
   on the duplicate driver-name cause above; the fix is verified by the
   live test passing on this multi-driver Mac plus a new recorded-exchange
   test with two same-named drivers.
+
+## Lane PR244W1 — fix and verification (macmini rig, 2026-10-18)
+
+Fix (commit `673b54a18`): `src/core/resources/sampler/darwinDisk.ts`
+keys each driver's counters by registry entry id plus object name
+(`0x…:name` — the same unique-identity shape Linux already uses as
+`major:minor:name`) instead of the bare object name. Registry ids are
+stable across consecutive reads (both fixture pairs keep theirs: the
+MacBookPro pair shares `0x100000461`, the macmini pair keeps
+`0x10000047c`/`0x100000464`). A header-shaped line without a parseable
+class and id now fails closed instead of attributing its counters to the
+neighbouring device. No widening: the duplicate-identity guard, the
+missing-key refusal, the walk exclusions and every denial are untouched;
+no `file-write*`, no network, no new surface. No path comparisons in the
+changed code, so Windows separators are unaffected.
+
+- Authentic pre-fix failure observed: `test/unit/resourceProbesDarwin`
+  live test failed at line 99 (`expected null not to be null`) on this
+  two-driver Mac — the same permanent-unknown any multi-disk Mac,
+  including hosted macOS runners, hit. The new recorded-exchange test
+  (`tells same-named drivers apart by registry entry id`, fixtures
+  `ioreg-blockstorage-twodevices[-later].txt`, captured
+  `ioreg -r -c IOBlockStorageDriver -d 1` twice ~5 s apart on this rig
+  2026-10-18) encodes that cause: baseline null, then 100 (~14.4 s busy
+  over 5,000 ms wall, capped).
+- Final tree, repo-default timeout, `--maxWorkers=3`:
+  `resourceProbesDarwin` 8/8, `resourceDiskDelta` 2/2 (10/10 together);
+  `pluginDispatch` and `inspectNative` unchanged by this fix and green
+  as measured on the head (`pluginDispatch` 29 passed + 2 skipped,
+  `inspectNative` 5 passed + 5 sandbox-gated skips).
+- Gates on the final tree, all exit 0: prettier on changed files, eslint
+  `--max-warnings=0` on changed files, `typecheck` (all five projects),
+  `check:plan` (0 drift), `check:l10n` (0 problems), `npm run build`
+  (budgets hold), `deadcode`, `cycles`, `duplication` (0 clones),
+  `security:audit` (2 advisories, 1 exception, exit 0).
