@@ -60,6 +60,7 @@
     // Installed lazy vault siblings, loaded by their same-build runtime paths.
     "src/runtime/vault/brokerBindings.ts",
     "src/runtime/vault/posixEntry.ts",
+    "src/runtime/vault/windowsEntry.ts",
     "src/runtime/vault/storeEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
@@ -185,6 +186,12 @@
     "test/unit/helpers/vault/writerCrashChild.ts",
     // Built once by epochCrashPosix.test.ts; a real generated-only SIGKILL epoch child.
     "test/unit/helpers/vault/epochCrashChild.ts",
+    // Keyring-less broker fixture, bundled by brokerWithoutKeyring.test.ts and
+    // launched by path; knip does not trace esbuild entryPoints.
+    "test/unit/helpers/vault/sessionBrokerNoKeyringChild.ts",
+    // Pipe-relay fixture child, bundled by windowsPipeRelay.test.ts and launched
+    // by path; knip does not trace esbuild entryPoints.
+    "test/unit/helpers/vault/windowsPipeRelayChild.ts",
     // The reports e2e bundles this entry with esbuild by path
     // (test/e2e/reports.e2e.test.ts), which knip does not trace.
     "test/e2e/reportsEntry.ts",
