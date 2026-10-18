@@ -40,7 +40,7 @@ describe('schedule workspace bridge without certified delivery', () => {
   })
 
   it.each(['museCode', 'modelApi'] as const)(
-    'starts %s drafts with no spending cap until the person sets one',
+    'starts %s drafts at a zero cap, so they never spend until the person raises it',
     (backend) => {
       const bridge = idleBridge()
       const session = { sessionId: 'session', backend, label: 'Conversation' }

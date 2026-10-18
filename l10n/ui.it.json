@@ -608,7 +608,7 @@
       "afterRuns": "Termina dopo N esecuzioni",
       "cost": "Costo",
       "grantHelp": "Una voce per riga. I percorsi restano in questa area di lavoro; i percorsi protetti e gli strumenti che richiedono una persona vengono sempre rifiutati.",
-      "paidCapHelp": "No spending cap applies unless you set one; zero means the schedule never spends.",
+      "paidCapHelp": "A new schedule starts at zero and never spends; set a cap to let it spend up to that amount.",
       "auditKinds": {
         "created": "Creato",
         "changed": "Modificato",
