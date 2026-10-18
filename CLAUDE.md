@@ -32,3 +32,10 @@ repository. This file adds only Claude-specific notes.
 - Buying credits, paid plans, legal terms, the owner's passwords and his
   two-factor steps are his. Everything else the lead decides and does
   without asking him (owner, 2026-10-17: "you dont need anything from me").
+- Anything that can take more than a few seconds (builds, tests, ssh, landing,
+  cleanups, loops) runs in the background; the owner's chat is never blocked.
+- Before stating a time, a duration, a count or where something is, check it
+  (the clock, the run's own timestamps, the records); otherwise say it was not
+  checked.
+- "Stop" stops everything started, scheduled rounds included, until the owner
+  says go. A question from the owner gets an answer, not actions.
