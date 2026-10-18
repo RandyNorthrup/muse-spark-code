@@ -152,3 +152,34 @@ updates on every playback turn, vs 2 on the ordinary turn before it).
   now skipped for playback turns and the dead field is gone
   (`7ace2be80`). The standing context load (the rules the turn reports)
   and user hooks still run, as on a review turn.
+
+## Review threads on PR #221 (2026-10-17, branch `ms/playback-threads`)
+
+Seven unresolved threads (chatgpt-codex-connector), each fixed at its cause:
+
+1. `src/acp/agent.ts` (P2, ACP active turn): fix. A `/playback` is refused
+   busy while the session has a running turn (`activeTurnId`, e.g. one a
+   resumed session carries), as the panel refuses it, so no Plan hold can
+   land on another turn.
+2. `src/host/conversation/conversationController.ts` (P2, watcher before
+   submit): fix. The tool watch is armed before the playback is submitted;
+   tool items that arrive before the acknowledgement names the turn are kept
+   by turn and stop it the moment the turn is known. Same fix on ACP, which
+   had the same gap.
+3. `src/acp/agent.ts` (P1, restore vs `session/set_mode`): fix. Every
+   backend mode command of an ACP session (the Plan hold, its restore and
+   the client's `setMode`) runs in one chain, and the restore reads the mode
+   when it runs, so the client's latest selection is the one left in force.
+4. `src/acp/agent.ts` (P2, failed restore swallowed): fix. A restore that
+   fails tells the editor the mode actually in force (Plan) with
+   `current_mode_update` and says so in the conversation, instead of only
+   logging.
+5. `src/host/review/reviewBundle.ts` (P2, wrong failure text): fix. A
+   playback that cannot load `dist/review.js` is refused with its own
+   `playbackUnavailable` text; the retry on next use is unchanged.
+6. `src/acp/agent.ts` (P1, extra ACP content): fix. `/playback` is
+   recognised from the command text first; any further block or part makes
+   it the usage reply, never an ordinary turn with tools.
+7. `src/core/backends/modelapi/ModelApiHost.ts` (P1, role instructions):
+   fix. The playback prompt keeps the active agent role's charter and the
+   team's mode and roster instructions, still with no tools.
