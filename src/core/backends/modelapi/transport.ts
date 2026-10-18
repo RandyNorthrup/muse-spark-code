@@ -112,7 +112,8 @@ async function readBoundedJson(response: Response): Promise<unknown> {
   const text = await readBoundedText(response)
   try {
     return JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     throw new ModelApiError(
       fill(UI_TEXT.webFetchNetwork, { detail: 'malformed_json' }),
       response.status,
@@ -954,7 +955,8 @@ export class RequestTransport {
       try {
         credentials = await this.headers(url)
       } catch (error: unknown) {
-        if (isAborted(signal)) {
+        // Same test as isAborted(signal): a stop cancels the attempt.
+        if (signal?.aborted) {
           throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
         }
         if (error instanceof MissingApiKeyError) {

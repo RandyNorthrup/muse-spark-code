@@ -14,6 +14,11 @@ import { jsonOutput } from '../../src/core/backends/modelapi/hookFormats/core'
 import { functionParameters } from '../../src/core/backends/modelapi/mcp/functions'
 import { placeMemoryCall } from '../../src/core/backends/modelapi/memoryTools'
 import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
+import {
+  isExtensionMatch,
+  parseExtensionHookAnswer,
+  parseSparkHooksConfig,
+} from '../../src/core/backends/modelapi/extensionHooks'
 import { McpHttpTransport } from '../../src/core/backends/modelapi/mcp/http'
 import { McpError } from '../../src/core/backends/modelapi/mcp/protocol'
 import { ArgumentPreview } from '../../src/core/backends/modelapi/argumentPreview'
@@ -277,6 +282,36 @@ describe('an unreachable MCP server over HTTP', () => {
     }
     expect(failure).toBeInstanceOf(DOMException)
     expect((failure as DOMException).name).toBe('AbortError')
+  })
+})
+
+describe('extension hook configuration and answers', () => {
+  it('warns on unparseable config instead of dropping it silently', () => {
+    expect(parseSparkHooksConfig('not json', 'user', 'linux')).toEqual({
+      hooks: [],
+      warnings: ['user spark-hooks.json: invalid JSON'],
+    })
+    expect(parseSparkHooksConfig('[]', 'project', 'linux')).toEqual({
+      hooks: [],
+      warnings: ['project spark-hooks.json: missing hooks object'],
+    })
+  })
+
+  it('fails hook output that is not JSON, and skips an over-long matcher glob', () => {
+    const answer = parseExtensionHookAnswer('FileChanged', 0, '{oops', '')
+    expect(answer.status).toBe('failed')
+    expect(answer.reason).toBe('hook output is not valid JSON')
+    const warnings: string[] = []
+    expect(
+      isExtensionMatch(
+        { kind: 'glob', patterns: [`*.${'x'.repeat(300)}`] },
+        'notes.md',
+        (message) => {
+          warnings.push(message)
+        },
+      ),
+    ).toBe(false)
+    expect(warnings[0]!).toContain('is invalid')
   })
 })
 
