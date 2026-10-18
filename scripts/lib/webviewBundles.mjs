@@ -135,10 +135,8 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
   {
     name: 'surface English',
     entries: ['browser-surface-english:browser-surface-english'],
-    // TRAIN15H: 21,695 bytes +15%, rounded up to 25 KiB. Release 0.19.0:
-    // 25,638 bytes (the merged truth lanes' sentences) +15%, rounded up to
-    // 29 KiB.
-    budgetKiB: 29,
+    // TRAIN15H: 21,695 bytes +15%, rounded up to 25 KiB.
+    budgetKiB: 25,
   },
   {
     name: 'account English',
