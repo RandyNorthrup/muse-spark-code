@@ -42,8 +42,8 @@ import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 
 /** A refusal in words for the user; the log gets the kind, never a secret. */
 export class PullRequestServiceError extends Error {
-  public constructor(message: string) {
-    super(message)
+  public constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options)
     this.name = 'PullRequestServiceError'
   }
 }
@@ -135,7 +135,7 @@ function refused(reason: string): PullRequestServiceError {
 }
 
 /** A cancellation, whatever threw it. */
-function isAbortError(error: unknown): boolean {
+export function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
 }
 
@@ -145,7 +145,7 @@ function isAbortError(error: unknown): boolean {
  * Cancel. Anything else is a bug above the service, and is not its
  * `{ ok: false }` answer to give.
  */
-function isExpectedPullRequestFailure(error: unknown): boolean {
+export function isExpectedPullRequestFailure(error: unknown): boolean {
   return (
     error instanceof GitHubError || error instanceof PullRequestServiceError || isAbortError(error)
   )

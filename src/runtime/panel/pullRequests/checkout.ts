@@ -87,7 +87,10 @@ import {
   worktreeFolder,
   worktreeRemoveArgs,
 } from '../../../core/worktrees'
-import { canonicalPath } from '../../../host/canonicalPath'
+import { canonicalPath, isMissingPath } from '../../../host/canonicalPath'
+import { describeStoreError } from '../../../host/backend/storeErrors'
+import { isUnreadableStoreError } from '../git/service'
+import { LeaseBusyError } from '../../../core/locks/fileLease'
 import { hasGitProgramControls } from '../../../host/git'
 import { createFileExclusively } from '../../../host/fsAtomic'
 import type { CoreLogger } from '../../../core/logging'
@@ -97,7 +100,11 @@ import {
   resolveGitHubCredential,
   type GitHubCredential,
 } from '../../../core/git/tokenSource'
-import { PullRequestServiceError, type RuntimePullRequestDeps } from './pullRequests'
+import {
+  PullRequestServiceError,
+  isExpectedPullRequestFailure,
+  type RuntimePullRequestDeps,
+} from './pullRequests'
 import {
   holdForRoots,
   isReservationOf,
@@ -145,8 +152,8 @@ function untrustedCheckoutArgs(platform: NodeJS.Platform): readonly string[] {
   ]
 }
 
-function checkoutRefusal(): Error {
-  return new PullRequestServiceError(UI_TEXT.openPullRequestFiltersUnavailable)
+function checkoutRefusal(cause: unknown): Error {
+  return new PullRequestServiceError(UI_TEXT.openPullRequestFiltersUnavailable, { cause })
 }
 
 /**
@@ -494,8 +501,8 @@ async function hookOverrides(
     let output: string
     try {
       output = await runGit(git, gate, ['--version'], cwd)
-    } catch {
-      throw checkoutRefusal()
+    } catch (error: unknown) {
+      throw checkoutRefusal(error)
     }
     if (!hasGitProgramControls(output, UNTRUSTED_CHECKOUT_MIN_GIT_MINOR)) {
       throw checkoutRefusal()
@@ -511,8 +518,8 @@ async function hookOverrides(
       [...untrustedCheckoutArgs(git.platform), 'config', '--null', '--name-only', '--list'],
       cwd,
     )
-  } catch {
-    throw checkoutRefusal()
+  } catch (error: unknown) {
+    throw checkoutRefusal(error)
   }
   const overrides = namedHookOverrides(configuration, untrustedCheckoutArgs(git.platform))
   if (overrides === undefined) {
@@ -775,7 +782,6 @@ export function createNodePullRequestCheckoutGit(
       )
     }
     await removeMadeFolder(git, cwd, made, gate)
-    throw error
   }
   return {
     fetch: async (cwd, remote, ref, gate) => {
@@ -809,6 +815,7 @@ export function createNodePullRequestCheckoutGit(
         )
       } catch (error: unknown) {
         await cleanUp(cwd, made, gates.cleanup, error)
+        throw error
       }
     },
     checkOutHeld: async (folder, sha, cwd, gates, claim) => {
@@ -877,6 +884,7 @@ export function createNodePullRequestCheckoutGit(
         }
       } catch (error: unknown) {
         await cleanUp(cwd, made, gates.cleanup, error)
+        throw error
       }
     },
     removeMade: (cwd, made, gate) => removeMadeFolder(git, cwd, made, gate),
@@ -895,8 +903,8 @@ export class ReservationLostError extends PullRequestServiceError {
 
 /** The folder was there already, or appeared: this checkout made nothing. */
 export class HeldFolderTakenError extends PullRequestServiceError {
-  public constructor(folder: string) {
-    super(`${UI_TEXT.worktreeFolderExists} ${folder}`)
+  public constructor(folder: string, options?: { cause?: unknown }) {
+    super(`${UI_TEXT.worktreeFolderExists} ${folder}`, options)
     this.name = 'HeldFolderTakenError'
   }
 }
@@ -912,6 +920,19 @@ async function isPresent(target: string): Promise<boolean> {
 
 function madeFolderOf(folder: string, stats: BigIntStats): MadeFolder {
   return { folder, identity: identityOf(stats), bornNs: stats.birthtimeNs, hasAdded: false }
+}
+
+/**
+ * The staging folder's removal: still ours under its private name, so a
+ * missing one is moot. Any other removal failure is not this cleanup's to
+ * swallow: it replaces the staging failure it follows.
+ */
+async function removeStaging(staging: string): Promise<void> {
+  try {
+    await rmdir(staging)
+  } catch (error: unknown) {
+    if (!isMissingPath(error)) throw error
+  }
 }
 
 /**
@@ -936,14 +957,9 @@ async function claimCheckoutFolder(folder: string): Promise<MadeFolder> {
     }
     await rename(staging, folder)
   } catch (error: unknown) {
-    try {
-      // Still ours under its private name: empty, so never more than it.
-      await rmdir(staging)
-    } catch {
-      // Renamed into place already, or gone.
-    }
+    await removeStaging(staging)
     if (error instanceof HeldFolderTakenError || (await isPresent(folder))) {
-      throw new HeldFolderTakenError(folder)
+      throw new HeldFolderTakenError(folder, { cause: error })
     }
     throw error
   }
@@ -1014,7 +1030,7 @@ async function isMadeGoneOnceRemoved(
         { signal: AbortSignal.timeout(HELD_CLEANUP_TIMEOUT_MS) },
       )
     } catch (error: unknown) {
-      git.log.warn(`A checkout's worktree was not removed by git: ${failureText(error)}`)
+      git.log.warn(`A checkout's worktree was not removed by git: ${describeStoreError(error)}`)
     }
   }
   if (!(await isPresent(folder))) {
@@ -1027,7 +1043,7 @@ async function isMadeGoneOnceRemoved(
   try {
     await rename(folder, aside)
   } catch (error: unknown) {
-    git.log.warn(`A checkout's folder was left after it failed: ${failureText(error)}`)
+    git.log.warn(`A checkout's folder was left after it failed: ${describeStoreError(error)}`)
     return false
   }
   if (!(await isMadeFolder(aside, made))) {
@@ -1046,7 +1062,7 @@ async function isMadeGoneOnceRemoved(
     // Something in it is not this checkout's (or is held open): kept, back
     // under its name while that is free, else under its private name.
     await putBack(aside, folder)
-    git.log.warn(`A checkout's folder was left after it failed: ${failureText(error)}`)
+    git.log.warn(`A checkout's folder was left after it failed: ${describeStoreError(error)}`)
     return false
   }
 }
@@ -1114,6 +1130,19 @@ function failureText(error: unknown): string {
   return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
+/**
+ * A records failure the reader settles through: contention, a held lock,
+ * or an unreadable store. The re-read below decides; anything else is not
+ * this settle's answer to give.
+ */
+function isTolerableRecordsFailure(error: unknown): boolean {
+  return (
+    error instanceof UnknownWriteError ||
+    error instanceof LeaseBusyError ||
+    isUnreadableStoreError(error)
+  )
+}
+
 /** What the checkout protocol needs of the service (`RuntimeCheckoutDeps` gives it). */
 export type CheckoutProtocolDeps = Pick<
   RuntimeCheckoutDeps,
@@ -1150,6 +1179,9 @@ export class PullRequestCheckoutProtocol {
       this.checkTrust()
       return undefined
     } catch (error: unknown) {
+      // A trust refusal or Cancel answers; anything else is not this
+      // call's `{ ok: false }` answer to give.
+      if (!isExpectedPullRequestFailure(error)) throw error
       return { ok: false, reason: failureText(error) }
     }
   }
@@ -1357,13 +1389,15 @@ export class PullRequestCheckoutProtocol {
         if (await this.deps.records.complete(reservation, identity)) {
           return 'completed'
         }
-      } catch {
+      } catch (error: unknown) {
         // The store is busy: the re-read below decides.
+        if (!isTolerableRecordsFailure(error)) throw error
       }
       let current: WorktreeRecord | undefined
       try {
         current = await this.deps.records.recordFor(reservation.folder)
-      } catch {
+      } catch (error: unknown) {
+        if (!isTolerableRecordsFailure(error)) throw error
         if (attempt >= WORKTREE_RECORD_SAVE_ATTEMPTS) {
           return 'unknown'
         }
@@ -1466,6 +1500,7 @@ export class PullRequestCheckoutProtocol {
           )
         }
       } catch (error: unknown) {
+        if (!isTolerableRecordsFailure(error)) throw error
         if (error instanceof UnknownWriteError) {
           // The reservation may have landed: it goes, so it never blocks the
           // folder (nothing was made for it).
@@ -1568,6 +1603,7 @@ export class RuntimePullRequestCheckout {
       pullRequest = found
       isOwn = found.author.id === user.id
     } catch (error: unknown) {
+      if (!isExpectedPullRequestFailure(error)) throw error
       const isSignIn = await didDropRejectedCredential(this.deps.tokenSources, credential, error)
       return {
         ok: false,
@@ -1642,6 +1678,9 @@ export class RuntimePullRequestCheckout {
     try {
       this.checkTrust()
     } catch (error: unknown) {
+      // A trust refusal or Cancel answers; anything else is not this
+      // call's `{ ok: false }` answer to give.
+      if (!isExpectedPullRequestFailure(error)) throw error
       return { ok: false, reason: failureText(error) }
     }
     const records = await this.deps.records.list()
@@ -1675,6 +1714,9 @@ export class RuntimePullRequestCheckout {
     try {
       this.checkTrust()
     } catch (error: unknown) {
+      // A trust refusal or Cancel answers; anything else is not this
+      // call's `{ ok: false }` answer to give.
+      if (!isExpectedPullRequestFailure(error)) throw error
       return { ok: false, reason: failureText(error) }
     }
     return credential === undefined
@@ -1692,7 +1734,10 @@ export class RuntimePullRequestCheckout {
     let record: WorktreeRecord | undefined
     try {
       record = await this.deps.records.recordFor(folder)
-    } catch {
+    } catch (error: unknown) {
+      // An unreadable or busy store shows no ticket; anything else is not
+      // this card's answer to give.
+      if (!isTolerableRecordsFailure(error)) throw error
       return undefined
     }
     if (
@@ -1730,6 +1775,9 @@ export class RuntimePullRequestCheckout {
     try {
       this.checkTrust()
     } catch (error: unknown) {
+      // A trust refusal or Cancel answers; anything else is not this
+      // call's `{ ok: false }` answer to give.
+      if (!isExpectedPullRequestFailure(error)) throw error
       return { ok: false, reason: failureText(error) }
     }
     // The folder must still be the one the checkout finished in.
@@ -1745,6 +1793,9 @@ export class RuntimePullRequestCheckout {
         this.checkTrust()
         return undefined
       } catch (error: unknown) {
+        // A trust refusal or Cancel answers; anything else is not this
+        // call's `{ ok: false }` answer to give.
+        if (!isExpectedPullRequestFailure(error)) throw error
         return { ok: false, reason: failureText(error) }
       }
     }
@@ -1757,7 +1808,10 @@ export class RuntimePullRequestCheckout {
     let released: WorktreeRecord | undefined
     try {
       released = await this.deps.records.release(ticket, this.deps.now(), isLive)
-    } catch {
+    } catch (error: unknown) {
+      // A release the store cannot persist reads as changed; anything else
+      // is not this card's answer to give.
+      if (!isTolerableRecordsFailure(error)) throw error
       return ended() ?? { ok: false, reason: UI_TEXT.gitOperationChanged }
     }
     if (released === undefined) {

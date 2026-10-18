@@ -54,6 +54,36 @@ Designed baselines with reasons (accepted, not forgotten):
   or strand the form. Proved on real repositories
   (`nativeGitAdapter.test.ts`: swept-root notices, the failed push's
   terminal offer, revoked trust, the failed generation).
+- `src/runtime/panel/pullRequests/checkout.ts` batch stream funnel
+  (2 GENERIC): a dead child, a bad answer or Cancel rejects the batch
+  through one funnel; anything else would strand the checkout.
+  Proved with real children (`nativeCheckout.test.ts`: no stdout,
+  unclean exit, Cancel).
+- `src/runtime/panel/pullRequests/checkout.ts` probes (2 GENERIC +
+  1 SWALLOW for `isPresent`/`isMadeFolder`/`folderIdentityOf`): an
+  unreadable folder reads as absent, never as verified; the removal
+  that never throws depends on it. Proved by the removal tests' kept
+  folders (`nativeCheckout.test.ts`).
+- `src/runtime/panel/pullRequests/checkout.ts` never-throws cleanup
+  (2 GENERIC): a rename or removal that fails is put back, warned with
+  its redacted kind, and answered as left; throwing would break the
+  cleanup contract. Proved on real folders (`nativeCheckout.test.ts`:
+  a foreign-filled folder kept, a warning when git cannot remove).
+- `src/runtime/panel/pullRequests/checkout.ts` checkout answer
+  (1 GENERIC) and fetch answer (1 GENERIC): a failed checkout must
+  answer (the card shows retry), never throw; git's words are
+  redacted. Proved with real git (`nativeCheckout.test.ts`: a worktree
+  add for a missing commit answers, the folder made is removed).
+- `src/runtime/panel/pullRequests/recordGenerations.ts` sync read
+  (1 SWALLOW) and proof verification (1 GENERIC): an unreadable head
+  reads as no records by contract, and a proof failure lands the
+  write unverified, never thrown. Proved by the records suite's
+  real-directory generations.
+- `src/runtime/panel/pullRequests/records.ts` claim capture
+  (1 GENERIC): the maker's failure is kept on the failed claim the
+  caller discards; throwing would lose it. Proved with a real
+  maker failure (`nativeCheckout.test.ts`: a blocked folder fails
+  the claim with its `EEXIST`).
 
 | Folder                 | GENERIC | SWALLOW |
 | ---------------------- | ------- | ------- |
