@@ -6,9 +6,9 @@
 
 import * as vscode from 'vscode'
 import { SESSION_EXPORT_MAX_BYTES, UI_TEXT } from '../../shared/constants'
-import { readPickedFile } from '../backend/toolIo'
+import { decodeTransferBytes, readPickedFile } from '../backend/toolIo'
 import { canonicalPath } from '../canonicalPath'
-import { decodeTransferBytes, type SessionTransferFiles } from './sessionImport'
+import type { SessionTransferFiles } from './sessionImport'
 
 const JSON_FILTER = 'JSON'
 const JSON_EXTENSION = 'json'
