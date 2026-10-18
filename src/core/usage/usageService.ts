@@ -131,9 +131,12 @@ function limitHistory(limits: readonly UsageLimitSnapshot[]): UsageLimitSnapshot
 }
 /**
  * Keeps only the limits of the credential in use. Snapshots without a
- * credentialId (subscription, headers, chatgpt) always pass; a credentialed
- * snapshot passes only while its key is still stored. After a rotation or
- * removal the previous key's budgets disappear instead of lingering.
+ * credentialId from inherently uncredentialed sources (subscription,
+ * headers, chatgpt) always pass; a credentialed snapshot passes only while
+ * its key is still stored. A credentialed-source record without an ID is a
+ * legacy from before IDs were recorded: it passes only while no current
+ * identity is readable for its provider. After a rotation or removal the
+ * previous key's budgets disappear instead of lingering.
  */
 async function selectCredentialLimits(
   limits: readonly UsageLimitSnapshot[],
@@ -157,9 +160,9 @@ async function selectCredentialLimits(
   return limits.filter(
     (limit) =>
       !unreadable.has(limit.provider) &&
-      (limit.credentialId === undefined ||
-        !identities.has(limit.provider) ||
-        identities.get(limit.provider) === limit.credentialId),
+      (limit.credentialId === undefined
+        ? limit.source !== 'openRouter' || !identities.has(limit.provider)
+        : !identities.has(limit.provider) || identities.get(limit.provider) === limit.credentialId),
   )
 }
 /** An unreadable resource journal never fails the usage page or invents data: null. */
