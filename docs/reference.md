@@ -2269,7 +2269,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.hooksMaxStopContinuations
 
-hooks: How many times in a row Stop hooks may keep a finished turn going (Muse Code's default 8; minimum 1). Past that the turn ends.
+hooks: How many times in a row Stop hooks may keep a finished turn going (1–8; Muse Code's own bound 8, the default). Past that the turn ends. Higher values are refused, so no workspace can raise it.
 
 Type: `"number"`. Default: `8`. Scope: `machine`.
 
@@ -2277,7 +2277,8 @@ Type: `"number"`. Default: `8`. Scope: `machine`.
 {
   "type": "number",
   "default": 8,
-  "minimum": 1
+  "minimum": 1,
+  "maximum": 8
 }
 ```
 

@@ -9,7 +9,9 @@ import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 
 export { MuseCodeHost, spawnAccountMspConnection } from '../../core/backends/musecode/MuseCodeHost'
-export { spawnMspConnection } from '@muse-code/sdk'
+// Deep SDK import, never the barrel (see MuseCodeHost.ts): the barrel's
+// unused layers would ride into dist/museCode.js.
+export { spawnMspConnection } from '@muse-code/sdk/dist/src/connection/spawn.js'
 
 /** Installs the activation bundle's table before the bundle builds anything. */
 export function installMuseCodeUiText(table: UiText, locale: string): void {

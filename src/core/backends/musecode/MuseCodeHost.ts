@@ -17,16 +17,21 @@ import { observeAgentItem, observeChildReceipt } from '../../agent/agentObservat
 import { type ChildProcess, spawn } from 'node:child_process'
 // Exact SDK pin: reuse bounded process teardown while wrapping actual submission.
 import { ChildStdioTransport } from '@muse-code/sdk/dist/src/connection/spawn.js'
-import type { MuseCodeAccountHome } from './accountHomes'
+// Deep SDK imports (never the barrel): the barrel's facade, fold and
+// pending layers would ride into dist/museCode.js unused. `connection.js`
+// and `fingerprint.js` take only node:crypto and nothing, respectively.
 import {
   Connection,
-  type DuplexTransport,
   MspError,
   ProtocolError,
-  checkServedFingerprint,
-  type MspHandshake,
-  type SpawnMspConnectionOptions,
-} from '@muse-code/sdk'
+  type DuplexTransport,
+} from '@muse-code/sdk/dist/src/connection/connection.js'
+import { checkServedFingerprint } from '@muse-code/sdk/dist/src/fingerprint.js'
+import type {
+  MspHandshake,
+  SpawnMspConnectionOptions,
+} from '@muse-code/sdk/dist/src/connection/spawn.js'
+import type { MuseCodeAccountHome } from './accountHomes'
 import * as z from 'zod/mini'
 import {
   type AgentEvent,

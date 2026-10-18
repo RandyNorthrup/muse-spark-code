@@ -9,6 +9,7 @@ import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
+  HOOK_MAX_STOP_CONTINUATIONS,
   HOOK_RUNNING_COMMANDS_MIN,
   HOOK_STOP_CONTINUATIONS_MIN,
   PAID_DAILY_BUDGET,
@@ -292,7 +293,12 @@ const settingSchemas = {
   webSearchMaxPerRequest: z
     .number()
     .check(z.int(), z.gte(1), z.lte(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)),
-  hooksMaxStopContinuations: z.number().check(z.int(), z.gte(HOOK_STOP_CONTINUATIONS_MIN)),
+  // Capped at Muse Code's own bound: machine settings are writable by a
+  // dev-container definition (SECURITY.md, workspace trust), so no
+  // workspace may raise Stop-hook billing past what Muse Code itself does.
+  hooksMaxStopContinuations: z
+    .number()
+    .check(z.int(), z.gte(HOOK_STOP_CONTINUATIONS_MIN), z.lte(HOOK_MAX_STOP_CONTINUATIONS)),
   hooksMaxRunningCommands: z.number().check(z.int(), z.gte(HOOK_RUNNING_COMMANDS_MIN)),
   subagentMaxConcurrent: z
     .number()

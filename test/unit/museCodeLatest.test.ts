@@ -8,6 +8,7 @@
 
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import type { TurnModelRetryScheduledParams } from '@muse-code/sdk/dist/src/msp.js'
 import {
   backgroundTaskListResultSchema,
   claimRecapSettlement,
@@ -30,6 +31,8 @@ import {
   parseHookConfig,
 } from '../../src/core/backends/modelapi/hooks'
 import { subagentSpawnDescription } from '../../src/core/backends/modelapi/subagentTools'
+import type { Logger } from '../../src/host/logger'
+import { readSettings, type SettingsSource } from '../../src/host/settings'
 import {
   HOOK_MAX_RUNNING_COMMANDS,
   HOOK_MAX_STOP_CONTINUATIONS,
@@ -47,6 +50,13 @@ function fixture(name: string): unknown {
 }
 
 const sessionId = 's1'
+
+/** An in-memory settings port: the keys `readSettings` asks for, nothing else. */
+function settingSource(values: Record<string, unknown>): SettingsSource {
+  return {
+    get: (key: string) => values[key],
+  }
+}
 
 /** A runner that holds every started command until the test releases it. */
 function heldRunner(onStart: (command: string, running: number) => void) {
@@ -150,22 +160,24 @@ describe('recorded initialize', () => {
 
 describe('new notifications', () => {
   it('maps a model retry to the retry event with the attempt’s own words', () => {
-    // Shape per the CLI’s own schema export (TurnModelRetryScheduledParams);
-    // the echo host cannot fail a provider attempt, so no wire frame exists.
-    const mapped = mapNotification({
-      method: 'turn/modelRetryScheduled',
-      params: {
-        sessionId,
-        turnId: 't1',
-        attempt: 1,
-        nextAttempt: 2,
-        maxAttempts: 3,
-        retryDelayMs: 5000,
-        errorKind: 'rateLimited',
-        httpStatus: 429,
-        system: 'meta',
-      },
-    })
+    // Member for member the pinned SDK 1.4.10's `TurnModelRetryScheduledParams`
+    // (which folds live `turn/modelRetryScheduled` frames) and the CLI 1.4.10's
+    // own schema export (fingerprint sha256:5d3b…914c, verified 2026-10-18):
+    // the annotation below fails compilation if the wire contract moves. The
+    // echo host cannot fail a provider attempt, so no recorded frame exists;
+    // a live provider-retry capture stays lead-owned real-life proof.
+    const wire: Omit<TurnModelRetryScheduledParams, 'sourceRange' | 'viewCursor'> = {
+      sessionId,
+      turnId: 't1',
+      attempt: 1,
+      nextAttempt: 2,
+      maxAttempts: 3,
+      retryDelayMs: 5000,
+      errorKind: 'rateLimited',
+      httpStatus: 429,
+      system: 'meta',
+    }
+    const mapped = mapNotification({ method: 'turn/modelRetryScheduled', params: wire })
     expect(mapped).toEqual({
       sessionId,
       event: {
@@ -204,6 +216,7 @@ describe('new notifications', () => {
         sessionId,
         turnId: 't1',
         attempt: 1,
+        nextAttempt: 2,
         maxAttempts: 3,
         retryDelayMs: 2000,
         reason: 'glitch',
@@ -216,6 +229,7 @@ describe('new notifications', () => {
       event: {
         type: 'turnRetry',
         reason: 'glitch',
+        nextAttempt: 2,
         errorKind: 'overloaded',
         httpStatus: 503,
         system: 'meta',
@@ -310,6 +324,23 @@ describe('new notifications', () => {
       },
     })
   })
+  it('keeps the view-health failure reason the host sent', () => {
+    // SDK `SessionViewHealthChangedParams.noneReason`: the actionable half
+    // of an unusable view (v1 serves `projectionUnavailable`).
+    expect(
+      mapNotification({
+        method: 'session/viewHealthChanged',
+        params: { sessionId, health: 'unavailable', noneReason: 'projectionUnavailable' },
+      }),
+    ).toEqual({
+      sessionId,
+      event: {
+        type: 'backendNotice',
+        level: 'info',
+        text: `${UI_TEXT.sessionViewHealthChanged} (unavailable: projectionUnavailable)`,
+      },
+    })
+  })
   it('says why the turn indicator keeps spinning', () => {
     for (const params of fixture('note-turn-foregroundCompleted-1.4.9.json') as Record<
       string,
@@ -331,7 +362,10 @@ describe('new notifications', () => {
 })
 
 describe('hook event ToolUseStart', () => {
-  it('parses a ToolUseStart group without an unsupported-event warning', () => {
+  it('warns that ToolUseStart is not wired instead of silently ignoring it', () => {
+    // No tool-start firing point exists: the group parses (still a known
+    // event) but is refused with a not-wired warning and no handler is
+    // kept, so an expected observability hook can never silently do nothing.
     const parsed = parseHookConfig(
       JSON.stringify({
         hooks: { ToolUseStart: [{ hooks: [{ type: 'command', command: 'true' }] }] },
@@ -339,8 +373,10 @@ describe('hook event ToolUseStart', () => {
       'user',
       'linux',
     )
-    expect(parsed.warnings).toEqual([])
-    expect(parsed.hooks).toHaveLength(1)
+    expect(parsed.hooks).toEqual([])
+    expect(parsed.warnings).toEqual([
+      'user hooks: ToolUseStart is not wired on the Model API backend',
+    ])
   })
 })
 
@@ -709,6 +745,30 @@ describe('hook and subagent setting defaults', () => {
     expect(subagentSpawnDescription()).toContain('Up to 8 work at once')
     expect(subagentSpawnDescription(3)).toContain('Up to 3 work at once')
     expect(subagentSpawnDescription(64)).toContain('Up to 64 work at once')
+  })
+
+  it('refuses a Stop-continuation bound past Muse Code’s own 8', () => {
+    // A dev-container definition can write machine settings (SECURITY.md,
+    // workspace trust): a bound past 8 warns once and the default stays in
+    // effect, so no workspace raises billed Stop-hook spending past what
+    // Muse Code itself spends.
+    const warnings: string[] = []
+    const log: Logger = {
+      trace: () => undefined,
+      info: () => undefined,
+      warn: (message: string) => {
+        warnings.push(message)
+      },
+      error: () => undefined,
+    }
+    expect(
+      readSettings(settingSource({ hooksMaxStopContinuations: 1000 }), log)
+        .hooksMaxStopContinuations,
+    ).toBe(8)
+    expect(warnings).toHaveLength(1)
+    expect(
+      readSettings(settingSource({ hooksMaxStopContinuations: 3 }), log).hooksMaxStopContinuations,
+    ).toBe(3)
   })
 
   it('keeps the task-refusal and teammate-keep pauses off the Stop setting', () => {

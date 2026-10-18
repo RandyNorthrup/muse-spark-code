@@ -2914,8 +2914,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.modelId = modelId
     this.searchMaxPerRequest = deps.webSearchMaxPerRequest?.() ?? WEB_SEARCH_MAX_PER_REQUEST
     // Muse Code's own hook and subagent defaults as settings (M127),
-    // captured once for the session like the search bound above.
-    this.stopContinuationLimit = deps.hookMaxStopContinuations?.() ?? HOOK_MAX_STOP_CONTINUATIONS
+    // captured once for the session like the search bound above. The Stop
+    // ceiling is unoverrideable: a programmatic getter is never validated
+    // by the settings schema, and machine settings are writable by a
+    // dev-container definition, so the effective bound never passes what
+    // Muse Code itself spends.
+    this.stopContinuationLimit = Math.min(
+      deps.hookMaxStopContinuations?.() ?? HOOK_MAX_STOP_CONTINUATIONS,
+      HOOK_MAX_STOP_CONTINUATIONS,
+    )
     this.subagentConcurrency = deps.subagentMaxConcurrent?.() ?? SUBAGENT_CAPACITY
     this.sessionPermissions = new PermissionEngine(approvalMode)
     this.policies = new PolicyCache(

@@ -422,9 +422,9 @@ const agentEventSchema = z.discriminatedUnion('type', [
     maxAttempts: numberSchema,
     retryDelayMs: numberSchema,
     reason: stringSchema,
-    // The model-retry layer (`turn/modelRetryScheduled`, served 2026-10-17
-    // by 1.4.9-R6297.1): the scheduled attempt, and the failing attempt's
-    // provider facets. Absent on turn-level retries and older hosts.
+    // The scheduled attempt (both retry layers serve it; the CLI's own
+    // 1.4.10 schema export requires it) and the failing attempt's provider
+    // facets. Absent only on older hosts.
     nextAttempt: optionalNumber,
     system: optionalString,
     errorKind: optionalString,
