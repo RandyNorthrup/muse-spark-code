@@ -95,6 +95,7 @@ async function listening(h: ReturnType<typeof harness>): Promise<ScriptChild> {
   h.driver.start()
   expect(h.spawned).toHaveLength(1)
   const child = h.spawned[0]
+  if (child === undefined) throw new Error('the press spawned no helper')
   child.feed(ready)
   expect(child.sent).toEqual([DICTATION_HELPER_COMMANDS.start])
   child.feed(JSON.stringify({ type: 'listening' }))
@@ -150,6 +151,7 @@ describe('a twice-refused dictation kill', () => {
       expect(h.statuses.at(-1)).toBe('starting')
       expect(h.errors).toEqual(['boom'])
       const second = h.spawned[1]
+      if (second === undefined) throw new Error('the queued press spawned no helper')
       second.feed(ready)
       expect(second.sent).toEqual([DICTATION_HELPER_COMMANDS.start])
     },
