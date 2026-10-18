@@ -6,6 +6,8 @@
 
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
+import { failureForLog } from '../core/backends/musecode/logText'
+import { storeErrorCode } from '../host/backend/storeErrors'
 import type { Logger } from '../host/logger'
 import { FILE_WALK_SKIPPED } from '../shared/constants'
 
@@ -31,7 +33,9 @@ export async function walkFiles(
       signal?.throwIfAborted()
     } catch (error: unknown) {
       signal?.throwIfAborted()
-      log.warn(`Could not list ${folder === '' ? root : folder}: ${String(error)}`)
+      log.warn(
+        `Could not list ${folder === '' ? root : folder}: ${storeErrorCode(error) ?? failureForLog(error)}`,
+      )
       continue
     }
     for (const entry of entries) {
