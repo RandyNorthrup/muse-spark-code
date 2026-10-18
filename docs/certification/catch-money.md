@@ -726,6 +726,62 @@ makes `npm run check:catches` exit 1 (`new GENERIC catch site` + `root:
 GENERIC rose from 9 to 10`); removing it restores exit 0 with the
 baseline byte-identical.
 
+## PR161W1: thread triage (2026-10-18, lane PR161W1)
+
+One line per review thread and per hosted CI failure; fixes follow in
+this lane, then this section grows the receipts.
+
+- usage.tsx boot report: FIXED at 49543e7 — the boot report posts
+  best-effort inside `try/catch`, so a refused report never kills the
+  `Unavailable` fallback. Verified in the tree; this lane changes
+  nothing here.
+- paidConsent non-`Error` store writes: FIXED at 49543e7 —
+  `remember()`, `searchApprovalOrder()` and the quote-save path all
+  classify every rejection with `paidStoreFailureKind`. Verified in the
+  tree; this lane changes nothing here.
+- oauthJson aborts: FIXED at 49543e7 — the request signal's abort reason
+  is rethrown untouched before mapping. Verified in the tree; this lane
+  changes nothing here.
+- getApiKey warn-once: FIXED at 49543e7 — failures funnel through
+  `unreadableKey`, once per owner, re-armed by a healthy read. Verified
+  in the tree; this lane changes nothing here.
+- credentialReadFailures fabricated test: FIXED at 9b443c5d5 — the
+  invented warn-once case is deleted, title withdrawn to
+  `docs/real-life/unproven.md`. Verified in the tree.
+- paidConsent:458 non-search stale notice: FIXED at 43cef3efc —
+  `remember()` carries the stale failure and the account fence settles
+  it. Verified in the tree; this lane changes nothing here.
+- damageNotice healthy-side gate: FIXED at 651cce0c11 — `noteHealthy()`
+  clears whenever a marker is present. Verified in the tree; this lane
+  changes nothing here.
+- credentialReadFailures:28 remaining stand-ins: VALID — the rest still
+  drive hand-written ports with invented errors. Fix in this lane:
+  delete the file, withdraw the titles to `docs/real-life/unproven.md`.
+- paidConsent:704 shared stale array: VALID — one array drained by
+  whichever `allows()` reaches its fence first. Fix in this lane: settle
+  only the entries of the fencing call.
+- damageNotice:44 atomic claim: VALID — concurrent windows can both
+  read-then-write-then-announce. Fix in this lane: exclusive claim.
+- nodeScheduleFs:125 publish cleanup: VALID — `retireTemporary` in the
+  post-publish `finally` rethrows persistent errors, failing a committed
+  publish. Fix in this lane: re-queue instead of throw.
+- UsageApp:83 action report: VALID — the action-failure post is
+  unguarded on usage-only bridges. Fix in this lane: best-effort guard
+  as the boot path does.
+- extension.ts:1164 eager bundles: VALID — `activateWindow` awaits both
+  entry imports unconditionally at every activation. Fix in this lane:
+  import each entry from its first operation.
+- catch-inventory.mjs:537 comment-as-proof: VALID — any comment marks
+  CLEANUP, hiding the history.ts pump tails. Fix in this lane: require
+  structural cleanup context, fix the tails honestly, re-baseline.
+- credentialRead.ts:206 guarded-scan warns: VALID —
+  `readModelApiCredential` warns on every failed read with no
+  suppression. Fix in this lane: once-per-kind suppression with
+  healthy-read re-arm.
+- CI VSIX budget (3806005 > 3788800): root cause open — reproduce with
+  local `npm run package`, then cut at the cause. All other listed CI
+  failures are downstream of a red gate and need no separate fix.
+
 ## PR161FIX3: thread triage (2026-10-18, lane PR161FIX3)
 
 One line per review thread; fixes follow in this lane, then this section
