@@ -773,6 +773,13 @@ if (!vaultPosix.has('src/runtime/vault/posixClientPlatform.ts'))
 for (const [output, inputs] of [...loaders, [VAULT.output, vault]])
   if (inputs.has('src/runtime/vault/posixClientPlatform.ts'))
     problems.push(`${output} duplicates the first-use POSIX vault platform`)
+const VAULT_WINDOWS = { output: 'dist/vaultWindows.js', metafile: 'dist/meta/vaultWindows.json' }
+const vaultWindows = inputsOf(VAULT_WINDOWS)
+if (!vaultWindows.has('src/runtime/vault/windowsClientPlatform.ts'))
+  problems.push(`${VAULT_WINDOWS.output} no longer carries Windows discovery and launch`)
+for (const [output, inputs] of [...loaders, [VAULT.output, vault]])
+  if (inputs.has('src/runtime/vault/windowsClientPlatform.ts'))
+    problems.push(`${output} duplicates the first-use Windows vault platform`)
 // RVAPP-CM1091D5 BYTES: the vault's explicit-action code loads on the first
 // action that needs it, never with the panel, the activation or the agents.
 const vaultActions = inputsOf(VAULT_ACTIONS)

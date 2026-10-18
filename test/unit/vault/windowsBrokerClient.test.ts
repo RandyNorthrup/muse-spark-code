@@ -1,0 +1,75 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { build } from 'esbuild'
+import { vaultClientPlatform } from '../../../src/runtime/vault/clientPlatform'
+import type { VaultClientPlatform } from '../../../src/runtime/vault/clientPlatform'
+import { VaultBrokerProcess } from '../../../src/host/vault/brokerProcess'
+import { windowsVaultPipeNameSchema } from '../../../src/core/vault/broker/windowsPipe'
+
+// Windows end to end on Windows CI: the real client platform builds both
+// helpers, launches the real installed broker entry (bundled below exactly
+// as the packages lay it out), dials its pipe and reads a real status.
+// Nothing is invented: the pipe name, the trust and the status all come
+// from the helper and the broker. Skipped elsewhere with this reason.
+const fixture = { root: '', platform: undefined as VaultClientPlatform | undefined }
+describe.skipIf(process.platform !== 'win32')('Windows vault broker end to end', () => {
+  beforeAll(async () => {
+    fixture.root = await mkdtemp(path.join(tmpdir(), 'vs-wbroker-'))
+    const dist = path.join(fixture.root, 'dist')
+    const entries: [string, string][] = [
+      ['src/runtime/vault/vaultBrokerEntry.ts', 'vaultBroker.js'],
+      ['src/core/resources/resourceGovernorEntry.ts', 'resourceGovernor.js'],
+      ['src/runtime/vault/vaultRuntimeEntry.ts', 'vaultRuntime.js'],
+      ['src/runtime/vault/brokerBindings.ts', 'vaultBrokerBindings.js'],
+    ]
+    // The installed layout, file for file: the entry requires its
+    // vaultRuntime.js and resourceGovernor.js siblings from its own folder.
+    await Promise.all(
+      entries.map(([entry, outfile]) =>
+        build({
+          entryPoints: [entry],
+          outfile: path.join(dist, outfile),
+          bundle: true,
+          external: ['@napi-rs/keyring'],
+          platform: 'node',
+          format: 'cjs',
+        }),
+      ),
+    )
+    // Helper builds (the person's own C# compiler) happen here, inside the
+    // hook budget; the test below stays a fast launch plus round trip.
+    fixture.platform = await vaultClientPlatform({
+      dataDir: path.join(fixture.root, 'data'),
+      distDir: dist,
+      hostId: 'test-host',
+      hostSession: 'test-session',
+    })
+  })
+  afterAll(async () => {
+    if (!fixture.root) return
+    // The launched broker idles out on its own; the fixture only owns files.
+    await rm(fixture.root, { recursive: true, force: true })
+  })
+
+  it('builds, launches, dials and reads status through the real broker', async () => {
+    const platform = fixture.platform
+    if (!platform) throw new Error('the client platform did not build')
+    const hostId = 'test-host'
+    const hostSession = 'test-session'
+    const broker = new VaultBrokerProcess(platform.discovery, platform.process)
+    const client = await broker.connect(hostId, hostSession, platform.peers, platform.dial)
+    try {
+      const location = await broker.get()
+      // The claim publishes a pipe name, never a socket path.
+      expect(windowsVaultPipeNameSchema.safeParse(location.lock.socket).success).toBe(true)
+      const response = await client.send({ kind: 'status' })
+      if (response.kind !== 'status') throw new Error('broker answered outside the channel')
+      expect(response.status.state).toBe('uncreated')
+    } finally {
+      client.close()
+      platform.dispose?.()
+    }
+  })
+})

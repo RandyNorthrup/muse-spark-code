@@ -1306,3 +1306,16 @@ export const sharedVaultPosix = {
     )
   },
 }
+
+/** @type {import('esbuild').Plugin} */
+export const sharedVaultWindows = {
+  name: 'shared-vault-windows',
+  setup(build) {
+    build.onResolve({ filter: /\/windowsClientPlatform(?:\.[jt]s)?$/ }, (args) =>
+      path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) ===
+      path.resolve('src/runtime/vault/windowsClientPlatform.ts')
+        ? { path: './vaultWindows.js', external: true }
+        : undefined,
+    )
+  },
+}

@@ -75,8 +75,14 @@ const UNIVERSAL_REQUIRED_FILES = [
   'native/linux/x64/muse-created',
   'native/linux/arm64/muse-created',
 ]
+// The slot helper compiles its four sources as one unit at first vault
+// use; all four must stage, not only the pipe source.
 const WINDOWS_REQUIRED_FILES = [
   'native/windows/dictate.ps1',
+  'native/windows/MuseSparkVault.cs',
+  'native/windows/MuseSparkVaultCng.cs',
+  'native/windows/MuseSparkVaultHello.cs',
+  'native/windows/MuseSparkVaultLock.cs',
   'native/windows/MuseSparkVaultPipe.cs',
 ]
 

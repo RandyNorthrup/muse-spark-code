@@ -97,6 +97,33 @@ brokers credentials on Windows, macOS and Linux the same way.
   (anchor choice). Split manifest swaps deleted `posixVaultSlots.ts` for
   the three platform slot providers.
 
+## Proofs, lane PR247FIX (macOS rig, repo-default timeouts, `--maxWorkers=3`)
+
+- `slotProviders.test.ts` 13 passed (explicit platforms everywhere;
+  hardware probes per platform; TPM2 round-trip where a machine seals).
+- `brokerWithoutKeyring.test.ts` 1 passed with a short owner-only
+  runtime root (exploratory env: natural per-user TMPDIR plus
+  DEVELOPER_DIR for the fixture `cc`); skips with a reason where the
+  root cannot fit the socket (this lane's 149-char sandbox TMPDIR).
+- `fileAnchor.test.ts` 4 passed (POSIX-only mode assertion; guard order
+  and refusal mapping covered).
+- `windowsPipeRelay.test.ts` 2 passed + 1 win32 suite skipped;
+  `windowsBrokerClient.test.ts` 1 win32 suite skipped (no Windows host
+  on this rig; both prove on Windows CI against the real helper).
+- `migrationCodecRoundTrip.test.ts` passes with the corrected
+  owner-SID server trust; `vsixTargets.test.mjs` 7 passed (slot sources
+  required on win32, `dist/vaultWindows.js` shared).
+- `check:l10n` 0 problems (corrected `storeUnavailable` in all tables);
+  `tsc` host + unit clean; `eslint` zero warnings on touched files;
+  `cycles` clean; production `build` green with `dist/vaultWindows.js`
+  = 40,706 bytes → 46,812 budget (15% headroom, working rule 2).
+- UNMEASURED on this rig, not this lane: `brokerSession.test.ts`
+  times out 3 of 4 here (changed tree) and hangs the base worktree past
+  300 s under the same env; neither run reaches the changed code (no
+  setup, no probe — verified by call-site). The lead's Linux CI decides.
+- Windows proof pending: the lead's Windows run plus Windows CI
+  (`windowsBrokerClient`, `windowsPipeRelay` real-helper suites).
+
 ## Grok review response (lane PR247FIX, 2026-10-18)
 
 One line per finding; each is fixed at its cause below or answered with a

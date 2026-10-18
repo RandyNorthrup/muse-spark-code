@@ -48,7 +48,12 @@ function brokerService(
       connection = undefined
       throw error
     }
-    return await ready.broker.connect(hostId, hostSession, ready.platform.peers)
+    return await ready.broker.connect(
+      hostId,
+      hostSession,
+      ready.platform.peers,
+      ready.platform.dial,
+    )
   }
   return {
     dispose: () => {

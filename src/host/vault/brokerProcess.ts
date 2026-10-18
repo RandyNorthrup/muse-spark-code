@@ -1,7 +1,11 @@
 import { UI_TEXT } from '../../shared/constants'
 import type { VaultBrokerDiscovery, VaultBrokerLocation } from '../../core/vault/broker/discovery'
 import { VaultBrokerClient } from '../../core/vault/broker/client'
-import type { VaultPeerVerifier, VaultProcessIdentity } from '../../core/vault/broker/peer'
+import type {
+  VaultPeerVerifier,
+  VaultPipeDialPort,
+  VaultProcessIdentity,
+} from '../../core/vault/broker/peer'
 
 export interface VaultBrokerProcessPort {
   identity(pid: number): Promise<VaultProcessIdentity>
@@ -44,14 +48,15 @@ export class VaultBrokerProcess {
     hostId: string,
     hostSession: string,
     peers: VaultPeerVerifier,
+    dial?: VaultPipeDialPort,
   ): Promise<VaultBrokerClient> {
     const location = await this.get()
     try {
-      return await VaultBrokerClient.open(location, hostId, hostSession, peers)
+      return await VaultBrokerClient.open(location, hostId, hostSession, peers, dial)
     } catch (error: unknown) {
       const current = await this.discovery.discover((pid) => this.process.identity(pid))
       if (current?.lock.brokerId === location.lock.brokerId) throw error
-      return await VaultBrokerClient.open(await this.get(), hostId, hostSession, peers)
+      return await VaultBrokerClient.open(await this.get(), hostId, hostSession, peers, dial)
     }
   }
 

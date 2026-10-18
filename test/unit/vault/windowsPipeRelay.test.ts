@@ -24,31 +24,35 @@ describe('Windows pipe relay', () => {
   })
 
   it('the server trust predicate matches everything the OS reported', () => {
-    const lock = { processId: EXAMPLE_PID, startedAt: STARTED_AT }
+    const ownerSid = 'S-1-5-21-1-2-3-1001'
     const answer = windowsVaultPipeServerResultSchema.parse({
       v: 1,
       id: 1,
       result: 'ok',
-      ownerSid: 'S-1-5-21-1-2-3-1001',
+      ownerSid,
       server: {
         v: 1,
         processId: EXAMPLE_PID,
-        userId: 'S-1-5-21-1-2-3-1001',
+        userId: ownerSid,
         startedAt: STARTED_AT,
         executable: EXAMPLE_EXE,
         remote: false,
         ownerOnlyDacl: true,
       },
     })
-    expect(isVaultPipeServerTrusted(answer, lock)).toBe(true)
-    expect(isVaultPipeServerTrusted({ ...answer, result: 'refused', server: null }, lock)).toBe(
+    expect(isVaultPipeServerTrusted(answer, ownerSid)).toBe(true)
+    expect(isVaultPipeServerTrusted(answer, 'S-1-5-21-9-9-9-9999')).toBe(false)
+    expect(isVaultPipeServerTrusted({ ...answer, result: 'refused', server: null }, ownerSid)).toBe(
       false,
     )
     expect(
-      isVaultPipeServerTrusted({ ...answer, server: { ...answer.server, remote: true } }, lock),
+      isVaultPipeServerTrusted({ ...answer, server: { ...answer.server, remote: true } }, ownerSid),
     ).toBe(false)
     expect(
-      isVaultPipeServerTrusted({ ...answer, server: { ...answer.server, processId: 9999 } }, lock),
+      isVaultPipeServerTrusted(
+        { ...answer, server: { ...answer.server, ownerOnlyDacl: false } },
+        ownerSid,
+      ),
     ).toBe(false)
   })
 })

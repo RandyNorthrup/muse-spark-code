@@ -147,10 +147,10 @@ export const windowsVaultPipeProcessResultSchema = z.strictObject({
 export type WindowsVaultPipeProcess = z.infer<typeof vaultPipeProcessSchema>
 
 /**
- * The host side of a Windows connection (lane C-M109-1c): the broker's pipe
- * server, identified natively, must be this user's broker from the lock.
- * The verifier refuses unless `server.userId === ownerSid`, `remote` is
- * false, and the process id and start time equal the lock's.
+ * The host side of a Windows connection (lane C-M109-1c): the pipe server,
+ * identified natively, must be this user's helper. The verifier refuses
+ * unless `server.userId === ownerSid`, `remote` is false and the DACL is
+ * owner-only; the broker itself is bound by the claim file and the hello.
  */
 export interface WindowsVaultPipeServerCheck {
   inspectServer(pipe: string): Promise<z.infer<typeof windowsVaultPipeServerResultSchema>>
@@ -179,19 +179,19 @@ export interface WindowsVaultPipeHelper extends VaultSecuredListenerPort, Window
 
 /**
  * The host's decision on a server check (RVCM1091A F9): the pipe's server is
- * this user's broker only when every field the OS reported matches.
+ * this user's helper only when every field the OS reported matches. The
+ * lock's process is the broker node, never the pipe-owning helper, so the
+ * server binds by owner SID here (the claim file binds the pipe name, and
+ * the hello binds the broker); staleness still reads the broker node.
  */
-export function isVaultPipeServerTrusted(
-  answer: unknown,
-  lock: { readonly processId: number; readonly startedAt: number },
-): boolean {
+export function isVaultPipeServerTrusted(answer: unknown, ownerSid: string): boolean {
   const parsed = windowsVaultPipeServerResultSchema.safeParse(answer)
   if (!parsed.success || parsed.data.result !== 'ok' || parsed.data.server === null) return false
   const server = parsed.data.server
   return (
+    server.userId === ownerSid &&
     server.userId === parsed.data.ownerSid &&
     !server.remote &&
-    server.processId === lock.processId &&
-    server.startedAt === lock.startedAt
+    server.ownerOnlyDacl
   )
 }

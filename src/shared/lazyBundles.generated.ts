@@ -843,6 +843,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'posixVaultClientPlatform',
         side: ['acp', 'vscode'],
       },
+      {
+        importer: 'src/runtime/vault/windowsClientPlatform.ts',
+        symbol: 'windowsVaultClientPlatform',
+        side: ['acp', 'vscode'],
+      },
     ],
   },
   {
@@ -870,6 +875,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   { file: 'vaultStore.js', side: 'both', requestedBy: [] },
+  { file: 'vaultWindows.js', side: 'both', requestedBy: [] },
   {
     file: 'voice.js',
     side: 'vscode',
