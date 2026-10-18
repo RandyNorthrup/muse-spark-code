@@ -815,6 +815,10 @@ for (const file of GIT_ONLY) {
 const MODEL_API_SESSIONS_ONLY = [
   'src/host/backend/fileSessionStore.ts',
   'src/host/backend/fileSessionStoreEntry.ts',
+  // PR226W1: the uploaded-files binding ships beside the store (ACTBUD017);
+  // activation builds the conversation port through the sessions loader.
+  'src/host/backend/uploadedFilesBinding.ts',
+  'src/core/media/uploadedFiles.ts',
 ]
 const modelApiSessions = inputsOf(MODEL_API_SESSIONS)
 for (const file of MODEL_API_SESSIONS_ONLY) {

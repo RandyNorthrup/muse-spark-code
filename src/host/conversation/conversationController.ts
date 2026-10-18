@@ -36,7 +36,7 @@ import { AttachmentStore } from '../../core/attachments'
 import type { MediaAttachmentPort } from '../media/mediaAttach'
 import type { RecordingCommandDeps } from '../media/screenRecordBundle'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
-import type { StampedUploadedFilesPort } from './uploadedFilesBinding'
+import type { StampedUploadedFilesPort } from '../backend/uploadedFilesBinding'
 import { isProtectedPath } from '../../core/protectedPaths'
 import {
   type AgentHost,

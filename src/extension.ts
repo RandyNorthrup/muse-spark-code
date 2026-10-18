@@ -176,7 +176,7 @@ import { chooseAuthorizedHost } from './host/backend/selectedHost'
 import { SandboxSetup } from './host/backend/sandboxSetup'
 import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
-import { lazyFileSessionStore } from './host/backend/fileSessionStoreBundle'
+import { fileSessionBundleApi, lazyFileSessionStore } from './host/backend/fileSessionStoreBundle'
 import type { QuestionStore } from './shared/questions'
 import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
 import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
@@ -266,10 +266,6 @@ import {
 } from './host/skills/bundledSkills'
 import { hasClaimedVersion, createWhatsNew } from './host/whatsNew/whatsNew'
 import { createSessionTransferFiles } from './host/conversation/transferDialogs'
-import {
-  createUploadedFilesBinding,
-  runDeleteUploadedFilesCommand,
-} from './host/conversation/uploadedFilesBinding'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
 import { heldWorktreesRoot, holdFor } from './core/worktreeConversations'
 import {
@@ -339,7 +335,7 @@ import { loadUiTable, readUiTableFile } from './host/l10n'
 import type { InsightsReader } from './runtime/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
 import { voiceLoader } from './host/voice/voiceBundle'
-import { dialogFiltersOption } from './host/media/mediaProviders'
+import { dialogFiltersOption } from './host/media/dialogFilters'
 import type { AttachedMedia } from './core/media/attachedMedia'
 import { lazyAttachedMedia } from './core/media/attachedMediaPort'
 import { mediaBundleLoader, mediaHostBundleLoader } from './host/media/mediaBundle'
@@ -2618,6 +2614,15 @@ async function activateWindow(
     }
     return claim
   }
+  // The uploaded-files binding ships in the sessions bundle beside the store
+  // (ACTBUD017): activation builds the conversation port and runs the delete
+  // command through this handle instead of carrying the binding. The bundle
+  // loads from disk once, on first use, like the store below.
+  const sessionsApi = fileSessionBundleApi({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODEL_API_SESSIONS_BUNDLE_FILE)
+      .fsPath,
+    log,
+  })
   const modelApi: ModelApiBackendManager = new ModelApiBackendManager({
     attachedMedia,
     // Machine scope only (lane V seam 3B): a repository never picks the converter.
@@ -3679,7 +3684,8 @@ async function activateWindow(
           usageInsights: () => insights.read(),
           // M105 lane F: the uploaded-files port over the account ledger.
           // The report posts to this surface; foreign deletions ask with a modal.
-          uploadedFiles: createUploadedFilesBinding({
+          // The binding ships in the sessions bundle (ACTBUD017).
+          uploadedFiles: sessionsApi().createUploadedFilesBinding({
             uploads: (accountId) => loadSessionUploads(accountId),
             openLastUploads: () => loadLastSessionUploads(),
             getAccountId: () => modelApi.accountId(),
@@ -4565,7 +4571,8 @@ async function activateWindow(
       log,
       COMMAND_IDS.deleteUploadedFiles,
       forActiveConversation(async (controller) => {
-        const binding = createUploadedFilesBinding({
+        const sessions = sessionsApi()
+        const binding = sessions.createUploadedFilesBinding({
           uploads: (accountId) => loadSessionUploads(accountId),
           openLastUploads: () => loadLastSessionUploads(),
           getAccountId: () => modelApi.accountId(),
@@ -4579,7 +4586,7 @@ async function activateWindow(
           },
           confirmForeign: isForeignDeletionConfirmed,
         })
-        await runDeleteUploadedFilesCommand({
+        await sessions.runDeleteUploadedFilesCommand({
           list: binding.list,
           remove: binding.remove,
           confirmForeign: isForeignDeletionConfirmed,

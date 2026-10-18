@@ -1,8 +1,11 @@
 // The uploaded-files binding (M105 lane F, D85.2): the conversation port's
 // production supplier over the account ledger, and the Delete Uploaded Files
-// command behind it. No VS Code import here: the surfaces (webview post,
-// modal confirmation, QuickPick) arrive as callbacks, so tests drive this
-// module directly and each host binds it thinly.
+// command behind it. It ships in dist/modelApiSessions.js, required when the
+// host is first built: the account ledger is the sessions bundle's family,
+// and activation keeps only the loader and the types (ACTBUD017). No VS Code
+// import here: the surfaces (webview post, modal confirmation, QuickPick)
+// arrive as callbacks, so tests drive this module directly and each host
+// binds it thinly.
 import {
   createUploadedFilesPort,
   uploadExpiryText,
