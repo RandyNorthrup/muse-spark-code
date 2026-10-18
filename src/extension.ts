@@ -259,6 +259,7 @@ import {
   deferredRefresh,
 } from './host/tab/tabBundle'
 import { createCliFeatures } from './host/cliFeatures'
+import { hasIgnoreFile } from './host/tab/tabIgnoreFile'
 import {
   bundledSkillsLoader,
   createBundledSkillsOffer,
@@ -1452,16 +1453,10 @@ async function activateWindow(
         .map((folder) => folder.uri.fsPath)
         .filter((root) => isTabWorkspaceRoot(root, absolutePath))
         .toSorted((a, b) => b.length - a.length),
-    ignoreFileExists: (absolutePath) => {
-      try {
-        return statSync(absolutePath).isFile()
-      } catch (error: unknown) {
-        // Only a missing ignore file reads absent: anything else is
-        // raised, so a broken check never silently widens what Tab reads.
-        if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
-        return false
-      }
-    },
+    // Fail closed and total: a file that cannot be proven absent reads
+    // present, so a broken check denies (never widens) what Tab reads and
+    // never rejects the completion.
+    ignoreFileExists: hasIgnoreFile,
     runGit: (args, cwd) =>
       runGit(args, cwd, undefined, undefined, () => {
         if (!isProjectTrusted()) {

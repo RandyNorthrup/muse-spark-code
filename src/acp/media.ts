@@ -236,9 +236,12 @@ export class AcpMedia implements AcpMediaPort {
         try {
           given = fileURLToPath(block.uri, { windows: this.deps.platform === 'win32' })
         } catch (error: unknown) {
-          // Only an unmappable URI is private: anything else keeps its kind.
-          if (!(error instanceof TypeError)) throw error
-          throw new Error(UI_TEXT.textFilePrivate, { cause: error })
+          // Only an unmappable URI is private (a malformed URL or its
+          // escapes): anything else keeps its kind past the attach. The
+          // refusal answers as written past the unreadable boundary below.
+          if (error instanceof TypeError || error instanceof URIError)
+            throw new MediaRefusal(UI_TEXT.textFilePrivate)
+          throw error
         }
         const attached = await this.attach(given, signal, block.mimeType ?? undefined)
         return attached.part

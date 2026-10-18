@@ -72,3 +72,14 @@ describe('resourceName', () => {
     expect(resourceName('https://example.invalid/%XX')).toBe('%XX')
   })
 })
+
+describe('media link mapping', () => {
+  it('reads a media link with bad percent-encoding as private, never its decode failure', async () => {
+    const media = new AcpMedia(deps(() => Promise.reject(new Error('prepare ran'))))
+    const result = await media.block(
+      { type: 'resource_link', uri: 'file:///100%.txt', name: '100%.txt' },
+      new AbortController().signal,
+    )
+    expect(result).toBe(UI_TEXT.textFilePrivate)
+  })
+})

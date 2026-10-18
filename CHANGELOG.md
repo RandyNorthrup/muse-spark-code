@@ -7,6 +7,19 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **An attached media link with bad percent-encoding reads private again.**
+  A `file://` link the URI mapper cannot decode answers "This private file
+  cannot be attached" instead of failing the prompt as unreadable.
+- **Tab completions survive an unreadable ignore-file check.** An ignore
+  file that cannot be proven absent (no permission, a file where a folder
+  belongs) counts as present, so the read is denied instead of the
+  completion failing.
+- **A failed best-of-N setup names git's words again.** A worktree failure
+  refuses as "Could not create the attempt worktrees: {reason}" with the
+  failure's reason instead of an empty reason.
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights
