@@ -199,6 +199,16 @@ bundle overage below, which is cumulative (no single PR at fault).
   green. Static gates: format, eslint zero warnings, all five typechecks,
   check:plan 0 drift, knip, cycles, duplication, check:l10n,
   check:reference, check:host-api, full `npm run build` exit 0.
-  Proof due: a real packed-product turn that runs check verification
-  through dist/ as built, on the contributor model (at most 10 model
-  calls, $0.50 cap, counted from the product's own records).
+  Live success-path proof BLOCKED on credentials (2026-10-18, linuxlt):
+  no Model API key exists on this rig (OS credential store unavailable,
+  none in the environment, and the lane must not route the Muse CLI's own
+  key), so no live model call can go out from here. Vehicle validated to
+  the key gate: `node dist/acp.js exec --backend modelApi --model
+muse-spark-1.3-contributor --allow-contributor-models --max-budget-usd
+0.50 --permission-mode acceptEdits` boots the packed bits and stops at
+  Backend Unavailable with 0 requests and $0.000000 (product's own tally).
+  Lead's drill: same command with a real key in an empty folder, prompt
+  "Write a short poem to poem.txt" (one edit exercises the verify chunk's
+  diagnostics path), then count attempts in the trace log
+  (`event="model.attempt.lifecycle"`) and the ledger tally; expect
+  dist/modelApiVerify.js required on the first turn and the turn green.
