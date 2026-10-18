@@ -183,9 +183,12 @@ export function parseCatalogPresence(value: unknown): CatalogPresence | undefine
 
 /**
  * D4: whether a configured model has no price card anywhere. Mirrors the
- * `catalogueMissing` predicate in `core/providers/configured.ts`, which
- * stays the pricing source of truth; this copy only warns at
- * add/test/list time, never refuses.
+ * pricing half of `core/providers/configured.ts`, which stays the pricing
+ * source of truth; this copy only warns at add/test/list time, never
+ * refuses. An `unpriced` catalogue entry is capability evidence, not price
+ * evidence — configured resolution still leaves that model unpriced and an
+ * exec run refuses it — so only a priced catalogue record or a user-entered
+ * price suppresses the warning.
  */
 export function isModelUnpriced(
   catalog: CatalogPresence,
@@ -194,11 +197,9 @@ export function isModelUnpriced(
   nativeModel: string,
 ): boolean {
   const base = presetId.replace('-plan', '')
-  const isKnown =
-    catalog.providers[base]?.models[nativeModel] !== undefined ||
-    catalog.unpriced?.[base]?.[nativeModel] !== undefined
+  const isPriced = catalog.providers[base]?.models[nativeModel] !== undefined
   return (
-    !isKnown &&
+    !isPriced &&
     presetId !== 'custom' &&
     entry.auth !== 'none' &&
     entry.prices?.[nativeModel] === undefined

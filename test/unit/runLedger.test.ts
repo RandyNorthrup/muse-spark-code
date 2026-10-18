@@ -1,11 +1,14 @@
 import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
+  createExecOutputCap,
   createRunLedger,
   type ResponseTicket,
   type RunLedger,
 } from '../../src/runtime/exec/runLedger'
+import { modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
 import {
+  MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
   TOKENS_PER_MILLION,
   EXEC_USD_DECIMALS,
@@ -324,5 +327,28 @@ describe('M80 ledger integer admission and retained liability', () => {
     ).toEqual({ refused: 'unpriced' })
     for (const cap of [0, -1, 20.000001, 0.0000001, 0.1081351, Infinity])
       expect(() => createRunLedger({ capUsd: Usd.from(cap).toAmount(), maxRequests: 1 })).toThrow()
+  })
+})
+
+const providerPolicy = () => modelPolicyFor('testprovider/testmodel', { maxOutputTokens: 16_384 })
+
+describe('exec output cap across model resolution', () => {
+  // A headless --provider run reads the cap before the model resolves, when
+  // no provider evidence exists, and the model bind carries the resolved
+  // provider policy after. The resolved policy replaces the cached global:
+  // a model whose provider maximum is lower keeps its own cap in the body
+  // and in the reservation instead of the global one.
+  it('a resolved provider policy replaces the cached pre-resolution cap', () => {
+    const outputCap = createExecOutputCap({ model: () => null, maxOutputTokens: undefined })
+    expect(outputCap()).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(outputCap(providerPolicy())).toBe(16_384)
+    // The ledger's later no-arg reads (admission) keep the provider cap.
+    expect(outputCap()).toBe(16_384)
+  })
+
+  it('an explicit --max-output-tokens still floors at the provider cap', () => {
+    const outputCap = createExecOutputCap({ model: () => null, maxOutputTokens: 4096 })
+    expect(outputCap(providerPolicy())).toBe(4096)
+    expect(outputCap()).toBe(4096)
   })
 })
