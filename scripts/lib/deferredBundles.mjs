@@ -669,6 +669,20 @@ export const ON_FIRST_USE = [
       'src/core/voice/linuxModel.ts',
     ],
   },
+  // Voice dictation's setups (M9, M35): the window's dictation and Muse
+  // Voice setups with the helper probes, required at their existing
+  // construction points, keeping activation's lane-K growth inside its cap.
+  {
+    output: 'dist/dictation.js',
+    metafile: 'dist/meta/dictation.json',
+    use: 'the window dictation setup construction',
+    files: [
+      'src/host/voice/dictationEntry.ts',
+      'src/host/voice/dictationHost.ts',
+      'src/host/voice/voiceBundle.ts',
+      'src/core/voice/helperLocation.ts',
+    ],
+  },
   // The window's web fetch (M69), split out on 2026-10-04: the Model API
   // backend keeps its own URL checks, the ACP agent its own fetch.
   {

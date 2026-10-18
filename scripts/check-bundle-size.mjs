@@ -210,6 +210,10 @@ const BUDGETS = [
   // the first Linux recording: 35,907 B measured, plus 15%, rounded up to
   // 25 KiB (PLAN.md D6).
   { path: 'dist/voiceLinux.js', budgetKiB: 50 },
+  // Voice dictation's setups (M9, M35), required at their existing
+  // construction points: 13,032 B measured, plus 15%, rounded up to
+  // 25 KiB (PLAN.md D6).
+  { path: 'dist/dictation.js', budgetKiB: 25 },
   // The window's web fetch (M69), loaded on the first fetch: each hop's
   // checks and pins, the pinned transport, the decoders and the failures'
   // words. 46.7 KiB when split out on 2026-10-04, plus 15%, rounded up to

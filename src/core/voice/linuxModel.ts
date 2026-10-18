@@ -3,7 +3,8 @@ import { constants } from 'node:fs'
 import { lstat, mkdir, mkdtemp, open, readdir, rename, rm, rmdir, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { LINUX_DICTATION, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
+import { LINUX_DICTATION } from '../../shared/linuxDictationConstants'
 
 export interface LinuxModelPin {
   readonly bytes: number

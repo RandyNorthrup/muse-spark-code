@@ -199,6 +199,8 @@ const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
 const VOICE_OUTFILE = 'dist/voice.js'
 const VOICE_LINUX_ENTRY = 'src/host/voice/voiceLinuxEntry.ts'
 const VOICE_LINUX_OUTFILE = 'dist/voiceLinux.js'
+const DICTATION_ENTRY = 'src/host/voice/dictationEntry.ts'
+const DICTATION_OUTFILE = 'dist/dictation.js'
 const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
@@ -620,6 +622,16 @@ const voiceLinuxOptions = {
   ...planMarkdownOptions,
   entryPoints: [VOICE_LINUX_ENTRY],
   outfile: VOICE_LINUX_OUTFILE,
+}
+
+// Voice dictation's setups (M9, M35): the window's dictation and Muse Voice
+// setups with the helper probes, required at their existing construction
+// points. It reads no `vscode`, so a stray import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const dictationOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [DICTATION_ENTRY],
+  outfile: DICTATION_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1299,6 +1311,7 @@ if (isWatch) {
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
     esbuild.context(voiceLinuxOptions),
+    esbuild.context(dictationOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(mcpVaultOptions),
     esbuild.context(museCodeReviewerOptions),
@@ -1419,6 +1432,7 @@ if (isWatch) {
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
     voiceLinux: esbuild.build(voiceLinuxOptions),
+    dictation: esbuild.build(dictationOptions),
     webFetch: esbuild.build(webFetchOptions),
     mcpVault: esbuild.build(mcpVaultOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
@@ -1553,6 +1567,7 @@ if (isWatch) {
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
   reportSize(VOICE_LINUX_OUTFILE)
+  reportSize(DICTATION_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)

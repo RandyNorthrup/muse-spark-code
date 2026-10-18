@@ -16,11 +16,11 @@ import {
   DICTATION_WINDOWS_CAPTURE_SEGMENTS,
   DICTATION_WINDOWS_SCRIPT_SEGMENTS,
   LINUX_RECORDERS,
-  LINUX_DICTATION,
   UI_TEXT,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_PSMODULEPATH_VARIABLE,
 } from '../../shared/constants'
+import { LINUX_DICTATION } from '../../shared/linuxDictationConstants'
 import {
   deleteEnvironmentVariable,
   setEnvironmentVariable,

@@ -43,6 +43,7 @@
 !dist/codeIntel.js
 !dist/voice.js
 !dist/voiceLinux.js
+!dist/dictation.js
 !dist/webFetch.js
 !dist/museCodeReviewer.js
 !dist/modelsPanel.js
