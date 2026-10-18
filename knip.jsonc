@@ -149,6 +149,10 @@
     "src/runtime/schedules/backgroundEntry.ts",
     // The vault's window (M109 W), required by path on the first vault command.
     "src/host/vault/vaultPanelEntry.ts",
+    // C-M109-1 (lead decision 5): the vault runtime bundle's esbuild entry
+    // (scripts/build.mjs), loaded by file name on the first vault need,
+    // which knip does not trace.
+    "src/runtime/vault/vaultRuntimeEntry.ts",
     // The vault harness page and its runner (M109 U): the page is the harness
     // build's esbuild entry, which knip does not read, and the runner is run
     // by path for the panel scenes and axe (`node test/harness/vault/run.mjs`).
@@ -204,6 +208,16 @@
     // M109 (A credential vault and broker for agents, D89): the vault/broker
     // service lands later; remote-server MCP OAuth tokens are born in the
     // vault. Wiring: the vault panel and broker entries require these by path.
+    // C-M109-1's broker management side, repository, Windows pipe relay,
+    // batch-import builder and keyring anchor ride the pending broker-process
+    // lanes (C-M109-1b/c; REPORTJOIN knip deferral, PLAN.md section 7):
+    // constructed beside the broker or required by its entry, never imported
+    // statically yet.
+    "src/core/vault/broker/management.ts",
+    "src/core/vault/broker/repository.ts",
+    "src/core/vault/broker/windowsPipe.ts",
+    "src/core/vault/migrate/prepareImport.ts",
+    "src/runtime/vault/keyringAnchor.ts",
     "src/core/vault/backup.ts",
     "src/core/vault/broker/audit.ts",
     "src/core/vault/broker/epoch.ts",

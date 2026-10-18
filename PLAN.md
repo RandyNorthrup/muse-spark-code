@@ -33703,15 +33703,22 @@ lane A's first step.
 
 ## 7. Gates
 
-**Bundle-split reporting backend (pre-existing, deferred).** `npm run build`
-ends in `check-bundle-split.mjs` rc=1: `dist/reporting.js` and
-`dist/reportingNetwork.js` carry `src/core/backends/musecode/launch.ts`
-via `reportsEntry → engine → reporting/history → resources/launcher →
-resourceProcessEntry → resources/commands → launch`. Every file in that
-chain is byte-identical on `main-now` (verified 2026-10-17 by bundling
-main's own `reportsEntry.ts`: it carries `launch.ts` too), so the failure
-predates this lane and belongs to the resources lane's architecture, not
-M113. Disposition: deferred; this lane records it and moves on.
+**Bundle-split reporting backend (fixed MSM113FIX2, 2026-10-18).** `npm run build`
+ended in `check-bundle-split.mjs` rc=1: `dist/reporting.js` and
+`dist/reportingNetwork.js` carried `src/core/backends/musecode/launch.ts`
+via `playbook/modules → host/processTree → launch` (two Windows environment
+helpers shared by every launcher). Fix under D6, budgets unchanged: the four
+helpers moved verbatim to `src/core/childEnvironment.ts`; every importer
+(backend, host, runtime, core, voice) follows. The same build then exposed two
+further latent failures behind the split gate, both fixed in this lane: the
+vault runtime bundle was not emitted while the live agent loader
+(`runtime/main.ts` → `runtimeVaultLoader`) requires it — the `vaultRuntimeEntry`
+plus broker/migrate/keyring sources removed as "dead" in 0a12f5665 are
+restored with their build and 25 KiB budget hunks (the entry is filename-loaded,
+invisible to knip; the broker surface rides the REPORTJOIN knip deferral below
+for pending lanes C-M109-1b/c) — and the ACP package did not carry the
+agent-loaded `planSnapshot.js`/`vaultRuntime.js` (added to `ACP_BUNDLES`).
+`npm run build` exits 0; the lazy registry is regenerated from the build.
 
 **Estimator shared-module cycle (pre-existing, deferred).** `npm run cycles`
 (dpdm) rc=1: `src/shared/estimateDiagnostic.ts -> src/shared/estimate.ts`

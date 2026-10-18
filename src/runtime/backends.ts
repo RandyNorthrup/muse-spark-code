@@ -27,11 +27,8 @@ import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountTex
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
-import {
-  buildChildEnvironment,
-  environmentValue,
-  withLoopbackBypass,
-} from '../core/backends/musecode/launch'
+import { environmentValue } from '../core/childEnvironment'
+import { buildChildEnvironment, withLoopbackBypass } from '../core/backends/musecode/launch'
 import { personalSkillsRoot } from '../core/context/skills'
 import { personalAgentsRoot } from '../core/context/customAgents'
 import { memoryDataRoot } from '../core/memory/memoryLocation'

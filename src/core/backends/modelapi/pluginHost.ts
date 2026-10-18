@@ -41,7 +41,7 @@ import {
   PLUGIN_RUNTIME_PROBE_TIMEOUT_MS,
 } from '../../../shared/constants'
 import { resolveExecutable } from '../../executables'
-import { environmentValue } from '../musecode/launch'
+import { environmentValue } from '../../childEnvironment'
 import type { ForeignHookAnswer } from './hookFormats/contract'
 import { pluginChildSource } from './pluginChild'
 
