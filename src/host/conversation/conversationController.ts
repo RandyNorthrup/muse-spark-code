@@ -4707,6 +4707,7 @@ export class ConversationController {
       }
       this.post({ type: 'sessionBoard', rows: [...rows] })
     } catch (error: unknown) {
+      this.deps.log.warn(`The session board could not be read: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch) {
         this.notice('error', `${UI_TEXT.boardTitle}: ${describe(error)}`, undefined, error)
       }
@@ -4735,6 +4736,7 @@ export class ConversationController {
         })
       } else await start()
     } catch (error: unknown) {
+      this.deps.log.warn(`A best-of-N run could not be started: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
@@ -4757,6 +4759,7 @@ export class ConversationController {
         this.notice('info', fill(UI_TEXT.bestOfNTaken, { branch: run.takenBranch }))
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A best-of-N attempt could not be taken: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
@@ -4770,6 +4773,7 @@ export class ConversationController {
       const manager = await this.bestOfN()
       await manager.cancel(runId)
     } catch (error: unknown) {
+      this.deps.log.warn(`A best-of-N run could not be cancelled: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
@@ -4953,6 +4957,7 @@ export class ConversationController {
     try {
       await loaded.session.setApprovalMode(target)
     } catch (error: unknown) {
+      this.deps.log.warn(`The permission mode was not applied: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch) {
         this.notice(
           'warning',
@@ -5001,13 +5006,14 @@ export class ConversationController {
       }
       await this.adopt(host, loaded, UI_TEXT.resumedNotice, 'resumed')
     } catch (error: unknown) {
+      this.deps.log.warn(`A session could not be resumed: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch) {
         return
       }
       if (this.isFirstShowing(error)) {
         this.notice('error', `${UI_TEXT.resumeFailed}: ${describe(error)}`, undefined, error)
       } else {
-        this.deps.log.error(`resumeSession failed (shown already): ${describeForLog(error)}`)
+        this.deps.log.error(`resumeSession failed (shown already): ${failureForLog(error)}`)
       }
     }
   }
@@ -5046,6 +5052,7 @@ export class ConversationController {
       }
       await this.adopt(host, loaded, UI_TEXT.forkedNotice, 'forked')
     } catch (error: unknown) {
+      this.deps.log.warn(`A session could not be forked: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch) {
         this.notice('error', `${UI_TEXT.forkFailed}: ${describe(error)}`, undefined, error)
       }
@@ -5161,6 +5168,7 @@ export class ConversationController {
       }
       return { message, source, host, generation, images }
     } catch (error: unknown) {
+      this.deps.log.warn(`A conversation could not be rewound: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
         this.notice(
           'error',
@@ -5198,6 +5206,7 @@ export class ConversationController {
       this.post({ type: 'restoreDraft', text: message.text })
       return true
     } catch (error: unknown) {
+      this.deps.log.warn(`A rewound conversation could not be applied: ${failureForLog(error)}`)
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
         this.notice(
           'error',
@@ -5523,6 +5532,7 @@ export class ConversationController {
         this.say('warning', fill(UI_TEXT.planHiddenMarkup, { path }))
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`Saving a plan failed: ${failureForLog(error)}`)
       this.planFailed(UI_TEXT.planSaveFailed, error)
     }
   }
@@ -5704,6 +5714,7 @@ export class ConversationController {
         this.say('info', UI_TEXT.planTodosByModel)
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`Implementing a plan failed: ${failureForLog(error)}`)
       if (this.accountStopsInFlight === 0) {
         this.planFailed(UI_TEXT.planImplementFailed, error)
       }
@@ -5791,6 +5802,7 @@ export class ConversationController {
       }
       choice = await plans.choose(saved)
     } catch (error: unknown) {
+      this.deps.log.warn(`The saved plans could not be listed: ${failureForLog(error)}`)
       this.planFailed(UI_TEXT.plansFailed, error)
       return
     }
@@ -5799,6 +5811,7 @@ export class ConversationController {
         await this.deps.openFile(choice.plan.relativePath, undefined)
       } catch (error: unknown) {
         // Deleted after the pick, say: the reason in the panel, only its kind in the log (M39).
+        this.deps.log.warn(`A saved plan could not be opened: ${failureForLog(error)}`)
         this.planFailed(UI_TEXT.planOpenFailed, error)
       }
     } else if (choice?.action === 'implement') {
@@ -5985,6 +5998,7 @@ export class ConversationController {
       }
       return true
     } catch (error: unknown) {
+      this.deps.log.warn(`A handoff turn could not be distilled: ${failureForLog(error)}`)
       if (this.isCurrentHandoff(pending)) {
         this.handoffFailed(error)
       }
@@ -6054,6 +6068,7 @@ export class ConversationController {
       pending.todos = history.todos.filter((todo) => HANDOFF_OPEN_TODO_STATUSES.has(todo.status))
       this.postHandoffReady()
     } catch (error: unknown) {
+      this.deps.log.warn(`A handoff brief could not be read: ${failureForLog(error)}`)
       if (this.isStillCurrent(pending)) {
         this.pendingHandoff = undefined
         this.handoffFailed(error)
@@ -6160,6 +6175,7 @@ export class ConversationController {
     try {
       started = await this.startFromBrief(seeded, generation, () => this.isCurrentHandoff(pending))
     } catch (error: unknown) {
+      this.deps.log.warn(`A handoff could not be started: ${failureForLog(error)}`)
       this.post({ type: 'handoffCommandResult', requestId, accepted: false })
       if (this.isCurrentHandoff(pending)) {
         this.handoffFailed(error)
