@@ -194,6 +194,7 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
   return new Manager({
     ...(windowsJobAssembly !== undefined && { shellJobAssembly: windowsJobAssembly }),
     bundlePath: path.join(deps.distDir, MUSE_CODE_BUNDLE_FILE),
+    usageRecording: deps.usageRecording,
     // This records the actual scope boundary; it does not certify a VS Code fence.
     beforeWorkspaceHostStart: () => independentEditorStartupPolicy(log),
     log,
