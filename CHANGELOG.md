@@ -15,6 +15,16 @@ happened, not what was planned; superseded entries are kept.
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
 
+### Packaging
+
+- The Get Started walkthrough's four screenshots ship as lossless WebP
+  instead of PNG (`open.webp`, `welcome.webp`, `chat.webp`,
+  `sign-in.webp` in `resources/walkthrough/`): pixel-identical, about
+  54 KB smaller on disk. The packaged extension no longer includes
+  `docs/PRIVACY.md`, which no code read; the file stays in the
+  repository and the packaged readme still links the privacy policy by
+  its URL.
+
 ### Release infrastructure
 
 - Every fake test is gone (the owner's order: "there can be no more fakes at
