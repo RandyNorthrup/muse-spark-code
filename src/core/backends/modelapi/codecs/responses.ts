@@ -31,6 +31,7 @@ import {
   type WebSearchToolDefinition,
 } from '../schemas'
 import { parseSse } from '../sse'
+import { fixedHarnessText } from '../toolResultBound'
 import { cleanWireText, isBlankWireText } from './shared'
 
 export type ResponsesCodecQuirks =
@@ -237,7 +238,7 @@ function replayInput(
         if (typeof item.output === 'string') {
           mapped.push(
             isBlankWireText(item.output)
-              ? { ...item, output: CODEC_EMPTY_TOOL_OUTPUT }
+              ? { ...item, output: fixedHarnessText(CODEC_EMPTY_TOOL_OUTPUT) }
               : { ...item, output: cleanWireText(item.output) },
           )
           continue
@@ -258,7 +259,9 @@ function replayInput(
           }
         }
         mapped.push(
-          output.length === 0 ? { ...item, output: CODEC_EMPTY_TOOL_OUTPUT } : { ...item, output },
+          output.length === 0
+            ? { ...item, output: fixedHarnessText(CODEC_EMPTY_TOOL_OUTPUT) }
+            : { ...item, output },
         )
         continue
       }

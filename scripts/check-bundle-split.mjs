@@ -201,6 +201,8 @@ const LAZY_ONLY = [
   'modelPolicy.ts',
   // M73: observation packing's store, its placeholder and recall_output.
   'observationPack.ts',
+  // TOOLCAP: the one tool-result bound every result passes before the conversation.
+  'toolResultBound.ts',
   'autoCompact.ts',
   'permissions.ts',
   'promptCache.ts',

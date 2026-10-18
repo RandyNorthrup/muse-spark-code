@@ -1,3 +1,4 @@
+import { restoredToolText } from '../../src/core/backends/modelapi/schemas'
 import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
@@ -56,7 +57,10 @@ const full: StoredSession = {
         arguments: '{"path":"a"}',
       },
     },
-    { turnId: 't1', item: { type: 'function_call_output', call_id: 'c1', output: 'ok' } },
+    {
+      turnId: 't1',
+      item: { type: 'function_call_output', call_id: 'c1', output: restoredToolText('ok') },
+    },
     // An MCP tool's picture (M50): the output as content parts.
     {
       turnId: 't1',

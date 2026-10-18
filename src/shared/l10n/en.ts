@@ -411,6 +411,7 @@ export const EN = {
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
     'max-requests': 'Set the maximum number of model requests.',
+    'max-tool-output-bytes': 'Raise the per-tool-result byte guard for this run.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
     ephemeral: 'Keep the session in memory without saving it.',
@@ -3093,6 +3094,29 @@ export const EN = {
   autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
   autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
   contextWindowFull: 'Context window full: /compact or /handoff',
+  // TOOLCAP: the person's preview of a cut tool result says the same as the
+  // model's one-line notice, in plain words, with the spill file to open.
+  toolResultCutPreview:
+    'Tool result cut: {total} characters, kept the start and end ({head} whole lines at the start, {tail} at the end; {omitted} left out). The full result is in {spill}. It is removed with the session.',
+  // TOOLCAP: the turn's last word when trimming and compaction could not fit
+  // the conversation into the model's window. True by construction: the
+  // numbers come from the provider's own refusal, and nothing was deleted.
+  contextWindowTooLong:
+    'The conversation ({tokens} tokens) is larger than this model’s window ({maximum} tokens) by {over} tokens. /compact the conversation, switch to a model with a larger window, or start a new conversation; nothing was deleted.',
+  // TOOLCAP: a configured tool-output cap that cannot be honoured is refused
+  // here, with the reason, and the default is used instead.
+  toolResultCapRefused:
+    'The {source} tool-output cap of {value} is refused ({reason}); using the default of {fallback}.',
+  // TOOLCAP: the two reasons a configured tool-output cap is refused, each
+  // its own translated sentence for the person reading the refusal above.
+  toolResultCapBelowFloor: 'below the readable floor of {floor} bytes',
+  toolResultCapAboveWindow: 'larger than the model’s window of about {window} tokens',
+  // TOOLCAP: the spill file for a cut tool result could not be written (for
+  // example a read-only workspace); the cut text still went to the model.
+  toolResultSpillFailed:
+    'The full tool result could not be kept in {spill}; only the cut text remains.',
+  toolResultCutPreviewUnkept:
+    'Tool result cut: {total} characters, kept the start and end ({omitted} left out). The full result could not be kept.',
   // The Model API session budget (M82): a request that cannot fit is not
   // sent, and the turn's cost is shown against the cap afterwards.
   sessionBudgetStopped:

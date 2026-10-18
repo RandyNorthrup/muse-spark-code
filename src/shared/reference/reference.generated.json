@@ -217,6 +217,29 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "tool-result-bound",
+      "name": { "setting": "modelApiMaxToolOutputBytes" },
+      "summary": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiMaxToolOutputBytes" } }
+        ]
+      },
+      "description": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiMaxToolOutputBytes" } }
+        ]
+      },
+      "commands": [],
+      "settings": ["museSpark.modelApiMaxToolOutputBytes"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#limits",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "chat-sharing",
       "name": { "ui": "shareChat" },
       "summary": { "ui": "shareReviewPrivacy" },
@@ -3127,6 +3150,22 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiMaxToolOutputBytes" } }
+        ]
+      },
+      "id": "museSpark.modelApiMaxToolOutputBytes",
+      "name": "museSpark.modelApiMaxToolOutputBytes",
+      "description": "The per-tool-result byte guard, 64000 by default. A result past it is cut to a head and tail with counts, and the full text is kept in .muse-spark/tool-results for paging. Below 1024 or past the model's window is refused with the reason. Raise for one headless run with exec --max-tool-output-bytes. Spill files are plain workspace files (whoever can read the workspace can read them), removed when the session is deleted; files older than 30 days are pruned.",
+      "descriptionKey": "config.modelApiMaxToolOutputBytes.description",
+      "type": "integer",
+      "default": 64000,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "default": 64000 }
     },
     {
       "id": "museSpark.turnCheckpoints",
@@ -6339,6 +6378,13 @@
         "maximum": 500,
         "purpose": "maxRequests"
       }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --max-tool-output-bytes <value>",
+      "description": "Raise the per-tool-result byte guard for this run.",
+      "text": { "cli": "max-tool-output-bytes" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "max-tool-output-bytes" }
     },
     {
       "route": "exec",

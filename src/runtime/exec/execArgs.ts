@@ -24,9 +24,10 @@ import {
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
+  TOOL_RESULT_MIN_BYTES,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill, plural } from '../../shared/l10n/text'
+import { fill, formatNumber, plural } from '../../shared/l10n/text'
 import { modelRef } from '../../host/backend/providerPolicyEntry'
 const { isProviderId, parseModelRef } = modelRef
 import type { ServeOptions } from '../cliArgs'
@@ -63,6 +64,8 @@ export interface ExecOptions {
   /** Exact canonical budget; admission uses integer micro-units internally (F1). */
   readonly budgetUsd: UsdAmount | undefined
   readonly maxRequests: number | undefined
+  /** TOOLCAP: raise the per-tool-result byte guard for this run only. */
+  readonly maxToolOutputBytes: number | undefined
   readonly timeoutMs: number
   readonly paidFeatures: readonly ExecPaidFeature[]
   readonly failOnDenial: boolean
@@ -102,6 +105,7 @@ const STRING_OPTIONS = new Set([
   'output-schema',
   'max-budget-usd',
   'max-requests',
+  'max-tool-output-bytes',
   'timeout',
   'muse-binary',
   'shell-sandbox',
@@ -231,10 +235,35 @@ export function parseExec(
     1,
     EXEC_MAX_REQUESTS,
   )
+  // TOOLCAP: absent keeps the setting default; the floor is the readable one
+  // (no 0-disables: one tool result can never end a conversation); the window
+  // fit is refused at runtime with its reason, where the model's window is known.
+  const maxToolOutputBytes = integer(
+    values['max-tool-output-bytes'],
+    SETTING_DEFAULTS.modelApiMaxToolOutputBytes,
+    TOOL_RESULT_MIN_BYTES,
+    Number.MAX_SAFE_INTEGER,
+  )
   const budgetUsd = budgetUnits(values['max-budget-usd'])
+  // TOOLCAP: a present-but-below-floor guard is refused with its translated
+  // sentence (the same words capRefusalReason renders where the window is
+  // known; rendered here because the bound loads lazily with the backend and
+  // must not ride in dist/acp.js). Anything else unparseable keeps the
+  // generic number refusal below.
+  const maxToolOutputBytesRaw = values['max-tool-output-bytes']
+  if (
+    maxToolOutputBytes === undefined &&
+    typeof maxToolOutputBytesRaw === 'string' &&
+    Number.isSafeInteger(Number(maxToolOutputBytesRaw)) &&
+    Number(maxToolOutputBytesRaw) < TOOL_RESULT_MIN_BYTES
+  )
+    return invalid(
+      fill(UI_TEXT.toolResultCapBelowFloor, { floor: formatNumber(TOOL_RESULT_MIN_BYTES) }),
+    )
   if (
     timeout === undefined ||
     maxRequests === undefined ||
+    maxToolOutputBytes === undefined ||
     (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
   )
     return invalid(UI_TEXT.execNumberInvalid)
@@ -249,6 +278,7 @@ export function parseExec(
     [
       'max-budget-usd',
       'max-requests',
+      'max-tool-output-bytes',
       'ephemeral',
       'key-stdin',
       'image-generation',
@@ -317,6 +347,7 @@ export function parseExec(
       ...(values['output-schema-outside'] === true && { outputSchemaOutside: true }),
       budgetUsd,
       maxRequests: backend === 'modelApi' ? maxRequests : undefined,
+      maxToolOutputBytes: backend === 'modelApi' ? maxToolOutputBytes : undefined,
       timeoutMs: timeout * MILLISECONDS_PER_SECOND,
       paidFeatures: values['image-generation'] === true ? ['imageGeneration'] : [],
       failOnDenial: values['fail-on-denial'] === true,
@@ -342,5 +373,6 @@ export function serveOptionsFor(options: ExecOptions): ServeOptions {
     paidFeatures: options.paidFeatures,
     isVerbose: options.isVerbose,
     autoCompaction: options.autoCompaction,
+    maxToolOutputBytes: options.maxToolOutputBytes,
   }
 }

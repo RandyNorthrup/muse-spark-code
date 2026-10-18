@@ -4014,6 +4014,17 @@ Providers without a known minimum retain a one-token minimum. Editor settings,
 ACP configuration and CLI/exec flags currently expose no separate output-token
 cap; they share the provider entry and request validation.
 
+Tool results have their own bound on the Model API backend. One choke point
+cuts any result past 16,000 estimated tokens, any line past 8,000
+characters, or any result past a quarter of the model's remaining window, so
+one oversized result can never fill the window and end the conversation. A
+cut keeps the full text under `.muse-spark/tool-results/` (git-ignored) for
+paging and says what was cut and how to read more, to the model and on the
+row. The byte guard is `museSpark.modelApiMaxToolOutputBytes` (64,000 by
+default, machine-scoped; values below 1,024 bytes or past the model's window
+are refused with the reason); `exec --max-tool-output-bytes` raises it for
+one headless run.
+
 Custom models can declare `modelCapabilities` in their user-level
 `providers.json` entry, keyed by native model id. For example:
 

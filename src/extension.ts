@@ -2822,6 +2822,7 @@ async function activateWindow(
     codeIntel: languageServices,
     isRepoMapInPrompt: () => currentSettings().modelApiRepoMap,
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
+    maxToolOutputBytes: () => currentSettings().modelApiMaxToolOutputBytes,
     pacingOwner: requestPacingOwner,
     isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,

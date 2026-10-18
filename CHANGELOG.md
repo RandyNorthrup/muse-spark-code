@@ -93,6 +93,27 @@ happened, not what was planned; superseded entries are kept.
 
 - ACP permission answers retain the selected persistent rule's identity;
   consent for one command prefix cannot silently install another stage's rule.
+- Tool results are bounded before they reach the model (Model API): one
+  choke point cuts any result past 16,000 estimated tokens, any line past
+  8,000 characters, or any result past a quarter of the remaining window.
+  A cut keeps the full text in `.muse-spark/tool-results/` for paging and
+  tells the model and the person what was cut and how to read more. A
+  provider "prompt is too long" refusal trims the largest results, compacts
+  once when available, then ends the turn with what to do next, in at most
+  three sends. The cap is `museSpark.modelApiMaxToolOutputBytes` (64,000
+  bytes by default); `exec --max-tool-output-bytes` raises it for one
+  headless run. One oversized result can no longer fill the model's window
+  and end the conversation.
+
+- Tool-result bound, round 2: the window share is now measured in bytes, so
+  dense text (pasted hex, minified JSON, CJK) cannot slip several times its
+  token cap past a character count; the type system holds the rule instead of
+  a source-scanning test (a bare string no longer compiles into a request).
+  Cut notices count exactly what was kept and omitted. Spill files are plain
+  workspace files, removed when their session is deleted and pruned past 30
+  days. A refusal the lane has not recorded for its format no longer triggers
+  a resend: the turn ends with the short sentence instead. A too-small
+  `--max-tool-output-bytes` is refused with its translated reason.
 
 - After Muse Code restarted, a conversation could continue on a different
   model than the one shown (and at that model's price). It now keeps the

@@ -17,7 +17,10 @@ import path from 'node:path'
 import * as z from 'zod/mini'
 import {
   headerOf,
+  isSpillFile,
   parseStoredSession,
+  spillPrefix,
+  isSpillStale,
   storedSessionSchema,
   type SessionStore,
   type StoredSession,
@@ -27,6 +30,7 @@ import {
   ATOMIC_TEMPORARY_SUFFIX,
   MILLISECONDS_PER_DAY,
   SESSION_FILE_STALE_TEMPORARY_MS,
+  TOOL_RESULT_SPILL_DIR,
   UI_TEXT,
   MEDIA_SHA256_PATTERN,
 } from '../../shared/constants'
@@ -314,6 +318,75 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     await rm(fileFor(sessionId), { force: true })
     await rm(intentFor(sessionId), { force: true })
   }
+
+  /**
+   * TOOLCAP: the spill directory's entries, or undefined when there is
+   * nothing to sweep. A missing directory means no spills; any other failure
+   * is said, and never stops the store.
+   */
+  const listSpillDir = async (dir: string, blurb: string): Promise<string[] | undefined> => {
+    try {
+      return await readdir(dir)
+    } catch (error: unknown) {
+      if (storeErrorCode(error) === ENOENT) return undefined
+      deps.log.warn(`${blurb}: ${describeStoreError(error)}`)
+      return undefined
+    }
+  }
+
+  /**
+   * TOOLCAP: a session's spill files die with it. Failures are said (log),
+   * never swallowed; a missing spill directory means there is nothing to do.
+   */
+  const removeSpillsForSession = async (
+    workspaceRoot: string | undefined,
+    sessionId: string,
+  ): Promise<void> => {
+    if (workspaceRoot === undefined) {
+      deps.log.warn(
+        `Session ${sessionId} deleted; its spill files are kept: the workspace is unknown`,
+      )
+      return
+    }
+    const dir = path.join(workspaceRoot, TOOL_RESULT_SPILL_DIR)
+    const names = await listSpillDir(
+      dir,
+      `Session ${sessionId} deleted; its spill files could not be listed`,
+    )
+    if (names === undefined) return
+    const prefix = spillPrefix(sessionId)
+    for (const name of names) {
+      if (!name.startsWith(prefix) || !name.endsWith('.txt')) continue
+      try {
+        await rm(path.join(dir, name))
+      } catch (error: unknown) {
+        deps.log.warn(
+          `Session ${sessionId} deleted; spill file ${name} could not be removed: ${describeStoreError(error)}`,
+        )
+      }
+    }
+  }
+
+  /**
+   * TOOLCAP: the spill age rule. Only spill-shaped files are ever removed;
+   * anything else in the directory is left alone. Failures are said, and a
+   * sweep that cannot list never stops the store.
+   */
+  const pruneStaleSpills = async (workspaceRoot: string): Promise<void> => {
+    const dir = path.join(workspaceRoot, TOOL_RESULT_SPILL_DIR)
+    const names = await listSpillDir(dir, 'Spill files could not be listed')
+    if (names === undefined) return
+    for (const name of names) {
+      if (!isSpillFile(name)) continue
+      const file = path.join(dir, name)
+      try {
+        const { mtimeMs } = await stat(file)
+        if (isSpillStale(mtimeMs, deps.now())) await rm(file, { force: true })
+      } catch (error: unknown) {
+        deps.log.warn(`Spill file ${name} could not be pruned: ${describeStoreError(error)}`)
+      }
+    }
+  }
   const recover = async (
     sessionId: string,
     session: StoredSession | undefined,
@@ -362,7 +435,8 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
 
   /** True when the session has sat idle past the retention period (and was deleted). */
   const isExpired = async (
-    session: Pick<StoredSessionHeader, 'sessionId' | 'accountId' | 'lastActivityAt'>,
+    session: Pick<StoredSessionHeader, 'sessionId' | 'accountId' | 'lastActivityAt'> &
+      Partial<Pick<StoredSessionHeader, 'workspaceRoot'>>,
     uploads?: SessionUploadOwnership,
   ): Promise<boolean> => {
     const days = deps.retentionDays()
@@ -375,6 +449,8 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     try {
       await deps.questions?.remove(session.sessionId)
       await removeSession(session.sessionId, session.accountId, uploads)
+      // TOOLCAP: the expired session's spills die with it, said when not.
+      await removeSpillsForSession(session.workspaceRoot, session.sessionId)
       isRemoved = true
       deps.log.info(`Session ${session.sessionId} idle for more than ${String(days)} days deleted`)
     } catch (error: unknown) {
@@ -449,6 +525,16 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
               headers.push(headerOf(session))
           },
         )
+      }
+      // TOOLCAP: the spill age rule runs where sessions are listed, once per
+      // workspace. A sweep that fails is said and never stops the listing.
+      const workspaces = new Set(headers.map((header) => header.workspaceRoot))
+      for (const workspaceRoot of workspaces) {
+        try {
+          await pruneStaleSpills(workspaceRoot)
+        } catch (error: unknown) {
+          deps.log.warn(`Spill files could not be pruned: ${describeStoreError(error)}`)
+        }
       }
       return headers
     },
@@ -537,6 +623,9 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       await deps.questions?.remove(sessionId)
       await withSession(sessionId, undefined, true, async (session, uploads, intent) => {
         await removeSession(sessionId, intent?.accountId ?? session?.accountId, uploads)
+        // TOOLCAP: the deleted session's spills die with it, said when not.
+        // A session that never existed has no spills: nothing to say.
+        if (session !== undefined) await removeSpillsForSession(session.workspaceRoot, sessionId)
       })
     },
   }
