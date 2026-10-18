@@ -986,8 +986,60 @@ only by that hosted relay step going green.
 One Codex P1 thread on PR #218 (branch `ci/more-shards2`), first result:
 
 - browser-check.yml:49 (capacity trigger on incremental, not cumulative,
-  paths; forks.yml/hosts.yml same): ACCEPTED — every `ci/pr-*` push will
-  start the workflow unfiltered and an in-workflow `touches` gate will
-  re-apply the path list to the cumulative merge diff, with each `relay`
-  failing closed when no capacity run appears. Local proof and the hosted
-  run it needs are recorded below on completion; no local simulation counts.
+  paths; forks.yml/hosts.yml same): ACCEPTED and fixed at the cause. The
+  `push: branches: [ci/pr-*]` triggers of browser-check.yml and forks.yml
+  and the `push: branches: [main, ci/pr-*]` trigger of hosts.yml carry no
+  `paths:` filter anymore: a push filter sees only the incremental
+  force-push diff while the `pull_request` filter sees the cumulative PR
+  diff, so the mirrored filters skipped the capacity run whenever the latest
+  update touched only an unrelated file, and each `relay` then passed with
+  no Windows or macOS run anywhere. Every capacity push now starts its
+  workflow, and the `route` job's new `touches` output re-applies the path
+  list: a `ci/pr-*` push diffs the merge commit against its first parent
+  (`HEAD^1..HEAD`, the cumulative PR diff — the same `$GITHUB_SHA^1` the
+  `org` job pushes as `ci/base`); a `main` push diffs the push's own
+  commits (`before..HEAD`, what the removed filter did there); anything else
+  keeps `true`. The offloaded jobs run unless `touches == 'false'` (a
+  skipped `route` leaves it empty, which still runs — the RVCISHARDS2
+  fallback). A non-merge capacity tip, a missing base or a diff error fails
+  closed to `true` with a warning, never to a skipped gate. Each `relay`'s
+  no-run branch now fails closed (exit 1): with unfiltered starts, no run
+  appearing means the push or Actions there failed.
+
+**Local proof (this rig, 2026-10-18).** `temp/pr218fix3-drill.mjs`
+(local only, not committed) drives the `touches` step out of each committed
+workflow file under GitHub's `bash --noprofile --norc -eo pipefail`,
+against real git repos shaped as GitHub shapes them (merge commits with
+first parent main): 13/13 green — the stale push (browser file changed,
+docs-only head commit) gives `true` on browser-check and hosts; a docs-only
+PR gives `false` on all three; a `main` push gives `true`/`false` on its own
+commits; a non-merge capacity tip and a missing base fail closed to `true`
+with warnings; non-push events keep `true`. The drill also asserts each
+`touches` pattern list equals its `pull_request` `paths:` list as sets, and
+that every `relay` fails closed with no silent no-run pass left.
+`actionlint` 1.7.12 (latest release; shellcheck present, so the three new
+`run:` scripts were checked): exit 0 on all eight workflows. `shellcheck`
+`-S warning`: clean on all three extracted steps. `prettier --check` on the
+five changed files, `npm run check:plan` (plan-format-v1, 218 milestones,
+0 drift), `npm run typecheck` (all five compiler projects) and `npm run
+build`: exit 0. No JS/TS file changed, so ESLint has no file in scope; the
+hook's changed-file ESLint ran on every commit. No unit-test file names
+these steps, and workflow steps are proved by driving the extracted steps
+above, not by a new test file (no-fakes rule: a unit test would feed the
+steps invented event values).
+
+**Hosted proof (lead's push; the real gate).** The push of this branch must
+show all of this, recorded on the pull request:
+
+- A pull request whose latest push touches only an unrelated file after an
+  earlier browser/hosts/fork path change: the home Browser/Hosts/Forks runs
+  start (cumulative match), each capacity `ci/pr-<n>` run starts too, its
+  `route` logs `Touches these paths: true (the cumulative merge diff
+touches these paths)`, and the offloaded jobs run green.
+- A pull request touching none of those paths: the home runs never start
+  (unchanged), each capacity run's `route` logs `touches: false` and its
+  jobs skip, and the capacity run still concludes success.
+- A push to `main` here touching only docs still runs only `route` (the
+  in-workflow incremental gate), as the removed push filter did.
+- No `relay` takes the no-run branch; if one ever does, it fails the run
+  with `the push or Actions there failed`.
