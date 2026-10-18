@@ -14,8 +14,8 @@
 //   either; an owner from another boot is gone.
 // - Windows: the creation time the kernel stored when the process started
 //   (`GetProcessTimes`, read in milliseconds) through a small native reader
-//   (below). A later clock step does not change it; it is only as right as
-//   the clock was at creation.
+//   each process builds and seals for itself (below). A later clock step
+//   does not change it; it is only as right as the clock was at creation.
 // - macOS: the start time the kernel stored (`ps -o lstart=`, printed in UTC
 //   so no timezone change moves it), to the second.
 // On Windows and macOS two processes that had one id and started within
@@ -24,7 +24,7 @@
 
 import { execFile } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir, hostname } from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -47,7 +47,9 @@ const LINUX_START_FIELD = 19
 const LINUX_BOOT_ID = '/proc/sys/kernel/random/boot_id'
 const DECIMAL = /^\d+$/u
 const WINDOWS_BIRTH_READER_STEM = 'MuseSparkBirth-'
-const WINDOWS_BIRTH_READER_DIGEST_LENGTH = 16
+// `MuseSparkBirth-<process id>-<random UUID>.exe`: each process builds and
+// runs its own reader.
+const WINDOWS_BIRTH_READER_NAME = /^MuseSparkBirth-(\d+)-[\da-f-]{36}\.exe$/u
 // Windows' birth reader, C# 5 for the .NET Framework that ships with Windows.
 // Windows PowerShell spent 300 to 600 ms of CPU starting before it read one
 // birth, and its first start on a fresh hosted runner passed the query bound
@@ -61,13 +63,14 @@ using System.Runtime.InteropServices;
 static class MuseSparkBirth
 {
     const uint QueryLimitedInformation = 0x1000;
-    const uint StillActive = 259;
+    const uint Synchronize = 0x00100000;
+    const uint WaitTimeout = 0x102;
 
     [DllImport("kernel32.dll", SetLastError = true)]
     static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    static extern bool GetExitCodeProcess(IntPtr process, out uint exitCode);
+    static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     static extern bool GetProcessTimes(IntPtr process, out long creation, out long exit, out long kernel, out long user);
@@ -79,14 +82,15 @@ static class MuseSparkBirth
     {
         uint pid;
         if (args.Length != 1 || !uint.TryParse(args[0], NumberStyles.None, CultureInfo.InvariantCulture, out pid)) return 2;
-        IntPtr process = OpenProcess(QueryLimitedInformation, false, pid);
+        IntPtr process = OpenProcess(QueryLimitedInformation | Synchronize, false, pid);
         if (process == IntPtr.Zero) return 1;
         try
         {
-            uint exitCode;
             long creation, exit, kernel, user;
-            // An exited process keeps its times while a handle to it is open.
-            if (!GetExitCodeProcess(process, out exitCode) || exitCode != StillActive) return 1;
+            // An ended process keeps its times while a handle to it is open. Its
+            // object is signalled once it has ended, whatever its exit code (an
+            // exit code of 259 reads as STILL_ACTIVE).
+            if (WaitForSingleObject(process, 0) != WaitTimeout) return 1;
             if (!GetProcessTimes(process, out creation, out exit, out kernel, out user)) return 1;
             Console.Out.Write(DateTimeOffset.FromFileTime(creation).ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture));
             return 0;
@@ -173,22 +177,59 @@ function isSpawnFailure(error: unknown): boolean {
   )
 }
 
-async function isFile(file: string): Promise<boolean> {
+/** Removes `file`; one Windows will not delete (another process runs it) stays. */
+async function removeQuietly(file: string): Promise<void> {
   try {
-    const info = await stat(file)
-    return info.isFile()
+    await rm(file, { force: true })
   } catch {
-    return false
+    // Running somewhere: it stays, and a later build tries again.
+  }
+}
+
+/** The SHA-256 of a file's bytes; undefined when it cannot be read. */
+async function fileDigest(file: string): Promise<string | undefined> {
+  try {
+    const bytes = await readFile(file)
+    return createHash('sha256').update(bytes).digest('hex')
+  } catch {
+    return undefined
+  }
+}
+
+/** Windows' birth reader as this process built it: its file and its bytes' digest. */
+interface BirthReader {
+  readonly file: string
+  readonly digest: string
+}
+
+/**
+ * Removes the readers of processes that have ended (named by their process
+ * id). One whose id is in use stays, a reused id's until that process ends
+ * too, and so does one Windows will not delete because it is running.
+ */
+async function removeEndedBirthReaders(folder: string): Promise<void> {
+  let names: string[]
+  try {
+    names = await readdir(folder)
+  } catch {
+    return
+  }
+  for (const name of names) {
+    const owner = WINDOWS_BIRTH_READER_NAME.exec(name)?.[1]
+    if (owner !== undefined && !isProcessAlive(Number(owner))) {
+      await removeQuietly(path.win32.join(folder, name))
+    }
   }
 }
 
 /**
- * The birth reader for this source: compiled once per user by Windows' own
- * C# compiler into the user's data folder, named by the source's digest, and
- * moved into place whole, so a reader another process compiles at the same
- * time is never half written.
+ * This process's birth reader: built by Windows' own C# compiler in the
+ * user's data folder under a name of its own (this process's id and a
+ * random part), and sealed: the digest of the bytes the compiler wrote is
+ * kept in memory, and only those bytes are ever run. No file this process
+ * did not build is run, whatever its name.
  */
-async function prepareWindowsBirthReader(systemRoot: string): Promise<string> {
+async function buildWindowsBirthReader(systemRoot: string): Promise<BirthReader> {
   // Only an absolute folder is built in: a relative one would put the reader
   // under whatever folder this process happens to run in.
   const fromEnv = process.env['LOCALAPPDATA']
@@ -197,69 +238,41 @@ async function prepareWindowsBirthReader(systemRoot: string): Promise<string> {
       ? fromEnv
       : path.win32.join(homedir(), 'AppData', 'Local')
   const folder = path.win32.join(localAppData, ACP_DATA_FOLDER.win32, WINDOWS_BIRTH_READER_FOLDER)
-  const digest = createHash('sha256')
-    .update(WINDOWS_BIRTH_READER_SOURCE)
-    .digest('hex')
-    .slice(0, WINDOWS_BIRTH_READER_DIGEST_LENGTH)
-  const reader = path.win32.join(folder, `${WINDOWS_BIRTH_READER_STEM}${digest}.exe`)
-  if (await isFile(reader)) {
-    return reader
-  }
   await mkdir(folder, { recursive: true })
-  const stem = path.win32.join(folder, randomUUID())
+  await removeEndedBirthReaders(folder)
+  const stem = path.win32.join(
+    folder,
+    `${WINDOWS_BIRTH_READER_STEM}${String(process.pid)}-${randomUUID()}`,
+  )
+  const file = `${stem}.exe`
   try {
     await writeFile(`${stem}.cs`, WINDOWS_BIRTH_READER_SOURCE, 'utf8')
     await run(
       path.win32.join(systemRoot, WINDOWS_FRAMEWORK_RELATIVE_PATH, 'csc.exe'),
-      ['/nologo', '/noconfig', '/target:exe', `/out:${stem}.exe`, `${stem}.cs`],
+      ['/nologo', '/noconfig', '/target:exe', `/out:${file}`, `${stem}.cs`],
       { SystemRoot: systemRoot },
     )
-    try {
-      await rename(`${stem}.exe`, reader)
-    } catch (error: unknown) {
-      // Another process put the same reader in place first.
-      if (!(await isFile(reader))) {
-        throw error
-      }
-    }
+  } catch (error: unknown) {
+    await removeQuietly(file)
+    throw error
   } finally {
-    await rm(`${stem}.cs`, { force: true })
-    await rm(`${stem}.exe`, { force: true })
+    await removeQuietly(`${stem}.cs`)
   }
-  await removeStaleBirthReaders(folder, reader)
-  return reader
+  const digest = await fileDigest(file)
+  if (digest === undefined) {
+    throw new Error('The birth reader the compiler wrote cannot be read')
+  }
+  return { file, digest }
 }
 
-/**
- * Removes the readers built from earlier sources beside `current`, as the
- * job helpers' builds are removed. One another process is running cannot
- * go yet on Windows and stays for a later build; a reader removed under a
- * process of an earlier version is built again by its next read.
- */
-async function removeStaleBirthReaders(folder: string, current: string): Promise<void> {
-  const currentName = path.win32.basename(current)
-  let names: string[]
-  try {
-    names = await readdir(folder)
-  } catch {
-    return
-  }
-  for (const name of names) {
-    if (
-      name !== currentName &&
-      name.startsWith(WINDOWS_BIRTH_READER_STEM) &&
-      name.endsWith('.exe')
-    ) {
-      try {
-        await rm(path.win32.join(folder, name), { force: true })
-      } catch {
-        // Still running somewhere: a later build tries again.
-      }
-    }
+const windowsBirthReader: { ready?: Promise<BirthReader> | undefined } = {}
+
+/** Forgets `ready` while it is still the kept build, never a newer one another read started. */
+function forgetBirthReader(ready: Promise<BirthReader>): void {
+  if (windowsBirthReader.ready === ready) {
+    windowsBirthReader.ready = undefined
   }
 }
-
-const windowsBirthReader: { ready?: Promise<string> | undefined } = {}
 
 async function windowsStartTime(pid: number): Promise<number | undefined> {
   // The system folder the environment names (never an assumed drive, and
@@ -271,21 +284,25 @@ async function windowsStartTime(pid: number): Promise<number | undefined> {
   if (systemRoot === undefined) {
     return undefined
   }
-  const ready = (windowsBirthReader.ready ??= prepareWindowsBirthReader(systemRoot))
-  let reader: string
+  const ready = (windowsBirthReader.ready ??= buildWindowsBirthReader(systemRoot))
+  let reader: BirthReader
   try {
     reader = await ready
   } catch (error: unknown) {
-    // A failed build is not kept: the next read tries again. Only this
-    // build is forgotten, never a newer one another read already started.
-    if (windowsBirthReader.ready === ready) {
-      windowsBirthReader.ready = undefined
-    }
+    // A failed build is not kept: the next read tries again.
+    forgetBirthReader(ready)
     throw error
+  }
+  // Only the bytes this process built run: a reader changed or gone since is
+  // refused and removed, and the next read builds a new one.
+  if ((await fileDigest(reader.file)) !== reader.digest) {
+    forgetBirthReader(ready)
+    await removeQuietly(reader.file)
+    throw new Error('The birth reader changed after it was built')
   }
   let output: string
   try {
-    output = await run(reader, [String(pid)], { SystemRoot: systemRoot })
+    output = await run(reader.file, [String(pid)], { SystemRoot: systemRoot })
   } catch (error: unknown) {
     // A reader that is gone or damaged is built again on the next read; one
     // the machine's policy refuses to start stays, since building the same
@@ -293,14 +310,8 @@ async function windowsStartTime(pid: number): Promise<number | undefined> {
     // code is the reader's own answer.
     const code = errorCode(error)
     if (isSpawnFailure(error) && (code === NO_SUCH_FILE || code === NOT_EXECUTABLE)) {
-      if (windowsBirthReader.ready === ready) {
-        windowsBirthReader.ready = undefined
-      }
-      try {
-        await rm(reader, { force: true })
-      } catch {
-        // Another process is running it: it stays, and is tried again.
-      }
+      forgetBirthReader(ready)
+      await removeQuietly(reader.file)
     }
     throw error
   }
