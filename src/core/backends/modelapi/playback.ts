@@ -5,7 +5,7 @@
 
 import { PLAYBACK_MODEL_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
-import { type EnvironmentFacts, rulesText } from './instructions'
+import { rulesText } from './instructions'
 
 const PARAGRAPH = '\n\n'
 
@@ -19,7 +19,6 @@ export interface PlaybackFacts {
   readonly platform: NodeJS.Platform
   /** `YYYY-MM-DD` in the host's clock. */
   readonly today: string
-  readonly environment: EnvironmentFacts
   /** The session goal's instructions, the working memory the turn reports. */
   readonly goalSection: string | undefined
   /** The workspace's rules files, trusted workspaces only (D13). */

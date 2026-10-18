@@ -10,7 +10,6 @@ const FACTS = {
   workspaceRoot: '/work/quest',
   platform: 'linux' as const,
   today: '2026-10-17',
-  environment: { git: undefined },
   goalSection: 'Goal: chart the northern passage.',
   rules: 'Rule: knock twice.',
 }

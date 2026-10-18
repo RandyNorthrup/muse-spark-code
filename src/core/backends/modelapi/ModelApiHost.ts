@@ -4375,7 +4375,6 @@ export class ModelApiSession implements ScheduledAgentSession {
           workspaceRoot: this.deps.workspaceRoot,
           platform: this.deps.platform,
           today,
-          environment,
           goalSection: goalInstructions(this.goal),
           rules: context.rules,
         }),
@@ -14039,8 +14038,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     // The context comes first so a skill invocation can be expanded (D13);
     // it never throws, so the user message always follows.
     await this.context.load()
-    this.environment ??= await this.loadEnvironment()
-    await this.loadRepoMap(turn.abort.signal)
+    // A playback reports working memory only (D203): no git describe and no
+    // repo-map scan on its path; neither result is in its prompt.
+    if (queued.isPlayback !== true) {
+      this.environment ??= await this.loadEnvironment()
+      await this.loadRepoMap(turn.abort.signal)
+    }
     // Pending background output and user shell commands precede this turn.
     this.settleNotes(turn.turnId)
     this.touch()
