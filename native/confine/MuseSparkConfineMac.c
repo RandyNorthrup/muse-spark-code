@@ -183,6 +183,9 @@ static void walk(int fd, const char *relative, int recursive, size_t depth) {
 static int resolve_operand(int root, const char *operand) {
   int cursor = openat(root, ".", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
   if (cursor < 0) refuse("operand");
+  // The grammar's default operand names the root itself; anything else is
+  // split into components below, where bare dots stay refused.
+  if (!strcmp(operand, ".")) return cursor;
   const char *rest = operand;
   for (;;) {
     const char *slash = strchr(rest, '/');
@@ -450,8 +453,6 @@ int main(int argc, char **argv) {
   return JUDGE_FAST_B1_REFUSED_EXIT;
 }
 #else
-#include <stdio.h>
-#include <stdlib.h>
 int main(void) {
   fputs("{\"refused\":\"macosCaptureRequired\"}\n", stderr);
   return 125;

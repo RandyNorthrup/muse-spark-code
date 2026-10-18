@@ -584,16 +584,16 @@ describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
     'an OpenCode plugin runs on macOS, where bun has no kernel memory bound',
     async () => {
       const plugin = writePlugin(
-        `export const Shield = async () => ({ 'tool.execute.before': async (input, output) => { if (input.tool === 'read') output.args.filePath = 'safe.txt' } })`,
+        `export const Tag = async () => ({ 'tool.execute.before': async (input, output) => { output.args.command = output.args.command + ' --mac' } })`,
       )
       const result = await dispatch(
         definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
         'PreToolUse',
-        toolPayload('PreToolUse', MODEL_API_TOOLS.readFile, { path: '.env' }),
+        toolPayload('PreToolUse', 'bash', { command: 'ls' }),
         adapterWith(host(), 'darwin'),
       )
       expect(result.blockedReason).toBeUndefined()
-      expect(result.updatedInput).toEqual({ path: 'safe.txt' })
+      expect(result.updatedInput).toEqual({ command: 'ls --mac' })
     },
   )
 

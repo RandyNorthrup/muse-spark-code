@@ -11,14 +11,18 @@ import {
   writeFileSync,
   linkSync,
 } from 'node:fs'
-import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises'
+import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { fileIdentityKey, statIdentity } from '../../src/core/fs/fileIdentity'
 import { InspectRunner } from '../../src/core/judge/fast/inspectExec'
-import { inspectStart } from './helpers/inspectStart'
-import { inspectPathSpellings, inspectProtectedPaths } from './helpers/inspectPaths'
+import {
+  inspectFixture,
+  inspectSpellingMatrix,
+  openInspectRunner,
+  type InspectCase,
+} from './helpers/inspectCase'
+import { inspectProtectedPaths } from './helpers/inspectPaths'
 
 interface Receipt {
   stdout: Buffer
@@ -110,39 +114,7 @@ switch (process.platform) {
         if (file === undefined) throw new Error('Missing compiled fixture')
         return file
       }
-      async function fixture() {
-        const root = await mkdtemp(path.join(scratch, 'case-'))
-        const workspace = path.join(root, 'workspace'),
-          home = path.join(root, 'home')
-        await mkdir(workspace)
-        await mkdir(home, { mode: 0o700 })
-        const allowed = path.join(workspace, 'allowed.txt'),
-          outside = path.join(root, 'outside.txt')
-        writeFileSync(allowed, 'ALLOWED_CANARY\n')
-        writeFileSync(outside, 'FORBIDDEN_CANARY\n')
-        const identity = fileIdentityKey(await statIdentity(workspace))
-        if (identity === undefined) throw new Error('Missing workspace identity')
-        const args = (program: string, operands: string[], tool: string[], isRecursive = false) => [
-          'run',
-          workspace,
-          identity,
-          home,
-          isRecursive ? 'recursive' : 'single',
-          program,
-          ...operands,
-          '--',
-          ...tool,
-        ]
-        return {
-          root,
-          workspace,
-          binding: { root: workspace, identity },
-          home,
-          allowed,
-          outside,
-          args,
-        }
-      }
+      const fixture = (): Promise<InspectCase> => inspectFixture(scratch)
 
       it('captures ABI, post-walk inode confinement, process/network/write refusal', async () => {
         const h = await fixture()
@@ -223,28 +195,10 @@ switch (process.platform) {
       })
       it('canonicalizes seeded spellings of every protected/private path and refuses noncanonical helper operands', async () => {
         const h = await fixture()
-        const canonicalPaths = [
-          'allowed.txt',
-          ...inspectProtectedPaths.flatMap((name) => [
-            name,
-            name.toUpperCase(),
-            `pkg/${name}/probe.txt`,
-            `pkg/${name.toUpperCase()}/probe.txt`,
-          ]),
-        ]
-        const spellings = canonicalPaths.flatMap((canonical) => inspectPathSpellings(canonical))
+        const { spellings, expected } = inspectSpellingMatrix()
         const result = await native(variant('Paths'), spellings, h.root)
         expect(result.code).toBe(0)
-        expect(result.stdout.toString()).toBe(
-          canonicalPaths
-            .flatMap((canonical, index) =>
-              inspectPathSpellings(canonical).map(
-                (spelling) =>
-                  `${canonical}\t${String(index === 0 && spelling === canonical ? 0 : 1)}\t${String(index === 0 ? 0 : 1)}\n`,
-              ),
-            )
-            .join(''),
-        )
+        expect(result.stdout.toString()).toBe(expected)
         for (const operand of [
           './allowed.txt',
           'allowed.txt/.',
@@ -275,11 +229,7 @@ switch (process.platform) {
           path.join(h.workspace, 'pkg/.github/workflows-extra/probe.txt'),
           'ALLOWED_CANARY\n',
         )
-        const runner = new InspectRunner({
-          helper: binary,
-          storage: path.join(h.root, 'storage'),
-          start: inspectStart,
-        })
+        const runner = openInspectRunner(binary, h.root)
         try {
           for (const operand of ['.', './pkg/.', 'pkg/./.github/.']) {
             const result = await runner.run(`grep -r -e CANARY ${operand}`, h.binding)
@@ -437,11 +387,7 @@ switch (process.platform) {
       })
       it('B1 root binding refuses a workspace retargeted after the session binds it', async () => {
         const h = await fixture()
-        const runner = new InspectRunner({
-          helper: binary,
-          storage: path.join(h.root, 'storage'),
-          start: inspectStart,
-        })
+        const runner = openInspectRunner(binary, h.root)
         try {
           const first = await runner.run('cat allowed.txt', h.binding)
           expect(first.kind).toBe('output')
@@ -458,11 +404,7 @@ switch (process.platform) {
       })
       it('runs session self-tests once, preserves command failures and withholds secrets before delivery', async () => {
         const h = await fixture()
-        const runner = new InspectRunner({
-          helper: binary,
-          storage: path.join(h.root, 'storage'),
-          start: inspectStart,
-        })
+        const runner = openInspectRunner(binary, h.root)
         try {
           const [a, b] = await Promise.all([
             runner.run('cat allowed.txt', h.binding),
@@ -554,39 +496,7 @@ switch (process.platform) {
       afterAll(async () => {
         if (scratch) await rm(scratch, { recursive: true, force: true })
       })
-      async function fixture() {
-        const root = await mkdtemp(path.join(scratch, 'case-'))
-        const workspace = path.join(root, 'workspace'),
-          home = path.join(root, 'home')
-        await mkdir(workspace)
-        await mkdir(home, { mode: 0o700 })
-        const allowed = path.join(workspace, 'allowed.txt'),
-          outside = path.join(root, 'outside.txt')
-        writeFileSync(allowed, 'ALLOWED_CANARY\n')
-        writeFileSync(outside, 'FORBIDDEN_CANARY\n')
-        const identity = fileIdentityKey(await statIdentity(workspace))
-        if (identity === undefined) throw new Error('Missing workspace identity')
-        const args = (program: string, operands: string[], tool: string[], isRecursive = false) => [
-          'run',
-          workspace,
-          identity,
-          home,
-          isRecursive ? 'recursive' : 'single',
-          program,
-          ...operands,
-          '--',
-          ...tool,
-        ]
-        return {
-          root,
-          workspace,
-          binding: { root: workspace, identity },
-          home,
-          allowed,
-          outside,
-          args,
-        }
-      }
+      const fixture = (): Promise<InspectCase> => inspectFixture(scratch)
 
       // These refusals land before any profile is applied, so they hold with
       // and without a live sandbox.
@@ -637,28 +547,10 @@ switch (process.platform) {
         it('canonicalizes seeded spellings exactly like the Linux policy', async () => {
           if (macPrereqs.variant === null) throw new Error('Missing variant')
           const h = await fixture()
-          const canonicalPaths = [
-            'allowed.txt',
-            ...inspectProtectedPaths.flatMap((name) => [
-              name,
-              name.toUpperCase(),
-              `pkg/${name}/probe.txt`,
-              `pkg/${name.toUpperCase()}/probe.txt`,
-            ]),
-          ]
-          const spellings = canonicalPaths.flatMap((canonical) => inspectPathSpellings(canonical))
+          const { spellings, expected } = inspectSpellingMatrix()
           const result = await native(macPrereqs.variant, spellings, h.root)
           expect(result.code).toBe(0)
-          expect(result.stdout.toString()).toBe(
-            canonicalPaths
-              .flatMap((canonical, index) =>
-                inspectPathSpellings(canonical).map(
-                  (spelling) =>
-                    `${canonical}\t${String(index === 0 && spelling === canonical ? 0 : 1)}\t${String(index === 0 ? 0 : 1)}\n`,
-                ),
-              )
-              .join(''),
-          )
+          expect(result.stdout.toString()).toBe(expected)
         })
       })
 
@@ -699,11 +591,7 @@ switch (process.platform) {
           const h = await fixture()
           mkdirSync(path.join(h.workspace, '.git'))
           writeFileSync(path.join(h.workspace, '.git/config'), 'FORBIDDEN_CANARY')
-          const runner = new InspectRunner({
-            helper: binary,
-            storage: path.join(h.root, 'storage'),
-            start: inspectStart,
-          })
+          const runner = openInspectRunner(binary, h.root)
           try {
             const find = await runner.run('find . -print', h.binding)
             expect(find.kind).toBe('output')
@@ -738,11 +626,7 @@ switch (process.platform) {
         it('runs session self-tests once and withholds secrets before delivery', async () => {
           if (binary === null) throw new Error('Missing helper')
           const h = await fixture()
-          const runner = new InspectRunner({
-            helper: binary,
-            storage: path.join(h.root, 'storage'),
-            start: inspectStart,
-          })
+          const runner = openInspectRunner(binary, h.root)
           try {
             const first = await runner.run('cat allowed.txt', h.binding)
             expect(first).toMatchObject({ kind: 'output', stdout: 'ALLOWED_CANARY\n', exitCode: 0 })
