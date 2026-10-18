@@ -4,9 +4,9 @@
 // one record or nothing. Each case below drives the real source or reader
 // factory with that input; the shared-helper hardening stays in
 // reportEngineBoundaries.test.ts.
-import { appendFile, mkdir, mkdtemp } from 'node:fs/promises'
+import { appendFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { USAGE_DAYS_FOLDER } from '../../src/shared/constants'
 import { agentUsageSource, type AgentUsageFile } from '../../src/core/reporting/sources/agentUsage'
@@ -45,12 +45,10 @@ import { removeFolder } from './helpers/temporaryFolders'
 const TEMP = path.resolve(import.meta.dirname, '../../temp')
 const scrub = (text: string) => text
 
-// The check-run journal below runs report storage directly (as in
-// checkRuns.test.ts), so its identity probe is the fixture command.
-vi.mock('../../src/core/resources/launcher', async (original) => {
-  const { withFixtureCommand } = await import('./helpers/resources/kindLaunch')
-  return withFixtureCommand(await original())
-})
+// The check-run journal below runs report storage directly. Its seed file
+// is written with plain fs: only storage writes take the bucket lock (and
+// its OS birth probe), so seeding bypasses nothing the journal read
+// exercises.
 
 function contextFor(kind: Parameters<typeof reportOptions>[0]): SourceReadContext {
   return {
@@ -212,16 +210,15 @@ describe('production sources keep good records beside one bad record', () => {
     await mkdir(TEMP, { recursive: true })
     const directory = await mkdtemp(path.join(TEMP, 'record-boundary-checks-'))
     onTestFinished(() => removeFolder(directory))
+    await mkdir(path.join(directory, 'reports', 'v1', 'checks'), { recursive: true })
+    await writeFile(
+      path.join(directory, 'reports', 'v1', 'checks', 'workspace.jsonl'),
+      [JSON.stringify(goodCheck('a', 1)), '{"bad":true}', JSON.stringify(goodCheck('b', 2))].join(
+        '\n',
+      ) + '\n',
+    )
     const storage = new ReportStorage(directory)
     const journal = new CheckRunJournal({ storage, scrub })
-    await storage.transaction(['checks'], true, async (files) => {
-      await files.write(
-        'workspace.jsonl',
-        [JSON.stringify(goodCheck('a', 1)), '{"bad":true}', JSON.stringify(goodCheck('b', 2))].join(
-          '\n',
-        ) + '\n',
-      )
-    })
     const result = await journal.source().read(contextFor('quality'))
     expect(result.data).toHaveLength(2)
     expect(result.record.status).toBe('partial')
