@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer'
 import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { runProgram, windowsPowerShell } from '../../src/host/processTree'
 import {
@@ -33,7 +33,6 @@ const SENTINEL = 'synthetic sentinel'
 
 const areas: string[] = []
 afterEach(async () => {
-  vi.restoreAllMocks()
   for (const folder of areas.splice(0)) await removeFolder(folder)
 })
 /** A scratch folder of this test's own, never the shared system temp itself. */
@@ -56,10 +55,22 @@ const reading = (rules: readonly Rule[], ownerSid = SID) => ({
 })
 /** A Windows ACL reading per path: the parent's and the root's can differ. */
 function reader(parent: object = reading([]), root: object = reading([])) {
-  const read = vi.fn<WindowsAclReader['read']>((directory) =>
-    Promise.resolve(path.basename(directory) === 'media' ? root : parent),
-  )
-  return { read }
+  const calls: string[] = []
+  const read: WindowsAclReader['read'] = (directory) => {
+    calls.push(directory)
+    return Promise.resolve(path.basename(directory) === 'media' ? root : parent)
+  }
+  return { read, calls }
+}
+
+/** A securing ACL that records its calls and answers the receipt. */
+function recordingSecure() {
+  const calls: (readonly [string, boolean])[] = []
+  const secure: TokenWindowsAcl['secure'] = (directory, created) => {
+    calls.push([directory, created])
+    return Promise.resolve(receipt)
+  }
+  return { secure, calls }
 }
 
 /** A root under a scratch folder, through the fake Windows reading. */
@@ -70,21 +81,21 @@ async function fakeRoot(): Promise<PrivateRoot> {
 describe('openPrivateRoot', () => {
   it('makes an absent root owner-only before any check passes it, then reads it back', async () => {
     const parent = await area()
-    const secure = vi.fn<TokenWindowsAcl['secure']>(() => Promise.resolve(receipt))
+    const { secure, calls: secureCalls } = recordingSecure()
     const fake = reader()
     const root = await openPrivateRoot(path.join(parent, 'media'), {
       reader: fake,
       acl: { secure },
     })
     expect(root.path).toBe(path.join(await fs.realpath(parent), 'media'))
-    expect(secure).toHaveBeenCalledExactlyOnceWith(root.path, true)
-    expect(fake.read.mock.calls.map(([directory]) => path.basename(directory))).toEqual([
+    expect(secureCalls).toEqual([[root.path, true]])
+    expect(fake.calls.map((directory) => path.basename(directory))).toEqual([
       path.basename(parent),
       'media',
     ])
     // Opening it again checks the existing root and never secures it anew.
     await openPrivateRoot(root.path, { reader: fake, acl: { secure } })
-    expect(secure).toHaveBeenCalledTimes(1)
+    expect(secureCalls).toHaveLength(1)
   })
 
   it.each([
@@ -96,7 +107,7 @@ describe('openPrivateRoot', () => {
     'refuses a parent granting another principal %s, before making anything',
     async (_label, rule) => {
       const parent = await area()
-      const secure = vi.fn<TokenWindowsAcl['secure']>(() => Promise.resolve(receipt))
+      const { secure, calls: secureCalls } = recordingSecure()
       await expect(
         openPrivateRoot(path.join(parent, 'media'), {
           reader: reader(reading([rule])),
@@ -104,7 +115,7 @@ describe('openPrivateRoot', () => {
         }),
       ).rejects.toMatchObject({ code: 'EPRIVATE_ROOT' })
       expect(await fs.readdir(parent)).toEqual([])
-      expect(secure).not.toHaveBeenCalled()
+      expect(secureCalls).toHaveLength(0)
     },
   )
 
@@ -126,7 +137,7 @@ describe('openPrivateRoot', () => {
     const parent = await area()
     await fs.mkdir(path.join(parent, 'media'))
     await fs.writeFile(path.join(parent, 'media', 'kept'), SENTINEL)
-    const secure = vi.fn<TokenWindowsAcl['secure']>(() => Promise.resolve(receipt))
+    const { secure, calls: secureCalls } = recordingSecure()
     await expect(
       openPrivateRoot(path.join(parent, 'media'), {
         reader: reader(
@@ -137,7 +148,7 @@ describe('openPrivateRoot', () => {
       }),
     ).rejects.toBeInstanceOf(PrivateRootRefused)
     // Checked, never repaired, never removed.
-    expect(secure).not.toHaveBeenCalled()
+    expect(secureCalls).toHaveLength(0)
     expect(await fs.readdir(path.join(parent, 'media'))).toEqual(['kept'])
   })
 
@@ -242,7 +253,7 @@ describe.skipIf(process.platform === 'win32')('openPrivateRoot on real POSIX mod
 describe('createPrivateDirectory', () => {
   it('creates one fresh, empty folder in its root and secures it once as a folder', async () => {
     const root = await fakeRoot()
-    const secure = vi.fn<TokenWindowsAcl['secure']>(() => Promise.resolve(receipt))
+    const { secure, calls: secureCalls } = recordingSecure()
     const directory = await createPrivateDirectory(root, { acl: { secure } })
     expect(path.dirname(directory)).toBe(root.path)
     // It carries its root's owner token, which crash reclaim reads (RVMEDIAV3 3).
@@ -250,7 +261,7 @@ describe('createPrivateDirectory', () => {
     expect(path.basename(directory)).toMatch(
       new RegExp(`^muse-media-${root.owner}-[a-f0-9]{32}$`, 'u'),
     )
-    expect(secure).toHaveBeenCalledExactlyOnceWith(directory, true)
+    expect(secureCalls).toEqual([[directory, true]])
     expect(await fs.readdir(directory)).toEqual([])
     const second = await createPrivateDirectory(root, { acl: owned })
     expect(second).not.toBe(directory)
@@ -282,10 +293,10 @@ describe('createPrivateDirectory', () => {
     await fs.mkdir(existing)
     await fs.writeFile(path.join(existing, 'kept'), SENTINEL)
     const before = await fs.stat(existing)
-    const secure = vi.fn<TokenWindowsAcl['secure']>(() => Promise.resolve(receipt))
+    const { secure, calls: secureCalls } = recordingSecure()
     const starting = createPrivateDirectory(root, { acl: { secure }, name: () => 'taken' })
     await expect(starting).rejects.toBeInstanceOf(PrivateDirectoryRefused)
-    expect(secure).not.toHaveBeenCalled()
+    expect(secureCalls).toHaveLength(0)
     expect(await fs.readFile(path.join(existing, 'kept'), 'utf8')).toBe(SENTINEL)
     const after = await fs.stat(existing)
     expect(after.mode).toBe(before.mode)
