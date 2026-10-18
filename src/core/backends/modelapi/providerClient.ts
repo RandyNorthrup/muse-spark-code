@@ -307,6 +307,9 @@ export class CodecClient implements ProviderClient {
           reason: `${failure.code ?? ''}: ${failure.message}`,
         })
         await this.waitBeforeRetry(delayMs, signal)
+        // Lane PR225W1: the person's limit is live — a change mid-wait
+        // refuses the resend the pre-wait check accepted.
+        if (attempt >= (this.transport.maxRetries() ?? UNBOUNDED_RETRIES)) throw failure
       } finally {
         if (response.body !== null && !response.body.locked) {
           void response.body.cancel().catch(ignoreClosingError)

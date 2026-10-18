@@ -1005,7 +1005,12 @@ export class RequestTransport {
         undefined,
       )
     }
-    const retry = async (attempt: number, delay: number, reason: string) => {
+    const retry = async (
+      attempt: number,
+      delay: number,
+      reason: string,
+      refused: ModelApiError,
+    ) => {
       if (budget !== undefined) {
         budget.retriesUsed = attempt + 1
       }
@@ -1018,6 +1023,10 @@ export class RequestTransport {
         reason,
       })
       await this.pause(delay, signal)
+      // Lane PR225W1: the person's limit is live — a change mid-wait (to 0
+      // during a long Retry-After) refuses the dispatch the pre-wait check
+      // accepted, instead of sending one request past the new ceiling.
+      if (attempt >= (this.maxRetries() ?? UNBOUNDED_RETRIES)) throw refused
     }
     // How long the answer took, retries included, at trace level (M39).
     const startedAt = this.deps.now()
@@ -1214,14 +1223,15 @@ export class RequestTransport {
         // maximum). With neither, the failure ends the request here instead
         // of replaying a possibly-executed paid send without end.
         const allowed = this.maxRetries()
+        const refused = new ModelApiError(reason, NETWORK_FAILURE_STATUS, undefined, undefined)
         if (isRateLimitOnly || allowed === undefined || attempt >= allowed) {
-          throw new ModelApiError(reason, NETWORK_FAILURE_STATUS, undefined, undefined)
+          throw refused
         }
         const delay = this.backoffMs(attempt, undefined)
         this.deps.log.warn(
           `Model API request failed to send (${credentials.redact(describeNetworkFailure(error).detail)}); retrying in ${String(delay)} ms`,
         )
-        await retry(attempt, delay, reason)
+        await retry(attempt, delay, reason, refused)
         continue
       }
       if (shouldObserveLimits)
@@ -1312,7 +1322,7 @@ export class RequestTransport {
           credentials.keyDigest,
           signal ?? new AbortController().signal,
         )
-      await retry(attempt, delay, `HTTP ${String(response.status)}: ${failure.message}`)
+      await retry(attempt, delay, `HTTP ${String(response.status)}: ${failure.message}`, failure)
     }
   }
 }
