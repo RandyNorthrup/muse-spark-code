@@ -482,6 +482,46 @@ outputs `ALLOWED_CANARY`, rewritten secret refuses `secret`). Any
 future self-test failure names its probe's own reason instead of bare
 `selfTest`.
 
+## Item 1f — PARITYMAC6: protected names stay listed on macOS (9/10 → 10/10)
+
+Cause (lead's macmini rerun): the last live drill fails —
+`expected '.\n./allowed.txt\n' to contain '.git/config'`.
+The walk skips every protected/private entry without granting any
+profile rule for it, so under `(deny default)` the confined `find`
+cannot even open the protected directory: names vanish along with
+contents. Linux B1-13 keeps protected names visible (directory listing
+and metadata) while withholding contents; the macOS profile did not.
+
+Rule added (`native/confine/MuseSparkConfineMac.c`, in `walk()`, same
+generated `policy.h`, nothing else changed): every skipped
+protected/private entry now gets exactly one narrow literal rule — a
+protected directory gets `(allow file-read* (literal "<abs>"))` so its
+entries enumerate (names only); every other protected entry (file,
+symlink, fifo, …) gets `(allow file-read-metadata (literal "<abs>"))`.
+The type comes from `fstatat(…, AT_SYMLINK_NOFOLLOW)` — no open, no
+follow, no block on fifos; anything unstatable fails closed to
+metadata-only.
+
+Why contents stay denied: Seatbelt checks every open's resolved path,
+and no rule grants `file-read-data` on a protected file — the directory
+grant lists names but opens nothing beneath it. `cat`/`grep` on a
+protected file still refuse EPERM/EACCES; deeper entries enumerate
+through their parent's listing but never open. No `file-write*`, no
+`network*`, no `process-fork`, no new `process-exec`; workspace grants
+stay literal-only; the walk's exclusions and the `excluded` count are
+unchanged (every skipped entry still counts).
+
+What the lead's unsandboxed rerun must show (`npm ci
+--ignore-scripts`, `npm run build:confine`, `npx vitest run
+test/unit/inspectNative.test.ts`): 10/10 green — `find . -print`
+lists `.git/config` without its contents, `grep -r -e 'CANARY' .`
+prints `ALLOWED_CANARY`, never `FORBIDDEN_CANARY`, with `excluded > 0`;
+every other drill unchanged. The generated `profile.sb` for the drill
+grows by exactly one line: the `file-read*` literal for
+`<workspace>/.git` (the walk never descends into a skipped directory,
+so `.git/config` gets no rule of its own — its name surfaces through
+the parent's listing, its contents and metadata stay denied).
+
 ## Drills
 
 - Item 3 and item 2 drills ran live on this Mac (above).
