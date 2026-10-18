@@ -8439,6 +8439,7 @@ export class ConversationController {
           return
         }
       } catch (error: unknown) {
+        this.deps.log.warn(`The model could not be switched: ${failureForLog(error)}`)
         this.modelId = previous
         this.notice('error', `${UI_TEXT.modelSwitchFailed}: ${describe(error)}`, undefined, error)
         return
@@ -8537,6 +8538,7 @@ export class ConversationController {
       try {
         await session.setServiceTier(tierId)
       } catch (error: unknown) {
+        this.deps.log.warn(`Fast could not be switched: ${failureForLog(error)}`)
         this.fast = false
         this.say('warning', `${UI_TEXT.effortNotApplied}: ${describe(error)}`)
       }
@@ -8656,6 +8658,7 @@ export class ConversationController {
       try {
         await this.setSessionPermissionMode(session, target)
       } catch (error: unknown) {
+        this.deps.log.warn(`The permission mode could not be applied: ${failureForLog(error)}`)
         if (!isCurrent()) {
           return
         }
@@ -8755,6 +8758,7 @@ export class ConversationController {
         this.notice('info', UI_TEXT.compactionStoppedNotice)
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A conversation could not be compacted: ${failureForLog(error)}`)
       if (!this.isCurrentSessionAction(session, generation)) {
         return
       }
@@ -8781,7 +8785,7 @@ export class ConversationController {
     try {
       session = await this.sessionForAction()
     } catch (error: unknown) {
-      this.deps.log.warn(`The skills were not listed: ${describeForLog(error)}`)
+      this.deps.log.warn(`The skills were not listed: ${failureForLog(error)}`)
       return
     }
     if (session !== undefined) {
@@ -8794,7 +8798,7 @@ export class ConversationController {
       const items = await this.deps.mentions.search(query, MENTION_RESULT_LIMIT)
       this.post({ type: 'mentionResults', requestId, items: [...items] })
     } catch (error: unknown) {
-      this.deps.log.warn(`mention search failed: ${describeForLog(error)}`)
+      this.deps.log.warn(`mention search failed: ${failureForLog(error)}`)
       this.post({ type: 'mentionResults', requestId, items: [] })
     }
   }
@@ -8815,6 +8819,7 @@ export class ConversationController {
     try {
       host = await this.deps.ensureHost()
     } catch (error: unknown) {
+      this.deps.log.warn(`An attachment could not be admitted: ${failureForLog(error)}`)
       if (
         this.isDisposed ||
         generation !== this.attachmentGeneration ||
@@ -8885,11 +8890,8 @@ export class ConversationController {
     try {
       checked = await this.deps.files.canonicalRelativePath(file.fsPath)
     } catch (error: unknown) {
-      if (!this.isCurrentAttachmentGeneration(generation)) {
-        return { kind: 'stale' }
-      }
-      this.deps.log.warn(`text attachment path check failed: ${describeForLog(error)}`)
-      return { kind: 'mention' }
+      this.deps.log.warn(`A text attachment path could not be checked: ${failureForLog(error)}`)
+      return { kind: this.isCurrentAttachmentGeneration(generation) ? 'mention' : 'stale' }
     }
     if (!this.isCurrentAttachmentGeneration(generation)) {
       return { kind: 'stale' }
@@ -8906,6 +8908,7 @@ export class ConversationController {
     try {
       isIndexed = await this.deps.mentions.contains(canonical)
     } catch (error: unknown) {
+      this.deps.log.warn(`A text attachment index check could not be read: ${failureForLog(error)}`)
       if (!this.isCurrentAttachmentGeneration(generation)) {
         return { kind: 'stale' }
       }
@@ -8939,6 +8942,7 @@ export class ConversationController {
         [UI_TEXT.mentionFile]: ['*'],
       })
     } catch (error: unknown) {
+      this.deps.log.warn(`The file dialog failed: ${failureForLog(error)}`)
       if (!this.isCurrentAttachmentGeneration(generation)) {
         return
       }
@@ -9005,10 +9009,10 @@ export class ConversationController {
             read = await this.deps.files.readFile(pathToRead, maxBytes)
           }
         } catch (error: unknown) {
+          this.deps.log.warn(`An attachment could not be read: ${failureForLog(error)}`)
           if (!this.isCurrentAttachmentGeneration(generation)) {
             return
           }
-          this.deps.log.warn(`attachment read failed: ${describeForLog(error)}`)
           this.post({
             type: 'attachmentRejected',
             name: file.name,
@@ -9079,7 +9083,7 @@ export class ConversationController {
     try {
       checked = await this.deps.files.canonicalRelativePath(file.fsPath)
     } catch (error: unknown) {
-      this.deps.log.warn(`media attachment path check failed: ${describeForLog(error)}`)
+      this.deps.log.warn(`A media attachment path could not be checked: ${failureForLog(error)}`)
       if (!this.isCurrentAttachmentGeneration(generation)) {
         return false
       }
@@ -9180,6 +9184,7 @@ export class ConversationController {
     } catch (error: unknown) {
       // The unbound pipeline (W's throwing bind until U6c) keeps its own
       // words; only a genuine read failure is unreadable (M105 E1 review).
+      this.deps.log.warn(`A media attachment could not be read: ${failureForLog(error)}`)
       rejected(
         error instanceof Error && error.message === UI_TEXT.media.uploadStorageUnknown
           ? UI_TEXT.media.uploadStorageUnknown
@@ -9226,7 +9231,7 @@ export class ConversationController {
     try {
       await entry.dispose()
     } catch (error: unknown) {
-      this.deps.log.warn(`Recording cleanup failed: ${describeForLog(error)}`)
+      this.deps.log.warn(`Recording cleanup failed: ${failureForLog(error)}`)
     }
   }
 
@@ -9243,7 +9248,7 @@ export class ConversationController {
       try {
         await entry.dispose()
       } catch (error: unknown) {
-        this.deps.log.warn(`Recording cleanup failed: ${describeForLog(error)}`)
+        this.deps.log.warn(`Recording cleanup failed: ${failureForLog(error)}`)
       }
     }
   }
@@ -9261,7 +9266,7 @@ export class ConversationController {
     this.recordingCancels.clear()
     for (const cancel of runs) {
       void cancel().catch((error: unknown) => {
-        this.deps.log.warn(`Recording cancel failed: ${describeForLog(error)}`)
+        this.deps.log.warn(`Recording cancel failed: ${failureForLog(error)}`)
       })
     }
   }
@@ -9272,6 +9277,7 @@ export class ConversationController {
     try {
       relativePath = await this.deps.files.pickMentionFile()
     } catch (error: unknown) {
+      this.deps.log.warn(`The mention file dialog failed: ${failureForLog(error)}`)
       if (!this.isCurrentAttachmentGeneration(generation)) {
         return
       }
