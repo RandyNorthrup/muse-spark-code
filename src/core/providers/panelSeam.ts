@@ -1,5 +1,5 @@
 function unavailable(): never {
-  throw new Error(UI_TEXT.modelsPanelUnavailable)
+  throw new Error(UI_TEXT.modelsPanelPartMissing)
 }
 // Compose the panel's existing ports with the nonsecret providers file.
 import { lookup } from 'node:dns/promises'
