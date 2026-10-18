@@ -125,6 +125,9 @@ export class UnattendedRun {
         try {
           root = await (this.canonicalRoot ??= this.deps.io.realPath(this.deps.workspaceRoot))
         } catch {
+          // Fail closed: an unreadable root refuses the action below, and
+          // the next decision retries the read. The refusal below is the
+          // record: it names the safe state, never the read failure.
           reason = this.modelText.protectedRefused
           break
         }
@@ -177,8 +180,12 @@ export class UnattendedRun {
         ruleId: rule.id,
         actionClass: action.class,
       })
-    } catch {
-      return { allowed: false, reason: this.refuse(action, this.modelText.approvalRefused) }
+    } catch (error) {
+      // The refusal is recorded as usual, then the audit failure keeps its
+      // kind for the caller: an unaudited approval is never reported as a
+      // refused one.
+      this.refuse(action, this.modelText.approvalRefused)
+      throw error
     }
     return this.isActive()
       ? { allowed: true }

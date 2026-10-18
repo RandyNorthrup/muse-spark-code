@@ -94,7 +94,7 @@ export class ScheduleDelivery implements ScheduleHostPort {
     string,
     {
       readonly abort: AbortController
-      withdrawal?: Promise<boolean | { readonly error: unknown }>
+      withdrawal?: Promise<boolean | { readonly cause: unknown }>
     }
   >()
   private readonly queued = new Map<string, { session: ScheduleSessionPort; messageId: string }>()
@@ -293,7 +293,7 @@ export class ScheduleDelivery implements ScheduleHostPort {
         }
       })
       const withdrawal = await this.held.get(context.runId)?.withdrawal
-      if (typeof withdrawal === 'object') throw withdrawal.error
+      if (typeof withdrawal === 'object') throw withdrawal.cause
       return this.record(
         schedule,
         context,
@@ -356,7 +356,9 @@ export class ScheduleDelivery implements ScheduleHostPort {
         try {
           return await queued.session.withdraw(queued.messageId)
         } catch (error: unknown) {
-          return { error }
+          // The withdrawal failure travels to the settling run, which
+          // rethrows it instead of settling a withdrawn turn as delivered.
+          return { cause: error }
         }
       })()
     }

@@ -67,8 +67,10 @@ export function parseScheduleStoredJson(content: string | undefined): unknown {
     )
     if (!isExact) throw new Error('scheduleStoredJsonInvalid')
     return value
-  } catch {
-    throw new Error('scheduleStoredJsonInvalid')
+  } catch (error) {
+    // The stored text stays unreadable under one fixed refusal; the parse
+    // failure rides along as the cause, never in the refusal itself.
+    throw new Error('scheduleStoredJsonInvalid', { cause: error })
   }
 }
 
@@ -270,6 +272,9 @@ export function createScheduleJournal<T extends Collections>(
         }
         await fs.remove(`${directory}/${name}`, false)
       } catch {
+        // Retirement is debt, not the committed transaction: a generation
+        // left behind is retried on every later mutation, so a failed
+        // entry waits for the next pass instead of failing this one.
         continue
       }
     }

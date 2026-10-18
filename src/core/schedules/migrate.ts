@@ -107,7 +107,15 @@ export async function migrateSchedules(
 ): Promise<number> {
   let migrated = 0
   const entries = await source.freeze()
-  const failures: unknown[] = []
+  const failed: unknown[] = []
+  // Every entry is attempted; each entry's failure is recorded for the
+  // final throw below, so no entry hides another's migration failure.
+  const failures = {
+    list: failed,
+    record(error: unknown): void {
+      failed.push(error)
+    },
+  }
   for (const entry of entries) {
     try {
       const mapped = scheduleV1ToV2(entry.job, workspaceKey, zone)
@@ -180,9 +188,9 @@ export async function migrateSchedules(
       await store.completeMigration(workspaceKey, sourceId)
       migrated += 1
     } catch (error: unknown) {
-      failures.push(error)
+      failures.record(error)
     }
   }
-  if (failures.length > 0) throw failures[0]
+  if (failures.list.length > 0) throw failures.list[0]
   return migrated
 }
