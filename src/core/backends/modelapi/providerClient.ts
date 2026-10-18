@@ -58,9 +58,9 @@ export interface ProviderClient {
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
   ): AsyncGenerator<StreamEvent>
-  countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number>
+  countInputTokens(body: Omit<CreateResponseBody, 'stream'>, signal?: AbortSignal): Promise<number>
   /** Preserve today's host contract; registry owns the richer catalogue/model rows. */
-  listModels(): Promise<readonly string[]>
+  listModels(signal?: AbortSignal): Promise<readonly string[]>
   currentKeyDigest(): Promise<string>
   retryDelayMs(attempt: number): number
   waitBeforeRetry(ms: number, signal: AbortSignal): Promise<void>
@@ -153,19 +153,22 @@ export class CodecClient implements ProviderClient {
     this.retryDelayMs = this.transport.backoffMs.bind(this.transport)
     this.waitBeforeRetry = this.transport.pause.bind(this.transport)
   }
-  public async listModels(): Promise<readonly string[]> {
+  public async listModels(signal?: AbortSignal): Promise<readonly string[]> {
     // No deadline of our own (owner 2026-10-16): the catalogue read ends at
-    // the provider's answer or a network failure. No turn stops it; a hung
-    // provider is waited on until the network itself gives up.
+    // the provider's answer, a network failure, or the caller's signal
+    // (Stop owns the wait; PR #214 review).
     const result = await this.transport.request(
       this.deps.codec.models.path,
       { method: 'GET', accept: 'application/json' },
-      undefined,
+      signal,
     )
     const models = await parseJsonResponse(result, (json) => this.deps.codec.models.parse(json))
     return models.map((model) => result.redact(model.id))
   }
-  public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
+  public async countInputTokens(
+    body: Omit<CreateResponseBody, 'stream'>,
+    signal?: AbortSignal,
+  ): Promise<number> {
     const counter = this.deps.codec.countTokens
     if (counter === undefined) {
       throw new ModelApiError(
@@ -184,8 +187,9 @@ export class CodecClient implements ProviderClient {
         ...(request.headers !== undefined && { headers: request.headers }),
         accept: 'application/json',
       },
-      // No deadline of our own (owner 2026-10-16); see listModels.
-      undefined,
+      // No deadline of our own (owner 2026-10-16): the caller's
+      // signal, if any, ends it, else the provider's answer (see listModels).
+      signal,
     )
     const count = await parseJsonResponse(result, (json) => counter.parse(json))
     if (!Number.isSafeInteger(count) || count < 0) {

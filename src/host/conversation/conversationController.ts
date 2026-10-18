@@ -1175,6 +1175,12 @@ export class ConversationController {
    */
   private readonly trainingModelIds = new Set<string>()
   private modelListing: Promise<void> | undefined
+  /**
+   * Stop owns the outstanding model listing (PR #214 review): invalidating
+   * a pending send aborts its wait, and the next send lists again. The
+   * listing shared by overlapping sends keeps the first call's controller.
+   */
+  private modelListingStop: AbortController | undefined
   /** The backend the model catalogue was listed from; a new backend or sign-in starts a new one. */
   private modelGeneration = 0
   private skills: readonly SkillOption[] | undefined
@@ -1933,6 +1939,7 @@ export class ConversationController {
     }
     if (!isOwnedRecovery) {
       this.sendInvalidationEpoch += 1
+      this.stopModelListing()
       // A review starting in the old conversation answers its own card; the
       // next conversation neither waits for it nor is refused because of it.
       this.reviewStart = undefined
@@ -3695,10 +3702,15 @@ export class ConversationController {
     if (this.models !== undefined) {
       return
     }
-    const listing = this.modelListing ?? this.listModels(host, this.modelGeneration)
+    const stop = (this.modelListingStop ??= new AbortController())
+    const listing = this.modelListing ?? this.listModels(host, this.modelGeneration, stop.signal)
     this.modelListing = listing
     try {
       await listing
+    } catch (error: unknown) {
+      // Stop owns this wait: an aborted listing ends quietly and the
+      // caller's generation check drops the send; anything else surfaces.
+      if (!stop.signal.aborted) throw error
     } finally {
       if (this.modelListing === listing) {
         this.modelListing = undefined
@@ -3706,8 +3718,18 @@ export class ConversationController {
     }
   }
 
-  private async listModels(host: AgentHost, generation: number): Promise<void> {
-    const listed = await host.listModels()
+  /** Ends the outstanding model listing, if any: the next send lists again. */
+  private stopModelListing(): void {
+    this.modelListingStop?.abort()
+    this.modelListingStop = undefined
+  }
+
+  private async listModels(
+    host: AgentHost,
+    generation: number,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const listed = await host.listModels(undefined, signal)
     if (this.isDisposed || this.modelGeneration !== generation) {
       return
     }
@@ -11007,6 +11029,7 @@ export class ConversationController {
     try {
       // Invalidate a pending send before a running turn's cancel can await.
       this.sendInvalidationEpoch += 1
+      this.stopModelListing()
       this.invalidateEstimate()
       if (isConversationEnding) {
         this.accountStopEpoch = this.sendInvalidationEpoch

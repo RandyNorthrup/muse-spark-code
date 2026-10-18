@@ -17717,8 +17717,12 @@ export class ModelApiHost implements AgentHost {
     return this.deps.client.readPlanUsage?.() ?? []
   }
 
-  public async listModels(sessionId?: string): Promise<readonly ModelSummary[]> {
-    const ids = this.deps.hasMetaCredential?.() === false ? [] : await this.deps.client.listModels()
+  public async listModels(
+    sessionId?: string,
+    signal?: AbortSignal,
+  ): Promise<readonly ModelSummary[]> {
+    const ids =
+      this.deps.hasMetaCredential?.() === false ? [] : await this.deps.client.listModels(signal)
     const providers = (await this.deps.models?.list?.()) ?? []
     const active = sessionId === undefined ? undefined : this.sessions.get(sessionId)?.modelId
     return [

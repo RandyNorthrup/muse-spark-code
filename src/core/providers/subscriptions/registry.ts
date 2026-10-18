@@ -229,7 +229,7 @@ export function createSubscriptionClient(
     waitBeforeRetry: (ms, signal) => meta.waitBeforeRetry(ms, signal),
     createImage: (...args) => meta.createImage(...args),
     editImage: (...args) => meta.editImage(...args),
-    listModels: async () => {
+    listModels: async (signal) => {
       const file = await deps.providers()
       const ids: string[] = []
       for (const entry of file.providers) {
@@ -247,19 +247,19 @@ export function createSubscriptionClient(
         }
       }
       // A plan-only account makes no Meta request; keyed users keep both catalogues.
-      if ((await deps.hasMetaKey?.()) === true) return [...(await meta.listModels()), ...ids]
+      if ((await deps.hasMetaKey?.()) === true) return [...(await meta.listModels(signal)), ...ids]
       if (ids.length === 0 && file.providers.some((entry) => entry.auth === 'subscription')) {
         throw new Error(UI_TEXT.planUi.copilotUnavailable)
       }
-      return ids.length > 0 ? ids : await meta.listModels()
+      return ids.length > 0 ? ids : await meta.listModels(signal)
     },
-    countInputTokens: async (body) => {
-      if (!isPlanModel(body.model)) return await meta.countInputTokens(body)
+    countInputTokens: async (body, signal) => {
+      if (!isPlanModel(body.model)) return await meta.countInputTokens(body, signal)
       const ref = await configured(body.model)
       if (ref.providerId === 'copilot') {
         const adapter = deps.copilot?.().get(ref.modelId)
         if (adapter === undefined) throw new Error(UI_TEXT.actionFailed)
-        return await adapter.countInputTokens({ ...body, model: ref.modelId })
+        return await adapter.countInputTokens({ ...body, model: ref.modelId }, signal)
       }
       return Buffer.byteLength(JSON.stringify(body.input)) + Buffer.byteLength(body.instructions)
     },
