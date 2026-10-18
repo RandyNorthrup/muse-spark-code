@@ -19,6 +19,19 @@ function scratch(): string {
   return mkdtempSync(path.join(tmpdir(), 'token-file-'))
 }
 
+/** The setup error `createTokenFile` reports when its run fails. */
+async function setupFailureOf(run: () => Promise<unknown>): Promise<Error> {
+  let failure: unknown
+  try {
+    await run()
+  } catch (error) {
+    failure = error
+  }
+  expect(failure).toBeInstanceOf(Error)
+  if (!(failure instanceof Error)) throw new Error('unreachable')
+  return failure
+}
+
 describe('createTokenFile failure rules', () => {
   it('creates a token and removes every trace', async () => {
     const parent = scratch()
@@ -41,14 +54,7 @@ describe('createTokenFile failure rules', () => {
       secure: () => Promise.reject(setup),
     }
     try {
-      let failure: unknown
-      try {
-        await createTokenFile(parent, acl)
-      } catch (error) {
-        failure = error
-      }
-      expect(failure).toBeInstanceOf(Error)
-      if (!(failure instanceof Error)) throw new Error('unreachable')
+      const failure = await setupFailureOf(() => createTokenFile(parent, acl))
       expect(failure.message).toBe('ETOKEN_ACL')
       expect(failure.cause).toBe(setup)
     } finally {
@@ -72,14 +78,7 @@ describe('createTokenFile failure rules', () => {
       },
     }
     try {
-      let failure: unknown
-      try {
-        await createTokenFile(parent, acl)
-      } catch (error) {
-        failure = error
-      }
-      expect(failure).toBeInstanceOf(Error)
-      if (!(failure instanceof Error)) throw new Error('unreachable')
+      const failure = await setupFailureOf(() => createTokenFile(parent, acl))
       expect(failure.message).toBe('ETOKEN_ACL')
     } finally {
       rmSync(parent, { recursive: true, force: true })

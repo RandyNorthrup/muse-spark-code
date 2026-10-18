@@ -3,81 +3,41 @@
 // an unreadable prompt file stays out of the prompt, and the runner's own
 // failures reach the caller (aborts as `closed`, everything else unchanged).
 
-import { execFileSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import { resolveExecutable } from '../../src/core/executables'
 import { createMemoryPullRequestLinkStore } from '../../src/core/git/pullRequestLinksStore'
 import type { RuntimeGitDeps } from '../../src/core/git/runtimeGit'
-import type { CoreLogger } from '../../src/core/logging'
 import type { GitProcess } from '../../src/host/git'
 import { NativeGitRefusalError, NativeGitService } from '../../src/runtime/panel/git/service'
-
-const quiet = (): void => undefined
-const log: CoreLogger = { trace: quiet, info: quiet, warn: quiet, error: quiet }
-
-function never(name: string): () => never {
-  return () => {
-    throw new Error(`must not be called: ${name}`)
-  }
-}
+import { neverCalled, silentLogger, testGit } from './helpers/nativeGitHarness'
 
 const root = mkdtempSync(path.join(tmpdir(), 'm123-native-service-'))
 const dataFolder = mkdtempSync(path.join(root, 'data-'))
-const resolvedGitPath = resolveExecutable('git', {
-  platform: process.platform,
-  pathVariable: process.env.PATH,
-  fileExists: existsSync,
-})
-
-function gitPath(): string {
-  if (resolvedGitPath === undefined) {
-    throw new Error('git is not on PATH')
-  }
-  return resolvedGitPath
-}
-
-function git(cwd: string, ...args: string[]): void {
-  execFileSync(gitPath(), args, { cwd, stdio: 'pipe' })
-}
+const git = testGit(root)
 
 function makeRepository(): string {
-  const repo = mkdtempSync(path.join(root, 'repo-'))
-  git(repo, 'init', '-q', '-b', 'main')
-  git(
-    repo,
-    '-c',
-    'user.name=t',
-    '-c',
-    'user.email=t@t',
-    'commit',
-    '-q',
-    '--allow-empty',
-    '-m',
-    'Base',
-  )
-  return repo
+  return git.makeRepository().repo
 }
 
 function depsFor(repositoryRoot: string): RuntimeGitDeps {
   return {
     repositoryRoot,
-    gitPath: gitPath(),
+    gitPath: git.git,
     tokenSources: [],
     links: createMemoryPullRequestLinkStore(),
     isTrusted: () => true,
-    confirmPush: never('confirmPush'),
-    pickRemote: never('pickRemote'),
-    userEnvironment: never('userEnvironment'),
-    openInTerminal: never('openInTerminal'),
-    openFolder: never('openFolder'),
-    openExternal: never('openExternal'),
+    confirmPush: neverCalled('confirmPush'),
+    pickRemote: neverCalled('pickRemote'),
+    userEnvironment: neverCalled('userEnvironment'),
+    openInTerminal: neverCalled('openInTerminal'),
+    openFolder: neverCalled('openFolder'),
+    openExternal: neverCalled('openExternal'),
     dataFolder,
     userAgent: 'native-git-service-test',
     signal: new AbortController().signal,
-    log,
+    log: silentLogger,
   }
 }
 
@@ -182,10 +142,10 @@ describe('NativeGitService reads', () => {
       try {
         expect(existsSync(path.join(nested, '.git'))).toBe(true)
       } finally {
-        git(repo, 'worktree', 'remove', '--force', nested)
+        git.run(repo, 'worktree', 'remove', '--force', nested)
       }
     } finally {
-      git(repo, 'worktree', 'remove', '--force', worktree)
+      git.run(repo, 'worktree', 'remove', '--force', worktree)
     }
   })
 })

@@ -162,6 +162,21 @@ export class RuntimePullRequests {
     this.deps.signal.throwIfAborted()
   }
 
+  /**
+   * The `{ ok: false }` answer when a trust refusal or Cancel stops the
+   * call before it starts; anything else is not this call's answer to
+   * give, so it keeps throwing. `undefined` means trust held.
+   */
+  private trustRefusal(): PullRequestFailure | undefined {
+    try {
+      this.checkTrust()
+    } catch (error: unknown) {
+      if (!isExpectedPullRequestFailure(error)) throw error
+      return { ok: false, reason: error instanceof Error ? error.message : String(error) }
+    }
+    return undefined
+  }
+
   private clientFor(credential: GitHubCredential): GitHubClient {
     return new GitHubClient({
       fetch: credential.fetch,
@@ -329,14 +344,8 @@ export class RuntimePullRequests {
    * the description, the repository, the branches and the draft state.
    */
   public async create(input: CreatePullRequestInput): Promise<CreatePullRequestResult> {
-    try {
-      this.checkTrust()
-    } catch (error: unknown) {
-      // A trust refusal or Cancel answers; anything else is not this
-      // call's `{ ok: false }` answer to give.
-      if (!isExpectedPullRequestFailure(error)) throw error
-      return { ok: false, reason: error instanceof Error ? error.message : String(error) }
-    }
+    const refused = this.trustRefusal()
+    if (refused !== undefined) return refused
     const title = input.title.trim()
     const base = input.base.trim()
     const problem = pullRequestFormProblem(title, input.body, base)
@@ -425,14 +434,8 @@ export class RuntimePullRequests {
     },
     mode: 'silent' | 'ask',
   ): Promise<PullRequestStatusResult> {
-    try {
-      this.checkTrust()
-    } catch (error: unknown) {
-      // A trust refusal or Cancel answers; anything else is not this
-      // call's `{ ok: false }` answer to give.
-      if (!isExpectedPullRequestFailure(error)) throw error
-      return { ok: false, reason: error instanceof Error ? error.message : String(error) }
-    }
+    const refused = this.trustRefusal()
+    if (refused !== undefined) return refused
     const repository = repositoryFromFullName(link.repository)
     if (repository === undefined) {
       return { ok: false, reason: UI_TEXT.gitHubFailed }

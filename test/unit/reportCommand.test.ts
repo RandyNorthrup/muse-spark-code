@@ -28,7 +28,12 @@ function deps(overrides: Partial<RunReportDeps>): RunReportDeps {
     readTextFile: () => undefined,
     listDirectory: () => [],
     hasEnvironmentApiKey: false,
-    options: { description: 'test report', includeFacts: true, includeEvents: true },
+    options: {
+      description: 'test report',
+      includeFacts: true,
+      includeEvents: true,
+      out: undefined,
+    },
     readStoredKeyPresence: () => Promise.resolve(false),
     nowMs: Date.now(),
     readJournal: () => Promise.resolve({ entries: [], recordingUnavailable: false }),
