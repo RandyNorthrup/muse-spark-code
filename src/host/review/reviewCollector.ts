@@ -27,7 +27,8 @@ import {
 } from '../../shared/constants'
 import type { ReviewRequest } from '../../shared/reviewCommand'
 import type { PickOne } from '../commands/pickItem'
-import { gitExitCode, gitFilterOptions } from '../git'
+import { isMissingPath } from '../canonicalPath'
+import { gitExitCode, gitFilterOptions, isGitExitError } from '../git'
 import { captureWorkspaceIdentity, type WorkspaceIdentity } from '../workspaceIdentity'
 
 // A failed git call that carried no exit code (git was not found, say).
@@ -165,7 +166,14 @@ export function createReviewCollector(
     let root: WorkspaceIdentity | undefined
     try {
       root = await captureWorkspaceIdentity(deps.workspaceRoot)
-    } catch {
+    } catch (error: unknown) {
+      // A folder that vanished mid-review reviews nothing; a folder that
+      // cannot be read at all (a permission error, a link loop) keeps the
+      // review closed through the git-failure refusal below, never as
+      // cancelled and never with git's own words.
+      if (!isMissingPath(error)) {
+        throw error
+      }
       return { kind: 'cancelled' }
     }
     if (root === undefined) {
@@ -211,7 +219,9 @@ export function createReviewCollector(
       } catch (error: unknown) {
         // `--get-regexp` exits 1 only when no matching names exist. Every
         // other failure keeps review closed, never as an empty inventory.
-        if (gitExitCode(error) !== 1) {
+        // Only git's own exit says "no names": a foreign failure with a
+        // numeric code is not this inventory's to empty.
+        if (!isGitExitError(error) || gitExitCode(error) !== 1) {
           throw error
         }
         output = ''

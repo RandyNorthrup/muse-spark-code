@@ -7,6 +7,7 @@
 // the answer is text only, parsed by the caller like a command's.
 
 import { mkdir } from 'node:fs/promises'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { AgentHost, AgentSession, TurnSubmission } from '../../core/agent/agentBackend'
 import { FifoLimiter } from '../../core/fifoLimiter'
 import type { CoreLogger } from '../../core/logging'
@@ -253,9 +254,7 @@ export class MuseCodeHookModels {
     void session
       .cancel()
       .catch((error: unknown) => {
-        this.deps.log.warn(
-          `Stopping a hook's side turn failed: ${this.deps.describeFailure(error)}`,
-        )
+        this.deps.log.warn(`Stopping a hook's side turn failed: ${failureForLog(error)}`)
       })
       .finally(() => {
         session.dispose()
@@ -285,7 +284,15 @@ export class MuseCodeHookModels {
           } catch (error: unknown) {
             if (!job.signal.aborted && !this.isDisposed) {
               this.deps.log.warn(
-                `A hook could not ask the model; the hook fails: ${this.deps.describeFailure(error)}`,
+                `A hook could not ask the model; the hook fails: ${failureForLog(error)}`,
+              )
+            } else if (!job.signal.aborted) {
+              // The window closed meanwhile: nobody is told, but the
+              // failure is still recorded, with words that say so. An
+              // abort means nobody waits on it any more: it counts for
+              // nothing.
+              this.deps.log.warn(
+                `A hook could not ask the model after its window closed; the hook fails: ${failureForLog(error)}`,
               )
             }
             return
@@ -294,7 +301,17 @@ export class MuseCodeHookModels {
         () => !job.signal.aborted && !this.isDisposed,
         () => new Error('the hooked run no longer waits on its hook turn'),
       )
-    } catch {
+    } catch (error: unknown) {
+      // The queue drops a turn nobody waits on (an abort) or after the
+      // window closed; anything else is not this queue's to swallow.
+      if (job.signal.aborted) {
+        return undefined
+      }
+      if (this.isDisposed) {
+        this.deps.log.info('A hook turn ended with its window closed; the hook fails')
+        return undefined
+      }
+      this.deps.log.warn(`A hook turn failed in its queue: ${failureForLog(error)}`)
       return undefined
     }
   }
